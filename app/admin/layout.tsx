@@ -10,12 +10,12 @@ import {
   Database,
   Headphones,
   LogOut,
-  PlaneTakeoff,
   ChevronDown,
   Building2,
   Moon,
   Plane,
 } from "lucide-react"
+import { TunisiaGoLogo } from "@/components/tunisia-go-logo"
 import {
   Sidebar,
   SidebarContent,
@@ -120,14 +120,11 @@ export default function AdminLayout({
       <Sidebar className="border-r border-border">
         <SidebarHeader className="border-b border-border px-4 py-4">
           <Link href="/admin" className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-[#1e3a5f]">
-              <PlaneTakeoff className="size-5 text-white" />
-            </div>
+            <TunisiaGoLogo className="size-10" />
             <div className="flex flex-col">
               <span className="text-lg font-bold">
-                <span className="text-[#1e3a5f]">Easy</span>
-                <span className="text-[#e5b94e]">2</span>
-                <span className="text-[#1e3a5f]">Book</span>
+                <span className="text-[#1e3a5f]">Tunisia</span>
+                <span className="text-[#e5b94e]">Go</span>
               </span>
               <span className="text-xs text-muted-foreground">Backoffice</span>
             </div>
@@ -202,7 +199,7 @@ export default function AdminLayout({
                 </Avatar>
                 <div className="flex flex-col items-start">
                   <span className="text-sm font-medium">Admin</span>
-                  <span className="text-xs text-muted-foreground">admin@easy2book.tn</span>
+                  <span className="text-xs text-muted-foreground">admin@tunisiago.tn</span>
                 </div>
               </SidebarMenuButton>
             </SidebarMenuItem>

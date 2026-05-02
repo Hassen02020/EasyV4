@@ -1,5 +1,5 @@
 import { ShieldCheck, Phone, CheckCircle, Building2, Facebook, Instagram, Linkedin } from "lucide-react"
-import Image from "next/image"
+import { TunisiaGoLogo } from "@/components/tunisia-go-logo"
 
 const trustBadges = [
   {
@@ -9,7 +9,7 @@ const trustBadges = [
   },
   {
     icon: Phone,
-    title: "Support Client 7j/7",
+    title: "Support Local 7j/7",
     description: "+216 98 140 514",
   },
   {
@@ -20,7 +20,7 @@ const trustBadges = [
   {
     icon: Building2,
     title: "Agence Physique",
-    description: "Tunis, Tunisie",
+    description: "À Tunis",
   },
 ]
 
@@ -64,17 +64,10 @@ export function Footer() {
             {/* Brand */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Image
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/IMG-20251114-WA0025-EuDkN9RXSmMocH0MBMWmAL5fpPoOrR.jpg"
-                  alt="Easy2Book"
-                  width={40}
-                  height={40}
-                  className="object-contain bg-white rounded-lg p-1"
-                />
+                <TunisiaGoLogo className="size-10 bg-white rounded-lg p-1" />
                 <span className="text-xl font-bold">
-                  <span className="text-white">Easy</span>
-                  <span className="text-[#e5b94e]">2</span>
-                  <span className="text-white">Book</span>
+                  <span className="text-white">Tunisia</span>
+                  <span className="text-[#e5b94e]">Go</span>
                 </span>
               </div>
               <p className="text-sm text-white/70 max-w-xs">
@@ -106,7 +99,9 @@ export function Footer() {
                 <li><a href="#" className="hover:text-white transition-colors">Hôtels Tunisie (MyGo)</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Hôtels Monde</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Omraty</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Voyages Organisés</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Transferts</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Location de voiture</a></li>
               </ul>
             </div>
 
@@ -167,7 +162,7 @@ export function Footer() {
       <div className="bg-[#0f2237]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <p className="text-center text-xs text-white/50">
-            © 2026 Easy2Book. Tous droits réservés. Agence de voyage agréée en Tunisie.
+            © 2026 TunisiaGo. Tous droits réservés. Agence de voyage agréée en Tunisie.
           </p>
         </div>
       </div>

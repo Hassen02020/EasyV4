@@ -1,7 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { Plane, Building2, Globe, Moon, Bus, MapPin, CalendarDays } from "lucide-react"
+import { toast } from "sonner"
+import {
+  Plane,
+  Building2,
+  Globe,
+  Moon,
+  Briefcase,
+  Bus,
+  Car,
+  MapPin,
+  CalendarDays,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -19,20 +30,33 @@ const tabs = [
   { id: "hotels-tunisie", label: "Hôtels Tunisie", icon: Building2 },
   { id: "hotels-monde", label: "Hôtels Monde", icon: Globe },
   { id: "omraty", label: "Omraty", icon: Moon },
+  { id: "voyages-organises", label: "Voyages Organisés", icon: Briefcase },
   { id: "transferts", label: "Transferts", icon: Bus },
-]
+  { id: "car", label: "Car", icon: Car },
+] as const
+
+type TabId = (typeof tabs)[number]["id"]
+
+// Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
+const HERO_BG_URL =
+  "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
+
+function notifyComingSoon(module: string) {
+  toast.info(`Recherche ${module} bientôt disponible`, {
+    description:
+      "Le moteur de recherche sera connecté à l'API correspondante prochainement.",
+  })
+}
 
 export function BookingEngine() {
-  const [activeTab, setActiveTab] = useState("hotels-tunisie")
+  const [activeTab, setActiveTab] = useState<TabId>("vols")
 
   return (
     <div className="relative">
       {/* Hero Background */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: "url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/IMG-20260501-WA0041-eEioL2VOvdD4Q0y1vNh5nTWdB55XSO.jpg')",
-        }}
+        style={{ backgroundImage: `url('${HERO_BG_URL}')` }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-[#1e3a5f]/20 via-transparent to-[#1e3a5f]/40" />
       </div>
@@ -44,15 +68,18 @@ export function BookingEngine() {
           <div className="flex overflow-x-auto border-b border-border">
             {tabs.map((tab) => {
               const Icon = tab.icon
+              const isActive = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 min-w-[80px] flex flex-col items-center gap-1.5 py-4 px-2 sm:px-3 text-sm font-medium transition-colors border-b-2 ${
-                    activeTab === tab.id
+                  className={`flex-1 min-w-[88px] flex flex-col items-center gap-1.5 py-4 px-2 sm:px-3 text-sm font-medium transition-colors border-b-2 ${
+                    isActive
                       ? "border-[#e5b94e] text-[#1e3a5f] bg-[#1e3a5f]/5"
                       : "border-transparent text-muted-foreground hover:text-[#1e3a5f] hover:bg-muted/50"
                   }`}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   <Icon className="size-5" />
                   <span className="whitespace-nowrap text-xs sm:text-sm">{tab.label}</span>
@@ -67,7 +94,9 @@ export function BookingEngine() {
             {activeTab === "hotels-tunisie" && <HotelsTunisieSearch />}
             {activeTab === "hotels-monde" && <HotelsMondeForm />}
             {activeTab === "omraty" && <OmratyForm />}
+            {activeTab === "voyages-organises" && <VoyagesOrganisesForm />}
             {activeTab === "transferts" && <TransfertsForm />}
+            {activeTab === "car" && <CarForm />}
           </div>
         </div>
       </div>
@@ -75,44 +104,64 @@ export function BookingEngine() {
   )
 }
 
+// ----------------------------------------------------------------------------
+// Shared form atoms
+// ----------------------------------------------------------------------------
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="text-xs text-muted-foreground font-medium">{children}</label>
+  )
+}
+
+function SearchSubmit({ children = "RECHERCHER" }: { children?: React.ReactNode }) {
+  return (
+    <Button
+      type="submit"
+      className="w-full sm:w-auto px-8 text-base font-semibold bg-orange-500 hover:bg-orange-600 rounded-xl"
+    >
+      {children}
+    </Button>
+  )
+}
+
+// ----------------------------------------------------------------------------
+// Per-module forms (visual only — RECHERCHER triggers a toast)
+// ----------------------------------------------------------------------------
+
 function VolsForm() {
   return (
-    <div className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        notifyComingSoon("Vols")
+      }}
+      className="space-y-4"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Départ de</label>
+          <FieldLabel>Départ de</FieldLabel>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input 
-              placeholder="Tunis (TUN)" 
-              defaultValue="Tunis (TUN)"
-              className="pl-9 rounded-xl"
-            />
+            <Input defaultValue="Tunis (TUN)" className="pl-9 rounded-xl" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Destination</label>
+          <FieldLabel>Destination</FieldLabel>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input 
-              placeholder="Istanbul (IST)"
-              defaultValue="Istanbul (IST)"
-              className="pl-9 rounded-xl"
-            />
+            <Input defaultValue="Istanbul (IST)" className="pl-9 rounded-xl" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Dates</label>
+          <FieldLabel>Dates</FieldLabel>
           <div className="relative">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input 
-              placeholder="Choisir les dates"
-              className="pl-9 rounded-xl"
-            />
+            <Input placeholder="Choisir les dates" className="pl-9 rounded-xl" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Classe</label>
+          <FieldLabel>Classe</FieldLabel>
           <Select defaultValue="economique">
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Classe" />
@@ -127,39 +176,43 @@ function VolsForm() {
       </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
         <div className="flex items-center gap-2">
-          <Checkbox id="flexible" />
-          <label htmlFor="flexible" className="text-sm text-muted-foreground cursor-pointer">
+          <Checkbox id="vols-flexible" />
+          <label htmlFor="vols-flexible" className="text-sm text-muted-foreground cursor-pointer">
             Comparer avec les prix flexibles
           </label>
         </div>
-        <Button className="w-full sm:w-auto px-8 text-base font-semibold bg-orange-500 hover:bg-orange-600 rounded-xl">
-          RECHERCHER
-        </Button>
+        <SearchSubmit />
       </div>
-    </div>
+    </form>
   )
 }
 
 function HotelsMondeForm() {
   return (
-    <div className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        notifyComingSoon("Hôtels Monde")
+      }}
+      className="space-y-4"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-1.5 lg:col-span-2">
-          <label className="text-xs text-muted-foreground font-medium">Destination mondiale</label>
+          <FieldLabel>Destination mondiale</FieldLabel>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input placeholder="Ville, hôtel ou aéroport" className="pl-9 rounded-xl" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Check-in</label>
+          <FieldLabel>Check-in</FieldLabel>
           <div className="relative">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input placeholder="Date d'arrivée" className="pl-9 rounded-xl" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Check-out</label>
+          <FieldLabel>Check-out</FieldLabel>
           <div className="relative">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input placeholder="Date de départ" className="pl-9 rounded-xl" />
@@ -167,20 +220,24 @@ function HotelsMondeForm() {
         </div>
       </div>
       <div className="flex justify-end pt-2">
-        <Button className="w-full sm:w-auto px-8 text-base font-semibold bg-orange-500 hover:bg-orange-600 rounded-xl">
-          RECHERCHER
-        </Button>
+        <SearchSubmit />
       </div>
-    </div>
+    </form>
   )
 }
 
 function OmratyForm() {
   return (
-    <div className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        notifyComingSoon("Omraty")
+      }}
+      className="space-y-4"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Programme</label>
+          <FieldLabel>Programme</FieldLabel>
           <Select defaultValue="economique">
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Sélectionner" />
@@ -193,7 +250,7 @@ function OmratyForm() {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Mois de départ</label>
+          <FieldLabel>Mois de départ</FieldLabel>
           <Select>
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Choisir le mois" />
@@ -207,7 +264,7 @@ function OmratyForm() {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Distance Haram</label>
+          <FieldLabel>Distance Haram</FieldLabel>
           <Select defaultValue="400">
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Distance" />
@@ -220,7 +277,7 @@ function OmratyForm() {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Type de vol</label>
+          <FieldLabel>Type de vol</FieldLabel>
           <Select defaultValue="direct">
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Type de vol" />
@@ -233,20 +290,94 @@ function OmratyForm() {
         </div>
       </div>
       <div className="flex justify-end pt-2">
-        <Button className="w-full sm:w-auto px-8 text-base font-semibold bg-orange-500 hover:bg-orange-600 rounded-xl">
-          RECHERCHER
-        </Button>
+        <SearchSubmit />
       </div>
-    </div>
+    </form>
+  )
+}
+
+function VoyagesOrganisesForm() {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        notifyComingSoon("Voyages Organisés")
+      }}
+      className="space-y-4"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-1.5">
+          <FieldLabel>Destination</FieldLabel>
+          <Select>
+            <SelectTrigger className="w-full rounded-xl">
+              <SelectValue placeholder="Choisir une destination" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="turquie">Turquie</SelectItem>
+              <SelectItem value="egypte">Égypte</SelectItem>
+              <SelectItem value="dubai">Dubaï</SelectItem>
+              <SelectItem value="malaisie">Malaisie</SelectItem>
+              <SelectItem value="thailande">Thaïlande</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <FieldLabel>Période</FieldLabel>
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input placeholder="Choisir la période" className="pl-9 rounded-xl" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <FieldLabel>Durée</FieldLabel>
+          <Select defaultValue="7">
+            <SelectTrigger className="w-full rounded-xl">
+              <SelectValue placeholder="Durée" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3 jours / 2 nuits</SelectItem>
+              <SelectItem value="5">5 jours / 4 nuits</SelectItem>
+              <SelectItem value="7">7 jours / 6 nuits</SelectItem>
+              <SelectItem value="10">10 jours / 9 nuits</SelectItem>
+              <SelectItem value="14">14 jours / 13 nuits</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <FieldLabel>Voyageurs</FieldLabel>
+          <Select defaultValue="2">
+            <SelectTrigger className="w-full rounded-xl">
+              <SelectValue placeholder="Voyageurs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1 Voyageur</SelectItem>
+              <SelectItem value="2">2 Voyageurs</SelectItem>
+              <SelectItem value="3">3 Voyageurs</SelectItem>
+              <SelectItem value="4">4 Voyageurs</SelectItem>
+              <SelectItem value="5">5+ Voyageurs</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex justify-end pt-2">
+        <SearchSubmit />
+      </div>
+    </form>
   )
 }
 
 function TransfertsForm() {
   return (
-    <div className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        notifyComingSoon("Transferts")
+      }}
+      className="space-y-4"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Lieu de prise en charge</label>
+          <FieldLabel>Lieu de prise en charge</FieldLabel>
           <Select>
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Aéroport / Port" />
@@ -260,21 +391,21 @@ function TransfertsForm() {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Lieu de dépose</label>
+          <FieldLabel>Lieu de dépose</FieldLabel>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input placeholder="Hôtel ou adresse" className="pl-9 rounded-xl" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Date et heure</label>
+          <FieldLabel>Date et heure</FieldLabel>
           <div className="relative">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input placeholder="Date d'arrivée" className="pl-9 rounded-xl" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">Passagers</label>
+          <FieldLabel>Passagers</FieldLabel>
           <Select defaultValue="2">
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Passagers" />
@@ -290,10 +421,76 @@ function TransfertsForm() {
         </div>
       </div>
       <div className="flex justify-end pt-2">
-        <Button className="w-full sm:w-auto px-8 text-base font-semibold bg-orange-500 hover:bg-orange-600 rounded-xl">
-          RECHERCHER
-        </Button>
+        <SearchSubmit />
       </div>
-    </div>
+    </form>
+  )
+}
+
+function CarForm() {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        notifyComingSoon("Location de voiture")
+      }}
+      className="space-y-4"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-1.5">
+          <FieldLabel>Lieu de prise en charge</FieldLabel>
+          <Select>
+            <SelectTrigger className="w-full rounded-xl">
+              <SelectValue placeholder="Aéroport ou ville" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tunis-airport">Aéroport Tunis-Carthage</SelectItem>
+              <SelectItem value="enfidha">Aéroport Enfidha</SelectItem>
+              <SelectItem value="djerba-airport">Aéroport Djerba</SelectItem>
+              <SelectItem value="hammamet">Hammamet centre</SelectItem>
+              <SelectItem value="sousse">Sousse centre</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <FieldLabel>Date de prise</FieldLabel>
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input placeholder="Choisir la date" className="pl-9 rounded-xl" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <FieldLabel>Date de retour</FieldLabel>
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input placeholder="Choisir la date" className="pl-9 rounded-xl" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <FieldLabel>Catégorie</FieldLabel>
+          <Select defaultValue="economique">
+            <SelectTrigger className="w-full rounded-xl">
+              <SelectValue placeholder="Catégorie" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="economique">Économique</SelectItem>
+              <SelectItem value="compacte">Compacte</SelectItem>
+              <SelectItem value="berline">Berline</SelectItem>
+              <SelectItem value="suv">SUV</SelectItem>
+              <SelectItem value="luxe">Luxe</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+        <div className="flex items-center gap-2">
+          <Checkbox id="car-driver" />
+          <label htmlFor="car-driver" className="text-sm text-muted-foreground cursor-pointer">
+            Avec chauffeur
+          </label>
+        </div>
+        <SearchSubmit />
+      </div>
+    </form>
   )
 }

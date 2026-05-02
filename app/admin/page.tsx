@@ -191,7 +191,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-[#1e3a5f]">Tableau de bord</h1>
           <p className="text-muted-foreground">
-            Vue d&apos;ensemble de votre activité Easy2Book
+            Vue d&apos;ensemble de votre activité TunisiaGo
           </p>
         </div>
         <Button className="bg-[#1e3a5f] hover:bg-[#1e3a5f]/90">

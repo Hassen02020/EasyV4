@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/button"
 import { MapPin, Calendar, Users, ChevronDown, Search } from "lucide-react"
+import Link from "next/link"
+import { TunisiaGoLogo } from "@/components/tunisia-go-logo"
 
 interface SearchHeaderProps {
   city?: string
@@ -18,12 +20,13 @@ export function SearchHeader({
     <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">E</span>
-            </div>
-            <span className="text-xl font-bold text-foreground hidden sm:block">Easy2Book</span>
-          </div>
+          <Link href="/" className="flex items-center gap-2">
+            <TunisiaGoLogo className="size-9" />
+            <span className="text-xl font-bold hidden sm:block">
+              <span className="text-[#1e3a5f]">Tunisia</span>
+              <span className="text-[#e5b94e]">Go</span>
+            </span>
+          </Link>
 
           <div className="flex-1 max-w-3xl">
             <div className="flex items-center bg-secondary rounded-lg p-1 gap-1">

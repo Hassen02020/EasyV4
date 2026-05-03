@@ -9,6 +9,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, Star } from "lucide-react";
+import type { HotelFacets, HotelFilterState } from "@/lib/mygo/facets";
+import { EMPTY_FILTER_STATE } from "@/lib/mygo/facets";
 
 interface FilterSectionProps {
   title: string;
@@ -36,7 +38,7 @@ function FilterSection({ title, defaultOpen = true, children }: FilterSectionPro
 
 interface CheckboxItemProps {
   id: string;
-  label: string;
+  label: React.ReactNode;
   count: number;
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
@@ -45,16 +47,16 @@ interface CheckboxItemProps {
 function CheckboxItem({ id, label, count, checked, onCheckedChange }: CheckboxItemProps) {
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      <div className="flex items-center gap-2 min-w-0">
+        <Checkbox id={id} checked={checked} onCheckedChange={(v) => onCheckedChange?.(Boolean(v))} />
         <label
           htmlFor={id}
-          className="text-sm text-foreground cursor-pointer hover:text-primary transition-colors"
+          className="text-sm text-foreground cursor-pointer hover:text-primary transition-colors truncate"
         >
           {label}
         </label>
       </div>
-      <span className="text-sm text-muted-foreground">({count})</span>
+      <span className="text-sm text-muted-foreground shrink-0">({count})</span>
     </div>
   );
 }
@@ -69,131 +71,172 @@ function StarRating({ stars }: { stars: number }) {
   );
 }
 
-export function FilterSidebar() {
-  const [priceRange, setPriceRange] = useState([50, 300]);
+interface FilterSidebarProps {
+  facets: HotelFacets | null;
+  state: HotelFilterState;
+  onChange: (next: HotelFilterState) => void;
+  /** Devise (TND par défaut) — affichée en suffixe du curseur de prix. */
+  currency?: string;
+  /** Désactive l'interaction si true (ex. pendant le loading). */
+  disabled?: boolean;
+}
+
+export function FilterSidebar({
+  facets,
+  state,
+  onChange,
+  currency = "TND",
+  disabled = false,
+}: FilterSidebarProps) {
+  const priceMin = facets?.priceMin ?? 0;
+  const priceMax = facets?.priceMax ?? 1000;
+  const currentRange = state.priceRange ?? [priceMin, priceMax];
+
+  const toggleStars = (star: number) => {
+    const next = state.stars.includes(star)
+      ? state.stars.filter((s) => s !== star)
+      : [...state.stars, star];
+    onChange({ ...state, stars: next });
+  };
+  const toggleBoarding = (name: string) => {
+    const next = state.boardings.includes(name)
+      ? state.boardings.filter((b) => b !== name)
+      : [...state.boardings, name];
+    onChange({ ...state, boardings: next });
+  };
+  const toggleFacility = (title: string) => {
+    const next = state.facilities.includes(title)
+      ? state.facilities.filter((f) => f !== title)
+      : [...state.facilities, title];
+    onChange({ ...state, facilities: next });
+  };
+
+  const handleReset = () => onChange(EMPTY_FILTER_STATE);
 
   return (
-    <aside className="bg-card rounded-lg border border-border p-5 sticky top-20">
+    <aside
+      className="bg-card rounded-lg border border-border p-5 sticky top-20"
+      aria-busy={disabled}
+    >
       <h2 className="text-lg font-bold text-primary mb-5">Affinez vos résultats</h2>
 
       <div className="space-y-4">
         {/* Tarifs et disponibilités */}
         <FilterSection title="Tarifs et disponibilités">
-          <CheckboxItem id="recommended" label="Hôtel recommander" count={7} />
-          <CheckboxItem id="promotion" label="Tarifs en promotion" count={21} />
-          <CheckboxItem id="free-child" label="Enfant gratuit" count={1} />
-          <CheckboxItem id="available" label="Disponible seulement" count={39} />
-          <CheckboxItem id="free-cancel" label="Annulation gratuite" count={7} />
+          <CheckboxItem
+            id="recommended"
+            label="Hôtel recommandé"
+            count={facets?.recommendedCount ?? 0}
+            checked={state.recommendedOnly}
+            onCheckedChange={(v) => onChange({ ...state, recommendedOnly: v })}
+          />
+          <CheckboxItem
+            id="available"
+            label="Disponible seulement"
+            count={facets?.availableCount ?? 0}
+            checked={state.availableOnly}
+            onCheckedChange={(v) => onChange({ ...state, availableOnly: v })}
+          />
+          <CheckboxItem
+            id="free-cancel"
+            label="Annulation gratuite"
+            count={facets?.freeCancellationCount ?? 0}
+            checked={state.freeCancellationOnly}
+            onCheckedChange={(v) => onChange({ ...state, freeCancellationOnly: v })}
+          />
         </FilterSection>
 
         {/* Catégorie (Star Rating) */}
-        <FilterSection title="Catégorie">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox id="3-star" />
-                <label htmlFor="3-star" className="cursor-pointer">
-                  <StarRating stars={3} />
-                </label>
-              </div>
-              <span className="text-sm text-muted-foreground">(15)</span>
+        {(facets?.stars.length ?? 0) > 0 && (
+          <FilterSection title="Catégorie">
+            <div className="space-y-3">
+              {facets!.stars.map(({ value, count }) => (
+                <div key={value} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`stars-${value}`}
+                      checked={state.stars.includes(value)}
+                      onCheckedChange={() => toggleStars(value)}
+                    />
+                    <label htmlFor={`stars-${value}`} className="cursor-pointer">
+                      <StarRating stars={value} />
+                    </label>
+                  </div>
+                  <span className="text-sm text-muted-foreground">({count})</span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox id="4-star" />
-                <label htmlFor="4-star" className="cursor-pointer">
-                  <StarRating stars={4} />
-                </label>
-              </div>
-              <span className="text-sm text-muted-foreground">(36)</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox id="5-star" />
-                <label htmlFor="5-star" className="cursor-pointer">
-                  <StarRating stars={5} />
-                </label>
-              </div>
-              <span className="text-sm text-muted-foreground">(16)</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox id="parc" />
-                <label htmlFor="parc" className="text-sm text-foreground cursor-pointer hover:text-primary transition-colors">
-                  Parc d&apos;attraction
-                </label>
-              </div>
-              <span className="text-sm text-muted-foreground">(1)</span>
-            </div>
-          </div>
-        </FilterSection>
+          </FilterSection>
+        )}
 
         {/* Prix par nuit */}
-        <FilterSection title="Prix par nuit">
-          <div className="px-1">
-            <Slider
-              value={priceRange}
-              onValueChange={setPriceRange}
-              min={0}
-              max={500}
-              step={10}
-              className="w-full"
-            />
-            <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-              <span>{priceRange[0]} DT</span>
-              <span>{priceRange[1]}+ DT</span>
+        {priceMax > priceMin && (
+          <FilterSection title={`Prix (${currency})`}>
+            <div className="px-1">
+              <Slider
+                value={[currentRange[0], currentRange[1]]}
+                onValueChange={(values) => {
+                  const [min, max] = values as [number, number];
+                  onChange({ ...state, priceRange: [min, max] });
+                }}
+                min={priceMin}
+                max={priceMax}
+                step={Math.max(10, Math.round((priceMax - priceMin) / 50))}
+                className="w-full"
+                disabled={disabled}
+              />
+              <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+                <span>
+                  {currentRange[0].toLocaleString("fr-FR")} {currency}
+                </span>
+                <span>
+                  {currentRange[1].toLocaleString("fr-FR")} {currency}
+                </span>
+              </div>
             </div>
-          </div>
-        </FilterSection>
+          </FilterSection>
+        )}
 
         {/* Type de pension */}
-        <FilterSection title="Type de pension">
-          <CheckboxItem id="logement" label="Logement Petit Déjeuner" count={45} />
-          <CheckboxItem id="demi-pension" label="Demi Pension" count={38} />
-          <CheckboxItem id="pension-complete" label="Pension Complète" count={28} />
-          <CheckboxItem id="all-inclusive" label="All Inclusive" count={52} />
-          <CheckboxItem id="soft-all" label="Soft All Inclusive" count={18} />
-        </FilterSection>
+        {(facets?.boardings.length ?? 0) > 0 && (
+          <FilterSection title="Type de pension">
+            {facets!.boardings.map(({ name, count }) => (
+              <CheckboxItem
+                key={name}
+                id={`boarding-${name}`}
+                label={name}
+                count={count}
+                checked={state.boardings.includes(name)}
+                onCheckedChange={() => toggleBoarding(name)}
+              />
+            ))}
+          </FilterSection>
+        )}
 
         {/* Équipements */}
-        <FilterSection title="Équipements">
-          <CheckboxItem id="pool" label="Piscine" count={45} />
-          <CheckboxItem id="beach" label="Bord de Mer" count={32} />
-          <CheckboxItem id="spa" label="Centre de Thalasso" count={18} />
-          <CheckboxItem id="wifi" label="Wi-Fi gratuit" count={67} />
-          <CheckboxItem id="parking" label="Parking" count={54} />
-          <CheckboxItem id="gym" label="Salle de sport" count={28} />
-        </FilterSection>
-
-        {/* Convient pour */}
-        <FilterSection title="Convient pour">
-          <CheckboxItem id="famille" label="Famille" count={42} />
-          <CheckboxItem id="couple" label="Couple" count={38} />
-          <CheckboxItem id="business" label="Voyage d'affaires" count={15} />
-          <CheckboxItem id="groupe" label="Groupe" count={22} />
-        </FilterSection>
-
-        {/* Activités */}
-        <FilterSection title="Activités" defaultOpen={false}>
-          <CheckboxItem id="water-park" label="Parc aquatique" count={12} />
-          <CheckboxItem id="mini-club" label="Mini Club" count={28} />
-          <CheckboxItem id="animation" label="Animation" count={35} />
-          <CheckboxItem id="golf" label="Golf" count={8} />
-          <CheckboxItem id="tennis" label="Tennis" count={14} />
-        </FilterSection>
-
-        {/* Zone */}
-        <FilterSection title="Zone" defaultOpen={false}>
-          <CheckboxItem id="hammamet-nord" label="Hammamet Nord" count={18} />
-          <CheckboxItem id="hammamet-sud" label="Hammamet Sud" count={22} />
-          <CheckboxItem id="yasmine" label="Yasmine Hammamet" count={15} />
-          <CheckboxItem id="nabeul" label="Nabeul" count={8} />
-          <CheckboxItem id="cap-bon" label="Cap Bon" count={5} />
-        </FilterSection>
+        {(facets?.facilities.length ?? 0) > 0 && (
+          <FilterSection title="Équipements" defaultOpen={false}>
+            {facets!.facilities.map(({ title, count }) => (
+              <CheckboxItem
+                key={title}
+                id={`facility-${title}`}
+                label={title}
+                count={count}
+                checked={state.facilities.includes(title)}
+                onCheckedChange={() => toggleFacility(title)}
+              />
+            ))}
+          </FilterSection>
+        )}
       </div>
 
       {/* Reset Filters Button */}
-      <button className="w-full mt-5 py-2.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors">
+      <button
+        type="button"
+        onClick={handleReset}
+        className="w-full mt-5 py-2.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors disabled:opacity-50"
+        disabled={disabled}
+      >
         Réinitialiser les filtres
       </button>
     </aside>

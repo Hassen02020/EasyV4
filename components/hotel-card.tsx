@@ -44,7 +44,14 @@ interface HotelCardProps {
     mealOptions?: string[];
     rooms?: RoomOption[];
   };
+  currency?: string;
   onBook?: (mealPlan: string, room?: RoomOption) => void;
+  onViewDetails?: () => void;
+}
+
+function formatMoney(amount: number, currency = "TND"): string {
+  const value = Math.round(amount).toLocaleString("fr-FR");
+  return `${value} ${currency}`;
 }
 
 const amenityIcons: Record<string, React.ReactNode> = {
@@ -54,7 +61,7 @@ const amenityIcons: Record<string, React.ReactNode> = {
   Spa: <Sparkles className="w-4 h-4" />,
 };
 
-export function HotelCard({ hotel, onBook }: HotelCardProps) {
+export function HotelCard({ hotel, currency = "TND", onBook, onViewDetails }: HotelCardProps) {
   const [currentImage, setCurrentImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [selectedMealPlan, setSelectedMealPlan] = useState(0);
@@ -149,13 +156,14 @@ export function HotelCard({ hotel, onBook }: HotelCardProps) {
               </div>
             </div>
 
-            <a
-              href="#"
+            <button
+              type="button"
+              onClick={onViewDetails}
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline mb-3"
             >
               <MapPin className="w-3.5 h-3.5 text-amber-500" />
               {hotel.location}
-            </a>
+            </button>
 
             {/* Tags */}
             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -191,23 +199,33 @@ export function HotelCard({ hotel, onBook }: HotelCardProps) {
             )}
             
             <div className="text-right">
-              <p className="text-xs text-muted-foreground mb-1">from</p>
+              <p className="text-xs text-muted-foreground mb-1">À partir de</p>
               <div className="flex items-baseline gap-1 justify-end">
-                <span className="text-2xl font-bold text-primary">${hotel.discountedPrice}</span>
-                {hotel.discountPercent > 0 && (
-                  <span className="text-xs text-destructive font-semibold">DT</span>
-                )}
+                <span className="text-2xl font-bold text-primary">
+                  {formatMoney(hotel.discountedPrice, currency)}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{mealOptions[selectedMealPlan]}</p>
             </div>
 
-            <Button 
-              className="w-full mt-3 gap-1"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              Rates & Rooms
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </Button>
+            <div className="w-full mt-3 flex flex-col gap-2">
+              {onViewDetails && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={onViewDetails}
+                >
+                  Voir détails
+                </Button>
+              )}
+              <Button
+                className="w-full gap-1"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                Tarifs & chambres
+                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -238,7 +256,7 @@ export function HotelCard({ hotel, onBook }: HotelCardProps) {
         <div className="border-t border-border bg-card">
           {/* Room Header */}
           <div className="px-4 py-3 bg-muted/30 border-b border-border">
-            <h4 className="font-semibold text-foreground">Room 1: 2 adults</h4>
+            <h4 className="font-semibold text-foreground">Chambre 1 : 2 adultes</h4>
           </div>
 
           {/* Room Options */}
@@ -263,21 +281,23 @@ export function HotelCard({ hotel, onBook }: HotelCardProps) {
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded">
-                        Free cancellation before {room.freeCancellationDate}
+                        Annulation gratuite avant le {room.freeCancellationDate}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded ${
                         room.available 
                           ? "bg-muted text-muted-foreground" 
                           : "bg-amber-100 text-amber-700"
                       }`}>
-                        {room.available ? "Available" : "On Request"}
+                        {room.available ? "Disponible" : "Sur demande"}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-lg font-bold text-primary">{room.price.toLocaleString()}</span>
-                  <span className="text-xs text-muted-foreground ml-1">DT</span>
+                  <span className="text-lg font-bold text-primary">
+                    {room.price.toLocaleString("fr-FR")}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">{currency}</span>
                 </div>
               </button>
             ))}
@@ -293,7 +313,7 @@ export function HotelCard({ hotel, onBook }: HotelCardProps) {
               disabled={!selectedRoom}
               className="gap-2"
             >
-              Book Now
+              Réserver
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>

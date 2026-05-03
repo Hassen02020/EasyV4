@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:mygo": "node --import tsx --test lib/mygo/__tests__/mappers.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -70,6 +71,7 @@
     "eslint-config-next": "^16.2.4",
     "postcss": "^8.5",
     "tailwindcss": "^4.2.0",
+    "tsx": "^4.21.0",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3"
   }

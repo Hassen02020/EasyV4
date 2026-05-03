@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
 // ============================================================================
-// Types matching MyGo API Schema
+// Types matching MyGo API Schema (le client myGo expose `/api/hotels/cities`)
 // ============================================================================
 
 interface City {
@@ -57,22 +57,14 @@ interface HotelSearchRequest {
 }
 
 // ============================================================================
-// Mock Cities Data (to be replaced by API ListCity)
+// Static fallback (utilisé si /api/hotels/cities est indisponible)
+// Les ids ne correspondent PAS à ceux myGo et ne servent que pour offline preview.
 // ============================================================================
 
-const TUNISIA_CITIES: City[] = [
-  { id: 1, name: "Hammamet", region: "Cap Bon" },
-  { id: 2, name: "Sousse", region: "Sahel" },
-  { id: 3, name: "Djerba", region: "Sud" },
-  { id: 4, name: "Monastir", region: "Sahel" },
-  { id: 5, name: "Tunis", region: "Grand Tunis" },
-  { id: 6, name: "Mahdia", region: "Sahel" },
-  { id: 7, name: "Tabarka", region: "Nord-Ouest" },
-  { id: 8, name: "Tozeur", region: "Sud-Ouest" },
-  { id: 9, name: "Bizerte", region: "Nord" },
-  { id: 10, name: "Nabeul", region: "Cap Bon" },
-  { id: 11, name: "Sfax", region: "Sud" },
-  { id: 12, name: "Kairouan", region: "Centre" },
+const TUNISIA_CITIES_FALLBACK: City[] = [
+  { id: 10, name: "Hammamet", region: "Cap Bon" },
+  { id: 11, name: "Nabeul", region: "Cap Bon" },
+  { id: 17, name: "Kairouan", region: "Centre" },
 ]
 
 const STAR_OPTIONS = [
@@ -107,6 +99,49 @@ export function HotelsTunisieSearch() {
   const [onlyAvailable, setOnlyAvailable] = useState(true)
   const [selectedStars, setSelectedStars] = useState<number[]>([])
   const [starsPopoverOpen, setStarsPopoverOpen] = useState(false)
+
+  // Cities (fetched from /api/hotels/cities backed by myGo ListCity)
+  type CityFetchState = {
+    cities: City[]
+    loading: boolean
+    error: string | null
+  }
+  const [cityFetch, setCityFetch] = useState<CityFetchState>({
+    cities: TUNISIA_CITIES_FALLBACK,
+    loading: true,
+    error: null,
+  })
+
+  useEffect(() => {
+    const ctrl = new AbortController()
+    fetch("/api/hotels/cities", { signal: ctrl.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json() as Promise<{ cities: City[] }>
+      })
+      .then((data) => {
+        const fetched = Array.isArray(data?.cities) ? data.cities : []
+        setCityFetch({
+          cities: fetched.length > 0 ? fetched : TUNISIA_CITIES_FALLBACK,
+          loading: false,
+          error: null,
+        })
+      })
+      .catch((err: unknown) => {
+        if ((err as { name?: string }).name === "AbortError") return
+        setCityFetch((prev) => ({
+          cities: prev.cities,
+          loading: false,
+          error:
+            err instanceof Error ? err.message : "Impossible de charger les villes",
+        }))
+      })
+    return () => ctrl.abort()
+  }, [])
+
+  const cities = cityFetch.cities
+  const citiesLoading = cityFetch.loading
+  const citiesError = cityFetch.error
 
   // Build the API request object
   const buildSearchRequest = useCallback((): HotelSearchRequest | null => {
@@ -238,9 +273,15 @@ export function HotelsTunisieSearch() {
               <Command>
                 <CommandInput placeholder="Rechercher une ville..." />
                 <CommandList>
-                  <CommandEmpty>Aucune ville trouvée.</CommandEmpty>
+                  <CommandEmpty>
+                    {citiesLoading
+                      ? "Chargement..."
+                      : citiesError
+                        ? `Erreur de chargement (${citiesError})`
+                        : "Aucune ville trouvée."}
+                  </CommandEmpty>
                   <CommandGroup heading="Zones touristiques">
-                    {TUNISIA_CITIES.map((city) => (
+                    {cities.map((city) => (
                       <CommandItem
                         key={city.id}
                         value={`${city.name} ${city.region || ""}`}

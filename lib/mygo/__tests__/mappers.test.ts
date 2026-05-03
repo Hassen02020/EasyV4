@@ -22,6 +22,7 @@ import {
   HotelSearchResponse,
 } from "../schemas"
 import {
+  dedupeOffersByHotelId,
   isRealHotelOffer,
   lowestPrice,
   mapBoarding,
@@ -31,6 +32,7 @@ import {
   mapHotelOffer,
   mapTag,
 } from "../mappers"
+import type { HotelOfferDTO } from "../types"
 
 const FIX_DIR = join(__dirname, "..", "__fixtures__")
 const readFixture = (name: string) =>
@@ -139,6 +141,53 @@ test("Filtre les offres non-hôtelières du résultat global", () => {
   // Réduit le bruit (en pratique on garde > 50 offres sur 75)
   assert.ok(realHotels.length >= 50, `kept ${realHotels.length} real hotels`)
   assert.ok(realHotels.length < items.length, "filtered some non-hotel items")
+})
+
+test("dedupeOffersByHotelId: keeps best entry, merges boardings", () => {
+  const baseOffer = (
+    id: number,
+    name: string,
+    stars: number | undefined,
+    fromPrice: number,
+    boardingNames: string[],
+  ): HotelOfferDTO => ({
+    hotel: {
+      id,
+      name,
+      stars,
+      facilities: [],
+      themes: [],
+    },
+    token: `tok-${id}-${stars ?? "na"}`,
+    currency: "TND",
+    fromPrice,
+    recommended: false,
+    boardings: boardingNames.map((n, idx) => ({
+      id: idx,
+      code: n.slice(0, 3).toUpperCase(),
+      name: n,
+      pax: [],
+    })),
+  })
+
+  const offers: HotelOfferDTO[] = [
+    baseOffer(44, "Houda Yasmine Marina & Spa", 4, 1450, ["Demi Pension"]),
+    baseOffer(44, "Houda Yasmine Marina & Spa ", undefined, 1500, [
+      "Soft All Inclusive",
+    ]),
+    baseOffer(16, "Le Royal Hammamet", 5, 1570, ["Logement Petit Déjeuner"]),
+    baseOffer(67, "The Russelior Hotel & Spa", 5, 1776, ["Logement Petit Déjeuner"]),
+  ]
+  const deduped = dedupeOffersByHotelId(offers)
+  assert.equal(deduped.length, 3, "expects 1 entry per hotel id")
+  const houda = deduped.find((o) => o.hotel.id === 44)!
+  // The 4★ entry wins over the 0★ duplicate
+  assert.equal(houda.hotel.stars, 4)
+  // Boardings are merged from both duplicates
+  const boardingNames = houda.boardings.map((b) => b.name).sort()
+  assert.deepEqual(boardingNames, ["Demi Pension", "Soft All Inclusive"])
+  // Lowest price across both entries
+  assert.equal(houda.fromPrice, 1450)
 })
 
 test("Auth error response is captured in ErrorMessage object", () => {

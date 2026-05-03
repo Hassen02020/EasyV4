@@ -7,7 +7,12 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { getMyGoClient, isRealHotelOffer, mapHotelOffer } from "@/lib/mygo"
+import {
+  getMyGoClient,
+  isRealHotelOffer,
+  mapHotelOffer,
+  dedupeOffersByHotelId,
+} from "@/lib/mygo"
 import { MyGoAuthError, MyGoError } from "@/lib/mygo"
 import type { HotelSearchResultDTO } from "@/lib/mygo/types"
 
@@ -80,7 +85,8 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    const offers = result.hotels.filter(isRealHotelOffer).map(mapHotelOffer)
+    const rawOffers = result.hotels.filter(isRealHotelOffer).map(mapHotelOffer)
+    const offers = dedupeOffersByHotelId(rawOffers)
     const dto: HotelSearchResultDTO = {
       searchId: result.searchId ?? undefined,
       count: offers.length,

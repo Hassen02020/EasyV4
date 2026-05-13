@@ -1,0 +1,12 @@
+node_modules
+.next
+.vercel
+out
+build
+dist
+coverage
+pnpm-lock.yaml
+*.log
+drizzle/0000_*.sql
+drizzle/manual/*.sql
+public

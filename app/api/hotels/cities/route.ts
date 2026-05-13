@@ -39,7 +39,10 @@ function mapErrorToResponse(err: unknown): NextResponse {
     )
   }
   return NextResponse.json(
-    { error: "internal", message: err instanceof Error ? err.message : "unknown" },
+    {
+      error: "internal",
+      message: err instanceof Error ? err.message : "unknown",
+    },
     { status: 500 },
   )
 }

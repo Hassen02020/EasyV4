@@ -91,12 +91,12 @@ function HotelSearchContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <SearchHeader city={cityName} dateRange={dateRange} paxLabel={paxLabel} />
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="w-full lg:w-1/4 shrink-0">
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <div className="w-full shrink-0 lg:w-1/4">
             <FilterSidebar
               facets={facets}
               state={filters}
@@ -129,7 +129,7 @@ function HotelSearchContent() {
 
 export default function HotelSearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+    <Suspense fallback={<div className="bg-background min-h-screen" />}>
       <HotelSearchContent />
     </Suspense>
   )

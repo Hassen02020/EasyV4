@@ -1,1 +1,65 @@
-{"HotelDetail":{"Id":646,"Name":"Yocca Hotel Residence (Lella Halima)","Category":{"Title":"4 \u00e9toiles","Star":4},"City":{"Id":10,"Name":"Hammamet","Country":"Tunisie"},"Email":"booking@yoccahotelresidence.com","Phone":"72 226 290","ShortDescription":"\u003Cspan style=\u0022font-size:14px;\u0022\u003ESi le client souhaite b\u0026eacute;n\u0026eacute;ficier du mat\u0026eacute;riel de cuisine, une caution de 150 DT sera exig\u0026eacute;e\u003C\/span\u003E","LongDescription":"\u003Cspan style=\u0022color: rgb(5, 5, 5); font-family: \u0026quot;Segoe UI Historic\u0026quot;, \u0026quot;Segoe UI\u0026quot;, Helvetica, Arial, sans-serif; font-size: 15px; text-align: center;\u0022\u003EHotel Lella Halima Residency est situ\u0026eacute; \u0026agrave; proximit\u0026eacute; d\u0026#39;une superbe plage de sable fin de Hammamet Sud. L\u0026rsquo;h\u0026ocirc;tel met \u0026agrave; la disposition de ses invit\u0026eacute;s des appartements spacieux et confortables dans un cadre familial et chaleureux.\u003C\/span\u003E","Adress":"Avenue Moncef Bey, Hammamet Sud 8050","Localization":{"Longitude":"36.39904","Latitude":"10.56310"},"CheckIn":"14:00","CheckOut":"12:00","Type":"H\u00f4tel","Image":"https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima%204.jpg","Album":[{"Url":"https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima%205.jpg","Alt":null},{"Url":"https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima%201.jpg","Alt":null},{"Url":"https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima.jpg","Alt":null}],"Option":[{"Id":5,"Title":"Si possible, Arriv\u00e9e Tardive."},{"Id":6,"Title":"Si possible, Chambres Communicantes"},{"Id":7,"Title":"Si possible, Chambres C\u00f4te \u00e0 C\u00f4te"},{"Id":10,"Title":"Si possible, Grand lit"},{"Id":12,"Title":"Traitement VIP"}],"Boarding":[{"Id":3,"Code":"LS","Name":"Logement Simple","Description":null},{"Id":4,"Code":"LPD","Name":"Logement Petit D\u00e9jeuner","Description":"Logement + Petit d\u00e9jeuner"}],"Theme":["Famille","Week-end","Charme","Tourisme"],"Note":"\u003Cp\u003EUne taxe de s\u0026eacute;jour est \u0026agrave; payer \u0026agrave; l\u0026#39;h\u0026ocirc;tel pour tous les clients quelques soit leurs nationalit\u0026eacute;s (\u0026acirc;g\u0026eacute;s plus de 12 ans). Le montant est calcul\u0026eacute; en fonction de la loi en vigueur.\u003C\/p\u003E\r\n\r\n\u003Cp\u003ECaution sur l\u0026#39;appartement : 150 TND par s\u0026eacute;jour (per\u0026ccedil;u \u0026agrave; l\u0026#39;arriv\u0026eacute;e du client et rendu le jour du d\u0026eacute;part)\u003C\/p\u003E\r\n\r\n\u003Cp\u003EM\u0026eacute;nage payant\u003C\/p\u003E\r\n\r\n\u003Cp\u003EAcc\u0026egrave;s piscine payant\u003C\/p\u003E\r\n"},"ErrorMessage":[],"Timing":{"Begin":{"date":"2026-05-03 08:04:06.441849","timezone_type":3,"timezone":"UTC"},"End":{"date":"2026-05-03 08:04:06.796058","timezone_type":3,"timezone":"UTC"},"Duration":"354 ms"},"Ip":"102.211.211.165"}
+{
+  "HotelDetail": {
+    "Id": 646,
+    "Name": "Yocca Hotel Residence (Lella Halima)",
+    "Category": { "Title": "4 \u00e9toiles", "Star": 4 },
+    "City": { "Id": 10, "Name": "Hammamet", "Country": "Tunisie" },
+    "Email": "booking@yoccahotelresidence.com",
+    "Phone": "72 226 290",
+    "ShortDescription": "\u003Cspan style=\u0022font-size:14px;\u0022\u003ESi le client souhaite b\u0026eacute;n\u0026eacute;ficier du mat\u0026eacute;riel de cuisine, une caution de 150 DT sera exig\u0026eacute;e\u003C\/span\u003E",
+    "LongDescription": "\u003Cspan style=\u0022color: rgb(5, 5, 5); font-family: \u0026quot;Segoe UI Historic\u0026quot;, \u0026quot;Segoe UI\u0026quot;, Helvetica, Arial, sans-serif; font-size: 15px; text-align: center;\u0022\u003EHotel Lella Halima Residency est situ\u0026eacute; \u0026agrave; proximit\u0026eacute; d\u0026#39;une superbe plage de sable fin de Hammamet Sud. L\u0026rsquo;h\u0026ocirc;tel met \u0026agrave; la disposition de ses invit\u0026eacute;s des appartements spacieux et confortables dans un cadre familial et chaleureux.\u003C\/span\u003E",
+    "Adress": "Avenue Moncef Bey, Hammamet Sud 8050",
+    "Localization": { "Longitude": "36.39904", "Latitude": "10.56310" },
+    "CheckIn": "14:00",
+    "CheckOut": "12:00",
+    "Type": "H\u00f4tel",
+    "Image": "https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima%204.jpg",
+    "Album": [
+      {
+        "Url": "https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima%205.jpg",
+        "Alt": null
+      },
+      {
+        "Url": "https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima%201.jpg",
+        "Alt": null
+      },
+      {
+        "Url": "https:\/\/admin.mygo.co\/file_manager\/source\/photos\/tunisie\/hammamet\/Lella%20Halima\/lella%20halima.jpg",
+        "Alt": null
+      }
+    ],
+    "Option": [
+      { "Id": 5, "Title": "Si possible, Arriv\u00e9e Tardive." },
+      { "Id": 6, "Title": "Si possible, Chambres Communicantes" },
+      { "Id": 7, "Title": "Si possible, Chambres C\u00f4te \u00e0 C\u00f4te" },
+      { "Id": 10, "Title": "Si possible, Grand lit" },
+      { "Id": 12, "Title": "Traitement VIP" }
+    ],
+    "Boarding": [
+      { "Id": 3, "Code": "LS", "Name": "Logement Simple", "Description": null },
+      {
+        "Id": 4,
+        "Code": "LPD",
+        "Name": "Logement Petit D\u00e9jeuner",
+        "Description": "Logement + Petit d\u00e9jeuner"
+      }
+    ],
+    "Theme": ["Famille", "Week-end", "Charme", "Tourisme"],
+    "Note": "\u003Cp\u003EUne taxe de s\u0026eacute;jour est \u0026agrave; payer \u0026agrave; l\u0026#39;h\u0026ocirc;tel pour tous les clients quelques soit leurs nationalit\u0026eacute;s (\u0026acirc;g\u0026eacute;s plus de 12 ans). Le montant est calcul\u0026eacute; en fonction de la loi en vigueur.\u003C\/p\u003E\r\n\r\n\u003Cp\u003ECaution sur l\u0026#39;appartement : 150 TND par s\u0026eacute;jour (per\u0026ccedil;u \u0026agrave; l\u0026#39;arriv\u0026eacute;e du client et rendu le jour du d\u0026eacute;part)\u003C\/p\u003E\r\n\r\n\u003Cp\u003EM\u0026eacute;nage payant\u003C\/p\u003E\r\n\r\n\u003Cp\u003EAcc\u0026egrave;s piscine payant\u003C\/p\u003E\r\n"
+  },
+  "ErrorMessage": [],
+  "Timing": {
+    "Begin": {
+      "date": "2026-05-03 08:04:06.441849",
+      "timezone_type": 3,
+      "timezone": "UTC"
+    },
+    "End": {
+      "date": "2026-05-03 08:04:06.796058",
+      "timezone_type": 3,
+      "timezone": "UTC"
+    },
+    "Duration": "354 ms"
+  },
+  "Ip": "102.211.211.165"
+}

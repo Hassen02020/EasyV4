@@ -70,20 +70,23 @@ const NAMED_ENTITIES: Record<string, string> = {
 }
 
 function decodeEntitiesOnce(input: string): string {
-  return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (match, body: string) => {
-    if (body.startsWith("#x") || body.startsWith("#X")) {
-      const code = parseInt(body.slice(2), 16)
-      if (Number.isFinite(code)) return String.fromCodePoint(code)
-      return match
-    }
-    if (body.startsWith("#")) {
-      const code = parseInt(body.slice(1), 10)
-      if (Number.isFinite(code)) return String.fromCodePoint(code)
-      return match
-    }
-    const replacement = NAMED_ENTITIES[body]
-    return replacement ?? match
-  })
+  return input.replace(
+    /&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g,
+    (match, body: string) => {
+      if (body.startsWith("#x") || body.startsWith("#X")) {
+        const code = parseInt(body.slice(2), 16)
+        if (Number.isFinite(code)) return String.fromCodePoint(code)
+        return match
+      }
+      if (body.startsWith("#")) {
+        const code = parseInt(body.slice(1), 10)
+        if (Number.isFinite(code)) return String.fromCodePoint(code)
+        return match
+      }
+      const replacement = NAMED_ENTITIES[body]
+      return replacement ?? match
+    },
+  )
 }
 
 /** Decode HTML entities until stable (handles double encoding). */

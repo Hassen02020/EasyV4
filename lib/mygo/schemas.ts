@@ -14,22 +14,18 @@ import { z } from "zod"
 // ---------------------------------------------------------------------------
 
 /** Convertit "651.000" → 651 (number). Tolère number ou string. */
-const NumericString = z
-  .union([z.string(), z.number()])
-  .transform((v) => {
-    if (typeof v === "number") return v
-    const n = Number(v)
-    return Number.isFinite(n) ? n : 0
-  })
+const NumericString = z.union([z.string(), z.number()]).transform((v) => {
+  if (typeof v === "number") return v
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+})
 
 /** Tolère soit un nombre, soit une string castable en nombre. Garde number. */
-const FlexibleInt = z
-  .union([z.string(), z.number()])
-  .transform((v) => {
-    if (typeof v === "number") return v
-    const n = parseInt(v, 10)
-    return Number.isFinite(n) ? n : 0
-  })
+const FlexibleInt = z.union([z.string(), z.number()]).transform((v) => {
+  if (typeof v === "number") return v
+  const n = parseInt(v, 10)
+  return Number.isFinite(n) ? n : 0
+})
 
 /** Tolère array vide [] OU objet OU null pour les champs ErrorMessage de myGo. */
 const ErrorMessage = z
@@ -213,7 +209,9 @@ export const CancellationPolicy = z
   .object({
     Fees: NumericString,
     Type: z.enum(["PRICE", "PERCENT", "NIGHT"]).or(z.string()),
-    Nature: z.enum(["NO_SHOW", "PREMATURE_DEPARTURE", "BEFORE_ARRIVAL"]).or(z.string()),
+    Nature: z
+      .enum(["NO_SHOW", "PREMATURE_DEPARTURE", "BEFORE_ARRIVAL"])
+      .or(z.string()),
     FromDate: z.string().nullish(),
     MinStay: FlexibleInt.nullish(),
     MaxStay: FlexibleInt.nullish(),

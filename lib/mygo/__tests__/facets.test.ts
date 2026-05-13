@@ -109,7 +109,9 @@ test("computeFacets agrège stars/boardings/facilities/prix", () => {
   assert.equal(stars[4], 2)
   assert.equal(stars[5], 1)
 
-  const boardings = Object.fromEntries(f.boardings.map((b) => [b.name, b.count]))
+  const boardings = Object.fromEntries(
+    f.boardings.map((b) => [b.name, b.count]),
+  )
   assert.equal(boardings["Petit Déjeuner"], 1)
   assert.equal(boardings["All Inclusive"], 2)
   assert.equal(boardings["Demi Pension"], 1)
@@ -135,36 +137,66 @@ test("applyFilters: filtre par étoiles", () => {
 
 test("applyFilters: filtre par boarding (OR sur la liste)", () => {
   const offers = [
-    makeOffer({ id: 1, name: "A", stars: 4, price: 500, boardings: [{ name: "Demi Pension" }] }),
-    makeOffer({ id: 2, name: "B", stars: 5, price: 1200, boardings: [{ name: "All Inclusive" }] }),
-    makeOffer({ id: 3, name: "C", stars: 4, price: 800, boardings: [{ name: "Petit Déjeuner" }] }),
+    makeOffer({
+      id: 1,
+      name: "A",
+      stars: 4,
+      price: 500,
+      boardings: [{ name: "Demi Pension" }],
+    }),
+    makeOffer({
+      id: 2,
+      name: "B",
+      stars: 5,
+      price: 1200,
+      boardings: [{ name: "All Inclusive" }],
+    }),
+    makeOffer({
+      id: 3,
+      name: "C",
+      stars: 4,
+      price: 800,
+      boardings: [{ name: "Petit Déjeuner" }],
+    }),
   ]
   const filters: HotelFilterState = {
     ...EMPTY_FILTER_STATE,
     boardings: ["All Inclusive", "Demi Pension"],
   }
   const result = applyFilters(offers, filters)
-  assert.deepEqual(
-    result.map((o) => o.hotel.id).sort(),
-    [1, 2],
-  )
+  assert.deepEqual(result.map((o) => o.hotel.id).sort(), [1, 2])
 })
 
 test("applyFilters: filtre par facility (AND — toutes doivent être présentes)", () => {
   const offers = [
-    makeOffer({ id: 1, name: "A", stars: 4, price: 500, facilities: ["Piscine", "Wi-Fi"] }),
-    makeOffer({ id: 2, name: "B", stars: 5, price: 1200, facilities: ["Piscine"] }),
-    makeOffer({ id: 3, name: "C", stars: 4, price: 800, facilities: ["Piscine", "Wi-Fi", "Spa"] }),
+    makeOffer({
+      id: 1,
+      name: "A",
+      stars: 4,
+      price: 500,
+      facilities: ["Piscine", "Wi-Fi"],
+    }),
+    makeOffer({
+      id: 2,
+      name: "B",
+      stars: 5,
+      price: 1200,
+      facilities: ["Piscine"],
+    }),
+    makeOffer({
+      id: 3,
+      name: "C",
+      stars: 4,
+      price: 800,
+      facilities: ["Piscine", "Wi-Fi", "Spa"],
+    }),
   ]
   const filters: HotelFilterState = {
     ...EMPTY_FILTER_STATE,
     facilities: ["Piscine", "Wi-Fi"],
   }
   const result = applyFilters(offers, filters)
-  assert.deepEqual(
-    result.map((o) => o.hotel.id).sort(),
-    [1, 3],
-  )
+  assert.deepEqual(result.map((o) => o.hotel.id).sort(), [1, 3])
 })
 
 test("applyFilters: filtre par prix range", () => {

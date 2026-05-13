@@ -26,9 +26,9 @@ export function Header() {
   const [currency, setCurrency] = useState<"TND" | "EUR" | "USD">("TND")
 
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <header className="bg-card border-border sticky top-0 z-50 border-b shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <TunisiaGoLogo className="size-9" />
@@ -39,44 +39,72 @@ export function Header() {
           </Link>
 
           {/* Desktop Right Actions */}
-          <div className="hidden lg:flex items-center gap-1">
+          <div className="hidden items-center gap-1 lg:flex">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-sm font-medium">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-sm font-medium"
+                >
                   <Globe className="size-4" />
                   {language} / {language === "FR" ? "AR" : "FR"}
                   <ChevronDown className="size-3 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setLanguage("FR")}>Français</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("AR")}>العربية</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("FR")}>
+                  Français
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("AR")}>
+                  العربية
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-sm font-medium">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-sm font-medium"
+                >
                   <span className="font-bold text-[#1e3a5f]">¤</span>
                   {currency}
                   <ChevronDown className="size-3 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setCurrency("TND")}>TND — Dinar tunisien</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrency("EUR")}>EUR — Euro</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrency("USD")}>USD — US Dollar</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrency("TND")}>
+                  TND — Dinar tunisien
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrency("EUR")}>
+                  EUR — Euro
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrency("USD")}>
+                  USD — US Dollar
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="ghost" size="sm" className="gap-1.5 text-sm font-medium" asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-sm font-medium"
+              asChild
+            >
               <Link href="#help">
                 <HelpCircle className="size-4" />
                 Help
               </Link>
             </Button>
 
-            <Button variant="ghost" size="sm" className="gap-1.5 text-sm font-medium" asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-sm font-medium"
+              asChild
+            >
               <Link href="/bookings">
                 <CalendarCheck className="size-4" />
                 My Bookings
@@ -104,37 +132,50 @@ export function Header() {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+            {mobileMenuOpen ? (
+              <X className="size-6" />
+            ) : (
+              <Menu className="size-6" />
+            )}
           </Button>
         </div>
       </div>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-border bg-card">
-          <nav className="max-w-7xl mx-auto px-4 py-4 space-y-1">
+        <div className="border-border bg-card border-t lg:hidden">
+          <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4">
             <button
               type="button"
               onClick={() => setLanguage(language === "FR" ? "AR" : "FR")}
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
+              className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
             >
               <Globe className="size-5 text-[#1e3a5f]" />
-              <span>{language} / {language === "FR" ? "AR" : "FR"}</span>
+              <span>
+                {language} / {language === "FR" ? "AR" : "FR"}
+              </span>
             </button>
             <button
               type="button"
               onClick={() => {
-                const next = currency === "TND" ? "EUR" : currency === "EUR" ? "USD" : "TND"
+                const next =
+                  currency === "TND"
+                    ? "EUR"
+                    : currency === "EUR"
+                      ? "USD"
+                      : "TND"
                 setCurrency(next)
               }}
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
+              className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
             >
-              <span className="size-5 flex items-center justify-center font-bold text-[#1e3a5f]">¤</span>
+              <span className="flex size-5 items-center justify-center font-bold text-[#1e3a5f]">
+                ¤
+              </span>
               <span>{currency}</span>
             </button>
             <Link
               href="#help"
-              className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
+              className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
               <HelpCircle className="size-5 text-[#1e3a5f]" />
@@ -142,14 +183,17 @@ export function Header() {
             </Link>
             <Link
               href="/bookings"
-              className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
+              className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
               <CalendarCheck className="size-5 text-[#1e3a5f]" />
               <span>My Bookings</span>
             </Link>
-            <div className="pt-4 border-t border-border">
-              <Button className="w-full gap-2 bg-[#1e3a5f] hover:bg-[#152d4a]" asChild>
+            <div className="border-border border-t pt-4">
+              <Button
+                className="w-full gap-2 bg-[#1e3a5f] hover:bg-[#152d4a]"
+                asChild
+              >
                 <Link href="/login">
                   <User className="size-4" />
                   Connexion

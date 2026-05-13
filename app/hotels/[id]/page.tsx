@@ -131,14 +131,15 @@ function HotelDetailContent({ id }: { id: string }) {
 
   if (effectiveStatus === "error" || !hotel) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="bg-background min-h-screen">
         <Header />
-        <main className="max-w-5xl mx-auto px-4 py-12">
-          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-            Impossible de charger les détails de cet hôtel : {state.error ?? "introuvable"}
+        <main className="mx-auto max-w-5xl px-4 py-12">
+          <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
+            Impossible de charger les détails de cet hôtel :{" "}
+            {state.error ?? "introuvable"}
           </div>
           <div className="mt-4">
-            <Link href="/" className="text-sm text-primary hover:underline">
+            <Link href="/" className="text-primary text-sm hover:underline">
               ← Retour à l&apos;accueil
             </Link>
           </div>
@@ -149,41 +150,49 @@ function HotelDetailContent({ id }: { id: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <Header />
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-6">
         <button
           type="button"
           onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mb-4"
+          className="text-primary mb-4 inline-flex items-center gap-1.5 text-sm hover:underline"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="h-4 w-4" />
           Retour aux résultats
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Gallery images={images} active={activeImage} onChange={setActiveImage} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Gallery
+              images={images}
+              active={activeImage}
+              onChange={setActiveImage}
+            />
 
             <div>
-              <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                  <h1 className="text-foreground text-2xl font-bold md:text-3xl">
                     {hotel.name}
                   </h1>
-                  <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
                     {(hotel.stars ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5">
-                        {Array.from({ length: hotel.stars ?? 0 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className="w-4 h-4 fill-amber-400 text-amber-400"
-                          />
-                        ))}
+                        {Array.from({ length: hotel.stars ?? 0 }).map(
+                          (_, i) => (
+                            <Star
+                              key={i}
+                              className="h-4 w-4 fill-amber-400 text-amber-400"
+                            />
+                          ),
+                        )}
                       </span>
                     )}
-                    <span>{hotel.categoryTitle ?? `${hotel.stars ?? 0} étoiles`}</span>
+                    <span>
+                      {hotel.categoryTitle ?? `${hotel.stars ?? 0} étoiles`}
+                    </span>
                   </div>
                 </div>
                 {hotel.themes.length > 0 && (
@@ -191,7 +200,7 @@ function HotelDetailContent({ id }: { id: string }) {
                     {hotel.themes.slice(0, 4).map((theme) => (
                       <span
                         key={theme}
-                        className="text-xs py-0.5 px-2 bg-secondary/30 border border-primary/30 text-primary font-normal rounded-full"
+                        className="bg-secondary/30 border-primary/30 text-primary rounded-full border px-2 py-0.5 text-xs font-normal"
                       >
                         {theme}
                       </span>
@@ -201,8 +210,8 @@ function HotelDetailContent({ id }: { id: string }) {
               </div>
 
               {(hotel.address || hotel.cityName) && (
-                <div className="mt-3 flex items-start gap-1.5 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <div className="text-muted-foreground mt-3 flex items-start gap-1.5 text-sm">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                   <span>
                     {[hotel.address, hotel.cityName, hotel.region]
                       .filter(Boolean)
@@ -214,10 +223,10 @@ function HotelDetailContent({ id }: { id: string }) {
 
             {hotel.shortDescription && (
               <section>
-                <h2 className="text-lg font-semibold text-primary mb-2">
+                <h2 className="text-primary mb-2 text-lg font-semibold">
                   Aperçu
                 </h2>
-                <p className="text-sm text-foreground leading-relaxed">
+                <p className="text-foreground text-sm leading-relaxed">
                   {hotel.shortDescription}
                 </p>
               </section>
@@ -225,10 +234,10 @@ function HotelDetailContent({ id }: { id: string }) {
 
             {hotel.longDescription && (
               <section>
-                <h2 className="text-lg font-semibold text-primary mb-2">
+                <h2 className="text-primary mb-2 text-lg font-semibold">
                   Description
                 </h2>
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                <p className="text-foreground text-sm leading-relaxed whitespace-pre-line">
                   {hotel.longDescription}
                 </p>
               </section>
@@ -236,41 +245,43 @@ function HotelDetailContent({ id }: { id: string }) {
 
             {groupedFacilities.size > 0 && (
               <section>
-                <h2 className="text-lg font-semibold text-primary mb-3">
+                <h2 className="text-primary mb-3 text-lg font-semibold">
                   Équipements & services
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Array.from(groupedFacilities.entries()).map(([cat, items]) => (
-                    <div key={cat}>
-                      <h3 className="text-sm font-medium text-foreground mb-1.5">
-                        {cat}
-                      </h3>
-                      <ul className="space-y-1">
-                        {items.map((item, i) => (
-                          <li
-                            key={`${cat}-${i}`}
-                            className="text-sm text-muted-foreground"
-                          >
-                            • {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {Array.from(groupedFacilities.entries()).map(
+                    ([cat, items]) => (
+                      <div key={cat}>
+                        <h3 className="text-foreground mb-1.5 text-sm font-medium">
+                          {cat}
+                        </h3>
+                        <ul className="space-y-1">
+                          {items.map((item, i) => (
+                            <li
+                              key={`${cat}-${i}`}
+                              className="text-muted-foreground text-sm"
+                            >
+                              • {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ),
+                  )}
                 </div>
               </section>
             )}
 
             {hotel.options.length > 0 && (
               <section>
-                <h2 className="text-lg font-semibold text-primary mb-3">
+                <h2 className="text-primary mb-3 text-lg font-semibold">
                   Options sur place
                 </h2>
                 <div className="flex flex-wrap gap-2">
                   {hotel.options.map((opt) => (
                     <span
                       key={opt.id}
-                      className="text-xs py-1 px-2.5 bg-muted text-foreground rounded-full"
+                      className="bg-muted text-foreground rounded-full px-2.5 py-1 text-xs"
                     >
                       {opt.title}
                     </span>
@@ -280,11 +291,13 @@ function HotelDetailContent({ id }: { id: string }) {
             )}
           </div>
 
-          <aside className="lg:sticky lg:top-20 lg:self-start space-y-4">
-            <div className="bg-card rounded-lg border border-border p-5 space-y-4">
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+            <div className="bg-card border-border space-y-4 rounded-lg border p-5">
               <div>
-                <p className="text-xs text-muted-foreground">Vérifier les tarifs</p>
-                <p className="text-sm text-foreground mt-1">
+                <p className="text-muted-foreground text-xs">
+                  Vérifier les tarifs
+                </p>
+                <p className="text-foreground mt-1 text-sm">
                   {checkin && checkout
                     ? "Pour vos dates et voyageurs sélectionnés"
                     : "Choisissez vos dates pour voir les disponibilités"}
@@ -296,30 +309,32 @@ function HotelDetailContent({ id }: { id: string }) {
                 onClick={handleCheckAvailability}
                 size="lg"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="h-4 w-4" />
                 {checkin && checkout
                   ? "Voir les disponibilités"
                   : "Choisir mes dates"}
               </Button>
 
               {(hotel.email || hotel.phone) && (
-                <div className="border-t border-border pt-4 space-y-2">
-                  <h3 className="text-sm font-semibold text-primary">Contact</h3>
+                <div className="border-border space-y-2 border-t pt-4">
+                  <h3 className="text-primary text-sm font-semibold">
+                    Contact
+                  </h3>
                   {hotel.email && (
                     <a
                       href={`mailto:${hotel.email}`}
-                      className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+                      className="text-foreground hover:text-primary flex items-center gap-2 text-sm transition-colors"
                     >
-                      <Mail className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <Mail className="text-muted-foreground h-4 w-4 shrink-0" />
                       <span className="truncate">{hotel.email}</span>
                     </a>
                   )}
                   {hotel.phone && (
                     <a
                       href={`tel:${hotel.phone}`}
-                      className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+                      className="text-foreground hover:text-primary flex items-center gap-2 text-sm transition-colors"
                     >
-                      <Phone className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <Phone className="text-muted-foreground h-4 w-4 shrink-0" />
                       <span>{hotel.phone}</span>
                     </a>
                   )}
@@ -327,17 +342,17 @@ function HotelDetailContent({ id }: { id: string }) {
               )}
 
               {hotel.latitude && hotel.longitude && (
-                <div className="border-t border-border pt-4">
-                  <h3 className="text-sm font-semibold text-primary mb-2">
+                <div className="border-border border-t pt-4">
+                  <h3 className="text-primary mb-2 text-sm font-semibold">
                     Localisation
                   </h3>
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${hotel.latitude},${hotel.longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                    className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
                   >
-                    <MapPin className="w-4 h-4" />
+                    <MapPin className="h-4 w-4" />
                     Voir sur Google Maps
                   </a>
                 </div>
@@ -368,9 +383,9 @@ function Gallery({
 
   return (
     <div>
-      <div className="relative w-full h-72 md:h-96 rounded-lg overflow-hidden bg-muted group">
+      <div className="bg-muted group relative h-72 w-full overflow-hidden rounded-lg md:h-96">
         <div
-          className="w-full h-full bg-cover bg-center"
+          className="h-full w-full bg-cover bg-center"
           style={{ backgroundImage: `url(${safe[idx]})` }}
           role="img"
           aria-label="Photo principale de l'hôtel"
@@ -381,20 +396,20 @@ function Gallery({
             <button
               type="button"
               onClick={prev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-card/90 rounded-full flex items-center justify-center hover:bg-card transition-colors"
+              className="bg-card/90 hover:bg-card absolute top-1/2 left-3 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
               aria-label="Photo précédente"
             >
-              <ChevronLeft className="w-5 h-5 text-foreground" />
+              <ChevronLeft className="text-foreground h-5 w-5" />
             </button>
             <button
               type="button"
               onClick={next}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-card/90 rounded-full flex items-center justify-center hover:bg-card transition-colors"
+              className="bg-card/90 hover:bg-card absolute top-1/2 right-3 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
               aria-label="Photo suivante"
             >
-              <ChevronRight className="w-5 h-5 text-foreground" />
+              <ChevronRight className="text-foreground h-5 w-5" />
             </button>
-            <div className="absolute bottom-3 right-3 bg-card/80 text-xs px-2 py-1 rounded-full text-foreground">
+            <div className="bg-card/80 text-foreground absolute right-3 bottom-3 rounded-full px-2 py-1 text-xs">
               {idx + 1} / {safe.length}
             </div>
           </>
@@ -408,13 +423,13 @@ function Gallery({
               key={i}
               type="button"
               onClick={() => onChange(i)}
-              className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors ${
+              className={`relative aspect-square overflow-hidden rounded-md border-2 transition-colors ${
                 i === idx ? "border-primary" : "border-transparent"
               }`}
               aria-label={`Voir la photo ${i + 1}`}
             >
               <div
-                className="w-full h-full bg-cover bg-center"
+                className="h-full w-full bg-cover bg-center"
                 style={{ backgroundImage: `url(${url})` }}
               />
             </button>
@@ -427,13 +442,13 @@ function Gallery({
 
 function DetailSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <Header />
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        <Skeleton className="h-4 w-32 mb-4" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-72 md:h-96 w-full rounded-lg" />
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <Skeleton className="mb-4 h-4 w-32" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Skeleton className="h-72 w-full rounded-lg md:h-96" />
             <Skeleton className="h-8 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-24 w-full" />

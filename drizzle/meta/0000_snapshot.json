@@ -237,12 +237,8 @@
           "name": "audit_events_agency_id_agencies_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -407,12 +403,8 @@
           "name": "catalog_activities_agency_id_agencies_id_fk",
           "tableFrom": "catalog_activities",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -546,12 +538,8 @@
           "name": "catalog_activity_sessions_agency_id_agencies_id_fk",
           "tableFrom": "catalog_activity_sessions",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -559,12 +547,8 @@
           "name": "catalog_activity_sessions_activity_id_catalog_activities_id_fk",
           "tableFrom": "catalog_activity_sessions",
           "tableTo": "catalog_activities",
-          "columnsFrom": [
-            "activity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["activity_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -646,12 +630,8 @@
           "name": "catalog_drivers_agency_id_agencies_id_fk",
           "tableFrom": "catalog_drivers",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -780,12 +760,8 @@
           "name": "catalog_package_departures_agency_id_agencies_id_fk",
           "tableFrom": "catalog_package_departures",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -793,12 +769,8 @@
           "name": "catalog_package_departures_package_id_catalog_packages_id_fk",
           "tableFrom": "catalog_package_departures",
           "tableTo": "catalog_packages",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["package_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -975,12 +947,8 @@
           "name": "catalog_packages_agency_id_agencies_id_fk",
           "tableFrom": "catalog_packages",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1108,12 +1076,8 @@
           "name": "catalog_transfer_pricing_agency_id_agencies_id_fk",
           "tableFrom": "catalog_transfer_pricing",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1121,12 +1085,8 @@
           "name": "catalog_transfer_pricing_from_zone_id_catalog_transfer_zones_id_fk",
           "tableFrom": "catalog_transfer_pricing",
           "tableTo": "catalog_transfer_zones",
-          "columnsFrom": [
-            "from_zone_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["from_zone_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1134,12 +1094,8 @@
           "name": "catalog_transfer_pricing_to_zone_id_catalog_transfer_zones_id_fk",
           "tableFrom": "catalog_transfer_pricing",
           "tableTo": "catalog_transfer_zones",
-          "columnsFrom": [
-            "to_zone_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["to_zone_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1221,12 +1177,8 @@
           "name": "catalog_transfer_zones_agency_id_agencies_id_fk",
           "tableFrom": "catalog_transfer_zones",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1348,12 +1300,8 @@
           "name": "catalog_vehicles_agency_id_agencies_id_fk",
           "tableFrom": "catalog_vehicles",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1571,12 +1519,8 @@
           "name": "customers_agency_id_agencies_id_fk",
           "tableFrom": "customers",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1692,12 +1636,8 @@
           "name": "exchange_rates_agency_id_agencies_id_fk",
           "tableFrom": "exchange_rates",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1705,12 +1645,8 @@
           "name": "exchange_rates_from_code_currencies_code_fk",
           "tableFrom": "exchange_rates",
           "tableTo": "currencies",
-          "columnsFrom": [
-            "from_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["from_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1718,12 +1654,8 @@
           "name": "exchange_rates_to_code_currencies_code_fk",
           "tableFrom": "exchange_rates",
           "tableTo": "currencies",
-          "columnsFrom": [
-            "to_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["to_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1947,12 +1879,8 @@
           "name": "payments_agency_id_agencies_id_fk",
           "tableFrom": "payments",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1960,12 +1888,8 @@
           "name": "payments_reservation_id_reservations_id_fk",
           "tableFrom": "payments",
           "tableTo": "reservations",
-          "columnsFrom": [
-            "reservation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reservation_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2204,12 +2128,8 @@
           "name": "reservation_activity_reservation_id_reservations_id_fk",
           "tableFrom": "reservation_activity",
           "tableTo": "reservations",
-          "columnsFrom": [
-            "reservation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reservation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2217,12 +2137,8 @@
           "name": "reservation_activity_agency_id_agencies_id_fk",
           "tableFrom": "reservation_activity",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2364,12 +2280,8 @@
           "name": "reservation_flight_reservation_id_reservations_id_fk",
           "tableFrom": "reservation_flight",
           "tableTo": "reservations",
-          "columnsFrom": [
-            "reservation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reservation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2377,12 +2289,8 @@
           "name": "reservation_flight_agency_id_agencies_id_fk",
           "tableFrom": "reservation_flight",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2549,12 +2457,8 @@
           "name": "reservation_hotel_reservation_id_reservations_id_fk",
           "tableFrom": "reservation_hotel",
           "tableTo": "reservations",
-          "columnsFrom": [
-            "reservation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reservation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2562,12 +2466,8 @@
           "name": "reservation_hotel_agency_id_agencies_id_fk",
           "tableFrom": "reservation_hotel",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2653,12 +2553,8 @@
           "name": "reservation_omra_reservation_id_reservations_id_fk",
           "tableFrom": "reservation_omra",
           "tableTo": "reservations",
-          "columnsFrom": [
-            "reservation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reservation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2666,12 +2562,8 @@
           "name": "reservation_omra_agency_id_agencies_id_fk",
           "tableFrom": "reservation_omra",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2799,12 +2691,8 @@
           "name": "reservation_package_reservation_id_reservations_id_fk",
           "tableFrom": "reservation_package",
           "tableTo": "reservations",
-          "columnsFrom": [
-            "reservation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reservation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2812,12 +2700,8 @@
           "name": "reservation_package_agency_id_agencies_id_fk",
           "tableFrom": "reservation_package",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2986,12 +2870,8 @@
           "name": "reservation_transfer_reservation_id_reservations_id_fk",
           "tableFrom": "reservation_transfer",
           "tableTo": "reservations",
-          "columnsFrom": [
-            "reservation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reservation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2999,12 +2879,8 @@
           "name": "reservation_transfer_agency_id_agencies_id_fk",
           "tableFrom": "reservation_transfer",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -3269,12 +3145,8 @@
           "name": "reservations_agency_id_agencies_id_fk",
           "tableFrom": "reservations",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3282,12 +3154,8 @@
           "name": "reservations_customer_id_customers_id_fk",
           "tableFrom": "reservations",
           "tableTo": "customers",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -3400,12 +3268,8 @@
           "name": "users_agency_id_agencies_id_fk",
           "tableFrom": "users",
           "tableTo": "agencies",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agency_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -3421,21 +3285,12 @@
     "public.payment_method": {
       "name": "payment_method",
       "schema": "public",
-      "values": [
-        "card",
-        "wallet",
-        "transfer",
-        "cash",
-        "at_hotel"
-      ]
+      "values": ["card", "wallet", "transfer", "cash", "at_hotel"]
     },
     "public.payment_psp": {
       "name": "payment_psp",
       "schema": "public",
-      "values": [
-        "sps",
-        "manual"
-      ]
+      "values": ["sps", "manual"]
     },
     "public.payment_status": {
       "name": "payment_status",
@@ -3452,26 +3307,12 @@
     "public.reservation_module": {
       "name": "reservation_module",
       "schema": "public",
-      "values": [
-        "hotel",
-        "flight",
-        "package",
-        "activity",
-        "transfer",
-        "omra"
-      ]
+      "values": ["hotel", "flight", "package", "activity", "transfer", "omra"]
     },
     "public.reservation_source": {
       "name": "reservation_source",
       "schema": "public",
-      "values": [
-        "mygo",
-        "internal",
-        "amadeus",
-        "sabre",
-        "expedia",
-        "manual"
-      ]
+      "values": ["mygo", "internal", "amadeus", "sabre", "expedia", "manual"]
     },
     "public.reservation_status": {
       "name": "reservation_status",
@@ -3489,13 +3330,7 @@
     "public.transfer_vehicle_type": {
       "name": "transfer_vehicle_type",
       "schema": "public",
-      "values": [
-        "sedan",
-        "van",
-        "minibus",
-        "bus",
-        "luxury"
-      ]
+      "values": ["sedan", "van", "minibus", "bus", "luxury"]
     },
     "public.user_role": {
       "name": "user_role",
@@ -3511,10 +3346,7 @@
     "public.user_status": {
       "name": "user_status",
       "schema": "public",
-      "values": [
-        "active",
-        "suspended"
-      ]
+      "values": ["active", "suspended"]
     }
   },
   "schemas": {},

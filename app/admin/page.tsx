@@ -1,21 +1,32 @@
-"use client"
+/**
+ * Dashboard back-office TunisiaGo.
+ *
+ * Server Component : on récupère l'agence courante via le profil utilisateur
+ * connecté (middleware + layout ont déjà vérifié l'auth), puis on charge les
+ * agrégats Drizzle via `loadDashboardData`. Si la BDD est down ou vide, on
+ * affiche des valeurs neutres + un bandeau d'avertissement.
+ */
 
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
-  DollarSign, 
-  AlertTriangle, 
-  Users,
-  Plane,
+import {
+  AlertTriangle,
   Building2,
-  Moon,
+  Calendar,
   CheckCircle,
   Clock,
+  DollarSign,
+  Moon,
+  Plane,
+  RefreshCw,
+  Users,
   XCircle,
-  RefreshCw
 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -27,135 +38,37 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { createServerSupabase } from "@/lib/supabase/server"
+import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import {
+  loadDashboardData,
+  type RecentBooking,
+} from "@/lib/admin/dashboard-data"
 
-// Mock data
-const stats = [
-  {
-    title: "Chiffre d'Affaires",
-    value: "47,250 TND",
-    change: "+12.5%",
-    trend: "up",
-    icon: DollarSign,
-    description: "Ce mois",
-  },
-  {
-    title: "Réservations Aujourd'hui",
-    value: "23",
-    change: "+5",
-    trend: "up",
-    icon: Calendar,
-    description: "vs. hier",
-  },
-  {
-    title: "Erreurs API MyGo",
-    value: "3",
-    change: "-2",
-    trend: "down",
-    icon: AlertTriangle,
-    description: "Dernières 24h",
-  },
-  {
-    title: "Clients Actifs",
-    value: "1,847",
-    change: "+89",
-    trend: "up",
-    icon: Users,
-    description: "Ce mois",
-  },
-]
+export const dynamic = "force-dynamic"
 
-const recentBookings = [
-  {
-    id: "BK-2026-0501",
-    client: "Ahmed Ben Ali",
-    type: "hotel",
-    destination: "Hammamet",
-    date: "01/05/2026",
-    amount: "890 TND",
-    status: "confirmed",
-  },
-  {
-    id: "BK-2026-0502",
-    client: "Fatma Trabelsi",
-    type: "flight",
-    destination: "Istanbul",
-    date: "01/05/2026",
-    amount: "1,450 TND",
-    status: "pending",
-  },
-  {
-    id: "BK-2026-0503",
-    client: "Mohamed Gharbi",
-    type: "omra",
-    destination: "La Mecque",
-    date: "01/05/2026",
-    amount: "3,200 TND",
-    status: "confirmed",
-  },
-  {
-    id: "BK-2026-0504",
-    client: "Sonia Mejri",
-    type: "hotel",
-    destination: "Djerba",
-    date: "01/05/2026",
-    amount: "650 TND",
-    status: "cancelled",
-  },
-  {
-    id: "BK-2026-0505",
-    client: "Karim Sassi",
-    type: "flight",
-    destination: "Paris",
-    date: "01/05/2026",
-    amount: "2,100 TND",
-    status: "confirmed",
-  },
-]
+const TND_FORMAT = new Intl.NumberFormat("fr-FR", {
+  maximumFractionDigits: 0,
+})
 
-const apiErrors = [
-  {
-    id: 1,
-    endpoint: "HotelSearch",
-    error: "Timeout - 30s exceeded",
-    time: "14:32",
-    resolved: false,
-  },
-  {
-    id: 2,
-    endpoint: "GetAvailability",
-    error: "Invalid credentials",
-    time: "12:15",
-    resolved: true,
-  },
-  {
-    id: 3,
-    endpoint: "BookHotel",
-    error: "Room not available",
-    time: "09:45",
-    resolved: false,
-  },
-]
-
-const bookingsByType = [
-  { type: "Hôtels Tunisie", count: 145, percentage: 58, icon: Building2, color: "bg-[#1e3a5f]" },
-  { type: "Vols", count: 67, percentage: 27, icon: Plane, color: "bg-[#e5b94e]" },
-  { type: "Omra", count: 38, percentage: 15, icon: Moon, color: "bg-orange-500" },
-]
-
-function getTypeIcon(type: string) {
-  switch (type) {
-    case "hotel":
-      return <Building2 className="size-4 text-[#1e3a5f]" />
-    case "flight":
-      return <Plane className="size-4 text-[#e5b94e]" />
-    case "omra":
-      return <Moon className="size-4 text-orange-500" />
-    default:
-      return null
-  }
+const MODULE_META: Record<
+  string,
+  { label: string; color: string; icon: typeof Building2 }
+> = {
+  hotel: { label: "Hôtels Tunisie", color: "bg-[#1e3a5f]", icon: Building2 },
+  flight: { label: "Vols", color: "bg-[#e5b94e]", icon: Plane },
+  omra: { label: "Omra", color: "bg-orange-500", icon: Moon },
+  package: { label: "Voyages Organisés", color: "bg-emerald-600", icon: Plane },
+  activity: { label: "Activités", color: "bg-pink-500", icon: Plane },
+  transfer: { label: "Transferts", color: "bg-slate-500", icon: Plane },
 }
 
-function getStatusBadge(status: string) {
+function moduleIcon(module: string) {
+  const Icon = MODULE_META[module]?.icon ?? Building2
+  return <Icon className="text-muted-foreground size-4" />
+}
+
+function statusBadge(status: RecentBooking["status"]) {
   switch (status) {
     case "confirmed":
       return (
@@ -165,6 +78,7 @@ function getStatusBadge(status: string) {
         </Badge>
       )
     case "pending":
+    case "on_request":
       return (
         <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
           <Clock className="mr-1 size-3" />
@@ -172,21 +86,74 @@ function getStatusBadge(status: string) {
         </Badge>
       )
     case "cancelled":
+    case "no_show":
+    case "refunded":
       return (
         <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
           <XCircle className="mr-1 size-3" />
-          Annulé
+          {status === "refunded" ? "Remboursé" : "Annulé"}
         </Badge>
       )
     default:
-      return null
+      return <Badge variant="outline">{status}</Badge>
   }
 }
 
-export default function AdminDashboard() {
+function formatTnd(amount: number): string {
+  return `${TND_FORMAT.format(amount)} TND`
+}
+
+function formatTime(date: Date): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
+export default async function AdminDashboard() {
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const profile = user ? await getCurrentAdminProfile(user.id) : null
+  const agencyId = profile?.agencyId ?? "00000000-0000-0000-0000-000000000001"
+
+  const dashboard = await loadDashboardData(agencyId)
+  const { stats, recentBookings, byModule, apiErrors, available } = dashboard
+
+  const totalByModule = byModule.reduce((acc, row) => acc + row.count, 0) || 1
+
+  const statCards = [
+    {
+      title: "Chiffre d'Affaires",
+      value: formatTnd(stats.monthlyRevenueTnd),
+      icon: DollarSign,
+      description: "Ce mois (TND)",
+    },
+    {
+      title: "Réservations Aujourd'hui",
+      value: stats.reservationsToday.toString(),
+      icon: Calendar,
+      description: "Depuis 00h00 UTC",
+    },
+    {
+      title: "Erreurs API MyGo",
+      value: stats.apiErrors24h.toString(),
+      icon: AlertTriangle,
+      description: "Dernières 24h",
+      warning: stats.apiErrors24h > 0,
+    },
+    {
+      title: "Clients Enregistrés",
+      value: stats.activeCustomers.toString(),
+      icon: Users,
+      description: "Total agence",
+    },
+  ]
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#1e3a5f]">Tableau de bord</h1>
@@ -194,111 +161,133 @@ export default function AdminDashboard() {
             Vue d&apos;ensemble de votre activité TunisiaGo
           </p>
         </div>
-        <Button className="bg-[#1e3a5f] hover:bg-[#1e3a5f]/90">
-          <RefreshCw className="mr-2 size-4" />
-          Actualiser
+        <Button className="bg-[#1e3a5f] hover:bg-[#1e3a5f]/90" asChild>
+          <a href="/admin" aria-label="Recharger le tableau de bord">
+            <RefreshCw className="mr-2 size-4" />
+            Actualiser
+          </a>
         </Button>
       </div>
 
-      {/* Stats Cards */}
+      {!available ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <strong>Mode dégradé.</strong> La base de données n&apos;est pas
+          accessible ou aucune donnée n&apos;est encore enregistrée. Les
+          compteurs sont à zéro tant que la première réservation n&apos;a pas
+          été créée.
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-muted-foreground text-sm font-medium">
                 {stat.title}
               </CardTitle>
-              <stat.icon className={`size-5 ${
-                stat.title === "Erreurs API MyGo" ? "text-amber-500" : "text-[#1e3a5f]"
-              }`} />
+              <stat.icon
+                className={`size-5 ${
+                  stat.warning ? "text-amber-500" : "text-[#1e3a5f]"
+                }`}
+              />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {stat.trend === "up" ? (
-                  <TrendingUp className="size-3 text-green-500" />
-                ) : (
-                  <TrendingDown className="size-3 text-green-500" />
-                )}
-                <span className={stat.trend === "up" && stat.title !== "Erreurs API MyGo" ? "text-green-500" : stat.title === "Erreurs API MyGo" ? "text-green-500" : ""}>
-                  {stat.change}
-                </span>
-                <span>{stat.description}</span>
+              <div className="text-muted-foreground text-xs">
+                {stat.description}
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent Bookings Table */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Réservations récentes</CardTitle>
             <CardDescription>
-              Les 5 dernières réservations enregistrées
+              {recentBookings.length === 0
+                ? "Aucune réservation enregistrée pour le moment."
+                : `Les ${recentBookings.length} dernières réservations enregistrées`}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Réf.</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Destination</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentBookings.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell className="font-mono text-xs">
-                      {booking.id}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {booking.client}
-                    </TableCell>
-                    <TableCell>{getTypeIcon(booking.type)}</TableCell>
-                    <TableCell>{booking.destination}</TableCell>
-                    <TableCell className="font-semibold">
-                      {booking.amount}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(booking.status)}</TableCell>
+            {recentBookings.length === 0 ? (
+              <p className="text-muted-foreground py-12 text-center text-sm">
+                Dès qu&apos;une réservation sera créée via le moteur, elle
+                apparaîtra ici.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Réf.</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Montant</TableHead>
+                    <TableHead>Statut</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {recentBookings.map((booking) => (
+                    <TableRow key={booking.id}>
+                      <TableCell className="font-mono text-xs">
+                        {booking.reference}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {booking.customerName}
+                      </TableCell>
+                      <TableCell>{moduleIcon(booking.module)}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatTnd(booking.totalTnd)}
+                      </TableCell>
+                      <TableCell>{statusBadge(booking.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 
-        {/* Sidebar Cards */}
         <div className="space-y-6">
-          {/* Bookings by Type */}
           <Card>
             <CardHeader>
               <CardTitle>Réservations par type</CardTitle>
               <CardDescription>Ce mois-ci</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {bookingsByType.map((item) => (
-                <div key={item.type} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <item.icon className="size-4 text-muted-foreground" />
-                      <span>{item.type}</span>
+              {byModule.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Aucune réservation ce mois-ci.
+                </p>
+              ) : (
+                byModule.map((row) => {
+                  const meta = MODULE_META[row.module] ?? {
+                    label: row.module,
+                    icon: Building2,
+                  }
+                  const percentage = Math.round(
+                    (row.count / totalByModule) * 100,
+                  )
+                  const Icon = meta.icon
+                  return (
+                    <div key={row.module} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Icon className="text-muted-foreground size-4" />
+                          <span>{meta.label}</span>
+                        </div>
+                        <span className="font-semibold">{row.count}</span>
+                      </div>
+                      <Progress value={percentage} className="h-2" />
                     </div>
-                    <span className="font-semibold">{item.count}</span>
-                  </div>
-                  <Progress value={item.percentage} className="h-2" />
-                </div>
-              ))}
+                  )
+                })
+              )}
             </CardContent>
           </Card>
 
-          {/* API Errors */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -308,37 +297,34 @@ export default function AdminDashboard() {
               <CardDescription>Dernières 24 heures</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {apiErrors.map((error) => (
-                  <div
-                    key={error.id}
-                    className="flex items-start justify-between rounded-lg border p-3"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-medium">
-                          {error.endpoint}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {error.time}
-                        </span>
+              {apiErrors.length === 0 ? (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  Aucune erreur API enregistrée.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {apiErrors.map((error) => (
+                    <div
+                      key={error.id}
+                      className="flex items-start justify-between rounded-lg border p-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-medium">
+                            {error.endpoint}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {formatTime(error.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                          {error.message}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {error.error}
-                      </p>
                     </div>
-                    {error.resolved ? (
-                      <Badge variant="outline" className="text-green-600 border-green-200">
-                        Résolu
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-amber-600 border-amber-200">
-                        Actif
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

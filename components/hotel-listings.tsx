@@ -63,8 +63,9 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
       })),
     ),
   )
-  const cheapest = allRooms.reduce<typeof allRooms[number] | null>(
-    (best, cur) => (best === null || cur.room.price < best.room.price ? cur : best),
+  const cheapest = allRooms.reduce<(typeof allRooms)[number] | null>(
+    (best, cur) =>
+      best === null || cur.room.price < best.room.price ? cur : best,
     null,
   )
   const mealPlan = cheapest?.boardName ?? offer.boardings[0]?.name ?? "—"
@@ -77,8 +78,8 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
       id: room.id,
       name: `${room.name} • ${boardName}`,
       freeCancellationDate:
-        room.cancellationPolicies.find((p) => p.nature === "BEFORE_ARRIVAL")?.fromDate ??
-        "—",
+        room.cancellationPolicies.find((p) => p.nature === "BEFORE_ARRIVAL")
+          ?.fromDate ?? "—",
       available: !room.stopReservation,
       price: Math.round(room.price),
     }))
@@ -153,7 +154,10 @@ export function HotelListings({
     if (!onBookHotel || !room || !checkin || !checkout) return
     let nights = 1
     try {
-      nights = Math.max(1, differenceInCalendarDays(parseISO(checkout), parseISO(checkin)))
+      nights = Math.max(
+        1,
+        differenceInCalendarDays(parseISO(checkout), parseISO(checkin)),
+      )
     } catch {
       nights = 1
     }
@@ -217,7 +221,7 @@ export function HotelListings({
 
   if (status === "error") {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+      <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
         Erreur de recherche : {error ?? "inconnue"}
       </div>
     )
@@ -225,25 +229,25 @@ export function HotelListings({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">
+          <h1 className="text-foreground text-xl font-bold">
             {totalCount} hôtel{totalCount > 1 ? "s" : ""} à {cityName}
             {offers.length !== totalCount && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
                 ({offers.length} après filtrage)
               </span>
             )}
           </h1>
           {headerSubtitle && (
-            <p className="text-sm text-muted-foreground">{headerSubtitle}</p>
+            <p className="text-muted-foreground text-sm">{headerSubtitle}</p>
           )}
         </div>
       </div>
 
       <div className="space-y-4">
         {cardHotels.length === 0 && (
-          <div className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+          <div className="border-border text-muted-foreground rounded-lg border p-6 text-sm">
             Aucun hôtel ne correspond aux filtres sélectionnés.
           </div>
         )}

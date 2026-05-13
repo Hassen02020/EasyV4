@@ -4,13 +4,13 @@ Schéma multi-tenant pour la plateforme OTA TunisiaGo.
 
 ## Vue d'ensemble
 
-| Fichier | Rôle |
-|---|---|
-| `schema.ts` | **Source of truth** — toutes les tables Drizzle. À éditer pour faire évoluer le modèle. |
-| `client.ts` | Factory `getDb()` qui retourne une instance Drizzle connectée. |
-| `../drizzle/0000_*.sql` | Migration auto-générée (`pnpm db:generate`). |
-| `../drizzle/manual/0001_rls_policies.sql` | RLS policies (à appliquer **après** la migration auto). |
-| `../drizzle/manual/0002_seed_currencies.sql` | Seed des devises ISO 4217. |
+| Fichier                                      | Rôle                                                                                    |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `schema.ts`                                  | **Source of truth** — toutes les tables Drizzle. À éditer pour faire évoluer le modèle. |
+| `client.ts`                                  | Factory `getDb()` qui retourne une instance Drizzle connectée.                          |
+| `../drizzle/0000_*.sql`                      | Migration auto-générée (`pnpm db:generate`).                                            |
+| `../drizzle/manual/0001_rls_policies.sql`    | RLS policies (à appliquer **après** la migration auto).                                 |
+| `../drizzle/manual/0002_seed_currencies.sql` | Seed des devises ISO 4217.                                                              |
 
 ## Modèle de données
 
@@ -41,6 +41,7 @@ Les champs **spécifiques** au module vont dans la table d'extension (ex. `reser
 ### Multi-currency encaissable
 
 Chaque ligne monétaire (`reservations`, `payments`) stocke :
+
 - `original_currency` + `original_amount` — devise saisie au paiement
 - `tnd_amount` — équivalent figé en TND au moment de l'opération (compta TN)
 
@@ -49,6 +50,7 @@ Le taux utilisé est lu depuis `exchange_rates` à T=paiement (jamais recalculé
 ### Paiements
 
 `payments` est dissocié de `reservations` (1-N) :
+
 - `kind='deposit'` → acompte 30 % via SPS Monétique
 - `kind='balance'` → solde (à l'hôtel pour myGo, ou autre PSP plus tard)
 - `kind='refund'` → remboursement partiel/total

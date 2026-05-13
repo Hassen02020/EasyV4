@@ -97,10 +97,7 @@ export const paymentMethod = pgEnum("payment_method", [
   "at_hotel", // myGo MethodPayment=10
 ])
 
-export const paymentPsp = pgEnum("payment_psp", [
-  "sps",
-  "manual",
-])
+export const paymentPsp = pgEnum("payment_psp", ["sps", "manual"])
 
 export const transferVehicleType = pgEnum("transfer_vehicle_type", [
   "sedan",
@@ -652,7 +649,10 @@ export const catalogPackageDepartures = pgTable(
       .references(() => catalogPackages.id, { onDelete: "cascade" }),
     departureDate: date("departure_date").notNull(),
     returnDate: date("return_date").notNull(),
-    adultPriceTnd: decimal("adult_price_tnd", { precision: 14, scale: 2 }).notNull(),
+    adultPriceTnd: decimal("adult_price_tnd", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
     childPriceTnd: decimal("child_price_tnd", { precision: 14, scale: 2 }),
     depositPercent: integer("deposit_percent").notNull().default(30),
     totalSeats: integer("total_seats").notNull(),
@@ -714,7 +714,10 @@ export const catalogActivitySessions = pgTable(
     sessionEnd: varchar("session_end", { length: 5 }).notNull(),
     capacity: integer("capacity").notNull(),
     booked: integer("booked").notNull().default(0),
-    adultPriceTnd: decimal("adult_price_tnd", { precision: 14, scale: 2 }).notNull(),
+    adultPriceTnd: decimal("adult_price_tnd", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
     childPriceTnd: decimal("child_price_tnd", { precision: 14, scale: 2 }),
     seniorPriceTnd: decimal("senior_price_tnd", { precision: 14, scale: 2 }),
     status: varchar("status", { length: 16 }).notNull().default("open"),
@@ -756,7 +759,10 @@ export const catalogTransferPricing = pgTable(
       .notNull()
       .references(() => catalogTransferZones.id, { onDelete: "cascade" }),
     vehicleType: transferVehicleType("vehicle_type").notNull(),
-    basePriceTnd: decimal("base_price_tnd", { precision: 14, scale: 2 }).notNull(),
+    basePriceTnd: decimal("base_price_tnd", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
     nightSurchargePercent: integer("night_surcharge_percent")
       .notNull()
       .default(0),

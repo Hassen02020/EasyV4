@@ -22,13 +22,13 @@ L'app tourne sur [http://localhost:3000](http://localhost:3000).
 
 ## Scripts
 
-| Commande | Action |
-|---|---|
-| `pnpm dev` | Démarre le serveur de dev (Turbopack) |
-| `pnpm build` | Build de production |
-| `pnpm start` | Sert le build de production |
-| `pnpm lint` | Lint le code (ESLint + next/core-web-vitals + next/typescript) |
-| `pnpm typecheck` | Vérifie les types TypeScript (`tsc --noEmit`) |
+| Commande         | Action                                                         |
+| ---------------- | -------------------------------------------------------------- |
+| `pnpm dev`       | Démarre le serveur de dev (Turbopack)                          |
+| `pnpm build`     | Build de production                                            |
+| `pnpm start`     | Sert le build de production                                    |
+| `pnpm lint`      | Lint le code (ESLint + next/core-web-vitals + next/typescript) |
+| `pnpm typecheck` | Vérifie les types TypeScript (`tsc --noEmit`)                  |
 
 ## Structure
 
@@ -70,15 +70,15 @@ public/                     # Icônes et placeholders
 
 Le moteur de réservation expose 7 onglets, chacun avec son propre formulaire :
 
-| Onglet | Champs | Comportement |
-|---|---|---|
-| **Vols** | Départ, Destination, Dates, Classe | Toast (à câbler à l'API) |
-| **Hôtels Tunisie** | Ville, Dates, Pax, Étoiles, Disponibilité | Redirection vers `/hotels/search?...` |
-| **Hôtels Monde** | Destination, Check-in, Check-out | Toast (à câbler à l'API) |
-| **Omraty** | Programme, Mois, Distance Haram, Type de vol | Toast (à câbler à l'API) |
-| **Voyages Organisés** | Destination, Période, Durée, Voyageurs | Toast (à câbler à l'API) |
-| **Transferts** | Lieu de prise / dépose, Date, Passagers | Toast (à câbler à l'API) |
-| **Car** | Lieu, Date prise / retour, Catégorie | Toast (à câbler à l'API) |
+| Onglet                | Champs                                       | Comportement                          |
+| --------------------- | -------------------------------------------- | ------------------------------------- |
+| **Vols**              | Départ, Destination, Dates, Classe           | Toast (à câbler à l'API)              |
+| **Hôtels Tunisie**    | Ville, Dates, Pax, Étoiles, Disponibilité    | Redirection vers `/hotels/search?...` |
+| **Hôtels Monde**      | Destination, Check-in, Check-out             | Toast (à câbler à l'API)              |
+| **Omraty**            | Programme, Mois, Distance Haram, Type de vol | Toast (à câbler à l'API)              |
+| **Voyages Organisés** | Destination, Période, Durée, Voyageurs       | Toast (à câbler à l'API)              |
+| **Transferts**        | Lieu de prise / dépose, Date, Passagers      | Toast (à câbler à l'API)              |
+| **Car**               | Lieu, Date prise / retour, Catégorie         | Toast (à câbler à l'API)              |
 
 Seul **Hôtels Tunisie** est entièrement fonctionnel : il construit un `HotelSearchRequest` typé (compatible API MyGo) et redirige vers la page de résultats. Les autres modules affichent un toast « bientôt disponible » et seront connectés à leurs APIs respectives.
 

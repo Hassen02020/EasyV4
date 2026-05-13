@@ -97,7 +97,11 @@ test("HotelSearch: schema parses, real-hotel filter, lowestPrice, mapHotelOffer"
 
   // Le 1er item est un parc d'attraction (Carthage Land/Aqualand) — doit être filtré
   const first = items[0]!
-  assert.equal(isRealHotelOffer(first), false, "first item is an attraction, must be filtered out")
+  assert.equal(
+    isRealHotelOffer(first),
+    false,
+    "first item is an attraction, must be filtered out",
+  )
 
   // Le 2ème item devrait être un vrai hôtel
   const yocca = items.find((h) => h.Hotel?.Name?.includes("Yocca"))
@@ -122,7 +126,10 @@ test("HotelSearch: schema parses, real-hotel filter, lowestPrice, mapHotelOffer"
   // CancellationPolicy doit être bien typée
   const room = firstBoard.pax[0]!.rooms[0]!
   for (const p of room.cancellationPolicies) {
-    assert.ok(["PRICE", "PERCENT", "NIGHT"].includes(p.type) || typeof p.type === "string")
+    assert.ok(
+      ["PRICE", "PERCENT", "NIGHT"].includes(p.type) ||
+        typeof p.type === "string",
+    )
     assert.ok(
       ["NO_SHOW", "PREMATURE_DEPARTURE", "BEFORE_ARRIVAL"].includes(p.nature) ||
         typeof p.nature === "string",
@@ -176,7 +183,9 @@ test("dedupeOffersByHotelId: keeps best entry, merges boardings", () => {
       "Soft All Inclusive",
     ]),
     baseOffer(16, "Le Royal Hammamet", 5, 1570, ["Logement Petit Déjeuner"]),
-    baseOffer(67, "The Russelior Hotel & Spa", 5, 1776, ["Logement Petit Déjeuner"]),
+    baseOffer(67, "The Russelior Hotel & Spa", 5, 1776, [
+      "Logement Petit Déjeuner",
+    ]),
   ]
   const deduped = dedupeOffersByHotelId(offers)
   assert.equal(deduped.length, 3, "expects 1 entry per hotel id")
@@ -196,6 +205,9 @@ test("Auth error response is captured in ErrorMessage object", () => {
   assert.equal(typeof raw.ErrorMessage, "object")
   assert.ok(!Array.isArray(raw.ErrorMessage))
   const e = raw.ErrorMessage as { Code?: number; Description?: string }
-  assert.ok(e.Code && e.Code >= 400 && e.Code < 500, `error code ${e.Code} should be 4xx`)
+  assert.ok(
+    e.Code && e.Code >= 400 && e.Code < 500,
+    `error code ${e.Code} should be 4xx`,
+  )
   assert.match(e.Description ?? "", /login|password|user|invalid/i)
 })

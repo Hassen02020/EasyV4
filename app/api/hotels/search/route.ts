@@ -18,8 +18,12 @@ import type { HotelSearchResultDTO } from "@/lib/mygo/types"
 
 const QuerySchema = z.object({
   cityId: z.coerce.number().int().positive(),
-  checkin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "checkin must be YYYY-MM-DD"),
-  checkout: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "checkout must be YYYY-MM-DD"),
+  checkin: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "checkin must be YYYY-MM-DD"),
+  checkout: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "checkout must be YYYY-MM-DD"),
   adults: z.coerce.number().int().min(1).max(8).default(2),
   children: z
     .string()
@@ -45,7 +49,12 @@ const QuerySchema = z.object({
         : [],
     ),
   onlyAvailable: z
-    .union([z.literal("0"), z.literal("1"), z.literal("true"), z.literal("false")])
+    .union([
+      z.literal("0"),
+      z.literal("1"),
+      z.literal("true"),
+      z.literal("false"),
+    ])
     .optional()
     .transform((v) => v === "1" || v === "true"),
   hotelId: z.coerce.number().int().positive().optional(),
@@ -112,7 +121,10 @@ function mapErrorToResponse(err: unknown): NextResponse {
     )
   }
   return NextResponse.json(
-    { error: "internal", message: err instanceof Error ? err.message : "unknown" },
+    {
+      error: "internal",
+      message: err instanceof Error ? err.message : "unknown",
+    },
     { status: 500 },
   )
 }

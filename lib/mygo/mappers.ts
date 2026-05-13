@@ -162,7 +162,9 @@ export function mapRoomOffer(raw: RoomOfferT): RoomOfferDTO {
     basePrice: raw.BasePrice ?? undefined,
     stopReservation: Boolean(raw.StopReservation ?? raw.OnRequest ?? false),
     notRefundable: Boolean(raw.NotRefundable ?? false),
-    cancellationPolicies: (raw.CancellationPolicy ?? []).map(mapCancellationPolicy),
+    cancellationPolicies: (raw.CancellationPolicy ?? []).map(
+      mapCancellationPolicy,
+    ),
   }
 }
 
@@ -206,7 +208,11 @@ export function lowestPrice(raw: HotelSearchResultItemT): number {
   for (const b of raw.Price?.Boarding ?? []) {
     for (const p of b.Pax ?? []) {
       for (const r of p.Rooms ?? []) {
-        if (typeof r.Price === "number" && r.Price < min && !r.StopReservation) {
+        if (
+          typeof r.Price === "number" &&
+          r.Price < min &&
+          !r.StopReservation
+        ) {
           min = r.Price
         }
       }
@@ -233,7 +239,9 @@ export function mapHotelOffer(raw: HotelSearchResultItemT): HotelOfferDTO {
  * prix le plus bas. Tous les boardings sont mergés pour ne pas perdre d'options
  * de pension.
  */
-export function dedupeOffersByHotelId(offers: HotelOfferDTO[]): HotelOfferDTO[] {
+export function dedupeOffersByHotelId(
+  offers: HotelOfferDTO[],
+): HotelOfferDTO[] {
   const byId = new Map<number, HotelOfferDTO>()
   for (const offer of offers) {
     const id = offer.hotel.id

@@ -21,7 +21,10 @@ export class MyGoError extends Error {
 
 /** Erreur réseau (DNS, connexion refusée, abort, …). */
 export class MyGoNetworkError extends MyGoError {
-  constructor(message: string, public readonly cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+  ) {
     super("network", message)
     this.name = "MyGoNetworkError"
   }
@@ -45,7 +48,10 @@ export class MyGoAuthError extends MyGoError {
 
 /** Réponse non parsable (ne respecte pas le schéma Zod). */
 export class MyGoSchemaError extends MyGoError {
-  constructor(method: string, public readonly issues: unknown) {
+  constructor(
+    method: string,
+    public readonly issues: unknown,
+  ) {
     super("schema", `myGo ${method} response failed schema validation`)
     this.name = "MyGoSchemaError"
   }
@@ -53,7 +59,11 @@ export class MyGoSchemaError extends MyGoError {
 
 /** Erreur applicative renvoyée par myGo (ErrorMessage.Code != 0/null). */
 export class MyGoApiError extends MyGoError {
-  constructor(method: string, code: number, public readonly description: string) {
+  constructor(
+    method: string,
+    code: number,
+    public readonly description: string,
+  ) {
     super("api", `myGo ${method}: [${code}] ${description}`, code)
     this.name = "MyGoApiError"
   }

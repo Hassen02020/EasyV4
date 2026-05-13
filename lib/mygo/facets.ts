@@ -146,12 +146,14 @@ export function applyFilters(
 
     if (filters.boardings.length > 0) {
       const offerBoardings = offer.boardings.map((b) => b.name)
-      if (!filters.boardings.some((b) => offerBoardings.includes(b))) return false
+      if (!filters.boardings.some((b) => offerBoardings.includes(b)))
+        return false
     }
 
     if (filters.facilities.length > 0) {
       const offerFacilities = (offer.hotel.facilities ?? []).map((f) => f.title)
-      if (!filters.facilities.every((f) => offerFacilities.includes(f))) return false
+      if (!filters.facilities.every((f) => offerFacilities.includes(f)))
+        return false
     }
 
     if (filters.priceRange) {
@@ -160,7 +162,8 @@ export function applyFilters(
     }
 
     if (filters.recommendedOnly && !offer.recommended) return false
-    if (filters.freeCancellationOnly && !hasFreeCancellation(offer)) return false
+    if (filters.freeCancellationOnly && !hasFreeCancellation(offer))
+      return false
     if (filters.availableOnly && !hasAvailableRoom(offer)) return false
 
     return true

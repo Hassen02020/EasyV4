@@ -20,10 +20,7 @@ import {
   MyGoSchemaError,
   MyGoTimeoutError,
 } from "./errors"
-import {
-  CircuitBreaker,
-  getSharedCircuitBreaker,
-} from "./circuit-breaker"
+import { CircuitBreaker, getSharedCircuitBreaker } from "./circuit-breaker"
 import { memoize } from "./cache"
 import {
   HotelDetailResponse,
@@ -82,17 +79,25 @@ interface CallOptions {
  * Réutilisable côté serveur (route handlers, server components, server actions).
  */
 export class MyGoClient {
-  constructor(private readonly breaker: CircuitBreaker = getSharedCircuitBreaker()) {}
+  constructor(
+    private readonly breaker: CircuitBreaker = getSharedCircuitBreaker(),
+  ) {}
 
   // -------------------------------------------------------------------------
   // Static data
   // -------------------------------------------------------------------------
 
   listCities(): Promise<ListCityItemT[]> {
-    return this.cachedCall("ListCity", {}, ListCityResponse, (r) => r.ListCity ?? [], {
-      cacheKey: "mygo:cities",
-      cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
-    })
+    return this.cachedCall(
+      "ListCity",
+      {},
+      ListCityResponse,
+      (r) => r.ListCity ?? [],
+      {
+        cacheKey: "mygo:cities",
+        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+      },
+    )
   }
 
   listBoardings(): Promise<ListBoardingItemT[]> {
@@ -122,19 +127,31 @@ export class MyGoClient {
   }
 
   listTags(): Promise<ListTagItemT[]> {
-    return this.cachedCall("ListTag", {}, ListTagResponse, (r) => r.ListTag ?? [], {
-      cacheKey: "mygo:tags",
-      cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
-    })
+    return this.cachedCall(
+      "ListTag",
+      {},
+      ListTagResponse,
+      (r) => r.ListTag ?? [],
+      {
+        cacheKey: "mygo:tags",
+        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+      },
+    )
   }
 
   /** Liste des hôtels d'une ville (statique). */
   listHotels(cityId?: number): Promise<ListHotelItemT[]> {
     const body = cityId ? { City: cityId } : {}
-    return this.cachedCall("ListHotel", body, ListHotelResponse, (r) => r.ListHotel ?? [], {
-      cacheKey: `mygo:hotels:${cityId ?? "all"}`,
-      cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
-    })
+    return this.cachedCall(
+      "ListHotel",
+      body,
+      ListHotelResponse,
+      (r) => r.ListHotel ?? [],
+      {
+        cacheKey: `mygo:hotels:${cityId ?? "all"}`,
+        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+      },
+    )
   }
 
   /** Détails complets d'un hôtel (Album, Options, descriptions longues). */
@@ -170,7 +187,9 @@ export class MyGoClient {
         },
         ...(input.currency ? { Currency: input.currency } : {}),
         Filters: {
-          ...(input.filters?.keywords ? { Keywords: input.filters.keywords } : {}),
+          ...(input.filters?.keywords
+            ? { Keywords: input.filters.keywords }
+            : {}),
           ...(input.filters?.categories?.length
             ? { Category: input.filters.categories }
             : {}),
@@ -191,7 +210,7 @@ export class MyGoClient {
       (r) => ({
         hotels: r.HotelSearch ?? [],
         searchId: r.SearchId ?? null,
-        count: r.CountResults ?? (r.HotelSearch?.length ?? 0),
+        count: r.CountResults ?? r.HotelSearch?.length ?? 0,
       }),
       {
         cacheKey,
@@ -212,7 +231,11 @@ export class MyGoClient {
     options: CallOptions = {},
   ): Promise<R> {
     const loader = () => this.callOnce(method, body, schema).then(extract)
-    if (options.cacheKey && options.cacheTtlSeconds && options.cacheTtlSeconds > 0) {
+    if (
+      options.cacheKey &&
+      options.cacheTtlSeconds &&
+      options.cacheTtlSeconds > 0
+    ) {
       return memoize(options.cacheKey, options.cacheTtlSeconds, loader)
     }
     return loader()
@@ -262,7 +285,11 @@ export class MyGoClient {
                 e.Description ?? "Authentication failed against myGo API",
               )
             }
-            throw new MyGoApiError(method, e.Code, e.Description ?? "Unknown myGo error")
+            throw new MyGoApiError(
+              method,
+              e.Code,
+              e.Description ?? "Unknown myGo error",
+            )
           }
         }
 
@@ -309,7 +336,10 @@ export class MyGoClient {
     try {
       const resp = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify(body),
         signal: ctrl.signal,
         // Next.js: pas de cache framework — on gère le cache nous-mêmes

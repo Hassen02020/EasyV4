@@ -4,7 +4,17 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { MapPin, Calendar, Users, Star, X, Plus, Minus, Search, Check } from "lucide-react"
+import {
+  MapPin,
+  Calendar,
+  Users,
+  Star,
+  X,
+  Plus,
+  Minus,
+  Search,
+  Check,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
@@ -133,7 +143,9 @@ export function HotelsTunisieSearch() {
           cities: prev.cities,
           loading: false,
           error:
-            err instanceof Error ? err.message : "Impossible de charger les villes",
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger les villes",
         }))
       })
     return () => ctrl.abort()
@@ -164,7 +176,15 @@ export function HotelsTunisieSearch() {
         Category: selectedStars,
       },
     }
-  }, [selectedCity, checkinDate, checkoutDate, adults, childrenAges, onlyAvailable, selectedStars])
+  }, [
+    selectedCity,
+    checkinDate,
+    checkoutDate,
+    adults,
+    childrenAges,
+    onlyAvailable,
+    selectedStars,
+  ])
 
   const handleSearch = () => {
     const request = buildSearchRequest()
@@ -212,7 +232,7 @@ export function HotelsTunisieSearch() {
   // Star filter toggle
   const toggleStar = (star: number) => {
     if (selectedStars.includes(star)) {
-      setSelectedStars(selectedStars.filter(s => s !== star))
+      setSelectedStars(selectedStars.filter((s) => s !== star))
     } else {
       setSelectedStars([...selectedStars, star].sort((a, b) => b - a))
     }
@@ -234,7 +254,9 @@ export function HotelsTunisieSearch() {
     const parts: string[] = []
     parts.push(`${adults} Adulte${adults > 1 ? "s" : ""}`)
     if (childrenAges.length > 0) {
-      parts.push(`${childrenAges.length} Enfant${childrenAges.length > 1 ? "s" : ""}`)
+      parts.push(
+        `${childrenAges.length} Enfant${childrenAges.length > 1 ? "s" : ""}`,
+      )
     }
     return parts.join(", ")
   }, [adults, childrenAges])
@@ -242,10 +264,10 @@ export function HotelsTunisieSearch() {
   return (
     <div className="space-y-5">
       {/* Main Search Row */}
-      <div className="flex flex-col lg:flex-row gap-3">
+      <div className="flex flex-col gap-3 lg:flex-row">
         {/* City Autocomplete */}
-        <div className="flex-1 min-w-0">
-          <label className="text-xs text-muted-foreground font-medium mb-1.5 block">
+        <div className="min-w-0 flex-1">
+          <label className="text-muted-foreground mb-1.5 block text-xs font-medium">
             Destination
           </label>
           <Popover open={citySearchOpen} onOpenChange={setCitySearchOpen}>
@@ -254,18 +276,22 @@ export function HotelsTunisieSearch() {
                 variant="outline"
                 role="combobox"
                 aria-expanded={citySearchOpen}
-                className="w-full justify-start rounded-3xl h-12 px-4 text-left font-normal"
+                className="h-12 w-full justify-start rounded-3xl px-4 text-left font-normal"
               >
-                <MapPin className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                <MapPin className="text-muted-foreground mr-2 size-4 shrink-0" />
                 {selectedCity ? (
                   <span className="truncate">
                     {selectedCity.name}
                     {selectedCity.region && (
-                      <span className="text-muted-foreground ml-1">({selectedCity.region})</span>
+                      <span className="text-muted-foreground ml-1">
+                        ({selectedCity.region})
+                      </span>
                     )}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">Rechercher une ville...</span>
+                  <span className="text-muted-foreground">
+                    Rechercher une ville...
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -290,15 +316,15 @@ export function HotelsTunisieSearch() {
                           setCitySearchOpen(false)
                         }}
                       >
-                        <MapPin className="mr-2 size-4 text-muted-foreground" />
+                        <MapPin className="text-muted-foreground mr-2 size-4" />
                         <span>{city.name}</span>
                         {city.region && (
-                          <span className="ml-auto text-xs text-muted-foreground">
+                          <span className="text-muted-foreground ml-auto text-xs">
                             {city.region}
                           </span>
                         )}
                         {selectedCity?.id === city.id && (
-                          <Check className="ml-2 size-4 text-primary" />
+                          <Check className="text-primary ml-2 size-4" />
                         )}
                       </CommandItem>
                     ))}
@@ -310,24 +336,29 @@ export function HotelsTunisieSearch() {
         </div>
 
         {/* Date Range Picker */}
-        <div className="flex-1 min-w-0">
-          <label className="text-xs text-muted-foreground font-medium mb-1.5 block">
+        <div className="min-w-0 flex-1">
+          <label className="text-muted-foreground mb-1.5 block text-xs font-medium">
             Dates du séjour
           </label>
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full justify-start rounded-3xl h-12 px-4 text-left font-normal"
+                className="h-12 w-full justify-start rounded-3xl px-4 text-left font-normal"
               >
-                <Calendar className="mr-2 size-4 shrink-0 text-muted-foreground" />
-                <span className={cn(!checkinDate && "text-muted-foreground", "truncate")}>
+                <Calendar className="text-muted-foreground mr-2 size-4 shrink-0" />
+                <span
+                  className={cn(
+                    !checkinDate && "text-muted-foreground",
+                    "truncate",
+                  )}
+                >
                   {dateRangeDisplay}
                 </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <div className="p-3 border-b">
+              <div className="border-b p-3">
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex-1">
                     <p className="text-muted-foreground text-xs">Check-in</p>
@@ -349,8 +380,8 @@ export function HotelsTunisieSearch() {
                   checkinDate && checkoutDate
                     ? { from: checkinDate, to: checkoutDate }
                     : checkinDate
-                    ? { from: checkinDate, to: undefined }
-                    : undefined
+                      ? { from: checkinDate, to: undefined }
+                      : undefined
                 }
                 onSelect={(range) => {
                   setCheckinDate(range?.from)
@@ -368,17 +399,17 @@ export function HotelsTunisieSearch() {
         </div>
 
         {/* Pax Selector */}
-        <div className="flex-1 min-w-0">
-          <label className="text-xs text-muted-foreground font-medium mb-1.5 block">
+        <div className="min-w-0 flex-1">
+          <label className="text-muted-foreground mb-1.5 block text-xs font-medium">
             Voyageurs
           </label>
           <Popover open={paxPopoverOpen} onOpenChange={setPaxPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full justify-start rounded-3xl h-12 px-4 text-left font-normal"
+                className="h-12 w-full justify-start rounded-3xl px-4 text-left font-normal"
               >
-                <Users className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                <Users className="text-muted-foreground mr-2 size-4 shrink-0" />
                 <span className="truncate">{paxDisplay}</span>
               </Button>
             </PopoverTrigger>
@@ -388,7 +419,9 @@ export function HotelsTunisieSearch() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Adultes</p>
-                    <p className="text-xs text-muted-foreground">18 ans et plus</p>
+                    <p className="text-muted-foreground text-xs">
+                      18 ans et plus
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Button
@@ -400,7 +433,9 @@ export function HotelsTunisieSearch() {
                     >
                       <Minus className="size-3" />
                     </Button>
-                    <span className="w-6 text-center font-medium">{adults}</span>
+                    <span className="w-6 text-center font-medium">
+                      {adults}
+                    </span>
                     <Button
                       variant="outline"
                       size="icon"
@@ -417,7 +452,7 @@ export function HotelsTunisieSearch() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Enfants</p>
-                    <p className="text-xs text-muted-foreground">0-17 ans</p>
+                    <p className="text-muted-foreground text-xs">0-17 ans</p>
                   </div>
                   <Button
                     variant="outline"
@@ -426,23 +461,25 @@ export function HotelsTunisieSearch() {
                     onClick={addChild}
                     disabled={childrenAges.length >= 4}
                   >
-                    <Plus className="size-3 mr-1" />
+                    <Plus className="mr-1 size-3" />
                     Ajouter
                   </Button>
                 </div>
 
                 {/* Children Age Selectors */}
                 {childrenAges.length > 0 && (
-                  <div className="space-y-2 pl-2 border-l-2 border-muted">
+                  <div className="border-muted space-y-2 border-l-2 pl-2">
                     {childrenAges.map((age, index) => (
                       <div key={index} className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground w-16">
+                        <span className="text-muted-foreground w-16 text-sm">
                           Enfant {index + 1}
                         </span>
                         <select
                           value={age}
-                          onChange={(e) => updateChildAge(index, parseInt(e.target.value))}
-                          className="flex h-9 w-full max-w-[100px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          onChange={(e) =>
+                            updateChildAge(index, parseInt(e.target.value))
+                          }
+                          className="border-input bg-background focus-visible:ring-ring flex h-9 w-full max-w-[100px] rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
                         >
                           {Array.from({ length: 18 }, (_, i) => (
                             <option key={i} value={i}>
@@ -453,7 +490,7 @@ export function HotelsTunisieSearch() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-7 text-muted-foreground hover:text-destructive"
+                          className="text-muted-foreground hover:text-destructive size-7"
                           onClick={() => removeChild(index)}
                         >
                           <X className="size-4" />
@@ -472,9 +509,9 @@ export function HotelsTunisieSearch() {
           <Button
             onClick={handleSearch}
             disabled={!isFormValid}
-            className="w-full lg:w-auto h-12 px-8 rounded-3xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base shadow-lg hover:shadow-xl transition-all"
+            className="h-12 w-full rounded-3xl bg-orange-500 px-8 text-base font-semibold text-white shadow-lg transition-all hover:bg-orange-600 hover:shadow-xl lg:w-auto"
           >
-            <Search className="size-5 mr-2" />
+            <Search className="mr-2 size-5" />
             RECHERCHER
           </Button>
         </div>
@@ -492,7 +529,7 @@ export function HotelsTunisieSearch() {
           />
           <label
             htmlFor="only-available"
-            className="text-sm text-muted-foreground cursor-pointer select-none"
+            className="text-muted-foreground cursor-pointer text-sm select-none"
           >
             Disponibilité réelle uniquement
           </label>
@@ -504,7 +541,7 @@ export function HotelsTunisieSearch() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-full h-8 gap-1.5"
+              className="h-8 gap-1.5 rounded-full"
             >
               <Star className="size-3.5 fill-amber-400 text-amber-400" />
               {selectedStars.length > 0 ? (
@@ -521,10 +558,10 @@ export function HotelsTunisieSearch() {
                   key={option.value}
                   onClick={() => toggleStar(option.value)}
                   className={cn(
-                    "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
                     selectedStars.includes(option.value)
                       ? "bg-primary/10 text-primary"
-                      : "hover:bg-muted"
+                      : "hover:bg-muted",
                   )}
                 >
                   <div className="flex items-center gap-0.5">
@@ -537,7 +574,7 @@ export function HotelsTunisieSearch() {
                   </div>
                   <span className="ml-auto">
                     {selectedStars.includes(option.value) && (
-                      <Check className="size-4 text-primary" />
+                      <Check className="text-primary size-4" />
                     )}
                   </span>
                 </button>
@@ -547,7 +584,7 @@ export function HotelsTunisieSearch() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full mt-2 text-xs"
+                className="mt-2 w-full text-xs"
                 onClick={() => setSelectedStars([])}
               >
                 Effacer les filtres
@@ -563,13 +600,13 @@ export function HotelsTunisieSearch() {
               <Badge
                 key={star}
                 variant="secondary"
-                className="rounded-full gap-1 pr-1"
+                className="gap-1 rounded-full pr-1"
               >
                 {star}
                 <Star className="size-2.5 fill-amber-400 text-amber-400" />
                 <button
                   onClick={() => toggleStar(star)}
-                  className="ml-0.5 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                  className="hover:bg-muted-foreground/20 ml-0.5 rounded-full p-0.5"
                 >
                   <X className="size-3" />
                 </button>

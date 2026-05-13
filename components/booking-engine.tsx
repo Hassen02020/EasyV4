@@ -62,10 +62,10 @@ export function BookingEngine() {
       </div>
 
       {/* Content */}
-      <div className="relative max-w-5xl mx-auto px-4 py-12 sm:py-16 lg:py-20">
-        <div className="bg-card rounded-3xl shadow-2xl overflow-hidden">
+      <div className="relative mx-auto max-w-5xl px-4 py-12 sm:py-16 lg:py-20">
+        <div className="bg-card overflow-hidden rounded-3xl shadow-2xl">
           {/* Tabs */}
-          <div className="flex overflow-x-auto border-b border-border">
+          <div className="border-border flex overflow-x-auto border-b">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -74,15 +74,17 @@ export function BookingEngine() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 min-w-[88px] flex flex-col items-center gap-1.5 py-4 px-2 sm:px-3 text-sm font-medium transition-colors border-b-2 ${
+                  className={`flex min-w-[88px] flex-1 flex-col items-center gap-1.5 border-b-2 px-2 py-4 text-sm font-medium transition-colors sm:px-3 ${
                     isActive
-                      ? "border-[#e5b94e] text-[#1e3a5f] bg-[#1e3a5f]/5"
-                      : "border-transparent text-muted-foreground hover:text-[#1e3a5f] hover:bg-muted/50"
+                      ? "border-[#e5b94e] bg-[#1e3a5f]/5 text-[#1e3a5f]"
+                      : "text-muted-foreground hover:bg-muted/50 border-transparent hover:text-[#1e3a5f]"
                   }`}
                   aria-current={isActive ? "page" : undefined}
                 >
                   <Icon className="size-5" />
-                  <span className="whitespace-nowrap text-xs sm:text-sm">{tab.label}</span>
+                  <span className="text-xs whitespace-nowrap sm:text-sm">
+                    {tab.label}
+                  </span>
                 </button>
               )
             })}
@@ -110,15 +112,21 @@ export function BookingEngine() {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs text-muted-foreground font-medium">{children}</label>
+    <label className="text-muted-foreground text-xs font-medium">
+      {children}
+    </label>
   )
 }
 
-function SearchSubmit({ children = "RECHERCHER" }: { children?: React.ReactNode }) {
+function SearchSubmit({
+  children = "RECHERCHER",
+}: {
+  children?: React.ReactNode
+}) {
   return (
     <Button
       type="submit"
-      className="w-full sm:w-auto px-8 text-base font-semibold bg-orange-500 hover:bg-orange-600 rounded-xl"
+      className="w-full rounded-xl bg-orange-500 px-8 text-base font-semibold hover:bg-orange-600 sm:w-auto"
     >
       {children}
     </Button>
@@ -138,26 +146,29 @@ function VolsForm() {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <FieldLabel>Départ de</FieldLabel>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input defaultValue="Tunis (TUN)" className="pl-9 rounded-xl" />
+            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input defaultValue="Tunis (TUN)" className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Destination</FieldLabel>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input defaultValue="Istanbul (IST)" className="pl-9 rounded-xl" />
+            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input defaultValue="Istanbul (IST)" className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Dates</FieldLabel>
           <div className="relative">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Choisir les dates" className="pl-9 rounded-xl" />
+            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
+              placeholder="Choisir les dates"
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
         <div className="space-y-1.5">
@@ -174,10 +185,13 @@ function VolsForm() {
           </Select>
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+      <div className="flex flex-col items-start justify-between gap-4 pt-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <Checkbox id="vols-flexible" />
-          <label htmlFor="vols-flexible" className="text-sm text-muted-foreground cursor-pointer">
+          <label
+            htmlFor="vols-flexible"
+            className="text-muted-foreground cursor-pointer text-sm"
+          >
             Comparer avec les prix flexibles
           </label>
         </div>
@@ -196,26 +210,29 @@ function HotelsMondeForm() {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5 lg:col-span-2">
           <FieldLabel>Destination mondiale</FieldLabel>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Ville, hôtel ou aéroport" className="pl-9 rounded-xl" />
+            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
+              placeholder="Ville, hôtel ou aéroport"
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Check-in</FieldLabel>
           <div className="relative">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Date d'arrivée" className="pl-9 rounded-xl" />
+            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input placeholder="Date d'arrivée" className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Check-out</FieldLabel>
           <div className="relative">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Date de départ" className="pl-9 rounded-xl" />
+            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input placeholder="Date de départ" className="rounded-xl pl-9" />
           </div>
         </div>
       </div>
@@ -235,7 +252,7 @@ function OmratyForm() {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <FieldLabel>Programme</FieldLabel>
           <Select defaultValue="economique">
@@ -305,7 +322,7 @@ function VoyagesOrganisesForm() {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <FieldLabel>Destination</FieldLabel>
           <Select>
@@ -324,8 +341,11 @@ function VoyagesOrganisesForm() {
         <div className="space-y-1.5">
           <FieldLabel>Période</FieldLabel>
           <div className="relative">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Choisir la période" className="pl-9 rounded-xl" />
+            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
+              placeholder="Choisir la période"
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
         <div className="space-y-1.5">
@@ -375,7 +395,7 @@ function TransfertsForm() {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <FieldLabel>Lieu de prise en charge</FieldLabel>
           <Select>
@@ -383,7 +403,9 @@ function TransfertsForm() {
               <SelectValue placeholder="Aéroport / Port" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="tunis-airport">Aéroport Tunis-Carthage</SelectItem>
+              <SelectItem value="tunis-airport">
+                Aéroport Tunis-Carthage
+              </SelectItem>
               <SelectItem value="enfidha">Aéroport Enfidha</SelectItem>
               <SelectItem value="djerba-airport">Aéroport Djerba</SelectItem>
               <SelectItem value="monastir">Aéroport Monastir</SelectItem>
@@ -393,15 +415,15 @@ function TransfertsForm() {
         <div className="space-y-1.5">
           <FieldLabel>Lieu de dépose</FieldLabel>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Hôtel ou adresse" className="pl-9 rounded-xl" />
+            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input placeholder="Hôtel ou adresse" className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Date et heure</FieldLabel>
           <div className="relative">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Date d'arrivée" className="pl-9 rounded-xl" />
+            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input placeholder="Date d'arrivée" className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
@@ -436,7 +458,7 @@ function CarForm() {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <FieldLabel>Lieu de prise en charge</FieldLabel>
           <Select>
@@ -444,7 +466,9 @@ function CarForm() {
               <SelectValue placeholder="Aéroport ou ville" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="tunis-airport">Aéroport Tunis-Carthage</SelectItem>
+              <SelectItem value="tunis-airport">
+                Aéroport Tunis-Carthage
+              </SelectItem>
               <SelectItem value="enfidha">Aéroport Enfidha</SelectItem>
               <SelectItem value="djerba-airport">Aéroport Djerba</SelectItem>
               <SelectItem value="hammamet">Hammamet centre</SelectItem>
@@ -455,15 +479,15 @@ function CarForm() {
         <div className="space-y-1.5">
           <FieldLabel>Date de prise</FieldLabel>
           <div className="relative">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Choisir la date" className="pl-9 rounded-xl" />
+            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input placeholder="Choisir la date" className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Date de retour</FieldLabel>
           <div className="relative">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Choisir la date" className="pl-9 rounded-xl" />
+            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input placeholder="Choisir la date" className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
@@ -482,10 +506,13 @@ function CarForm() {
           </Select>
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+      <div className="flex flex-col items-start justify-between gap-4 pt-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <Checkbox id="car-driver" />
-          <label htmlFor="car-driver" className="text-sm text-muted-foreground cursor-pointer">
+          <label
+            htmlFor="car-driver"
+            className="text-muted-foreground cursor-pointer text-sm"
+          >
             Avec chauffeur
           </label>
         </div>

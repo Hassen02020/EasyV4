@@ -14,8 +14,7 @@
 import "dotenv/config"
 import { defineConfig } from "drizzle-kit"
 
-const url =
-  process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL ?? ""
+const url = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL ?? ""
 
 if (!url) {
   // Tolérant : permet à `pnpm db:generate` de marcher sans DB (génération offline).

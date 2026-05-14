@@ -1,8 +1,9 @@
 "use client"
 
-import { Fragment } from "react"
+import { Fragment, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useTheme } from "next-themes"
 import {
   LayoutDashboard,
   Calendar,
@@ -16,6 +17,7 @@ import {
   Plane,
 } from "lucide-react"
 import { TunisiaGoLogo } from "@/components/tunisia-go-logo"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Sidebar,
   SidebarContent,
@@ -141,6 +143,21 @@ export function AdminShell({
 }) {
   const pathname = usePathname()
   const breadcrumbs = getBreadcrumb(pathname)
+  const { setTheme, resolvedTheme } = useTheme()
+
+  // Back-office en mode sombre natif : si aucune préférence persistée
+  // côté localStorage, on bascule le thème sur "dark" au montage. On
+  // utilise un effect qui se déclenche une seule fois (init = null).
+  const initRef = useRef(false)
+  useEffect(() => {
+    if (initRef.current) return
+    initRef.current = true
+    if (typeof window === "undefined") return
+    const stored = window.localStorage.getItem("theme")
+    if (!stored && resolvedTheme !== "dark") {
+      setTheme("dark")
+    }
+  }, [resolvedTheme, setTheme])
 
   return (
     <SidebarProvider>
@@ -279,6 +296,9 @@ export function AdminShell({
               ))}
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+          </div>
         </header>
         <main className="bg-muted/30 flex-1 overflow-auto p-4 md:p-6">
           {children}

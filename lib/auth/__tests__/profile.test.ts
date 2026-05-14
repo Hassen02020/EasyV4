@@ -38,7 +38,10 @@ test("getCurrentAdminProfile renvoie null si userId vide", async () => {
   try {
     const mod = await importFresh()
     assert.equal(await mod.getCurrentAdminProfile(""), null)
-    assert.equal(await mod.getCurrentAdminProfile(null as unknown as string), null)
+    assert.equal(
+      await mod.getCurrentAdminProfile(null as unknown as string),
+      null,
+    )
     assert.equal(
       await mod.getCurrentAdminProfile(undefined as unknown as string),
       null,

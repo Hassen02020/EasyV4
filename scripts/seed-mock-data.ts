@@ -145,7 +145,12 @@ const CURRENCY_TO_TND: Record<string, number> = {
 
 const HOTELS = [
   { id: 101, name: "Hôtel Yadis Djerba Golf", city: "Djerba", cityId: 1 },
-  { id: 102, name: "Iberostar Selection Diar El Andalous", city: "Sousse", cityId: 2 },
+  {
+    id: 102,
+    name: "Iberostar Selection Diar El Andalous",
+    city: "Sousse",
+    cityId: 2,
+  },
   { id: 103, name: "Hasdrubal Thalassa & Spa", city: "Hammamet", cityId: 3 },
   { id: 104, name: "Royal Azur Thalassa", city: "Hammamet", cityId: 3 },
   { id: 105, name: "Concorde Marco Polo", city: "Hammamet", cityId: 3 },
@@ -172,7 +177,7 @@ const OMRA_PROGRAMS = [
   "Omra Express 7J",
 ]
 
-const ACTIVITIES = [
+const _ACTIVITIES = [
   "Excursion Sahara 4x4 (Douz)",
   "Médina de Tunis guidée",
   "Plongée à Tabarka",
@@ -212,36 +217,16 @@ async function main() {
   const db = getDb()
 
   console.log("[seed] cleaning agency data...")
-  await db
-    .delete(payments)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(reservationHotel)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(reservationFlight)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(reservationOmra)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(reservationActivity)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(reservationTransfer)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(reservationPackage)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(reservations)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(auditEvents)
-    .where(sql`agency_id = ${AGENCY_ID}`)
-  await db
-    .delete(customers)
-    .where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(payments).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(reservationHotel).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(reservationFlight).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(reservationOmra).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(reservationActivity).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(reservationTransfer).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(reservationPackage).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(reservations).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(auditEvents).where(sql`agency_id = ${AGENCY_ID}`)
+  await db.delete(customers).where(sql`agency_id = ${AGENCY_ID}`)
 
   console.log("[seed] ensuring currencies (TND, EUR, USD)...")
   await db
@@ -283,7 +268,7 @@ async function main() {
   console.log("[seed] inserting 250 reservations + extensions...")
   let publicRefSeq = 1000
   for (let i = 0; i < 250; i++) {
-    const module = rand(MODULES)
+    const mod = rand(MODULES)
     const customer = rand(customerRows)
     const status = rand(STATUSES)
     const createdDaysAgo = randInt(0, 90)
@@ -300,21 +285,24 @@ async function main() {
         agencyId: AGENCY_ID,
         publicRef,
         customerId: customer.id,
-        module,
+        module: mod,
         source: rand(SOURCES),
         status,
         originalCurrency: currency,
         originalAmount,
         tndAmount,
         depositAmount: (Number(originalAmount) * 0.3).toFixed(2),
-        depositPaid: status === "pending" ? "0" : (Number(originalAmount) * 0.3).toFixed(2),
+        depositPaid:
+          status === "pending"
+            ? "0"
+            : (Number(originalAmount) * 0.3).toFixed(2),
         createdAt,
         updatedAt: createdAt,
         cancelledAt: status === "cancelled" ? createdAt : null,
       })
       .returning({ id: reservations.id })
 
-    if (module === "hotel") {
+    if (mod === "hotel") {
       const hotel = rand(HOTELS)
       const checkInDays = randInt(7, 60)
       const nights = randInt(2, 14)
@@ -341,7 +329,7 @@ async function main() {
           "All Inclusive",
         ]),
       })
-    } else if (module === "flight") {
+    } else if (mod === "flight") {
       const pair = rand(FLIGHT_PAIRS)
       await db.insert(reservationFlight).values({
         reservationId: resId,
@@ -356,19 +344,21 @@ async function main() {
         children: randInt(0, 2),
         infants: 0,
       })
-    } else if (module === "omra") {
+    } else if (mod === "omra") {
       const depDays = randInt(30, 180)
       await db.insert(reservationOmra).values({
         reservationId: resId,
         agencyId: AGENCY_ID,
         omraPackageId: crypto.randomUUID(),
         departureDate: daysAgo(-depDays).toISOString().slice(0, 10),
-        returnDate: daysAgo(-(depDays + 12)).toISOString().slice(0, 10),
+        returnDate: daysAgo(-(depDays + 12))
+          .toISOString()
+          .slice(0, 10),
         pilgrims: randInt(1, 6),
         visaStatus: rand(["pending", "submitted", "approved"]),
         travelers: { programName: rand(OMRA_PROGRAMS) },
       })
-    } else if (module === "activity") {
+    } else if (mod === "activity") {
       await db.insert(reservationActivity).values({
         reservationId: resId,
         agencyId: AGENCY_ID,
@@ -380,7 +370,7 @@ async function main() {
         adults: randInt(1, 6),
         children: randInt(0, 3),
       })
-    } else if (module === "transfer") {
+    } else if (mod === "transfer") {
       await db.insert(reservationTransfer).values({
         reservationId: resId,
         agencyId: AGENCY_ID,
@@ -392,7 +382,7 @@ async function main() {
         pax: randInt(1, 8),
         luggageCount: randInt(1, 6),
       })
-    } else if (module === "package") {
+    } else if (mod === "package") {
       const depDays = randInt(15, 90)
       await db.insert(reservationPackage).values({
         reservationId: resId,
@@ -400,7 +390,9 @@ async function main() {
         packageId: crypto.randomUUID(),
         departureId: crypto.randomUUID(),
         departureDate: daysAgo(-depDays).toISOString().slice(0, 10),
-        returnDate: daysAgo(-(depDays + randInt(5, 14))).toISOString().slice(0, 10),
+        returnDate: daysAgo(-(depDays + randInt(5, 14)))
+          .toISOString()
+          .slice(0, 10),
         adults: randInt(1, 6),
         travelers: {
           title: `Voyage organisé ${rand(["Istanbul", "Dubaï", "Bali", "Andalousie"])}`,
@@ -492,10 +484,18 @@ async function main() {
   }
 
   console.log("[seed] ✅ done. Summary :")
-  const [c] = await db.select({ value: sql<number>`count(*)::int` }).from(customers)
-  const [r] = await db.select({ value: sql<number>`count(*)::int` }).from(reservations)
-  const [p] = await db.select({ value: sql<number>`count(*)::int` }).from(payments)
-  const [a] = await db.select({ value: sql<number>`count(*)::int` }).from(auditEvents)
+  const [c] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(customers)
+  const [r] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(reservations)
+  const [p] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(payments)
+  const [a] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(auditEvents)
   console.log("  customers     :", c?.value)
   console.log("  reservations  :", r?.value)
   console.log("  payments      :", p?.value)

@@ -1,7 +1,7 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { toast } from "sonner"
 import {
   Plane,
   Building2,
@@ -24,6 +24,43 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { HotelsTunisieSearch } from "@/components/hotels-tunisie-search"
+import { encodeDraft } from "@/lib/booking/draft-store"
+import type { BookingDraft } from "@/lib/booking/schemas"
+
+function iso(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
+function futureDate(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return iso(d)
+}
+
+function buildSampleBookingUrl(input: {
+  module: BookingDraft["module"]
+  offerLabel: string
+  unitPriceTnd: number
+  startInDays?: number
+  endInDays?: number
+  adults?: number
+}): string {
+  const token = encodeDraft({
+    draft: {
+      module: input.module,
+      offerId: `demo-${input.module}-${Math.floor(Math.random() * 1e6)}`,
+      offerLabel: input.offerLabel,
+      startDate: futureDate(input.startInDays ?? 21),
+      endDate:
+        input.endInDays != null ? futureDate(input.endInDays) : undefined,
+      adults: input.adults ?? 2,
+      children: 0,
+      unitPriceTnd: input.unitPriceTnd,
+      currency: "TND",
+    },
+  })
+  return `/booking?d=${encodeURIComponent(token)}`
+}
 
 const tabs = [
   { id: "vols", label: "Vols", icon: Plane },
@@ -40,13 +77,6 @@ type TabId = (typeof tabs)[number]["id"]
 // Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
 const HERO_BG_URL =
   "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
-
-function notifyComingSoon(module: string) {
-  toast.info(`Recherche ${module} bientôt disponible`, {
-    description:
-      "Le moteur de recherche sera connecté à l'API correspondante prochainement.",
-  })
-}
 
 export function BookingEngine() {
   const [activeTab, setActiveTab] = useState<TabId>("vols")
@@ -138,11 +168,20 @@ function SearchSubmit({
 // ----------------------------------------------------------------------------
 
 function VolsForm() {
+  const router = useRouter()
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        notifyComingSoon("Vols")
+        router.push(
+          buildSampleBookingUrl({
+            module: "flight",
+            offerLabel: "Vol Tunis → Istanbul A/R — Tunisair",
+            unitPriceTnd: 1850,
+            startInDays: 21,
+            endInDays: 28,
+          }),
+        )
       }}
       className="space-y-4"
     >
@@ -202,11 +241,20 @@ function VolsForm() {
 }
 
 function HotelsMondeForm() {
+  const router = useRouter()
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        notifyComingSoon("Hôtels Monde")
+        router.push(
+          buildSampleBookingUrl({
+            module: "hotel",
+            offerLabel: "Hilton Istanbul Bomonti — Suite Deluxe",
+            unitPriceTnd: 980,
+            startInDays: 30,
+            endInDays: 37,
+          }),
+        )
       }}
       className="space-y-4"
     >
@@ -244,11 +292,21 @@ function HotelsMondeForm() {
 }
 
 function OmratyForm() {
+  const router = useRouter()
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        notifyComingSoon("Omraty")
+        router.push(
+          buildSampleBookingUrl({
+            module: "omra",
+            offerLabel: "Omra Prestige 10 jours — Hôtel 5★ Haram 400m",
+            unitPriceTnd: 5400,
+            startInDays: 60,
+            endInDays: 70,
+            adults: 1,
+          }),
+        )
       }}
       className="space-y-4"
     >
@@ -314,11 +372,20 @@ function OmratyForm() {
 }
 
 function VoyagesOrganisesForm() {
+  const router = useRouter()
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        notifyComingSoon("Voyages Organisés")
+        router.push(
+          buildSampleBookingUrl({
+            module: "package",
+            offerLabel: "Circuit Turquie 7J — Istanbul / Cappadoce / Pamukkale",
+            unitPriceTnd: 3200,
+            startInDays: 45,
+            endInDays: 52,
+          }),
+        )
       }}
       className="space-y-4"
     >
@@ -387,11 +454,20 @@ function VoyagesOrganisesForm() {
 }
 
 function TransfertsForm() {
+  const router = useRouter()
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        notifyComingSoon("Transferts")
+        router.push(
+          buildSampleBookingUrl({
+            module: "transfer",
+            offerLabel: "Transfert privé Aéroport Tunis → Hammamet — Berline",
+            unitPriceTnd: 120,
+            startInDays: 14,
+            adults: 3,
+          }),
+        )
       }}
       className="space-y-4"
     >
@@ -450,11 +526,21 @@ function TransfertsForm() {
 }
 
 function CarForm() {
+  const router = useRouter()
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        notifyComingSoon("Location de voiture")
+        router.push(
+          buildSampleBookingUrl({
+            module: "activity",
+            offerLabel: "Location Citadine — 5 jours / kilométrage illimité",
+            unitPriceTnd: 90,
+            startInDays: 14,
+            endInDays: 19,
+            adults: 1,
+          }),
+        )
       }}
       className="space-y-4"
     >

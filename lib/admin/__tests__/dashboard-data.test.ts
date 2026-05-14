@@ -17,7 +17,6 @@ async function importFresh() {
   // node:test n'a pas de module reset natif ; on bypasse en supprimant
   // l'entrée du require cache pour ré-évaluer le module.
   const path = "../dashboard-data.ts"
-  // @ts-expect-error - import.meta.resolve is experimental in tsx
   return import(`${path}?t=${Date.now()}`)
 }
 

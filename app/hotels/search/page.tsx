@@ -1,13 +1,12 @@
 "use client"
 
 import { Suspense, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { SearchHeader } from "@/components/search-header"
 import { FilterSidebar } from "@/components/filter-sidebar"
 import { HotelListings } from "@/components/hotel-listings"
-import { BookingForm } from "@/components/booking-form"
 import { useHotelSearch } from "@/lib/mygo/use-hotel-search"
 import {
   applyFilters,
@@ -15,6 +14,7 @@ import {
   EMPTY_FILTER_STATE,
   type HotelFilterState,
 } from "@/lib/mygo/facets"
+import { encodeDraft } from "@/lib/booking/draft-store"
 
 interface BookingData {
   id: number
@@ -44,8 +44,8 @@ function formatDateRange(checkin: string | null, checkout: string | null) {
 }
 
 function HotelSearchContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const [bookingData, setBookingData] = useState<BookingData | null>(null)
   const [filters, setFilters] = useState<HotelFilterState>(EMPTY_FILTER_STATE)
 
   const { status, data, error } = useHotelSearch()
@@ -78,16 +78,30 @@ function HotelSearchContent() {
   )
 
   const handleBookHotel = (hotelData: BookingData) => {
-    setBookingData(hotelData)
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
-  const handleBackToSearch = () => {
-    setBookingData(null)
-  }
-
-  if (bookingData) {
-    return <BookingForm hotel={bookingData} onBack={handleBackToSearch} />
+    const unitPriceTnd =
+      hotelData.adults > 0
+        ? hotelData.totalPrice / hotelData.adults
+        : hotelData.totalPrice
+    const token = encodeDraft({
+      draft: {
+        module: "hotel",
+        offerId: String(hotelData.id),
+        offerLabel: `${hotelData.name} — ${hotelData.roomType}`,
+        startDate: hotelData.checkIn,
+        endDate: hotelData.checkOut,
+        adults: hotelData.adults,
+        children: hotelData.children,
+        unitPriceTnd,
+        currency: "TND",
+        metadata: {
+          hotelImage: hotelData.image,
+          mealPlan: hotelData.mealPlan,
+          nights: hotelData.nights,
+          location: hotelData.location,
+        },
+      },
+    })
+    router.push(`/booking?d=${encodeURIComponent(token)}`)
   }
 
   return (

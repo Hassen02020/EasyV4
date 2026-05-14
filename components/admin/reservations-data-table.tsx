@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Data Table interactive du Back-Office TunisiaGo.
+ * Data Table interactive du Back-Office Easy2Book.
  *
  * Fonctionnalités :
  *  - Filtrage : recherche texte (référence / nom client / email), filtre

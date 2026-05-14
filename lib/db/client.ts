@@ -1,5 +1,5 @@
 /**
- * Drizzle client factory pour TunisiaGo.
+ * Drizzle client factory pour Easy2Book.
  *
  * Utilisation typique côté API route :
  *   import { getDb } from "@/lib/db/client"

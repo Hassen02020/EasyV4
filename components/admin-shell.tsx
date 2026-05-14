@@ -16,7 +16,7 @@ import {
   Moon,
   Plane,
 } from "lucide-react"
-import { TunisiaGoLogo } from "@/components/tunisia-go-logo"
+import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Sidebar,
@@ -163,12 +163,17 @@ export function AdminShell({
     <SidebarProvider>
       <Sidebar className="border-border border-r">
         <SidebarHeader className="border-border border-b px-4 py-4">
-          <Link href="/admin" className="flex items-center gap-3">
-            <TunisiaGoLogo className="size-10" />
+          <Link
+            href="/admin"
+            className="flex items-center gap-3"
+            aria-label="Easy2Book Backoffice"
+          >
+            <Easy2BookLogo className="size-10" />
             <div className="flex flex-col">
               <span className="text-lg font-bold">
-                <span className="text-[#1e3a5f]">Tunisia</span>
-                <span className="text-[#e5b94e]">Go</span>
+                <span className="text-foreground">Easy</span>
+                <span className="text-[#e5b94e]">2</span>
+                <span className="text-foreground">Book</span>
               </span>
               <span className="text-muted-foreground text-xs">Backoffice</span>
             </div>

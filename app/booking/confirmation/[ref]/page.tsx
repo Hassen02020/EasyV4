@@ -127,7 +127,7 @@ export default async function ConfirmationPage({
               ) : null}
               <Separator />
               <p className="text-muted-foreground text-sm">
-                Un agent TunisiaGo va confirmer votre réservation dans les
+                Un agent Easy2Book va confirmer votre réservation dans les
                 prochaines heures. Vous recevrez un email avec votre voucher
                 définitif sur{" "}
                 <span className="text-foreground">{row.customerEmail}</span>.

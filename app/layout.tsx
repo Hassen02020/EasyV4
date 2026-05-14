@@ -12,9 +12,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "TunisiaGo — Vols, Hôtels, Omra & Voyages en Tunisie",
+  title: "Easy2Book — Centrale de Réservation : Vols, Hôtels, Omra & Voyages",
   description:
-    "TunisiaGo — Réservez vos vols, hôtels en Tunisie et dans le monde, voyages organisés, Omra, transferts et location de voiture. Support local 7j/7 — +216 98 140 514.",
+    "Easy2Book — Centrale de réservation : vols, hôtels en Tunisie et dans le monde, voyages organisés, Omra, transferts et location de voiture. Support local 7j/7 — +216 98 140 514.",
   icons: {
     icon: [
       {

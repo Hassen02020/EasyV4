@@ -1,7 +1,7 @@
 "use server"
 
 /**
- * Server actions du back-office TunisiaGo.
+ * Server actions du back-office Easy2Book.
  *
  * Périmètre PR #3 :
  *  - `updateReservationStatus` : transition de statut atomique sur une

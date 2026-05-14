@@ -7,7 +7,7 @@ import {
   Instagram,
   Linkedin,
 } from "lucide-react"
-import { TunisiaGoLogo } from "@/components/tunisia-go-logo"
+import { Easy2BookLogo } from "@/components/easy2book-logo"
 
 const trustBadges = [
   {
@@ -72,11 +72,17 @@ export function Footer() {
             {/* Brand */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <TunisiaGoLogo className="size-10 rounded-lg bg-white p-1" />
-                <span className="text-xl font-bold">
-                  <span className="text-white">Tunisia</span>
-                  <span className="text-[#e5b94e]">Go</span>
-                </span>
+                <Easy2BookLogo className="size-12 rounded-lg bg-white p-1" />
+                <div className="flex flex-col leading-tight">
+                  <span className="text-xl font-bold">
+                    <span className="text-white">Easy</span>
+                    <span className="text-[#e5b94e]">2</span>
+                    <span className="text-white">Book</span>
+                  </span>
+                  <span className="text-[10px] tracking-widest text-white/60 uppercase">
+                    Centrale de Réservation
+                  </span>
+                </div>
               </div>
               <p className="max-w-xs text-sm text-white/70">
                 Votre partenaire de confiance pour tous vos voyages en Tunisie
@@ -202,7 +208,7 @@ export function Footer() {
       <div className="bg-[#0f2237]">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-white/50">
-            © 2026 TunisiaGo. Tous droits réservés. Agence de voyage agréée en
+            © 2026 Easy2Book. Tous droits réservés. Agence de voyage agréée en
             Tunisie.
           </p>
         </div>

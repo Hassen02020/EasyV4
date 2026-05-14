@@ -1,5 +1,5 @@
 /**
- * Dashboard back-office TunisiaGo.
+ * Dashboard back-office Easy2Book.
  *
  * Server Component : on récupère l'agence courante via le profil utilisateur
  * connecté (middleware + layout ont déjà vérifié l'auth), puis on charge les
@@ -158,7 +158,7 @@ export default async function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-[#1e3a5f]">Tableau de bord</h1>
           <p className="text-muted-foreground">
-            Vue d&apos;ensemble de votre activité TunisiaGo
+            Vue d&apos;ensemble de votre activité Easy2Book
           </p>
         </div>
         <Button className="bg-[#1e3a5f] hover:bg-[#1e3a5f]/90" asChild>

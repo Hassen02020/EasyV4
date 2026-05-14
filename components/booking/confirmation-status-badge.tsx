@@ -30,7 +30,7 @@ const STATUS_VARIANTS: Record<
     icon: Clock,
   },
   confirmed: {
-    label: "Confirmée par TunisiaGo",
+    label: "Confirmée par Easy2Book",
     className: "bg-emerald-600 text-white hover:bg-emerald-600",
     icon: CheckCircle2,
   },

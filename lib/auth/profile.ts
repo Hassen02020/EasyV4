@@ -24,6 +24,8 @@ export type AdminProfile = {
     | "agent_resa"
     | "agent_compta"
     | "agent_excursions"
+    | "partner_owner"
+    | "partner_agent"
   status: "active" | "suspended"
 }
 

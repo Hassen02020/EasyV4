@@ -44,10 +44,40 @@ import {
 
 export const userRole = pgEnum("user_role", [
   "super_admin", // accès cross-agencies (super-admin Easy2Book)
-  "manager", // owner agence
+  "manager", // owner agence (OTA)
   "agent_resa", // agent réservation
   "agent_compta", // agent comptabilité
   "agent_excursions", // agent terrain (scan QR activités)
+  "partner_owner", // propriétaire d'une agence partenaire B2B
+  "partner_agent", // sous-compte agent au sein d'une agence B2B
+])
+
+export const agencyType = pgEnum("agency_type", [
+  "ota", // OTA Easy2Book elle-même (ou agences en marque blanche)
+  "partner", // agence partenaire B2B avec compte de dépôt
+])
+
+export const marginType = pgEnum("margin_type", ["percent", "fixed"])
+
+export const invoiceType = pgEnum("invoice_type", [
+  "facture", // facture standard
+  "avoir", // note de crédit
+  "proforma", // facture proforma
+])
+
+export const paymentMode = pgEnum("payment_mode", [
+  "transfer", // virement bancaire
+  "card", // carte bancaire
+  "cash", // espèces
+  "credit_account", // compte de dépôt (débit du solde)
+  "check", // chèque
+])
+
+export const creditMovementType = pgEnum("credit_movement_type", [
+  "credit", // recharge du compte (+)
+  "debit", // débit (réservation, achat)
+  "refund", // remboursement (+)
+  "adjustment", // ajustement manuel
 ])
 
 export const userStatus = pgEnum("user_status", ["active", "suspended"])
@@ -120,6 +150,39 @@ export const agencies = pgTable(
     brandName: varchar("brand_name", { length: 200 }),
     contactEmail: varchar("contact_email", { length: 320 }),
     contactPhone: varchar("contact_phone", { length: 32 }),
+    /** Type d'agence : OTA (Easy2Book) ou agence B2B partenaire. */
+    agencyType: agencyType("agency_type").notNull().default("ota"),
+    /** Matricule fiscale tunisien (format `1234567/A/B/C/000`). */
+    matriculeFiscale: varchar("matricule_fiscale", { length: 32 }),
+    /** Registre de commerce. */
+    registreCommerce: varchar("registre_commerce", { length: 64 }),
+    /** Adresse postale complète. */
+    address: text("address"),
+    /** Fax (optionnel). */
+    fax: varchar("fax", { length: 32 }),
+    /** URL du logo de l'agence (CDN/Supabase Storage). */
+    logoUrl: text("logo_url"),
+    /** Langue par défaut (fr/en/ar/tr). */
+    defaultLanguage: varchar("default_language", { length: 4 })
+      .notNull()
+      .default("fr"),
+    /** Devise par défaut affichée à l'utilisateur (TND/EUR/USD/DZD). */
+    defaultCurrency: varchar("default_currency", { length: 3 })
+      .notNull()
+      .default("TND"),
+    /** B2B : masquer le widget "Mon Crédit" dans l'interface. */
+    maskCredit: boolean("mask_credit").notNull().default(false),
+    /** B2B : solde du compte de dépôt en TND (recharge prépayée). */
+    depositBalance: decimal("deposit_balance", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    /** B2B : seuil d'alerte solde bas (déclenche notif). */
+    creditLowThreshold: decimal("credit_low_threshold", {
+      precision: 14,
+      scale: 2,
+    })
+      .notNull()
+      .default("100.00"),
     /** Devises affichées au client (front). La 1ʳᵉ est la devise par défaut. */
     displayCurrencies: text("display_currencies")
       .array()
@@ -142,7 +205,10 @@ export const agencies = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex("agencies_slug_uniq").on(t.slug)],
+  (t) => [
+    uniqueIndex("agencies_slug_uniq").on(t.slug),
+    index("agencies_type_idx").on(t.agencyType),
+  ],
 )
 
 /* -------------------------------------------------------------------------- */
@@ -820,6 +886,168 @@ export const catalogDrivers = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* B2B Partner Portal — pricing margins, invoices, payments, credit ledger    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Règles de marge appliquées par agence × module produit.
+ *
+ * Exemple : agence "Carthage Tours" → +10% sur hotel, +5 TND fixe sur flight.
+ * Permet de calculer prix public = prix net × (1 + margin) ou prix net + margin.
+ */
+export const pricingMargins = pgTable(
+  "pricing_margins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    module: reservationModule("module").notNull(),
+    marginType: marginType("margin_type").notNull(),
+    /** Valeur du markup : pourcentage (5 = 5%) ou montant fixe TND. */
+    marginValue: decimal("margin_value", { precision: 10, scale: 2 }).notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("pricing_margins_agency_idx").on(t.agencyId),
+    uniqueIndex("pricing_margins_agency_module_uniq").on(t.agencyId, t.module),
+  ],
+)
+
+/**
+ * Factures émises par l'OTA à une agence B2B partenaire.
+ *
+ * Une facture peut grouper plusieurs réservations (lignes JSONB).
+ */
+export const partnerInvoices = pgTable(
+  "partner_invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    /** Numéro public (ex. F-2026-00012). */
+    invoiceNumber: varchar("invoice_number", { length: 32 }).notNull(),
+    invoiceType: invoiceType("invoice_type").notNull().default("facture"),
+    validationDate: date("validation_date"),
+    /** Liste des réservations facturées (jsonb : [{reservationId, label, amount}]). */
+    lineItems: jsonb("line_items"),
+    totalHt: decimal("total_ht", { precision: 14, scale: 2 }).notNull(),
+    totalTva: decimal("total_tva", { precision: 14, scale: 2 }).notNull(),
+    totalTtc: decimal("total_ttc", { precision: 14, scale: 2 }).notNull(),
+    amountPaid: decimal("amount_paid", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    /** 'draft' / 'issued' / 'paid' / 'partial' / 'overdue' / 'cancelled'. */
+    status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /** Date d'échéance de règlement. */
+    dueDate: date("due_date"),
+    /** URL PDF (Supabase Storage). */
+    pdfUrl: text("pdf_url"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("partner_invoices_number_uniq").on(t.invoiceNumber),
+    index("partner_invoices_agency_idx").on(t.agencyId),
+    index("partner_invoices_status_idx").on(t.agencyId, t.status),
+  ],
+)
+
+/**
+ * Règlements (entrées de paiement liées aux factures).
+ *
+ * 1 facture peut avoir N règlements (paiement partiel + solde).
+ */
+export const partnerPayments = pgTable(
+  "partner_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    invoiceId: uuid("invoice_id").references(() => partnerInvoices.id, {
+      onDelete: "set null",
+    }),
+    paymentMode: paymentMode("payment_mode").notNull(),
+    /** Date d'échéance prévue. */
+    dueDate: date("due_date"),
+    /** Date d'émission effective du règlement. */
+    issueDate: date("issue_date"),
+    /** Montant initialement attendu. */
+    originalAmount: decimal("original_amount", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
+    /** Montant restant à payer après cette opération. */
+    remainingAmount: decimal("remaining_amount", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    /** Crédit accordé (avance/dépôt). */
+    creditAmount: decimal("credit_amount", { precision: 14, scale: 2 }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("partner_payments_agency_idx").on(t.agencyId),
+    index("partner_payments_invoice_idx").on(t.invoiceId),
+  ],
+)
+
+/**
+ * Ledger des mouvements sur le compte de dépôt d'une agence B2B.
+ *
+ * Tout débit/crédit de `agencies.depositBalance` génère ici une ligne pour
+ * traçabilité comptable (relevé de compte, audit).
+ */
+export const partnerCreditMovements = pgTable(
+  "partner_credit_movements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    movementType: creditMovementType("movement_type").notNull(),
+    /** Montant en TND (signe positif). Le type indique le sens. */
+    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    /** Solde après ce mouvement (snapshot). */
+    balanceAfter: decimal("balance_after", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
+    /** Référence externe (n° réservation, n° facture, etc.). */
+    reference: varchar("reference", { length: 64 }),
+    /** Lien optionnel à une réservation. */
+    reservationId: uuid("reservation_id"),
+    /** Lien optionnel à une facture. */
+    invoiceId: uuid("invoice_id"),
+    description: text("description"),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("partner_credit_agency_idx").on(t.agencyId),
+    index("partner_credit_created_idx").on(t.agencyId, t.createdAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* Type exports                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -831,3 +1059,11 @@ export type Reservation = typeof reservations.$inferSelect
 export type NewReservation = typeof reservations.$inferInsert
 export type Payment = typeof payments.$inferSelect
 export type NewPayment = typeof payments.$inferInsert
+export type PricingMargin = typeof pricingMargins.$inferSelect
+export type NewPricingMargin = typeof pricingMargins.$inferInsert
+export type PartnerInvoice = typeof partnerInvoices.$inferSelect
+export type NewPartnerInvoice = typeof partnerInvoices.$inferInsert
+export type PartnerPayment = typeof partnerPayments.$inferSelect
+export type PartnerCreditMovement = typeof partnerCreditMovements.$inferSelect
+export type NewPartnerCreditMovement =
+  typeof partnerCreditMovements.$inferInsert

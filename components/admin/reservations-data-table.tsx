@@ -349,7 +349,7 @@ export function ReservationsDataTable({
         </Select>
       </div>
 
-      <div className="border-border bg-card overflow-hidden rounded-lg border">
+      <div className="border-border/60 bg-card shadow-e2b-soft overflow-hidden rounded-2xl border">
         <Table>
           <TableHeader>
             <TableRow>

@@ -37,32 +37,37 @@ export default async function AdminReservationsPage({
     : rows
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 p-6">
+      <div className="e2b-fade-in-up flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-foreground text-2xl font-bold">
+          <h1 className="text-foreground text-3xl font-bold tracking-tight">
             Réservations
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground mt-1 text-sm">
             Suivi et modification du statut des réservations clients en temps
             réel.
           </p>
         </div>
-        <div className="text-muted-foreground text-xs">
+        <div className="bg-secondary/60 text-secondary-foreground rounded-full px-3 py-1 text-xs font-medium">
           {rows.length} ligne{rows.length > 1 ? "s" : ""} chargée
           {rows.length > 1 ? "s" : ""}
         </div>
       </div>
 
       {!available ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="border-accent/40 bg-accent/10 text-accent-foreground rounded-2xl border p-4 text-sm">
           <strong>Mode dégradé.</strong> La base de données n&apos;est pas
           accessible. Aucune mutation n&apos;est possible tant que la connexion
           n&apos;est pas restaurée.
         </div>
       ) : null}
 
-      <ReservationsDataTable rows={filteredRows} />
+      <div
+        className="e2b-fade-in-up"
+        style={{ animationDelay: "120ms" }}
+      >
+        <ReservationsDataTable rows={filteredRows} />
+      </div>
     </div>
   )
 }

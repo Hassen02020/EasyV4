@@ -1,9 +1,8 @@
 "use client"
 
-import { Fragment, useEffect, useRef } from "react"
+import { Fragment } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useTheme } from "next-themes"
 import {
   LayoutDashboard,
   Calendar,
@@ -143,39 +142,26 @@ export function AdminShell({
 }) {
   const pathname = usePathname()
   const breadcrumbs = getBreadcrumb(pathname)
-  const { setTheme, resolvedTheme } = useTheme()
-
-  // Back-office en mode sombre natif : si aucune préférence persistée
-  // côté localStorage, on bascule le thème sur "dark" au montage. On
-  // utilise un effect qui se déclenche une seule fois (init = null).
-  const initRef = useRef(false)
-  useEffect(() => {
-    if (initRef.current) return
-    initRef.current = true
-    if (typeof window === "undefined") return
-    const stored = window.localStorage.getItem("theme")
-    if (!stored && resolvedTheme !== "dark") {
-      setTheme("dark")
-    }
-  }, [resolvedTheme, setTheme])
 
   return (
     <SidebarProvider>
-      <Sidebar className="border-border border-r">
-        <SidebarHeader className="border-border border-b px-4 py-4">
+      <Sidebar className="border-sidebar-border border-r">
+        <SidebarHeader className="border-sidebar-border/60 border-b px-4 py-5">
           <Link
             href="/admin"
             className="flex items-center gap-3"
             aria-label="Easy2Book Backoffice"
           >
-            <Easy2BookLogo className="size-10" />
+            <Easy2BookLogo className="e2b-logo-pulse size-10" />
             <div className="flex flex-col">
-              <span className="text-lg font-bold">
-                <span className="text-foreground">Easy</span>
-                <span className="text-[#e5b94e]">2</span>
-                <span className="text-foreground">Book</span>
+              <span className="text-lg font-bold tracking-tight">
+                <span className="text-sidebar-foreground">Easy</span>
+                <span className="text-sidebar-primary">2</span>
+                <span className="text-sidebar-foreground">Book</span>
               </span>
-              <span className="text-muted-foreground text-xs">Backoffice</span>
+              <span className="text-sidebar-foreground/70 text-xs">
+                Backoffice
+              </span>
             </div>
           </Link>
         </SidebarHeader>
@@ -243,20 +229,20 @@ export function AdminShell({
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="border-border border-t">
+        <SidebarFooter className="border-sidebar-border/60 border-t">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton className="h-auto py-3">
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-[#1e3a5f] text-xs text-white">
+                <Avatar className="border-sidebar-primary/40 size-8 border">
+                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
                     {user.initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start">
-                  <span className="text-sm font-medium">
+                  <span className="text-sidebar-foreground text-sm font-medium">
                     {user.displayName}
                   </span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-sidebar-foreground/70 text-xs">
                     {ROLE_LABEL[user.role]} · {user.email}
                   </span>
                 </div>
@@ -266,7 +252,7 @@ export function AdminShell({
               <form action="/api/auth/signout" method="post" className="w-full">
                 <SidebarMenuButton
                   asChild
-                  className="text-muted-foreground hover:text-destructive"
+                  className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                 >
                   <button type="submit">
                     <LogOut className="size-4" />
@@ -280,7 +266,7 @@ export function AdminShell({
       </Sidebar>
 
       <SidebarInset>
-        <header className="bg-background flex h-14 items-center gap-4 border-b px-4">
+        <header className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-30 flex h-14 items-center gap-4 border-b px-6 backdrop-blur">
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-6" />
           <Breadcrumb>

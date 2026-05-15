@@ -94,7 +94,7 @@ export function FlashOffers() {
 
                 <div className="border-border flex items-center justify-between border-t pt-2">
                   <div>
-                    <span className="text-xl font-bold text-orange-500 sm:text-2xl">
+                    <span className="text-primary text-xl font-bold sm:text-2xl">
                       {offer.price} {offer.currency}
                     </span>
                     {offer.priceUnit && (

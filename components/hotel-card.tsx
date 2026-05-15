@@ -230,7 +230,7 @@ export function HotelCard({
           <div className="border-border flex min-w-[150px] flex-col items-end justify-between border-t pt-4 md:border-t-0 md:border-l md:pt-0 md:pl-4">
             {/* Exclusive Badge */}
             {hotel.discountPercent > 0 && (
-              <div className="mb-2 rounded bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-1 text-xs font-semibold text-white">
+              <div className="bg-primary text-primary-foreground mb-2 rounded-full px-2 py-1 text-xs font-semibold">
                 Exclusive
               </div>
             )}

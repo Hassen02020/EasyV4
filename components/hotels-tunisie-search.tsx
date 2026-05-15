@@ -509,7 +509,7 @@ export function HotelsTunisieSearch() {
           <Button
             onClick={handleSearch}
             disabled={!isFormValid}
-            className="h-12 w-full rounded-3xl bg-orange-500 px-8 text-base font-semibold text-white shadow-lg transition-all hover:bg-orange-600 hover:shadow-xl lg:w-auto"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-e2b-soft h-12 w-full rounded-3xl px-8 text-base font-semibold transition-all hover:shadow-xl lg:w-auto"
           >
             <Search className="mr-2 size-5" />
             RECHERCHER

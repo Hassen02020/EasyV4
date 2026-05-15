@@ -18,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { TunisiaGoLogo } from "@/components/tunisia-go-logo"
+import { Easy2BookLogo } from "@/components/easy2book-logo"
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -30,11 +30,16 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <TunisiaGoLogo className="size-9" />
+          <Link
+            href="/"
+            className="flex items-center gap-2"
+            aria-label="Easy2Book — retour à l'accueil"
+          >
+            <Easy2BookLogo className="size-10" priority />
             <span className="text-xl font-bold">
-              <span className="text-[#1e3a5f]">Tunisia</span>
-              <span className="text-[#e5b94e]">Go</span>
+              <span className="text-[#1e3a5f]">Easy</span>
+              <span className="text-[#e5b94e]">2</span>
+              <span className="text-[#1e3a5f]">Book</span>
             </span>
           </Link>
 

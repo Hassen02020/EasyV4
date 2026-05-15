@@ -1,7 +1,7 @@
 /**
  * Seed mock data réaliste dans Supabase pour démontrer la PR 2/3.
  *
- * - 1 agence TunisiaGo (déjà seedée)
+ * - 1 agence Easy2Book (déjà seedée)
  * - 60 customers
  * - 250 reservations (90 derniers jours, mix de modules, mix statuts)
  * - 1 reservation extension par module pour les 250

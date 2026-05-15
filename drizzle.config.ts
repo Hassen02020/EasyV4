@@ -1,5 +1,5 @@
 /**
- * Drizzle-kit config — TunisiaGo.
+ * Drizzle-kit config — Easy2Book.
  *
  * Commandes :
  *   pnpm db:generate   → produit du SQL dans `drizzle/` à partir de `lib/db/schema.ts`

@@ -139,7 +139,7 @@ export function CheckoutForm({ token }: { token: string }) {
               <a href="#" className="text-foreground underline">
                 politique de confidentialité
               </a>{" "}
-              de TunisiaGo.
+              de Easy2Book.
             </Label>
           </div>
 

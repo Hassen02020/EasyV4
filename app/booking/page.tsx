@@ -157,7 +157,7 @@ export default async function BookingStep1Page({
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" />
-                      Support TunisiaGo 7j/7
+                      Support Easy2Book 7j/7
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" />

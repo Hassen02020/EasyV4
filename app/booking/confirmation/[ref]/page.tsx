@@ -6,12 +6,14 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { getDb } from "@/lib/db/client"
 import { reservations, customers } from "@/lib/db/schema"
 import { formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
+import { ConfirmationStatusBadge } from "@/components/booking/confirmation-status-badge"
+
+export const dynamic = "force-dynamic"
 
 const AGENCY_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -76,9 +78,10 @@ export default async function ConfirmationPage({
                   {row.publicRef}
                 </span>
               </p>
-              <Badge className="mt-3 bg-amber-500 hover:bg-amber-500">
-                Statut : en attente de validation
-              </Badge>
+              <ConfirmationStatusBadge
+                publicRef={row.publicRef}
+                status={row.status}
+              />
             </div>
             <CardContent className="space-y-4 p-6">
               <Detail
@@ -124,7 +127,7 @@ export default async function ConfirmationPage({
               ) : null}
               <Separator />
               <p className="text-muted-foreground text-sm">
-                Un agent TunisiaGo va confirmer votre réservation dans les
+                Un agent Easy2Book va confirmer votre réservation dans les
                 prochaines heures. Vous recevrez un email avec votre voucher
                 définitif sur{" "}
                 <span className="text-foreground">{row.customerEmail}</span>.

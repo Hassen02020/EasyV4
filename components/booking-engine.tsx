@@ -156,7 +156,7 @@ function SearchSubmit({
   return (
     <Button
       type="submit"
-      className="w-full rounded-xl bg-orange-500 px-8 text-base font-semibold hover:bg-orange-600 sm:w-auto"
+      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-e2b-soft w-full rounded-2xl px-8 text-base font-semibold transition-shadow hover:shadow-md sm:w-auto"
     >
       {children}
     </Button>

@@ -87,7 +87,7 @@ export function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="bg-card space-y-4 rounded-lg border p-6 shadow-sm"
+      className="bg-card border-border/60 shadow-e2b-soft space-y-4 rounded-2xl border p-6"
       noValidate
     >
       <div className="space-y-2">

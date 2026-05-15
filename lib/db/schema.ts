@@ -1,5 +1,5 @@
 /**
- * Schéma Drizzle (Postgres / Supabase) — multi-tenant TunisiaGo OTA.
+ * Schéma Drizzle (Postgres / Supabase) — multi-tenant Easy2Book OTA.
  *
  * Conventions :
  *  - Toutes les tables métier ont `agency_id` NOT NULL → indexées en premier.
@@ -43,7 +43,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export const userRole = pgEnum("user_role", [
-  "super_admin", // accès cross-agencies (super-admin TunisiaGo)
+  "super_admin", // accès cross-agencies (super-admin Easy2Book)
   "manager", // owner agence
   "agent_resa", // agent réservation
   "agent_compta", // agent comptabilité

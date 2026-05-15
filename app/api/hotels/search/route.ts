@@ -14,7 +14,12 @@ import {
   dedupeOffersByHotelId,
 } from "@/lib/mygo"
 import { MyGoAuthError, MyGoError } from "@/lib/mygo"
+import { HotelSearchResponse } from "@/lib/mygo/schemas"
 import type { HotelSearchResultDTO } from "@/lib/mygo/types"
+import hotelSearchFixture from "@/lib/mygo/__fixtures__/hotelsearch.json"
+
+const isDemoMode = () =>
+  !process.env.MYGO_LOGIN || process.env.MYGO_LOGIN.length === 0
 
 const QuerySchema = z.object({
   cityId: z.coerce.number().int().positive(),
@@ -80,6 +85,10 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  if (isDemoMode()) {
+    return demoSearchResponse(q.cityId)
+  }
+
   try {
     const result = await getMyGoClient().searchHotels({
       cityId: q.cityId,
@@ -105,6 +114,29 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     return mapErrorToResponse(err)
   }
+}
+
+function demoSearchResponse(cityId: number): NextResponse {
+  const parsed = HotelSearchResponse.safeParse(hotelSearchFixture)
+  if (!parsed.success || !parsed.data.HotelSearch) {
+    const empty: HotelSearchResultDTO = { count: 0, offers: [] }
+    return NextResponse.json(empty, { status: 200 })
+  }
+  const rawOffers = parsed.data.HotelSearch.filter(
+    (h) => h.Hotel?.City?.Id === cityId,
+  )
+    .filter(isRealHotelOffer)
+    .map(mapHotelOffer)
+  const offers = dedupeOffersByHotelId(rawOffers)
+  const dto: HotelSearchResultDTO = {
+    searchId: "demo-fixture",
+    count: offers.length,
+    offers,
+  }
+  return NextResponse.json(dto, {
+    status: 200,
+    headers: { "x-demo-mode": "1" },
+  })
 }
 
 function mapErrorToResponse(err: unknown): NextResponse {

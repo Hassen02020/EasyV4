@@ -19,6 +19,7 @@ import { z } from "zod"
 import { getDb } from "@/lib/db/client"
 import { reservations, auditEvents } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
+import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import {
   RESERVATION_STATUSES,
@@ -129,6 +130,20 @@ export async function updateReservationStatus(
   revalidatePath("/admin/reservations")
   revalidatePath("/admin")
   revalidatePath(`/booking/confirmation/${row.publicRef}`)
+
+  // Notifie en live la page publique /booking/confirmation/[ref] qui ne peut
+  // pas souscrire à `postgres_changes` (RLS bloque anon). Broadcast contourne
+  // RLS car c'est un simple bus de messages, pas une lecture de table.
+  await sendBroadcast({
+    topic: `reservation-${row.publicRef}`,
+    event: "status_change",
+    payload: {
+      publicRef: row.publicRef,
+      previousStatus,
+      nextStatus,
+      at: Date.now(),
+    },
+  })
 
   return {
     ok: true,

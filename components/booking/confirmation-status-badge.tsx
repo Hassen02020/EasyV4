@@ -3,17 +3,23 @@
 /**
  * Badge de statut en temps réel sur la page de confirmation client.
  *
- * Souscrit aux changements de la table `reservations` via Supabase Realtime
- * et déclenche `router.refresh()` à chaque UPDATE — ce qui re-fetch le
- * Server Component parent et affiche le nouveau statut côté Front-Office,
- * sans rechargement complet de la page.
+ * Souscrit au canal Supabase Broadcast `reservation-<publicRef>` (cf.
+ * `lib/supabase/use-realtime-broadcast.ts`) et déclenche `router.refresh()`
+ * à chaque événement `status_change` — ce qui re-fetch le Server Component
+ * parent et affiche le nouveau statut côté Front-Office, sans rechargement.
+ *
+ * Pourquoi Broadcast et pas `postgres_changes` :
+ * la table `reservations` est protégée par RLS (tenant_isolation par agence)
+ * et le visiteur anonyme n'a aucun droit `SELECT`, donc Supabase Realtime
+ * refuserait de lui pousser les UPDATE. Broadcast est un bus de messages
+ * indépendant de RLS, parfait pour le Front public.
  */
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, Clock, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { useRealtimeTable } from "@/lib/supabase/use-realtime-table"
+import { useRealtimeBroadcast } from "@/lib/supabase/use-realtime-broadcast"
 
 const STATUS_VARIANTS: Record<
   string,
@@ -65,13 +71,13 @@ export function ConfirmationStatusBadge({
 }) {
   const router = useRouter()
 
-  useRealtimeTable("reservations", (event) => {
-    const newRef = (event.newRow?.public_ref as string | undefined) ?? null
-    const oldRef = (event.oldRow?.public_ref as string | undefined) ?? null
-    if (newRef === publicRef || oldRef === publicRef) {
+  useRealtimeBroadcast(
+    `reservation-${publicRef}`,
+    "status_change",
+    React.useCallback(() => {
       router.refresh()
-    }
-  })
+    }, [router]),
+  )
 
   const meta = STATUS_VARIANTS[status] ?? {
     label: status,

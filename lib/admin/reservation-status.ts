@@ -47,3 +47,14 @@ export function isTransitionAllowed(
   if (from === to) return false
   return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false
 }
+
+/**
+ * Liste les statuts cibles autorisés depuis l'état courant.
+ * Utilisé côté UI pour ne montrer que les transitions valides dans le
+ * dropdown "Changer statut…" du back-office.
+ */
+export function getAllowedTransitions(
+  from: ReservationStatus,
+): ReservationStatus[] {
+  return ALLOWED_TRANSITIONS[from] ?? []
+}

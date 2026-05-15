@@ -55,7 +55,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { updateReservationStatus } from "@/lib/admin/actions"
-import type { ReservationStatus } from "@/lib/admin/reservation-status"
+import {
+  getAllowedTransitions,
+  type ReservationStatus,
+} from "@/lib/admin/reservation-status"
 import type { AdminReservationRow } from "@/lib/admin/reservations-data"
 import { useRealtimeTable } from "@/lib/supabase/use-realtime-table"
 
@@ -463,13 +466,13 @@ export function ReservationsDataTable({
                         )}
                       </SelectTrigger>
                       <SelectContent>
-                        {ALL_STATUSES.filter((s) => s !== row.status).map(
-                          (s) => (
-                            <SelectItem key={s} value={s}>
-                              {STATUS_LABEL[s]?.label ?? s}
-                            </SelectItem>
-                          ),
-                        )}
+                        {getAllowedTransitions(
+                          row.status as ReservationStatus,
+                        ).map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {STATUS_LABEL[s]?.label ?? s}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </TableCell>

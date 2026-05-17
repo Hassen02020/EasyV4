@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react"
 
 import { getProHotelById } from "@/lib/pro/hotels-fixture"
 import { listRoomOffers } from "@/lib/pro/rooms"
+import { applyMarginsToHotel, applyMarginsToOffers } from "@/lib/pro/pricing"
+import { getActivePartnerMargins } from "@/lib/pro/server-context"
 import { Button } from "@/components/ui/button"
 import { HotelSummaryCard } from "@/components/pro/hotel-summary-card"
 import { HotelRoomSelector } from "@/components/pro/hotel-room-selector"
@@ -40,10 +42,14 @@ export default async function ProHotelDetailPage({
 }) {
   const { id } = await params
   const search = await searchParams
-  const hotel = getProHotelById(id)
-  if (!hotel) notFound()
+  const baseHotel = getProHotelById(id)
+  if (!baseHotel) notFound()
 
-  const offers = listRoomOffers(hotel)
+  // Phase 9 : marge `hotel` appliquée aux options de pension ET aux
+  // tarifs de chaque offre chambre du sélecteur.
+  const margins = await getActivePartnerMargins()
+  const hotel = applyMarginsToHotel(baseHotel, margins)
+  const offers = applyMarginsToOffers(listRoomOffers(baseHotel), margins)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">

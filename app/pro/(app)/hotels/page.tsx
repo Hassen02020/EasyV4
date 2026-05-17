@@ -10,6 +10,8 @@
 
 import { findDestinationById } from "@/lib/pro/destinations"
 import { listProHotels } from "@/lib/pro/hotels-fixture"
+import { applyMarginsToHotel } from "@/lib/pro/pricing"
+import { getActivePartnerMargins } from "@/lib/pro/server-context"
 import { HotelsSerp } from "@/components/pro/hotels-serp"
 
 export const metadata = {
@@ -47,11 +49,16 @@ export default async function ProHotelsSerpPage({
       ? Number.parseInt(params.cityId, 10)
       : destination?.cityId
 
-  const hotels = listProHotels({
+  const baseHotels = listProHotels({
     cityId: destination?.kind === "city" ? cityIdParam : undefined,
     brand: destination?.kind === "chain" ? destination.label : undefined,
     searchAll: destination?.kind === "all" || destination?.kind === "region",
   })
+
+  // Phase 9 : applique la marge `hotel` configurée pour l'agence partenaire
+  // courante sur chaque prix net de pension affiché.
+  const margins = await getActivePartnerMargins()
+  const hotels = baseHotels.map((h) => applyMarginsToHotel(h, margins))
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">

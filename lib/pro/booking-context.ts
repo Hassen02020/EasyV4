@@ -10,6 +10,12 @@
  */
 
 import { getProHotelById, type ProHotel } from "./hotels-fixture"
+import {
+  applyMarginsToHotel,
+  applyMarginsToOffers,
+  DEFAULT_MARGINS,
+  type MarginMap,
+} from "./pricing"
 import { listRoomOffers, type RoomOffer } from "./rooms"
 
 export type SelectedOffer = {
@@ -50,10 +56,28 @@ export function parseOffersParam(
 export function buildBookingContext(
   hotelId: string,
   offersParam: string | undefined,
+  margins: MarginMap = DEFAULT_MARGINS,
 ): BookingContext | null {
-  const hotel = getProHotelById(hotelId)
-  if (!hotel) return null
-  const offers = parseOffersParam(offersParam, hotel)
+  const baseHotel = getProHotelById(hotelId)
+  if (!baseHotel) return null
+
+  // Phase 9 : on applique la marge `hotel` à l'objet hôtel (pension
+  // affichée dans le récap) ET à la liste d'offres avant matching.
+  const hotel = applyMarginsToHotel(baseHotel, margins)
+  const allOffers = applyMarginsToOffers(listRoomOffers(baseHotel), margins)
+
+  const offers: SelectedOffer[] = []
+  if (offersParam) {
+    for (const chunk of offersParam.split(",")) {
+      const [id, qtyStr] = chunk.split(":")
+      if (!id || !qtyStr) continue
+      const qty = Number.parseInt(qtyStr, 10)
+      if (!Number.isFinite(qty) || qty <= 0) continue
+      const off = allOffers.find((o) => o.id === id)
+      if (!off) continue
+      offers.push({ offer: off, qty: Math.min(qty, off.available) })
+    }
+  }
   if (offers.length === 0) return null
 
   const subtotal = offers.reduce(

@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BookingTravelersForm } from "@/components/pro/booking-travelers-form"
 import { buildBookingContext } from "@/lib/pro/booking-context"
+import { getActivePartnerMargins } from "@/lib/pro/server-context"
 
 type BookingSearchParams = {
   hotelId?: string
@@ -29,7 +30,10 @@ export default async function ProBookingTravelersPage({
 }) {
   const search = await searchParams
   if (!search.hotelId) redirect("/pro")
-  const context = buildBookingContext(search.hotelId, search.offers)
+  // Phase 9 : applique les marges de l'agence sur l'ensemble des prix
+  // (subtotal, offers, hotel) du contexte de réservation.
+  const margins = await getActivePartnerMargins()
+  const context = buildBookingContext(search.hotelId, search.offers, margins)
   if (!context) {
     redirect(`/pro/hotels/${search.hotelId}`)
   }

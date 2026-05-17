@@ -4,21 +4,32 @@ import {
   MarginsForm,
   type MarginRow,
 } from "@/components/pro/margins-form"
+import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import type { MarginModule } from "@/lib/pro/pricing"
 
 export const metadata = { title: "Marges de vente | Espace Pro Easy2Book" }
 
 export const dynamic = "force-dynamic"
 
-export default function ProMarginsPage() {
-  // TODO Phase 9 : SELECT pricing_margins WHERE agency_id = current
-  const initial: MarginRow[] = [
-    { module: "hotel", marginType: "percent", marginValue: 10, isActive: true },
-    { module: "flight", marginType: "fixed", marginValue: 25, isActive: true },
-    { module: "omra", marginType: "percent", marginValue: 8, isActive: true },
-    { module: "package", marginType: "percent", marginValue: 12, isActive: true },
-    { module: "activity", marginType: "percent", marginValue: 15, isActive: true },
-    { module: "transfer", marginType: "fixed", marginValue: 10, isActive: false },
-  ]
+const MODULES: MarginModule[] = [
+  "hotel",
+  "flight",
+  "omra",
+  "package",
+  "activity",
+  "transfer",
+]
+
+export default async function ProMarginsPage() {
+  // Phase 9 : lit la table pricing_margins via getActivePartnerMargins
+  // (fallback DEFAULT_MARGINS si la BDD n'est pas joignable).
+  const map = await getActivePartnerMargins()
+  const initial: MarginRow[] = MODULES.map((m) => ({
+    module: m,
+    marginType: map[m].marginType,
+    marginValue: map[m].marginValue,
+    isActive: map[m].isActive,
+  }))
 
   return (
     <ProPageShell

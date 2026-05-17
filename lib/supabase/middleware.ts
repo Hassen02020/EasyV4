@@ -9,15 +9,32 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
 const ADMIN_PREFIX = "/admin"
+const PRO_PREFIX = "/pro"
 const LOGIN_PATH = "/login"
+const PRO_LOGIN_PATH = "/pro/login"
 const AUTH_CALLBACK_PATH = "/api/auth/callback"
 
 /**
- * Routes publiques (pas de protection auth).
- * Note : `/admin` est protégée, mais `/login` doit rester accessible.
+ * Routes protégées (auth requise) :
+ *  - `/admin/*` → back-office OTA (super_admin / manager / agents)
+ *  - `/pro/*` (sauf `/pro/login`) → portail B2B partenaire
  */
 function isProtectedPath(pathname: string): boolean {
-  return pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)
+  if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
+    return true
+  }
+  if (pathname === PRO_LOGIN_PATH) return false
+  if (pathname === PRO_PREFIX || pathname.startsWith(`${PRO_PREFIX}/`)) {
+    return true
+  }
+  return false
+}
+
+function loginPathFor(pathname: string): string {
+  if (pathname === PRO_PREFIX || pathname.startsWith(`${PRO_PREFIX}/`)) {
+    return PRO_LOGIN_PATH
+  }
+  return LOGIN_PATH
 }
 
 export async function updateSession(request: NextRequest) {
@@ -60,7 +77,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && isProtectedPath(pathname) && pathname !== AUTH_CALLBACK_PATH) {
     const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = LOGIN_PATH
+    loginUrl.pathname = loginPathFor(pathname)
     loginUrl.searchParams.set("next", pathname + request.nextUrl.search)
     return NextResponse.redirect(loginUrl)
   }

@@ -8,11 +8,27 @@
  */
 
 import { redirect } from "next/navigation"
-import { AdminShell, type AdminShellUser } from "@/components/admin-shell"
+import {
+  AdminShell,
+  type AdminShellRole,
+  type AdminShellUser,
+} from "@/components/admin-shell"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 
 export const dynamic = "force-dynamic"
+
+const ADMIN_ROLES: ReadonlySet<AdminShellRole> = new Set([
+  "super_admin",
+  "manager",
+  "agent_resa",
+  "agent_compta",
+  "agent_excursions",
+])
+
+function isAdminRole(role: string | undefined): role is AdminShellRole {
+  return !!role && ADMIN_ROLES.has(role as AdminShellRole)
+}
 
 function computeInitials(input: string): string {
   const trimmed = input.trim()
@@ -39,13 +55,22 @@ export default async function AdminLayout({
 
   const profile = await getCurrentAdminProfile(user.id)
 
+  // Si l'utilisateur est en réalité un partenaire B2B, on le renvoie vers
+  // l'espace Pro plutôt que de l'admettre au back-office staff.
+  if (
+    profile &&
+    (profile.role === "partner_owner" || profile.role === "partner_agent")
+  ) {
+    redirect("/pro")
+  }
+
   const email = user.email ?? "admin@tunisiago.tn"
   const displayName = profile?.name ?? email.split("@")[0] ?? "Admin"
   const shellUser: AdminShellUser = {
     email,
     displayName,
     initials: computeInitials(displayName),
-    role: profile?.role ?? "manager",
+    role: isAdminRole(profile?.role) ? profile!.role : "manager",
   }
 
   return <AdminShell user={shellUser}>{children}</AdminShell>

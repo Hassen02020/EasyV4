@@ -1,19 +1,21 @@
 import { Calendar } from "lucide-react"
-import { ProPageShell, ProPagePlaceholder } from "@/components/pro/pro-page-shell"
+import { ProPageShell } from "@/components/pro/pro-page-shell"
+import { ReservationsTable } from "@/components/pro/reservations-table"
+import { generateMockReservations } from "@/lib/pro/mock-tables"
 
 export const metadata = { title: "Mes réservations | Espace Pro Easy2Book" }
 
+export const dynamic = "force-dynamic"
+
 export default function ProReservationsPage() {
+  const rows = generateMockReservations()
   return (
     <ProPageShell
       icon={Calendar}
       title="Mes réservations"
       description="Suivez et gérez l'ensemble des dossiers de vos clients."
     >
-      <ProPagePlaceholder
-        title="Liste des réservations"
-        hint="Le tableau filtres + actions (Consulter, Imprimer devis, Facture proforma, Annulation) sera connecté aux données partner_* en phase 7."
-      />
+      <ReservationsTable rows={rows} />
     </ProPageShell>
   )
 }

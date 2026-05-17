@@ -1,19 +1,21 @@
 import { FileText } from "lucide-react"
-import { ProPageShell, ProPagePlaceholder } from "@/components/pro/pro-page-shell"
+import { ProPageShell } from "@/components/pro/pro-page-shell"
+import { InvoicesTable } from "@/components/pro/invoices-table"
+import { generateMockInvoices } from "@/lib/pro/mock-tables"
 
 export const metadata = { title: "Mes factures | Espace Pro Easy2Book" }
 
-export default function ProFacturesPage() {
+export const dynamic = "force-dynamic"
+
+export default function ProInvoicesPage() {
+  const rows = generateMockInvoices()
   return (
     <ProPageShell
       icon={FileText}
       title="Mes factures"
-      description="Liste des factures, avoirs et proformas émis pour vos dossiers."
+      description="Historique de facturation (Factures · Avoirs · Proforma)."
     >
-      <ProPagePlaceholder
-        title="Liste des factures"
-        hint="Tableau (N° · TYPE · DATE · TVA · VENTE · PAYÉ · ACTIONS) connecté à partner_invoices en phase 7."
-      />
+      <InvoicesTable rows={rows} />
     </ProPageShell>
   )
 }

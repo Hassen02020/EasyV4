@@ -1,19 +1,22 @@
-import { UserCircle } from "lucide-react"
-import { ProPageShell, ProPagePlaceholder } from "@/components/pro/pro-page-shell"
+import { Users } from "lucide-react"
+import { ProPageShell } from "@/components/pro/pro-page-shell"
+import { ClientsTable } from "@/components/pro/clients-table"
+import { generateMockClients } from "@/lib/pro/mock-tables"
 
 export const metadata = { title: "Mes clients | Espace Pro Easy2Book" }
 
+export const dynamic = "force-dynamic"
+
 export default function ProClientsPage() {
+  const rows = generateMockClients()
   return (
     <ProPageShell
-      icon={UserCircle}
+      icon={Users}
       title="Mes clients"
-      description="Annuaire clients de votre agence (nom, téléphone, e-mail)."
+      description="Annuaire des clients finaux liés aux dossiers de votre agence."
+      iconTone="secondary"
     >
-      <ProPagePlaceholder
-        title="Liste des clients"
-        hint="Le tableau (NOM · TEL · EMAIL) + recherche par mots-clés sera connecté à customers en phase 7."
-      />
+      <ClientsTable rows={rows} />
     </ProPageShell>
   )
 }

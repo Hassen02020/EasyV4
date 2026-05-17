@@ -1,19 +1,22 @@
-import { Receipt } from "lucide-react"
-import { ProPageShell, ProPagePlaceholder } from "@/components/pro/pro-page-shell"
+import { CreditCard } from "lucide-react"
+import { ProPageShell } from "@/components/pro/pro-page-shell"
+import { PaymentsTable } from "@/components/pro/payments-table"
+import { generateMockPayments } from "@/lib/pro/mock-tables"
 
 export const metadata = { title: "Mes paiements | Espace Pro Easy2Book" }
 
-export default function ProPaiementsPage() {
+export const dynamic = "force-dynamic"
+
+export default function ProPaymentsPage() {
+  const rows = generateMockPayments()
   return (
     <ProPageShell
-      icon={Receipt}
+      icon={CreditCard}
       title="Mes paiements"
-      description="Liste des règlements émis : modes, échéances, montants."
+      description="Liste des règlements émis et reçus par votre agence."
+      iconTone="accent"
     >
-      <ProPagePlaceholder
-        title="Liste des règlements"
-        hint="Tableau (DATE · MODE · ÉCHÉANCE · ÉMISSION · ORIGINE · RESTANT · CRÉDIT · FACTURE) connecté à partner_payments en phase 7."
-      />
+      <PaymentsTable rows={rows} />
     </ProPageShell>
   )
 }

@@ -16,11 +16,6 @@
  *    modules manquants).
  */
 
-import { and, eq } from "drizzle-orm"
-
-import { getDb } from "@/lib/db/client"
-import { pricingMargins } from "@/lib/db/schema"
-
 export type MarginModule =
   | "hotel"
   | "flight"
@@ -64,49 +59,6 @@ export function applyMargin(net: number, rule: MarginRule): number {
     return Math.round(net * (1 + rule.marginValue / 100) * 1000) / 1000
   }
   return Math.round((net + rule.marginValue) * 1000) / 1000
-}
-
-/**
- * Récupère la `MarginMap` complète pour une agence donnée. Toujours
- * fusionnée avec les valeurs par défaut afin que chaque module ait une
- * règle, même si la BDD n'a pas (encore) la ligne.
- */
-export async function getMarginsForAgency(
-  agencyId: string | null | undefined,
-): Promise<MarginMap> {
-  if (!agencyId || !process.env.DATABASE_URL) return { ...DEFAULT_MARGINS }
-
-  try {
-    const db = getDb()
-    const rows = await db
-      .select({
-        module: pricingMargins.module,
-        marginType: pricingMargins.marginType,
-        marginValue: pricingMargins.marginValue,
-        isActive: pricingMargins.isActive,
-      })
-      .from(pricingMargins)
-      .where(
-        and(
-          eq(pricingMargins.agencyId, agencyId),
-          eq(pricingMargins.isActive, true),
-        ),
-      )
-
-    const map: MarginMap = { ...DEFAULT_MARGINS }
-    for (const row of rows) {
-      const mod = row.module as MarginModule
-      map[mod] = {
-        marginType: row.marginType as MarginRule["marginType"],
-        marginValue: Number.parseFloat(row.marginValue ?? "0"),
-        isActive: row.isActive,
-      }
-    }
-    return map
-  } catch (err) {
-    console.error("[pricing] getMarginsForAgency failed", err)
-    return { ...DEFAULT_MARGINS }
-  }
 }
 
 /**

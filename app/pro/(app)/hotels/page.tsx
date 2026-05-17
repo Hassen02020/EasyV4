@@ -1,22 +1,75 @@
-import { BedDouble } from "lucide-react"
-import { ProPageShell, ProPagePlaceholder } from "@/components/pro/pro-page-shell"
+/**
+ * SERP Hôtels du portail B2B.
+ *
+ *  - Server Component : lit les `searchParams`, filtre le catalogue local,
+ *    délègue à `HotelsSerp` (client) pour les filtres latéraux + sort.
+ *  - Les données viennent de `lib/pro/hotels-fixture.ts` ; elles seront
+ *    remplacées par un appel MyGo (`/api/hotels/search`) en Phase 9 quand
+ *    on branchera la marge dynamique et les vraies disponibilités.
+ */
+
+import { findDestinationById } from "@/lib/pro/destinations"
+import { listProHotels } from "@/lib/pro/hotels-fixture"
+import { HotelsSerp } from "@/components/pro/hotels-serp"
 
 export const metadata = {
-  title: "Recherche hôtels — SERP | Espace Pro Easy2Book",
+  title: "Résultats hôtels — Espace Pro Easy2Book",
+  description: "Liste des hôtels disponibles via le portail B2B Easy2Book",
 }
 
-export default function ProHotelsSerpPage() {
+export const dynamic = "force-dynamic"
+
+type SerpSearchParams = {
+  module?: string
+  destination?: string
+  destinationLabel?: string
+  cityId?: string
+  checkin?: string
+  checkout?: string
+  nights?: string
+  rooms?: string
+  adults?: string
+  children?: string
+}
+
+export default async function ProHotelsSerpPage({
+  searchParams,
+}: {
+  searchParams: Promise<SerpSearchParams>
+}) {
+  const params = await searchParams
+  const destination = params.destination
+    ? findDestinationById(params.destination)
+    : undefined
+
+  const cityIdParam =
+    params.cityId && /^\d+$/.test(params.cityId)
+      ? Number.parseInt(params.cityId, 10)
+      : destination?.cityId
+
+  const hotels = listProHotels({
+    cityId: destination?.kind === "city" ? cityIdParam : undefined,
+    brand: destination?.kind === "chain" ? destination.label : undefined,
+    searchAll: destination?.kind === "all" || destination?.kind === "region",
+  })
+
   return (
-    <ProPageShell
-      icon={BedDouble}
-      title="Résultats de recherche — Hôtels"
-      iconTone="accent"
-      description="Liste des hôtels disponibles selon votre destination et vos dates."
-    >
-      <ProPagePlaceholder
-        title="SERP Hôtels en cours de construction"
-        hint="Cards avec tabs Résumé/Détails, badge RECOMMENDED, chips pension (LP/PD/DP/AI) et filtres latéraux — livraison en phase 4."
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
+      <HotelsSerp
+        hotels={hotels}
+        context={{
+          destinationLabel:
+            params.destinationLabel ??
+            destination?.label ??
+            "Toute la Tunisie",
+          checkin: params.checkin,
+          checkout: params.checkout,
+          nights: params.nights ? Number.parseInt(params.nights, 10) : undefined,
+          rooms: params.rooms ? Number.parseInt(params.rooms, 10) : 1,
+          adults: params.adults ? Number.parseInt(params.adults, 10) : 2,
+          children: params.children ? Number.parseInt(params.children, 10) : 0,
+        }}
       />
-    </ProPageShell>
+    </div>
   )
 }

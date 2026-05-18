@@ -10,10 +10,10 @@ import { Phone, Mail, ShieldAlert, Headphones } from "lucide-react"
 
 export function ProFooter() {
   return (
-    <footer className="bg-muted/40 mt-12 border-t border-border/50 py-10">
+    <footer className="bg-muted/40 border-border/50 mt-12 border-t py-10">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 md:grid-cols-2">
         <div className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">
-          <div className="text-foreground inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
+          <div className="text-foreground inline-flex items-center gap-2 text-sm font-semibold tracking-wider uppercase">
             <Headphones className="text-primary h-4 w-4" />
             Help Desk 24H / 24 — 7J / 7
           </div>
@@ -36,7 +36,7 @@ export function ProFooter() {
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center md:items-end md:text-right">
-          <div className="text-foreground inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
+          <div className="text-foreground inline-flex items-center gap-2 text-sm font-semibold tracking-wider uppercase">
             <ShieldAlert className="text-accent h-4 w-4" />
             Emergency 24H / 24 — 7J / 7
           </div>
@@ -59,13 +59,10 @@ export function ProFooter() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col items-center gap-2 border-t border-border/30 px-4 pt-6 text-center text-xs">
+      <div className="border-border/30 mt-8 flex flex-col items-center gap-2 border-t px-4 pt-6 text-center text-xs">
         <p className="text-muted-foreground">
           Nous suivre :{" "}
-          <Link
-            href="/"
-            className="text-primary font-medium hover:underline"
-          >
+          <Link href="/" className="text-primary font-medium hover:underline">
             easy2book.tn
           </Link>
         </p>

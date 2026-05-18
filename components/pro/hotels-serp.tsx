@@ -18,10 +18,7 @@ import {
 } from "@/lib/pro/hotels-fixture"
 import { pluralizeHotels } from "@/lib/pro/format"
 import { HotelCard } from "./hotel-card"
-import {
-  HotelsFilters,
-  type HotelFiltersState,
-} from "./hotels-filters"
+import { HotelsFilters, type HotelFiltersState } from "./hotels-filters"
 
 type SortKey = "recommended" | "price-asc" | "price-desc" | "rating-desc"
 
@@ -85,21 +82,29 @@ export function HotelsSerp({ hotels, context }: HotelsSerpProps) {
     const list = hotels.filter((h) => {
       const fromPrice = minBoardingPrice(h)
       if (filters.recommendedOnly && !h.recommended) return false
-      if (filters.stars.length > 0 && (h.stars == null || !filters.stars.includes(h.stars)))
+      if (
+        filters.stars.length > 0 &&
+        (h.stars == null || !filters.stars.includes(h.stars))
+      )
         return false
       if (
         filters.boardings.length > 0 &&
         !h.boardings.some((b) => filters.boardings.includes(b.type))
       )
         return false
-      if (fromPrice < filters.priceMin || fromPrice > filters.priceMax) return false
+      if (fromPrice < filters.priceMin || fromPrice > filters.priceMax)
+        return false
       return true
     })
     switch (sort) {
       case "price-asc":
-        return [...list].sort((a, b) => minBoardingPrice(a) - minBoardingPrice(b))
+        return [...list].sort(
+          (a, b) => minBoardingPrice(a) - minBoardingPrice(b),
+        )
       case "price-desc":
-        return [...list].sort((a, b) => minBoardingPrice(b) - minBoardingPrice(a))
+        return [...list].sort(
+          (a, b) => minBoardingPrice(b) - minBoardingPrice(a),
+        )
       case "rating-desc":
         return [...list].sort(
           (a, b) => (b.rating?.score ?? 0) - (a.rating?.score ?? 0),
@@ -165,7 +170,7 @@ export function HotelsSerp({ hotels, context }: HotelsSerpProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-muted-foreground text-xs uppercase tracking-wide">
+          <Label className="text-muted-foreground text-xs tracking-wide uppercase">
             Trier par
           </Label>
           <SortSelect value={sort} onChange={setSort} />

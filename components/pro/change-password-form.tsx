@@ -179,7 +179,7 @@ function PasswordField({
         {label}
       </Label>
       <div className="relative mt-1">
-        <Icon className="text-muted-foreground absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
+        <Icon className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2" />
         <Input
           id={id}
           type={show ? "text" : "password"}
@@ -191,10 +191,14 @@ function PasswordField({
         <button
           type="button"
           onClick={onToggle}
-          className="text-muted-foreground hover:text-foreground absolute right-3 top-1/2 -translate-y-1/2"
+          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
           aria-label={show ? "Masquer" : "Afficher"}
         >
-          {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          {show ? (
+            <EyeOff className="h-3.5 w-3.5" />
+          ) : (
+            <Eye className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
     </div>

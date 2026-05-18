@@ -50,7 +50,11 @@ interface ProModuleTabsProps {
   className?: string
 }
 
-export function ProModuleTabs({ value, onChange, className }: ProModuleTabsProps) {
+export function ProModuleTabs({
+  value,
+  onChange,
+  className,
+}: ProModuleTabsProps) {
   const tabsListId = useId()
   return (
     <div
@@ -74,10 +78,10 @@ export function ProModuleTabs({ value, onChange, className }: ProModuleTabsProps
             aria-controls={`${tabsListId}-${mod.id}`}
             onClick={() => onChange(mod.id)}
             className={cn(
-              "group bg-card relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-              "shadow-e2b-soft hover:-translate-y-0.5 hover:shadow-e2b-elevated",
+              "group bg-card focus-visible:ring-primary relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none",
+              "shadow-e2b-soft hover:shadow-e2b-elevated hover:-translate-y-0.5",
               isActive
-                ? "border-primary ring-2 ring-primary/30 -translate-y-0.5"
+                ? "border-primary ring-primary/30 -translate-y-0.5 ring-2"
                 : "border-border/60",
             )}
           >
@@ -91,7 +95,7 @@ export function ProModuleTabs({ value, onChange, className }: ProModuleTabsProps
               <Icon className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-foreground text-sm font-semibold uppercase tracking-wide">
+              <div className="text-foreground text-sm font-semibold tracking-wide uppercase">
                 {mod.label}
               </div>
               <div className="text-muted-foreground mt-0.5 hidden text-xs leading-tight md:block">

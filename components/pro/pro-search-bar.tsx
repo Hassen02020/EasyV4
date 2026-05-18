@@ -72,14 +72,17 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
   // calcule la destination effective au rendu plutôt qu'en useEffect pour
   // éviter les cascades de re-renders.
   const destination =
-    storedDestination && (module === "hotels" || storedDestination.kind !== "chain")
+    storedDestination &&
+    (module === "hotels" || storedDestination.kind !== "chain")
       ? storedDestination
       : ALL_DESTINATIONS[0]!
 
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>(() => ({
-    from: addDays(today, 14),
-    to: addDays(today, 18),
-  }))
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>(
+    () => ({
+      from: addDays(today, 14),
+      to: addDays(today, 18),
+    }),
+  )
   const [dateOpen, setDateOpen] = useState(false)
 
   const [rooms, setRooms] = useState<Room[]>([
@@ -115,8 +118,9 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
         )
         next[field] = value
         if (field === "children") {
-          next.childrenAges = Array.from({ length: value }, (_, idx) =>
-            r.childrenAges[idx] ?? 5,
+          next.childrenAges = Array.from(
+            { length: value },
+            (_, idx) => r.childrenAges[idx] ?? 5,
           )
         }
         return next
@@ -126,12 +130,16 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
 
   function addRoom() {
     setRooms((prev) =>
-      prev.length >= 4 ? prev : [...prev, { adults: 2, children: 0, childrenAges: [] }],
+      prev.length >= 4
+        ? prev
+        : [...prev, { adults: 2, children: 0, childrenAges: [] }],
     )
   }
 
   function removeRoom(i: number) {
-    setRooms((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i)))
+    setRooms((prev) =>
+      prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i),
+    )
   }
 
   function handleSearch() {
@@ -167,7 +175,7 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
     <div className="bg-card shadow-e2b-soft border-border/60 rounded-2xl border p-4 md:p-5">
       <div className="grid gap-3 md:grid-cols-12 md:gap-3">
         <div className="md:col-span-5">
-          <Label className="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">
+          <Label className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
             Où allez-vous ?
           </Label>
           <Popover open={destOpen} onOpenChange={setDestOpen}>
@@ -193,7 +201,7 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
             </PopoverTrigger>
             <PopoverContent
               align="start"
-              className="rounded-2xl p-0 w-[--radix-popover-trigger-width] min-w-[320px]"
+              className="w-[--radix-popover-trigger-width] min-w-[320px] rounded-2xl p-0"
             >
               <div className="border-border/60 border-b p-3">
                 <div className="relative">
@@ -259,14 +267,14 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
         </div>
 
         <div className="md:col-span-4">
-          <Label className="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">
+          <Label className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
             Arrivée — Départ
           </Label>
           <Popover open={dateOpen} onOpenChange={setDateOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="bg-background border-input hover:bg-muted/40 flex h-12 w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="bg-background border-input hover:bg-muted/40 focus-visible:ring-ring flex h-12 w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <CalendarRange className="text-primary h-5 w-5 shrink-0" />
                 <div className="min-w-0 flex-1">
@@ -309,14 +317,14 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
         </div>
 
         <div className="md:col-span-3">
-          <Label className="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">
+          <Label className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
             Chambre & voyageurs
           </Label>
           <Popover open={paxOpen} onOpenChange={setPaxOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="bg-background border-input hover:bg-muted/40 flex h-12 w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="bg-background border-input hover:bg-muted/40 focus-visible:ring-ring flex h-12 w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <Users className="text-primary h-5 w-5 shrink-0" />
                 <div className="min-w-0 flex-1">
@@ -330,7 +338,7 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
                 <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0" />
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="rounded-2xl p-0 w-80">
+            <PopoverContent align="end" className="w-80 rounded-2xl p-0">
               <div className="space-y-3 p-4">
                 {rooms.map((room, idx) => (
                   <div
@@ -448,7 +456,7 @@ function PaxCounter({
         >
           <Minus className="h-3 w-3" />
         </Button>
-        <span className="w-6 text-center tabular-nums text-sm font-medium">
+        <span className="w-6 text-center text-sm font-medium tabular-nums">
           {value}
         </span>
         <Button

@@ -62,10 +62,7 @@ export default async function AdminReservationsPage({
         </div>
       ) : null}
 
-      <div
-        className="e2b-fade-in-up"
-        style={{ animationDelay: "120ms" }}
-      >
+      <div className="e2b-fade-in-up" style={{ animationDelay: "120ms" }}>
         <ReservationsDataTable rows={filteredRows} />
       </div>
     </div>

@@ -62,14 +62,15 @@ import {
 import type { AdminReservationRow } from "@/lib/admin/reservations-data"
 import { useRealtimeTable } from "@/lib/supabase/use-realtime-table"
 
-const MODULE_LABEL: Record<string, { label: string; icon: typeof Building2 }> = {
-  hotel: { label: "Hôtels Tunisie", icon: Building2 },
-  flight: { label: "Vols", icon: Plane },
-  omra: { label: "Omra", icon: Moon },
-  package: { label: "Voyages organisés", icon: Plane },
-  activity: { label: "Activités", icon: Plane },
-  transfer: { label: "Transferts", icon: Car },
-}
+const MODULE_LABEL: Record<string, { label: string; icon: typeof Building2 }> =
+  {
+    hotel: { label: "Hôtels Tunisie", icon: Building2 },
+    flight: { label: "Vols", icon: Plane },
+    omra: { label: "Omra", icon: Moon },
+    package: { label: "Voyages organisés", icon: Plane },
+    activity: { label: "Activités", icon: Plane },
+    transfer: { label: "Transferts", icon: Car },
+  }
 
 const STATUS_LABEL: Record<
   string,
@@ -133,16 +134,15 @@ const TND_FORMAT = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 0,
 })
 
-type SortKey = "publicRef" | "customerName" | "module" | "tndAmount" | "createdAt"
+type SortKey =
+  | "publicRef"
+  | "customerName"
+  | "module"
+  | "tndAmount"
+  | "createdAt"
 type SortDir = "asc" | "desc"
 
-function SortIcon({
-  active,
-  dir,
-}: {
-  active: boolean
-  dir: SortDir
-}) {
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) {
     return <ArrowUpDown className="text-muted-foreground ml-1 size-3" />
   }
@@ -322,7 +322,10 @@ export function ReservationsDataTable({
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-44" aria-label="Filtrer par statut">
+          <SelectTrigger
+            className="w-full sm:w-44"
+            aria-label="Filtrer par statut"
+          >
             <SelectValue placeholder="Tous statuts" />
           </SelectTrigger>
           <SelectContent>
@@ -335,7 +338,10 @@ export function ReservationsDataTable({
           </SelectContent>
         </Select>
         <Select value={moduleFilter} onValueChange={setModuleFilter}>
-          <SelectTrigger className="w-full sm:w-48" aria-label="Filtrer par module">
+          <SelectTrigger
+            className="w-full sm:w-48"
+            aria-label="Filtrer par module"
+          >
             <SelectValue placeholder="Tous modules" />
           </SelectTrigger>
           <SelectContent>
@@ -485,8 +491,8 @@ export function ReservationsDataTable({
 
       <div className="text-muted-foreground flex flex-col items-start justify-between gap-2 text-sm sm:flex-row sm:items-center">
         <div>
-          {sorted.length} résultat{sorted.length > 1 ? "s" : ""} ·{" "}
-          {rows.length} au total
+          {sorted.length} résultat{sorted.length > 1 ? "s" : ""} · {rows.length}{" "}
+          au total
         </div>
         <div className="flex items-center gap-2">
           <Button

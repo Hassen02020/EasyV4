@@ -84,18 +84,30 @@ export function HotelRoomSelector({
   const filteredOffers = useMemo(() => {
     return offers.filter((o) => {
       if (availableOnly && o.available <= 0) return false
-      if (selectedCategories.length > 0 && !selectedCategories.includes(o.category.id))
+      if (
+        selectedCategories.length > 0 &&
+        !selectedCategories.includes(o.category.id)
+      )
         return false
       if (
         selectedArrangements.length > 0 &&
         !selectedArrangements.includes(o.arrangement.id)
       )
         return false
-      if (selectedBoardings.length > 0 && !selectedBoardings.includes(o.boarding))
+      if (
+        selectedBoardings.length > 0 &&
+        !selectedBoardings.includes(o.boarding)
+      )
         return false
       return true
     })
-  }, [offers, availableOnly, selectedCategories, selectedArrangements, selectedBoardings])
+  }, [
+    offers,
+    availableOnly,
+    selectedCategories,
+    selectedArrangements,
+    selectedBoardings,
+  ])
 
   const visibleOffers = showAll ? filteredOffers : filteredOffers.slice(0, 6)
 
@@ -113,7 +125,9 @@ export function HotelRoomSelector({
   )
 
   function toggle(list: string[], item: string): string[] {
-    return list.includes(item) ? list.filter((x) => x !== item) : [...list, item]
+    return list.includes(item)
+      ? list.filter((x) => x !== item)
+      : [...list, item]
   }
 
   function changeQty(offerId: string, delta: number, max: number) {
@@ -161,7 +175,7 @@ export function HotelRoomSelector({
             type="button"
             onClick={() => setActiveTab(t.id)}
             className={cn(
-              "rounded-xl px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
+              "rounded-xl px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition-colors",
               activeTab === t.id
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -183,13 +197,16 @@ export function HotelRoomSelector({
               checked={availableOnly}
               onCheckedChange={(c) => setAvailableOnly(c === true)}
             />
-            <span className="text-sm">Afficher uniquement les chambres disponibles</span>
+            <span className="text-sm">
+              Afficher uniquement les chambres disponibles
+            </span>
           </label>
         ) : activeTab === "categories" ? (
           <CheckboxGrid
             items={availableCategories.map((id) => ({
               id,
-              label: offers.find((o) => o.category.id === id)?.category.name ?? id,
+              label:
+                offers.find((o) => o.category.id === id)?.category.name ?? id,
             }))}
             value={selectedCategories}
             onToggle={(id) => setSelectedCategories((prev) => toggle(prev, id))}
@@ -198,10 +215,14 @@ export function HotelRoomSelector({
           <CheckboxGrid
             items={availableArrangements.map((id) => ({
               id,
-              label: offers.find((o) => o.arrangement.id === id)?.arrangement.label ?? id,
+              label:
+                offers.find((o) => o.arrangement.id === id)?.arrangement
+                  .label ?? id,
             }))}
             value={selectedArrangements}
-            onToggle={(id) => setSelectedArrangements((prev) => toggle(prev, id))}
+            onToggle={(id) =>
+              setSelectedArrangements((prev) => toggle(prev, id))
+            }
           />
         ) : activeTab === "boardings" ? (
           <CheckboxGrid
@@ -223,7 +244,7 @@ export function HotelRoomSelector({
             <p className="text-muted-foreground text-sm">
               Voyageurs :{" "}
               <span className="text-foreground font-medium">
-                {(context.adults ?? 2)} adulte
+                {context.adults ?? 2} adulte
                 {(context.adults ?? 2) > 1 ? "s" : ""}
                 {context.children
                   ? ` · ${context.children} enfant${context.children > 1 ? "s" : ""}`
@@ -240,7 +261,7 @@ export function HotelRoomSelector({
         className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border"
       >
         <div className="border-border/60 flex items-center justify-between border-b p-4">
-          <h3 className="text-foreground inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
+          <h3 className="text-foreground inline-flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
             <Filter className="text-primary h-4 w-4" />
             {filteredOffers.length} offre{filteredOffers.length > 1 ? "s" : ""}
             {!showAll && filteredOffers.length > 6 ? " (6 affichées)" : ""}
@@ -269,22 +290,31 @@ export function HotelRoomSelector({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-border/60 bg-muted/30 border-b">
-                <tr className="text-muted-foreground text-xs uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left font-semibold">Catégorie</th>
-                  <th className="px-3 py-3 text-left font-semibold">Occupants</th>
-                  <th className="px-3 py-3 text-left font-semibold">Arrangement</th>
+                <tr className="text-muted-foreground text-xs tracking-wide uppercase">
+                  <th className="px-4 py-3 text-left font-semibold">
+                    Catégorie
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold">
+                    Occupants
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold">
+                    Arrangement
+                  </th>
                   <th className="px-3 py-3 text-left font-semibold">Pension</th>
                   <th className="px-3 py-3 text-right font-semibold">Total</th>
-                  <th className="px-3 py-3 text-left font-semibold">Conditions</th>
-                  <th className="px-3 py-3 text-center font-semibold">Nombre</th>
+                  <th className="px-3 py-3 text-left font-semibold">
+                    Conditions
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold">
+                    Nombre
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-border/40 divide-y">
                 {visibleOffers.map((offer) => {
                   const qty = selection[offer.id] ?? 0
                   const occupants =
-                    offer.arrangement.maxAdults +
-                    offer.arrangement.maxChildren
+                    offer.arrangement.maxAdults + offer.arrangement.maxChildren
                   return (
                     <tr
                       key={offer.id}
@@ -301,10 +331,10 @@ export function HotelRoomSelector({
                           {offer.category.description}
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-foreground tabular-nums">
+                      <td className="text-foreground px-3 py-3 tabular-nums">
                         {occupants} pers.
                       </td>
-                      <td className="px-3 py-3 text-foreground/90 text-xs">
+                      <td className="text-foreground/90 px-3 py-3 text-xs">
                         {offer.arrangement.label}
                       </td>
                       <td className="px-3 py-3">
@@ -378,7 +408,7 @@ export function HotelRoomSelector({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <div>
-              <p className="text-muted-foreground text-[10px] uppercase tracking-wider">
+              <p className="text-muted-foreground text-[10px] tracking-wider uppercase">
                 {hotel.name}
               </p>
               <p className="text-foreground text-sm font-semibold">
@@ -388,7 +418,7 @@ export function HotelRoomSelector({
               </p>
             </div>
             <div className="border-border/60 border-l pl-3">
-              <p className="text-muted-foreground text-[10px] uppercase tracking-wider">
+              <p className="text-muted-foreground text-[10px] tracking-wider uppercase">
                 Total
               </p>
               <p className="text-primary text-xl font-bold tabular-nums">

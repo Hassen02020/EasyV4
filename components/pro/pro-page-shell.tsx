@@ -13,7 +13,10 @@ interface ProPageShellProps {
   className?: string
 }
 
-const TONE_CLASSES: Record<NonNullable<ProPageShellProps["iconTone"]>, string> = {
+const TONE_CLASSES: Record<
+  NonNullable<ProPageShellProps["iconTone"]>,
+  string
+> = {
   primary: "bg-primary/10 text-primary",
   secondary: "bg-secondary/10 text-secondary",
   accent: "bg-accent/15 text-accent",
@@ -37,7 +40,9 @@ export function ProPageShell({
   className,
 }: ProPageShellProps) {
   return (
-    <div className={cn("mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10", className)}>
+    <div
+      className={cn("mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10", className)}
+    >
       <header className="e2b-fade-in-up mb-6 flex flex-col gap-3 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-3">
           <div
@@ -79,7 +84,7 @@ export function ProPagePlaceholder({
 }) {
   return (
     <div className="bg-card shadow-e2b-soft border-border/60 rounded-2xl border p-10 text-center">
-      <p className="text-muted-foreground text-sm uppercase tracking-wider">
+      <p className="text-muted-foreground text-sm tracking-wider uppercase">
         En cours de finalisation
       </p>
       <h2 className="text-foreground mt-2 text-xl font-semibold">{title}</h2>

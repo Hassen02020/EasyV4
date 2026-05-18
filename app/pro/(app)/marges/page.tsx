@@ -1,9 +1,6 @@
 import { Percent } from "lucide-react"
 import { ProPageShell } from "@/components/pro/pro-page-shell"
-import {
-  MarginsForm,
-  type MarginRow,
-} from "@/components/pro/margins-form"
+import { MarginsForm, type MarginRow } from "@/components/pro/margins-form"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
 import type { MarginModule } from "@/lib/pro/pricing"
 

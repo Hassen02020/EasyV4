@@ -177,14 +177,6 @@ const OMRA_PROGRAMS = [
   "Omra Express 7J",
 ]
 
-const _ACTIVITIES = [
-  "Excursion Sahara 4x4 (Douz)",
-  "Médina de Tunis guidée",
-  "Plongée à Tabarka",
-  "Carthage + Sidi Bou Saïd",
-  "Quad dunes Djerba",
-]
-
 const TRANSFER_TYPES = ["sedan", "van", "minibus", "luxury"] as const
 
 function rand<T>(arr: readonly T[]): T {

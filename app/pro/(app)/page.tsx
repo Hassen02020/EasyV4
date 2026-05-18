@@ -40,7 +40,7 @@ export default function ProHomePage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
       <header className="e2b-fade-in-up mb-6 md:mb-8">
-        <p className="text-primary text-xs font-semibold uppercase tracking-[0.18em]">
+        <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">
           Centrale de réservation Easy2Book
         </p>
         <h1 className="text-foreground mt-1 text-2xl font-bold tracking-tight md:text-3xl">
@@ -65,7 +65,7 @@ export default function ProHomePage() {
       >
         <div className="mb-4 flex items-center gap-2">
           <Sparkles className="text-accent h-4 w-4" />
-          <h2 className="text-foreground text-sm font-semibold uppercase tracking-wide">
+          <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">
             Accès rapides
           </h2>
         </div>
@@ -102,14 +102,22 @@ export default function ProHomePage() {
       >
         <div className="mb-4 flex items-center gap-2">
           <TrendingUp className="text-primary h-4 w-4" />
-          <h2 className="text-foreground text-sm font-semibold uppercase tracking-wide">
+          <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">
             Aperçu de votre activité
           </h2>
         </div>
         <div className="grid gap-3 md:grid-cols-4 md:gap-4">
-          <ActivityCard label="Réservations en cours" value="—" hint="Période 30 j" />
+          <ActivityCard
+            label="Réservations en cours"
+            value="—"
+            hint="Période 30 j"
+          />
           <ActivityCard label="Montant des ventes" value="—" hint="TND TTC" />
-          <ActivityCard label="Factures en attente" value="—" hint="Non réglées" />
+          <ActivityCard
+            label="Factures en attente"
+            value="—"
+            hint="Non réglées"
+          />
           <ActivityCard label="Marge brute (mois)" value="—" hint="TND" />
         </div>
         <p className="text-muted-foreground mt-3 text-xs">
@@ -132,7 +140,7 @@ function ActivityCard({
 }) {
   return (
     <div className="bg-card shadow-e2b-soft border-border/60 rounded-2xl border p-4">
-      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
         {label}
       </p>
       <p className="text-foreground mt-2 text-2xl font-bold tabular-nums">

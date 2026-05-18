@@ -53,7 +53,9 @@ interface EtablissementFormProps {
 export function EtablissementForm({ initial }: EtablissementFormProps) {
   const [state, setState] = useState<EtablissementInitial>(initial)
   const [submitting, setSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Partial<Record<keyof EtablissementInitial, string>>>({})
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof EtablissementInitial, string>>
+  >({})
 
   function update<K extends keyof EtablissementInitial>(
     key: K,
@@ -210,9 +212,9 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
             Masquer mon crédit dans le header
           </span>
           <span className="text-muted-foreground mt-0.5 block text-xs">
-            Le widget «&nbsp;Mon Crédit&nbsp;» reste fonctionnel mais le
-            montant n&apos;est plus affiché à votre équipe (utile pour les
-            agents en open space).
+            Le widget «&nbsp;Mon Crédit&nbsp;» reste fonctionnel mais le montant
+            n&apos;est plus affiché à votre équipe (utile pour les agents en
+            open space).
           </span>
         </span>
       </label>
@@ -261,7 +263,7 @@ function Field({
     <div>
       <Label className="text-xs">{label}</Label>
       <div className="relative mt-1">
-        <Icon className="text-muted-foreground absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
+        <Icon className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2" />
         <Input
           type={type}
           value={value}

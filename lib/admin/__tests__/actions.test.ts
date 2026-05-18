@@ -13,18 +13,15 @@ import {
 } from "@/lib/admin/reservation-status"
 
 test("RESERVATION_STATUSES expose les 7 statuts métier", () => {
-  assert.deepEqual(
-    [...RESERVATION_STATUSES].sort(),
-    [
-      "cancelled",
-      "completed",
-      "confirmed",
-      "no_show",
-      "on_request",
-      "pending",
-      "refunded",
-    ],
-  )
+  assert.deepEqual([...RESERVATION_STATUSES].sort(), [
+    "cancelled",
+    "completed",
+    "confirmed",
+    "no_show",
+    "on_request",
+    "pending",
+    "refunded",
+  ])
 })
 
 test("transitions autorisées depuis pending", () => {

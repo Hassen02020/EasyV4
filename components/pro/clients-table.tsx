@@ -38,11 +38,11 @@ export function ClientsTable({ rows }: ClientsTableProps) {
         aria-label="Recherche clients"
         className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4"
       >
-        <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+        <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
           Mots clés
         </label>
         <div className="relative">
-          <Search className="text-muted-foreground absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -68,7 +68,10 @@ export function ClientsTable({ rows }: ClientsTableProps) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground py-12 text-center">
+                <TableCell
+                  colSpan={5}
+                  className="text-muted-foreground py-12 text-center"
+                >
                   Aucun client trouvé.
                 </TableCell>
               </TableRow>

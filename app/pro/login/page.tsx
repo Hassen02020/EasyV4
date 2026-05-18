@@ -26,10 +26,7 @@ export default function ProLoginPage() {
             aria-label="Retour à l'accueil Easy2Book"
             className="group"
           >
-            <Easy2BookLogo
-              className="e2b-logo-pulse h-20 w-20"
-              priority
-            />
+            <Easy2BookLogo className="e2b-logo-pulse h-20 w-20" priority />
           </Link>
           <h1 className="text-foreground mt-6 text-2xl font-semibold tracking-tight">
             Espace Pro

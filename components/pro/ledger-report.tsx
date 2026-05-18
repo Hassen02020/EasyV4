@@ -56,7 +56,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
         className="grid gap-3 md:grid-cols-3"
       >
         <div className="bg-primary text-primary-foreground shadow-e2b-elevated rounded-2xl p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide opacity-90">
+          <div className="text-xs font-semibold tracking-wide uppercase opacity-90">
             Solde compte de dépôt
           </div>
           <div className="mt-1 text-2xl font-bold tabular-nums">
@@ -65,7 +65,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
           <p className="text-xs opacity-80">Cohérent avec le widget header</p>
         </div>
         <div className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4">
-          <div className="text-muted-foreground inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide">
+          <div className="text-muted-foreground inline-flex items-center gap-1 text-xs font-semibold tracking-wide uppercase">
             <TrendingDown className="text-destructive h-3 w-3" />
             Débits période
           </div>
@@ -78,7 +78,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
           </p>
         </div>
         <div className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4">
-          <div className="text-muted-foreground inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide">
+          <div className="text-muted-foreground inline-flex items-center gap-1 text-xs font-semibold tracking-wide uppercase">
             <TrendingUp className="h-3 w-3 text-emerald-600" />
             Crédits période
           </div>
@@ -98,7 +98,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
       >
         <div className="grid gap-3 lg:grid-cols-[1fr_1fr_220px_auto]">
           <div>
-            <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+            <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
               Du
             </label>
             <Input
@@ -108,7 +108,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
             />
           </div>
           <div>
-            <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+            <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
               Au
             </label>
             <Input
@@ -118,7 +118,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
             />
           </div>
           <div>
-            <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+            <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
               Type
             </label>
             <div className="flex items-center gap-1.5" role="radiogroup">
@@ -218,8 +218,8 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
           </TableBody>
         </Table>
         <div className="border-border/60 text-muted-foreground border-t px-4 py-2 text-xs">
-          {filtered.length} ligne{filtered.length > 1 ? "s" : ""} · Débit
-          total : {formatTND(totals.debit)} · Crédit total :{" "}
+          {filtered.length} ligne{filtered.length > 1 ? "s" : ""} · Débit total
+          : {formatTND(totals.debit)} · Crédit total :{" "}
           {formatTND(totals.credit)}
         </div>
       </section>

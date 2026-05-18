@@ -80,7 +80,14 @@ test("applyMarginsToOffers : marge appliquée à chaque RoomOffer", () => {
 })
 
 test("DEFAULT_MARGINS contient les 6 modules", () => {
-  const expected = ["hotel", "flight", "omra", "package", "activity", "transfer"]
+  const expected = [
+    "hotel",
+    "flight",
+    "omra",
+    "package",
+    "activity",
+    "transfer",
+  ]
   for (const m of expected) {
     const rule = DEFAULT_MARGINS[m as keyof typeof DEFAULT_MARGINS]
     assert.ok(rule, `Module ${m} doit avoir une règle par défaut`)

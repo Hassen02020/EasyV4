@@ -49,7 +49,7 @@ export default async function ProBookingTravelersPage({
             Retour aux chambres
           </Link>
         </Button>
-        <span className="text-muted-foreground text-xs uppercase tracking-wide">
+        <span className="text-muted-foreground text-xs tracking-wide uppercase">
           Étape 2 / 3 — Voyageurs &amp; paiement
         </span>
       </div>

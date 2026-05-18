@@ -94,7 +94,9 @@ export function generateMockReservations(): PartnerReservation[] {
     const checkout = addDays(checkin, duration)
     const status = pick(statuses, seed)
     const optionExpiresAt =
-      status === "on_option" ? format(addDays(TODAY, seed % 5), "yyyy-MM-dd") : null
+      status === "on_option"
+        ? format(addDays(TODAY, seed % 5), "yyyy-MM-dd")
+        : null
 
     return {
       id: `res-${i + 1}`,
@@ -131,8 +133,8 @@ export function generateMockClients(): PartnerClient[] {
       id: `cli-${i + 1}`,
       name: `${first} ${last}`,
       phone: `+216 ${20 + (seed % 80)} ${100 + (seed % 800)} ${100 + ((seed * 7) % 900)}`,
-      email: `${first}.${last.toLowerCase().replace(/ /g, "")}@example.tn`
-        .toLowerCase(),
+      email:
+        `${first}.${last.toLowerCase().replace(/ /g, "")}@example.tn`.toLowerCase(),
       bookings: 1 + (seed % 6),
       createdAt: format(addDays(TODAY, -((seed * 4) % 365)), "yyyy-MM-dd"),
     }
@@ -163,7 +165,7 @@ export function generateMockPayments(): PartnerPayment[] {
   return Array.from({ length: 16 }, (_, i) => {
     const seed = i * 13 + 7
     const originalAmount = 500 + ((seed * 89) % 4500)
-    const remainingAmount = (seed % 3 === 0 ? originalAmount * 0.4 : 0)
+    const remainingAmount = seed % 3 === 0 ? originalAmount * 0.4 : 0
     return {
       id: `pmt-${i + 1}`,
       date: format(addDays(TODAY, -((seed * 3) % 180)), "yyyy-MM-dd"),
@@ -173,7 +175,8 @@ export function generateMockPayments(): PartnerPayment[] {
       originalAmount,
       remainingAmount,
       credit: seed % 5 === 0 ? originalAmount : 0,
-      invoiceRef: seed % 4 === 0 ? null : `FA-2026-${String(2048 + i).padStart(5, "0")}`,
+      invoiceRef:
+        seed % 4 === 0 ? null : `FA-2026-${String(2048 + i).padStart(5, "0")}`,
     }
   })
 }
@@ -191,12 +194,19 @@ export type PartnerInvoice = {
 }
 
 export function generateMockInvoices(): PartnerInvoice[] {
-  const types: PartnerInvoice["type"][] = ["facture", "facture", "facture", "avoir", "proforma"]
+  const types: PartnerInvoice["type"][] = [
+    "facture",
+    "facture",
+    "facture",
+    "avoir",
+    "proforma",
+  ]
   return Array.from({ length: 20 }, (_, i) => {
     const seed = i * 17 + 11
     const totalSales = 600 + ((seed * 79) % 4800)
     const tva = Math.round(totalSales * 0.19 * 100) / 100
-    const paid = seed % 3 === 0 ? totalSales * 0.5 : seed % 4 === 0 ? 0 : totalSales
+    const paid =
+      seed % 3 === 0 ? totalSales * 0.5 : seed % 4 === 0 ? 0 : totalSales
     const status: PartnerInvoice["status"] =
       paid >= totalSales ? "paid" : paid > 0 ? "partial" : "unpaid"
     const type = pick(types, seed)
@@ -237,9 +247,7 @@ export function generateMockLedger(): PartnerLedgerEntry[] {
       id: `led-${counter}`,
       date: format(addDays(TODAY, -((seed * 5) % 220)), "yyyy-MM-dd"),
       ref: `${isCredit ? "PAY" : "FA"}-2026-${String(3000 + counter).padStart(5, "0")}`,
-      description: isCredit
-        ? "Règlement client / dépôt"
-        : pick(SERVICES, seed),
+      description: isCredit ? "Règlement client / dépôt" : pick(SERVICES, seed),
       type: isCredit ? "payment" : seed % 5 === 0 ? "avoir" : "facture",
       debit: isCredit ? 0 : amount,
       credit: isCredit ? amount : 0,

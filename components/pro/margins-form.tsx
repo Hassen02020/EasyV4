@@ -132,10 +132,12 @@ export function MarginsForm({ initial }: MarginsFormProps) {
               </header>
 
               <div className="grid gap-2 sm:grid-cols-[120px_1fr]">
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted/40 p-1">
+                <div className="bg-muted/40 grid grid-cols-2 gap-1 rounded-lg p-1">
                   <button
                     type="button"
-                    onClick={() => updateRow(row.module, { marginType: "percent" })}
+                    onClick={() =>
+                      updateRow(row.module, { marginType: "percent" })
+                    }
                     className={cn(
                       "inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors",
                       row.marginType === "percent"
@@ -147,7 +149,9 @@ export function MarginsForm({ initial }: MarginsFormProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => updateRow(row.module, { marginType: "fixed" })}
+                    onClick={() =>
+                      updateRow(row.module, { marginType: "fixed" })
+                    }
                     className={cn(
                       "inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors",
                       row.marginType === "fixed"
@@ -179,7 +183,7 @@ export function MarginsForm({ initial }: MarginsFormProps) {
                       className="pr-12 text-right tabular-nums"
                       disabled={!row.isActive}
                     />
-                    <span className="text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 text-xs">
+                    <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-xs">
                       {row.marginType === "percent" ? "%" : "DT"}
                     </span>
                   </div>

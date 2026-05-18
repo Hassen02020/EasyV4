@@ -239,9 +239,7 @@ export const PRO_HOTELS: ProHotel[] = [
     amenities: ["wifi", "pool", "kids-club", "all-inclusive", "beach", "sport"],
     recommended: false,
     segments: ["Famille", "All Inclusive", "Estival"],
-    boardings: [
-      { type: "AI", price: 698.0 },
-    ],
+    boardings: [{ type: "AI", price: 698.0 }],
     description:
       "Club family-friendly à Skanes, à 5 min de l'aéroport Monastir. Animation TUI Magic Life.",
   },
@@ -356,9 +354,7 @@ export const PRO_HOTELS: ProHotel[] = [
     amenities: ["wifi", "pool", "beach", "all-inclusive"],
     recommended: false,
     segments: ["Famille", "All Inclusive", "Budget"],
-    boardings: [
-      { type: "AI", price: 528.0 },
-    ],
+    boardings: [{ type: "AI", price: 528.0 }],
     description:
       "Club 3★ familial à Djerba Aghir. Bon rapport qualité-prix et animation francophone.",
   },
@@ -500,9 +496,7 @@ export const PRO_HOTELS: ProHotel[] = [
     amenities: ["wifi", "pool", "beach", "all-inclusive"],
     recommended: false,
     segments: ["Famille", "Culturel"],
-    boardings: [
-      { type: "AI", price: 642.0 },
-    ],
+    boardings: [{ type: "AI", price: 642.0 }],
     description:
       "Hôtel inspiré de la médina tunisienne, à Hammamet Yasmine. Animation famille très appréciée.",
   },
@@ -555,9 +549,7 @@ export const PRO_HOTELS: ProHotel[] = [
     amenities: ["wifi", "pool", "beach", "all-inclusive"],
     recommended: false,
     segments: ["Famille", "Aventure"],
-    boardings: [
-      { type: "AI", price: 612.5 },
-    ],
+    boardings: [{ type: "AI", price: 612.5 }],
     description:
       "Hôtel 4★ All Inclusive à Aghir, idéal pour combiner balnéaire et excursions désertiques.",
   },
@@ -639,9 +631,7 @@ export const PRO_HOTELS: ProHotel[] = [
     amenities: ["wifi", "pool", "beach", "spa", "all-inclusive"],
     recommended: false,
     segments: ["Famille", "All Inclusive"],
-    boardings: [
-      { type: "AI", price: 588.0 },
-    ],
+    boardings: [{ type: "AI", price: 588.0 }],
     description:
       "Hôtel familial avec direct accès à la plage de Mahdia. Bon rapport qualité-prix.",
   },
@@ -666,9 +656,7 @@ export const PRO_HOTELS: ProHotel[] = [
     amenities: ["wifi", "pool", "beach", "kids-club", "all-inclusive"],
     recommended: false,
     segments: ["Famille", "All Inclusive"],
-    boardings: [
-      { type: "AI", price: 524.0 },
-    ],
+    boardings: [{ type: "AI", price: 524.0 }],
     description:
       "Club familial à Sousse Boujaafar, animation continue, idéal pour familles avec enfants.",
   },
@@ -726,8 +714,7 @@ export const PRO_HOTELS: ProHotel[] = [
       { type: "BB", price: 482.0 },
       { type: "HB", price: 612.5 },
     ],
-    description:
-      "Hôtel 4★ familial avec spa marin à Skanes Monastir.",
+    description: "Hôtel 4★ familial avec spa marin à Skanes Monastir.",
   },
   {
     id: "concorde-marco-polo",
@@ -750,9 +737,7 @@ export const PRO_HOTELS: ProHotel[] = [
     amenities: ["wifi", "pool", "beach", "all-inclusive"],
     recommended: false,
     segments: ["Famille", "All Inclusive"],
-    boardings: [
-      { type: "AI", price: 562.0 },
-    ],
+    boardings: [{ type: "AI", price: 562.0 }],
     description:
       "Resort populaire au cœur d'Hammamet, accès direct à la plage.",
   },

@@ -106,8 +106,8 @@ export function UsersManager({ initial, maxAgents = 5 }: UsersManagerProps) {
             Quota agents : {activeAgentsCount} / {maxAgents}
           </h2>
           <p className="text-muted-foreground text-xs">
-            Le compte Owner n&apos;est pas compté dans le quota. Désactivez
-            un agent pour libérer une place.
+            Le compte Owner n&apos;est pas compté dans le quota. Désactivez un
+            agent pour libérer une place.
           </p>
         </div>
         <Button
@@ -171,7 +171,7 @@ export function UsersManager({ initial, maxAgents = 5 }: UsersManagerProps) {
             <Button
               type="submit"
               disabled={submitting}
-              className="rounded-xl w-full md:w-auto"
+              className="w-full rounded-xl md:w-auto"
             >
               {submitting ? (
                 <>
@@ -197,14 +197,21 @@ export function UsersManager({ initial, maxAgents = 5 }: UsersManagerProps) {
               <TableHead className="font-semibold">Email</TableHead>
               <TableHead className="font-semibold">Rôle</TableHead>
               <TableHead className="font-semibold">Statut</TableHead>
-              <TableHead className="font-semibold">Dernière connexion</TableHead>
-              <TableHead className="text-center font-semibold">Actions</TableHead>
+              <TableHead className="font-semibold">
+                Dernière connexion
+              </TableHead>
+              <TableHead className="text-center font-semibold">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground py-12 text-center">
+                <TableCell
+                  colSpan={6}
+                  className="text-muted-foreground py-12 text-center"
+                >
                   Aucun utilisateur. Invitez votre premier agent.
                 </TableCell>
               </TableRow>
@@ -243,8 +250,8 @@ export function UsersManager({ initial, maxAgents = 5 }: UsersManagerProps) {
                       variant="outline"
                       className={
                         u.isActive
-                          ? "border-emerald-300 bg-emerald-100 text-emerald-900 inline-flex items-center gap-1"
-                          : "border-zinc-300 bg-zinc-100 text-zinc-700 inline-flex items-center gap-1"
+                          ? "inline-flex items-center gap-1 border-emerald-300 bg-emerald-100 text-emerald-900"
+                          : "inline-flex items-center gap-1 border-zinc-300 bg-zinc-100 text-zinc-700"
                       }
                     >
                       {u.isActive ? (

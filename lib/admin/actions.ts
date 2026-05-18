@@ -37,7 +37,12 @@ const inputSchema = z.object({
 export type UpdateStatusInput = z.infer<typeof inputSchema>
 
 export type UpdateStatusResult =
-  | { ok: true; reservationId: string; previousStatus: ReservationStatus; nextStatus: ReservationStatus }
+  | {
+      ok: true
+      reservationId: string
+      previousStatus: ReservationStatus
+      nextStatus: ReservationStatus
+    }
   | { ok: false; error: string }
 
 export async function updateReservationStatus(

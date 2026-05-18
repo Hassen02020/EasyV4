@@ -8,17 +8,34 @@ __v0_jsx-dev-runtime.ts
 next.user-config.*
 
 # Environment variables
+.env
+.env.*.local
 .env*.local
 
-# Common ignores
+# Dependencies
 node_modules
+
+# Build / cache
 .next/
-.DS_Store
-
-# TypeScript
+out/
+build/
+dist/
+coverage/
 *.tsbuildinfo
+*.log
 
-# Test artifacts (locaux, ne pas commit)
-test-plan*.md
-test-report*.md
-test-plan*.txt
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Rapports de test ad-hoc générés à la racine (les archives versionnées vivent
+# dans docs/tests/)
+/test-plan*.md
+/test-plan*.txt
+/test-report*.md

@@ -22,10 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import {
-  BOARDING_LABEL,
-  BOARDING_SHORT,
-} from "@/lib/pro/hotels-fixture"
+import { BOARDING_LABEL, BOARDING_SHORT } from "@/lib/pro/hotels-fixture"
 import { formatTND } from "@/lib/pro/format"
 import {
   generateBookingRef,
@@ -255,7 +252,7 @@ export function BookingTravelersForm({
                 Matricule fiscale de l&apos;agence (optionnel)
               </Label>
               <div className="relative mt-1">
-                <Hash className="text-muted-foreground absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
+                <Hash className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2" />
                 <Input
                   id="matricule"
                   value={matricule}
@@ -365,7 +362,7 @@ export function BookingTravelersForm({
           </header>
 
           {payment === null ? (
-            <div className="border-amber-300 bg-amber-50 mb-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs text-amber-900">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               <AlertTriangle className="h-3.5 w-3.5" />
               Veuillez choisir votre option de paiement
             </div>
@@ -382,7 +379,8 @@ export function BookingTravelersForm({
                   onClick={() => setPayment(opt.id)}
                   className={cn(
                     "border-border/50 hover:border-primary/30 hover:bg-muted/30 flex items-center gap-3 rounded-xl border p-3 text-left transition-colors",
-                    active && "border-primary bg-primary/5 ring-2 ring-primary/30",
+                    active &&
+                      "border-primary bg-primary/5 ring-primary/30 ring-2",
                   )}
                   aria-pressed={active}
                 >
@@ -414,7 +412,7 @@ export function BookingTravelersForm({
       {/* Récap latéral sticky */}
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <div className="bg-card border-border/60 shadow-e2b-soft space-y-4 rounded-2xl border p-4">
-          <h2 className="text-foreground inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
+          <h2 className="text-foreground inline-flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
             <ChevronDown className="text-primary h-4 w-4" />
             Récapitulatif
           </h2>
@@ -463,13 +461,9 @@ export function BookingTravelersForm({
                 positive
               />
             ) : null}
-            <Row
-              label="Total TTC"
-              value={formatTND(finalTotal)}
-              strong
-            />
+            <Row label="Total TTC" value={formatTND(finalTotal)} strong />
             <details className="text-muted-foreground pt-1 text-xs">
-              <summary className="cursor-pointer hover:text-foreground">
+              <summary className="hover:text-foreground cursor-pointer">
                 Ajuster le total (avec marge agence)
               </summary>
               <div className="mt-2 flex items-center gap-2">
@@ -477,7 +471,9 @@ export function BookingTravelersForm({
                   type="number"
                   inputMode="decimal"
                   step="0.001"
-                  value={editableTotal !== null ? editableTotal : totalAfterCoupon}
+                  value={
+                    editableTotal !== null ? editableTotal : totalAfterCoupon
+                  }
                   onChange={(e) =>
                     setEditableTotal(Number.parseFloat(e.target.value) || 0)
                   }
@@ -493,9 +489,8 @@ export function BookingTravelersForm({
                 </Button>
               </div>
               <p className="mt-1 text-[10px]">
-                Permet de saisir manuellement le total client après marge —
-                sera remplacé par lecture <code>pricing_margins</code> en
-                phase 9.
+                Permet de saisir manuellement le total client après marge — sera
+                remplacé par lecture <code>pricing_margins</code> en phase 9.
               </p>
             </details>
           </div>
@@ -552,7 +547,7 @@ function Row({
         className={cn(
           "tabular-nums",
           strong ? "text-primary text-base font-bold" : "text-foreground/80",
-          positive && "text-emerald-600 font-semibold",
+          positive && "font-semibold text-emerald-600",
         )}
       >
         {value}

@@ -60,7 +60,7 @@ export function HotelsFilters({
       <div className="mb-3 flex items-center justify-between">
         <h2
           id={`${baseId}-title`}
-          className="text-foreground inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide"
+          className="text-foreground inline-flex items-center gap-2 text-sm font-semibold tracking-wide uppercase"
         >
           <SlidersHorizontal className="text-primary h-4 w-4" />
           Filtres
@@ -183,7 +183,7 @@ function FilterSection({
 }) {
   return (
     <section className="border-border/40 border-b py-3 last:border-b-0">
-      <Label className="text-foreground text-xs font-semibold uppercase tracking-wide">
+      <Label className="text-foreground text-xs font-semibold tracking-wide uppercase">
         {title}
       </Label>
       <div className="mt-2">{children}</div>

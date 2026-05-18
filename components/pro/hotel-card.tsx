@@ -64,7 +64,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
             unoptimized
           />
           {hotel.recommended ? (
-            <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-md">
+            <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white uppercase shadow-md">
               <Sparkles className="h-3 w-3" />
               Recommended
             </span>
@@ -105,7 +105,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
               </div>
               <h3
                 id={`hotel-${hotel.id}-title`}
-                className="text-foreground mt-0.5 text-lg font-semibold leading-tight"
+                className="text-foreground mt-0.5 text-lg leading-tight font-semibold"
               >
                 {hotel.name}
               </h3>
@@ -116,7 +116,9 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
             </div>
             {hotel.rating ? (
               <div className="bg-secondary text-secondary-foreground inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold">
-                <span className="text-[10px] uppercase">{hotel.rating.label}</span>
+                <span className="text-[10px] uppercase">
+                  {hotel.rating.label}
+                </span>
                 <span className="font-bold tabular-nums">
                   {hotel.rating.score.toFixed(1)}
                 </span>
@@ -185,7 +187,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
               {hotel.boardings.map((b) => (
                 <span
                   key={b.type}
-                  className="border-secondary/50 text-secondary inline-flex items-center gap-1 rounded-md border bg-secondary/5 px-2 py-1 text-[11px] font-medium"
+                  className="border-secondary/50 text-secondary bg-secondary/5 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium"
                   title={BOARDING_LABEL[b.type]}
                 >
                   <span className="text-[10px] font-bold opacity-70">
@@ -199,21 +201,27 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
             </div>
 
             <div className="text-right">
-              <div className="text-muted-foreground text-[10px] uppercase tracking-wide">
+              <div className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 À partir de
               </div>
               <div className="text-primary text-xl font-bold tabular-nums">
                 {formatTND(fromPrice)}
               </div>
-              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase">
                 <CheckCircle2 className="h-3 w-3" />
                 Disponible
               </div>
             </div>
           </div>
 
-          <Button asChild className="mt-3 w-full rounded-xl md:w-auto md:self-end">
-            <Link href={detailHref} aria-label={`Voir la chambre — ${hotel.name}`}>
+          <Button
+            asChild
+            className="mt-3 w-full rounded-xl md:w-auto md:self-end"
+          >
+            <Link
+              href={detailHref}
+              aria-label={`Voir la chambre — ${hotel.name}`}
+            >
               Choisir la chambre
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
@@ -238,17 +246,15 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "relative px-3 py-2 text-xs font-semibold uppercase tracking-wide transition-colors",
-        active
-          ? "text-primary"
-          : "text-muted-foreground hover:text-foreground",
+        "relative px-3 py-2 text-xs font-semibold tracking-wide uppercase transition-colors",
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
       {active ? (
         <span
           aria-hidden
-          className="bg-primary absolute -bottom-px left-0 right-0 h-0.5"
+          className="bg-primary absolute right-0 -bottom-px left-0 h-0.5"
         />
       ) : null}
     </button>

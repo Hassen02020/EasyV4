@@ -1,12 +1,40 @@
+# Dependencies
 node_modules
+pnpm-lock.yaml
+
+# Build outputs
 .next
-.vercel
 out
 build
 dist
 coverage
-pnpm-lock.yaml
+*.tsbuildinfo
+next-env.d.ts
+
+# Deploy artefacts
+.vercel
 *.log
-drizzle/0000_*.sql
-drizzle/manual/*.sql
+
+# Static / generated assets
 public
+
+# Drizzle (généré par drizzle-kit — ne pas reformater)
+drizzle/0000_*.sql
+drizzle/0001_*.sql
+drizzle/manual/*.sql
+drizzle/meta/*.json
+
+# Documents Markdown longs (rapports d'audit, plans QA, arborescence)
+AUDIT_ARCHITECTURE.md
+AUDIT_REPORT.md
+ARBORESCENCE.md
+TEST_PLAN_PR7.md
+TEST_PLAN_PR9.md
+docs/tests/**
+
+# v0 sandbox internals
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.v0-trash/
+.snowflake/

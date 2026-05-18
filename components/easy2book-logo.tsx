@@ -25,9 +25,7 @@ export function Easy2BookLogo({
     <Image
       src="/easy2book-logo.png"
       alt={
-        withWordmark
-          ? "Easy2Book — Centrale de Réservation"
-          : "Logo Easy2Book"
+        withWordmark ? "Easy2Book — Centrale de Réservation" : "Logo Easy2Book"
       }
       width={1024}
       height={1024}

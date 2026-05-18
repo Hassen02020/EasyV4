@@ -46,7 +46,7 @@ export default async function ProBookingConfirmationPage({
   const hotel = search.hotelId ? getProHotelById(search.hotelId) : undefined
   const total = search.total ? Number.parseFloat(search.total) : 0
   const paymentInfo = search.payment
-    ? PAYMENT_LABEL[search.payment] ?? null
+    ? (PAYMENT_LABEL[search.payment] ?? null)
     : null
   const PaymentIcon = paymentInfo?.icon ?? Wallet
 
@@ -65,12 +65,7 @@ export default async function ProBookingConfirmationPage({
         </p>
 
         <dl className="mt-6 grid gap-3 md:grid-cols-2">
-          <Field
-            icon={FileText}
-            label="Référence dossier"
-            value={ref}
-            mono
-          />
+          <Field icon={FileText} label="Référence dossier" value={ref} mono />
           <Field
             icon={Calendar}
             label="Date de création"
@@ -102,15 +97,11 @@ export default async function ProBookingConfirmationPage({
             />
           ) : null}
           {search.ref ? (
-            <Field
-              icon={FileText}
-              label="Réf. interne"
-              value={search.ref}
-            />
+            <Field icon={FileText} label="Réf. interne" value={search.ref} />
           ) : null}
         </dl>
 
-        <div className="border-border/50 mt-6 rounded-2xl border bg-muted/30 p-4">
+        <div className="border-border/50 bg-muted/30 mt-6 rounded-2xl border p-4">
           <div className="flex items-center justify-between">
             <p className="text-foreground text-sm">Total TTC</p>
             <p className="text-primary text-2xl font-bold tabular-nums">
@@ -127,9 +118,7 @@ export default async function ProBookingConfirmationPage({
             </Link>
           </Button>
           <Button asChild variant="outline" className="flex-1 rounded-xl">
-            <Link href="/pro">
-              Nouvelle recherche
-            </Link>
+            <Link href="/pro">Nouvelle recherche</Link>
           </Button>
         </div>
 
@@ -137,8 +126,8 @@ export default async function ProBookingConfirmationPage({
           <Mail className="text-primary mt-0.5 h-3.5 w-3.5 shrink-0" />
           <p className="text-muted-foreground leading-snug">
             Un récapitulatif détaillé sera envoyé à l&apos;adresse e-mail
-            associée à votre agence dès l&apos;enregistrement effectif côté
-            base de données (phase 7).
+            associée à votre agence dès l&apos;enregistrement effectif côté base
+            de données (phase 7).
           </p>
         </div>
       </div>
@@ -159,7 +148,7 @@ function Field({
 }) {
   return (
     <div className="border-border/50 rounded-xl border p-3">
-      <dt className="text-muted-foreground inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
+      <dt className="text-muted-foreground inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-wide uppercase">
         <Icon className="h-3 w-3" />
         {label}
       </dt>

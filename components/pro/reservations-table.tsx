@@ -125,7 +125,7 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
         className="bg-card border-border/60 shadow-e2b-soft grid gap-3 rounded-2xl border p-4 md:grid-cols-2 lg:grid-cols-4"
       >
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             N° Réservation
           </label>
           <Input
@@ -135,7 +135,7 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
           />
         </div>
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Statut
           </label>
           <Select value={status} onValueChange={setStatus}>
@@ -153,7 +153,7 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
           </Select>
         </div>
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Module
           </label>
           <Select value={module} onValueChange={setModule}>
@@ -172,11 +172,11 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
           </Select>
         </div>
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Mot-clé
           </label>
           <div className="relative">
-            <Search className="text-muted-foreground absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
+            <Search className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -197,13 +197,18 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
               <TableHead className="font-semibold">Période</TableHead>
               <TableHead className="font-semibold">Statut</TableHead>
               <TableHead className="text-right font-semibold">Vente</TableHead>
-              <TableHead className="text-center font-semibold">Actions</TableHead>
+              <TableHead className="text-center font-semibold">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground py-12 text-center">
+                <TableCell
+                  colSpan={7}
+                  className="text-muted-foreground py-12 text-center"
+                >
                   Aucune réservation pour ces filtres.
                 </TableCell>
               </TableRow>
@@ -254,7 +259,11 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                          >
                             <MoreVertical className="h-4 w-4" />
                             <span className="sr-only">Actions</span>
                           </Button>

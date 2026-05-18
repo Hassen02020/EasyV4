@@ -164,7 +164,7 @@ export default async function AdminDashboard() {
           </p>
         </div>
         <Button
-          className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl shadow-e2b-soft"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-e2b-soft rounded-2xl"
           asChild
         >
           <a href="/admin" aria-label="Recharger le tableau de bord">
@@ -187,7 +187,7 @@ export default async function AdminDashboard() {
         {statCards.map((stat, idx) => (
           <Card
             key={stat.title}
-            className="e2b-fade-in-up shadow-e2b-soft hover:shadow-e2b-elevated rounded-2xl border-border/60 transition-shadow"
+            className="e2b-fade-in-up shadow-e2b-soft hover:shadow-e2b-elevated border-border/60 rounded-2xl transition-shadow"
             style={{ animationDelay: `${80 + idx * 70}ms` }}
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">

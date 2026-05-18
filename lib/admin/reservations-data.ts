@@ -75,8 +75,7 @@ export async function loadAdminReservations(
         module: row.module,
         status: row.status,
         customerName:
-          [row.firstName, row.lastName].filter(Boolean).join(" ").trim() ||
-          "—",
+          [row.firstName, row.lastName].filter(Boolean).join(" ").trim() || "—",
         customerEmail: row.email,
         customerPhone: row.phone,
         originalCurrency: row.originalCurrency,

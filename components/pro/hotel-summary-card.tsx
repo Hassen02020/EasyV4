@@ -24,7 +24,7 @@ export function HotelSummaryCard({ hotel }: HotelSummaryCardProps) {
             unoptimized
           />
           {hotel.recommended ? (
-            <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-md">
+            <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white uppercase shadow-md">
               <Sparkles className="h-3 w-3" />
               Recommended
             </span>
@@ -46,7 +46,7 @@ export function HotelSummaryCard({ hotel }: HotelSummaryCardProps) {
               </span>
             ) : null}
           </div>
-          <h2 className="text-foreground mt-1 text-xl font-bold leading-tight md:text-2xl">
+          <h2 className="text-foreground mt-1 text-xl leading-tight font-bold md:text-2xl">
             {hotel.name}
           </h2>
           <p className="text-muted-foreground mt-1 inline-flex items-center gap-1 text-sm">

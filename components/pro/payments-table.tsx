@@ -50,7 +50,7 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
         className="bg-card border-border/60 shadow-e2b-soft grid gap-3 rounded-2xl border p-4 md:grid-cols-2"
       >
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Du
           </label>
           <Input
@@ -60,7 +60,7 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
           />
         </div>
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Au
           </label>
           <Input
@@ -79,8 +79,12 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
               <TableHead className="font-semibold">Mode</TableHead>
               <TableHead className="font-semibold">Échéance</TableHead>
               <TableHead className="font-semibold">Émission</TableHead>
-              <TableHead className="text-right font-semibold">Montant origine</TableHead>
-              <TableHead className="text-right font-semibold">Restant</TableHead>
+              <TableHead className="text-right font-semibold">
+                Montant origine
+              </TableHead>
+              <TableHead className="text-right font-semibold">
+                Restant
+              </TableHead>
               <TableHead className="text-right font-semibold">Crédit</TableHead>
               <TableHead className="font-semibold">Facture</TableHead>
             </TableRow>
@@ -105,7 +109,10 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
                       {p.date}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="inline-flex items-center gap-1">
+                      <Badge
+                        variant="outline"
+                        className="inline-flex items-center gap-1"
+                      >
                         <ModeIcon className="h-3 w-3" />
                         {Mode.label}
                       </Badge>

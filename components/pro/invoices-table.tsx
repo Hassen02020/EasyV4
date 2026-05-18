@@ -43,9 +43,18 @@ const TYPE_META: Record<
   PartnerInvoice["type"],
   { label: string; className: string }
 > = {
-  facture: { label: "Facture", className: "border-primary/40 bg-primary/10 text-primary" },
-  avoir: { label: "Avoir", className: "border-accent/40 bg-accent/15 text-accent-foreground" },
-  proforma: { label: "Proforma", className: "border-secondary/40 bg-secondary/10 text-secondary" },
+  facture: {
+    label: "Facture",
+    className: "border-primary/40 bg-primary/10 text-primary",
+  },
+  avoir: {
+    label: "Avoir",
+    className: "border-accent/40 bg-accent/15 text-accent-foreground",
+  },
+  proforma: {
+    label: "Proforma",
+    className: "border-secondary/40 bg-secondary/10 text-secondary",
+  },
 }
 
 const STATUS_META: Record<
@@ -97,7 +106,7 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
         className="bg-card border-border/60 shadow-e2b-soft grid gap-3 rounded-2xl border p-4 md:grid-cols-2 lg:grid-cols-4"
       >
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             N° Facture
           </label>
           <Input
@@ -107,7 +116,7 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
           />
         </div>
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Type
           </label>
           <Select value={type} onValueChange={setType}>
@@ -123,16 +132,24 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
           </Select>
         </div>
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Du
           </label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </div>
         <div>
-          <label className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
+          <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Au
           </label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
         </div>
       </section>
 
@@ -143,12 +160,18 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
               <TableHead className="font-semibold">N° Facture</TableHead>
               <TableHead className="font-semibold">Type</TableHead>
               <TableHead className="font-semibold">Validation</TableHead>
-              <TableHead className="text-right font-semibold">Total HT</TableHead>
+              <TableHead className="text-right font-semibold">
+                Total HT
+              </TableHead>
               <TableHead className="text-right font-semibold">TVA</TableHead>
-              <TableHead className="text-right font-semibold">Total vente</TableHead>
+              <TableHead className="text-right font-semibold">
+                Total vente
+              </TableHead>
               <TableHead className="text-right font-semibold">Payé</TableHead>
               <TableHead className="font-semibold">Statut</TableHead>
-              <TableHead className="text-center font-semibold">Actions</TableHead>
+              <TableHead className="text-center font-semibold">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -209,7 +232,11 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 rounded-lg">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 rounded-lg"
+                          >
                             <FileText className="mr-1 h-3.5 w-3.5" />
                             Actions
                           </Button>

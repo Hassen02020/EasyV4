@@ -127,7 +127,7 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
   const selectedCurrency = CURRENCIES.find((c) => c.code === currentCurrency)
 
   return (
-    <header className="bg-background border-border/60 sticky top-0 z-40 border-b backdrop-blur supports-[backdrop-filter]:bg-background/85">
+    <header className="bg-background border-border/60 supports-[backdrop-filter]:bg-background/85 sticky top-0 z-40 border-b backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href="/pro"
@@ -143,17 +143,15 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
 
         <div className="flex items-center gap-3 sm:gap-5">
           {!agency.maskCredit ? (
-            <div className="bg-muted/60 border-border/50 hidden items-center gap-2 rounded-2xl border px-4 py-2 shadow-e2b-soft md:flex">
+            <div className="bg-muted/60 border-border/50 shadow-e2b-soft hidden items-center gap-2 rounded-2xl border px-4 py-2 md:flex">
               <div className="flex flex-col">
-                <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+                <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                   Mon Crédit
                 </span>
                 <span
                   className={cn(
                     "text-base font-semibold tabular-nums",
-                    isCreditLow
-                      ? "text-destructive"
-                      : "text-foreground",
+                    isCreditLow ? "text-destructive" : "text-foreground",
                   )}
                 >
                   {formatCreditBalance(agency.depositBalance)}
@@ -180,24 +178,24 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-3 rounded-2xl border border-transparent px-2 py-1.5 transition-colors hover:bg-muted/60"
+                className="hover:bg-muted/60 flex items-center gap-3 rounded-2xl border border-transparent px-2 py-1.5 transition-colors"
               >
                 <div className="hidden text-right sm:flex sm:flex-col">
-                  <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+                  <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                     Bonjour
                   </span>
-                  <span className="text-foreground text-sm font-semibold uppercase tracking-wide">
+                  <span className="text-foreground text-sm font-semibold tracking-wide uppercase">
                     {user.displayName}
                   </span>
                 </div>
                 <div className="relative">
-                  <Avatar className="h-10 w-10 border-2 border-primary/20">
+                  <Avatar className="border-primary/20 h-10 w-10 border-2">
                     <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
                       {user.initials}
                     </AvatarFallback>
                   </Avatar>
                   <span
-                    className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-background bg-emerald-500"
+                    className="border-background absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 bg-emerald-500"
                     aria-label="Statut en ligne"
                   />
                 </div>
@@ -206,7 +204,7 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
             <DropdownMenuContent
               align="end"
               sideOffset={8}
-              className="w-72 rounded-2xl border-border/50 shadow-e2b-elevated"
+              className="border-border/50 shadow-e2b-elevated w-72 rounded-2xl"
             >
               <DropdownMenuLabel className="flex items-start gap-2 pb-3">
                 <div className="flex-1">
@@ -214,7 +212,7 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
                     <span className="text-foreground text-sm font-semibold uppercase">
                       {user.displayName}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase dark:bg-emerald-900/40 dark:text-emerald-300">
                       {ROLE_LABEL[user.role]}
                     </span>
                   </div>
@@ -390,7 +388,7 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
           </DropdownMenu>
 
           {user.isAdminPreview ? (
-            <span className="hidden rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800 lg:inline-block dark:bg-amber-900/40 dark:text-amber-300">
+            <span className="hidden rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold tracking-wide text-amber-800 uppercase lg:inline-block dark:bg-amber-900/40 dark:text-amber-300">
               Vue B2B simulée
             </span>
           ) : null}

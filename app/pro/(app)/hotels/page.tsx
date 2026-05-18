@@ -66,12 +66,12 @@ export default async function ProHotelsSerpPage({
         hotels={hotels}
         context={{
           destinationLabel:
-            params.destinationLabel ??
-            destination?.label ??
-            "Toute la Tunisie",
+            params.destinationLabel ?? destination?.label ?? "Toute la Tunisie",
           checkin: params.checkin,
           checkout: params.checkout,
-          nights: params.nights ? Number.parseInt(params.nights, 10) : undefined,
+          nights: params.nights
+            ? Number.parseInt(params.nights, 10)
+            : undefined,
           rooms: params.rooms ? Number.parseInt(params.rooms, 10) : 1,
           adults: params.adults ? Number.parseInt(params.adults, 10) : 2,
           children: params.children ? Number.parseInt(params.children, 10) : 0,

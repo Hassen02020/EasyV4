@@ -17,6 +17,7 @@ import { MyGoAuthError, MyGoError } from "@/lib/mygo"
 import { HotelSearchResponse } from "@/lib/mygo/schemas"
 import type { HotelSearchResultDTO } from "@/lib/mygo/types"
 import hotelSearchFixture from "@/lib/mygo/__fixtures__/hotelsearch.json"
+import { rateLimit } from "@/lib/rate-limit"
 
 const isDemoMode = () =>
   !process.env.MYGO_LOGIN || process.env.MYGO_LOGIN.length === 0
@@ -65,9 +66,27 @@ const QuerySchema = z.object({
   hotelId: z.coerce.number().int().positive().optional(),
 })
 
-export const dynamic = "force-dynamic"
+export const revalidate = 300 // 5 min — les prix changent vite
 
 export async function GET(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "anonymous"
+  const limit = await rateLimit(`hotels:search:${ip}`)
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfter: Math.ceil((limit.reset - Date.now()) / 1000) },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Limit": String(limit.limit),
+          "X-RateLimit-Remaining": String(limit.remaining),
+          "X-RateLimit-Reset": String(limit.reset),
+        },
+      },
+    )
+  }
+
   const { searchParams } = new URL(req.url)
   const parsed = QuerySchema.safeParse(Object.fromEntries(searchParams))
   if (!parsed.success) {
@@ -110,7 +129,12 @@ export async function GET(req: NextRequest) {
       count: offers.length,
       offers,
     }
-    return NextResponse.json(dto, { status: 200 })
+    return NextResponse.json(dto, {
+      status: 200,
+      headers: {
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+      },
+    })
   } catch (err) {
     return mapErrorToResponse(err)
   }

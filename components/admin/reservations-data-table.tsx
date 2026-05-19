@@ -195,8 +195,12 @@ function StatusBadge({ status }: { status: string }) {
 
 export function ReservationsDataTable({
   rows,
+  nextCursor,
+  hasMore,
 }: {
   rows: AdminReservationRow[]
+  nextCursor?: string | null
+  hasMore?: boolean
 }) {
   const router = useRouter()
   const [search, setSearch] = React.useState("")
@@ -489,33 +493,52 @@ export function ReservationsDataTable({
         </Table>
       </div>
 
-      <div className="text-muted-foreground flex flex-col items-start justify-between gap-2 text-sm sm:flex-row sm:items-center">
+      <div className="text-muted-foreground flex flex-col items-start justify-between gap-4 text-sm sm:flex-row sm:items-center">
         <div>
-          {sorted.length} résultat{sorted.length > 1 ? "s" : ""} · {rows.length}{" "}
-          au total
+          {sorted.length} résultat{sorted.length > 1 ? "s" : ""} affiché
+          {sorted.length > 1 ? "s" : ""} sur cette page
+          {hasMore ? " · Données paginées côté serveur" : ""}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(Math.max(0, safePage - 1))}
-            disabled={safePage === 0}
-            aria-label="Page précédente"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <span>
-            Page {safePage + 1} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
-            disabled={safePage >= totalPages - 1}
-            aria-label="Page suivante"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
+        <div className="flex items-center gap-3">
+          {/* Client-side pagination within current server page */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(Math.max(0, safePage - 1))}
+              disabled={safePage === 0}
+              aria-label="Page précédente"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-xs">
+              {safePage + 1} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
+              disabled={safePage >= totalPages - 1}
+              aria-label="Page suivante"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+
+          {/* Server-side cursor navigation */}
+          {hasMore && nextCursor ? (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() =>
+                router.push(`/admin/reservations?cursor=${encodeURIComponent(nextCursor)}`)
+              }
+              aria-label="Page serveur suivante"
+            >
+              Suite
+              <ChevronRight className="ml-1 size-4" />
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>

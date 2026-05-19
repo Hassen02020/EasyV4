@@ -77,4 +77,22 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+/* -------------------------------------------------------------------------- */
+/* Sentry (optionnel) — wrap la config si @sentry/nextjs est installé          */
+/* -------------------------------------------------------------------------- */
+
+let finalConfig = nextConfig
+
+try {
+  const { withSentryConfig } = await import("@sentry/nextjs")
+  finalConfig = withSentryConfig(nextConfig, {
+    silent: true,
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    widenClientFileUpload: true,
+  })
+} catch {
+  /* Sentry non installé — on garde la config native */
+}
+
+export default finalConfig

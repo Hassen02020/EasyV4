@@ -2,22 +2,32 @@
  * /admin/reservations — Data Table back-office connectée à Supabase.
  *
  * Server Component : on récupère l'agence courante via le profil utilisateur
- * connecté, on charge toutes les réservations via Drizzle, puis on délègue
- * l'affichage à `ReservationsDataTable` (client) qui prend en charge le
- * filtrage, le tri, la pagination et la mutation de statut.
+ * connecté, on charge les réservations via Drizzle avec pagination
+ * cursor-based, puis on délègue l'affichage à `ReservationsDataTable`
+ * (client) qui prend en charge le filtrage, le tri et la mutation de statut.
  */
 
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { loadAdminReservations } from "@/lib/admin/reservations-data"
-import { ReservationsDataTable } from "@/components/admin/reservations-data-table"
+import {
+  loadAdminReservationsPage,
+  decodeCursor,
+} from "@/lib/admin/reservations-data"
+import nextDynamic from "next/dynamic"
+
+const ReservationsDataTable = nextDynamic(
+  () =>
+    import("@/components/admin/reservations-data-table").then(
+      (m) => m.ReservationsDataTable,
+    ),
+)
 
 export const dynamic = "force-dynamic"
 
 export default async function AdminReservationsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ type?: string }>
+  searchParams?: Promise<{ type?: string; cursor?: string }>
 }) {
   const supabase = await createServerSupabase()
   const {
@@ -29,8 +39,11 @@ export default async function AdminReservationsPage({
 
   const params = (await searchParams) ?? {}
   const initialType = params.type
+  const rawCursor = params.cursor
+  const cursor = rawCursor ? decodeCursor(rawCursor) : null
 
-  const { available, rows } = await loadAdminReservations(agencyId)
+  const { available, rows, nextCursor, hasMore } =
+    await loadAdminReservationsPage(agencyId, 25, cursor)
 
   const filteredRows = initialType
     ? rows.filter((r) => r.module === initialType)
@@ -49,8 +62,9 @@ export default async function AdminReservationsPage({
           </p>
         </div>
         <div className="bg-secondary/60 text-secondary-foreground rounded-full px-3 py-1 text-xs font-medium">
-          {rows.length} ligne{rows.length > 1 ? "s" : ""} chargée
-          {rows.length > 1 ? "s" : ""}
+          {filteredRows.length} ligne{filteredRows.length > 1 ? "s" : ""}{" "}
+          affichée{filteredRows.length > 1 ? "s" : ""}
+          {hasMore ? "+" : ""}
         </div>
       </div>
 
@@ -63,7 +77,11 @@ export default async function AdminReservationsPage({
       ) : null}
 
       <div className="e2b-fade-in-up" style={{ animationDelay: "120ms" }}>
-        <ReservationsDataTable rows={filteredRows} />
+        <ReservationsDataTable
+          rows={filteredRows}
+          nextCursor={nextCursor}
+          hasMore={hasMore}
+        />
       </div>
     </div>
   )

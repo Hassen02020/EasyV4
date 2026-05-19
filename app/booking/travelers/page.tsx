@@ -5,7 +5,11 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { BookingSteps } from "@/components/booking/booking-steps"
-import { TravelersForm } from "@/components/booking/travelers-form"
+import dynamic from "next/dynamic"
+
+const TravelersForm = dynamic(
+  () => import("@/components/booking/travelers-form").then((m) => m.TravelersForm),
+)
 
 type SP = { [k: string]: string | string[] | undefined }
 

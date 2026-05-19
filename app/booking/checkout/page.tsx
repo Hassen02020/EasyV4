@@ -9,7 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
-import { CheckoutForm } from "@/components/booking/checkout-form"
+import dynamic from "next/dynamic"
+
+const CheckoutForm = dynamic(
+  () => import("@/components/booking/checkout-form").then((m) => m.CheckoutForm),
+)
 
 type SP = { [k: string]: string | string[] | undefined }
 

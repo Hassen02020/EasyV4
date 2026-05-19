@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useCities } from "@/hooks/use-cities"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import {
@@ -38,11 +39,7 @@ import { Badge } from "@/components/ui/badge"
 // Types matching MyGo API Schema (le client myGo expose `/api/hotels/cities`)
 // ============================================================================
 
-interface City {
-  id: number
-  name: string
-  region?: string
-}
+import type { City } from "@/hooks/use-cities"
 
 interface Pax {
   Adult: number
@@ -67,15 +64,8 @@ interface HotelSearchRequest {
 }
 
 // ============================================================================
-// Static fallback (utilisé si /api/hotels/cities est indisponible)
-// Les ids ne correspondent PAS à ceux myGo et ne servent que pour offline preview.
+// Static fallback (défini dans useCities)
 // ============================================================================
-
-const TUNISIA_CITIES_FALLBACK: City[] = [
-  { id: 10, name: "Hammamet", region: "Cap Bon" },
-  { id: 11, name: "Nabeul", region: "Cap Bon" },
-  { id: 17, name: "Kairouan", region: "Centre" },
-]
 
 const STAR_OPTIONS = [
   { value: 5, label: "5 Etoiles" },
@@ -110,50 +100,8 @@ export function HotelsTunisieSearch() {
   const [selectedStars, setSelectedStars] = useState<number[]>([])
   const [starsPopoverOpen, setStarsPopoverOpen] = useState(false)
 
-  // Cities (fetched from /api/hotels/cities backed by myGo ListCity)
-  type CityFetchState = {
-    cities: City[]
-    loading: boolean
-    error: string | null
-  }
-  const [cityFetch, setCityFetch] = useState<CityFetchState>({
-    cities: TUNISIA_CITIES_FALLBACK,
-    loading: true,
-    error: null,
-  })
-
-  useEffect(() => {
-    const ctrl = new AbortController()
-    fetch("/api/hotels/cities", { signal: ctrl.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json() as Promise<{ cities: City[] }>
-      })
-      .then((data) => {
-        const fetched = Array.isArray(data?.cities) ? data.cities : []
-        setCityFetch({
-          cities: fetched.length > 0 ? fetched : TUNISIA_CITIES_FALLBACK,
-          loading: false,
-          error: null,
-        })
-      })
-      .catch((err: unknown) => {
-        if ((err as { name?: string }).name === "AbortError") return
-        setCityFetch((prev) => ({
-          cities: prev.cities,
-          loading: false,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Impossible de charger les villes",
-        }))
-      })
-    return () => ctrl.abort()
-  }, [])
-
-  const cities = cityFetch.cities
-  const citiesLoading = cityFetch.loading
-  const citiesError = cityFetch.error
+  // Cities (TanStack Query — dedup, retries, stale-while-revalidate)
+  const { cities, loading: citiesLoading, error: citiesError } = useCities()
 
   // Build the API request object
   const buildSearchRequest = useCallback((): HotelSearchRequest | null => {

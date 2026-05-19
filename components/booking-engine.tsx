@@ -23,7 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { HotelsTunisieSearch } from "@/components/hotels-tunisie-search"
+import dynamic from "next/dynamic"
+
+const HotelsTunisieSearch = dynamic(
+  () => import("@/components/hotels-tunisie-search").then((m) => m.HotelsTunisieSearch),
+  { ssr: false, loading: () => <div className="h-24 animate-pulse rounded-xl bg-muted" /> },
+)
 import { encodeDraft } from "@/lib/booking/draft-store"
 import type { BookingDraft } from "@/lib/booking/schemas"
 

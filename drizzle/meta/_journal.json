@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1777798245234,
+      "tag": "0000_married_sebastian_shaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779095010157,
+      "tag": "0001_b2b_portal_partner",
+      "breakpoints": true
+    }
+  ]
+}

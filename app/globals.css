@@ -1,0 +1,252 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Palette Easy2Book — Centrale de Réservation
+ *
+ *  Inspirée de l'identité tunisienne méditerranéenne :
+ *   - Rouge corail tunisien (#D62828)        → actions primaires, badges critiques
+ *   - Bleu Méditerranée profond (#1D3557)    → navigation, sidebar, headers
+ *   - Or désert / Jasmin (#F4A261, #FAF9F6)  → highlights, fonds chauds
+ *
+ *  Le mode light est l'expérience par défaut côté Back-Office.
+ *  Le mode dark reste disponible (toggle thème) avec une palette nuit
+ *  équivalente — bleu navire profond + accents corail amortis.
+ */
+
+:root {
+  /* Surfaces */
+  --background: oklch(0.985 0.005 85); /* Jasmin off-white (#FAF9F6) */
+  --foreground: oklch(0.22 0.05 250); /* Bleu nuit profond pour le texte */
+  --card: oklch(1 0 0); /* Cartes blanches pures */
+  --card-foreground: oklch(0.22 0.05 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.05 250);
+
+  /* Actions primaires : Corail Tunisia (#D62828) */
+  --primary: oklch(0.55 0.21 25);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary : surfaces secondaires douces */
+  --secondary: oklch(0.96 0.015 85);
+  --secondary-foreground: oklch(0.22 0.05 250);
+
+  /* Muted : bordures, séparateurs, texte secondaire */
+  --muted: oklch(0.95 0.012 85);
+  --muted-foreground: oklch(0.48 0.03 250);
+
+  /* Accent : Or désert / Jasmine (#F4A261) */
+  --accent: oklch(0.78 0.13 60);
+  --accent-foreground: oklch(0.22 0.05 250);
+
+  /* Destructive : rouge plus profond que le primary */
+  --destructive: oklch(0.5 0.22 27);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* Bords, inputs */
+  --border: oklch(0.91 0.01 85);
+  --input: oklch(0.95 0.008 85);
+  --ring: oklch(0.55 0.21 25); /* Focus ring corail */
+
+  /* Charts (en harmonie avec la palette) */
+  --chart-1: oklch(0.55 0.21 25); /* corail */
+  --chart-2: oklch(0.3 0.08 250); /* méditerranée */
+  --chart-3: oklch(0.78 0.13 60); /* or */
+  --chart-4: oklch(0.45 0.12 250); /* bleu intermédiaire */
+  --chart-5: oklch(0.65 0.16 35); /* corail clair */
+
+  /* Rayon par défaut : plus arrondi (1rem) → cards/buttons modernes */
+  --radius: 1rem;
+
+  /* Sidebar Back-Office : bleu Méditerranée plein
+     (ne change pas en mode dark — c'est l'identité fixe de la sidebar) */
+  --sidebar: oklch(0.3 0.08 250); /* Bleu Méditerranée (#1D3557) */
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.78 0.13 60); /* Or sur fond bleu */
+  --sidebar-primary-foreground: oklch(0.22 0.05 250);
+  --sidebar-accent: oklch(0.36 0.08 250); /* Hover slightly lighter */
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.36 0.08 250);
+  --sidebar-ring: oklch(0.78 0.13 60);
+}
+
+.dark {
+  /* Mode nuit Back-Office : bleu navire profond + accents corail amortis */
+  --background: oklch(0.18 0.04 250);
+  --foreground: oklch(0.97 0.005 85);
+  --card: oklch(0.22 0.04 250);
+  --card-foreground: oklch(0.97 0.005 85);
+  --popover: oklch(0.22 0.04 250);
+  --popover-foreground: oklch(0.97 0.005 85);
+
+  --primary: oklch(0.65 0.19 25); /* Corail plus clair pour contraste */
+  --primary-foreground: oklch(0.18 0.04 250);
+
+  --secondary: oklch(0.28 0.04 250);
+  --secondary-foreground: oklch(0.97 0.005 85);
+
+  --muted: oklch(0.28 0.04 250);
+  --muted-foreground: oklch(0.72 0.015 85);
+
+  --accent: oklch(0.78 0.13 60); /* Or constant */
+  --accent-foreground: oklch(0.18 0.04 250);
+
+  --destructive: oklch(0.6 0.22 27);
+  --destructive-foreground: oklch(0.97 0.005 85);
+
+  --border: oklch(0.3 0.04 250);
+  --input: oklch(0.28 0.04 250);
+  --ring: oklch(0.65 0.19 25);
+
+  --chart-1: oklch(0.65 0.19 25);
+  --chart-2: oklch(0.6 0.12 250);
+  --chart-3: oklch(0.78 0.13 60);
+  --chart-4: oklch(0.5 0.14 250);
+  --chart-5: oklch(0.7 0.18 35);
+
+  --sidebar: oklch(0.22 0.06 250);
+  --sidebar-foreground: oklch(0.97 0.005 85);
+  --sidebar-primary: oklch(0.78 0.13 60);
+  --sidebar-primary-foreground: oklch(0.18 0.04 250);
+  --sidebar-accent: oklch(0.28 0.06 250);
+  --sidebar-accent-foreground: oklch(0.97 0.005 85);
+  --sidebar-border: oklch(0.3 0.06 250);
+  --sidebar-ring: oklch(0.78 0.13 60);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), "Geist", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Animations Easy2Book Back-Office
+ * ─ logo : pulse léger 3s + glow au hover
+ * ─ stat cards : fade-in-up cascadé via animation-delay
+ * ─ rows table : fade-in subtil au montage
+ * ────────────────────────────────────────────────────────────────────────── */
+
+@keyframes e2b-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 6px oklch(0.78 0.13 60 / 0.45));
+  }
+}
+
+@keyframes e2b-fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes e2b-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes e2b-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.78 0.13 60 / 0);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px oklch(0.78 0.13 60 / 0.35);
+  }
+}
+
+@layer utilities {
+  .e2b-logo-pulse {
+    animation: e2b-pulse 3.2s ease-in-out infinite;
+    transition:
+      transform 200ms ease-out,
+      filter 200ms ease-out;
+  }
+
+  .e2b-logo-pulse:hover {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 10px oklch(0.78 0.13 60 / 0.55));
+  }
+
+  .e2b-fade-in-up {
+    animation: e2b-fade-in-up 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .e2b-fade-in {
+    animation: e2b-fade-in 320ms ease-out both;
+  }
+
+  /* Drop shadows soft élégantes pour les cards Back-Office */
+  .shadow-e2b-soft {
+    box-shadow:
+      0 1px 2px oklch(0.22 0.05 250 / 0.04),
+      0 8px 24px oklch(0.22 0.05 250 / 0.06);
+  }
+
+  .shadow-e2b-elevated {
+    box-shadow:
+      0 4px 6px oklch(0.22 0.05 250 / 0.04),
+      0 16px 40px oklch(0.22 0.05 250 / 0.08);
+  }
+}

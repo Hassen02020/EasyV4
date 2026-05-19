@@ -1,0 +1,22 @@
+{
+  "ListCity": null,
+  "CountResults": 0,
+  "ErrorMessage": {
+    "Code": 421,
+    "Description": "Login Failed - Invalid User or Password!!"
+  },
+  "Timing": {
+    "Begin": {
+      "date": "2026-05-03 08:04:07.180336",
+      "timezone_type": 3,
+      "timezone": "UTC"
+    },
+    "End": {
+      "date": "2026-05-03 08:04:07.295489",
+      "timezone_type": 3,
+      "timezone": "UTC"
+    },
+    "Duration": "115 ms"
+  },
+  "Ip": "102.211.211.165"
+}

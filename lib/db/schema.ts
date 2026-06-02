@@ -172,17 +172,22 @@ export const agencies = pgTable(
       .default("TND"),
     /** B2B : masquer le widget "Mon Crédit" dans l'interface. */
     maskCredit: boolean("mask_credit").notNull().default(false),
-    /** B2B : solde du compte de dépôt en TND (recharge prépayée). */
-    depositBalance: decimal("deposit_balance", { precision: 14, scale: 2 })
+    /**
+     * B2B : solde du compte de dépôt en TND (recharge prépayée).
+     *
+     * Précision `numeric(12, 3)` : TND est une devise à 3 décimales
+     * (millimes). Plage couverte : −999 999 999.999 → 999 999 999.999 DT.
+     */
+    depositBalance: decimal("deposit_balance", { precision: 12, scale: 3 })
       .notNull()
       .default("0"),
     /** B2B : seuil d'alerte solde bas (déclenche notif). */
     creditLowThreshold: decimal("credit_low_threshold", {
-      precision: 14,
-      scale: 2,
+      precision: 12,
+      scale: 3,
     })
       .notNull()
-      .default("100.00"),
+      .default("100.000"),
     /** Devises affichées au client (front). La 1ʳᵉ est la devise par défaut. */
     displayCurrencies: text("display_currencies")
       .array()
@@ -1022,12 +1027,16 @@ export const partnerCreditMovements = pgTable(
       .notNull()
       .references(() => agencies.id, { onDelete: "restrict" }),
     movementType: creditMovementType("movement_type").notNull(),
-    /** Montant en TND (signe positif). Le type indique le sens. */
-    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    /**
+     * Montant en TND avec son signe (positif pour `credit`/`refund`,
+     * négatif pour `debit`/`adjustment` réducteur). Format `numeric(12, 3)`
+     * pour aligner avec la précision millime du Dinar tunisien.
+     */
+    amount: decimal("amount", { precision: 12, scale: 3 }).notNull(),
     /** Solde après ce mouvement (snapshot). */
     balanceAfter: decimal("balance_after", {
-      precision: 14,
-      scale: 2,
+      precision: 12,
+      scale: 3,
     }).notNull(),
     /** Référence externe (n° réservation, n° facture, etc.). */
     reference: varchar("reference", { length: 64 }),

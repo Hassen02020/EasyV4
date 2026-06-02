@@ -1,4 +1,4 @@
-import { Header } from "@/components/header"
+import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Skeleton } from "@/components/ui/skeleton"
 

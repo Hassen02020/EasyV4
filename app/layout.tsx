@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import { cookies } from "next/headers"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { QueryProvider } from "@/components/query-provider"
+import { parseLocale, LOCALE_COOKIE, LOCALE_META } from "@/lib/locale"
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -46,14 +48,19 @@ export const viewport: Viewport = {
   themeColor: "#1e3a5f",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const jar = await cookies()
+  const locale = parseLocale(jar.get(LOCALE_COOKIE)?.value)
+  const { lang, dir } = LOCALE_META[locale]
+
   return (
     <html
-      lang="fr"
+      lang={lang}
+      dir={dir}
       className={`${geistSans.variable} ${geistMono.variable} bg-background`}
       suppressHydrationWarning
     >

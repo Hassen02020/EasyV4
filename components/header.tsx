@@ -3,7 +3,6 @@
 import { useState } from "react"
 import Link from "next/link"
 import {
-  Globe,
   HelpCircle,
   CalendarCheck,
   User,
@@ -19,10 +18,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import type { Locale } from "@/lib/locale"
 
-export function Header() {
+interface HeaderProps {
+  currentLocale?: Locale
+}
+
+export function Header({ currentLocale = "fr" }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [language, setLanguage] = useState<"FR" | "AR">("FR")
   const [currency, setCurrency] = useState<"TND" | "EUR" | "USD">("TND")
 
   return (
@@ -45,27 +49,7 @@ export function Header() {
 
           {/* Desktop Right Actions */}
           <div className="hidden items-center gap-1 lg:flex">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-sm font-medium"
-                >
-                  <Globe className="size-4" />
-                  {language} / {language === "FR" ? "AR" : "FR"}
-                  <ChevronDown className="size-3 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setLanguage("FR")}>
-                  Français
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("AR")}>
-                  العربية
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <LanguageSwitcher currentLocale={currentLocale} variant="desktop" />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -150,16 +134,7 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="border-border bg-card border-t lg:hidden">
           <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4">
-            <button
-              type="button"
-              onClick={() => setLanguage(language === "FR" ? "AR" : "FR")}
-              className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
-            >
-              <Globe className="size-5 text-[#1e3a5f]" />
-              <span>
-                {language} / {language === "FR" ? "AR" : "FR"}
-              </span>
-            </button>
+            <LanguageSwitcher currentLocale={currentLocale} variant="mobile" />
             <button
               type="button"
               onClick={() => {

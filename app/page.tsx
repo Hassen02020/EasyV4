@@ -1,4 +1,4 @@
-import { Header } from "@/components/header"
+import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { BookingEngine } from "@/components/booking-engine"
 import { FlashOffers } from "@/components/flash-offers"
 import { OmratySection } from "@/components/omraty-section"

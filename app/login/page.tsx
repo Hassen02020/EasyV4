@@ -44,7 +44,17 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
 
-        <p className="text-muted-foreground mt-6 text-center text-xs">
+        <p className="text-muted-foreground mt-4 text-center text-xs">
+          Pas le bon portail ?{" "}
+          <Link
+            href="/login/select"
+            className="text-primary font-medium hover:underline"
+          >
+            Choisir mon espace
+          </Link>
+        </p>
+
+        <p className="text-muted-foreground mt-2 text-center text-xs">
           En cas de problème de connexion, contactez{" "}
           <a
             href="mailto:tarhouni.hassene@gmail.com"

@@ -15,6 +15,13 @@
       "when": 1779095010157,
       "tag": "0001_b2b_portal_partner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779095794699,
+      "tag": "0002_b2b_credit_precision_3dec",
+      "breakpoints": true
     }
   ]
 }

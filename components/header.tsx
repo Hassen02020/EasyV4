@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { CurrencySwitcher } from "@/components/currency-switcher"
 import type { Locale } from "@/lib/locale"
 
 interface HeaderProps {
@@ -27,7 +28,6 @@ interface HeaderProps {
 
 export function Header({ currentLocale = "fr" }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [currency, setCurrency] = useState<"TND" | "EUR" | "USD">("TND")
 
   return (
     <header className="bg-card border-border sticky top-0 z-50 border-b shadow-sm">
@@ -51,30 +51,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
           <div className="hidden items-center gap-1 lg:flex">
             <LanguageSwitcher currentLocale={currentLocale} variant="desktop" />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-sm font-medium"
-                >
-                  <span className="font-bold text-[#1e3a5f]">¤</span>
-                  {currency}
-                  <ChevronDown className="size-3 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setCurrency("TND")}>
-                  TND — Dinar tunisien
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrency("EUR")}>
-                  EUR — Euro
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrency("USD")}>
-                  USD — US Dollar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <CurrencySwitcher variant="desktop" />
 
             <Button
               variant="ghost"
@@ -135,24 +112,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
         <div className="border-border bg-card border-t lg:hidden">
           <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4">
             <LanguageSwitcher currentLocale={currentLocale} variant="mobile" />
-            <button
-              type="button"
-              onClick={() => {
-                const next =
-                  currency === "TND"
-                    ? "EUR"
-                    : currency === "EUR"
-                      ? "USD"
-                      : "TND"
-                setCurrency(next)
-              }}
-              className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
-            >
-              <span className="flex size-5 items-center justify-center font-bold text-[#1e3a5f]">
-                ¤
-              </span>
-              <span>{currency}</span>
-            </button>
+            <CurrencySwitcher variant="mobile" />
             <Link
               href="#help"
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"

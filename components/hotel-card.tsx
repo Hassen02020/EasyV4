@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react"
 import { useState } from "react"
+import { useCurrency } from "@/components/currency-context"
 
 interface RoomOption {
   id: number
@@ -44,14 +45,8 @@ interface HotelCardProps {
     mealOptions?: string[]
     rooms?: RoomOption[]
   }
-  currency?: string
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
-}
-
-function formatMoney(amount: number, currency = "TND"): string {
-  const value = Math.round(amount).toLocaleString("fr-FR")
-  return `${value} ${currency}`
 }
 
 const amenityIcons: Record<string, React.ReactNode> = {
@@ -63,10 +58,10 @@ const amenityIcons: Record<string, React.ReactNode> = {
 
 export function HotelCard({
   hotel,
-  currency = "TND",
   onBook,
   onViewDetails,
 }: HotelCardProps) {
+  const { format } = useCurrency()
   const [currentImage, setCurrentImage] = useState(0)
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [selectedMealPlan, setSelectedMealPlan] = useState(0)
@@ -239,7 +234,7 @@ export function HotelCard({
               <p className="text-muted-foreground mb-1 text-xs">À partir de</p>
               <div className="flex items-baseline justify-end gap-1">
                 <span className="text-primary text-2xl font-bold">
-                  {formatMoney(hotel.discountedPrice, currency)}
+                  {format(hotel.discountedPrice)}
                 </span>
               </div>
               <p className="text-muted-foreground mt-1 text-xs">
@@ -346,10 +341,7 @@ export function HotelCard({
                 </div>
                 <div className="text-right">
                   <span className="text-primary text-lg font-bold">
-                    {room.price.toLocaleString("fr-FR")}
-                  </span>
-                  <span className="text-muted-foreground ml-1 text-xs">
-                    {currency}
+                    {format(room.price)}
                   </span>
                 </div>
               </button>

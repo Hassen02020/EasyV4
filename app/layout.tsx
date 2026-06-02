@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { QueryProvider } from "@/components/query-provider"
 import { parseLocale, LOCALE_COOKIE, LOCALE_META } from "@/lib/locale"
+import { CurrencyProvider } from "@/components/currency-context"
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -72,8 +73,10 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            {children}
-            <Toaster richColors position="top-center" />
+            <CurrencyProvider>
+              {children}
+              <Toaster richColors position="top-center" />
+            </CurrencyProvider>
           </QueryProvider>
         </ThemeProvider>
         {process.env.NODE_ENV === "production" && (

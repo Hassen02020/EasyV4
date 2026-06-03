@@ -18,6 +18,16 @@ import {
   Shield,
   Activity,
   Building,
+  ShoppingBag,
+  CreditCard,
+  Briefcase,
+  UserCog,
+  DollarSign,
+  FileText,
+  Package,
+  Clock,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -77,26 +87,74 @@ const ROLE_LABEL: Record<AdminShellRole, string> = {
   agent_excursions: "Agent excursions",
 }
 
-const baseNavItems = [
+type NavItem = {
+  title: string
+  icon: React.ElementType
+  href: string
+  subItems?: { title: string; href: string; icon: React.ElementType }[]
+}
+
+const baseNavItems: NavItem[] = [
   {
     title: "Tableau de bord",
     icon: LayoutDashboard,
     href: "/admin",
   },
+]
+
+const managerNavItems: NavItem[] = [
   {
-    title: "Réservations",
-    icon: Calendar,
-    href: "/admin/reservations",
+    title: "B2C — Réservations",
+    icon: ShoppingBag,
+    href: "/admin/b2c/reservations",
     subItems: [
-      { title: "Vols", href: "/admin/reservations/vols", icon: Plane },
-      {
-        title: "Hôtels Tunisie",
-        href: "/admin/reservations/hotels",
-        icon: Building2,
-      },
-      { title: "Omra", href: "/admin/reservations/omra", icon: Moon },
+      { title: "Toutes les réservations", href: "/admin/b2c/reservations", icon: Calendar },
+      { title: "En attente", href: "/admin/b2c/reservations?status=pending", icon: Clock },
+      { title: "Confirmées", href: "/admin/b2c/reservations?status=confirmed", icon: CheckCircle2 },
+      { title: "Annulations", href: "/admin/b2c/reservations?status=cancelled", icon: XCircle },
     ],
   },
+  {
+    title: "B2C — Clients",
+    icon: Users,
+    href: "/admin/b2c/clients",
+  },
+  {
+    title: "Produits & Catalogue",
+    icon: Package,
+    href: "/admin/products",
+    subItems: [
+      { title: "Hôtels", href: "/admin/products/hotels", icon: Building2 },
+      { title: "Vols", href: "/admin/products/flights", icon: Plane },
+      { title: "Voyages Organisés", href: "/admin/products/packages", icon: Briefcase },
+      { title: "Omra", href: "/admin/products/omra", icon: Moon },
+      { title: "Activités", href: "/admin/products/activities", icon: Activity },
+    ],
+  },
+  {
+    title: "Comptabilité",
+    icon: DollarSign,
+    href: "/admin/accounting",
+    subItems: [
+      { title: "Tableau de bord", href: "/admin/accounting", icon: LayoutDashboard },
+      { title: "Paiements", href: "/admin/accounting/payments", icon: CreditCard },
+      { title: "Factures", href: "/admin/accounting/invoices", icon: FileText },
+      { title: "Rapports", href: "/admin/accounting/reports", icon: Activity },
+    ],
+  },
+  {
+    title: "Personnel",
+    icon: UserCog,
+    href: "/admin/staff",
+  },
+  {
+    title: "Support & Clients",
+    icon: Headphones,
+    href: "/admin/support",
+  },
+]
+
+const technicalNavItems: NavItem[] = [
   {
     title: "Configuration XML",
     icon: Settings,
@@ -107,18 +165,13 @@ const baseNavItems = [
     icon: Database,
     href: "/admin/inventory",
   },
-  {
-    title: "Support & Clients",
-    icon: Headphones,
-    href: "/admin/support",
-  },
 ]
 
-const superAdminNavItems = [
+const superAdminNavItems: NavItem[] = [
   {
-    title: "Administration",
+    title: "Administration Système",
     icon: Shield,
-    href: "/admin",
+    href: "/admin/users",
     subItems: [
       { title: "Utilisateurs", href: "/admin/users", icon: Users },
       { title: "Agences", href: "/admin/agencies", icon: Building },
@@ -127,11 +180,30 @@ const superAdminNavItems = [
   },
 ]
 
-function getNavItems(role: AdminShellRole) {
-  if (role === "super_admin") {
-    return [...baseNavItems, ...superAdminNavItems]
+function getNavItems(role: AdminShellRole): NavItem[] {
+  switch (role) {
+    case "super_admin":
+      return [...baseNavItems, ...managerNavItems, ...technicalNavItems, ...superAdminNavItems]
+    case "manager":
+      return [...baseNavItems, ...managerNavItems, ...technicalNavItems]
+    case "agent_resa":
+      // Agent résa : accès limité aux réservations, produits (lecture), et support
+      return [
+        ...baseNavItems,
+        managerNavItems[0]!, // B2C Réservations (avec subItems)
+        managerNavItems[2]!, // Produits (lecture seule)
+        managerNavItems[5]!, // Support & Clients
+      ]
+    case "agent_compta":
+      // Agent compta : accès comptabilité + réservations (lecture)
+      return [
+        ...baseNavItems,
+        managerNavItems[0]!, // B2C Réservations
+        managerNavItems[3]!, // Comptabilité (avec subItems)
+      ]
+    default:
+      return [...baseNavItems, ...technicalNavItems]
   }
-  return baseNavItems
 }
 
 function getBreadcrumb(pathname: string) {
@@ -150,9 +222,14 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "vols") label = "Vols"
     if (paths[i] === "hotels") label = "Hôtels Tunisie"
     if (paths[i] === "omra") label = "Omra"
-  if (paths[i] === "users") label = "Utilisateurs"
-  if (paths[i] === "agencies") label = "Agences"
-  if (paths[i] === "logs") label = "Logs Système"
+    if (paths[i] === "b2c") label = "B2C"
+    if (paths[i] === "clients") label = "Clients"
+    if (paths[i] === "products") label = "Produits"
+    if (paths[i] === "accounting") label = "Comptabilité"
+    if (paths[i] === "staff") label = "Personnel"
+    if (paths[i] === "users") label = "Utilisateurs"
+    if (paths[i] === "agencies") label = "Agences"
+    if (paths[i] === "logs") label = "Logs Système"
 
     breadcrumbs.push({ label, href })
   }

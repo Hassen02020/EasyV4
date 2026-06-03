@@ -10,10 +10,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-export function LoginForm() {
+interface LoginFormProps {
+  redirectTo?: string
+}
+
+export function LoginForm({ redirectTo }: LoginFormProps = {}) {
   const router = useRouter()
   const params = useSearchParams()
-  const nextPath = params.get("next") ?? "/admin"
+  const nextPath = redirectTo ?? params.get("next") ?? "/admin"
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

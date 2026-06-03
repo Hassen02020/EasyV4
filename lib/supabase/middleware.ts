@@ -10,14 +10,17 @@ import { createServerClient } from "@supabase/ssr"
 
 const ADMIN_PREFIX = "/admin"
 const PRO_PREFIX = "/pro"
+const MUTUELLE_PREFIX = "/mutuelle"
 const LOGIN_PATH = "/login"
 const PRO_LOGIN_PATH = "/pro/login"
+const MUTUELLE_LOGIN_PATH = "/mutuelle/login"
 const AUTH_CALLBACK_PATH = "/api/auth/callback"
 
 /**
  * Routes protégées (auth requise) :
  *  - `/admin/*` → back-office OTA (super_admin / manager / agents)
  *  - `/pro/*` (sauf `/pro/login`) → portail B2B partenaire
+ *  - `/mutuelle/*` (sauf `/mutuelle/login`) → espace mutuelle
  */
 function isProtectedPath(pathname: string): boolean {
   if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
@@ -27,12 +30,19 @@ function isProtectedPath(pathname: string): boolean {
   if (pathname === PRO_PREFIX || pathname.startsWith(`${PRO_PREFIX}/`)) {
     return true
   }
+  if (pathname === MUTUELLE_LOGIN_PATH) return false
+  if (pathname === MUTUELLE_PREFIX || pathname.startsWith(`${MUTUELLE_PREFIX}/`)) {
+    return true
+  }
   return false
 }
 
 function loginPathFor(pathname: string): string {
   if (pathname === PRO_PREFIX || pathname.startsWith(`${PRO_PREFIX}/`)) {
     return PRO_LOGIN_PATH
+  }
+  if (pathname === MUTUELLE_PREFIX || pathname.startsWith(`${MUTUELLE_PREFIX}/`)) {
+    return MUTUELLE_LOGIN_PATH
   }
   return LOGIN_PATH
 }

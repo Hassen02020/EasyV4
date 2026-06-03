@@ -14,6 +14,10 @@ import {
   Building2,
   Moon,
   Plane,
+  Users,
+  Shield,
+  Activity,
+  Building,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -73,7 +77,7 @@ const ROLE_LABEL: Record<AdminShellRole, string> = {
   agent_excursions: "Agent excursions",
 }
 
-const navItems = [
+const baseNavItems = [
   {
     title: "Tableau de bord",
     icon: LayoutDashboard,
@@ -110,6 +114,26 @@ const navItems = [
   },
 ]
 
+const superAdminNavItems = [
+  {
+    title: "Administration",
+    icon: Shield,
+    href: "/admin",
+    subItems: [
+      { title: "Utilisateurs", href: "/admin/users", icon: Users },
+      { title: "Agences", href: "/admin/agencies", icon: Building },
+      { title: "Logs Système", href: "/admin/logs", icon: Activity },
+    ],
+  },
+]
+
+function getNavItems(role: AdminShellRole) {
+  if (role === "super_admin") {
+    return [...baseNavItems, ...superAdminNavItems]
+  }
+  return baseNavItems
+}
+
 function getBreadcrumb(pathname: string) {
   const paths = pathname.split("/").filter(Boolean)
   const breadcrumbs: { label: string; href: string }[] = []
@@ -126,6 +150,9 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "vols") label = "Vols"
     if (paths[i] === "hotels") label = "Hôtels Tunisie"
     if (paths[i] === "omra") label = "Omra"
+  if (paths[i] === "users") label = "Utilisateurs"
+  if (paths[i] === "agencies") label = "Agences"
+  if (paths[i] === "logs") label = "Logs Système"
 
     breadcrumbs.push({ label, href })
   }
@@ -142,6 +169,7 @@ export function AdminShell({
 }) {
   const pathname = usePathname()
   const breadcrumbs = getBreadcrumb(pathname)
+  const navItems = getNavItems(user.role)
 
   return (
     <SidebarProvider>

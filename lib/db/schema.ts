@@ -1057,6 +1057,267 @@ export const partnerCreditMovements = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* PRODUCTS - Catalogue multisectoriel polymorphique                          */
+/* -------------------------------------------------------------------------- */
+
+export const productStatus = pgEnum("product_status", [
+  "draft",
+  "active",
+  "inactive",
+  "archived",
+])
+
+export const productType = pgEnum("product_type", [
+  "hotel",
+  "flight",
+  "package",
+  "activity",
+  "transfer",
+  "omra",
+  "car",
+])
+
+/**
+ * Table products - Catalogue unifié avec attributs JSONB polymorphiques
+ * 
+ * Architecture:
+ * - type: discrimine le type de produit
+ * - basePrice, currency: tarification de base
+ * - attributes: JSONB contenant les spécificités selon le type
+ *   * Hotel: { stars, amenities[], roomTypes[], location, boardType }
+ *   * Flight: { airline, flightNumber, departure, arrival, duration, stops }
+ *   * Package: { durationDays, destinations[], inclusions[], exclusions[] }
+ *   * Activity: { duration, difficulty, meetingPoint, equipment[] }
+ *   * Omra: { season, visa, includesZiarat, meccaHotel, madinaHotel }
+ */
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** SKU unique par agence */
+    sku: varchar("sku", { length: 64 }).notNull(),
+    /** Type de produit discriminant */
+    type: productType("type").notNull(),
+    /** Statut du produit */
+    status: productStatus("status").notNull().default("draft"),
+    /** Nom commercial */
+    name: varchar("name", { length: 255 }).notNull(),
+    /** Description courte */
+    shortDescription: text("short_description"),
+    /** Description longue */
+    longDescription: text("long_description"),
+    /** Destination principale */
+    destination: varchar("destination", { length: 128 }),
+    /** Pays */
+    country: varchar("country", { length: 64 }),
+    /** Ville */
+    city: varchar("city", { length: 64 }),
+    /** Prix de base */
+    basePrice: decimal("base_price", { precision: 12, scale: 3 }).notNull(),
+    /** Devise */
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+    /** TVA applicable */
+    vatRate: decimal("vat_rate", { precision: 4, scale: 2 }).default("7"),
+    /** Stock disponible (null = illimité) */
+    stock: integer("stock"),
+    /**
+     * ATTRIBUTS POLYMORPHIQUES JSONB
+     * Structure selon le type:
+     */
+    attributes: jsonb("attributes").$type<
+      | {
+          // Hotel attributes
+          stars?: number
+          amenities?: string[]
+          roomTypes?: { name: string; capacity: number; price: number }[]
+          boardType?: "bb" | "hb" | "fb" | "ai"
+          checkIn?: string
+          checkOut?: string
+          photos?: string[]
+        }
+      | {
+          // Flight attributes
+          airline?: string
+          flightNumber?: string
+          departure: { airport: string; time: string; date: string }
+          arrival: { airport: string; time: string; date: string }
+          duration?: string
+          stops?: number
+          cabinClass?: "economy" | "business" | "first"
+          baggage?: { cabin: string; checked: string }
+        }
+      | {
+          // Package attributes
+          durationDays?: number
+          destinations?: string[]
+          inclusions?: string[]
+          exclusions?: string[]
+          itinerary?: { day: number; title: string; description: string }[]
+          groupSize?: { min: number; max: number }
+          guideLanguages?: string[]
+        }
+      | {
+          // Activity attributes
+          duration?: string
+          difficulty?: "easy" | "moderate" | "hard"
+          meetingPoint?: string
+          equipment?: string[]
+          minAge?: number
+          maxParticipants?: number
+          schedule?: { startTime: string; endTime: string; days: string[] }
+        }
+      | {
+          // Omra attributes
+          season?: string
+          includesVisa?: boolean
+          includesZiarat?: boolean
+          includesTransfer?: boolean
+          meccaHotel?: { name: string; stars: number; nights: number; distance: string }
+          madinaHotel?: { name: string; stars: number; nights: number; distance: string }
+          flightDetails?: { airline: string; departureCity: string }
+          scholarGuide?: string
+        }
+    >(),
+    /** Métadonnées SEO */
+    seoMeta: jsonb("seo_meta").$type<{
+      title?: string
+      description?: string
+      keywords?: string[]
+    }>(),
+    /** Configuration marges (override par défaut) */
+    marginConfig: jsonb("margin_config").$type<{
+      type: "percent" | "fixed"
+      value: number
+    }>(),
+    /** Dates de validité */
+    validFrom: date("valid_from"),
+    validUntil: date("valid_until"),
+    /** Créateur du produit */
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("product_sku_agency_idx").on(t.agencyId, t.sku),
+    index("product_type_idx").on(t.type),
+    index("product_status_idx").on(t.status),
+    index("product_destination_idx").on(t.destination),
+    index("product_gin_idx").on(t.agencyId, sql`to_tsvector('french', ${t.name} || ' ' || COALESCE(${t.shortDescription}, ''))`),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
+/* AUDIT LOGS - Traçabilité des actions critiques                             */
+/* -------------------------------------------------------------------------- */
+
+export const auditActionType = pgEnum("audit_action_type", [
+  // Réservations
+  "reservation.created",
+  "reservation.updated",
+  "reservation.status_changed",
+  "reservation.cancelled",
+  "reservation.refunded",
+  // Clients
+  "client.created",
+  "client.updated",
+  "client.deleted",
+  // Produits
+  "product.created",
+  "product.updated",
+  "product.deleted",
+  "product.price_changed",
+  "product.status_changed",
+  // Paiements
+  "payment.processed",
+  "payment.refunded",
+  "invoice.generated",
+  // Authentification
+  "user.login",
+  "user.logout",
+  "user.password_changed",
+  "user.role_changed",
+  // Administration
+  "staff.created",
+  "staff.updated",
+  "staff.deleted",
+  "config.changed",
+])
+
+export const auditEntityType = pgEnum("audit_entity_type", [
+  "reservation",
+  "client",
+  "product",
+  "payment",
+  "invoice",
+  "user",
+  "agency",
+  "config",
+])
+
+/**
+ * Table audit_logs - Enregistrement immuable de toutes les actions critiques
+ * 
+ * Architecture:
+ * - userId: qui a fait l'action
+ * - action: type d'action (enum)
+ * - entityType + entityId: quelle ressource a été affectée
+ * - oldValue + newValue: snapshot des changements (JSONB)
+ * - ipAddress + userAgent: contexte technique
+ * - metadata: informations supplémentaires contextuelles
+ */
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** Utilisateur ayant effectué l'action */
+    userId: uuid("user_id").references(() => users.id),
+    /** Email de l'utilisateur (denormalisé pour audit immuable) */
+    userEmail: varchar("user_email", { length: 255 }),
+    /** Rôle de l'utilisateur au moment de l'action */
+    userRole: varchar("user_role", { length: 32 }),
+    /** Type d'action */
+    action: auditActionType("action").notNull(),
+    /** Type d'entité concernée */
+    entityType: auditEntityType("entity_type").notNull(),
+    /** ID de l'entité concernée */
+    entityId: varchar("entity_id", { length: 64 }),
+    /** Valeur avant modification (snapshot JSON) */
+    oldValue: jsonb("old_value"),
+    /** Valeur après modification (snapshot JSON) */
+    newValue: jsonb("new_value"),
+    /** Diff calculé (pour affichage rapide) */
+    changes: jsonb("changes").$type<Record<string, { from: unknown; to: unknown }>>(),
+    /** IP de l'utilisateur */
+    ipAddress: varchar("ip_address", { length: 45 }),
+    /** User-Agent */
+    userAgent: text("user_agent"),
+    /** Métadonnées contextuelles (route, timestamp frontend, etc.) */
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("audit_agency_idx").on(t.agencyId),
+    index("audit_user_idx").on(t.userId),
+    index("audit_action_idx").on(t.action),
+    index("audit_entity_idx").on(t.entityType, t.entityId),
+    index("audit_created_idx").on(t.createdAt),
+    index("audit_agency_created_idx").on(t.agencyId, t.createdAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* Type exports                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -1074,5 +1335,16 @@ export type PartnerInvoice = typeof partnerInvoices.$inferSelect
 export type NewPartnerInvoice = typeof partnerInvoices.$inferInsert
 export type PartnerPayment = typeof partnerPayments.$inferSelect
 export type PartnerCreditMovement = typeof partnerCreditMovements.$inferSelect
-export type NewPartnerCreditMovement =
-  typeof partnerCreditMovements.$inferInsert
+export type NewPartnerCreditMovement = typeof partnerCreditMovements.$inferInsert
+
+// Products
+export type Product = typeof products.$inferSelect
+export type NewProduct = typeof products.$inferInsert
+export type ProductStatus = typeof products.$inferSelect.status
+export type ProductType = typeof products.$inferSelect.type
+
+// Audit Logs
+export type AuditLog = typeof auditLogs.$inferSelect
+export type NewAuditLog = typeof auditLogs.$inferInsert
+export type AuditActionType = typeof auditLogs.$inferSelect.action
+export type AuditEntityType = typeof auditLogs.$inferSelect.entityType

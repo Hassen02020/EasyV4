@@ -1,3 +1,5 @@
+"use client"
+
 import {
   ShieldCheck,
   Phone,
@@ -7,6 +9,7 @@ import {
   Instagram,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
+import { useT } from "@/components/locale-context"
 
 // Icône WhatsApp personnalisée
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -17,28 +20,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
   )
 }
 
-const trustBadges = [
-  {
-    icon: ShieldCheck,
-    title: "Paiement 100% Sécurisé",
-    description: "SPS / Monétique Tunisie",
-  },
-  {
-    icon: Phone,
-    title: "Support Local 7j/7",
-    description: "+216 98 140 514",
-  },
-  {
-    icon: CheckCircle,
-    title: "Disponibilité Réelle",
-    description: "MyGo/APIGDS",
-  },
-  {
-    icon: Building2,
-    title: "Agence Physique",
-    description: "À Tunis",
-  },
-]
+const trustBadgeIcons = [ShieldCheck, Phone, CheckCircle, Building2]
 
 // Icône TikTok personnalisée (non disponible dans lucide-react)
 function TikTokIcon({ className }: { className?: string }) {
@@ -56,6 +38,13 @@ const socialLinks = [
 ]
 
 export function Footer() {
+  const t = useT()
+  const trustBadges = [
+    { icon: trustBadgeIcons[0], title: t("paiementSecurise"), description: "SPS / Monétique Tunisie" },
+    { icon: trustBadgeIcons[1], title: t("supportLocal"), description: "+216 98 140 514" },
+    { icon: trustBadgeIcons[2], title: t("disponibiliteReelle"), description: "MyGo/APIGDS" },
+    { icon: trustBadgeIcons[3], title: t("agencePhysique"), description: t("atunis") },
+  ]
   return (
     <footer className="bg-card border-border border-t">
       {/* Trust Badges */}
@@ -97,13 +86,12 @@ export function Footer() {
                     <span className="text-white">Book</span>
                   </span>
                   <span className="text-[10px] tracking-widest text-white/60 uppercase">
-                    Centrale de Réservation
+                    {t("footerCentrale")}
                   </span>
                 </div>
               </div>
               <p className="max-w-xs text-sm text-white/70">
-                Votre partenaire de confiance pour tous vos voyages en Tunisie
-                et dans le monde.
+                {t("footerTagline")}
               </p>
               {/* Social Links */}
               <div className="flex items-center gap-3 pt-2">
@@ -127,43 +115,11 @@ export function Footer() {
 
             {/* Quick Links */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-[#e5b94e]">Nos Services</h4>
+              <h4 className="font-semibold text-[#e5b94e]">{t("nosServices")}</h4>
               <ul className="space-y-2 text-sm text-white/70">
-                <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Vols
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Hôtels Tunisie
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Hôtels Monde
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Omraty
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Voyages Organisés
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Transferts
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Location de voiture
-                  </a>
-                </li>
+                {(["tabVols","tabHotelsTunisie","tabHotelsMonde","tabOmraty","tabVoyages","tabTransferts","locationVoiture"] as const).map((key) => (
+                  <li key={key}><a href="#" className="transition-colors hover:text-white">{t(key)}</a></li>
+                ))}
               </ul>
             </div>
 
@@ -207,15 +163,9 @@ export function Footer() {
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             {/* Links */}
             <div className="flex items-center gap-4 text-xs text-white/60 sm:gap-6 sm:text-sm">
-              <a href="#" className="transition-colors hover:text-white">
-                Mentions légales
-              </a>
-              <a href="#" className="transition-colors hover:text-white">
-                CGV
-              </a>
-              <a href="#" className="transition-colors hover:text-white">
-                Politique de confidentialité
-              </a>
+              <a href="#" className="transition-colors hover:text-white">{t("mentionsLegales")}</a>
+              <a href="#" className="transition-colors hover:text-white">{t("cgv")}</a>
+              <a href="#" className="transition-colors hover:text-white">{t("politique")}</a>
             </div>
 
             {/* Payment Methods */}
@@ -238,8 +188,7 @@ export function Footer() {
       <div className="bg-[#0f2237]">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-white/50">
-            © 2026 Easy2Book. Tous droits réservés. Agence de voyage agréée en
-            Tunisie.
+            {t("copyright")}
           </p>
         </div>
       </div>

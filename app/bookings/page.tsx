@@ -32,20 +32,10 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { lookupBooking, type BookingSummary, type BookingStatus } from "@/app/actions/lookup-booking"
+import { useT } from "@/components/locale-context"
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<
-  BookingStatus,
-  { label: string; color: string; icon: React.ElementType; step: number }
-> = {
-  pending:    { label: "En attente",         color: "bg-amber-100 text-amber-800 border-amber-200",   icon: Clock,         step: 1 },
-  on_request: { label: "Sur demande",        color: "bg-blue-100 text-blue-800 border-blue-200",      icon: RefreshCw,     step: 2 },
-  confirmed:  { label: "Confirmée",          color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: CheckCircle2, step: 3 },
-  cancelled:  { label: "Annulée",            color: "bg-red-100 text-red-800 border-red-200",         icon: XCircle,       step: 0 },
-  refunded:   { label: "Remboursée",         color: "bg-gray-100 text-gray-800 border-gray-200",      icon: RefreshCw,     step: 0 },
-  no_show:    { label: "No-show",            color: "bg-red-100 text-red-700 border-red-200",         icon: XCircle,       step: 0 },
-}
 
 const MODULE_ICONS: Record<string, React.ElementType> = {
   flight:   Plane,
@@ -67,15 +57,18 @@ const MODULE_LABELS: Record<string, string> = {
   car:         "Location Voiture",
 }
 
-const TIMELINE_STEPS = [
-  { label: "Demande reçue",    step: 1 },
-  { label: "En traitement",    step: 2 },
-  { label: "Confirmée",        step: 3 },
-]
-
 // ─── Components ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: BookingStatus }) {
+  const t = useT()
+  const STATUS_CONFIG: Record<BookingStatus, { label: string; color: string; icon: React.ElementType }> = {
+    pending:    { label: t("statusPending"),    color: "bg-amber-100 text-amber-800 border-amber-200",       icon: Clock },
+    on_request: { label: t("statusOnRequest"), color: "bg-blue-100 text-blue-800 border-blue-200",          icon: RefreshCw },
+    confirmed:  { label: t("statusConfirmed"), color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: CheckCircle2 },
+    cancelled:  { label: t("statusCancelled"), color: "bg-red-100 text-red-800 border-red-200",             icon: XCircle },
+    refunded:   { label: t("statusRefunded"),  color: "bg-gray-100 text-gray-800 border-gray-200",          icon: RefreshCw },
+    no_show:    { label: t("statusNoShow"),    color: "bg-red-100 text-red-700 border-red-200",             icon: XCircle },
+  }
   const cfg = STATUS_CONFIG[status]
   const Icon = cfg.icon
   return (
@@ -87,7 +80,17 @@ function StatusBadge({ status }: { status: BookingStatus }) {
 }
 
 function Timeline({ status }: { status: BookingStatus }) {
-  const currentStep = STATUS_CONFIG[status]?.step ?? 0
+  const t = useT()
+  const STEP_MAP: Record<BookingStatus, number> = {
+    pending: 1, on_request: 2, confirmed: 3,
+    cancelled: 0, refunded: 0, no_show: 0,
+  }
+  const TIMELINE_STEPS = [
+    { label: t("demandeRecue"), step: 1 },
+    { label: t("enTraitement"), step: 2 },
+    { label: t("statusConfirmed"), step: 3 },
+  ]
+  const currentStep = STEP_MAP[status] ?? 0
   const isCancelled = currentStep === 0
 
   if (isCancelled) return null
@@ -126,6 +129,7 @@ function Timeline({ status }: { status: BookingStatus }) {
 }
 
 function BookingCard({ booking }: { booking: BookingSummary }) {
+  const t = useT()
   const ModuleIcon = MODULE_ICONS[booking.module] ?? Briefcase
   const moduleLabel = MODULE_LABELS[booking.module] ?? booking.module
 
@@ -182,7 +186,7 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
           )}
           <div className="flex items-center gap-2 text-sm">
             <CalendarDays className="text-muted-foreground h-4 w-4 shrink-0" />
-            <span className="text-muted-foreground">Créée le {formatDate(booking.createdAt)}</span>
+            <span className="text-muted-foreground">{t("creeLe")} {formatDate(booking.createdAt)}</span>
           </div>
         </div>
 
@@ -191,7 +195,7 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
         {/* Price + dates */}
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-muted-foreground text-xs">Montant</p>
+            <p className="text-muted-foreground text-xs">{t("montant")}</p>
             <p className="text-foreground text-xl font-bold">
               {parseFloat(booking.tndAmount).toLocaleString("fr-FR")} DT
             </p>
@@ -203,13 +207,13 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
           </div>
           {booking.confirmedAt && (
             <div className="text-right">
-              <p className="text-muted-foreground text-xs">Confirmée le</p>
+              <p className="text-muted-foreground text-xs">{t("confirmeeLe")}</p>
               <p className="text-foreground text-sm font-medium">{formatDate(booking.confirmedAt)}</p>
             </div>
           )}
           {booking.cancelledAt && (
             <div className="text-right">
-              <p className="text-muted-foreground text-xs">Annulée le</p>
+              <p className="text-muted-foreground text-xs">{t("annuleeLe")}</p>
               <p className="text-destructive text-sm font-medium">{formatDate(booking.cancelledAt)}</p>
             </div>
           )}
@@ -219,16 +223,16 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
         <div className="flex flex-wrap gap-2 pt-1">
           <Button variant="outline" size="sm" className="gap-1.5" disabled>
             <Download className="h-4 w-4" />
-            Voucher PDF
+            {t("voucherPdf")}
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5" disabled>
             <Download className="h-4 w-4" />
-            Facture PDF
+            {t("facturePdf")}
           </Button>
           {(booking.status === "pending" || booking.status === "on_request") && (
             <Button variant="destructive" size="sm" className="ml-auto gap-1.5" disabled>
               <XCircle className="h-4 w-4" />
-              Annuler
+              {t("annuler")}
             </Button>
           )}
         </div>
@@ -248,6 +252,7 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function BookingsPage() {
+  const t = useT()
   const [ref, setRef] = useState("")
   const [email, setEmail] = useState("")
   const [result, setResult] = useState<BookingSummary | null>(null)
@@ -290,7 +295,7 @@ export default function BookingsPage() {
             className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Accueil
+            {t("accueil")}
           </Link>
         </div>
       </div>
@@ -298,9 +303,9 @@ export default function BookingsPage() {
       <div className="mx-auto max-w-3xl px-4 py-10">
         {/* Title */}
         <div className="mb-8 text-center">
-          <h1 className="text-foreground text-3xl font-bold">Mes Réservations</h1>
+          <h1 className="text-foreground text-3xl font-bold">{t("mesReservations")}</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Consultez le statut de votre réservation avec votre code et votre email
+            {t("consultezStatut")}
           </p>
         </div>
 
@@ -311,7 +316,7 @@ export default function BookingsPage() {
             className="bg-card border-border shadow-sm space-y-4 rounded-2xl border p-6"
           >
             <div className="space-y-2">
-              <Label htmlFor="ref">Code de réservation</Label>
+              <Label htmlFor="ref">{t("codeReservation")}</Label>
               <Input
                 id="ref"
                 value={ref}
@@ -323,7 +328,7 @@ export default function BookingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Adresse email</Label>
+              <Label htmlFor="email">{t("adresseEmail")}</Label>
               <div className="relative">
                 <Mail className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
@@ -348,9 +353,9 @@ export default function BookingsPage() {
 
             <Button type="submit" className="w-full gap-2" disabled={isPending}>
               {isPending ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Recherche en cours…</>
+                <><Loader2 className="h-4 w-4 animate-spin" /> {t("rechercheEnCours")}</>
               ) : (
-                <><Search className="h-4 w-4" /> Rechercher ma réservation</>
+                <><Search className="h-4 w-4" /> {t("rechercherReservation")}</>
               )}
             </Button>
           </form>
@@ -363,7 +368,7 @@ export default function BookingsPage() {
             <div className="flex justify-center">
               <Button variant="ghost" size="sm" onClick={handleReset} className="gap-2">
                 <Search className="h-4 w-4" />
-                Rechercher une autre réservation
+                {t("autreReservation")}
               </Button>
             </div>
           </div>

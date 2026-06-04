@@ -1,7 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams, useRouter } from "next/navigation"
 import { Globe, ChevronDown, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,12 +25,17 @@ export function LanguageSwitcher({
   const [isPending, startTransition] = useTransition()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   function handleSelect(locale: Locale) {
     if (locale === currentLocale) return
     startTransition(async () => {
       await setLocale(locale)
-      window.location.reload()
+      router.refresh()
+      // Force un rechargement HTTP complet pour que le <html dir> soit mis à jour
+      const params = searchParams.toString()
+      const url = params ? `${pathname}?${params}` : pathname
+      window.location.replace(url)
     })
   }
 

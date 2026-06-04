@@ -1,7 +1,6 @@
 "use client"
 
-import { useTransition } from "react"
-import { usePathname, useSearchParams, useRouter } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { Globe, ChevronDown, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { setLocale } from "@/app/actions/set-locale"
 import { LOCALES, LOCALE_META, type Locale } from "@/lib/locale"
 
 interface LanguageSwitcherProps {
@@ -22,24 +20,16 @@ export function LanguageSwitcher({
   currentLocale,
   variant = "desktop",
 }: LanguageSwitcherProps) {
-  const [isPending, startTransition] = useTransition()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const router = useRouter()
 
   function handleSelect(locale: Locale) {
     if (locale === currentLocale) return
-    startTransition(async () => {
-      await setLocale(locale)
-      router.refresh()
-      // Force un rechargement HTTP complet pour que le <html dir> soit mis à jour
-      const params = searchParams.toString()
-      const url = params ? `${pathname}?${params}` : pathname
-      window.location.replace(url)
-    })
+    const params = searchParams.toString()
+    const redirectTo = params ? `${pathname}?${params}` : pathname
+    window.location.href = `/api/set-locale?locale=${locale}&redirectTo=${encodeURIComponent(redirectTo)}`
   }
 
-  const current = LOCALE_META[currentLocale]
   const other = LOCALES.filter((l) => l !== currentLocale)[0]
 
   if (variant === "mobile") {
@@ -47,7 +37,6 @@ export function LanguageSwitcher({
       <button
         type="button"
         onClick={() => handleSelect(other)}
-        disabled={isPending}
         className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
       >
         <Globe className="size-5 text-[#1e3a5f]" />
@@ -65,7 +54,6 @@ export function LanguageSwitcher({
           variant="ghost"
           size="sm"
           className="gap-1.5 text-sm font-medium"
-          disabled={isPending}
           aria-label="Changer de langue"
         >
           <Globe className="size-4" aria-hidden="true" />

@@ -65,17 +65,13 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               </Link>
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-sm font-medium"
-              asChild
+            <Link
+              href="/bookings"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
             >
-              <Link href="/bookings">
-                <CalendarCheck className="size-4" />
-                My Bookings
-              </Link>
-            </Button>
+              <CalendarCheck className="size-4" />
+              My Bookings
+            </Link>
 
             <Button
               variant="outline"

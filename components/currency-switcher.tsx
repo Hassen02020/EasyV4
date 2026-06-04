@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, ChevronDown } from "lucide-react"
+import { Check, ChevronDown, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -26,11 +26,11 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
         type="button"
         onClick={() => setCurrency(next)}
         className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
+        aria-label={`Changer devise de ${currency} vers ${next}`}
       >
-        <span className="flex size-5 items-center justify-center font-bold text-[#1e3a5f]">
-          {meta.symbol}
-        </span>
-        <span>{currency}</span>
+        <Wallet className="size-5 text-[#1e3a5f]" aria-hidden="true" />
+        <span className="flex-1 text-left">Devise</span>
+        <span className="text-[#1e3a5f] font-semibold">{currency}</span>
       </button>
     )
   }
@@ -41,13 +41,12 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 text-sm font-medium"
+          className="gap-1.5 text-sm font-medium hover:bg-[#1e3a5f]/10"
           aria-label="Changer de devise"
         >
-          <span className="font-bold text-[#1e3a5f]" aria-hidden="true">
-            {meta.symbol}
-          </span>
-          {currency}
+          <Wallet className="size-4 text-[#1e3a5f]" aria-hidden="true" />
+          <span className="hidden sm:inline">Devise</span>
+          <span className="text-[#1e3a5f] font-semibold">{currency}</span>
           <ChevronDown className="size-3 opacity-50" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>

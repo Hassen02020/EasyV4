@@ -77,18 +77,8 @@ export function Footer() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {/* Brand */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Easy2BookLogo className="size-12 rounded-lg bg-white p-1" />
-                <div className="flex flex-col leading-tight">
-                  <span className="text-xl font-bold">
-                    <span className="text-white">Easy</span>
-                    <span className="text-[#e5b94e]">2</span>
-                    <span className="text-white">Book</span>
-                  </span>
-                  <span className="text-[10px] tracking-widest text-white/60 uppercase">
-                    {t("footerCentrale")}
-                  </span>
-                </div>
+              <div className="flex items-center gap-3">
+                <Easy2BookLogo className="h-14 w-auto rounded-xl bg-white p-1.5" />
               </div>
               <p className="max-w-xs text-sm text-white/70">
                 {t("footerTagline")}

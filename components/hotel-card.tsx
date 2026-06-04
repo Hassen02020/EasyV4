@@ -47,6 +47,7 @@ interface HotelCardProps {
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
+  currency?: string
 }
 
 const amenityIcons: Record<string, React.ReactNode> = {

@@ -46,7 +46,7 @@ interface HotelCardProps {
 
 export function HotelCard({ hotel, detailHref }: HotelCardProps) {
   const [activeTab, setActiveTab] = useState<"summary" | "details">("summary")
-  const fromPrice = minBoardingPrice(hotel)
+  const fromPrice = minBoardingPrice(hotel) ?? 0
 
   return (
     <article
@@ -56,7 +56,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
       <div className="grid gap-0 md:grid-cols-[280px_1fr]">
         <div className="relative aspect-[4/3] md:aspect-auto">
           <Image
-            src={hotel.image}
+            src={hotel.image ?? hotel.images[0] ?? "/placeholder.jpg"}
             alt={hotel.name}
             fill
             className="object-cover"
@@ -111,7 +111,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
               </h3>
               <p className="text-muted-foreground mt-1 inline-flex items-center gap-1 text-xs">
                 <MapPin className="h-3 w-3" />
-                {hotel.zone}
+                {hotel.zone ?? hotel.city}
               </p>
             </div>
             {hotel.rating ? (
@@ -147,7 +147,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
           <div className="min-h-[100px] py-3">
             {activeTab === "summary" ? (
               <div className="flex flex-wrap gap-1.5">
-                {hotel.segments.slice(0, 4).map((seg) => (
+                {(hotel.segments ?? []).slice(0, 4).map((seg) => (
                   <span
                     key={seg}
                     className="bg-primary/10 text-primary inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium"
@@ -172,7 +172,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
               </div>
             ) : (
               <ul className="text-muted-foreground space-y-1 text-sm">
-                {hotel.perks.slice(0, 4).map((p) => (
+                {(hotel.perks ?? []).slice(0, 4).map((p) => (
                   <li key={p} className="inline-flex items-start gap-1.5">
                     <CheckCircle2 className="text-accent mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span className="text-foreground/90 leading-snug">{p}</span>
@@ -186,15 +186,15 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
             <div className="flex flex-wrap gap-1.5">
               {hotel.boardings.map((b) => (
                 <span
-                  key={b.type}
+                  key={b}
                   className="border-secondary/50 text-secondary bg-secondary/5 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium"
-                  title={BOARDING_LABEL[b.type]}
+                  title={BOARDING_LABEL[b]}
                 >
                   <span className="text-[10px] font-bold opacity-70">
-                    {BOARDING_SHORT[b.type]}
+                    {BOARDING_SHORT[b]}
                   </span>
                   <span className="hidden md:inline">
-                    {BOARDING_LABEL[b.type]}
+                    {BOARDING_LABEL[b]}
                   </span>
                 </span>
               ))}

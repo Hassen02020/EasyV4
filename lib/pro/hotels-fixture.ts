@@ -5,13 +5,37 @@
 
 export type HotelBoarding = "bb" | "hb" | "fb" | "ai"
 
+export interface ProHotelRating {
+  score: number
+  label: string
+  reviews: number
+}
+
 export interface ProHotel {
   id: string
   name: string
   city: string
+  /** Zone géographique (ex: "Bord de mer", "Centre-ville") */
+  zone?: string
   stars: number
+  /** Catégorie textuelle si pas d'étoiles */
+  category?: string
+  /** Chaîne hôtelière */
+  brand?: string
   images: string[]
+  /** Image principale (alias vers images[0]) */
+  image?: string
   amenities: string[]
+  /** Segments clients (ex: "Famille", "Affaires") */
+  segments?: string[]
+  /** Points forts (perks) pour l'onglet détails */
+  perks?: string[]
+  /** Offre enfant gratuit ou réduit */
+  childOffer?: string
+  /** Mise en avant sur la SERP */
+  recommended?: boolean
+  /** Note et avis clients */
+  rating?: ProHotelRating
   boardings: HotelBoarding[]
   rooms: ProRoom[]
   description?: string
@@ -166,16 +190,32 @@ const HOTELS: ProHotel[] = [
   },
 ]
 
-export function listProHotels(): ProHotel[] {
-  return HOTELS
+export interface ListProHotelsOptions {
+  cityId?: number
+  brand?: string
+  searchAll?: boolean
+}
+
+export function listProHotels(options?: ListProHotelsOptions): ProHotel[] {
+  if (!options || options.searchAll) return HOTELS
+  return HOTELS.filter((h) => {
+    if (options.brand && !h.name.toLowerCase().includes(options.brand.toLowerCase())) return false
+    return true
+  })
 }
 
 export function getProHotelById(id: string): ProHotel | undefined {
   return HOTELS.find((h) => h.id === id)
 }
 
-export function minBoardingPrice(hotel: ProHotel, boarding: HotelBoarding): number | null {
+export function minBoardingPrice(hotel: ProHotel, boarding?: HotelBoarding): number | null {
+  if (!boarding) {
+    const allPrices = hotel.rooms.flatMap((r) =>
+      hotel.boardings.map((b) => r.prices[b]).filter((p) => p > 0)
+    )
+    return allPrices.length > 0 ? Math.min(...allPrices) : null
+  }
   const roomsWithBoarding = hotel.rooms.filter((r) => boarding in r.prices)
   if (roomsWithBoarding.length === 0) return null
-  return Math.min(...roomsWithBoarding.map((r) => r.prices[boarding]))
+  return Math.min(...roomsWithBoarding.map((r) => r.prices[boarding!]))
 }

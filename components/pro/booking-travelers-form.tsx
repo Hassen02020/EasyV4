@@ -422,7 +422,7 @@ export function BookingTravelersForm({
               {context.hotel.name}
             </p>
             <p className="text-muted-foreground text-xs">
-              {context.hotel.zone}
+              {context.hotel.zone ?? context.hotel.city}
             </p>
             {search.checkin && search.checkout ? (
               <p className="text-muted-foreground mt-1 text-xs">

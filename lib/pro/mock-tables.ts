@@ -44,6 +44,10 @@ export type PartnerClient = {
   email: string
   phone?: string
   reservationsCount: number
+  /** Alias de reservationsCount pour compatibilité composants */
+  bookings: number
+  /** Date du premier dossier */
+  createdAt: string
 }
 
 // Fonctions mock pour générer des données de test
@@ -63,13 +67,18 @@ export function generateMockReservations(count: number = 10): PartnerReservation
 }
 
 export function generateMockClients(count: number = 10): PartnerClient[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `client-${i + 1}`,
-    name: `Client Pro ${i + 1}`,
-    email: `client${i + 1}@example.com`,
-    phone: i % 3 === 0 ? `+216 ${Math.floor(Math.random() * 100000000)}` : undefined,
-    reservationsCount: Math.floor(Math.random() * 20),
-  }))
+  return Array.from({ length: count }, (_, i) => {
+    const reservationsCount = Math.floor(Math.random() * 20)
+    return {
+      id: `client-${i + 1}`,
+      name: `Client Pro ${i + 1}`,
+      email: `client${i + 1}@example.com`,
+      phone: i % 3 === 0 ? `+216 2${String(i).padStart(7, "0")}` : undefined,
+      reservationsCount,
+      bookings: reservationsCount,
+      createdAt: new Date(Date.now() - i * 30 * 86400000).toISOString().split("T")[0],
+    }
+  })
 }
 
 export function generateMockInvoices(count: number = 10): PartnerInvoice[] {

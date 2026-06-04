@@ -28,7 +28,7 @@ export function ClientsTable({ rows }: ClientsTableProps) {
       (r) =>
         r.name.toLowerCase().includes(needle) ||
         r.email.toLowerCase().includes(needle) ||
-        r.phone.includes(needle),
+        (r.phone ?? "").includes(needle),
     )
   }, [rows, q])
 
@@ -88,11 +88,11 @@ export function ClientsTable({ rows }: ClientsTableProps) {
                   </TableCell>
                   <TableCell>
                     <a
-                      href={`tel:${c.phone.replace(/\s+/g, "")}`}
+                      href={`tel:${(c.phone ?? "").replace(/\s+/g, "")}`}
                       className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-sm"
                     >
                       <Phone className="h-3 w-3" />
-                      {c.phone}
+                      {c.phone ?? "—"}
                     </a>
                   </TableCell>
                   <TableCell>
@@ -106,11 +106,11 @@ export function ClientsTable({ rows }: ClientsTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge variant="outline" className="font-bold">
-                      {c.bookings}
+                      {c.bookings ?? c.reservationsCount}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
-                    {c.createdAt}
+                    {c.createdAt ?? "—"}
                   </TableCell>
                 </TableRow>
               ))

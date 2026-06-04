@@ -8,15 +8,8 @@ import {
   User,
   Menu,
   X,
-  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { CurrencySwitcher } from "@/components/currency-switcher"

@@ -13,7 +13,7 @@ export type PartnerReservation = {
   module: string
   /** Nom du service (hôtel, vol, …) */
   service?: string
-  status: "pending" | "confirmed" | "cancelled" | "refunded"
+  status: "pending" | "on_option" | "confirmed" | "cancelled" | "refunded" | "completed"
   amount: number
   /** Montant TND total */
   totalTnd?: number

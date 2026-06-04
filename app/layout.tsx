@@ -75,10 +75,10 @@ export default async function RootLayout({
         >
           <QueryProvider>
             <CurrencyProvider>
-            <LocaleProvider locale={locale}>
-              {children}
-            </LocaleProvider>
-            <Toaster richColors position="top-center" />
+              <LocaleProvider locale={locale}>
+                {children}
+                <Toaster richColors position="top-center" />
+              </LocaleProvider>
             </CurrencyProvider>
           </QueryProvider>
         </ThemeProvider>

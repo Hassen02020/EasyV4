@@ -72,6 +72,11 @@ const STATUS_META: Record<
     className: "border-red-300 bg-red-100 text-red-900",
     icon: XCircle,
   },
+  refunded: {
+    label: "Remboursée",
+    className: "border-purple-300 bg-purple-100 text-purple-900",
+    icon: TimerReset,
+  },
   completed: {
     label: "Soldée",
     className: "border-blue-300 bg-blue-100 text-blue-900",
@@ -105,13 +110,13 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
     const q = search.trim().toLowerCase()
     const refQ = refInput.trim().toLowerCase()
     return rows.filter((r) => {
-      if (refQ && !r.ref.toLowerCase().includes(refQ)) return false
+      if (refQ && !(r.ref ?? r.reference).toLowerCase().includes(refQ)) return false
       if (status !== "all" && r.status !== status) return false
       if (module !== "all" && r.module !== module) return false
       if (
         q &&
-        !r.clientName.toLowerCase().includes(q) &&
-        !r.service.toLowerCase().includes(q)
+        !(r.clientName ?? r.customerName).toLowerCase().includes(q) &&
+        !(r.service ?? r.module).toLowerCase().includes(q)
       )
         return false
       return true
@@ -254,7 +259,7 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
                       ) : null}
                     </TableCell>
                     <TableCell className="text-primary text-right text-sm font-bold tabular-nums">
-                      {formatTND(r.totalTnd)}
+                      {formatTND(r.totalTnd ?? r.amount)}
                     </TableCell>
                     <TableCell className="text-center">
                       <DropdownMenu>

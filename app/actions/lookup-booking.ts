@@ -105,7 +105,7 @@ export async function lookupBooking(
         customer: {
           firstName: row.firstName,
           lastName: row.lastName,
-          email: row.email,
+          email: row.email ?? "",
           phone: row.phone ?? null,
         },
       },

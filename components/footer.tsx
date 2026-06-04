@@ -6,6 +6,7 @@ import {
   Facebook,
   Instagram,
 } from "lucide-react"
+import { Easy2BookLogo } from "@/components/easy2book-logo"
 
 // Icône WhatsApp personnalisée
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -15,7 +16,6 @@ function WhatsAppIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-import { Easy2BookLogo } from "@/components/easy2book-logo"
 
 const trustBadges = [
   {

@@ -43,7 +43,7 @@ export function HotelsSerp({ hotels, context }: HotelsSerpProps) {
   // Bornes prix dynamiques basées sur les fixtures fournies
   const priceBounds = useMemo(() => {
     if (hotels.length === 0) return { min: 0, max: 5000 }
-    const prices = hotels.map(minBoardingPrice)
+    const prices = hotels.map((h) => minBoardingPrice(h) ?? 0)
     return {
       min: clampPrice(Math.min(...prices) - 50),
       max: clampPrice(Math.max(...prices) + 50),
@@ -60,7 +60,7 @@ export function HotelsSerp({ hotels, context }: HotelsSerpProps) {
 
   const availableBoardings = useMemo(() => {
     const set = new Set<HotelBoarding>()
-    hotels.forEach((h) => h.boardings.forEach((b) => set.add(b.type)))
+    hotels.forEach((h) => h.boardings.forEach((b) => set.add(b)))
     return Array.from(set).sort()
   }, [hotels])
 
@@ -89,21 +89,21 @@ export function HotelsSerp({ hotels, context }: HotelsSerpProps) {
         return false
       if (
         filters.boardings.length > 0 &&
-        !h.boardings.some((b) => filters.boardings.includes(b.type))
+        !h.boardings.some((b) => filters.boardings.includes(b))
       )
         return false
-      if (fromPrice < filters.priceMin || fromPrice > filters.priceMax)
+      if ((fromPrice ?? 0) < filters.priceMin || (fromPrice ?? 0) > filters.priceMax)
         return false
       return true
     })
     switch (sort) {
       case "price-asc":
         return [...list].sort(
-          (a, b) => minBoardingPrice(a) - minBoardingPrice(b),
+          (a, b) => (minBoardingPrice(a) ?? 0) - (minBoardingPrice(b) ?? 0),
         )
       case "price-desc":
         return [...list].sort(
-          (a, b) => minBoardingPrice(b) - minBoardingPrice(a),
+          (a, b) => (minBoardingPrice(b) ?? 0) - (minBoardingPrice(a) ?? 0),
         )
       case "rating-desc":
         return [...list].sort(

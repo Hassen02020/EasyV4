@@ -65,11 +65,11 @@ export function HotelRoomSelector({
   const [showAll, setShowAll] = useState(false)
 
   const availableCategories = useMemo(
-    () => Array.from(new Set(offers.map((o) => o.category.id))),
+    () => Array.from(new Set(offers.map((o) => o.category.id ?? o.category.name))).filter((x): x is string => !!x),
     [offers],
   )
   const availableArrangements = useMemo(
-    () => Array.from(new Set(offers.map((o) => o.arrangement.id))),
+    () => Array.from(new Set(offers.map((o) => o.arrangement.id ?? o.arrangement.label))).filter((x): x is string => !!x),
     [offers],
   )
   const availableBoardings = useMemo(
@@ -83,15 +83,15 @@ export function HotelRoomSelector({
 
   const filteredOffers = useMemo(() => {
     return offers.filter((o) => {
-      if (availableOnly && o.available <= 0) return false
+      if (availableOnly && o.available === false) return false
       if (
         selectedCategories.length > 0 &&
-        !selectedCategories.includes(o.category.id)
+        !selectedCategories.includes(o.category.id ?? "")
       )
         return false
       if (
         selectedArrangements.length > 0 &&
-        !selectedArrangements.includes(o.arrangement.id)
+        !selectedArrangements.includes(o.arrangement.id ?? "")
       )
         return false
       if (
@@ -206,7 +206,7 @@ export function HotelRoomSelector({
             items={availableCategories.map((id) => ({
               id,
               label:
-                offers.find((o) => o.category.id === id)?.category.name ?? id,
+                offers.find((o) => (o.category.id ?? "") === id)?.category.name ?? id,
             }))}
             value={selectedCategories}
             onToggle={(id) => setSelectedCategories((prev) => toggle(prev, id))}
@@ -216,7 +216,7 @@ export function HotelRoomSelector({
             items={availableArrangements.map((id) => ({
               id,
               label:
-                offers.find((o) => o.arrangement.id === id)?.arrangement
+                offers.find((o) => (o.arrangement.id ?? "") === id)?.arrangement
                   .label ?? id,
             }))}
             value={selectedArrangements}
@@ -314,7 +314,7 @@ export function HotelRoomSelector({
                 {visibleOffers.map((offer) => {
                   const qty = selection[offer.id] ?? 0
                   const occupants =
-                    offer.arrangement.maxAdults + offer.arrangement.maxChildren
+                    (offer.arrangement.maxAdults ?? offer.capacity) + (offer.arrangement.maxChildren ?? 0)
                   return (
                     <tr
                       key={offer.id}
@@ -365,7 +365,7 @@ export function HotelRoomSelector({
                             className="h-7 w-7 rounded-full"
                             disabled={qty === 0}
                             onClick={() =>
-                              changeQty(offer.id, -1, offer.available)
+                              changeQty(offer.id, -1, 10)
                             }
                             aria-label="Diminuer"
                           >
@@ -379,9 +379,9 @@ export function HotelRoomSelector({
                             variant="outline"
                             size="icon"
                             className="h-7 w-7 rounded-full"
-                            disabled={qty >= offer.available}
+                            disabled={qty >= 10}
                             onClick={() =>
-                              changeQty(offer.id, +1, offer.available)
+                              changeQty(offer.id, +1, 10)
                             }
                             aria-label="Augmenter"
                           >

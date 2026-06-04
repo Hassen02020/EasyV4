@@ -15,10 +15,22 @@ export type PartnerReservation = {
 export type PartnerInvoice = {
   id: string
   number: string
+  /** Référence externe */
+  ref?: string
   date: string
   amount: number
-  status: "paid" | "pending" | "overdue"
+  status: "paid" | "pending" | "overdue" | "partial" | "unpaid"
   type: "facture" | "avoir" | "proforma"
+  /** Date de validation */
+  validatedAt?: string
+  /** Total HT */
+  totalHT?: number
+  /** Total TVA */
+  totalTVA?: number
+  /** Total TTC (alias de amount) */
+  totalSales?: number
+  /** Montant payé */
+  paidAmount?: number
 }
 
 export type PartnerPayment = {
@@ -27,12 +39,36 @@ export type PartnerPayment = {
   amount: number
   method: string
   reference?: string
+  /** Mode de paiement */
+  mode?: "transfer" | "card" | "cash" | "check" | "credit_account"
+  /** Date d'échéance */
+  dueDate?: string
+  /** Date d'émission */
+  emissionDate?: string
+  /** Montant original */
+  originalAmount?: number
+  /** Devise originale */
+  originalCurrency?: string
+  /** Taux de change appliqué */
+  appliedRate?: number
+  /** Montant TND */
+  tndAmount?: number
+  /** Montant restant dû */
+  remainingAmount?: number
+  /** Crédit appliqué */
+  credit?: number
+  /** Référence de facture associée */
+  invoiceRef?: string
 }
 
 export type PartnerLedgerEntry = {
   id: string
+  /** Référence de l'opération */
+  ref?: string
   date: string
   description: string
+  /** Type de mouvement */
+  type?: "credit" | "debit" | "refund" | "adjustment" | "facture" | "avoir" | "payment"
   debit?: number
   credit?: number
   balance: number

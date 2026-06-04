@@ -71,18 +71,20 @@ export function marginDelta(net: number, rule: MarginRule): number {
 }
 
 /**
- * Applique la marge `hotel` sur toutes les options de pension (boardings)
- * du fixture. Retourne un nouvel objet hôtel (immutabilité).
+ * Applique la marge `hotel` sur les prix des chambres du fixture.
+ * Retourne un nouvel objet hôtel (immutabilité).
  */
 export function applyMarginsToHotel<
-  T extends { boardings: { type: string; price: number }[] },
+  T extends { rooms: { prices: Record<string, number> }[] },
 >(hotel: T, margins: MarginMap): T {
   const rule = margins.hotel
   return {
     ...hotel,
-    boardings: hotel.boardings.map((b) => ({
-      ...b,
-      price: applyMargin(b.price, rule),
+    rooms: hotel.rooms.map((r) => ({
+      ...r,
+      prices: Object.fromEntries(
+        Object.entries(r.prices).map(([k, v]) => [k, applyMargin(v, rule)]),
+      ),
     })),
   }
 }

@@ -76,6 +76,16 @@ const STATUS_META: Record<
     className: "border-red-300 bg-red-100 text-red-900",
     icon: XCircle,
   },
+  pending: {
+    label: "En attente",
+    className: "border-amber-300 bg-amber-100 text-amber-900",
+    icon: Clock,
+  },
+  overdue: {
+    label: "En retard",
+    className: "border-red-300 bg-red-100 text-red-900",
+    icon: XCircle,
+  },
 }
 
 interface InvoicesTableProps {
@@ -91,10 +101,10 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
   const filtered = useMemo(() => {
     const q = refQ.trim().toLowerCase()
     return rows.filter((r) => {
-      if (q && !r.ref.toLowerCase().includes(q)) return false
+      if (q && !(r.ref ?? r.number).toLowerCase().includes(q)) return false
       if (type !== "all" && r.type !== type) return false
-      if (from && r.validatedAt < from) return false
-      if (to && r.validatedAt > to) return false
+      if (from && (r.validatedAt ?? r.date) < from) return false
+      if (to && (r.validatedAt ?? r.date) > to) return false
       return true
     })
   }, [rows, refQ, type, from, to])
@@ -192,7 +202,7 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
                 return (
                   <TableRow key={inv.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs font-semibold tabular-nums">
-                      {inv.ref}
+                      {inv.ref ?? inv.number}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -203,19 +213,19 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs tabular-nums">
-                      {inv.validatedAt}
+                      {inv.validatedAt ?? inv.date}
                     </TableCell>
                     <TableCell className="text-foreground/80 text-right text-sm tabular-nums">
-                      {formatTND(inv.totalHT)}
+                      {formatTND(inv.totalHT ?? inv.amount)}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-right text-xs tabular-nums">
-                      {formatTND(inv.totalTVA)}
+                      {formatTND(inv.totalTVA ?? 0)}
                     </TableCell>
                     <TableCell className="text-primary text-right text-sm font-bold tabular-nums">
-                      {formatTND(inv.totalSales)}
+                      {formatTND(inv.totalSales ?? inv.amount)}
                     </TableCell>
                     <TableCell className="text-right text-sm tabular-nums">
-                      {formatTND(inv.paidAmount)}
+                      {formatTND(inv.paidAmount ?? 0)}
                     </TableCell>
                     <TableCell>
                       <Badge

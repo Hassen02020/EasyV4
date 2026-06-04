@@ -16,7 +16,7 @@ export function HotelSummaryCard({ hotel }: HotelSummaryCardProps) {
       <div className="grid gap-0 md:grid-cols-[260px_1fr]">
         <div className="relative aspect-[4/3] md:aspect-auto">
           <Image
-            src={hotel.image}
+            src={hotel.image ?? hotel.images[0] ?? "/placeholder.jpg"}
             alt={hotel.name}
             fill
             className="object-cover"
@@ -51,13 +51,13 @@ export function HotelSummaryCard({ hotel }: HotelSummaryCardProps) {
           </h2>
           <p className="text-muted-foreground mt-1 inline-flex items-center gap-1 text-sm">
             <MapPin className="h-3.5 w-3.5" />
-            {hotel.zone}
+            {hotel.zone ?? hotel.city}
           </p>
           <p className="text-muted-foreground mt-3 max-w-xl text-sm">
             {hotel.description}
           </p>
           <ul className="text-muted-foreground mt-3 grid grid-cols-1 gap-1 text-xs md:grid-cols-2">
-            {hotel.perks.slice(0, 4).map((p) => (
+            {(hotel.perks ?? []).slice(0, 4).map((p) => (
               <li key={p} className="inline-flex items-start gap-1.5">
                 <CheckCircle2 className="text-accent mt-0.5 h-3 w-3 shrink-0" />
                 <span className="leading-snug">{p}</span>

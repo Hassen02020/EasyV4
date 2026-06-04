@@ -33,7 +33,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
     return rows.filter((r) => {
       if (from && r.date < from) return false
       if (to && r.date > to) return false
-      if (scope === "reservations" && r.type === "payment") return false
+      if (scope === "reservations" && (r.type === "payment" || !r.type)) return false
       return true
     })
   }, [rows, from, to, scope])
@@ -41,8 +41,8 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
   const totals = useMemo(() => {
     return filtered.reduce(
       (acc, r) => {
-        acc.debit += r.debit
-        acc.credit += r.credit
+        acc.debit += r.debit ?? 0
+        acc.credit += r.credit ?? 0
         return acc
       },
       { debit: 0, credit: 0 },
@@ -73,8 +73,8 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
             {formatTND(totals.debit)}
           </div>
           <p className="text-muted-foreground text-xs">
-            {filtered.filter((r) => r.debit > 0).length} ligne
-            {filtered.filter((r) => r.debit > 0).length > 1 ? "s" : ""}
+            {filtered.filter((r) => (r.debit ?? 0) > 0).length} ligne
+            {filtered.filter((r) => (r.debit ?? 0) > 0).length > 1 ? "s" : ""}
           </p>
         </div>
         <div className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4">
@@ -86,8 +86,8 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
             {formatTND(totals.credit)}
           </div>
           <p className="text-muted-foreground text-xs">
-            {filtered.filter((r) => r.credit > 0).length} ligne
-            {filtered.filter((r) => r.credit > 0).length > 1 ? "s" : ""}
+            {filtered.filter((r) => (r.credit ?? 0) > 0).length} ligne
+            {filtered.filter((r) => (r.credit ?? 0) > 0).length > 1 ? "s" : ""}
           </p>
         </div>
       </section>
@@ -189,7 +189,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
                   <TableCell className="text-xs tabular-nums">
                     {r.date}
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{r.ref}</TableCell>
+                  <TableCell className="font-mono text-xs">{r.ref ?? "—"}</TableCell>
                   <TableCell className="text-sm">{r.description}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">
@@ -199,18 +199,20 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
                           ? "Avoir"
                           : r.type === "payment"
                             ? "Paiement"
-                            : "Crédit"}
+                            : r.type === "debit"
+                              ? "Débit"
+                              : "Crédit"}
                     </Badge>
                   </TableCell>
                   <TableCell
-                    className={`text-right text-sm tabular-nums ${r.debit > 0 ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                    className={`text-right text-sm tabular-nums ${(r.debit ?? 0) > 0 ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                   >
-                    {r.debit > 0 ? formatTND(r.debit) : "—"}
+                    {(r.debit ?? 0) > 0 ? formatTND(r.debit ?? 0) : "—"}
                   </TableCell>
                   <TableCell
-                    className={`text-right text-sm tabular-nums ${r.credit > 0 ? "font-semibold text-emerald-600" : "text-muted-foreground"}`}
+                    className={`text-right text-sm tabular-nums ${(r.credit ?? 0) > 0 ? "font-semibold text-emerald-600" : "text-muted-foreground"}`}
                   >
-                    {r.credit > 0 ? formatTND(r.credit) : "—"}
+                    {(r.credit ?? 0) > 0 ? formatTND(r.credit ?? 0) : "—"}
                   </TableCell>
                 </TableRow>
               ))

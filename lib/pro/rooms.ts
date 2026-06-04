@@ -5,11 +5,16 @@
 import { type ProHotel, type HotelBoarding } from "./hotels-fixture"
 
 export interface RoomOfferCategory {
+  id?: string
   name: string
+  description?: string
 }
 
 export interface RoomOfferArrangement {
+  id?: string
   label: string
+  maxAdults?: number
+  maxChildren?: number
 }
 
 export interface RoomOffer {
@@ -23,6 +28,10 @@ export interface RoomOffer {
   category: RoomOfferCategory
   /** Arrangement / pension */
   arrangement: RoomOfferArrangement
+  /** Conditions tarifaires */
+  conditions?: string[]
+  /** Disponibilité */
+  available?: boolean
 }
 
 /**
@@ -43,8 +52,10 @@ export function listRoomOffers(hotel: ProHotel): RoomOffer[] {
           boarding,
           price,
           capacity: room.capacity,
-          category: { name: room.name },
-          arrangement: { label: boarding.toUpperCase() },
+          category: { id: room.id, name: room.name },
+          arrangement: { id: boarding, label: boarding.toUpperCase(), maxAdults: room.capacity, maxChildren: 0 },
+          available: true,
+          conditions: [],
         })
       }
     }

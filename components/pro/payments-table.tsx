@@ -17,7 +17,7 @@ import { formatTND } from "@/lib/pro/format"
 import type { PartnerPayment } from "@/lib/pro/mock-tables"
 
 const MODE_META: Record<
-  PartnerPayment["mode"],
+  NonNullable<PartnerPayment["mode"]>,
   { label: string; icon: typeof Wallet }
 > = {
   transfer: { label: "Virement", icon: Building2 },
@@ -101,7 +101,7 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
               </TableRow>
             ) : (
               filtered.map((p) => {
-                const Mode = MODE_META[p.mode]
+                const Mode = MODE_META[p.mode ?? "transfer"]
                 const ModeIcon = Mode.icon
                 return (
                   <TableRow key={p.id} className="hover:bg-muted/30">
@@ -118,23 +118,23 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs tabular-nums">
-                      {p.dueDate}
+                      {p.dueDate ?? "—"}
                     </TableCell>
                     <TableCell className="text-xs tabular-nums">
-                      {p.emissionDate}
+                      {p.emissionDate ?? p.date}
                     </TableCell>
                     <TableCell className="text-foreground text-right text-sm tabular-nums">
-                      {formatTND(p.originalAmount)}
+                      {formatTND(p.originalAmount ?? p.amount)}
                     </TableCell>
                     <TableCell
-                      className={`text-right text-sm tabular-nums ${p.remainingAmount > 0 ? "text-destructive font-bold" : "text-muted-foreground"}`}
+                      className={`text-right text-sm tabular-nums ${(p.remainingAmount ?? 0) > 0 ? "text-destructive font-bold" : "text-muted-foreground"}`}
                     >
-                      {formatTND(p.remainingAmount)}
+                      {formatTND(p.remainingAmount ?? 0)}
                     </TableCell>
                     <TableCell
-                      className={`text-right text-sm tabular-nums ${p.credit > 0 ? "font-bold text-emerald-600" : "text-muted-foreground"}`}
+                      className={`text-right text-sm tabular-nums ${(p.credit ?? 0) > 0 ? "font-bold text-emerald-600" : "text-muted-foreground"}`}
                     >
-                      {p.credit > 0 ? formatTND(p.credit) : "—"}
+                      {(p.credit ?? 0) > 0 ? formatTND(p.credit ?? 0) : "—"}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {p.invoiceRef ?? "—"}

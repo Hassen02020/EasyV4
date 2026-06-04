@@ -5,11 +5,25 @@
 export type PartnerReservation = {
   id: string
   reference: string
+  /** Référence externe */
+  ref?: string
   customerName: string
+  /** Alias de customerName */
+  clientName?: string
   module: string
+  /** Nom du service (hôtel, vol, …) */
+  service?: string
   status: "pending" | "confirmed" | "cancelled" | "refunded"
   amount: number
+  /** Montant TND total */
+  totalTnd?: number
   createdAt: string
+  /** Date d'entrée */
+  checkin?: string
+  /** Date de sortie */
+  checkout?: string
+  /** Expiration de l'option */
+  optionExpiresAt?: string
 }
 
 export type PartnerInvoice = {

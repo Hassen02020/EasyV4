@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { QueryProvider } from "@/components/query-provider"
 import { parseLocale, LOCALE_COOKIE, LOCALE_META } from "@/lib/locale"
 import { CurrencyProvider } from "@/components/currency-context"
+import { LocaleProvider } from "@/components/locale-context"
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -74,8 +75,10 @@ export default async function RootLayout({
         >
           <QueryProvider>
             <CurrencyProvider>
+            <LocaleProvider locale={locale}>
               {children}
-              <Toaster richColors position="top-center" />
+            </LocaleProvider>
+            <Toaster richColors position="top-center" />
             </CurrencyProvider>
           </QueryProvider>
         </ThemeProvider>

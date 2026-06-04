@@ -21,6 +21,7 @@ import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { CurrencySwitcher } from "@/components/currency-switcher"
 import type { Locale } from "@/lib/locale"
+import { useT } from "@/components/locale-context"
 
 interface HeaderProps {
   currentLocale?: Locale
@@ -28,6 +29,7 @@ interface HeaderProps {
 
 export function Header({ currentLocale = "fr" }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const t = useT()
 
   return (
     <header className="bg-card border-border sticky top-0 z-50 border-b shadow-sm">
@@ -61,7 +63,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
             >
               <Link href="#help">
                 <HelpCircle className="size-4" />
-                Help
+                {t("help")}
               </Link>
             </Button>
 
@@ -70,7 +72,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               <CalendarCheck className="size-4" />
-              My Bookings
+              {t("myBookings")}
             </Link>
 
             <Button
@@ -81,7 +83,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
             >
               <Link href="/login">
                 <User className="size-4" />
-                Connexion
+                {t("connexion")}
               </Link>
             </Button>
           </div>
@@ -115,7 +117,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               onClick={() => setMobileMenuOpen(false)}
             >
               <HelpCircle className="size-5 text-[#1e3a5f]" />
-              <span>Help</span>
+              <span>{t("help")}</span>
             </Link>
             <Link
               href="/bookings"
@@ -123,7 +125,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               onClick={() => setMobileMenuOpen(false)}
             >
               <CalendarCheck className="size-5 text-[#1e3a5f]" />
-              <span>My Bookings</span>
+              <span>{t("myBookings")}</span>
             </Link>
             <div className="border-border border-t pt-4">
               <Button
@@ -132,7 +134,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               >
                 <Link href="/login">
                   <User className="size-4" />
-                  Connexion
+                  {t("connexion")}
                 </Link>
               </Button>
             </div>

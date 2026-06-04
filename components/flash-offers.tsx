@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useT } from "@/components/locale-context"
 
 const offers = [
   {
@@ -44,11 +45,12 @@ const offers = [
 ]
 
 export function FlashOffers() {
+  const t = useT()
   return (
     <section className="bg-background py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-foreground mb-8 text-2xl font-bold sm:text-3xl">
-          Nos meilleures offres au départ de Tunis
+          {t("meilleurOffres")}
         </h2>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -69,7 +71,7 @@ export function FlashOffers() {
                   variant="secondary"
                   className="absolute top-3 left-3 bg-[#1e3a5f] font-medium text-white"
                 >
-                  Flash Offers
+                  {t("flashOffers")}
                 </Badge>
               </div>
 
@@ -108,7 +110,7 @@ export function FlashOffers() {
                     size="sm"
                     className="border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white"
                   >
-                    Réserver
+                    {t("reserverMaintenant")}
                   </Button>
                 </div>
               </div>

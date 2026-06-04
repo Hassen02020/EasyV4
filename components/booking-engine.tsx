@@ -24,13 +24,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import dynamic from "next/dynamic"
+import { encodeDraft } from "@/lib/booking/draft-store"
+import { useT } from "@/components/locale-context"
+import type { BookingDraft } from "@/lib/booking/schemas"
 
 const HotelsTunisieSearch = dynamic(
   () => import("@/components/hotels-tunisie-search").then((m) => m.HotelsTunisieSearch),
   { ssr: false, loading: () => <div className="h-24 animate-pulse rounded-xl bg-muted" /> },
 )
-import { encodeDraft } from "@/lib/booking/draft-store"
-import type { BookingDraft } from "@/lib/booking/schemas"
 
 function iso(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -67,17 +68,17 @@ function buildSampleBookingUrl(input: {
   return `/booking?d=${encodeURIComponent(token)}`
 }
 
-const tabs = [
-  { id: "vols", label: "Vols", icon: Plane },
-  { id: "hotels-tunisie", label: "Hôtels Tunisie", icon: Building2 },
-  { id: "hotels-monde", label: "Hôtels Monde", icon: Globe },
-  { id: "omraty", label: "Omraty", icon: Moon },
-  { id: "voyages-organises", label: "Voyages Organisés", icon: Briefcase },
-  { id: "transferts", label: "Transferts", icon: Bus },
-  { id: "car", label: "Car", icon: Car },
+const TAB_KEYS = [
+  { id: "vols", key: "tabVols" as const, icon: Plane },
+  { id: "hotels-tunisie", key: "tabHotelsTunisie" as const, icon: Building2 },
+  { id: "hotels-monde", key: "tabHotelsMonde" as const, icon: Globe },
+  { id: "omraty", key: "tabOmraty" as const, icon: Moon },
+  { id: "voyages-organises", key: "tabVoyages" as const, icon: Briefcase },
+  { id: "transferts", key: "tabTransferts" as const, icon: Bus },
+  { id: "car", key: "tabCar" as const, icon: Car },
 ] as const
 
-type TabId = (typeof tabs)[number]["id"]
+type TabId = (typeof TAB_KEYS)[number]["id"]
 
 // Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
 const HERO_BG_URL =
@@ -85,6 +86,7 @@ const HERO_BG_URL =
 
 export function BookingEngine() {
   const [activeTab, setActiveTab] = useState<TabId>("vols")
+  const t = useT()
 
   return (
     <div className="relative">
@@ -101,7 +103,7 @@ export function BookingEngine() {
         <div className="bg-card overflow-hidden rounded-3xl shadow-2xl">
           {/* Tabs */}
           <div className="border-border flex overflow-x-auto border-b">
-            {tabs.map((tab) => {
+            {TAB_KEYS.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
               return (
@@ -118,7 +120,7 @@ export function BookingEngine() {
                 >
                   <Icon className="size-5" />
                   <span className="text-xs whitespace-nowrap sm:text-sm">
-                    {tab.label}
+                    {t(tab.key)}
                   </span>
                 </button>
               )
@@ -153,17 +155,14 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function SearchSubmit({
-  children = "RECHERCHER",
-}: {
-  children?: React.ReactNode
-}) {
+function SearchSubmit() {
+  const t = useT()
   return (
     <Button
       type="submit"
       className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-e2b-soft w-full rounded-2xl px-8 text-base font-semibold transition-shadow hover:shadow-md sm:w-auto"
     >
-      {children}
+      {t("rechercher")}
     </Button>
   )
 }
@@ -174,6 +173,7 @@ function SearchSubmit({
 
 function VolsForm() {
   const router = useRouter()
+  const t = useT()
   return (
     <form
       onSubmit={(e) => {
@@ -192,39 +192,39 @@ function VolsForm() {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
-          <FieldLabel>Départ de</FieldLabel>
+          <FieldLabel>{t("departDe")}</FieldLabel>
           <div className="relative">
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input defaultValue="Tunis (TUN)" className="rounded-xl pl-9" />
+            <Input defaultValue="Tunis (TUN)" className="rounded-xl pl-9" readOnly />
           </div>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Destination</FieldLabel>
+          <FieldLabel>{t("destination")}</FieldLabel>
           <div className="relative">
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input defaultValue="Istanbul (IST)" className="rounded-xl pl-9" />
+            <Input defaultValue="Istanbul (IST)" className="rounded-xl pl-9" readOnly />
           </div>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Dates</FieldLabel>
+          <FieldLabel>{t("dates")}</FieldLabel>
           <div className="relative">
             <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
             <Input
-              placeholder="Choisir les dates"
+              placeholder={t("choisirDates")}
               className="rounded-xl pl-9"
             />
           </div>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Classe</FieldLabel>
+          <FieldLabel>{t("classe")}</FieldLabel>
           <Select defaultValue="economique">
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Classe" />
+              <SelectValue placeholder={t("classe")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="economique">Économique</SelectItem>
-              <SelectItem value="premium">Premium</SelectItem>
-              <SelectItem value="business">Business</SelectItem>
+              <SelectItem value="economique">{t("classeEco")}</SelectItem>
+              <SelectItem value="premium">{t("classePremium")}</SelectItem>
+              <SelectItem value="business">{t("classeBusiness")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -236,7 +236,7 @@ function VolsForm() {
             htmlFor="vols-flexible"
             className="text-muted-foreground cursor-pointer text-sm"
           >
-            Comparer avec les prix flexibles
+            {t("comparerPrix")}
           </label>
         </div>
         <SearchSubmit />
@@ -247,6 +247,7 @@ function VolsForm() {
 
 function HotelsMondeForm() {
   const router = useRouter()
+  const t = useT()
   return (
     <form
       onSubmit={(e) => {
@@ -265,27 +266,27 @@ function HotelsMondeForm() {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5 lg:col-span-2">
-          <FieldLabel>Destination mondiale</FieldLabel>
+          <FieldLabel>{t("destinationMondiale")}</FieldLabel>
           <div className="relative">
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
             <Input
-              placeholder="Ville, hôtel ou aéroport"
+              placeholder={t("villeHotel")}
               className="rounded-xl pl-9"
             />
           </div>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Check-in</FieldLabel>
+          <FieldLabel>{t("checkIn")}</FieldLabel>
           <div className="relative">
             <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input placeholder="Date d'arrivée" className="rounded-xl pl-9" />
+            <Input placeholder={t("dateArrivee")} className="rounded-xl pl-9" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Check-out</FieldLabel>
+          <FieldLabel>{t("checkOut")}</FieldLabel>
           <div className="relative">
             <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input placeholder="Date de départ" className="rounded-xl pl-9" />
+            <Input placeholder={t("dateDepart")} className="rounded-xl pl-9" />
           </div>
         </div>
       </div>
@@ -298,6 +299,7 @@ function HotelsMondeForm() {
 
 function OmratyForm() {
   const router = useRouter()
+  const t = useT()
   return (
     <form
       onSubmit={(e) => {
@@ -317,34 +319,34 @@ function OmratyForm() {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
-          <FieldLabel>Programme</FieldLabel>
+          <FieldLabel>{t("programme")}</FieldLabel>
           <Select defaultValue="economique">
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Sélectionner" />
+              <SelectValue placeholder={t("selectionner")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="economique">Économique</SelectItem>
-              <SelectItem value="confort">Confort</SelectItem>
-              <SelectItem value="prestige">Prestige</SelectItem>
+              <SelectItem value="economique">{t("eco")}</SelectItem>
+              <SelectItem value="confort">{t("confort")}</SelectItem>
+              <SelectItem value="prestige">{t("prestige")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Mois de départ</FieldLabel>
+          <FieldLabel>{t("moisDepart")}</FieldLabel>
           <Select>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Choisir le mois" />
+              <SelectValue placeholder={t("choisirMois")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="jan">Janvier 2026</SelectItem>
-              <SelectItem value="feb">Février 2026</SelectItem>
-              <SelectItem value="mar">Mars 2026</SelectItem>
-              <SelectItem value="apr">Avril 2026</SelectItem>
+              <SelectItem value="jan">{t("jan")}</SelectItem>
+              <SelectItem value="feb">{t("fev")}</SelectItem>
+              <SelectItem value="mar">{t("mar")}</SelectItem>
+              <SelectItem value="apr">{t("avr")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Distance Haram</FieldLabel>
+          <FieldLabel>{t("distanceHaram")}</FieldLabel>
           <Select defaultValue="400">
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Distance" />
@@ -378,6 +380,7 @@ function OmratyForm() {
 
 function VoyagesOrganisesForm() {
   const router = useRouter()
+  const t = useT()
   return (
     <form
       onSubmit={(e) => {
@@ -396,10 +399,10 @@ function VoyagesOrganisesForm() {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
-          <FieldLabel>Destination</FieldLabel>
+          <FieldLabel>{t("destination")}</FieldLabel>
           <Select>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Choisir une destination" />
+              <SelectValue placeholder={t("selectionner")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="turquie">Turquie</SelectItem>
@@ -436,10 +439,10 @@ function VoyagesOrganisesForm() {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>Voyageurs</FieldLabel>
+          <FieldLabel>{t("voyageurs")}</FieldLabel>
           <Select defaultValue="2">
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Voyageurs" />
+              <SelectValue placeholder={t("voyageurs")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="1">1 Voyageur</SelectItem>
@@ -460,6 +463,7 @@ function VoyagesOrganisesForm() {
 
 function TransfertsForm() {
   const router = useRouter()
+  const t = useT()
   return (
     <form
       onSubmit={(e) => {
@@ -478,10 +482,10 @@ function TransfertsForm() {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
-          <FieldLabel>Lieu de prise en charge</FieldLabel>
+          <FieldLabel>{t("lieuPrisEnCharge")}</FieldLabel>
           <Select>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Aéroport / Port" />
+              <SelectValue placeholder={t("lieuPrisEnCharge")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="tunis-airport">
@@ -532,6 +536,7 @@ function TransfertsForm() {
 
 function CarForm() {
   const router = useRouter()
+  const t = useT()
   return (
     <form
       onSubmit={(e) => {
@@ -551,10 +556,10 @@ function CarForm() {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
-          <FieldLabel>Lieu de prise en charge</FieldLabel>
+          <FieldLabel>{t("lieuPrisEnCharge")}</FieldLabel>
           <Select>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Aéroport ou ville" />
+              <SelectValue placeholder={t("lieuPrisEnCharge")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="tunis-airport">
@@ -604,7 +609,7 @@ function CarForm() {
             htmlFor="car-driver"
             className="text-muted-foreground cursor-pointer text-sm"
           >
-            Avec chauffeur
+            {t("rechercher") === "بحث" ? "مع سائق" : "Avec chauffeur"}
           </label>
         </div>
         <SearchSubmit />

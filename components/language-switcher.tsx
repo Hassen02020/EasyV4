@@ -30,10 +30,7 @@ export function LanguageSwitcher({
     if (locale === currentLocale) return
     startTransition(async () => {
       await setLocale(locale)
-      // Reconstruit l'URL en conservant tous les query params existants
-      const params = searchParams.toString()
-      const url = params ? `${pathname}?${params}` : pathname
-      window.location.href = url
+      window.location.reload()
     })
   }
 

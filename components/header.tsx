@@ -34,7 +34,12 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
             className="flex items-center gap-2"
             aria-label="Easy2Book — retour à l'accueil"
           >
-            <Easy2BookLogo className="h-12 w-auto mix-blend-multiply dark:mix-blend-normal" priority />
+            <Easy2BookLogo withWordmark={false} className="size-10 bg-gray-100" priority />
+            <span className="text-xl font-bold">
+              <span className="text-[#1e3a5f]">Easy</span>
+              <span className="text-[#e5b94e]">2</span>
+              <span className="text-[#1e3a5f]">Book</span>
+            </span>
           </Link>
 
           {/* Desktop Right Actions */}

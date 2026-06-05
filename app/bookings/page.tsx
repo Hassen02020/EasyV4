@@ -287,7 +287,12 @@ export default function BookingsPage() {
       <div className="border-border border-b bg-white/70 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex items-center gap-2">
-            <Easy2BookLogo className="h-10 w-auto mix-blend-multiply dark:mix-blend-normal" priority />
+            <Easy2BookLogo withWordmark={false} className="size-9 bg-gray-100" priority />
+            <span className="text-base font-bold">
+              <span className="text-[#1e3a5f]">Easy</span>
+              <span className="text-[#e5b94e]">2</span>
+              <span className="text-[#1e3a5f]">Book</span>
+            </span>
           </Link>
           <Link
             href="/"

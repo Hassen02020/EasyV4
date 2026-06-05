@@ -21,20 +21,29 @@ export function Easy2BookLogo({
   withWordmark = true,
   priority = false,
 }: Easy2BookLogoProps) {
+  if (!withWordmark) {
+    return (
+      <div className={cn("relative shrink-0 overflow-hidden rounded-xl", className)}>
+        <Image
+          src="/easy2book-logo.png"
+          alt="Logo Easy2Book"
+          width={1024}
+          height={1024}
+          priority={priority}
+          className="h-[170%] w-full object-cover object-top"
+        />
+      </div>
+    )
+  }
+
   return (
     <Image
       src="/easy2book-logo.png"
-      alt={
-        withWordmark ? "Easy2Book — Centrale de Réservation" : "Logo Easy2Book"
-      }
+      alt="Easy2Book — Centrale de Réservation"
       width={1024}
       height={1024}
       priority={priority}
-      className={cn(
-        "shrink-0 object-contain",
-        withWordmark ? "h-auto w-auto" : "aspect-square",
-        className,
-      )}
+      className={cn("shrink-0 object-contain", className)}
     />
   )
 }

@@ -11,7 +11,13 @@ import { getDb } from "@/lib/db/client"
 import { agencies, users } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy initialization pour éviter l'erreur au build
+function getResend() {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY not configured")
+  }
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export const processWalletCredit = inngest.createFunction(
   {
@@ -44,6 +50,7 @@ export const processWalletCredit = inngest.createFunction(
       ZITOUNA_PAY: "Zitouna Pay",
     }
 
+    const resend = getResend()
     await resend.emails.send({
       from: "Easy2Book <noreply@easy2book.tn>",
       to: agency.email!,

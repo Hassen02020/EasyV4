@@ -8,7 +8,13 @@
 import { Resend } from "resend"
 import { renderVoucherEmailHtml } from "./templates/voucher-email"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy initialization pour éviter l'erreur au build
+function getResend() {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY not configured")
+  }
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export interface SendVoucherEmailInput {
   to: string
@@ -46,6 +52,7 @@ export async function sendVoucherEmail(input: SendVoucherEmailInput): Promise<vo
     nights,
   })
 
+  const resend = getResend()
   const { error } = await resend.emails.send({
     from: "Easy2Book <noreply@easy2book.tn>",
     to,

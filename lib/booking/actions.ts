@@ -13,6 +13,8 @@ import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown } from "./pricing"
 import { decodeDraft } from "./draft-store"
+import { walletDebitReservation } from "@/lib/wallet/actions"
+import { inngest } from "@/lib/inngest/client"
 
 const AGENCY_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -197,6 +199,44 @@ export async function createReservationFromDraft(input: {
       via: "front-office",
     },
   })
+
+  /* --- Débit wallet (atomique) --- */
+  const debitResult = await walletDebitReservation({
+    agencyId: AGENCY_ID,
+    reservationId,
+    amountTnd: breakdown.totalTnd,
+  })
+
+  if (!debitResult.ok) {
+    return {
+      ok: false,
+      error:
+        debitResult.code === "INSUFFICIENT_BALANCE"
+          ? `Solde insuffisant — il vous faut ${breakdown.totalTnd.toFixed(3)} DT. Rechargez votre wallet puis réessayez.`
+          : debitResult.error,
+    }
+  }
+
+  /* --- Émettre l'événement Inngest (arrière-plan, non-bloquant) --- */
+  inngest.send({
+    name: "booking/confirmed",
+    data: {
+      reservationId,
+      publicRef,
+      agencyId: AGENCY_ID,
+      customerEmail: traveler.email,
+      customerName: `${traveler.firstName} ${traveler.lastName}`,
+      hotelName: draft.offerLabel,
+      checkIn: draft.startDate,
+      checkOut: draft.endDate ?? draft.startDate,
+      nights: draft.endDate
+        ? Math.max(1, Math.round((new Date(draft.endDate).getTime() - new Date(draft.startDate).getTime()) / 86_400_000))
+        : 1,
+      adults: draft.adults,
+      children: draft.children,
+      totalTnd: breakdown.totalTnd,
+    },
+  }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
 
   return { ok: true, reservationId, publicRef }
 }

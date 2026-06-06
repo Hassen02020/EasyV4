@@ -127,7 +127,11 @@ export const paymentMethod = pgEnum("payment_method", [
   "at_hotel", // myGo MethodPayment=10
 ])
 
-export const paymentPsp = pgEnum("payment_psp", ["sps", "manual"])
+export const paymentPsp = pgEnum("payment_psp", [
+  "sps", // SPS Monétique Tunisie (local — futur)
+  "stripe", // Stripe (international — anticipé)
+  "manual", // Validation manuelle admin (wallet recharge)
+])
 
 export const transferVehicleType = pgEnum("transfer_vehicle_type", [
   "sedan",
@@ -1058,6 +1062,74 @@ export const partnerCreditMovements = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* WALLET RECHARGE REQUESTS                                                  */
+/* -------------------------------------------------------------------------- */
+
+export const rechargeMethod = pgEnum("recharge_method", [
+  "cash", // espèces à l'agence
+  "bank_transfer", // virement bancaire
+  "postal_transfer", // virement postal (CCP / La Poste)
+  "postal_mandate", // mandat postal
+  "check", // chèque
+  "card_international", // CB internationale (Stripe — futur)
+])
+
+export const rechargeStatus = pgEnum("recharge_status", [
+  "pending", // en attente de validation admin
+  "validated", // validé — wallet crédité
+  "rejected", // refusé
+])
+
+/**
+ * Demandes de recharge wallet.
+ *
+ * Workflow :
+ *   1. Agent B2B soumet une demande (montant + méthode + justificatif)
+ *   2. Admin valide → `status = validated`, `agencies.deposit_balance` crédité
+ *   3. Un mouvement `credit` est créé dans `partner_credit_movements`
+ *
+ * Le justificatif (photo reçu, bordereau virement) est stocké dans Supabase Storage.
+ */
+export const walletRechargeRequests = pgTable(
+  "wallet_recharge_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** Utilisateur qui a soumis la demande. */
+    requestedByUserId: uuid("requested_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "set null" }),
+    /** Montant demandé en TND (millimes). */
+    amount: decimal("amount", { precision: 12, scale: 3 }).notNull(),
+    /** Méthode de paiement utilisée pour recharger. */
+    method: rechargeMethod("method").notNull(),
+    /** Référence du paiement (n° virement, n° mandat, etc.). */
+    paymentReference: varchar("payment_reference", { length: 128 }),
+    /** URL du justificatif (photo reçu, scan bordereau) dans Supabase Storage. */
+    proofUrl: text("proof_url"),
+    /** Note libre de l'agent. */
+    note: text("note"),
+    status: rechargeStatus("status").notNull().default("pending"),
+    /** Admin qui a validé/refusé. */
+    reviewedByUserId: uuid("reviewed_by_user_id"),
+    /** Motif de refus (si rejected). */
+    rejectionReason: text("rejection_reason"),
+    /** Date de validation/refus. */
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("recharge_req_agency_idx").on(t.agencyId),
+    index("recharge_req_status_idx").on(t.status),
+    index("recharge_req_created_idx").on(t.createdAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* PRODUCTS - Catalogue multisectoriel polymorphique                          */
 /* -------------------------------------------------------------------------- */
 
@@ -1080,7 +1152,7 @@ export const productType = pgEnum("product_type", [
 
 /**
  * Table products - Catalogue unifié avec attributs JSONB polymorphiques
- * 
+ *
  * Architecture:
  * - type: discrimine le type de produit
  * - basePrice, currency: tarification de base
@@ -1176,8 +1248,18 @@ export const products = pgTable(
           includesVisa?: boolean
           includesZiarat?: boolean
           includesTransfer?: boolean
-          meccaHotel?: { name: string; stars: number; nights: number; distance: string }
-          madinaHotel?: { name: string; stars: number; nights: number; distance: string }
+          meccaHotel?: {
+            name: string
+            stars: number
+            nights: number
+            distance: string
+          }
+          madinaHotel?: {
+            name: string
+            stars: number
+            nights: number
+            distance: string
+          }
           flightDetails?: { airline: string; departureCity: string }
           scholarGuide?: string
         }
@@ -1210,7 +1292,10 @@ export const products = pgTable(
     index("product_type_idx").on(t.type),
     index("product_status_idx").on(t.status),
     index("product_destination_idx").on(t.destination),
-    index("product_gin_idx").on(t.agencyId, sql`to_tsvector('french', ${t.name} || ' ' || COALESCE(${t.shortDescription}, ''))`),
+    index("product_gin_idx").on(
+      t.agencyId,
+      sql`to_tsvector('french', ${t.name} || ' ' || COALESCE(${t.shortDescription}, ''))`,
+    ),
   ],
 )
 
@@ -1264,7 +1349,7 @@ export const auditEntityType = pgEnum("audit_entity_type", [
 
 /**
  * Table audit_logs - Enregistrement immuable de toutes les actions critiques
- * 
+ *
  * Architecture:
  * - userId: qui a fait l'action
  * - action: type d'action (enum)
@@ -1297,7 +1382,8 @@ export const auditLogs = pgTable(
     /** Valeur après modification (snapshot JSON) */
     newValue: jsonb("new_value"),
     /** Diff calculé (pour affichage rapide) */
-    changes: jsonb("changes").$type<Record<string, { from: unknown; to: unknown }>>(),
+    changes:
+      jsonb("changes").$type<Record<string, { from: unknown; to: unknown }>>(),
     /** IP de l'utilisateur */
     ipAddress: varchar("ip_address", { length: 45 }),
     /** User-Agent */
@@ -1309,12 +1395,129 @@ export const auditLogs = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index("audit_agency_idx").on(t.agencyId),
-    index("audit_user_idx").on(t.userId),
-    index("audit_action_idx").on(t.action),
-    index("audit_entity_idx").on(t.entityType, t.entityId),
-    index("audit_created_idx").on(t.createdAt),
-    index("audit_agency_created_idx").on(t.agencyId, t.createdAt),
+    index("audit_logs_agency_idx").on(t.agencyId),
+    index("audit_logs_user_idx").on(t.userId),
+    index("audit_logs_action_idx").on(t.action),
+    index("audit_logs_entity_idx").on(t.entityType, t.entityId),
+    index("audit_logs_created_idx").on(t.createdAt),
+    index("audit_logs_agency_created_idx").on(t.agencyId, t.createdAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
+/* Wallet (portefeuille électronique par agence)                             */
+/* -------------------------------------------------------------------------- */
+
+export const walletTxType = pgEnum("wallet_tx_type", [
+  "CREDIT",      // rechargement validé
+  "DEBIT",       // débit réservation
+  "REFUND",      // remboursement vers wallet
+  "ADJUSTMENT",  // ajustement manuel admin
+])
+
+export const walletTopUpMethod = pgEnum("wallet_topup_method", [
+  "VIREMENT",    // Virement bancaire (STB, BNA, Attijari, BH…)
+  "MANDAT",      // Mandat postal / WafaCash / PosteNet
+  "ZITOUNA_PAY", // Rechargement instantané via Zitouna Pay gateway
+  "CASH",        // Espèces remises en agence
+])
+
+export const walletTxStatus = pgEnum("wallet_tx_status", [
+  "PENDING",    // déclarée par l'agence, en attente de validation admin
+  "VALIDATED",  // validée → balance incrémentée
+  "REJECTED",   // rejetée (reçu incorrect, montant erroné…)
+])
+
+/**
+ * Un wallet par agence. La colonne `balance` est modifiée uniquement
+ * via des transactions SQL atomiques (voir lib/wallet/actions.ts).
+ *
+ * `numeric(14,3)` : millimes TND, plage ±99 999 999 999.999 DT.
+ */
+export const wallets = pgTable(
+  "wallets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .unique()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    balance: decimal("balance", { precision: 14, scale: 3 })
+      .notNull()
+      .default("0.000"),
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+    /** Seuil d'alerte solde bas (déclenche notification). */
+    lowBalanceThreshold: decimal("low_balance_threshold", {
+      precision: 14,
+      scale: 3,
+    })
+      .notNull()
+      .default("100.000"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("wallets_agency_idx").on(t.agencyId)],
+)
+
+/**
+ * Historique immuable des mouvements de wallet.
+ *
+ * Règle : ne jamais UPDATE une ligne wallet_transactions —
+ * seul `status` peut passer PENDING → VALIDATED/REJECTED (via validateTopUp).
+ *
+ * Pour les CREDIT (rechargements) :
+ *   - `proof_url` = URL Supabase Storage du reçu (virement / mandat)
+ *   - `reference_number` = n° de bordereau bancaire ou mandat
+ *
+ * Pour les DEBIT (réservations) :
+ *   - `reservation_id` = FK vers la réservation débitée
+ *   - status est directement VALIDATED (débit immédiat si solde OK)
+ */
+export const walletTransactions = pgTable(
+  "wallet_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    walletId: uuid("wallet_id")
+      .notNull()
+      .references(() => wallets.id, { onDelete: "restrict" }),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    type: walletTxType("type").notNull(),
+    method: walletTopUpMethod("method"),
+    /** Montant absolu (toujours positif — le signe est dans `type`). */
+    amount: decimal("amount", { precision: 14, scale: 3 }).notNull(),
+    /** Numéro de référence : n° virement, n° bordereau mandat, txId Zitouna. */
+    referenceNumber: varchar("reference_number", { length: 128 }),
+    /** URL Supabase Storage du reçu / preuve (photo borderereau). */
+    proofUrl: text("proof_url"),
+    status: walletTxStatus("status").notNull().default("PENDING"),
+    /** FK vers la réservation débitée (pour DEBIT uniquement). */
+    reservationId: uuid("reservation_id").references(() => reservations.id, {
+      onDelete: "restrict",
+    }),
+    /** Message de rejet ou note admin. */
+    adminNote: text("admin_note"),
+    /** Métadonnées libres (réponse Zitouna, détails virement, etc.). */
+    metadata: jsonb("metadata"),
+    /** Admin qui a validé/rejeté. */
+    validatedByUserId: uuid("validated_by_user_id"),
+    validatedAt: timestamp("validated_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("wallet_tx_wallet_idx").on(t.walletId),
+    index("wallet_tx_agency_idx").on(t.agencyId),
+    index("wallet_tx_status_idx").on(t.agencyId, t.status),
+    index("wallet_tx_reservation_idx").on(t.reservationId),
+    index("wallet_tx_created_idx").on(t.agencyId, t.createdAt),
   ],
 )
 
@@ -1336,7 +1539,8 @@ export type PartnerInvoice = typeof partnerInvoices.$inferSelect
 export type NewPartnerInvoice = typeof partnerInvoices.$inferInsert
 export type PartnerPayment = typeof partnerPayments.$inferSelect
 export type PartnerCreditMovement = typeof partnerCreditMovements.$inferSelect
-export type NewPartnerCreditMovement = typeof partnerCreditMovements.$inferInsert
+export type NewPartnerCreditMovement =
+  typeof partnerCreditMovements.$inferInsert
 
 // Products
 export type Product = typeof products.$inferSelect
@@ -1349,3 +1553,51 @@ export type AuditLog = typeof auditLogs.$inferSelect
 export type NewAuditLog = typeof auditLogs.$inferInsert
 export type AuditActionType = typeof auditLogs.$inferSelect.action
 export type AuditEntityType = typeof auditLogs.$inferSelect.entityType
+
+// Wallet
+export type Wallet = typeof wallets.$inferSelect
+export type NewWallet = typeof wallets.$inferInsert
+export type WalletTransaction = typeof walletTransactions.$inferSelect
+export type NewWalletTransaction = typeof walletTransactions.$inferInsert
+export type WalletTxType = (typeof walletTxType.enumValues)[number]
+export type WalletTopUpMethod = (typeof walletTopUpMethod.enumValues)[number]
+export type WalletTxStatus = (typeof walletTxStatus.enumValues)[number]
+
+/* -------------------------------------------------------------------------- */
+/* Omra Module (Sprint 3A) — imported from schema/omra.ts                     */
+/* -------------------------------------------------------------------------- */
+
+export {
+  omraPackages,
+  omraAllotments,
+  omraHotels,
+  omraPilgrims,
+  omraRoomAllocations,
+  omraFlights,
+  omraPackageType,
+  omraVisaStatus,
+  omraGender,
+  omraMaritalStatus,
+  omraRoomType,
+  omraMealPlan,
+  omraHotelCategory,
+  type OmraPackage,
+  type NewOmraPackage,
+  type OmraAllotment,
+  type NewOmraAllotment,
+  type OmraHotel,
+  type NewOmraHotel,
+  type OmraPilgrim,
+  type NewOmraPilgrim,
+  type OmraRoomAllocation,
+  type NewOmraRoomAllocation,
+  type OmraFlight,
+  type NewOmraFlight,
+  type OmraPackageType,
+  type OmraVisaStatus,
+  type OmraGender,
+  type OmraMaritalStatus,
+  type OmraRoomType,
+  type OmraMealPlan,
+  type OmraHotelCategory,
+} from "./schema/omra"

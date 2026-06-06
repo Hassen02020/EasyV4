@@ -169,22 +169,22 @@ export function OmraBookingForm() {
 
   if (submitSuccess) {
     return (
-      <Card className="max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle className="text-green-600 flex items-center gap-2">
+      <Card className="max-w-2xl mx-auto rounded-lg border-2 border-green-500/20">
+        <CardHeader className="bg-green-50 rounded-t-lg">
+          <CardTitle className="text-green-700 flex items-center gap-2">
             <User className="w-6 h-6" />
             Réservation Confirmée
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-green-600">
             Votre réservation Omra a été enregistrée avec succès.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-sm font-medium">N° Réservation</p>
+        <CardContent className="space-y-4 pt-6">
+          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+            <p className="text-sm font-medium text-green-700">N° Réservation</p>
             <p className="text-2xl font-bold text-green-700">{submitSuccess.publicRef}</p>
           </div>
-          <Button onClick={() => window.location.reload()} className="w-full">
+          <Button onClick={() => window.location.reload()} className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg">
             Nouvelle Réservation
           </Button>
         </CardContent>
@@ -193,31 +193,31 @@ export function OmraBookingForm() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Réservation Omra de Groupe</h1>
-        <p className="text-muted-foreground">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#1e3a8a]">Réservation Omra de Groupe</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Sélectionnez un package, une date de départ et saisissez les fiches pèlerins.
         </p>
       </div>
 
       {submitError && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="rounded-lg">
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       )}
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Package Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
+          <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
               <MapPin className="w-5 h-5" />
               Sélection du Package
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="space-y-4 pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="packageId">Package Omra</Label>
                 <Select
@@ -266,11 +266,13 @@ export function OmraBookingForm() {
             </div>
 
             {selectedPackage && (
-              <div className="bg-muted rounded-lg p-4 text-sm">
-                <p><strong>Durée :</strong> {selectedPackage.durationDays} jours</p>
-                <p><strong>Prix de base :</strong> {selectedPackage.basePrice} DT/pèlerin</p>
+              <div className="bg-[#1e3a8a]/5 border border-[#1e3a8a]/20 rounded-lg p-4 text-sm">
+                <p className="text-[#1e3a8a] font-semibold">Durée : {selectedPackage.durationDays} jours</p>
+                <p className="text-[#1e3a8a] font-semibold">Prix de base : {selectedPackage.basePrice} DT/pèlerin</p>
                 {selectedAllotment && (
-                  <p><strong>Disponibilité :</strong> {selectedAllotment.availableCount} places</p>
+                  <p className={selectedAllotment.availableCount > 10 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                    Disponibilité : {selectedAllotment.availableCount} places
+                  </p>
                 )}
               </div>
             )}
@@ -278,17 +280,18 @@ export function OmraBookingForm() {
         </Card>
 
         {/* Pilgrims List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+        <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
+          <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
+            <CardTitle className="flex items-center justify-between text-[#1e3a8a]">
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5" />
-                Fiches Pèlerins ({watchedPilgrims.length})
+                <span className="text-lg sm:text-xl">Fiches Pèlerins ({watchedPilgrims.length})</span>
               </div>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="border-[#f59e0b] text-[#f59e0b] hover:bg-[#f59e0b] hover:text-white rounded-lg"
                 onClick={() =>
                   append({
                     firstName: "",
@@ -310,23 +313,25 @@ export function OmraBookingForm() {
                 disabled={watchedPilgrims.length >= 100}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Ajouter un pèlerin
+                <span className="hidden sm:inline">Ajouter un pèlerin</span>
+                <span className="sm:hidden">Ajouter</span>
               </Button>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Informations requises pour le visa et la réservation.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 pt-6">
             {fields.map((field, index) => (
-              <div key={field.id} className="space-y-4 p-4 border rounded-lg relative">
+              <div key={field.id} className="space-y-4 p-4 sm:p-6 border-2 border-[#1e3a8a]/10 rounded-lg relative bg-white">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">Pèlerin #{index + 1}</h3>
+                  <h3 className="font-semibold text-[#1e3a8a] text-lg">Pèlerin #{index + 1}</h3>
                   {fields.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
                       onClick={() => remove(index)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -334,41 +339,44 @@ export function OmraBookingForm() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Prénom *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Prénom *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.firstName`)}
                       placeholder="Ahmed"
+                      className={form.formState.errors.pilgrims?.[index]?.firstName ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                     />
                     {form.formState.errors.pilgrims?.[index]?.firstName && (
-                      <p className="text-sm text-red-500">
+                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
                         {form.formState.errors.pilgrims[index]?.firstName?.message}
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Nom *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Nom *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.lastName`)}
                       placeholder="Ben Ali"
+                      className={form.formState.errors.pilgrims?.[index]?.lastName ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                     />
                     {form.formState.errors.pilgrims?.[index]?.lastName && (
-                      <p className="text-sm text-red-500">
+                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
                         {form.formState.errors.pilgrims[index]?.lastName?.message}
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Date de naissance *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Date de naissance *</Label>
                     <Input
                       type="date"
                       {...form.register(`pilgrims.${index}.birthDate`)}
+                      className={form.formState.errors.pilgrims?.[index]?.birthDate ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                     />
                     {form.formState.errors.pilgrims?.[index]?.birthDate && (
-                      <p className="text-sm text-red-500">
+                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
                         {form.formState.errors.pilgrims[index]?.birthDate?.message}
                       </p>
                     )}
@@ -377,23 +385,29 @@ export function OmraBookingForm() {
 
                 <Separator />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Nationalité *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Nationalité *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.nationality`)}
                       placeholder="TN"
                       maxLength={2}
+                      className={form.formState.errors.pilgrims?.[index]?.nationality ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                     />
+                    {form.formState.errors.pilgrims?.[index]?.nationality && (
+                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                        {form.formState.errors.pilgrims[index]?.nationality?.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Genre *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Genre *</Label>
                     <Select
                       value={watchedPilgrims[index]?.gender}
                       onValueChange={(v) => form.setValue(`pilgrims.${index}.gender`, v as "male" | "female")}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -404,12 +418,12 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Situation matrimoniale *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Situation matrimoniale *</Label>
                     <Select
                       value={watchedPilgrims[index]?.maritalStatus}
                       onValueChange={(v) => form.setValue(`pilgrims.${index}.maritalStatus`, v as any)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -424,98 +438,143 @@ export function OmraBookingForm() {
 
                 <Separator />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Téléphone *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Téléphone *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.phone`)}
                       placeholder="+216 98 123 456"
+                      className={form.formState.errors.pilgrims?.[index]?.phone ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                     />
+                    {form.formState.errors.pilgrims?.[index]?.phone && (
+                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                        {form.formState.errors.pilgrims[index]?.phone?.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Email</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Email</Label>
                     <Input
                       type="email"
                       {...form.register(`pilgrims.${index}.email`)}
                       placeholder="email@example.com"
+                      className={form.formState.errors.pilgrims?.[index]?.email ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                     />
+                    {form.formState.errors.pilgrims?.[index]?.email && (
+                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                        {form.formState.errors.pilgrims[index]?.email?.message}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label>Adresse</Label>
+                  <Label className="text-sm font-medium text-[#1e3a8a]">Adresse</Label>
                   <Input
                     {...form.register(`pilgrims.${index}.address`)}
                     placeholder="123 Rue de la République, Tunis"
+                    className="rounded-lg"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Ville</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Ville</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.city`)}
                       placeholder="Tunis"
+                      className="rounded-lg"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Code postal</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Code postal</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.postalCode`)}
                       placeholder="1001"
+                      className="rounded-lg"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Pays de résidence *</Label>
+                    <Label className="text-sm font-medium text-[#1e3a8a]">Pays de résidence *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.country`)}
                       placeholder="TN"
                       maxLength={2}
+                      className={form.formState.errors.pilgrims?.[index]?.country ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                     />
+                    {form.formState.errors.pilgrims?.[index]?.country && (
+                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                        {form.formState.errors.pilgrims[index]?.country?.message}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="font-semibold">Passeport</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Label className="font-semibold text-[#1e3a8a]">Passeport</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Numéro de passeport *</Label>
+                      <Label className="text-sm font-medium text-[#1e3a8a]">Numéro de passeport *</Label>
                       <Input
                         {...form.register(`pilgrims.${index}.passportNumber`)}
                         placeholder="A12345678"
+                        className={form.formState.errors.pilgrims?.[index]?.passportNumber ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                       />
+                      {form.formState.errors.pilgrims?.[index]?.passportNumber && (
+                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                          {form.formState.errors.pilgrims[index]?.passportNumber?.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Pays émetteur *</Label>
+                      <Label className="text-sm font-medium text-[#1e3a8a]">Pays émetteur *</Label>
                       <Input
                         {...form.register(`pilgrims.${index}.passportIssuingCountry`)}
                         placeholder="TN"
                         maxLength={2}
+                        className={form.formState.errors.pilgrims?.[index]?.passportIssuingCountry ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                       />
+                      {form.formState.errors.pilgrims?.[index]?.passportIssuingCountry && (
+                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                          {form.formState.errors.pilgrims[index]?.passportIssuingCountry?.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Date d'émission *</Label>
+                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d'émission *</Label>
                       <Input
                         type="date"
                         {...form.register(`pilgrims.${index}.passportIssueDate`)}
+                        className={form.formState.errors.pilgrims?.[index]?.passportIssueDate ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                       />
+                      {form.formState.errors.pilgrims?.[index]?.passportIssueDate && (
+                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                          {form.formState.errors.pilgrims[index]?.passportIssueDate?.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Date d'expiration *</Label>
+                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d'expiration *</Label>
                       <Input
                         type="date"
                         {...form.register(`pilgrims.${index}.passportExpiryDate`)}
+                        className={form.formState.errors.pilgrims?.[index]?.passportExpiryDate ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
                       />
+                      {form.formState.errors.pilgrims?.[index]?.passportExpiryDate && (
+                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                          {form.formState.errors.pilgrims[index]?.passportExpiryDate?.message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -523,12 +582,12 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label>Type de chambre</Label>
+                  <Label className="text-sm font-medium text-[#1e3a8a]">Type de chambre</Label>
                   <Select
                     value={watchedPilgrims[index]?.roomType}
                     onValueChange={(v) => form.setValue(`pilgrims.${index}.roomType`, v as any)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-lg">
                       <SelectValue placeholder="Choisir" />
                     </SelectTrigger>
                     <SelectContent>
@@ -546,26 +605,26 @@ export function OmraBookingForm() {
         </Card>
 
         {/* Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="rounded-lg border-2 border-[#1e3a8a]/10 bg-[#1e3a8a]/5">
+          <CardHeader className="bg-[#1e3a8a]/10 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
               <CreditCard className="w-5 h-5" />
               Récapitulatif
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <div className="flex justify-between items-center">
-              <span>Nombre de pèlerins</span>
-              <Badge variant="secondary">{watchedPilgrims.length}</Badge>
+              <span className="text-sm sm:text-base">Nombre de pèlerins</span>
+              <Badge variant="secondary" className="bg-[#f59e0b] text-white rounded-lg">{watchedPilgrims.length}</Badge>
             </div>
             <div className="flex justify-between items-center">
-              <span>Prix par pèlerin</span>
-              <span className="font-semibold">{pricePerPilgrim.toFixed(3)} DT</span>
+              <span className="text-sm sm:text-base">Prix par pèlerin</span>
+              <span className="font-semibold text-[#1e3a8a]">{pricePerPilgrim.toFixed(3)} DT</span>
             </div>
-            <Separator />
-            <div className="flex justify-between items-center text-lg">
-              <span className="font-semibold">Total TTC</span>
-              <span className="font-bold text-green-600">{totalPrice.toFixed(3)} DT</span>
+            <Separator className="bg-[#1e3a8a]/20" />
+            <div className="flex justify-between items-center text-lg sm:text-xl">
+              <span className="font-semibold text-[#1e3a8a]">Total TTC</span>
+              <span className="font-bold text-[#f59e0b]">{totalPrice.toFixed(3)} DT</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Le montant sera débité de votre wallet Easy2Book.
@@ -576,16 +635,18 @@ export function OmraBookingForm() {
         <Button
           type="submit"
           size="lg"
-          className="w-full"
+          className="w-full bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white rounded-lg"
           disabled={isSubmitting || !watchedPackageId || !watchedDepartureDate}
         >
           {isSubmitting ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Traitement en cours...
+              <span className="hidden sm:inline">Traitement en cours...</span>
+              <span className="sm:hidden">Traitement...</span>
             </>
           ) : (
-            "Confirmer la Réservation"
+            <span className="hidden sm:inline">Confirmer la Réservation</span>
+            <span className="sm:hidden">Confirmer</span>
           )}
         </Button>
       </form>

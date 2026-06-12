@@ -8,8 +8,5 @@
       "path": "/api/cron/warm-cache",
       "schedule": "0 4 * * *"
     }
-  ],
-  "healthcheck": {
-    "path": "/api/health"
-  }
+  ]
 }

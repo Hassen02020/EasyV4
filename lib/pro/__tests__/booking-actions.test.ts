@@ -68,7 +68,8 @@ function makeMockDb(opts: MockOptions): {
 } {
   const journal: OpEvent[] = []
 
-  const db: DrizzleLikeDb = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = {
     transaction: async <T>(
       callback: (tx: ReturnType<typeof makeTx>) => Promise<T>,
     ) => {
@@ -113,10 +114,10 @@ function makeMockDb(opts: MockOptions): {
       select: () => ({
         from: () => ({
           where: () => ({
-            for: async (strength: string) => {
+            for: async (...forArgs: unknown[]) => {
               journal.push({
                 kind: "SELECT_FOR_UPDATE",
-                payload: { strength },
+                payload: { strength: forArgs[0] },
               })
               if (!opts.agencyExists) return []
               return [
@@ -130,8 +131,9 @@ function makeMockDb(opts: MockOptions): {
         }),
       }),
       insert: () => ({
-        values: (row: Record<string, unknown>) => ({
+        values: (...args: unknown[]) => ({
           returning: async () => {
+            const row = (args[0] ?? {}) as Record<string, unknown>
             journal.push({
               kind: "INSERT_MOVEMENT",
               payload: row,
@@ -142,11 +144,11 @@ function makeMockDb(opts: MockOptions): {
         }),
       }),
       update: () => ({
-        set: (patch: Record<string, unknown>) => ({
+        set: (...setArgs: unknown[]) => ({
           where: () => {
             journal.push({
               kind: "UPDATE_BALANCE",
-              payload: patch,
+              payload: (setArgs[0] ?? {}) as Record<string, unknown>,
             })
             // Retourne quelque chose d'awaitable
             return Promise.resolve(undefined)
@@ -156,7 +158,7 @@ function makeMockDb(opts: MockOptions): {
     }
   }
 
-  return { db, journal }
+  return { db: db as unknown as DrizzleLikeDb, journal }
 }
 
 /** Force DATABASE_URL pour les tests (sinon la fonction court-circuite). */

@@ -1,0 +1,24 @@
+{
+  "ListCurrency": [
+    { "Code": "TND", "Symbol": "DT" },
+    { "Code": "EUR", "Symbol": "\u20ac" },
+    { "Code": "USD", "Symbol": "$" },
+    { "Code": "DZD", "Symbol": "DA" }
+  ],
+  "CountResults": 4,
+  "ErrorMessage": [],
+  "Timing": {
+    "Begin": {
+      "date": "2026-05-03 08:04:03.140546",
+      "timezone_type": 3,
+      "timezone": "UTC"
+    },
+    "End": {
+      "date": "2026-05-03 08:04:03.389257",
+      "timezone_type": 3,
+      "timezone": "UTC"
+    },
+    "Duration": "249 ms"
+  },
+  "Ip": "102.211.211.160"
+}

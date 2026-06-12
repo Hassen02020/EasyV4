@@ -3,6 +3,13 @@
     {
       "path": "/api/cron/purge-audit",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/warm-cache",
+      "schedule": "0 4 * * *"
     }
-  ]
+  ],
+  "healthcheck": {
+    "path": "/api/health"
+  }
 }

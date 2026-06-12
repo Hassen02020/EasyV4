@@ -108,10 +108,26 @@ const managerNavItems: NavItem[] = [
     icon: ShoppingBag,
     href: "/admin/b2c/reservations",
     subItems: [
-      { title: "Toutes les réservations", href: "/admin/b2c/reservations", icon: Calendar },
-      { title: "En attente", href: "/admin/b2c/reservations?status=pending", icon: Clock },
-      { title: "Confirmées", href: "/admin/b2c/reservations?status=confirmed", icon: CheckCircle2 },
-      { title: "Annulations", href: "/admin/b2c/reservations?status=cancelled", icon: XCircle },
+      {
+        title: "Toutes les réservations",
+        href: "/admin/b2c/reservations",
+        icon: Calendar,
+      },
+      {
+        title: "En attente",
+        href: "/admin/b2c/reservations?status=pending",
+        icon: Clock,
+      },
+      {
+        title: "Confirmées",
+        href: "/admin/b2c/reservations?status=confirmed",
+        icon: CheckCircle2,
+      },
+      {
+        title: "Annulations",
+        href: "/admin/b2c/reservations?status=cancelled",
+        icon: XCircle,
+      },
     ],
   },
   {
@@ -126,9 +142,17 @@ const managerNavItems: NavItem[] = [
     subItems: [
       { title: "Hôtels", href: "/admin/products/hotels", icon: Building2 },
       { title: "Vols", href: "/admin/products/flights", icon: Plane },
-      { title: "Voyages Organisés", href: "/admin/products/packages", icon: Briefcase },
+      {
+        title: "Voyages Organisés",
+        href: "/admin/products/packages",
+        icon: Briefcase,
+      },
       { title: "Omra", href: "/admin/products/omra", icon: Moon },
-      { title: "Activités", href: "/admin/products/activities", icon: Activity },
+      {
+        title: "Activités",
+        href: "/admin/products/activities",
+        icon: Activity,
+      },
     ],
   },
   {
@@ -136,8 +160,16 @@ const managerNavItems: NavItem[] = [
     icon: DollarSign,
     href: "/admin/accounting",
     subItems: [
-      { title: "Tableau de bord", href: "/admin/accounting", icon: LayoutDashboard },
-      { title: "Paiements", href: "/admin/accounting/payments", icon: CreditCard },
+      {
+        title: "Tableau de bord",
+        href: "/admin/accounting",
+        icon: LayoutDashboard,
+      },
+      {
+        title: "Paiements",
+        href: "/admin/accounting/payments",
+        icon: CreditCard,
+      },
       { title: "Factures", href: "/admin/accounting/invoices", icon: FileText },
       { title: "Rapports", href: "/admin/accounting/reports", icon: Activity },
     ],
@@ -183,7 +215,12 @@ const superAdminNavItems: NavItem[] = [
 function getNavItems(role: AdminShellRole): NavItem[] {
   switch (role) {
     case "super_admin":
-      return [...baseNavItems, ...managerNavItems, ...technicalNavItems, ...superAdminNavItems]
+      return [
+        ...baseNavItems,
+        ...managerNavItems,
+        ...technicalNavItems,
+        ...superAdminNavItems,
+      ]
     case "manager":
       return [...baseNavItems, ...managerNavItems, ...technicalNavItems]
     case "agent_resa":

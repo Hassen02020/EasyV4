@@ -32,6 +32,10 @@ export function useCities() {
   return {
     cities: data ?? FALLBACK,
     loading: isLoading,
-    error: error ? (error instanceof Error ? error.message : "Impossible de charger les villes") : null,
+    error: error
+      ? error instanceof Error
+        ? error.message
+        : "Impossible de charger les villes"
+      : null,
   }
 }

@@ -34,6 +34,8 @@ test.describe("Authentification", () => {
 
     // 4. Dashboard (avec timeout généreux pour le redirect Supabase)
     await page.waitForURL(/.*admin/, { timeout: 10_000 })
-    await expect(page.getByRole("heading", { name: /Tableau de bord/i })).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: /Tableau de bord/i }),
+    ).toBeVisible()
   })
 })

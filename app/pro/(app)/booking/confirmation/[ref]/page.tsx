@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import {
   CheckCircle2,
   FileText,
@@ -8,15 +9,18 @@ import {
   CreditCard,
   Banknote,
   ArrowRight,
-  Mail,
+  BedDouble,
+  User,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { getProHotelById } from "@/lib/pro/hotels-fixture"
+import { Badge } from "@/components/ui/badge"
 import { formatTND } from "@/lib/pro/format"
+import { createServerSupabase } from "@/lib/supabase/server"
+import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
+import { loadReservationByRef } from "@/lib/pro/reservation-detail"
 
 type ConfirmationSearchParams = {
-  hotelId?: string
   payment?: string
   total?: string
   coupon?: string
@@ -34,6 +38,8 @@ export const metadata = {
   title: "Réservation confirmée | Espace Pro Easy2Book",
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function ProBookingConfirmationPage({
   params,
   searchParams,
@@ -43,12 +49,35 @@ export default async function ProBookingConfirmationPage({
 }) {
   const { ref } = await params
   const search = await searchParams
-  const hotel = search.hotelId ? getProHotelById(search.hotelId) : undefined
-  const total = search.total ? Number.parseFloat(search.total) : 0
-  const paymentInfo = search.payment
-    ? (PAYMENT_LABEL[search.payment] ?? null)
-    : null
+
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/pro/login")
+
+  const profile = await getCurrentPartnerProfile(user.id)
+  if (!profile) redirect("/pro/login")
+
+  const reservation = await loadReservationByRef(ref, profile.agency.id)
+
+  const total = reservation?.totalTnd ?? (search.total ? Number.parseFloat(search.total) : 0)
+  const paymentInfo = search.payment ? (PAYMENT_LABEL[search.payment] ?? null) : null
   const PaymentIcon = paymentInfo?.icon ?? Wallet
+
+  const createdDate = reservation
+    ? new Date(reservation.createdAt).toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : new Date().toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -60,28 +89,45 @@ export default async function ProBookingConfirmationPage({
           Réservation enregistrée
         </h1>
         <p className="text-muted-foreground mt-2 text-center text-sm">
-          Votre dossier B2B a été créé avec succès. Vous le retrouverez dans
-          votre espace.
+          Votre dossier B2B a été créé avec succès et votre wallet a été débité.
         </p>
+
+        {reservation ? (
+          <div className="mt-3 flex justify-center">
+            <Badge
+              variant="outline"
+              className="border-emerald-300 bg-emerald-100 text-emerald-800 text-xs"
+            >
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              {reservation.status === "pending" ? "En attente de confirmation" : reservation.status}
+            </Badge>
+          </div>
+        ) : null}
 
         <dl className="mt-6 grid gap-3 md:grid-cols-2">
           <Field icon={FileText} label="Référence dossier" value={ref} mono />
-          <Field
-            icon={Calendar}
-            label="Date de création"
-            value={new Date().toLocaleDateString("fr-FR", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          />
-          {hotel ? (
+          <Field icon={Calendar} label="Date de création" value={createdDate} />
+
+          {reservation?.hotelName ? (
             <Field
-              icon={Building2}
+              icon={BedDouble}
               label="Hôtel"
-              value={`${hotel.name} (${hotel.zone})`}
+              value={
+                reservation.checkIn && reservation.checkOut
+                  ? `${reservation.hotelName} · ${reservation.checkIn} → ${reservation.checkOut}${reservation.nights ? ` (${reservation.nights} nuits)` : ""}`
+                  : reservation.hotelName
+              }
             />
           ) : null}
+
+          {reservation?.customerName && reservation.customerName !== "—" ? (
+            <Field
+              icon={User}
+              label="Voyageur principal"
+              value={reservation.customerName}
+            />
+          ) : null}
+
           {paymentInfo ? (
             <Field
               icon={PaymentIcon}
@@ -89,13 +135,11 @@ export default async function ProBookingConfirmationPage({
               value={paymentInfo.label}
             />
           ) : null}
+
           {search.coupon ? (
-            <Field
-              icon={FileText}
-              label="Coupon appliqué"
-              value={search.coupon}
-            />
+            <Field icon={FileText} label="Coupon appliqué" value={search.coupon} />
           ) : null}
+
           {search.ref ? (
             <Field icon={FileText} label="Réf. interne" value={search.ref} />
           ) : null}
@@ -103,11 +147,17 @@ export default async function ProBookingConfirmationPage({
 
         <div className="border-border/50 bg-muted/30 mt-6 rounded-2xl border p-4">
           <div className="flex items-center justify-between">
-            <p className="text-foreground text-sm">Total TTC</p>
+            <p className="text-foreground text-sm font-medium">Total TTC débité</p>
             <p className="text-primary text-2xl font-bold tabular-nums">
               {formatTND(total)}
             </p>
           </div>
+          {reservation && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              Solde wallet mis à jour · Réf. BDD :{" "}
+              <span className="font-mono">{reservation.id.slice(0, 8)}…</span>
+            </p>
+          )}
         </div>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
@@ -120,15 +170,6 @@ export default async function ProBookingConfirmationPage({
           <Button asChild variant="outline" className="flex-1 rounded-xl">
             <Link href="/pro">Nouvelle recherche</Link>
           </Button>
-        </div>
-
-        <div className="border-border/40 mt-6 flex items-start gap-2 rounded-xl border p-3 text-xs">
-          <Mail className="text-primary mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <p className="text-muted-foreground leading-snug">
-            Un récapitulatif détaillé sera envoyé à l&apos;adresse e-mail
-            associée à votre agence dès l&apos;enregistrement effectif côté base
-            de données (phase 7).
-          </p>
         </div>
       </div>
     </div>

@@ -9,16 +9,23 @@ import { NextRequest, NextResponse } from "next/server"
 import { getMyGoClient, mapCity } from "@/lib/mygo"
 import { MyGoAuthError, MyGoError } from "@/lib/mygo"
 import { rateLimit } from "@/lib/rate-limit"
+import { requirePartnerSession } from "@/lib/api/auth-guard"
 
 export const revalidate = 86400 // 24h
 
 export async function GET(req: NextRequest) {
+  const session = await requirePartnerSession(req)
+  if (session instanceof NextResponse) return session
+
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
   const limit = await rateLimit(`hotels:cities:${ip}`)
   if (!limit.ok) {
     return NextResponse.json(
-      { error: "rate_limited", retryAfter: Math.ceil((limit.reset - Date.now()) / 1000) },
+      {
+        error: "rate_limited",
+        retryAfter: Math.ceil((limit.reset - Date.now()) / 1000),
+      },
       {
         status: 429,
         headers: {

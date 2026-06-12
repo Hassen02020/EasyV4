@@ -20,7 +20,7 @@ export interface MyGoConfig {
   baseUrl: string
   login: string
   password: string
-  /** Timeout par requête HTTP (ms). Default 15s. */
+  /** Timeout par requête HTTP (ms). Default 8s. */
   timeoutMs: number
   /** Nombre maximum de retries avant échec (réseau / 5xx). */
   maxRetries: number
@@ -39,7 +39,7 @@ export function getMyGoConfig(): MyGoConfig {
     baseUrl: process.env.MYGO_API_BASE_URL ?? "https://admin.mygo.co/api/hotel",
     login: requireEnv("MYGO_LOGIN"),
     password: requireEnv("MYGO_PASSWORD"),
-    timeoutMs: Number(process.env.MYGO_TIMEOUT_MS ?? 15000),
+    timeoutMs: Number(process.env.MYGO_TIMEOUT_MS ?? 8000),
     maxRetries: Number(process.env.MYGO_MAX_RETRIES ?? 3),
     staticDataTtlSeconds: Number(process.env.MYGO_STATIC_TTL_SECONDS ?? 86400),
     searchTtlSeconds: Number(process.env.MYGO_SEARCH_TTL_SECONDS ?? 300),

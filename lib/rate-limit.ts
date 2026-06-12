@@ -1,14 +1,18 @@
 /**
- * Rate limiting — sliding window in-memory.
+ * Rate limiting — Upstash Redis (production) ou in-memory (dev/CI).
  *
- * En production, remplacez l'implémentation par Upstash Redis
- * (`@upstash/ratelimit`) en branchant `createRedisRateLimiter()`.
- * La signature publique reste identique.
+ * Upstash Ratelimit est utilisé si UPSTASH_REDIS_REST_URL est défini.
+ * Sinon, fallback sur un sliding window in-memory (1 pod uniquement).
  *
  * Configurable via env :
- *   RATE_LIMIT_WINDOW_MS   (défaut 60_000)
- *   RATE_LIMIT_MAX_REQUESTS (défaut 60)
+ *   UPSTASH_REDIS_REST_URL     → active le rate limiting distribué
+ *   UPSTASH_REDIS_REST_TOKEN   → token Upstash
+ *   RATE_LIMIT_WINDOW_MS       (défaut 60_000 — fallback mémoire uniquement)
+ *   RATE_LIMIT_MAX_REQUESTS    (défaut 60)
  */
+
+import { Ratelimit } from "@upstash/ratelimit"
+import { getRedis } from "@/lib/cache/redis"
 
 export interface RateLimitResult {
   ok: boolean
@@ -20,14 +24,31 @@ export interface RateLimitResult {
 export type RateLimiter = (identifier: string) => Promise<RateLimitResult>
 
 /* -------------------------------------------------------------------------- */
-/* In-memory sliding window (dégradé, 1 instance Node → pas global multi-pod)  */
+/* Upstash sliding window                                                     */
 /* -------------------------------------------------------------------------- */
 
-interface Bucket {
-  count: number
-  reset: number
+let _upstashLimiter: Ratelimit | null = null
+
+function getUpstashLimiter(): Ratelimit | null {
+  if (_upstashLimiter) return _upstashLimiter
+  const redis = getRedis()
+  if (!redis) return null
+  const maxRequests =
+    parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? "", 10) || 60
+  _upstashLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(maxRequests, "60 s"),
+    analytics: true,
+    prefix: "e2b:rl",
+  })
+  return _upstashLimiter
 }
 
+/* -------------------------------------------------------------------------- */
+/* In-memory fallback (dev / CI — 1 instance uniquement)                     */
+/* -------------------------------------------------------------------------- */
+
+interface Bucket { count: number; reset: number }
 const store = new Map<string, Bucket>()
 
 function cleanup() {
@@ -39,8 +60,7 @@ function cleanup() {
 
 export function createMemoryRateLimiter(
   windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? "", 10) || 60_000,
-  maxRequests =
-    parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? "", 10) || 60,
+  maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? "", 10) || 60,
 ): RateLimiter {
   return async (identifier: string) => {
     cleanup()
@@ -54,12 +74,7 @@ export function createMemoryRateLimiter(
     }
 
     if (bucket.count >= maxRequests) {
-      return {
-        ok: false,
-        limit: maxRequests,
-        remaining: 0,
-        reset: bucket.reset,
-      }
+      return { ok: false, limit: maxRequests, remaining: 0, reset: bucket.reset }
     }
 
     bucket.count += 1
@@ -73,14 +88,26 @@ export function createMemoryRateLimiter(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Default singleton                                                          */
+/* Default export — auto-sélection Redis / mémoire                           */
 /* -------------------------------------------------------------------------- */
 
-const defaultLimiter = createMemoryRateLimiter()
+const _memLimiter = createMemoryRateLimiter()
 
+/**
+ * Rate-limite l'identifiant donné (IP, userId, etc.).
+ * Utilise Upstash Redis si configuré, sinon mémoire.
+ */
 export async function rateLimit(
   identifier: string,
   customLimiter?: RateLimiter,
 ): Promise<RateLimitResult> {
-  return (customLimiter ?? defaultLimiter)(identifier)
+  if (customLimiter) return customLimiter(identifier)
+
+  const upstash = getUpstashLimiter()
+  if (upstash) {
+    const { success, limit, remaining, reset } = await upstash.limit(identifier)
+    return { ok: success, limit, remaining, reset }
+  }
+
+  return _memLimiter(identifier)
 }

@@ -1,6 +1,6 @@
 /**
  * Page Erreur 403 - Accès Interdit
- * 
+ *
  * Affichée lorsqu'un utilisateur tente d'accéder à une ressource
  * sans les permissions nécessaires.
  */
@@ -8,34 +8,46 @@
 import Link from "next/link"
 import { Shield, ArrowLeft, Home, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
 export const metadata = {
   title: "403 - Accès Interdit | Easy2Book",
-  description: "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
+  description:
+    "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
 }
 
 interface ForbiddenPageProps {
-  searchParams: Promise<{ 
+  searchParams: Promise<{
     section?: string
-    permission?: string 
+    permission?: string
     from?: string
   }>
 }
 
-export default async function ForbiddenPage({ searchParams }: ForbiddenPageProps) {
+export default async function ForbiddenPage({
+  searchParams,
+}: ForbiddenPageProps) {
   const params = await searchParams
   const section = params.section
   const from = params.from
 
   const sectionMessages: Record<string, string> = {
-    accounting: "La comptabilité est accessible uniquement aux agents comptables et managers.",
+    accounting:
+      "La comptabilité est accessible uniquement aux agents comptables et managers.",
     staff: "La gestion du personnel est réservée aux managers.",
     admin: "L'administration système est réservée au Super Admin.",
     products: "La modification du catalogue nécessite des droits spécifiques.",
   }
 
-  const message = section ? sectionMessages[section] : "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource."
+  const message = section
+    ? sectionMessages[section]
+    : "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource."
 
   return (
     <div className="from-background to-muted/20 flex min-h-screen items-center justify-center bg-gradient-to-b px-4">
@@ -51,16 +63,17 @@ export default async function ForbiddenPage({ searchParams }: ForbiddenPageProps
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2 text-amber-600">
               <Lock className="h-4 w-4" />
-              <span className="text-sm font-medium">Protection RBAC Active</span>
+              <span className="text-sm font-medium">
+                Protection RBAC Active
+              </span>
             </div>
-            <p className="text-muted-foreground">
-              {message}
-            </p>
+            <p className="text-muted-foreground">{message}</p>
           </div>
 
           <div className="bg-muted rounded-lg p-4">
             <p className="text-muted-foreground text-sm">
-              Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur, contactez votre manager ou le support technique.
+              Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur, contactez
+              votre manager ou le support technique.
             </p>
           </div>
 

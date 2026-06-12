@@ -1,10 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
+
 import { Building2, Wallet, CreditCard, Banknote, Coins } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
+
 import { Badge } from "@/components/ui/badge"
+
 import {
   Table,
   TableBody,
@@ -13,17 +16,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+
 import { formatTND } from "@/lib/pro/format"
+
 import type { PartnerPayment } from "@/lib/pro/mock-tables"
 
 const MODE_META: Record<
-  NonNullable<PartnerPayment["mode"]>,
+  PartnerPayment["mode"],
   { label: string; icon: typeof Wallet }
 > = {
   transfer: { label: "Virement", icon: Building2 },
+
   card: { label: "Carte bancaire", icon: CreditCard },
+
   cash: { label: "Espèces", icon: Coins },
+
   check: { label: "Chèque", icon: Banknote },
+
   credit_account: { label: "Compte de dépôt", icon: Wallet },
 }
 
@@ -33,12 +42,15 @@ interface PaymentsTableProps {
 
 export function PaymentsTable({ rows }: PaymentsTableProps) {
   const [from, setFrom] = useState("")
+
   const [to, setTo] = useState("")
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
       if (from && r.date < from) return false
+
       if (to && r.date > to) return false
+
       return true
     })
   }, [rows, from, to])
@@ -53,16 +65,19 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
           <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Du
           </label>
+
           <Input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
           />
         </div>
+
         <div>
           <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
             Au
           </label>
+
           <Input
             type="date"
             value={to}
@@ -76,19 +91,27 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
           <TableHeader>
             <TableRow className="bg-muted/30">
               <TableHead className="font-semibold">Date</TableHead>
+
               <TableHead className="font-semibold">Mode</TableHead>
+
               <TableHead className="font-semibold">Échéance</TableHead>
+
               <TableHead className="font-semibold">Émission</TableHead>
+
               <TableHead className="text-right font-semibold">
                 Montant origine
               </TableHead>
+
               <TableHead className="text-right font-semibold">
                 Restant
               </TableHead>
+
               <TableHead className="text-right font-semibold">Crédit</TableHead>
+
               <TableHead className="font-semibold">Facture</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
@@ -101,41 +124,51 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
               </TableRow>
             ) : (
               filtered.map((p) => {
-                const Mode = MODE_META[p.mode ?? "transfer"]
+                const Mode = MODE_META[p.mode]
+
                 const ModeIcon = Mode.icon
+
                 return (
                   <TableRow key={p.id} className="hover:bg-muted/30">
                     <TableCell className="text-xs tabular-nums">
                       {p.date}
                     </TableCell>
+
                     <TableCell>
                       <Badge
                         variant="outline"
                         className="inline-flex items-center gap-1"
                       >
                         <ModeIcon className="h-3 w-3" />
+
                         {Mode.label}
                       </Badge>
                     </TableCell>
+
                     <TableCell className="text-xs tabular-nums">
-                      {p.dueDate ?? "—"}
+                      {p.dueDate}
                     </TableCell>
+
                     <TableCell className="text-xs tabular-nums">
-                      {p.emissionDate ?? p.date}
+                      {p.emissionDate}
                     </TableCell>
+
                     <TableCell className="text-foreground text-right text-sm tabular-nums">
-                      {formatTND(p.originalAmount ?? p.amount)}
+                      {formatTND(p.originalAmount ?? 0)}
                     </TableCell>
+
                     <TableCell
                       className={`text-right text-sm tabular-nums ${(p.remainingAmount ?? 0) > 0 ? "text-destructive font-bold" : "text-muted-foreground"}`}
                     >
                       {formatTND(p.remainingAmount ?? 0)}
                     </TableCell>
+
                     <TableCell
                       className={`text-right text-sm tabular-nums ${(p.credit ?? 0) > 0 ? "font-bold text-emerald-600" : "text-muted-foreground"}`}
                     >
                       {(p.credit ?? 0) > 0 ? formatTND(p.credit ?? 0) : "—"}
                     </TableCell>
+
                     <TableCell className="font-mono text-xs">
                       {p.invoiceRef ?? "—"}
                     </TableCell>
@@ -145,6 +178,7 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
             )}
           </TableBody>
         </Table>
+
         <div className="border-border/60 text-muted-foreground border-t px-4 py-2 text-xs">
           {filtered.length} règlement{filtered.length > 1 ? "s" : ""}
         </div>

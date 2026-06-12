@@ -14,8 +14,8 @@ export interface CurrencyMeta {
 
 export const CURRENCY_META: Record<Currency, CurrencyMeta> = {
   TND: { label: "Dinar tunisien", symbol: "DT", flag: "🇹🇳", rateFromTND: 1 },
-  EUR: { label: "Euro",           symbol: "€",  flag: "🇪🇺", rateFromTND: 0.30 },
-  USD: { label: "US Dollar",      symbol: "$",  flag: "🇺🇸", rateFromTND: 0.32 },
+  EUR: { label: "Euro", symbol: "€", flag: "🇪🇺", rateFromTND: 0.3 },
+  USD: { label: "US Dollar", symbol: "$", flag: "🇺🇸", rateFromTND: 0.32 },
 }
 
 /** Converts an amount in TND to the target currency */

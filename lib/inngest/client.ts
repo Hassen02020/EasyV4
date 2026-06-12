@@ -37,9 +37,68 @@ export type Events = {
       adminUserId: string
     }
   }
+  /** Vol confirmé — déclenche génération billet + email. */
+  "booking/flight.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      customerEmail: string
+      customerName: string
+      origin: string
+      destination: string
+      departureAt: string
+      carrier: string
+      flightNumber: string
+      adults: number
+      children: number
+      totalTnd: number
+    }
+  }
+  /** Transfert confirmé — déclenche SMS chauffeur + email client. */
+  "booking/transfer.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      customerEmail: string
+      customerPhone: string
+      fromZone: string
+      toZone: string
+      pickupAt: string
+      vehicleType: string
+      totalTnd: number
+    }
+  }
+  /** Omra confirmée — déclenche génération dossier visa + email. */
+  "booking/omra.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      packageName: string
+      pilgrimsCount: number
+      departureDate: string
+      totalTnd: number
+      contactEmail: string
+    }
+  }
 }
 
-export const inngest = new Inngest({
-  id: "easy2book",
-  schemas: new Map() as never, // satisfait le type sans EventSchemas
-})
+export const inngest = new Inngest({ id: "easy2book" })
+
+/**
+ * Helper de typage fort pour inngest.send().
+ * Utiliser à la place de inngest.send() directement pour bénéficier
+ * de l'autocomplete et de la vérification des payloads.
+ *
+ * ```ts
+ * await sendEvent("booking/confirmed", { reservationId: "...", ... })
+ * ```
+ */
+export async function sendEvent<K extends keyof Events>(
+  name: K,
+  data: Events[K]["data"],
+) {
+  return inngest.send({ name: name as string, data })
+}

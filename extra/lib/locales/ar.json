@@ -1,0 +1,259 @@
+{
+  "nav": {
+    "home": "الرئيسية",
+    "hotels_tunisia": "فنادق تونس",
+    "hotels_world": "فنادق العالم",
+    "flights": "رحلات جوية",
+    "omra": "عمرة",
+    "packages": "الرحلات المنظمة",
+    "transfers": "نقل",
+    "car_rental": "تأجير سيارات",
+    "help": "مساعدة",
+    "my_bookings": "حجوزاتي",
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج"
+  },
+  "footer": {
+    "services": "خدماتنا",
+    "contact": "اتصل بنا",
+    "legal": "إشعار قانوني",
+    "cgv": "الشروط والأحكام",
+    "privacy": "سياسة الخصوصية",
+    "copyright": "© 2026 إيزي2بوك. جميع الحقوق محفوظة. وكالة سفر معتمدة في تونس.",
+    "trust_badges": {
+      "payment_secure": "دفع آمن 100%",
+      "payment_secure_desc": "SPS / Monétique Tunisie",
+      "support_local": "دعم محلي 7/7",
+      "support_local_desc": "+216 98 140 514",
+      "availability": "توفر حقيقي",
+      "availability_desc": "MyGo/APIGDS",
+      "physical_agency": "وكالة مادية",
+      "physical_agency_desc": "في تونس"
+    }
+  },
+  "booking_engine": {
+    "tabs": {
+      "vols": "رحلات جوية",
+      "hotels_tunisia": "فنادق تونس",
+      "hotels_monde": "فنادق العالم",
+      "omraty": "عمرة",
+      "voyages_organises": "الرحلات المنظمة",
+      "transfers": "نقل",
+      "car": "سيارة"
+    },
+    "search": "بحث",
+    "coming_soon": "بحث {module} قريباً",
+    "coming_soon_desc": "سيتم ربط محرك البحث بالواجهة البرمجية المقابلة قريباً.",
+    "vols": {
+      "departure": "المغادرة من",
+      "destination": "الوجهة",
+      "dates": "التواريخ",
+      "choose_dates": "اختر التواريخ",
+      "class": "الدرجة",
+      "flexible": "مقارنة مع الأسعار المرنة",
+      "economique": "اقتصادية",
+      "premium": "ممتازة",
+      "business": "رجال الأعمال"
+    },
+    "hotels_monde": {
+      "destination": "وجهة عالمية",
+      "placeholder": "مدينة أو فندق أو مطار",
+      "checkin": "تسجيل الوصول",
+      "arrival_date": "تاريخ الوصول",
+      "checkout": "تسجيل المغادرة",
+      "departure_date": "تاريخ المغادرة"
+    },
+    "omraty": {
+      "program": "البرنامج",
+      "select": "اختر",
+      "economique": "اقتصادية",
+      "confort": "مريحة",
+      "prestige": "فاخرة",
+      "departure_month": "شهر المغادرة",
+      "choose_month": "اختر الشهر",
+      "distance_haram": "المسافة من الحرم",
+      "distance": "المسافة",
+      "flight_type": "نوع الرحلة",
+      "direct": "رحلة مباشرة",
+      "with_stopover": "مع توقف"
+    },
+    "voyages_organises": {
+      "destination": "الوجهة",
+      "choose_destination": "اختر وجهة",
+      "turquie": "تركيا",
+      "egypte": "مصر",
+      "dubai": "دبي",
+      "malaisie": "ماليزيا",
+      "thailande": "تايلاند",
+      "period": "الفترة",
+      "choose_period": "اختر الفترة",
+      "duration": "المدة",
+      "travelers": "المسافرون",
+      "1_traveler": "مسافر واحد",
+      "2_travelers": "مسافران",
+      "3_travelers": "3 مسافرين",
+      "4_travelers": "4 مسافرين",
+      "5_plus_travelers": "5+ مسافرين"
+    },
+    "transfers": {
+      "pickup_location": "موقع الاستلام",
+      "airport_port": "مطار / ميناء",
+      "tunis_airport": "مطار تونس قرطاج",
+      "enfidha_airport": "مطار النفيضة",
+      "djerba_airport": "مطار جربة",
+      "monastir_airport": "مطار المنستير",
+      "dropoff_location": "موقع التسليم",
+      "hotel_address": "فندق أو عنوان",
+      "date_time": "التاريخ والوقت",
+      "arrival_date": "تاريخ الوصول",
+      "passengers": "الركاب",
+      "1_passenger": "راكب واحد",
+      "2_passengers": "راكبان",
+      "3_passengers": "3 ركاب",
+      "4_passengers": "4 ركاب",
+      "5_plus_passengers": "5+ ركاب"
+    },
+    "car": {
+      "pickup_location": "موقع الاستلام",
+      "airport_city": "مطار أو مدينة",
+      "hammamet_center": "مركز حمامات",
+      "sousse_center": "مركز سوسة",
+      "pickup_date": "تاريخ الاستلام",
+      "choose_date": "اختر التاريخ",
+      "return_date": "تاريخ الإرجاع",
+      "category": "الفئة",
+      "economique": "اقتصادية",
+      "compact": "صغيرة",
+      "sedan": "سيدان",
+      "suv": "دفع رباعي",
+      "luxury": "فاخرة",
+      "with_driver": "مع سائق"
+    }
+  },
+  "filter_sidebar": {
+    "title": "ضبط نتائجك",
+    "reset": "إعادة تعيين الفلاتر",
+    "pricing": "الأسعار والتوفر",
+    "recommended": "فندق موصى به",
+    "available_only": "متوفر فقط",
+    "free_cancellation": "إلغاء مجاني",
+    "category": "الفئة",
+    "price_per_night": "السعر ({currency})",
+    "meal_plan": "خطة الوجبات",
+    "facilities": "المرافق"
+  },
+  "hotel_card": {
+    "from": "ابتداءً من",
+    "view_details": "عرض التفاصيل",
+    "rates_rooms": "الأسعار والغرف",
+    "room_header": "غرفة 1: 2 بالغين",
+    "free_cancellation_before": "إلغاء مجاني قبل {date}",
+    "available": "متوفر",
+    "on_request": "عند الطلب",
+    "book": "حجز",
+    "exclusive": "حصري",
+    "add_wishlist": "إضافة إلى القائمة",
+    "remove_wishlist": "إزالة من القائمة",
+    "view_image": "عرض الصورة {number}"
+  },
+  "booking_form": {
+    "header": {
+      "home": "الرئيسية",
+      "hotels": "فنادق",
+      "apartments": "شقق",
+      "ticket_management": "إدارة التذاكر",
+      "contact": "اتصل بنا",
+      "info_reservations": "معلومات وحجوزات"
+    },
+    "breadcrumb": {
+      "hotel_list": "قائمة الفنادق",
+      "rates": "توفر الأسعار"
+    },
+    "warning": {
+      "insufficient_balance": "رصيد غير كافٍ،",
+      "please_fund": "يرجى شحن حسابك"
+    },
+    "room_occupancy": "إشغال الغرف",
+    "on_request": "عند الطلب",
+    "guest": {
+      "adult": "بالغ",
+      "child": "طفل",
+      "primary": "(أساسي)",
+      "title": "اللقب",
+      "select": "اختر",
+      "mr": "السيد",
+      "mrs": "السيدة",
+      "miss": "الآنسة",
+      "last_name": "اسم العائلة",
+      "first_name": "الاسم الأول"
+    },
+    "contact_info": "معلومات الاتصال",
+    "email": "البريد الإلكتروني",
+    "email_placeholder": "بريدك@مثال.com",
+    "phone": "الهاتف",
+    "phone_placeholder": "+216 XX XXX XXX",
+    "cancellation_policy": "سياسة الإلغاء والمعلومات المهمة",
+    "free_cancellation": "إلغاء مجاني",
+    "until_48h": "حتى 48 ساعة قبل تاريخ الوصول.",
+    "within_48h": "الإلغاءات التي تتم خلال 48 ساعة قبل الوصول سيتم تحميلها تكلفة الليلة الأولى.",
+    "no_show": "عدم الحضور سيتم تحميله تكلفة الحجز الكاملة.",
+    "special_requests": "الطلبات الخاصة خاضعة للتوفر وقد تؤدي إلى رسوم إضافية.",
+    "back_to_search": "العودة إلى البحث",
+    "book": "حجز",
+    "modify_search": "تعديل بحثك",
+    "subtotal": "المجموع الفرعي:",
+    "nights": "ليلات",
+    "from": "من",
+    "to": "إلى",
+    "so": "أي"
+  },
+  "login_form": {
+    "email": "البريد الإلكتروني",
+    "email_placeholder": "أنت@مثال.com",
+    "password": "كلمة المرور",
+    "password_placeholder": "••••••••",
+    "login": "تسجيل الدخول",
+    "logining": "جاري تسجيل الدخول…",
+    "magic_link": "استلم رابط سحري عبر البريد الإلكتروني",
+    "error": {
+      "invalid_credentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      "email_not_confirmed": "لم يتم تأكيد بريدك الإلكتروني بعد. تحقق من صندوق الوارد.",
+      "rate_limit": "محاولات كثيرة جداً. حاول مرة أخرى في بضع دقائق.",
+      "fill_fields": "يرجى إدخال بريدك الإلكتروني وكلمة المرور.",
+      "fill_email_first": "يرجى إدخال بريدك الإلكتروني أولاً لاستلام رابط سحري."
+    },
+    "success": {
+      "magic_link_sent": "تم إرسال رابط تسجيل الدخول إلى عنوان بريدك الإلكتروني. تحقق من صندوق الوارد."
+    },
+    "login_failed": "فشل تسجيل الدخول",
+    "link_sent": "تم إرسال الرابط"
+  },
+  "flash_offers": {
+    "title": "أفضل عروضنا المغادرة من تونس",
+    "badge": "عروض فلاش",
+    "book": "حجز"
+  },
+  "currency": {
+    "TND": "دينار تونسي",
+    "EUR": "يورو",
+    "USD": "دولار أمريكي"
+  },
+  "language": {
+    "fr": "Français",
+    "en": "English",
+    "ar": "العربية"
+  },
+  "common": {
+    "search": "بحث",
+    "book": "حجز",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "required": "*",
+    "optional": "(اختياري)"
+  },
+  "adults": "بالغين",
+  "children": "أطفال"
+}

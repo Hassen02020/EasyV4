@@ -18,14 +18,18 @@ test.describe("Parcours de réservation", () => {
 
     // 2. Page booking (étape 1)
     await page.waitForURL(/.*booking\?d=.*/)
-    await expect(page.getByRole("heading", { name: /Détails de l'offre/i })).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: /Détails de l'offre/i }),
+    ).toBeVisible()
 
     // 3. Continue vers voyageurs
     await page.getByRole("button", { name: /Continuer/i }).click()
 
     // 4. Page travelers (étape 2)
     await page.waitForURL(/.*booking\/travelers.*/)
-    await expect(page.getByRole("heading", { name: /Coordonnées du voyageur/i })).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: /Coordonnées du voyageur/i }),
+    ).toBeVisible()
 
     // 5. Remplit le formulaire voyageur
     await page.getByLabel(/Prénom/i).fill("Test")

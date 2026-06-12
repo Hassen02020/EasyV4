@@ -33,7 +33,10 @@ export default async function MutuelleLayout({
     if (profile?.role === "super_admin" || profile?.role === "manager") {
       redirect("/admin")
     }
-    if (profile?.role === "partner_owner" || profile?.role === "partner_agent") {
+    if (
+      profile?.role === "partner_owner" ||
+      profile?.role === "partner_agent"
+    ) {
       redirect("/b2b")
     }
     redirect("/login/select")

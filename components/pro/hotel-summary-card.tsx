@@ -16,7 +16,7 @@ export function HotelSummaryCard({ hotel }: HotelSummaryCardProps) {
       <div className="grid gap-0 md:grid-cols-[260px_1fr]">
         <div className="relative aspect-[4/3] md:aspect-auto">
           <Image
-            src={hotel.image ?? hotel.images[0] ?? "/placeholder.jpg"}
+            src={hotel.images[0] ?? "/placeholder.jpg"}
             alt={hotel.name}
             fill
             className="object-cover"

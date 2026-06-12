@@ -31,48 +31,80 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
-import { lookupBooking, type BookingSummary, type BookingStatus } from "@/app/actions/lookup-booking"
+import {
+  lookupBooking,
+  type BookingSummary,
+  type BookingStatus,
+} from "@/app/actions/lookup-booking"
 import { useT } from "@/components/locale-context"
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-
 const MODULE_ICONS: Record<string, React.ElementType> = {
-  flight:   Plane,
-  hotel:    Building2,
+  flight: Plane,
+  hotel: Building2,
   hotel_world: Globe,
-  omra:     Moon,
-  package:  Briefcase,
+  omra: Moon,
+  package: Briefcase,
   transfer: Bus,
-  car:      Car,
+  car: Car,
 }
 
 const MODULE_LABELS: Record<string, string> = {
-  flight:      "Vol",
-  hotel:       "Hôtel Tunisie",
+  flight: "Vol",
+  hotel: "Hôtel Tunisie",
   hotel_world: "Hôtel International",
-  omra:        "Omraty",
-  package:     "Voyage Organisé",
-  transfer:    "Transfert",
-  car:         "Location Voiture",
+  omra: "Omraty",
+  package: "Voyage Organisé",
+  transfer: "Transfert",
+  car: "Location Voiture",
 }
 
 // ─── Components ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const t = useT()
-  const STATUS_CONFIG: Record<BookingStatus, { label: string; color: string; icon: React.ElementType }> = {
-    pending:    { label: t("statusPending"),    color: "bg-amber-100 text-amber-800 border-amber-200",       icon: Clock },
-    on_request: { label: t("statusOnRequest"), color: "bg-blue-100 text-blue-800 border-blue-200",          icon: RefreshCw },
-    confirmed:  { label: t("statusConfirmed"), color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: CheckCircle2 },
-    cancelled:  { label: t("statusCancelled"), color: "bg-red-100 text-red-800 border-red-200",             icon: XCircle },
-    refunded:   { label: t("statusRefunded"),  color: "bg-gray-100 text-gray-800 border-gray-200",          icon: RefreshCw },
-    no_show:    { label: t("statusNoShow"),    color: "bg-red-100 text-red-700 border-red-200",             icon: XCircle },
+  const STATUS_CONFIG: Record<
+    BookingStatus,
+    { label: string; color: string; icon: React.ElementType }
+  > = {
+    pending: {
+      label: t("statusPending"),
+      color: "bg-amber-100 text-amber-800 border-amber-200",
+      icon: Clock,
+    },
+    on_request: {
+      label: t("statusOnRequest"),
+      color: "bg-blue-100 text-blue-800 border-blue-200",
+      icon: RefreshCw,
+    },
+    confirmed: {
+      label: t("statusConfirmed"),
+      color: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      icon: CheckCircle2,
+    },
+    cancelled: {
+      label: t("statusCancelled"),
+      color: "bg-red-100 text-red-800 border-red-200",
+      icon: XCircle,
+    },
+    refunded: {
+      label: t("statusRefunded"),
+      color: "bg-gray-100 text-gray-800 border-gray-200",
+      icon: RefreshCw,
+    },
+    no_show: {
+      label: t("statusNoShow"),
+      color: "bg-red-100 text-red-700 border-red-200",
+      icon: XCircle,
+    },
   }
   const cfg = STATUS_CONFIG[status]
   const Icon = cfg.icon
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${cfg.color}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${cfg.color}`}
+    >
       <Icon className="h-3.5 w-3.5" />
       {cfg.label}
     </span>
@@ -82,8 +114,12 @@ function StatusBadge({ status }: { status: BookingStatus }) {
 function Timeline({ status }: { status: BookingStatus }) {
   const t = useT()
   const STEP_MAP: Record<BookingStatus, number> = {
-    pending: 1, on_request: 2, confirmed: 3,
-    cancelled: 0, refunded: 0, no_show: 0,
+    pending: 1,
+    on_request: 2,
+    confirmed: 3,
+    cancelled: 0,
+    refunded: 0,
+    no_show: 0,
   }
   const TIMELINE_STEPS = [
     { label: t("demandeRecue"), step: 1 },
@@ -112,14 +148,22 @@ function Timeline({ status }: { status: BookingStatus }) {
                       : "border-gray-200 bg-white text-gray-400"
                 }`}
               >
-                {done && !active ? <CheckCircle2 className="h-4 w-4" /> : s.step}
+                {done && !active ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  s.step
+                )}
               </div>
-              <span className={`text-[10px] whitespace-nowrap font-medium ${done ? "text-emerald-600" : "text-muted-foreground"}`}>
+              <span
+                className={`text-[10px] font-medium whitespace-nowrap ${done ? "text-emerald-600" : "text-muted-foreground"}`}
+              >
                 {s.label}
               </span>
             </div>
             {i < TIMELINE_STEPS.length - 1 && (
-              <div className={`mb-4 h-0.5 w-12 sm:w-20 ${currentStep > s.step ? "bg-emerald-400" : "bg-gray-200"}`} />
+              <div
+                className={`mb-4 h-0.5 w-12 sm:w-20 ${currentStep > s.step ? "bg-emerald-400" : "bg-gray-200"}`}
+              />
             )}
           </div>
         )
@@ -136,7 +180,9 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
   function formatDate(iso: string | null) {
     if (!iso) return "—"
     return new Date(iso).toLocaleDateString("fr-FR", {
-      day: "2-digit", month: "long", year: "numeric",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
     })
   }
 
@@ -158,7 +204,7 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
         <StatusBadge status={booking.status} />
       </div>
 
-      <div className="p-5 space-y-5">
+      <div className="space-y-5 p-5">
         {/* Timeline */}
         <div className="flex justify-center">
           <Timeline status={booking.status} />
@@ -176,17 +222,23 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Mail className="text-muted-foreground h-4 w-4 shrink-0" />
-            <span className="text-muted-foreground">{booking.customer.email}</span>
+            <span className="text-muted-foreground">
+              {booking.customer.email}
+            </span>
           </div>
           {booking.customer.phone && (
             <div className="flex items-center gap-2 text-sm">
               <Phone className="text-muted-foreground h-4 w-4 shrink-0" />
-              <span className="text-muted-foreground">{booking.customer.phone}</span>
+              <span className="text-muted-foreground">
+                {booking.customer.phone}
+              </span>
             </div>
           )}
           <div className="flex items-center gap-2 text-sm">
             <CalendarDays className="text-muted-foreground h-4 w-4 shrink-0" />
-            <span className="text-muted-foreground">{t("creeLe")} {formatDate(booking.createdAt)}</span>
+            <span className="text-muted-foreground">
+              {t("creeLe")} {formatDate(booking.createdAt)}
+            </span>
           </div>
         </div>
 
@@ -201,20 +253,27 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
             </p>
             {booking.originalCurrency !== "TND" && (
               <p className="text-muted-foreground text-xs">
-                ({parseFloat(booking.originalAmount).toLocaleString("fr-FR")} {booking.originalCurrency})
+                ({parseFloat(booking.originalAmount).toLocaleString("fr-FR")}{" "}
+                {booking.originalCurrency})
               </p>
             )}
           </div>
           {booking.confirmedAt && (
             <div className="text-right">
-              <p className="text-muted-foreground text-xs">{t("confirmeeLe")}</p>
-              <p className="text-foreground text-sm font-medium">{formatDate(booking.confirmedAt)}</p>
+              <p className="text-muted-foreground text-xs">
+                {t("confirmeeLe")}
+              </p>
+              <p className="text-foreground text-sm font-medium">
+                {formatDate(booking.confirmedAt)}
+              </p>
             </div>
           )}
           {booking.cancelledAt && (
             <div className="text-right">
               <p className="text-muted-foreground text-xs">{t("annuleeLe")}</p>
-              <p className="text-destructive text-sm font-medium">{formatDate(booking.cancelledAt)}</p>
+              <p className="text-destructive text-sm font-medium">
+                {formatDate(booking.cancelledAt)}
+              </p>
             </div>
           )}
         </div>
@@ -229,8 +288,14 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
             <Download className="h-4 w-4" />
             {t("facturePdf")}
           </Button>
-          {(booking.status === "pending" || booking.status === "on_request") && (
-            <Button variant="destructive" size="sm" className="ml-auto gap-1.5" disabled>
+          {(booking.status === "pending" ||
+            booking.status === "on_request") && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="ml-auto gap-1.5"
+              disabled
+            >
               <XCircle className="h-4 w-4" />
               {t("annuler")}
             </Button>
@@ -239,8 +304,11 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
 
         {(booking.status === "pending" || booking.status === "on_request") && (
           <p className="text-muted-foreground text-xs">
-            * Les téléchargements et annulations seront disponibles prochainement. Contactez{" "}
-            <a href="tel:+21698140514" className="text-primary hover:underline">+216 98 140 514</a>{" "}
+            * Les téléchargements et annulations seront disponibles
+            prochainement. Contactez{" "}
+            <a href="tel:+21698140514" className="text-primary hover:underline">
+              +216 98 140 514
+            </a>{" "}
             pour toute assistance immédiate.
           </p>
         )}
@@ -287,7 +355,11 @@ export default function BookingsPage() {
       <div className="border-border border-b bg-white/70 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex items-center gap-2">
-            <Easy2BookLogo withWordmark={false} className="size-9 bg-gray-100" priority />
+            <Easy2BookLogo
+              withWordmark={false}
+              className="size-9 bg-gray-100"
+              priority
+            />
             <span className="text-base font-bold">
               <span className="text-[#1e3a5f]">Easy</span>
               <span className="text-[#e5b94e]">2</span>
@@ -307,7 +379,9 @@ export default function BookingsPage() {
       <div className="mx-auto max-w-3xl px-4 py-10">
         {/* Title */}
         <div className="mb-8 text-center">
-          <h1 className="text-foreground text-3xl font-bold">{t("mesReservations")}</h1>
+          <h1 className="text-foreground text-3xl font-bold">
+            {t("mesReservations")}
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             {t("consultezStatut")}
           </p>
@@ -317,7 +391,7 @@ export default function BookingsPage() {
         {!result && (
           <form
             onSubmit={handleSubmit}
-            className="bg-card border-border shadow-sm space-y-4 rounded-2xl border p-6"
+            className="bg-card border-border space-y-4 rounded-2xl border p-6 shadow-sm"
           >
             <div className="space-y-2">
               <Label htmlFor="ref">{t("codeReservation")}</Label>
@@ -357,9 +431,14 @@ export default function BookingsPage() {
 
             <Button type="submit" className="w-full gap-2" disabled={isPending}>
               {isPending ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> {t("rechercheEnCours")}</>
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                  {t("rechercheEnCours")}
+                </>
               ) : (
-                <><Search className="h-4 w-4" /> {t("rechercherReservation")}</>
+                <>
+                  <Search className="h-4 w-4" /> {t("rechercherReservation")}
+                </>
               )}
             </Button>
           </form>
@@ -370,7 +449,12 @@ export default function BookingsPage() {
           <div className="space-y-4">
             <BookingCard booking={result} />
             <div className="flex justify-center">
-              <Button variant="ghost" size="sm" onClick={handleReset} className="gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleReset}
+                className="gap-2"
+              >
                 <Search className="h-4 w-4" />
                 {t("autreReservation")}
               </Button>

@@ -11,6 +11,7 @@
  */
 
 import { ZodError, ZodTypeAny } from "zod"
+import { trackLatency } from "@/lib/logger"
 import { getMyGoConfig } from "./config"
 import {
   MyGoApiError,
@@ -20,7 +21,8 @@ import {
   MyGoSchemaError,
   MyGoTimeoutError,
 } from "./errors"
-import { CircuitBreaker, getSharedCircuitBreaker } from "./circuit-breaker"
+import { CircuitBreaker } from "./circuit-breaker"
+import { SyncRedisCircuitBreaker, getSharedSyncRedisCircuitBreaker } from "./circuit-breaker-redis"
 import { memoize } from "./cache"
 import {
   HotelDetailResponse,
@@ -80,7 +82,7 @@ interface CallOptions {
  */
 export class MyGoClient {
   constructor(
-    private readonly breaker: CircuitBreaker = getSharedCircuitBreaker(),
+    private readonly breaker: CircuitBreaker = getSharedSyncRedisCircuitBreaker(),
   ) {}
 
   // -------------------------------------------------------------------------
@@ -261,6 +263,7 @@ export class MyGoClient {
     let lastError: unknown = null
 
     for (let attempt = 0; attempt <= cfg.maxRetries; attempt++) {
+      const timer = trackLatency("mygo", method)
       try {
         const json = await this.httpJson(url, fullBody, cfg.timeoutMs)
 
@@ -294,27 +297,32 @@ export class MyGoClient {
         }
 
         this.breaker.onSuccess()
+        timer.end({ attempt })
         return parsed as import("zod").infer<S>
       } catch (err) {
         lastError = err
+        const isCircuitErr = err instanceof MyGoCircuitOpenError
 
-        // Erreurs métier non-retryables → on arrête tout de suite
+        // Erreurs métier non-retryables → log + stop immédiat
         if (
           err instanceof MyGoAuthError ||
           err instanceof MyGoApiError ||
           err instanceof MyGoSchemaError ||
-          err instanceof MyGoCircuitOpenError
+          isCircuitErr
         ) {
+          timer.end({ attempt, error: redactPii(err instanceof Error ? err.message : String(err)) })
           throw err
         }
 
-        // Erreurs réseau / timeout / 5xx → on retry avec backoff
+        // Erreurs réseau / timeout / 5xx → retry avec backoff
         const isLast = attempt === cfg.maxRetries
         if (isLast) {
           this.breaker.onFailure()
+          timer.end({ attempt, error: redactPii(err instanceof Error ? err.message : String(err)), final: true })
           throw err
         }
         const backoffMs = Math.min(8000, 500 * 2 ** attempt)
+        timer.end({ attempt, retry: true, backoffMs })
         await sleep(backoffMs)
       }
     }
@@ -370,6 +378,17 @@ export class MyGoClient {
   }
 }
 
+/**
+ * Masque les PII (email, téléphone, nom) dans un message d'erreur avant log.
+ * Conformité RGPD : aucune donnée voyageur ne doit apparaître dans les logs JSON.
+ */
+function redactPii(msg: string): string {
+  return msg
+    .replace(/[\w.+-]+@[\w-]+\.[a-z]{2,}/gi, "[email]")       // emails
+    .replace(/\+?[\d][\d\s().\-]{7,14}[\d]/g, "[phone]")        // téléphones
+    .replace(/(Password|password|pwd|token|secret)[=:\s]+\S+/gi, "$1=[redacted]") // credentials
+}
+
 /** Fast deterministic hash of an object — stable across runs. */
 function stableHash(obj: unknown): string {
   const json = JSON.stringify(obj, Object.keys(obj as object).sort())
@@ -383,3 +402,6 @@ export function getMyGoClient(): MyGoClient {
   if (!sharedClient) sharedClient = new MyGoClient()
   return sharedClient
 }
+
+// SyncRedisCircuitBreaker re-exported for tests
+export { SyncRedisCircuitBreaker }

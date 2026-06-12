@@ -40,7 +40,7 @@ export function useRealtimeBroadcast(
         config: { broadcast: { self: false } },
       })
       channel
-        .on("broadcast", { event }, (payload) => {
+        .on("broadcast", { event }, (payload: { payload?: unknown }) => {
           if (cancelled) return
           const next: BroadcastEvent = {
             topic,

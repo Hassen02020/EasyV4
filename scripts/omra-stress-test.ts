@@ -11,7 +11,7 @@
  *   npx tsx scripts/omra-stress-test.ts
  */
 
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
 import { omraAllotments, omraPackages, omraPilgrims } from "@/lib/db/schema"
 
@@ -32,14 +32,16 @@ async function setupTestData() {
     type: "omra",
     basePrice: "2500.00",
     durationDays: 10,
-    isActive: true,
+    validFrom: "2026-01-01",
+    validUntil: "2026-12-31",
+    status: "active",
   }).onConflictDoNothing()
 
   // Créer un allotment avec stock initial
   await db.insert(omraAllotments).values({
-    id: `allot-${PACKAGE_ID}-${DEPARTURE_DATE}`,
     packageId: PACKAGE_ID,
     departureDate: DEPARTURE_DATE,
+    totalCapacity: INITIAL_STOCK,
     availableCount: INITIAL_STOCK,
     overridePrice: "2500.00",
     status: "active",
@@ -54,8 +56,10 @@ async function getCurrentStock(): Promise<number> {
     .select({ count: omraAllotments.availableCount })
     .from(omraAllotments)
     .where(
-      eq(omraAllotments.packageId, PACKAGE_ID),
-      eq(omraAllotments.departureDate, DEPARTURE_DATE)
+      and(
+        eq(omraAllotments.packageId, PACKAGE_ID),
+        eq(omraAllotments.departureDate, DEPARTURE_DATE),
+      )
     )
     .limit(1)
   
@@ -75,8 +79,10 @@ async function bookOmraAtomically(): Promise<{ ok: boolean; reason?: string }> {
         .select({ count: omraAllotments.availableCount })
         .from(omraAllotments)
         .where(
-          eq(omraAllotments.packageId, PACKAGE_ID),
-          eq(omraAllotments.departureDate, DEPARTURE_DATE)
+          and(
+            eq(omraAllotments.packageId, PACKAGE_ID),
+            eq(omraAllotments.departureDate, DEPARTURE_DATE),
+          )
         )
         .for("update")
         .limit(1)
@@ -97,18 +103,23 @@ async function bookOmraAtomically(): Promise<{ ok: boolean; reason?: string }> {
           availableCount: sql`${omraAllotments.availableCount} - ${BOOKING_SIZE}`,
         })
         .where(
-          eq(omraAllotments.packageId, PACKAGE_ID),
-          eq(omraAllotments.departureDate, DEPARTURE_DATE)
+          and(
+            eq(omraAllotments.packageId, PACKAGE_ID),
+            eq(omraAllotments.departureDate, DEPARTURE_DATE),
+          )
         )
 
       // 3. Insérer un pèlerin de test
       await tx.insert(omraPilgrims).values({
-        id: `pilgrim-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         reservationId: `res-${Date.now()}`,
+        agencyId: AGENCY_ID,
         firstName: "Test",
         lastName: "User",
         gender: "male",
+        maritalStatus: "single",
         nationality: "TN",
+        phone: "+21600000000",
+        country: "TN",
         passportNumber: "TEST123456",
         passportIssueDate: "2024-01-01",
         passportExpiryDate: "2029-01-01",

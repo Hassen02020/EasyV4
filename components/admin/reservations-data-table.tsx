@@ -197,10 +197,12 @@ export function ReservationsDataTable({
   rows,
   nextCursor,
   hasMore,
+  showAgencyColumn = false,
 }: {
   rows: AdminReservationRow[]
   nextCursor?: string | null
   hasMore?: boolean
+  showAgencyColumn?: boolean
 }) {
   const router = useRouter()
   const [search, setSearch] = React.useState("")
@@ -373,6 +375,18 @@ export function ReservationsDataTable({
                   <SortIcon active={sortKey === "publicRef"} dir={sortDir} />
                 </button>
               </TableHead>
+              {showAgencyColumn ? (
+                <TableHead>
+                  <button
+                    type="button"
+                    className="flex items-center"
+                    onClick={() => toggleSort("customerName")}
+                  >
+                    Agence
+                    <SortIcon active={false} dir={sortDir} />
+                  </button>
+                </TableHead>
+              ) : null}
               <TableHead>
                 <button
                   type="button"
@@ -433,6 +447,14 @@ export function ReservationsDataTable({
                   <TableCell className="font-mono text-xs">
                     {row.publicRef}
                   </TableCell>
+                  {showAgencyColumn ? (
+                    <TableCell>
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <Building2 className="text-muted-foreground size-3 shrink-0" />
+                        {row.agencyName ?? "—"}
+                      </span>
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     <div className="font-medium">{row.customerName}</div>
                     {row.customerEmail ? (
@@ -457,7 +479,7 @@ export function ReservationsDataTable({
                     <Select
                       value=""
                       onValueChange={(next) =>
-                        handleStatusChange(row, next as ReservationStatus)
+                        void handleStatusChange(row, next as ReservationStatus)
                       }
                       disabled={pendingId === row.id}
                     >
@@ -531,7 +553,9 @@ export function ReservationsDataTable({
               variant="default"
               size="sm"
               onClick={() =>
-                router.push(`/admin/reservations?cursor=${encodeURIComponent(nextCursor)}`)
+                router.push(
+                  `/admin/reservations?cursor=${encodeURIComponent(nextCursor)}`,
+                )
               }
               aria-label="Page serveur suivante"
             >

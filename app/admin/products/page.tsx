@@ -1,6 +1,6 @@
 /**
  * Catalogue Produits — Manager
- * 
+ *
  * Gestion des produits B2C (Hôtels, Vols, Packages, etc.)
  */
 
@@ -52,25 +52,102 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 const PRODUCT_TYPES = [
-  { id: "hotel", name: "Hôtels Tunisie", icon: Building2, count: 245, active: 198, color: "bg-blue-500" },
-  { id: "flight", name: "Vols", icon: Plane, count: 12, active: 12, color: "bg-sky-500" },
-  { id: "package", name: "Voyages Organisés", icon: Briefcase, count: 45, active: 38, color: "bg-emerald-500" },
-  { id: "omra", name: "Omra", icon: Moon, count: 8, active: 6, color: "bg-purple-500" },
-  { id: "transfer", name: "Transferts", icon: Bus, count: 34, active: 30, color: "bg-orange-500" },
+  {
+    id: "hotel",
+    name: "Hôtels Tunisie",
+    icon: Building2,
+    count: 245,
+    active: 198,
+    color: "bg-blue-500",
+  },
+  {
+    id: "flight",
+    name: "Vols",
+    icon: Plane,
+    count: 12,
+    active: 12,
+    color: "bg-sky-500",
+  },
+  {
+    id: "package",
+    name: "Voyages Organisés",
+    icon: Briefcase,
+    count: 45,
+    active: 38,
+    color: "bg-emerald-500",
+  },
+  {
+    id: "omra",
+    name: "Omra",
+    icon: Moon,
+    count: 8,
+    active: 6,
+    color: "bg-purple-500",
+  },
+  {
+    id: "transfer",
+    name: "Transferts",
+    icon: Bus,
+    count: 34,
+    active: 30,
+    color: "bg-orange-500",
+  },
 ]
 
 // Mock produits
 const MOCK_PRODUCTS = [
-  { id: "H-001", name: "Hôtel Royal Garden", type: "hotel", location: "Hammamet", price: 180, status: "active", bookings: 45 },
-  { id: "H-002", name: "Mövenpick Resort", type: "hotel", location: "Sousse", price: 220, status: "active", bookings: 32 },
-  { id: "V-001", name: "Tunis → Paris", type: "flight", airline: "Tunisair", price: 450, status: "active", bookings: 28 },
-  { id: "P-001", name: "Circuit Désert 4J", type: "package", location: "Douz", price: 890, status: "active", bookings: 15 },
-  { id: "O-001", name: "Omra Ramadan 2024", type: "omra", location: "Makkah", price: 4500, status: "pending", bookings: 0 },
+  {
+    id: "H-001",
+    name: "Hôtel Royal Garden",
+    type: "hotel",
+    location: "Hammamet",
+    price: 180,
+    status: "active",
+    bookings: 45,
+  },
+  {
+    id: "H-002",
+    name: "Mövenpick Resort",
+    type: "hotel",
+    location: "Sousse",
+    price: 220,
+    status: "active",
+    bookings: 32,
+  },
+  {
+    id: "V-001",
+    name: "Tunis → Paris",
+    type: "flight",
+    airline: "Tunisair",
+    price: 450,
+    status: "active",
+    bookings: 28,
+  },
+  {
+    id: "P-001",
+    name: "Circuit Désert 4J",
+    type: "package",
+    location: "Douz",
+    price: 890,
+    status: "active",
+    bookings: 15,
+  },
+  {
+    id: "O-001",
+    name: "Omra Ramadan 2024",
+    type: "omra",
+    location: "Makkah",
+    price: 4500,
+    status: "pending",
+    bookings: 0,
+  },
 ]
 
 export default async function ProductsPage() {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/products")
@@ -112,7 +189,9 @@ export default async function ProductsPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <Icon className="h-5 w-5 text-gray-600" />
-                  <Badge variant="outline">{type.active}/{type.count}</Badge>
+                  <Badge variant="outline">
+                    {type.active}/{type.count}
+                  </Badge>
                 </div>
                 <CardTitle className="text-base">{type.name}</CardTitle>
               </CardHeader>
@@ -139,7 +218,7 @@ export default async function ProductsPage() {
               </TabsList>
             </Tabs>
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input placeholder="Rechercher un produit..." className="pl-9" />
             </div>
           </div>
@@ -149,38 +228,64 @@ export default async function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="py-3 text-left font-medium text-gray-500">Produit</th>
-                  <th className="py-3 text-left font-medium text-gray-500">Type</th>
-                  <th className="py-3 text-left font-medium text-gray-500">Localisation</th>
-                  <th className="py-3 text-right font-medium text-gray-500">Prix</th>
-                  <th className="py-3 text-center font-medium text-gray-500">Réservations</th>
-                  <th className="py-3 text-center font-medium text-gray-500">Statut</th>
-                  <th className="py-3 text-right font-medium text-gray-500">Actions</th>
+                  <th className="py-3 text-left font-medium text-gray-500">
+                    Produit
+                  </th>
+                  <th className="py-3 text-left font-medium text-gray-500">
+                    Type
+                  </th>
+                  <th className="py-3 text-left font-medium text-gray-500">
+                    Localisation
+                  </th>
+                  <th className="py-3 text-right font-medium text-gray-500">
+                    Prix
+                  </th>
+                  <th className="py-3 text-center font-medium text-gray-500">
+                    Réservations
+                  </th>
+                  <th className="py-3 text-center font-medium text-gray-500">
+                    Statut
+                  </th>
+                  <th className="py-3 text-right font-medium text-gray-500">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {MOCK_PRODUCTS.map((product) => {
-                  const typeInfo = PRODUCT_TYPES.find((t) => t.id === product.type)
+                  const typeInfo = PRODUCT_TYPES.find(
+                    (t) => t.id === product.type,
+                  )
                   const TypeIcon = typeInfo?.icon || Package
 
                   return (
                     <tr key={product.id} className="border-b hover:bg-gray-50">
                       <td className="py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`h-8 w-8 rounded-lg ${typeInfo?.color || "bg-gray-500"} flex items-center justify-center`}>
+                          <div
+                            className={`h-8 w-8 rounded-lg ${typeInfo?.color || "bg-gray-500"} flex items-center justify-center`}
+                          >
                             <TypeIcon className="h-4 w-4 text-white" />
                           </div>
                           <div>
                             <p className="font-medium">{product.name}</p>
-                            <p className="text-xs text-gray-500">{product.id}</p>
+                            <p className="text-xs text-gray-500">
+                              {product.id}
+                            </p>
                           </div>
                         </div>
                       </td>
                       <td className="py-3">
-                        <Badge variant="outline">{typeInfo?.name || product.type}</Badge>
+                        <Badge variant="outline">
+                          {typeInfo?.name || product.type}
+                        </Badge>
                       </td>
-                      <td className="py-3 text-gray-600">{product.location || "—"}</td>
-                      <td className="py-3 text-right font-semibold">{product.price.toLocaleString("fr-FR")} DT</td>
+                      <td className="py-3 text-gray-600">
+                        {product.location || "—"}
+                      </td>
+                      <td className="py-3 text-right font-semibold">
+                        {product.price.toLocaleString("fr-FR")} DT
+                      </td>
                       <td className="py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <TrendingUp className="h-3 w-3 text-emerald-500" />
@@ -188,7 +293,13 @@ export default async function ProductsPage() {
                         </div>
                       </td>
                       <td className="py-3 text-center">
-                        <Badge className={product.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>
+                        <Badge
+                          className={
+                            product.status === "active"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-800"
+                          }
+                        >
                           {product.status === "active" ? "Actif" : "En attente"}
                         </Badge>
                       </td>
@@ -212,8 +323,16 @@ export default async function ProductsPage() {
                               Modifier
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className={product.status === "active" ? "text-amber-600" : "text-emerald-600"}>
-                              {product.status === "active" ? "Désactiver" : "Activer"}
+                            <DropdownMenuItem
+                              className={
+                                product.status === "active"
+                                  ? "text-amber-600"
+                                  : "text-emerald-600"
+                              }
+                            >
+                              {product.status === "active"
+                                ? "Désactiver"
+                                : "Activer"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

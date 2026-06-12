@@ -50,7 +50,8 @@ function walk(dir: string, relative = ""): string[] {
     if (entry.name.startsWith("_")) continue // privates (_lib, _components…)
     if (entry.name === "layout.tsx" || entry.name === "layout.ts") continue
     if (entry.name === "error.tsx" || entry.name === "error.ts") continue
-    if (entry.name === "not-found.tsx" || entry.name === "not-found.ts") continue
+    if (entry.name === "not-found.tsx" || entry.name === "not-found.ts")
+      continue
     if (entry.name === "template.tsx" || entry.name === "template.ts") continue
 
     const fullPath = path.join(dir, entry.name)
@@ -113,7 +114,8 @@ function main() {
 
   const table = items.map((it) => ({
     URL: it.url,
-    Type: it.kind === "api" ? "API" : it.kind === "loading" ? "Skeleton" : "Page",
+    Type:
+      it.kind === "api" ? "API" : it.kind === "loading" ? "Skeleton" : "Page",
     Fichier: it.file,
   }))
 
@@ -125,7 +127,9 @@ function main() {
   const apis = items.filter((i) => i.kind === "api").length
   const skeletons = items.filter((i) => i.kind === "loading").length
 
-  console.log(`\nRésumé : ${pages} pages · ${apis} API routes · ${skeletons} skeletons\n`)
+  console.log(
+    `\nRésumé : ${pages} pages · ${apis} API routes · ${skeletons} skeletons\n`,
+  )
 }
 
 main()

@@ -1,6 +1,6 @@
 /**
  * Logs Système — Super Admin uniquement
- * 
+ *
  * Visualisation des logs d'activité, erreurs API et audit
  */
 
@@ -94,10 +94,25 @@ const MOCK_LOGS = [
   },
 ]
 
-const LEVEL_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  info: { label: "Info", color: "bg-blue-100 text-blue-800", icon: CheckCircle2 },
-  warning: { label: "Avertissement", color: "bg-amber-100 text-amber-800", icon: AlertTriangle },
-  error: { label: "Erreur", color: "bg-red-100 text-red-800", icon: AlertTriangle },
+const LEVEL_CONFIG: Record<
+  string,
+  { label: string; color: string; icon: typeof CheckCircle2 }
+> = {
+  info: {
+    label: "Info",
+    color: "bg-blue-100 text-blue-800",
+    icon: CheckCircle2,
+  },
+  warning: {
+    label: "Avertissement",
+    color: "bg-amber-100 text-amber-800",
+    icon: AlertTriangle,
+  },
+  error: {
+    label: "Erreur",
+    color: "bg-red-100 text-red-800",
+    icon: AlertTriangle,
+  },
   debug: { label: "Debug", color: "bg-gray-100 text-gray-800", icon: Terminal },
 }
 
@@ -112,7 +127,9 @@ const CATEGORY_CONFIG: Record<string, { label: string }> = {
 
 export default async function SystemLogsPage() {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/logs")
@@ -170,7 +187,7 @@ export default async function SystemLogsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Erreurs</CardTitle>
-            <AlertTriangle className="text-red-500 h-4 w-4" />
+            <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-600">{stats.errors}</p>
@@ -178,17 +195,21 @@ export default async function SystemLogsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Avertissements</CardTitle>
-            <AlertTriangle className="text-amber-500 h-4 w-4" />
+            <CardTitle className="text-sm font-medium">
+              Avertissements
+            </CardTitle>
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-amber-600">{stats.warnings}</p>
+            <p className="text-2xl font-bold text-amber-600">
+              {stats.warnings}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Info</CardTitle>
-            <CheckCircle2 className="text-blue-500 h-4 w-4" />
+            <CheckCircle2 className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-blue-600">{stats.info}</p>
@@ -226,7 +247,9 @@ export default async function SystemLogsPage() {
               <CardTitle>Logs Authentification</CardTitle>
             </CardHeader>
             <CardContent>
-              <LogsTable logs={MOCK_LOGS.filter((l) => l.category === "auth")} />
+              <LogsTable
+                logs={MOCK_LOGS.filter((l) => l.category === "auth")}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -272,7 +295,9 @@ function LogsTable({ logs }: { logs: typeof MOCK_LOGS }) {
         <TableBody>
           {logs.map((log) => {
             const levelConfig = LEVEL_CONFIG[log.level] || LEVEL_CONFIG.info
-            const categoryConfig = CATEGORY_CONFIG[log.category] || { label: log.category }
+            const categoryConfig = CATEGORY_CONFIG[log.category] || {
+              label: log.category,
+            }
             const LevelIcon = levelConfig.icon
 
             return (
@@ -284,7 +309,9 @@ function LogsTable({ logs }: { logs: typeof MOCK_LOGS }) {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm font-medium">{categoryConfig.label}</span>
+                  <span className="text-sm font-medium">
+                    {categoryConfig.label}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm">{log.message}</p>
@@ -292,17 +319,24 @@ function LogsTable({ logs }: { logs: typeof MOCK_LOGS }) {
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Users className="h-3 w-3 text-gray-400" />
-                    <span className="text-sm text-muted-foreground">{log.user}</span>
+                    <span className="text-muted-foreground text-sm">
+                      {log.user}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">{log.ip}</code>
+                  <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">
+                    {log.ip}
+                  </code>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3 text-gray-400" />
-                    <span className="text-xs text-muted-foreground">
-                      {log.timestamp.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    <span className="text-muted-foreground text-xs">
+                      {log.timestamp.toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   </div>
                 </TableCell>

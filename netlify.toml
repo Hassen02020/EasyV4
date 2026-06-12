@@ -7,3 +7,13 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Env vars requises en production (à configurer dans le dashboard Netlify)
+# UPSTASH_REDIS_REST_URL  = https://<your-db>.upstash.io
+# UPSTASH_REDIS_REST_TOKEN = <your-token>
+# CRON_SECRET              = <random-secret>
+
+# Scheduled function — warm-cache quotidien à 4h UTC
+[[scheduled_functions]]
+  name = "warm-cache"
+  schedule = "0 4 * * *"

@@ -27,14 +27,22 @@ test.describe("Recherche Hôtels Tunisie", () => {
     const checkOut = new Date(today)
     checkOut.setDate(today.getDate() + 14)
 
-    await page.getByRole("gridcell", { name: String(checkIn.getDate()) }).first().click()
-    await page.getByRole("gridcell", { name: String(checkOut.getDate()) }).first().click()
+    await page
+      .getByRole("gridcell", { name: String(checkIn.getDate()) })
+      .first()
+      .click()
+    await page
+      .getByRole("gridcell", { name: String(checkOut.getDate()) })
+      .first()
+      .click()
 
     // 4. Recherche
     await page.getByRole("button", { name: /RECHERCHER/i }).click()
 
     // 5. Page de résultats
     await page.waitForURL(/.*hotels\/search.*/)
-    await expect(page.getByRole("heading", { name: /résultat/i })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole("heading", { name: /résultat/i })).toBeVisible({
+      timeout: 15_000,
+    })
   })
 })

@@ -48,7 +48,7 @@ export function parseOffersParam(
     if (!Number.isFinite(qty) || qty <= 0) continue
     const off = allOffers.find((o) => o.id === id)
     if (!off) continue
-    result.push({ offer: off, qty: Math.min(qty, off.available) })
+    result.push({ offer: off, qty: off.available === false ? 0 : qty })
   }
   return result
 }
@@ -75,7 +75,7 @@ export function buildBookingContext(
       if (!Number.isFinite(qty) || qty <= 0) continue
       const off = allOffers.find((o) => o.id === id)
       if (!off) continue
-      offers.push({ offer: off, qty: Math.min(qty, off.available) })
+      offers.push({ offer: off, qty: off.available === false ? 0 : qty })
     }
   }
   if (offers.length === 0) return null
@@ -89,7 +89,8 @@ export function buildBookingContext(
     (sum, sel) =>
       sum +
       sel.qty *
-        (sel.offer.arrangement.maxAdults + sel.offer.arrangement.maxChildren),
+        ((sel.offer.arrangement.maxAdults ?? 0) +
+          (sel.offer.arrangement.maxChildren ?? 0)),
     0,
   )
 

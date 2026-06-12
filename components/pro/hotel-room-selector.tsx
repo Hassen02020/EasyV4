@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   Minus,
   Plus,
@@ -65,11 +66,17 @@ export function HotelRoomSelector({
   const [showAll, setShowAll] = useState(false)
 
   const availableCategories = useMemo(
-    () => Array.from(new Set(offers.map((o) => o.category.id ?? o.category.name))).filter((x): x is string => !!x),
+    () =>
+      Array.from(
+        new Set(offers.map((o) => o.category.id ?? o.category.name)),
+      ).filter((x): x is string => !!x),
     [offers],
   )
   const availableArrangements = useMemo(
-    () => Array.from(new Set(offers.map((o) => o.arrangement.id ?? o.arrangement.label))).filter((x): x is string => !!x),
+    () =>
+      Array.from(
+        new Set(offers.map((o) => o.arrangement.id ?? o.arrangement.label)),
+      ).filter((x): x is string => !!x),
     [offers],
   )
   const availableBoardings = useMemo(
@@ -147,18 +154,29 @@ export function HotelRoomSelector({
   function handleSubmit() {
     if (selectedRoomsCount === 0) return
     startTransition(() => {
-      const params = new URLSearchParams()
-      params.set("hotelId", hotel.id)
-      if (context.checkin) params.set("checkin", context.checkin)
-      if (context.checkout) params.set("checkout", context.checkout)
-      if (context.nights) params.set("nights", String(context.nights))
-      if (context.adults) params.set("adults", String(context.adults))
-      if (context.children) params.set("children", String(context.children))
-      const offersStr = Object.entries(selection)
-        .map(([id, qty]) => `${id}:${qty}`)
-        .join(",")
-      params.set("offers", offersStr)
-      router.push(`/pro/booking/travelers?${params.toString()}`)
+      try {
+        const params = new URLSearchParams()
+        params.set("hotelId", hotel.id)
+        if (context.checkin) params.set("checkin", context.checkin)
+        if (context.checkout) params.set("checkout", context.checkout)
+        if (context.nights) params.set("nights", String(context.nights))
+        if (context.adults) params.set("adults", String(context.adults))
+        if (context.children) params.set("children", String(context.children))
+        const offersStr = Object.entries(selection)
+          .filter(([, qty]) => qty > 0)
+          .map(([id, qty]) => `${id}:${qty}`)
+          .join(",")
+        if (!offersStr) {
+          toast.error("Aucune chambre sélectionnée")
+          return
+        }
+        params.set("offers", offersStr)
+        router.push(`/pro/booking/travelers?${params.toString()}`)
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Erreur de navigation — réessayez",
+        )
+      }
     })
   }
 
@@ -206,7 +224,8 @@ export function HotelRoomSelector({
             items={availableCategories.map((id) => ({
               id,
               label:
-                offers.find((o) => (o.category.id ?? "") === id)?.category.name ?? id,
+                offers.find((o) => (o.category.id ?? "") === id)?.category
+                  .name ?? id,
             }))}
             value={selectedCategories}
             onToggle={(id) => setSelectedCategories((prev) => toggle(prev, id))}
@@ -314,7 +333,8 @@ export function HotelRoomSelector({
                 {visibleOffers.map((offer) => {
                   const qty = selection[offer.id] ?? 0
                   const occupants =
-                    (offer.arrangement.maxAdults ?? offer.capacity) + (offer.arrangement.maxChildren ?? 0)
+                    (offer.arrangement.maxAdults ?? offer.capacity) +
+                    (offer.arrangement.maxChildren ?? 0)
                   return (
                     <tr
                       key={offer.id}
@@ -354,7 +374,7 @@ export function HotelRoomSelector({
                         </div>
                       </td>
                       <td className="text-muted-foreground max-w-[180px] px-3 py-3 text-xs leading-snug">
-                        {offer.conditions}
+                        {offer.conditions.map((c) => c.label).join(", ") || "—"}
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex items-center justify-center gap-1">
@@ -364,9 +384,7 @@ export function HotelRoomSelector({
                             size="icon"
                             className="h-7 w-7 rounded-full"
                             disabled={qty === 0}
-                            onClick={() =>
-                              changeQty(offer.id, -1, 10)
-                            }
+                            onClick={() => changeQty(offer.id, -1, 10)}
                             aria-label="Diminuer"
                           >
                             <Minus className="h-3 w-3" />
@@ -380,9 +398,7 @@ export function HotelRoomSelector({
                             size="icon"
                             className="h-7 w-7 rounded-full"
                             disabled={qty >= 10}
-                            onClick={() =>
-                              changeQty(offer.id, +1, 10)
-                            }
+                            onClick={() => changeQty(offer.id, +1, 10)}
                             aria-label="Augmenter"
                           >
                             <Plus className="h-3 w-3" />

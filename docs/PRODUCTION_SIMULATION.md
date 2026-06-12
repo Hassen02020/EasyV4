@@ -18,13 +18,13 @@ npx tsx scripts/list-routes.ts --json > audit-routes.json
 
 ### 1.2 Résultat attendu
 
-| Type | Compteur | Exemples |
-|------|----------|----------|
-| **Pages publiques** | `/`, `/login`, `/hotels/search` | Accessible sans auth |
-| **Pages protégées** | `/admin/*`, `/pro/*` | Middleware `auth.ts` requis |
-| **API routes** | `/api/hotels/search`, `/api/cron/purge-audit` | Rate limiting + cache |
-| **Webhooks** | `/api/auth/callback` | Vérifier CSRF / secret |
-| **Skeletons** | `loading.tsx` associés | Vérifier couverture 100% |
+| Type                | Compteur                                      | Exemples                    |
+| ------------------- | --------------------------------------------- | --------------------------- |
+| **Pages publiques** | `/`, `/login`, `/hotels/search`               | Accessible sans auth        |
+| **Pages protégées** | `/admin/*`, `/pro/*`                          | Middleware `auth.ts` requis |
+| **API routes**      | `/api/hotels/search`, `/api/cron/purge-audit` | Rate limiting + cache       |
+| **Webhooks**        | `/api/auth/callback`                          | Vérifier CSRF / secret      |
+| **Skeletons**       | `loading.tsx` associés                        | Vérifier couverture 100%    |
 
 **Action de sécurité :** comparer la liste générée avec la matrice d'accès du CDC. Toute route orpheline = risque.
 
@@ -85,12 +85,12 @@ NODE_ENV=production npm run start
 
 ### 2.3 Désactiver les outils de développement
 
-| Outil | Action |
-|-------|--------|
+| Outil             | Action                                                   |
+| ----------------- | -------------------------------------------------------- |
 | React Strict Mode | `next.config.mjs` → `reactStrictMode: false` (optionnel) |
-| Source maps | Supprimer `.next/*.map` avant deploy |
-| Console logs | `grep -r "console\." app/ lib/ components/` → nettoyer |
-| Turbopack | Forcer `next build` (webpack) pour test |
+| Source maps       | Supprimer `.next/*.map` avant deploy                     |
+| Console logs      | `grep -r "console\." app/ lib/ components/` → nettoyer   |
+| Turbopack         | Forcer `next build` (webpack) pour test                  |
 
 ---
 
@@ -112,6 +112,7 @@ node scripts/stress-test.mjs --target http://localhost:3000/pro/login --duration
 ```
 
 **Seuils de réussite :**
+
 - 0 erreur 5xx
 - p99 latence < 5s
 - > 100 req/s sur un dyno Vercel Hobby
@@ -184,6 +185,7 @@ open http://localhost:3001
 ```
 
 **Validation :**
+
 - Les skeletons doivent apparaître < 200ms (perceived performance)
 - Les requêtes API doivent timeout après `MYGO_TIMEOUT_MS=15000` max
 - Aucun crash client (ErrorBoundary doit catcher)
@@ -203,6 +205,7 @@ npx tsx scripts/wallet-race-test.ts
 ```
 
 **Comment ça marche :**
+
 1. Initialise le solde à 200 TND
 2. Lance 5 débits simultanés de 50 TND chacun
 3. Avec `FOR UPDATE` (verrou ligne), seuls 4 passent
@@ -252,6 +255,7 @@ const MYGO_TIMEOUT_MS = 1 // 1ms → toujours en timeout
 ```
 
 Observer que :
+
 - Le circuit breaker s'ouvre après N échecs
 - Le fallback JSON (fixture) est servi
 - Aucun 500 côté client

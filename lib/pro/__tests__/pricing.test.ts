@@ -49,23 +49,19 @@ test("marginDelta calcule le markup TND", () => {
   assert.equal(marginDelta(1000, fixed25), 25)
 })
 
-test("applyMarginsToHotel : tous les boardings sont markup'és", () => {
+test("applyMarginsToHotel : tous les prix rooms sont markup'és", () => {
   const hotel = {
     id: "h1",
-    boardings: [
-      { type: "BB", price: 500 },
-      { type: "HB", price: 750 },
-      { type: "AI", price: 1000 },
-    ],
+    rooms: [{ prices: { BB: 500, HB: 750, AI: 1000 } }],
   }
   const map = { ...DEFAULT_MARGINS, hotel: percent10 }
   const out = applyMarginsToHotel(hotel, map)
   assert.equal(out.id, "h1")
-  assert.equal(out.boardings[0]!.price, 550)
-  assert.equal(out.boardings[1]!.price, 825)
-  assert.equal(out.boardings[2]!.price, 1100)
+  assert.equal(out.rooms[0]!.prices["BB"], 550)
+  assert.equal(out.rooms[0]!.prices["HB"], 825)
+  assert.equal(out.rooms[0]!.prices["AI"], 1100)
   // L'objet hotel d'origine est inchangé (immutabilité).
-  assert.equal(hotel.boardings[0]!.price, 500)
+  assert.equal(hotel.rooms[0]!.prices["BB"], 500)
 })
 
 test("applyMarginsToOffers : marge appliquée à chaque RoomOffer", () => {

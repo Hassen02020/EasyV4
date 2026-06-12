@@ -1,9 +1,9 @@
 /**
  * Layout Protection Gestion des Agences
- * 
+ *
  * STRICTEMENT réservé au Super Admin.
  * Gestion des agences partenaires et de la configuration multi-tenant.
- * 
+ *
  * Rôle autorisé: super_admin UNIQUEMENT
  */
 
@@ -20,7 +20,9 @@ export default async function AgenciesLayout({
   children: React.ReactNode
 }) {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/agencies")

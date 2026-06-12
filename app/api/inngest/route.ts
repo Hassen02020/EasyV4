@@ -11,9 +11,16 @@ import { inngest } from "@/lib/inngest/client"
 import {
   processConfirmedBooking,
   processWalletCredit,
+  processTransferConfirmed,
+  processOmraConfirmed,
 } from "@/lib/inngest/functions"
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [processConfirmedBooking, processWalletCredit],
+  functions: [
+    processConfirmedBooking,
+    processWalletCredit,
+    processTransferConfirmed,
+    processOmraConfirmed,
+  ],
 })

@@ -99,7 +99,8 @@ export function OmraBookingForm() {
   const [submitSuccess, setSubmitSuccess] = useState<{ reservationId: string; publicRef: string } | null>(null)
 
   const form = useForm<OmraBookingFormData>({
-    resolver: zodResolver(omraBookingSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(omraBookingSchema) as any,
     defaultValues: {
       packageId: "",
       departureDate: "",
@@ -148,11 +149,9 @@ export function OmraBookingForm() {
 
     try {
       const result = await createOmraBooking({
-        agencyId: "00000000-0000-0000-0000-000000000001", // TODO: depuis session
         packageId: data.packageId,
         departureDate: data.departureDate,
         pilgrims: data.pilgrims as OmraPilgrimInput[],
-        createdByUserId: undefined, // TODO: depuis session
       })
 
       if (!result.ok) {
@@ -207,7 +206,7 @@ export function OmraBookingForm() {
         </Alert>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-6">
         {/* Package Selection */}
         <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
           <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
@@ -645,8 +644,10 @@ export function OmraBookingForm() {
               <span className="sm:hidden">Traitement...</span>
             </>
           ) : (
-            <span className="hidden sm:inline">Confirmer la Réservation</span>
-            <span className="sm:hidden">Confirmer</span>
+            <>
+              <span className="hidden sm:inline">Confirmer la Réservation</span>
+              <span className="sm:hidden">Confirmer</span>
+            </>
           )}
         </Button>
       </form>

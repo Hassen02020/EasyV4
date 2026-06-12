@@ -1,7 +1,7 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { eq, desc, and } from "drizzle-orm"
+import { eq, desc, and, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
 import {
   customers,
@@ -15,34 +15,36 @@ import { computePriceBreakdown } from "./pricing"
 import { decodeDraft } from "./draft-store"
 import { walletDebitReservation } from "@/lib/wallet/actions"
 import { inngest } from "@/lib/inngest/client"
-
-const AGENCY_ID = "00000000-0000-0000-0000-000000000001"
+import { createServerSupabase } from "@/lib/supabase/server"
+import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 
 function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
 }
 
 async function nextPublicRef(
-  db: ReturnType<typeof getDb>,
+  db: ReturnType<typeof getDb> | Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0],
   agencyId: string,
 ): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `TG-${year}-`
-  const rows = await db
-    .select({ publicRef: reservations.publicRef })
+  // MAX() sur les refs du préfixe courant — atomique dans la transaction parente
+  // élimine la race condition du scan-50-lignes précédent
+  const [row] = await (db as ReturnType<typeof getDb>)
+    .select({
+      maxRef: sql<string | null>`MAX(${reservations.publicRef})`,
+    })
     .from(reservations)
-    .where(eq(reservations.agencyId, agencyId))
-    .orderBy(desc(reservations.createdAt))
-    .limit(50)
+    .where(
+      and(
+        eq(reservations.agencyId, agencyId),
+        sql`${reservations.publicRef} LIKE ${prefix + "%"}`,
+      ),
+    )
 
-  let max = 0
-  for (const r of rows) {
-    if (r.publicRef.startsWith(prefix)) {
-      const n = Number(r.publicRef.slice(prefix.length))
-      if (Number.isFinite(n) && n > max) max = n
-    }
-  }
-  return `${prefix}${pad(max + 1)}`
+  const maxRef = row?.maxRef
+  const max = maxRef ? Number(maxRef.slice(prefix.length)) : 0
+  return `${prefix}${pad(Number.isFinite(max) ? max + 1 : 1)}`
 }
 
 export type CreateReservationResult =
@@ -55,6 +57,19 @@ export async function createReservationFromDraft(input: {
 }): Promise<CreateReservationResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
+  }
+
+  // Résoudre l'agencyId depuis la session authentifiée — jamais hardcodé
+  let agencyId: string
+  try {
+    const supabase = await createServerSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: "Non authentifié" }
+    const profile = await getCurrentPartnerProfile(user.id)
+    if (!profile) return { ok: false, error: "Profil partenaire introuvable" }
+    agencyId = profile.agency.id
+  } catch {
+    return { ok: false, error: "Erreur d'authentification" }
   }
 
   const draftParse = bookingDraftSchema.safeParse(input.draft)
@@ -87,158 +102,169 @@ export async function createReservationFromDraft(input: {
 
   const db = getDb()
 
-  let customerId: string
-  if (traveler.email) {
-    const existing = await db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(
-        and(
-          eq(customers.agencyId, AGENCY_ID),
-          eq(customers.email, traveler.email),
-        ),
-      )
-      .limit(1)
-    if (existing[0]) {
-      customerId = existing[0].id
-    } else {
-      const inserted = await db
-        .insert(customers)
+  try {
+    const result = await db.transaction(async (tx) => {
+      // --- Résoudre ou créer le client ---
+      let customerId: string
+      if (traveler.email) {
+        const existing = await tx
+          .select({ id: customers.id })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.agencyId, agencyId),
+              eq(customers.email, traveler.email),
+            ),
+          )
+          .limit(1)
+        if (existing[0]) {
+          customerId = existing[0].id
+        } else {
+          const inserted = await tx
+            .insert(customers)
+            .values({
+              agencyId,
+              civility: traveler.civility,
+              firstName: traveler.firstName,
+              lastName: traveler.lastName,
+              email: traveler.email,
+              phone: traveler.phone,
+              civicId: traveler.civicId,
+              civicIdType: traveler.civicIdType,
+              birthDate: traveler.birthDate || null,
+              nationality: traveler.nationality || null,
+            })
+            .returning({ id: customers.id })
+          customerId = inserted[0].id
+        }
+      } else {
+        const inserted = await tx
+          .insert(customers)
+          .values({
+            agencyId,
+            civility: traveler.civility,
+            firstName: traveler.firstName,
+            lastName: traveler.lastName,
+            phone: traveler.phone,
+            civicId: traveler.civicId,
+            civicIdType: traveler.civicIdType,
+          })
+          .returning({ id: customers.id })
+        customerId = inserted[0].id
+      }
+
+      const publicRef = await nextPublicRef(tx, agencyId)
+
+      const inserted = await tx
+        .insert(reservations)
         .values({
-          agencyId: AGENCY_ID,
-          civility: traveler.civility,
-          firstName: traveler.firstName,
-          lastName: traveler.lastName,
-          email: traveler.email,
-          phone: traveler.phone,
-          civicId: traveler.civicId,
-          civicIdType: traveler.civicIdType,
-          birthDate: traveler.birthDate || null,
-          nationality: traveler.nationality || null,
+          agencyId,
+          publicRef,
+          customerId,
+          module: draft.module,
+          source: "internal",
+          status: "pending",
+          originalCurrency: draft.currency,
+          originalAmount: String(breakdown.totalTnd),
+          tndAmount: String(breakdown.totalTnd),
+          depositAmount: String(breakdown.depositTnd),
+          depositPaid: "0",
+          providerPayload: {
+            offerId: draft.offerId,
+            offerLabel: draft.offerLabel,
+            startDate: draft.startDate,
+            endDate: draft.endDate,
+            adults: draft.adults,
+            children: draft.children,
+            breakdown,
+            metadata: draft.metadata ?? null,
+          },
         })
-        .returning({ id: customers.id })
-      customerId = inserted[0].id
-    }
-  } else {
-    const inserted = await db
-      .insert(customers)
-      .values({
-        agencyId: AGENCY_ID,
-        civility: traveler.civility,
-        firstName: traveler.firstName,
-        lastName: traveler.lastName,
-        phone: traveler.phone,
-        civicId: traveler.civicId,
-        civicIdType: traveler.civicIdType,
+        .returning({ id: reservations.id, publicRef: reservations.publicRef })
+      const reservationId = inserted[0].id
+
+      if (draft.module === "hotel") {
+        const startDate = new Date(draft.startDate)
+        const endDate = draft.endDate ? new Date(draft.endDate) : startDate
+        const nights = Math.max(
+          1,
+          Math.round(
+            (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+          ),
+        )
+        await tx.insert(reservationHotel).values({
+          reservationId,
+          agencyId,
+          hotelId: Number(draft.offerId) || 0,
+          hotelName: draft.offerLabel,
+          checkIn: draft.startDate,
+          checkOut: draft.endDate ?? draft.startDate,
+          nights,
+          adults: draft.adults,
+          childrenAges: [],
+        })
+      }
+
+      await tx.insert(auditEvents).values({
+        agencyId,
+        action: "reservation.created",
+        entityType: "reservation",
+        entityId: reservationId,
+        diff: {
+          module: draft.module,
+          publicRef,
+          total: breakdown.totalTnd,
+          via: "front-office",
+        },
       })
-      .returning({ id: customers.id })
-    customerId = inserted[0].id
-  }
 
-  const publicRef = await nextPublicRef(db, AGENCY_ID)
+      // --- Débit wallet — dans la transaction : rollback total si insuffisant ---
+      const debitResult = await walletDebitReservation({
+        agencyId,
+        reservationId,
+        amountTnd: breakdown.totalTnd,
+      })
 
-  const inserted = await db
-    .insert(reservations)
-    .values({
-      agencyId: AGENCY_ID,
-      publicRef,
-      customerId,
-      module: draft.module,
-      source: "internal",
-      status: "pending",
-      originalCurrency: draft.currency,
-      originalAmount: String(breakdown.totalTnd),
-      tndAmount: String(breakdown.totalTnd),
-      depositAmount: String(breakdown.depositTnd),
-      depositPaid: "0",
-      providerPayload: {
-        offerId: draft.offerId,
-        offerLabel: draft.offerLabel,
-        startDate: draft.startDate,
-        endDate: draft.endDate,
-        adults: draft.adults,
-        children: draft.children,
-        breakdown,
-        metadata: draft.metadata ?? null,
+      if (!debitResult.ok) {
+        throw new Error(
+          debitResult.code === "INSUFFICIENT_BALANCE"
+            ? `INSUFFICIENT_BALANCE:${breakdown.totalTnd.toFixed(3)}`
+            : `WALLET_ERROR:${debitResult.error}`,
+        )
+      }
+
+      return { reservationId, publicRef, agencyId }
+    })
+
+    // --- Événement Inngest (hors transaction, fire-and-forget) ---
+    // PII sanitizé : on n'envoie que les références opaques, pas les données voyageur
+    inngest.send({
+      name: "booking/confirmed",
+      data: {
+        reservationId: result.reservationId,
+        publicRef: result.publicRef,
+        agencyId: result.agencyId,
+        customerId: result.reservationId, // référence opaque
+        module: draft.module,
+        totalTnd: breakdown.totalTnd,
       },
-    })
-    .returning({ id: reservations.id, publicRef: reservations.publicRef })
-  const reservationId = inserted[0].id
+    }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
 
-  if (draft.module === "hotel") {
-    const startDate = new Date(draft.startDate)
-    const endDate = draft.endDate ? new Date(draft.endDate) : startDate
-    const nights = Math.max(
-      1,
-      Math.round(
-        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-      ),
-    )
-    await db.insert(reservationHotel).values({
-      reservationId,
-      agencyId: AGENCY_ID,
-      hotelId: Number(draft.offerId) || 0,
-      hotelName: draft.offerLabel,
-      checkIn: draft.startDate,
-      checkOut: draft.endDate ?? draft.startDate,
-      nights,
-      adults: draft.adults,
-      childrenAges: [],
-    })
-  }
-
-  await db.insert(auditEvents).values({
-    agencyId: AGENCY_ID,
-    action: "reservation.created",
-    entityType: "reservation",
-    entityId: reservationId,
-    diff: {
-      module: draft.module,
-      publicRef,
-      total: breakdown.totalTnd,
-      via: "front-office",
-    },
-  })
-
-  /* --- Débit wallet (atomique) --- */
-  const debitResult = await walletDebitReservation({
-    agencyId: AGENCY_ID,
-    reservationId,
-    amountTnd: breakdown.totalTnd,
-  })
-
-  if (!debitResult.ok) {
-    return {
-      ok: false,
-      error:
-        debitResult.code === "INSUFFICIENT_BALANCE"
-          ? `Solde insuffisant — il vous faut ${breakdown.totalTnd.toFixed(3)} DT. Rechargez votre wallet puis réessayez.`
-          : debitResult.error,
+    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.startsWith("INSUFFICIENT_BALANCE:")) {
+      const amount = msg.split(":")[1]
+      return {
+        ok: false,
+        error: `Solde insuffisant — il vous faut ${amount} DT. Rechargez votre wallet puis réessayez.`,
+      }
     }
+    if (msg.startsWith("WALLET_ERROR:")) {
+      return { ok: false, error: msg.split(":")[1] ?? "Erreur wallet" }
+    }
+    return { ok: false, error: "Erreur interne lors de la création de la réservation" }
   }
-
-  /* --- Émettre l'événement Inngest (arrière-plan, non-bloquant) --- */
-  inngest.send({
-    name: "booking/confirmed",
-    data: {
-      reservationId,
-      publicRef,
-      agencyId: AGENCY_ID,
-      customerEmail: traveler.email,
-      customerName: `${traveler.firstName} ${traveler.lastName}`,
-      hotelName: draft.offerLabel,
-      checkIn: draft.startDate,
-      checkOut: draft.endDate ?? draft.startDate,
-      nights: draft.endDate
-        ? Math.max(1, Math.round((new Date(draft.endDate).getTime() - new Date(draft.startDate).getTime()) / 86_400_000))
-        : 1,
-      adults: draft.adults,
-      children: draft.children,
-      totalTnd: breakdown.totalTnd,
-    },
-  }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
-
-  return { ok: true, reservationId, publicRef }
 }
 
 export async function submitCheckoutAction(formData: FormData): Promise<void> {

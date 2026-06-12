@@ -88,17 +88,25 @@ export async function validateRoleAccess(
         agencyId: users.agencyId,
       })
       .from(users)
-      .where(and(eq(users.id, userId), eq(users.email, email.toLowerCase().trim())))
+      .where(
+        and(eq(users.id, userId), eq(users.email, email.toLowerCase().trim())),
+      )
       .limit(1)
 
     const dbUser = userRows[0]
 
     if (!dbUser) {
-      return { ok: false, message: "Utilisateur non trouvé dans la base de données" }
+      return {
+        ok: false,
+        message: "Utilisateur non trouvé dans la base de données",
+      }
     }
 
     if (dbUser.status === "suspended") {
-      return { ok: false, message: "Compte suspendu. Contactez l'administrateur." }
+      return {
+        ok: false,
+        message: "Compte suspendu. Contactez l'administrateur.",
+      }
     }
 
     // Mapping des rôles demandés vers les rôles DB

@@ -17,22 +17,39 @@ import {
   Loader2,
   ArrowRight,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { BOARDING_LABEL, BOARDING_SHORT } from "@/lib/pro/hotels-fixture"
 import { formatTND } from "@/lib/pro/format"
-import {
-  generateBookingRef,
-  type BookingContext,
-} from "@/lib/pro/booking-context"
+import { type BookingContext } from "@/lib/pro/booking-context"
+import { createReservationFromDraft } from "@/lib/booking/actions"
+import type { BookingDraft } from "@/lib/booking/schemas"
 
 type Traveler = {
   firstName: string
   lastName: string
   isMain: boolean
+}
+
+type MainTraveler = {
+  civility: "M" | "Mme" | "Mlle" | ""
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  civicIdType: "cin" | "passport"
+  civicId: string
 }
 
 type PaymentMode = "deposit" | "transfer" | "card" | "check"
@@ -104,6 +121,15 @@ export function BookingTravelersForm({
   }, [context.roomsCount])
 
   const [travelers, setTravelers] = useState<Traveler[]>(initialTravelers)
+  const [mainTraveler, setMainTraveler] = useState<MainTraveler>({
+    civility: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    civicIdType: "cin",
+    civicId: "",
+  })
   const [internalRef, setInternalRef] = useState("")
   const [matricule, setMatricule] = useState("")
   const [couponInput, setCouponInput] = useState("")
@@ -115,15 +141,20 @@ export function BookingTravelersForm({
   const [couponError, setCouponError] = useState<string | null>(null)
   const [payment, setPayment] = useState<PaymentMode | null>(null)
   const [editableTotal, setEditableTotal] = useState<number | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const baseTotal = context.subtotal
   const discountAmount = appliedCoupon ? baseTotal * appliedCoupon.discount : 0
   const totalAfterCoupon = baseTotal - discountAmount
   const finalTotal = editableTotal !== null ? editableTotal : totalAfterCoupon
 
-  const mainTraveler = travelers[0]
   const mainTravelerValid = Boolean(
-    mainTraveler?.firstName.trim() && mainTraveler?.lastName.trim(),
+    mainTraveler.civility &&
+    mainTraveler.firstName.trim().length >= 2 &&
+    mainTraveler.lastName.trim().length >= 2 &&
+    mainTraveler.email.trim().includes("@") &&
+    mainTraveler.phone.trim().length >= 7 &&
+    mainTraveler.civicId.trim().length >= 6,
   )
   const canSubmit = mainTravelerValid && payment !== null
 
@@ -157,15 +188,64 @@ export function BookingTravelersForm({
 
   function handleSubmit() {
     if (!canSubmit) return
-    startTransition(() => {
-      const ref = generateBookingRef()
-      const params = new URLSearchParams()
-      params.set("payment", payment!)
-      params.set("total", String(Math.round(finalTotal * 1000) / 1000))
-      params.set("hotelId", context.hotel.id)
-      if (appliedCoupon) params.set("coupon", appliedCoupon.code)
-      if (internalRef) params.set("ref", internalRef)
-      router.push(`/pro/booking/confirmation/${ref}?${params.toString()}`)
+    setSubmitError(null)
+
+    startTransition(async () => {
+      const firstOffer = context.offers[0]
+      if (!firstOffer) return
+
+      const draft: BookingDraft = {
+        module: "hotel",
+        offerId: String(context.hotel.id),
+        offerLabel: context.hotel.name,
+        startDate: search.checkin ?? new Date().toISOString().slice(0, 10),
+        endDate: search.checkout ?? undefined,
+        adults: search.adults ?? 2,
+        children: search.children ?? 0,
+        unitPriceTnd: finalTotal / Math.max(1, search.adults ?? 2),
+        unitChildPriceTnd: 0,
+        currency: "TND",
+        metadata: {
+          hotelId: context.hotel.id,
+          internalRef: internalRef || undefined,
+          matricule: matricule || undefined,
+          coupon: appliedCoupon?.code || undefined,
+          paymentMode: payment,
+          offers: context.offers.map((s) => ({
+            id: s.offer.id,
+            qty: s.qty,
+            price: s.offer.price,
+          })),
+        },
+      }
+
+      const result = await createReservationFromDraft({
+        draft,
+        traveler: {
+          civility: mainTraveler.civility as "M" | "Mme" | "Mlle",
+          firstName: mainTraveler.firstName.trim(),
+          lastName: mainTraveler.lastName.trim(),
+          email: mainTraveler.email.trim(),
+          phone: mainTraveler.phone.trim(),
+          civicIdType: mainTraveler.civicIdType,
+          civicId: mainTraveler.civicId.trim(),
+        },
+      })
+
+      if (!result.ok) {
+        setSubmitError(result.error)
+        toast.error(result.error, { duration: 6000 })
+        return
+      }
+
+      router.refresh()
+      router.push(
+        `/pro/booking/confirmation/${result.publicRef}?payment=${payment}&total=${finalTotal.toFixed(3)}&hotelId=${context.hotel.id}${
+          appliedCoupon ? `&coupon=${appliedCoupon.code}` : ""
+        }${
+          internalRef ? `&ref=${encodeURIComponent(internalRef)}` : ""
+        }`,
+      )
     })
   }
 
@@ -191,53 +271,157 @@ export function BookingTravelersForm({
           </header>
 
           <div className="space-y-4">
-            {travelers.map((t, idx) => (
-              <div
-                key={idx}
-                className="border-border/50 rounded-xl border p-3 md:p-4"
-              >
-                <p className="text-foreground mb-2 inline-flex items-center gap-1.5 text-sm font-semibold">
-                  {t.isMain ? (
-                    <>
-                      <UserPlus className="text-primary h-3.5 w-3.5" />
-                      Voyageur principal
-                      <span className="text-primary ml-1 text-xs">*</span>
-                    </>
-                  ) : (
-                    <>
-                      <User className="text-muted-foreground h-3.5 w-3.5" />
-                      Voyageur {idx + 1}
-                    </>
-                  )}
-                </p>
-                <div className="grid gap-2 md:grid-cols-2">
+            {/* Voyageur principal — champs complets requis pour BDD */}
+            <div className="border-border/50 rounded-xl border p-3 md:p-4">
+              <p className="text-foreground mb-3 inline-flex items-center gap-1.5 text-sm font-semibold">
+                <UserPlus className="text-primary h-3.5 w-3.5" />
+                Voyageur principal
+                <span className="text-primary ml-1 text-xs">*</span>
+              </p>
+              <div className="grid gap-3">
+                {/* Civilité + Prénom + Nom */}
+                <div className="grid gap-2 sm:grid-cols-[120px_1fr_1fr]">
                   <div>
-                    <Label htmlFor={`first-${idx}`} className="text-xs">
-                      Prénom{t.isMain ? " *" : ""}
-                    </Label>
+                    <Label className="text-xs">Civilité *</Label>
+                    <Select
+                      value={mainTraveler.civility}
+                      onValueChange={(v) =>
+                        setMainTraveler((p) => ({ ...p, civility: v as "M" | "Mme" | "Mlle" }))
+                      }
+                    >
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="M">M.</SelectItem>
+                        <SelectItem value="Mme">Mme</SelectItem>
+                        <SelectItem value="Mlle">Mlle</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="main-first" className="text-xs">Prénom *</Label>
                     <Input
-                      id={`first-${idx}`}
-                      value={t.firstName}
+                      id="main-first"
+                      value={mainTraveler.firstName}
                       onChange={(e) =>
-                        updateTraveler(idx, { firstName: e.target.value })
+                        setMainTraveler((p) => ({ ...p, firstName: e.target.value }))
                       }
                       placeholder="Prénom"
-                      required={t.isMain}
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor={`last-${idx}`} className="text-xs">
-                      Nom{t.isMain ? " *" : ""}
-                    </Label>
+                    <Label htmlFor="main-last" className="text-xs">Nom *</Label>
                     <Input
-                      id={`last-${idx}`}
-                      value={t.lastName}
+                      id="main-last"
+                      value={mainTraveler.lastName}
                       onChange={(e) =>
-                        updateTraveler(idx, { lastName: e.target.value })
+                        setMainTraveler((p) => ({ ...p, lastName: e.target.value }))
                       }
                       placeholder="Nom"
-                      required={t.isMain}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                {/* Email + Téléphone */}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="main-email" className="text-xs">Email *</Label>
+                    <Input
+                      id="main-email"
+                      type="email"
+                      value={mainTraveler.email}
+                      onChange={(e) =>
+                        setMainTraveler((p) => ({ ...p, email: e.target.value }))
+                      }
+                      placeholder="exemple@email.com"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="main-phone" className="text-xs">Téléphone *</Label>
+                    <Input
+                      id="main-phone"
+                      type="tel"
+                      value={mainTraveler.phone}
+                      onChange={(e) =>
+                        setMainTraveler((p) => ({ ...p, phone: e.target.value }))
+                      }
+                      placeholder="+216 98 000 000"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                {/* Pièce d'identité */}
+                <div className="grid gap-2 sm:grid-cols-[160px_1fr]">
+                  <div>
+                    <Label className="text-xs">Type pièce *</Label>
+                    <Select
+                      value={mainTraveler.civicIdType}
+                      onValueChange={(v) =>
+                        setMainTraveler((p) => ({ ...p, civicIdType: v as "cin" | "passport" }))
+                      }
+                    >
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cin">CIN</SelectItem>
+                        <SelectItem value="passport">Passeport</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="main-civic" className="text-xs">
+                      {mainTraveler.civicIdType === "cin" ? "N° CIN (8 chiffres) *" : "N° Passeport *"}
+                    </Label>
+                    <Input
+                      id="main-civic"
+                      value={mainTraveler.civicId}
+                      onChange={(e) =>
+                        setMainTraveler((p) => ({ ...p, civicId: e.target.value }))
+                      }
+                      placeholder={mainTraveler.civicIdType === "cin" ? "12345678" : "AB1234567"}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Voyageurs additionnels (chambres supplémentaires) */}
+            {travelers.slice(1).map((t, idx) => (
+              <div
+                key={idx + 1}
+                className="border-border/50 rounded-xl border p-3 md:p-4"
+              >
+                <p className="text-foreground mb-2 inline-flex items-center gap-1.5 text-sm font-semibold">
+                  <User className="text-muted-foreground h-3.5 w-3.5" />
+                  Voyageur {idx + 2}
+                </p>
+                <div className="grid gap-2 md:grid-cols-2">
+                  <div>
+                    <Label htmlFor={`first-${idx + 1}`} className="text-xs">Prénom</Label>
+                    <Input
+                      id={`first-${idx + 1}`}
+                      value={t.firstName}
+                      onChange={(e) =>
+                        updateTraveler(idx + 1, { firstName: e.target.value })
+                      }
+                      placeholder="Prénom"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`last-${idx + 1}`} className="text-xs">Nom</Label>
+                    <Input
+                      id={`last-${idx + 1}`}
+                      value={t.lastName}
+                      onChange={(e) =>
+                        updateTraveler(idx + 1, { lastName: e.target.value })
+                      }
+                      placeholder="Nom"
                       className="mt-1"
                     />
                   </div>
@@ -495,9 +679,16 @@ export function BookingTravelersForm({
             </details>
           </div>
 
+          {submitError ? (
+            <div className="bg-destructive/10 border-destructive/30 text-destructive flex items-start gap-2 rounded-xl border px-3 py-2 text-xs">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {submitError}
+            </div>
+          ) : null}
+
           <Button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={!canSubmit || pending}
             size="lg"
             className="w-full rounded-xl"
@@ -505,7 +696,7 @@ export function BookingTravelersForm({
             {pending ? (
               <>
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                Confirmation…
+                Enregistrement…
               </>
             ) : (
               <>
@@ -516,7 +707,7 @@ export function BookingTravelersForm({
           </Button>
           {!mainTravelerValid ? (
             <p className="text-muted-foreground text-center text-[11px]">
-              Renseignez le voyageur principal pour continuer.
+              Renseignez tous les champs du voyageur principal.
             </p>
           ) : payment === null ? (
             <p className="text-muted-foreground text-center text-[11px]">

@@ -5,10 +5,12 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { BookingSteps } from "@/components/booking/booking-steps"
-import dynamic from "next/dynamic"
+import dynamicImport from "next/dynamic"
 
-const TravelersForm = dynamic(
-  () => import("@/components/booking/travelers-form").then((m) => m.TravelersForm),
+export const dynamic = 'force-dynamic'
+
+const TravelersForm = dynamicImport(() =>
+  import("@/components/booking/travelers-form").then((m) => m.TravelersForm),
 )
 
 type SP = { [k: string]: string | string[] | undefined }

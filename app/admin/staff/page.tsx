@@ -1,6 +1,6 @@
 /**
  * Gestion du Personnel — Manager
- * 
+ *
  * Vue et gestion des agents de l'agence
  */
 
@@ -61,11 +61,30 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic"
 
-const ROLE_CONFIG: Record<string, { label: string; color: string; icon: typeof User }> = {
-  manager: { label: "Manager", color: "bg-purple-100 text-purple-800", icon: Shield },
-  agent_resa: { label: "Agent Réservation", color: "bg-blue-100 text-blue-800", icon: ShoppingBag },
-  agent_compta: { label: "Agent Compta", color: "bg-green-100 text-green-800", icon: DollarSign },
-  agent_excursions: { label: "Agent Excursions", color: "bg-orange-100 text-orange-800", icon: User },
+const ROLE_CONFIG: Record<
+  string,
+  { label: string; color: string; icon: typeof User }
+> = {
+  manager: {
+    label: "Manager",
+    color: "bg-purple-100 text-purple-800",
+    icon: Shield,
+  },
+  agent_resa: {
+    label: "Agent Réservation",
+    color: "bg-blue-100 text-blue-800",
+    icon: ShoppingBag,
+  },
+  agent_compta: {
+    label: "Agent Compta",
+    color: "bg-green-100 text-green-800",
+    icon: DollarSign,
+  },
+  agent_excursions: {
+    label: "Agent Excursions",
+    color: "bg-orange-100 text-orange-800",
+    icon: User,
+  },
 }
 
 async function loadStaff(agencyId: string) {
@@ -94,7 +113,9 @@ async function loadStaff(agencyId: string) {
 
 export default async function StaffPage() {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/staff")
@@ -114,7 +135,8 @@ export default async function StaffPage() {
     byRole: {
       agent_resa: staff.filter((s) => s.role === "agent_resa").length,
       agent_compta: staff.filter((s) => s.role === "agent_compta").length,
-      agent_excursions: staff.filter((s) => s.role === "agent_excursions").length,
+      agent_excursions: staff.filter((s) => s.role === "agent_excursions")
+        .length,
     },
   }
 
@@ -152,28 +174,34 @@ export default async function StaffPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Actifs</CardTitle>
-            <CheckCircle2 className="text-emerald-500 h-4 w-4" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-emerald-600">{stats.active}</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {stats.active}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Agents Résa</CardTitle>
-            <ShoppingBag className="text-blue-500 h-4 w-4" />
+            <ShoppingBag className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-blue-600">{stats.byRole.agent_resa}</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {stats.byRole.agent_resa}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Agents Compta</CardTitle>
-            <DollarSign className="text-green-500 h-4 w-4" />
+            <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-600">{stats.byRole.agent_compta}</p>
+            <p className="text-2xl font-bold text-green-600">
+              {stats.byRole.agent_compta}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -209,7 +237,11 @@ export default async function StaffPage() {
                 </TableHeader>
                 <TableBody>
                   {staff.map((member) => {
-                    const roleConfig = ROLE_CONFIG[member.role] || { label: member.role, color: "bg-gray-100", icon: User }
+                    const roleConfig = ROLE_CONFIG[member.role] || {
+                      label: member.role,
+                      color: "bg-gray-100",
+                      icon: User,
+                    }
                     const RoleIcon = roleConfig.icon
 
                     return (
@@ -218,12 +250,17 @@ export default async function StaffPage() {
                           <div className="flex items-center gap-3">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
                               <span className="text-xs font-bold">
-                                {member.name?.charAt(0).toUpperCase() || member.email.charAt(0).toUpperCase()}
+                                {member.name?.charAt(0).toUpperCase() ||
+                                  member.email.charAt(0).toUpperCase()}
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium">{member.name || "—"}</p>
-                              <p className="text-xs text-gray-500">{member.email}</p>
+                              <p className="font-medium">
+                                {member.name || "—"}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {member.email}
+                              </p>
                             </div>
                           </div>
                         </TableCell>
@@ -240,13 +277,21 @@ export default async function StaffPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={member.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}>
+                          <Badge
+                            className={
+                              member.status === "active"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-red-100 text-red-800"
+                            }
+                          >
                             {member.status === "active" ? "Actif" : "Suspendu"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-gray-500">
                           {member.lastLoginAt
-                            ? new Date(member.lastLoginAt).toLocaleDateString("fr-FR")
+                            ? new Date(member.lastLoginAt).toLocaleDateString(
+                                "fr-FR",
+                              )
                             : "Jamais"}
                         </TableCell>
                         <TableCell className="text-right">

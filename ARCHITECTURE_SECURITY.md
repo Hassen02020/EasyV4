@@ -21,31 +21,36 @@
 ### 📁 Fichier: `lib/auth/rbac.ts`
 
 Architecture:
+
 - **Permissions atomiques** (~40 permissions)
 - **Rôles composés de permissions** (super_admin, manager, agent_resa, agent_compta, agent_excursions)
 - **Vérification à double niveau** (Middleware + Layout)
 
 ### Matrice de Permissions
 
-| Permission | Super Admin | Manager | Agent Resa | Agent Compta |
-|------------|:-----------:|:-------:|:----------:|:------------:|
-| reservations.view | ✅ | ✅ | ✅ | ✅ |
-| reservations.edit | ✅ | ✅ | ✅ | ❌ |
-| reservations.confirm | ✅ | ✅ | ✅ | ❌ |
-| reservations.refund | ✅ | ✅ | ❌ | ✅ |
-| clients.view | ✅ | ✅ | ✅ | ✅ |
-| products.view | ✅ | ✅ | ✅ | ❌ |
-| products.edit | ✅ | ✅ | ❌ | ❌ |
-| accounting.view | ✅ | ✅ | ❌ | ✅ |
-| accounting.payments | ✅ | ✅ | ❌ | ✅ |
-| staff.view | ✅ | ✅ | ❌ | ❌ |
-| admin.users.view | ✅ | ❌ | ❌ | ❌ |
-| admin.system.logs | ✅ | ❌ | ❌ | ❌ |
+| Permission           | Super Admin | Manager | Agent Resa | Agent Compta |
+| -------------------- | :---------: | :-----: | :--------: | :----------: |
+| reservations.view    |     ✅      |   ✅    |     ✅     |      ✅      |
+| reservations.edit    |     ✅      |   ✅    |     ✅     |      ❌      |
+| reservations.confirm |     ✅      |   ✅    |     ✅     |      ❌      |
+| reservations.refund  |     ✅      |   ✅    |     ❌     |      ✅      |
+| clients.view         |     ✅      |   ✅    |     ✅     |      ✅      |
+| products.view        |     ✅      |   ✅    |     ✅     |      ❌      |
+| products.edit        |     ✅      |   ✅    |     ❌     |      ❌      |
+| accounting.view      |     ✅      |   ✅    |     ❌     |      ✅      |
+| accounting.payments  |     ✅      |   ✅    |     ❌     |      ✅      |
+| staff.view           |     ✅      |   ✅    |     ❌     |      ❌      |
+| admin.users.view     |     ✅      |   ❌    |     ❌     |      ❌      |
+| admin.system.logs    |     ✅      |   ❌    |     ❌     |      ❌      |
 
 ### Usage
 
 ```typescript
-import { hasPermission, canAccessSection, getForbiddenMessage } from "@/lib/auth/rbac"
+import {
+  hasPermission,
+  canAccessSection,
+  getForbiddenMessage,
+} from "@/lib/auth/rbac"
 
 // Vérification simple
 if (!hasPermission(role, "reservations.confirm")) {
@@ -100,6 +105,7 @@ Page d'erreur professionnelle: `app/error/403/page.tsx`
 ### 📁 Fichier: `lib/db/schema.ts`
 
 Architecture:
+
 - **Table unique** pour tous les types de produits
 - **Colonne `type`** (hotel, flight, package, activity, omra, transfer, car)
 - **Colonne `attributes` JSONB** avec types TypeScript discriminés
@@ -157,6 +163,7 @@ Architecture:
 ### 📁 Fichier: `lib/audit/logger.ts`
 
 Architecture:
+
 - **Server Action** réutilisable
 - **Snapshots JSONB** avant/après chaque modification
 - **Diff calculé automatiquement**
@@ -182,7 +189,11 @@ Architecture:
 ### Usage
 
 ```typescript
-import { logAuditAction, logReservationStatusChange, logProductPriceChange } from "@/lib/audit/logger"
+import {
+  logAuditAction,
+  logReservationStatusChange,
+  logProductPriceChange,
+} from "@/lib/audit/logger"
 
 // Log générique
 await logAuditAction({
@@ -191,7 +202,7 @@ await logAuditAction({
   entityId: reservation.publicRef,
   oldValue: { status: "pending" },
   newValue: { status: "confirmed" },
-  metadata: { reason: "Paiement reçu", processedBy: user.email }
+  metadata: { reason: "Paiement reçu", processedBy: user.email },
 })
 
 // Helper spécialisé
@@ -199,7 +210,7 @@ await logReservationStatusChange(
   reservation.publicRef,
   "pending",
   "confirmed",
-  { reason: "Paiement reçu" }
+  { reason: "Paiement reçu" },
 )
 
 // Changement prix
@@ -209,7 +220,7 @@ await logProductPriceChange(
   oldPrice,
   newPrice,
   "TND",
-  { reason: "Saison haute" }
+  { reason: "Saison haute" },
 )
 ```
 
@@ -222,7 +233,7 @@ const { logs } = await getAuditLogs({
   agencyId: profile.agencyId,
   entityType: "reservation",
   action: "reservation.status_changed",
-  limit: 50
+  limit: 50,
 })
 ```
 
@@ -247,7 +258,7 @@ const { data, meta } = await paginateOffset({
   page: searchParams.page,
   limit: 20,
   countQuery: () => db.$count(customers),
-  orderBy: desc(customers.createdAt)
+  orderBy: desc(customers.createdAt),
 })
 
 // meta: { currentPage, totalPages, totalCount, perPage, hasNextPage, hasPrevPage }
@@ -266,7 +277,7 @@ const { data, meta } = await paginateCursor({
   cursor: searchParams.cursor,
   limit: 20,
   sortColumn: "createdAt",
-  table: reservations
+  table: reservations,
 })
 
 // meta: { perPage, hasNextPage, hasPrevPage, nextCursor, prevCursor }
@@ -291,11 +302,7 @@ const decoded = decodeCursor(cursor)
 ```typescript
 import { buildPaginationUrl, getPaginationLinks } from "@/lib/admin/pagination"
 
-const links = getPaginationLinks(
-  currentParams,
-  meta,
-  "/admin/b2c/reservations"
-)
+const links = getPaginationLinks(currentParams, meta, "/admin/b2c/reservations")
 
 // links: { first, prev, next, last }
 ```
@@ -305,16 +312,19 @@ const links = getPaginationLinks(
 ## 🚀 PROCHAINES ÉTAPES RECOMMANDÉES
 
 ### Immédiat (Cette semaine)
+
 1. ✅ Appliquer la pagination sur `/admin/b2c/reservations/page.tsx`
 2. ✅ Appliquer la pagination sur `/admin/b2c/clients/page.tsx`
 3. ✅ Intégrer `logAuditAction` dans toutes les mutations
 
 ### Court terme (Ce mois)
+
 4. 🔄 Ajouter indexes PostgreSQL supplémentaires selon patterns de requêtes
 5. 🔄 Mettre en place partitions pour `audit_logs` (par mois)
 6. 🔄 Caching Redis pour catalogue produits
 
 ### Long terme (Prochain trimestre)
+
 7. 🔄 RLS (Row Level Security) Supabase policies
 8. 🔄 Read replicas pour reporting/analytics
 9. 🔄 Archivage automatique réservations anciennes
@@ -323,14 +333,14 @@ const links = getPaginationLinks(
 
 ## 📊 MÉTRIQUES
 
-| Aspect | Avant | Après |
-|--------|-------|-------|
-| Fichiers créés | - | 11 fichiers |
-| Lignes de code sécurité | ~100 | ~2,500 |
-| Permissions définies | 0 | 40 |
-| Tables audit | 0 | 1 (+ types) |
-| Stratégies pagination | 0 | 2 |
-| Couverture RBAC | Basique | Granulaire |
+| Aspect                  | Avant   | Après       |
+| ----------------------- | ------- | ----------- |
+| Fichiers créés          | -       | 11 fichiers |
+| Lignes de code sécurité | ~100    | ~2,500      |
+| Permissions définies    | 0       | 40          |
+| Tables audit            | 0       | 1 (+ types) |
+| Stratégies pagination   | 0       | 2           |
+| Couverture RBAC         | Basique | Granulaire  |
 
 ---
 

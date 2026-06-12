@@ -1,9 +1,9 @@
 /**
  * Layout Protection Logs Système
- * 
+ *
  * STRICTEMENT réservé au Super Admin.
  * Audit des actions et monitoring système.
- * 
+ *
  * Rôle autorisé: super_admin UNIQUEMENT
  */
 
@@ -20,7 +20,9 @@ export default async function LogsLayout({
   children: React.ReactNode
 }) {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/logs")

@@ -18,7 +18,9 @@ export function createBrowserSupabase() {
 
   if (!url || !anonKey || url === "http://localhost:54321") {
     // Mode démo sans Supabase - retourne un mock client
-    console.warn("[Supabase] Mode démo - Supabase non configuré. Auth désactivé.")
+    console.warn(
+      "[Supabase] Mode démo - Supabase non configuré. Auth désactivé.",
+    )
     return createMockSupabaseClient()
   }
 
@@ -37,7 +39,9 @@ function createMockSupabaseClient() {
       }),
       signOut: async () => ({ error: null }),
       getUser: async () => ({ data: { user: null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      onAuthStateChange: () => ({
+        data: { subscription: { unsubscribe: () => {} } },
+      }),
     },
   } as ReturnType<typeof createBrowserClient>
 }

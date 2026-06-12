@@ -1,6 +1,6 @@
 /**
  * Gestion des Réservations B2C — Manager/Agent
- * 
+ *
  * Vue complète des réservations clients avec filtres et actions
  */
 
@@ -60,7 +60,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getDb } from "@/lib/db/client"
 import { reservations, customers } from "@/lib/db/schema"
-import { desc, eq, and, or, like } from "drizzle-orm"
+import { desc, eq, and, or, like, inArray } from "drizzle-orm"
 
 export const metadata: Metadata = {
   title: "Réservations B2C — Manager",
@@ -89,51 +89,91 @@ const MODULE_LABELS: Record<string, string> = {
   car: "Voiture",
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: "En attente", color: "bg-amber-100 text-amber-800", icon: Clock },
-  on_request: { label: "Sur demande", color: "bg-blue-100 text-blue-800", icon: Clock },
-  confirmed: { label: "Confirmée", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle2 },
-  cancelled: { label: "Annulée", color: "bg-red-100 text-red-800", icon: XCircle },
-  refunded: { label: "Remboursée", color: "bg-gray-100 text-gray-800", icon: XCircle },
-  no_show: { label: "No-show", color: "bg-red-100 text-red-700", icon: XCircle },
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; icon: typeof CheckCircle2 }
+> = {
+  pending: {
+    label: "En attente",
+    color: "bg-amber-100 text-amber-800",
+    icon: Clock,
+  },
+  on_request: {
+    label: "Sur demande",
+    color: "bg-blue-100 text-blue-800",
+    icon: Clock,
+  },
+  confirmed: {
+    label: "Confirmée",
+    color: "bg-emerald-100 text-emerald-800",
+    icon: CheckCircle2,
+  },
+  cancelled: {
+    label: "Annulée",
+    color: "bg-red-100 text-red-800",
+    icon: XCircle,
+  },
+  refunded: {
+    label: "Remboursée",
+    color: "bg-gray-100 text-gray-800",
+    icon: XCircle,
+  },
+  no_show: {
+    label: "No-show",
+    color: "bg-red-100 text-red-700",
+    icon: XCircle,
+  },
 }
 
 async function loadReservations(search?: string, status?: string) {
   try {
     const db = getDb()
-    
-    let query = db.select({
-      id: reservations.id,
-      publicRef: reservations.publicRef,
-      module: reservations.module,
-      status: reservations.status,
-      originalAmount: reservations.originalAmount,
-      originalCurrency: reservations.originalCurrency,
-      tndAmount: reservations.tndAmount,
-      createdAt: reservations.createdAt,
-      customerId: reservations.customerId,
-    }).from(reservations)
+
+    let query = db
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        module: reservations.module,
+        status: reservations.status,
+        originalAmount: reservations.originalAmount,
+        originalCurrency: reservations.originalCurrency,
+        tndAmount: reservations.tndAmount,
+        createdAt: reservations.createdAt,
+        customerId: reservations.customerId,
+      })
+      .from(reservations)
 
     // Jointure avec customers
-    const allReservations = await query.orderBy(desc(reservations.createdAt)).limit(100)
-    
+    const allReservations = await query
+      .orderBy(desc(reservations.createdAt))
+      .limit(100)
+
     // Récupérer les clients
     const customerIds = allReservations.map((r) => r.customerId).filter(Boolean)
-    const customersData = customerIds.length > 0
-      ? await db.select({
-          id: customers.id,
-          firstName: customers.firstName,
-          lastName: customers.lastName,
-          email: customers.email,
-          phone: customers.phone,
-        }).from(customers).where(...customerIds.map((id) => eq(customers.id, id)))
-      : []
-    
+    const customersData =
+      customerIds.length > 0
+        ? await db
+            .select({
+              id: customers.id,
+              firstName: customers.firstName,
+              lastName: customers.lastName,
+              email: customers.email,
+              phone: customers.phone,
+            })
+            .from(customers)
+            .where(inArray(customers.id, customerIds))
+        : []
+
     const customerMap = new Map(customersData.map((c) => [c.id, c]))
-    
+
     return allReservations.map((r) => ({
       ...r,
-      customer: customerMap.get(r.customerId) || { firstName: "—", lastName: "", email: "—", phone: null },
+      customer: customerMap.get(r.customerId) || {
+        firstName: "—",
+        lastName: "",
+        email: "—",
+        phone: null,
+      },
       tndAmount: parseFloat(r.tndAmount as string) || 0,
     }))
   } catch (error) {
@@ -148,9 +188,11 @@ export default async function B2CReservationsPage({
   searchParams: Promise<{ status?: string; search?: string }>
 }) {
   const { status, search } = await searchParams
-  
+
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/b2c/reservations")
@@ -165,7 +207,7 @@ export default async function B2CReservationsPage({
   }
 
   const allReservations = await loadReservations(search, status)
-  
+
   // Filtrer par status si spécifié
   const filteredReservations = status
     ? allReservations.filter((r) => r.status === status)
@@ -173,9 +215,13 @@ export default async function B2CReservationsPage({
 
   const stats = {
     total: allReservations.length,
-    pending: allReservations.filter((r) => r.status === "pending" || r.status === "on_request").length,
+    pending: allReservations.filter(
+      (r) => r.status === "pending" || r.status === "on_request",
+    ).length,
     confirmed: allReservations.filter((r) => r.status === "confirmed").length,
-    cancelled: allReservations.filter((r) => r.status === "cancelled" || r.status === "refunded").length,
+    cancelled: allReservations.filter(
+      (r) => r.status === "cancelled" || r.status === "refunded",
+    ).length,
     revenue: allReservations
       .filter((r) => r.status === "confirmed")
       .reduce((sum, r) => sum + r.tndAmount, 0),
@@ -199,9 +245,7 @@ export default async function B2CReservationsPage({
             Export
           </Button>
           <Button size="sm" className="bg-[#1e3a5f]" asChild>
-            <Link href="/admin/b2c/reservations/new">
-              Nouvelle réservation
-            </Link>
+            <Link href="/admin/b2c/reservations/new">Nouvelle réservation</Link>
           </Button>
         </div>
       </div>
@@ -220,7 +264,7 @@ export default async function B2CReservationsPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">En attente</CardTitle>
-            <Clock className="text-amber-500 h-4 w-4" />
+            <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
@@ -229,16 +273,18 @@ export default async function B2CReservationsPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Confirmées</CardTitle>
-            <CheckCircle2 className="text-emerald-500 h-4 w-4" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-emerald-600">{stats.confirmed}</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {stats.confirmed}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Annulées</CardTitle>
-            <XCircle className="text-red-500 h-4 w-4" />
+            <XCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-600">{stats.cancelled}</p>
@@ -247,10 +293,12 @@ export default async function B2CReservationsPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">CA Confirmé</CardTitle>
-            <DollarSign className="text-blue-500 h-4 w-4" />
+            <DollarSign className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats.revenue.toLocaleString("fr-FR")} DT</p>
+            <p className="text-2xl font-bold">
+              {stats.revenue.toLocaleString("fr-FR")} DT
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -260,8 +308,11 @@ export default async function B2CReservationsPage({
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input placeholder="Rechercher par référence, client..." className="pl-9" />
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Rechercher par référence, client..."
+                className="pl-9"
+              />
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">
@@ -282,13 +333,19 @@ export default async function B2CReservationsPage({
                 <Link href="/admin/b2c/reservations">Toutes</Link>
               </TabsTrigger>
               <TabsTrigger value="pending" asChild>
-                <Link href="/admin/b2c/reservations?status=pending">En attente</Link>
+                <Link href="/admin/b2c/reservations?status=pending">
+                  En attente
+                </Link>
               </TabsTrigger>
               <TabsTrigger value="confirmed" asChild>
-                <Link href="/admin/b2c/reservations?status=confirmed">Confirmées</Link>
+                <Link href="/admin/b2c/reservations?status=confirmed">
+                  Confirmées
+                </Link>
               </TabsTrigger>
               <TabsTrigger value="cancelled" asChild>
-                <Link href="/admin/b2c/reservations?status=cancelled">Annulées</Link>
+                <Link href="/admin/b2c/reservations?status=cancelled">
+                  Annulées
+                </Link>
               </TabsTrigger>
             </TabsList>
 
@@ -296,7 +353,9 @@ export default async function B2CReservationsPage({
               {filteredReservations.length === 0 ? (
                 <div className="py-12 text-center">
                   <ShoppingBag className="mx-auto h-12 w-12 text-gray-300" />
-                  <p className="text-muted-foreground mt-4">Aucune réservation trouvée</p>
+                  <p className="text-muted-foreground mt-4">
+                    Aucune réservation trouvée
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -314,15 +373,20 @@ export default async function B2CReservationsPage({
                     </TableHeader>
                     <TableBody>
                       {filteredReservations.map((reservation) => {
-                        const ModuleIcon = MODULE_ICONS[reservation.module] || Plane
-                        const moduleLabel = MODULE_LABELS[reservation.module] || reservation.module
-                        const statusConfig = STATUS_CONFIG[reservation.status] || STATUS_CONFIG.pending
+                        const ModuleIcon =
+                          MODULE_ICONS[reservation.module] || Plane
+                        const moduleLabel =
+                          MODULE_LABELS[reservation.module] ||
+                          reservation.module
+                        const statusConfig =
+                          STATUS_CONFIG[reservation.status] ||
+                          STATUS_CONFIG.pending
                         const StatusIcon = statusConfig.icon
 
                         return (
                           <TableRow key={reservation.id}>
                             <TableCell>
-                              <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                              <code className="rounded bg-gray-100 px-2 py-1 font-mono text-sm">
                                 {reservation.publicRef}
                               </code>
                             </TableCell>
@@ -331,9 +395,12 @@ export default async function B2CReservationsPage({
                                 <User className="h-4 w-4 text-gray-400" />
                                 <div>
                                   <p className="font-medium">
-                                    {reservation.customer.firstName} {reservation.customer.lastName}
+                                    {reservation.customer.firstName}{" "}
+                                    {reservation.customer.lastName}
                                   </p>
-                                  <p className="text-xs text-gray-500">{reservation.customer.email}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {reservation.customer.email}
+                                  </p>
                                 </div>
                               </div>
                             </TableCell>
@@ -353,7 +420,9 @@ export default async function B2CReservationsPage({
                               {reservation.tndAmount.toLocaleString("fr-FR")} DT
                             </TableCell>
                             <TableCell className="text-sm text-gray-500">
-                              {new Date(reservation.createdAt).toLocaleDateString("fr-FR")}
+                              {new Date(
+                                reservation.createdAt,
+                              ).toLocaleDateString("fr-FR")}
                             </TableCell>
                             <TableCell className="text-right">
                               <DropdownMenu>
@@ -365,7 +434,9 @@ export default async function B2CReservationsPage({
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                   <DropdownMenuItem asChild>
-                                    <Link href={`/admin/b2c/reservations/${reservation.id}`}>
+                                    <Link
+                                      href={`/admin/b2c/reservations/${reservation.id}`}
+                                    >
                                       <Eye className="mr-2 h-4 w-4" />
                                       Voir détails
                                     </Link>
@@ -381,7 +452,8 @@ export default async function B2CReservationsPage({
                                       Confirmer
                                     </DropdownMenuItem>
                                   )}
-                                  {(reservation.status === "pending" || reservation.status === "confirmed") && (
+                                  {(reservation.status === "pending" ||
+                                    reservation.status === "confirmed") && (
                                     <DropdownMenuItem className="text-red-600">
                                       <XCircle className="mr-2 h-4 w-4" />
                                       Annuler

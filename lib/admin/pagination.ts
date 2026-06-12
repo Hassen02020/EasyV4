@@ -1,11 +1,11 @@
 /**
  * Pagination Serveur - Helpers pour pagination côté serveur
- * 
+ *
  * Architecture:
  * - Cursor-based pagination (plus performant que offset pour grandes tables)
  * - Offset-based pagination (pour cas simples)
  * - Génération automatique des métadonnées de pagination
- * 
+ *
  * Usage:
  * ```ts
  * const { data, pagination, nextCursor } = await paginateQuery({
@@ -116,10 +116,10 @@ interface OffsetPaginationOptions<T> {
 
 /**
  * Pagination offset-based classique
- * 
+ *
  * ✅ Avantages: Simple, navigation directe à une page
  * ❌ Inconvénients: Performance dégrade sur grandes tables (>100k rows)
- * 
+ *
  * Recommandé pour: Tables < 50k rows, ou quand besoin de navigation directe
  */
 export async function paginateOffset<T>({
@@ -135,7 +135,7 @@ export async function paginateOffset<T>({
 
   // 1. Récupération des données
   let dataQuery = query.limit(validLimit).offset(offset)
-  
+
   if (orderBy) {
     dataQuery = dataQuery.orderBy(orderBy)
   }
@@ -187,10 +187,10 @@ interface CursorPaginationOptions<T> {
 
 /**
  * Pagination cursor-based
- * 
+ *
  * ✅ Avantages: Performance constante, même sur millions de rows
  * ❌ Inconvénients: Pas de navigation directe à page N
- * 
+ *
  * Recommandé pour: Tables > 50k rows, logs, réservations
  */
 export async function paginateCursor<T>({
@@ -215,12 +215,12 @@ export async function paginateCursor<T>({
       if (direction === "next") {
         // On veut les éléments PLUS RÉCENTS que le cursor
         dataQuery = dataQuery.where(
-          sql`(${table[sortColumn]}, ${table.id}) < (${cursorDate.toISOString()}, ${cursorId})`
+          sql`(${table[sortColumn]}, ${table.id}) < (${cursorDate.toISOString()}, ${cursorId})`,
         )
       } else {
         // On veut les éléments PLUS ANCIENS que le cursor (prev)
         dataQuery = dataQuery.where(
-          sql`(${table[sortColumn]}, ${table.id}) > (${cursorDate.toISOString()}, ${cursorId})`
+          sql`(${table[sortColumn]}, ${table.id}) > (${cursorDate.toISOString()}, ${cursorId})`,
         )
       }
     }
@@ -247,7 +247,7 @@ export async function paginateCursor<T>({
     if (lastItem[sortColumn] && lastItem.id) {
       nextCursor = createTimestampCursor(
         new Date(lastItem[sortColumn]),
-        lastItem.id
+        lastItem.id,
       )
     }
   }
@@ -284,7 +284,7 @@ export function buildPaginationUrl(
     limit?: number
     sortBy?: string
     sort?: "asc" | "desc"
-  }
+  },
 ): string {
   const url = new URL(baseUrl, "http://localhost") // Base fictive pour parsing
   const searchParams = url.searchParams
@@ -308,7 +308,7 @@ export function buildPaginationUrl(
 export function getPaginationLinks(
   currentParams: PaginationParams,
   meta: PaginationResult<unknown>["meta"],
-  basePath: string
+  basePath: string,
 ): {
   first: string
   prev?: string

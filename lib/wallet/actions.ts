@@ -18,6 +18,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createClient } from "@supabase/supabase-js"
 import { getDb } from "@/lib/db/client"
 import { inngest } from "@/lib/inngest/client"
+import { logger } from "@/lib/logger"
 import type * as schema from "@/lib/db/schema"
 import {
   wallets,
@@ -68,6 +69,13 @@ export interface DebitWalletInput {
   reservationId: string
   amountTnd: number
   createdByUserId?: string
+  /**
+   * Transaction Drizzle parente optionnelle.
+   * Si fournie, les opérations s'exécutent dans cette transaction sans en ouvrir
+   * une nouvelle — évite les transactions imbriquées / deadlocks.
+   * Laisser `undefined` pour une opération autonome.
+   */
+  txOverride?: Db
 }
 
 /**
@@ -81,88 +89,88 @@ export async function walletDebitReservation(
   if (input.amountTnd <= 0)
     return { ok: false, error: "Montant invalide", code: "INVALID_AMOUNT" }
 
-  const db = getDb()
+  const rootDb = (input.txOverride ?? getDb()) as Db
+
+  /** Corps du débit — exécuté dans `activeTx` (transaction parente ou nouvelle). */
+  const runDebit = async (activeTx: Db) => {
+    /* --- Lock + lecture wallet --- */
+    const walletRow = await activeTx
+      .select()
+      .from(wallets)
+      .where(eq(wallets.agencyId, input.agencyId))
+      .limit(1)
+      .for("update") // row-level lock
+
+    if (!walletRow[0]) throw new Error("WALLET_NOT_FOUND")
+
+    const balance = parseFloat(walletRow[0].balance)
+    if (balance < input.amountTnd) throw new Error("INSUFFICIENT_BALANCE")
+
+    const newBalance = (balance - input.amountTnd).toFixed(3)
+
+    /* --- Mise à jour balance --- */
+    await activeTx
+      .update(wallets)
+      .set({ balance: newBalance, updatedAt: new Date() })
+      .where(eq(wallets.id, walletRow[0].id))
+
+    /* --- Enregistrement transaction --- */
+    const [txRow] = await activeTx
+      .insert(walletTransactions)
+      .values({
+        walletId: walletRow[0].id,
+        agencyId: input.agencyId,
+        type: "DEBIT",
+        amount: input.amountTnd.toFixed(3),
+        status: "VALIDATED",
+        reservationId: input.reservationId,
+        createdByUserId: input.createdByUserId,
+      })
+      .returning({ id: walletTransactions.id })
+
+    /* --- Passer réservation en CONFIRMED + log payment wallet --- */
+    await activeTx
+      .update(reservations)
+      .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+      .where(eq(reservations.id, input.reservationId))
+
+    await activeTx.insert(payments).values({
+      agencyId: input.agencyId,
+      reservationId: input.reservationId,
+      psp: "manual",
+      method: "wallet",
+      originalCurrency: "TND",
+      originalAmount: input.amountTnd.toFixed(2),
+      tndAmount: input.amountTnd.toFixed(2),
+      kind: "deposit",
+      status: "captured",
+      capturedAt: new Date(),
+    })
+
+    /* --- Audit --- */
+    await activeTx.insert(auditEvents).values({
+      agencyId: input.agencyId,
+      actorUserId: input.createdByUserId,
+      entityType: "wallet",
+      entityId: walletRow[0].id,
+      action: "wallet.debit",
+      diff: {
+        reservationId: input.reservationId,
+        amount: input.amountTnd,
+        balanceBefore: balance.toFixed(3),
+        balanceAfter: newBalance,
+      },
+    })
+
+    return { txId: txRow.id, newBalance }
+  }
 
   try {
-    const result = await db.transaction(async (tx) => {
-      /* --- Lock + lecture wallet --- */
-      const walletRow = await tx
-        .select()
-        .from(wallets)
-        .where(eq(wallets.agencyId, input.agencyId))
-        .limit(1)
-        .for("update") // row-level lock
-
-      if (!walletRow[0]) {
-        throw new Error("WALLET_NOT_FOUND")
-      }
-
-      const balance = parseFloat(walletRow[0].balance)
-      if (balance < input.amountTnd) {
-        throw new Error("INSUFFICIENT_BALANCE")
-      }
-
-      const newBalance = (balance - input.amountTnd).toFixed(3)
-
-      /* --- Mise à jour balance --- */
-      await tx
-        .update(wallets)
-        .set({
-          balance: newBalance,
-          updatedAt: new Date(),
-        })
-        .where(eq(wallets.id, walletRow[0].id))
-
-      /* --- Enregistrement transaction --- */
-      const [txRow] = await tx
-        .insert(walletTransactions)
-        .values({
-          walletId: walletRow[0].id,
-          agencyId: input.agencyId,
-          type: "DEBIT",
-          amount: input.amountTnd.toFixed(3),
-          status: "VALIDATED",
-          reservationId: input.reservationId,
-          createdByUserId: input.createdByUserId,
-        })
-        .returning({ id: walletTransactions.id })
-
-      /* --- Passer réservation en CONFIRMED + log payment wallet --- */
-      await tx
-        .update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
-        .where(eq(reservations.id, input.reservationId))
-
-      await tx.insert(payments).values({
-        agencyId: input.agencyId,
-        reservationId: input.reservationId,
-        psp: "manual",
-        method: "wallet",
-        originalCurrency: "TND",
-        originalAmount: input.amountTnd.toFixed(2),
-        tndAmount: input.amountTnd.toFixed(2),
-        kind: "deposit",
-        status: "captured",
-        capturedAt: new Date(),
-      })
-
-      /* --- Audit --- */
-      await tx.insert(auditEvents).values({
-        agencyId: input.agencyId,
-        actorUserId: input.createdByUserId,
-        entityType: "wallet",
-        entityId: walletRow[0].id,
-        action: "wallet.debit",
-        diff: {
-          reservationId: input.reservationId,
-          amount: input.amountTnd,
-          balanceBefore: balance.toFixed(3),
-          balanceAfter: newBalance,
-        },
-      })
-
-      return { txId: txRow.id, newBalance }
-    })
+    // Si une transaction parente est fournie, on l'utilise directement (pas de tx imbriquée)
+    // Sinon on ouvre une nouvelle transaction autonome
+    const result = input.txOverride
+      ? await runDebit(rootDb)
+      : await rootDb.transaction(runDebit)
 
     return { ok: true, data: result }
   } catch (err) {
@@ -179,7 +187,9 @@ export async function walletDebitReservation(
         error: "Wallet introuvable pour cette agence",
         code: "WALLET_NOT_FOUND",
       }
-    console.error("[walletDebitReservation]", err)
+    logger.error("[walletDebitReservation] Erreur inattendue", {
+      code: err instanceof Error ? err.constructor.name : "unknown",
+    })
     return { ok: false, error: "Erreur interne", code: "INTERNAL_ERROR" }
   }
 }
@@ -484,7 +494,7 @@ async function uploadProofToStorage(
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !serviceKey) {
-    console.error("[uploadProofToStorage] Supabase env vars manquantes")
+    logger.error("[uploadProofToStorage] Supabase env vars manquantes")
     return null
   }
 
@@ -494,11 +504,11 @@ async function uploadProofToStorage(
     const ext = fileName.split(".").pop()?.toLowerCase() ?? "jpg"
     const allowed = ["jpg", "jpeg", "png", "pdf", "webp"]
     if (!allowed.includes(ext)) {
-      console.error("[uploadProofToStorage] Extension non autorisée:", ext)
+      logger.warn("[uploadProofToStorage] Extension non autorisée", { ext })
       return null
     }
     if (buffer.byteLength > 5 * 1024 * 1024) {
-      console.error("[uploadProofToStorage] Fichier trop grand (max 5MB)")
+      logger.warn("[uploadProofToStorage] Fichier trop grand", { maxMb: 5 })
       return null
     }
 
@@ -511,14 +521,14 @@ async function uploadProofToStorage(
       })
 
     if (error) {
-      console.error("[uploadProofToStorage]", error.message)
+      logger.error("[uploadProofToStorage] Erreur Supabase Storage", { code: error.message?.slice(0, 80) })
       return null
     }
 
     const { data } = supabase.storage.from("agency-docs").getPublicUrl(path)
     return data.publicUrl
   } catch (err) {
-    console.error("[uploadProofToStorage] Exception:", err)
+    logger.error("[uploadProofToStorage] Exception", { code: err instanceof Error ? err.constructor.name : "unknown" })
     return null
   }
 }
@@ -557,7 +567,7 @@ async function initZitounaPay(params: {
 
   /* Stub actif tant que ZITOUNA_PAY_API_KEY n'est pas défini */
   if (!apiKey || !merchantId) {
-    console.warn("[ZitounaPay] Clés absentes — mode stub activé")
+    logger.warn("[ZitounaPay] Clés absentes — mode stub activé")
     const orderId = `STUB-${Date.now()}`
     return {
       ok: true,

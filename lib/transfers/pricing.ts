@@ -10,7 +10,10 @@
  *   - Application de la marge agence (pricingMargins) si configurée
  */
 
-import type { transferVehicleType } from "@/lib/db/schema"
+import { transferVehicleType } from "@/lib/db/schema"
+
+/** Type union des valeurs possibles pour un véhicule de transfert. */
+export type TransferVehicleType = typeof transferVehicleType.enumValues[number]
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */

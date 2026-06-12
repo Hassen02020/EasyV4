@@ -17,12 +17,17 @@ import { Button } from "@/components/ui/button"
 export const dynamic = "force-dynamic"
 
 function formatTnd(v: number) {
-  return v.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return v.toLocaleString("fr-FR", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
 }
 
 export default async function B2BDashboard() {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect("/pro/login?next=/b2b")
 
   const profile = await getCurrentAdminProfile(user.id)
@@ -64,7 +69,9 @@ export default async function B2BDashboard() {
           <CardContent>
             <p className="text-2xl font-bold">
               {balance ? formatTnd(balance.balance) : "—"}{" "}
-              <span className="text-muted-foreground text-base font-normal">DT</span>
+              <span className="text-muted-foreground text-base font-normal">
+                DT
+              </span>
             </p>
             {balance?.isLow && (
               <div className="mt-2 flex items-center gap-1.5 text-amber-600">
@@ -78,13 +85,17 @@ export default async function B2BDashboard() {
         {/* Débits récents */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Débits (5 derniers)</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Débits (5 derniers)
+            </CardTitle>
             <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-600">
               -{formatTnd(totalDebits)}{" "}
-              <span className="text-muted-foreground text-base font-normal">DT</span>
+              <span className="text-muted-foreground text-base font-normal">
+                DT
+              </span>
             </p>
           </CardContent>
         </Card>
@@ -92,13 +103,17 @@ export default async function B2BDashboard() {
         {/* Crédits récents */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Crédits (5 derniers)</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Crédits (5 derniers)
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-emerald-600">
               +{formatTnd(totalCredits)}{" "}
-              <span className="text-muted-foreground text-base font-normal">DT</span>
+              <span className="text-muted-foreground text-base font-normal">
+                DT
+              </span>
             </p>
           </CardContent>
         </Card>

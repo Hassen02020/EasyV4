@@ -8,11 +8,11 @@
  *  4. Rend `ProHeader` + content + `ProFooter`.
  */
 
+import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
-import { ProHeader } from "@/components/pro/pro-header"
-import { ProFooter } from "@/components/pro/pro-footer"
+import { ProShell } from "@/components/pro/layout"
 
 export const dynamic = "force-dynamic"
 
@@ -25,25 +25,17 @@ function computeInitials(input: string): string {
   return (parts[0]![0]! + parts[1]![0]!).toUpperCase()
 }
 
-export default async function ProLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function ProLayout({ children }: { children: ReactNode }) {
   const supabase = await createServerSupabase()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect("/pro/login?next=/pro")
-  }
+  if (!user) redirect("/pro/login?next=/pro")
 
   const profile = await getCurrentPartnerProfile(user.id)
 
   if (!profile) {
-    // Utilisateur connecté mais sans rôle partenaire (ni super_admin avec
-    // agence seedée) → renvoie vers /admin si c'est un staff Easy2Book.
     redirect("/admin")
   }
 
@@ -55,28 +47,23 @@ export default async function ProLayout({
     "Partenaire"
 
   return (
-    <div className="bg-background flex min-h-screen flex-col">
-      <ProHeader
-        user={{
-          displayName,
-          email: profile.email,
-          initials: computeInitials(displayName),
-          role: profile.role,
-          isAdminPreview: profile.isAdminPreview,
-        }}
-        agency={{
-          name: profile.agency.name,
-          brandName: profile.agency.brandName,
-          logoUrl: profile.agency.logoUrl,
-          defaultLanguage: profile.agency.defaultLanguage,
-          defaultCurrency: profile.agency.defaultCurrency,
-          maskCredit: profile.agency.maskCredit,
-          depositBalance: profile.agency.depositBalance,
-          creditLowThreshold: profile.agency.creditLowThreshold,
-        }}
-      />
-      <main className="flex-1">{children}</main>
-      <ProFooter />
-    </div>
+    <ProShell
+      user={{
+        displayName,
+        email: profile.email,
+        initials: computeInitials(displayName),
+        role: profile.role,
+        isAdminPreview: profile.isAdminPreview,
+      }}
+      agency={{
+        name: profile.agency.name,
+        brandName: profile.agency.brandName,
+        depositBalance: profile.agency.depositBalance,
+        creditLowThreshold: profile.agency.creditLowThreshold,
+        maskCredit: profile.agency.maskCredit,
+      }}
+    >
+      {children}
+    </ProShell>
   )
 }

@@ -16,7 +16,7 @@
 
 "use server"
 
-import { eq, and, desc } from "drizzle-orm"
+import { eq, and, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
 import {
   reservations,
@@ -30,19 +30,20 @@ import {
   omraFlights,
   wallets,
   walletTransactions,
+  users,
 } from "@/lib/db/schema"
 import { walletDebitReservation } from "@/lib/wallet/actions"
+import { createServerSupabase } from "@/lib/supabase/server"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
 export interface OmraBookingInput {
-  agencyId: string
   packageId: string
   departureDate: string // YYYY-MM-DD
   pilgrims: OmraPilgrimInput[]
-  createdByUserId?: string
+  // agencyId et createdByUserId résolus depuis la session serveur
 }
 
 export interface OmraPilgrimInput {
@@ -96,21 +97,21 @@ async function nextPublicRef(
 ): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `OM-${year}-`
-  const rows = await db
-    .select({ publicRef: reservations.publicRef })
+  const [row] = await db
+    .select({
+      maxRef: sql<string | null>`MAX(${reservations.publicRef})`,
+    })
     .from(reservations)
-    .where(eq(reservations.agencyId, agencyId))
-    .orderBy(desc(reservations.createdAt))
-    .limit(50)
+    .where(
+      and(
+        eq(reservations.agencyId, agencyId),
+        sql`${reservations.publicRef} LIKE ${prefix + "%"}`,
+      ),
+    )
 
-  let max = 0
-  for (const r of rows) {
-    if (r.publicRef.startsWith(prefix)) {
-      const n = Number(r.publicRef.slice(prefix.length))
-      if (Number.isFinite(n) && n > max) max = n
-    }
-  }
-  return `${prefix}${pad(max + 1)}`
+  const maxRef = row?.maxRef
+  const max = maxRef ? Number(maxRef.slice(prefix.length)) : 0
+  return `${prefix}${pad(Number.isFinite(max) ? max + 1 : 1)}`
 }
 
 /* -------------------------------------------------------------------------- */
@@ -146,6 +147,28 @@ export async function createOmraBooking(
 
   if (pilgrimCount > 100) {
     return { ok: false, error: "Maximum 100 pèlerins par réservation" }
+  }
+
+  // Résoudre agencyId et userId depuis la session — jamais depuis le client
+  let agencyId: string
+  let createdByUserId: string
+  try {
+    const supabase = await createServerSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: "Non authentifié" }
+
+    const db = getDb()
+    const [profile] = await db
+      .select({ agencyId: users.agencyId })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+
+    if (!profile) return { ok: false, error: "Profil utilisateur introuvable" }
+    agencyId = profile.agencyId
+    createdByUserId = user.id
+  } catch {
+    return { ok: false, error: "Erreur d'authentification" }
   }
 
   const db = getDb()
@@ -215,7 +238,7 @@ export async function createOmraBooking(
       const [customer] = await tx
         .insert(customers)
         .values({
-          agencyId: input.agencyId,
+          agencyId,
           civility: firstPilgrim.gender === "male" ? "M" : "Mme",
           firstName: firstPilgrim.firstName,
           lastName: firstPilgrim.lastName,
@@ -233,11 +256,11 @@ export async function createOmraBooking(
       /* ------------------------------------------------------------------
        * 6. Créer la réservation
        * ------------------------------------------------------------------ */
-      const publicRef = await nextPublicRef(tx, input.agencyId)
+      const publicRef = await nextPublicRef(tx, agencyId)
       const [reservation] = await tx
         .insert(reservations)
         .values({
-          agencyId: input.agencyId,
+          agencyId,
           customerId,
           publicRef,
           module: "omra",
@@ -259,12 +282,13 @@ export async function createOmraBooking(
 
       const reservationId = reservation.id
 
-      // Débit wallet via la fonction existante (avec FOR UPDATE interne)
+      // Débit wallet dans la transaction courante (txOverride) — pas de tx imbriquée
       const debitResult = await walletDebitReservation({
-        agencyId: input.agencyId,
+        agencyId,
         reservationId,
         amountTnd: totalTnd,
-        createdByUserId: input.createdByUserId,
+        createdByUserId,
+        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
@@ -278,7 +302,7 @@ export async function createOmraBooking(
        * ------------------------------------------------------------------ */
       await tx.insert(reservationOmra).values({
         reservationId,
-        agencyId: input.agencyId,
+        agencyId,
         omraPackageId: input.packageId,
         departureDate: input.departureDate,
         returnDate: new Date(
@@ -295,7 +319,7 @@ export async function createOmraBooking(
       for (const pilgrim of input.pilgrims) {
         await tx.insert(omraPilgrims).values({
           reservationId,
-          agencyId: input.agencyId,
+          agencyId,
           firstName: pilgrim.firstName,
           lastName: pilgrim.lastName,
           firstNameAr: pilgrim.firstNameAr,
@@ -342,19 +366,11 @@ export async function createOmraBooking(
         .where(eq(omraAllotments.id, allotment.id))
 
       /* ------------------------------------------------------------------
-       * 9. Passer la réservation en "confirmed"
-       * ------------------------------------------------------------------ */
-      await tx
-        .update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
-        .where(eq(reservations.id, reservationId))
-
-      /* ------------------------------------------------------------------
-       * 10. Log audit
+       * 9. Log audit  (status=confirmed déjà positionné par walletDebitReservation)
        * ------------------------------------------------------------------ */
       await tx.insert(auditEvents).values({
-        agencyId: input.agencyId,
-        actorUserId: input.createdByUserId,
+        agencyId,
+        actorUserId: createdByUserId,
         entityType: "reservation",
         entityId: reservationId,
         action: "omra_booking.created",

@@ -86,7 +86,9 @@ export default function LoginSelectPage() {
   function validateEmailForRole(email: string, role: RoleOption): boolean {
     if (!role.allowedEmailDomains) return true
     const domain = email.split("@")[1]
-    return role.allowedEmailDomains.some((d) => domain?.toLowerCase().endsWith(d.toLowerCase()))
+    return role.allowedEmailDomains.some((d) =>
+      domain?.toLowerCase().endsWith(d.toLowerCase()),
+    )
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -99,9 +101,12 @@ export default function LoginSelectPage() {
     }
 
     // Validation email domain pour B2B
-    if (selectedRoleData.allowedEmailDomains && !validateEmailForRole(email, selectedRoleData)) {
+    if (
+      selectedRoleData.allowedEmailDomains &&
+      !validateEmailForRole(email, selectedRoleData)
+    ) {
       setError(
-        `Email non autorisé. Domaines acceptés: ${selectedRoleData.allowedEmailDomains.join(", ")}`
+        `Email non autorisé. Domaines acceptés: ${selectedRoleData.allowedEmailDomains.join(", ")}`,
       )
       return
     }
@@ -174,7 +179,11 @@ export default function LoginSelectPage() {
                 {ROLES.map((role) => {
                   const Icon = role.icon
                   return (
-                    <SelectItem key={role.value} value={role.value} className="py-3">
+                    <SelectItem
+                      key={role.value}
+                      value={role.value}
+                      className="py-3"
+                    >
                       <div className="flex items-center gap-3">
                         <Icon className="h-4 w-4 text-[#1e3a5f]" />
                         <div className="flex flex-col">
@@ -202,7 +211,9 @@ export default function LoginSelectPage() {
                 {/* Special Code for Mutuelle */}
                 {selectedRoleData.requiresSpecialCode && (
                   <div className="space-y-2">
-                    <Label htmlFor="specialCode">Code d&apos;accès Mutuelle</Label>
+                    <Label htmlFor="specialCode">
+                      Code d&apos;accès Mutuelle
+                    </Label>
                     <div className="relative">
                       <Key className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                       <Input
@@ -238,7 +249,8 @@ export default function LoginSelectPage() {
                   </div>
                   {selectedRoleData.allowedEmailDomains && (
                     <p className="text-muted-foreground text-xs">
-                      Domaines autorisés: {selectedRoleData.allowedEmailDomains.join(", ")}
+                      Domaines autorisés:{" "}
+                      {selectedRoleData.allowedEmailDomains.join(", ")}
                     </p>
                   )}
                 </div>

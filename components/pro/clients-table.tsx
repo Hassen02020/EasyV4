@@ -1,10 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
+
 import { Search, Mail, Phone, User } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
+
 import { Badge } from "@/components/ui/badge"
+
 import {
   Table,
   TableBody,
@@ -13,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+
 import type { PartnerClient } from "@/lib/pro/mock-tables"
 
 interface ClientsTableProps {
@@ -21,9 +25,12 @@ interface ClientsTableProps {
 
 export function ClientsTable({ rows }: ClientsTableProps) {
   const [q, setQ] = useState("")
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
+
     if (!needle) return rows
+
     return rows.filter(
       (r) =>
         r.name.toLowerCase().includes(needle) ||
@@ -41,8 +48,10 @@ export function ClientsTable({ rows }: ClientsTableProps) {
         <label className="text-muted-foreground mb-1 block text-xs font-semibold tracking-wide uppercase">
           Mots clés
         </label>
+
         <div className="relative">
           <Search className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2" />
+
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -57,14 +66,19 @@ export function ClientsTable({ rows }: ClientsTableProps) {
           <TableHeader>
             <TableRow className="bg-muted/30">
               <TableHead className="font-semibold">Nom</TableHead>
+
               <TableHead className="font-semibold">Téléphone</TableHead>
+
               <TableHead className="font-semibold">Email</TableHead>
+
               <TableHead className="text-right font-semibold">
                 Réservations
               </TableHead>
+
               <TableHead className="font-semibold">Premier dossier</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
@@ -83,40 +97,48 @@ export function ClientsTable({ rows }: ClientsTableProps) {
                       <span className="bg-secondary/15 text-secondary flex h-7 w-7 items-center justify-center rounded-full">
                         <User className="h-3.5 w-3.5" />
                       </span>
+
                       <span className="font-medium">{c.name}</span>
                     </span>
                   </TableCell>
+
                   <TableCell>
                     <a
                       href={`tel:${(c.phone ?? "").replace(/\s+/g, "")}`}
                       className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-sm"
                     >
                       <Phone className="h-3 w-3" />
+
                       {c.phone ?? "—"}
                     </a>
                   </TableCell>
+
                   <TableCell>
                     <a
                       href={`mailto:${c.email}`}
                       className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-sm"
                     >
                       <Mail className="h-3 w-3" />
+
                       {c.email}
                     </a>
                   </TableCell>
+
                   <TableCell className="text-right">
                     <Badge variant="outline" className="font-bold">
-                      {c.bookings ?? c.reservationsCount}
+                      {c.bookings}
                     </Badge>
                   </TableCell>
+
                   <TableCell className="text-muted-foreground text-xs">
-                    {c.createdAt ?? "—"}
+                    {c.createdAt}
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+
         <div className="border-border/60 text-muted-foreground border-t px-4 py-2 text-xs">
           {filtered.length} client{filtered.length > 1 ? "s" : ""} affiché
           {filtered.length > 1 ? "s" : ""}

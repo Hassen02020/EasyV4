@@ -17,7 +17,8 @@ import { eq, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
 import { agencies } from "@/lib/db/schema"
 
-const AGENCY_ID = process.env.TEST_AGENCY_ID ?? "00000000-0000-0000-0000-000000000001"
+const AGENCY_ID =
+  process.env.TEST_AGENCY_ID ?? "00000000-0000-0000-0000-000000000001"
 const DEBIT_AMOUNT = "50.00"
 const INITIAL_BALANCE = "200.00"
 
@@ -97,7 +98,10 @@ async function main() {
   const failures = results.filter((r) => !r.ok).length
 
   const after = await getBalance()
-  const expected = Math.max(0, parseFloat(INITIAL_BALANCE) - successes * parseFloat(DEBIT_AMOUNT))
+  const expected = Math.max(
+    0,
+    parseFloat(INITIAL_BALANCE) - successes * parseFloat(DEBIT_AMOUNT),
+  )
 
   console.log(`\n📊 Résultats :`)
   console.table(results)
@@ -107,7 +111,11 @@ async function main() {
   console.log(`🧮 Solde attendu   : ${expected.toFixed(2)} TND`)
 
   const ok = parseFloat(String(after)) === expected
-  console.log(ok ? "\n🎉 PAS DE RACE CONDITION — les transactions sont atomiques." : "\n💥 RACE CONDITION DÉTECTÉE !")
+  console.log(
+    ok
+      ? "\n🎉 PAS DE RACE CONDITION — les transactions sont atomiques."
+      : "\n💥 RACE CONDITION DÉTECTÉE !",
+  )
   process.exit(ok ? 0 : 1)
 }
 

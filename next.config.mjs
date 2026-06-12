@@ -58,10 +58,8 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   typescript: {
+    // TODO: set to false once the 99 pre-existing TS errors in components/pro/ are resolved
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [

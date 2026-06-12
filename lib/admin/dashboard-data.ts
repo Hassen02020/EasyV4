@@ -216,10 +216,10 @@ export async function loadDashboardData(
       }),
     }
   } catch (error) {
-    console.warn(
-      "[loadDashboardData] DB error — returning empty dashboard:",
-      error instanceof Error ? error.message : error,
-    )
+    const { logger } = await import("@/lib/logger")
+    logger.warn("[loadDashboardData] DB error — returning empty dashboard", {
+      code: error instanceof Error ? error.constructor.name : "unknown",
+    })
     return EMPTY
   }
 }

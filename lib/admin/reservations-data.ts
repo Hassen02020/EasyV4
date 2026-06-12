@@ -7,9 +7,10 @@
  * pas serveur tant que c'est < 1000).
  */
 
-import { and, desc, eq, lt, or } from "drizzle-orm"
+import { and, desc, eq, gte, lt, or, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
-import { customers, reservations } from "@/lib/db/schema"
+import { agencies, customers, reservations } from "@/lib/db/schema"
+import { logger } from "@/lib/logger"
 
 /* -------------------------------------------------------------------------- */
 /* Cursor-based pagination helpers                                            */
@@ -44,6 +45,8 @@ export function decodeCursor(str: string): Cursor | null {
 export type AdminReservationRow = {
   id: string
   publicRef: string
+  agencyId: string
+  agencyName: string | null
   module: string
   status: string
   customerName: string
@@ -94,6 +97,8 @@ export async function loadAdminReservations(
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
+        agencyId: reservations.agencyId,
+        agencyName: sql<string | null>`COALESCE(${agencies.brandName}, ${agencies.name})`,
         module: reservations.module,
         status: reservations.status,
         firstName: customers.firstName,
@@ -110,6 +115,7 @@ export async function loadAdminReservations(
       })
       .from(reservations)
       .leftJoin(customers, eq(customers.id, reservations.customerId))
+      .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
       .where(and(eq(reservations.agencyId, agencyId)))
       .orderBy(desc(reservations.createdAt))
       .limit(limit)
@@ -119,7 +125,8 @@ export async function loadAdminReservations(
       rows: rows.map(mapRow),
     }
   } catch (error) {
-    console.error("loadAdminReservations failed:", error)
+    const { logger } = await import("@/lib/logger")
+    logger.error("loadAdminReservations failed", { code: error instanceof Error ? error.constructor.name : "unknown" })
     return EMPTY
   }
 }
@@ -156,6 +163,8 @@ export async function loadAdminReservationsPage(
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
+        agencyId: reservations.agencyId,
+        agencyName: sql<string | null>`COALESCE(${agencies.brandName}, ${agencies.name})`,
         module: reservations.module,
         status: reservations.status,
         firstName: customers.firstName,
@@ -172,6 +181,7 @@ export async function loadAdminReservationsPage(
       })
       .from(reservations)
       .leftJoin(customers, eq(customers.id, reservations.customerId))
+      .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
       .where(where!)
       .orderBy(desc(reservations.createdAt))
       .limit(limit + 1)
@@ -195,7 +205,8 @@ export async function loadAdminReservationsPage(
       hasMore,
     }
   } catch (error) {
-    console.error("loadAdminReservationsPage failed:", error)
+    const { logger } = await import("@/lib/logger")
+    logger.error("loadAdminReservationsPage failed", { code: error instanceof Error ? error.constructor.name : "unknown" })
     return EMPTY_PAGE
   }
 }
@@ -207,6 +218,8 @@ export async function loadAdminReservationsPage(
 function mapRow(row: {
   id: string
   publicRef: string
+  agencyId: string
+  agencyName: string | null
   module: string
   status: string
   firstName: string | null
@@ -224,6 +237,8 @@ function mapRow(row: {
   return {
     id: row.id,
     publicRef: row.publicRef,
+    agencyId: row.agencyId,
+    agencyName: row.agencyName,
     module: row.module,
     status: row.status,
     customerName:
@@ -238,5 +253,89 @@ function mapRow(row: {
     depositPaid: Number(row.depositPaid ?? 0),
     createdAt: row.createdAt.toISOString(),
     cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cross-agency loader (super_admin)                                          */
+/* -------------------------------------------------------------------------- */
+
+export type AllReservationsOpts = {
+  agencyId?: string | null
+  status?: string | null
+  module?: string | null
+  since?: Date | null
+  limit?: number
+  cursor?: Cursor | null
+}
+
+export async function loadAllReservations(
+  opts: AllReservationsOpts = {},
+): Promise<CursorPageResult> {
+  if (!process.env.DATABASE_URL) return EMPTY_PAGE
+
+  const limit = opts.limit ?? 50
+  const db = getDb()
+
+  try {
+    const conditions = [
+      opts.agencyId ? eq(reservations.agencyId, opts.agencyId) : undefined,
+      opts.status ? eq(reservations.status, opts.status as "pending") : undefined,
+      opts.module ? eq(reservations.module, opts.module as "hotel") : undefined,
+      opts.since ? gte(reservations.createdAt, opts.since) : undefined,
+      opts.cursor
+        ? or(
+            lt(reservations.createdAt, new Date(opts.cursor.createdAt)),
+            and(
+              eq(reservations.createdAt, new Date(opts.cursor.createdAt)),
+              lt(reservations.id, opts.cursor.id),
+            ),
+          )
+        : undefined,
+    ].filter(Boolean)
+
+    const where = conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined
+
+    const rows = await db
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        agencyId: reservations.agencyId,
+        agencyName: sql<string | null>`COALESCE(${agencies.brandName}, ${agencies.name})`,
+        module: reservations.module,
+        status: reservations.status,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
+        email: customers.email,
+        phone: customers.phone,
+        originalCurrency: reservations.originalCurrency,
+        originalAmount: reservations.originalAmount,
+        tndAmount: reservations.tndAmount,
+        depositAmount: reservations.depositAmount,
+        depositPaid: reservations.depositPaid,
+        createdAt: reservations.createdAt,
+        cancelledAt: reservations.cancelledAt,
+      })
+      .from(reservations)
+      .leftJoin(customers, eq(customers.id, reservations.customerId))
+      .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
+      .where(where)
+      .orderBy(desc(reservations.createdAt))
+      .limit(limit + 1)
+
+    const hasMore = rows.length > limit
+    const pageRows = hasMore ? rows.slice(0, limit) : rows
+    const lastRow = pageRows[pageRows.length - 1]
+    const nextCursor: string | null =
+      hasMore && lastRow
+        ? encodeCursor({ createdAt: lastRow.createdAt.toISOString(), id: lastRow.id })
+        : null
+
+    return { available: true, rows: pageRows.map(mapRow), nextCursor, hasMore }
+  } catch (err) {
+    logger.error("loadAllReservations failed", {
+      err: err instanceof Error ? err.message : String(err),
+    })
+    return EMPTY_PAGE
   }
 }

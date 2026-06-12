@@ -57,11 +57,7 @@ const amenityIcons: Record<string, React.ReactNode> = {
   Spa: <Sparkles className="h-4 w-4" />,
 }
 
-export function HotelCard({
-  hotel,
-  onBook,
-  onViewDetails,
-}: HotelCardProps) {
+export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
   const { format } = useCurrency()
   const [currentImage, setCurrentImage] = useState(0)
   const [isWishlisted, setIsWishlisted] = useState(false)

@@ -1,8 +1,8 @@
 /**
  * Layout Protection Catalogue Produits
- * 
+ *
  * Vérifie que l'utilisateur peut accéder au catalogue.
- * 
+ *
  * Rôles autorisés: super_admin, manager, agent_resa (lecture), agent_excursions (modif excursions)
  */
 
@@ -20,7 +20,9 @@ export default async function ProductsLayout({
   children: React.ReactNode
 }) {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/products")

@@ -27,8 +27,6 @@ import {
   type ReservationStatus,
 } from "./reservation-status"
 
-const AGENCY_ID_DEFAULT = "00000000-0000-0000-0000-000000000001"
-
 const inputSchema = z.object({
   reservationId: z.string().uuid(),
   nextStatus: z.enum(RESERVATION_STATUSES),
@@ -67,7 +65,10 @@ export async function updateReservationStatus(
   }
 
   const profile = await getCurrentAdminProfile(user.id)
-  const agencyId = profile?.agencyId ?? AGENCY_ID_DEFAULT
+  if (!profile?.agencyId) {
+    return { ok: false, error: "Profil administrateur introuvable ou non lié à une agence" }
+  }
+  const agencyId = profile.agencyId
 
   const db = getDb()
 

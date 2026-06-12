@@ -22,6 +22,48 @@
       "when": 1779095794699,
       "tag": "0002_b2b_credit_precision_3dec",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780656978180,
+      "tag": "0003_chemical_slapstick",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780659496067,
+      "tag": "0004_wallet_recharge",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780659959993,
+      "tag": "0005_jittery_katie_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780741904598,
+      "tag": "0006_omra_module",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781261059896,
+      "tag": "0007_swift_spiral",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781266308679,
+      "tag": "0008_yielding_alex_wilder",
+      "breakpoints": true
     }
   ]
 }

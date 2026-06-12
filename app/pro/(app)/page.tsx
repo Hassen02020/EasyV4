@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import {
   TrendingUp,
   Sparkles,
@@ -9,6 +10,9 @@ import {
 } from "lucide-react"
 
 import { ProHomeEngine } from "@/components/pro/pro-home-engine"
+import { createServerSupabase } from "@/lib/supabase/server"
+import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
+import { loadPartnerDashboard } from "@/lib/pro/dashboard-data"
 
 export const metadata = {
   title: "Espace Pro — Recherche | Easy2Book",
@@ -36,7 +40,18 @@ const QUICK_LINKS = [
   },
 ] as const
 
-export default function ProHomePage() {
+export default async function ProHomePage() {
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/pro/login?next=/pro")
+
+  const profile = await getCurrentPartnerProfile(user.id)
+  const agencyId = profile?.agency.id ?? null
+
+  const stats = agencyId ? await loadPartnerDashboard(agencyId) : null
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
       <header className="e2b-fade-in-up mb-6 md:mb-8">
@@ -108,22 +123,44 @@ export default function ProHomePage() {
         </div>
         <div className="grid gap-3 md:grid-cols-4 md:gap-4">
           <ActivityCard
-            label="Réservations en cours"
-            value="—"
-            hint="Période 30 j"
+            label="Réservations (30 j)"
+            value={
+              stats
+                ? String(stats.reservationsLast30)
+                : "—"
+            }
+            hint="Dossiers créés"
           />
-          <ActivityCard label="Montant des ventes" value="—" hint="TND TTC" />
           <ActivityCard
-            label="Factures en attente"
-            value="—"
-            hint="Non réglées"
+            label="Ventes (30 j)"
+            value={
+              stats
+                ? stats.salesLast30Tnd.toLocaleString("fr-FR", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })
+                : "—"
+            }
+            hint="TND TTC"
           />
-          <ActivityCard label="Marge brute (mois)" value="—" hint="TND" />
+          <ActivityCard
+            label="En attente"
+            value={stats ? String(stats.pendingCount) : "—"}
+            hint="À traiter"
+          />
+          <ActivityCard
+            label="Solde Wallet"
+            value={
+              stats
+                ? stats.walletBalance.toLocaleString("fr-FR", {
+                    minimumFractionDigits: 3,
+                    maximumFractionDigits: 3,
+                  })
+                : "—"
+            }
+            hint="DT disponibles"
+          />
         </div>
-        <p className="text-muted-foreground mt-3 text-xs">
-          Les indicateurs seront alimentés depuis vos données réelles dès vos
-          premières réservations.
-        </p>
       </section>
     </div>
   )

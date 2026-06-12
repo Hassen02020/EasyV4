@@ -8,13 +8,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getMyGoClient, mapHotelDetails } from "@/lib/mygo"
 import { MyGoAuthError, MyGoError } from "@/lib/mygo"
+import { requirePartnerSession } from "@/lib/api/auth-guard"
 
 export const revalidate = 86400
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requirePartnerSession(req)
+  if (session instanceof NextResponse) return session
+
   const { id } = await params
   const hotelId = parseInt(id, 10)
   if (!Number.isFinite(hotelId) || hotelId <= 0) {

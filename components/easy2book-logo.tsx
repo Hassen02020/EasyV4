@@ -23,7 +23,12 @@ export function Easy2BookLogo({
 }: Easy2BookLogoProps) {
   if (!withWordmark) {
     return (
-      <div className={cn("relative shrink-0 overflow-hidden rounded-xl", className)}>
+      <div
+        className={cn(
+          "relative shrink-0 overflow-hidden rounded-xl",
+          className,
+        )}
+      >
         <Image
           src="/easy2book-logo.png"
           alt="Logo Easy2Book"

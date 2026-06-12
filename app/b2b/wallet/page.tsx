@@ -2,42 +2,58 @@ import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getAgencyBalance, getMovements } from "@/lib/finance/ledger"
+import { getDb } from "@/lib/db/client"
+import { walletRechargeRequests } from "@/lib/db/schema"
+import { eq, desc } from "drizzle-orm"
 import {
   Wallet,
   TrendingDown,
   TrendingUp,
-  RefreshCw,
-  SlidersHorizontal,
-  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Banknote,
+  Building2,
+  Mail,
+  CreditCard,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { WalletRechargeForm } from "@/components/b2b/wallet-recharge-form"
 
 export const dynamic = "force-dynamic"
 
-const MOVEMENT_CONFIG = {
-  credit:     { label: "Recharge",    color: "bg-emerald-100 text-emerald-800", icon: TrendingUp,   sign: "+" },
-  debit:      { label: "Débit",       color: "bg-red-100 text-red-800",         icon: TrendingDown, sign: "-" },
-  refund:     { label: "Remboursement", color: "bg-blue-100 text-blue-800",     icon: RefreshCw,    sign: "+" },
-  adjustment: { label: "Ajustement",  color: "bg-gray-100 text-gray-700",       icon: SlidersHorizontal, sign: "±" },
+export const metadata = {
+  title: "Mon Portefeuille — Easy2Book B2B",
 }
 
 function formatTnd(v: number) {
-  return v.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return v.toLocaleString("fr-FR", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
 }
 
-export default async function WalletPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>
-}) {
-  const { page: pageParam } = await searchParams
-  const page = Math.max(1, parseInt(pageParam ?? "1", 10))
-  const limit = 20
-  const offset = (page - 1) * limit
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Espèces",
+  bank_transfer: "Virement bancaire",
+  postal_transfer: "Virement postal",
+  postal_mandate: "Mandat postal",
+  check: "Chèque",
+  card_international: "Carte internationale",
+}
 
+const STATUS_CONFIG = {
+  pending: { label: "En attente", variant: "secondary" as const, Icon: Clock },
+  validated: { label: "Validée", variant: "default" as const, Icon: CheckCircle2 },
+  rejected: { label: "Refusée", variant: "destructive" as const, Icon: XCircle },
+}
+
+export default async function WalletPage() {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect("/pro/login?next=/b2b/wallet")
 
   const profile = await getCurrentAdminProfile(user.id)
@@ -45,151 +61,165 @@ export default async function WalletPage({
 
   const [balanceRes, movementsRes] = await Promise.all([
     getAgencyBalance(profile.agencyId),
-    getMovements({ agencyId: profile.agencyId, limit, offset }),
+    getMovements({ agencyId: profile.agencyId, limit: 20 }),
   ])
 
   const balance = balanceRes.ok ? balanceRes.data : null
   const movements = movementsRes.ok ? movementsRes.data.movements : []
-  const total = movementsRes.ok ? movementsRes.data.total : 0
-  const totalPages = Math.ceil(total / limit)
+
+  // Récupérer les dernières demandes de recharge
+  const db = getDb()
+  const rechargeRequests = await db
+    .select()
+    .from(walletRechargeRequests)
+    .where(eq(walletRechargeRequests.agencyId, profile.agencyId))
+    .orderBy(desc(walletRechargeRequests.createdAt))
+    .limit(10)
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-foreground text-2xl font-bold">Mon Wallet</h1>
-        <p className="text-muted-foreground text-sm">
-          Historique complet de votre compte de dépôt
+        <h1 className="text-2xl font-bold">Mon Portefeuille</h1>
+        <p className="text-muted-foreground">
+          Gérez votre solde, soumettez des recharges et consultez vos mouvements.
         </p>
       </div>
 
-      {/* Balance card */}
-      {balance && (
-        <Card className={balance.isLow ? "border-amber-400 bg-amber-50/50" : ""}>
-          <CardContent className="flex items-center justify-between py-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1e3a5f]/10">
-                <Wallet className="h-6 w-6 text-[#1e3a5f]" />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-sm">Solde disponible</p>
-                <p className="text-foreground text-3xl font-bold">
-                  {formatTnd(balance.balance)}{" "}
-                  <span className="text-muted-foreground text-lg font-normal">DT</span>
-                </p>
-              </div>
+      {/* Solde */}
+      <Card className={balance?.isLow ? "border-amber-400" : ""}>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Solde disponible</CardTitle>
+          <Wallet className="text-muted-foreground h-5 w-5" />
+        </CardHeader>
+        <CardContent>
+          <p className="text-3xl font-bold">
+            {balance ? formatTnd(balance.balance) : "—"}{" "}
+            <span className="text-muted-foreground text-lg font-normal">DT</span>
+          </p>
+          {balance?.isLow && (
+            <p className="mt-1 text-sm text-amber-600">
+              ⚠ Solde en dessous du seuil ({formatTnd(balance.threshold)} DT)
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Formulaire de recharge */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Banknote className="h-5 w-5" />
+            Demander une recharge
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <WalletRechargeForm
+            agencyId={profile.agencyId}
+            userId={user.id}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Demandes de recharge récentes */}
+      {rechargeRequests.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Demandes de recharge</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-border divide-y">
+              {rechargeRequests.map((req) => {
+                const cfg = STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]
+                return (
+                  <div
+                    key={req.id}
+                    className="flex items-center justify-between py-3"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">
+                        {formatTnd(parseFloat(req.amount))} DT —{" "}
+                        {METHOD_LABELS[req.method] ?? req.method}
+                      </p>
+                      {req.paymentReference && (
+                        <p className="text-muted-foreground text-xs">
+                          Réf: {req.paymentReference}
+                        </p>
+                      )}
+                      <p className="text-muted-foreground text-xs">
+                        {new Date(req.createdAt).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    <Badge variant={cfg?.variant ?? "secondary"}>
+                      {cfg?.label ?? req.status}
+                    </Badge>
+                  </div>
+                )
+              })}
             </div>
-            {balance.isLow && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-4 py-2 text-amber-700">
-                <AlertTriangle className="h-4 w-4" />
-                <div>
-                  <p className="text-xs font-semibold">Solde bas</p>
-                  <p className="text-xs">
-                    Seuil: {formatTnd(balance.creditLowThreshold)} DT
-                  </p>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Movements table */}
+      {/* Historique des mouvements */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">
-            Historique des mouvements
-            <span className="text-muted-foreground ml-2 text-sm font-normal">
-              ({total} au total)
-            </span>
-          </CardTitle>
+          <CardTitle>Historique des mouvements</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent>
           {movements.length === 0 ? (
-            <p className="text-muted-foreground py-10 text-center text-sm">
+            <p className="text-muted-foreground text-sm">
               Aucun mouvement enregistré.
             </p>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-border bg-muted/40 border-b">
-                      <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-500">Type</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-500">Description</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-500">Référence</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-500">Montant</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-500">Solde après</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-border divide-y">
-                    {movements.map((m) => {
-                      const cfg = MOVEMENT_CONFIG[m.movementType]
-                      const Icon = cfg.icon
-                      const isDebit = m.movementType === "debit"
-                      return (
-                        <tr key={m.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="text-muted-foreground whitespace-nowrap px-4 py-3 text-xs">
-                            {new Date(m.createdAt).toLocaleDateString("fr-FR", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cfg.color}`}>
-                              <Icon className="h-3 w-3" />
-                              {cfg.label}
-                            </span>
-                          </td>
-                          <td className="text-foreground px-4 py-3">
-                            {m.description ?? "—"}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                            {m.reference ?? "—"}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-bold ${isDebit ? "text-red-600" : "text-emerald-600"}`}>
-                            {cfg.sign}{formatTnd(Math.abs(m.amount))} DT
-                          </td>
-                          <td className="text-foreground px-4 py-3 text-right font-medium">
-                            {formatTnd(m.balanceAfter)} DT
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="border-border flex items-center justify-between border-t px-4 py-3">
-                  <p className="text-muted-foreground text-xs">
-                    Page {page} / {totalPages}
-                  </p>
-                  <div className="flex gap-2">
-                    {page > 1 && (
-                      <a
-                        href={`/b2b/wallet?page=${page - 1}`}
-                        className="border-border rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-gray-50"
+            <div className="divide-border divide-y">
+              {movements.map((m) => {
+                const isCredit = m.movementType === "credit" || m.movementType === "refund"
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      {isCredit ? (
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-red-600" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">
+                          {m.description ?? m.movementType}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {new Date(m.createdAt).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p
+                        className={`text-sm font-semibold ${isCredit ? "text-green-600" : "text-red-600"}`}
                       >
-                        ← Précédent
-                      </a>
-                    )}
-                    {page < totalPages && (
-                      <a
-                        href={`/b2b/wallet?page=${page + 1}`}
-                        className="bg-[#1e3a5f] rounded-md px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
-                      >
-                        Suivant →
-                      </a>
-                    )}
+                        {isCredit ? "+" : "−"}
+                        {formatTnd(Math.abs(m.amount))} DT
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Solde: {formatTnd(m.balanceAfter)} DT
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
+                )
+              })}
+            </div>
           )}
         </CardContent>
       </Card>

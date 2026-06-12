@@ -1,0 +1,259 @@
+{
+  "nav": {
+    "home": "Home",
+    "hotels_tunisia": "Hotels Tunisia",
+    "hotels_world": "Hotels World",
+    "flights": "Flights",
+    "omra": "Umrah",
+    "packages": "Package Tours",
+    "transfers": "Transfers",
+    "car_rental": "Car Rental",
+    "help": "Help",
+    "my_bookings": "My Bookings",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "footer": {
+    "services": "Our Services",
+    "contact": "Contact",
+    "legal": "Legal Notice",
+    "cgv": "Terms and Conditions",
+    "privacy": "Privacy Policy",
+    "copyright": "© 2026 Easy2Book. All rights reserved. Licensed travel agency in Tunisia.",
+    "trust_badges": {
+      "payment_secure": "100% Secure Payment",
+      "payment_secure_desc": "SPS / Monétique Tunisie",
+      "support_local": "Local Support 7/7",
+      "support_local_desc": "+216 98 140 514",
+      "availability": "Real Availability",
+      "availability_desc": "MyGo/APIGDS",
+      "physical_agency": "Physical Agency",
+      "physical_agency_desc": "In Tunis"
+    }
+  },
+  "booking_engine": {
+    "tabs": {
+      "vols": "Flights",
+      "hotels_tunisia": "Hotels Tunisia",
+      "hotels_monde": "Hotels World",
+      "omraty": "Omraty",
+      "voyages_organises": "Package Tours",
+      "transfers": "Transfers",
+      "car": "Car"
+    },
+    "search": "SEARCH",
+    "coming_soon": "{module} search coming soon",
+    "coming_soon_desc": "The search engine will be connected to the corresponding API soon.",
+    "vols": {
+      "departure": "Departure from",
+      "destination": "Destination",
+      "dates": "Dates",
+      "choose_dates": "Choose dates",
+      "class": "Class",
+      "flexible": "Compare with flexible prices",
+      "economique": "Economy",
+      "premium": "Premium",
+      "business": "Business"
+    },
+    "hotels_monde": {
+      "destination": "Worldwide destination",
+      "placeholder": "City, hotel or airport",
+      "checkin": "Check-in",
+      "arrival_date": "Arrival date",
+      "checkout": "Check-out",
+      "departure_date": "Departure date"
+    },
+    "omraty": {
+      "program": "Program",
+      "select": "Select",
+      "economique": "Economy",
+      "confort": "Comfort",
+      "prestige": "Prestige",
+      "departure_month": "Departure month",
+      "choose_month": "Choose month",
+      "distance_haram": "Distance from Haram",
+      "distance": "Distance",
+      "flight_type": "Flight type",
+      "direct": "Direct flight",
+      "with_stopover": "With stopover"
+    },
+    "voyages_organises": {
+      "destination": "Destination",
+      "choose_destination": "Choose a destination",
+      "turquie": "Turkey",
+      "egypte": "Egypt",
+      "dubai": "Dubai",
+      "malaisie": "Malaysia",
+      "thailande": "Thailand",
+      "period": "Period",
+      "choose_period": "Choose period",
+      "duration": "Duration",
+      "travelers": "Travelers",
+      "1_traveler": "1 Traveler",
+      "2_travelers": "2 Travelers",
+      "3_travelers": "3 Travelers",
+      "4_travelers": "4 Travelers",
+      "5_plus_travelers": "5+ Travelers"
+    },
+    "transfers": {
+      "pickup_location": "Pickup location",
+      "airport_port": "Airport / Port",
+      "tunis_airport": "Tunis-Carthage Airport",
+      "enfidha_airport": "Enfidha Airport",
+      "djerba_airport": "Djerba Airport",
+      "monastir_airport": "Monastir Airport",
+      "dropoff_location": "Drop-off location",
+      "hotel_address": "Hotel or address",
+      "date_time": "Date and time",
+      "arrival_date": "Arrival date",
+      "passengers": "Passengers",
+      "1_passenger": "1 Passenger",
+      "2_passengers": "2 Passengers",
+      "3_passengers": "3 Passengers",
+      "4_passengers": "4 Passengers",
+      "5_plus_passengers": "5+ Passengers"
+    },
+    "car": {
+      "pickup_location": "Pickup location",
+      "airport_city": "Airport or city",
+      "hammamet_center": "Hammamet center",
+      "sousse_center": "Sousse center",
+      "pickup_date": "Pickup date",
+      "choose_date": "Choose date",
+      "return_date": "Return date",
+      "category": "Category",
+      "economique": "Economy",
+      "compact": "Compact",
+      "sedan": "Sedan",
+      "suv": "SUV",
+      "luxury": "Luxury",
+      "with_driver": "With driver"
+    }
+  },
+  "filter_sidebar": {
+    "title": "Refine your results",
+    "reset": "Reset filters",
+    "pricing": "Rates and availability",
+    "recommended": "Recommended hotel",
+    "available_only": "Available only",
+    "free_cancellation": "Free cancellation",
+    "category": "Category",
+    "price_per_night": "Price ({currency})",
+    "meal_plan": "Meal plan",
+    "facilities": "Facilities"
+  },
+  "hotel_card": {
+    "from": "From",
+    "view_details": "View details",
+    "rates_rooms": "Rates & rooms",
+    "room_header": "Room 1: 2 adults",
+    "free_cancellation_before": "Free cancellation before {date}",
+    "available": "Available",
+    "on_request": "On request",
+    "book": "Book",
+    "exclusive": "Exclusive",
+    "add_wishlist": "Add to wishlist",
+    "remove_wishlist": "Remove from wishlist",
+    "view_image": "View image {number}"
+  },
+  "booking_form": {
+    "header": {
+      "home": "HOME",
+      "hotels": "HOTELS",
+      "apartments": "APARTMENTS",
+      "ticket_management": "TICKET MANAGEMENT",
+      "contact": "CONTACT",
+      "info_reservations": "INFO & RESERVATIONS"
+    },
+    "breadcrumb": {
+      "hotel_list": "Hotel List",
+      "rates": "Rate Availability"
+    },
+    "warning": {
+      "insufficient_balance": "Insufficient balance,",
+      "please_fund": "please fund your account"
+    },
+    "room_occupancy": "Room occupancy",
+    "on_request": "On request",
+    "guest": {
+      "adult": "adult",
+      "child": "child",
+      "primary": "(Primary)",
+      "title": "Title",
+      "select": "Select",
+      "mr": "Mr.",
+      "mrs": "Mrs.",
+      "miss": "Miss",
+      "last_name": "Last name",
+      "first_name": "First name"
+    },
+    "contact_info": "Contact information",
+    "email": "Email",
+    "email_placeholder": "your@email.com",
+    "phone": "Phone",
+    "phone_placeholder": "+216 XX XXX XXX",
+    "cancellation_policy": "Cancellation policy and important information",
+    "free_cancellation": "Free cancellation",
+    "until_48h": "until 48 hours before arrival date.",
+    "within_48h": "Cancellations made within 48 hours prior to arrival will be charged the first night.",
+    "no_show": "No-shows will be charged the full reservation amount.",
+    "special_requests": "Special requests are subject to availability and may incur additional charges.",
+    "back_to_search": "Back to search",
+    "book": "BOOK",
+    "modify_search": "Modify your search",
+    "subtotal": "Subtotal:",
+    "nights": "night(s)",
+    "from": "From",
+    "to": "To",
+    "so": "i.e."
+  },
+  "login_form": {
+    "email": "Email",
+    "email_placeholder": "you@example.com",
+    "password": "Password",
+    "password_placeholder": "••••••••",
+    "login": "Sign in",
+    "logining": "Signing in…",
+    "magic_link": "Receive a magic link by email",
+    "error": {
+      "invalid_credentials": "Incorrect email or password.",
+      "email_not_confirmed": "Your email has not been confirmed yet. Check your inbox.",
+      "rate_limit": "Too many attempts. Try again in a few minutes.",
+      "fill_fields": "Please enter your email and password.",
+      "fill_email_first": "Please enter your email first to receive a magic link."
+    },
+    "success": {
+      "magic_link_sent": "A login link has been sent to your email address. Check your inbox."
+    },
+    "login_failed": "Login failed",
+    "link_sent": "Link sent"
+  },
+  "flash_offers": {
+    "title": "Our best offers departing from Tunis",
+    "badge": "Flash Offers",
+    "book": "Book"
+  },
+  "currency": {
+    "TND": "Tunisian Dinar",
+    "EUR": "Euro",
+    "USD": "US Dollar"
+  },
+  "language": {
+    "fr": "Français",
+    "en": "English",
+    "ar": "العربية"
+  },
+  "common": {
+    "search": "Search",
+    "book": "Book",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "required": "*",
+    "optional": "(optional)"
+  },
+  "adults": "Adults",
+  "children": "Children"
+}

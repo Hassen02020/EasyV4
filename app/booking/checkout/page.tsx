@@ -9,10 +9,13 @@ import { Badge } from "@/components/ui/badge"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
-import dynamic from "next/dynamic"
+import dynamicImport from "next/dynamic"
+import { Suspense } from "react"
 
-const CheckoutForm = dynamic(
-  () => import("@/components/booking/checkout-form").then((m) => m.CheckoutForm),
+export const dynamic = 'force-dynamic'
+
+const CheckoutForm = dynamicImport(() =>
+  import("@/components/booking/checkout-form").then((m) => m.CheckoutForm),
 )
 
 type SP = { [k: string]: string | string[] | undefined }
@@ -26,13 +29,12 @@ const MODULE_LABEL: Record<string, string> = {
   activity: "Activité",
 }
 
-export default async function CheckoutPage({
+function CheckoutContent({
   searchParams,
 }: {
-  searchParams: Promise<SP>
+  searchParams: SP
 }) {
-  const sp = await searchParams
-  const token = typeof sp.d === "string" ? sp.d : undefined
+  const token = typeof searchParams.d === "string" ? searchParams.d : undefined
   const payload = decodeDraft(token)
   if (!payload || !payload.traveler) redirect("/")
 
@@ -113,7 +115,9 @@ export default async function CheckoutPage({
                 </CardContent>
               </Card>
 
-              <CheckoutForm token={token!} />
+              <Suspense fallback={<div>Chargement du formulaire...</div>}>
+                <CheckoutForm token={token!} />
+              </Suspense>
             </div>
 
             <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
@@ -151,6 +155,18 @@ export default async function CheckoutPage({
       </main>
       <Footer />
     </div>
+  )
+}
+
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<SP>
+}) {
+  return (
+    <Suspense fallback={<div>Chargement...</div>}>
+      <CheckoutContent searchParams={await searchParams} />
+    </Suspense>
   )
 }
 

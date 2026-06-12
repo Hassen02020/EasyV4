@@ -18,6 +18,8 @@ import { decodeDraft, encodeDraft } from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
 
+export const dynamic = 'force-dynamic'
+
 type SP = { [k: string]: string | string[] | undefined }
 
 const MODULE_LABEL: Record<string, string> = {

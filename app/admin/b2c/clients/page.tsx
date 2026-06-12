@@ -1,6 +1,6 @@
 /**
  * Gestion des Clients B2C — Manager
- * 
+ *
  * Vue et gestion de la base clients
  */
 
@@ -63,7 +63,7 @@ export const dynamic = "force-dynamic"
 async function loadClients() {
   try {
     const db = getDb()
-    
+
     const allCustomers = await db
       .select({
         id: customers.id,
@@ -89,7 +89,9 @@ async function loadClients() {
       .from(reservations)
       .groupBy(reservations.customerId)
 
-    const reservationMap = new Map(reservationCounts.map((r) => [r.customerId, r.count]))
+    const reservationMap = new Map(
+      reservationCounts.map((r) => [r.customerId, r.count]),
+    )
 
     return allCustomers.map((c) => ({
       ...c,
@@ -103,7 +105,9 @@ async function loadClients() {
 
 export default async function B2CClientsPage() {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/b2c/clients")
@@ -123,7 +127,10 @@ export default async function B2CClientsPage() {
     newThisMonth: clients.filter((c) => {
       const created = new Date(c.createdAt)
       const now = new Date()
-      return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear()
+      return (
+        created.getMonth() === now.getMonth() &&
+        created.getFullYear() === now.getFullYear()
+      )
     }).length,
   }
 
@@ -160,20 +167,28 @@ export default async function B2CClientsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Avec Réservations</CardTitle>
-            <ShoppingBag className="text-emerald-500 h-4 w-4" />
+            <CardTitle className="text-sm font-medium">
+              Avec Réservations
+            </CardTitle>
+            <ShoppingBag className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-emerald-600">{stats.withReservations}</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {stats.withReservations}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Nouveaux ce mois</CardTitle>
-            <Calendar className="text-blue-500 h-4 w-4" />
+            <CardTitle className="text-sm font-medium">
+              Nouveaux ce mois
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-blue-600">{stats.newThisMonth}</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {stats.newThisMonth}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -182,7 +197,7 @@ export default async function B2CClientsPage() {
       <Card>
         <CardHeader className="pb-3">
           <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input placeholder="Rechercher un client..." className="pl-9" />
           </div>
         </CardHeader>
@@ -218,7 +233,9 @@ export default async function B2CClientsPage() {
                               {client.firstName} {client.lastName}
                             </p>
                             {client.civicId && (
-                              <p className="text-xs text-gray-500">CIN: {client.civicId}</p>
+                              <p className="text-xs text-gray-500">
+                                CIN: {client.civicId}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -239,11 +256,20 @@ export default async function B2CClientsPage() {
                       </TableCell>
                       <TableCell>
                         <p className="text-sm">{client.city || "—"}</p>
-                        <p className="text-xs text-gray-500">{client.country || "—"}</p>
+                        <p className="text-xs text-gray-500">
+                          {client.country || "—"}
+                        </p>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={client.reservationCount > 0 ? "default" : "secondary"}>
-                          {client.reservationCount} réservation{client.reservationCount !== 1 ? "s" : ""}
+                        <Badge
+                          variant={
+                            client.reservationCount > 0
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {client.reservationCount} réservation
+                          {client.reservationCount !== 1 ? "s" : ""}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-gray-500">

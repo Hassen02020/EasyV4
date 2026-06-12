@@ -31,7 +31,10 @@ function isProtectedPath(pathname: string): boolean {
     return true
   }
   if (pathname === MUTUELLE_LOGIN_PATH) return false
-  if (pathname === MUTUELLE_PREFIX || pathname.startsWith(`${MUTUELLE_PREFIX}/`)) {
+  if (
+    pathname === MUTUELLE_PREFIX ||
+    pathname.startsWith(`${MUTUELLE_PREFIX}/`)
+  ) {
     return true
   }
   return false
@@ -41,7 +44,10 @@ function loginPathFor(pathname: string): string {
   if (pathname === PRO_PREFIX || pathname.startsWith(`${PRO_PREFIX}/`)) {
     return PRO_LOGIN_PATH
   }
-  if (pathname === MUTUELLE_PREFIX || pathname.startsWith(`${MUTUELLE_PREFIX}/`)) {
+  if (
+    pathname === MUTUELLE_PREFIX ||
+    pathname.startsWith(`${MUTUELLE_PREFIX}/`)
+  ) {
     return MUTUELLE_LOGIN_PATH
   }
   return LOGIN_PATH
@@ -51,10 +57,16 @@ export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Si Supabase pas configuré (dev sans .env) : on laisse passer pour ne pas
-  // casser le développement local. La protection /admin n'aura pas d'effet
-  // tant que les env vars ne sont pas définies.
+  // Fail-closed : si Supabase n'est pas configuré, bloquer les routes protégées.
+  // En dev sans .env, les routes publiques restent accessibles.
   if (!url || !anonKey) {
+    const pathname = request.nextUrl.pathname
+    if (isProtectedPath(pathname)) {
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = loginPathFor(pathname)
+      loginUrl.searchParams.set("next", pathname + request.nextUrl.search)
+      return NextResponse.redirect(loginUrl)
+    }
     return NextResponse.next({ request })
   }
 

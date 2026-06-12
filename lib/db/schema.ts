@@ -1548,6 +1548,13 @@ export type NewProduct = typeof products.$inferInsert
 export type ProductStatus = typeof products.$inferSelect.status
 export type ProductType = typeof products.$inferSelect.type
 
+// Catalog
+export type CatalogPackage = typeof catalogPackages.$inferSelect
+export type NewCatalogPackage = typeof catalogPackages.$inferInsert
+export type CatalogPackageDeparture = typeof catalogPackageDepartures.$inferSelect
+export type CatalogActivity = typeof catalogActivities.$inferSelect
+export type CatalogTransferZone = typeof catalogTransferZones.$inferSelect
+
 // Audit Logs
 export type AuditLog = typeof auditLogs.$inferSelect
 export type NewAuditLog = typeof auditLogs.$inferInsert
@@ -1562,6 +1569,137 @@ export type NewWalletTransaction = typeof walletTransactions.$inferInsert
 export type WalletTxType = (typeof walletTxType.enumValues)[number]
 export type WalletTopUpMethod = (typeof walletTopUpMethod.enumValues)[number]
 export type WalletTxStatus = (typeof walletTxStatus.enumValues)[number]
+
+/* -------------------------------------------------------------------------- */
+/* Yield Engine — règles de marge par module et par agence                   */
+/* -------------------------------------------------------------------------- */
+
+export const yieldRuleType = pgEnum("yield_rule_type", [
+  "percent",   // prix_vente = prix_net × (1 + pct/100)
+  "fixed",     // prix_vente = prix_net + fixe
+  "combined",  // prix_vente = prix_net × (1 + pct/100) + fixe
+])
+
+export const yieldRules = pgTable(
+  "yield_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** Module de réservation ciblé. */
+    module: varchar("module", { length: 32 }).notNull(),
+    ruleType: yieldRuleType("rule_type").notNull().default("percent"),
+    /** Pourcentage de marge (ex: 10.0000 = 10 %). */
+    percentValue: decimal("percent_value", { precision: 8, scale: 4 })
+      .notNull()
+      .default("10.0000"),
+    /** Montant fixe TND ajouté en sus (ex: 5.000 DT par offre). */
+    fixedValueTnd: decimal("fixed_value_tnd", { precision: 10, scale: 3 })
+      .notNull()
+      .default("0.000"),
+    /** Prix minimum TND en dessous duquel on ne vend pas. */
+    minPriceTnd: decimal("min_price_tnd", { precision: 10, scale: 3 })
+      .notNull()
+      .default("0.000"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("yield_rules_agency_module_uniq").on(t.agencyId, t.module),
+    index("yield_rules_agency_idx").on(t.agencyId),
+  ],
+)
+
+export type YieldRule = typeof yieldRules.$inferSelect
+export type NewYieldRule = typeof yieldRules.$inferInsert
+
+/* -------------------------------------------------------------------------- */
+/* Inventory Locks — verrouillage panier Redis-backed (TTL 10 min)           */
+/* -------------------------------------------------------------------------- */
+
+export const inventoryLockStatus = pgEnum("inventory_lock_status", [
+  "active",
+  "confirmed",
+  "expired",
+  "released",
+])
+
+export const inventoryLocks = pgTable(
+  "inventory_locks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** Clé unique côté Redis : `e2b:lock:<module>:<itemId>:<sessionId>`. */
+    redisKey: varchar("redis_key", { length: 256 }).notNull(),
+    module: varchar("module", { length: 32 }).notNull(),
+    /** Identifiant de l'offre verrouillée (token myGo, UUID package, etc.). */
+    itemId: varchar("item_id", { length: 256 }).notNull(),
+    /** Session ou userId qui détient le verrou. */
+    sessionId: varchar("session_id", { length: 128 }).notNull(),
+    /** Montant TND figé au moment du verrou. */
+    priceTnd: decimal("price_tnd", { precision: 12, scale: 3 }),
+    status: inventoryLockStatus("status").notNull().default("active"),
+    /** Réservation créée à partir de ce verrou (null jusqu'à confirmation). */
+    reservationId: uuid("reservation_id"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("inv_locks_agency_idx").on(t.agencyId),
+    index("inv_locks_redis_key_idx").on(t.redisKey),
+    index("inv_locks_expires_idx").on(t.status, t.expiresAt),
+  ],
+)
+
+export type InventoryLock = typeof inventoryLocks.$inferSelect
+export type NewInventoryLock = typeof inventoryLocks.$inferInsert
+
+/* -------------------------------------------------------------------------- */
+/* Payment Events — idempotence des webhooks PSP                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Enregistre chaque event PSP traité (Stripe / SPS).
+ * Garantit qu'un event ne peut être traité qu'une seule fois même si le PSP
+ * rejoue la notification (timeout réseau, retry Stripe, etc.).
+ *
+ * Politique : INSERT ... ON CONFLICT DO NOTHING avant tout dispatch.
+ * Si la ligne existe déjà → l'event est un duplicat → retourner 200 sans retraiter.
+ */
+export const paymentEvents = pgTable(
+  "payment_events",
+  {
+    /** Identifiant unique de l'event côté PSP (ex: evt_stripe_xxx, sps_xxx). */
+    eventId: varchar("event_id", { length: 128 }).primaryKey(),
+    /** PSP source : 'stripe' | 'sps'. */
+    provider: varchar("provider", { length: 16 }).notNull(),
+    /** Type d'event PSP (ex: payment_intent.succeeded). */
+    eventType: varchar("event_type", { length: 64 }).notNull(),
+    /** Réservation concernée si identifiable au moment du traitement. */
+    reservationId: uuid("reservation_id"),
+    /** Date de première réception et traitement. */
+    processedAt: timestamp("processed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("pmt_events_provider_idx").on(t.provider),
+    index("pmt_events_processed_idx").on(t.processedAt),
+  ],
+)
+
+export type PaymentEvent = typeof paymentEvents.$inferSelect
+export type NewPaymentEvent = typeof paymentEvents.$inferInsert
 
 /* -------------------------------------------------------------------------- */
 /* Omra Module (Sprint 3A) — imported from schema/omra.ts                     */

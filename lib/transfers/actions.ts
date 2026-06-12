@@ -15,8 +15,9 @@
 
 "use server"
 
-import { eq, desc, and } from "drizzle-orm"
+import { eq, and, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
+import { createServerSupabase } from "@/lib/supabase/server"
 import {
   reservations,
   reservationTransfer,
@@ -24,6 +25,7 @@ import {
   auditEvents,
   catalogTransferZones,
   catalogTransferPricing,
+  users,
 } from "@/lib/db/schema"
 import { walletDebitReservation } from "@/lib/wallet/actions"
 import { calculateTransferPrice, type TransferPricingInput } from "./pricing"
@@ -33,7 +35,7 @@ import { calculateTransferPrice, type TransferPricingInput } from "./pricing"
 /* -------------------------------------------------------------------------- */
 
 export interface TransferBookingInput {
-  agencyId: string
+  // agencyId résolu depuis la session serveur
   fromZoneId: string
   toZoneId: string
   vehicleType: "sedan" | "van" | "minibus" | "bus" | "luxury"
@@ -51,7 +53,7 @@ export interface TransferBookingInput {
     email?: string
     civicId?: string
   }
-  createdByUserId?: string
+  // createdByUserId résolu depuis la session serveur
 }
 
 export type TransferBookingResult =
@@ -72,21 +74,21 @@ async function nextPublicRef(
 ): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `TR-${year}-`
-  const rows = await db
-    .select({ publicRef: reservations.publicRef })
+  const [row] = await db
+    .select({
+      maxRef: sql<string | null>`MAX(${reservations.publicRef})`,
+    })
     .from(reservations)
-    .where(eq(reservations.agencyId, agencyId))
-    .orderBy(desc(reservations.createdAt))
-    .limit(50)
+    .where(
+      and(
+        eq(reservations.agencyId, agencyId),
+        sql`${reservations.publicRef} LIKE ${prefix + "%"}`,
+      ),
+    )
 
-  let max = 0
-  for (const r of rows) {
-    if (r.publicRef.startsWith(prefix)) {
-      const n = Number(r.publicRef.slice(prefix.length))
-      if (Number.isFinite(n) && n > max) max = n
-    }
-  }
-  return `${prefix}${pad(max + 1)}`
+  const maxRef = row?.maxRef
+  const max = maxRef ? Number(maxRef.slice(prefix.length)) : 0
+  return `${prefix}${pad(Number.isFinite(max) ? max + 1 : 1)}`
 }
 
 /* -------------------------------------------------------------------------- */
@@ -117,6 +119,26 @@ export async function createTransferBooking(
     return { ok: false, error: "Nombre de passagers invalide (1-50)" }
   }
 
+  // Résoudre agencyId et userId depuis la session — jamais depuis le client
+  let agencyId: string
+  let createdByUserId: string | undefined
+  try {
+    const supabase = await createServerSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: "Non authentifié" }
+    const db0 = getDb()
+    const [profile] = await db0
+      .select({ agencyId: users.agencyId })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+    if (!profile) return { ok: false, error: "Profil utilisateur introuvable" }
+    agencyId = profile.agencyId
+    createdByUserId = user.id
+  } catch {
+    return { ok: false, error: "Erreur d'authentification" }
+  }
+
   const db = getDb()
 
   try {
@@ -130,7 +152,7 @@ export async function createTransferBooking(
         vehicleType: input.vehicleType,
         pickupDate: input.pickupDate,
         pickupTime: input.pickupTime,
-        agencyId: input.agencyId,
+        agencyId,
       }
       const pricing = calculateTransferPrice(pricingInput)
       const totalTnd = pricing.totalTnd
@@ -156,7 +178,7 @@ export async function createTransferBooking(
       const [customer] = await tx
         .insert(customers)
         .values({
-          agencyId: input.agencyId,
+          agencyId,
           civility: "M",
           firstName: input.customer.firstName,
           lastName: input.customer.lastName,
@@ -172,11 +194,11 @@ export async function createTransferBooking(
       /* ------------------------------------------------------------------
        * 4. Créer la réservation générique
        * ------------------------------------------------------------------ */
-      const publicRef = await nextPublicRef(tx, input.agencyId)
+      const publicRef = await nextPublicRef(tx, agencyId)
       const [reservation] = await tx
         .insert(reservations)
         .values({
-          agencyId: input.agencyId,
+          agencyId,
           customerId,
           publicRef,
           module: "transfer",
@@ -210,10 +232,11 @@ export async function createTransferBooking(
        * 5. Débiter le wallet (atomique)
        * ------------------------------------------------------------------ */
       const debitResult = await walletDebitReservation({
-        agencyId: input.agencyId,
+        agencyId,
         reservationId,
         amountTnd: totalTnd,
-        createdByUserId: input.createdByUserId,
+        createdByUserId,
+        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
@@ -229,7 +252,7 @@ export async function createTransferBooking(
        * ------------------------------------------------------------------ */
       await tx.insert(reservationTransfer).values({
         reservationId,
-        agencyId: input.agencyId,
+        agencyId,
         pickupZoneId: input.fromZoneId,
         dropoffZoneId: input.toZoneId,
         pickupAddress: fromZone?.name,
@@ -250,8 +273,8 @@ export async function createTransferBooking(
        * 7. Log audit
        * ------------------------------------------------------------------ */
       await tx.insert(auditEvents).values({
-        agencyId: input.agencyId,
-        actorUserId: input.createdByUserId,
+        agencyId,
+        actorUserId: createdByUserId,
         entityType: "reservation",
         entityId: reservationId,
         action: "transfer_booking.created",

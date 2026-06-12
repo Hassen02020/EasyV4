@@ -110,7 +110,8 @@ export function ReservationsTable({ rows }: ReservationsTableProps) {
     const q = search.trim().toLowerCase()
     const refQ = refInput.trim().toLowerCase()
     return rows.filter((r) => {
-      if (refQ && !(r.ref ?? r.reference).toLowerCase().includes(refQ)) return false
+      if (refQ && !(r.ref ?? r.reference).toLowerCase().includes(refQ))
+        return false
       if (status !== "all" && r.status !== status) return false
       if (module !== "all" && r.module !== module) return false
       if (

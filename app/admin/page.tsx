@@ -38,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import {
@@ -117,7 +118,8 @@ export default async function AdminDashboard() {
   } = await supabase.auth.getUser()
 
   const profile = user ? await getCurrentAdminProfile(user.id) : null
-  const agencyId = profile?.agencyId ?? "00000000-0000-0000-0000-000000000001"
+  if (!profile?.agencyId) redirect("/login")
+  const agencyId = profile.agencyId
 
   const dashboard = await loadDashboardData(agencyId)
   const { stats, recentBookings, byModule, apiErrors, available } = dashboard

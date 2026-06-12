@@ -16,6 +16,20 @@ import { Wallet, Car, User } from "lucide-react"
 
 const MOCK_AGENCY_ID = "00000000-0000-0000-0000-000000000001"
 
+// Faux forfait Omra avec tarifs par type de chambre
+const MOCK_OMRA_PACKAGE = {
+  id: "pkg-sandbox-001",
+  name: "Omra Ramadan 2026 - 10 jours (Sandbox)",
+  basePrice: 2500,
+  durationDays: 10,
+  roomPricing: {
+    single: 3200,
+    double: 2800,
+    triple: 2600,
+    quad: 2500,
+  },
+}
+
 export default function SandboxPage() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,6 +65,10 @@ export default function SandboxPage() {
           </div>
           <p className="text-muted-foreground">
             Formulaire de réservation Omra de groupe avec ajout dynamique de pèlerins.
+            <br />
+            <span className="text-xs text-muted-foreground">
+              Tarifs simulés : Single {MOCK_OMRA_PACKAGE.roomPricing.single} DT | Double {MOCK_OMRA_PACKAGE.roomPricing.double} DT | Triple {MOCK_OMRA_PACKAGE.roomPricing.triple} DT | Quad {MOCK_OMRA_PACKAGE.roomPricing.quad} DT
+            </span>
           </p>
           <OmraBookingForm />
         </section>

@@ -20,6 +20,8 @@
 import { eq } from "drizzle-orm"
 
 import { getDb } from "@/lib/db/client"
+import { getRedis } from "@/lib/cache/redis"
+import { metrics } from "@/lib/observability/metrics"
 import {
   agencies,
   partnerCreditMovements,
@@ -81,6 +83,12 @@ export type DebitPartnerCreditInput = {
   createdByUserId?: string
   /** UUID optionnel de la réservation associée. */
   reservationId?: string
+  /**
+   * Clé d'idempotence UUID (ex: reservationId + "-debit").
+   * Si fournie, un double appel avec la même clé retournera le résultat
+   * original sans réexécuter le débit. TTL 24h dans Redis.
+   */
+  idempotencyKey?: string
   /**
    * Override du client Drizzle pour tests unitaires (mock). En production,
    * laisser `undefined` : on appelle `getDb()` automatiquement.
@@ -175,6 +183,18 @@ export function isValidDebitAmount(amount: number): boolean {
 export async function debitPartnerCredit(
   input: DebitPartnerCreditInput,
 ): Promise<DebitPartnerCreditResult> {
+  // Guard idempotence : si la clé a déjà été traitée, retourner le résultat cached
+  if (input.idempotencyKey) {
+    const redis = getRedis()
+    if (redis) {
+      const idemCacheKey = `e2b:idem:debit:${input.idempotencyKey}`
+      const cached = await redis.get<string>(idemCacheKey)
+      if (cached) {
+        try { return JSON.parse(cached) as DebitPartnerCreditResult } catch { /* ignore */ }
+      }
+    }
+  }
+
   if (!isValidDebitAmount(input.amountTnd)) {
     return {
       ok: false,
@@ -193,10 +213,9 @@ export async function debitPartnerCredit(
     }
   }
 
+  const t0 = Date.now()
+
   try {
-    // Le `dbOverride` permet d'injecter un faux client en tests unitaires
-    // sans toucher à la BDD réelle. En prod / preview, il est `undefined`
-    // et on récupère le client postgres-js singleton.
     const db = (input.dbOverride ?? getDb()) as DrizzleLikeDb
     return await db.transaction(async (tx) => {
       // ------------------------------------------------------------------
@@ -292,14 +311,34 @@ export async function debitPartnerCredit(
         .where?.(eq(agencies.id, input.agencyId))
       await (updateChain as unknown as Promise<unknown>)
 
-      return {
+      const successResult: DebitPartnerCreditSuccess = {
         ok: true,
         movementId,
         balanceBefore: formatTnd(currentBalance),
         balanceAfter: formatTnd(newBalance),
-      } as DebitPartnerCreditSuccess
+      }
+
+      // Persister dans Redis pour l'idempotence (TTL 24h)
+      if (input.idempotencyKey) {
+        const redis = getRedis()
+        if (redis) {
+          await redis.set(
+            `e2b:idem:debit:${input.idempotencyKey}`,
+            JSON.stringify(successResult),
+            { ex: 86_400 },
+          )
+        }
+      }
+
+      void metrics.timing("wallet.debit.latency_ms", Date.now() - t0)
+      void metrics.slo("wallet.debit", true)
+      void metrics.incr("wallet.debit.ok")
+      return successResult
     })
   } catch (err) {
+    void metrics.timing("wallet.debit.latency_ms", Date.now() - t0)
+    void metrics.slo("wallet.debit", false)
+    void metrics.incr("wallet.debit.error")
     return {
       ok: false,
       code: "INTERNAL_ERROR",

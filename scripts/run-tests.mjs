@@ -16,7 +16,10 @@ function findTests(dir, files = []) {
     const full = join(dir, entry.name)
     if (entry.isDirectory()) {
       findTests(full, files)
-    } else if (entry.name.endsWith(".test.ts") || entry.name.endsWith(".test.mts")) {
+    } else if (
+      entry.name.endsWith(".test.ts") ||
+      entry.name.endsWith(".test.mts")
+    ) {
       files.push(relative(ROOT, full))
     }
   }
@@ -40,12 +43,14 @@ if (testFiles.length === 0) {
   process.exit(0)
 }
 
-console.log(`🧪 ${testFiles.length} fichier(s) de test détecté(s) :\n   ${testFiles.join("\n   ")}\n`)
+console.log(
+  `🧪 ${testFiles.length} fichier(s) de test détecté(s) :\n   ${testFiles.join("\n   ")}\n`,
+)
 
 const result = spawnSync(
   process.execPath,
   ["--import", "tsx", "--test", ...testFiles],
-  { stdio: "inherit", cwd: ROOT }
+  { stdio: "inherit", cwd: ROOT },
 )
 
 process.exit(result.status ?? 0)

@@ -1,9 +1,9 @@
 /**
  * Layout Protection Gestion du Personnel
- * 
+ *
  * STRICTEMENT réservé aux Managers et Super Admin.
  * Les agents ne peuvent pas voir/modifier les autres agents.
- * 
+ *
  * Rôles autorisés: super_admin, manager
  */
 
@@ -21,7 +21,9 @@ export default async function StaffLayout({
   children: React.ReactNode
 }) {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/staff")
@@ -32,7 +34,7 @@ export default async function StaffLayout({
 
   // SEULS manager et super_admin peuvent accéder
   const allowedRoles = ["super_admin", "manager"]
-  
+
   if (!allowedRoles.includes(role)) {
     redirect(`/error/403?section=staff&from=/admin/staff`)
   }

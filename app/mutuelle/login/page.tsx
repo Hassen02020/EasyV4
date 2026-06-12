@@ -12,11 +12,11 @@ export const metadata: Metadata = {
 
 export default function MutuelleLoginPage() {
   return (
-    <main className="from-background via-background to-violet-50/30 relative flex min-h-screen items-center justify-center bg-gradient-to-br px-4 py-12">
+    <main className="from-background via-background relative flex min-h-screen items-center justify-center bg-gradient-to-br to-violet-50/30 px-4 py-12">
       {/* Background blobs */}
       <div
         aria-hidden
-        className="bg-violet-400/10 absolute -top-20 -left-20 h-72 w-72 rounded-full blur-3xl"
+        className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl"
       />
       <div
         aria-hidden

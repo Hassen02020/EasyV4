@@ -1,9 +1,9 @@
 /**
  * Layout Protection Administration Système
- * 
+ *
  * STRICTEMENT réservé au Super Admin.
  * Gestion des utilisateurs système et des agences.
- * 
+ *
  * Rôle autorisé: super_admin UNIQUEMENT
  */
 
@@ -20,7 +20,9 @@ export default async function AdminSystemLayout({
   children: React.ReactNode
 }) {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect("/login?next=/admin/users")

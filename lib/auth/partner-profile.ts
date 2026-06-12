@@ -168,10 +168,10 @@ export async function getCurrentPartnerProfile(
     // Autres rôles (manager, agent_resa, etc.) → pas d'accès /pro
     return null
   } catch (error) {
-    console.warn(
-      "[getCurrentPartnerProfile] DB lookup failed:",
-      error instanceof Error ? error.message : error,
-    )
+    const { logger } = await import("@/lib/logger")
+    logger.warn("[getCurrentPartnerProfile] DB lookup failed", {
+      code: error instanceof Error ? error.constructor.name : "unknown",
+    })
     return null
   }
 }

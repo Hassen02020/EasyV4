@@ -56,7 +56,7 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
       <div className="grid gap-0 md:grid-cols-[280px_1fr]">
         <div className="relative aspect-[4/3] md:aspect-auto">
           <Image
-            src={hotel.image ?? hotel.images[0] ?? "/placeholder.jpg"}
+            src={hotel.images[0] ?? "/placeholder.jpg"}
             alt={hotel.name}
             fill
             className="object-cover"
@@ -186,16 +186,14 @@ export function HotelCard({ hotel, detailHref }: HotelCardProps) {
             <div className="flex flex-wrap gap-1.5">
               {hotel.boardings.map((b) => (
                 <span
-                  key={b}
+                  key={b.type}
                   className="border-secondary/50 text-secondary bg-secondary/5 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium"
-                  title={BOARDING_LABEL[b]}
+                  title={BOARDING_LABEL[b.type]}
                 >
                   <span className="text-[10px] font-bold opacity-70">
-                    {BOARDING_SHORT[b]}
+                    {BOARDING_SHORT[b.type]}
                   </span>
-                  <span className="hidden md:inline">
-                    {BOARDING_LABEL[b]}
-                  </span>
+                  <span className="hidden md:inline">{BOARDING_LABEL[b.type]}</span>
                 </span>
               ))}
             </div>

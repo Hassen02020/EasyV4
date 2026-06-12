@@ -62,10 +62,10 @@ export async function getCurrentAdminProfile(
       status: profile.status,
     }
   } catch (error) {
-    console.warn(
-      "[getCurrentAdminProfile] DB lookup failed, falling back to Supabase Auth only:",
-      error instanceof Error ? error.message : error,
-    )
+    const { logger } = await import("@/lib/logger")
+    logger.warn("[getCurrentAdminProfile] DB lookup failed — fallback to Supabase auth", {
+      code: error instanceof Error ? error.constructor.name : "unknown",
+    })
     return null
   }
 }

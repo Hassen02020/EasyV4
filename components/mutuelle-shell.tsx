@@ -30,7 +30,11 @@ interface MutuelleShellProps {
   children: ReactNode
 }
 
-export function MutuelleShell({ displayName, email, children }: MutuelleShellProps) {
+export function MutuelleShell({
+  displayName,
+  email,
+  children,
+}: MutuelleShellProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -84,7 +88,7 @@ export function MutuelleShell({ displayName, email, children }: MutuelleShellPro
         <div className="border-border border-t px-3 py-4">
           <div className="mb-3 flex items-center gap-3 px-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100">
-              <span className="text-violet-600 text-xs font-bold">
+              <span className="text-xs font-bold text-violet-600">
                 {displayName.charAt(0).toUpperCase()}
               </span>
             </div>
@@ -113,14 +117,20 @@ export function MutuelleShell({ displayName, email, children }: MutuelleShellPro
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100">
               <HeartHandshake className="h-4 w-4 text-violet-600" />
             </div>
-            <span className="text-foreground text-sm font-semibold">Mutuelle</span>
+            <span className="text-foreground text-sm font-semibold">
+              Mutuelle
+            </span>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </Button>
         </header>
 

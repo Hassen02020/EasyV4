@@ -5,3 +5,5 @@
 
 export { processConfirmedBooking } from "./process-confirmed-booking"
 export { processWalletCredit } from "./process-wallet-credit"
+export { processTransferConfirmed } from "./process-transfer-confirmed"
+export { processOmraConfirmed } from "./process-omra-confirmed"

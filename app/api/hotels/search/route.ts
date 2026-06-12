@@ -18,6 +18,9 @@ import { HotelSearchResponse } from "@/lib/mygo/schemas"
 import type { HotelSearchResultDTO } from "@/lib/mygo/types"
 import hotelSearchFixture from "@/lib/mygo/__fixtures__/hotelsearch.json"
 import { rateLimit } from "@/lib/rate-limit"
+import { instrument } from "@/lib/observability/instrument"
+import { searchWithFallback } from "@/lib/mygo/degraded-mode"
+import { requirePartnerSession } from "@/lib/api/auth-guard"
 
 const isDemoMode = () =>
   !process.env.MYGO_LOGIN || process.env.MYGO_LOGIN.length === 0
@@ -69,13 +72,18 @@ const QuerySchema = z.object({
 export const revalidate = 300 // 5 min — les prix changent vite
 
 export async function GET(req: NextRequest) {
+  const session = await requirePartnerSession(req)
+  if (session instanceof NextResponse) return session
+
   const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "anonymous"
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
   const limit = await rateLimit(`hotels:search:${ip}`)
   if (!limit.ok) {
     return NextResponse.json(
-      { error: "rate_limited", retryAfter: Math.ceil((limit.reset - Date.now()) / 1000) },
+      {
+        error: "rate_limited",
+        retryAfter: Math.ceil((limit.reset - Date.now()) / 1000),
+      },
       {
         status: 429,
         headers: {
@@ -108,20 +116,51 @@ export async function GET(req: NextRequest) {
     return demoSearchResponse(q.cityId)
   }
 
-  try {
-    const result = await getMyGoClient().searchHotels({
-      cityId: q.cityId,
-      checkIn: q.checkin,
-      checkOut: q.checkout,
-      currency: q.currency ?? "TND",
-      hotelId: q.hotelId,
-      rooms: [{ adults: q.adults, childAges: q.children }],
-      filters: {
-        onlyAvailable: q.onlyAvailable ?? true,
-        ...(q.stars.length ? { categories: q.stars } : {}),
-      },
-    })
+  const searchInput = {
+    cityId: q.cityId,
+    checkIn: q.checkin,
+    checkOut: q.checkout,
+    currency: q.currency ?? "TND",
+    hotelId: q.hotelId,
+    rooms: [{ adults: q.adults, childAges: q.children }] as { adults: number; childAges?: number[] }[],
+    filters: {
+      onlyAvailable: q.onlyAvailable ?? true,
+      ...(q.stars.length ? { categories: q.stars } : {}),
+    },
+  }
 
+  const fallbackResult = await searchWithFallback(
+    searchInput,
+    () => instrument("mygo.search", () => getMyGoClient().searchHotels(searchInput)),
+  )
+
+  if (fallbackResult.degraded) {
+    // Mode dégradé : sert le stale cache ou une erreur 503 propre
+    const stale = fallbackResult.staleData
+    if (stale) {
+      const s = stale as unknown as { hotels: ReturnType<typeof mapHotelOffer>[]; searchId: string | null; count: number }
+      const dto: HotelSearchResultDTO = {
+        searchId: s.searchId ?? undefined,
+        count: s.count,
+        offers: Array.isArray(s.hotels) ? s.hotels : [],
+      }
+      return NextResponse.json(dto, {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Degraded-Mode": "1",
+          "X-Degraded-Reason": fallbackResult.reason,
+        },
+      })
+    }
+    return NextResponse.json(
+      { error: "service_unavailable", message: "Le service hôtelier est temporairement indisponible. Veuillez réessayer dans quelques instants." },
+      { status: 503, headers: { "Retry-After": "120" } },
+    )
+  }
+
+  const result = fallbackResult.data
+  try {
     const rawOffers = result.hotels.filter(isRealHotelOffer).map(mapHotelOffer)
     const offers = dedupeOffersByHotelId(rawOffers)
     const dto: HotelSearchResultDTO = {
@@ -129,12 +168,9 @@ export async function GET(req: NextRequest) {
       count: offers.length,
       offers,
     }
-    return NextResponse.json(dto, {
-      status: 200,
-      headers: {
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
-      },
-    })
+    const headers: HeadersInit = { "Cache-Control": "public, max-age=300, stale-while-revalidate=60" }
+    if (fallbackResult.fromStaleCache) (headers as Record<string, string>)["X-From-Cache"] = "1"
+    return NextResponse.json(dto, { status: 200, headers })
   } catch (err) {
     return mapErrorToResponse(err)
   }

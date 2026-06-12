@@ -1,9 +1,9 @@
 /**
  * Audit Logger - Système de traçabilité des actions critiques
- * 
+ *
  * Server Action réutilisable pour enregistrer toute action importante
  * dans la base de données avec immutabilité garantie.
- * 
+ *
  * Usage:
  * ```ts
  * await logAuditAction({
@@ -21,9 +21,15 @@
 
 import { headers } from "next/headers"
 import { getDb } from "@/lib/db/client"
-import { auditLogs, type AuditActionType, type AuditEntityType, type NewAuditLog } from "@/lib/db/schema"
+import {
+  auditLogs,
+  type AuditActionType,
+  type AuditEntityType,
+  type NewAuditLog,
+} from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import { logger as log } from "@/lib/logger"
 
 // ============================================================================
 // INTERFACES
@@ -61,7 +67,7 @@ interface LogAuditResult {
  */
 function computeChanges(
   oldValue: Record<string, unknown> | undefined,
-  newValue: Record<string, unknown> | undefined
+  newValue: Record<string, unknown> | undefined,
 ): Record<string, { from: unknown; to: unknown }> | undefined {
   if (!oldValue || !newValue) return undefined
 
@@ -90,7 +96,7 @@ async function getRequestContext(): Promise<{
 }> {
   try {
     const headersList = await headers()
-    
+
     // Récupération IP (header forwarded ou x-real-ip)
     const forwardedFor = headersList.get("x-forwarded-for")
     const realIp = headersList.get("x-real-ip")
@@ -111,7 +117,7 @@ async function getRequestContext(): Promise<{
 
 /**
  * Enregistre une action dans les logs d'audit
- * 
+ *
  * Cette Server Action est sécurisée et peut être appelée depuis:
  * - Autres Server Actions
  * - Server Components (via form actions)
@@ -129,11 +135,13 @@ export async function logAuditAction({
   try {
     // 1. Récupération contexte utilisateur
     const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) {
       // On log quand même mais sans userId (action système)
-      console.warn("[Audit] Action loggée sans authentification:", action)
+      log.warn("[Audit] Action loggée sans authentification", { action })
     }
 
     // 2. Récupération profil et agence
@@ -150,7 +158,7 @@ export async function logAuditAction({
 
     // Fallback: si pas d'agence, on ne peut pas logger (sauf si forced)
     if (!agencyId) {
-      console.error("[Audit] Impossible de logger sans agencyId:", action)
+      log.error("[Audit] Impossible de logger sans agencyId", { action })
       return { success: false, error: "Missing agency context" }
     }
 
@@ -162,7 +170,7 @@ export async function logAuditAction({
 
     // 5. Insertion en base
     const db = getDb()
-    
+
     const logEntry: NewAuditLog = {
       agencyId,
       userId: user?.id || null,
@@ -188,16 +196,14 @@ export async function logAuditAction({
       throw new Error("Insertion failed")
     }
 
-    console.log(`[Audit] Logged: ${action} on ${entityType}:${entityId} (logId: ${inserted.id})`)
+    log.info("[Audit] Logged", { action, entityType, entityId, logId: inserted.id })
 
     return { success: true, logId: inserted.id }
   } catch (error) {
-    console.error("[Audit] Failed to log action:", error)
-    // On retourne quand même success=false pour ne pas bloquer le flux
-    // mais on log l'erreur pour monitoring
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    log.error("[Audit] Failed to log action", { action, code: error instanceof Error ? error.constructor.name : "unknown" })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     }
   }
 }
@@ -213,7 +219,7 @@ export async function logReservationStatusChange(
   reservationId: string,
   oldStatus: string,
   newStatus: string,
-  metadata?: { reason?: string; processedBy?: string }
+  metadata?: { reason?: string; processedBy?: string },
 ) {
   return logAuditAction({
     action: "reservation.status_changed",
@@ -234,7 +240,7 @@ export async function logProductPriceChange(
   oldPrice: number,
   newPrice: number,
   currency: string = "TND",
-  metadata?: { reason?: string }
+  metadata?: { reason?: string },
 ) {
   return logAuditAction({
     action: "product.price_changed",
@@ -255,7 +261,7 @@ export async function logPaymentProcessed(
   amount: number,
   currency: string,
   method: string,
-  metadata?: { invoiceId?: string; processedBy?: string }
+  metadata?: { invoiceId?: string; processedBy?: string },
 ) {
   return logAuditAction({
     action: "payment.processed",
@@ -274,7 +280,7 @@ export async function logRefundProcessed(
   originalPaymentId: string,
   amount: number,
   currency: string,
-  reason?: string
+  reason?: string,
 ) {
   return logAuditAction({
     action: "payment.refunded",
@@ -292,7 +298,7 @@ export async function logStaffAction(
   staffId: string,
   staffEmail: string,
   oldValue?: Record<string, unknown>,
-  newValue?: Record<string, unknown>
+  newValue?: Record<string, unknown>,
 ) {
   return logAuditAction({
     action,
@@ -310,7 +316,7 @@ export async function logStaffAction(
 export async function logAuthAction(
   action: "user.login" | "user.logout",
   userId: string,
-  userEmail: string
+  userEmail: string,
 ) {
   return logAuditAction({
     action,
@@ -340,7 +346,17 @@ export async function getAuditLogs(params: {
   limit?: number
   offset?: number
 }) {
-  const { agencyId, entityType, entityId, action, userId, fromDate, toDate, limit = 50, offset = 0 } = params
+  const {
+    agencyId,
+    entityType,
+    entityId,
+    action,
+    userId,
+    fromDate,
+    toDate,
+    limit = 50,
+    offset = 0,
+  } = params
 
   try {
     const db = getDb()
@@ -352,7 +368,7 @@ export async function getAuditLogs(params: {
 
     // Filtres optionnels
     const filters = [eq(auditLogs.agencyId, agencyId)]
-    
+
     if (entityType) filters.push(eq(auditLogs.entityType, entityType))
     if (entityId) filters.push(eq(auditLogs.entityId, entityId))
     if (action) filters.push(eq(auditLogs.action, action))
@@ -370,7 +386,7 @@ export async function getAuditLogs(params: {
 
     return { success: true, logs: results }
   } catch (error) {
-    console.error("[Audit] Failed to fetch logs:", error)
+    log.error("[Audit] Failed to fetch logs", { code: error instanceof Error ? error.constructor.name : "unknown" })
     return { success: false, error: "Failed to fetch audit logs" }
   }
 }

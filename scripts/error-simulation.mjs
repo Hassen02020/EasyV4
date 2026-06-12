@@ -20,7 +20,8 @@ import http from "http"
 import { spawn } from "child_process"
 
 const rawArgs = process.argv.slice(2)
-const SCENARIO = rawArgs.find((_, i) => rawArgs[i - 1] === "--scenario") ?? "all"
+const SCENARIO =
+  rawArgs.find((_, i) => rawArgs[i - 1] === "--scenario") ?? "all"
 const APP_PORT = process.env.APP_PORT ?? 3000
 const MOCK_PORT = 9999
 
@@ -31,10 +32,17 @@ function startMockWebhook() {
     const server = http.createServer((req, res) => {
       console.log(`[MOCK] ${req.method} ${req.url}`)
       res.writeHead(500, { "content-type": "application/json" })
-      res.end(JSON.stringify({ error: "Internal Server Error", scenario: "webhook_failure" }))
+      res.end(
+        JSON.stringify({
+          error: "Internal Server Error",
+          scenario: "webhook_failure",
+        }),
+      )
     })
     server.listen(MOCK_PORT, () => {
-      console.log(`🎭 Mock webhook DOWN sur http://localhost:${MOCK_PORT}/webhook`)
+      console.log(
+        `🎭 Mock webhook DOWN sur http://localhost:${MOCK_PORT}/webhook`,
+      )
       resolve(server)
     })
   })
@@ -47,7 +55,9 @@ function startMockTimeout() {
       console.log(`[MOCK] ${req.method} ${req.url} → timeout (pas de réponse)`)
     })
     server.listen(MOCK_PORT + 1, () => {
-      console.log(`🐌 Mock API TIMEOUT sur http://localhost:${MOCK_PORT + 1}/api`)
+      console.log(
+        `🐌 Mock API TIMEOUT sur http://localhost:${MOCK_PORT + 1}/api`,
+      )
       resolve(server)
     })
   })
@@ -83,9 +93,12 @@ async function testApiTimeout() {
   const timeout = setTimeout(() => controller.abort(), 3000)
 
   try {
-    const res = await fetch(`http://localhost:${MOCK_PORT + 1}/api/hotels/search?q=tunis`, {
-      signal: controller.signal,
-    })
+    const res = await fetch(
+      `http://localhost:${MOCK_PORT + 1}/api/hotels/search?q=tunis`,
+      {
+        signal: controller.signal,
+      },
+    )
     console.log(`   Status : ${res.status}`)
   } catch (err) {
     console.log(`   ❌ Timeout déclenché après 3s : ${err.name}`)
@@ -110,7 +123,9 @@ async function testDbOutage() {
   console.log(`\n   Commande manuelle à exécuter dans un autre terminal :`)
   console.log(`     export DATABASE_URL="postgresql://fake:5432/db"`)
   console.log(`     curl http://localhost:${APP_PORT}/admin`)
-  console.log(`     curl http://localhost:${APP_PORT}/api/hotels/search?q=tunis`)
+  console.log(
+    `     curl http://localhost:${APP_PORT}/api/hotels/search?q=tunis`,
+  )
 }
 
 /* ─── main ─── */
@@ -124,7 +139,9 @@ async function main() {
   if (SCENARIO === "all" || SCENARIO === "timeout") await testApiTimeout()
   if (SCENARIO === "all" || SCENARIO === "db") await testDbOutage()
 
-  console.log("\n✅ Simulation terminée. Vérifiez vos logs Sentry et vos alerts.\n")
+  console.log(
+    "\n✅ Simulation terminée. Vérifiez vos logs Sentry et vos alerts.\n",
+  )
 }
 
 main().catch((err) => {

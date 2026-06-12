@@ -13,7 +13,13 @@ export type PartnerReservation = {
   module: string
   /** Nom du service (hôtel, vol, …) */
   service?: string
-  status: "pending" | "on_option" | "confirmed" | "cancelled" | "refunded" | "completed"
+  status:
+    | "pending"
+    | "on_option"
+    | "confirmed"
+    | "cancelled"
+    | "refunded"
+    | "completed"
   amount: number
   /** Montant TND total */
   totalTnd?: number
@@ -47,6 +53,8 @@ export type PartnerInvoice = {
   paidAmount?: number
 }
 
+export type PaymentMode = "transfer" | "card" | "cash" | "check" | "credit_account"
+
 export type PartnerPayment = {
   id: string
   date: string
@@ -54,7 +62,7 @@ export type PartnerPayment = {
   method: string
   reference?: string
   /** Mode de paiement */
-  mode?: "transfer" | "card" | "cash" | "check" | "credit_account"
+  mode: PaymentMode
   /** Date d'échéance */
   dueDate?: string
   /** Date d'émission */
@@ -82,7 +90,14 @@ export type PartnerLedgerEntry = {
   date: string
   description: string
   /** Type de mouvement */
-  type?: "credit" | "debit" | "refund" | "adjustment" | "facture" | "avoir" | "payment"
+  type?:
+    | "credit"
+    | "debit"
+    | "refund"
+    | "adjustment"
+    | "facture"
+    | "avoir"
+    | "payment"
   debit?: number
   credit?: number
   balance: number
@@ -101,10 +116,17 @@ export type PartnerClient = {
 }
 
 // Fonctions mock pour générer des données de test
-export function generateMockReservations(count: number = 10): PartnerReservation[] {
-  const statuses: PartnerReservation["status"][] = ["pending", "confirmed", "cancelled", "refunded"]
+export function generateMockReservations(
+  count: number = 10,
+): PartnerReservation[] {
+  const statuses: PartnerReservation["status"][] = [
+    "pending",
+    "confirmed",
+    "cancelled",
+    "refunded",
+  ]
   const modules = ["Hôtel", "Voyage", "Transfert", "Omra"]
-  
+
   return Array.from({ length: count }, (_, i) => ({
     id: `res-${i + 1}`,
     reference: `E2B-${2024}${String(i + 1).padStart(4, "0")}`,
@@ -126,7 +148,9 @@ export function generateMockClients(count: number = 10): PartnerClient[] {
       phone: i % 3 === 0 ? `+216 2${String(i).padStart(7, "0")}` : undefined,
       reservationsCount,
       bookings: reservationsCount,
-      createdAt: new Date(Date.now() - i * 30 * 86400000).toISOString().split("T")[0],
+      createdAt: new Date(Date.now() - i * 30 * 86400000)
+        .toISOString()
+        .split("T")[0],
     }
   })
 }
@@ -134,7 +158,7 @@ export function generateMockClients(count: number = 10): PartnerClient[] {
 export function generateMockInvoices(count: number = 10): PartnerInvoice[] {
   const statuses: PartnerInvoice["status"][] = ["paid", "pending", "overdue"]
   const types: PartnerInvoice["type"][] = ["facture", "avoir", "proforma"]
-  
+
   return Array.from({ length: count }, (_, i) => ({
     id: `inv-${i + 1}`,
     number: `F-${2024}-${String(i + 1).padStart(4, "0")}`,
@@ -147,26 +171,29 @@ export function generateMockInvoices(count: number = 10): PartnerInvoice[] {
 
 export function generateMockPayments(count: number = 10): PartnerPayment[] {
   const methods = ["Virement", "Carte", "Espèces", "Chèque"]
-  
+  const modes: PaymentMode[] = ["transfer", "card", "cash", "check", "credit_account"]
+
   return Array.from({ length: count }, (_, i) => ({
     id: `pay-${i + 1}`,
     date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
     amount: Math.round(Math.random() * 2000 + 100),
-    method: methods[i % methods.length],
-    reference: i % 2 === 0 ? `REF-${Math.floor(Math.random() * 10000)}` : undefined,
+    method: methods[i % methods.length]!,
+    mode: modes[i % modes.length]!,
+    reference:
+      i % 2 === 0 ? `REF-${Math.floor(Math.random() * 10000)}` : undefined,
   }))
 }
 
 export function generateMockLedger(count: number = 10): PartnerLedgerEntry[] {
   let balance = 0
-  
+
   return Array.from({ length: count }, (_, i) => {
     const debit = i % 3 === 0 ? Math.round(Math.random() * 1000) : undefined
     const credit = i % 3 !== 0 ? Math.round(Math.random() * 1000) : undefined
-    
+
     if (debit) balance -= debit
     if (credit) balance += credit
-    
+
     return {
       id: `ledger-${i + 1}`,
       date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],

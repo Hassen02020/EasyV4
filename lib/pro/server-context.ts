@@ -18,12 +18,32 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { getDb } from "@/lib/db/client"
 import { pricingMargins } from "@/lib/db/schema"
+import { withCache } from "@/lib/cache/redis"
+import { logger } from "@/lib/logger"
 import {
   DEFAULT_MARGINS,
   type MarginMap,
   type MarginModule,
   type MarginRule,
 } from "./pricing"
+
+/** Durée du cache marges — 5 min. Suffisant pour les prix live, évite les N DB calls par session. */
+const MARGINS_CACHE_TTL = 300
+
+/** Clé de cache Redis pour les marges d'une agence. */
+function marginsCacheKey(agencyId: string) {
+  return `e2b:margins:${agencyId}`
+}
+
+/**
+ * Invalide le cache des marges pour une agence (appeler après update des règles de marge).
+ * À appeler depuis l'action admin qui modifie `pricing_margins`.
+ */
+export async function invalidateMarginsCache(agencyId: string): Promise<void> {
+  const { getRedis } = await import("@/lib/cache/redis")
+  const redis = getRedis()
+  if (redis) await redis.del(marginsCacheKey(agencyId))
+}
 
 /**
  * Récupère la `MarginMap` complète pour une agence donnée. Toujours
@@ -36,34 +56,36 @@ export async function getMarginsForAgency(
   if (!agencyId || !process.env.DATABASE_URL) return { ...DEFAULT_MARGINS }
 
   try {
-    const db = getDb()
-    const rows = await db
-      .select({
-        module: pricingMargins.module,
-        marginType: pricingMargins.marginType,
-        marginValue: pricingMargins.marginValue,
-        isActive: pricingMargins.isActive,
-      })
-      .from(pricingMargins)
-      .where(
-        and(
-          eq(pricingMargins.agencyId, agencyId),
-          eq(pricingMargins.isActive, true),
-        ),
-      )
+    return await withCache(marginsCacheKey(agencyId), MARGINS_CACHE_TTL, async () => {
+      const db = getDb()
+      const rows = await db
+        .select({
+          module: pricingMargins.module,
+          marginType: pricingMargins.marginType,
+          marginValue: pricingMargins.marginValue,
+          isActive: pricingMargins.isActive,
+        })
+        .from(pricingMargins)
+        .where(
+          and(
+            eq(pricingMargins.agencyId, agencyId),
+            eq(pricingMargins.isActive, true),
+          ),
+        )
 
-    const map: MarginMap = { ...DEFAULT_MARGINS }
-    for (const row of rows) {
-      const mod = row.module as MarginModule
-      map[mod] = {
-        marginType: row.marginType as MarginRule["marginType"],
-        marginValue: Number.parseFloat(row.marginValue ?? "0"),
-        isActive: row.isActive,
+      const map: MarginMap = { ...DEFAULT_MARGINS }
+      for (const row of rows) {
+        const mod = row.module as MarginModule
+        map[mod] = {
+          marginType: row.marginType as MarginRule["marginType"],
+          marginValue: Number.parseFloat(row.marginValue ?? "0"),
+          isActive: row.isActive,
+        }
       }
-    }
-    return map
+      return map
+    })
   } catch (err) {
-    console.error("[server-context] getMarginsForAgency failed", err)
+    logger.error("[server-context] getMarginsForAgency failed", { agencyId, code: err instanceof Error ? err.constructor.name : "unknown" })
     return { ...DEFAULT_MARGINS }
   }
 }
@@ -85,7 +107,7 @@ export async function getActivePartnerMargins(): Promise<MarginMap> {
     if (!profile) return { ...DEFAULT_MARGINS }
     return await getMarginsForAgency(profile.agency.id)
   } catch (err) {
-    console.error("[server-context] getActivePartnerMargins failed", err)
+    logger.error("[server-context] getActivePartnerMargins failed", { code: err instanceof Error ? err.constructor.name : "unknown" })
     return { ...DEFAULT_MARGINS }
   }
 }

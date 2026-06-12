@@ -20,7 +20,8 @@ const args = process.argv.slice(2)
 const targetArg = args.find((_, i) => args[i - 1] === "--target")
 const durationArg = args.find((_, i) => args[i - 1] === "--duration")
 
-const TARGET = targetArg ?? process.env.STRESS_TARGET ?? "http://localhost:3000/pro/login"
+const TARGET =
+  targetArg ?? process.env.STRESS_TARGET ?? "http://localhost:3000/pro/login"
 const DURATION = Number(durationArg ?? process.env.STRESS_DURATION ?? 30)
 const CONNECTIONS = Number(process.env.STRESS_CONNECTIONS ?? 500)
 
@@ -49,9 +50,16 @@ console.log(`   Latence moyenne    : ${Math.round(result.latency.average)} ms`)
 console.log(`   Latence p99        : ${Math.round(result.latency.p99)} ms`)
 console.log(`   Erreurs            : ${result.errors}`)
 console.log(`   Timeouts           : ${result.timeouts}`)
-console.log(`   1xx / 2xx / 3xx    : ${result['1xx']} / ${result['2xx']} / ${result['3xx']}`)
-console.log(`   4xx / 5xx          : ${result['4xx']} / ${result['5xx']}`)
+console.log(
+  `   1xx / 2xx / 3xx    : ${result["1xx"]} / ${result["2xx"]} / ${result["3xx"]}`,
+)
+console.log(`   4xx / 5xx          : ${result["4xx"]} / ${result["5xx"]}`)
 
-const ok = result.errors === 0 && result['5xx'] === 0 && result.latency.p99 < 5000
-console.log(ok ? "\n✅ Stress test PASSED" : "\n❌ Stress test FAILED (erreurs ou latence trop élevée)")
+const ok =
+  result.errors === 0 && result["5xx"] === 0 && result.latency.p99 < 5000
+console.log(
+  ok
+    ? "\n✅ Stress test PASSED"
+    : "\n❌ Stress test FAILED (erreurs ou latence trop élevée)",
+)
 process.exit(ok ? 0 : 1)

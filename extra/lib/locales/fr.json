@@ -1,0 +1,259 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "hotels_tunisia": "Hôtels Tunisie",
+    "hotels_world": "Hôtels Monde",
+    "flights": "Vols",
+    "omra": "Omra",
+    "packages": "Voyages Organisés",
+    "transfers": "Transferts",
+    "car_rental": "Location de voiture",
+    "help": "Aide",
+    "my_bookings": "Mes Réservations",
+    "login": "Connexion",
+    "logout": "Déconnexion"
+  },
+  "footer": {
+    "services": "Nos Services",
+    "contact": "Contact",
+    "legal": "Mentions légales",
+    "cgv": "CGV",
+    "privacy": "Politique de confidentialité",
+    "copyright": "© 2026 Easy2Book. Tous droits réservés. Agence de voyage agréée en Tunisie.",
+    "trust_badges": {
+      "payment_secure": "Paiement 100% Sécurisé",
+      "payment_secure_desc": "SPS / Monétique Tunisie",
+      "support_local": "Support Local 7j/7",
+      "support_local_desc": "+216 98 140 514",
+      "availability": "Disponibilité Réelle",
+      "availability_desc": "MyGo/APIGDS",
+      "physical_agency": "Agence Physique",
+      "physical_agency_desc": "À Tunis"
+    }
+  },
+  "booking_engine": {
+    "tabs": {
+      "vols": "Vols",
+      "hotels_tunisia": "Hôtels Tunisie",
+      "hotels_monde": "Hôtels Monde",
+      "omraty": "Omraty",
+      "voyages_organises": "Voyages Organisés",
+      "transferts": "Transferts",
+      "car": "Car"
+    },
+    "search": "RECHERCHER",
+    "coming_soon": "Recherche {module} bientôt disponible",
+    "coming_soon_desc": "Le moteur de recherche sera connecté à l'API correspondante prochainement.",
+    "vols": {
+      "departure": "Départ de",
+      "destination": "Destination",
+      "dates": "Dates",
+      "choose_dates": "Choisir les dates",
+      "class": "Classe",
+      "flexible": "Comparer avec les prix flexibles",
+      "economique": "Économique",
+      "premium": "Premium",
+      "business": "Business"
+    },
+    "hotels_monde": {
+      "destination": "Destination mondiale",
+      "placeholder": "Ville, hôtel ou aéroport",
+      "checkin": "Check-in",
+      "arrival_date": "Date d'arrivée",
+      "checkout": "Check-out",
+      "departure_date": "Date de départ"
+    },
+    "omraty": {
+      "program": "Programme",
+      "select": "Sélectionner",
+      "economique": "Économique",
+      "confort": "Confort",
+      "prestige": "Prestige",
+      "departure_month": "Mois de départ",
+      "choose_month": "Choisir le mois",
+      "distance_haram": "Distance Haram",
+      "distance": "Distance",
+      "flight_type": "Type de vol",
+      "direct": "Vol direct",
+      "with_stopover": "Avec escale"
+    },
+    "voyages_organises": {
+      "destination": "Destination",
+      "choose_destination": "Choisir une destination",
+      "turquie": "Turquie",
+      "egypte": "Égypte",
+      "dubai": "Dubaï",
+      "malaisie": "Malaisie",
+      "thailande": "Thaïlande",
+      "period": "Période",
+      "choose_period": "Choisir la période",
+      "duration": "Durée",
+      "travelers": "Voyageurs",
+      "1_traveler": "1 Voyageur",
+      "2_travelers": "2 Voyageurs",
+      "3_travelers": "3 Voyageurs",
+      "4_travelers": "4 Voyageurs",
+      "5_plus_travelers": "5+ Voyageurs"
+    },
+    "transfers": {
+      "pickup_location": "Lieu de prise en charge",
+      "airport_port": "Aéroport / Port",
+      "tunis_airport": "Aéroport Tunis-Carthage",
+      "enfidha_airport": "Aéroport Enfidha",
+      "djerba_airport": "Aéroport Djerba",
+      "monastir_airport": "Aéroport Monastir",
+      "dropoff_location": "Lieu de dépôt",
+      "hotel_address": "Hôtel ou adresse",
+      "date_time": "Date et heure",
+      "arrival_date": "Date d'arrivée",
+      "passengers": "Passagers",
+      "1_passenger": "1 Passager",
+      "2_passengers": "2 Passagers",
+      "3_passengers": "3 Passagers",
+      "4_passengers": "4 Passagers",
+      "5_plus_passengers": "5+ Passagers"
+    },
+    "car": {
+      "pickup_location": "Lieu de prise en charge",
+      "airport_city": "Aéroport ou ville",
+      "hammamet_center": "Hammamet centre",
+      "sousse_center": "Sousse centre",
+      "pickup_date": "Date de prise",
+      "choose_date": "Choisir la date",
+      "return_date": "Date de retour",
+      "category": "Catégorie",
+      "economique": "Économique",
+      "compact": "Compacte",
+      "sedan": "Berline",
+      "suv": "SUV",
+      "luxury": "Luxe",
+      "with_driver": "Avec chauffeur"
+    }
+  },
+  "filter_sidebar": {
+    "title": "Affinez vos résultats",
+    "reset": "Réinitialiser les filtres",
+    "pricing": "Tarifs et disponibilités",
+    "recommended": "Hôtel recommandé",
+    "available_only": "Disponible seulement",
+    "free_cancellation": "Annulation gratuite",
+    "category": "Catégorie",
+    "price_per_night": "Prix ({currency})",
+    "meal_plan": "Type de pension",
+    "facilities": "Équipements"
+  },
+  "hotel_card": {
+    "from": "À partir de",
+    "view_details": "Voir détails",
+    "rates_rooms": "Tarifs & chambres",
+    "room_header": "Chambre 1 : 2 adultes",
+    "free_cancellation_before": "Annulation gratuite avant le {date}",
+    "available": "Disponible",
+    "on_request": "Sur demande",
+    "book": "Réserver",
+    "exclusive": "Exclusive",
+    "add_wishlist": "Add to wishlist",
+    "remove_wishlist": "Remove from wishlist",
+    "view_image": "View image {number}"
+  },
+  "booking_form": {
+    "header": {
+      "home": "ACCUEIL",
+      "hotels": "HÔTELS",
+      "apartments": "APPARTEMENTS",
+      "ticket_management": "GESTION DES TICKETS",
+      "contact": "CONTACT",
+      "info_reservations": "INFOS & RÉSERVATIONS"
+    },
+    "breadcrumb": {
+      "hotel_list": "Liste Hôtels",
+      "rates": "Tarif Dispo"
+    },
+    "warning": {
+      "insufficient_balance": "Solde insuffisant,",
+      "please_fund": "veuillez alimenter votre compte"
+    },
+    "room_occupancy": "Occupations des chambres",
+    "on_request": "Sur demande",
+    "guest": {
+      "adult": "adulte",
+      "child": "enfant",
+      "primary": "(Principale)",
+      "title": "Civilité",
+      "select": "Sélectionner",
+      "mr": "Mr.",
+      "mrs": "Mme.",
+      "miss": "Mlle.",
+      "last_name": "Nom",
+      "first_name": "Prénom"
+    },
+    "contact_info": "Informations de contact",
+    "email": "Email",
+    "email_placeholder": "votre@email.com",
+    "phone": "Téléphone",
+    "phone_placeholder": "+216 XX XXX XXX",
+    "cancellation_policy": "Conditions d'annulations et informations importantes",
+    "free_cancellation": "Annulation gratuite",
+    "until_48h": "jusqu'à 48 heures avant la date d'arrivée.",
+    "within_48h": "Les annulations effectuées dans les 48 heures précédant l'arrivée seront facturées la première nuit.",
+    "no_show": "Les non-présentations seront facturées le montant total de la réservation.",
+    "special_requests": "Les demandes spéciales sont soumises à disponibilité et peuvent entraîner des frais supplémentaires.",
+    "back_to_search": "Retour à la recherche",
+    "book": "RÉSERVER",
+    "modify_search": "Modifier votre recherche",
+    "subtotal": "Sous total:",
+    "nights": "nuitée(s)",
+    "from": "Du",
+    "to": "Au",
+    "so": "soit"
+  },
+  "login_form": {
+    "email": "Email",
+    "email_placeholder": "vous@exemple.com",
+    "password": "Mot de passe",
+    "password_placeholder": "••••••••",
+    "login": "Se connecter",
+    "logining": "Connexion…",
+    "magic_link": "Recevoir un lien magique par email",
+    "error": {
+      "invalid_credentials": "Email ou mot de passe incorrect.",
+      "email_not_confirmed": "Votre email n'a pas encore été confirmé. Vérifiez votre boîte mail.",
+      "rate_limit": "Trop de tentatives. Réessayez dans quelques minutes.",
+      "fill_fields": "Renseignez votre email et votre mot de passe.",
+      "fill_email_first": "Renseignez d'abord votre email pour recevoir un lien magique."
+    },
+    "success": {
+      "magic_link_sent": "Un lien de connexion a été envoyé à votre adresse email. Vérifiez votre boîte mail."
+    },
+    "login_failed": "Connexion impossible",
+    "link_sent": "Lien envoyé"
+  },
+  "flash_offers": {
+    "title": "Nos meilleures offres au départ de Tunis",
+    "badge": "Flash Offers",
+    "book": "Réserver"
+  },
+  "currency": {
+    "TND": "Dinar tunisien",
+    "EUR": "Euro",
+    "USD": "Dollar US"
+  },
+  "language": {
+    "fr": "Français",
+    "en": "English",
+    "ar": "العربية"
+  },
+  "common": {
+    "search": "Rechercher",
+    "book": "Réserver",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "required": "*",
+    "optional": "(optionnel)"
+  },
+  "adults": "Adultes",
+  "children": "Enfants"
+}

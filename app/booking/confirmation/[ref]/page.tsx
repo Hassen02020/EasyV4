@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CheckCircle2, Mail, Calendar, User, Download } from "lucide-react"
-import { eq, and } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,8 +14,6 @@ import { BookingSteps } from "@/components/booking/booking-steps"
 import { ConfirmationStatusBadge } from "@/components/booking/confirmation-status-badge"
 
 export const dynamic = "force-dynamic"
-
-const AGENCY_ID = "00000000-0000-0000-0000-000000000001"
 
 export default async function ConfirmationPage({
   params,
@@ -42,12 +40,7 @@ export default async function ConfirmationPage({
     })
     .from(reservations)
     .leftJoin(customers, eq(reservations.customerId, customers.id))
-    .where(
-      and(
-        eq(reservations.agencyId, AGENCY_ID),
-        eq(reservations.publicRef, ref),
-      ),
-    )
+    .where(eq(reservations.publicRef, ref))
     .limit(1)
   const row = rows[0]
   if (!row) notFound()

@@ -1757,3 +1757,77 @@ export {
   type SupplierLog,
   type NewSupplierLog,
 } from "./schema/suppliers"
+
+/* -------------------------------------------------------------------------- */
+/* Validation Module — imported from schema/validation.ts                     */
+/* -------------------------------------------------------------------------- */
+
+export {
+  reservationValidations,
+  validationComments,
+  validationHistory,
+  validationStatus,
+  validationStep,
+  type ReservationValidation,
+  type NewReservationValidation,
+  type ValidationComment,
+  type NewValidationComment,
+  type ValidationHistory,
+  type NewValidationHistory,
+} from "./schema/validation"
+
+/* -------------------------------------------------------------------------- */
+/* Financials Module V6 — imported from schema/financials.ts                   */
+/* -------------------------------------------------------------------------- */
+
+export {
+  walletAccounts,
+  walletLedger,
+  marginRules,
+  reservationFinancials,
+  journalEntries,
+  journalLines,
+  reservationStatusHistory,
+  walletAccountType,
+  walletTxTypeV6,
+  walletTxStatusV6,
+  marginTypeV6,
+  journalEntryStatus,
+  reservationTransition,
+  type WalletAccount,
+  type NewWalletAccount,
+  type WalletLedger,
+  type NewWalletLedger,
+  type MarginRule,
+  type NewMarginRule,
+  type ReservationFinancial,
+  type NewReservationFinancial,
+  type JournalEntry,
+  type NewJournalEntry,
+  type JournalLine,
+  type NewJournalLine,
+  type ReservationStatusHistory,
+  type NewReservationStatusHistory,
+} from "./schema/financials"
+
+/* -------------------------------------------------------------------------- */
+/* Products Module V6 — imported from schema/products.ts                       */
+/* -------------------------------------------------------------------------- */
+
+export {
+  productInventory,
+  apiLogs,
+  inventoryStatus,
+  type ProductInventory,
+  type NewProductInventory,
+  type ApiLog,
+  type NewApiLog,
+} from "./schema/products"
+
+/* -------------------------------------------------------------------------- */
+/* Audit Module V6 — imported from schema/audit.ts                             */
+/* -------------------------------------------------------------------------- */
+
+export {
+  auditAction,
+} from "./schema/audit"

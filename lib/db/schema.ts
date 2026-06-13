@@ -1774,7 +1774,7 @@ export {
   type NewValidationComment,
   type ValidationHistory,
   type NewValidationHistory,
-} from "./schema/validation"
+} from "./validation"
 
 /* -------------------------------------------------------------------------- */
 /* Financials Module V6 — imported from schema/financials.ts                   */

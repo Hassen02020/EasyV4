@@ -42,6 +42,11 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
   return _db
 }
 
+/** Type pour les transactions Drizzle */
+export type DrizzleTransaction = Parameters<
+  Parameters<PostgresJsDatabase<typeof schema>["transaction"]>[0]
+>[0]
+
 /** Pour fermer proprement (tests, scripts). En prod Next.js : pas nécessaire. */
 export async function closeDb(): Promise<void> {
   if (_client) {

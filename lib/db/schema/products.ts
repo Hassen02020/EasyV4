@@ -21,6 +21,19 @@ import {
 } from "drizzle-orm/pg-core"
 
 /* -------------------------------------------------------------------------- */
+/* Interfaces TypeScript pour JSONB                                              */
+/* -------------------------------------------------------------------------- */
+
+export interface ProductMetadata {
+  supplierReference?: string
+  supplierCode?: string
+  amenities?: string[]
+  images?: string[]
+  policies?: Record<string, unknown>
+  specialOffers?: string[]
+}
+
+/* -------------------------------------------------------------------------- */
 /* Enums                                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -101,7 +114,7 @@ export const products = pgTable(
 
     // Caractéristiques (flexible selon le type)
     amenities: jsonb("amenities").$type<string[]>().default([]),
-    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    metadata: jsonb("metadata").$type<ProductMetadata>(),
 
     // Synchronisation fournisseur
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),

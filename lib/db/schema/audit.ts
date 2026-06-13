@@ -17,6 +17,18 @@ import {
 } from "drizzle-orm/pg-core"
 
 /* -------------------------------------------------------------------------- */
+/* Interfaces TypeScript pour JSONB                                              */
+/* -------------------------------------------------------------------------- */
+
+export interface AuditMetadata {
+  source?: string
+  ipAddress?: string
+  userAgent?: string
+  requestId?: string
+  sessionId?: string
+}
+
+/* -------------------------------------------------------------------------- */
 /* Enums                                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -70,8 +82,8 @@ export const auditLogs = pgTable(
     action: auditAction("action").notNull(),
 
     // Avant / Après (pour diff et rollback)
-    oldValues: jsonb("old_values").$type<Record<string, any>>(),
-    newValues: jsonb("new_values").$type<Record<string, any>>(),
+    oldValues: jsonb("old_values").$type<Record<string, unknown>>(),
+    newValues: jsonb("new_values").$type<Record<string, unknown>>(),
 
     // Contexte
     description: text("description"),
@@ -83,7 +95,7 @@ export const auditLogs = pgTable(
     requestId: varchar("request_id", { length: 100 }), // Pour corrélation entre logs
 
     // Métadonnées additionnelles
-    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    metadata: jsonb("metadata").$type<AuditMetadata>(),
 
     // Timestamp
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

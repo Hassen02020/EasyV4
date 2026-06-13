@@ -103,7 +103,7 @@ export function createTimestampCursor(timestamp: Date, id: string): string {
 
 interface OffsetPaginationOptions<T> {
   /** Query Drizzle de base */
-  query: any
+  query: any // TODO: Typage précis nécessite refactoring Drizzle query types
   /** Page demandée (1-based) */
   page?: number
   /** Items par page */
@@ -172,7 +172,7 @@ export async function paginateOffset<T>({
 
 interface CursorPaginationOptions<T> {
   /** Query Drizzle de base */
-  query: any
+  query: any // TODO: Typage précis nécessite refactoring Drizzle query types
   /** Cursor actuel */
   cursor?: string | null
   /** Direction (next ou prev) */
@@ -182,7 +182,7 @@ interface CursorPaginationOptions<T> {
   /** Colonne de tri (doit être unique ou combinée avec ID) */
   sortColumn: string
   /** Tableau pour extraire les valeurs */
-  table: any
+  table: any // TODO: Typage précis nécessite refactoring Drizzle table types
 }
 
 /**
@@ -243,11 +243,11 @@ export async function paginateCursor<T>({
   let prevCursor: string | null = null
 
   if (hasNextPage && actualData.length > 0) {
-    const lastItem = actualData[actualData.length - 1] as any
+    const lastItem = actualData[actualData.length - 1] as unknown as Record<string, unknown>
     if (lastItem[sortColumn] && lastItem.id) {
       nextCursor = createTimestampCursor(
-        new Date(lastItem[sortColumn]),
-        lastItem.id,
+        new Date(lastItem[sortColumn] as string),
+        lastItem.id as string,
       )
     }
   }

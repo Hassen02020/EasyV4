@@ -1490,7 +1490,7 @@ export const walletTransactions = pgTable(
     type: walletTxType("type").notNull(),
     method: walletTopUpMethod("method"),
     /** Montant absolu (toujours positif — le signe est dans `type`). */
-    amount: decimal("amount", { precision: 14, scale: 3 }).notNull(),
+    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
     /** Numéro de référence : n° virement, n° bordereau mandat, txId Zitouna. */
     referenceNumber: varchar("reference_number", { length: 128 }),
     /** URL Supabase Storage du reçu / preuve (photo borderereau). */

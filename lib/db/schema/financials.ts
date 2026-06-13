@@ -28,6 +28,40 @@ import {
 } from "drizzle-orm/pg-core"
 
 /* -------------------------------------------------------------------------- */
+/* Interfaces TypeScript pour JSONB                                              */
+/* -------------------------------------------------------------------------- */
+
+export interface WalletLedgerMetadata {
+  supplierReference?: string
+  confirmationId?: string
+  cancellationPolicy?: string
+  specialRequests?: string[]
+  paymentMethod?: string
+  paymentReference?: string
+}
+
+export interface ReservationFinancialMetadata {
+  supplierReference?: string
+  confirmationId?: string
+  cancellationPolicy?: string
+  specialRequests?: string[]
+  marginRuleName?: string
+  commissionRuleName?: string
+}
+
+export interface JournalEntryMetadata {
+  source?: string
+  externalReference?: string
+  notes?: string
+}
+
+export interface MarginRuleMetadata {
+  description?: string
+  conditions?: string[]
+  priorityReason?: string
+}
+
+/* -------------------------------------------------------------------------- */
 /* Enums                                                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -144,7 +178,7 @@ export const walletLedger = pgTable(
     category: varchar("category", { length: 50 }), // booking, refund, recharge, commission, fee
 
     // Audit
-    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    metadata: jsonb("metadata").$type<WalletLedgerMetadata>(),
     createdBy: uuid("created_by"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -339,7 +373,7 @@ export const reservationStatusHistory = pgTable(
     reason: text("reason"),
 
     // Payload (ex: réponse fournisseur, réf paiement...)
-    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    metadata: jsonb("metadata").$type<JournalEntryMetadata>(),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

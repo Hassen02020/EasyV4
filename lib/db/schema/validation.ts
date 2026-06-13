@@ -5,6 +5,26 @@
 
 import { pgEnum, pgTable, uuid, varchar, text, boolean, timestamp, jsonb } from "drizzle-orm/pg-core"
 
+/* -------------------------------------------------------------------------- */
+/* Interfaces TypeScript pour JSONB                                              */
+/* -------------------------------------------------------------------------- */
+
+export interface ReservationValidationMetadata {
+  supplierResponse?: Record<string, unknown>
+  paymentDetails?: Record<string, unknown>
+  validationNotes?: string[]
+  rejectionReason?: string
+}
+
+export interface ValidationCommentMetadata {
+  attachments?: string[]
+  references?: string[]
+}
+
+/* -------------------------------------------------------------------------- */
+/* Enums                                                                      */
+/* -------------------------------------------------------------------------- */
+
 export const validationStatus = pgEnum("validation_status", [
   "pending",
   "pending_supplier",
@@ -58,7 +78,7 @@ export const reservationValidations = pgTable(
     rejectionCategory: varchar("rejection_category", { length: 50 }), // price, availability, policy, other
     
     // Additional data
-    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    metadata: jsonb("metadata").$type<ReservationValidationMetadata>(),
     
     // Timestamps
     submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
@@ -117,7 +137,7 @@ export const validationHistory = pgTable(
     
     // Additional context
     reason: text("reason"),
-    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    metadata: jsonb("metadata").$type<ValidationCommentMetadata>(),
     
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

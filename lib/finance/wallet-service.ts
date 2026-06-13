@@ -5,8 +5,15 @@
  * Toutes les opérations financières doivent être exécutées dans une transaction
  */
 
-import { getDb } from "@/lib/db/client"
+import { getDb, type DrizzleTransaction } from "@/lib/db/client"
 import { eq, and, sql } from "drizzle-orm"
+import {
+  NotFoundError,
+  InsufficientBalanceError,
+  ValidationError,
+  PaymentError,
+  logError,
+} from "@/lib/errors"
 import {
   walletAccounts,
   walletLedger,
@@ -82,7 +89,7 @@ export async function debitWallet(
       })
 
       if (!wallet) {
-        throw new Error("Compte wallet non trouvé pour cette agence")
+        throw new NotFoundError("WalletAccount", options.agencyId)
       }
 
       const balanceBefore = Number(wallet.currentBalance)
@@ -92,7 +99,7 @@ export async function debitWallet(
       if (balanceAfter < 0) {
         const creditLimit = wallet.creditLimit ? Number(wallet.creditLimit) : 0
         if (balanceAfter < -creditLimit) {
-          throw new Error("Solde insuffisant")
+          throw new InsufficientBalanceError(balanceBefore, options.amount, wallet.currency || "TND")
         }
       }
 
@@ -153,6 +160,7 @@ export async function debitWallet(
       }
     })
   } catch (error) {
+    logError(error, { context: "walletTransaction", agencyId: options.agencyId, amount: options.amount })
     return {
       success: false,
       walletAccountId: "",
@@ -183,7 +191,7 @@ export async function creditWallet(
       })
 
       if (!wallet) {
-        throw new Error("Compte wallet non trouvé pour cette agence")
+        throw new NotFoundError("WalletAccount", options.agencyId)
       }
 
       const balanceBefore = Number(wallet.currentBalance)
@@ -242,6 +250,7 @@ export async function creditWallet(
       }
     })
   } catch (error) {
+    logError(error, { context: "walletTransaction", agencyId: options.agencyId, amount: options.amount })
     return {
       success: false,
       walletAccountId: "",
@@ -275,7 +284,7 @@ export async function processReservationWithMargin(
 
     // 3. Valider le calcul
     if (marginResult.salePriceTnd <= marginResult.supplierPriceTnd) {
-      throw new Error("Le prix de vente doit être supérieur au prix achat")
+      throw new ValidationError("Le prix de vente doit être supérieur au prix achat", "salePrice")
     }
 
     // 4. Enregistrer les financials de la réservation
@@ -307,7 +316,7 @@ export async function processReservationWithMargin(
     })
 
     if (!debitResult.success) {
-      throw new Error(debitResult.error || "Échec du débit wallet")
+      throw new PaymentError(debitResult.error || "Échec du débit wallet", "WALLET_DEBIT")
     }
 
     // 6. Créer l'écriture comptable pour la marge
@@ -332,7 +341,7 @@ export async function processReservationWithMargin(
  * Crée une écriture comptable pour un débit
  */
 async function createJournalEntryForDebit(
-  tx: any,
+  tx: DrizzleTransaction,
   options: {
     agencyId: string
     amount: number
@@ -384,7 +393,7 @@ async function createJournalEntryForDebit(
  * Crée une écriture comptable pour un crédit
  */
 async function createJournalEntryForCredit(
-  tx: any,
+  tx: DrizzleTransaction,
   options: {
     agencyId: string
     amount: number
@@ -433,7 +442,7 @@ async function createJournalEntryForCredit(
  * Crée une écriture comptable pour la marge
  */
 async function createJournalEntryForMargin(
-  tx: any,
+  tx: DrizzleTransaction,
   options: {
     agencyId: string
     reservationId: string

@@ -12,6 +12,8 @@ import { Toaster } from "@/components/ui/sonner"
 
 import { QueryProvider } from "@/components/query-provider"
 
+import { CurrencyProvider } from "@/components/currency-context"
+
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -85,11 +87,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <QueryProvider>
-            {children}
+          <CurrencyProvider>
+            <QueryProvider>
+              {children}
 
-            <Toaster richColors position="top-center" />
-          </QueryProvider>
+              <Toaster richColors position="top-center" />
+            </QueryProvider>
+          </CurrencyProvider>
         </ThemeProvider>
 
         {process.env.NODE_ENV === "production" && (

@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { upsertYieldRule, toggleYieldRule, type UpsertYieldRuleInput } from "@/lib/yield/engine"
+import { upsertYieldRule, toggleYieldRule, type UpsertYieldRuleInput } from "@/lib/yield/actions"
 import type { YieldRule } from "@/lib/db/schema"
 
 interface Agency {

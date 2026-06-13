@@ -72,7 +72,7 @@ export const walletAccountType = pgEnum("wallet_account_type", [
   "commission", // Compte de commission Easy2Book
 ])
 
-export const walletTxTypeV6 = pgEnum("wallet_tx_type_v6", [
+export const walletTxType = pgEnum("wallet_tx_type", [
   "credit",     // Entrée (recharge, remboursement reçu)
   "debit",      // Sortie (réservation, commission)
   "refund",     // Remboursement sortant
@@ -88,7 +88,7 @@ export const walletTxStatusV6 = pgEnum("wallet_tx_status_v6", [
   "reversed",  // Annulée/Inversée
 ])
 
-export const marginTypeV6 = pgEnum("margin_type_v6", [
+export const marginType = pgEnum("margin_type", [
   "percent", // % du prix d'achat
   "fixed",   // Montant fixe ajouté
   "hybrid",  // % + montant fixe
@@ -161,7 +161,7 @@ export const walletLedger = pgTable(
     walletAccountId: uuid("wallet_account_id").notNull(),
 
     // Double-entry: balance avant/après
-    type: walletTxTypeV6("type").notNull(),
+    type: walletTxType("type").notNull(),
     status: walletTxStatusV6("status").notNull().default("completed"),
     amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
     balanceBefore: decimal("balance_before", { precision: 14, scale: 2 }).notNull(),
@@ -210,7 +210,7 @@ export const marginRules = pgTable(
     maxPrice: decimal("max_price", { precision: 14, scale: 2 }),
 
     // Valeur de la marge
-    type: marginTypeV6("type").notNull().default("percent"),
+    type: marginType("type").notNull().default("percent"),
     percentValue: decimal("percent_value", { precision: 5, scale: 2 }), // % sur le prix achat
     fixedValue: decimal("fixed_value", { precision: 14, scale: 2 }),    // Montant fixe TND
 

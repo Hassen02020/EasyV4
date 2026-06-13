@@ -22,6 +22,7 @@
  */
 
 import { sql } from "drizzle-orm"
+import { marginType, walletTxType } from "./schema/financials"
 import {
   boolean,
   date,
@@ -56,8 +57,6 @@ export const agencyType = pgEnum("agency_type", [
   "ota", // OTA Easy2Book elle-même (ou agences en marque blanche)
   "partner", // agence partenaire B2B avec compte de dépôt
 ])
-
-export const marginType = pgEnum("margin_type", ["percent", "fixed"])
 
 export const invoiceType = pgEnum("invoice_type", [
   "facture", // facture standard
@@ -1408,13 +1407,6 @@ export const auditLogs = pgTable(
 /* Wallet (portefeuille électronique par agence)                             */
 /* -------------------------------------------------------------------------- */
 
-export const walletTxType = pgEnum("wallet_tx_type", [
-  "CREDIT",      // rechargement validé
-  "DEBIT",       // débit réservation
-  "REFUND",      // remboursement vers wallet
-  "ADJUSTMENT",  // ajustement manuel admin
-])
-
 export const walletTopUpMethod = pgEnum("wallet_topup_method", [
   "VIREMENT",    // Virement bancaire (STB, BNA, Attijari, BH…)
   "MANDAT",      // Mandat postal / WafaCash / PosteNet
@@ -1789,9 +1781,9 @@ export {
   journalLines,
   reservationStatusHistory,
   walletAccountType,
-  walletTxTypeV6,
+  walletTxType,
   walletTxStatusV6,
-  marginTypeV6,
+  marginType,
   journalEntryStatus,
   reservationTransition,
   type WalletAccount,

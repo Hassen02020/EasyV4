@@ -6,7 +6,7 @@
  */
 
 import type { MarginRule } from "@/lib/db/schema"
-import { marginTypeV6 } from "@/lib/db/schema"
+import { marginType } from "@/lib/db/schema"
 
 /**
  * Contexte de calcul de marge

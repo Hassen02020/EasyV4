@@ -14,16 +14,21 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     try {
-      // @ts-ignore — package optionnel, installé en production
-      const Sentry = await import("@sentry/nextjs")
-      Sentry.init({
-        dsn: process.env.SENTRY_DSN,
-        environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
-        tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
-        profilesSampleRate: 0.1,
-      })
+      // Sentry désactivé temporairement — package non installé
+      // Pour activer : npm install @sentry/nextjs et décommenter ci-dessous
+      /*
+      const Sentry: any = await import("@sentry/nextjs").catch(() => null)
+      if (Sentry && process.env.SENTRY_DSN) {
+        Sentry.init({
+          dsn: process.env.SENTRY_DSN,
+          environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
+          tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+          profilesSampleRate: 0.1,
+        })
+      }
+      */
     } catch {
-      // Sentry non installé — silencieux en dev
+      // Sentry non installé ou erreur — silencieux
     }
   }
 }

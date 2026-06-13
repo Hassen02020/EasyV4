@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next"
 
 import { Geist, Geist_Mono } from "next/font/google"
 
+import { cookies } from "next/headers"
+
 import { Analytics } from "@vercel/analytics/next"
 
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -13,6 +15,10 @@ import { Toaster } from "@/components/ui/sonner"
 import { QueryProvider } from "@/components/query-provider"
 
 import { CurrencyProvider } from "@/components/currency-context"
+
+import { LocaleProvider } from "@/components/locale-context"
+
+import { getLocaleFromCookie, LOCALE_COOKIE } from "@/lib/locale"
 
 import "./globals.css"
 
@@ -69,14 +75,17 @@ export const viewport: Viewport = {
   themeColor: "#1e3a5f",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const cookieStore = await cookies()
+  const locale = getLocaleFromCookie(cookieStore.get(LOCALE_COOKIE)?.value)
+
   return (
     <html
-      lang="fr"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} bg-background`}
       suppressHydrationWarning
     >
@@ -87,13 +96,15 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <CurrencyProvider>
-            <QueryProvider>
-              {children}
+          <LocaleProvider locale={locale}>
+            <CurrencyProvider>
+              <QueryProvider>
+                {children}
 
-              <Toaster richColors position="top-center" />
-            </QueryProvider>
-          </CurrencyProvider>
+                <Toaster richColors position="top-center" />
+              </QueryProvider>
+            </CurrencyProvider>
+          </LocaleProvider>
         </ThemeProvider>
 
         {process.env.NODE_ENV === "production" && (

@@ -19,3 +19,7 @@ export function parseLocale(value: string | undefined | null): Locale {
   }
   return DEFAULT_LOCALE
 }
+
+export function getLocaleFromCookie(cookieValue: string | undefined): Locale {
+  return parseLocale(cookieValue)
+}

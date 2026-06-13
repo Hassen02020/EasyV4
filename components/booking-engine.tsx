@@ -32,6 +32,8 @@ import {
 
 import dynamic from "next/dynamic"
 
+import { useT } from "@/components/locale-context"
+
 const HotelsTunisieSearch = dynamic(
   () =>
     import("@/components/hotels-tunisie-search").then(
@@ -99,23 +101,17 @@ function buildSampleBookingUrl(input: {
   return `/booking?d=${encodeURIComponent(token)}`
 }
 
-const tabs = [
-  { id: "vols", label: "Vols", icon: Plane },
-
-  { id: "hotels-tunisie", label: "Hôtels Tunisie", icon: Building2 },
-
-  { id: "hotels-monde", label: "Hôtels Monde", icon: Globe },
-
-  { id: "omraty", label: "Omraty", icon: Moon },
-
-  { id: "voyages-organises", label: "Voyages Organisés", icon: Briefcase },
-
-  { id: "transferts", label: "Transferts", icon: Bus },
-
-  { id: "car", label: "Car", icon: Car },
+const tabsConfig = [
+  { id: "vols", labelKey: "tabVols", icon: Plane },
+  { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2 },
+  { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe },
+  { id: "omraty", labelKey: "tabOmraty", icon: Moon },
+  { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase },
+  { id: "transferts", labelKey: "tabTransferts", icon: Bus },
+  { id: "car", labelKey: "tabCar", icon: Car },
 ] as const
 
-type TabId = (typeof tabs)[number]["id"]
+type TabId = (typeof tabsConfig)[number]["id"]
 
 // Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
 
@@ -124,6 +120,7 @@ const HERO_BG_URL =
 
 export function BookingEngine() {
   const [activeTab, setActiveTab] = useState<TabId>("vols")
+  const t = useT()
 
   return (
     <div className="relative">
@@ -143,7 +140,7 @@ export function BookingEngine() {
           {/* Tabs */}
 
           <div className="border-border flex overflow-x-auto border-b">
-            {tabs.map((tab) => {
+            {tabsConfig.map((tab) => {
               const Icon = tab.icon
 
               const isActive = activeTab === tab.id
@@ -163,7 +160,7 @@ export function BookingEngine() {
                   <Icon className="size-5" />
 
                   <span className="text-xs whitespace-nowrap sm:text-sm">
-                    {tab.label}
+                    {t(tab.labelKey as any)}
                   </span>
                 </button>
               )

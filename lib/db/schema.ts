@@ -1739,3 +1739,21 @@ export {
   type OmraMealPlan,
   type OmraHotelCategory,
 } from "./schema/omra"
+
+/* -------------------------------------------------------------------------- */
+/* Suppliers Module (API XML Integration) — imported from schema/suppliers.ts  */
+/* -------------------------------------------------------------------------- */
+
+export {
+  suppliers,
+  supplierModules,
+  supplierLogs,
+  supplierType,
+  supplierStatus,
+  type Supplier,
+  type NewSupplier,
+  type SupplierModule,
+  type NewSupplierModule,
+  type SupplierLog,
+  type NewSupplierLog,
+} from "./schema/suppliers"

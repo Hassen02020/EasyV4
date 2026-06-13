@@ -13,8 +13,11 @@ import { Resend } from "resend"
 const _inngest = inngest as any
 
 export const processTransferConfirmed = _inngest.createFunction(
-  { id: "process-transfer-confirmed", name: "Transfert confirmé — notifications" },
-  { event: "booking/transfer.confirmed" },
+  {
+    id: "process-transfer-confirmed",
+    name: "Transfert confirmé — notifications",
+    triggers: { event: "booking/transfer.confirmed" },
+  },
   async ({ event, step }: any) => {
     const d = event.data
 

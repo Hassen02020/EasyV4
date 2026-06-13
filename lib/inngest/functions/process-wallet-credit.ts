@@ -24,6 +24,7 @@ export const processWalletCredit = inngest.createFunction(
     id: "process-wallet-credit",
     name: "Process Wallet Credit — Notify Agency",
     retries: 3,
+    triggers: { event: "wallet/credited" },
   },
   async ({ event }: any) => {
     const { agencyId, amount, newBalance, method, txId } = event.data

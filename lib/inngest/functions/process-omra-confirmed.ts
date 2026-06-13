@@ -13,8 +13,11 @@ import { Resend } from "resend"
 const _inngest = inngest as any
 
 export const processOmraConfirmed = _inngest.createFunction(
-  { id: "process-omra-confirmed", name: "Omra confirmée — dossier & email" },
-  { event: "booking/omra.confirmed" },
+  {
+    id: "process-omra-confirmed",
+    name: "Omra confirmée — dossier & email",
+    triggers: { event: "booking/omra.confirmed" },
+  },
   async ({ event, step }: any) => {
     const d = event.data
 

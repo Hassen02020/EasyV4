@@ -22,6 +22,7 @@ export const processConfirmedBooking = inngest.createFunction(
     id: "process-confirmed-booking",
     name: "Process Confirmed Booking — PDF + Email",
     retries: 3,
+    triggers: { event: "booking/confirmed" },
   },
   async ({ event }: any) => {
     const {

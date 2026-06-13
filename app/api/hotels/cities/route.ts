@@ -15,6 +15,8 @@ export const revalidate = 86400 // 24h
 export async function GET(req: NextRequest) {
   // API publique — pas de protection de session requise
 
+  // Rate limit désactivé temporairement (Upstash Redis peut ne pas être configuré)
+  /*
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
   const limit = await rateLimit(`hotels:cities:${ip}`)
@@ -34,6 +36,7 @@ export async function GET(req: NextRequest) {
       },
     )
   }
+  */
 
   try {
     const cities = await getMyGoClient().listCities()

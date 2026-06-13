@@ -96,7 +96,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <LocaleProvider locale={locale}>
+          <LocaleProvider initialLocale={locale}>
             <CurrencyProvider>
               <QueryProvider>
                 {children}

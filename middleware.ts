@@ -28,8 +28,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico / icons / images
+     * - manifest.json (PWA manifest)
      * - public assets (any path with a file extension)
      */
-    "/((?!_next/static|_next/image|favicon.ico|icon\\.svg|icon-.*\\.png|apple-icon\\.png|placeholder.*\\.(?:png|jpg|svg)).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon\\.svg|icon-.*\\.png|apple-icon\\.png|manifest\\.json|placeholder.*\\.(?:png|jpg|svg)).*)",
   ],
 }

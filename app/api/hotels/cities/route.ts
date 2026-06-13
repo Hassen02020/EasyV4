@@ -9,13 +9,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { getMyGoClient, mapCity } from "@/lib/mygo"
 import { MyGoAuthError, MyGoError } from "@/lib/mygo"
 import { rateLimit } from "@/lib/rate-limit"
-import { requirePartnerSession } from "@/lib/api/auth-guard"
 
 export const revalidate = 86400 // 24h
 
 export async function GET(req: NextRequest) {
-  const session = await requirePartnerSession(req)
-  if (session instanceof NextResponse) return session
+  // API publique — pas de protection de session requise
 
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"

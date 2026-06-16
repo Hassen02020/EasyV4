@@ -46,6 +46,18 @@ const HotelsTunisieSearch = dynamic(
   },
 )
 
+const WorldHotelSearch = dynamic(
+  () =>
+    import("@/components/hotels-monde/world-hotel-search").then(
+      (m) => m.WorldHotelSearch,
+    ),
+
+  {
+    ssr: false,
+    loading: () => <div className="bg-muted h-24 animate-pulse rounded-xl" />,
+  },
+)
+
 import { encodeDraft } from "@/lib/booking/draft-store"
 
 import type { BookingDraft } from "@/lib/booking/schemas"
@@ -174,7 +186,7 @@ export function BookingEngine() {
 
             {activeTab === "hotels-tunisie" && <HotelsTunisieSearch />}
 
-            {activeTab === "hotels-monde" && <HotelsMondeForm />}
+            {activeTab === "hotels-monde" && <WorldHotelSearch />}
 
             {activeTab === "omraty" && <OmratyForm />}
 
@@ -306,59 +318,6 @@ function VolsForm() {
           </label>
         </div>
 
-        <SearchSubmit />
-      </div>
-    </form>
-  )
-}
-
-function HotelsMondeForm() {
-  const router = useRouter()
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        router.push("/hotels-monde")
-      }}
-      className="space-y-4"
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5 lg:col-span-2">
-          <FieldLabel>Destination mondiale</FieldLabel>
-
-          <div className="relative">
-            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              placeholder="Ville, hôtel ou aéroport"
-              className="rounded-xl pl-9"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <FieldLabel>Check-in</FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input placeholder="Date d'arrivée" className="rounded-xl pl-9" />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <FieldLabel>Check-out</FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input placeholder="Date de départ" className="rounded-xl pl-9" />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-end pt-2">
         <SearchSubmit />
       </div>
     </form>

@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Hotel, Calendar, Users, Search, Loader2 } from "lucide-react"
+import { format } from "date-fns"
+import { Search, Loader2, Users, BedDouble, Star } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -14,27 +14,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DestinationCombobox,
+  type DestinationOption,
+} from "@/components/search/destination-combobox"
+import { StayDatePicker, type StayValue } from "@/components/search/stay-date-picker"
 
-const POPULAR_DESTINATIONS = [
-  { value: "istanbul", label: "Istanbul, Turquie" },
-  { value: "dubai", label: "Dubaï, Émirats" },
-  { value: "paris", label: "Paris, France" },
-  { value: "rome", label: "Rome, Italie" },
-  { value: "barcelona", label: "Barcelone, Espagne" },
-  { value: "london", label: "Londres, Royaume-Uni" },
-  { value: "cairo", label: "Le Caire, Égypte" },
-  { value: "marrakech", label: "Marrakech, Maroc" },
-  { value: "amsterdam", label: "Amsterdam, Pays-Bas" },
-  { value: "new_york", label: "New York, États-Unis" },
-]
+interface WorldHotelSearchProps {
+  initialDestination?: DestinationOption | null
+}
 
-export function WorldHotelSearch() {
+export function WorldHotelSearch({
+  initialDestination = null,
+}: WorldHotelSearchProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const [destination, setDestination] = useState("")
-  const [checkIn, setCheckIn] = useState("")
-  const [checkOut, setCheckOut] = useState("")
+  const [destination, setDestination] = useState<DestinationOption | null>(
+    initialDestination,
+  )
+  const [stay, setStay] = useState<StayValue>({})
   const [adults, setAdults] = useState("2")
   const [rooms, setRooms] = useState("1")
   const [stars, setStars] = useState("")
@@ -44,16 +43,19 @@ export function WorldHotelSearch() {
       toast.error("Veuillez sélectionner une destination.")
       return
     }
-    if (!checkIn || !checkOut) {
+    if (!stay.checkIn || !stay.checkOut) {
       toast.error("Veuillez sélectionner les dates d'arrivée et de départ.")
       return
     }
-    if (new Date(checkOut) <= new Date(checkIn)) {
-      toast.error("La date de départ doit être après la date d'arrivée.")
-      return
-    }
 
-    const params = new URLSearchParams({ destination, checkIn, checkOut, adults, rooms })
+    const params = new URLSearchParams({
+      destination: destination.value,
+      label: `${destination.label}, ${destination.sublabel ?? ""}`.trim(),
+      checkIn: format(stay.checkIn, "yyyy-MM-dd"),
+      checkOut: format(stay.checkOut, "yyyy-MM-dd"),
+      adults,
+      rooms,
+    })
     if (stars) params.set("stars", stars)
 
     startTransition(() => {
@@ -61,67 +63,31 @@ export function WorldHotelSearch() {
     })
   }
 
-  const today = new Date().toISOString().split("T")[0]!
-
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="bg-card rounded-2xl border p-6 shadow-sm">
       <h2 className="mb-6 text-xl font-semibold">Trouver un hôtel</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Hotel className="h-3.5 w-3.5 text-muted-foreground" />
-            Destination
-          </Label>
-          <Select value={destination} onValueChange={setDestination}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choisir une destination…" />
-            </SelectTrigger>
-            <SelectContent>
-              {POPULAR_DESTINATIONS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            Arrivée
-          </Label>
-          <Input
-            type="date"
-            value={checkIn}
-            min={today}
-            onChange={(e) => {
-              setCheckIn(e.target.value)
-              if (checkOut && e.target.value >= checkOut) setCheckOut("")
-            }}
+          <Label className="text-sm">Destination</Label>
+          <DestinationCombobox
+            scope="monde"
+            value={destination}
+            onChange={setDestination}
           />
         </div>
 
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            Départ
-          </Label>
-          <Input
-            type="date"
-            value={checkOut}
-            min={checkIn || today}
-            onChange={(e) => setCheckOut(e.target.value)}
-          />
+        <div className="space-y-2 sm:col-span-2">
+          <Label className="text-sm">Dates du séjour</Label>
+          <StayDatePicker value={stay} onChange={setStay} />
         </div>
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <Users className="text-muted-foreground h-3.5 w-3.5" />
             Adultes
           </Label>
           <Select value={adults} onValueChange={setAdults}>
-            <SelectTrigger>
+            <SelectTrigger className="h-12 rounded-3xl">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -135,9 +101,12 @@ export function WorldHotelSearch() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Chambres</Label>
+          <Label className="flex items-center gap-1.5 text-sm">
+            <BedDouble className="text-muted-foreground h-3.5 w-3.5" />
+            Chambres
+          </Label>
           <Select value={rooms} onValueChange={setRooms}>
-            <SelectTrigger>
+            <SelectTrigger className="h-12 rounded-3xl">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -151,9 +120,12 @@ export function WorldHotelSearch() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Catégorie</Label>
+          <Label className="flex items-center gap-1.5 text-sm">
+            <Star className="text-muted-foreground h-3.5 w-3.5" />
+            Catégorie
+          </Label>
           <Select value={stars} onValueChange={setStars}>
-            <SelectTrigger>
+            <SelectTrigger className="h-12 rounded-3xl">
               <SelectValue placeholder="Toutes catégories" />
             </SelectTrigger>
             <SelectContent>
@@ -172,7 +144,7 @@ export function WorldHotelSearch() {
           onClick={handleSearch}
           disabled={isPending}
           size="lg"
-          className="gap-2 bg-teal-700 hover:bg-teal-800"
+          className="gap-2 rounded-3xl bg-teal-700 hover:bg-teal-800"
         >
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />

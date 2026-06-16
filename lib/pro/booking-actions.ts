@@ -17,14 +17,20 @@
  * Toutes les sommes sont stockées en `numeric(12, 3)` (millimes TND).
  */
 
-import { eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
+import { z } from "zod"
 
 import { getDb } from "@/lib/db/client"
 import { getRedis } from "@/lib/cache/redis"
 import { metrics } from "@/lib/observability/metrics"
+import { travelerSchemaWithIdRule } from "@/lib/booking/schemas"
 import {
   agencies,
+  auditEvents,
+  customers,
   partnerCreditMovements,
+  reservations,
+  reservationHotel,
   type NewPartnerCreditMovement,
 } from "@/lib/db/schema"
 
@@ -159,7 +165,119 @@ export function isValidDebitAmount(amount: number): boolean {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Server Action                                                              */
+/* Cœur transactionnel réutilisable                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Paramètres du débit appliqué à l'intérieur d'une transaction ouverte. */
+export type ApplyDebitParams = {
+  agencyId: string
+  amountTnd: number
+  reference: string
+  description: string
+  createdByUserId?: string
+  reservationId?: string
+}
+
+/**
+ * Applique le débit (verrou pessimiste → vérif solde → mouvement → maj
+ * solde) à l'intérieur d'une transaction Drizzle **déjà ouverte** (`tx`).
+ *
+ * Ne gère ni l'idempotence ni les métriques (c'est le rôle de l'appelant).
+ * Permet de partager exactement la même logique de verrouillage entre :
+ *   - `debitPartnerCredit` (qui ouvre sa propre transaction dédiée)
+ *   - `bookHotelB2B` (dont la transaction englobe aussi l'insertion de la
+ *     réservation) → atomicité totale : si le débit échoue, la réservation
+ *     n'est jamais créée.
+ *
+ * Renvoie un résultat d'échec (`INSUFFICIENT_FUNDS` / `AGENCY_NOT_FOUND`)
+ * sans throw ; l'appelant décide s'il doit faire échouer la transaction.
+ */
+export async function applyPartnerDebitWithinTx(
+  tx: DrizzleLikeTx,
+  params: ApplyDebitParams,
+): Promise<DebitPartnerCreditResult> {
+  // 1. Verrou pessimiste row-level sur l'agence partenaire (`FOR UPDATE`).
+  const selectChain = tx
+    .select({
+      id: agencies.id,
+      depositBalance: agencies.depositBalance,
+    })
+    .from?.(agencies)
+    .where?.(eq(agencies.id, params.agencyId))
+  const lockedRows = (await selectChain?.for?.("update")) as Array<{
+    id: string
+    depositBalance: string
+  }>
+
+  const agency = lockedRows?.[0]
+  if (!agency) {
+    return {
+      ok: false,
+      code: "AGENCY_NOT_FOUND",
+      message: `Aucune agence partenaire trouvée pour l'id "${params.agencyId}".`,
+    }
+  }
+
+  // 2. Vérification du solde disponible (sous verrou — aucune race possible).
+  const currentBalance = parseTnd(agency.depositBalance)
+  if (currentBalance < params.amountTnd) {
+    return {
+      ok: false,
+      code: "INSUFFICIENT_FUNDS",
+      message: `Solde insuffisant : disponible ${formatTnd(
+        currentBalance,
+      )} DT, demandé ${formatTnd(params.amountTnd)} DT.`,
+      details: {
+        availableTnd: formatTnd(currentBalance),
+        requestedTnd: formatTnd(params.amountTnd),
+      },
+    }
+  }
+
+  // 3. Insertion du mouvement de débit (montant NÉGATIF, numeric(12,3)).
+  const newBalance = currentBalance - params.amountTnd
+  const movementInsert: NewPartnerCreditMovement = {
+    agencyId: params.agencyId,
+    movementType: "debit",
+    amount: formatTnd(-params.amountTnd),
+    balanceAfter: formatTnd(newBalance),
+    reference: params.reference,
+    description: params.description,
+    reservationId: params.reservationId,
+    createdByUserId: params.createdByUserId,
+  }
+
+  const inserted = (await tx
+    .insert(partnerCreditMovements)
+    .values?.(movementInsert)
+    .returning?.({ id: partnerCreditMovements.id })) as
+    | Array<{ id: string }>
+    | undefined
+
+  const movementId = inserted?.[0]?.id
+  if (!movementId) {
+    // La table a un DEFAULT gen_random_uuid() : ne devrait pas arriver. On
+    // throw pour forcer le ROLLBACK complet de la transaction englobante.
+    throw new Error("L'insertion du mouvement de débit n'a pas retourné d'id.")
+  }
+
+  // 4. Mise à jour atomique du solde de l'agence (toujours sous verrou).
+  const updateChain = tx
+    .update(agencies)
+    .set?.({ depositBalance: formatTnd(newBalance) })
+    .where?.(eq(agencies.id, params.agencyId))
+  await (updateChain as unknown as Promise<unknown>)
+
+  return {
+    ok: true,
+    movementId,
+    balanceBefore: formatTnd(currentBalance),
+    balanceAfter: formatTnd(newBalance),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Server Action — débit unitaire                                             */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -217,124 +335,34 @@ export async function debitPartnerCredit(
 
   try {
     const db = (input.dbOverride ?? getDb()) as DrizzleLikeDb
-    return await db.transaction(async (tx) => {
-      // ------------------------------------------------------------------
-      // 1. Verrou pessimiste row-level sur l'agence partenaire.
-      //
-      // `.for("update")` génère `SELECT ... FOR UPDATE` côté Postgres :
-      // toute autre transaction tentant un FOR UPDATE / UPDATE / DELETE
-      // sur cette ligne attendra notre `COMMIT` ou `ROLLBACK`.
-      // ------------------------------------------------------------------
-      const selectChain = tx
-        .select({
-          id: agencies.id,
-          depositBalance: agencies.depositBalance,
-        })
-        .from?.(agencies)
-        .where?.(eq(agencies.id, input.agencyId))
-      const lockedRows = (await selectChain?.for?.("update")) as Array<{
-        id: string
-        depositBalance: string
-      }>
-
-      const agency = lockedRows?.[0]
-      if (!agency) {
-        return {
-          ok: false,
-          code: "AGENCY_NOT_FOUND",
-          message: `Aucune agence partenaire trouvée pour l'id "${input.agencyId}".`,
-        } as DebitPartnerCreditFailure
-      }
-
-      // ------------------------------------------------------------------
-      // 2. Vérification du solde disponible (en TND).
-      // ------------------------------------------------------------------
-      const currentBalance = parseTnd(agency.depositBalance)
-      if (currentBalance < input.amountTnd) {
-        return {
-          ok: false,
-          code: "INSUFFICIENT_FUNDS",
-          message: `Solde insuffisant : disponible ${formatTnd(
-            currentBalance,
-          )} DT, demandé ${formatTnd(input.amountTnd)} DT.`,
-          details: {
-            availableTnd: formatTnd(currentBalance),
-            requestedTnd: formatTnd(input.amountTnd),
-          },
-        } as DebitPartnerCreditFailure
-      }
-
-      // ------------------------------------------------------------------
-      // 3. Calcul du nouveau solde et insertion du mouvement de débit.
-      //
-      // `amount` est stocké signé : négatif pour un débit comptable.
-      // ------------------------------------------------------------------
-      const newBalance = currentBalance - input.amountTnd
-      const movementInsert: NewPartnerCreditMovement = {
+    const result = await db.transaction(async (tx) =>
+      applyPartnerDebitWithinTx(tx, {
         agencyId: input.agencyId,
-        movementType: "debit",
-        amount: formatTnd(-input.amountTnd),
-        balanceAfter: formatTnd(newBalance),
+        amountTnd: input.amountTnd,
         reference: input.reference,
         description: input.description,
-        reservationId: input.reservationId,
         createdByUserId: input.createdByUserId,
-      }
+        reservationId: input.reservationId,
+      }),
+    )
 
-      const inserted = (await tx
-        .insert(partnerCreditMovements)
-        .values?.(movementInsert)
-        .returning?.({ id: partnerCreditMovements.id })) as
-        | Array<{ id: string }>
-        | undefined
-
-      const movementId = inserted?.[0]?.id
-      if (!movementId) {
-        // Très improbable (la table a un DEFAULT gen_random_uuid()), mais on
-        // garde une garde explicite : la transaction sera annulée si on
-        // throw, donc on lève pour que tout soit rollback.
-        throw new Error(
-          "L'insertion du mouvement de débit n'a pas retourné d'id.",
-        )
-      }
-
-      // ------------------------------------------------------------------
-      // 4. Mise à jour du solde de l'agence (même transaction).
-      //
-      // On cast explicitement en Promise<unknown> pour que TS accepte
-      // le `await` sur la chaîne fluide (le `.where?.` ferme la requête
-      // et la rend thenable côté Drizzle).
-      // ------------------------------------------------------------------
-      const updateChain = tx
-        .update(agencies)
-        .set?.({ depositBalance: formatTnd(newBalance) })
-        .where?.(eq(agencies.id, input.agencyId))
-      await (updateChain as unknown as Promise<unknown>)
-
-      const successResult: DebitPartnerCreditSuccess = {
-        ok: true,
-        movementId,
-        balanceBefore: formatTnd(currentBalance),
-        balanceAfter: formatTnd(newBalance),
-      }
-
-      // Persister dans Redis pour l'idempotence (TTL 24h)
+    if (result.ok) {
+      // Persister dans Redis pour l'idempotence (TTL 24h), après COMMIT.
       if (input.idempotencyKey) {
         const redis = getRedis()
         if (redis) {
           await redis.set(
             `e2b:idem:debit:${input.idempotencyKey}`,
-            JSON.stringify(successResult),
+            JSON.stringify(result),
             { ex: 86_400 },
           )
         }
       }
-
       void metrics.timing("wallet.debit.latency_ms", Date.now() - t0)
       void metrics.slo("wallet.debit", true)
       void metrics.incr("wallet.debit.ok")
-      return successResult
-    })
+    }
+    return result
   } catch (err) {
     void metrics.timing("wallet.debit.latency_ms", Date.now() - t0)
     void metrics.slo("wallet.debit", false)
@@ -348,4 +376,301 @@ export async function debitPartnerCredit(
           : "Échec transactionnel inattendu.",
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tunnel de réservation B2B — validation + débit + insertion atomiques       */
+/* -------------------------------------------------------------------------- */
+
+/** Une chambre/offre sélectionnée dans le panier B2B. */
+export const b2bHotelOfferSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  qty: z.number().int().positive().max(20),
+  unitPriceTnd: z.number().nonnegative(),
+  boardCode: z.string().max(16).optional(),
+  boardName: z.string().max(100).optional(),
+})
+
+/**
+ * Schéma Zod du panier de réservation hôtelière B2B. Validé côté serveur
+ * avant toute écriture en base (défense en profondeur — le client valide
+ * déjà mais on ne lui fait jamais confiance).
+ */
+export const bookHotelB2BSchema = z.object({
+  hotel: z.object({
+    /** Identifiant catalogue (slug fixture, ex. "carthage-thalasso"). */
+    id: z.string().trim().min(1).max(64),
+    name: z.string().trim().min(1).max(200),
+    cityName: z.string().max(100).optional(),
+  }),
+  stay: z.object({
+    checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date d'arrivée invalide"),
+    checkOut: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date de départ invalide"),
+    adults: z.number().int().positive().max(50),
+    children: z.number().int().nonnegative().max(50),
+    childrenAges: z.array(z.number().int().min(0).max(17)).optional(),
+  }),
+  offers: z
+    .array(b2bHotelOfferSchema)
+    .min(1, "Au moins une chambre doit être sélectionnée"),
+  traveler: travelerSchemaWithIdRule,
+  totalTnd: z.number().positive("Le total TTC doit être strictement positif"),
+  internalRef: z.string().max(64).optional(),
+  matricule: z.string().max(64).optional(),
+  coupon: z.string().max(32).optional(),
+})
+
+export type BookHotelB2BInput = z.input<typeof bookHotelB2BSchema>
+export type BookHotelB2BParsed = z.output<typeof bookHotelB2BSchema>
+
+export type BookHotelB2BResult =
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      balanceAfter: string
+    }
+  | {
+      ok: false
+      code:
+        | "VALIDATION_ERROR"
+        | "NOT_AUTHENTICATED"
+        | "PROFILE_NOT_FOUND"
+        | "DATABASE_NOT_CONFIGURED"
+        | "INSUFFICIENT_FUNDS"
+        | "AGENCY_NOT_FOUND"
+        | "INTERNAL_ERROR"
+      error: string
+    }
+
+/**
+ * Erreur typée propagée depuis la transaction pour forcer un ROLLBACK total
+ * tout en conservant le code métier (solde insuffisant, agence inconnue).
+ */
+export class B2BDebitFailure extends Error {
+  code: "INSUFFICIENT_FUNDS" | "AGENCY_NOT_FOUND" | "INTERNAL_ERROR"
+  constructor(
+    code: "INSUFFICIENT_FUNDS" | "AGENCY_NOT_FOUND" | "INTERNAL_ERROR",
+    message: string,
+  ) {
+    super(message)
+    this.name = "B2BDebitFailure"
+    this.code = code
+  }
+}
+
+/** Type du client Drizzle (et de sa transaction) résolu depuis `getDb()`. */
+type DrizzleDb = ReturnType<typeof getDb>
+type DrizzleTx = Parameters<Parameters<DrizzleDb["transaction"]>[0]>[0]
+
+/**
+ * Convertit un slug catalogue (`carthage-thalasso`) en entier positif
+ * stable (hash FNV-1a 31 bits). La colonne `reservation_hotel.hotel_id`
+ * est un `integer` provider ; en B2B le catalogue est mocké par slug, on
+ * dérive donc un id déterministe (le nom lisible reste dans `hotelName`).
+ */
+export function hotelSlugToInt(slug: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < slug.length; i++) {
+    hash ^= slug.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 1) % 2147483647
+}
+
+/** Nombre de nuits entre deux dates `YYYY-MM-DD` (minimum 1). */
+function diffNights(checkIn: string, checkOut: string): number {
+  const a = new Date(checkIn).getTime()
+  const b = new Date(checkOut).getTime()
+  return Math.max(1, Math.round((b - a) / 86_400_000))
+}
+
+/**
+ * Génère la prochaine référence publique `TG-YYYY-NNNNNN` pour l'agence,
+ * calculée via `MAX()` à l'intérieur de la transaction (atomique, pas de
+ * race possible avec un autre booking concurrent).
+ */
+async function nextB2BPublicRef(
+  tx: DrizzleTx,
+  agencyId: string,
+): Promise<string> {
+  const year = new Date().getFullYear()
+  const prefix = `TG-${year}-`
+  const [row] = await tx
+    .select({ maxRef: sql<string | null>`MAX(${reservations.publicRef})` })
+    .from(reservations)
+    .where(
+      and(
+        eq(reservations.agencyId, agencyId),
+        sql`${reservations.publicRef} LIKE ${prefix + "%"}`,
+      ),
+    )
+  const maxRef = row?.maxRef
+  const max = maxRef ? Number(maxRef.slice(prefix.length)) : 0
+  const next = Number.isFinite(max) ? max + 1 : 1
+  return `${prefix}${String(next).padStart(6, "0")}`
+}
+
+/**
+ * Cœur transactionnel du booking B2B (testable avec un `tx` mocké).
+ *
+ * Toutes les opérations s'exécutent dans la transaction `tx` fournie :
+ *   1. Résolution / création du client (`customers`)
+ *   2. Génération de la référence publique
+ *   3. Insertion de la réservation (`reservations`) + extension hôtel
+ *      (`reservation_hotel`)
+ *   4. **Débit pessimiste** du compte de dépôt (`applyPartnerDebitWithinTx`)
+ *   5. Journal d'audit
+ *
+ * Si le débit échoue (solde insuffisant / agence inconnue), on **throw**
+ * une `B2BDebitFailure` → la transaction est annulée et la réservation
+ * n'est JAMAIS persistée (atomicité totale).
+ */
+export async function runB2BHotelReservation(
+  tx: DrizzleTx,
+  args: { agencyId: string; userId: string; input: BookHotelB2BParsed },
+): Promise<{ reservationId: string; publicRef: string; balanceAfter: string }> {
+  const { agencyId, userId, input } = args
+  const { traveler } = input
+
+  // 1. Résoudre ou créer le client (scoped agence).
+  let customerId: string
+  if (traveler.email) {
+    const existing = await tx
+      .select({ id: customers.id })
+      .from(customers)
+      .where(
+        and(
+          eq(customers.agencyId, agencyId),
+          eq(customers.email, traveler.email),
+        ),
+      )
+      .limit(1)
+    if (existing[0]) {
+      customerId = existing[0].id
+    } else {
+      const inserted = await tx
+        .insert(customers)
+        .values({
+          agencyId,
+          civility: traveler.civility,
+          firstName: traveler.firstName,
+          lastName: traveler.lastName,
+          email: traveler.email,
+          phone: traveler.phone,
+          civicId: traveler.civicId,
+          civicIdType: traveler.civicIdType,
+          birthDate: traveler.birthDate || null,
+          nationality: traveler.nationality || null,
+        })
+        .returning({ id: customers.id })
+      customerId = inserted[0].id
+    }
+  } else {
+    const inserted = await tx
+      .insert(customers)
+      .values({
+        agencyId,
+        civility: traveler.civility,
+        firstName: traveler.firstName,
+        lastName: traveler.lastName,
+        phone: traveler.phone,
+        civicId: traveler.civicId,
+        civicIdType: traveler.civicIdType,
+      })
+      .returning({ id: customers.id })
+    customerId = inserted[0].id
+  }
+
+  // 2. Référence publique séquentielle.
+  const publicRef = await nextB2BPublicRef(tx, agencyId)
+
+  // 3. Insertion de la réservation + extension hôtel.
+  const totalStr = formatTnd(input.totalTnd)
+  const insertedReservation = await tx
+    .insert(reservations)
+    .values({
+      agencyId,
+      publicRef,
+      customerId,
+      module: "hotel",
+      source: "internal",
+      status: "pending",
+      originalCurrency: "TND",
+      originalAmount: totalStr,
+      tndAmount: totalStr,
+      depositAmount: totalStr,
+      depositPaid: totalStr,
+      // Sécurité : injecté depuis la session Supabase (jamais le client).
+      createdByUserId: userId,
+      providerPayload: {
+        hotelSlug: input.hotel.id,
+        hotelName: input.hotel.name,
+        cityName: input.hotel.cityName ?? null,
+        stay: input.stay,
+        offers: input.offers,
+        internalRef: input.internalRef ?? null,
+        matricule: input.matricule ?? null,
+        coupon: input.coupon ?? null,
+        paymentMode: "deposit",
+      },
+    })
+    .returning({ id: reservations.id })
+  const reservationId = insertedReservation[0].id
+
+  const firstOffer = input.offers[0]
+  await tx.insert(reservationHotel).values({
+    reservationId,
+    agencyId,
+    hotelId: hotelSlugToInt(input.hotel.id),
+    hotelName: input.hotel.name,
+    cityName: input.hotel.cityName ?? null,
+    checkIn: input.stay.checkIn,
+    checkOut: input.stay.checkOut,
+    nights: diffNights(input.stay.checkIn, input.stay.checkOut),
+    adults: input.stay.adults,
+    childrenAges: input.stay.childrenAges ?? [],
+    boardCode: firstOffer?.boardCode,
+    boardName: firstOffer?.boardName,
+    rooms: input.offers,
+  })
+
+  // 4. Débit pessimiste du compte de dépôt — DANS la même transaction.
+  const debit = await applyPartnerDebitWithinTx(tx as unknown as DrizzleLikeTx, {
+    agencyId,
+    amountTnd: input.totalTnd,
+    reference: publicRef,
+    description: `Réservation ${input.hotel.name} (${publicRef})`,
+    reservationId,
+    createdByUserId: userId,
+  })
+  if (!debit.ok) {
+    // ROLLBACK total : la réservation insérée plus haut est annulée.
+    const code =
+      debit.code === "INSUFFICIENT_FUNDS"
+        ? "INSUFFICIENT_FUNDS"
+        : debit.code === "AGENCY_NOT_FOUND"
+          ? "AGENCY_NOT_FOUND"
+          : "INTERNAL_ERROR"
+    throw new B2BDebitFailure(code, debit.message)
+  }
+
+  // 5. Journal d'audit (dans la transaction).
+  await tx.insert(auditEvents).values({
+    agencyId,
+    action: "reservation.created",
+    entityType: "reservation",
+    entityId: reservationId,
+    diff: {
+      module: "hotel",
+      publicRef,
+      total: input.totalTnd,
+      via: "pro-b2b",
+      movementId: debit.movementId,
+    },
+  })
+
+  return { reservationId, publicRef, balanceAfter: debit.balanceAfter }
 }

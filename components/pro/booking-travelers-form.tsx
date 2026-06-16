@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronDown,
@@ -35,6 +35,11 @@ import { formatTND } from "@/lib/pro/format"
 import { type BookingContext } from "@/lib/pro/booking-context"
 import { createReservationFromDraft } from "@/lib/booking/actions"
 import type { BookingDraft } from "@/lib/booking/schemas"
+import { bookHotelB2B } from "@/lib/pro/booking-server-actions"
+import type {
+  BookHotelB2BInput,
+  BookHotelB2BResult,
+} from "@/lib/pro/booking-actions"
 
 type Traveler = {
   firstName: string
@@ -111,6 +116,13 @@ export function BookingTravelersForm({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
+  // Paiement par compte de dépôt → débit atomique côté serveur via
+  // `bookHotelB2B` (validation Zod + verrou pessimiste + insertion résa).
+  const [bookState, bookAction, isBooking] = useActionState<
+    BookHotelB2BResult | null,
+    BookHotelB2BInput
+  >(async (_prev, input) => bookHotelB2B(input), null)
+
   // 1 voyageur principal + 1 par chambre additionnelle
   const initialTravelers = useMemo<Traveler[]>(() => {
     const out: Traveler[] = []
@@ -186,9 +198,68 @@ export function BookingTravelersForm({
     setCouponError(null)
   }
 
+  // Réaction au résultat du débit B2B (succès → détail résa, échec → toast).
+  // On ne fait QUE des effets externes ici (navigation + toast) ; l'erreur
+  // affichée inline est dérivée du state plus bas (pas de setState en effet).
+  useEffect(() => {
+    if (!bookState) return
+    if (bookState.ok) {
+      router.refresh()
+      router.push(`/pro/reservations/${bookState.reservationId}`)
+    } else {
+      toast.error(bookState.error, { duration: 6000 })
+    }
+  }, [bookState, router])
+
+  // Erreur affichée : soit le flux classique (non-dépôt), soit le débit B2B.
+  const displayedError =
+    submitError ?? (bookState && !bookState.ok ? bookState.error : null)
+
   function handleSubmit() {
     if (!canSubmit) return
     setSubmitError(null)
+
+    // Mode "compte de dépôt" : débit serveur atomique + redirection détail.
+    if (payment === "deposit") {
+      const input: BookHotelB2BInput = {
+        hotel: {
+          id: String(context.hotel.id),
+          name: context.hotel.name,
+          cityName: context.hotel.city,
+        },
+        stay: {
+          checkIn: search.checkin ?? new Date().toISOString().slice(0, 10),
+          checkOut:
+            search.checkout ??
+            search.checkin ??
+            new Date().toISOString().slice(0, 10),
+          adults: search.adults ?? 2,
+          children: search.children ?? 0,
+        },
+        offers: context.offers.map((s) => ({
+          id: s.offer.id,
+          qty: s.qty,
+          unitPriceTnd: s.offer.price,
+          boardCode: s.offer.boarding,
+          boardName: BOARDING_LABEL[s.offer.boarding],
+        })),
+        traveler: {
+          civility: mainTraveler.civility as "M" | "Mme" | "Mlle",
+          firstName: mainTraveler.firstName.trim(),
+          lastName: mainTraveler.lastName.trim(),
+          email: mainTraveler.email.trim(),
+          phone: mainTraveler.phone.trim(),
+          civicIdType: mainTraveler.civicIdType,
+          civicId: mainTraveler.civicId.trim(),
+        },
+        totalTnd: finalTotal,
+        internalRef: internalRef || undefined,
+        matricule: matricule || undefined,
+        coupon: appliedCoupon?.code || undefined,
+      }
+      bookAction(input)
+      return
+    }
 
     startTransition(async () => {
       const firstOffer = context.offers[0]
@@ -679,21 +750,21 @@ export function BookingTravelersForm({
             </details>
           </div>
 
-          {submitError ? (
+          {displayedError ? (
             <div className="bg-destructive/10 border-destructive/30 text-destructive flex items-start gap-2 rounded-xl border px-3 py-2 text-xs">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {submitError}
+              {displayedError}
             </div>
           ) : null}
 
           <Button
             type="button"
-            onClick={() => void handleSubmit()}
-            disabled={!canSubmit || pending}
+            onClick={() => handleSubmit()}
+            disabled={!canSubmit || pending || isBooking}
             size="lg"
             className="w-full rounded-xl"
           >
-            {pending ? (
+            {pending || isBooking ? (
               <>
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 Enregistrement…

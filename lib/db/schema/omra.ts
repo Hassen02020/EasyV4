@@ -70,6 +70,24 @@ export const omraHotelCategory = pgEnum("omra_hotel_category", [
   "premium", // 5 étoiles luxe
 ])
 
+/**
+ * Formule commerciale du programme (gamme de prestations), alignée sur les
+ * gammes affichées côté front (Moyasara, Al-Haram, Abraj Premium, VIP).
+ */
+export const omraFormule = pgEnum("omra_formule", [
+  "moyasara", // Économique
+  "al_haram", // Confort
+  "abraj_premium", // Premium
+  "vip_exclusive", // VIP
+])
+
+/** Une journée du programme (itinéraire jour par jour). */
+export type OmraItineraryDay = {
+  day: number
+  title: string
+  description: string
+}
+
 /* -------------------------------------------------------------------------- */
 /* Omra Packages                                                               */
 /* -------------------------------------------------------------------------- */
@@ -135,7 +153,62 @@ export const omraPackages = pgTable(
     /** Capacité minimale pour départ garanti */
     minPilgrims: integer("min_pilgrims").notNull().default(20),
     
-    /** Métadonnées (itinéraire détaillé, conditions) */
+    /** Nom du package en arabe (ex: "عمرة الأبراج") */
+    nameAr: varchar("name_ar", { length: 128 }),
+    
+    /** Slug pour les URLs publiques (ex: "omra-abraj-premium-2026") */
+    slug: varchar("slug", { length: 160 }),
+    
+    /** Formule commerciale (gamme de prestations) */
+    formule: omraFormule("formule"),
+    
+    /** Ville de départ (ex: "Tunis") */
+    departureCity: varchar("departure_city", { length: 64 })
+      .notNull()
+      .default("Tunis"),
+    
+    /** Nombre de nuits à Médine */
+    nightsMedina: integer("nights_medina"),
+    
+    /** Nombre de nuits à La Mecque (Makkah) */
+    nightsMakkah: integer("nights_makkah"),
+    
+    /** Plan repas à Médine */
+    mealPlanMedina: omraMealPlan("meal_plan_medina"),
+    
+    /** Plan repas à La Mecque */
+    mealPlanMakkah: omraMealPlan("meal_plan_makkah"),
+    
+    /** Hôtel mis en avant à Médine (nom affiché sur la carte) */
+    hotelMedinaName: varchar("hotel_medina_name", { length: 128 }),
+    hotelMedinaCategory: omraHotelCategory("hotel_medina_category"),
+    
+    /** Hôtel mis en avant à La Mecque (nom affiché sur la carte) */
+    hotelMakkahName: varchar("hotel_makkah_name", { length: 128 }),
+    hotelMakkahCategory: omraHotelCategory("hotel_makkah_category"),
+    
+    /** Points forts / arguments de vente (puces de la carte) */
+    highlights: text("highlights").array(),
+    
+    /** Durées alternatives proposées ("Disponible aussi en: X nuits") */
+    alternativeDurations: integer("alternative_durations").array(),
+    
+    /** Itinéraire jour par jour */
+    itinerary: jsonb("itinerary").$type<OmraItineraryDay[]>(),
+    
+    /** Image de couverture (hero de la fiche programme) */
+    coverImageUrl: text("cover_image_url"),
+    
+    /** Galerie photos */
+    photoUrls: text("photo_urls").array(),
+    
+    /** Mis en avant sur la page d'accueil Omra ? */
+    featured: boolean("featured").notNull().default(false),
+    
+    /** Facilités de paiement disponibles ? */
+    allowsInstallments: boolean("allows_installments").notNull().default(true),
+    
+    /** Métadonnées (conditions, notes internes) */
     metadata: jsonb("metadata"),
     
     /** Statut du package */
@@ -153,6 +226,8 @@ export const omraPackages = pgTable(
     index("omra_pkg_type_idx").on(t.type),
     index("omra_pkg_valid_idx").on(t.validFrom, t.validUntil),
     index("omra_pkg_status_idx").on(t.status),
+    index("omra_pkg_slug_idx").on(t.slug),
+    index("omra_pkg_featured_idx").on(t.featured),
   ],
 )
 
@@ -576,6 +651,7 @@ export type OmraFlight = typeof omraFlights.$inferSelect
 export type NewOmraFlight = typeof omraFlights.$inferInsert
 
 export type OmraPackageType = (typeof omraPackageType.enumValues)[number]
+export type OmraFormule = (typeof omraFormule.enumValues)[number]
 export type OmraVisaStatus = (typeof omraVisaStatus.enumValues)[number]
 export type OmraGender = (typeof omraGender.enumValues)[number]
 export type OmraMaritalStatus = (typeof omraMaritalStatus.enumValues)[number]

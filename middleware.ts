@@ -16,19 +16,23 @@ const SECURITY_HEADERS: Record<string, string> = {
 }
 
 const ADMIN_ROUTES = /^\/admin(\/|$)/
+const ADMIN_LOGIN_PATH = "/admin/login"
 const PRO_ROUTES = /^\/pro(\/|$)/
 const ADMIN_ROLES = ["super_admin", "manager", "agent_resa", "agent_compta", "agent_excursions"]
 
 export async function middleware(request: NextRequest) {
   const response = await updateSession(request)
   
-  // Vérification RBAC pour routes admin
-  if (ADMIN_ROUTES.test(request.nextUrl.pathname)) {
+  // Vérification RBAC pour routes admin (la page de connexion reste publique)
+  if (
+    ADMIN_ROUTES.test(request.nextUrl.pathname) &&
+    request.nextUrl.pathname !== ADMIN_LOGIN_PATH
+  ) {
     const supabase = await createServerSupabase()
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      const loginUrl = new URL("/login", request.url)
+      const loginUrl = new URL(ADMIN_LOGIN_PATH, request.url)
       loginUrl.searchParams.set("next", request.nextUrl.pathname)
       return NextResponse.redirect(loginUrl)
     }

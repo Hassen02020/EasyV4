@@ -11,10 +11,13 @@ import { createServerClient } from "@supabase/ssr"
 const ADMIN_PREFIX = "/admin"
 const PRO_PREFIX = "/pro"
 const MUTUELLE_PREFIX = "/mutuelle"
-const LOGIN_PATH = "/login"
-const PRO_LOGIN_PATH = "/pro/login"
+// URLs de connexion canoniques (alignées sur la production easy2book.tn).
+const ADMIN_LOGIN_PATH = "/admin/login"
+const AGENCY_LOGIN_PATH = "/agency/login"
 const MUTUELLE_LOGIN_PATH = "/mutuelle/login"
 const AUTH_CALLBACK_PATH = "/api/auth/callback"
+// Anciennes URLs conservées comme alias publics (rétro-compatibilité).
+const LEGACY_PRO_LOGIN_PATH = "/pro/login"
 
 /**
  * Routes protégées (auth requise) :
@@ -23,10 +26,12 @@ const AUTH_CALLBACK_PATH = "/api/auth/callback"
  *  - `/mutuelle/*` (sauf `/mutuelle/login`) → espace mutuelle
  */
 function isProtectedPath(pathname: string): boolean {
+  // La page de connexion admin doit rester publique malgré le préfixe /admin.
+  if (pathname === ADMIN_LOGIN_PATH) return false
   if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
     return true
   }
-  if (pathname === PRO_LOGIN_PATH) return false
+  if (pathname === LEGACY_PRO_LOGIN_PATH) return false
   if (pathname === PRO_PREFIX || pathname.startsWith(`${PRO_PREFIX}/`)) {
     return true
   }
@@ -42,7 +47,7 @@ function isProtectedPath(pathname: string): boolean {
 
 function loginPathFor(pathname: string): string {
   if (pathname === PRO_PREFIX || pathname.startsWith(`${PRO_PREFIX}/`)) {
-    return PRO_LOGIN_PATH
+    return AGENCY_LOGIN_PATH
   }
   if (
     pathname === MUTUELLE_PREFIX ||
@@ -50,7 +55,7 @@ function loginPathFor(pathname: string): string {
   ) {
     return MUTUELLE_LOGIN_PATH
   }
-  return LOGIN_PATH
+  return ADMIN_LOGIN_PATH
 }
 
 export async function updateSession(request: NextRequest) {

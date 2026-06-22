@@ -1,94 +1,197 @@
 "use client"
 
 import Link from "next/link"
-import { Star, Plane, Hotel, Users, Clock, ChevronRight } from "lucide-react"
+import {
+  Star,
+  Hotel,
+  Clock,
+  ChevronRight,
+  Check,
+  MoonStar,
+  CalendarDays,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import type { OmraPackage } from "@/lib/db/schema"
+import type { OmraPackage } from "@/lib/db/schema/omra"
 
 interface Props {
   packages: OmraPackage[]
 }
 
-const PACKAGE_TYPE_LABELS: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
   omra: "Omra Régulière",
   hajj: "Hajj",
   ramadan: "Omra Ramadan",
   umrah_plus: "Omra + Ziarat",
 }
 
-function formatDate(d: string | Date | null): string {
-  if (!d) return "—"
-  return new Date(d).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
+const FORMULE_LABELS: Record<string, string> = {
+  moyasara: "Moyasara",
+  al_haram: "Al-Haram",
+  abraj_premium: "Abraj Premium",
+  vip_exclusive: "VIP Exclusive",
+}
+
+const MEAL_LABELS: Record<string, string> = {
+  room_only: "Sans repas",
+  breakfast: "Petit déjeuner",
+  half_board: "Demi-pension",
+  full_board: "Pension complète",
+  all_inclusive: "Tout inclus",
+}
+
+function hrefFor(pkg: OmraPackage): string {
+  return `/omra/${pkg.slug ?? pkg.id}`
+}
+
+function CityNights({
+  city,
+  nights,
+  meal,
+  hotel,
+}: {
+  city: string
+  nights: number | null
+  meal: string | null
+  hotel: string | null
+}) {
+  return (
+    <div className="rounded-lg bg-emerald-50 px-3 py-2">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+          <MoonStar className="h-3.5 w-3.5" />
+          {nights != null ? `${nights} nuits` : "—"}
+        </span>
+        <span className="text-xs font-medium text-emerald-700">{city}</span>
+      </div>
+      {hotel ? (
+        <p className="mt-1 flex items-center gap-1 truncate text-xs text-emerald-700/80">
+          <Hotel className="h-3 w-3 shrink-0" />
+          {hotel}
+        </p>
+      ) : null}
+      {meal ? (
+        <p className="text-[11px] text-emerald-600/80">
+          {MEAL_LABELS[meal] ?? meal}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 function PackageCard({ pkg }: { pkg: OmraPackage }) {
-  const label = PACKAGE_TYPE_LABELS[pkg.type] ?? pkg.type
+  const typeLabel = TYPE_LABELS[pkg.type] ?? pkg.type
+  const formuleLabel = pkg.formule ? FORMULE_LABELS[pkg.formule] : null
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
+  const highlights = (pkg.highlights ?? []).slice(0, 4)
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
+    <Card className="flex flex-col overflow-hidden pt-0 transition-shadow hover:shadow-lg">
+      {/* Header */}
       <div className="relative bg-gradient-to-br from-emerald-800 to-emerald-600 p-5 text-white">
-        <Badge
-          variant="secondary"
-          className="absolute right-3 top-3 bg-white/20 text-white"
-        >
-          {label}
-        </Badge>
-        <h3 className="mb-1 pr-24 text-lg font-semibold leading-tight">
-          {pkg.name}
-        </h3>
-        <p className="text-sm text-emerald-200">{pkg.description}</p>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {formuleLabel ? (
+            <Badge className="border-0 bg-amber-400 text-amber-950 hover:bg-amber-400">
+              {formuleLabel}
+            </Badge>
+          ) : null}
+          <Badge
+            variant="secondary"
+            className="border-0 bg-white/20 text-white hover:bg-white/20"
+          >
+            {typeLabel}
+          </Badge>
+        </div>
+        <h3 className="text-lg leading-tight font-bold">{pkg.name}</h3>
+        {pkg.nameAr ? (
+          <p dir="rtl" className="mt-0.5 text-sm text-emerald-200">
+            {pkg.nameAr}
+          </p>
+        ) : null}
+        <p className="mt-2 flex items-center gap-3 text-xs text-emerald-100">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
+            {pkg.durationDays} jours
+          </span>
+          {pkg.alternativeDurations && pkg.alternativeDurations.length > 0 ? (
+            <span className="flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" />
+              Aussi en {pkg.alternativeDurations.join(", ")} nuits
+            </span>
+          ) : null}
+        </p>
       </div>
 
-      <CardContent className="flex flex-1 flex-col gap-3 p-5">
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" />
-            <span>{pkg.durationDays} jours</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Users className="h-3.5 w-3.5" />
-            <span>Places dispo</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Plane className="h-3.5 w-3.5" />
-            <span>Vol inclus</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Hotel className="h-3.5 w-3.5" />
-            <span>Hôtel inclus</span>
-          </div>
+      <CardContent className="flex flex-1 flex-col gap-3 px-5">
+        {/* Nuits Médine / Makkah */}
+        <div className="grid grid-cols-2 gap-2">
+          <CityNights
+            city="Médine"
+            nights={pkg.nightsMedina}
+            meal={pkg.mealPlanMedina}
+            hotel={pkg.hotelMedinaName}
+          />
+          <CityNights
+            city="La Mecque"
+            nights={pkg.nightsMakkah}
+            meal={pkg.mealPlanMakkah}
+            hotel={pkg.hotelMakkahName}
+          />
         </div>
 
-        <div className="rounded-lg bg-muted/50 px-4 py-3">
-          <p className="text-xs text-muted-foreground">Départ à partir du</p>
-          <p className="font-medium">{formatDate(pkg.validFrom)}</p>
-        </div>
+        {/* Points forts */}
+        {highlights.length > 0 ? (
+          <ul className="space-y-1.5">
+            {highlights.map((h, i) => (
+              <li key={i} className="flex gap-2 text-sm text-muted-foreground">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="line-clamp-1">{h}</span>
+              </li>
+            ))}
+          </ul>
+        ) : pkg.description ? (
+          <p className="line-clamp-3 text-sm text-muted-foreground">
+            {pkg.description}
+          </p>
+        ) : null}
 
-        {priceTnd && (
-          <div className="mt-auto">
-            <p className="text-xs text-muted-foreground">À partir de</p>
-            <p className="text-2xl font-bold text-emerald-700">
-              {priceTnd.toLocaleString("fr-FR")}
-              <span className="ml-1 text-sm font-normal">DT / pèlerin</span>
+        {/* Prix */}
+        {priceTnd != null ? (
+          <div className="mt-auto border-t pt-3">
+            <p className="text-xs text-muted-foreground">à partir de</p>
+            <p className="text-emerald-700">
+              <span className="text-2xl font-bold">
+                {priceTnd.toLocaleString("fr-FR")}
+              </span>
+              <span className="ml-1 text-sm font-medium">TND / pers</span>
             </p>
+            {pkg.allowsInstallments ? (
+              <p className="text-[11px] text-muted-foreground">
+                Facilités de paiement disponibles
+              </p>
+            ) : null}
           </div>
-        )}
+        ) : null}
       </CardContent>
 
-      <CardFooter className="border-t p-4">
-        <Link href={`/omra/${pkg.id}`} className="w-full">
-          <Button className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
-            Voir le programme
+      <CardFooter className="flex gap-2 border-t px-4">
+        <Button
+          variant="outline"
+          className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+          asChild
+        >
+          <Link href={`${hrefFor(pkg)}#dates`}>Dates & prix</Link>
+        </Button>
+        <Button
+          className="flex-1 gap-1 bg-emerald-700 hover:bg-emerald-800"
+          asChild
+        >
+          <Link href={hrefFor(pkg)}>
+            Le programme
             <ChevronRight className="h-4 w-4" />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   )
@@ -97,13 +200,13 @@ function PackageCard({ pkg }: { pkg: OmraPackage }) {
 export function OmraPackageList({ packages }: Props) {
   if (packages.length === 0) {
     return (
-      <div className="mt-8 rounded-xl border border-dashed bg-card p-12 text-center">
+      <div className="rounded-xl border border-dashed bg-card p-12 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
           <Star className="h-8 w-8 text-emerald-600" />
         </div>
-        <h3 className="mb-2 text-lg font-semibold">Aucun package disponible</h3>
+        <h3 className="mb-2 text-lg font-semibold">Aucun programme disponible</h3>
         <p className="text-sm text-muted-foreground">
-          Nos packages Omra seront bientôt disponibles. Contactez-nous au{" "}
+          Nos programmes Omra seront bientôt disponibles. Contactez-nous au{" "}
           <a
             href="tel:+21698140514"
             className="font-medium text-emerald-700 underline"
@@ -117,16 +220,10 @@ export function OmraPackageList({ packages }: Props) {
   }
 
   return (
-    <div className="mt-4">
-      <p className="mb-4 text-sm text-muted-foreground">
-        {packages.length} package{packages.length > 1 ? "s" : ""} disponible
-        {packages.length > 1 ? "s" : ""}
-      </p>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {packages.map((pkg) => (
-          <PackageCard key={pkg.id} pkg={pkg} />
-        ))}
-      </div>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {packages.map((pkg) => (
+        <PackageCard key={pkg.id} pkg={pkg} />
+      ))}
     </div>
   )
 }

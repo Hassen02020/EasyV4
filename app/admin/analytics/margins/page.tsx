@@ -17,13 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarIcon, TrendingUp, TrendingDown, Minus, DollarSign, Package, Users } from "lucide-react"
-import {
-  getMarginKPIs,
-  getMarginBySupplier,
-  getMarginByProductType,
-  getTopMarginReservations,
-  getMarginEvolution,
-} from "@/lib/reporting/margin-analytics"
+import { getMarginKPIs } from "@/lib/reporting/margin-analytics-actions"
 
 type MarginKPIs = {
   period: { start: Date; end: Date }

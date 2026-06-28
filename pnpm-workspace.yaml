@@ -1,4 +1,6 @@
-allowBuilds:
-  esbuild: true
-  protobufjs: set this to true or false
-  unrs-resolver: true
+packages:
+  - "."
+onlyBuiltDependencies:
+  - esbuild
+  - protobufjs
+  - unrs-resolver

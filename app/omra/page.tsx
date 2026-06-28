@@ -78,6 +78,9 @@ export default async function OmraPage({
 
   const featured = filtered.filter((p) => p.featured)
   const rest = filtered.filter((p) => !p.featured)
+  // La grille « Tous nos programmes » affiche les non-featured quand des
+  // featured existent (sinon tous). On masque la section si elle serait vide.
+  const remaining = featured.length > 0 ? rest : filtered
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -149,18 +152,25 @@ export default async function OmraPage({
               </section>
             ) : null}
 
-            <section>
-              <h2 className="mb-1 text-2xl font-bold">
-                {featured.length > 0
-                  ? "Tous nos programmes"
-                  : "Nos programmes Omra"}
-              </h2>
-              <p className="mb-5 text-sm text-muted-foreground">
-                {filtered.length} programme{filtered.length > 1 ? "s" : ""}{" "}
-                disponible{filtered.length > 1 ? "s" : ""}
-              </p>
-              <OmraPackageList packages={featured.length > 0 ? rest : filtered} />
-            </section>
+            {remaining.length > 0 ? (
+              <section>
+                <h2 className="mb-1 text-2xl font-bold">
+                  {featured.length > 0
+                    ? "Tous nos programmes"
+                    : "Nos programmes Omra"}
+                </h2>
+                <p className="mb-5 text-sm text-muted-foreground">
+                  {remaining.length} programme{remaining.length > 1 ? "s" : ""}{" "}
+                  disponible{remaining.length > 1 ? "s" : ""}
+                </p>
+                <OmraPackageList packages={remaining} />
+              </section>
+            ) : featured.length === 0 ? (
+              <section>
+                <h2 className="mb-1 text-2xl font-bold">Nos programmes Omra</h2>
+                <OmraPackageList packages={[]} />
+              </section>
+            ) : null}
           </Suspense>
 
           {/* Aide / contact */}

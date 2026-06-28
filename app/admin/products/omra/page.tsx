@@ -5,6 +5,7 @@
 import { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { Suspense } from "react"
 import { Moon, Plus, Pencil, Star, Eye } from "lucide-react"
 import { desc } from "drizzle-orm"
 import {
@@ -18,6 +19,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import { OmraDeleteButton } from "@/components/admin/omra-delete-button"
+import { OmraSavedToast } from "@/components/admin/omra-saved-toast"
 import { getDb } from "@/lib/db/client"
 import { omraPackages } from "@/lib/db/schema"
 import type { OmraPackage } from "@/lib/db/schema/omra"
@@ -70,6 +73,9 @@ export default async function AdminOmraProgramsPage() {
 
   return (
     <div className="space-y-6">
+      <Suspense fallback={null}>
+        <OmraSavedToast />
+      </Suspense>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-foreground flex items-center gap-2 text-3xl font-bold tracking-tight">
@@ -171,11 +177,14 @@ export default async function AdminOmraProgramsPage() {
                             </Link>
                           </Button>
                           {canEdit ? (
-                            <Button variant="ghost" size="icon" asChild>
-                              <Link href={`/admin/products/omra/${p.id}`}>
-                                <Pencil className="h-4 w-4" />
-                              </Link>
-                            </Button>
+                            <>
+                              <Button variant="ghost" size="icon" asChild>
+                                <Link href={`/admin/products/omra/${p.id}`}>
+                                  <Pencil className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <OmraDeleteButton id={p.id} name={p.name} />
+                            </>
                           ) : null}
                         </div>
                       </td>

@@ -18,10 +18,7 @@ import type {
   NewOmraPackage,
   OmraItineraryDay,
 } from "@/lib/db/schema/omra"
-import { createServerSupabase } from "@/lib/supabase/server"
-import { getCurrentAdminProfile } from "@/lib/auth/profile"
-
-const EDITOR_ROLES = new Set(["super_admin", "manager"])
+import { requireOmraEditor } from "@/lib/omra/guard"
 
 const packageTypes = ["omra", "hajj", "ramadan", "umrah_plus"] as const
 const formules = [
@@ -186,22 +183,6 @@ function parseForm(formData: FormData) {
   })
 }
 
-async function requireEditorAgency(): Promise<
-  { agencyId: string } | { error: string }
-> {
-  const supabase = await createServerSupabase()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { error: "Session expirée. Reconnectez-vous." }
-
-  const profile = await getCurrentAdminProfile(user.id)
-  if (!profile || !EDITOR_ROLES.has(profile.role)) {
-    return { error: "Accès refusé : rôle insuffisant." }
-  }
-  return { agencyId: profile.agencyId }
-}
-
 function buildValues(
   parsed: z.infer<typeof programSchema>,
   agencyId: string,
@@ -247,7 +228,7 @@ function buildValues(
 }
 
 export async function createOmraProgram(formData: FormData): Promise<void> {
-  const auth = await requireEditorAgency()
+  const auth = await requireOmraEditor()
   if ("error" in auth) throw new Error(auth.error)
 
   const parsed = parseForm(formData)
@@ -260,14 +241,14 @@ export async function createOmraProgram(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/products/omra")
   revalidatePath("/omra")
-  redirect("/admin/products/omra")
+  redirect("/admin/products/omra?saved=created")
 }
 
 export async function updateOmraProgram(
   id: string,
   formData: FormData,
 ): Promise<void> {
-  const auth = await requireEditorAgency()
+  const auth = await requireOmraEditor()
   if ("error" in auth) throw new Error(auth.error)
 
   const parsed = parseForm(formData)
@@ -288,17 +269,24 @@ export async function updateOmraProgram(
   revalidatePath("/admin/products/omra")
   revalidatePath(`/admin/products/omra/${id}`)
   revalidatePath("/omra")
-  redirect("/admin/products/omra")
+  redirect("/admin/products/omra?saved=updated")
 }
 
-export async function deleteOmraProgram(id: string): Promise<void> {
-  const auth = await requireEditorAgency()
-  if ("error" in auth) throw new Error(auth.error)
+export async function deleteOmraProgram(
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await requireOmraEditor()
+  if ("error" in auth) return { ok: false, error: auth.error }
 
-  const db = getDb()
-  await db.delete(omraPackages).where(eq(omraPackages.id, id))
+  try {
+    const db = getDb()
+    await db.delete(omraPackages).where(eq(omraPackages.id, id))
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Suppression impossible."
+    return { ok: false, error: message }
+  }
 
   revalidatePath("/admin/products/omra")
   revalidatePath("/omra")
-  redirect("/admin/products/omra")
+  return { ok: true }
 }

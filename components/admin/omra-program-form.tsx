@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { toast } from "sonner"
 import { ArrowLeft, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -79,6 +80,7 @@ export function OmraProgramForm({ action, initial, submitLabel }: Props) {
         throw e
       }
       setError(message)
+      toast.error(message)
     }
   }
 

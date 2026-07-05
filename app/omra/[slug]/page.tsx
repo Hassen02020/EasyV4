@@ -358,6 +358,7 @@ export default async function OmraDetailPage({
                         <th className="px-4 py-3 text-right font-medium">
                           Prix / pers
                         </th>
+                        <th className="px-4 py-3 text-right font-medium" />
                       </tr>
                     </thead>
                     <tbody>
@@ -377,6 +378,21 @@ export default async function OmraDetailPage({
                           </td>
                           <td className="px-4 py-3 text-right font-semibold">
                             {fmtPrice(a.overridePrice ?? pkg.basePrice)} TND
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {a.availableCount > 0 ? (
+                              <Button
+                                asChild
+                                size="sm"
+                                className="bg-emerald-700 hover:bg-emerald-800"
+                              >
+                                <Link
+                                  href={`/omra/${pkg.slug ?? pkg.id}/reserver`}
+                                >
+                                  Réserver
+                                </Link>
+                              </Button>
+                            ) : null}
                           </td>
                         </tr>
                       ))}
@@ -449,15 +465,18 @@ export default async function OmraDetailPage({
                 </div>
               </div>
 
-              <a
-                href="tel:+21698140514"
+              <Link
+                href={`/omra/${pkg.slug ?? pkg.id}/reserver`}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-3 font-semibold text-white transition-colors hover:bg-emerald-800"
               >
-                <Phone className="h-4 w-4" />
+                <CalendarDays className="h-4 w-4" />
                 Réserver ce programme
-              </a>
+              </Link>
               <Button variant="outline" className="mt-3 w-full" asChild>
-                <a href="#dates">Voir les dates de départ</a>
+                <a href="tel:+21698140514">
+                  <Phone className="h-4 w-4" />
+                  Parler à un conseiller
+                </a>
               </Button>
 
               <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">

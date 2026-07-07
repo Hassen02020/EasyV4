@@ -15,6 +15,7 @@ import {
 } from "@/components/admin-shell"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import { countPendingOmraReservations } from "@/lib/omra/reservations-data"
 
 export const dynamic = "force-dynamic"
 
@@ -73,5 +74,13 @@ export default async function AdminLayout({
     role: isAdminRole(profile?.role) ? profile!.role : "manager",
   }
 
-  return <AdminShell user={shellUser}>{children}</AdminShell>
+  const pendingOmraCount = profile?.agencyId
+    ? await countPendingOmraReservations(profile.agencyId)
+    : 0
+
+  return (
+    <AdminShell user={shellUser} pendingOmraCount={pendingOmraCount}>
+      {children}
+    </AdminShell>
+  )
 }

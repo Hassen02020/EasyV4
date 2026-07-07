@@ -45,6 +45,7 @@ import {
   loadDashboardData,
   type RecentBooking,
 } from "@/lib/admin/dashboard-data"
+import { OmraKpiWidget } from "@/components/admin/omra-kpi-widget"
 
 export const dynamic = "force-dynamic"
 
@@ -220,6 +221,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="e2b-fade-in-up" style={{ animationDelay: "360ms" }}>
+        <OmraKpiWidget agencyId={agencyId} />
       </div>
 
       <div

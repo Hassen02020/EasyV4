@@ -74,7 +74,7 @@ async function lockReservation(
       ),
     )
     .limit(1)
-    .for("update")
+    .for("update", { of: reservations })
 
   return row ?? null
 }

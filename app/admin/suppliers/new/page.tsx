@@ -49,7 +49,7 @@ export default async function NewSupplierPage() {
     email: user.email || "",
     displayName: profile.name || user.email || "",
     initials: (profile.name || user.email || "").slice(0, 2).toUpperCase(),
-    role: profile.role as any,
+    role: profile.role as AdminShellUser["role"],
   }
 
   async function createSupplier(formData: FormData) {
@@ -183,7 +183,7 @@ export default async function NewSupplierPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="apiUrl">URL de l'API</Label>
+                  <Label htmlFor="apiUrl">URL de l’API</Label>
                   <Input
                     id="apiUrl"
                     name="apiUrl"
@@ -286,7 +286,7 @@ export default async function NewSupplierPage() {
                   <div className="space-y-0.5">
                     <Label htmlFor="autoSync">Synchronisation automatique</Label>
                     <p className="text-muted-foreground text-sm">
-                      Activer la sync automatique de l'inventaire
+                      Activer la sync automatique de l’inventaire
                     </p>
                   </div>
                   <Checkbox id="autoSync" name="autoSync" />

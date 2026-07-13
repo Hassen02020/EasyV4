@@ -26,7 +26,7 @@ export default function HotelsMondeePage() {
               Hôtels partout dans le monde
             </h1>
             <p className="mx-auto max-w-2xl text-teal-100">
-              Plus d'un million d'hôtels, apartments et villas. Comparez les prix
+              Plus d’un million d’hôtels, apartments et villas. Comparez les prix
               et réservez en quelques clics.
             </p>
           </div>

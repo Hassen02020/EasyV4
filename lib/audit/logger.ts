@@ -361,7 +361,7 @@ export async function getAuditLogs(params: {
   try {
     const db = getDb()
 
-    let query = db
+    const query = db
       .select()
       .from(auditLogs)
       .where(eq(auditLogs.agencyId, agencyId))

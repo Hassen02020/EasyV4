@@ -70,6 +70,9 @@ const omraBookingSchema = z.object({
 })
 
 type OmraBookingFormData = z.infer<typeof omraBookingSchema>
+type PilgrimData = OmraBookingFormData["pilgrims"][number]
+type MaritalStatus = PilgrimData["maritalStatus"]
+type RoomType = NonNullable<PilgrimData["roomType"]>
 
 /* -------------------------------------------------------------------------- */
 /* Mock Data (à remplacer par API réelle)                                    */
@@ -206,7 +209,7 @@ export function OmraBookingForm() {
         </Alert>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Package Selection */}
         <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
           <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
@@ -420,7 +423,7 @@ export function OmraBookingForm() {
                     <Label className="text-sm font-medium text-[#1e3a8a]">Situation matrimoniale *</Label>
                     <Select
                       value={watchedPilgrims[index]?.maritalStatus}
-                      onValueChange={(v) => form.setValue(`pilgrims.${index}.maritalStatus`, v as any)}
+                      onValueChange={(v) => form.setValue(`pilgrims.${index}.maritalStatus`, v as MaritalStatus)}
                     >
                       <SelectTrigger className="rounded-lg">
                         <SelectValue />
@@ -549,7 +552,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d'émission *</Label>
+                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d’émission *</Label>
                       <Input
                         type="date"
                         {...form.register(`pilgrims.${index}.passportIssueDate`)}
@@ -563,7 +566,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d'expiration *</Label>
+                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d’expiration *</Label>
                       <Input
                         type="date"
                         {...form.register(`pilgrims.${index}.passportExpiryDate`)}
@@ -584,7 +587,7 @@ export function OmraBookingForm() {
                   <Label className="text-sm font-medium text-[#1e3a8a]">Type de chambre</Label>
                   <Select
                     value={watchedPilgrims[index]?.roomType}
-                    onValueChange={(v) => form.setValue(`pilgrims.${index}.roomType`, v as any)}
+                    onValueChange={(v) => form.setValue(`pilgrims.${index}.roomType`, v as RoomType)}
                   >
                     <SelectTrigger className="rounded-lg">
                       <SelectValue placeholder="Choisir" />

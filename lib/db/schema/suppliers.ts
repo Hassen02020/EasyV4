@@ -44,7 +44,7 @@ export const suppliers = pgTable(
     xmlVersion: varchar("xml_version", { length: 20 }),
     
     // Configuration spécifique
-    config: jsonb("config").$type<Record<string, any>>(),
+    config: jsonb("config").$type<Record<string, unknown>>(),
     
     // Métadonnées
     logoUrl: text("logo_url"),
@@ -81,7 +81,7 @@ export const supplierModules = pgTable(
     enabled: boolean("enabled").notNull().default(true),
     
     // Configuration spécifique au module
-    config: jsonb("config").$type<Record<string, any>>(),
+    config: jsonb("config").$type<Record<string, unknown>>(),
     
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -105,7 +105,7 @@ export const supplierLogs = pgTable(
     
     // Détails
     message: text("message").notNull(),
-    details: jsonb("details").$type<Record<string, any>>(),
+    details: jsonb("details").$type<Record<string, unknown>>(),
     
     // Performance
     duration: varchar("duration", { length: 20 }), // 500ms, 2.5s

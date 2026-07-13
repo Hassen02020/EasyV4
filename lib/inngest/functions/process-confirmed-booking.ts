@@ -24,6 +24,7 @@ export const processConfirmedBooking = inngest.createFunction(
     retries: 3,
     triggers: { event: "booking/confirmed" },
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Inngest volontairement non typé (voir `inngest as any` ci-dessus)
   async ({ event }: any) => {
     const {
       reservationId,

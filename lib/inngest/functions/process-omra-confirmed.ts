@@ -18,6 +18,7 @@ export const processOmraConfirmed = _inngest.createFunction(
     name: "Omra confirmée — dossier & email",
     triggers: { event: "booking/omra.confirmed" },
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Inngest volontairement non typé (voir `inngest as any` ci-dessus)
   async ({ event, step }: any) => {
     const d = event.data
 

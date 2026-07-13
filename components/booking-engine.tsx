@@ -33,6 +33,7 @@ import {
 import dynamic from "next/dynamic"
 
 import { useT } from "@/components/locale-context"
+import type { TranslationKey } from "@/lib/i18n"
 
 const HotelsTunisieSearch = dynamic(
   () =>
@@ -160,7 +161,7 @@ export function BookingEngine() {
                   <Icon className="size-5" />
 
                   <span className="text-xs whitespace-nowrap sm:text-sm">
-                    {t(tab.labelKey as any)}
+                    {t(tab.labelKey as TranslationKey)}
                   </span>
                 </button>
               )

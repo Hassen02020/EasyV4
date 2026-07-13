@@ -32,6 +32,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = parseCurrency(localStorage.getItem(CURRENCY_STORAGE_KEY))
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydratation SSR-safe : le serveur rend DEFAULT_CURRENCY, la valeur stockée est appliquée après montage pour éviter tout mismatch d'hydratation.
     setCurrencyState(stored)
   }, [])
 

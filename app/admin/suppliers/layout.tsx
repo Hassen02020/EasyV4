@@ -31,7 +31,7 @@ export default async function SuppliersLayout({
     email: user.email || "",
     displayName: profile.name || user.email || "",
     initials: (profile.name || user.email || "").slice(0, 2).toUpperCase(),
-    role: profile.role as any,
+    role: profile.role as AdminShellUser["role"],
   }
 
   return <AdminShell user={adminUser}>{children}</AdminShell>

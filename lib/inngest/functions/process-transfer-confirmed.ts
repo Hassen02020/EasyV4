@@ -18,6 +18,7 @@ export const processTransferConfirmed = _inngest.createFunction(
     name: "Transfert confirmé — notifications",
     triggers: { event: "booking/transfer.confirmed" },
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Inngest volontairement non typé (voir `inngest as any` ci-dessus)
   async ({ event, step }: any) => {
     const d = event.data
 

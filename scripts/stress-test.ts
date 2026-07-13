@@ -4,6 +4,8 @@
  * Usage: pnpm tsx scripts/stress-test.ts
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- script de seeding dev uniquement : les accumulateurs d'insertion agrègent des formes hétérogènes ; un typage Drizzle `$inferInsert` précis est hors périmètre (non exécuté en production). */
+
 import dotenv from "dotenv"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -215,7 +217,7 @@ async function generateReservations(
   for (let i = 0; i < count; i++) {
     const agency = randomChoice(agencyData)
     const customer = randomChoice(customerData)
-    const module = randomChoice(MODULES)
+    const mod = randomChoice(MODULES)
     const status = randomChoice(["confirmed", "pending", "cancelled"] as const)
     const checkIn = randomDate(new Date(2024, 0, 1), new Date(2025, 11, 31))
     const checkOut = new Date(checkIn.getTime() + randomInt(1, 14) * 24 * 60 * 60 * 1000)
@@ -229,7 +231,7 @@ async function generateReservations(
       publicRef,
       agencyId: agency.id!,
       customerId: customer.id!,
-      module,
+      module: mod,
       status,
       source: "internal" as const,
       originalCurrency: agency.defaultCurrency,
@@ -243,7 +245,7 @@ async function generateReservations(
       createdAt: randomDate(new Date(2024, 0, 1), new Date()),
     })
 
-    switch (module) {
+    switch (mod) {
       case "hotel":
         reservationExtensions.hotel.push({
           id: generateId(),

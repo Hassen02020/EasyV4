@@ -7,7 +7,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -17,13 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarIcon, TrendingUp, TrendingDown, Minus, DollarSign, Package, Users } from "lucide-react"
-import {
-  getMarginKPIs,
-  getMarginBySupplier,
-  getMarginByProductType,
-  getTopMarginReservations,
-  getMarginEvolution,
-} from "@/lib/reporting/margin-analytics"
+import { fetchMarginKPIs } from "./actions"
 
 type MarginKPIs = {
   period: { start: Date; end: Date }
@@ -52,22 +46,22 @@ export default function MarginsDashboardPage() {
     to: new Date(),
   })
 
-  useEffect(() => {
-    loadKPIs()
-  }, [dateRange])
-
-  const loadKPIs = async () => {
+  const loadKPIs = useCallback(async () => {
     setLoading(true)
     try {
-      // TODO: Remplacer avec l'agencyId réel
-      const data = await getMarginKPIs("agency-id", dateRange.from, dateRange.to)
+      const data = await fetchMarginKPIs("agency-id", dateRange.from, dateRange.to)
       setKpis(data)
     } catch (error) {
       console.error("Erreur chargement KPIs:", error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement des KPIs au montage / au changement de période, avec drapeau de chargement (pattern data-fetch standard).
+    loadKPIs()
+  }, [loadKPIs])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("fr-TN", {
@@ -149,7 +143,7 @@ export default function MarginsDashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Chiffre d'affaires
+                  Chiffre d’affaires
                 </CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -196,7 +190,7 @@ export default function MarginsDashboardPage() {
                   {formatPercent(kpis.averageMarginPercent)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Sur le chiffre d'affaires
+                  Sur le chiffre d’affaires
                 </p>
               </CardContent>
             </Card>
@@ -222,7 +216,7 @@ export default function MarginsDashboardPage() {
           {/* Tabs */}
           <Tabs defaultValue="overview" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+              <TabsTrigger value="overview">Vue d’ensemble</TabsTrigger>
               <TabsTrigger value="suppliers">Par fournisseur</TabsTrigger>
               <TabsTrigger value="products">Par type</TabsTrigger>
               <TabsTrigger value="top">Top marges</TabsTrigger>
@@ -235,7 +229,7 @@ export default function MarginsDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Graphique d'évolution des marges dans le temps (à implémenter)
+                    Graphique d’évolution des marges dans le temps (à implémenter)
                   </p>
                 </CardContent>
               </Card>

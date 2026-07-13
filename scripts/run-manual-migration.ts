@@ -48,8 +48,9 @@ async function runMigration() {
         CREATE TYPE wallet_tx_type_new AS ENUM ('credit', 'debit', 'refund', 'adjustment', 'commission', 'escrow_in', 'escrow_out');
       `
       console.log("✅ wallet_tx_type_new créé")
-    } catch (error: any) {
-      if (error.message.includes("already exists")) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.includes("already exists")) {
         console.log("⚠️  wallet_tx_type_new existe déjà, continuation...")
       } else {
         throw error
@@ -76,8 +77,9 @@ async function runMigration() {
     try {
       await client`DROP TYPE wallet_tx_type;`
       console.log("✅ Ancien enum supprimé")
-    } catch (error: any) {
-      if (error.message.includes("cannot be dropped")) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.includes("cannot be dropped")) {
         console.log("⚠️  Ancien enum toujours utilisé, tentative forcée...")
         // Forcer la suppression en cascade
         await client`DROP TYPE wallet_tx_type CASCADE;`

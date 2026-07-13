@@ -26,7 +26,9 @@ export function LanguageSwitcher({
     if (locale === currentLocale) return
     const params = searchParams.toString()
     const redirectTo = params ? `${pathname}?${params}` : pathname
-    window.location.href = `/api/set-locale?locale=${locale}&redirectTo=${encodeURIComponent(redirectTo)}`
+    window.location.assign(
+      `/api/set-locale?locale=${locale}&redirectTo=${encodeURIComponent(redirectTo)}`,
+    )
   }
 
   const menu = (

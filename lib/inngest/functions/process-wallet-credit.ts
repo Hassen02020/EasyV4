@@ -26,6 +26,7 @@ export const processWalletCredit = inngest.createFunction(
     retries: 3,
     triggers: { event: "wallet/credited" },
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Inngest volontairement non typé (voir `inngest as any` ci-dessus)
   async ({ event }: any) => {
     const { agencyId, amount, newBalance, method, txId } = event.data
 

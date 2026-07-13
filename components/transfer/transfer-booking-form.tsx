@@ -249,7 +249,7 @@ export function TransferBookingForm() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="toZoneId">Zone d'arrivée</Label>
+                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="toZoneId">Zone d’arrivée</Label>
                 <Select
                   value={watchedToZoneId}
                   onValueChange={(v) => {
@@ -288,7 +288,7 @@ export function TransferBookingForm() {
                 <Select
                   value={watchedVehicleType}
                   onValueChange={(v) => {
-                    form.setValue("vehicleType", v as any)
+                    form.setValue("vehicleType", v as TransferBookingFormData["vehicleType"])
                     updatePricing()
                   }}
                 >

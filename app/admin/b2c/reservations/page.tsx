@@ -129,7 +129,7 @@ async function loadReservations(search?: string, status?: string) {
   try {
     const db = getDb()
 
-    let query = db
+    const query = db
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,

@@ -141,24 +141,6 @@ export class CustomerRepository {
   }
 
   /**
-   * Mettre à jour les préférences du client
-   */
-  static async updatePreferences(
-    id: string,
-    preferences: Record<string, unknown>,
-    tx?: DrizzleTransaction
-  ): Promise<void> {
-    const db = tx || getDb()
-    await db
-      .update(customers)
-      .set({ 
-        preferences: preferences as any,
-        updatedAt: new Date()
-      })
-      .where(eq(customers.id, id))
-  }
-
-  /**
    * Compter les clients d'une agence
    */
   static async countByAgency(agencyId: string): Promise<number> {
@@ -176,21 +158,23 @@ export class CustomerRepository {
   static async getAgencyStats(agencyId: string) {
     const db = getDb()
     const allCustomers = await this.findByAgency(agencyId, 1000)
-    
-    const byType = allCustomers.reduce((acc, c) => {
-      acc[c.type] = (acc[c.type] || 0) + 1
+
+    const byNationality = allCustomers.reduce((acc, c) => {
+      const key = c.nationality ?? "unknown"
+      acc[key] = (acc[key] || 0) + 1
       return acc
     }, {} as Record<string, number>)
-    
-    const byStatus = allCustomers.reduce((acc, c) => {
-      acc[c.status] = (acc[c.status] || 0) + 1
+
+    const byCivicIdType = allCustomers.reduce((acc, c) => {
+      const key = c.civicIdType ?? "unknown"
+      acc[key] = (acc[key] || 0) + 1
       return acc
     }, {} as Record<string, number>)
-    
+
     return {
       total: allCustomers.length,
-      byType,
-      byStatus,
+      byNationality,
+      byCivicIdType,
     }
   }
 }

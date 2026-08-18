@@ -5,6 +5,7 @@
  */
 
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- @sentry/nextjs is an optional dep; a static import would fail to resolve when it isn't installed
   const Sentry = require("@sentry/nextjs")
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,

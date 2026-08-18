@@ -104,7 +104,7 @@ export class ReservationRepository {
    */
   static async updateStatus(
     id: string,
-    status: string,
+    status: Reservation["status"],
     tx?: DrizzleTransaction
   ): Promise<void> {
     const db = tx || getDb()
@@ -154,7 +154,7 @@ export class ReservationRepository {
    */
   static async findByStatus(
     agencyId: string,
-    status: string,
+    status: Reservation["status"],
     limit = 50,
     offset = 0
   ): Promise<Reservation[]> {
@@ -175,7 +175,7 @@ export class ReservationRepository {
    */
   static async findByModule(
     agencyId: string,
-    module: string,
+    module: Reservation["module"],
     limit = 50,
     offset = 0
   ): Promise<Reservation[]> {

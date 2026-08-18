@@ -48,7 +48,7 @@ export default async function PackagesPage() {
               Découvrez le monde avec Easy2Book
             </h1>
             <p className="mx-auto max-w-2xl text-violet-100">
-              Circuits clés en main, vols + hôtels + guide inclus. Partez l'esprit
+              Circuits clés en main, vols + hôtels + guide inclus. Partez l&apos;esprit
               libre depuis la Tunisie.
             </p>
           </div>

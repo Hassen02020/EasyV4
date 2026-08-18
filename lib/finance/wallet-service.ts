@@ -21,16 +21,15 @@ import {
   reservationFinancials,
   journalEntries,
   journalLines,
-  auditLogs,
+  auditEvents,
 } from "@/lib/db/schema"
-import type {
-  WalletAccount,
-  NewWalletLedger,
-  MarginRule,
-  MarginCalculationContext,
-  MarginCalculationResult,
-} from "@/lib/db/schema"
-import { findApplicableMarginRule, calculateMargin } from "./margin-calculator"
+import type { WalletAccount, NewWalletLedger, MarginRule } from "@/lib/db/schema"
+import {
+  findApplicableMarginRule,
+  calculateMargin,
+  type MarginCalculationContext,
+  type MarginCalculationResult,
+} from "./margin-calculator"
 
 /**
  * Opération de débit wallet
@@ -140,15 +139,17 @@ export async function debitWallet(
       }
 
       // 6. Log d'audit
-      await tx.insert(auditLogs).values({
+      await tx.insert(auditEvents).values({
         agencyId: options.agencyId,
+        actorUserId: options.createdBy,
         entityType: "wallet_account",
         entityId: wallet.id,
-        action: "update",
-        oldValues: { balance: balanceBefore },
-        newValues: { balance: balanceAfter },
-        description: `Débit wallet: ${options.description}`,
-        userId: options.createdBy,
+        action: "wallet.debit",
+        diff: {
+          balanceBefore,
+          balanceAfter,
+          description: options.description,
+        },
       })
 
       return {
@@ -230,15 +231,17 @@ export async function creditWallet(
       })
 
       // 5. Log d'audit
-      await tx.insert(auditLogs).values({
+      await tx.insert(auditEvents).values({
         agencyId: options.agencyId,
+        actorUserId: options.createdBy,
         entityType: "wallet_account",
         entityId: wallet.id,
-        action: "update",
-        oldValues: { balance: balanceBefore },
-        newValues: { balance: balanceAfter },
-        description: `Crédit wallet: ${options.description}`,
-        userId: options.createdBy,
+        action: "wallet.credit",
+        diff: {
+          balanceBefore,
+          balanceAfter,
+          description: options.description,
+        },
       })
 
       return {
@@ -355,7 +358,7 @@ async function createJournalEntryForDebit(
     agencyId: options.agencyId,
     reference: `RES-${options.reservationId}`,
     referenceType: "reservation",
-    entryDate: new Date(),
+    entryDate: new Date().toISOString().slice(0, 10),
     description: options.description,
     totalDebit: options.amount.toString(),
     totalCredit: options.amount.toString(),
@@ -406,7 +409,7 @@ async function createJournalEntryForCredit(
     agencyId: options.agencyId,
     reference: `REC-${Date.now()}`,
     referenceType: "payment",
-    entryDate: new Date(),
+    entryDate: new Date().toISOString().slice(0, 10),
     description: options.description,
     totalDebit: options.amount.toString(),
     totalCredit: options.amount.toString(),
@@ -457,7 +460,7 @@ async function createJournalEntryForMargin(
     agencyId: options.agencyId,
     reference: `MARGIN-${options.reservationId}`,
     referenceType: "reservation",
-    entryDate: new Date(),
+    entryDate: new Date().toISOString().slice(0, 10),
     description: `Marge réservation ${options.reservationId}`,
     totalDebit: marginResult.marginAmount.toString(),
     totalCredit: marginResult.marginAmount.toString(),

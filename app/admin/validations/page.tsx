@@ -17,6 +17,7 @@ import {
   Eye,
   FileText,
   MoreHorizontal,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,7 +55,7 @@ import {
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getDb } from "@/lib/db/client"
-import { reservations, reservationValidations, validationStatus } from "@/lib/db/schema"
+import { reservations, reservationValidations, customers, validationStatus } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
 
 export const metadata: Metadata = {
@@ -64,7 +65,7 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic"
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon }> = {
   pending: { label: "En attente", color: "bg-amber-100 text-amber-800", icon: Clock },
   pending_supplier: { label: "Attente fournisseur", color: "bg-blue-100 text-blue-800", icon: AlertCircle },
   pending_payment: { label: "Attente paiement", color: "bg-purple-100 text-purple-800", icon: Clock },
@@ -101,9 +102,11 @@ export default async function ValidationsPage({
     .select({
       reservation: reservations,
       validation: reservationValidations,
+      customer: customers,
     })
     .from(reservations)
     .leftJoin(reservationValidations, eq(reservations.id, reservationValidations.reservationId))
+    .leftJoin(customers, eq(reservations.customerId, customers.id))
     .orderBy(desc(reservations.createdAt))
     .limit(50)
 
@@ -230,7 +233,7 @@ export default async function ValidationsPage({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredValidations.map(({ reservation, validation }) => {
+                  filteredValidations.map(({ reservation, validation, customer }) => {
                     const statusConfig = validation
                       ? STATUS_CONFIG[validation.status] || STATUS_CONFIG.pending
                       : STATUS_CONFIG.pending
@@ -239,19 +242,21 @@ export default async function ValidationsPage({
                     return (
                       <TableRow key={reservation.id} className="hover:bg-gray-50">
                         <TableCell className="font-mono text-sm">
-                          {reservation.reference}
+                          {reservation.publicRef}
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{reservation.customerName}</p>
-                            <p className="text-xs text-gray-500">{reservation.customerEmail}</p>
+                            <p className="font-medium">
+                              {customer ? `${customer.firstName} ${customer.lastName}` : "—"}
+                            </p>
+                            <p className="text-xs text-gray-500">{customer?.email}</p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{reservation.module}</Badge>
                         </TableCell>
                         <TableCell className="font-semibold">
-                          {reservation.totalAmountTnd.toLocaleString("fr-FR")} DT
+                          {Number(reservation.tndAmount).toLocaleString("fr-FR")} DT
                         </TableCell>
                         <TableCell>
                           <Badge className={statusConfig.color}>

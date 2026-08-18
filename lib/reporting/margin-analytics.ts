@@ -3,7 +3,13 @@
  *
  * Service d'analyse des marges en temps réel
  * Agrégation des données financières pour le dashboard admin
+ *
+ * "use server" : ce module est importé depuis le Client Component
+ * app/admin/analytics/margins/page.tsx. Sans cette directive, le code
+ * Drizzle/postgres (Node-only : net/tls/perf_hooks) se retrouverait bundlé
+ * côté navigateur — ces fonctions doivent s'exécuter comme Server Actions.
  */
+"use server"
 
 import { getDb } from "@/lib/db/client"
 import { eq, and, sql, gte, lte, desc } from "drizzle-orm"

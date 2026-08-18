@@ -10,35 +10,32 @@ import { SEARCH_CONSTRAINTS } from "./types"
 /**
  * Schéma pour une chambre
  */
-export const roomOccupancySchema = z.object({
-  adults: z
-    .number()
-    .min(SEARCH_CONSTRAINTS.MIN_ADULTS_PER_ROOM, "Au moins 1 adulte par chambre")
-    .max(SEARCH_CONSTRAINTS.MAX_ADULTS_PER_ROOM, "Maximum 4 adultes par chambre"),
-  children: z
-    .number()
-    .min(0)
-    .max(SEARCH_CONSTRAINTS.MAX_CHILDREN_PER_ROOM, "Maximum 4 enfants par chambre"),
-  childAges: z
-    .array(z.number().min(0).max(17))
-    .refine(
-      (ages) => ages.length === 0 || ages.every((age) => age >= 0 && age <= 17),
-      "L'âge des enfants doit être entre 0 et 17 ans"
-    )
-    .refine(
-      (ages) => ages.length === 0 || ages.every((age) => age >= 0 && age <= 17),
-      "L'âge des enfants doit être entre 0 et 17 ans"
-    )
-    .superRefine((ages, ctx) => {
-      const children = ctx.parent?.children
-      if (children !== undefined && ages.length !== children) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "L'âge est obligatoire pour chaque enfant",
-        })
-      }
-    }),
-})
+export const roomOccupancySchema = z
+  .object({
+    adults: z
+      .number()
+      .min(SEARCH_CONSTRAINTS.MIN_ADULTS_PER_ROOM, "Au moins 1 adulte par chambre")
+      .max(SEARCH_CONSTRAINTS.MAX_ADULTS_PER_ROOM, "Maximum 4 adultes par chambre"),
+    children: z
+      .number()
+      .min(0)
+      .max(SEARCH_CONSTRAINTS.MAX_CHILDREN_PER_ROOM, "Maximum 4 enfants par chambre"),
+    childAges: z
+      .array(z.number().min(0).max(17))
+      .refine(
+        (ages) => ages.length === 0 || ages.every((age) => age >= 0 && age <= 17),
+        "L'âge des enfants doit être entre 0 et 17 ans"
+      ),
+  })
+  .superRefine((data, ctx) => {
+    if (data.childAges.length !== data.children) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "L'âge est obligatoire pour chaque enfant",
+        path: ["childAges"],
+      })
+    }
+  })
 
 /**
  * Schéma pour les dates

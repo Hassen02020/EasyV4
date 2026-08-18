@@ -10,7 +10,7 @@
  * Exécution en arrière-plan → pas de timeout Vercel (max 5 min Inngest).
  */
 
-import { inngest } from "../client"
+import { inngest, type Events } from "../client"
 import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
 import { sendVoucherEmail } from "@/lib/email/send-voucher"
 import { getDb } from "@/lib/db/client"
@@ -24,7 +24,7 @@ export const processConfirmedBooking = inngest.createFunction(
     retries: 3,
     triggers: { event: "booking/confirmed" },
   },
-  async ({ event }: any) => {
+  async ({ event }: { event: { data: Events["booking/confirmed"]["data"] } }) => {
     const {
       reservationId,
       publicRef,

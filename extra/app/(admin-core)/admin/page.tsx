@@ -6,7 +6,7 @@
  * des modules, santé du système, et alertes opérationnelles.
  *
  * Données affichées :
- *  - Chiffre d'affaires (par module, par période)
+ *  - Chiffre d&apos;affaires (par module, par période)
  *  - Volume de réservations (statut, source)
  *  - Performance API (MyGo, Amadeus, etc.)
  *  - Alertes (paiements en échec, stocks critiques)

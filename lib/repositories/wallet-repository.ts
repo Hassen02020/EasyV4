@@ -25,7 +25,7 @@ export class WalletRepository {
    */
   static async findByAgencyAndType(
     agencyId: string,
-    type: string
+    type: WalletAccount["type"]
   ): Promise<WalletAccount | null> {
     const db = getDb()
     const result = await db.query.walletAccounts.findFirst({
@@ -139,7 +139,7 @@ export class WalletRepository {
    */
   static async updateTransactionStatus(
     transactionId: string,
-    status: string,
+    status: WalletTransaction["status"],
     tx?: DrizzleTransaction
   ): Promise<void> {
     const db = tx || getDb()

@@ -1521,6 +1521,7 @@ export type Agency = typeof agencies.$inferSelect
 export type NewAgency = typeof agencies.$inferInsert
 export type User = typeof users.$inferSelect
 export type Customer = typeof customers.$inferSelect
+export type NewCustomer = typeof customers.$inferInsert
 export type Reservation = typeof reservations.$inferSelect
 export type NewReservation = typeof reservations.$inferInsert
 export type Payment = typeof payments.$inferSelect

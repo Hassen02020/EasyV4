@@ -49,7 +49,7 @@ export default async function B2BLayout({ children }: { children: ReactNode }) {
   // Récupération du solde réel du Wallet via Drizzle ORM
   let walletBalance = 0
   let frozenBalance = 0
-  let agencyName = "Agence Partenaire"
+  const agencyName = "Agence Partenaire"
 
   if (agencyId) {
     try {

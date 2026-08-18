@@ -160,7 +160,7 @@ export function BookingEngine() {
                   <Icon className="size-5" />
 
                   <span className="text-xs whitespace-nowrap sm:text-sm">
-                    {t(tab.labelKey as any)}
+                    {t(tab.labelKey)}
                   </span>
                 </button>
               )

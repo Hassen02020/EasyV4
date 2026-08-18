@@ -5,7 +5,7 @@
 import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { AdminShell, type AdminShellUser } from "@/components/admin-shell"
+import { AdminShell, type AdminShellRole, type AdminShellUser } from "@/components/admin-shell"
 
 export default async function SuppliersLayout({
   children,
@@ -31,7 +31,7 @@ export default async function SuppliersLayout({
     email: user.email || "",
     displayName: profile.name || user.email || "",
     initials: (profile.name || user.email || "").slice(0, 2).toUpperCase(),
-    role: profile.role as any,
+    role: profile.role as AdminShellRole,
   }
 
   return <AdminShell user={adminUser}>{children}</AdminShell>

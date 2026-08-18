@@ -71,6 +71,13 @@
       "when": 1787094147409,
       "tag": "0009_v6_financials_suppliers_validations",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787096963567,
+      "tag": "0010_car_rental_module",
+      "breakpoints": true
     }
   ]
 }

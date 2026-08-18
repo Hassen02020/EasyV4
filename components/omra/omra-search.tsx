@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Calendar, Users, MapPin } from "lucide-react"
+import { Search, Calendar, Users, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -28,18 +28,13 @@ const MONTHS = [
   { value: "12", label: "Décembre" },
 ]
 
+// Doit correspondre exactement aux valeurs de l'enum omra_package_type
+// (lib/db/schema/omra.ts) — sinon le filtre ne matcherait aucun package réel.
 const PROGRAMMES = [
-  { value: "omra_ramadan", label: "Omra Ramadan" },
-  { value: "omra_reguliere", label: "Omra Régulière" },
-  { value: "omra_vip", label: "Omra VIP" },
+  { value: "omra", label: "Omra" },
+  { value: "ramadan", label: "Omra Ramadan" },
+  { value: "umrah_plus", label: "Omra + Ziarat étendu" },
   { value: "hajj", label: "Hajj" },
-]
-
-const DISTANCES = [
-  { value: "0-200", label: "< 200m du Haram" },
-  { value: "200-500", label: "200m – 500m" },
-  { value: "500-1000", label: "500m – 1km" },
-  { value: "any", label: "Peu importe" },
 ]
 
 export function OmraSearch() {
@@ -47,24 +42,22 @@ export function OmraSearch() {
   const [programme, setProgramme] = useState("")
   const [month, setMonth] = useState("")
   const [pilgrims, setPilgrims] = useState("2")
-  const [distance, setDistance] = useState("any")
 
   function handleSearch() {
     const params = new URLSearchParams()
     if (programme) params.set("programme", programme)
     if (month) params.set("month", month)
     if (pilgrims) params.set("pilgrims", pilgrims)
-    if (distance) params.set("distance", distance)
     router.push(`/omra?${params.toString()}`)
   }
 
   return (
     <div className="mb-8 rounded-2xl border bg-card p-6 shadow-sm">
       <h2 className="mb-6 text-lg font-semibold">Affiner votre recherche</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
             Programme
           </Label>
           <Select value={programme} onValueChange={setProgramme}>
@@ -113,25 +106,6 @@ export function OmraSearch() {
               {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                 <SelectItem key={n} value={String(n)}>
                   {n} pèlerin{n > 1 ? "s" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-            Distance Haram
-          </Label>
-          <Select value={distance} onValueChange={setDistance}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DISTANCES.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
                 </SelectItem>
               ))}
             </SelectContent>

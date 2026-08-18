@@ -12,7 +12,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -27,6 +27,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, MapPin, Car, Calendar, Clock, CreditCard, CheckCircle } from "lucide-react"
 import { createTransferBooking } from "@/lib/transfers/actions"
 import { calculateTransferPrice, type TransferPricingResult } from "@/lib/transfers/pricing"
+import type { CatalogTransferZone } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
 /* Zod Schema                                                                 */
@@ -54,18 +55,24 @@ const transferBookingSchema = z.object({
 type TransferBookingFormData = z.infer<typeof transferBookingSchema>
 
 /* -------------------------------------------------------------------------- */
-/* Mock Data (à remplacer par API réelle)                                    */
+/* Props                                                                      */
 /* -------------------------------------------------------------------------- */
 
-const MOCK_ZONES = [
-  { id: "zone-001", name: "Aéroport Tunis-Carthage (TUN)", type: "airport" },
-  { id: "zone-002", name: "Aéroport Enfidha (NBE)", type: "airport" },
-  { id: "zone-003", name: "Hôtel Tunis - Centre", type: "hotel" },
-  { id: "zone-004", name: "Hôtel Hammamet - Sud", type: "hotel" },
-  { id: "zone-005", name: "Hôtel Sousse - Centre", type: "hotel" },
-  { id: "zone-006", name: "Gare Tunis", type: "station" },
-  { id: "zone-007", name: "Port La Goulette", type: "city" },
-]
+export interface TransferBookingFormPrefill {
+  fromZoneId?: string
+  toZoneId?: string
+  vehicleType?: "sedan" | "van" | "minibus" | "bus" | "luxury"
+  pickupDate?: string
+  pickupTime?: string
+  pax?: number
+}
+
+interface TransferBookingFormProps {
+  /** Zones réelles (catalog_transfer_zones) — jamais de données inventées. */
+  zones: CatalogTransferZone[]
+  agencyId: string
+  prefill?: TransferBookingFormPrefill
+}
 
 const VEHICLE_TYPES = [
   { id: "sedan", name: "Sedan (4 places)", capacity: 4, icon: "🚗" },
@@ -79,21 +86,22 @@ const VEHICLE_TYPES = [
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export function TransferBookingForm() {
+export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState<{ reservationId: string; publicRef: string; totalTnd: number } | null>(null)
   const [pricing, setPricing] = useState<TransferPricingResult | null>(null)
+  const [pricingError, setPricingError] = useState<string | null>(null)
 
   const form = useForm<TransferBookingFormData>({
     resolver: zodResolver(transferBookingSchema),
     defaultValues: {
-      fromZoneId: "",
-      toZoneId: "",
-      vehicleType: "sedan",
-      pickupDate: "",
-      pickupTime: "",
-      pax: 1,
+      fromZoneId: prefill?.fromZoneId ?? "",
+      toZoneId: prefill?.toZoneId ?? "",
+      vehicleType: prefill?.vehicleType ?? "sedan",
+      pickupDate: prefill?.pickupDate ?? "",
+      pickupTime: prefill?.pickupTime ?? "",
+      pax: prefill?.pax ?? 1,
       luggageCount: 0,
       flightNumber: "",
       flightArrivalAt: "",
@@ -115,26 +123,34 @@ export function TransferBookingForm() {
   const watchedPax = form.watch("pax")
 
   // Calcul du devis en temps réel
-  const updatePricing = () => {
+  const updatePricing = async () => {
     if (watchedFromZoneId && watchedToZoneId && watchedPickupDate && watchedPickupTime) {
-      const result = calculateTransferPrice({
+      setPricingError(null)
+      const result = await calculateTransferPrice({
         fromZoneId: watchedFromZoneId,
         toZoneId: watchedToZoneId,
         vehicleType: watchedVehicleType,
         pickupDate: watchedPickupDate,
         pickupTime: watchedPickupTime,
-        agencyId: "00000000-0000-0000-0000-000000000001", // TODO: depuis session
+        agencyId,
       })
+      if (!result) {
+        setPricing(null)
+        setPricingError("Aucun tarif configuré pour cet itinéraire et ce véhicule.")
+        return
+      }
       setPricing(result)
     } else {
       setPricing(null)
+      setPricingError(null)
     }
   }
 
-  // Mettre à jour le pricing quand les champs pertinents changent
-  useState(() => {
+  // Calcule le devis initial si le formulaire est pré-rempli (venant de /transferts/resultats)
+  useEffect(() => {
     updatePricing()
-  })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois au montage ; les changements suivants sont déclenchés explicitement par les handlers onChange/onValueChange
+  }, [])
 
   const onSubmit = async (data: TransferBookingFormData) => {
     setIsSubmitting(true)
@@ -239,11 +255,17 @@ export function TransferBookingForm() {
                     <SelectValue placeholder="Choisir une zone" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MOCK_ZONES.map((zone) => (
-                      <SelectItem key={zone.id} value={zone.id}>
-                        {zone.name}
+                    {zones.length === 0 ? (
+                      <SelectItem value="_" disabled>
+                        Aucune zone disponible
                       </SelectItem>
-                    ))}
+                    ) : (
+                      zones.map((zone) => (
+                        <SelectItem key={zone.id} value={zone.id}>
+                          {zone.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -261,11 +283,13 @@ export function TransferBookingForm() {
                     <SelectValue placeholder="Choisir une zone" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MOCK_ZONES.map((zone) => (
-                      <SelectItem key={zone.id} value={zone.id}>
-                        {zone.name}
-                      </SelectItem>
-                    ))}
+                    {zones
+                      .filter((zone) => zone.id !== watchedFromZoneId)
+                      .map((zone) => (
+                        <SelectItem key={zone.id} value={zone.id}>
+                          {zone.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -460,6 +484,13 @@ export function TransferBookingForm() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pricing Error */}
+        {pricingError && (
+          <Alert variant="destructive" className="rounded-lg">
+            <AlertDescription>{pricingError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Pricing Summary */}
         {pricing && (

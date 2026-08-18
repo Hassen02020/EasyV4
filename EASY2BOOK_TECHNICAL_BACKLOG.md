@@ -23,6 +23,10 @@
 | R-03 | P0 | Sécurité / RLS | Les 15 tables ci-dessus n'avaient aucune policy RLS (Drizzle n'en génère pas) | `drizzle/manual/0010_v6_financials_suppliers_validations_rls.sql` écrit, suivant le pattern `current_agency_id()`/`is_super_admin()` déjà établi | `2b4bec1` — **UNVERIFIED, jamais appliqué à une DB réelle** |
 | R-04 | P1 | Build | Convention `middleware.ts` dépréciée sous Next 16 (warning de build) | Renommé en `proxy.ts` + export `proxy` (au lieu de `middleware`) | `8018c63` |
 | R-05 | P1 | Sécurité | `PRO_ROUTES` défini mais jamais utilisé dans le middleware — vérifié : `app/pro/(app)/layout.tsx` fait déjà sa propre vérification de rôle, ce n'était pas un trou de sécurité actif | Variable morte supprimée | `8018c63` |
+| R-06 | P1 | Transferts — Pricing | `calculateTransferPrice()` était un **stub** : prix fixe par type de véhicule, ignorant complètement l'itinéraire et `catalog_transfer_pricing`. Utilisée aussi bien par la prévisualisation client que par `createTransferBooking` — les clients étaient débités sur un prix fictif, pas le tarif réel de l'agence | Requête réelle sur `catalog_transfer_pricing` (par zones × véhicule) + majoration nuit réelle par ligne de tarif + marge réelle via `pricingMargins`/`applyMargin` (module `transfer`). Retourne `null` si aucun tarif configuré au lieu d'inventer un prix ; les deux appelants gèrent ce cas | (ce commit) |
+| R-07 | P1 | Booking Engine — Omra | `/omra` ignorait `searchParams` malgré un formulaire de recherche déjà fonctionnel ; le formulaire d'accueil (`OmratyForm`) utilisait des valeurs (`economique`/`confort`/`prestige`, "Distance Haram") sans rapport avec l'enum réel `omra_package_type` ni aucune colonne existante | `OmraSearch` et `OmratyForm` alignés sur l'enum réel (`omra`/`hajj`/`ramadan`/`umrah_plus`) ; "Distance Haram" retiré (aucune donnée pour le justifier — `omra_packages` n'a pas de référence hôtel à l'étape recherche) ; `app/omra/page.tsx` filtre désormais réellement sur `type` et sur `omra_allotments` (mois de départ, places disponibles) | (ce commit) |
+| R-08 | P1 | Booking Engine — Voyages Organisés | Même bug : `/packages` ignorait `searchParams` | `app/packages/page.tsx` filtre désormais sur `title` (ILIKE — `catalog_packages` n'a pas de colonne destination dédiée), sur `durationDays`, et sur `catalog_package_departures` (mois, places disponibles) ; formulaire d'accueil aligné sur le même vocabulaire que `PackageSearch` | (ce commit) |
+| R-09 | P1 | Booking Engine — Transferts | `TransferSearch` redirigeait déjà vers `/transferts/resultats?...`, une route qui n'existait pas (404) ; `TransferBookingForm` était câblé sur `MOCK_ZONES` et un `agencyId` codé en dur, uniquement atteignable depuis la sandbox | `app/transferts/resultats/page.tsx` créé (résout les zones réelles, appelle le tarif réel corrigé en R-06, affiche un vrai devis ou une erreur explicite si aucun tarif n'est configuré) ; `TransferBookingForm` accepte désormais `zones`/`agencyId`/`prefill` en props au lieu de données mockées ; `lib/agencies/default-agency.ts` ajouté pour résoudre l'agence OTA directe sans inventer d'ID ; formulaire d'accueil (`TransfertsForm`) câblé sur les vraies zones (chargées dans `app/page.tsx`) | (ce commit) |
 
 ---
 
@@ -56,64 +60,39 @@ Aucun item P0 restant identifié à ce jour. Le build compile, type-check, lint 
 - **Statut** : NOT DONE — **nécessite un accès `DATABASE_DIRECT_URL`, absent de cette session**
 - **Tests** : Aucun test RLS automatisé n'existe dans le repo (`tests/`, `lib/**/__tests__`) — à créer (ex. via `pgTAP` ou des requêtes Supabase avec un JWT de test par agence).
 
-### P1-02 — Booking Engine : 5 modules sur 7 ne transmettent pas la recherche, à des degrés différents
+### P1-02 — Booking Engine : Vols, Hôtels Monde, Car restent non câblés
 
 - **Module** : Booking Engine (page d'accueil) + pages de résultats par module
-- **Problème** — vérifié précisément fichier par fichier, corrigeant une
-  estimation initiale trop uniforme :
-  - **Hôtels Tunisie** : complet — construit une vraie requête et redirige
-    vers `/hotels/search`, qui la consomme.
-  - **Omraty, Voyages Organisés, Transferts** : `/omra`, `/packages`,
-    `/transferts` sont déjà des Server Components qui chargent de vraies
-    données (`omra_packages`, `catalog_packages`, `catalog_transfer_zones`
-    actifs) — **mais aucun des trois ne lit de `searchParams`**, et les
-    formulaires du Booking Engine (`OmratyForm`, `VoyagesOrganisesForm`,
-    `TransfertsForm`) ne construisent aucun query param non plus : ils
-    font juste `router.push("/omra")` etc. sans arguments. Il n'y a pas de
-    donnée fictive affichée (bon point), juste aucun filtrage appliqué —
-    remplir le formulaire d'accueil n'a aucun effet sur les résultats.
-  - **Vols** : `VolsForm` tente réellement de lire `FormData` (`fd.get
-    ("origin")`, `fd.get("destination")`) et de rediriger vers
-    `/vols?origin=...&destination=...&adults=1` — mais les deux `<Input>`
-    n'avaient pas d'attribut `name`, donc `FormData` ne les voyait jamais et
-    retombait systématiquement sur les valeurs par défaut `TUN`/`IST`.
-    **Corrigé cette session** (`name="origin"`/`name="destination"` ajoutés,
-    commit voir plus bas). Cela dit, `app/vols/page.tsx` ne lit lui-même
-    aucun `searchParams` et `lib/vols/client.ts` est un stub explicite
-    nécessitant `FLIGHTS_API_KEY`/`FLIGHTS_API_BASE_URL` (Amadeus/Sabre) —
-    **bloqué sur des identifiants fournisseur absents**, pas un bug de code.
-  - **Hôtels Monde, Car** : `HotelsMondeForm`/`CarForm` ne transmettent
-    toujours rien. `/hotels-monde` ne lit aucun `searchParams`. **Aucune
-    table `cars`/`car_rentals` n'existe dans le schéma** — le module Car est
-    NOT IMPLEMENTED au niveau données, pas seulement au niveau UI.
-- **Correction déjà appliquée cette session** : attributs `name` manquants
-  sur `VolsForm` (bug réel et contenu, corrigé indépendamment du blocage
-  fournisseur ci-dessus).
-- **Reste à faire** (scope volontairement non traité cette session — décision
-  produit/UX nécessaire sur le comportement de filtrage attendu, pas un
-  simple câblage mécanique) :
-  1. Construire les query params dans `OmratyForm`/`VoyagesOrganisesForm`/
-     `TransfertsForm` et ajouter la lecture + le filtrage correspondant dans
-     `app/omra/page.tsx`, `app/packages/page.tsx`, `app/transferts/page.tsx`
-     (ces pages ont déjà l'accès DB, il "suffit" d'ajouter un `WHERE`).
-  2. Vols : nécessite une clé API fournisseur (Amadeus/Sabre/NDC) — à
-     demander, pas à contourner par des données inventées (règle §52/59 du
-     brief : jamais de disponibilité/prix fictifs présentés comme réels).
-  3. Car : nécessite de concevoir un schéma (`car_rental_agencies`,
-     `cars`, `car_bookings`...) avant tout câblage — c'est un nouveau module,
-     pas une correction.
-  4. Hôtels Monde : même travail que Omra/Voyages/Transferts (recherche +
-     filtrage) une fois qu'une source de données (DB ou fournisseur) est
-     confirmée pour ce module — actuellement pas clair s'il doit réutiliser
-     `lib/hotel-search` (Tunisie) ou un fournisseur international séparé.
-- **Fichiers** : `components/booking-engine.tsx`, `app/omra/page.tsx`,
-  `app/packages/page.tsx`, `app/transferts/page.tsx`, `app/vols/page.tsx`,
+- **État actuel** (après R-06 à R-09) : **Hôtels Tunisie, Omraty, Voyages
+  Organisés, Transferts fonctionnent de bout en bout** avec des données
+  réelles (recherche → filtrage DB réel → devis réel → réservation réelle
+  pour Transferts ; recherche → filtrage DB réel pour Omra/Voyages, qui
+  n'avaient pas de tunnel de réservation dédié à corriger). Restent :
+  - **Vols** : `VolsForm` capture correctement `origin`/`destination` (bug
+    corrigé, cf. commit précédent) et route vers `/vols?...`, mais
+    `app/vols/page.tsx` ne lit aucun `searchParams` et `lib/vols/client.ts`
+    est un stub explicite nécessitant `FLIGHTS_API_KEY`/
+    `FLIGHTS_API_BASE_URL` (Amadeus/Sabre). **Bloqué sur des identifiants
+    fournisseur absents** — à demander, jamais à contourner par des
+    disponibilités/prix inventés (règle §52/59 du brief).
+  - **Car** : `CarForm` ne transmet toujours rien et `/car` ne lit aucun
+    `searchParams`. **Aucune table `cars`/`car_rentals` n'existe dans le
+    schéma** — c'est un nouveau module à concevoir (schéma + fournisseur ou
+    inventaire propre), pas une correction de câblage.
+  - **Hôtels Monde** : `HotelsMondeForm`/`app/hotels-monde/page.tsx` ne
+    transmettent/lisent toujours rien. Contrairement à Vols/Car, une source
+    de données plausible existe déjà (`lib/hotel-search`, actuellement
+    scopé Tunisie) mais il n'est pas clair si ce module doit la réutiliser
+    ou passer par un fournisseur international séparé — décision produit
+    nécessaire avant de câbler.
+- **Fichiers** : `components/booking-engine.tsx` (`VolsForm`, `CarForm`,
+  `HotelsMondeForm`), `app/vols/page.tsx`, `app/car/page.tsx`,
   `app/hotels-monde/page.tsx`, `lib/vols/client.ts`
-- **Complexité estimée** : Moyenne pour Omra/Voyages/Transferts/Hôtels Monde
-  (filtrage sur données déjà en DB) ; bloquée pour Vols (accès API requis) ;
-  élevée pour Car (nouveau module de A à Z)
-- **Statut** : PARTIELLEMENT CORRIGÉ (Vols : bug de capture de formulaire
-  résolu) / NOT IMPLEMENTED pour le reste
+- **Complexité estimée** : bloquée pour Vols (accès API requis) ; élevée
+  pour Car (nouveau module de A à Z) ; moyenne pour Hôtels Monde une fois la
+  source de données confirmée
+- **Statut** : NOT IMPLEMENTED (Vols bloqué sur identifiants ; Car et Hôtels
+  Monde nécessitent une décision produit avant tout câblage)
 - **Tests** : Aucun test E2E n'existe pour ce parcours ; `playwright.config.ts`
   est présent mais son exécution n'a pas été vérifiée cette session.
 
@@ -136,27 +115,32 @@ Aucun item P0 restant identifié à ce jour. Le build compile, type-check, lint 
 
 ## P2 — Important
 
-### P2-01 — Formulaires Omra/Transfert sur données codées en dur (composants sandbox, pas de production)
+### P2-01 — OmraBookingForm reste orphelin (sandbox uniquement)
 
-- **Module** : Omra, Transferts
-- **Correction** : en creusant pour P1-02, vérifié que `OmraBookingForm`
-  (`components/omra/omra-booking-form.tsx`, `MOCK_PACKAGES`/
-  `MOCK_ALLOTMENTS`) et `TransferBookingForm` (`components/transfer/
-  transfer-booking-form.tsx`, `MOCK_ZONES`) ne sont importés **nulle part**
-  en dehors de `app/pro/sandbox/page.tsx` — une page explicitement documentée
-  "page de test publique... données simulées (mock data) pour validation
-  UI/UX uniquement" et "Non accessible en production" dans son propre
-  footer. Ce n'est donc **pas** un cas de données commerciales fictives
-  présentées comme réelles en production (contrairement à ce qu'une lecture
-  rapide du composant seul suggérait) — la vraie page `/omra` charge déjà les
-  packages réels depuis `omra_packages`, et `/transferts` charge déjà les
-  zones réelles depuis `catalog_transfer_zones`.
-- **Ce qui reste réellement vrai** : ces deux formulaires sont un travail
-  inachevé — ils ont toute la logique de soumission (`createOmraBooking`,
-  `createTransferBooking`, qui valident bien le package/la zone côté
-  serveur contre la vraie DB) mais ne sont raccrochés à aucune page réelle
-  (pas de `/omra/[id]`, pas de `/transferts/resultats`). Voir P1-02 pour le
-  plan de câblage complet.
+- **Module** : Omra
+- **Historique** : en creusant pour P1-02, vérifié que ni `OmraBookingForm`
+  ni `TransferBookingForm` n'étaient importés en dehors de
+  `app/pro/sandbox/page.tsx` (page explicitement documentée "données
+  simulées... non accessible en production") — ce n'était donc pas un cas de
+  données fictives présentées comme réelles en production.
+- **Résolu pour Transferts** (R-09) : `TransferBookingForm` est maintenant
+  raccroché à une vraie page (`/transferts/resultats`) avec de vraies zones
+  et un vrai tarif.
+- **Reste ouvert pour Omra** : `OmraBookingForm` (`components/omra/
+  omra-booking-form.tsx`, `MOCK_PACKAGES`/`MOCK_ALLOTMENTS`) a toute la
+  logique de soumission (`createOmraBooking`, qui valide bien le
+  package/l'allotement côté serveur contre la vraie DB) mais n'est
+  raccroché à aucune page réelle — il manque un `/omra/[id]` qui chargerait
+  le package réel et ses allotements réels (le lien `/omra/[id]` existe déjà
+  dans `OmraPackageList`, cf. `components/omra/omra-package-list.tsx`, mais
+  la route elle-même n'existe pas).
+- **Fichiers** : `components/omra/omra-booking-form.tsx`,
+  `components/omra/omra-package-list.tsx` (lien déjà présent),
+  `app/omra/[id]/page.tsx` (à créer)
+- **Complexité estimée** : Moyenne — même famille de travail que R-09 pour
+  Transferts (charger les données réelles, passer en props, retirer les
+  `MOCK_*`)
+- **Statut** : NOT IMPLEMENTED
 - **Statut** : reclassé — pas un problème de données mockées en prod ; le
   vrai gap est le câblage manquant, couvert par P1-02.
 
@@ -267,9 +251,11 @@ ne jamais prétendre avoir vérifié ce qui ne l'a pas été) :
 
 1. Appliquer `drizzle/manual/0001_rls_policies.sql` → `0010_*.sql` sur
    staging et vérifier (P1-01).
-2. Lancer `pnpm test:e2e` et corriger ce qui casse (P1-03).
-3. Câbler les 6 formulaires du Booking Engine vers leurs pages de résultats
+2. Lancer `pnpm test:e2e` et corriger ce qui casse, en particulier les
+   nouveaux parcours Omra/Voyages/Transferts (P1-03).
+3. Décider de la source de données Vols (demander les clés API) et Hôtels
+   Monde (Tunisie élargie ou fournisseur séparé) ; concevoir le schéma Car
    (P1-02).
-4. Remplacer les données `MOCK_*` d'Omra/Transferts par des requêtes DB
-   réelles (P2-01).
+4. Créer `/omra/[id]` pour raccrocher `OmraBookingForm` à de vraies données
+   (P2-01).
 5. `pnpm format` dans un commit dédié (P2-03).

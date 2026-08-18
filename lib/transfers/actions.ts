@@ -24,11 +24,10 @@ import {
   customers,
   auditEvents,
   catalogTransferZones,
-  catalogTransferPricing,
   users,
 } from "@/lib/db/schema"
 import { walletDebitReservation } from "@/lib/wallet/actions"
-import { calculateTransferPrice, type TransferPricingInput } from "./pricing"
+import { calculateTransferPrice } from "./pricing"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -141,20 +140,23 @@ export async function createTransferBooking(
 
   const db = getDb()
 
+  const pricing = await calculateTransferPrice({
+    fromZoneId: input.fromZoneId,
+    toZoneId: input.toZoneId,
+    vehicleType: input.vehicleType,
+    pickupDate: input.pickupDate,
+    pickupTime: input.pickupTime,
+    agencyId,
+  })
+  if (!pricing) {
+    return {
+      ok: false,
+      error: "Aucun tarif configuré pour cet itinéraire et ce véhicule",
+    }
+  }
+
   try {
     const result = await db.transaction(async (tx) => {
-      /* ------------------------------------------------------------------
-       * 1. Calculer le prix
-       * ------------------------------------------------------------------ */
-      const pricingInput: TransferPricingInput = {
-        fromZoneId: input.fromZoneId,
-        toZoneId: input.toZoneId,
-        vehicleType: input.vehicleType,
-        pickupDate: input.pickupDate,
-        pickupTime: input.pickupTime,
-        agencyId,
-      }
-      const pricing = calculateTransferPrice(pricingInput)
       const totalTnd = pricing.totalTnd
 
       /* ------------------------------------------------------------------

@@ -248,7 +248,7 @@ function VolsForm() {
           <div className="relative">
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input defaultValue="Tunis (TUN)" className="rounded-xl pl-9" />
+            <Input name="origin" defaultValue="Tunis (TUN)" className="rounded-xl pl-9" />
           </div>
         </div>
 
@@ -258,7 +258,7 @@ function VolsForm() {
           <div className="relative">
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input defaultValue="Istanbul (IST)" className="rounded-xl pl-9" />
+            <Input name="destination" defaultValue="Istanbul (IST)" className="rounded-xl pl-9" />
           </div>
         </div>
 

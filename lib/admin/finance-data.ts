@@ -8,7 +8,7 @@
  */
 
 import { and, desc, eq, gte, lt, sql, count } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import {
   agencies,
   partnerCreditMovements,
@@ -69,11 +69,14 @@ export async function loadFinanceKpis(): Promise<FinanceKpis> {
   }
   if (!process.env.DATABASE_URL) return empty
 
-  const db = getDb()
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
   try {
-    const [creditsRow, debitsRow, pendingRow, balanceRow] = await Promise.all([
+    // Vue cross-agence (KPIs plateforme) : is_super_admin=true requis.
+    const [creditsRow, debitsRow, pendingRow, balanceRow] = await withTenantContext(
+      { agencyId: null, userId: "", isSuperAdmin: true },
+      (db) =>
+        Promise.all([
       db
         .select({
           total: sql<string>`COALESCE(SUM(${partnerCreditMovements.amount}::numeric), 0)`,
@@ -112,7 +115,8 @@ export async function loadFinanceKpis(): Promise<FinanceKpis> {
         })
         .from(agencies)
         .where(eq(agencies.status, "active")),
-    ])
+        ]),
+    )
 
     return {
       totalCreditsMonth: parseFloat(creditsRow[0]?.total ?? "0"),
@@ -158,7 +162,6 @@ export async function loadFinanceMovements(
   if (!process.env.DATABASE_URL) return empty
 
   const limit = opts.limit ?? 50
-  const db = getDb()
 
   try {
     const conditions = [
@@ -181,7 +184,12 @@ export async function loadFinanceMovements(
 
     const where = conditions.length > 0 ? and(...conditions) : undefined
 
-    const rows = await db
+    // Vue cross-agence (ledger plateforme, filtrable par agence) :
+    // is_super_admin=true requis.
+    const rows = await withTenantContext(
+      { agencyId: opts.agencyId ?? null, userId: "", isSuperAdmin: true },
+      (db) =>
+    db
       .select({
         id: partnerCreditMovements.id,
         agencyId: partnerCreditMovements.agencyId,
@@ -197,7 +205,8 @@ export async function loadFinanceMovements(
       .leftJoin(agencies, eq(agencies.id, partnerCreditMovements.agencyId))
       .where(where)
       .orderBy(desc(partnerCreditMovements.createdAt))
-      .limit(limit + 1)
+      .limit(limit + 1),
+    )
 
     const hasMore = rows.length > limit
     const pageRows = hasMore ? rows.slice(0, limit) : rows
@@ -244,7 +253,6 @@ export async function loadRechargeRequests(
   if (!process.env.DATABASE_URL) return []
 
   const limit = opts.limit ?? 100
-  const db = getDb()
 
   try {
     const conditions = [
@@ -256,7 +264,12 @@ export async function loadRechargeRequests(
 
     const where = conditions.length > 0 ? and(...conditions) : undefined
 
-    const rows = await db
+    // Vue cross-agence (demandes de recharge plateforme) :
+    // is_super_admin=true requis.
+    const rows = await withTenantContext(
+      { agencyId: opts.agencyId ?? null, userId: "", isSuperAdmin: true },
+      (db) =>
+    db
       .select({
         id: walletRechargeRequests.id,
         agencyId: walletRechargeRequests.agencyId,
@@ -274,7 +287,8 @@ export async function loadRechargeRequests(
       .leftJoin(agencies, eq(agencies.id, walletRechargeRequests.agencyId))
       .where(where)
       .orderBy(desc(walletRechargeRequests.createdAt))
-      .limit(limit)
+      .limit(limit),
+    )
 
     return rows.map((r) => ({
       id: r.id,

@@ -8,7 +8,7 @@
  */
 
 import { and, desc, eq, gte, lt, or, sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, customers, reservations } from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
 
@@ -92,8 +92,10 @@ export async function loadAdminReservations(
   if (!process.env.DATABASE_URL) return EMPTY
 
   try {
-    const db = getDb()
-    const rows = await db
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+    db
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
@@ -118,7 +120,8 @@ export async function loadAdminReservations(
       .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
       .where(and(eq(reservations.agencyId, agencyId)))
       .orderBy(desc(reservations.createdAt))
-      .limit(limit)
+      .limit(limit),
+    )
 
     return {
       available: true,
@@ -143,8 +146,6 @@ export async function loadAdminReservationsPage(
   if (!process.env.DATABASE_URL) return EMPTY_PAGE
 
   try {
-    const db = getDb()
-
     const base = eq(reservations.agencyId, agencyId)
     const where = cursor
       ? and(
@@ -159,7 +160,10 @@ export async function loadAdminReservationsPage(
         )
       : base
 
-    const rows = await db
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+    db
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
@@ -184,7 +188,8 @@ export async function loadAdminReservationsPage(
       .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
       .where(where!)
       .orderBy(desc(reservations.createdAt))
-      .limit(limit + 1)
+      .limit(limit + 1),
+    )
 
     const hasMore = rows.length > limit
     const pageRows = hasMore ? rows.slice(0, limit) : rows
@@ -275,7 +280,6 @@ export async function loadAllReservations(
   if (!process.env.DATABASE_URL) return EMPTY_PAGE
 
   const limit = opts.limit ?? 50
-  const db = getDb()
 
   try {
     const conditions = [
@@ -296,7 +300,12 @@ export async function loadAllReservations(
 
     const where = conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined
 
-    const rows = await db
+    // Vue cross-agence (super_admin) : pas scopée à une seule agence, donc
+    // is_super_admin=true est nécessaire pour que RLS l'autorise.
+    const rows = await withTenantContext(
+      { agencyId: opts.agencyId ?? null, userId: "", isSuperAdmin: true },
+      (db) =>
+    db
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
@@ -321,7 +330,8 @@ export async function loadAllReservations(
       .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
       .where(where)
       .orderBy(desc(reservations.createdAt))
-      .limit(limit + 1)
+      .limit(limit + 1),
+    )
 
     const hasMore = rows.length > limit
     const pageRows = hasMore ? rows.slice(0, limit) : rows

@@ -16,7 +16,7 @@
 import { revalidatePath } from "next/cache"
 import { eq, and } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, auditEvents } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { sendBroadcast } from "@/lib/supabase/broadcast"
@@ -70,68 +70,78 @@ export async function updateReservationStatus(
   }
   const agencyId = profile.agencyId
 
-  const db = getDb()
+  const outcome = await withTenantContext(
+    { agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+    async (db) => {
+      const current = await db
+        .select({
+          id: reservations.id,
+          status: reservations.status,
+          publicRef: reservations.publicRef,
+        })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.id, reservationId),
+            eq(reservations.agencyId, agencyId),
+          ),
+        )
+        .limit(1)
 
-  const current = await db
-    .select({
-      id: reservations.id,
-      status: reservations.status,
-      publicRef: reservations.publicRef,
-    })
-    .from(reservations)
-    .where(
-      and(
-        eq(reservations.id, reservationId),
-        eq(reservations.agencyId, agencyId),
-      ),
-    )
-    .limit(1)
+      const row = current[0]
+      if (!row) {
+        return { ok: false as const, error: "Réservation introuvable" }
+      }
 
-  const row = current[0]
-  if (!row) {
-    return { ok: false, error: "Réservation introuvable" }
+      const previousStatus = row.status as ReservationStatus
+      if (!isTransitionAllowed(previousStatus, nextStatus)) {
+        return {
+          ok: false as const,
+          error: `Transition interdite : ${previousStatus} → ${nextStatus}`,
+        }
+      }
+
+      const cancelledAt = nextStatus === "cancelled" ? new Date() : null
+
+      await db
+        .update(reservations)
+        .set({
+          status: nextStatus,
+          updatedAt: new Date(),
+          ...(cancelledAt ? { cancelledAt } : {}),
+        })
+        .where(
+          and(
+            eq(reservations.id, reservationId),
+            eq(reservations.agencyId, agencyId),
+          ),
+        )
+
+      try {
+        await db.insert(auditEvents).values({
+          agencyId,
+          actorUserId: user.id,
+          entityType: "reservation",
+          entityId: reservationId,
+          action: "status_update",
+          diff: {
+            publicRef: row.publicRef,
+            from: previousStatus,
+            to: nextStatus,
+          },
+        })
+      } catch {
+        /* audit best-effort, on n'échoue pas la mutation pour ça */
+      }
+
+      return { ok: true as const, row, previousStatus }
+    },
+  )
+
+  if (!outcome.ok) {
+    return { ok: false, error: outcome.error }
   }
-
-  const previousStatus = row.status as ReservationStatus
-  if (!isTransitionAllowed(previousStatus, nextStatus)) {
-    return {
-      ok: false,
-      error: `Transition interdite : ${previousStatus} → ${nextStatus}`,
-    }
-  }
-
-  const cancelledAt = nextStatus === "cancelled" ? new Date() : null
-
-  await db
-    .update(reservations)
-    .set({
-      status: nextStatus,
-      updatedAt: new Date(),
-      ...(cancelledAt ? { cancelledAt } : {}),
-    })
-    .where(
-      and(
-        eq(reservations.id, reservationId),
-        eq(reservations.agencyId, agencyId),
-      ),
-    )
-
-  try {
-    await db.insert(auditEvents).values({
-      agencyId,
-      actorUserId: user.id,
-      entityType: "reservation",
-      entityId: reservationId,
-      action: "status_update",
-      diff: {
-        publicRef: row.publicRef,
-        from: previousStatus,
-        to: nextStatus,
-      },
-    })
-  } catch {
-    /* audit best-effort, on n'échoue pas la mutation pour ça */
-  }
+  const { row, previousStatus } = outcome
 
   revalidatePath("/admin/reservations")
   revalidatePath("/admin")

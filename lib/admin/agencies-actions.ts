@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { eq, sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, auditEvents } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
@@ -50,26 +50,31 @@ export async function setAgencyStatus(
   if (!process.env.DATABASE_URL)
     return { ok: false, error: "Base de données non configurée" }
 
-  const db = getDb()
   try {
-    await db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(agencies)
-        .set({ status, updatedAt: new Date() })
-        .where(eq(agencies.id, agencyId))
-        .returning({ id: agencies.id })
+    // super_admin agit potentiellement sur une agence différente de la
+    // sienne (n'importe quelle agence de la plateforme) : is_super_admin=true
+    // requis, la vue n'est pas scopée à une seule agence.
+    await withTenantContext(
+      { agencyId: null, userId: actorId, isSuperAdmin: true },
+      async (tx) => {
+        const [updated] = await tx
+          .update(agencies)
+          .set({ status, updatedAt: new Date() })
+          .where(eq(agencies.id, agencyId))
+          .returning({ id: agencies.id })
 
-      if (!updated) throw new Error("AGENCY_NOT_FOUND")
+        if (!updated) throw new Error("AGENCY_NOT_FOUND")
 
-      await tx.insert(auditEvents).values({
-        agencyId,
-        actorUserId: actorId,
-        entityType: "agency",
-        entityId: agencyId,
-        action: status === "active" ? "agency.activated" : "agency.suspended",
-        diff: { status },
-      })
-    })
+        await tx.insert(auditEvents).values({
+          agencyId,
+          actorUserId: actorId,
+          entityType: "agency",
+          entityId: agencyId,
+          action: status === "active" ? "agency.activated" : "agency.suspended",
+          diff: { status },
+        })
+      },
+    )
 
     revalidatePath("/admin/agencies")
     logger.info("[agencies-actions] status updated", { agencyId, status, actorId })
@@ -105,26 +110,28 @@ export async function adminRechargeWallet(
   if (amountTnd <= 0 || amountTnd > 999_999)
     return { ok: false, error: "Montant invalide (1 – 999 999 TND)" }
 
-  const db = getDb()
   try {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(agencies)
-        .set({
-          depositBalance: sql`${agencies.depositBalance} + ${String(amountTnd)}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(agencies.id, agencyId))
+    await withTenantContext(
+      { agencyId: null, userId: actorId, isSuperAdmin: true },
+      async (tx) => {
+        await tx
+          .update(agencies)
+          .set({
+            depositBalance: sql`${agencies.depositBalance} + ${String(amountTnd)}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(agencies.id, agencyId))
 
-      await tx.insert(auditEvents).values({
-        agencyId,
-        actorUserId: actorId,
-        entityType: "agency",
-        entityId: agencyId,
-        action: "agency.wallet_recharged",
-        diff: { amountTnd, note: note ?? null },
-      })
-    })
+        await tx.insert(auditEvents).values({
+          agencyId,
+          actorUserId: actorId,
+          entityType: "agency",
+          entityId: agencyId,
+          action: "agency.wallet_recharged",
+          diff: { amountTnd, note: note ?? null },
+        })
+      },
+    )
 
     revalidatePath("/admin/agencies")
     logger.info("[agencies-actions] wallet recharged", { agencyId, amountTnd, actorId })

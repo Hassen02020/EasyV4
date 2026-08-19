@@ -17,6 +17,7 @@ import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createClient } from "@supabase/supabase-js"
 import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { inngest } from "@/lib/inngest/client"
 import { logger } from "@/lib/logger"
 import type * as schema from "@/lib/db/schema"
@@ -476,8 +477,10 @@ export async function getWalletBalance(
 ): Promise<WalletActionResult<{ balance: string; currency: string }>> {
   if (!process.env.DATABASE_URL) return { ok: false, error: "db_unavailable" }
 
-  const db = getDb()
-  const wallet = await getOrCreateWallet(db, agencyId)
+  const wallet = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) => getOrCreateWallet(db as Db, agencyId),
+  )
   return { ok: true, data: { balance: wallet.balance, currency: wallet.currency } }
 }
 

@@ -11,7 +11,7 @@
  */
 "use server"
 
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { eq, and, sql, gte, lte, desc } from "drizzle-orm"
 import {
   reservationFinancials,
@@ -99,26 +99,28 @@ export async function getMarginKPIs(
   startDate: Date,
   endDate: Date
 ): Promise<MarginKPIs> {
-  const db = getDb()
-
-  const results = await db
-    .select({
-      totalRevenue: sql<number>`SUM(sale_price_tnd)`,
-      totalCost: sql<number>`SUM(supplier_price_tnd)`,
-      totalMargin: sql<number>`SUM(margin_amount)`,
-      totalCommission: sql<number>`SUM(commission_amount)`,
-      totalReservations: sql<number>`COUNT(*)`,
-    })
-    .from(reservationFinancials)
-    .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-    .where(
-      and(
-        eq(reservations.agencyId, agencyId),
-        gte(reservations.createdAt, startDate),
-        lte(reservations.createdAt, endDate),
-        eq(reservations.status, "confirmed")
-      )
-    )
+  const results = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db
+        .select({
+          totalRevenue: sql<number>`SUM(sale_price_tnd)`,
+          totalCost: sql<number>`SUM(supplier_price_tnd)`,
+          totalMargin: sql<number>`SUM(margin_amount)`,
+          totalCommission: sql<number>`SUM(commission_amount)`,
+          totalReservations: sql<number>`COUNT(*)`,
+        })
+        .from(reservationFinancials)
+        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            gte(reservations.createdAt, startDate),
+            lte(reservations.createdAt, endDate),
+            eq(reservations.status, "confirmed")
+          )
+        ),
+  )
 
   const data = results[0] || {
     totalRevenue: 0,
@@ -142,20 +144,24 @@ export async function getMarginKPIs(
   )
   const previousPeriodEnd = startDate
 
-  const previousResults = await db
-    .select({
-      totalMargin: sql<number>`SUM(margin_amount)`,
-    })
-    .from(reservationFinancials)
-    .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-    .where(
-      and(
-        eq(reservations.agencyId, agencyId),
-        gte(reservations.createdAt, previousPeriodStart),
-        lte(reservations.createdAt, previousPeriodEnd),
-        eq(reservations.status, "confirmed")
-      )
-    )
+  const previousResults = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db
+        .select({
+          totalMargin: sql<number>`SUM(margin_amount)`,
+        })
+        .from(reservationFinancials)
+        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            gte(reservations.createdAt, previousPeriodStart),
+            lte(reservations.createdAt, previousPeriodEnd),
+            eq(reservations.status, "confirmed")
+          )
+        ),
+  )
 
   const previousMargin = Number(previousResults[0]?.totalMargin) || 0
   const marginTrendPercent =
@@ -192,27 +198,29 @@ export async function getMarginBySupplier(
   startDate: Date,
   endDate: Date
 ): Promise<MarginBySupplier[]> {
-  const db = getDb()
-
-  const results = await db
-    .select({
-      supplierId: reservationFinancials.marginRuleId,
-      totalRevenue: sql<number>`SUM(sale_price_tnd)`,
-      totalMargin: sql<number>`SUM(margin_amount)`,
-      reservationCount: sql<number>`COUNT(*)`,
-    })
-    .from(reservationFinancials)
-    .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-    .where(
-      and(
-        eq(reservations.agencyId, agencyId),
-        gte(reservations.createdAt, startDate),
-        lte(reservations.createdAt, endDate),
-        eq(reservations.status, "confirmed")
-      )
-    )
-    .groupBy(reservationFinancials.marginRuleId)
-    .orderBy(desc(sql`SUM(margin_amount)`))
+  const results = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db
+        .select({
+          supplierId: reservationFinancials.marginRuleId,
+          totalRevenue: sql<number>`SUM(sale_price_tnd)`,
+          totalMargin: sql<number>`SUM(margin_amount)`,
+          reservationCount: sql<number>`COUNT(*)`,
+        })
+        .from(reservationFinancials)
+        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            gte(reservations.createdAt, startDate),
+            lte(reservations.createdAt, endDate),
+            eq(reservations.status, "confirmed")
+          )
+        )
+        .groupBy(reservationFinancials.marginRuleId)
+        .orderBy(desc(sql`SUM(margin_amount)`)),
+  )
 
   return results.map((row) => ({
     supplierId: row.supplierId || "unknown",
@@ -235,27 +243,29 @@ export async function getMarginByProductType(
   startDate: Date,
   endDate: Date
 ): Promise<MarginByProductType[]> {
-  const db = getDb()
-
-  const results = await db
-    .select({
-      productType: reservations.module,
-      totalRevenue: sql<number>`SUM(sale_price_tnd)`,
-      totalMargin: sql<number>`SUM(margin_amount)`,
-      reservationCount: sql<number>`COUNT(*)`,
-    })
-    .from(reservationFinancials)
-    .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-    .where(
-      and(
-        eq(reservations.agencyId, agencyId),
-        gte(reservations.createdAt, startDate),
-        lte(reservations.createdAt, endDate),
-        eq(reservations.status, "confirmed")
-      )
-    )
-    .groupBy(reservations.module)
-    .orderBy(desc(sql`SUM(margin_amount)`))
+  const results = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db
+        .select({
+          productType: reservations.module,
+          totalRevenue: sql<number>`SUM(sale_price_tnd)`,
+          totalMargin: sql<number>`SUM(margin_amount)`,
+          reservationCount: sql<number>`COUNT(*)`,
+        })
+        .from(reservationFinancials)
+        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            gte(reservations.createdAt, startDate),
+            lte(reservations.createdAt, endDate),
+            eq(reservations.status, "confirmed")
+          )
+        )
+        .groupBy(reservations.module)
+        .orderBy(desc(sql`SUM(margin_amount)`)),
+  )
 
   return results.map((row) => ({
     productType: row.productType,
@@ -278,30 +288,32 @@ export async function getTopMarginReservations(
   endDate: Date,
   limit: number = 10
 ): Promise<TopMarginReservation[]> {
-  const db = getDb()
-
-  const results = await db
-    .select({
-      reservationId: reservationFinancials.reservationId,
-      publicRef: reservations.publicRef,
-      productType: reservations.module,
-      salePriceTnd: reservationFinancials.salePriceTnd,
-      marginAmount: reservationFinancials.marginAmount,
-      marginPercent: reservationFinancials.marginPercent,
-      createdAt: reservations.createdAt,
-    })
-    .from(reservationFinancials)
-    .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-    .where(
-      and(
-        eq(reservations.agencyId, agencyId),
-        gte(reservations.createdAt, startDate),
-        lte(reservations.createdAt, endDate),
-        eq(reservations.status, "confirmed")
-      )
-    )
-    .orderBy(desc(reservationFinancials.marginAmount))
-    .limit(limit)
+  const results = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db
+        .select({
+          reservationId: reservationFinancials.reservationId,
+          publicRef: reservations.publicRef,
+          productType: reservations.module,
+          salePriceTnd: reservationFinancials.salePriceTnd,
+          marginAmount: reservationFinancials.marginAmount,
+          marginPercent: reservationFinancials.marginPercent,
+          createdAt: reservations.createdAt,
+        })
+        .from(reservationFinancials)
+        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            gte(reservations.createdAt, startDate),
+            lte(reservations.createdAt, endDate),
+            eq(reservations.status, "confirmed")
+          )
+        )
+        .orderBy(desc(reservationFinancials.marginAmount))
+        .limit(limit),
+  )
 
   return results.map((row) => ({
     reservationId: row.reservationId,
@@ -322,26 +334,28 @@ export async function getMarginEvolution(
   startDate: Date,
   endDate: Date
 ): Promise<Array<{ date: string; margin: number; revenue: number }>> {
-  const db = getDb()
-
-  const results = await db
-    .select({
-      date: sql<string>`DATE(reservations.created_at)`,
-      margin: sql<number>`SUM(margin_amount)`,
-      revenue: sql<number>`SUM(sale_price_tnd)`,
-    })
-    .from(reservationFinancials)
-    .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-    .where(
-      and(
-        eq(reservations.agencyId, agencyId),
-        gte(reservations.createdAt, startDate),
-        lte(reservations.createdAt, endDate),
-        eq(reservations.status, "confirmed")
-      )
-    )
-    .groupBy(sql`DATE(reservations.created_at)`)
-    .orderBy(sql`DATE(reservations.created_at)`)
+  const results = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db
+        .select({
+          date: sql<string>`DATE(reservations.created_at)`,
+          margin: sql<number>`SUM(margin_amount)`,
+          revenue: sql<number>`SUM(sale_price_tnd)`,
+        })
+        .from(reservationFinancials)
+        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            gte(reservations.createdAt, startDate),
+            lte(reservations.createdAt, endDate),
+            eq(reservations.status, "confirmed")
+          )
+        )
+        .groupBy(sql`DATE(reservations.created_at)`)
+        .orderBy(sql`DATE(reservations.created_at)`),
+  )
 
   return results.map((row) => ({
     date: row.date,
@@ -354,18 +368,21 @@ export async function getMarginEvolution(
  * Récupère les règles de marge actives d'une agence
  */
 export async function getActiveMarginRules(agencyId: string) {
-  const db = getDb()
   const now = new Date()
 
-  return db.query.marginRules.findMany({
-    where: and(
-      eq(marginRules.agencyId, agencyId),
-      eq(marginRules.isActive, true),
-      sql`(${marginRules.validFrom} IS NULL OR ${marginRules.validFrom} <= ${now})`,
-      sql`(${marginRules.validTo} IS NULL OR ${marginRules.validTo} >= ${now})`
-    ),
-    orderBy: (marginRules, { desc }) => [desc(marginRules.priority)],
-  })
+  return withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db.query.marginRules.findMany({
+        where: and(
+          eq(marginRules.agencyId, agencyId),
+          eq(marginRules.isActive, true),
+          sql`(${marginRules.validFrom} IS NULL OR ${marginRules.validFrom} <= ${now})`,
+          sql`(${marginRules.validTo} IS NULL OR ${marginRules.validTo} >= ${now})`
+        ),
+        orderBy: (marginRules, { desc }) => [desc(marginRules.priority)],
+      }),
+  )
 }
 
 /**
@@ -375,11 +392,13 @@ export async function getRecentWalletTransactions(
   agencyId: string,
   limit: number = 20
 ) {
-  const db = getDb()
-
-  return db.query.walletLedger.findMany({
-    where: eq(walletLedger.walletAccountId, agencyId),
-    orderBy: (walletLedger, { desc }) => [desc(walletLedger.createdAt)],
-    limit,
-  })
+  return withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db.query.walletLedger.findMany({
+        where: eq(walletLedger.walletAccountId, agencyId),
+        orderBy: (walletLedger, { desc }) => [desc(walletLedger.createdAt)],
+        limit,
+      }),
+  )
 }

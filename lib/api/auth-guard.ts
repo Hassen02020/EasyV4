@@ -17,9 +17,7 @@
 
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
-import { eq } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
-import { users } from "@/lib/db/schema"
+import { getCurrentAdminProfile } from "@/lib/auth/profile"
 
 export interface PartnerSession {
   userId: string
@@ -76,16 +74,9 @@ export async function requirePartnerSession(
     return NextResponse.json({ error: "db_unavailable" }, { status: 503 })
   }
 
-  const db = getDb()
-  const [row] = await db
-    .select({
-      agencyId: users.agencyId,
-      role: users.role,
-      status: users.status,
-    })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .limit(1)
+  // resolve_session_context() (SECURITY DEFINER) — jamais un SELECT `users`
+  // direct avant que le contexte RLS ne soit posé (poule et œuf).
+  const row = await getCurrentAdminProfile(user.id)
 
   if (!row) {
     return NextResponse.json(

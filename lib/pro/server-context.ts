@@ -16,7 +16,7 @@ import { and, eq } from "drizzle-orm"
 
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { pricingMargins } from "@/lib/db/schema"
 import { withCache } from "@/lib/cache/redis"
 import { logger } from "@/lib/logger"
@@ -52,26 +52,30 @@ export async function invalidateMarginsCache(agencyId: string): Promise<void> {
  */
 export async function getMarginsForAgency(
   agencyId: string | null | undefined,
+  userId = "",
 ): Promise<MarginMap> {
   if (!agencyId || !process.env.DATABASE_URL) return { ...DEFAULT_MARGINS }
 
   try {
     return await withCache(marginsCacheKey(agencyId), MARGINS_CACHE_TTL, async () => {
-      const db = getDb()
-      const rows = await db
-        .select({
-          module: pricingMargins.module,
-          marginType: pricingMargins.marginType,
-          marginValue: pricingMargins.marginValue,
-          isActive: pricingMargins.isActive,
-        })
-        .from(pricingMargins)
-        .where(
-          and(
-            eq(pricingMargins.agencyId, agencyId),
-            eq(pricingMargins.isActive, true),
-          ),
-        )
+      const rows = await withTenantContext(
+        { agencyId, userId, isSuperAdmin: false },
+        (db) =>
+          db
+            .select({
+              module: pricingMargins.module,
+              marginType: pricingMargins.marginType,
+              marginValue: pricingMargins.marginValue,
+              isActive: pricingMargins.isActive,
+            })
+            .from(pricingMargins)
+            .where(
+              and(
+                eq(pricingMargins.agencyId, agencyId),
+                eq(pricingMargins.isActive, true),
+              ),
+            ),
+      )
 
       const map: MarginMap = { ...DEFAULT_MARGINS }
       for (const row of rows) {
@@ -105,7 +109,7 @@ export async function getActivePartnerMargins(): Promise<MarginMap> {
     if (!user) return { ...DEFAULT_MARGINS }
     const profile = await getCurrentPartnerProfile(user.id)
     if (!profile) return { ...DEFAULT_MARGINS }
-    return await getMarginsForAgency(profile.agency.id)
+    return await getMarginsForAgency(profile.agency.id, user.id)
   } catch (err) {
     logger.error("[server-context] getActivePartnerMargins failed", { code: err instanceof Error ? err.constructor.name : "unknown" })
     return { ...DEFAULT_MARGINS }

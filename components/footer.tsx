@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   ShieldCheck,
   Phone,
@@ -203,15 +204,15 @@ export function Footer() {
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             {/* Links */}
             <div className="flex items-center gap-4 text-xs text-white/60 sm:gap-6 sm:text-sm">
-              <a href="#" className="transition-colors hover:text-white">
+              <Link href="/mentions-legales" className="transition-colors hover:text-white">
                 {t("mentionsLegales")}
-              </a>
-              <a href="#" className="transition-colors hover:text-white">
+              </Link>
+              <Link href="/cgv" className="transition-colors hover:text-white">
                 {t("cgv")}
-              </a>
-              <a href="#" className="transition-colors hover:text-white">
+              </Link>
+              <Link href="/politique-confidentialite" className="transition-colors hover:text-white">
                 {t("politique")}
-              </a>
+              </Link>
             </div>
 
             {/* Payment Methods */}

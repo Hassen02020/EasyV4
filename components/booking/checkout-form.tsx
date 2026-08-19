@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -132,13 +133,21 @@ export function CheckoutForm({ token }: { token: string }) {
               className="text-muted-foreground text-sm leading-snug"
             >
               J&apos;accepte les{" "}
-              <a href="#" className="text-foreground underline">
+              <Link
+                href="/cgv"
+                target="_blank"
+                className="text-foreground underline"
+              >
                 conditions générales de vente
-              </a>{" "}
+              </Link>{" "}
               ainsi que la{" "}
-              <a href="#" className="text-foreground underline">
+              <Link
+                href="/politique-confidentialite"
+                target="_blank"
+                className="text-foreground underline"
+              >
                 politique de confidentialité
-              </a>{" "}
+              </Link>{" "}
               de Easy2Book.
             </Label>
           </div>

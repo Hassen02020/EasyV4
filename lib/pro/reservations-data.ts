@@ -6,7 +6,7 @@
  */
 
 import { and, desc, eq, lt, sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, customers, reservationHotel } from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
 
@@ -54,8 +54,6 @@ export async function loadPartnerReservations(
     return { rows: [], nextCursor: null, total: 0 }
   }
 
-  const db = getDb()
-
   try {
     const where = and(
       eq(reservations.agencyId, agencyId),
@@ -66,7 +64,10 @@ export async function loadPartnerReservations(
         : undefined,
     )
 
-    const [rows, [countRow]] = await Promise.all([
+    const [rows, [countRow]] = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+        Promise.all([
       db
         .select({
           id: reservations.id,
@@ -106,7 +107,8 @@ export async function loadPartnerReservations(
               : undefined,
           ),
         ),
-    ])
+        ]),
+    )
 
     const hasMore = rows.length > PAGE_SIZE
     const pageRows = hasMore ? rows.slice(0, PAGE_SIZE) : rows

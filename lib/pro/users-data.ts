@@ -4,7 +4,7 @@
  */
 
 import { and, eq, inArray } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { users } from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
 
@@ -30,9 +30,11 @@ export async function loadPartnerUsers(
 ): Promise<PartnerUserRow[]> {
   if (!process.env.DATABASE_URL) return []
 
-  const db = getDb()
   try {
-    const rows = await db
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+    db
       .select({
         id: users.id,
         email: users.email,
@@ -48,7 +50,8 @@ export async function loadPartnerUsers(
           inArray(users.role, ["partner_owner", "partner_agent"]),
         ),
       )
-      .orderBy(users.createdAt)
+      .orderBy(users.createdAt),
+    )
 
     return rows.map((r) => ({
       id: r.id,

@@ -6,7 +6,7 @@
  */
 
 import { and, eq } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { customers, reservations, reservationHotel } from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
 
@@ -32,9 +32,10 @@ export async function loadReservationByRef(
   if (!process.env.DATABASE_URL) return null
 
   try {
-    const db = getDb()
-
-    const rows = await db
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+    db
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
@@ -62,7 +63,8 @@ export async function loadReservationByRef(
           eq(reservations.agencyId, agencyId),
         ),
       )
-      .limit(1)
+      .limit(1),
+    )
 
     const row = rows[0]
     if (!row) return null

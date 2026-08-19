@@ -36,18 +36,60 @@ const CATEGORIES = [
   { value: "premium", label: "Premium (BMW, Mercedes…)" },
 ]
 
-export function CarSearch() {
+/**
+ * Le moteur de recherche rapide de la page d'accueil (booking-engine.tsx
+ * ::CarForm) utilise ses propres clés de lieu/catégorie, différentes de
+ * celles de cette page (LOCATIONS/CATEGORIES ci-dessus, alignées sur le
+ * catalogue réel de location de voiture). On ne fait correspondre que les
+ * paires dont le lieu/la catégorie désignent sans ambiguïté la même chose
+ * — pas de correspondance approximative entre deux aéroports distincts.
+ */
+const LOCATION_FROM_HOME: Record<string, string> = {
+  "tunis-airport": "TUN_AIRPORT",
+  "djerba-airport": "DJE_AIRPORT",
+  hammamet: "HAMMAMET",
+  sousse: "SOUSSE",
+}
+
+const CATEGORY_FROM_HOME: Record<string, string> = {
+  economique: "economy",
+  compacte: "compact",
+  suv: "suv",
+  luxe: "premium",
+}
+
+export function CarSearch({
+  initialLocation,
+  initialPickupDate,
+  initialReturnDate,
+  initialCategory,
+}: {
+  initialLocation?: string
+  initialPickupDate?: string
+  initialReturnDate?: string
+  initialCategory?: string
+} = {}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const [pickupLocation, setPickupLocation] = useState("")
+  const [pickupLocation, setPickupLocation] = useState(
+    () => LOCATION_FROM_HOME[initialLocation ?? ""] ?? "",
+  )
   const [dropoffLocation, setDropoffLocation] = useState("")
   const [sameDropoff, setSameDropoff] = useState(true)
-  const [pickupDate, setPickupDate] = useState("")
+  const [pickupDate, setPickupDate] = useState(initialPickupDate ?? "")
   const [pickupTime, setPickupTime] = useState("10:00")
-  const [returnDate, setReturnDate] = useState("")
+  const [returnDate, setReturnDate] = useState(() =>
+    initialPickupDate &&
+    initialReturnDate &&
+    initialReturnDate < initialPickupDate
+      ? ""
+      : (initialReturnDate ?? ""),
+  )
   const [returnTime, setReturnTime] = useState("10:00")
-  const [category, setCategory] = useState("")
+  const [category, setCategory] = useState(
+    () => CATEGORY_FROM_HOME[initialCategory ?? ""] ?? "",
+  )
 
   function handleSearch() {
     if (!pickupLocation) {

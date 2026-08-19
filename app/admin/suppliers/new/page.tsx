@@ -50,6 +50,9 @@ export default async function NewSupplierPage() {
   const creatorUserId = user.id
   const creatorAgencyId = profile.agencyId
 
+  const creatorUserId = user.id
+  const creatorAgencyId = profile.agencyId
+
   async function createSupplier(formData: FormData) {
     "use server"
 

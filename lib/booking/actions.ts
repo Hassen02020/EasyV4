@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import { eq, desc, and, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import {
   customers,
   reservations,
@@ -61,6 +62,7 @@ export async function createReservationFromDraft(input: {
 
   // Résoudre l'agencyId depuis la session authentifiée — jamais hardcodé
   let agencyId: string
+  let authUserId: string
   try {
     const supabase = await createServerSupabase()
     const { data: { user } } = await supabase.auth.getUser()
@@ -68,6 +70,7 @@ export async function createReservationFromDraft(input: {
     const profile = await getCurrentPartnerProfile(user.id)
     if (!profile) return { ok: false, error: "Profil partenaire introuvable" }
     agencyId = profile.agency.id
+    authUserId = user.id
   } catch {
     return { ok: false, error: "Erreur d'authentification" }
   }
@@ -100,10 +103,10 @@ export async function createReservationFromDraft(input: {
     unitChildPriceTnd: draft.unitChildPriceTnd,
   })
 
-  const db = getDb()
-
   try {
-    const result = await db.transaction(async (tx) => {
+    const result = await withTenantContext(
+      { agencyId, userId: authUserId, isSuperAdmin: false },
+      async (tx) => {
       // --- Résoudre ou créer le client ---
       let customerId: string
       if (traveler.email) {
@@ -218,11 +221,15 @@ export async function createReservationFromDraft(input: {
         },
       })
 
-      // --- Débit wallet — dans la transaction : rollback total si insuffisant ---
+      // --- Débit wallet — dans la MÊME transaction (txOverride) : sans ça,
+      // walletDebitReservation ouvrait sa propre transaction séparée et
+      // committait le débit indépendamment de l'insertion de la réservation
+      // (perte d'atomicité — trouvé pendant l'audit RLS, corrigé ici).
       const debitResult = await walletDebitReservation({
         agencyId,
         reservationId,
         amountTnd: breakdown.totalTnd,
+        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
@@ -234,7 +241,8 @@ export async function createReservationFromDraft(input: {
       }
 
       return { reservationId, publicRef, agencyId }
-    })
+      },
+    )
 
     // --- Événement Inngest (hors transaction, fire-and-forget) ---
     // PII sanitizé : on n'envoie que les références opaques, pas les données voyageur

@@ -27,6 +27,8 @@
 | R-07 | P1 | Booking Engine — Omra | `/omra` ignorait `searchParams` malgré un formulaire de recherche déjà fonctionnel ; le formulaire d'accueil (`OmratyForm`) utilisait des valeurs (`economique`/`confort`/`prestige`, "Distance Haram") sans rapport avec l'enum réel `omra_package_type` ni aucune colonne existante | `OmraSearch` et `OmratyForm` alignés sur l'enum réel (`omra`/`hajj`/`ramadan`/`umrah_plus`) ; "Distance Haram" retiré (aucune donnée pour le justifier — `omra_packages` n'a pas de référence hôtel à l'étape recherche) ; `app/omra/page.tsx` filtre désormais réellement sur `type` et sur `omra_allotments` (mois de départ, places disponibles) | (ce commit) |
 | R-08 | P1 | Booking Engine — Voyages Organisés | Même bug : `/packages` ignorait `searchParams` | `app/packages/page.tsx` filtre désormais sur `title` (ILIKE — `catalog_packages` n'a pas de colonne destination dédiée), sur `durationDays`, et sur `catalog_package_departures` (mois, places disponibles) ; formulaire d'accueil aligné sur le même vocabulaire que `PackageSearch` | (ce commit) |
 | R-09 | P1 | Booking Engine — Transferts | `TransferSearch` redirigeait déjà vers `/transferts/resultats?...`, une route qui n'existait pas (404) ; `TransferBookingForm` était câblé sur `MOCK_ZONES` et un `agencyId` codé en dur, uniquement atteignable depuis la sandbox | `app/transferts/resultats/page.tsx` créé (résout les zones réelles, appelle le tarif réel corrigé en R-06, affiche un vrai devis ou une erreur explicite si aucun tarif n'est configuré) ; `TransferBookingForm` accepte désormais `zones`/`agencyId`/`prefill` en props au lieu de données mockées ; `lib/agencies/default-agency.ts` ajouté pour résoudre l'agence OTA directe sans inventer d'ID ; formulaire d'accueil (`TransfertsForm`) câblé sur les vraies zones (chargées dans `app/page.tsx`) | (ce commit) |
+| R-10 | P2 | Car — Schéma | Aucune table pour la location de voitures ; `CarForm` visuel sans aucune donnée réelle possible | `lib/db/schema/cars.ts` créé (6 tables : locations, catégories, flotte, disponibilité, tarifs, `reservation_car` en extension 1-1 de `reservations` — même pattern que transfer/omra, pas de `car_bookings` isolé) ; `'car'` ajouté à l'enum `reservation_module` ; migration trackée `0010_car_rental_module.sql` + RLS `drizzle/manual/0011_car_rental_rls.sql` (non appliquée). Aucune marge dédiée : réutilise `pricing_margins` existant. Reste : Server Action de réservation, page `/car`, UI, application RLS — voir P1-02 | `e2bbae5` |
+| R-11 | P1 | Sécurité / RLS — Contexte de session | Les policies RLS existaient (0001/0005/0006/0010/0011) mais **rien dans le code applicatif ne positionnait jamais `app.current_agency_id`** (`current_agency_id()` lit ce GUC de session) : `grep -r set_config lib/` ne renvoyait aucun résultat. Selon le rôle Postgres de `DATABASE_URL`, RLS était donc soit totalement inerte (rôle propriétaire/BYPASSRLS — cas Supabase par défaut), soit fail-closed pour tout le monde. `is_super_admin()` et les policies de `0006_wallet_rls.sql` dépendaient en plus de `auth.uid()`, qui ne fonctionne qu'en connexion PostgREST (jamais en connexion directe postgres-js comme la nôtre) : `is_super_admin()` renvoyait donc systématiquement `false`, et les policies `wallets`/`wallet_transactions` étaient inatteignables même pour un utilisateur légitime | `drizzle/manual/0012_rls_session_context.sql` (nouveau) : `is_super_admin()` relit désormais le GUC `app.is_super_admin` au lieu de `auth.uid()` ; fonction `resolve_session_context(uuid)` en `SECURITY DEFINER` pour résoudre agence/rôle *avant* que le contexte RLS ne soit posé (bootstrap poule-et-œuf) ; policies `wallets`/`wallet_transactions` réécrites sur le pattern standard `current_agency_id()`/`is_super_admin()` (la policy `*_service_bypass USING (true)` de 0006, une porte dérobée involontaire, est supprimée) ; `FORCE ROW LEVEL SECURITY` sur les 48 tables métier. Côté app : `lib/db/tenant-context.ts` (`resolveSessionContext()` + `withTenantContext()` + `runInTenantContext()`) pose `app.current_agency_id`/`app.current_user_id`/`app.is_super_admin` via `set_config(..., true)` dans la transaction. `createTransferBooking` (`lib/transfers/actions.ts`) migré vers `runInTenantContext()` comme référence — **les ~39 autres fichiers appelant `getDb()` directement (dont `lib/pro/server-context.ts`, `lib/omra/booking-actions.ts`, `lib/admin/*`) ne sont pas encore migrés**, voir P1-01 | (ce commit) |
 
 ---
 
@@ -39,26 +41,69 @@ Aucun item P0 restant identifié à ce jour. Le build compile, type-check, lint 
 
 ## P1 — Critique
 
-### P1-01 — RLS non appliquée
+### P1-01 — RLS non appliquée, et jusqu'à R-11 structurellement inerte/fail-closed
 
 - **Module** : Base de données / Sécurité multi-tenant
-- **Problème** : `drizzle/manual/0010_v6_financials_suppliers_validations_rls.sql`
-  (et plus généralement tous les fichiers `drizzle/manual/*.sql`) ne sont **jamais
-  exécutés automatiquement** — ni par `pnpm db:migrate`, ni par aucune CI. Ils
-  doivent être appliqués à la main via `psql -f`.
-- **Impact** : Sur un environnement fraîchement provisionné, les 15 tables V6
-  seraient lisibles/écrivables sans isolation par agence tant que ce fichier
-  n'a pas été appliqué — un `service_role` bypass Supabase existe mais un rôle
-  `authenticated` mal configuré ne serait pas isolé.
-- **Solution** : Appliquer `drizzle/manual/0001_rls_policies.sql` →
-  `0010_v6_financials_suppliers_validations_rls.sql` dans l'ordre sur staging,
-  puis vérifier avec `select * from pg_policies` que les policies existent
-  pour les 15 tables. Envisager d'automatiser via un script `db:apply-rls`
-  dans `package.json` plutôt que de compter sur une procédure manuelle.
-- **Fichiers** : `drizzle/manual/*.sql`
-- **Complexité estimée** : Faible (exécution) / Moyenne (automatisation)
-- **Statut** : NOT DONE — **nécessite un accès `DATABASE_DIRECT_URL`, absent de cette session**
-- **Tests** : Aucun test RLS automatisé n'existe dans le repo (`tests/`, `lib/**/__tests__`) — à créer (ex. via `pgTAP` ou des requêtes Supabase avec un JWT de test par agence).
+- **Problème (double)** :
+  1. **Application** : aucun fichier `drizzle/manual/*.sql` (0001, 0005, 0006,
+     0010, 0011, et maintenant 0012) n'est **jamais exécuté automatiquement** —
+     ni par `pnpm db:migrate`, ni par aucune CI. Ils doivent être appliqués à
+     la main via `psql -f`.
+  2. **Plus grave, trouvé et corrigé en R-11** : même appliquées, ces policies
+     ne pouvaient rien filtrer. Elles reposent sur `current_agency_id()`, qui
+     lit le GUC de session `app.current_agency_id` — et **aucun code
+     applicatif ne positionnait jamais ce GUC** (`lib/db/client.ts` ouvre une
+     connexion postgres-js directe, sans notion de "session utilisateur" côté
+     Postgres). `is_super_admin()` et les policies `wallets`/
+     `wallet_transactions` de `0006_wallet_rls.sql` dépendaient en plus de
+     `auth.uid()`, qui n'existe que derrière PostgREST/GoTrue — jamais en
+     connexion directe. Concrètement : sur un rôle Postgres propriétaire des
+     tables ou BYPASSRLS (cas par défaut du rôle `postgres` chez Supabase),
+     RLS ne s'appliquait jamais et l'isolation reposait à 100% sur les
+     `WHERE agency_id = ...` applicatifs (aucune défense en profondeur) ; sur
+     un rôle restreint, RLS aurait bloqué même les requêtes légitimes
+     (fail-closed total, `current_agency_id()` valant toujours NULL).
+- **Impact** : Sur un environnement fraîchement provisionné, ~48 tables
+  métier seraient lisibles/écrivables sans isolation par agence tant que (1)
+  et (2) ne sont pas tous deux résolus.
+- **Résolu par R-11** : `drizzle/manual/0012_rls_session_context.sql`
+  (`is_super_admin()` réécrit, `resolve_session_context()` SECURITY DEFINER,
+  policies `wallets`/`wallet_transactions` réécrites, `FORCE ROW LEVEL
+  SECURITY` sur les 48 tables) + `lib/db/tenant-context.ts`
+  (`withTenantContext()`/`runInTenantContext()` posent le GUC via
+  `set_config(..., true)` par transaction). Démontré en conditions réelles sur
+  `createTransferBooking` (`lib/transfers/actions.ts`).
+- **Reste à faire** :
+  1. **Appliquer** sur une vraie base, dans l'ordre : `0001` → `0005` → `0006`
+     → `0010` → `0011` → `0012`, puis vérifier `select * from pg_policies` et
+     `select relforcerowsecurity from pg_class where relname = 'wallets'`.
+  2. **Vérifier/créer le rôle Postgres dédié non-BYPASSRLS** pour
+     `DATABASE_URL` (voir §5 de `0012_rls_session_context.sql`) — sans ça,
+     `FORCE ROW LEVEL SECURITY` ne protège de rien.
+  3. **Migrer les ~39 autres fichiers** qui appellent `getDb()`/`getMarginsForAgency`/etc.
+     directement sans passer par `runInTenantContext()` (ex.
+     `lib/pro/server-context.ts`, `lib/omra/booking-actions.ts`,
+     `lib/admin/*`, `lib/pro/booking-actions.ts`) — `createTransferBooking`
+     n'est qu'une preuve de concept, pas un rollout complet.
+  4. **Décider du chemin pour les lectures publiques/anonymes** (ex.
+     `calculateTransferPrice` en preview de prix sur `/transferts/resultats`,
+     appelée sans utilisateur Supabase authentifié) : `runInTenantContext()`
+     exige une session — il faut soit un `withPublicAgencyContext(agencyId)`
+     dédié (posant le GUC sur l'agence par défaut de
+     `lib/agencies/default-agency.ts` sans exiger de login), soit un rôle
+     Postgres séparé pour les lectures catalogue publiques. **Non fait** :
+     `lib/transfers/pricing.ts` interroge toujours `getDb()` sans contexte, ce
+     qui cassera dès que `FORCE ROW LEVEL SECURITY` sera actif avec un rôle
+     restreint.
+  5. Ajouter des tests RLS automatisés (aucun n'existe aujourd'hui —
+     `pgTAP` ou requêtes Supabase avec JWT de test par agence).
+- **Fichiers** : `drizzle/manual/*.sql`, `lib/db/tenant-context.ts`,
+  `lib/transfers/actions.ts`
+- **Complexité estimée** : Faible (exécution) / Moyenne (rôle Postgres dédié)
+  / Élevée (migrer les ~39 fichiers + décision lectures publiques)
+- **Statut** : Infrastructure et un cas réel réglés (R-11) ; application à une
+  base réelle et rollout aux autres Server Actions **NOT DONE** — nécessite
+  un accès `DATABASE_DIRECT_URL`, absent de cette session.
 
 ### P1-02 — Booking Engine : Vols, Hôtels Monde, Car restent non câblés
 
@@ -76,9 +121,18 @@ Aucun item P0 restant identifié à ce jour. Le build compile, type-check, lint 
     fournisseur absents** — à demander, jamais à contourner par des
     disponibilités/prix inventés (règle §52/59 du brief).
   - **Car** : `CarForm` ne transmet toujours rien et `/car` ne lit aucun
-    `searchParams`. **Aucune table `cars`/`car_rentals` n'existe dans le
-    schéma** — c'est un nouveau module à concevoir (schéma + fournisseur ou
-    inventaire propre), pas une correction de câblage.
+    `searchParams`. Le schéma existe désormais (`lib/db/schema/cars.ts` —
+    car_locations, car_categories, car_fleet_vehicles, car_availability,
+    car_pricing_rates, reservation_car, migration trackée
+    `0010_car_rental_module.sql`, RLS rédigée dans
+    `drizzle/manual/0011_car_rental_rls.sql`), mais **rien n'est encore
+    rempli ni câblé** : pas de Server Action de réservation (l'équivalent de
+    `createTransferBooking`), pas de page `/car` lisant la DB, pas de
+    formulaire réel, et la RLS n'a pas été appliquée à une base réelle. Reste
+    aussi une question produit non tranchée : suivi par véhicule individuel
+    (`car_fleet_vehicles`) ou par pool de catégorie (`car_availability`
+    seul) — le schéma supporte les deux mais l'agence doit choisir son mode
+    opérationnel.
   - **Hôtels Monde** : `HotelsMondeForm`/`app/hotels-monde/page.tsx` ne
     transmettent/lisent toujours rien. Contrairement à Vols/Car, une source
     de données plausible existe déjà (`lib/hotel-search`, actuellement
@@ -87,12 +141,14 @@ Aucun item P0 restant identifié à ce jour. Le build compile, type-check, lint 
     nécessaire avant de câbler.
 - **Fichiers** : `components/booking-engine.tsx` (`VolsForm`, `CarForm`,
   `HotelsMondeForm`), `app/vols/page.tsx`, `app/car/page.tsx`,
-  `app/hotels-monde/page.tsx`, `lib/vols/client.ts`
-- **Complexité estimée** : bloquée pour Vols (accès API requis) ; élevée
-  pour Car (nouveau module de A à Z) ; moyenne pour Hôtels Monde une fois la
-  source de données confirmée
-- **Statut** : NOT IMPLEMENTED (Vols bloqué sur identifiants ; Car et Hôtels
-  Monde nécessitent une décision produit avant tout câblage)
+  `app/hotels-monde/page.tsx`, `lib/vols/client.ts`, `lib/db/schema/cars.ts`
+- **Complexité estimée** : bloquée pour Vols (accès API requis) ; moyenne
+  pour Car (schéma fait, reste Server Action + UI + application RLS +
+  décision flotte/pool) ; moyenne pour Hôtels Monde une fois la source de
+  données confirmée
+- **Statut** : NOT IMPLEMENTED (Vols bloqué sur identifiants ; Car a son
+  schéma mais aucune logique/UI ; Hôtels Monde nécessite une décision
+  produit avant tout câblage)
 - **Tests** : Aucun test E2E n'existe pour ce parcours ; `playwright.config.ts`
   est présent mais son exécution n'a pas été vérifiée cette session.
 
@@ -249,13 +305,18 @@ ne jamais prétendre avoir vérifié ce qui ne l'a pas été) :
 
 ## Prochaines étapes recommandées (par ordre)
 
-1. Appliquer `drizzle/manual/0001_rls_policies.sql` → `0010_*.sql` sur
-   staging et vérifier (P1-01).
-2. Lancer `pnpm test:e2e` et corriger ce qui casse, en particulier les
+1. Appliquer `drizzle/manual/0001_rls_policies.sql` → `0012_rls_session_context.sql`
+   dans l'ordre sur staging, provisionner le rôle Postgres dédié non-BYPASSRLS
+   pour `DATABASE_URL`, et vérifier `pg_policies`/`relforcerowsecurity` (P1-01).
+2. Migrer les Server Actions restantes vers `runInTenantContext()` (au
+   minimum les chemins d'écriture : `lib/omra/booking-actions.ts`,
+   `lib/pro/booking-actions.ts`, `lib/admin/*`) et décider du mécanisme pour
+   les lectures publiques (`lib/transfers/pricing.ts` et équivalents) (P1-01).
+3. Lancer `pnpm test:e2e` et corriger ce qui casse, en particulier les
    nouveaux parcours Omra/Voyages/Transferts (P1-03).
-3. Décider de la source de données Vols (demander les clés API) et Hôtels
-   Monde (Tunisie élargie ou fournisseur séparé) ; concevoir le schéma Car
-   (P1-02).
-4. Créer `/omra/[id]` pour raccrocher `OmraBookingForm` à de vraies données
+4. Décider de la source de données Vols (demander les clés API) et Hôtels
+   Monde (Tunisie élargie ou fournisseur séparé) ; câbler Car (Server Action +
+   UI, schéma déjà fait) (P1-02).
+5. Créer `/omra/[id]` pour raccrocher `OmraBookingForm` à de vraies données
    (P2-01).
-5. `pnpm format` dans un commit dédié (P2-03).
+6. `pnpm format` dans un commit dédié (P2-03).

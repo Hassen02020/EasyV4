@@ -16,15 +16,14 @@
 "use server"
 
 import { eq, and, sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
-import { createServerSupabase } from "@/lib/supabase/server"
+import { runInTenantContext } from "@/lib/db/tenant-context"
+import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   reservations,
   reservationTransfer,
   customers,
   auditEvents,
   catalogTransferZones,
-  users,
 } from "@/lib/db/schema"
 import { walletDebitReservation } from "@/lib/wallet/actions"
 import { calculateTransferPrice } from "./pricing"
@@ -68,12 +67,12 @@ function pad(n: number, w = 6) {
 }
 
 async function nextPublicRef(
-  db: ReturnType<typeof getDb>,
+  tx: DrizzleTransaction,
   agencyId: string,
 ): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `TR-${year}-`
-  const [row] = await db
+  const [row] = await tx
     .select({
       maxRef: sql<string | null>`MAX(${reservations.publicRef})`,
     })
@@ -118,45 +117,28 @@ export async function createTransferBooking(
     return { ok: false, error: "Nombre de passagers invalide (1-50)" }
   }
 
-  // Résoudre agencyId et userId depuis la session — jamais depuis le client
-  let agencyId: string
-  let createdByUserId: string | undefined
+  // Résout la session Supabase + pose le contexte RLS (app.current_agency_id
+  // etc. — voir lib/db/tenant-context.ts) pour toute la transaction ci-dessous.
   try {
-    const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { ok: false, error: "Non authentifié" }
-    const db0 = getDb()
-    const [profile] = await db0
-      .select({ agencyId: users.agencyId })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
-    if (!profile) return { ok: false, error: "Profil utilisateur introuvable" }
-    agencyId = profile.agencyId
-    createdByUserId = user.id
-  } catch {
-    return { ok: false, error: "Erreur d'authentification" }
-  }
+    const outcome = await runInTenantContext(async (tx, ctx) => {
+      if (!ctx.agencyId) {
+        throw new Error("NO_AGENCY")
+      }
+      const agencyId = ctx.agencyId
+      const createdByUserId = ctx.userId
 
-  const db = getDb()
+      const pricing = await calculateTransferPrice({
+        fromZoneId: input.fromZoneId,
+        toZoneId: input.toZoneId,
+        vehicleType: input.vehicleType,
+        pickupDate: input.pickupDate,
+        pickupTime: input.pickupTime,
+        agencyId,
+      })
+      if (!pricing) {
+        throw new Error("NO_PRICING")
+      }
 
-  const pricing = await calculateTransferPrice({
-    fromZoneId: input.fromZoneId,
-    toZoneId: input.toZoneId,
-    vehicleType: input.vehicleType,
-    pickupDate: input.pickupDate,
-    pickupTime: input.pickupTime,
-    agencyId,
-  })
-  if (!pricing) {
-    return {
-      ok: false,
-      error: "Aucun tarif configuré pour cet itinéraire et ce véhicule",
-    }
-  }
-
-  try {
-    const result = await db.transaction(async (tx) => {
       const totalTnd = pricing.totalTnd
 
       /* ------------------------------------------------------------------
@@ -238,7 +220,9 @@ export async function createTransferBooking(
         reservationId,
         amountTnd: totalTnd,
         createdByUserId,
-        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
+        txOverride: tx as Parameters<
+          typeof walletDebitReservation
+        >[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
@@ -295,15 +279,20 @@ export async function createTransferBooking(
       return { reservationId, publicRef, totalTnd }
     })
 
+    if (!outcome.ok) {
+      return { ok: false, error: outcome.error }
+    }
     return {
       ok: true,
-      reservationId: result.reservationId,
-      publicRef: result.publicRef,
-      totalTnd: result.totalTnd,
+      reservationId: outcome.result.reservationId,
+      publicRef: outcome.result.publicRef,
+      totalTnd: outcome.result.totalTnd,
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
+      NO_AGENCY: "Aucune agence rattachée à ce compte",
+      NO_PRICING: "Aucun tarif configuré pour cet itinéraire et ce véhicule",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
     }

@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { users, agencies } from "@/lib/db/schema"
 import { desc, inArray } from "drizzle-orm"
 
@@ -100,32 +100,40 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   suspended: { label: "Suspendu", color: "bg-red-100 text-red-800" },
 }
 
-async function loadUsers() {
+async function loadUsers(userId: string) {
   try {
-    const db = getDb()
-    const allUsers = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        role: users.role,
-        status: users.status,
-        agencyId: users.agencyId,
-        lastLoginAt: users.lastLoginAt,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .orderBy(desc(users.createdAt))
+    // Vue cross-agence (liste tous les utilisateurs, toutes agences) :
+    // is_super_admin=true requis.
+    const { allUsers, agenciesData } = await withTenantContext(
+      { agencyId: null, userId, isSuperAdmin: true },
+      async (db) => {
+        const allUsers = await db
+          .select({
+            id: users.id,
+            email: users.email,
+            name: users.name,
+            role: users.role,
+            status: users.status,
+            agencyId: users.agencyId,
+            lastLoginAt: users.lastLoginAt,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .orderBy(desc(users.createdAt))
 
-    // Récupérer les noms d'agences
-    const agencyIds = allUsers.map((u) => u.agencyId).filter(Boolean)
-    const agenciesData =
-      agencyIds.length > 0
-        ? await db
-            .select({ id: agencies.id, name: agencies.name })
-            .from(agencies)
-            .where(inArray(agencies.id, agencyIds))
-        : []
+        // Récupérer les noms d'agences
+        const agencyIds = allUsers.map((u) => u.agencyId).filter(Boolean)
+        const agenciesData =
+          agencyIds.length > 0
+            ? await db
+                .select({ id: agencies.id, name: agencies.name })
+                .from(agencies)
+                .where(inArray(agencies.id, agencyIds))
+            : []
+
+        return { allUsers, agenciesData }
+      },
+    )
 
     const agencyMap = new Map(agenciesData.map((a) => [a.id, a.name]))
 
@@ -156,7 +164,7 @@ export default async function UsersManagementPage() {
     redirect("/admin")
   }
 
-  const allUsers = await loadUsers()
+  const allUsers = await loadUsers(user.id)
 
   return (
     <div className="space-y-6">

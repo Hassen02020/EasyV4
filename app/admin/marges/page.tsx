@@ -4,7 +4,7 @@
  */
 
 import { Suspense } from "react"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { yieldRules, agencies } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { YieldRulesManager } from "@/components/admin/yield-rules-manager"
@@ -14,16 +14,25 @@ export const metadata = { title: "Gestion des Marges | Admin" }
 
 async function getData() {
   try {
-    const db = getDb()
-    const [agenciesList, rulesList] = await Promise.all([
-      db
-        .select({ id: agencies.id, name: agencies.name, type: agencies.agencyType })
-        .from(agencies)
-        .where(eq(agencies.agencyType, "partner"))
-        .orderBy(agencies.name),
-      db.select().from(yieldRules).orderBy(yieldRules.agencyId),
-    ])
-    return { agencies: agenciesList, rules: rulesList }
+    // Vue cross-agence (toutes les agences partenaires + toutes les règles
+    // de marge) : is_super_admin=true requis. Aucune session à résoudre ici
+    // (userId placeholder) — cette page n'est accessible qu'après le gate
+    // OTA-staff du layout /admin (app/admin/layout.tsx), et aucune policy
+    // sur agencies/yield_rules ne dépend de app.current_user_id.
+    return await withTenantContext(
+      { agencyId: null, userId: "", isSuperAdmin: true },
+      async (db) => {
+        const [agenciesList, rulesList] = await Promise.all([
+          db
+            .select({ id: agencies.id, name: agencies.name, type: agencies.agencyType })
+            .from(agencies)
+            .where(eq(agencies.agencyType, "partner"))
+            .orderBy(agencies.name),
+          db.select().from(yieldRules).orderBy(yieldRules.agencyId),
+        ])
+        return { agencies: agenciesList, rules: rulesList }
+      },
+    )
   } catch {
     return { agencies: [], rules: [] }
   }

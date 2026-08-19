@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { users } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
 
@@ -89,20 +89,23 @@ const ROLE_CONFIG: Record<
 
 async function loadStaff(agencyId: string) {
   try {
-    const db = getDb()
-    const staff = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        role: users.role,
-        status: users.status,
-        lastLoginAt: users.lastLoginAt,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(eq(users.agencyId, agencyId))
-      .orderBy(desc(users.createdAt))
+    const staff = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+        db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: users.role,
+            status: users.status,
+            lastLoginAt: users.lastLoginAt,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .where(eq(users.agencyId, agencyId))
+          .orderBy(desc(users.createdAt)),
+    )
 
     return staff
   } catch (error) {

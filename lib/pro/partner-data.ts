@@ -6,7 +6,7 @@
  */
 
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import {
   agencies,
   customers,
@@ -33,8 +33,6 @@ export async function loadPartnerClients(
 ): Promise<PartnerClient[]> {
   if (!process.env.DATABASE_URL) return []
 
-  const db = getDb()
-
   try {
     const conditions = [eq(customers.agencyId, agencyId)]
     if (search?.trim()) {
@@ -48,7 +46,10 @@ export async function loadPartnerClients(
       )
     }
 
-    const rows = await db
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+    db
       .select({
         id: customers.id,
         firstName: customers.firstName,
@@ -70,7 +71,8 @@ export async function loadPartnerClients(
       .where(and(...conditions))
       .groupBy(customers.id)
       .orderBy(desc(customers.createdAt))
-      .limit(200)
+      .limit(200),
+    )
 
     return rows.map((r) => ({
       id: r.id,
@@ -108,10 +110,11 @@ export async function loadPartnerLedger(
   if (!process.env.DATABASE_URL)
     return { rows: [], currentBalance: 0 }
 
-  const db = getDb()
-
   try {
-    const [movements, balanceRow] = await Promise.all([
+    const [movements, balanceRow] = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+        Promise.all([
       db
         .select({
           id: partnerCreditMovements.id,
@@ -132,7 +135,8 @@ export async function loadPartnerLedger(
         .from(agencies)
         .where(eq(agencies.id, agencyId))
         .limit(1),
-    ])
+        ]),
+    )
 
     const currentBalance = parseFloat(
       (balanceRow[0]?.balance as string | null) ?? "0",
@@ -183,10 +187,11 @@ export async function loadPartnerPayments(
 ): Promise<PartnerPayment[]> {
   if (!process.env.DATABASE_URL) return []
 
-  const db = getDb()
-
   try {
-    const rows = await db
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+    db
       .select({
         id: walletRechargeRequests.id,
         amount: walletRechargeRequests.amount,
@@ -201,7 +206,8 @@ export async function loadPartnerPayments(
       .from(walletRechargeRequests)
       .where(eq(walletRechargeRequests.agencyId, agencyId))
       .orderBy(desc(walletRechargeRequests.createdAt))
-      .limit(100)
+      .limit(100),
+    )
 
     return rows.map((r) => ({
       id: r.id,

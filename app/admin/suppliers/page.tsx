@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { suppliers, supplierStatus, supplierType } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 
@@ -93,8 +93,14 @@ export default async function SuppliersPage() {
     redirect("/admin")
   }
 
-  const db = getDb()
-  const supplierList = await db.select().from(suppliers).orderBy(suppliers.name)
+  // suppliers est une ressource plateforme (pas d'agency_id) ; sa policy RLS
+  // (0013_suppliers_policy_fix.sql) accepte tout contexte authentifié réel,
+  // pas seulement super_admin — un userId réel suffit, pas besoin d'inflater
+  // isSuperAdmin.
+  const supplierList = await withTenantContext(
+    { agencyId: profile.agencyId, userId: user.id, isSuperAdmin: false },
+    (db) => db.select().from(suppliers).orderBy(suppliers.name),
+  )
 
   return (
     <div className="space-y-6">

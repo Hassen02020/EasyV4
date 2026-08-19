@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, users } from "@/lib/db/schema"
 import { desc, count } from "drizzle-orm"
 import { logger } from "@/lib/logger"
@@ -28,36 +28,40 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 
-async function loadAgencies() {
+async function loadAgencies(userId: string) {
   try {
-    const db = getDb()
+    // Vue cross-agence (super_admin uniquement) : is_super_admin=true requis.
+    const [allAgencies, userCounts] = await withTenantContext(
+      { agencyId: null, userId, isSuperAdmin: true },
+      (db) =>
+        Promise.all([
+          db
+            .select({
+              id: agencies.id,
+              name: agencies.name,
+              slug: agencies.slug,
+              brandName: agencies.brandName,
+              agencyType: agencies.agencyType,
+              contactEmail: agencies.contactEmail,
+              contactPhone: agencies.contactPhone,
+              depositBalance: agencies.depositBalance,
+              creditLowThreshold: agencies.creditLowThreshold,
+              status: agencies.status,
+              createdAt: agencies.createdAt,
+            })
+            .from(agencies)
+            .orderBy(desc(agencies.createdAt)),
 
-    // Agences avec compte d'utilisateurs
-    const allAgencies = await db
-      .select({
-        id: agencies.id,
-        name: agencies.name,
-        slug: agencies.slug,
-        brandName: agencies.brandName,
-        agencyType: agencies.agencyType,
-        contactEmail: agencies.contactEmail,
-        contactPhone: agencies.contactPhone,
-        depositBalance: agencies.depositBalance,
-        creditLowThreshold: agencies.creditLowThreshold,
-        status: agencies.status,
-        createdAt: agencies.createdAt,
-      })
-      .from(agencies)
-      .orderBy(desc(agencies.createdAt))
-
-    // Compter les utilisateurs par agence
-    const userCounts = await db
-      .select({
-        agencyId: users.agencyId,
-        count: count(users.id),
-      })
-      .from(users)
-      .groupBy(users.agencyId)
+          // Compter les utilisateurs par agence
+          db
+            .select({
+              agencyId: users.agencyId,
+              count: count(users.id),
+            })
+            .from(users)
+            .groupBy(users.agencyId),
+        ]),
+    )
 
     const userCountMap = new Map(userCounts.map((u) => [u.agencyId, u.count]))
 
@@ -89,7 +93,7 @@ export default async function AgenciesManagementPage() {
     redirect("/admin")
   }
 
-  const allAgencies = await loadAgencies()
+  const allAgencies = await loadAgencies(user.id)
 
   const otaCount = allAgencies.filter((a) => a.agencyType === "ota").length
   const partnerCount = allAgencies.filter(

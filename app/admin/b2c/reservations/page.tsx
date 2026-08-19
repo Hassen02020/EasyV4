@@ -58,7 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
 import { desc, eq, and, or, like, inArray } from "drizzle-orm"
 
@@ -125,44 +125,55 @@ const STATUS_CONFIG: Record<
   },
 }
 
-async function loadReservations(search?: string, status?: string) {
+async function loadReservations(
+  agencyId: string,
+  search?: string,
+  status?: string,
+) {
   try {
-    const db = getDb()
+    const { allReservations, customersData } = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      async (db) => {
+        // Page "B2C" = réservations de l'agence OTA elle-même, jamais
+        // cross-tenant — la requête d'origine n'avait AUCUN filtre agencyId
+        // (même bug de fuite cross-tenant préexistant que loadClients()
+        // dans app/admin/b2c/clients/page.tsx, corrigé ici de la même façon).
+        const allReservations = await db
+          .select({
+            id: reservations.id,
+            publicRef: reservations.publicRef,
+            module: reservations.module,
+            status: reservations.status,
+            originalAmount: reservations.originalAmount,
+            originalCurrency: reservations.originalCurrency,
+            tndAmount: reservations.tndAmount,
+            createdAt: reservations.createdAt,
+            customerId: reservations.customerId,
+          })
+          .from(reservations)
+          .where(eq(reservations.agencyId, agencyId))
+          .orderBy(desc(reservations.createdAt))
+          .limit(100)
 
-    const query = db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        module: reservations.module,
-        status: reservations.status,
-        originalAmount: reservations.originalAmount,
-        originalCurrency: reservations.originalCurrency,
-        tndAmount: reservations.tndAmount,
-        createdAt: reservations.createdAt,
-        customerId: reservations.customerId,
-      })
-      .from(reservations)
+        // Récupérer les clients
+        const customerIds = allReservations.map((r) => r.customerId).filter(Boolean)
+        const customersData =
+          customerIds.length > 0
+            ? await db
+                .select({
+                  id: customers.id,
+                  firstName: customers.firstName,
+                  lastName: customers.lastName,
+                  email: customers.email,
+                  phone: customers.phone,
+                })
+                .from(customers)
+                .where(inArray(customers.id, customerIds))
+            : []
 
-    // Jointure avec customers
-    const allReservations = await query
-      .orderBy(desc(reservations.createdAt))
-      .limit(100)
-
-    // Récupérer les clients
-    const customerIds = allReservations.map((r) => r.customerId).filter(Boolean)
-    const customersData =
-      customerIds.length > 0
-        ? await db
-            .select({
-              id: customers.id,
-              firstName: customers.firstName,
-              lastName: customers.lastName,
-              email: customers.email,
-              phone: customers.phone,
-            })
-            .from(customers)
-            .where(inArray(customers.id, customerIds))
-        : []
+        return { allReservations, customersData }
+      },
+    )
 
     const customerMap = new Map(customersData.map((c) => [c.id, c]))
 
@@ -206,7 +217,7 @@ export default async function B2CReservationsPage({
     redirect("/admin")
   }
 
-  const allReservations = await loadReservations(search, status)
+  const allReservations = await loadReservations(profile.agencyId, search, status)
 
   // Filtrer par status si spécifié
   const filteredReservations = status

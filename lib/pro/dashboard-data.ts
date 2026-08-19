@@ -6,7 +6,7 @@
  */
 
 import { and, eq, gte, sql, count } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, agencies } from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
 
@@ -41,11 +41,13 @@ export async function loadPartnerDashboard(
 
   if (!process.env.DATABASE_URL) return empty
 
-  const db = getDb()
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
   try {
-    const [statsRows, pendingRows, agencyRow] = await Promise.all([
+    const [statsRows, pendingRows, agencyRow] = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+        Promise.all([
       db
         .select({
           cnt: count(reservations.id),
@@ -74,7 +76,8 @@ export async function loadPartnerDashboard(
         .from(agencies)
         .where(eq(agencies.id, agencyId))
         .limit(1),
-    ])
+        ]),
+    )
 
     const stats = statsRows[0]
     const pending = pendingRows[0]

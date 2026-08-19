@@ -10,25 +10,13 @@
 import { redirect } from "next/navigation"
 import {
   AdminShell,
-  type AdminShellRole,
   type AdminShellUser,
 } from "@/components/admin-shell"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import { isAdminRole, isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 
 export const dynamic = "force-dynamic"
-
-const ADMIN_ROLES: ReadonlySet<AdminShellRole> = new Set([
-  "super_admin",
-  "manager",
-  "agent_resa",
-  "agent_compta",
-  "agent_excursions",
-])
-
-function isAdminRole(role: string | undefined): role is AdminShellRole {
-  return !!role && ADMIN_ROLES.has(role as AdminShellRole)
-}
 
 function computeInitials(input: string): string {
   const trimmed = input.trim()
@@ -55,12 +43,10 @@ export default async function AdminLayout({
 
   const profile = await getCurrentAdminProfile(user.id)
 
-  // Si l'utilisateur est en réalité un partenaire B2B, on le renvoie vers
-  // l'espace Pro plutôt que de l'admettre au back-office staff.
-  if (
-    profile &&
-    (profile.role === "partner_owner" || profile.role === "partner_agent")
-  ) {
+  // Defense-in-depth : même frontière que le middleware (lib/auth/admin-gate.ts).
+  // Un profil résolu mais qui ne satisfait pas isAllowedIntoAdmin (agence
+  // partenaire, ou rôle non-staff) est renvoyé vers /pro plutôt que /admin.
+  if (profile && !isAllowedIntoAdmin(profile.role, profile.agencyType)) {
     redirect("/pro")
   }
 

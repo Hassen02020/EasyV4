@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { customers, reservations } from "@/lib/db/schema"
 import { desc, eq, count } from "drizzle-orm"
 
@@ -60,34 +60,46 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic"
 
-async function loadClients() {
+async function loadClients(agencyId: string) {
   try {
-    const db = getDb()
+    const [allCustomers, reservationCounts] = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+        Promise.all([
+          db
+            .select({
+              id: customers.id,
+              firstName: customers.firstName,
+              lastName: customers.lastName,
+              email: customers.email,
+              phone: customers.phone,
+              civicId: customers.civicId,
+              country: customers.country,
+              city: customers.city,
+              createdAt: customers.createdAt,
+            })
+            .from(customers)
+            // Cette page est "B2C" = clients de l'agence OTA elle-même,
+            // jamais cross-tenant — la requête d'origine n'avait AUCUN
+            // filtre agencyId (bug préexistant de fuite cross-tenant sous
+            // l'ancien rôle bypass-RLS ; RLS le masquait accidentellement
+            // depuis le déploiement de FORCE ROW LEVEL SECURITY en renvoyant
+            // 0 ligne). Corrigé ici en même temps que le contexte tenant.
+            .where(eq(customers.agencyId, agencyId))
+            .orderBy(desc(customers.createdAt))
+            .limit(100),
 
-    const allCustomers = await db
-      .select({
-        id: customers.id,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        phone: customers.phone,
-        civicId: customers.civicId,
-        country: customers.country,
-        city: customers.city,
-        createdAt: customers.createdAt,
-      })
-      .from(customers)
-      .orderBy(desc(customers.createdAt))
-      .limit(100)
-
-    // Compter les réservations par client
-    const reservationCounts = await db
-      .select({
-        customerId: reservations.customerId,
-        count: count(reservations.id),
-      })
-      .from(reservations)
-      .groupBy(reservations.customerId)
+          // Compter les réservations par client (même agence)
+          db
+            .select({
+              customerId: reservations.customerId,
+              count: count(reservations.id),
+            })
+            .from(reservations)
+            .where(eq(reservations.agencyId, agencyId))
+            .groupBy(reservations.customerId),
+        ]),
+    )
 
     const reservationMap = new Map(
       reservationCounts.map((r) => [r.customerId, r.count]),
@@ -119,7 +131,7 @@ export default async function B2CClientsPage() {
     redirect("/admin")
   }
 
-  const clients = await loadClients()
+  const clients = await loadClients(profile.agencyId)
 
   const stats = {
     total: clients.length,

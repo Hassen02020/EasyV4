@@ -52,12 +52,15 @@ export default async function NewSupplierPage() {
     role: profile.role as AdminShellRole,
   }
 
+  const creatorUserId = user.id
+  const creatorAgencyId = profile.agencyId
+
   async function createSupplier(formData: FormData) {
     "use server"
-    
-    const db = (await import("@/lib/db/client")).getDb()
+
+    const { withTenantContext } = await import("@/lib/db/tenant-context")
     const { suppliers } = await import("@/lib/db/schema")
-    
+
     const supplierData = {
       name: formData.get("name") as string,
       type: formData.get("type") as "mygo" | "amadeus" | "sabre" | "expedia" | "booking" | "travelgate" | "hotelbeds" | "custom",
@@ -77,7 +80,13 @@ export default async function NewSupplierPage() {
       status: "inactive" as const,
     }
 
-    await db.insert(suppliers).values(supplierData)
+    // suppliers est une ressource plateforme (pas d'agency_id) ; sa policy
+    // RLS (0013_suppliers_policy_fix.sql) accepte tout contexte authentifié
+    // réel, pas seulement super_admin.
+    await withTenantContext(
+      { agencyId: creatorAgencyId, userId: creatorUserId, isSuperAdmin: false },
+      (db) => db.insert(suppliers).values(supplierData),
+    )
     redirect("/admin/suppliers")
   }
 

@@ -54,7 +54,7 @@ import {
 } from "@/components/ui/select"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, reservationValidations, customers, validationStatus } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
 
@@ -95,20 +95,27 @@ export default async function ValidationsPage({
   }
 
   const params = (await searchParams) ?? {}
-  const db = getDb()
 
-  // Récupérer les réservations avec leurs validations
-  const validationList = await db
-    .select({
-      reservation: reservations,
-      validation: reservationValidations,
-      customer: customers,
-    })
-    .from(reservations)
-    .leftJoin(reservationValidations, eq(reservations.id, reservationValidations.reservationId))
-    .leftJoin(customers, eq(reservations.customerId, customers.id))
-    .orderBy(desc(reservations.createdAt))
-    .limit(50)
+  // Requête d'origine sans filtre agencyId (même bug de fuite cross-tenant
+  // préexistant que app/admin/b2c/*, corrigé ici en même temps que le
+  // contexte tenant) — la file de validation est celle de l'agence OTA de
+  // l'admin connecté, jamais cross-tenant.
+  const validationList = await withTenantContext(
+    { agencyId: profile.agencyId, userId: user.id, isSuperAdmin: false },
+    (db) =>
+      db
+        .select({
+          reservation: reservations,
+          validation: reservationValidations,
+          customer: customers,
+        })
+        .from(reservations)
+        .leftJoin(reservationValidations, eq(reservations.id, reservationValidations.reservationId))
+        .leftJoin(customers, eq(reservations.customerId, customers.id))
+        .where(eq(reservations.agencyId, profile.agencyId))
+        .orderBy(desc(reservations.createdAt))
+        .limit(50),
+  )
 
   // Filtrer par statut si spécifié
   const filteredValidations = params.status

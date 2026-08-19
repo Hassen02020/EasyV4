@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/table"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { walletRechargeRequests, agencies, users } from "@/lib/db/schema"
 import { AdminRechargeActions } from "@/components/admin/recharge-actions"
 
@@ -83,26 +83,31 @@ export default async function AdminRechargesPage() {
     redirect("/admin")
   }
 
-  const db = getDb()
-  const requests = await db
-    .select({
-      id: walletRechargeRequests.id,
-      amount: walletRechargeRequests.amount,
-      method: walletRechargeRequests.method,
-      paymentReference: walletRechargeRequests.paymentReference,
-      proofUrl: walletRechargeRequests.proofUrl,
-      note: walletRechargeRequests.note,
-      status: walletRechargeRequests.status,
-      rejectionReason: walletRechargeRequests.rejectionReason,
-      createdAt: walletRechargeRequests.createdAt,
-      reviewedAt: walletRechargeRequests.reviewedAt,
-      agencyName: agencies.name,
-      agencyId: walletRechargeRequests.agencyId,
-    })
-    .from(walletRechargeRequests)
-    .leftJoin(agencies, eq(walletRechargeRequests.agencyId, agencies.id))
-    .orderBy(desc(walletRechargeRequests.createdAt))
-    .limit(50)
+  // Vue cross-agence (file de recharges à valider, toutes agences) :
+  // is_super_admin=true requis.
+  const requests = await withTenantContext(
+    { agencyId: null, userId: user.id, isSuperAdmin: true },
+    (db) =>
+      db
+        .select({
+          id: walletRechargeRequests.id,
+          amount: walletRechargeRequests.amount,
+          method: walletRechargeRequests.method,
+          paymentReference: walletRechargeRequests.paymentReference,
+          proofUrl: walletRechargeRequests.proofUrl,
+          note: walletRechargeRequests.note,
+          status: walletRechargeRequests.status,
+          rejectionReason: walletRechargeRequests.rejectionReason,
+          createdAt: walletRechargeRequests.createdAt,
+          reviewedAt: walletRechargeRequests.reviewedAt,
+          agencyName: agencies.name,
+          agencyId: walletRechargeRequests.agencyId,
+        })
+        .from(walletRechargeRequests)
+        .leftJoin(agencies, eq(walletRechargeRequests.agencyId, agencies.id))
+        .orderBy(desc(walletRechargeRequests.createdAt))
+        .limit(50),
+  )
 
   const pendingCount = requests.filter((r) => r.status === "pending").length
 

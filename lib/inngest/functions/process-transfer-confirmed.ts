@@ -6,19 +6,22 @@
  *  2. Envoie SMS Twilio au chauffeur si TWILIO_* configuré.
  */
 
-import { inngest } from "@/lib/inngest/client"
+import { inngest, type Events } from "@/lib/inngest/client"
 import { Resend } from "resend"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _inngest = inngest as any
-
-export const processTransferConfirmed = _inngest.createFunction(
+export const processTransferConfirmed = inngest.createFunction(
   {
     id: "process-transfer-confirmed",
     name: "Transfert confirmé — notifications",
     triggers: { event: "booking/transfer.confirmed" },
   },
-  async ({ event, step }: any) => {
+  async ({
+    event,
+    step,
+  }: {
+    event: { data: Events["booking/transfer.confirmed"]["data"] }
+    step: { run: <T>(name: string, fn: () => Promise<T>) => Promise<T> }
+  }) => {
     const d = event.data
 
     await step.run("send-client-email", async () => {

@@ -32,6 +32,10 @@ import {
 
 import dynamic from "next/dynamic"
 
+import { toast } from "sonner"
+
+import type { CatalogTransferZone } from "@/lib/db/schema"
+
 import { useT } from "@/components/locale-context"
 
 const HotelsTunisieSearch = dynamic(
@@ -118,7 +122,11 @@ type TabId = (typeof tabsConfig)[number]["id"]
 const HERO_BG_URL =
   "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
 
-export function BookingEngine() {
+export function BookingEngine({
+  transferZones = [],
+}: {
+  transferZones?: CatalogTransferZone[]
+}) {
   const [activeTab, setActiveTab] = useState<TabId>("vols")
   const t = useT()
 
@@ -160,7 +168,7 @@ export function BookingEngine() {
                   <Icon className="size-5" />
 
                   <span className="text-xs whitespace-nowrap sm:text-sm">
-                    {t(tab.labelKey as any)}
+                    {t(tab.labelKey)}
                   </span>
                 </button>
               )
@@ -180,7 +188,7 @@ export function BookingEngine() {
 
             {activeTab === "voyages-organises" && <VoyagesOrganisesForm />}
 
-            {activeTab === "transferts" && <TransfertsForm />}
+            {activeTab === "transferts" && <TransfertsForm zones={transferZones} />}
 
             {activeTab === "car" && <CarForm />}
           </div>
@@ -248,7 +256,7 @@ function VolsForm() {
           <div className="relative">
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input defaultValue="Tunis (TUN)" className="rounded-xl pl-9" />
+            <Input name="origin" defaultValue="Tunis (TUN)" className="rounded-xl pl-9" />
           </div>
         </div>
 
@@ -258,7 +266,7 @@ function VolsForm() {
           <div className="relative">
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input defaultValue="Istanbul (IST)" className="rounded-xl pl-9" />
+            <Input name="destination" defaultValue="Istanbul (IST)" className="rounded-xl pl-9" />
           </div>
         </div>
 
@@ -365,32 +373,61 @@ function HotelsMondeForm() {
   )
 }
 
+// Doit correspondre à l'enum omra_package_type réel (lib/db/schema/omra.ts)
+// pour que le filtre passé à /omra matche de vrais packages.
+const OMRA_PROGRAMMES = [
+  { value: "omra", label: "Omra" },
+  { value: "ramadan", label: "Omra Ramadan" },
+  { value: "umrah_plus", label: "Omra + Ziarat étendu" },
+  { value: "hajj", label: "Hajj" },
+]
+
+const OMRA_MONTHS = [
+  { value: "1", label: "Janvier" },
+  { value: "2", label: "Février" },
+  { value: "3", label: "Mars" },
+  { value: "4", label: "Avril" },
+  { value: "5", label: "Mai" },
+  { value: "6", label: "Juin" },
+  { value: "7", label: "Juillet" },
+  { value: "8", label: "Août" },
+  { value: "9", label: "Septembre" },
+  { value: "10", label: "Octobre" },
+  { value: "11", label: "Novembre" },
+  { value: "12", label: "Décembre" },
+]
+
 function OmratyForm() {
   const router = useRouter()
+  const [programme, setProgramme] = useState("")
+  const [month, setMonth] = useState("")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        router.push("/omra")
+        const params = new URLSearchParams()
+        if (programme) params.set("programme", programme)
+        if (month) params.set("month", month)
+        router.push(`/omra?${params.toString()}`)
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <FieldLabel>Programme</FieldLabel>
 
-          <Select defaultValue="economique">
+          <Select value={programme} onValueChange={setProgramme}>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Sélectionner" />
+              <SelectValue placeholder="Tous programmes" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="economique">Économique</SelectItem>
-
-              <SelectItem value="confort">Confort</SelectItem>
-
-              <SelectItem value="prestige">Prestige</SelectItem>
+              {OMRA_PROGRAMMES.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -398,53 +435,17 @@ function OmratyForm() {
         <div className="space-y-1.5">
           <FieldLabel>Mois de départ</FieldLabel>
 
-          <Select>
+          <Select value={month} onValueChange={setMonth}>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Choisir le mois" />
+              <SelectValue placeholder="Tous les mois" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="jan">Janvier 2026</SelectItem>
-
-              <SelectItem value="feb">Février 2026</SelectItem>
-
-              <SelectItem value="mar">Mars 2026</SelectItem>
-
-              <SelectItem value="apr">Avril 2026</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <FieldLabel>Distance Haram</FieldLabel>
-
-          <Select defaultValue="400">
-            <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Distance" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="400">400m à pied</SelectItem>
-
-              <SelectItem value="600">600m à pied</SelectItem>
-
-              <SelectItem value="1000">1km à pied</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <FieldLabel>Type de vol</FieldLabel>
-
-          <Select defaultValue="direct">
-            <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Type de vol" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="direct">Vol direct</SelectItem>
-
-              <SelectItem value="escale">Avec escale</SelectItem>
+              {OMRA_MONTHS.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -457,71 +458,79 @@ function OmratyForm() {
   )
 }
 
+// Doit correspondre aux clés DESTINATION_SEARCH_TERMS de app/packages/page.tsx
+// (recherche par ILIKE sur le titre — pas de colonne destination dédiée).
+const PACKAGE_DESTINATIONS = [
+  { value: "istanbul", label: "Istanbul" },
+  { value: "dubai", label: "Dubaï" },
+  { value: "paris", label: "Paris" },
+  { value: "rome", label: "Rome" },
+  { value: "barcelona", label: "Barcelone" },
+  { value: "london", label: "Londres" },
+  { value: "cairo", label: "Le Caire" },
+  { value: "casablanca", label: "Casablanca" },
+]
+
+// Doit correspondre aux plages lues par parseDurationRange() dans
+// app/packages/page.tsx.
+const PACKAGE_DURATIONS = [
+  { value: "3-5", label: "3 à 5 jours" },
+  { value: "6-8", label: "6 à 8 jours" },
+  { value: "9-12", label: "9 à 12 jours" },
+  { value: "13+", label: "13 jours et plus" },
+]
+
 function VoyagesOrganisesForm() {
   const router = useRouter()
+  const [destination, setDestination] = useState("")
+  const [duration, setDuration] = useState("")
+  const [travelers, setTravelers] = useState("2")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        router.push("/packages")
+        const params = new URLSearchParams()
+        if (destination) params.set("destination", destination)
+        if (duration) params.set("duration", duration)
+        if (travelers) params.set("travelers", travelers)
+        router.push(`/packages?${params.toString()}`)
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <FieldLabel>Destination</FieldLabel>
 
-          <Select>
+          <Select value={destination} onValueChange={setDestination}>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Choisir une destination" />
+              <SelectValue placeholder="Toutes destinations" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="turquie">Turquie</SelectItem>
-
-              <SelectItem value="egypte">Égypte</SelectItem>
-
-              <SelectItem value="dubai">Dubaï</SelectItem>
-
-              <SelectItem value="malaisie">Malaisie</SelectItem>
-
-              <SelectItem value="thailande">Thaïlande</SelectItem>
+              {PACKAGE_DESTINATIONS.map((d) => (
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-1.5">
-          <FieldLabel>Période</FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              placeholder="Choisir la période"
-              className="rounded-xl pl-9"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
           <FieldLabel>Durée</FieldLabel>
 
-          <Select defaultValue="7">
+          <Select value={duration} onValueChange={setDuration}>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Durée" />
+              <SelectValue placeholder="Toutes durées" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="3">3 jours / 2 nuits</SelectItem>
-
-              <SelectItem value="5">5 jours / 4 nuits</SelectItem>
-
-              <SelectItem value="7">7 jours / 6 nuits</SelectItem>
-
-              <SelectItem value="10">10 jours / 9 nuits</SelectItem>
-
-              <SelectItem value="14">14 jours / 13 nuits</SelectItem>
+              {PACKAGE_DURATIONS.map((d) => (
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -529,21 +538,17 @@ function VoyagesOrganisesForm() {
         <div className="space-y-1.5">
           <FieldLabel>Voyageurs</FieldLabel>
 
-          <Select defaultValue="2">
+          <Select value={travelers} onValueChange={setTravelers}>
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Voyageurs" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="1">1 Voyageur</SelectItem>
-
-              <SelectItem value="2">2 Voyageurs</SelectItem>
-
-              <SelectItem value="3">3 Voyageurs</SelectItem>
-
-              <SelectItem value="4">4 Voyageurs</SelectItem>
-
-              <SelectItem value="5">5+ Voyageurs</SelectItem>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} Voyageur{n > 1 ? "s" : ""}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -556,14 +561,42 @@ function VoyagesOrganisesForm() {
   )
 }
 
-function TransfertsForm() {
+/** Heure de prise en charge par défaut pour la recherche rapide (affinable sur /transferts/resultats). */
+const TRANSFER_DEFAULT_TIME = "10:00"
+const TRANSFER_DEFAULT_VEHICLE = "sedan"
+
+function TransfertsForm({ zones }: { zones: CatalogTransferZone[] }) {
   const router = useRouter()
+  const [fromZone, setFromZone] = useState("")
+  const [toZone, setToZone] = useState("")
+  const [date, setDate] = useState("")
+  const [pax, setPax] = useState("2")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        router.push("/transferts")
+        if (!fromZone || !toZone) {
+          toast.error("Veuillez sélectionner le lieu de prise en charge et de dépose.")
+          return
+        }
+        if (!date) {
+          toast.error("Veuillez sélectionner une date.")
+          return
+        }
+        if (fromZone === toZone) {
+          toast.error("Le lieu de départ et d'arrivée doivent être différents.")
+          return
+        }
+        const params = new URLSearchParams({
+          from: fromZone,
+          to: toZone,
+          vehicle: TRANSFER_DEFAULT_VEHICLE,
+          date,
+          time: TRANSFER_DEFAULT_TIME,
+          pax,
+        })
+        router.push(`/transferts/resultats?${params.toString()}`)
       }}
       className="space-y-4"
     >
@@ -571,21 +604,23 @@ function TransfertsForm() {
         <div className="space-y-1.5">
           <FieldLabel>Lieu de prise en charge</FieldLabel>
 
-          <Select>
+          <Select value={fromZone} onValueChange={setFromZone}>
             <SelectTrigger className="w-full rounded-xl">
-              <SelectValue placeholder="Aéroport / Port" />
+              <SelectValue placeholder="Choisir une zone" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="tunis-airport">
-                Aéroport Tunis-Carthage
-              </SelectItem>
-
-              <SelectItem value="enfidha">Aéroport Enfidha</SelectItem>
-
-              <SelectItem value="djerba-airport">Aéroport Djerba</SelectItem>
-
-              <SelectItem value="monastir">Aéroport Monastir</SelectItem>
+              {zones.length === 0 ? (
+                <SelectItem value="_" disabled>
+                  Aucune zone disponible
+                </SelectItem>
+              ) : (
+                zones.map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -593,41 +628,53 @@ function TransfertsForm() {
         <div className="space-y-1.5">
           <FieldLabel>Lieu de dépose</FieldLabel>
 
-          <div className="relative">
-            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Select value={toZone} onValueChange={setToZone}>
+            <SelectTrigger className="w-full rounded-xl">
+              <SelectValue placeholder="Choisir une zone" />
+            </SelectTrigger>
 
-            <Input placeholder="Hôtel ou adresse" className="rounded-xl pl-9" />
-          </div>
+            <SelectContent>
+              {zones
+                .filter((z) => z.id !== fromZone)
+                .map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-1.5">
-          <FieldLabel>Date et heure</FieldLabel>
+          <FieldLabel>Date</FieldLabel>
 
           <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input placeholder="Date d'arrivée" className="rounded-xl pl-9" />
+            <Input
+              type="date"
+              value={date}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <FieldLabel>Passagers</FieldLabel>
 
-          <Select defaultValue="2">
+          <Select value={pax} onValueChange={setPax}>
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Passagers" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="1">1 Passager</SelectItem>
-
-              <SelectItem value="2">2 Passagers</SelectItem>
-
-              <SelectItem value="3">3 Passagers</SelectItem>
-
-              <SelectItem value="4">4 Passagers</SelectItem>
-
-              <SelectItem value="5">5+ Passagers</SelectItem>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} Passager{n > 1 ? "s" : ""}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

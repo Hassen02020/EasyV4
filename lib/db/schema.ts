@@ -88,6 +88,7 @@ export const reservationModule = pgEnum("reservation_module", [
   "activity",
   "transfer",
   "omra",
+  "car",
 ])
 
 export const reservationSource = pgEnum("reservation_source", [
@@ -1521,6 +1522,7 @@ export type Agency = typeof agencies.$inferSelect
 export type NewAgency = typeof agencies.$inferInsert
 export type User = typeof users.$inferSelect
 export type Customer = typeof customers.$inferSelect
+export type NewCustomer = typeof customers.$inferInsert
 export type Reservation = typeof reservations.$inferSelect
 export type NewReservation = typeof reservations.$inferInsert
 export type Payment = typeof payments.$inferSelect
@@ -1823,3 +1825,32 @@ export {
 export {
   auditAction,
 } from "./schema/audit"
+
+/* -------------------------------------------------------------------------- */
+/* Car Rental Module — imported from schema/cars.ts                            */
+/* -------------------------------------------------------------------------- */
+
+export {
+  carLocations,
+  carCategories,
+  carFleetVehicles,
+  carAvailability,
+  carPricingRates,
+  reservationCar,
+  carTransmissionType,
+  carFuelType,
+  carFleetStatus,
+  carInsuranceLevel,
+  type CarLocation,
+  type NewCarLocation,
+  type CarCategory,
+  type NewCarCategory,
+  type CarFleetVehicle,
+  type NewCarFleetVehicle,
+  type CarAvailability,
+  type NewCarAvailability,
+  type CarPricingRate,
+  type NewCarPricingRate,
+  type ReservationCar,
+  type NewReservationCar,
+} from "./schema/cars"

@@ -3,8 +3,7 @@
 import {
   createContext,
   useContext,
-  useState,
-  useEffect,
+  useSyncExternalStore,
   type ReactNode,
 } from "react"
 import {
@@ -27,24 +26,39 @@ interface CurrencyContextValue {
 
 const CurrencyContext = createContext<CurrencyContextValue | null>(null)
 
+/**
+ * Store externe (localStorage) partagé via useSyncExternalStore : évite le
+ * double-rendu (defaut → valeur stockée) qu'un useEffect + setState causerait
+ * au montage.
+ */
+const listeners = new Set<() => void>()
+
+function subscribe(callback: () => void) {
+  listeners.add(callback)
+  return () => listeners.delete(callback)
+}
+
+function getSnapshot(): Currency {
+  return parseCurrency(localStorage.getItem(CURRENCY_STORAGE_KEY))
+}
+
+function getServerSnapshot(): Currency {
+  return DEFAULT_CURRENCY
+}
+
+function setStoredCurrency(c: Currency) {
+  localStorage.setItem(CURRENCY_STORAGE_KEY, c)
+  listeners.forEach((listener) => listener())
+}
+
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currency, setCurrencyState] = useState<Currency>(DEFAULT_CURRENCY)
-
-  useEffect(() => {
-    const stored = parseCurrency(localStorage.getItem(CURRENCY_STORAGE_KEY))
-    setCurrencyState(stored)
-  }, [])
-
-  const setCurrency = (c: Currency) => {
-    setCurrencyState(c)
-    localStorage.setItem(CURRENCY_STORAGE_KEY, c)
-  }
+  const currency = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
   return (
     <CurrencyContext.Provider
       value={{
         currency,
-        setCurrency,
+        setCurrency: setStoredCurrency,
         meta: CURRENCY_META[currency],
         format: (amountTND: number) => formatCurrency(amountTND, currency),
       }}

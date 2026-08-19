@@ -52,10 +52,6 @@ export default function MarginsDashboardPage() {
     to: new Date(),
   })
 
-  useEffect(() => {
-    loadKPIs()
-  }, [dateRange])
-
   const loadKPIs = async () => {
     setLoading(true)
     try {
@@ -68,6 +64,12 @@ export default function MarginsDashboardPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount/dateRange change; loadKPIs manages its own loading state
+    loadKPIs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadKPIs is stable for the lifetime of this component (recreated each render but reads current dateRange via closure)
+  }, [dateRange])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("fr-TN", {
@@ -149,7 +151,7 @@ export default function MarginsDashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Chiffre d'affaires
+                  Chiffre d&apos;affaires
                 </CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -196,7 +198,7 @@ export default function MarginsDashboardPage() {
                   {formatPercent(kpis.averageMarginPercent)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Sur le chiffre d'affaires
+                  Sur le chiffre d&apos;affaires
                 </p>
               </CardContent>
             </Card>
@@ -222,7 +224,7 @@ export default function MarginsDashboardPage() {
           {/* Tabs */}
           <Tabs defaultValue="overview" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+              <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
               <TabsTrigger value="suppliers">Par fournisseur</TabsTrigger>
               <TabsTrigger value="products">Par type</TabsTrigger>
               <TabsTrigger value="top">Top marges</TabsTrigger>
@@ -235,7 +237,7 @@ export default function MarginsDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Graphique d'évolution des marges dans le temps (à implémenter)
+                    Graphique d&apos;évolution des marges dans le temps (à implémenter)
                   </p>
                 </CardContent>
               </Card>

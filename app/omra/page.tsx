@@ -9,8 +9,8 @@ import { Footer } from "@/components/footer"
 import { OmraSearch } from "@/components/omra/omra-search"
 import { OmraPackageList } from "@/components/omra/omra-package-list"
 import { getDb } from "@/lib/db/client"
-import { omraPackages } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
+import { and, eq, gte, inArray, sql } from "drizzle-orm"
 
 export const dynamic = "force-dynamic"
 
@@ -20,21 +20,68 @@ export const metadata = {
     "Packages Omra tout inclus au départ de Tunisie. Vols, hôtels Médine/La Mecque, visa, transport.",
 }
 
-async function getActivePackages() {
+interface SearchFilters {
+  programme?: string
+  month?: string
+  pilgrims?: string
+}
+
+async function getActivePackages(filters: SearchFilters) {
   try {
     const db = getDb()
+    const conditions = [eq(omraPackages.status, "active")]
+
+    const programme = filters.programme
+    if (programme && (omraPackageType.enumValues as readonly string[]).includes(programme)) {
+      conditions.push(eq(omraPackages.type, programme as (typeof omraPackageType.enumValues)[number]))
+    }
+
+    // Le mois de départ et le nombre de pèlerins se filtrent via les
+    // allotements (aucun package sans date de départ correspondante n'est
+    // affiché) — jamais de disponibilité inventée.
+    const month = filters.month ? Number(filters.month) : undefined
+    const pilgrims = filters.pilgrims ? Number(filters.pilgrims) : undefined
+    if ((month && month >= 1 && month <= 12) || (pilgrims && pilgrims > 0)) {
+      const allotmentConditions = [
+        eq(omraAllotments.status, "active"),
+        gte(omraAllotments.departureDate, sql`CURRENT_DATE`),
+      ]
+      if (month && month >= 1 && month <= 12) {
+        allotmentConditions.push(
+          sql`EXTRACT(MONTH FROM ${omraAllotments.departureDate}) = ${month}`,
+        )
+      }
+      if (pilgrims && pilgrims > 0) {
+        allotmentConditions.push(gte(omraAllotments.availableCount, pilgrims))
+      }
+
+      const matchingAllotments = await db
+        .selectDistinct({ packageId: omraAllotments.packageId })
+        .from(omraAllotments)
+        .where(and(...allotmentConditions))
+
+      const packageIds = matchingAllotments.map((a) => a.packageId)
+      if (packageIds.length === 0) return []
+      conditions.push(inArray(omraPackages.id, packageIds))
+    }
+
     return await db
       .select()
       .from(omraPackages)
-      .where(eq(omraPackages.status, "active"))
+      .where(and(...conditions))
       .orderBy(omraPackages.validFrom)
   } catch {
     return []
   }
 }
 
-export default async function OmraPage() {
-  const packages = await getActivePackages()
+export default async function OmraPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchFilters>
+}) {
+  const filters = await searchParams
+  const packages = await getActivePackages(filters)
 
   return (
     <div className="flex min-h-screen flex-col">

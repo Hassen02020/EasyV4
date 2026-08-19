@@ -4,16 +4,29 @@
  * Calcule le coût des trajets à partir de catalog_transfer_pricing.
  *
  * Règles :
- *   - Prix de base depuis catalog_transfer_pricing
- *   - Majoration automatique 20% pour les trajets de nuit (21h-6h)
- *   - Surcharge configurable par ligne (nightSurchargePercent)
- *   - Application de la marge agence (pricingMargins) si configurée
+ *   - Prix de base depuis catalog_transfer_pricing (par paire de zones × véhicule)
+ *   - Majoration nuit (21h-6h) au taux configuré sur la ligne de tarif
+ *     (nightSurchargePercent), pas un taux générique
+ *   - Application de la marge agence réelle (pricingMargins, module='transfer')
+ *
+ * "use server" : ce module interroge Drizzle/postgres et est importé depuis
+ * des Client Components (TransferBookingForm) — sans cette directive le code
+ * Node-only se retrouverait bundlé côté navigateur (même classe de bug que
+ * lib/reporting/margin-analytics.ts).
  */
+"use server"
 
-import { transferVehicleType } from "@/lib/db/schema"
+import { and, eq } from "drizzle-orm"
+import { getDb } from "@/lib/db/client"
+import {
+  catalogTransferPricing,
+  pricingMargins,
+  transferVehicleType,
+} from "@/lib/db/schema"
+import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
 
 /** Type union des valeurs possibles pour un véhicule de transfert. */
-export type TransferVehicleType = typeof transferVehicleType.enumValues[number]
+export type TransferVehicleType = (typeof transferVehicleType.enumValues)[number]
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -47,12 +60,9 @@ export interface TransferPricingResult {
 /* Constants                                                                  */
 /* -------------------------------------------------------------------------- */
 
-/** Plage horaire nuit (21h-6h) pour majoration automatique */
+/** Plage horaire nuit (21h-6h) pour majoration */
 const NIGHT_START_HOUR = 21
 const NIGHT_END_HOUR = 6
-
-/** Majoration automatique nuit par défaut (20%) */
-const DEFAULT_NIGHT_SURCHARGE = 20
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
@@ -78,52 +88,73 @@ function roundTnd(value: number): number {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Calcule le prix d'un transfert.
+ * Calcule le prix d'un transfert à partir du tarif réel configuré pour la
+ * paire de zones et le véhicule demandés.
  *
- * TODO : Intégrer avec la base de données pour récupérer :
- *   - catalog_transfer_pricing (prix de base + surcharge configurée)
- *   - pricingMargins (marge agence)
- *
- * Pour l'instant, retourne un calcul stub.
+ * Retourne `null` si aucun tarif n'est configuré pour cet itinéraire —
+ * l'appelant doit traiter ce cas explicitement (jamais de prix inventé,
+ * cf. règle anti-fabrication du produit).
  */
-export function calculateTransferPrice(
+export async function calculateTransferPrice(
   input: TransferPricingInput,
-): TransferPricingResult {
-  const { pickupTime, vehicleType } = input
+): Promise<TransferPricingResult | null> {
+  const db = getDb()
 
-  // --- 1. Prix de base (stub — à remplacer par DB) ---
-  const basePriceByVehicle: Record<TransferVehicleType, number> = {
-    sedan: 50,
-    van: 80,
-    minibus: 120,
-    bus: 200,
-    luxury: 150,
-  }
-  const basePriceTnd = basePriceByVehicle[vehicleType] ?? 50
+  const [rate] = await db
+    .select()
+    .from(catalogTransferPricing)
+    .where(
+      and(
+        eq(catalogTransferPricing.fromZoneId, input.fromZoneId),
+        eq(catalogTransferPricing.toZoneId, input.toZoneId),
+        eq(catalogTransferPricing.vehicleType, input.vehicleType),
+      ),
+    )
+    .limit(1)
 
-  // --- 2. Surcharge nuit ---
-  const isNight = isNightTime(pickupTime)
-  const nightSurchargePercent = isNight ? DEFAULT_NIGHT_SURCHARGE : 0
+  if (!rate) return null
+
+  const basePriceTnd = Number(rate.basePriceTnd)
+  const nightSurchargePercent = isNightTime(input.pickupTime)
+    ? rate.nightSurchargePercent
+    : 0
   const nightSurchargeAmount = roundTnd(
     (basePriceTnd * nightSurchargePercent) / 100,
   )
+  const preMargin = basePriceTnd + nightSurchargeAmount
 
-  // --- 3. Marge agence (stub — à remplacer par DB) ---
-  const marginPercent = 0 // TODO : depuis pricingMargins
-  const marginAmount = roundTnd(
-    ((basePriceTnd + nightSurchargeAmount) * marginPercent) / 100,
-  )
+  const [marginRow] = await db
+    .select()
+    .from(pricingMargins)
+    .where(
+      and(
+        eq(pricingMargins.agencyId, input.agencyId),
+        eq(pricingMargins.module, "transfer"),
+        eq(pricingMargins.isActive, true),
+      ),
+    )
+    .limit(1)
 
-  // --- 4. Total ---
-  const totalTnd = roundTnd(
-    basePriceTnd + nightSurchargeAmount + marginAmount,
-  )
+  let marginPercent: number | undefined
+  let marginAmount = 0
+  let totalTnd = preMargin
+
+  if (marginRow) {
+    const rule: MarginRule = {
+      marginType: marginRow.marginType === "percent" ? "percent" : "fixed",
+      marginValue: Number(marginRow.marginValue),
+      isActive: marginRow.isActive,
+    }
+    totalTnd = roundTnd(applyMargin(preMargin, rule))
+    marginAmount = roundTnd(totalTnd - preMargin)
+    marginPercent = rule.marginType === "percent" ? rule.marginValue : undefined
+  }
 
   return {
     basePriceTnd,
     nightSurchargePercent,
     nightSurchargeAmount,
-    marginPercent: marginPercent || undefined,
+    marginPercent,
     marginAmount: marginAmount || undefined,
     totalTnd,
     currency: "TND",
@@ -133,19 +164,4 @@ export function calculateTransferPrice(
       margin: marginAmount,
     },
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Validation                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Valide que l'heure de prise en charge est dans un format valide.
- */
-export function validatePickupTime(time: string): boolean {
-  const match = time.match(/^([01]\d|2[0-3]):([0-5]\d)$/)
-  if (!match) return false
-  const hour = parseInt(match[1], 10)
-  const minute = parseInt(match[2], 10)
-  return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59
 }

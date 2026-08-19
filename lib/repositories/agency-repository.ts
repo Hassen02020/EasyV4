@@ -26,12 +26,12 @@ export class AgencyRepository {
   }
 
   /**
-   * Récupérer une agence par code
+   * Récupérer une agence par slug
    */
-  static async findByCode(code: string): Promise<Agency | null> {
+  static async findBySlug(slug: string): Promise<Agency | null> {
     const db = getDb()
     const result = await db.query.agencies.findFirst({
-      where: eq(agencies.code, code),
+      where: eq(agencies.slug, slug),
     })
     return result || null
   }
@@ -55,13 +55,13 @@ export class AgencyRepository {
    * Récupérer les agences par type
    */
   static async findByType(
-    type: string,
+    agencyType: Agency["agencyType"],
     limit = 50,
     offset = 0
   ): Promise<Agency[]> {
     const db = getDb()
     return db.query.agencies.findMany({
-      where: eq(agencies.type, type),
+      where: eq(agencies.agencyType, agencyType),
       orderBy: [desc(agencies.createdAt)],
       limit,
       offset,
@@ -86,7 +86,7 @@ export class AgencyRepository {
   }
 
   /**
-   * Rechercher des agences par nom ou code
+   * Rechercher des agences par nom, slug ou email de contact
    */
   static async search(
     query: string,
@@ -98,8 +98,8 @@ export class AgencyRepository {
     return db.query.agencies.findMany({
       where: or(
         like(agencies.name, searchPattern),
-        like(agencies.code, searchPattern),
-        like(agencies.email, searchPattern)
+        like(agencies.slug, searchPattern),
+        like(agencies.contactEmail, searchPattern)
       ),
       orderBy: [desc(agencies.createdAt)],
       limit,
@@ -156,34 +156,16 @@ export class AgencyRepository {
    */
   static async updateContact(
     id: string,
-    email?: string,
-    phone?: string,
+    contactEmail?: string,
+    contactPhone?: string,
     tx?: DrizzleTransaction
   ): Promise<void> {
     const db = tx || getDb()
     await db
       .update(agencies)
-      .set({ 
-        ...(email && { email }),
-        ...(phone && { phone }),
-        updatedAt: new Date()
-      })
-      .where(eq(agencies.id, id))
-  }
-
-  /**
-   * Mettre à jour les préférences de l'agence
-   */
-  static async updatePreferences(
-    id: string,
-    preferences: Record<string, unknown>,
-    tx?: DrizzleTransaction
-  ): Promise<void> {
-    const db = tx || getDb()
-    await db
-      .update(agencies)
-      .set({ 
-        preferences: preferences as any,
+      .set({
+        ...(contactEmail && { contactEmail }),
+        ...(contactPhone && { contactPhone }),
         updatedAt: new Date()
       })
       .where(eq(agencies.id, id))
@@ -218,17 +200,17 @@ export class AgencyRepository {
   static async getGlobalStats() {
     const db = getDb()
     const allAgencies = await this.findAll(1000)
-    
+
     const byType = allAgencies.reduce((acc, a) => {
-      acc[a.type] = (acc[a.type] || 0) + 1
+      acc[a.agencyType] = (acc[a.agencyType] || 0) + 1
       return acc
     }, {} as Record<string, number>)
-    
+
     const byStatus = allAgencies.reduce((acc, a) => {
       acc[a.status] = (acc[a.status] || 0) + 1
       return acc
     }, {} as Record<string, number>)
-    
+
     return {
       total: allAgencies.length,
       byType,

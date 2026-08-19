@@ -18,6 +18,19 @@
 
 import { sql, type SQL } from "drizzle-orm"
 
+/**
+ * Sous-ensemble structurel d'un query builder Drizzle : suffisant pour la
+ * pagination générique (chaînage where/limit/offset/orderBy) sans dépendre
+ * du typage exact — non-générique — de `PgSelect`.
+ */
+interface DrizzleChainableQuery {
+  where(condition: SQL): DrizzleChainableQuery
+  limit(n: number): DrizzleChainableQuery
+  offset(n: number): DrizzleChainableQuery
+  orderBy(orderBy: SQL | SQL[]): DrizzleChainableQuery
+  then: PromiseLike<unknown[]>["then"]
+}
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -103,7 +116,7 @@ export function createTimestampCursor(timestamp: Date, id: string): string {
 
 interface OffsetPaginationOptions<T> {
   /** Query Drizzle de base */
-  query: any // TODO: Typage précis nécessite refactoring Drizzle query types
+  query: DrizzleChainableQuery
   /** Page demandée (1-based) */
   page?: number
   /** Items par page */
@@ -140,7 +153,7 @@ export async function paginateOffset<T>({
     dataQuery = dataQuery.orderBy(orderBy)
   }
 
-  const data = await dataQuery
+  const data = (await dataQuery) as T[]
 
   // 2. Count total (si fourni)
   let totalCount: number | undefined
@@ -172,7 +185,7 @@ export async function paginateOffset<T>({
 
 interface CursorPaginationOptions<T> {
   /** Query Drizzle de base */
-  query: any // TODO: Typage précis nécessite refactoring Drizzle query types
+  query: DrizzleChainableQuery
   /** Cursor actuel */
   cursor?: string | null
   /** Direction (next ou prev) */
@@ -182,7 +195,7 @@ interface CursorPaginationOptions<T> {
   /** Colonne de tri (doit être unique ou combinée avec ID) */
   sortColumn: string
   /** Tableau pour extraire les valeurs */
-  table: any // TODO: Typage précis nécessite refactoring Drizzle table types
+  table: Record<string, unknown>
 }
 
 /**

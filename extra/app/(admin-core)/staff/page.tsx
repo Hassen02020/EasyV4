@@ -32,7 +32,7 @@ export default function StaffDashboardPage() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">Activités</h3>
           <p className="text-2xl font-bold mt-2">45</p>
-          <p className="text-sm text-gray-500">Aujourd'hui</p>
+          <p className="text-sm text-gray-500">Aujourd&apos;hui</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">Alertes</h3>

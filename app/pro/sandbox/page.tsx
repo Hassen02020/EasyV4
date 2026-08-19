@@ -13,8 +13,24 @@ import { OmraBookingForm } from "@/components/omra/omra-booking-form"
 import { TransferBookingForm } from "@/components/transfer/transfer-booking-form"
 import { Separator } from "@/components/ui/separator"
 import { Wallet, Car, User } from "lucide-react"
+import { getDb } from "@/lib/db/client"
+import { catalogTransferZones } from "@/lib/db/schema"
+import { eq } from "drizzle-orm"
 
 const MOCK_AGENCY_ID = "00000000-0000-0000-0000-000000000001"
+
+async function getActiveZones() {
+  try {
+    const db = getDb()
+    return await db
+      .select()
+      .from(catalogTransferZones)
+      .where(eq(catalogTransferZones.status, "active"))
+      .orderBy(catalogTransferZones.name)
+  } catch {
+    return []
+  }
+}
 
 // Faux forfait Omra avec tarifs par type de chambre
 const MOCK_OMRA_PACKAGE = {
@@ -30,7 +46,9 @@ const MOCK_OMRA_PACKAGE = {
   },
 }
 
-export default function SandboxPage() {
+export default async function SandboxPage() {
+  const zones = await getActiveZones()
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Faux Header avec WalletStatus */}
@@ -52,7 +70,7 @@ export default function SandboxPage() {
         {/* Section Info */}
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-sm text-amber-800">
-            <strong>Page de test publique</strong> — Cette page ne nécessite pas d'authentification.
+            <strong>Page de test publique</strong> — Cette page ne nécessite pas d&apos;authentification.
             Les formulaires utilisent des données simulées (mock data) pour validation UI/UX uniquement.
           </p>
         </div>
@@ -84,7 +102,7 @@ export default function SandboxPage() {
           <p className="text-muted-foreground">
             Formulaire de réservation de transfert avec calcul de devis en temps réel.
           </p>
-          <TransferBookingForm />
+          <TransferBookingForm zones={zones} agencyId={MOCK_AGENCY_ID} />
         </section>
 
         <Separator className="my-8" />
@@ -96,7 +114,7 @@ export default function SandboxPage() {
             <h2 className="text-2xl font-bold text-[#1e3a8a]">Wallet Status (Full)</h2>
           </div>
           <p className="text-muted-foreground">
-            Composant WalletStatus en mode complet (non compact) pour vérifier l'alignement du solde.
+            Composant WalletStatus en mode complet (non compact) pour vérifier l&apos;alignement du solde.
           </p>
           <div className="max-w-md">
             <WalletStatus agencyId={MOCK_AGENCY_ID} />

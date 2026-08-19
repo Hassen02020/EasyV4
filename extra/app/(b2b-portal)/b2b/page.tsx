@@ -59,7 +59,7 @@ export default function B2BDashboardPage() {
       {/* Recent Bookings */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-xl font-semibold mb-4">Réservations récentes</h2>
-        <p className="text-gray-500">Liste des 5 dernières réservations de l'agence (à implémenter)</p>
+        <p className="text-gray-500">Liste des 5 dernières réservations de l&apos;agence (à implémenter)</p>
       </div>
     </div>
   )

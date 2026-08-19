@@ -6,19 +6,22 @@
  *  2. Déclenche génération PDF (billet collectif) via booking/confirmed.
  */
 
-import { inngest } from "@/lib/inngest/client"
+import { inngest, type Events } from "@/lib/inngest/client"
 import { Resend } from "resend"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _inngest = inngest as any
-
-export const processOmraConfirmed = _inngest.createFunction(
+export const processOmraConfirmed = inngest.createFunction(
   {
     id: "process-omra-confirmed",
     name: "Omra confirmée — dossier & email",
     triggers: { event: "booking/omra.confirmed" },
   },
-  async ({ event, step }: any) => {
+  async ({
+    event,
+    step,
+  }: {
+    event: { data: Events["booking/omra.confirmed"]["data"] }
+    step: { run: <T>(name: string, fn: () => Promise<T>) => Promise<T> }
+  }) => {
     const d = event.data
 
     await step.run("send-omra-email", async () => {

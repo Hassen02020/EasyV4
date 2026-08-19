@@ -120,7 +120,7 @@ export async function walletDebitReservation(
       .values({
         walletId: walletRow[0].id,
         agencyId: input.agencyId,
-        type: "DEBIT",
+        type: "debit",
         amount: input.amountTnd.toFixed(3),
         status: "VALIDATED",
         reservationId: input.reservationId,
@@ -270,7 +270,7 @@ export async function requestWalletTopUp(
     .values({
       walletId: wallet.id,
       agencyId: input.agencyId,
-      type: "CREDIT",
+      type: "credit",
       method: input.method,
       amount: input.amount.toFixed(3),
       referenceNumber: input.referenceNumber,
@@ -333,7 +333,7 @@ export async function validateTopUp(
 
       if (!txRow) throw new Error("TX_NOT_FOUND")
       if (txRow.status !== "PENDING") throw new Error("TX_NOT_PENDING")
-      if (txRow.type !== "CREDIT" && txRow.type !== "ADJUSTMENT")
+      if (txRow.type !== "credit" && txRow.type !== "adjustment")
         throw new Error("TX_NOT_CREDITABLE")
 
       /* --- Locker et mettre à jour le wallet --- */

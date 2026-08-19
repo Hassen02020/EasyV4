@@ -7,7 +7,7 @@
  * Chaque étape est atomique et réversible en cas d'erreur
  */
 
-import { getDb } from "@/lib/db/client"
+import { getDb, type DrizzleTransaction } from "@/lib/db/client"
 import { eq, and, sql } from "drizzle-orm"
 import {
   reservations,
@@ -45,7 +45,7 @@ export interface CreateReservationContext {
   source: "mygo" | "internal" | "amadeus" | "sabre" | "expedia" | "manual"
   
   // Données spécifiques au module
-  moduleData: Record<string, any>
+  moduleData: Record<string, unknown>
   
   // Prix
   originalCurrency: string
@@ -59,7 +59,7 @@ export interface CreateReservationContext {
   
   // Métadonnées
   createdBy?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 /**
@@ -68,7 +68,7 @@ export interface CreateReservationContext {
 export interface WorkflowStepResult {
   success: boolean
   state: BookingWorkflowState
-  data?: Record<string, any>
+  data?: Record<string, unknown>
   error?: string
 }
 
@@ -110,7 +110,7 @@ export class BookingWorkflowPipeline {
           tndAmount: context.tndAmount.toString(),
           depositAmount: context.depositAmount?.toString(),
           depositPaid: "0",
-          notes: context.metadata?.notes,
+          notes: context.metadata?.notes as string | undefined,
         }).returning()
 
         this.reservationId = reservation[0].id
@@ -159,7 +159,7 @@ export class BookingWorkflowPipeline {
    */
   async callProviderAPI(
     supplierId: string,
-    apiPayload: Record<string, any>
+    apiPayload: Record<string, unknown>
   ): Promise<WorkflowStepResult> {
     try {
       return await this.db.transaction(async (tx) => {
@@ -367,7 +367,7 @@ export class BookingWorkflowPipeline {
     createContext: CreateReservationContext,
     marginContext: MarginCalculationContext,
     supplierId: string,
-    apiPayload: Record<string, any>,
+    apiPayload: Record<string, unknown>,
     createdBy?: string
   ): Promise<WorkflowStepResult> {
     // Étape 1 : Création
@@ -379,7 +379,7 @@ export class BookingWorkflowPipeline {
     if (!step2.success) return step2
 
     // Étape 3 : Confirmation
-    const step3 = await this.confirmProvider(step2.data?.supplierReference)
+    const step3 = await this.confirmProvider(step2.data?.supplierReference as string)
     if (!step3.success) return step3
 
     // Étape 4 : Paiement
@@ -462,7 +462,7 @@ export class BookingWorkflowPipeline {
    * Génère une référence publique unique
    */
   private async generatePublicRef(
-    tx: any,
+    tx: DrizzleTransaction,
     agencyId: string
   ): Promise<string> {
     const year = new Date().getFullYear()

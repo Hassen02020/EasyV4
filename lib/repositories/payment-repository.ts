@@ -93,7 +93,7 @@ export class PaymentRepository {
    */
   static async updateStatus(
     id: string,
-    status: string,
+    status: Payment["status"],
     tx?: DrizzleTransaction
   ): Promise<void> {
     const db = tx || getDb()
@@ -123,7 +123,7 @@ export class PaymentRepository {
    */
   static async findByStatus(
     agencyId: string,
-    status: string,
+    status: Payment["status"],
     limit = 50,
     offset = 0
   ): Promise<Payment[]> {

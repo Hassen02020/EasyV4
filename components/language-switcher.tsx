@@ -26,6 +26,7 @@ export function LanguageSwitcher({
     if (locale === currentLocale) return
     const params = searchParams.toString()
     const redirectTo = params ? `${pathname}?${params}` : pathname
+    // eslint-disable-next-line react-hooks/immutability -- full page navigation triggered only inside this click handler, never during render
     window.location.href = `/api/set-locale?locale=${locale}&redirectTo=${encodeURIComponent(redirectTo)}`
   }
 

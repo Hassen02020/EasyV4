@@ -16,10 +16,9 @@ const SECURITY_HEADERS: Record<string, string> = {
 }
 
 const ADMIN_ROUTES = /^\/admin(\/|$)/
-const PRO_ROUTES = /^\/pro(\/|$)/
 const ADMIN_ROLES = ["super_admin", "manager", "agent_resa", "agent_compta", "agent_excursions"]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = await updateSession(request)
   
   // Vérification RBAC pour routes admin

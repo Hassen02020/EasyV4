@@ -18,6 +18,7 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,7 +70,7 @@ const SUPPLIER_TYPE_LABELS: Record<string, string> = {
   custom: "Custom",
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon }> = {
   active: { label: "Actif", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
   inactive: { label: "Inactif", color: "bg-gray-100 text-gray-800", icon: Clock },
   maintenance: { label: "Maintenance", color: "bg-amber-100 text-amber-800", icon: AlertCircle },

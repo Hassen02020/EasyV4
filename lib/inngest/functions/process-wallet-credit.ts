@@ -5,7 +5,7 @@
  * Envoie une notification email à l'agence confirmant le rechargement.
  */
 
-import { inngest } from "../client"
+import { inngest, type Events } from "../client"
 import { Resend } from "resend"
 import { getDb } from "@/lib/db/client"
 import { agencies, users } from "@/lib/db/schema"
@@ -26,7 +26,7 @@ export const processWalletCredit = inngest.createFunction(
     retries: 3,
     triggers: { event: "wallet/credited" },
   },
-  async ({ event }: any) => {
+  async ({ event }: { event: { data: Events["wallet/credited"]["data"] } }) => {
     const { agencyId, amount, newBalance, method, txId } = event.data
 
     /* Step 1 — Récupérer les infos agence */

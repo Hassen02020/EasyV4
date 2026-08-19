@@ -8,7 +8,7 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { OmraSearch } from "@/components/omra/omra-search"
 import { OmraPackageList } from "@/components/omra/omra-package-list"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
 import { and, eq, gte, inArray, sql } from "drizzle-orm"
 
@@ -28,7 +28,8 @@ interface SearchFilters {
 
 async function getActivePackages(filters: SearchFilters) {
   try {
-    const db = getDb()
+    // Catalogue public (trafic anonyme, pas de session storefront).
+    return await withSystemContext(async (db) => {
     const conditions = [eq(omraPackages.status, "active")]
 
     const programme = filters.programme
@@ -70,6 +71,7 @@ async function getActivePackages(filters: SearchFilters) {
       .from(omraPackages)
       .where(and(...conditions))
       .orderBy(omraPackages.validFrom)
+    })
   } catch {
     return []
   }

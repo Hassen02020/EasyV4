@@ -17,7 +17,7 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
 import {
   catalogTransferPricing,
   pricingMargins,
@@ -98,19 +98,21 @@ function roundTnd(value: number): number {
 export async function calculateTransferPrice(
   input: TransferPricingInput,
 ): Promise<TransferPricingResult | null> {
-  const db = getDb()
-
-  const [rate] = await db
-    .select()
-    .from(catalogTransferPricing)
-    .where(
-      and(
-        eq(catalogTransferPricing.fromZoneId, input.fromZoneId),
-        eq(catalogTransferPricing.toZoneId, input.toZoneId),
-        eq(catalogTransferPricing.vehicleType, input.vehicleType),
-      ),
-    )
-    .limit(1)
+  // Tarif catalogue public (aucune session storefront à résoudre) — filtre
+  // fixé côté serveur, jamais influencé par une entrée utilisateur brute.
+  const [rate] = await withSystemContext((db) =>
+    db
+      .select()
+      .from(catalogTransferPricing)
+      .where(
+        and(
+          eq(catalogTransferPricing.fromZoneId, input.fromZoneId),
+          eq(catalogTransferPricing.toZoneId, input.toZoneId),
+          eq(catalogTransferPricing.vehicleType, input.vehicleType),
+        ),
+      )
+      .limit(1),
+  )
 
   if (!rate) return null
 
@@ -123,17 +125,21 @@ export async function calculateTransferPrice(
   )
   const preMargin = basePriceTnd + nightSurchargeAmount
 
-  const [marginRow] = await db
-    .select()
-    .from(pricingMargins)
-    .where(
-      and(
-        eq(pricingMargins.agencyId, input.agencyId),
-        eq(pricingMargins.module, "transfer"),
-        eq(pricingMargins.isActive, true),
-      ),
-    )
-    .limit(1)
+  const [marginRow] = await withTenantContext(
+    { agencyId: input.agencyId, userId: "", isSuperAdmin: false },
+    (db) =>
+      db
+        .select()
+        .from(pricingMargins)
+        .where(
+          and(
+            eq(pricingMargins.agencyId, input.agencyId),
+            eq(pricingMargins.module, "transfer"),
+            eq(pricingMargins.isActive, true),
+          ),
+        )
+        .limit(1),
+  )
 
   let marginPercent: number | undefined
   let marginAmount = 0

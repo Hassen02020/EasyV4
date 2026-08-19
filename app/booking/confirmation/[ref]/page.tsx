@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
 import { formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
@@ -22,26 +22,29 @@ export default async function ConfirmationPage({
 }) {
   const { ref } = await params
   if (!process.env.DATABASE_URL) notFound()
-  const db = getDb()
-  const rows = await db
-    .select({
-      id: reservations.id,
-      publicRef: reservations.publicRef,
-      module: reservations.module,
-      status: reservations.status,
-      currency: reservations.originalCurrency,
-      total: reservations.tndAmount,
-      deposit: reservations.depositAmount,
-      providerPayload: reservations.providerPayload,
-      createdAt: reservations.createdAt,
-      customerEmail: customers.email,
-      customerFirstName: customers.firstName,
-      customerLastName: customers.lastName,
-    })
-    .from(reservations)
-    .leftJoin(customers, eq(reservations.customerId, customers.id))
-    .where(eq(reservations.publicRef, ref))
-    .limit(1)
+  // Page publique de confirmation post-checkout (pas de session client) —
+  // accès restreint par la connaissance de la référence publique.
+  const rows = await withSystemContext((db) =>
+    db
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        module: reservations.module,
+        status: reservations.status,
+        currency: reservations.originalCurrency,
+        total: reservations.tndAmount,
+        deposit: reservations.depositAmount,
+        providerPayload: reservations.providerPayload,
+        createdAt: reservations.createdAt,
+        customerEmail: customers.email,
+        customerFirstName: customers.firstName,
+        customerLastName: customers.lastName,
+      })
+      .from(reservations)
+      .leftJoin(customers, eq(reservations.customerId, customers.id))
+      .where(eq(reservations.publicRef, ref))
+      .limit(1),
+  )
   const row = rows[0]
   if (!row) notFound()
 

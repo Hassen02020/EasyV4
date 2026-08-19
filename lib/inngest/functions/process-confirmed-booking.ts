@@ -13,7 +13,7 @@
 import { inngest, type Events } from "../client"
 import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
 import { sendVoucherEmail } from "@/lib/email/send-voucher"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 
@@ -66,12 +66,15 @@ export const processConfirmedBooking = inngest.createFunction(
       pdfBase64,
     })
 
-    /* Step 3 — Mettre à jour la réservation */
-    const db = getDb()
-    await db
-      .update(reservations)
-      .set({ updatedAt: new Date() })
-      .where(eq(reservations.id, reservationId))
+    /* Step 3 — Mettre à jour la réservation.
+     * Job Inngest déclenché en arrière-plan par le serveur (pas de session
+     * Supabase à résoudre) — appelant système de confiance. */
+    await withSystemContext((db) =>
+      db
+        .update(reservations)
+        .set({ updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId)),
+    )
 
     return { success: true, reservationId, publicRef }
   },

@@ -14,7 +14,7 @@ import { Footer } from "@/components/footer"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { TransferBookingForm } from "@/components/transfer/transfer-booking-form"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogTransferZones, transferVehicleType } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { calculateTransferPrice } from "@/lib/transfers/pricing"
@@ -81,12 +81,14 @@ export default async function TransferResultsPage({
     )
   }
 
-  const db = getDb()
-  const zones = await db
-    .select()
-    .from(catalogTransferZones)
-    .where(eq(catalogTransferZones.status, "active"))
-    .orderBy(catalogTransferZones.name)
+  // Catalogue public de zones (trafic anonyme, pas de session storefront).
+  const zones = await withSystemContext((db) =>
+    db
+      .select()
+      .from(catalogTransferZones)
+      .where(eq(catalogTransferZones.status, "active"))
+      .orderBy(catalogTransferZones.name),
+  )
 
   const fromZone = zones.find((z) => z.id === from)
   const toZone = zones.find((z) => z.id === to)

@@ -7,7 +7,7 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { PackageSearch } from "@/components/packages/package-search"
 import { PackageList } from "@/components/packages/package-list"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
 import { and, eq, gte, ilike, inArray, sql } from "drizzle-orm"
 
@@ -51,7 +51,8 @@ function parseDurationRange(duration: string): [number, number | undefined] | nu
 
 async function getActivePackages(filters: SearchFilters) {
   try {
-    const db = getDb()
+    // Catalogue public (trafic anonyme, pas de session storefront).
+    return await withSystemContext(async (db) => {
     const conditions = [eq(catalogPackages.status, "active")]
 
     const searchTerm = filters.destination
@@ -110,6 +111,7 @@ async function getActivePackages(filters: SearchFilters) {
       .from(catalogPackages)
       .where(and(...conditions))
       .orderBy(catalogPackages.title)
+    })
   } catch {
     return []
   }

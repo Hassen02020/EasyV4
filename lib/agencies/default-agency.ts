@@ -8,7 +8,7 @@
  * cf. lib/db/schema.ts) qui représente Easy2Book lui-même.
  */
 
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 
@@ -16,15 +16,20 @@ import { eq } from "drizzle-orm"
  * Retourne l'ID de l'agence OTA directe, ou `null` si aucune agence de ce
  * type n'est configurée — l'appelant doit afficher une erreur claire plutôt
  * que de fabriquer un contexte de tarification.
+ *
+ * Trafic anonyme (pages storefront publiques) : pas de session à résoudre.
+ * `withSystemContext` est sûr ici car le filtre (`agency_type = 'ota'`) est
+ * fixé côté serveur, jamais influencé par une entrée utilisateur.
  */
 export async function getDefaultAgencyId(): Promise<string | null> {
   try {
-    const db = getDb()
-    const [agency] = await db
-      .select({ id: agencies.id })
-      .from(agencies)
-      .where(eq(agencies.agencyType, "ota"))
-      .limit(1)
+    const [agency] = await withSystemContext((db) =>
+      db
+        .select({ id: agencies.id })
+        .from(agencies)
+        .where(eq(agencies.agencyType, "ota"))
+        .limit(1),
+    )
     return agency?.id ?? null
   } catch {
     return null

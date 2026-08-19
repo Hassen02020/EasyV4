@@ -34,8 +34,8 @@ export default async function B2BDashboard() {
   if (!profile) redirect("/pro/login?next=/b2b")
 
   const [balanceRes, movementsRes] = await Promise.all([
-    getAgencyBalance(profile.agencyId),
-    getMovements({ agencyId: profile.agencyId, limit: 5 }),
+    getAgencyBalance(profile.agencyId, user.id),
+    getMovements({ agencyId: profile.agencyId, userId: user.id, limit: 5 }),
   ])
 
   const balance = balanceRes.ok ? balanceRes.data : null

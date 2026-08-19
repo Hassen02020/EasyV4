@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getAgencyBalance, getMovements } from "@/lib/finance/ledger"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { walletRechargeRequests } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
 import {
@@ -59,22 +59,23 @@ export default async function WalletPage() {
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile) redirect("/pro/login?next=/b2b/wallet")
 
-  const [balanceRes, movementsRes] = await Promise.all([
-    getAgencyBalance(profile.agencyId),
-    getMovements({ agencyId: profile.agencyId, limit: 20 }),
+  const [balanceRes, movementsRes, rechargeRequests] = await Promise.all([
+    getAgencyBalance(profile.agencyId, user.id),
+    getMovements({ agencyId: profile.agencyId, userId: user.id, limit: 20 }),
+    withTenantContext(
+      { agencyId: profile.agencyId, userId: user.id, isSuperAdmin: false },
+      (db) =>
+        db
+          .select()
+          .from(walletRechargeRequests)
+          .where(eq(walletRechargeRequests.agencyId, profile.agencyId))
+          .orderBy(desc(walletRechargeRequests.createdAt))
+          .limit(10),
+    ),
   ])
 
   const balance = balanceRes.ok ? balanceRes.data : null
   const movements = movementsRes.ok ? movementsRes.data.movements : []
-
-  // Récupérer les dernières demandes de recharge
-  const db = getDb()
-  const rechargeRequests = await db
-    .select()
-    .from(walletRechargeRequests)
-    .where(eq(walletRechargeRequests.agencyId, profile.agencyId))
-    .orderBy(desc(walletRechargeRequests.createdAt))
-    .limit(10)
 
   return (
     <div className="space-y-6">

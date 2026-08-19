@@ -17,7 +17,7 @@
 "use server"
 
 import { eq, and, sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   reservations,
   reservationOmra,
@@ -30,10 +30,9 @@ import {
   omraFlights,
   wallets,
   walletTransactions,
-  users,
 } from "@/lib/db/schema"
 import { walletDebitReservation } from "@/lib/wallet/actions"
-import { createServerSupabase } from "@/lib/supabase/server"
+import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -92,7 +91,7 @@ function pad(n: number, w = 6) {
 }
 
 async function nextPublicRef(
-  db: ReturnType<typeof getDb>,
+  db: DrizzleTransaction,
   agencyId: string,
 ): Promise<string> {
   const year = new Date().getFullYear()
@@ -149,32 +148,23 @@ export async function createOmraBooking(
     return { ok: false, error: "Maximum 100 pèlerins par réservation" }
   }
 
-  // Résoudre agencyId et userId depuis la session — jamais depuis le client
-  let agencyId: string
-  let createdByUserId: string
-  try {
-    const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { ok: false, error: "Non authentifié" }
-
-    const db = getDb()
-    const [profile] = await db
-      .select({ agencyId: users.agencyId })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
-
-    if (!profile) return { ok: false, error: "Profil utilisateur introuvable" }
-    agencyId = profile.agencyId
-    createdByUserId = user.id
-  } catch {
-    return { ok: false, error: "Erreur d'authentification" }
+  // Résoudre agencyId/userId via resolve_session_context() (SECURITY DEFINER)
+  // — jamais depuis le client, jamais par un SELECT users direct avant que
+  // le contexte RLS ne soit posé (problème de la poule et de l'œuf).
+  const session = await resolveSessionContext()
+  if (!session.ok) {
+    return { ok: false, error: "Non authentifié" }
   }
-
-  const db = getDb()
+  if (!session.agencyId) {
+    return { ok: false, error: "Profil utilisateur introuvable" }
+  }
+  const agencyId = session.agencyId
+  const createdByUserId = session.userId
 
   try {
-    const result = await db.transaction(async (tx) => {
+    const result = await withTenantContext(
+      { agencyId, userId: createdByUserId, isSuperAdmin: session.isSuperAdmin },
+      async (tx) => {
       /* ------------------------------------------------------------------
        * 1. Récupérer le package (FOR UPDATE sur l'allotment)
        * ------------------------------------------------------------------ */
@@ -383,8 +373,9 @@ export async function createOmraBooking(
         },
       })
 
-      return { reservationId, publicRef }
-    })
+        return { reservationId, publicRef }
+      },
+    )
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
   } catch (err) {

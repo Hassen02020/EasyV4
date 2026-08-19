@@ -19,43 +19,31 @@
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
-import { getDb } from "@/lib/db/client"
 import {
   agencies,
   walletRechargeRequests,
   partnerCreditMovements,
-  users,
 } from "@/lib/db/schema"
-import { createServerSupabase } from "@/lib/supabase/server"
+import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 
 /* -------------------------------------------------------------------------- */
 /* Auth helpers                                                               */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Vérifie que l'appelant courant est un `super_admin`.
- * Retourne `null` si OK, ou un `ActionResult` d'erreur à retourner immédiatement.
+ * Vérifie que l'appelant courant est un `super_admin`, via
+ * `resolve_session_context()` (SECURITY DEFINER) — jamais un SELECT `users`
+ * direct avant que le contexte RLS ne soit posé.
  */
-async function assertSuperAdmin(): Promise<ActionResult | null> {
-  try {
-    const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { ok: false, error: "Non authentifié" }
-
-    const db = getDb()
-    const [actor] = await db
-      .select({ role: users.role })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
-
-    if (!actor || actor.role !== "super_admin") {
-      return { ok: false, error: "Accès refusé : rôle super_admin requis" }
-    }
-    return null
-  } catch {
-    return { ok: false, error: "Erreur de vérification des droits" }
+async function assertSuperAdminSession(): Promise<
+  { ok: true; userId: string } | { ok: false; error: string }
+> {
+  const session = await resolveSessionContext()
+  if (!session.ok) return { ok: false, error: "Non authentifié" }
+  if (!session.isSuperAdmin) {
+    return { ok: false, error: "Accès refusé : rôle super_admin requis" }
   }
+  return { ok: true, userId: session.userId }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -111,42 +99,29 @@ export async function submitRechargeRequest(
   }
 
   // Résoudre agencyId et userId depuis la session — jamais depuis le client
-  let agencyId: string
-  let requestedByUserId: string
-  try {
-    const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { ok: false, error: "Non authentifié" }
+  const session = await resolveSessionContext()
+  if (!session.ok) return { ok: false, error: "Non authentifié" }
+  if (!session.agencyId) return { ok: false, error: "Profil utilisateur introuvable" }
 
-    const db = getDb()
-    const [profile] = await db
-      .select({ agencyId: users.agencyId })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
+  const agencyId = session.agencyId
+  const requestedByUserId = session.userId
 
-    if (!profile) return { ok: false, error: "Profil utilisateur introuvable" }
-
-    agencyId = profile.agencyId
-    requestedByUserId = user.id
-  } catch {
-    return { ok: false, error: "Erreur d'authentification" }
-  }
-
-  const db = getDb()
-
-  const [row] = await db
-    .insert(walletRechargeRequests)
-    .values({
-      agencyId,
-      requestedByUserId,
-      amount: input.amount.toFixed(3),
-      method: input.method,
-      paymentReference: input.paymentReference ?? null,
-      proofUrl: input.proofUrl ?? null,
-      note: input.note ?? null,
-    })
-    .returning({ id: walletRechargeRequests.id })
+  const [row] = await withTenantContext(
+    { agencyId, userId: requestedByUserId, isSuperAdmin: session.isSuperAdmin },
+    (db) =>
+      db
+        .insert(walletRechargeRequests)
+        .values({
+          agencyId,
+          requestedByUserId,
+          amount: input.amount.toFixed(3),
+          method: input.method,
+          paymentReference: input.paymentReference ?? null,
+          proofUrl: input.proofUrl ?? null,
+          note: input.note ?? null,
+        })
+        .returning({ id: walletRechargeRequests.id }),
+  )
 
   if (!row) {
     return { ok: false, error: "Erreur lors de la création de la demande" }
@@ -165,68 +140,83 @@ export async function submitRechargeRequest(
 export async function validateRechargeRequest(
   input: ValidateRechargeInput,
 ): Promise<ActionResult> {
-  const authErr = await assertSuperAdmin()
-  if (authErr) return authErr
+  const authResult = await assertSuperAdminSession()
+  if (!authResult.ok) return { ok: false, error: authResult.error }
 
-  const db = getDb()
+  // Vue cross-agence (super_admin valide une recharge pour une agence
+  // arbitraire, pas nécessairement la sienne) : is_super_admin=true requis.
+  // Demande + solde relus et verrouillés (`FOR UPDATE`) DANS la même
+  // transaction pour éviter une double-validation concurrente.
+  try {
+    await withTenantContext(
+      { agencyId: null, userId: authResult.userId, isSuperAdmin: true },
+      async (tx) => {
+        const [request] = await tx
+          .select()
+          .from(walletRechargeRequests)
+          .where(eq(walletRechargeRequests.id, input.requestId))
+          .for("update")
 
-  // Récupérer la demande
-  const [request] = await db
-    .select()
-    .from(walletRechargeRequests)
-    .where(eq(walletRechargeRequests.id, input.requestId))
+        if (!request) throw new Error("REQUEST_NOT_FOUND")
+        if (request.status !== "pending") {
+          throw new Error(`REQUEST_ALREADY_PROCESSED:${request.status}`)
+        }
 
-  if (!request) {
-    return { ok: false, error: "Demande de recharge introuvable" }
+        const amount = parseFloat(request.amount)
+
+        // 1. Lire le solde actuel (avec verrou)
+        const [agency] = await tx
+          .select({ depositBalance: agencies.depositBalance })
+          .from(agencies)
+          .where(eq(agencies.id, request.agencyId))
+          .for("update")
+
+        if (!agency) throw new Error("AGENCY_NOT_FOUND")
+
+        const currentBalance = parseFloat(agency.depositBalance)
+        const newBalance = currentBalance + amount
+
+        // 2. Mettre à jour le solde
+        await tx
+          .update(agencies)
+          .set({ depositBalance: newBalance.toFixed(3) })
+          .where(eq(agencies.id, request.agencyId))
+
+        // 3. Créer le mouvement de crédit
+        await tx.insert(partnerCreditMovements).values({
+          agencyId: request.agencyId,
+          movementType: "credit",
+          amount: amount.toFixed(3),
+          balanceAfter: newBalance.toFixed(3),
+          reference: `RECHARGE-${request.id.slice(0, 8).toUpperCase()}`,
+          description: `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
+          createdByUserId: input.reviewedByUserId,
+        })
+
+        // 4. Marquer la demande comme validée
+        await tx
+          .update(walletRechargeRequests)
+          .set({
+            status: "validated",
+            reviewedByUserId: input.reviewedByUserId,
+            reviewedAt: new Date(),
+          })
+          .where(eq(walletRechargeRequests.id, input.requestId))
+      },
+    )
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg === "REQUEST_NOT_FOUND") {
+      return { ok: false, error: "Demande de recharge introuvable" }
+    }
+    if (msg === "AGENCY_NOT_FOUND") {
+      return { ok: false, error: "Agence introuvable" }
+    }
+    if (msg.startsWith("REQUEST_ALREADY_PROCESSED:")) {
+      return { ok: false, error: `Demande déjà traitée (statut: ${msg.split(":")[1]})` }
+    }
+    throw err
   }
-
-  if (request.status !== "pending") {
-    return { ok: false, error: `Demande déjà traitée (statut: ${request.status})` }
-  }
-
-  const amount = parseFloat(request.amount)
-
-  // Transaction : créditer le wallet + créer mouvement + marquer validé
-  await db.transaction(async (tx) => {
-    // 1. Lire le solde actuel (avec verrou)
-    const [agency] = await tx
-      .select({ depositBalance: agencies.depositBalance })
-      .from(agencies)
-      .where(eq(agencies.id, request.agencyId))
-      .for("update")
-
-    if (!agency) throw new Error("Agence introuvable")
-
-    const currentBalance = parseFloat(agency.depositBalance)
-    const newBalance = currentBalance + amount
-
-    // 2. Mettre à jour le solde
-    await tx
-      .update(agencies)
-      .set({ depositBalance: newBalance.toFixed(3) })
-      .where(eq(agencies.id, request.agencyId))
-
-    // 3. Créer le mouvement de crédit
-    await tx.insert(partnerCreditMovements).values({
-      agencyId: request.agencyId,
-      movementType: "credit",
-      amount: amount.toFixed(3),
-      balanceAfter: newBalance.toFixed(3),
-      reference: `RECHARGE-${request.id.slice(0, 8).toUpperCase()}`,
-      description: `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
-      createdByUserId: input.reviewedByUserId,
-    })
-
-    // 4. Marquer la demande comme validée
-    await tx
-      .update(walletRechargeRequests)
-      .set({
-        status: "validated",
-        reviewedByUserId: input.reviewedByUserId,
-        reviewedAt: new Date(),
-      })
-      .where(eq(walletRechargeRequests.id, input.requestId))
-  })
 
   revalidatePath("/b2b")
   revalidatePath("/b2b/wallet")
@@ -246,33 +236,45 @@ export async function rejectRechargeRequest(
     return { ok: false, error: "Le motif de refus est obligatoire" }
   }
 
-  const authErr = await assertSuperAdmin()
-  if (authErr) return authErr
+  const authResult = await assertSuperAdminSession()
+  if (!authResult.ok) return { ok: false, error: authResult.error }
 
-  const db = getDb()
+  try {
+    await withTenantContext(
+      { agencyId: null, userId: authResult.userId, isSuperAdmin: true },
+      async (tx) => {
+        const [request] = await tx
+          .select({ status: walletRechargeRequests.status })
+          .from(walletRechargeRequests)
+          .where(eq(walletRechargeRequests.id, input.requestId))
+          .for("update")
 
-  const [request] = await db
-    .select({ status: walletRechargeRequests.status })
-    .from(walletRechargeRequests)
-    .where(eq(walletRechargeRequests.id, input.requestId))
+        if (!request) throw new Error("REQUEST_NOT_FOUND")
+        if (request.status !== "pending") {
+          throw new Error(`REQUEST_ALREADY_PROCESSED:${request.status}`)
+        }
 
-  if (!request) {
-    return { ok: false, error: "Demande de recharge introuvable" }
+        await tx
+          .update(walletRechargeRequests)
+          .set({
+            status: "rejected",
+            reviewedByUserId: input.reviewedByUserId,
+            rejectionReason: input.rejectionReason.trim(),
+            reviewedAt: new Date(),
+          })
+          .where(eq(walletRechargeRequests.id, input.requestId))
+      },
+    )
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg === "REQUEST_NOT_FOUND") {
+      return { ok: false, error: "Demande de recharge introuvable" }
+    }
+    if (msg.startsWith("REQUEST_ALREADY_PROCESSED:")) {
+      return { ok: false, error: `Demande déjà traitée (statut: ${msg.split(":")[1]})` }
+    }
+    throw err
   }
-
-  if (request.status !== "pending") {
-    return { ok: false, error: `Demande déjà traitée (statut: ${request.status})` }
-  }
-
-  await db
-    .update(walletRechargeRequests)
-    .set({
-      status: "rejected",
-      reviewedByUserId: input.reviewedByUserId,
-      rejectionReason: input.rejectionReason.trim(),
-      reviewedAt: new Date(),
-    })
-    .where(eq(walletRechargeRequests.id, input.requestId))
 
   revalidatePath("/b2b/wallet")
   revalidatePath("/admin/accounting")

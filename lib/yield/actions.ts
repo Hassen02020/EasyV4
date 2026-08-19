@@ -8,10 +8,9 @@
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { getDb } from "@/lib/db/client"
-import { yieldRules, users, type NewYieldRule } from "@/lib/db/schema"
+import { yieldRules, type NewYieldRule } from "@/lib/db/schema"
 import { memoize, invalidate } from "@/lib/cache/redis"
-import { createServerSupabase } from "@/lib/supabase/server"
+import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 import {
   type YieldModule,
   type YieldRuleType,
@@ -21,27 +20,20 @@ import {
   defaultRule,
 } from "./math"
 
-/** Vérifie que l'appelant est super_admin. Retourne l'erreur ou null. */
-async function assertAdminForYield(): Promise<{ ok: false; error: string } | null> {
-  try {
-    const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { ok: false, error: "Non authentifié" }
-
-    const db = getDb()
-    const [actor] = await db
-      .select({ role: users.role })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
-
-    if (!actor || actor.role !== "super_admin") {
-      return { ok: false, error: "Accès refusé : rôle super_admin requis" }
-    }
-    return null
-  } catch {
-    return { ok: false, error: "Erreur de vérification des droits" }
+/**
+ * Vérifie que l'appelant est super_admin, via `resolve_session_context()`
+ * (SECURITY DEFINER) — jamais un SELECT `users` direct avant que le contexte
+ * RLS ne soit posé. Retourne le contexte tenant si OK, sinon l'erreur.
+ */
+async function assertAdminForYield(): Promise<
+  { ok: true; userId: string } | { ok: false; error: string }
+> {
+  const session = await resolveSessionContext()
+  if (!session.ok) return { ok: false, error: "Non authentifié" }
+  if (!session.isSuperAdmin) {
+    return { ok: false, error: "Accès refusé : rôle super_admin requis" }
   }
+  return { ok: true, userId: session.userId }
 }
 
 const UpsertSchema = z.object({
@@ -73,15 +65,14 @@ type ActionResult<T = void> =
 export async function upsertYieldRule(
   input: UpsertYieldRuleInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const authErr = await assertAdminForYield()
-  if (authErr) return authErr
+  const authResult = await assertAdminForYield()
+  if (!authResult.ok) return authResult
 
   const parsed = UpsertSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalide" }
   }
 
-  const db = getDb()
   const v = parsed.data
 
   const values: NewYieldRule = {
@@ -94,21 +85,27 @@ export async function upsertYieldRule(
     isActive: v.isActive,
   }
 
-  const [row] = await db
-    .insert(yieldRules)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [yieldRules.agencyId, yieldRules.module],
-      set: {
-        ruleType: values.ruleType,
-        percentValue: values.percentValue,
-        fixedValueTnd: values.fixedValueTnd,
-        minPriceTnd: values.minPriceTnd,
-        isActive: values.isActive,
-        updatedAt: new Date(),
-      },
-    })
-    .returning({ id: yieldRules.id })
+  // Vue cross-agence (super_admin configure la marge d'une agence
+  // partenaire arbitraire) : is_super_admin=true requis.
+  const [row] = await withTenantContext(
+    { agencyId: null, userId: authResult.userId, isSuperAdmin: true },
+    (db) =>
+      db
+        .insert(yieldRules)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [yieldRules.agencyId, yieldRules.module],
+          set: {
+            ruleType: values.ruleType,
+            percentValue: values.percentValue,
+            fixedValueTnd: values.fixedValueTnd,
+            minPriceTnd: values.minPriceTnd,
+            isActive: values.isActive,
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ id: yieldRules.id }),
+  )
 
   if (!row) return { ok: false, error: "Erreur DB lors de l'upsert" }
 
@@ -127,14 +124,17 @@ export async function toggleYieldRule(
   agencyId: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  const authErr = await assertAdminForYield()
-  if (authErr) return authErr
+  const authResult = await assertAdminForYield()
+  if (!authResult.ok) return authResult
 
-  const db = getDb()
-  await db
-    .update(yieldRules)
-    .set({ isActive, updatedAt: new Date() })
-    .where(eq(yieldRules.id, ruleId))
+  await withTenantContext(
+    { agencyId: null, userId: authResult.userId, isSuperAdmin: true },
+    (db) =>
+      db
+        .update(yieldRules)
+        .set({ isActive, updatedAt: new Date() })
+        .where(eq(yieldRules.id, ruleId)),
+  )
 
   await invalidate(`e2b:yield:${agencyId}`)
   revalidatePath("/admin/marges")

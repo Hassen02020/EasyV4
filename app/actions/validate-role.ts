@@ -1,10 +1,8 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { eq, and } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
-import { users } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
+import { getCurrentAdminProfile } from "@/lib/auth/profile"
 
 export type ValidateRoleInput = {
   email: string
@@ -78,24 +76,13 @@ export async function validateRoleAccess(
       return { ok: true, userId, role, redirectTo }
     }
 
-    // Avec DB: vérifier que le rôle correspond
-    const db = getDb()
-    const userRows = await db
-      .select({
-        id: users.id,
-        role: users.role,
-        status: users.status,
-        agencyId: users.agencyId,
-      })
-      .from(users)
-      .where(
-        and(eq(users.id, userId), eq(users.email, email.toLowerCase().trim())),
-      )
-      .limit(1)
+    // Avec DB: vérifier que le rôle correspond, via
+    // resolve_session_context() (SECURITY DEFINER) — jamais un SELECT
+    // `users` direct avant que le contexte RLS ne soit posé (on vient de
+    // s'authentifier, on ne connaît pas encore le rôle/l'agence).
+    const dbUser = await getCurrentAdminProfile(userId)
 
-    const dbUser = userRows[0]
-
-    if (!dbUser) {
+    if (!dbUser || dbUser.email.toLowerCase() !== email.toLowerCase().trim()) {
       return {
         ok: false,
         message: "Utilisateur non trouvé dans la base de données",

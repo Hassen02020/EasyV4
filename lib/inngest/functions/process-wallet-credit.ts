@@ -7,8 +7,8 @@
 
 import { inngest, type Events } from "../client"
 import { Resend } from "resend"
-import { getDb } from "@/lib/db/client"
-import { agencies, users } from "@/lib/db/schema"
+import { withSystemContext } from "@/lib/db/tenant-context"
+import { agencies } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 
 // Lazy initialization pour éviter l'erreur au build
@@ -29,15 +29,18 @@ export const processWalletCredit = inngest.createFunction(
   async ({ event }: { event: { data: Events["wallet/credited"]["data"] } }) => {
     const { agencyId, amount, newBalance, method, txId } = event.data
 
-    /* Step 1 — Récupérer les infos agence */
-    const db = getDb()
-    const [agency] = await db
-      .select({
-        name: agencies.name,
-        email: agencies.contactEmail,
-      })
-      .from(agencies)
-      .where(eq(agencies.id, agencyId))
+    /* Step 1 — Récupérer les infos agence.
+     * Job Inngest déclenché en arrière-plan par le serveur (pas de session
+     * Supabase à résoudre) — appelant système de confiance. */
+    const [agency] = await withSystemContext((db) =>
+      db
+        .select({
+          name: agencies.name,
+          email: agencies.contactEmail,
+        })
+        .from(agencies)
+        .where(eq(agencies.id, agencyId)),
+    )
 
     if (!agency?.email) {
       return { success: false, reason: "no_agency_email" }

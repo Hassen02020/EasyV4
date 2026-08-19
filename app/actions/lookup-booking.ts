@@ -1,7 +1,7 @@
 "use server"
 
 import { eq, and, ilike } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
 
 export type BookingLookupResult =
@@ -51,34 +51,36 @@ export async function lookupBooking(
   }
 
   try {
-    const db = getDb()
-
-    const rows = await db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        module: reservations.module,
-        status: reservations.status,
-        originalAmount: reservations.originalAmount,
-        originalCurrency: reservations.originalCurrency,
-        tndAmount: reservations.tndAmount,
-        createdAt: reservations.createdAt,
-        confirmedAt: reservations.confirmedAt,
-        cancelledAt: reservations.cancelledAt,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        phone: customers.phone,
-      })
-      .from(reservations)
-      .innerJoin(customers, eq(reservations.customerId, customers.id))
-      .where(
-        and(
-          eq(reservations.publicRef, cleanRef),
-          ilike(customers.email, cleanEmail),
-        ),
-      )
-      .limit(1)
+    // Server Action publique (recherche "ma réservation", pas de session) —
+    // accès restreint par la combinaison référence + email du client.
+    const rows = await withSystemContext((db) =>
+      db
+        .select({
+          id: reservations.id,
+          publicRef: reservations.publicRef,
+          module: reservations.module,
+          status: reservations.status,
+          originalAmount: reservations.originalAmount,
+          originalCurrency: reservations.originalCurrency,
+          tndAmount: reservations.tndAmount,
+          createdAt: reservations.createdAt,
+          confirmedAt: reservations.confirmedAt,
+          cancelledAt: reservations.cancelledAt,
+          firstName: customers.firstName,
+          lastName: customers.lastName,
+          email: customers.email,
+          phone: customers.phone,
+        })
+        .from(reservations)
+        .innerJoin(customers, eq(reservations.customerId, customers.id))
+        .where(
+          and(
+            eq(reservations.publicRef, cleanRef),
+            ilike(customers.email, cleanEmail),
+          ),
+        )
+        .limit(1),
+    )
 
     const row = rows[0]
     if (!row) {

@@ -13,7 +13,7 @@ import { OmraBookingForm } from "@/components/omra/omra-booking-form"
 import { TransferBookingForm } from "@/components/transfer/transfer-booking-form"
 import { Separator } from "@/components/ui/separator"
 import { Wallet, Car, User } from "lucide-react"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogTransferZones } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 
@@ -21,12 +21,14 @@ const MOCK_AGENCY_ID = "00000000-0000-0000-0000-000000000001"
 
 async function getActiveZones() {
   try {
-    const db = getDb()
-    return await db
-      .select()
-      .from(catalogTransferZones)
-      .where(eq(catalogTransferZones.status, "active"))
-      .orderBy(catalogTransferZones.name)
+    // Page sandbox sans session — catalogue public.
+    return await withSystemContext((db) =>
+      db
+        .select()
+        .from(catalogTransferZones)
+        .where(eq(catalogTransferZones.status, "active"))
+        .orderBy(catalogTransferZones.name),
+    )
   } catch {
     return []
   }

@@ -6,7 +6,7 @@
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { TransferSearch } from "@/components/transfer/transfer-search"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogTransferZones } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 
@@ -20,12 +20,14 @@ export const metadata = {
 
 async function getZones() {
   try {
-    const db = getDb()
-    return await db
-      .select()
-      .from(catalogTransferZones)
-      .where(eq(catalogTransferZones.status, "active"))
-      .orderBy(catalogTransferZones.name)
+    // Catalogue public (trafic anonyme, pas de session storefront).
+    return await withSystemContext((db) =>
+      db
+        .select()
+        .from(catalogTransferZones)
+        .where(eq(catalogTransferZones.status, "active"))
+        .orderBy(catalogTransferZones.name),
+    )
   } catch {
     return []
   }

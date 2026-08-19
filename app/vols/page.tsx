@@ -12,7 +12,20 @@ export const metadata = {
     "Comparez et réservez vos vols au départ de Tunis et des aéroports tunisiens. Meilleurs tarifs garantis.",
 }
 
-export default function VolsPage() {
+interface VolsSearchParams {
+  origin?: string
+  destination?: string
+  class?: string
+  adults?: string
+}
+
+export default async function VolsPage({
+  searchParams,
+}: {
+  searchParams: Promise<VolsSearchParams>
+}) {
+  const params = await searchParams
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -33,7 +46,12 @@ export default function VolsPage() {
         </div>
 
         <div className="mx-auto max-w-4xl px-4 py-10">
-          <FlightSearch />
+          <FlightSearch
+            initialOrigin={params.origin}
+            initialDestination={params.destination}
+            initialCabin={params.class}
+            initialAdults={params.adults}
+          />
         </div>
       </main>
       <Footer />

@@ -12,7 +12,19 @@ export const metadata = {
     "Réservez des hôtels partout dans le monde. Plus de 1 million d'établissements. Meilleur prix garanti.",
 }
 
-export default function HotelsMondeePage() {
+interface HotelsMondeSearchParams {
+  destination?: string
+  checkin?: string
+  checkout?: string
+}
+
+export default async function HotelsMondeePage({
+  searchParams,
+}: {
+  searchParams: Promise<HotelsMondeSearchParams>
+}) {
+  const { destination, checkin, checkout } = await searchParams
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -32,7 +44,11 @@ export default function HotelsMondeePage() {
           </div>
         </div>
         <div className="mx-auto max-w-4xl px-4 py-10">
-          <WorldHotelSearch />
+          <WorldHotelSearch
+            initialDestination={destination}
+            initialCheckIn={checkin}
+            initialCheckOut={checkout}
+          />
         </div>
       </main>
       <Footer />

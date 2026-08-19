@@ -28,13 +28,47 @@ const POPULAR_DESTINATIONS = [
   { value: "new_york", label: "New York, États-Unis" },
 ]
 
-export function WorldHotelSearch() {
+/**
+ * Fait correspondre une saisie libre (venant du moteur de recherche rapide
+ * de la page d'accueil, ex: "Paris") à une valeur connue de
+ * POPULAR_DESTINATIONS — par égalité de value, puis par sous-chaîne du
+ * label. Retourne "" (aucune présélection) plutôt qu'une valeur inventée
+ * si rien ne correspond, pour ne jamais forcer un &lt;Select&gt; sur une
+ * option qui n'existe pas dans sa liste.
+ */
+function matchDestination(input: string | undefined): string {
+  if (!input) return ""
+  const needle = input.trim().toLowerCase()
+  if (!needle) return ""
+  const exact = POPULAR_DESTINATIONS.find((d) => d.value === needle)
+  if (exact) return exact.value
+  const byLabel = POPULAR_DESTINATIONS.find((d) =>
+    d.label.toLowerCase().includes(needle),
+  )
+  return byLabel?.value ?? ""
+}
+
+export function WorldHotelSearch({
+  initialDestination,
+  initialCheckIn,
+  initialCheckOut,
+}: {
+  initialDestination?: string
+  initialCheckIn?: string
+  initialCheckOut?: string
+} = {}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const [destination, setDestination] = useState("")
-  const [checkIn, setCheckIn] = useState("")
-  const [checkOut, setCheckOut] = useState("")
+  const [destination, setDestination] = useState(() =>
+    matchDestination(initialDestination),
+  )
+  const [checkIn, setCheckIn] = useState(initialCheckIn ?? "")
+  const [checkOut, setCheckOut] = useState(() =>
+    initialCheckIn && initialCheckOut && initialCheckOut <= initialCheckIn
+      ? ""
+      : (initialCheckOut ?? ""),
+  )
   const [adults, setAdults] = useState("2")
   const [rooms, setRooms] = useState("1")
   const [stars, setStars] = useState("")

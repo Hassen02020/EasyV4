@@ -12,7 +12,20 @@ export const metadata = {
     "Louez une voiture en Tunisie au meilleur prix. Berline, SUV, minibus. Prise en charge aéroport ou agence.",
 }
 
-export default function CarPage() {
+interface CarSearchParams {
+  location?: string
+  pickupDate?: string
+  returnDate?: string
+  category?: string
+}
+
+export default async function CarPage({
+  searchParams,
+}: {
+  searchParams: Promise<CarSearchParams>
+}) {
+  const { location, pickupDate, returnDate, category } = await searchParams
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -32,7 +45,12 @@ export default function CarPage() {
           </div>
         </div>
         <div className="mx-auto max-w-4xl px-4 py-10">
-          <CarSearch />
+          <CarSearch
+            initialLocation={location}
+            initialPickupDate={pickupDate}
+            initialReturnDate={returnDate}
+            initialCategory={category}
+          />
         </div>
       </main>
       <Footer />

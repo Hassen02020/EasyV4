@@ -37,17 +37,51 @@ const CABIN_CLASSES = [
   { value: "FIRST", label: "Première" },
 ]
 
-export function FlightSearch() {
+/** Le moteur rapide de la page d'accueil envoie "Tunis (TUN)" / "Istanbul (IST)" —
+ * on extrait le code IATA entre parenthèses et on vérifie qu'il existe bien
+ * dans AIRPORTS avant de préremplir, plutôt que d'imposer un code inconnu. */
+function matchAirportCode(input: string | undefined): string {
+  if (!input) return ""
+  const fromParens = input.match(/\(([A-Za-z]{3})\)\s*$/)
+  const candidate = (fromParens?.[1] ?? input).trim().toUpperCase()
+  return AIRPORTS.some((a) => a.code === candidate) ? candidate : ""
+}
+
+const CABIN_FROM_HOME: Record<string, string> = {
+  economique: "ECONOMY",
+  premium: "PREMIUM_ECONOMY",
+  business: "BUSINESS",
+}
+
+export function FlightSearch({
+  initialOrigin,
+  initialDestination,
+  initialCabin,
+  initialAdults,
+}: {
+  initialOrigin?: string
+  initialDestination?: string
+  initialCabin?: string
+  initialAdults?: string
+} = {}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [tripType, setTripType] = useState<"oneway" | "roundtrip">("roundtrip")
-  const [origin, setOrigin] = useState("TUN")
-  const [destination, setDestination] = useState("")
+  const [origin, setOrigin] = useState(
+    () => matchAirportCode(initialOrigin) || "TUN",
+  )
+  const [destination, setDestination] = useState(() =>
+    matchAirportCode(initialDestination),
+  )
   const [departureDate, setDepartureDate] = useState("")
   const [returnDate, setReturnDate] = useState("")
-  const [adults, setAdults] = useState("1")
+  const [adults, setAdults] = useState(() =>
+    initialAdults && /^[1-9][0-9]?$/.test(initialAdults) ? initialAdults : "1",
+  )
   const [children, setChildren] = useState("0")
-  const [cabin, setCabin] = useState("ECONOMY")
+  const [cabin, setCabin] = useState(
+    () => CABIN_FROM_HOME[initialCabin ?? ""] ?? "ECONOMY",
+  )
 
   function swapAirports() {
     const tmp = origin

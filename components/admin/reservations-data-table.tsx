@@ -78,44 +78,37 @@ const STATUS_LABEL: Record<
 > = {
   pending: {
     label: "En attente",
-    className:
-      "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
+    className: "border-warning/40 bg-warning/15 text-warning-foreground",
     icon: Clock,
   },
   on_request: {
     label: "Sur demande",
-    className:
-      "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200",
+    className: "border-info/40 bg-info/15 text-info",
     icon: Clock,
   },
   confirmed: {
     label: "Confirmée",
-    className:
-      "border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200",
+    className: "border-success/40 bg-success/15 text-success",
     icon: CheckCircle,
   },
   cancelled: {
     label: "Annulée",
-    className:
-      "border-red-300 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-900/40 dark:text-red-200",
+    className: "border-destructive/40 bg-destructive/10 text-destructive",
     icon: XCircle,
   },
   no_show: {
     label: "No-show",
-    className:
-      "border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+    className: "border-muted-foreground/30 bg-muted text-muted-foreground",
     icon: XCircle,
   },
   completed: {
     label: "Terminée",
-    className:
-      "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200",
+    className: "border-success/30 bg-success/10 text-success",
     icon: CheckCircle,
   },
   refunded: {
     label: "Remboursée",
-    className:
-      "border-purple-300 bg-purple-100 text-purple-900 dark:border-purple-700 dark:bg-purple-900/40 dark:text-purple-200",
+    className: "border-sidebar/30 bg-sidebar/10 text-sidebar",
     icon: XCircle,
   },
 }

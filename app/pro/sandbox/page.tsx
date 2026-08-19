@@ -58,10 +58,10 @@ export default async function SandboxPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#1e3a8a] rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-sidebar rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">E2B</span>
               </div>
-              <span className="font-semibold text-[#1e3a8a]">Easy2Book Sandbox</span>
+              <span className="font-semibold text-sidebar">Easy2Book Sandbox</span>
             </div>
             <WalletStatus agencyId={MOCK_AGENCY_ID} compact />
           </div>
@@ -80,8 +80,8 @@ export default async function SandboxPage() {
         {/* Section Omra */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <User className="w-6 h-6 text-[#1e3a8a]" />
-            <h2 className="text-2xl font-bold text-[#1e3a8a]">Module Omra</h2>
+            <User className="w-6 h-6 text-sidebar" />
+            <h2 className="text-2xl font-bold text-sidebar">Module Omra</h2>
           </div>
           <p className="text-muted-foreground">
             Formulaire de réservation Omra de groupe avec ajout dynamique de pèlerins.
@@ -98,8 +98,8 @@ export default async function SandboxPage() {
         {/* Section Transferts */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <Car className="w-6 h-6 text-[#1e3a8a]" />
-            <h2 className="text-2xl font-bold text-[#1e3a8a]">Module Transferts</h2>
+            <Car className="w-6 h-6 text-sidebar" />
+            <h2 className="text-2xl font-bold text-sidebar">Module Transferts</h2>
           </div>
           <p className="text-muted-foreground">
             Formulaire de réservation de transfert avec calcul de devis en temps réel.
@@ -112,8 +112,8 @@ export default async function SandboxPage() {
         {/* Section Wallet Status (Full) */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <Wallet className="w-6 h-6 text-[#1e3a8a]" />
-            <h2 className="text-2xl font-bold text-[#1e3a8a]">Wallet Status (Full)</h2>
+            <Wallet className="w-6 h-6 text-sidebar" />
+            <h2 className="text-2xl font-bold text-sidebar">Wallet Status (Full)</h2>
           </div>
           <p className="text-muted-foreground">
             Composant WalletStatus en mode complet (non compact) pour vérifier l&apos;alignement du solde.

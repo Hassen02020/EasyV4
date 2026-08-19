@@ -5,8 +5,10 @@
 import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { AdminShell, type AdminShellRole, type AdminShellUser } from "@/components/admin-shell"
 
+// Le shell (sidebar/header) est déjà fourni une seule fois par
+// app/admin/layout.tsx — ce layout ne fait que le contrôle d'accès
+// défensif à la section, comme app/admin/products/layout.tsx.
 export default async function SuppliersLayout({
   children,
 }: {
@@ -27,12 +29,5 @@ export default async function SuppliersLayout({
     redirect("/admin")
   }
 
-  const adminUser: AdminShellUser = {
-    email: user.email || "",
-    displayName: profile.name || user.email || "",
-    initials: (profile.name || user.email || "").slice(0, 2).toUpperCase(),
-    role: profile.role as AdminShellRole,
-  }
-
-  return <AdminShell user={adminUser}>{children}</AdminShell>
+  return <>{children}</>
 }

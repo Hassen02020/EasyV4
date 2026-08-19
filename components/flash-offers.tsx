@@ -1,19 +1,24 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useT } from "@/components/locale-context"
 
+/**
+ * Destinations d'inspiration — aucun prix/date n'est affiché ici : ces
+ * chiffres n'existent nulle part côté serveur pour ces cartes (contrairement
+ * aux pages de résultats /hotels-monde, /hotels/search, /omra qui, elles,
+ * interrogent le catalogue réel). Chaque carte pointe vers la vraie page de
+ * recherche du module correspondant plutôt que d'inventer un tarif.
+ */
 const offers = [
   {
     id: 1,
     destination: "Istanbul",
     type: "Vols + Hôtel",
-    date: "15 Nov - 2026",
-    price: "1450",
-    currency: "TND",
-    priceUnit: "",
+    href: "/hotels-monde",
     image:
       "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=600&h=400&fit=crop",
     flag: "🇹🇷",
@@ -22,10 +27,7 @@ const offers = [
     id: 2,
     destination: "Djerba",
     type: "Tout Inclus",
-    priceNote: "180 TND / nuit",
-    price: "180",
-    currency: "TND",
-    priceUnit: "/ nuit",
+    href: "/hotels/search",
     image:
       "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&h=400&fit=crop",
     flag: "🇹🇳",
@@ -34,10 +36,7 @@ const offers = [
     id: 3,
     destination: "Omra",
     type: "Programme Éco",
-    date: "25 Mar - 2026",
-    price: "3200",
-    currency: "TND",
-    priceUnit: "",
+    href: "/omra",
     image:
       "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=600&h=400&fit=crop",
     flag: "🇸🇦",
@@ -69,7 +68,7 @@ export function FlashOffers() {
                 />
                 <Badge
                   variant="secondary"
-                  className="absolute top-3 left-3 bg-[#1e3a5f] font-medium text-white"
+                  className="bg-sidebar text-sidebar-foreground absolute top-3 left-3 font-medium"
                 >
                   {t("flashOffers")}
                 </Badge>
@@ -87,30 +86,16 @@ export function FlashOffers() {
                       {offer.type}
                     </p>
                   </div>
-                  {offer.date && (
-                    <span className="text-muted-foreground text-xs">
-                      {offer.date}
-                    </span>
-                  )}
                 </div>
 
-                <div className="border-border flex items-center justify-between border-t pt-2">
-                  <div>
-                    <span className="text-primary text-xl font-bold sm:text-2xl">
-                      {offer.price} {offer.currency}
-                    </span>
-                    {offer.priceUnit && (
-                      <span className="text-muted-foreground ml-1 text-sm">
-                        {offer.priceUnit}
-                      </span>
-                    )}
-                  </div>
+                <div className="border-border flex items-center justify-end border-t pt-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white"
+                    className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                    asChild
                   >
-                    {t("reserverMaintenant")}
+                    <Link href={offer.href}>{t("reserverMaintenant")}</Link>
                   </Button>
                 </div>
               </div>

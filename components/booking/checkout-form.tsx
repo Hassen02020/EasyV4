@@ -93,7 +93,7 @@ export function CheckoutForm({ token }: { token: string }) {
                     className={
                       "flex items-start gap-3 rounded-lg border p-4 text-left transition-all " +
                       (active
-                        ? "border-[#1e3a5f] bg-[#1e3a5f]/5 shadow-sm"
+                        ? "border-sidebar bg-sidebar/5 shadow-sm"
                         : "border-border hover:border-foreground/30")
                     }
                   >
@@ -101,7 +101,7 @@ export function CheckoutForm({ token }: { token: string }) {
                       className={
                         "mt-0.5 inline-flex size-9 items-center justify-center rounded-md " +
                         (active
-                          ? "bg-[#1e3a5f] text-white"
+                          ? "bg-sidebar text-white"
                           : "bg-muted text-muted-foreground")
                       }
                     >

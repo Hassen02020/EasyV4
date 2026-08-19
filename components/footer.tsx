@@ -88,8 +88,8 @@ export function Footer() {
             const Icon = badge.icon
             return (
               <div key={index} className="flex items-center gap-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#1e3a5f]/10">
-                  <Icon className="size-5 text-[#1e3a5f]" />
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sidebar/10">
+                  <Icon className="size-5 text-sidebar" />
                 </div>
                 <div>
                   <p className="text-foreground text-sm font-semibold">
@@ -106,7 +106,7 @@ export function Footer() {
       </div>
 
       {/* Main Footer Content */}
-      <div className="border-border border-t bg-[#1e3a5f] text-white">
+      <div className="border-border border-t bg-sidebar text-white">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {/* Brand */}
@@ -128,7 +128,7 @@ export function Footer() {
                       aria-label={social.label}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-[#e5b94e]"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-accent"
                     >
                       <Icon className="size-4" />
                     </a>
@@ -139,7 +139,7 @@ export function Footer() {
 
             {/* Quick Links */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-[#e5b94e]">
+              <h4 className="font-semibold text-accent">
                 {t("nosServices")}
               </h4>
               <ul className="space-y-2 text-sm text-white/70">
@@ -165,10 +165,10 @@ export function Footer() {
 
             {/* Contact */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-[#e5b94e]">Contact</h4>
+              <h4 className="font-semibold text-accent">Contact</h4>
               <ul className="space-y-3 text-sm text-white/70">
                 <li className="flex items-center gap-2">
-                  <Phone className="size-4 text-[#e5b94e]" />
+                  <Phone className="size-4 text-accent" />
                   <a
                     href="tel:+21698140514"
                     className="font-medium transition-colors hover:text-white"
@@ -177,7 +177,7 @@ export function Footer() {
                   </a>
                 </li>
                 <li className="flex items-center gap-2">
-                  <WhatsAppIcon className="size-4 text-[#e5b94e]" />
+                  <WhatsAppIcon className="size-4 text-accent" />
                   <a
                     href="https://wa.me/21698140514"
                     target="_blank"
@@ -188,7 +188,7 @@ export function Footer() {
                   </a>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Building2 className="size-4 text-[#e5b94e]" />
+                  <Building2 className="size-4 text-accent" />
                   <span>Tunis, Tunisie</span>
                 </li>
               </ul>
@@ -198,7 +198,7 @@ export function Footer() {
       </div>
 
       {/* Bottom Footer */}
-      <div className="bg-[#152d4a]">
+      <div className="bg-sidebar/90">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             {/* Links */}
@@ -231,7 +231,7 @@ export function Footer() {
       </div>
 
       {/* Copyright */}
-      <div className="bg-[#0f2237]">
+      <div className="bg-sidebar">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-white/50">{t("copyright")}</p>
         </div>

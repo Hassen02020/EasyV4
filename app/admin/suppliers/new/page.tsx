@@ -20,7 +20,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { AdminShell, type AdminShellRole, type AdminShellUser } from "@/components/admin-shell"
 
 export const metadata: Metadata = {
   title: "Nouveau Fournisseur — Manager",
@@ -45,12 +44,8 @@ export default async function NewSupplierPage() {
     redirect("/admin")
   }
 
-  const adminUser: AdminShellUser = {
-    email: user.email || "",
-    displayName: profile.name || user.email || "",
-    initials: (profile.name || user.email || "").slice(0, 2).toUpperCase(),
-    role: profile.role as AdminShellRole,
-  }
+  const creatorUserId = user.id
+  const creatorAgencyId = profile.agencyId
 
   const creatorUserId = user.id
   const creatorAgencyId = profile.agencyId
@@ -91,13 +86,12 @@ export default async function NewSupplierPage() {
   }
 
   return (
-    <AdminShell user={adminUser}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/admin/suppliers">
-              <ArrowLeft className="h-4 w-4" />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild aria-label="Retour à la liste des fournisseurs">
+          <Link href="/admin/suppliers">
+            <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
@@ -328,13 +322,12 @@ export default async function NewSupplierPage() {
               <TestTube className="mr-2 h-4 w-4" />
               Tester la connexion
             </Button>
-            <Button className="bg-[#1e3a5f]" type="submit">
+            <Button className="bg-primary hover:bg-primary/90" type="submit">
               <Save className="mr-2 h-4 w-4" />
               Enregistrer
             </Button>
           </div>
         </form>
       </div>
-    </AdminShell>
   )
 }

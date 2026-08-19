@@ -27,9 +27,9 @@ export function SearchHeader({
           >
             <Easy2BookLogo className="size-10" />
             <span className="hidden text-xl font-bold sm:block">
-              <span className="text-[#1e3a5f]">Easy</span>
-              <span className="text-[#e5b94e]">2</span>
-              <span className="text-[#1e3a5f]">Book</span>
+              <span className="text-sidebar">Easy</span>
+              <span className="text-accent">2</span>
+              <span className="text-sidebar">Book</span>
             </span>
           </Link>
 

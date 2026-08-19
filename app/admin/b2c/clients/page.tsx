@@ -158,7 +158,7 @@ export default async function B2CClientsPage() {
             Base de données clients et historique
           </p>
         </div>
-        <Button className="bg-[#1e3a5f]" asChild>
+        <Button className="bg-sidebar" asChild>
           <Link href="/admin/b2c/clients/new">
             <Plus className="mr-2 h-4 w-4" />
             Nouveau client
@@ -290,7 +290,7 @@ export default async function B2CClientsPage() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" aria-label={`Actions pour ${client.firstName} ${client.lastName}`}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

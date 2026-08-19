@@ -219,7 +219,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#1e3a8a]">Réservation de Transfert</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-sidebar">Réservation de Transfert</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           Sélectionnez vos zones de départ/arrivée et obtenez un devis instantané.
         </p>
@@ -233,9 +233,9 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Zones Selection */}
-        <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
-          <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
+        <Card className="rounded-lg border-2 border-sidebar/10">
+          <CardHeader className="bg-sidebar/5 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-sidebar">
               <MapPin className="w-5 h-5" />
               Trajet
             </CardTitle>
@@ -243,7 +243,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="fromZoneId">Zone de départ</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="fromZoneId">Zone de départ</Label>
                 <Select
                   value={watchedFromZoneId}
                   onValueChange={(v) => {
@@ -271,7 +271,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="toZoneId">Zone d&apos;arrivée</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="toZoneId">Zone d&apos;arrivée</Label>
                 <Select
                   value={watchedToZoneId}
                   onValueChange={(v) => {
@@ -298,9 +298,9 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
         </Card>
 
         {/* Vehicle & Date */}
-        <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
-          <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
+        <Card className="rounded-lg border-2 border-sidebar/10">
+          <CardHeader className="bg-sidebar/5 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-sidebar">
               <Car className="w-5 h-5" />
               Véhicule & Horaires
             </CardTitle>
@@ -308,7 +308,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="vehicleType">Type de véhicule</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="vehicleType">Type de véhicule</Label>
                 <Select
                   value={watchedVehicleType}
                   onValueChange={(v) => {
@@ -336,7 +336,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="pax">Nombre de passagers</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="pax">Nombre de passagers</Label>
                 <Input
                   id="pax"
                   type="number"
@@ -350,7 +350,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="pickupDate">Date de prise en charge</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="pickupDate">Date de prise en charge</Label>
                 <Input
                   id="pickupDate"
                   type="date"
@@ -364,7 +364,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="pickupTime">Heure de prise en charge</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="pickupTime">Heure de prise en charge</Label>
                 <Input
                   id="pickupTime"
                   type="time"
@@ -387,7 +387,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="luggageCount">Bagages (optionnel)</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="luggageCount">Bagages (optionnel)</Label>
                 <Input
                   id="luggageCount"
                   type="number"
@@ -400,7 +400,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]" htmlFor="flightNumber">Numéro de vol (optionnel)</Label>
+                <Label className="text-sm font-medium text-sidebar" htmlFor="flightNumber">Numéro de vol (optionnel)</Label>
                 <Input
                   id="flightNumber"
                   placeholder="Ex: TU123"
@@ -413,14 +413,14 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
         </Card>
 
         {/* Customer Info */}
-        <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
-          <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
-            <CardTitle className="text-[#1e3a8a]">Informations du client</CardTitle>
+        <Card className="rounded-lg border-2 border-sidebar/10">
+          <CardHeader className="bg-sidebar/5 rounded-t-lg">
+            <CardTitle className="text-sidebar">Informations du client</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]">Prénom *</Label>
+                <Label className="text-sm font-medium text-sidebar">Prénom *</Label>
                 <Input
                   {...form.register("customer.firstName")}
                   placeholder="Ahmed"
@@ -434,7 +434,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]">Nom *</Label>
+                <Label className="text-sm font-medium text-sidebar">Nom *</Label>
                 <Input
                   {...form.register("customer.lastName")}
                   placeholder="Ben Ali"
@@ -450,7 +450,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]">Téléphone *</Label>
+                <Label className="text-sm font-medium text-sidebar">Téléphone *</Label>
                 <Input
                   {...form.register("customer.phone")}
                   placeholder="+216 98 123 456"
@@ -464,7 +464,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1e3a8a]">Email</Label>
+                <Label className="text-sm font-medium text-sidebar">Email</Label>
                 <Input
                   type="email"
                   {...form.register("customer.email")}
@@ -475,7 +475,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-[#1e3a8a]">CIN (optionnel)</Label>
+              <Label className="text-sm font-medium text-sidebar">CIN (optionnel)</Label>
               <Input
                 {...form.register("customer.civicId")}
                 placeholder="12345678"
@@ -494,9 +494,9 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
 
         {/* Pricing Summary */}
         {pricing && (
-          <Card className="rounded-lg border-2 border-[#1e3a8a]/10 bg-[#1e3a8a]/5">
-            <CardHeader className="bg-[#1e3a8a]/10 rounded-t-lg">
-              <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
+          <Card className="rounded-lg border-2 border-sidebar/10 bg-sidebar/5">
+            <CardHeader className="bg-sidebar/10 rounded-t-lg">
+              <CardTitle className="flex items-center gap-2 text-sidebar">
                 <CreditCard className="w-5 h-5" />
                 Devis
               </CardTitle>
@@ -504,10 +504,10 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
             <CardContent className="space-y-4 pt-6">
               <div className="flex justify-between items-center">
                 <span className="text-sm sm:text-base">Prix de base</span>
-                <span className="font-semibold text-[#1e3a8a]">{pricing.basePriceTnd.toFixed(3)} DT</span>
+                <span className="font-semibold text-sidebar">{pricing.basePriceTnd.toFixed(3)} DT</span>
               </div>
               {pricing.nightSurchargeAmount > 0 && (
-                <div className="flex justify-between items-center text-[#f59e0b]">
+                <div className="flex justify-between items-center text-accent">
                   <span className="text-sm sm:text-base">Majoration nuit ({pricing.nightSurchargePercent}%)</span>
                   <span className="font-semibold">+{pricing.nightSurchargeAmount.toFixed(3)} DT</span>
                 </div>
@@ -518,10 +518,10 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
                   <span className="font-semibold">+{pricing.marginAmount.toFixed(3)} DT</span>
                 </div>
               )}
-              <Separator className="bg-[#1e3a8a]/20" />
+              <Separator className="bg-sidebar/20" />
               <div className="flex justify-between items-center text-lg sm:text-xl">
-                <span className="font-semibold text-[#1e3a8a]">Total TTC</span>
-                <span className="font-bold text-[#f59e0b]">{pricing.totalTnd.toFixed(3)} DT</span>
+                <span className="font-semibold text-sidebar">Total TTC</span>
+                <span className="font-bold text-accent">{pricing.totalTnd.toFixed(3)} DT</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Le montant sera débité de votre wallet Easy2Book.
@@ -533,7 +533,7 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
         <Button
           type="submit"
           size="lg"
-          className="w-full bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white rounded-lg"
+          className="w-full bg-sidebar hover:bg-sidebar/90 text-white rounded-lg"
           disabled={isSubmitting || !pricing}
         >
           {isSubmitting ? (

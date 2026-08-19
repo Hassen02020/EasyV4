@@ -185,14 +185,14 @@ export function TopUpForm({ agencyId, userId, onSuccess }: TopUpFormProps) {
   if (zitounaPayUrl) {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <CreditCard className="size-12 text-[#1e3a5f]" />
+        <CreditCard className="size-12 text-sidebar" />
         <div>
           <p className="text-lg font-semibold">Redirection vers Zitouna Pay</p>
           <p className="text-muted-foreground text-sm mt-1">
             Cliquez pour finaliser votre paiement en ligne.
           </p>
         </div>
-        <Button asChild className="gap-2 bg-[#1e3a5f] hover:bg-[#152d4a]">
+        <Button asChild className="gap-2 bg-sidebar hover:bg-sidebar/90">
           <a href={zitounaPayUrl} target="_blank" rel="noopener noreferrer">
             Payer maintenant
             <ExternalLink className="size-4" />
@@ -218,15 +218,15 @@ export function TopUpForm({ agencyId, userId, onSuccess }: TopUpFormProps) {
               className={cn(
                 "flex items-start gap-3 rounded-xl border p-3 text-left transition-all",
                 selectedMethod === m.id
-                  ? "border-[#1e3a5f] bg-[#1e3a5f]/5 ring-1 ring-[#1e3a5f]"
-                  : "border-border hover:border-[#1e3a5f]/40 hover:bg-muted/50",
+                  ? "border-sidebar bg-sidebar/5 ring-1 ring-sidebar"
+                  : "border-border hover:border-sidebar/40 hover:bg-muted/50",
               )}
             >
               <span
                 className={cn(
                   "mt-0.5 rounded-lg p-1.5",
                   selectedMethod === m.id
-                    ? "bg-[#1e3a5f] text-white"
+                    ? "bg-sidebar text-white"
                     : "bg-muted text-muted-foreground",
                 )}
               >
@@ -329,7 +329,7 @@ export function TopUpForm({ agencyId, userId, onSuccess }: TopUpFormProps) {
                   "relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors",
                   proofFile
                     ? "border-emerald-400 bg-emerald-50"
-                    : "border-border hover:border-[#1e3a5f]/40 hover:bg-muted/30",
+                    : "border-border hover:border-sidebar/40 hover:bg-muted/30",
                 )}
                 onClick={() => fileRef.current?.click()}
               >
@@ -399,7 +399,7 @@ export function TopUpForm({ agencyId, userId, onSuccess }: TopUpFormProps) {
               (!!method?.needsRef && !reference) ||
               (!!method?.needsProof && !proofFile)
             }
-            className="w-full gap-2 bg-[#1e3a5f] hover:bg-[#152d4a]"
+            className="w-full gap-2 bg-sidebar hover:bg-sidebar/90"
           >
             {isPending ? (
               <>

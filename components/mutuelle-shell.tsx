@@ -125,6 +125,7 @@ export function MutuelleShell({
             variant="ghost"
             size="icon"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
           >
             {mobileOpen ? (
               <X className="h-5 w-5" />

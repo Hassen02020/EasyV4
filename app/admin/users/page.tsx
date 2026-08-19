@@ -64,40 +64,40 @@ const ROLE_CONFIG: Record<
 > = {
   super_admin: {
     label: "Super Admin",
-    color: "bg-purple-100 text-purple-800",
+    color: "bg-sidebar/10 text-sidebar",
     icon: Shield,
   },
-  manager: { label: "Manager", color: "bg-blue-100 text-blue-800", icon: User },
+  manager: { label: "Manager", color: "bg-info/15 text-info", icon: User },
   agent_resa: {
     label: "Agent Résa",
-    color: "bg-green-100 text-green-800",
+    color: "bg-success/15 text-success",
     icon: User,
   },
   agent_compta: {
     label: "Agent Compta",
-    color: "bg-yellow-100 text-yellow-800",
+    color: "bg-warning/20 text-warning-foreground",
     icon: User,
   },
   agent_excursions: {
     label: "Agent Excursions",
-    color: "bg-orange-100 text-orange-800",
+    color: "bg-accent/20 text-accent-foreground",
     icon: User,
   },
   partner_owner: {
     label: "Propriétaire B2B",
-    color: "bg-pink-100 text-pink-800",
+    color: "bg-primary/15 text-primary",
     icon: Building2,
   },
   partner_agent: {
     label: "Agent B2B",
-    color: "bg-teal-100 text-teal-800",
+    color: "bg-secondary text-secondary-foreground",
     icon: Building2,
   },
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  active: { label: "Actif", color: "bg-green-100 text-green-800" },
-  suspended: { label: "Suspendu", color: "bg-red-100 text-red-800" },
+  active: { label: "Actif", color: "bg-success/15 text-success" },
+  suspended: { label: "Suspendu", color: "bg-destructive/10 text-destructive" },
 }
 
 async function loadUsers(userId: string) {
@@ -178,7 +178,7 @@ export default async function UsersManagementPage() {
             Administration des comptes et rôles — {allUsers.length} utilisateurs
           </p>
         </div>
-        <Button className="bg-purple-600 hover:bg-purple-700" asChild>
+        <Button className="bg-primary hover:bg-primary/90" asChild>
           <Link href="/admin/users/new">
             <Plus className="mr-2 h-4 w-4" />
             Nouvel Utilisateur
@@ -314,7 +314,7 @@ export default async function UsersManagementPage() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" aria-label={`Actions pour ${user.name || user.email}`}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>

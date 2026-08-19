@@ -7,7 +7,7 @@ function OmratySectionContent() {
   const t = useT()
   return (
     <>
-      <h2 className="mb-3 text-2xl font-bold text-[#1e3a5f] sm:text-3xl">
+      <h2 className="mb-3 text-2xl font-bold text-sidebar sm:text-3xl">
         {t("omraTitle")}
       </h2>
       <p className="text-muted-foreground text-base leading-relaxed sm:text-lg">

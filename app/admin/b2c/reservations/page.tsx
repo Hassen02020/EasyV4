@@ -255,7 +255,7 @@ export default async function B2CReservationsPage({
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button size="sm" className="bg-[#1e3a5f]" asChild>
+          <Button size="sm" className="bg-sidebar" asChild>
             <Link href="/admin/b2c/reservations/new">Nouvelle réservation</Link>
           </Button>
         </div>
@@ -438,7 +438,7 @@ export default async function B2CReservationsPage({
                             <TableCell className="text-right">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
+                                  <Button variant="ghost" size="icon" aria-label={`Actions pour la réservation ${reservation.publicRef}`}>
                                     <MoreHorizontal className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>

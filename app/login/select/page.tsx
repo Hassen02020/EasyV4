@@ -185,7 +185,7 @@ export default function LoginSelectPage() {
                       className="py-3"
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-[#1e3a5f]" />
+                        <Icon className="h-4 w-4 text-sidebar" />
                         <div className="flex flex-col">
                           <span className="font-medium">{role.label}</span>
                           <span className="text-muted-foreground text-xs">
@@ -226,9 +226,6 @@ export default function LoginSelectPage() {
                         required
                       />
                     </div>
-                    <p className="text-muted-foreground text-xs">
-                      Code démo: MUT2024
-                    </p>
                   </div>
                 )}
 

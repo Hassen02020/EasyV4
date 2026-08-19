@@ -36,9 +36,9 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
           >
             <Easy2BookLogo withWordmark={false} className="size-10 bg-gray-100" priority />
             <span className="text-xl font-bold">
-              <span className="text-[#1e3a5f]">Easy</span>
-              <span className="text-[#e5b94e]">2</span>
-              <span className="text-[#1e3a5f]">Book</span>
+              <span className="text-sidebar">Easy</span>
+              <span className="text-accent">2</span>
+              <span className="text-sidebar">Book</span>
             </span>
           </Link>
 
@@ -71,7 +71,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              className="ml-2 gap-1.5 border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white"
+              className="ml-2 gap-1.5 border-sidebar text-sidebar hover:bg-sidebar hover:text-white"
               asChild
             >
               <Link href="/login">
@@ -109,7 +109,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <HelpCircle className="size-5 text-[#1e3a5f]" />
+              <HelpCircle className="size-5 text-sidebar" />
               <span>{t("help")}</span>
             </Link>
             <Link
@@ -117,12 +117,12 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <CalendarCheck className="size-5 text-[#1e3a5f]" />
+              <CalendarCheck className="size-5 text-sidebar" />
               <span>{t("myBookings")}</span>
             </Link>
             <div className="border-border border-t pt-4">
               <Button
-                className="w-full gap-2 bg-[#1e3a5f] hover:bg-[#152d4a]"
+                className="w-full gap-2 bg-sidebar hover:bg-sidebar/90"
                 asChild
               >
                 <Link href="/login">

@@ -19,7 +19,7 @@ export function BookingSteps({ current }: { current: 1 | 2 | 3 | 4 }) {
               className={cn(
                 "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition-colors",
                 done && "border-emerald-600 bg-emerald-600 text-white",
-                active && "border-[#1e3a5f] bg-[#1e3a5f] text-white shadow-md",
+                active && "border-sidebar bg-sidebar text-white shadow-md",
                 !done && !active && "border-border text-muted-foreground",
               )}
             >

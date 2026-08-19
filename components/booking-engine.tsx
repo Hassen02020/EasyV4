@@ -138,7 +138,7 @@ export function BookingEngine({
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url('${HERO_BG_URL}')` }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1e3a5f]/20 via-transparent to-[#1e3a5f]/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-sidebar/20 via-transparent to-sidebar/40" />
       </div>
 
       {/* Content */}
@@ -160,8 +160,8 @@ export function BookingEngine({
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex min-w-[88px] flex-1 flex-col items-center gap-1.5 border-b-2 px-2 py-4 text-sm font-medium transition-colors sm:px-3 ${
                     isActive
-                      ? "border-[#e5b94e] bg-[#1e3a5f]/5 text-[#1e3a5f]"
-                      : "text-muted-foreground hover:bg-muted/50 border-transparent hover:text-[#1e3a5f]"
+                      ? "border-accent bg-sidebar/5 text-sidebar"
+                      : "text-muted-foreground hover:bg-muted/50 border-transparent hover:text-sidebar"
                   }`}
                   aria-current={isActive ? "page" : undefined}
                 >

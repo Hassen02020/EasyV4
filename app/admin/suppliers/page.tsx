@@ -114,7 +114,7 @@ export default async function SuppliersPage() {
             Configurez et gérez les connexions API XML aux fournisseurs externes
           </p>
         </div>
-        <Button className="bg-[#1e3a5f]" asChild>
+        <Button className="bg-sidebar" asChild>
           <Link href="/admin/suppliers/new">
             <Plus className="mr-2 h-4 w-4" />
             Nouveau fournisseur
@@ -258,7 +258,7 @@ export default async function SuppliersPage() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" aria-label={`Configurer ${supplier.name}`}>
                                 <Settings className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>

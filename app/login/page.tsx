@@ -57,7 +57,7 @@ export default function LoginPage() {
         <p className="text-muted-foreground mt-2 text-center text-xs">
           En cas de problème de connexion, contactez{" "}
           <a
-            href="mailto:tarhouni.hassene@gmail.com"
+            href="mailto:support@easy2book.tn"
             className="text-primary font-medium hover:underline"
           >
             le support

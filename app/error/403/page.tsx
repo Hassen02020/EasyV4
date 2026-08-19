@@ -86,7 +86,7 @@ export default async function ForbiddenPage({
                 </Link>
               </Button>
             )}
-            <Button className="flex-1 bg-[#1e3a5f]" asChild>
+            <Button className="flex-1 bg-sidebar" asChild>
               <Link href="/admin">
                 <Home className="mr-2 h-4 w-4" />
                 Tableau de bord

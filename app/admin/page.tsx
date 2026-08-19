@@ -73,7 +73,7 @@ function statusBadge(status: RecentBooking["status"]) {
   switch (status) {
     case "confirmed":
       return (
-        <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+        <Badge className="bg-success/15 text-success hover:bg-success/15">
           <CheckCircle className="mr-1 size-3" />
           Confirmé
         </Badge>
@@ -81,7 +81,7 @@ function statusBadge(status: RecentBooking["status"]) {
     case "pending":
     case "on_request":
       return (
-        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+        <Badge className="bg-warning/20 text-warning-foreground hover:bg-warning/20">
           <Clock className="mr-1 size-3" />
           En attente
         </Badge>
@@ -90,7 +90,7 @@ function statusBadge(status: RecentBooking["status"]) {
     case "no_show":
     case "refunded":
       return (
-        <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+        <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/10">
           <XCircle className="mr-1 size-3" />
           {status === "refunded" ? "Remboursé" : "Annulé"}
         </Badge>
@@ -242,34 +242,36 @@ export default async function AdminDashboard() {
                 apparaîtra ici.
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Réf.</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Montant</TableHead>
-                    <TableHead>Statut</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentBookings.map((booking) => (
-                    <TableRow key={booking.id}>
-                      <TableCell className="font-mono text-xs">
-                        {booking.reference}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {booking.customerName}
-                      </TableCell>
-                      <TableCell>{moduleIcon(booking.module)}</TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatTnd(booking.totalTnd)}
-                      </TableCell>
-                      <TableCell>{statusBadge(booking.status)}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Réf.</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead>Statut</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {recentBookings.map((booking) => (
+                      <TableRow key={booking.id}>
+                        <TableCell className="font-mono text-xs">
+                          {booking.reference}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {booking.customerName}
+                        </TableCell>
+                        <TableCell>{moduleIcon(booking.module)}</TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatTnd(booking.totalTnd)}
+                        </TableCell>
+                        <TableCell>{statusBadge(booking.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

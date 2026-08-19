@@ -114,7 +114,7 @@ export default async function AgenciesManagementPage() {
             {allAgencies.length} agence{allAgencies.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700" asChild>
+        <Button className="bg-primary hover:bg-primary/90" asChild>
           <Link href="/admin/agencies/new">
             <Plus className="mr-2 h-4 w-4" />
             Nouvelle Agence

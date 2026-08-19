@@ -144,7 +144,7 @@ function Timeline({ status }: { status: BookingStatus }) {
                   done
                     ? "border-emerald-500 bg-emerald-500 text-white"
                     : active
-                      ? "border-[#1e3a5f] bg-[#1e3a5f]/10 text-[#1e3a5f]"
+                      ? "border-sidebar bg-sidebar/10 text-sidebar"
                       : "border-gray-200 bg-white text-gray-400"
                 }`}
               >
@@ -189,13 +189,13 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
   return (
     <div className="bg-card border-border overflow-hidden rounded-2xl border shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b bg-[#1e3a5f]/3 px-5 py-4">
+      <div className="flex items-center justify-between gap-4 border-b bg-sidebar/3 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e3a5f]/10">
-            <ModuleIcon className="h-5 w-5 text-[#1e3a5f]" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar/10">
+            <ModuleIcon className="h-5 w-5 text-sidebar" />
           </div>
           <div>
-            <p className="text-xs font-medium text-[#1e3a5f]">{moduleLabel}</p>
+            <p className="text-xs font-medium text-sidebar">{moduleLabel}</p>
             <p className="text-foreground font-mono text-lg font-bold tracking-wider">
               {booking.publicRef}
             </p>
@@ -361,9 +361,9 @@ export default function BookingsPage() {
               priority
             />
             <span className="text-base font-bold">
-              <span className="text-[#1e3a5f]">Easy</span>
-              <span className="text-[#e5b94e]">2</span>
-              <span className="text-[#1e3a5f]">Book</span>
+              <span className="text-sidebar">Easy</span>
+              <span className="text-accent">2</span>
+              <span className="text-sidebar">Book</span>
             </span>
           </Link>
           <Link

@@ -194,7 +194,7 @@ export function OmraBookingForm() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#1e3a8a]">Réservation Omra de Groupe</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-sidebar">Réservation Omra de Groupe</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           Sélectionnez un package, une date de départ et saisissez les fiches pèlerins.
         </p>
@@ -208,9 +208,9 @@ export function OmraBookingForm() {
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Package Selection */}
-        <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
-          <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
+        <Card className="rounded-lg border-2 border-sidebar/10">
+          <CardHeader className="bg-sidebar/5 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-sidebar">
               <MapPin className="w-5 h-5" />
               Sélection du Package
             </CardTitle>
@@ -265,9 +265,9 @@ export function OmraBookingForm() {
             </div>
 
             {selectedPackage && (
-              <div className="bg-[#1e3a8a]/5 border border-[#1e3a8a]/20 rounded-lg p-4 text-sm">
-                <p className="text-[#1e3a8a] font-semibold">Durée : {selectedPackage.durationDays} jours</p>
-                <p className="text-[#1e3a8a] font-semibold">Prix de base : {selectedPackage.basePrice} DT/pèlerin</p>
+              <div className="bg-sidebar/5 border border-sidebar/20 rounded-lg p-4 text-sm">
+                <p className="text-sidebar font-semibold">Durée : {selectedPackage.durationDays} jours</p>
+                <p className="text-sidebar font-semibold">Prix de base : {selectedPackage.basePrice} DT/pèlerin</p>
                 {selectedAllotment && (
                   <p className={selectedAllotment.availableCount > 10 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
                     Disponibilité : {selectedAllotment.availableCount} places
@@ -279,9 +279,9 @@ export function OmraBookingForm() {
         </Card>
 
         {/* Pilgrims List */}
-        <Card className="rounded-lg border-2 border-[#1e3a8a]/10">
-          <CardHeader className="bg-[#1e3a8a]/5 rounded-t-lg">
-            <CardTitle className="flex items-center justify-between text-[#1e3a8a]">
+        <Card className="rounded-lg border-2 border-sidebar/10">
+          <CardHeader className="bg-sidebar/5 rounded-t-lg">
+            <CardTitle className="flex items-center justify-between text-sidebar">
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5" />
                 <span className="text-lg sm:text-xl">Fiches Pèlerins ({watchedPilgrims.length})</span>
@@ -290,7 +290,7 @@ export function OmraBookingForm() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="border-[#f59e0b] text-[#f59e0b] hover:bg-[#f59e0b] hover:text-white rounded-lg"
+                className="border-accent text-accent hover:bg-accent hover:text-white rounded-lg"
                 onClick={() =>
                   append({
                     firstName: "",
@@ -322,9 +322,9 @@ export function OmraBookingForm() {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
             {fields.map((field, index) => (
-              <div key={field.id} className="space-y-4 p-4 sm:p-6 border-2 border-[#1e3a8a]/10 rounded-lg relative bg-white">
+              <div key={field.id} className="space-y-4 p-4 sm:p-6 border-2 border-sidebar/10 rounded-lg relative bg-white">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-[#1e3a8a] text-lg">Pèlerin #{index + 1}</h3>
+                  <h3 className="font-semibold text-sidebar text-lg">Pèlerin #{index + 1}</h3>
                   {fields.length > 1 && (
                     <Button
                       type="button"
@@ -340,7 +340,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Prénom *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Prénom *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.firstName`)}
                       placeholder="Ahmed"
@@ -354,7 +354,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Nom *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Nom *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.lastName`)}
                       placeholder="Ben Ali"
@@ -368,7 +368,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Date de naissance *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Date de naissance *</Label>
                     <Input
                       type="date"
                       {...form.register(`pilgrims.${index}.birthDate`)}
@@ -386,7 +386,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Nationalité *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Nationalité *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.nationality`)}
                       placeholder="TN"
@@ -401,7 +401,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Genre *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Genre *</Label>
                     <Select
                       value={watchedPilgrims[index]?.gender}
                       onValueChange={(v) => form.setValue(`pilgrims.${index}.gender`, v as "male" | "female")}
@@ -417,7 +417,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Situation matrimoniale *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Situation matrimoniale *</Label>
                     <Select
                       value={watchedPilgrims[index]?.maritalStatus}
                       onValueChange={(v) =>
@@ -444,7 +444,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Téléphone *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Téléphone *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.phone`)}
                       placeholder="+216 98 123 456"
@@ -458,7 +458,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Email</Label>
+                    <Label className="text-sm font-medium text-sidebar">Email</Label>
                     <Input
                       type="email"
                       {...form.register(`pilgrims.${index}.email`)}
@@ -476,7 +476,7 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-[#1e3a8a]">Adresse</Label>
+                  <Label className="text-sm font-medium text-sidebar">Adresse</Label>
                   <Input
                     {...form.register(`pilgrims.${index}.address`)}
                     placeholder="123 Rue de la République, Tunis"
@@ -486,7 +486,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Ville</Label>
+                    <Label className="text-sm font-medium text-sidebar">Ville</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.city`)}
                       placeholder="Tunis"
@@ -495,7 +495,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Code postal</Label>
+                    <Label className="text-sm font-medium text-sidebar">Code postal</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.postalCode`)}
                       placeholder="1001"
@@ -504,7 +504,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-[#1e3a8a]">Pays de résidence *</Label>
+                    <Label className="text-sm font-medium text-sidebar">Pays de résidence *</Label>
                     <Input
                       {...form.register(`pilgrims.${index}.country`)}
                       placeholder="TN"
@@ -522,10 +522,10 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="font-semibold text-[#1e3a8a]">Passeport</Label>
+                  <Label className="font-semibold text-sidebar">Passeport</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-[#1e3a8a]">Numéro de passeport *</Label>
+                      <Label className="text-sm font-medium text-sidebar">Numéro de passeport *</Label>
                       <Input
                         {...form.register(`pilgrims.${index}.passportNumber`)}
                         placeholder="A12345678"
@@ -539,7 +539,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-[#1e3a8a]">Pays émetteur *</Label>
+                      <Label className="text-sm font-medium text-sidebar">Pays émetteur *</Label>
                       <Input
                         {...form.register(`pilgrims.${index}.passportIssuingCountry`)}
                         placeholder="TN"
@@ -554,7 +554,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d&apos;émission *</Label>
+                      <Label className="text-sm font-medium text-sidebar">Date d&apos;émission *</Label>
                       <Input
                         type="date"
                         {...form.register(`pilgrims.${index}.passportIssueDate`)}
@@ -568,7 +568,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-[#1e3a8a]">Date d&apos;expiration *</Label>
+                      <Label className="text-sm font-medium text-sidebar">Date d&apos;expiration *</Label>
                       <Input
                         type="date"
                         {...form.register(`pilgrims.${index}.passportExpiryDate`)}
@@ -586,7 +586,7 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-[#1e3a8a]">Type de chambre</Label>
+                  <Label className="text-sm font-medium text-sidebar">Type de chambre</Label>
                   <Select
                     value={watchedPilgrims[index]?.roomType}
                     onValueChange={(v) =>
@@ -614,9 +614,9 @@ export function OmraBookingForm() {
         </Card>
 
         {/* Summary */}
-        <Card className="rounded-lg border-2 border-[#1e3a8a]/10 bg-[#1e3a8a]/5">
-          <CardHeader className="bg-[#1e3a8a]/10 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
+        <Card className="rounded-lg border-2 border-sidebar/10 bg-sidebar/5">
+          <CardHeader className="bg-sidebar/10 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-sidebar">
               <CreditCard className="w-5 h-5" />
               Récapitulatif
             </CardTitle>
@@ -624,16 +624,16 @@ export function OmraBookingForm() {
           <CardContent className="space-y-4 pt-6">
             <div className="flex justify-between items-center">
               <span className="text-sm sm:text-base">Nombre de pèlerins</span>
-              <Badge variant="secondary" className="bg-[#f59e0b] text-white rounded-lg">{watchedPilgrims.length}</Badge>
+              <Badge variant="secondary" className="bg-accent text-white rounded-lg">{watchedPilgrims.length}</Badge>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm sm:text-base">Prix par pèlerin</span>
-              <span className="font-semibold text-[#1e3a8a]">{pricePerPilgrim.toFixed(3)} DT</span>
+              <span className="font-semibold text-sidebar">{pricePerPilgrim.toFixed(3)} DT</span>
             </div>
-            <Separator className="bg-[#1e3a8a]/20" />
+            <Separator className="bg-sidebar/20" />
             <div className="flex justify-between items-center text-lg sm:text-xl">
-              <span className="font-semibold text-[#1e3a8a]">Total TTC</span>
-              <span className="font-bold text-[#f59e0b]">{totalPrice.toFixed(3)} DT</span>
+              <span className="font-semibold text-sidebar">Total TTC</span>
+              <span className="font-bold text-accent">{totalPrice.toFixed(3)} DT</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Le montant sera débité de votre wallet Easy2Book.
@@ -644,7 +644,7 @@ export function OmraBookingForm() {
         <Button
           type="submit"
           size="lg"
-          className="w-full bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white rounded-lg"
+          className="w-full bg-sidebar hover:bg-sidebar/90 text-white rounded-lg"
           disabled={isSubmitting || !watchedPackageId || !watchedDepartureDate}
         >
           {isSubmitting ? (

@@ -28,9 +28,9 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
         className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
         aria-label={`Changer devise de ${currency} vers ${next}`}
       >
-        <Wallet className="size-5 text-[#1e3a5f]" aria-hidden="true" />
+        <Wallet className="size-5 text-sidebar" aria-hidden="true" />
         <span className="flex-1 text-left">Devise</span>
-        <span className="text-[#1e3a5f] font-semibold">{currency}</span>
+        <span className="text-sidebar font-semibold">{currency}</span>
       </button>
     )
   }
@@ -41,12 +41,12 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 text-sm font-medium hover:bg-[#1e3a5f]/10"
+          className="gap-1.5 text-sm font-medium hover:bg-sidebar/10"
           aria-label="Changer de devise"
         >
-          <Wallet className="size-4 text-[#1e3a5f]" aria-hidden="true" />
+          <Wallet className="size-4 text-sidebar" aria-hidden="true" />
           <span className="hidden sm:inline">Devise</span>
-          <span className="text-[#1e3a5f] font-semibold">{currency}</span>
+          <span className="text-sidebar font-semibold">{currency}</span>
           <ChevronDown className="size-3 opacity-50" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -65,7 +65,7 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
                 <span className="text-muted-foreground text-xs">— {m.label}</span>
               </span>
               {c === currency && (
-                <Check className="size-3.5 text-[#1e3a5f]" aria-hidden="true" />
+                <Check className="size-3.5 text-sidebar" aria-hidden="true" />
               )}
             </DropdownMenuItem>
           )

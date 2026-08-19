@@ -67,22 +67,22 @@ const ROLE_CONFIG: Record<
 > = {
   manager: {
     label: "Manager",
-    color: "bg-purple-100 text-purple-800",
+    color: "bg-info/15 text-info",
     icon: Shield,
   },
   agent_resa: {
     label: "Agent Réservation",
-    color: "bg-blue-100 text-blue-800",
+    color: "bg-success/15 text-success",
     icon: ShoppingBag,
   },
   agent_compta: {
     label: "Agent Compta",
-    color: "bg-green-100 text-green-800",
+    color: "bg-warning/20 text-warning-foreground",
     icon: DollarSign,
   },
   agent_excursions: {
     label: "Agent Excursions",
-    color: "bg-orange-100 text-orange-800",
+    color: "bg-accent/20 text-accent-foreground",
     icon: User,
   },
 }
@@ -155,7 +155,7 @@ export default async function StaffPage() {
             Gérez les agents de votre agence — {stats.total} membres
           </p>
         </div>
-        <Button className="bg-[#1e3a5f]" asChild>
+        <Button className="bg-sidebar" asChild>
           <Link href="/admin/staff/new">
             <Plus className="mr-2 h-4 w-4" />
             Nouvel agent
@@ -283,8 +283,8 @@ export default async function StaffPage() {
                           <Badge
                             className={
                               member.status === "active"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-red-100 text-red-800"
+                                ? "bg-success/15 text-success"
+                                : "bg-destructive/10 text-destructive"
                             }
                           >
                             {member.status === "active" ? "Actif" : "Suspendu"}
@@ -300,7 +300,7 @@ export default async function StaffPage() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" aria-label={`Actions pour ${member.name || member.email}`}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>

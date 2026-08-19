@@ -5,7 +5,6 @@
  */
 
 import { Metadata } from "next"
-import Link from "next/link"
 import { redirect } from "next/navigation"
 import {
   Search,
@@ -14,9 +13,7 @@ import {
   XCircle,
   Clock,
   AlertCircle,
-  Eye,
   FileText,
-  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -37,14 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { ValidationRowActions } from "@/components/admin/validation-row-actions"
 import {
   Select,
   SelectContent,
@@ -280,35 +270,11 @@ export default async function ValidationsPage({
                             : new Date(reservation.createdAt).toLocaleDateString("fr-FR")}
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label={`Actions pour la réservation ${reservation.publicRef}`}>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/reservations/${reservation.id}`}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Voir détails
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {validation?.status === "pending" && (
-                                <>
-                                  <DropdownMenuItem className="text-emerald-600">
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Valider
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-red-600">
-                                    <XCircle className="mr-2 h-4 w-4" />
-                                    Rejeter
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <ValidationRowActions
+                            reservationId={reservation.id}
+                            publicRef={reservation.publicRef}
+                            canValidate={validation?.status === "pending"}
+                          />
                         </TableCell>
                       </TableRow>
                     )

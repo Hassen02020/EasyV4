@@ -11,7 +11,6 @@ import {
   Users,
   Plus,
   Search,
-  MoreHorizontal,
   Shield,
   Building2,
   User,
@@ -36,14 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { UserRowActions } from "@/components/admin/user-row-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -312,34 +304,11 @@ export default async function UsersManagementPage() {
                             : "Jamais"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label={`Actions pour ${user.name || user.email}`}>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/users/${user.id}`}>
-                                  Modifier
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                Changer le rôle
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {user.status === "active" ? (
-                                <DropdownMenuItem className="text-red-600">
-                                  Suspendre
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem className="text-green-600">
-                                  Réactiver
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <UserRowActions
+                            userId={user.id}
+                            displayName={user.name || user.email}
+                            status={user.status as "active" | "suspended"}
+                          />
                         </TableCell>
                       </TableRow>
                     )

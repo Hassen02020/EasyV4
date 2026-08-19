@@ -197,7 +197,7 @@ export function YieldRulesManager({ agencies, initialRules }: Props) {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label>Module</Label>
                   <Select
@@ -239,7 +239,7 @@ export function YieldRulesManager({ agencies, initialRules }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {(form.ruleType === "percent" || form.ruleType === "combined") && (
                   <div className="space-y-1.5">
                     <Label>Marge %</Label>

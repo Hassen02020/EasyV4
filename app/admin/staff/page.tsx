@@ -14,10 +14,6 @@ import {
   Phone,
   Calendar,
   CheckCircle2,
-  XCircle,
-  MoreHorizontal,
-  Edit,
-  Eye,
   Shield,
   User,
   ShoppingBag,
@@ -40,14 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { StaffRowActions } from "@/components/admin/staff-row-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -298,38 +287,11 @@ export default async function StaffPage() {
                             : "Jamais"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label={`Actions pour ${member.name || member.email}`}>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/staff/${member.id}`}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Voir profil
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Modifier
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {member.status === "active" ? (
-                                <DropdownMenuItem className="text-red-600">
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Suspendre
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem className="text-emerald-600">
-                                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                                  Réactiver
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <StaffRowActions
+                            memberId={member.id}
+                            displayName={member.name || member.email}
+                            status={member.status as "active" | "suspended"}
+                          />
                         </TableCell>
                       </TableRow>
                     )

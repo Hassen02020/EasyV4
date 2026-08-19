@@ -61,6 +61,14 @@ import {
 } from "@/lib/admin/reservation-status"
 import type { AdminReservationRow } from "@/lib/admin/reservations-data"
 import { useRealtimeTable } from "@/lib/supabase/use-realtime-table"
+import { ConfirmActionDialog } from "@/components/admin/confirm-action-dialog"
+
+/** Transitions difficiles à défaire une fois exécutées — protégées par une confirmation explicite. */
+const DESTRUCTIVE_STATUSES = new Set<ReservationStatus>([
+  "cancelled",
+  "refunded",
+  "no_show",
+])
 
 const MODULE_LABEL: Record<string, { label: string; icon: typeof Building2 }> =
   {
@@ -205,6 +213,10 @@ export function ReservationsDataTable({
   const [sortDir, setSortDir] = React.useState<SortDir>("desc")
   const [page, setPage] = React.useState(0)
   const [pendingId, setPendingId] = React.useState<string | null>(null)
+  const [confirmChange, setConfirmChange] = React.useState<{
+    row: AdminReservationRow
+    next: ReservationStatus
+  } | null>(null)
 
   const pageSize = 10
 
@@ -471,9 +483,14 @@ export function ReservationsDataTable({
                   <TableCell className="text-right">
                     <Select
                       value=""
-                      onValueChange={(next) =>
-                        void handleStatusChange(row, next as ReservationStatus)
-                      }
+                      onValueChange={(next) => {
+                        const nextStatus = next as ReservationStatus
+                        if (DESTRUCTIVE_STATUSES.has(nextStatus)) {
+                          setConfirmChange({ row, next: nextStatus })
+                        } else {
+                          void handleStatusChange(row, nextStatus)
+                        }
+                      }}
                       disabled={pendingId === row.id}
                     >
                       <SelectTrigger
@@ -558,6 +575,30 @@ export function ReservationsDataTable({
           ) : null}
         </div>
       </div>
+
+      <ConfirmActionDialog
+        open={confirmChange !== null}
+        onOpenChange={(open) => !open && setConfirmChange(null)}
+        variant="destructive"
+        title="Confirmer ce changement de statut ?"
+        description={
+          confirmChange ? (
+            <>
+              La réservation <strong>{confirmChange.row.publicRef}</strong>{" "}
+              passera de « {STATUS_LABEL[confirmChange.row.status]?.label ?? confirmChange.row.status} »
+              à « {STATUS_LABEL[confirmChange.next]?.label ?? confirmChange.next} ».
+              Cette action est difficile à annuler.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Confirmer"
+        onConfirm={async () => {
+          if (!confirmChange) return
+          await handleStatusChange(confirmChange.row, confirmChange.next)
+        }}
+      />
     </div>
   )
 }

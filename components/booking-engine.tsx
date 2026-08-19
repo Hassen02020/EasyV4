@@ -66,6 +66,8 @@ function futureDate(days: number): string {
   return iso(d)
 }
 
+const TODAY_ISO = iso(new Date())
+
 function buildSampleBookingUrl(input: {
   module: BookingDraft["module"]
 
@@ -235,6 +237,8 @@ function SearchSubmit({
 
 function VolsForm() {
   const router = useRouter()
+  const [travelClass, setTravelClass] = useState("economique")
+  const [flexible, setFlexible] = useState(false)
 
   return (
     <form
@@ -244,7 +248,11 @@ function VolsForm() {
         const params = new URLSearchParams()
         params.set("origin", (fd.get("origin") as string) || "TUN")
         params.set("destination", (fd.get("destination") as string) || "IST")
+        const dates = (fd.get("dates") as string)?.trim()
+        if (dates) params.set("dates", dates)
+        params.set("class", travelClass)
         params.set("adults", "1")
+        if (flexible) params.set("flexible", "1")
         router.push(`/vols?${params.toString()}`)
       }}
       className="space-y-4"
@@ -277,6 +285,7 @@ function VolsForm() {
             <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
             <Input
+              name="dates"
               placeholder="Choisir les dates"
               className="rounded-xl pl-9"
             />
@@ -286,7 +295,7 @@ function VolsForm() {
         <div className="space-y-1.5">
           <FieldLabel>Classe</FieldLabel>
 
-          <Select defaultValue="economique">
+          <Select value={travelClass} onValueChange={setTravelClass}>
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Classe" />
             </SelectTrigger>
@@ -304,7 +313,11 @@ function VolsForm() {
 
       <div className="flex flex-col items-start justify-between gap-4 pt-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
-          <Checkbox id="vols-flexible" />
+          <Checkbox
+            id="vols-flexible"
+            checked={flexible}
+            onCheckedChange={(v) => setFlexible(v === true)}
+          />
 
           <label
             htmlFor="vols-flexible"
@@ -327,7 +340,16 @@ function HotelsMondeForm() {
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        router.push("/hotels-monde")
+        const fd = new FormData(e.currentTarget)
+        const params = new URLSearchParams()
+        const destination = (fd.get("destination") as string)?.trim()
+        if (destination) params.set("destination", destination)
+        const checkin = (fd.get("checkin") as string)?.trim()
+        if (checkin) params.set("checkin", checkin)
+        const checkout = (fd.get("checkout") as string)?.trim()
+        if (checkout) params.set("checkout", checkout)
+        const query = params.toString()
+        router.push(query ? `/hotels-monde?${query}` : "/hotels-monde")
       }}
       className="space-y-4"
     >
@@ -339,6 +361,7 @@ function HotelsMondeForm() {
             <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
             <Input
+              name="destination"
               placeholder="Ville, hôtel ou aéroport"
               className="rounded-xl pl-9"
             />
@@ -349,9 +372,14 @@ function HotelsMondeForm() {
           <FieldLabel>Check-in</FieldLabel>
 
           <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input placeholder="Date d'arrivée" className="rounded-xl pl-9" />
+            <Input
+              name="checkin"
+              type="date"
+              min={TODAY_ISO}
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
 
@@ -359,9 +387,14 @@ function HotelsMondeForm() {
           <FieldLabel>Check-out</FieldLabel>
 
           <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input placeholder="Date de départ" className="rounded-xl pl-9" />
+            <Input
+              name="checkout"
+              type="date"
+              min={TODAY_ISO}
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
       </div>
@@ -687,14 +720,43 @@ function TransfertsForm({ zones }: { zones: CatalogTransferZone[] }) {
   )
 }
 
+const CAR_LOCATIONS = [
+  { value: "tunis-airport", label: "Aéroport Tunis-Carthage" },
+  { value: "enfidha", label: "Aéroport Enfidha" },
+  { value: "djerba-airport", label: "Aéroport Djerba" },
+  { value: "hammamet", label: "Hammamet centre" },
+  { value: "sousse", label: "Sousse centre" },
+]
+
+const CAR_CATEGORIES = [
+  { value: "economique", label: "Économique" },
+  { value: "compacte", label: "Compacte" },
+  { value: "berline", label: "Berline" },
+  { value: "suv", label: "SUV" },
+  { value: "luxe", label: "Luxe" },
+]
+
 function CarForm() {
   const router = useRouter()
+  const [location, setLocation] = useState("")
+  const [category, setCategory] = useState("economique")
+  const [withDriver, setWithDriver] = useState(false)
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        router.push("/car")
+        const fd = new FormData(e.currentTarget)
+        const params = new URLSearchParams()
+        if (location) params.set("location", location)
+        const pickupDate = (fd.get("pickupDate") as string)?.trim()
+        if (pickupDate) params.set("pickupDate", pickupDate)
+        const returnDate = (fd.get("returnDate") as string)?.trim()
+        if (returnDate) params.set("returnDate", returnDate)
+        params.set("category", category)
+        if (withDriver) params.set("driver", "1")
+        const query = params.toString()
+        router.push(query ? `/car?${query}` : "/car")
       }}
       className="space-y-4"
     >
@@ -702,23 +764,17 @@ function CarForm() {
         <div className="space-y-1.5">
           <FieldLabel>Lieu de prise en charge</FieldLabel>
 
-          <Select>
+          <Select value={location} onValueChange={setLocation}>
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Aéroport ou ville" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="tunis-airport">
-                Aéroport Tunis-Carthage
-              </SelectItem>
-
-              <SelectItem value="enfidha">Aéroport Enfidha</SelectItem>
-
-              <SelectItem value="djerba-airport">Aéroport Djerba</SelectItem>
-
-              <SelectItem value="hammamet">Hammamet centre</SelectItem>
-
-              <SelectItem value="sousse">Sousse centre</SelectItem>
+              {CAR_LOCATIONS.map((l) => (
+                <SelectItem key={l.value} value={l.value}>
+                  {l.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -727,9 +783,14 @@ function CarForm() {
           <FieldLabel>Date de prise</FieldLabel>
 
           <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input placeholder="Choisir la date" className="rounded-xl pl-9" />
+            <Input
+              name="pickupDate"
+              type="date"
+              min={TODAY_ISO}
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
 
@@ -737,30 +798,31 @@ function CarForm() {
           <FieldLabel>Date de retour</FieldLabel>
 
           <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input placeholder="Choisir la date" className="rounded-xl pl-9" />
+            <Input
+              name="returnDate"
+              type="date"
+              min={TODAY_ISO}
+              className="rounded-xl pl-9"
+            />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <FieldLabel>Catégorie</FieldLabel>
 
-          <Select defaultValue="economique">
+          <Select value={category} onValueChange={setCategory}>
             <SelectTrigger className="w-full rounded-xl">
               <SelectValue placeholder="Catégorie" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="economique">Économique</SelectItem>
-
-              <SelectItem value="compacte">Compacte</SelectItem>
-
-              <SelectItem value="berline">Berline</SelectItem>
-
-              <SelectItem value="suv">SUV</SelectItem>
-
-              <SelectItem value="luxe">Luxe</SelectItem>
+              {CAR_CATEGORIES.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -768,7 +830,11 @@ function CarForm() {
 
       <div className="flex flex-col items-start justify-between gap-4 pt-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
-          <Checkbox id="car-driver" />
+          <Checkbox
+            id="car-driver"
+            checked={withDriver}
+            onCheckedChange={(v) => setWithDriver(v === true)}
+          />
 
           <label
             htmlFor="car-driver"

@@ -7,7 +7,7 @@
  */
 
 import { and, count, desc, eq, gte, sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, customers, auditEvents } from "@/lib/db/schema"
 
 export type DashboardStats = {
@@ -68,7 +68,6 @@ export async function loadDashboardData(
   if (!process.env.DATABASE_URL) return EMPTY
 
   try {
-    const db = getDb()
     const startOfMonth = new Date()
     startOfMonth.setUTCDate(1)
     startOfMonth.setUTCHours(0, 0, 0, 0)
@@ -86,7 +85,10 @@ export async function loadDashboardData(
       recent,
       byModule,
       apiErrors,
-    ] = await Promise.all([
+    ] = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+        Promise.all([
       db
         .select({
           totalTnd: sql<string>`COALESCE(SUM(${reservations.tndAmount}), '0')`,
@@ -169,7 +171,8 @@ export async function loadDashboardData(
         )
         .orderBy(desc(auditEvents.createdAt))
         .limit(5),
-    ])
+        ]),
+    )
 
     return {
       available: true,

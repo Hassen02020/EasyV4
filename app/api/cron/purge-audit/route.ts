@@ -13,7 +13,7 @@
  */
 
 import { NextResponse } from "next/server"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { auditEvents } from "@/lib/db/schema"
 import { lt, sql } from "drizzle-orm"
 
@@ -31,12 +31,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const db = getDb()
     const cutoff = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30) // 30j
-    const result = await db
-      .delete(auditEvents)
-      .where(lt(auditEvents.createdAt, sql`${cutoff}`))
-      .returning({ id: auditEvents.id })
+    const result = await withSystemContext((tx) =>
+      tx
+        .delete(auditEvents)
+        .where(lt(auditEvents.createdAt, sql`${cutoff}`))
+        .returning({ id: auditEvents.id }),
+    )
 
     return NextResponse.json({
       ok: true,

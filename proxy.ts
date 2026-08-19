@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { updateSession } from "@/lib/supabase/middleware"
 import { createServerSupabase } from "@/lib/supabase/server"
+import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 
 /** Headers de sécurité appliqués sur toutes les réponses HTML et API */
 const SECURITY_HEADERS: Record<string, string> = {
@@ -16,7 +17,6 @@ const SECURITY_HEADERS: Record<string, string> = {
 }
 
 const ADMIN_ROUTES = /^\/admin(\/|$)/
-const ADMIN_ROLES = ["super_admin", "manager", "agent_resa", "agent_compta", "agent_excursions"]
 
 export async function proxy(request: NextRequest) {
   const response = await updateSession(request)
@@ -32,14 +32,23 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
     
-    // Récupérer le rôle depuis la table users
+    // Rôle ET type d'agence : voir lib/auth/admin-gate.ts pour le pourquoi
+    // (manager/agent_resa/etc. sont des rôles partagés entre staff Easy2Book
+    // et personnel d'agence partenaire — le rôle seul ne suffit pas).
     const { data: profile } = await supabase
       .from("users")
-      .select("role")
+      .select("role, agencies(agency_type)")
       .eq("id", user.id)
       .single()
-    
-    if (!profile || !ADMIN_ROLES.includes(profile.role)) {
+
+    const agencyRel = (
+      profile?.agencies as { agency_type?: string } | { agency_type?: string }[] | null
+    )
+    const resolvedAgencyType = Array.isArray(agencyRel)
+      ? agencyRel[0]?.agency_type
+      : agencyRel?.agency_type
+
+    if (!isAllowedIntoAdmin(profile?.role, resolvedAgencyType)) {
       return NextResponse.redirect(new URL("/unauthorized", request.url))
     }
   }

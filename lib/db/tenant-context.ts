@@ -100,6 +100,31 @@ export async function withTenantContext<T>(
 }
 
 /**
+ * Contexte pour les endpoints système de confiance qui n'ont — par
+ * construction — aucune session Supabase à résoudre : cron jobs protégés par
+ * `CRON_SECRET`, webhooks PSP vérifiés par signature HMAC. Ces appelants sont
+ * déjà authentifiés par un secret partagé avant d'arriver ici ; on leur donne
+ * le même accès cross-agence que `is_super_admin()` (cf. la policy
+ * `psp_webhooks_admin` de `drizzle/manual/0001_rls_policies.sql`, qui
+ * anticipait déjà ce besoin). Ne jamais utiliser ce helper pour une route
+ * qui accepte une session utilisateur — uniquement pour un secret partagé
+ * déjà vérifié par l'appelant.
+ */
+export async function withSystemContext<T>(
+  fn: (tx: DrizzleTransaction) => Promise<T>,
+): Promise<T> {
+  const db = getDb()
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`
+      select
+        set_config('app.current_agency_id', '', true),
+        set_config('app.is_super_admin', 'true', true)
+    `)
+    return fn(tx)
+  })
+}
+
+/**
  * Raccourci le plus courant : résout la session Supabase courante puis
  * exécute `fn` dans son contexte tenant. Renvoie `{ ok: false }` sans jamais
  * toucher aux données métier si l'utilisateur n'est pas authentifié ou que

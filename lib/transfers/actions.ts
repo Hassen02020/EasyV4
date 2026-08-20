@@ -24,8 +24,9 @@ import {
   customers,
   auditEvents,
   catalogTransferZones,
+  payments,
 } from "@/lib/db/schema"
-import { walletDebitReservation } from "@/lib/wallet/actions"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
 
 /* -------------------------------------------------------------------------- */
@@ -213,25 +214,47 @@ export async function createTransferBooking(
       const reservationId = reservation.id
 
       /* ------------------------------------------------------------------
-       * 5. Débiter le wallet (atomique)
+       * 5. Débiter le crédit agence (atomique) — `agencies.deposit_balance`,
+       *    le seul solde que les flux de rechargement réels créditent (voir
+       *    lib/booking/actions.ts pour le détail de la correction).
        * ------------------------------------------------------------------ */
-      const debitResult = await walletDebitReservation({
+      const debitResult = await debitPartnerCredit({
         agencyId,
-        reservationId,
         amountTnd: totalTnd,
+        reference: publicRef,
+        description: `Réservation Transfert — ${fromZone?.name ?? input.fromZoneId} → ${toZone?.name ?? input.toZoneId}`,
         createdByUserId,
-        txOverride: tx as Parameters<
-          typeof walletDebitReservation
-        >[0]["txOverride"],
+        reservationId,
+        idempotencyKey: `booking-debit:${reservationId}`,
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
         throw new Error(
-          debitResult.code === "INSUFFICIENT_BALANCE"
+          debitResult.code === "INSUFFICIENT_FUNDS"
             ? "INSUFFICIENT_BALANCE"
             : "WALLET_DEBIT_FAILED",
         )
       }
+
+      // status=confirmed + paiement — auparavant fait par walletDebitReservation.
+      await tx
+        .update(reservations)
+        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+
+      await tx.insert(payments).values({
+        agencyId,
+        reservationId,
+        psp: "manual",
+        method: "wallet",
+        originalCurrency: "TND",
+        originalAmount: totalTnd.toFixed(2),
+        tndAmount: totalTnd.toFixed(2),
+        kind: "deposit",
+        status: "captured",
+        capturedAt: new Date(),
+      })
 
       /* ------------------------------------------------------------------
        * 6. Insérer l'extension Transfer

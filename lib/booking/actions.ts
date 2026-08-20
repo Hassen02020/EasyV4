@@ -8,13 +8,14 @@ import {
   customers,
   reservations,
   reservationHotel,
+  payments,
   auditEvents,
 } from "@/lib/db/schema"
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown } from "./pricing"
 import { decodeDraft } from "./draft-store"
-import { walletDebitReservation } from "@/lib/wallet/actions"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { inngest } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
@@ -418,24 +419,71 @@ export async function createReservationFromDraft(input: {
         },
       })
 
-      // --- Débit wallet — dans la MÊME transaction (txOverride) : sans ça,
-      // walletDebitReservation ouvrait sa propre transaction séparée et
-      // committait le débit indépendamment de l'insertion de la réservation
-      // (perte d'atomicité — trouvé pendant l'audit RLS, corrigé ici).
-      const debitResult = await walletDebitReservation({
+      // --- Débit crédit agence — dans la MÊME transaction (txOverride) : sans ça,
+      // le débit committerait indépendamment de l'insertion de la réservation
+      // (perte d'atomicité — trouvé pendant l'audit RLS, corrigé pour ce
+      // chemin). Débite `agencies.deposit_balance` via `partner_credit_movements`
+      // — le SEUL solde que les flux de rechargement réels (recharge B2B,
+      // recharge admin direct) créditent. L'ancien `walletDebitReservation`
+      // débitait `wallets.balance`, une colonne que plus aucun flux de
+      // rechargement en production ne peut créditer : trouvé pendant l'audit
+      // wallet/paiement — corrigé en unifiant sur `agencies.deposit_balance`.
+      const debitResult = await debitPartnerCredit({
         agencyId,
-        reservationId,
         amountTnd: breakdown.totalTnd,
-        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
+        reference: publicRef,
+        description: `Réservation ${draft.module} — ${draft.offerLabel}`,
+        createdByUserId: authUserId,
+        reservationId,
+        // Idempotence : un double-submit sur le même brouillon (double-clic,
+        // deux onglets) ne doit débiter qu'une fois.
+        idempotencyKey: `booking-debit:${reservationId}`,
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
         throw new Error(
-          debitResult.code === "INSUFFICIENT_BALANCE"
+          debitResult.code === "INSUFFICIENT_FUNDS"
             ? `INSUFFICIENT_BALANCE:${breakdown.totalTnd.toFixed(3)}`
-            : `WALLET_ERROR:${debitResult.error}`,
+            : `WALLET_ERROR:${debitResult.message}`,
         )
       }
+
+      // Marquer la réservation confirmée + enregistrer le paiement — fait
+      // auparavant à l'intérieur de walletDebitReservation ; explicite ici
+      // pour que debitPartnerCredit reste une fonction ledger pure et
+      // réutilisable (elle ne connaît pas le concept de "réservation").
+      await tx
+        .update(reservations)
+        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+
+      await tx.insert(payments).values({
+        agencyId,
+        reservationId,
+        psp: "manual",
+        method: "wallet",
+        originalCurrency: "TND",
+        originalAmount: breakdown.totalTnd.toFixed(2),
+        tndAmount: breakdown.totalTnd.toFixed(2),
+        kind: "deposit",
+        status: "captured",
+        capturedAt: new Date(),
+      })
+
+      await tx.insert(auditEvents).values({
+        agencyId,
+        actorUserId: authUserId,
+        entityType: "wallet",
+        entityId: debitResult.movementId,
+        action: "wallet.debit",
+        diff: {
+          reservationId,
+          amount: breakdown.totalTnd,
+          balanceBefore: debitResult.balanceBefore,
+          balanceAfter: debitResult.balanceAfter,
+        },
+      })
 
       return { reservationId, publicRef, agencyId }
       },

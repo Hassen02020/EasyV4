@@ -28,10 +28,9 @@ import {
   omraPilgrims,
   omraRoomAllocations,
   omraFlights,
-  wallets,
-  walletTransactions,
+  payments,
 } from "@/lib/db/schema"
-import { walletDebitReservation } from "@/lib/wallet/actions"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 
 /* -------------------------------------------------------------------------- */
@@ -272,20 +271,45 @@ export async function createOmraBooking(
 
       const reservationId = reservation.id
 
-      // Débit wallet dans la transaction courante (txOverride) — pas de tx imbriquée
-      const debitResult = await walletDebitReservation({
+      // Débit crédit agence dans la transaction courante (txOverride) — pas de
+      // tx imbriquée. Débite `agencies.deposit_balance` (le seul solde que
+      // les flux de rechargement réels créditent — voir lib/booking/actions.ts
+      // pour le détail de la correction).
+      const debitResult = await debitPartnerCredit({
         agencyId,
-        reservationId,
         amountTnd: totalTnd,
+        reference: publicRef,
+        description: `Réservation Omra — ${pkg.name ?? input.packageId}`,
         createdByUserId,
-        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
+        reservationId,
+        idempotencyKey: `booking-debit:${reservationId}`,
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
-        // Le walletDebitReservation gère déjà le rollback via son propre FOR UPDATE
+        // debitPartnerCredit gère déjà le rollback via son propre FOR UPDATE
         // Mais on throw pour rollback notre transaction
-        throw new Error(debitResult.code === "INSUFFICIENT_BALANCE" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
+        throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
       }
+
+      // status=confirmed + paiement — auparavant fait par walletDebitReservation.
+      await tx
+        .update(reservations)
+        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+
+      await tx.insert(payments).values({
+        agencyId,
+        reservationId,
+        psp: "manual",
+        method: "wallet",
+        originalCurrency: "TND",
+        originalAmount: totalTnd.toFixed(2),
+        tndAmount: totalTnd.toFixed(2),
+        kind: "deposit",
+        status: "captured",
+        capturedAt: new Date(),
+      })
 
       /* ------------------------------------------------------------------
        * 6. Insérer l'extension Omra
@@ -356,7 +380,7 @@ export async function createOmraBooking(
         .where(eq(omraAllotments.id, allotment.id))
 
       /* ------------------------------------------------------------------
-       * 9. Log audit  (status=confirmed déjà positionné par walletDebitReservation)
+       * 9. Log audit
        * ------------------------------------------------------------------ */
       await tx.insert(auditEvents).values({
         agencyId,

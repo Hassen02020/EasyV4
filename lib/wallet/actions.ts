@@ -3,14 +3,35 @@
 /**
  * Wallet Server Actions — Easy2Book
  *
+ * ⚠️ DÉPRÉCIÉ (audit wallet/paiement) : ce module opère sur `wallets.balance`
+ * / `wallet_transactions`, un solde que plus aucun flux de rechargement en
+ * production ne crédite (`requestWalletTopUp` → `validateTopUp` n'a aucun
+ * appelant : le formulaire `TopUpForm` n'est monté sur aucune page). Les
+ * réservations (hôtel/omra/transfert) débitaient pourtant CE solde via
+ * `walletDebitReservation` — un compte qui ne peut jamais être crédité en
+ * conditions réelles, rendant toute réservation payante impossible.
+ *
+ * Le solde réellement crédité par le flux de rechargement en production
+ * (soumission agence → validation admin) est `agencies.deposit_balance`
+ * (`partner_credit_movements`), débité via `debitPartnerCredit`
+ * (lib/pro/booking-actions.ts). Les trois points d'appel de réservation ont
+ * été migrés vers cette fonction — voir lib/booking/actions.ts,
+ * lib/omra/booking-actions.ts, lib/transfers/actions.ts.
+ *
+ * Conservé (non supprimé) : code fonctionnel et correctement verrouillé,
+ * juste débranché du chemin de réservation live. À réutiliser seulement si
+ * `wallets`/`wallet_transactions` redevient le solde canonique (auquel cas
+ * `requestWalletTopUp`/`validateTopUp` doivent d'abord être exposés dans
+ * l'UI et recevoir un contrôle d'autorisation — actuellement absent).
+ *
  * Toutes les mutations de solde passent par des transactions SQL atomiques
  * (db.transaction) pour éviter les double-débits et l'argent fantôme.
  *
  * Flux :
- *  1. Débit réservation  → walletDebitReservation()
- *  2. Demande de recharge → requestWalletTopUp()   (PENDING)
- *  3. Validation admin    → validateTopUp()         (VALIDATED → balance++)
- *  4. Rejet admin         → rejectTopUp()           (REJECTED)
+ *  1. Débit réservation  → walletDebitReservation()  [inutilisé en prod]
+ *  2. Demande de recharge → requestWalletTopUp()   (PENDING)  [inutilisé en prod]
+ *  3. Validation admin    → validateTopUp()         (VALIDATED → balance++)  [inutilisé en prod]
+ *  4. Rejet admin         → rejectTopUp()           (REJECTED)  [inutilisé en prod]
  */
 
 import { eq } from "drizzle-orm"

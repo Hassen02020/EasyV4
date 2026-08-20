@@ -94,6 +94,16 @@ export type DebitPartnerCreditInput = {
    * laisser `undefined` : on appelle `getDb()` automatiquement.
    */
   dbOverride?: DrizzleLikeDb
+  /**
+   * Transaction Drizzle PARENTE déjà ouverte (ex: la transaction de création
+   * de réservation). Si fournie, le débit s'exécute DANS cette transaction
+   * au lieu d'en ouvrir une nouvelle — indispensable pour que "créer la
+   * réservation" et "débiter le compte" soient atomiques (sans ça, un échec
+   * après le débit laisserait un compte débité sans réservation associée).
+   * Incompatible avec `dbOverride` (utilisé uniquement pour les tests
+   * unitaires qui, eux, n'ont pas de transaction parente).
+   */
+  txOverride?: DrizzleLikeTx
 }
 
 export type DebitPartnerCreditSuccess = {
@@ -216,8 +226,7 @@ export async function debitPartnerCredit(
   const t0 = Date.now()
 
   try {
-    const db = (input.dbOverride ?? getDb()) as DrizzleLikeDb
-    return await db.transaction(async (tx) => {
+    const runDebit = async (tx: DrizzleLikeTx) => {
       // ------------------------------------------------------------------
       // 1. Verrou pessimiste row-level sur l'agence partenaire.
       //
@@ -334,7 +343,13 @@ export async function debitPartnerCredit(
       void metrics.slo("wallet.debit", true)
       void metrics.incr("wallet.debit.ok")
       return successResult
-    })
+    }
+
+    if (input.txOverride) {
+      return await runDebit(input.txOverride)
+    }
+    const db = (input.dbOverride ?? getDb()) as DrizzleLikeDb
+    return await db.transaction(runDebit)
   } catch (err) {
     void metrics.timing("wallet.debit.latency_ms", Date.now() - t0)
     void metrics.slo("wallet.debit", false)

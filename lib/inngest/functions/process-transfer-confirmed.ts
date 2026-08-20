@@ -25,7 +25,7 @@ export const processTransferConfirmed = inngest.createFunction(
     const d = event.data
 
     await step.run("send-client-email", async () => {
-      if (!process.env.RESEND_API_KEY) return { skipped: true }
+      if (!process.env.RESEND_API_KEY || !d.customerEmail) return { skipped: true }
       const resend = new Resend(process.env.RESEND_API_KEY)
 
       await resend.emails.send({

@@ -32,6 +32,7 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -397,9 +398,33 @@ export async function createOmraBooking(
         },
       })
 
-        return { reservationId, publicRef }
+        return {
+          reservationId,
+          publicRef,
+          agencyId,
+          packageName: pkg.name ?? input.packageId,
+          pilgrimsCount: pilgrimCount,
+          totalTnd,
+          contactEmail: firstPilgrim.email,
+        }
       },
     )
+
+    // --- Événement Inngest (hors transaction, fire-and-forget) ---
+    // Sans email de contact, il n'y a personne à qui envoyer la confirmation
+    // — voir la même règle appliquée à booking/confirmed dans lib/booking/actions.ts.
+    if (result.contactEmail) {
+      await sendEvent("booking/omra.confirmed", {
+        reservationId: result.reservationId,
+        publicRef: result.publicRef,
+        agencyId: result.agencyId,
+        packageName: result.packageName,
+        pilgrimsCount: result.pilgrimsCount,
+        departureDate: input.departureDate,
+        totalTnd: result.totalTnd,
+        contactEmail: result.contactEmail,
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
   } catch (err) {

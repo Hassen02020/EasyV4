@@ -25,6 +25,7 @@ import {
   partnerCreditMovements,
 } from "@/lib/db/schema"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Auth helpers                                                               */
@@ -147,6 +148,12 @@ export async function validateRechargeRequest(
   // arbitraire, pas nécessairement la sienne) : is_super_admin=true requis.
   // Demande + solde relus et verrouillés (`FOR UPDATE`) DANS la même
   // transaction pour éviter une double-validation concurrente.
+  let notifyAgencyId: string | null = null
+  let notifyTxId: string | null = null
+  let notifyMethod: string | null = null
+  let notifyAmount = 0
+  let notifyNewBalance = 0
+
   try {
     await withTenantContext(
       { agencyId: null, userId: authResult.userId, isSuperAdmin: true },
@@ -183,15 +190,24 @@ export async function validateRechargeRequest(
           .where(eq(agencies.id, request.agencyId))
 
         // 3. Créer le mouvement de crédit
-        await tx.insert(partnerCreditMovements).values({
-          agencyId: request.agencyId,
-          movementType: "credit",
-          amount: amount.toFixed(3),
-          balanceAfter: newBalance.toFixed(3),
-          reference: `RECHARGE-${request.id.slice(0, 8).toUpperCase()}`,
-          description: `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
-          createdByUserId: input.reviewedByUserId,
-        })
+        const [movement] = await tx
+          .insert(partnerCreditMovements)
+          .values({
+            agencyId: request.agencyId,
+            movementType: "credit",
+            amount: amount.toFixed(3),
+            balanceAfter: newBalance.toFixed(3),
+            reference: `RECHARGE-${request.id.slice(0, 8).toUpperCase()}`,
+            description: `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
+            createdByUserId: input.reviewedByUserId,
+          })
+          .returning({ id: partnerCreditMovements.id })
+
+        notifyAgencyId = request.agencyId
+        notifyTxId = movement.id
+        notifyMethod = request.method
+        notifyAmount = amount
+        notifyNewBalance = newBalance
 
         // 4. Marquer la demande comme validée
         await tx
@@ -216,6 +232,21 @@ export async function validateRechargeRequest(
       return { ok: false, error: `Demande déjà traitée (statut: ${msg.split(":")[1]})` }
     }
     throw err
+  }
+
+  // --- Événement Inngest (hors transaction, fire-and-forget) ---
+  // Notifie l'agence par email que son wallet a été crédité. Jamais appelé
+  // avant cette correction (audit wallet/paiement) : processWalletCredit
+  // existait déjà côté handler mais rien ne déclenchait "wallet/credited".
+  if (notifyAgencyId && notifyTxId && notifyMethod) {
+    await sendEvent("wallet/credited", {
+      agencyId: notifyAgencyId,
+      txId: notifyTxId,
+      amount: notifyAmount,
+      newBalance: notifyNewBalance,
+      method: notifyMethod,
+      adminUserId: authResult.userId,
+    }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
   }
 
   revalidatePath("/b2b")

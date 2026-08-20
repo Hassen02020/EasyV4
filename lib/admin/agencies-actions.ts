@@ -7,6 +7,7 @@ import { agencies, auditEvents, partnerCreditMovements } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Guard super_admin                                                            */
@@ -110,6 +111,9 @@ export async function adminRechargeWallet(
   if (amountTnd <= 0 || amountTnd > 999_999)
     return { ok: false, error: "Montant invalide (1 – 999 999 TND)" }
 
+  let movementId: string | null = null
+  let newBalanceForNotify = 0
+
   try {
     await withTenantContext(
       { agencyId: null, userId: actorId, isSuperAdmin: true },
@@ -140,15 +144,21 @@ export async function adminRechargeWallet(
         // ne reflète plus la totalité des mouvements réels du solde (gap
         // trouvé en audit : cette recharge directe n'écrivait auparavant
         // qu'un audit_event, jamais de mouvement de crédit traçable).
-        await tx.insert(partnerCreditMovements).values({
-          agencyId,
-          movementType: "credit",
-          amount: amountTnd.toFixed(3),
-          balanceAfter: newBalance.toFixed(3),
-          reference: `ADMIN-RECHARGE-${Date.now().toString(36).toUpperCase()}`,
-          description: `Recharge directe admin${note ? ` — ${note}` : ""}`,
-          createdByUserId: actorId,
-        })
+        const [movement] = await tx
+          .insert(partnerCreditMovements)
+          .values({
+            agencyId,
+            movementType: "credit",
+            amount: amountTnd.toFixed(3),
+            balanceAfter: newBalance.toFixed(3),
+            reference: `ADMIN-RECHARGE-${Date.now().toString(36).toUpperCase()}`,
+            description: `Recharge directe admin${note ? ` — ${note}` : ""}`,
+            createdByUserId: actorId,
+          })
+          .returning({ id: partnerCreditMovements.id })
+
+        movementId = movement.id
+        newBalanceForNotify = newBalance
 
         await tx.insert(auditEvents).values({
           agencyId,
@@ -160,6 +170,18 @@ export async function adminRechargeWallet(
         })
       },
     )
+
+    // --- Événement Inngest (hors transaction, fire-and-forget) ---
+    if (movementId) {
+      await sendEvent("wallet/credited", {
+        agencyId,
+        txId: movementId,
+        amount: amountTnd,
+        newBalance: newBalanceForNotify,
+        method: "ADMIN_DIRECT",
+        adminUserId: actorId,
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
 
     revalidatePath("/admin/agencies")
     logger.info("[agencies-actions] wallet recharged", { agencyId, amountTnd, actorId })

@@ -28,6 +28,7 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -299,12 +300,41 @@ export async function createTransferBooking(
         },
       })
 
-      return { reservationId, publicRef, totalTnd }
+      return {
+        reservationId,
+        publicRef,
+        totalTnd,
+        agencyId,
+        fromZoneName: fromZone?.name ?? input.fromZoneId,
+        toZoneName: toZone?.name ?? input.toZoneId,
+      }
     })
 
     if (!outcome.ok) {
       return { ok: false, error: outcome.error }
     }
+
+    // --- Événement Inngest (hors transaction, fire-and-forget) ---
+    // Sans email client, il n'y a personne à qui envoyer la confirmation —
+    // même règle que booking/confirmed (lib/booking/actions.ts). Le SMS
+    // chauffeur (Twilio) dans processTransferConfirmed ne dépend lui que de
+    // customerPhone, toujours obligatoire côté formulaire — l'événement doit
+    // donc partir dès qu'on a l'un ou l'autre, pas seulement l'email.
+    if (input.customer.email || input.customer.phone) {
+      await sendEvent("booking/transfer.confirmed", {
+        reservationId: outcome.result.reservationId,
+        publicRef: outcome.result.publicRef,
+        agencyId: outcome.result.agencyId,
+        customerEmail: input.customer.email ?? "",
+        customerPhone: input.customer.phone,
+        fromZone: outcome.result.fromZoneName,
+        toZone: outcome.result.toZoneName,
+        pickupAt: `${input.pickupDate}T${input.pickupTime}:00`,
+        vehicleType: input.vehicleType,
+        totalTnd: outcome.result.totalTnd,
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
+
     return {
       ok: true,
       reservationId: outcome.result.reservationId,

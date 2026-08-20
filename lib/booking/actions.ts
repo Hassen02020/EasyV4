@@ -16,7 +16,7 @@ import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown } from "./pricing"
 import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
-import { inngest } from "@/lib/inngest/client"
+import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { getMyGoClient, mapBookingListItemToConfirmation, type BookingConfirmationDTO } from "@/lib/mygo"
@@ -229,6 +229,17 @@ export async function createReservationFromDraft(input: {
   const draft = draftParse.data
   const traveler = travelerParse.data
 
+  // Calculé une seule fois, réutilisé pour l'insert reservationHotel ET pour
+  // le payload de l'événement Inngest booking/confirmed après la transaction.
+  const hotelStartDate = new Date(draft.startDate)
+  const hotelEndDate = draft.endDate ? new Date(draft.endDate) : hotelStartDate
+  const hotelNights = Math.max(
+    1,
+    Math.round(
+      (hotelEndDate.getTime() - hotelStartDate.getTime()) / (1000 * 60 * 60 * 24),
+    ),
+  )
+
   // --- Confirmation fournisseur (myGo) AVANT toute écriture DB / débit wallet ---
   // Si le draft porte des métadonnées myGo (recherche hôtel réelle) et que le
   // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
@@ -364,14 +375,6 @@ export async function createReservationFromDraft(input: {
       const reservationId = inserted[0].id
 
       if (draft.module === "hotel") {
-        const startDate = new Date(draft.startDate)
-        const endDate = draft.endDate ? new Date(draft.endDate) : startDate
-        const nights = Math.max(
-          1,
-          Math.round(
-            (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-          ),
-        )
         const confirmedRoom = myGoBooking?.rooms[0]
         await tx.insert(reservationHotel).values({
           reservationId,
@@ -388,7 +391,7 @@ export async function createReservationFromDraft(input: {
           cityId: providerMeta?.cityId,
           checkIn: draft.startDate,
           checkOut: draft.endDate ?? draft.startDate,
-          nights,
+          nights: hotelNights,
           adults: draft.adults,
           childrenAges: providerMeta?.childrenAges ?? [],
           boardCode: confirmedRoom?.boardingCode ?? providerMeta?.boardingCode,
@@ -490,18 +493,31 @@ export async function createReservationFromDraft(input: {
     )
 
     // --- Événement Inngest (hors transaction, fire-and-forget) ---
-    // PII sanitizé : on n'envoie que les références opaques, pas les données voyageur
-    inngest.send({
-      name: "booking/confirmed",
-      data: {
+    // Déclenche processConfirmedBooking (PDF voucher + email) — payload
+    // aligné sur Events["booking/confirmed"]["data"] (auparavant divergent :
+    // customerId/module envoyés au lieu de customerEmail/hotelName/checkIn/
+    // checkOut/nights attendus par le handler, donc email jamais envoyable
+    // — trouvé pendant l'audit wallet/paiement). Seul le module hôtel a un
+    // handler ; les autres modules déclenchent leur propre événement dédié
+    // depuis leurs server actions respectives (omra, transfert). Sans email
+    // client, il n'y a personne à qui envoyer le voucher — on ne déclenche
+    // pas l'événement plutôt que d'appeler le handler avec un destinataire vide.
+    if (draft.module === "hotel" && traveler.email) {
+      await sendEvent("booking/confirmed", {
         reservationId: result.reservationId,
         publicRef: result.publicRef,
         agencyId: result.agencyId,
-        customerId: result.reservationId, // référence opaque
-        module: draft.module,
+        customerEmail: traveler.email,
+        customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
+        hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
+        checkIn: draft.startDate,
+        checkOut: draft.endDate ?? draft.startDate,
+        nights: hotelNights,
+        adults: draft.adults,
+        children: draft.children,
         totalTnd: breakdown.totalTnd,
-      },
-    }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
   } catch (err) {

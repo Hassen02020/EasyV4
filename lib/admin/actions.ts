@@ -21,31 +21,16 @@ import { reservations, reservationHotel, auditEvents } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import { getMyGoClient } from "@/lib/mygo"
 import {
-  getMyGoClient,
-  MyGoApiError,
-  MyGoAuthError,
-  MyGoCircuitOpenError,
-  MyGoError,
-} from "@/lib/mygo"
+  classifyMyGoBookingError,
+  describeMyGoCancellationErrorForUser,
+} from "@/lib/booking/hotel-provider-booking"
 import {
   RESERVATION_STATUSES,
   isTransitionAllowed,
   type ReservationStatus,
 } from "./reservation-status"
-
-function describeMyGoCancellationError(err: unknown): string {
-  if (err instanceof MyGoApiError) {
-    return `Le fournisseur a refusé l'annulation : ${err.description}`
-  }
-  if (err instanceof MyGoAuthError || err instanceof MyGoCircuitOpenError) {
-    return "Le service fournisseur est momentanément indisponible. Merci de réessayer dans quelques instants."
-  }
-  if (err instanceof MyGoError) {
-    return "Impossible d'annuler la réservation auprès du fournisseur. Merci de réessayer."
-  }
-  return "Erreur inattendue lors de l'annulation auprès du fournisseur."
-}
 
 const inputSchema = z.object({
   reservationId: z.string().uuid(),
@@ -134,7 +119,12 @@ export async function updateReservationStatus(
         const [hotelRow] = await db
           .select({ providerBookingId: reservationHotel.providerBookingId })
           .from(reservationHotel)
-          .where(eq(reservationHotel.reservationId, reservationId))
+          .where(
+            and(
+              eq(reservationHotel.reservationId, reservationId),
+              eq(reservationHotel.agencyId, agencyId),
+            ),
+          )
           .limit(1)
 
         if (hotelRow?.providerBookingId) {
@@ -144,9 +134,14 @@ export async function updateReservationStatus(
             })
             providerCancellationFee = cancellation.fee
           } catch (err) {
+            // Annulation retry-safe côté fournisseur (idempotente) : on ne
+            // change PAS le statut local, l'admin peut relancer sans risque
+            // — contrairement à la création, une annulation ré-essayée est
+            // sans danger (no-op si déjà annulée côté myGo).
+            const kind = classifyMyGoBookingError(err)
             return {
               ok: false as const,
-              error: describeMyGoCancellationError(err),
+              error: describeMyGoCancellationErrorForUser(kind),
             }
           }
         }

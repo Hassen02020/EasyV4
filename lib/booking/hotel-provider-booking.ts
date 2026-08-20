@@ -7,7 +7,15 @@
 
 import { z } from "zod"
 import type { BookingDraft, TravelerInput } from "./schemas"
-import type { CreateBookingInput } from "@/lib/mygo"
+import {
+  MyGoApiError,
+  MyGoAuthError,
+  MyGoCircuitOpenError,
+  MyGoNetworkError,
+  MyGoSchemaError,
+  MyGoTimeoutError,
+  type CreateBookingInput,
+} from "@/lib/mygo"
 
 /**
  * Sous-ensemble de `BookingDraft.metadata` propre aux réservations hôtel
@@ -95,7 +103,8 @@ export function buildMyGoBookingRequest(input: {
     hotelId: providerMeta.hotelId ?? Number(draft.offerId),
     checkIn: draft.startDate,
     checkOut: draft.endDate ?? draft.startDate,
-    currency: draft.currency,
+    // Pas de `currency` ici : MyGoClient.createBooking force TND côté serveur,
+    // indépendamment de `draft.currency` (client-contrôlable, non signé).
     methodPayment: input.methodPayment,
     rooms: [
       {
@@ -119,6 +128,23 @@ export function buildMyGoBookingRequest(input: {
  * toute l'occupation de la chambre (adultes + enfants), pas un tarif par
  * personne.
  */
+/**
+ * Vérification de cohérence après confirmation myGo : si le Hotel.Id renvoyé
+ * par BookingCreation ne correspond pas à celui attendu (métadonnées de
+ * recherche), on refuse — soit une réponse fournisseur incohérente, soit un
+ * draft manipulé pointant vers un hôtel différent du token/contexte de
+ * recherche d'origine. Ne fait rien si myGo n'a pas renvoyé de Hotel.Id
+ * (champ optionnel côté schéma permissif).
+ */
+export function bookingConfirmationMatchesExpectedHotel(
+  booking: { hotelId?: number },
+  providerMeta: HotelProviderMetadata,
+): boolean {
+  const expected = providerMeta.hotelId
+  if (expected == null || booking.hotelId == null) return true
+  return booking.hotelId === expected
+}
+
 export function authoritativeUnitPrice(
   totalPriceFromProvider: number,
   adults: number,
@@ -128,4 +154,155 @@ export function authoritativeUnitPrice(
     unitPriceTnd: totalPriceFromProvider / safeAdults,
     unitChildPriceTnd: 0,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Classification des erreurs BookingCreation/BookingCancellation
+// ---------------------------------------------------------------------------
+
+export type MyGoBookingErrorKind =
+  | "NETWORK_ERROR"
+  | "TIMEOUT"
+  | "AUTHENTICATION_ERROR"
+  | "MYGO_BUSINESS_ERROR"
+  | "NO_AVAILABILITY"
+  | "PRICE_CHANGED"
+  | "MALFORMED_RESPONSE"
+  | "CIRCUIT_OPEN"
+  /** Timeout/réseau : on ne sait pas si myGo a créé la résa. Réconciliation tentée, sans succès univoque. */
+  | "AMBIGUOUS_SUPPLIER_STATE"
+  | "UNKNOWN_ERROR"
+
+/** Erreurs après lesquelles on NE SAIT PAS si myGo a effectivement créé la réservation. */
+const AMBIGUOUS_ERROR_KINDS: readonly MyGoBookingErrorKind[] = [
+  "NETWORK_ERROR",
+  "TIMEOUT",
+  "MALFORMED_RESPONSE",
+]
+
+export function isAmbiguousBookingError(kind: MyGoBookingErrorKind): boolean {
+  return AMBIGUOUS_ERROR_KINDS.includes(kind)
+}
+
+/**
+ * Classe une erreur levée par `MyGoClient.createBooking`/`cancelBooking`.
+ *
+ * myGo ne documente pas de table de codes d'erreur applicatifs stables — on
+ * ne peut donc distinguer NO_AVAILABILITY / PRICE_CHANGED d'une erreur
+ * métier générique que par heuristique sur le texte de `Description`
+ * (même approche que `isAuthError` dans lib/mygo/client.ts). Si le texte ne
+ * correspond à rien de connu, on retombe sur MYGO_BUSINESS_ERROR plutôt que
+ * d'inventer une classification non fondée.
+ */
+export function classifyMyGoBookingError(err: unknown): MyGoBookingErrorKind {
+  if (err instanceof MyGoCircuitOpenError) return "CIRCUIT_OPEN"
+  if (err instanceof MyGoAuthError) return "AUTHENTICATION_ERROR"
+  if (err instanceof MyGoSchemaError) return "MALFORMED_RESPONSE"
+  if (err instanceof MyGoTimeoutError) return "TIMEOUT"
+  if (err instanceof MyGoNetworkError) return "NETWORK_ERROR"
+  if (err instanceof MyGoApiError) {
+    const desc = err.description ?? ""
+    if (/prix|tarif|price|tariff/i.test(desc)) return "PRICE_CHANGED"
+    if (/disponib|availab|sold.?out|complet/i.test(desc)) {
+      return "NO_AVAILABILITY"
+    }
+    return "MYGO_BUSINESS_ERROR"
+  }
+  return "UNKNOWN_ERROR"
+}
+
+/** Message utilisateur (FR) — ne jamais exposer le détail technique/XML/JSON brut. */
+export function describeMyGoBookingErrorForUser(
+  kind: MyGoBookingErrorKind,
+): string {
+  switch (kind) {
+    case "PRICE_CHANGED":
+    case "NO_AVAILABILITY":
+    case "MYGO_BUSINESS_ERROR":
+      return "Cette offre n'est plus disponible (prix ou disponibilité modifiés). Merci de relancer une recherche."
+    case "AUTHENTICATION_ERROR":
+    case "CIRCUIT_OPEN":
+      return "Le service de réservation hôtelière est momentanément indisponible. Merci de réessayer dans quelques instants."
+    case "AMBIGUOUS_SUPPLIER_STATE":
+      return "Nous n'avons pas pu confirmer l'état de votre réservation auprès de l'hôtel suite à un problème technique. Ne retentez pas la réservation — contactez le support avec la référence de votre recherche."
+    case "TIMEOUT":
+    case "NETWORK_ERROR":
+    case "MALFORMED_RESPONSE":
+      return "Impossible de confirmer la réservation auprès de l'hôtel. Merci de réessayer."
+    case "UNKNOWN_ERROR":
+    default:
+      return "Erreur inattendue lors de la confirmation auprès du fournisseur."
+  }
+}
+
+/** Même classification que la création, wording adapté au contexte annulation. */
+export function describeMyGoCancellationErrorForUser(
+  kind: MyGoBookingErrorKind,
+): string {
+  switch (kind) {
+    case "MYGO_BUSINESS_ERROR":
+    case "PRICE_CHANGED":
+    case "NO_AVAILABILITY":
+      return "Le fournisseur a refusé l'annulation. Merci de contacter le support."
+    case "AUTHENTICATION_ERROR":
+    case "CIRCUIT_OPEN":
+      return "Le service fournisseur est momentanément indisponible. Merci de réessayer dans quelques instants."
+    case "AMBIGUOUS_SUPPLIER_STATE":
+      return "Nous n'avons pas pu confirmer si l'annulation a été prise en compte par l'hôtel. Ne marquez pas cette réservation comme annulée sans vérification manuelle."
+    default:
+      return "Impossible d'annuler la réservation auprès du fournisseur. Merci de réessayer."
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Réconciliation après échec ambigu (voir isAmbiguousBookingError)
+// ---------------------------------------------------------------------------
+
+export interface BookingReconciliationCandidate {
+  bookingId: number
+  hotelId?: number
+  checkIn?: string
+  checkOut?: string
+  state?: string
+  /** Format myGo "YYYY-MM-DD HH24:MI". */
+  createdAt?: string
+}
+
+/** Parse le format de date myGo "YYYY-MM-DD HH24:MI" en timestamp ms. `null` si invalide. */
+export function parseMyGoTimestamp(value: string): number | null {
+  const normalized = value.includes("T") ? value : value.replace(" ", "T")
+  const t = Date.parse(normalized)
+  return Number.isFinite(t) ? t : null
+}
+
+/**
+ * Tente de désambiguïser un état incertain après une erreur réseau/timeout
+ * sur BookingCreation : on ne sait pas si myGo a créé la réservation avant
+ * que la réponse ne se perde.
+ *
+ * N'adopte un candidat que s'il y en a EXACTEMENT UN qui correspond à
+ * l'hôtel/dates attendus, n'est pas annulé, et a été créé dans la fenêtre
+ * récente — sinon on renvoie `null` (mieux vaut un état signalé comme
+ * ambigu que d'en deviner un faux). C'est un mécanisme de réconciliation en
+ * lecture seule (BookingList, documenté par myGo) — pas une clé
+ * d'idempotence inventée : myGo n'en documente pas.
+ */
+export function reconcileAmbiguousBooking(
+  candidates: BookingReconciliationCandidate[],
+  expected: { hotelId: number; checkIn: string; checkOut: string },
+  nowMs: number,
+  windowMinutes = 10,
+): BookingReconciliationCandidate | null {
+  const cutoff = nowMs - windowMinutes * 60_000
+  const matches = candidates.filter((c) => {
+    if (c.hotelId !== expected.hotelId) return false
+    if (c.checkIn !== expected.checkIn) return false
+    if (c.checkOut !== expected.checkOut) return false
+    if (c.state === "Cancelled") return false
+    if (!c.createdAt) return false
+    const created = parseMyGoTimestamp(c.createdAt)
+    if (created == null || created < cutoff) return false
+    return true
+  })
+  return matches.length === 1 ? matches[0]! : null
 }

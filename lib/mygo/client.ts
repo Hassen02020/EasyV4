@@ -77,6 +77,13 @@ export interface CreateBookingRoomInput {
   children?: { name: string; surname: string; age: number }[]
 }
 
+/**
+ * Seule devise de règlement acceptée pour BookingCreation — toute la
+ * comptabilité (wallet, `reservations.tndAmount`, `pricing.ts`) est en TND.
+ * Volontairement non paramétrable : voir `MyGoClient.createBooking`.
+ */
+export const HOTEL_SETTLEMENT_CURRENCY = "TND" as const
+
 export interface CreateBookingInput {
   /** Token retourné par HotelSearch pour l'offre choisie. Expire — à utiliser rapidement. */
   token: string
@@ -84,7 +91,6 @@ export interface CreateBookingInput {
   hotelId: number
   checkIn: string
   checkOut: string
-  currency?: string
   /** true = dry-run (vérifie prix/dispo sans créer la résa) — recommandé avant confirmation finale. */
   preBooking?: boolean
   /** 10 = le client règle le solde `AtHotel` directement à l'hôtel. */
@@ -282,6 +288,13 @@ export class MyGoClient {
    * d'erreur réseau/timeout — on ne peut pas savoir si la réservation a été créée
    * côté myGo avant que la réponse ne se perde. Seul le dry-run (`preBooking: true`)
    * est sans risque à réessayer.
+   *
+   * IMPORTANT — intégrité devise : `Currency` n'est PAS paramétrable par l'appelant
+   * (voir `CreateBookingInput` — pas de champ `currency`). Toute la comptabilité de
+   * cette app est en TND (voir lib/booking/pricing.ts) ; accepter une devise
+   * arbitraire ici permettrait à un draft manipulé de faire traiter un montant
+   * myGo en EUR/USD comme s'il s'agissait de TND en aval (débit wallet largement
+   * sous-évalué). On force donc TND ici, à la source.
    */
   async createBooking(
     input: CreateBookingInput,
@@ -293,7 +306,7 @@ export class MyGoClient {
         ...(input.methodPayment != null
           ? { MethodPayment: input.methodPayment }
           : {}),
-        ...(input.currency ? { Currency: input.currency } : {}),
+        Currency: HOTEL_SETTLEMENT_CURRENCY,
         City: input.cityId,
         Hotel: input.hotelId,
         CheckIn: input.checkIn,
@@ -302,8 +315,10 @@ export class MyGoClient {
         Rooms: input.rooms.map((r) => ({
           Id: r.roomId,
           Boarding: r.boardingId,
-          ...(r.view?.length ? { View: r.view } : {}),
-          ...(r.supplement?.length ? { Supplement: r.supplement } : {}),
+          // Marqués "Y" (mandatory) côté doc myGo pour la requête — on les
+          // envoie toujours, même vides, plutôt que de les omettre.
+          View: r.view ?? [],
+          Supplement: r.supplement ?? [],
           Pax: {
             Adult: r.adults.map((a) => ({
               Civility: a.civility ?? "M",
@@ -330,7 +345,19 @@ export class MyGoClient {
       BookingCreationResponse,
       { retryable: Boolean(input.preBooking) },
     )
-    return mapBookingConfirmation(raw)
+    const confirmation = mapBookingConfirmation(raw)
+    // Défense en profondeur : si malgré la requête forcée en TND myGo renvoyait
+    // une autre devise (bug fournisseur, config compte différente...), on refuse
+    // de laisser ce montant être traité comme du TND en aval plutôt que de
+    // silencieusement sous/sur-facturer.
+    if (confirmation.currency !== HOTEL_SETTLEMENT_CURRENCY) {
+      throw new MyGoApiError(
+        "BookingCreation",
+        -1,
+        `myGo a confirmé en ${confirmation.currency} au lieu de ${HOTEL_SETTLEMENT_CURRENCY} — réservation refusée par sécurité.`,
+      )
+    }
+    return confirmation
   }
 
   /**

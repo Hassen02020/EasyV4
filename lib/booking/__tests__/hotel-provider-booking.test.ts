@@ -2,9 +2,24 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import type { BookingDraft, TravelerInput } from "../schemas"
 import {
+  MyGoApiError,
+  MyGoAuthError,
+  MyGoCircuitOpenError,
+  MyGoNetworkError,
+  MyGoSchemaError,
+  MyGoTimeoutError,
+} from "@/lib/mygo"
+import {
   authoritativeUnitPrice,
+  bookingConfirmationMatchesExpectedHotel,
   buildMyGoBookingRequest,
+  classifyMyGoBookingError,
+  describeMyGoBookingErrorForUser,
+  describeMyGoCancellationErrorForUser,
   extractHotelProviderMetadata,
+  isAmbiguousBookingError,
+  parseMyGoTimestamp,
+  reconcileAmbiguousBooking,
 } from "../hotel-provider-booking"
 
 const traveler: TravelerInput = {
@@ -133,4 +148,259 @@ test("authoritativeUnitPrice: répartit le total myGo sur les adultes, enfants �
 test("authoritativeUnitPrice: protège contre adults=0", () => {
   const r = authoritativeUnitPrice(500, 0)
   assert.equal(r.unitPriceTnd, 500)
+})
+
+// ---------------------------------------------------------------------------
+// Régression sécurité — prix tampering
+// ---------------------------------------------------------------------------
+
+test("SÉCURITÉ — prix client 100 TND ignoré, total myGo 850 TND fait foi", () => {
+  // Simule ce que fait lib/booking/actions.ts : draft.unitPriceTnd (client,
+  // non signé) est TOTALEMENT ignoré dès qu'un booking myGo existe — seul
+  // authoritativeUnitPrice(myGoBooking.totalPrice, ...) alimente le pricing.
+  const clientSubmittedUnitPrice = 100 // valeur falsifiée côté client
+  const myGoAuthoritativeTotal = 850
+  const adults = 1
+
+  const reconciled = authoritativeUnitPrice(myGoAuthoritativeTotal, adults)
+  assert.notEqual(reconciled.unitPriceTnd, clientSubmittedUnitPrice)
+  assert.equal(reconciled.unitPriceTnd, 850)
+  assert.equal(reconciled.unitChildPriceTnd, 0)
+})
+
+test("SÉCURITÉ — buildMyGoBookingRequest n'expose aucun champ currency (forcé TND côté client myGo)", () => {
+  const meta = extractHotelProviderMetadata(baseDraft.metadata)!
+  const req = buildMyGoBookingRequest({ draft: baseDraft, traveler, providerMeta: meta })
+  assert.equal("currency" in req, false)
+})
+
+// ---------------------------------------------------------------------------
+// Classification des erreurs
+// ---------------------------------------------------------------------------
+
+test("classifyMyGoBookingError: distingue chaque type d'erreur myGo", () => {
+  assert.equal(
+    classifyMyGoBookingError(new MyGoAuthError("bad creds")),
+    "AUTHENTICATION_ERROR",
+  )
+  assert.equal(
+    classifyMyGoBookingError(new MyGoTimeoutError(8000)),
+    "TIMEOUT",
+  )
+  assert.equal(
+    classifyMyGoBookingError(new MyGoNetworkError("ECONNRESET")),
+    "NETWORK_ERROR",
+  )
+  assert.equal(
+    classifyMyGoBookingError(new MyGoSchemaError("BookingCreation", [])),
+    "MALFORMED_RESPONSE",
+  )
+  assert.equal(
+    classifyMyGoBookingError(new MyGoCircuitOpenError(new Date())),
+    "CIRCUIT_OPEN",
+  )
+  assert.equal(classifyMyGoBookingError(new Error("???")), "UNKNOWN_ERROR")
+})
+
+test("classifyMyGoBookingError: heuristique prix/disponibilité sur MyGoApiError", () => {
+  assert.equal(
+    classifyMyGoBookingError(
+      new MyGoApiError("BookingCreation", 12, "Price has changed"),
+    ),
+    "PRICE_CHANGED",
+  )
+  assert.equal(
+    classifyMyGoBookingError(
+      new MyGoApiError("BookingCreation", 13, "No availability for this room"),
+    ),
+    "NO_AVAILABILITY",
+  )
+  assert.equal(
+    classifyMyGoBookingError(
+      new MyGoApiError("BookingCreation", 99, "Something else entirely"),
+    ),
+    "MYGO_BUSINESS_ERROR",
+  )
+})
+
+test("isAmbiguousBookingError: seules les erreurs réseau/timeout/malformées sont ambiguës", () => {
+  assert.equal(isAmbiguousBookingError("TIMEOUT"), true)
+  assert.equal(isAmbiguousBookingError("NETWORK_ERROR"), true)
+  assert.equal(isAmbiguousBookingError("MALFORMED_RESPONSE"), true)
+  assert.equal(isAmbiguousBookingError("MYGO_BUSINESS_ERROR"), false)
+  assert.equal(isAmbiguousBookingError("AUTHENTICATION_ERROR"), false)
+  assert.equal(isAmbiguousBookingError("CIRCUIT_OPEN"), false)
+  assert.equal(isAmbiguousBookingError("AMBIGUOUS_SUPPLIER_STATE"), false)
+})
+
+test("describeMyGoBookingErrorForUser / describeMyGoCancellationErrorForUser: jamais vide, jamais de détail technique brut", () => {
+  const kinds = [
+    "NETWORK_ERROR",
+    "TIMEOUT",
+    "AUTHENTICATION_ERROR",
+    "MYGO_BUSINESS_ERROR",
+    "NO_AVAILABILITY",
+    "PRICE_CHANGED",
+    "MALFORMED_RESPONSE",
+    "CIRCUIT_OPEN",
+    "AMBIGUOUS_SUPPLIER_STATE",
+    "UNKNOWN_ERROR",
+  ] as const
+  for (const k of kinds) {
+    const msg = describeMyGoBookingErrorForUser(k)
+    assert.ok(msg.length > 0)
+    assert.doesNotMatch(msg, /Credential|Login|Password|xml|json/i)
+    const cancelMsg = describeMyGoCancellationErrorForUser(k)
+    assert.ok(cancelMsg.length > 0)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Réconciliation après échec ambigu (timeout/réseau)
+// ---------------------------------------------------------------------------
+
+test("parseMyGoTimestamp: parse le format myGo 'YYYY-MM-DD HH24:MI'", () => {
+  const t = parseMyGoTimestamp("2026-08-20 10:15")
+  assert.ok(t !== null)
+  assert.equal(new Date(t!).getUTCFullYear(), 2026)
+})
+
+test("parseMyGoTimestamp: chaîne invalide → null", () => {
+  assert.equal(parseMyGoTimestamp("not-a-date"), null)
+})
+
+const NOW = new Date("2026-08-20T10:20:00Z").getTime()
+
+test("reconcileAmbiguousBooking: aucun candidat → null (pas de réservation trouvée)", () => {
+  const match = reconcileAmbiguousBooking(
+    [],
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+  )
+  assert.equal(match, null)
+})
+
+test("reconcileAmbiguousBooking: un candidat récent unique et correspondant → adopté", () => {
+  const match = reconcileAmbiguousBooking(
+    [
+      {
+        bookingId: 918273,
+        hotelId: 646,
+        checkIn: "2026-09-10",
+        checkOut: "2026-09-13",
+        state: "Validated",
+        createdAt: "2026-08-20 10:18", // 2 min avant NOW
+      },
+    ],
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+  )
+  assert.ok(match)
+  assert.equal(match!.bookingId, 918273)
+})
+
+test("SÉCURITÉ — reconcileAmbiguousBooking: DEUX candidats plausibles → refuse de deviner (null)", () => {
+  const candidates = [
+    {
+      bookingId: 111,
+      hotelId: 646,
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-13",
+      state: "Validated",
+      createdAt: "2026-08-20 10:17",
+    },
+    {
+      bookingId: 222,
+      hotelId: 646,
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-13",
+      state: "Validated",
+      createdAt: "2026-08-20 10:19",
+    },
+  ]
+  const match = reconcileAmbiguousBooking(
+    candidates,
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+  )
+  assert.equal(match, null, "ambiguïté non résolue -> jamais d'adoption silencieuse")
+})
+
+test("reconcileAmbiguousBooking: candidat hors fenêtre temporelle → null", () => {
+  const match = reconcileAmbiguousBooking(
+    [
+      {
+        bookingId: 918273,
+        hotelId: 646,
+        checkIn: "2026-09-10",
+        checkOut: "2026-09-13",
+        state: "Validated",
+        createdAt: "2026-08-19 10:00", // > 24h avant NOW, hors fenêtre 10 min
+      },
+    ],
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+  )
+  assert.equal(match, null)
+})
+
+test("reconcileAmbiguousBooking: candidat annulé ignoré même s'il correspond", () => {
+  const match = reconcileAmbiguousBooking(
+    [
+      {
+        bookingId: 918273,
+        hotelId: 646,
+        checkIn: "2026-09-10",
+        checkOut: "2026-09-13",
+        state: "Cancelled",
+        createdAt: "2026-08-20 10:18",
+      },
+    ],
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+  )
+  assert.equal(match, null)
+})
+
+test("reconcileAmbiguousBooking: hôtel/dates différents ignorés", () => {
+  const match = reconcileAmbiguousBooking(
+    [
+      {
+        bookingId: 918273,
+        hotelId: 999, // hôtel différent
+        checkIn: "2026-09-10",
+        checkOut: "2026-09-13",
+        state: "Validated",
+        createdAt: "2026-08-20 10:18",
+      },
+    ],
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+  )
+  assert.equal(match, null)
+})
+
+// ---------------------------------------------------------------------------
+// Cohérence hôtel confirmé vs. attendu
+// ---------------------------------------------------------------------------
+
+test("bookingConfirmationMatchesExpectedHotel: hotelId identique → true", () => {
+  const meta = extractHotelProviderMetadata(baseDraft.metadata)!
+  assert.equal(
+    bookingConfirmationMatchesExpectedHotel({ hotelId: 646 }, meta),
+    true,
+  )
+})
+
+test("SÉCURITÉ — bookingConfirmationMatchesExpectedHotel: hotelId différent → false", () => {
+  const meta = extractHotelProviderMetadata(baseDraft.metadata)!
+  assert.equal(
+    bookingConfirmationMatchesExpectedHotel({ hotelId: 999 }, meta),
+    false,
+  )
+})
+
+test("bookingConfirmationMatchesExpectedHotel: champ absent d'un côté → true (permissif)", () => {
+  const meta = extractHotelProviderMetadata(baseDraft.metadata)!
+  assert.equal(bookingConfirmationMatchesExpectedHotel({}, meta), true)
 })

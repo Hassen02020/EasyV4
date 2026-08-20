@@ -18,6 +18,7 @@ import {
   type CancellationPolicyT,
   type BookingCreationResponseT,
   type BookingCancellationResponseT,
+  type BookingListDetailItemT,
 } from "./schemas"
 import { sanitizeHtmlToText } from "./sanitize-html"
 import type {
@@ -339,5 +340,38 @@ export function mapBookingCancellation(
     currency: raw.Currency ?? "TND",
     preCancelled: Boolean(raw.PreCancelled ?? false),
     cancelledAt: raw.Cancelled ?? undefined,
+  }
+}
+
+/**
+ * Convertit une entrée BookingList (historique) au même DTO qu'une
+ * confirmation BookingCreation — utilisé pour la réconciliation après un
+ * échec ambigu (timeout/réseau) : on ne sait pas si myGo a créé la résa,
+ * on retrouve alors la trace via BookingList plutôt que de deviner.
+ */
+export function mapBookingListItemToConfirmation(
+  raw: BookingListDetailItemT,
+): BookingConfirmationDTO {
+  const rooms: BookingRoomDTO[] = (raw.Rooms ?? []).map((r) => ({
+    id: r.Id,
+    name: r.Name ?? undefined,
+    boardingId: r.Boarding?.Id,
+    boardingCode: r.Boarding?.Code ?? undefined,
+    boardingName: r.Boarding?.Name,
+    cancellationPolicies: (r.CancellationPolicy ?? []).map(
+      mapCancellationPolicy,
+    ),
+  }))
+  return {
+    bookingId: raw.Id,
+    hotelId: raw.Hotel?.Id,
+    hotelName: raw.Hotel?.Name,
+    checkIn: raw.CheckIn,
+    checkOut: raw.CheckOut,
+    atHotel: undefined,
+    rooms,
+    currency: raw.Currency ?? "TND",
+    state: raw.State,
+    totalPrice: raw.TotalPrice ?? 0,
   }
 }

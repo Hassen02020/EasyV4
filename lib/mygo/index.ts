@@ -4,6 +4,7 @@
 export {
   getMyGoClient,
   MyGoClient,
+  HOTEL_SETTLEMENT_CURRENCY,
   type HotelSearchInput,
   type CreateBookingInput,
   type CreateBookingRoomInput,
@@ -23,6 +24,7 @@ export {
   dedupeOffersByHotelId,
   mapBookingConfirmation,
   mapBookingCancellation,
+  mapBookingListItemToConfirmation,
 } from "./mappers"
 export { sanitizeHtmlToText } from "./sanitize-html"
 export type {

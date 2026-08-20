@@ -1,9 +1,9 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { eq, sql } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { agencies, auditEvents } from "@/lib/db/schema"
+import { agencies, auditEvents, partnerCreditMovements } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
@@ -114,13 +114,41 @@ export async function adminRechargeWallet(
     await withTenantContext(
       { agencyId: null, userId: actorId, isSuperAdmin: true },
       async (tx) => {
+        // Solde relu et verrouillé (`FOR UPDATE`) DANS la transaction, comme
+        // `validateRechargeRequest` : évite une double-recharge concurrente
+        // et rend `newBalance` disponible en JS pour le mouvement de ledger.
+        const [agency] = await tx
+          .select({ depositBalance: agencies.depositBalance })
+          .from(agencies)
+          .where(eq(agencies.id, agencyId))
+          .for("update")
+
+        if (!agency) throw new Error("AGENCY_NOT_FOUND")
+
+        const currentBalance = parseFloat(agency.depositBalance)
+        const newBalance = currentBalance + amountTnd
+
         await tx
           .update(agencies)
           .set({
-            depositBalance: sql`${agencies.depositBalance} + ${String(amountTnd)}`,
+            depositBalance: newBalance.toFixed(3),
             updatedAt: new Date(),
           })
           .where(eq(agencies.id, agencyId))
+
+        // Mouvement de ledger — sans cette ligne, `partner_credit_movements`
+        // ne reflète plus la totalité des mouvements réels du solde (gap
+        // trouvé en audit : cette recharge directe n'écrivait auparavant
+        // qu'un audit_event, jamais de mouvement de crédit traçable).
+        await tx.insert(partnerCreditMovements).values({
+          agencyId,
+          movementType: "credit",
+          amount: amountTnd.toFixed(3),
+          balanceAfter: newBalance.toFixed(3),
+          reference: `ADMIN-RECHARGE-${Date.now().toString(36).toUpperCase()}`,
+          description: `Recharge directe admin${note ? ` — ${note}` : ""}`,
+          createdByUserId: actorId,
+        })
 
         await tx.insert(auditEvents).values({
           agencyId,
@@ -128,7 +156,7 @@ export async function adminRechargeWallet(
           entityType: "agency",
           entityId: agencyId,
           action: "agency.wallet_recharged",
-          diff: { amountTnd, note: note ?? null },
+          diff: { amountTnd, note: note ?? null, balanceAfter: newBalance },
         })
       },
     )

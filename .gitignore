@@ -34,6 +34,9 @@ Thumbs.db
 !.vscode/settings.json
 !.vscode/extensions.json
 
+# Claude Code local tooling (agent worktrees, session scratch) — never repo content
+.claude/
+
 # Rapports de test ad-hoc générés à la racine (les archives versionnées vivent
 # dans docs/tests/)
 /test-plan*.md

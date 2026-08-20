@@ -16,6 +16,7 @@ import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown } from "./pricing"
 import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
@@ -517,6 +518,22 @@ export async function createReservationFromDraft(input: {
         children: draft.children,
         totalTnd: breakdown.totalTnd,
       }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
+
+    // --- Facture (hors transaction) --- La réservation et le débit sont déjà
+    // commités : un échec de facturation ne doit jamais invalider une
+    // réservation payée. Régénérable plus tard (idempotent) si besoin.
+    try {
+      const invoiceResult = await generateInvoiceForReservation({
+        agencyId: result.agencyId,
+        reservationId: result.reservationId,
+        actorUserId: authUserId,
+      })
+      if (!invoiceResult.ok) {
+        console.error("[booking] génération facture échouée", invoiceResult.error)
+      }
+    } catch (err) {
+      console.error("[booking] génération facture échouée", err instanceof Error ? err.message : String(err))
     }
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }

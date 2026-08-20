@@ -29,6 +29,7 @@ import {
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
 import { sendEvent } from "@/lib/inngest/client"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -305,6 +306,7 @@ export async function createTransferBooking(
         publicRef,
         totalTnd,
         agencyId,
+        createdByUserId,
         fromZoneName: fromZone?.name ?? input.fromZoneId,
         toZoneName: toZone?.name ?? input.toZoneId,
       }
@@ -333,6 +335,21 @@ export async function createTransferBooking(
         vehicleType: input.vehicleType,
         totalTnd: outcome.result.totalTnd,
       }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
+
+    // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
+    // un échec de facturation ne doit jamais invalider une réservation payée.
+    try {
+      const invoiceResult = await generateInvoiceForReservation({
+        agencyId: outcome.result.agencyId,
+        reservationId: outcome.result.reservationId,
+        actorUserId: outcome.result.createdByUserId,
+      })
+      if (!invoiceResult.ok) {
+        console.error("[transfers] génération facture échouée", invoiceResult.error)
+      }
+    } catch (err) {
+      console.error("[transfers] génération facture échouée", err instanceof Error ? err.message : String(err))
     }
 
     return {

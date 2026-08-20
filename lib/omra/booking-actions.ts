@@ -33,6 +33,7 @@ import {
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -424,6 +425,21 @@ export async function createOmraBooking(
         totalTnd: result.totalTnd,
         contactEmail: result.contactEmail,
       }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
+
+    // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
+    // un échec de facturation ne doit jamais invalider une réservation payée.
+    try {
+      const invoiceResult = await generateInvoiceForReservation({
+        agencyId: result.agencyId,
+        reservationId: result.reservationId,
+        actorUserId: createdByUserId,
+      })
+      if (!invoiceResult.ok) {
+        console.error("[omra] génération facture échouée", invoiceResult.error)
+      }
+    } catch (err) {
+      console.error("[omra] génération facture échouée", err instanceof Error ? err.message : String(err))
     }
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }

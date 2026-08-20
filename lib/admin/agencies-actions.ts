@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, auditEvents, partnerCreditMovements } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -132,13 +132,15 @@ export async function adminRechargeWallet(
         const currentBalance = parseFloat(agency.depositBalance)
         const newBalance = currentBalance + amountTnd
 
-        await tx
-          .update(agencies)
-          .set({
-            depositBalance: newBalance.toFixed(3),
-            updatedAt: new Date(),
-          })
-          .where(eq(agencies.id, agencyId))
+        // Seul canal autorisé pour écrire `agencies.deposit_balance` — voir
+        // drizzle/manual/0020_agency_wallet_balance_write_gap.sql. Ce chemin
+        // tourne déjà en isSuperAdmin: true donc n'était pas cassé comme
+        // debitPartnerCredit, mais un seul canal sanctionné pour tout le
+        // monde évite qu'un futur appelant reproduise le même bug s'il
+        // oublie de poser isSuperAdmin: true.
+        await tx.execute(
+          sql`SELECT set_agency_deposit_balance(${agencyId}::uuid, ${newBalance.toFixed(3)}::numeric)`,
+        )
 
         // Mouvement de ledger — sans cette ligne, `partner_credit_movements`
         // ne reflète plus la totalité des mouvements réels du solde (gap

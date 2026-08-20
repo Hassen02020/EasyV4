@@ -17,7 +17,7 @@
  * Toutes les sommes sont stockées en `numeric(12, 3)` (millimes TND).
  */
 
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 
 import { getDb } from "@/lib/db/client"
 import { getRedis } from "@/lib/cache/redis"
@@ -46,6 +46,17 @@ export type DrizzleLikeTx = {
   select: (...args: unknown[]) => DrizzleLikeChain
   insert: (...args: unknown[]) => DrizzleLikeChain
   update: (...args: unknown[]) => DrizzleLikeChain
+  /**
+   * Exécute une requête SQL brute (utilisé pour appeler
+   * `set_agency_deposit_balance()`, seul canal autorisé pour écrire
+   * `agencies.deposit_balance` — voir le commentaire au-dessus de l'appel
+   * dans `runDebit` pour le pourquoi : `agencies` n'a pas de policy RLS
+   * UPDATE pour une session tenant normale, seulement pour
+   * `is_super_admin()`, donc un `tx.update(agencies)...` direct sous
+   * contexte partenaire est silencieusement filtré par RLS — trouvé en
+   * audit, drizzle/manual/0020_agency_wallet_balance_write_gap.sql).
+   */
+  execute: (query: unknown) => Promise<unknown>
 }
 
 /**
@@ -310,15 +321,27 @@ export async function debitPartnerCredit(
       // ------------------------------------------------------------------
       // 4. Mise à jour du solde de l'agence (même transaction).
       //
-      // On cast explicitement en Promise<unknown> pour que TS accepte
-      // le `await` sur la chaîne fluide (le `.where?.` ferme la requête
-      // et la rend thenable côté Drizzle).
+      // ⚠️ NE PAS remplacer par `tx.update(agencies).set(...).where(...)` :
+      // `agencies` n'a que 2 policies RLS (agencies_admin_write: ALL sous
+      // is_super_admin() uniquement ; agencies_select: SELECT). Aucune
+      // policy ne couvre UPDATE pour une session tenant normale — un
+      // `.update()` direct ici est SILENCIEUSEMENT filtré par RLS sous
+      // contexte partenaire (isSuperAdmin: false, le cas de CHAQUE
+      // réservation B2B réelle) : 0 ligne affectée, aucune erreur, la
+      // fonction retournait `ok: true` alors que le solde ne changeait
+      // jamais réellement (trouvé en audit — voir
+      // drizzle/manual/0020_agency_wallet_balance_write_gap.sql). La
+      // fonction SECURITY DEFINER `set_agency_deposit_balance()` est le
+      // seul canal autorisé : elle vérifie elle-même que l'appelant agit
+      // sur SA PROPRE agence (current_agency_id() = p_agency_id) OU est
+      // super_admin, donc pas de privilege escalation possible malgré le
+      // bypass RLS interne — et le nouveau solde est calculé côté serveur
+      // (ligne ci-dessus, sous verrou FOR UPDATE), jamais transmis tel
+      // quel par un appelant.
       // ------------------------------------------------------------------
-      const updateChain = tx
-        .update(agencies)
-        .set?.({ depositBalance: formatTnd(newBalance) })
-        .where?.(eq(agencies.id, input.agencyId))
-      await (updateChain as unknown as Promise<unknown>)
+      await tx.execute(
+        sql`SELECT set_agency_deposit_balance(${input.agencyId}::uuid, ${formatTnd(newBalance)}::numeric)`,
+      )
 
       const successResult: DebitPartnerCreditSuccess = {
         ok: true,

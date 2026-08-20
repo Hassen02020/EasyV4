@@ -17,7 +17,7 @@
  *    RLS (tenant ou système).
  */
 
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { agencies, walletRechargeRequests, partnerCreditMovements } from "@/lib/db/schema"
 import type { DrizzleTransaction } from "@/lib/db/client"
 
@@ -54,10 +54,14 @@ export async function creditRechargeRequest(
   const currentBalance = parseFloat(agency.depositBalance)
   const newBalance = currentBalance + amount
 
-  await tx
-    .update(agencies)
-    .set({ depositBalance: newBalance.toFixed(3) })
-    .where(eq(agencies.id, request.agencyId))
+  // Seul canal autorisé pour écrire `agencies.deposit_balance` — `agencies`
+  // n'a pas de policy RLS UPDATE pour une session tenant normale, seulement
+  // pour is_super_admin() (toujours vrai ici en pratique, mais on utilise le
+  // même canal que debitPartnerCredit par cohérence et en défense en
+  // profondeur : voir drizzle/manual/0020_agency_wallet_balance_write_gap.sql).
+  await tx.execute(
+    sql`SELECT set_agency_deposit_balance(${request.agencyId}::uuid, ${newBalance.toFixed(3)}::numeric)`,
+  )
 
   const [movement] = await tx
     .insert(partnerCreditMovements)

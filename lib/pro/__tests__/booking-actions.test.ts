@@ -146,17 +146,16 @@ function makeMockDb(opts: MockOptions): {
         }),
       }),
       update: () => ({
-        set: (...setArgs: unknown[]) => ({
+        set: () => ({
           where: () => {
-            journal.push({
-              kind: "UPDATE_BALANCE",
-              payload: (setArgs[0] ?? {}) as Record<string, unknown>,
-            })
-            // Retourne quelque chose d'awaitable
-            return Promise.resolve(undefined)
+            throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
           },
         }),
       }),
+      execute: async (query: unknown) => {
+        journal.push({ kind: "UPDATE_BALANCE", payload: { query } })
+        return undefined
+      },
     }
   }
 
@@ -494,18 +493,16 @@ test("debitPartnerCredit : avec txOverride, s'exécute DANS la transaction fourn
       }),
     }),
     update: () => ({
-      set: (...setArgs: unknown[]) => ({
+      set: () => ({
         where: () => {
-          journal.push({
-            kind: "UPDATE_BALANCE",
-            payload: (setArgs[0] ?? {}) as Record<string, unknown>,
-          })
-          return Promise.resolve(undefined) as unknown as ReturnType<
-            NonNullable<DrizzleLikeChain["where"]>
-          >
+          throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
         },
       }),
     }),
+    execute: async () => {
+      journal.push({ kind: "UPDATE_BALANCE" })
+      return undefined
+    },
   }
 
   const result = await debitPartnerCredit({
@@ -555,13 +552,14 @@ test("debitPartnerCredit : txOverride propage un solde insuffisant sans muter qu
     update: () => ({
       set: () => ({
         where: () => {
-          journal.push({ kind: "UPDATE_BALANCE" })
-          return Promise.resolve(undefined) as unknown as ReturnType<
-            NonNullable<DrizzleLikeChain["where"]>
-          >
+          throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
         },
       }),
     }),
+    execute: async () => {
+      journal.push({ kind: "UPDATE_BALANCE" })
+      return undefined
+    },
   }
 
   const result = await debitPartnerCredit({

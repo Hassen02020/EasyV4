@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
+import { canManagePartnerUsers } from "@/lib/auth/partner-permissions"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -288,12 +289,14 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
 
-              <DropdownMenuItem asChild>
-                <Link href="/pro/utilisateurs">
-                  <Users className="text-primary mr-2 h-4 w-4" />
-                  Gestion des utilisateurs
-                </Link>
-              </DropdownMenuItem>
+              {canManagePartnerUsers(user.role) && (
+                <DropdownMenuItem asChild>
+                  <Link href="/pro/utilisateurs">
+                    <Users className="text-primary mr-2 h-4 w-4" />
+                    Gestion des utilisateurs
+                  </Link>
+                </DropdownMenuItem>
+              )}
 
               <DropdownMenuSeparator />
 

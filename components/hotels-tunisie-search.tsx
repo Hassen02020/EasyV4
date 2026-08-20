@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { FIELD_SHELL, FieldLabel } from "@/components/search-field"
+import { splitIntoRooms, encodeRoomsParam } from "@/lib/mygo/room-split"
 
 // ============================================================================
 // Types matching MyGo API Schema (le client myGo expose `/api/hotels/cities`)
@@ -155,7 +157,7 @@ export function HotelsTunisieSearch() {
       city: selectedCity?.name ?? "",
       checkin: request.BookingDetails.Checkin,
       checkout: request.BookingDetails.Checkout,
-      rooms: String(rooms),
+      roomsCount: String(rooms),
       adults: String(request.Pax.Adult),
     })
     if (request.Pax.Child.length > 0) {
@@ -166,6 +168,14 @@ export function HotelsTunisieSearch() {
     }
     if (request.Filters.OnlyAvailable) {
       params.set("onlyAvailable", "1")
+    }
+    // Recherche multi-chambres réelle (le connecteur myGo accepte nativement
+    // `Rooms: [{Adult, Child}]`, voir lib/mygo/client.ts) — au-delà d'une
+    // chambre, on répartit équitablement les adultes et les âges renseignés
+    // pour que la disponibilité/prix reflètent la vraie composition du
+    // groupe plutôt qu'une seule chambre agrégée.
+    if (rooms > 1) {
+      params.set("rooms", encodeRoomsParam(splitIntoRooms(rooms, adults, childrenAges)))
     }
 
     router.push(`/hotels/search?${params.toString()}`)
@@ -243,38 +253,40 @@ export function HotelsTunisieSearch() {
   return (
     <div className="space-y-5">
       {/* Main Search Row */}
-      <div className="flex flex-col gap-3 lg:flex-row">
+      <div className="flex flex-col gap-2.5 lg:flex-row">
         {/* City Autocomplete */}
         <div className="min-w-0 flex-1">
-          <label className="text-muted-foreground mb-1.5 block text-xs font-medium">
-            Destination
-          </label>
           <Popover open={citySearchOpen} onOpenChange={setCitySearchOpen}>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
+              <button
+                type="button"
                 role="combobox"
                 aria-expanded={citySearchOpen}
-                className="h-12 w-full justify-start rounded-3xl px-4 text-left font-normal"
+                aria-controls="hotel-search-city-listbox"
+                className={FIELD_SHELL}
               >
-                <MapPin className="text-muted-foreground mr-2 size-4 shrink-0" />
+                <FieldLabel icon={MapPin}>Destination</FieldLabel>
                 {selectedCity ? (
-                  <span className="truncate">
+                  <span className="truncate text-sm font-semibold">
                     {selectedCity.name}
                     {selectedCity.region && (
-                      <span className="text-muted-foreground ml-1">
+                      <span className="text-muted-foreground ml-1 font-normal">
                         ({selectedCity.region})
                       </span>
                     )}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground truncate text-sm font-normal">
                     Rechercher une ville...
                   </span>
                 )}
-              </Button>
+              </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[320px] p-0" align="start">
+            <PopoverContent
+              id="hotel-search-city-listbox"
+              className="w-[320px] p-0"
+              align="start"
+            >
               <Command>
                 <CommandInput placeholder="Rechercher une ville..." />
                 <CommandList>
@@ -316,25 +328,19 @@ export function HotelsTunisieSearch() {
 
         {/* Date Range Picker */}
         <div className="min-w-0 flex-1">
-          <label className="text-muted-foreground mb-1.5 block text-xs font-medium">
-            Dates du séjour
-          </label>
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-12 w-full justify-start rounded-3xl px-4 text-left font-normal"
-              >
-                <Calendar className="text-muted-foreground mr-2 size-4 shrink-0" />
+              <button type="button" className={FIELD_SHELL}>
+                <FieldLabel icon={Calendar}>Dates du séjour</FieldLabel>
                 <span
                   className={cn(
-                    !checkinDate && "text-muted-foreground",
-                    "truncate",
+                    !checkinDate && "text-muted-foreground font-normal",
+                    "truncate text-sm font-semibold",
                   )}
                 >
                   {dateRangeDisplay}
                 </span>
-              </Button>
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <div className="border-b p-3">
@@ -379,20 +385,14 @@ export function HotelsTunisieSearch() {
 
         {/* Pax Selector */}
         <div className="min-w-0 flex-1">
-          <label className="text-muted-foreground mb-1.5 block text-xs font-medium">
-            Voyageurs
-          </label>
           <Popover open={paxPopoverOpen} onOpenChange={setPaxPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-12 w-full justify-start rounded-3xl px-4 text-left font-normal"
-              >
-                <Users className="text-muted-foreground mr-2 size-4 shrink-0" />
-                <span className="truncate">{paxDisplay}</span>
-              </Button>
+              <button type="button" className={FIELD_SHELL}>
+                <FieldLabel icon={Users}>Voyageurs</FieldLabel>
+                <span className="truncate text-sm font-semibold">{paxDisplay}</span>
+              </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[320px] p-4" align="start">
+            <PopoverContent className="w-[320px] rounded-2xl p-4 shadow-e2b-elevated" align="start">
               <div className="space-y-4">
                 {/* Rooms */}
                 <div className="flex items-center justify-between">
@@ -531,14 +531,15 @@ export function HotelsTunisieSearch() {
         </div>
 
         {/* Search Button */}
-        <div className="flex items-end">
+        <div className="flex items-stretch">
           <Button
             onClick={handleSearch}
             disabled={!isFormValid}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-e2b-soft h-12 w-full rounded-3xl px-8 text-base font-semibold transition-all hover:shadow-xl lg:w-auto"
+            size="lg"
+            className="from-primary to-accent hover:shadow-primary/30 h-auto w-full gap-2 rounded-2xl bg-gradient-to-r px-8 text-base font-semibold text-white uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-lg lg:w-auto"
           >
-            <Search className="mr-2 size-5" />
-            RECHERCHER
+            <Search className="size-4" />
+            Rechercher
           </Button>
         </div>
       </div>

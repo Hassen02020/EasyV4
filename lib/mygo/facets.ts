@@ -48,6 +48,71 @@ export const EMPTY_FILTER_STATE: HotelFilterState = {
   availableOnly: false,
 }
 
+/**
+ * Encode/décode `HotelFilterState` dans l'URL (`f_*`) pour que les filtres
+ * survivent à un rafraîchissement de page ou à un aller-retour vers la
+ * fiche hôtel — sans jamais redéclencher un appel myGo (le filtrage reste
+ * appliqué côté client sur les offres déjà chargées, voir `applyFilters`).
+ */
+export function filtersToSearchParams(filters: HotelFilterState): URLSearchParams {
+  const params = new URLSearchParams()
+  if (filters.stars.length > 0) params.set("f_stars", filters.stars.join(","))
+  if (filters.boardings.length > 0) params.set("f_board", filters.boardings.join("|"))
+  if (filters.facilities.length > 0) params.set("f_amenities", filters.facilities.join("|"))
+  if (filters.priceRange) {
+    params.set("f_price", `${filters.priceRange[0]}-${filters.priceRange[1]}`)
+  }
+  if (filters.recommendedOnly) params.set("f_rec", "1")
+  if (filters.freeCancellationOnly) params.set("f_cancel", "1")
+  if (filters.availableOnly) params.set("f_avail", "1")
+  return params
+}
+
+/** Clés URL utilisées par `filtersToSearchParams` — pour purger avant réécriture. */
+export const FILTER_URL_KEYS = [
+  "f_stars",
+  "f_board",
+  "f_amenities",
+  "f_price",
+  "f_rec",
+  "f_cancel",
+  "f_avail",
+] as const
+
+export function filtersFromSearchParams(
+  searchParams: URLSearchParams,
+): HotelFilterState {
+  const starsRaw = searchParams.get("f_stars")
+  const boardRaw = searchParams.get("f_board")
+  const amenitiesRaw = searchParams.get("f_amenities")
+  const priceRaw = searchParams.get("f_price")
+
+  let priceRange: [number, number] | null = null
+  if (priceRaw) {
+    const [minStr, maxStr] = priceRaw.split("-")
+    const min = Number(minStr)
+    const max = Number(maxStr)
+    if (Number.isFinite(min) && Number.isFinite(max) && min <= max) {
+      priceRange = [min, max]
+    }
+  }
+
+  return {
+    stars: starsRaw
+      ? starsRaw
+          .split(",")
+          .map((s) => parseInt(s, 10))
+          .filter((n) => Number.isFinite(n))
+      : [],
+    boardings: boardRaw ? boardRaw.split("|").filter(Boolean) : [],
+    facilities: amenitiesRaw ? amenitiesRaw.split("|").filter(Boolean) : [],
+    priceRange,
+    recommendedOnly: searchParams.get("f_rec") === "1",
+    freeCancellationOnly: searchParams.get("f_cancel") === "1",
+    availableOnly: searchParams.get("f_avail") === "1",
+  }
+}
+
 /** Vrai si l'offre a au moins une chambre annulable gratuitement (BEFORE_ARRIVAL). */
 function hasFreeCancellation(offer: HotelOfferDTO): boolean {
   return offer.boardings.some((b) =>

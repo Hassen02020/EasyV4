@@ -22,13 +22,27 @@ interface InternalState {
   status: "idle" | "success" | "error"
   data: HotelSearchResultDTO | null
   error: string | null
+  errorCode: string | null
+  degraded: boolean
+  fromStaleCache: boolean
 }
 
 export interface HotelSearchHookState {
   status: "loading" | "success" | "error"
   data: HotelSearchResultDTO | null
   error: string | null
+  /** Code d'erreur machine renvoyé par l'API (`service_unavailable`,
+   * `rate_limited`, `auth_failed`, `internal`…) — pilote le message/CTA
+   * affiché plutôt qu'un texte générique unique pour toute erreur. */
+  errorCode: string | null
+  /** Résultat servi en mode dégradé (cache figé / panne fournisseur) —
+   * `X-Degraded-Mode` côté API. */
+  degraded: boolean
+  /** Résultat servi depuis un cache déjà périmé (`X-From-Cache`). */
+  fromStaleCache: boolean
   queryString: string | null
+  /** Relance la même recherche (ex. bouton "Réessayer" après un 503/réseau). */
+  retry: () => void
 }
 
 export function useHotelSearch(): HotelSearchHookState {
@@ -38,7 +52,13 @@ export function useHotelSearch(): HotelSearchHookState {
     status: "idle",
     data: null,
     error: null,
+    errorCode: null,
+    degraded: false,
+    fromStaleCache: false,
   })
+  // Compteur incrémenté par `retry()` — inclus dans les deps de l'effet
+  // pour forcer une relance sans changer la query envoyée à l'API.
+  const [retryTick, setRetryTick] = useState(0)
 
   const cityId = searchParams.get("cityId")
   const checkin = searchParams.get("checkin")
@@ -47,6 +67,9 @@ export function useHotelSearch(): HotelSearchHookState {
   const children = searchParams.get("children")
   const stars = searchParams.get("stars")
   const onlyAvailable = searchParams.get("onlyAvailable")
+  // Multi-room (encodage compact, voir app/api/hotels/search/route.ts) —
+  // absent = repli sur adults/children (une seule chambre).
+  const rooms = searchParams.get("rooms")
 
   const queryString = useMemo(() => {
     if (!cityId || !checkin || !checkout) return null
@@ -54,8 +77,9 @@ export function useHotelSearch(): HotelSearchHookState {
     if (children) params.set("children", children)
     if (stars) params.set("stars", stars)
     if (onlyAvailable) params.set("onlyAvailable", onlyAvailable)
+    if (rooms) params.set("rooms", rooms)
     return params.toString()
-  }, [cityId, checkin, checkout, adults, children, stars, onlyAvailable])
+  }, [cityId, checkin, checkout, adults, children, stars, onlyAvailable, rooms])
 
   useEffect(() => {
     if (!queryString) return
@@ -67,12 +91,29 @@ export function useHotelSearch(): HotelSearchHookState {
             message?: string
             error?: string
           }
-          throw new Error(body.message ?? body.error ?? `HTTP ${r.status}`)
+          const err = new Error(
+            body.message ?? body.error ?? `HTTP ${r.status}`,
+          ) as Error & { code?: string }
+          err.code = body.error
+          throw err
         }
-        return r.json() as Promise<HotelSearchResultDTO>
+        const data = (await r.json()) as HotelSearchResultDTO
+        return {
+          data,
+          degraded: r.headers.get("X-Degraded-Mode") === "1",
+          fromStaleCache: r.headers.get("X-From-Cache") === "1",
+        }
       })
-      .then((data) =>
-        setState({ queryString, status: "success", data, error: null }),
+      .then(({ data, degraded, fromStaleCache }) =>
+        setState({
+          queryString,
+          status: "success",
+          data,
+          error: null,
+          errorCode: null,
+          degraded,
+          fromStaleCache,
+        }),
       )
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === "AbortError") return
@@ -81,23 +122,29 @@ export function useHotelSearch(): HotelSearchHookState {
           status: "error",
           data: null,
           error: err instanceof Error ? err.message : "Erreur inconnue",
+          errorCode: (err as { code?: string })?.code ?? null,
+          degraded: false,
+          fromStaleCache: false,
         })
       })
     return () => ctrl.abort()
-  }, [queryString])
+  }, [queryString, retryTick])
 
   // Derived at render time (no setState in effect):
   let effectiveStatus: "loading" | "success" | "error"
   let effectiveError: string | null = state.error
+  let effectiveErrorCode: string | null = state.errorCode
   let effectiveData: HotelSearchResultDTO | null = state.data
   if (!queryString) {
     effectiveStatus = "error"
     effectiveError = "Critères de recherche incomplets — retournez à l'accueil."
+    effectiveErrorCode = "incomplete_query"
     effectiveData = null
   } else if (state.queryString !== queryString) {
     // queryString a changé, l'effet va déclencher un nouveau fetch -> loading
     effectiveStatus = "loading"
     effectiveError = null
+    effectiveErrorCode = null
     effectiveData = null
   } else {
     effectiveStatus = state.status === "idle" ? "loading" : state.status
@@ -107,6 +154,10 @@ export function useHotelSearch(): HotelSearchHookState {
     status: effectiveStatus,
     data: effectiveData,
     error: effectiveError,
+    errorCode: effectiveErrorCode,
+    degraded: state.queryString === queryString ? state.degraded : false,
+    fromStaleCache: state.queryString === queryString ? state.fromStaleCache : false,
     queryString,
+    retry: () => setRetryTick((n) => n + 1),
   }
 }

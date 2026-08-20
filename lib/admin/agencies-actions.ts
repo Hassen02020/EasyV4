@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache"
 import { eq, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { agencies, auditEvents } from "@/lib/db/schema"
+import { agencies, auditEvents, partnerCreditMovements } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Guard super_admin                                                            */
@@ -110,17 +111,56 @@ export async function adminRechargeWallet(
   if (amountTnd <= 0 || amountTnd > 999_999)
     return { ok: false, error: "Montant invalide (1 – 999 999 TND)" }
 
+  let movementId: string | null = null
+  let newBalanceForNotify = 0
+
   try {
     await withTenantContext(
       { agencyId: null, userId: actorId, isSuperAdmin: true },
       async (tx) => {
-        await tx
-          .update(agencies)
-          .set({
-            depositBalance: sql`${agencies.depositBalance} + ${String(amountTnd)}`,
-            updatedAt: new Date(),
-          })
+        // Solde relu et verrouillé (`FOR UPDATE`) DANS la transaction, comme
+        // `validateRechargeRequest` : évite une double-recharge concurrente
+        // et rend `newBalance` disponible en JS pour le mouvement de ledger.
+        const [agency] = await tx
+          .select({ depositBalance: agencies.depositBalance })
+          .from(agencies)
           .where(eq(agencies.id, agencyId))
+          .for("update")
+
+        if (!agency) throw new Error("AGENCY_NOT_FOUND")
+
+        const currentBalance = parseFloat(agency.depositBalance)
+        const newBalance = currentBalance + amountTnd
+
+        // Seul canal autorisé pour écrire `agencies.deposit_balance` — voir
+        // drizzle/manual/0020_agency_wallet_balance_write_gap.sql. Ce chemin
+        // tourne déjà en isSuperAdmin: true donc n'était pas cassé comme
+        // debitPartnerCredit, mais un seul canal sanctionné pour tout le
+        // monde évite qu'un futur appelant reproduise le même bug s'il
+        // oublie de poser isSuperAdmin: true.
+        await tx.execute(
+          sql`SELECT set_agency_deposit_balance(${agencyId}::uuid, ${newBalance.toFixed(3)}::numeric)`,
+        )
+
+        // Mouvement de ledger — sans cette ligne, `partner_credit_movements`
+        // ne reflète plus la totalité des mouvements réels du solde (gap
+        // trouvé en audit : cette recharge directe n'écrivait auparavant
+        // qu'un audit_event, jamais de mouvement de crédit traçable).
+        const [movement] = await tx
+          .insert(partnerCreditMovements)
+          .values({
+            agencyId,
+            movementType: "credit",
+            amount: amountTnd.toFixed(3),
+            balanceAfter: newBalance.toFixed(3),
+            reference: `ADMIN-RECHARGE-${Date.now().toString(36).toUpperCase()}`,
+            description: `Recharge directe admin${note ? ` — ${note}` : ""}`,
+            createdByUserId: actorId,
+          })
+          .returning({ id: partnerCreditMovements.id })
+
+        movementId = movement.id
+        newBalanceForNotify = newBalance
 
         await tx.insert(auditEvents).values({
           agencyId,
@@ -128,10 +168,22 @@ export async function adminRechargeWallet(
           entityType: "agency",
           entityId: agencyId,
           action: "agency.wallet_recharged",
-          diff: { amountTnd, note: note ?? null },
+          diff: { amountTnd, note: note ?? null, balanceAfter: newBalance },
         })
       },
     )
+
+    // --- Événement Inngest (hors transaction, fire-and-forget) ---
+    if (movementId) {
+      await sendEvent("wallet/credited", {
+        agencyId,
+        txId: movementId,
+        amount: amountTnd,
+        newBalance: newBalanceForNotify,
+        method: "ADMIN_DIRECT",
+        adminUserId: actorId,
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
 
     revalidatePath("/admin/agencies")
     logger.info("[agencies-actions] wallet recharged", { agencyId, amountTnd, actorId })

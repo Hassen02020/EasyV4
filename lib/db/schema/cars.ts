@@ -25,7 +25,7 @@
  *      (référence publique, statut, montants, wallet) + une extension 1-1
  *      par module (reservation_hotel, reservation_transfer, reservation_omra…).
  *      `reservation_car` suit exactement ce pattern : c'est ce qui donne accès
- *      gratuitement au débit wallet existant (walletDebitReservation),
+ *      gratuitement au débit wallet existant (debitPartnerCredit),
  *      aux paiements (`payments`), à l'audit (`audit_events`) et à l'historique
  *      de statuts (`reservation_status_history`, déjà générique — utilisé par
  *      transfer et omra, pas besoin d'un car_status_history séparé).
@@ -323,9 +323,10 @@ export const carPricingRates = pgTable(
  *
  * L'intégration wallet ne demande aucune colonne supplémentaire : le flux
  * (à écrire dans lib/cars/actions.ts, hors périmètre de ce fichier) sera le
- * même que createTransferBooking → walletDebitReservation({ agencyId,
- * reservationId, amountTnd, ... }), reservationId étant la même clé que
- * celle utilisée par reservations.tndAmount/payments/wallet_transactions.
+ * même que createTransferBooking → debitPartnerCredit({ agencyId,
+ * amountTnd, reference, description, reservationId, txOverride, ... }),
+ * reservationId étant la même clé que celle utilisée par
+ * reservations.tndAmount/payments/partner_credit_movements.
  */
 export const reservationCar = pgTable(
   "reservation_car",

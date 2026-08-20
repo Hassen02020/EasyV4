@@ -21,6 +21,8 @@ import {
   parseTnd,
   type DebitPartnerCreditResult,
   type DrizzleLikeDb,
+  type DrizzleLikeTx,
+  type DrizzleLikeChain,
 } from "../booking-actions"
 
 /* -------------------------------------------------------------------------- */
@@ -144,17 +146,16 @@ function makeMockDb(opts: MockOptions): {
         }),
       }),
       update: () => ({
-        set: (...setArgs: unknown[]) => ({
+        set: () => ({
           where: () => {
-            journal.push({
-              kind: "UPDATE_BALANCE",
-              payload: (setArgs[0] ?? {}) as Record<string, unknown>,
-            })
-            // Retourne quelque chose d'awaitable
-            return Promise.resolve(undefined)
+            throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
           },
         }),
       }),
+      execute: async (query: unknown) => {
+        journal.push({ kind: "UPDATE_BALANCE", payload: { query } })
+        return undefined
+      },
     }
   }
 
@@ -457,4 +458,119 @@ test("debitPartnerCredit : précision exacte à la 3e décimale (TND millime)", 
   const insertOp = journal.find((j) => j.kind === "INSERT_MOVEMENT")
   // Le montant signé doit être un négatif strict avec 3 décimales
   assert.equal(insertOp?.payload?.amount, "-0.001")
+})
+
+/* -------------------------------------------------------------------------- */
+/* Tests : Server Action — txOverride (composition avec une transaction parente) */
+/* -------------------------------------------------------------------------- */
+
+test("debitPartnerCredit : avec txOverride, s'exécute DANS la transaction fournie (pas de transaction propre)", async () => {
+  ensureDatabaseUrl()
+  const journal: OpEvent[] = []
+  const tx: DrizzleLikeTx = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          for: async (...forArgs: unknown[]) => {
+            journal.push({
+              kind: "SELECT_FOR_UPDATE",
+              payload: { strength: forArgs[0] },
+            })
+            return [{ id: "agency-uuid-test", depositBalance: "5000.000" }]
+          },
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: (...args: unknown[]) => ({
+        returning: async () => {
+          journal.push({
+            kind: "INSERT_MOVEMENT",
+            payload: (args[0] ?? {}) as Record<string, unknown>,
+          })
+          return [{ id: "movement-uuid-nested" }]
+        },
+      }),
+    }),
+    update: () => ({
+      set: () => ({
+        where: () => {
+          throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
+        },
+      }),
+    }),
+    execute: async () => {
+      journal.push({ kind: "UPDATE_BALANCE" })
+      return undefined
+    },
+  }
+
+  const result = await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 200,
+    reference: "B2B-NESTED",
+    description: "Débit dans transaction parente (ex: création de réservation)",
+    txOverride: tx,
+  })
+
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.balanceBefore, "5000.000")
+    assert.equal(result.balanceAfter, "4800.000")
+  }
+
+  // Aucun TX_BEGIN/TX_COMMIT : on n'ouvre jamais de transaction propre,
+  // on réutilise directement celle fournie par l'appelant.
+  assert.deepEqual(
+    journal.map((j) => j.kind),
+    ["SELECT_FOR_UPDATE", "INSERT_MOVEMENT", "UPDATE_BALANCE"],
+  )
+})
+
+test("debitPartnerCredit : txOverride propage un solde insuffisant sans muter quoi que ce soit", async () => {
+  ensureDatabaseUrl()
+  const journal: OpEvent[] = []
+  const tx: DrizzleLikeTx = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          for: async () => {
+            journal.push({ kind: "SELECT_FOR_UPDATE" })
+            return [{ id: "agency-uuid-test", depositBalance: "50.000" }]
+          },
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: () => ({
+        returning: async () => {
+          journal.push({ kind: "INSERT_MOVEMENT" })
+          return [{ id: "should-not-happen" }]
+        },
+      }),
+    }),
+    update: () => ({
+      set: () => ({
+        where: () => {
+          throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
+        },
+      }),
+    }),
+    execute: async () => {
+      journal.push({ kind: "UPDATE_BALANCE" })
+      return undefined
+    },
+  }
+
+  const result = await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 900,
+    reference: "B2B-NESTED-INSUFFICIENT",
+    description: "test",
+    txOverride: tx,
+  })
+
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
+  assert.deepEqual(journal, [{ kind: "SELECT_FOR_UPDATE" }])
 })

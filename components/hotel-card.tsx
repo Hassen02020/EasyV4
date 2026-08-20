@@ -26,7 +26,6 @@ interface RoomOption {
   freeCancellationDate: string
   available: boolean
   price: number
-  /** Absents pour les chambres de démo (`defaultRooms`) — présents pour toute vraie offre myGo. */
   boardingId?: number
   boardingCode?: string
 }
@@ -70,31 +69,10 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
 
   const mealOptions = hotel.mealOptions || [hotel.mealPlan]
 
-  const defaultRooms: RoomOption[] = [
-    {
-      id: 1,
-      name: "Double Room Garden View",
-      freeCancellationDate: "05/30/2026 00:00",
-      available: true,
-      price: hotel.discountedPrice,
-    },
-    {
-      id: 2,
-      name: "Double Room Garden View",
-      freeCancellationDate: "05/30/2026 00:00",
-      available: true,
-      price: Math.round(hotel.discountedPrice * 1.1),
-    },
-    {
-      id: 3,
-      name: "Double Room Sea View",
-      freeCancellationDate: "05/30/2026 00:00",
-      available: true,
-      price: Math.round(hotel.discountedPrice * 1.25),
-    },
-  ]
-
-  const rooms = hotel.rooms || defaultRooms
+  // Jamais de chambres fictives : si myGo n'a renvoyé aucune chambre
+  // réservable pour cette offre, la section "Tarifs & chambres" l'affiche
+  // honnêtement plutôt que de fabriquer des prix/noms de démo.
+  const rooms = hotel.rooms ?? []
 
   const nextImage = () => {
     setCurrentImage((prev) => (prev + 1) % hotel.images.length)
@@ -292,12 +270,21 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
       {/* Room Selection Section */}
       {isExpanded && (
         <div className="border-border bg-card border-t">
-          {/* Room Header */}
+          {/* Room Header — libellé neutre : l'occupation réelle (nombre de
+              chambres/adultes) est déjà reflétée dans le nom de chaque
+              chambre ("… (Chambre N)") quand la recherche en couvre
+              plusieurs, on n'affiche jamais une occupation inventée ici. */}
           <div className="bg-muted/30 border-border border-b px-4 py-3">
             <h4 className="text-foreground font-semibold">
-              Chambre 1 : 2 adultes
+              Chambres et tarifs disponibles
             </h4>
           </div>
+
+          {rooms.length === 0 && (
+            <div className="text-muted-foreground px-4 py-6 text-sm">
+              Aucune chambre disponible pour cette offre.
+            </div>
+          )}
 
           {/* Room Options */}
           <div className="divide-border divide-y">

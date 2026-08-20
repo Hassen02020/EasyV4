@@ -17,6 +17,7 @@ import { MyGoAuthError, MyGoError } from "@/lib/mygo"
 import { HotelSearchResponse } from "@/lib/mygo/schemas"
 import type { HotelSearchResultDTO } from "@/lib/mygo/types"
 import hotelSearchFixture from "@/lib/mygo/__fixtures__/hotelsearch.json"
+import { decodeRoomsParam } from "@/lib/mygo/room-split"
 import { rateLimit } from "@/lib/rate-limit"
 import { instrument } from "@/lib/observability/instrument"
 import { searchWithFallback } from "@/lib/mygo/degraded-mode"
@@ -67,6 +68,21 @@ const QuerySchema = z.object({
     .optional()
     .transform((v) => v === "1" || v === "true"),
   hotelId: z.coerce.number().int().positive().optional(),
+  // Multi-room réel — encodage compact "adultes-age1.age2|adultes|..." (une
+  // chambre par segment séparé par "|"). Le connecteur myGo accepte déjà
+  // nativement `rooms: {adults, childAges}[]` (voir lib/mygo/client.ts,
+  // `SearchDetails.Rooms`) : ce champ n'ajoute aucune capacité fictive, il
+  // se contente d'exposer un paramètre déjà supporté par le fournisseur.
+  // Absent → repli sur `adults`/`children` (une seule chambre, comportement
+  // historique inchangé).
+  rooms: z
+    .string()
+    .optional()
+    .transform((s) => {
+      if (!s) return null
+      const parsed = decodeRoomsParam(s)
+      return parsed.length > 0 ? parsed : null
+    }),
 })
 
 export const revalidate = 300 // 5 min — les prix changent vite
@@ -122,7 +138,10 @@ export async function GET(req: NextRequest) {
     checkOut: q.checkout,
     currency: q.currency ?? "TND",
     hotelId: q.hotelId,
-    rooms: [{ adults: q.adults, childAges: q.children }] as { adults: number; childAges?: number[] }[],
+    rooms: (q.rooms ?? [{ adults: q.adults, childAges: q.children }]) as {
+      adults: number
+      childAges?: number[]
+    }[],
     filters: {
       onlyAvailable: q.onlyAvailable ?? true,
       ...(q.stars.length ? { categories: q.stars } : {}),

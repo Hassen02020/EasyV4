@@ -24,9 +24,12 @@ import {
   customers,
   auditEvents,
   catalogTransferZones,
+  payments,
 } from "@/lib/db/schema"
-import { walletDebitReservation } from "@/lib/wallet/actions"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
+import { sendEvent } from "@/lib/inngest/client"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -213,25 +216,47 @@ export async function createTransferBooking(
       const reservationId = reservation.id
 
       /* ------------------------------------------------------------------
-       * 5. Débiter le wallet (atomique)
+       * 5. Débiter le crédit agence (atomique) — `agencies.deposit_balance`,
+       *    le seul solde que les flux de rechargement réels créditent (voir
+       *    lib/booking/actions.ts pour le détail de la correction).
        * ------------------------------------------------------------------ */
-      const debitResult = await walletDebitReservation({
+      const debitResult = await debitPartnerCredit({
         agencyId,
-        reservationId,
         amountTnd: totalTnd,
+        reference: publicRef,
+        description: `Réservation Transfert — ${fromZone?.name ?? input.fromZoneId} → ${toZone?.name ?? input.toZoneId}`,
         createdByUserId,
-        txOverride: tx as Parameters<
-          typeof walletDebitReservation
-        >[0]["txOverride"],
+        reservationId,
+        idempotencyKey: `booking-debit:${reservationId}`,
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
         throw new Error(
-          debitResult.code === "INSUFFICIENT_BALANCE"
+          debitResult.code === "INSUFFICIENT_FUNDS"
             ? "INSUFFICIENT_BALANCE"
             : "WALLET_DEBIT_FAILED",
         )
       }
+
+      // status=confirmed + paiement — auparavant fait par walletDebitReservation.
+      await tx
+        .update(reservations)
+        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+
+      await tx.insert(payments).values({
+        agencyId,
+        reservationId,
+        psp: "manual",
+        method: "wallet",
+        originalCurrency: "TND",
+        originalAmount: totalTnd.toFixed(2),
+        tndAmount: totalTnd.toFixed(2),
+        kind: "deposit",
+        status: "captured",
+        capturedAt: new Date(),
+      })
 
       /* ------------------------------------------------------------------
        * 6. Insérer l'extension Transfer
@@ -276,12 +301,57 @@ export async function createTransferBooking(
         },
       })
 
-      return { reservationId, publicRef, totalTnd }
+      return {
+        reservationId,
+        publicRef,
+        totalTnd,
+        agencyId,
+        createdByUserId,
+        fromZoneName: fromZone?.name ?? input.fromZoneId,
+        toZoneName: toZone?.name ?? input.toZoneId,
+      }
     })
 
     if (!outcome.ok) {
       return { ok: false, error: outcome.error }
     }
+
+    // --- Événement Inngest (hors transaction, fire-and-forget) ---
+    // Sans email client, il n'y a personne à qui envoyer la confirmation —
+    // même règle que booking/confirmed (lib/booking/actions.ts). Le SMS
+    // chauffeur (Twilio) dans processTransferConfirmed ne dépend lui que de
+    // customerPhone, toujours obligatoire côté formulaire — l'événement doit
+    // donc partir dès qu'on a l'un ou l'autre, pas seulement l'email.
+    if (input.customer.email || input.customer.phone) {
+      await sendEvent("booking/transfer.confirmed", {
+        reservationId: outcome.result.reservationId,
+        publicRef: outcome.result.publicRef,
+        agencyId: outcome.result.agencyId,
+        customerEmail: input.customer.email ?? "",
+        customerPhone: input.customer.phone,
+        fromZone: outcome.result.fromZoneName,
+        toZone: outcome.result.toZoneName,
+        pickupAt: `${input.pickupDate}T${input.pickupTime}:00`,
+        vehicleType: input.vehicleType,
+        totalTnd: outcome.result.totalTnd,
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
+
+    // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
+    // un échec de facturation ne doit jamais invalider une réservation payée.
+    try {
+      const invoiceResult = await generateInvoiceForReservation({
+        agencyId: outcome.result.agencyId,
+        reservationId: outcome.result.reservationId,
+        actorUserId: outcome.result.createdByUserId,
+      })
+      if (!invoiceResult.ok) {
+        console.error("[transfers] génération facture échouée", invoiceResult.error)
+      }
+    } catch (err) {
+      console.error("[transfers] génération facture échouée", err instanceof Error ? err.message : String(err))
+    }
+
     return {
       ok: true,
       reservationId: outcome.result.reservationId,

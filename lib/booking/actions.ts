@@ -8,14 +8,16 @@ import {
   customers,
   reservations,
   reservationHotel,
+  payments,
   auditEvents,
 } from "@/lib/db/schema"
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown } from "./pricing"
 import { decodeDraft } from "./draft-store"
-import { walletDebitReservation } from "@/lib/wallet/actions"
-import { inngest } from "@/lib/inngest/client"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { getMyGoClient, mapBookingListItemToConfirmation, type BookingConfirmationDTO } from "@/lib/mygo"
@@ -228,6 +230,17 @@ export async function createReservationFromDraft(input: {
   const draft = draftParse.data
   const traveler = travelerParse.data
 
+  // Calculé une seule fois, réutilisé pour l'insert reservationHotel ET pour
+  // le payload de l'événement Inngest booking/confirmed après la transaction.
+  const hotelStartDate = new Date(draft.startDate)
+  const hotelEndDate = draft.endDate ? new Date(draft.endDate) : hotelStartDate
+  const hotelNights = Math.max(
+    1,
+    Math.round(
+      (hotelEndDate.getTime() - hotelStartDate.getTime()) / (1000 * 60 * 60 * 24),
+    ),
+  )
+
   // --- Confirmation fournisseur (myGo) AVANT toute écriture DB / débit wallet ---
   // Si le draft porte des métadonnées myGo (recherche hôtel réelle) et que le
   // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
@@ -363,14 +376,6 @@ export async function createReservationFromDraft(input: {
       const reservationId = inserted[0].id
 
       if (draft.module === "hotel") {
-        const startDate = new Date(draft.startDate)
-        const endDate = draft.endDate ? new Date(draft.endDate) : startDate
-        const nights = Math.max(
-          1,
-          Math.round(
-            (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-          ),
-        )
         const confirmedRoom = myGoBooking?.rooms[0]
         await tx.insert(reservationHotel).values({
           reservationId,
@@ -387,7 +392,7 @@ export async function createReservationFromDraft(input: {
           cityId: providerMeta?.cityId,
           checkIn: draft.startDate,
           checkOut: draft.endDate ?? draft.startDate,
-          nights,
+          nights: hotelNights,
           adults: draft.adults,
           childrenAges: providerMeta?.childrenAges ?? [],
           boardCode: confirmedRoom?.boardingCode ?? providerMeta?.boardingCode,
@@ -418,42 +423,118 @@ export async function createReservationFromDraft(input: {
         },
       })
 
-      // --- Débit wallet — dans la MÊME transaction (txOverride) : sans ça,
-      // walletDebitReservation ouvrait sa propre transaction séparée et
-      // committait le débit indépendamment de l'insertion de la réservation
-      // (perte d'atomicité — trouvé pendant l'audit RLS, corrigé ici).
-      const debitResult = await walletDebitReservation({
+      // --- Débit crédit agence — dans la MÊME transaction (txOverride) : sans ça,
+      // le débit committerait indépendamment de l'insertion de la réservation
+      // (perte d'atomicité — trouvé pendant l'audit RLS, corrigé pour ce
+      // chemin). Débite `agencies.deposit_balance` via `partner_credit_movements`
+      // — le SEUL solde que les flux de rechargement réels (recharge B2B,
+      // recharge admin direct) créditent. L'ancien `walletDebitReservation`
+      // débitait `wallets.balance`, une colonne que plus aucun flux de
+      // rechargement en production ne peut créditer : trouvé pendant l'audit
+      // wallet/paiement — corrigé en unifiant sur `agencies.deposit_balance`.
+      const debitResult = await debitPartnerCredit({
         agencyId,
-        reservationId,
         amountTnd: breakdown.totalTnd,
-        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
+        reference: publicRef,
+        description: `Réservation ${draft.module} — ${draft.offerLabel}`,
+        createdByUserId: authUserId,
+        reservationId,
+        // Idempotence : un double-submit sur le même brouillon (double-clic,
+        // deux onglets) ne doit débiter qu'une fois.
+        idempotencyKey: `booking-debit:${reservationId}`,
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
         throw new Error(
-          debitResult.code === "INSUFFICIENT_BALANCE"
+          debitResult.code === "INSUFFICIENT_FUNDS"
             ? `INSUFFICIENT_BALANCE:${breakdown.totalTnd.toFixed(3)}`
-            : `WALLET_ERROR:${debitResult.error}`,
+            : `WALLET_ERROR:${debitResult.message}`,
         )
       }
+
+      // Marquer la réservation confirmée + enregistrer le paiement — fait
+      // auparavant à l'intérieur de walletDebitReservation ; explicite ici
+      // pour que debitPartnerCredit reste une fonction ledger pure et
+      // réutilisable (elle ne connaît pas le concept de "réservation").
+      await tx
+        .update(reservations)
+        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+
+      await tx.insert(payments).values({
+        agencyId,
+        reservationId,
+        psp: "manual",
+        method: "wallet",
+        originalCurrency: "TND",
+        originalAmount: breakdown.totalTnd.toFixed(2),
+        tndAmount: breakdown.totalTnd.toFixed(2),
+        kind: "deposit",
+        status: "captured",
+        capturedAt: new Date(),
+      })
+
+      await tx.insert(auditEvents).values({
+        agencyId,
+        actorUserId: authUserId,
+        entityType: "wallet",
+        entityId: debitResult.movementId,
+        action: "wallet.debit",
+        diff: {
+          reservationId,
+          amount: breakdown.totalTnd,
+          balanceBefore: debitResult.balanceBefore,
+          balanceAfter: debitResult.balanceAfter,
+        },
+      })
 
       return { reservationId, publicRef, agencyId }
       },
     )
 
     // --- Événement Inngest (hors transaction, fire-and-forget) ---
-    // PII sanitizé : on n'envoie que les références opaques, pas les données voyageur
-    inngest.send({
-      name: "booking/confirmed",
-      data: {
+    // Déclenche processConfirmedBooking (PDF voucher + email) — payload
+    // aligné sur Events["booking/confirmed"]["data"] (auparavant divergent :
+    // customerId/module envoyés au lieu de customerEmail/hotelName/checkIn/
+    // checkOut/nights attendus par le handler, donc email jamais envoyable
+    // — trouvé pendant l'audit wallet/paiement). Seul le module hôtel a un
+    // handler ; les autres modules déclenchent leur propre événement dédié
+    // depuis leurs server actions respectives (omra, transfert). Sans email
+    // client, il n'y a personne à qui envoyer le voucher — on ne déclenche
+    // pas l'événement plutôt que d'appeler le handler avec un destinataire vide.
+    if (draft.module === "hotel" && traveler.email) {
+      await sendEvent("booking/confirmed", {
         reservationId: result.reservationId,
         publicRef: result.publicRef,
         agencyId: result.agencyId,
-        customerId: result.reservationId, // référence opaque
-        module: draft.module,
+        customerEmail: traveler.email,
+        customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
+        hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
+        checkIn: draft.startDate,
+        checkOut: draft.endDate ?? draft.startDate,
+        nights: hotelNights,
+        adults: draft.adults,
+        children: draft.children,
         totalTnd: breakdown.totalTnd,
-      },
-    }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
+
+    // --- Facture (hors transaction) --- La réservation et le débit sont déjà
+    // commités : un échec de facturation ne doit jamais invalider une
+    // réservation payée. Régénérable plus tard (idempotent) si besoin.
+    try {
+      const invoiceResult = await generateInvoiceForReservation({
+        agencyId: result.agencyId,
+        reservationId: result.reservationId,
+        actorUserId: authUserId,
+      })
+      if (!invoiceResult.ok) {
+        console.error("[booking] génération facture échouée", invoiceResult.error)
+      }
+    } catch (err) {
+      console.error("[booking] génération facture échouée", err instanceof Error ? err.message : String(err))
+    }
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
   } catch (err) {

@@ -949,6 +949,17 @@ export const partnerInvoices = pgTable(
     validationDate: date("validation_date"),
     /** Liste des réservations facturées (jsonb : [{reservationId, label, amount}]). */
     lineItems: jsonb("line_items"),
+    /**
+     * Réservation facturée individuellement (facture générée automatiquement
+     * après confirmation — voir lib/finance/invoice-actions.ts). NULL pour
+     * une facture consolidée multi-réservations (lineItems). Index unique
+     * partiel (WHERE NOT NULL) : garantit au niveau DB qu'une réservation
+     * facturée individuellement ne peut jamais avoir deux factures, même
+     * sous deux appels concurrents à generateInvoiceForReservation().
+     */
+    reservationId: uuid("reservation_id").references(() => reservations.id, {
+      onDelete: "restrict",
+    }),
     totalHt: decimal("total_ht", { precision: 14, scale: 2 }).notNull(),
     totalTva: decimal("total_tva", { precision: 14, scale: 2 }).notNull(),
     totalTtc: decimal("total_ttc", { precision: 14, scale: 2 }).notNull(),
@@ -973,6 +984,9 @@ export const partnerInvoices = pgTable(
     uniqueIndex("partner_invoices_number_uniq").on(t.invoiceNumber),
     index("partner_invoices_agency_idx").on(t.agencyId),
     index("partner_invoices_status_idx").on(t.agencyId, t.status),
+    uniqueIndex("partner_invoices_reservation_uniq")
+      .on(t.reservationId)
+      .where(sql`${t.reservationId} IS NOT NULL`),
   ],
 )
 

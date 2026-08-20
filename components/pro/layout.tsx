@@ -63,6 +63,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
+import { canManagePartnerUsers } from "@/lib/auth/partner-permissions"
 
 /* -------------------------------------------------------------------------- */
 /* Types publics                                                                */
@@ -393,6 +394,16 @@ export function ProShell({
 
   const agencyLabel = agency.brandName ?? agency.name
 
+  // "Utilisateurs" (gestion des collaborateurs de l'agence) est un droit
+  // owner — voir le guard serveur équivalent dans
+  // app/pro/(app)/utilisateurs/page.tsx. Filtré ici aussi pour qu'un
+  // partner_agent ne voie même pas le lien plutôt que d'atterrir sur une
+  // redirection.
+  const canManageUsers = canManagePartnerUsers(user.role)
+  const settingsNav = canManageUsers
+    ? SETTINGS_NAV
+    : SETTINGS_NAV.filter((item) => item.href !== "/pro/utilisateurs")
+
   return (
     <SidebarProvider>
       {/* ------------------------------------------------------------------ */}
@@ -446,7 +457,7 @@ export function ProShell({
         <SidebarContent className="gap-0">
           <NavGroup label="Recherche & Réservation" items={BOOKING_NAV} pathname={pathname} />
           <NavGroup label="Mon Compte" items={ACCOUNT_NAV} pathname={pathname} />
-          <NavGroup label="Paramètres" items={SETTINGS_NAV} pathname={pathname} />
+          <NavGroup label="Paramètres" items={settingsNav} pathname={pathname} />
         </SidebarContent>
 
         {/* Footer — wallet + user */}

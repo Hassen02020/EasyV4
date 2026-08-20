@@ -28,11 +28,12 @@ import {
   omraPilgrims,
   omraRoomAllocations,
   omraFlights,
-  wallets,
-  walletTransactions,
+  payments,
 } from "@/lib/db/schema"
-import { walletDebitReservation } from "@/lib/wallet/actions"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import { sendEvent } from "@/lib/inngest/client"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -272,20 +273,45 @@ export async function createOmraBooking(
 
       const reservationId = reservation.id
 
-      // Débit wallet dans la transaction courante (txOverride) — pas de tx imbriquée
-      const debitResult = await walletDebitReservation({
+      // Débit crédit agence dans la transaction courante (txOverride) — pas de
+      // tx imbriquée. Débite `agencies.deposit_balance` (le seul solde que
+      // les flux de rechargement réels créditent — voir lib/booking/actions.ts
+      // pour le détail de la correction).
+      const debitResult = await debitPartnerCredit({
         agencyId,
-        reservationId,
         amountTnd: totalTnd,
+        reference: publicRef,
+        description: `Réservation Omra — ${pkg.name ?? input.packageId}`,
         createdByUserId,
-        txOverride: tx as Parameters<typeof walletDebitReservation>[0]["txOverride"],
+        reservationId,
+        idempotencyKey: `booking-debit:${reservationId}`,
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
-        // Le walletDebitReservation gère déjà le rollback via son propre FOR UPDATE
+        // debitPartnerCredit gère déjà le rollback via son propre FOR UPDATE
         // Mais on throw pour rollback notre transaction
-        throw new Error(debitResult.code === "INSUFFICIENT_BALANCE" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
+        throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
       }
+
+      // status=confirmed + paiement — auparavant fait par walletDebitReservation.
+      await tx
+        .update(reservations)
+        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+
+      await tx.insert(payments).values({
+        agencyId,
+        reservationId,
+        psp: "manual",
+        method: "wallet",
+        originalCurrency: "TND",
+        originalAmount: totalTnd.toFixed(2),
+        tndAmount: totalTnd.toFixed(2),
+        kind: "deposit",
+        status: "captured",
+        capturedAt: new Date(),
+      })
 
       /* ------------------------------------------------------------------
        * 6. Insérer l'extension Omra
@@ -356,7 +382,7 @@ export async function createOmraBooking(
         .where(eq(omraAllotments.id, allotment.id))
 
       /* ------------------------------------------------------------------
-       * 9. Log audit  (status=confirmed déjà positionné par walletDebitReservation)
+       * 9. Log audit
        * ------------------------------------------------------------------ */
       await tx.insert(auditEvents).values({
         agencyId,
@@ -373,9 +399,48 @@ export async function createOmraBooking(
         },
       })
 
-        return { reservationId, publicRef }
+        return {
+          reservationId,
+          publicRef,
+          agencyId,
+          packageName: pkg.name ?? input.packageId,
+          pilgrimsCount: pilgrimCount,
+          totalTnd,
+          contactEmail: firstPilgrim.email,
+        }
       },
     )
+
+    // --- Événement Inngest (hors transaction, fire-and-forget) ---
+    // Sans email de contact, il n'y a personne à qui envoyer la confirmation
+    // — voir la même règle appliquée à booking/confirmed dans lib/booking/actions.ts.
+    if (result.contactEmail) {
+      await sendEvent("booking/omra.confirmed", {
+        reservationId: result.reservationId,
+        publicRef: result.publicRef,
+        agencyId: result.agencyId,
+        packageName: result.packageName,
+        pilgrimsCount: result.pilgrimsCount,
+        departureDate: input.departureDate,
+        totalTnd: result.totalTnd,
+        contactEmail: result.contactEmail,
+      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }
+
+    // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
+    // un échec de facturation ne doit jamais invalider une réservation payée.
+    try {
+      const invoiceResult = await generateInvoiceForReservation({
+        agencyId: result.agencyId,
+        reservationId: result.reservationId,
+        actorUserId: createdByUserId,
+      })
+      if (!invoiceResult.ok) {
+        console.error("[omra] génération facture échouée", invoiceResult.error)
+      }
+    } catch (err) {
+      console.error("[omra] génération facture échouée", err instanceof Error ? err.message : String(err))
+    }
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
   } catch (err) {

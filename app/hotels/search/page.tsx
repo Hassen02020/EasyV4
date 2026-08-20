@@ -5,15 +5,24 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { SearchHeader } from "@/components/search-header"
-import { FilterSidebar } from "@/components/filter-sidebar"
+import { FilterSidebar, FilterChips } from "@/components/filter-sidebar"
 import { HotelListings } from "@/components/hotel-listings"
 import { useHotelSearch } from "@/lib/mygo/use-hotel-search"
 import {
   applyFilters,
   computeFacets,
-  EMPTY_FILTER_STATE,
+  filtersFromSearchParams,
+  filtersToSearchParams,
+  FILTER_URL_KEYS,
   type HotelFilterState,
 } from "@/lib/mygo/facets"
+import {
+  sortOffers,
+  isHotelSortMode,
+  DEFAULT_SORT_MODE,
+  type HotelSortMode,
+} from "@/lib/mygo/sort"
+import { SortSelect } from "@/components/sort-select"
 import { encodeDraft } from "@/lib/booking/draft-store"
 
 interface BookingData {
@@ -51,9 +60,38 @@ function formatDateRange(checkin: string | null, checkout: string | null) {
 function HotelSearchContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [filters, setFilters] = useState<HotelFilterState>(EMPTY_FILTER_STATE)
+  // Filtres et tri initialisés depuis l'URL (lazy init) — survivent à un
+  // rafraîchissement de page et à un aller-retour vers la fiche hôtel.
+  const [filters, setFiltersState] = useState<HotelFilterState>(() =>
+    filtersFromSearchParams(searchParams),
+  )
+  const [sortMode, setSortModeState] = useState<HotelSortMode>(() => {
+    const raw = searchParams.get("sort")
+    return isHotelSortMode(raw) ? raw : DEFAULT_SORT_MODE
+  })
 
-  const { status, data, error } = useHotelSearch()
+  const { status, data, error, errorCode, degraded, fromStaleCache, retry } =
+    useHotelSearch()
+
+  // Changer un filtre/le tri ne redéclenche JAMAIS un appel myGo (le hook
+  // ci-dessus ne dépend que des paramètres de recherche myGo eux-mêmes) —
+  // on met juste à jour l'URL (replace, pas d'entrée d'historique par clic)
+  // pour que l'état survive à un refresh/partage de lien.
+  const updateFilters = (next: HotelFilterState) => {
+    setFiltersState(next)
+    const params = new URLSearchParams(searchParams.toString())
+    for (const key of FILTER_URL_KEYS) params.delete(key)
+    filtersToSearchParams(next).forEach((value, key) => params.set(key, value))
+    router.replace(`/hotels/search?${params.toString()}`, { scroll: false })
+  }
+
+  const updateSort = (mode: HotelSortMode) => {
+    setSortModeState(mode)
+    const params = new URLSearchParams(searchParams.toString())
+    if (mode === DEFAULT_SORT_MODE) params.delete("sort")
+    else params.set("sort", mode)
+    router.replace(`/hotels/search?${params.toString()}`, { scroll: false })
+  }
 
   const cityName = searchParams.get("city") ?? "Hammamet"
   const checkin = searchParams.get("checkin")
@@ -81,6 +119,18 @@ function HotelSearchContent() {
     () => applyFilters(allOffers, filters),
     [allOffers, filters],
   )
+
+  // Tri appliqué APRÈS le filtrage — toujours côté client sur les offres
+  // déjà chargées, jamais un nouvel appel myGo (voir lib/mygo/sort.ts).
+  const sortedOffers = useMemo(
+    () => sortOffers(filteredOffers, sortMode),
+    [filteredOffers, sortMode],
+  )
+
+  // Chaîne de requête complète actuelle — transmise telle quelle à la fiche
+  // hôtel (destination, dates, occupation, filtres, tri…) pour que "Voir
+  // détails" puis "Retour aux résultats" ne perde aucun état.
+  const currentSearchQuery = searchParams.toString()
 
   const handleBookHotel = (hotelData: BookingData) => {
     const unitPriceTnd =
@@ -134,24 +184,41 @@ function HotelSearchContent() {
             <FilterSidebar
               facets={facets}
               state={filters}
-              onChange={setFilters}
+              onChange={updateFilters}
               currency={currency}
               disabled={status !== "success"}
             />
           </div>
 
           <div className="flex-1">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+              <FilterChips
+                state={filters}
+                facets={facets}
+                currency={currency}
+                onChange={updateFilters}
+              />
+              {status === "success" && sortedOffers.length > 0 && (
+                <SortSelect value={sortMode} onChange={updateSort} />
+              )}
+            </div>
             <HotelListings
-              offers={filteredOffers}
+              offers={sortedOffers}
               totalCount={data?.count ?? 0}
               currency={currency}
               status={status}
               error={error}
+              errorCode={errorCode}
+              degraded={degraded}
+              fromStaleCache={fromStaleCache}
+              onRetry={retry}
               cityName={cityName}
               checkin={checkin}
               checkout={checkout}
               adults={adultsStr}
               childrenAges={childrenStr}
+              activeBoardFilters={filters.boardings}
+              currentSearchQuery={currentSearchQuery}
               onBookHotel={handleBookHotel}
             />
           </div>

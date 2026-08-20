@@ -272,4 +272,14 @@
       0 4px 6px oklch(0.22 0.05 250 / 0.04),
       0 16px 40px oklch(0.22 0.05 250 / 0.08);
   }
+
+  /* Barre de pilules horizontale scrollable sans scrollbar visible
+     (moteur de recherche, tab nav mobile). */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }

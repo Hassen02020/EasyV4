@@ -7,6 +7,7 @@ import { fr } from "date-fns/locale"
 import { HotelCard } from "@/components/hotel-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
+import { selectBestRate } from "@/lib/mygo/best-rate"
 
 interface BookingData {
   id: number
@@ -64,31 +65,53 @@ interface CardHotelShape {
 const PLACEHOLDER_IMG =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&h=400&fit=crop"
 
-/** Convertit une offre myGo en data attendu par la card existante. */
-function toCardShape(offer: HotelOfferDTO): CardHotelShape {
+/**
+ * Convertit une offre myGo en data attendu par la card existante.
+ *
+ * Best Rate Engine : si des types de pension sont activement filtrés
+ * (`activeBoardings`, ex. "All Inclusive"), le prix/pension affiché sur la
+ * card bascule sur le moins cher PARMI les pensions filtrées plutôt que sur
+ * le moins cher toutes pensions confondues — ex. si le moins cher global est
+ * en Petit-déjeuner à 250 mais qu'on filtre "All Inclusive" et que la
+ * chambre All Inclusive la moins chère est à 380, la card affiche 380 (le
+ * vrai prix pour ce que l'utilisateur a demandé), pas 250.
+ */
+function toCardShape(
+  offer: HotelOfferDTO,
+  activeBoardings: string[] = [],
+): CardHotelShape {
   const h = offer.hotel
   const allRooms = offer.boardings.flatMap((b) =>
-    b.pax.flatMap((p) =>
+    b.pax.flatMap((p, groupIndex) =>
       p.rooms.map((r) => ({
         boarding: b,
         room: r,
+        groupIndex,
       })),
     ),
   )
-  const cheapest = allRooms.reduce<(typeof allRooms)[number] | null>(
-    (best, cur) =>
-      best === null || cur.room.price < best.room.price ? cur : best,
-    null,
-  )
-  const mealPlan = cheapest?.boarding.name ?? offer.boardings[0]?.name ?? "—"
+
+  const bestRate = selectBestRate(offer, activeBoardings)
+  const mealPlan = bestRate?.boardingName ?? offer.boardings[0]?.name ?? "—"
   const mealOptions = Array.from(new Set(offer.boardings.map((b) => b.name)))
+
+  // Nombre de "chambres" réellement demandées à myGo (recherche
+  // multi-chambres, voir HotelSearchInput.rooms) — > 1 quand plusieurs
+  // groupes pax existent sur au moins une pension.
+  const roomGroupCount = Math.max(
+    1,
+    ...offer.boardings.map((b) => b.pax.length),
+  )
 
   const rooms: RoomOption[] = allRooms
     .filter((r) => !r.room.stopReservation)
-    .slice(0, 6)
-    .map(({ room, boarding }) => ({
+    .slice(0, 8)
+    .map(({ room, boarding, groupIndex }) => ({
       id: room.id,
-      name: `${room.name} • ${boarding.name}`,
+      name:
+        roomGroupCount > 1
+          ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`
+          : `${room.name} • ${boarding.name}`,
       freeCancellationDate:
         room.cancellationPolicies.find((p) => p.nature === "BEFORE_ARRIVAL")
           ?.fromDate ?? "—",
@@ -109,6 +132,11 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
     if (f.title) amenities.push(f.title)
   }
 
+  // Prix affiché = celui du "meilleur tarif" retenu ci-dessus (déjà
+  // conscient du filtre de pension actif), pas systématiquement le prix
+  // brut le plus bas de l'offre — voir le commentaire Best Rate Engine.
+  const displayPrice = Math.round(bestRate?.price ?? offer.fromPrice)
+
   return {
     id: h.id,
     name: h.name,
@@ -117,8 +145,8 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
     stars,
     amenities,
     tags,
-    originalPrice: Math.round(offer.fromPrice),
-    discountedPrice: Math.round(offer.fromPrice),
+    originalPrice: displayPrice,
+    discountedPrice: displayPrice,
     discountPercent: 0,
     images,
     mealPlan,
@@ -138,12 +166,26 @@ interface HotelListingsProps {
   currency?: string
   status: "loading" | "success" | "error"
   error?: string | null
+  /** Code machine de l'erreur (`service_unavailable`, `rate_limited`,
+   * `auth_failed`, `internal`, `incomplete_query`…) — affiche un message et
+   * une action adaptés plutôt qu'un texte générique unique. */
+  errorCode?: string | null
+  /** Résultat servi en mode dégradé (panne fournisseur, cache figé). */
+  degraded?: boolean
+  /** Résultat servi depuis un cache déjà périmé mais encore affichable. */
+  fromStaleCache?: boolean
+  onRetry?: () => void
   cityName: string
   checkin: string | null
   checkout: string | null
   adults: string
   /** Âges enfants en CSV (ex. "5,8"), tel quel depuis l'URL. */
   childrenAges: string | null
+  /** Types de pension actuellement filtrés — pilote le Best Rate Engine. */
+  activeBoardFilters?: string[]
+  /** Requête actuelle complète (recherche + filtres + tri) — transmise à la
+   * fiche hôtel pour que l'état survive l'aller-retour. */
+  currentSearchQuery?: string
   onBookHotel?: (data: BookingData) => void
 }
 
@@ -153,11 +195,17 @@ export function HotelListings({
   currency = "TND",
   status,
   error,
+  errorCode,
+  degraded = false,
+  fromStaleCache = false,
+  onRetry,
   cityName,
   checkin,
   checkout,
   adults,
   childrenAges,
+  activeBoardFilters = [],
+  currentSearchQuery,
   onBookHotel,
 }: HotelListingsProps) {
   const router = useRouter()
@@ -209,6 +257,13 @@ export function HotelListings({
   }
 
   const handleViewDetails = (hotelId: number) => {
+    // Transmet la recherche courante telle quelle (destination, dates,
+    // occupation, filtres actifs, tri) — la fiche hôtel la retransmet à son
+    // tour à "Voir les disponibilités" pour ne perdre aucun état.
+    if (currentSearchQuery) {
+      router.push(`/hotels/${hotelId}?${currentSearchQuery}`)
+      return
+    }
     const params = new URLSearchParams()
     if (checkin) params.set("checkin", checkin)
     if (checkout) params.set("checkout", checkout)
@@ -235,7 +290,10 @@ export function HotelListings({
     }
   }, [checkin, checkout, adults, childrenAges])
 
-  const cardHotels = useMemo(() => offers.map(toCardShape), [offers])
+  const cardHotels = useMemo(
+    () => offers.map((offer) => toCardShape(offer, activeBoardFilters)),
+    [offers, activeBoardFilters],
+  )
 
   if (status === "loading") {
     return (
@@ -250,15 +308,49 @@ export function HotelListings({
   }
 
   if (status === "error") {
+    // États d'erreur distincts (jamais un même texte générique pour tout) :
+    // fournisseur indisponible / rate-limit / recherche incomplète / autre.
+    const isUnavailable = errorCode === "service_unavailable"
+    const isRateLimited = errorCode === "rate_limited"
+    const isIncomplete = errorCode === "incomplete_query"
+    const title = isUnavailable
+      ? "Le service hôtelier est temporairement indisponible"
+      : isRateLimited
+        ? "Trop de recherches en peu de temps"
+        : isIncomplete
+          ? "Recherche incomplète"
+          : "Erreur de recherche"
     return (
       <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-        Erreur de recherche : {error ?? "inconnue"}
+        <p className="font-semibold">{title}</p>
+        <p className="mt-1">{error ?? "Erreur inconnue"}</p>
+        {onRetry && !isIncomplete && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="border-destructive/40 hover:bg-destructive/10 mt-3 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
+          >
+            Réessayer
+          </button>
+        )}
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      {degraded && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          Résultats affichés depuis un cache récent — le fournisseur hôtelier
+          est momentanément indisponible, les prix et disponibilités seront
+          revérifiés avant toute réservation.
+        </div>
+      )}
+      {!degraded && fromStaleCache && (
+        <div className="text-muted-foreground text-xs">
+          Résultats mis en cache — actualisation en cours.
+        </div>
+      )}
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-foreground text-xl font-bold">

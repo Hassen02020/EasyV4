@@ -19,6 +19,8 @@ import {
   Minus,
   Clock,
   ArrowLeftRight,
+  Search,
+  Sparkles,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -43,6 +45,14 @@ import {
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
+
 import dynamic from "next/dynamic"
 
 import { toast } from "sonner"
@@ -52,6 +62,10 @@ import { addDays, differenceInCalendarDays, format } from "date-fns"
 import type { CatalogTransferZone } from "@/lib/db/schema"
 
 import { useT } from "@/components/locale-context"
+
+import { cn } from "@/lib/utils"
+
+import { FIELD_SHELL, FIELD_INPUT_RESET, FieldLabel } from "@/components/search-field"
 
 const HotelsTunisieSearch = dynamic(
   () =>
@@ -64,10 +78,6 @@ const HotelsTunisieSearch = dynamic(
     loading: () => <div className="bg-muted h-24 animate-pulse rounded-xl" />,
   },
 )
-
-import { encodeDraft } from "@/lib/booking/draft-store"
-
-import type { BookingDraft } from "@/lib/booking/schemas"
 
 function iso(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -83,45 +93,6 @@ function futureDate(days: number): string {
 
 const TODAY_ISO = iso(new Date())
 const TOMORROW_ISO = futureDate(1)
-
-function buildSampleBookingUrl(input: {
-  module: BookingDraft["module"]
-
-  offerLabel: string
-
-  unitPriceTnd: number
-
-  startInDays?: number
-
-  endInDays?: number
-
-  adults?: number
-}): string {
-  const token = encodeDraft({
-    draft: {
-      module: input.module,
-
-      offerId: `demo-${input.module}-${Math.floor(Math.random() * 1e6)}`,
-
-      offerLabel: input.offerLabel,
-
-      startDate: futureDate(input.startInDays ?? 21),
-
-      endDate:
-        input.endInDays != null ? futureDate(input.endInDays) : undefined,
-
-      adults: input.adults ?? 2,
-
-      children: 0,
-
-      unitPriceTnd: input.unitPriceTnd,
-
-      currency: "TND",
-    },
-  })
-
-  return `/booking?d=${encodeURIComponent(token)}`
-}
 
 const tabsConfig = [
   { id: "vols", labelKey: "tabVols", icon: Plane },
@@ -140,76 +111,207 @@ type TabId = (typeof tabsConfig)[number]["id"]
 const HERO_BG_URL =
   "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
 
+/** Rend le formulaire du module actif — partagé par la carte flottante desktop et le bottom-sheet mobile. */
+function ActiveModuleForm({
+  activeTab,
+  transferZones,
+}: {
+  activeTab: TabId
+  transferZones: CatalogTransferZone[]
+}) {
+  switch (activeTab) {
+    case "vols":
+      return <VolsForm />
+    case "hotels-tunisie":
+      return <HotelsTunisieSearch />
+    case "hotels-monde":
+      return <HotelsMondeForm />
+    case "omraty":
+      return <OmratyForm />
+    case "voyages-organises":
+      return <VoyagesOrganisesForm />
+    case "transferts":
+      return <TransfertsForm zones={transferZones} />
+    case "car":
+      return <CarForm />
+  }
+}
+
+/** Segmented control en pilules — module actif = dégradé corail → or. */
+function TabPills({
+  activeTab,
+  onSelect,
+  className,
+}: {
+  activeTab: TabId
+  onSelect: (id: TabId) => void
+  className?: string
+}) {
+  const t = useT()
+
+  return (
+    <div
+      className={cn(
+        "no-scrollbar flex gap-1.5 overflow-x-auto scroll-smooth",
+        className,
+      )}
+    >
+      {tabsConfig.map((tab) => {
+        const Icon = tab.icon
+        const isActive = activeTab === tab.id
+
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onSelect(tab.id)}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all duration-200",
+              isActive
+                ? "from-primary to-accent shadow-primary/25 bg-gradient-to-r text-white shadow-lg"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Icon className="size-4" />
+            {t(tab.labelKey)}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export function BookingEngine({
   transferZones = [],
 }: {
   transferZones?: CatalogTransferZone[]
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("vols")
+  const [mobileOpen, setMobileOpen] = useState(false)
   const t = useT()
 
-  return (
-    <div className="relative">
-      {/* Hero Background */}
+  const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
+  const ActiveIcon = activeTabConfig.icon
 
+  return (
+    <div className="relative overflow-hidden">
+      {/* Hero background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url('${HERO_BG_URL}')` }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-sidebar/20 via-transparent to-sidebar/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-sidebar/85 via-sidebar/35 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
       </div>
 
       {/* Content */}
+      <div className="relative mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 sm:pt-24 sm:pb-10 lg:pt-28 lg:pb-14">
+        {/* Headline */}
+        <div className="e2b-fade-in-up mb-8 max-w-2xl sm:mb-10">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
+            <Sparkles className="text-accent size-3.5" />
+            Réservation instantanée · 100% Tunisie
+          </span>
 
-      <div className="relative mx-auto max-w-5xl px-4 py-12 sm:py-16 lg:py-20">
-        <div className="bg-card overflow-hidden rounded-3xl shadow-2xl">
-          {/* Tabs */}
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl lg:text-[3.25rem] lg:leading-[1.05]">
+            Votre prochain voyage
+            <br />
+            <span className="text-accent">commence ici</span>
+          </h1>
 
-          <div className="border-border flex overflow-x-auto border-b">
-            {tabsConfig.map((tab) => {
-              const Icon = tab.icon
+          <p className="mt-3 max-w-md text-base text-white/85 sm:text-lg">
+            Vols, hôtels, Omra, transferts et location — comparez et réservez
+            en toute confiance.
+          </p>
+        </div>
 
-              const isActive = activeTab === tab.id
+        {/* Desktop / tablet : carte flottante en glassmorphism */}
+        <div
+          className="e2b-fade-in-up hidden rounded-[1.75rem] border border-white/40 bg-white/90 p-2.5 shadow-e2b-elevated backdrop-blur-2xl lg:block"
+          style={{ animationDelay: "80ms" }}
+        >
+          <div className="flex items-center justify-between gap-3 px-1.5 pt-1.5 pb-2">
+            <TabPills activeTab={activeTab} onSelect={setActiveTab} />
+          </div>
 
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex min-w-[88px] flex-1 flex-col items-center gap-1.5 border-b-2 px-2 py-4 text-sm font-medium transition-colors sm:px-3 ${
-                    isActive
-                      ? "border-accent bg-sidebar/5 text-sidebar"
-                      : "text-muted-foreground hover:bg-muted/50 border-transparent hover:text-sidebar"
-                  }`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <Icon className="size-5" />
+          <div className="rounded-[1.4rem] bg-white/60 p-5 sm:p-6">
+            <ActiveModuleForm
+              activeTab={activeTab}
+              transferZones={transferZones}
+            />
+          </div>
+        </div>
 
-                  <span className="text-xs whitespace-nowrap sm:text-sm">
-                    {t(tab.labelKey)}
+        {/* Mobile / tablet étroite : déclencheur compact → bottom-sheet */}
+        <div className="lg:hidden">
+          <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
+            <DrawerTrigger asChild>
+              <button
+                type="button"
+                className="shadow-e2b-elevated flex w-full items-center gap-3 rounded-2xl border border-white/40 bg-white/95 px-4 py-3.5 text-left backdrop-blur-xl transition-transform active:scale-[0.99]"
+              >
+                <span className="from-primary to-accent flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md">
+                  <ActiveIcon className="size-5" />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="text-foreground block text-sm font-semibold">
+                    {t(activeTabConfig.labelKey)}
                   </span>
-                </button>
-              )
-            })}
-          </div>
+                  <span className="text-muted-foreground block truncate text-xs">
+                    Destination, dates, voyageurs…
+                  </span>
+                </span>
 
-          {/* Search Form */}
+                <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
+                  <Search className="size-4" />
+                </span>
+              </button>
+            </DrawerTrigger>
 
-          <div className="p-4 sm:p-6">
-            {activeTab === "vols" && <VolsForm />}
+            <DrawerContent className="max-h-[92vh] rounded-t-[1.75rem]">
+              <DrawerTitle className="sr-only">
+                Recherche — {t(activeTabConfig.labelKey)}
+              </DrawerTitle>
 
-            {activeTab === "hotels-tunisie" && <HotelsTunisieSearch />}
+              <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 pt-1 pb-3">
+                <TabPills
+                  activeTab={activeTab}
+                  onSelect={setActiveTab}
+                  className="flex-1"
+                />
+                <DrawerClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground shrink-0 rounded-full"
+                  >
+                    Fermer
+                  </Button>
+                </DrawerClose>
+              </div>
 
-            {activeTab === "hotels-monde" && <HotelsMondeForm />}
-
-            {activeTab === "omraty" && <OmratyForm />}
-
-            {activeTab === "voyages-organises" && <VoyagesOrganisesForm />}
-
-            {activeTab === "transferts" && <TransfertsForm zones={transferZones} />}
-
-            {activeTab === "car" && <CarForm />}
-          </div>
+              <div
+                className="overflow-y-auto px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+                onClickCapture={(e) => {
+                  // Un submit réussi navigue (router.push) — on referme le
+                  // tiroir dès la soumission plutôt que d'attendre le
+                  // démontage de la page, pour un retour visuel immédiat.
+                  const target = e.target as HTMLElement
+                  if (target.closest('button[type="submit"]')) {
+                    window.setTimeout(() => setMobileOpen(false), 50)
+                  }
+                }}
+              >
+                <ActiveModuleForm
+                  activeTab={activeTab}
+                  transferZones={transferZones}
+                />
+              </div>
+            </DrawerContent>
+          </Drawer>
         </div>
       </div>
     </div>
@@ -222,13 +324,9 @@ export function BookingEngine({
 
 // ----------------------------------------------------------------------------
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label className="text-muted-foreground text-xs font-medium">
-      {children}
-    </label>
-  )
-}
+// FIELD_SHELL / FIELD_INPUT_RESET / FieldLabel : voir components/search-field.tsx
+// (partagé avec HotelsTunisieSearch, extrait pour éviter un import circulaire —
+// ce fichier importe HotelsTunisieSearch dynamiquement plus haut).
 
 /** Ligne compteur +/- réutilisée par les popovers Voyageurs/Occupants. */
 function CounterRow({
@@ -249,34 +347,36 @@ function CounterRow({
   return (
     <div className="flex items-center justify-between gap-3">
       <div>
-        <p className="text-sm font-medium">{label}</p>
+        <p className="text-sm font-semibold">{label}</p>
         {sublabel && (
           <p className="text-muted-foreground text-xs">{sublabel}</p>
         )}
       </div>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="size-7 rounded-full"
+          className="hover:border-primary hover:text-primary size-8 rounded-full"
           onClick={() => onChange(Math.max(min, value - 1))}
           disabled={value <= min}
           aria-label={`Diminuer : ${label}`}
         >
-          <Minus className="size-3" />
+          <Minus className="size-3.5" />
         </Button>
-        <span className="w-5 text-center text-sm font-medium">{value}</span>
+        <span className="w-5 text-center text-sm font-semibold tabular-nums">
+          {value}
+        </span>
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="size-7 rounded-full"
+          className="hover:border-primary hover:text-primary size-8 rounded-full"
           onClick={() => onChange(Math.min(max, value + 1))}
           disabled={value >= max}
           aria-label={`Augmenter : ${label}`}
         >
-          <Plus className="size-3" />
+          <Plus className="size-3.5" />
         </Button>
       </div>
     </div>
@@ -299,15 +399,17 @@ function addDaysIso(dateIso: string, days: number): string {
 const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`)
 
 function SearchSubmit({
-  children = "RECHERCHER",
+  children = "Rechercher",
 }: {
   children?: React.ReactNode
 }) {
   return (
     <Button
       type="submit"
-      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-e2b-soft w-full rounded-2xl px-8 text-base font-semibold transition-shadow hover:shadow-md sm:w-auto"
+      size="lg"
+      className="from-primary to-accent hover:shadow-primary/30 w-full gap-2 rounded-2xl bg-gradient-to-r px-8 text-base font-semibold text-white uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 sm:w-auto"
     >
+      <Search className="size-4" />
       {children}
     </Button>
   )
@@ -373,7 +475,7 @@ function VolsForm() {
         if (flexible) params.set("flexible", "1")
         router.push(`/vols?${params.toString()}`)
       }}
-      className="space-y-4"
+      className="space-y-5"
     >
       <Tabs
         value={tripType}
@@ -385,142 +487,134 @@ function VolsForm() {
           }
         }}
       >
-        <TabsList>
-          <TabsTrigger value="roundtrip" className="gap-1.5">
+        <TabsList className="bg-muted/70 h-10 rounded-full p-1">
+          <TabsTrigger
+            value="roundtrip"
+            className="gap-1.5 rounded-full data-[state=active]:shadow-sm"
+          >
             <ArrowLeftRight className="size-3.5" />
             Aller-retour
           </TabsTrigger>
-          <TabsTrigger value="oneway">Aller simple</TabsTrigger>
+          <TabsTrigger value="oneway" className="rounded-full data-[state=active]:shadow-sm">
+            Aller simple
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5">
-          <FieldLabel>Départ de</FieldLabel>
-
-          <div className="relative">
-            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input name="origin" defaultValue="Tunis (TUN)" className="rounded-xl pl-9" />
-          </div>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>Départ de</FieldLabel>
+          <Input
+            name="origin"
+            defaultValue="Tunis (TUN)"
+            className={FIELD_INPUT_RESET}
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Destination</FieldLabel>
-
-          <div className="relative">
-            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input name="destination" defaultValue="Istanbul (IST)" className="rounded-xl pl-9" />
-          </div>
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>Destination</FieldLabel>
+          <Input
+            name="destination"
+            defaultValue="Istanbul (IST)"
+            className={FIELD_INPUT_RESET}
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Date de départ</FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              type="date"
-              value={departureDate}
-              min={TODAY_ISO}
-              onChange={(e) => {
-                setDepartureDate(e.target.value)
-                if (tripType === "roundtrip" && returnDate < e.target.value) {
-                  setReturnDate(e.target.value)
-                }
-              }}
-              className="rounded-xl pl-9"
-            />
-          </div>
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={CalendarDays}>Date de départ</FieldLabel>
+          <Input
+            type="date"
+            value={departureDate}
+            min={TODAY_ISO}
+            onChange={(e) => {
+              setDepartureDate(e.target.value)
+              if (tripType === "roundtrip" && returnDate < e.target.value) {
+                setReturnDate(e.target.value)
+              }
+            }}
+            className={FIELD_INPUT_RESET}
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Date de retour</FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              type="date"
-              value={returnDate}
-              min={departureDate}
-              disabled={tripType === "oneway"}
-              onChange={(e) => setReturnDate(e.target.value)}
-              className="rounded-xl pl-9 disabled:opacity-50"
-            />
-          </div>
+        <div
+          className={cn(
+            FIELD_SHELL,
+            tripType === "oneway" && "opacity-50",
+          )}
+        >
+          <FieldLabel icon={CalendarDays}>Date de retour</FieldLabel>
+          <Input
+            type="date"
+            value={returnDate}
+            min={departureDate}
+            disabled={tripType === "oneway"}
+            onChange={(e) => setReturnDate(e.target.value)}
+            className={FIELD_INPUT_RESET}
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <FieldLabel>Passagers</FieldLabel>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <Popover open={paxOpen} onOpenChange={setPaxOpen}>
+          <PopoverTrigger asChild>
+            <button type="button" className={FIELD_SHELL}>
+              <FieldLabel icon={Users}>Passagers</FieldLabel>
+              <span className="truncate text-sm font-semibold">
+                {paxSummary}
+              </span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-72 space-y-4 rounded-2xl p-5 shadow-e2b-elevated"
+            align="start"
+          >
+            <CounterRow
+              label="Adultes"
+              sublabel="12 ans et plus"
+              min={1}
+              max={9}
+              value={adults}
+              onChange={(n) => {
+                setAdults(n)
+                if (babies > n) setBabies(n)
+              }}
+            />
+            <CounterRow
+              label="Enfants"
+              sublabel="2-11 ans, siège occupé"
+              min={0}
+              max={8}
+              value={children}
+              onChange={setChildren}
+            />
+            <CounterRow
+              label="Bébés"
+              sublabel="0-2 ans, sur les genoux"
+              min={0}
+              max={adults}
+              value={babies}
+              onChange={setBabies}
+            />
+          </PopoverContent>
+        </Popover>
 
-          <Popover open={paxOpen} onOpenChange={setPaxOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 w-full justify-start rounded-xl px-3 font-normal"
-              >
-                <Users className="text-muted-foreground mr-2 size-4 shrink-0" />
-                <span className="truncate">{paxSummary}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 space-y-4" align="start">
-              <CounterRow
-                label="Adultes"
-                sublabel="12 ans et plus"
-                min={1}
-                max={9}
-                value={adults}
-                onChange={(n) => {
-                  setAdults(n)
-                  if (babies > n) setBabies(n)
-                }}
-              />
-              <CounterRow
-                label="Enfants"
-                sublabel="2-11 ans, siège occupé"
-                min={0}
-                max={8}
-                value={children}
-                onChange={setChildren}
-              />
-              <CounterRow
-                label="Bébés"
-                sublabel="0-2 ans, sur les genoux"
-                min={0}
-                max={adults}
-                value={babies}
-                onChange={setBabies}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="space-y-1.5">
-          <FieldLabel>Classe</FieldLabel>
-
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Briefcase}>Classe</FieldLabel>
           <Select value={travelClass} onValueChange={setTravelClass}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Classe" />
             </SelectTrigger>
 
             <SelectContent>
               <SelectItem value="economique">Économique</SelectItem>
-
               <SelectItem value="premium">Premium</SelectItem>
-
               <SelectItem value="business">Business</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      <div className="flex flex-col items-start justify-between gap-4 pt-2 sm:flex-row sm:items-center">
+      <div className="flex flex-col items-start justify-between gap-4 pt-1 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <Checkbox
             id="vols-flexible"
@@ -586,116 +680,98 @@ function HotelsMondeForm() {
         if (babies > 0) params.set("babies", String(babies))
         router.push(`/hotels-monde?${params.toString()}`)
       }}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5 lg:col-span-2">
-          <FieldLabel>Destination mondiale</FieldLabel>
-
-          <div className="relative">
-            <MapPin className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              name="destination"
-              placeholder="Ville, hôtel ou aéroport"
-              className="rounded-xl pl-9"
-            />
-          </div>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={cn(FIELD_SHELL, "lg:col-span-2")}>
+          <FieldLabel icon={MapPin}>Destination mondiale</FieldLabel>
+          <Input
+            name="destination"
+            placeholder="Ville, hôtel ou aéroport"
+            className={FIELD_INPUT_RESET}
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Arrivée</FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              type="date"
-              value={checkIn}
-              min={TODAY_ISO}
-              onChange={(e) => {
-                setCheckIn(e.target.value)
-                if (checkOut <= e.target.value) {
-                  setCheckOut(addDaysIso(e.target.value, 1))
-                }
-              }}
-              className="rounded-xl pl-9"
-            />
-          </div>
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={CalendarDays}>Arrivée</FieldLabel>
+          <Input
+            type="date"
+            value={checkIn}
+            min={TODAY_ISO}
+            onChange={(e) => {
+              setCheckIn(e.target.value)
+              if (checkOut <= e.target.value) {
+                setCheckOut(addDaysIso(e.target.value, 1))
+              }
+            }}
+            className={FIELD_INPUT_RESET}
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>
-            Départ{nights ? <span className="text-primary"> · {nights}</span> : null}
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={CalendarDays}>
+            Départ{nights ? <span className="text-primary normal-case"> · {nights}</span> : null}
           </FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              type="date"
-              value={checkOut}
-              min={checkIn ? addDaysIso(checkIn, 1) : TOMORROW_ISO}
-              onChange={(e) => setCheckOut(e.target.value)}
-              className="rounded-xl pl-9"
-            />
-          </div>
+          <Input
+            type="date"
+            value={checkOut}
+            min={checkIn ? addDaysIso(checkIn, 1) : TOMORROW_ISO}
+            onChange={(e) => setCheckOut(e.target.value)}
+            className={FIELD_INPUT_RESET}
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:w-1/2">
-        <div className="space-y-1.5">
-          <FieldLabel>Chambres et voyageurs</FieldLabel>
-
-          <Popover open={occupancyOpen} onOpenChange={setOccupancyOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 w-full justify-start rounded-xl px-3 font-normal"
-              >
-                <Users className="text-muted-foreground mr-2 size-4 shrink-0" />
-                <span className="truncate">{occupancySummary}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 space-y-4" align="start">
-              <CounterRow
-                label="Chambres"
-                min={1}
-                max={8}
-                value={rooms}
-                onChange={setRooms}
-              />
-              <CounterRow
-                label="Adultes"
-                sublabel="18 ans et plus"
-                min={1}
-                max={16}
-                value={adults}
-                onChange={setAdults}
-              />
-              <CounterRow
-                label="Enfants"
-                sublabel="3-11 ans"
-                min={0}
-                max={8}
-                value={children}
-                onChange={setChildren}
-              />
-              <CounterRow
-                label="Bébés"
-                sublabel="0-2 ans"
-                min={0}
-                max={8}
-                value={babies}
-                onChange={setBabies}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+        <Popover open={occupancyOpen} onOpenChange={setOccupancyOpen}>
+          <PopoverTrigger asChild>
+            <button type="button" className={FIELD_SHELL}>
+              <FieldLabel icon={Users}>Chambres et voyageurs</FieldLabel>
+              <span className="truncate text-sm font-semibold">
+                {occupancySummary}
+              </span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-72 space-y-4 rounded-2xl p-5 shadow-e2b-elevated"
+            align="start"
+          >
+            <CounterRow
+              label="Chambres"
+              min={1}
+              max={8}
+              value={rooms}
+              onChange={setRooms}
+            />
+            <CounterRow
+              label="Adultes"
+              sublabel="18 ans et plus"
+              min={1}
+              max={16}
+              value={adults}
+              onChange={setAdults}
+            />
+            <CounterRow
+              label="Enfants"
+              sublabel="3-11 ans"
+              min={0}
+              max={8}
+              value={children}
+              onChange={setChildren}
+            />
+            <CounterRow
+              label="Bébés"
+              sublabel="0-2 ans"
+              min={0}
+              max={8}
+              value={babies}
+              onChange={setBabies}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end pt-1">
         <SearchSubmit />
       </div>
     </form>
@@ -740,14 +816,13 @@ function OmratyForm() {
         if (month) params.set("month", month)
         router.push(`/omra?${params.toString()}`)
       }}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <FieldLabel>Programme</FieldLabel>
-
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Moon}>Programme</FieldLabel>
           <Select value={programme} onValueChange={setProgramme}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Tous programmes" />
             </SelectTrigger>
 
@@ -761,11 +836,10 @@ function OmratyForm() {
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Mois de départ</FieldLabel>
-
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={CalendarDays}>Mois de départ</FieldLabel>
           <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Tous les mois" />
             </SelectTrigger>
 
@@ -780,7 +854,7 @@ function OmratyForm() {
         </div>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end pt-1">
         <SearchSubmit />
       </div>
     </form>
@@ -825,14 +899,13 @@ function VoyagesOrganisesForm() {
         if (travelers) params.set("travelers", travelers)
         router.push(`/packages?${params.toString()}`)
       }}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <FieldLabel>Destination</FieldLabel>
-
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>Destination</FieldLabel>
           <Select value={destination} onValueChange={setDestination}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Toutes destinations" />
             </SelectTrigger>
 
@@ -846,11 +919,10 @@ function VoyagesOrganisesForm() {
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Durée</FieldLabel>
-
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Clock}>Durée</FieldLabel>
           <Select value={duration} onValueChange={setDuration}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Toutes durées" />
             </SelectTrigger>
 
@@ -864,11 +936,10 @@ function VoyagesOrganisesForm() {
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Voyageurs</FieldLabel>
-
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Users}>Voyageurs</FieldLabel>
           <Select value={travelers} onValueChange={setTravelers}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Voyageurs" />
             </SelectTrigger>
 
@@ -883,7 +954,7 @@ function VoyagesOrganisesForm() {
         </div>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end pt-1">
         <SearchSubmit />
       </div>
     </form>
@@ -927,14 +998,13 @@ function TransfertsForm({ zones }: { zones: CatalogTransferZone[] }) {
         })
         router.push(`/transferts/resultats?${params.toString()}`)
       }}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5">
-          <FieldLabel>Lieu de prise en charge</FieldLabel>
-
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>Lieu de prise en charge</FieldLabel>
           <Select value={fromZone} onValueChange={setFromZone}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Choisir une zone" />
             </SelectTrigger>
 
@@ -954,11 +1024,10 @@ function TransfertsForm({ zones }: { zones: CatalogTransferZone[] }) {
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Lieu de dépose</FieldLabel>
-
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>Lieu de dépose</FieldLabel>
           <Select value={toZone} onValueChange={setToZone}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Choisir une zone" />
             </SelectTrigger>
 
@@ -974,27 +1043,21 @@ function TransfertsForm({ zones }: { zones: CatalogTransferZone[] }) {
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Date</FieldLabel>
-
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-            <Input
-              type="date"
-              value={date}
-              min={new Date().toISOString().split("T")[0]}
-              onChange={(e) => setDate(e.target.value)}
-              className="rounded-xl pl-9"
-            />
-          </div>
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={CalendarDays}>Date</FieldLabel>
+          <Input
+            type="date"
+            value={date}
+            min={new Date().toISOString().split("T")[0]}
+            onChange={(e) => setDate(e.target.value)}
+            className={FIELD_INPUT_RESET}
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Passagers</FieldLabel>
-
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Users}>Passagers</FieldLabel>
           <Select value={pax} onValueChange={setPax}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Passagers" />
             </SelectTrigger>
 
@@ -1009,7 +1072,7 @@ function TransfertsForm({ zones }: { zones: CatalogTransferZone[] }) {
         </div>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end pt-1">
         <SearchSubmit />
       </div>
     </form>
@@ -1080,14 +1143,13 @@ function CarForm() {
         }
         router.push(`/car?${params.toString()}`)
       }}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <FieldLabel>Lieu de prise en charge</FieldLabel>
-
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>Lieu de prise en charge</FieldLabel>
           <Select value={location} onValueChange={setLocation}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Aéroport ou ville" />
             </SelectTrigger>
 
@@ -1102,11 +1164,10 @@ function CarForm() {
         </div>
 
         {differentReturn && (
-          <div className="space-y-1.5">
-            <FieldLabel>Lieu de restitution</FieldLabel>
-
+          <div className={FIELD_SHELL}>
+            <FieldLabel icon={MapPin}>Lieu de restitution</FieldLabel>
             <Select value={returnLocation} onValueChange={setReturnLocation}>
-              <SelectTrigger className="w-full rounded-xl">
+              <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
                 <SelectValue placeholder="Aéroport ou ville" />
               </SelectTrigger>
 
@@ -1121,30 +1182,25 @@ function CarForm() {
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <FieldLabel>Prise en charge</FieldLabel>
-
-          <div className="flex gap-2">
-            <div className="relative min-w-0 flex-1">
-              <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-              <Input
-                type="date"
-                value={pickupDate}
-                min={TODAY_ISO}
-                onChange={(e) => {
-                  setPickupDate(e.target.value)
-                  if (returnDate < e.target.value) {
-                    setReturnDate(e.target.value)
-                  }
-                }}
-                className="rounded-xl pl-9"
-              />
-            </div>
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={CalendarDays}>Prise en charge</FieldLabel>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={pickupDate}
+              min={TODAY_ISO}
+              onChange={(e) => {
+                setPickupDate(e.target.value)
+                if (returnDate < e.target.value) {
+                  setReturnDate(e.target.value)
+                }
+              }}
+              className={cn(FIELD_INPUT_RESET, "min-w-0 flex-1")}
+            />
 
             <Select value={pickupTime} onValueChange={setPickupTime}>
-              <SelectTrigger className="w-28 rounded-xl">
-                <Clock className="text-muted-foreground size-3.5 shrink-0" />
+              <SelectTrigger className="border-border/60 h-auto w-24 shrink-0 gap-1 rounded-lg border bg-white px-2 py-1 text-xs shadow-none">
+                <Clock className="text-muted-foreground size-3 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1158,25 +1214,20 @@ function CarForm() {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Restitution</FieldLabel>
-
-          <div className="flex gap-2">
-            <div className="relative min-w-0 flex-1">
-              <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-
-              <Input
-                type="date"
-                value={returnDate}
-                min={pickupDate || TODAY_ISO}
-                onChange={(e) => setReturnDate(e.target.value)}
-                className="rounded-xl pl-9"
-              />
-            </div>
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={CalendarDays}>Restitution</FieldLabel>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={returnDate}
+              min={pickupDate || TODAY_ISO}
+              onChange={(e) => setReturnDate(e.target.value)}
+              className={cn(FIELD_INPUT_RESET, "min-w-0 flex-1")}
+            />
 
             <Select value={returnTime} onValueChange={setReturnTime}>
-              <SelectTrigger className="w-28 rounded-xl">
-                <Clock className="text-muted-foreground size-3.5 shrink-0" />
+              <SelectTrigger className="border-border/60 h-auto w-24 shrink-0 gap-1 rounded-lg border bg-white px-2 py-1 text-xs shadow-none">
+                <Clock className="text-muted-foreground size-3 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1190,11 +1241,10 @@ function CarForm() {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <FieldLabel>Catégorie</FieldLabel>
-
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Car}>Catégorie</FieldLabel>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Catégorie" />
             </SelectTrigger>
 
@@ -1209,7 +1259,7 @@ function CarForm() {
         </div>
       </div>
 
-      <div className="flex flex-col items-start gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
           <div className="flex items-center gap-2">
             <Checkbox

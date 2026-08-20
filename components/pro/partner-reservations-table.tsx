@@ -1,15 +1,19 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { type ColumnDef } from "@tanstack/react-table"
+import { toast } from "sonner"
 import {
   Building2,
   Car,
   CheckCircle,
   CircleDot,
   Clock,
+  Download,
   Eye,
   FileText,
+  Loader2,
   Moon,
   MoreVertical,
   Plane,
@@ -30,6 +34,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -39,6 +53,9 @@ import {
 import { cn } from "@/lib/utils"
 import { formatTND } from "@/lib/pro/format"
 import type { PartnerReservationRow } from "@/lib/pro/reservations-data"
+import { cancelHotelReservation } from "@/lib/booking/cancel-actions"
+
+const CANCELLABLE_STATUSES = new Set(["confirmed", "pending", "on_request"])
 
 /* -------------------------------------------------------------------------- */
 /* Status & module config                                                       */
@@ -95,6 +112,132 @@ const MODULE_META: Record<
   activity: { label: "Activité", icon: Sun },
   omra: { label: "Omra", icon: Moon },
   transfer: { label: "Transfert", icon: Car },
+}
+
+/* -------------------------------------------------------------------------- */
+/* Actions (annulation + voucher réels — le reste reste desactivé/à venir)     */
+/* -------------------------------------------------------------------------- */
+
+function ReservationActionsCell({
+  reservation,
+}: {
+  reservation: PartnerReservationRow
+}) {
+  const router = useRouter()
+  const [isPending, startTransition] = React.useTransition()
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+
+  const canCancel =
+    reservation.module === "hotel" &&
+    CANCELLABLE_STATUSES.has(reservation.status)
+
+  function handleConfirmCancel() {
+    startTransition(async () => {
+      const result = await cancelHotelReservation(reservation.id)
+      setConfirmOpen(false)
+      if (result.ok) {
+        toast.success(
+          result.refundedTnd > 0
+            ? `Réservation annulée — ${formatTND(result.refundedTnd)} remboursé sur le wallet.`
+            : "Réservation annulée (frais d'annulation myGo = montant total, aucun remboursement).",
+        )
+        router.refresh()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isPending}>
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreVertical className="h-4 w-4" />
+            )}
+            <span className="sr-only">Actions</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled>
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            Consulter
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled>
+            <Printer className="mr-1.5 h-3.5 w-3.5" />
+            Imprimer devis
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled>
+            <FileText className="mr-1.5 h-3.5 w-3.5" />
+            Facture proforma
+          </DropdownMenuItem>
+          {reservation.module === "hotel" && (
+            <DropdownMenuItem asChild>
+              <a
+                href={`/api/pro/reservations/${reservation.id}/voucher`}
+                download
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Télécharger le voucher
+              </a>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            disabled={!canCancel}
+            onSelect={(e) => {
+              e.preventDefault()
+              setConfirmOpen(true)
+            }}
+          >
+            <XCircle className="mr-1.5 h-3.5 w-3.5" />
+            Annulation
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Annuler la réservation {reservation.publicRef} ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              L&apos;annulation sera transmise immédiatement à myGo. Des frais
+              d&apos;annulation peuvent s&apos;appliquer selon la politique de
+              l&apos;hôtel ; le solde restant (montant payé moins frais
+              éventuels) sera automatiquement recrédité sur le wallet de
+              l&apos;agence. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Retour</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmCancel()
+              }}
+              disabled={isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Annulation en cours...
+                </>
+              ) : (
+                "Confirmer l'annulation"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -229,35 +372,9 @@ const columns: ColumnDef<PartnerReservationRow>[] = [
     id: "actions",
     enableSorting: false,
     enableHiding: false,
-    cell: ({ row: _ }) => (
+    cell: ({ row }) => (
       <div className="flex justify-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
-              <MoreVertical className="h-4 w-4" />
-              <span className="sr-only">Actions</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
-              <Eye className="mr-1.5 h-3.5 w-3.5" />
-              Consulter
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Printer className="mr-1.5 h-3.5 w-3.5" />
-              Imprimer devis
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <FileText className="mr-1.5 h-3.5 w-3.5" />
-              Facture proforma
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
-              <XCircle className="mr-1.5 h-3.5 w-3.5" />
-              Annulation
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ReservationActionsCell reservation={row.original} />
       </div>
     ),
   },

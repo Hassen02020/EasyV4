@@ -19,13 +19,10 @@
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
-import {
-  agencies,
-  walletRechargeRequests,
-  partnerCreditMovements,
-} from "@/lib/db/schema"
+import { walletRechargeRequests } from "@/lib/db/schema"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
+import { creditRechargeRequest } from "./wallet-credit"
 
 /* -------------------------------------------------------------------------- */
 /* Auth helpers                                                               */
@@ -169,55 +166,16 @@ export async function validateRechargeRequest(
           throw new Error(`REQUEST_ALREADY_PROCESSED:${request.status}`)
         }
 
-        const amount = parseFloat(request.amount)
+        const outcome = await creditRechargeRequest(tx, request, {
+          reviewedByUserId: input.reviewedByUserId,
+          description: `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
+        })
 
-        // 1. Lire le solde actuel (avec verrou)
-        const [agency] = await tx
-          .select({ depositBalance: agencies.depositBalance })
-          .from(agencies)
-          .where(eq(agencies.id, request.agencyId))
-          .for("update")
-
-        if (!agency) throw new Error("AGENCY_NOT_FOUND")
-
-        const currentBalance = parseFloat(agency.depositBalance)
-        const newBalance = currentBalance + amount
-
-        // 2. Mettre à jour le solde
-        await tx
-          .update(agencies)
-          .set({ depositBalance: newBalance.toFixed(3) })
-          .where(eq(agencies.id, request.agencyId))
-
-        // 3. Créer le mouvement de crédit
-        const [movement] = await tx
-          .insert(partnerCreditMovements)
-          .values({
-            agencyId: request.agencyId,
-            movementType: "credit",
-            amount: amount.toFixed(3),
-            balanceAfter: newBalance.toFixed(3),
-            reference: `RECHARGE-${request.id.slice(0, 8).toUpperCase()}`,
-            description: `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
-            createdByUserId: input.reviewedByUserId,
-          })
-          .returning({ id: partnerCreditMovements.id })
-
-        notifyAgencyId = request.agencyId
-        notifyTxId = movement.id
+        notifyAgencyId = outcome.agencyId
+        notifyTxId = outcome.movementId
         notifyMethod = request.method
-        notifyAmount = amount
-        notifyNewBalance = newBalance
-
-        // 4. Marquer la demande comme validée
-        await tx
-          .update(walletRechargeRequests)
-          .set({
-            status: "validated",
-            reviewedByUserId: input.reviewedByUserId,
-            reviewedAt: new Date(),
-          })
-          .where(eq(walletRechargeRequests.id, input.requestId))
+        notifyAmount = outcome.amount
+        notifyNewBalance = outcome.newBalance
       },
     )
   } catch (err) {

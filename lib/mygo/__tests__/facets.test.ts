@@ -10,6 +10,8 @@ import {
   applyFilters,
   computeFacets,
   EMPTY_FILTER_STATE,
+  filtersFromSearchParams,
+  filtersToSearchParams,
   type HotelFilterState,
 } from "../facets"
 import type { HotelOfferDTO } from "../types"
@@ -270,4 +272,35 @@ test("applyFilters: notRefundable exclut de freeCancellationOnly", () => {
   const result = applyFilters(offers, filters)
   assert.equal(result.length, 1)
   assert.equal(result[0].hotel.id, 1)
+})
+
+test("filtersToSearchParams / filtersFromSearchParams : round-trip fidèle", () => {
+  const filters: HotelFilterState = {
+    stars: [4, 5],
+    boardings: ["All Inclusive", "Demi Pension"],
+    facilities: ["Piscine", "Spa"],
+    priceRange: [200, 900],
+    recommendedOnly: true,
+    freeCancellationOnly: true,
+    availableOnly: false,
+  }
+  const params = filtersToSearchParams(filters)
+  const decoded = filtersFromSearchParams(params)
+  assert.deepEqual(decoded, filters)
+})
+
+test("filtersFromSearchParams : URLSearchParams vide renvoie l'état vide", () => {
+  const decoded = filtersFromSearchParams(new URLSearchParams())
+  assert.deepEqual(decoded, EMPTY_FILTER_STATE)
+})
+
+test("filtersToSearchParams : n'écrit aucune clé pour l'état vide (URL minimaliste)", () => {
+  const params = filtersToSearchParams(EMPTY_FILTER_STATE)
+  assert.equal(Array.from(params.keys()).length, 0)
+})
+
+test("filtersFromSearchParams : ignore un f_price malformé", () => {
+  const params = new URLSearchParams({ f_price: "abc-def" })
+  const decoded = filtersFromSearchParams(params)
+  assert.equal(decoded.priceRange, null)
 })

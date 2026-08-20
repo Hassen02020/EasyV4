@@ -113,14 +113,17 @@ function HotelDetailContent({ id }: { id: string }) {
   const handleCheckAvailability = () => {
     if (!hotel) return
     if (checkin && checkout && hotel.cityId) {
-      const qs = new URLSearchParams()
+      // Repart de la recherche courante telle quelle (filtres, tri,
+      // multi-chambres…) — seuls cityId/city sont recalés depuis la fiche
+      // hôtel (source de vérité pour cet hôtel précis).
+      const qs = new URLSearchParams(searchParams.toString())
       qs.set("cityId", String(hotel.cityId))
       if (hotel.cityName) qs.set("city", hotel.cityName)
       qs.set("checkin", checkin)
       qs.set("checkout", checkout)
       qs.set("adults", adults)
       if (children) qs.set("children", children)
-      qs.set("onlyAvailable", "1")
+      if (!qs.get("onlyAvailable")) qs.set("onlyAvailable", "1")
       router.push(`/hotels/search?${qs.toString()}`)
     } else {
       router.push("/")

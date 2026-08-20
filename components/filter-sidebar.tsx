@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { ChevronDown, Star } from "lucide-react"
+import { ChevronDown, Star, X } from "lucide-react"
 import type { HotelFacets, HotelFilterState } from "@/lib/mygo/facets"
 import { EMPTY_FILTER_STATE } from "@/lib/mygo/facets"
 
@@ -269,5 +269,112 @@ export function FilterSidebar({
         Réinitialiser les filtres
       </button>
     </aside>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* Filter Chips — filtres actifs affichés au-dessus des résultats,            */
+/* retirables individuellement, avec un "Effacer tous les filtres".           */
+/* -------------------------------------------------------------------------- */
+
+interface FilterChipsProps {
+  state: HotelFilterState
+  facets: HotelFacets | null
+  currency?: string
+  onChange: (next: HotelFilterState) => void
+}
+
+export function FilterChips({
+  state,
+  facets,
+  currency = "TND",
+  onChange,
+}: FilterChipsProps) {
+  const chips: { key: string; label: string; onRemove: () => void }[] = []
+
+  for (const s of state.stars) {
+    chips.push({
+      key: `star-${s}`,
+      label: `${s} étoiles`,
+      onRemove: () => onChange({ ...state, stars: state.stars.filter((x) => x !== s) }),
+    })
+  }
+  for (const b of state.boardings) {
+    chips.push({
+      key: `board-${b}`,
+      label: b,
+      onRemove: () =>
+        onChange({ ...state, boardings: state.boardings.filter((x) => x !== b) }),
+    })
+  }
+  for (const f of state.facilities) {
+    chips.push({
+      key: `fac-${f}`,
+      label: f,
+      onRemove: () =>
+        onChange({ ...state, facilities: state.facilities.filter((x) => x !== f) }),
+    })
+  }
+  if (
+    state.priceRange &&
+    facets &&
+    (state.priceRange[0] > facets.priceMin || state.priceRange[1] < facets.priceMax)
+  ) {
+    chips.push({
+      key: "price",
+      label: `${state.priceRange[0].toLocaleString("fr-FR")}–${state.priceRange[1].toLocaleString("fr-FR")} ${currency}`,
+      onRemove: () => onChange({ ...state, priceRange: null }),
+    })
+  }
+  if (state.recommendedOnly) {
+    chips.push({
+      key: "rec",
+      label: "Hôtel recommandé",
+      onRemove: () => onChange({ ...state, recommendedOnly: false }),
+    })
+  }
+  if (state.freeCancellationOnly) {
+    chips.push({
+      key: "cancel",
+      label: "Annulation gratuite",
+      onRemove: () => onChange({ ...state, freeCancellationOnly: false }),
+    })
+  }
+  if (state.availableOnly) {
+    chips.push({
+      key: "avail",
+      label: "Disponible seulement",
+      onRemove: () => onChange({ ...state, availableOnly: false }),
+    })
+  }
+
+  if (chips.length === 0) return null
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      {chips.map((chip) => (
+        <span
+          key={chip.key}
+          className="bg-secondary/40 border-primary/20 text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+        >
+          {chip.label}
+          <button
+            type="button"
+            onClick={chip.onRemove}
+            className="hover:bg-muted-foreground/20 rounded-full p-0.5"
+            aria-label={`Retirer le filtre ${chip.label}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange(EMPTY_FILTER_STATE)}
+        className="text-primary text-xs font-medium hover:underline"
+      >
+        Effacer tous les filtres
+      </button>
+    </div>
   )
 }

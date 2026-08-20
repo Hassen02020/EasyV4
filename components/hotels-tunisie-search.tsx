@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { FIELD_SHELL, FieldLabel } from "@/components/search-field"
+import { splitIntoRooms, encodeRoomsParam } from "@/lib/mygo/room-split"
 
 // ============================================================================
 // Types matching MyGo API Schema (le client myGo expose `/api/hotels/cities`)
@@ -156,7 +157,7 @@ export function HotelsTunisieSearch() {
       city: selectedCity?.name ?? "",
       checkin: request.BookingDetails.Checkin,
       checkout: request.BookingDetails.Checkout,
-      rooms: String(rooms),
+      roomsCount: String(rooms),
       adults: String(request.Pax.Adult),
     })
     if (request.Pax.Child.length > 0) {
@@ -167,6 +168,14 @@ export function HotelsTunisieSearch() {
     }
     if (request.Filters.OnlyAvailable) {
       params.set("onlyAvailable", "1")
+    }
+    // Recherche multi-chambres réelle (le connecteur myGo accepte nativement
+    // `Rooms: [{Adult, Child}]`, voir lib/mygo/client.ts) — au-delà d'une
+    // chambre, on répartit équitablement les adultes et les âges renseignés
+    // pour que la disponibilité/prix reflètent la vraie composition du
+    // groupe plutôt qu'une seule chambre agrégée.
+    if (rooms > 1) {
+      params.set("rooms", encodeRoomsParam(splitIntoRooms(rooms, adults, childrenAges)))
     }
 
     router.push(`/hotels/search?${params.toString()}`)

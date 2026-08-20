@@ -18,6 +18,68 @@ import { walletDebitReservation } from "@/lib/wallet/actions"
 import { inngest } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
+import {
+  getMyGoClient,
+  MyGoApiError,
+  MyGoAuthError,
+  MyGoCircuitOpenError,
+  MyGoError,
+  type BookingConfirmationDTO,
+} from "@/lib/mygo"
+import {
+  authoritativeUnitPrice,
+  buildMyGoBookingRequest,
+  extractHotelProviderMetadata,
+  type HotelProviderMetadata,
+} from "./hotel-provider-booking"
+
+/**
+ * Confirme la réservation hôtel auprès de myGo (fournisseur Tunisie) quand le
+ * draft porte des métadonnées myGo valides (recherche réelle, pas une offre
+ * démo). Appelé AVANT toute écriture DB / débit wallet : si myGo refuse
+ * (prix/dispo changés, token expiré…), on ne crée ni réservation ni débit.
+ */
+async function confirmHotelWithProvider(
+  draft: BookingDraft,
+  traveler: TravelerInput,
+): Promise<
+  | { attempted: false }
+  | {
+      attempted: true
+      ok: true
+      booking: BookingConfirmationDTO
+      providerMeta: HotelProviderMetadata
+    }
+  | { attempted: true; ok: false; error: string }
+> {
+  if (draft.module !== "hotel") return { attempted: false }
+  const providerMeta = extractHotelProviderMetadata(
+    draft.metadata as Record<string, unknown> | undefined,
+  )
+  if (!providerMeta) return { attempted: false }
+
+  try {
+    const booking = await getMyGoClient().createBooking(
+      buildMyGoBookingRequest({ draft, traveler, providerMeta }),
+    )
+    return { attempted: true, ok: true, booking, providerMeta }
+  } catch (err) {
+    return { attempted: true, ok: false, error: describeMyGoBookingError(err) }
+  }
+}
+
+function describeMyGoBookingError(err: unknown): string {
+  if (err instanceof MyGoApiError) {
+    return "Cette offre n'est plus disponible (prix ou disponibilité modifiés). Merci de relancer une recherche."
+  }
+  if (err instanceof MyGoAuthError || err instanceof MyGoCircuitOpenError) {
+    return "Le service de réservation hôtelière est momentanément indisponible. Merci de réessayer dans quelques instants."
+  }
+  if (err instanceof MyGoError) {
+    return "Impossible de confirmer la réservation auprès de l'hôtel. Merci de réessayer."
+  }
+  return "Erreur inattendue lors de la confirmation auprès du fournisseur."
+}
 
 function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
@@ -96,12 +158,39 @@ export async function createReservationFromDraft(input: {
 
   const draft = draftParse.data
   const traveler = travelerParse.data
-  const breakdown = computePriceBreakdown({
-    unitPriceTnd: draft.unitPriceTnd,
-    adults: draft.adults,
-    children: draft.children,
-    unitChildPriceTnd: draft.unitChildPriceTnd,
-  })
+
+  // --- Confirmation fournisseur (myGo) AVANT toute écriture DB / débit wallet ---
+  // Si le draft porte des métadonnées myGo (recherche hôtel réelle) et que le
+  // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
+  // aucune réservation ni débit wallet ne doit être créé pour une chambre
+  // qu'on n'a pas réellement confirmée auprès de l'hôtel.
+  const providerConfirmation = await confirmHotelWithProvider(draft, traveler)
+  if (providerConfirmation.attempted && !providerConfirmation.ok) {
+    return { ok: false, error: providerConfirmation.error }
+  }
+  const myGoBooking = providerConfirmation.attempted
+    ? providerConfirmation.booking
+    : null
+  const providerMeta = providerConfirmation.attempted
+    ? providerConfirmation.providerMeta
+    : null
+
+  // Le total myGo (quand disponible) fait foi — le brouillon est un token
+  // base64url non signé, donc `draft.unitPriceTnd` n'est pas fiable à 100 %.
+  const breakdown = computePriceBreakdown(
+    myGoBooking
+      ? {
+          ...authoritativeUnitPrice(myGoBooking.totalPrice, draft.adults),
+          adults: draft.adults,
+          children: draft.children,
+        }
+      : {
+          unitPriceTnd: draft.unitPriceTnd,
+          adults: draft.adults,
+          children: draft.children,
+          unitChildPriceTnd: draft.unitChildPriceTnd,
+        },
+  )
 
   try {
     const result = await withTenantContext(
@@ -181,6 +270,12 @@ export async function createReservationFromDraft(input: {
             children: draft.children,
             breakdown,
             metadata: draft.metadata ?? null,
+            ...(myGoBooking
+              ? {
+                  myGoBookingId: myGoBooking.bookingId,
+                  myGoState: myGoBooking.state ?? null,
+                }
+              : {}),
           },
         })
         .returning({ id: reservations.id, publicRef: reservations.publicRef })
@@ -195,16 +290,37 @@ export async function createReservationFromDraft(input: {
             (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
           ),
         )
+        const confirmedRoom = myGoBooking?.rooms[0]
         await tx.insert(reservationHotel).values({
           reservationId,
           agencyId,
-          hotelId: Number(draft.offerId) || 0,
-          hotelName: draft.offerLabel,
+          providerBookingId: myGoBooking
+            ? String(myGoBooking.bookingId)
+            : undefined,
+          providerToken: providerMeta?.myGoToken,
+          hotelId:
+            myGoBooking?.hotelId ??
+            providerMeta?.hotelId ??
+            (Number(draft.offerId) || 0),
+          hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
+          cityId: providerMeta?.cityId,
           checkIn: draft.startDate,
           checkOut: draft.endDate ?? draft.startDate,
           nights,
           adults: draft.adults,
-          childrenAges: [],
+          childrenAges: providerMeta?.childrenAges ?? [],
+          boardCode: confirmedRoom?.boardingCode ?? providerMeta?.boardingCode,
+          boardName: confirmedRoom?.boardingName,
+          rooms: myGoBooking?.rooms ?? undefined,
+          // 10 = solde à régler à l'hôtel (myGo AtHotel > 0) — reflète la
+          // réponse fournisseur, pas une option choisie côté app (le wallet
+          // couvre déjà la totalité `breakdown.totalTnd` par défaut).
+          methodPayment: myGoBooking?.atHotel ? 10 : undefined,
+          atHotelAmount:
+            myGoBooking?.atHotel != null
+              ? String(myGoBooking.atHotel)
+              : undefined,
+          cancellationPolicies: confirmedRoom?.cancellationPolicies ?? undefined,
         })
       }
 

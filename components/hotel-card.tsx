@@ -26,6 +26,9 @@ interface RoomOption {
   freeCancellationDate: string
   available: boolean
   price: number
+  /** Absents pour les chambres de démo (`defaultRooms`) — présents pour toute vraie offre myGo. */
+  boardingId?: number
+  boardingCode?: string
 }
 
 interface HotelCardProps {

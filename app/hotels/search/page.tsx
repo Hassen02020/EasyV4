@@ -30,6 +30,11 @@ interface BookingData {
   children: number
   pricePerNight: number
   totalPrice: number
+  myGoToken: string
+  cityId?: number
+  boardingId: number
+  boardingCode: string
+  roomId: number
 }
 
 function formatDateRange(checkin: string | null, checkout: string | null) {
@@ -82,6 +87,12 @@ function HotelSearchContent() {
       hotelData.adults > 0
         ? hotelData.totalPrice / hotelData.adults
         : hotelData.totalPrice
+    // Âges réels des enfants (CSV depuis l'URL de recherche, ex. "5,8") — myGo
+    // exige un âge par enfant dans BookingCreation, pas seulement un décompte.
+    const childrenAgesArr = (childrenStr ?? "")
+      .split(",")
+      .map((a) => parseInt(a, 10))
+      .filter((n) => Number.isFinite(n))
     const token = encodeDraft({
       draft: {
         module: "hotel",
@@ -98,6 +109,15 @@ function HotelSearchContent() {
           mealPlan: hotelData.mealPlan,
           nights: hotelData.nights,
           location: hotelData.location,
+          // Requis pour confirmer réellement la réservation auprès de myGo
+          // (BookingCreation) — voir lib/booking/hotel-provider-booking.ts
+          myGoToken: hotelData.myGoToken,
+          cityId: hotelData.cityId,
+          hotelId: hotelData.id,
+          boardingId: hotelData.boardingId,
+          boardingCode: hotelData.boardingCode,
+          roomId: hotelData.roomId,
+          childrenAges: childrenAgesArr,
         },
       },
     })

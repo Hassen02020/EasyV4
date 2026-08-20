@@ -119,3 +119,38 @@ export interface HotelSearchResultDTO {
   /** Hôtels "vrais" filtrés (les attractions/parcs sont écartés). */
   offers: HotelOfferDTO[]
 }
+
+export type BookingStateDTO = "OnRequest" | "Validated" | "Cancelled"
+
+export interface BookingRoomDTO {
+  id: number
+  name?: string
+  boardingId?: number
+  boardingCode?: string
+  boardingName?: string
+  cancellationPolicies: CancellationPolicyDTO[]
+}
+
+export interface BookingConfirmationDTO {
+  /** Id myGo de la réservation — à stocker (reservationHotel.providerBookingId). */
+  bookingId: number
+  hotelId?: number
+  hotelName?: string
+  checkIn?: string
+  checkOut?: string
+  /** Montant à régler directement à l'hôtel (si PreBooking / paiement partiel supplier). */
+  atHotel?: number
+  rooms: BookingRoomDTO[]
+  currency: string
+  state?: BookingStateDTO
+  /** Prix total faisant foi — source de vérité pour la facturation. */
+  totalPrice: number
+}
+
+export interface BookingCancellationDTO {
+  bookingId: number
+  fee: number
+  currency: string
+  preCancelled: boolean
+  cancelledAt?: string
+}

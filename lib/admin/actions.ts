@@ -17,15 +17,35 @@ import { revalidatePath } from "next/cache"
 import { eq, and } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { reservations, auditEvents } from "@/lib/db/schema"
+import { reservations, reservationHotel, auditEvents } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import {
+  getMyGoClient,
+  MyGoApiError,
+  MyGoAuthError,
+  MyGoCircuitOpenError,
+  MyGoError,
+} from "@/lib/mygo"
 import {
   RESERVATION_STATUSES,
   isTransitionAllowed,
   type ReservationStatus,
 } from "./reservation-status"
+
+function describeMyGoCancellationError(err: unknown): string {
+  if (err instanceof MyGoApiError) {
+    return `Le fournisseur a refusé l'annulation : ${err.description}`
+  }
+  if (err instanceof MyGoAuthError || err instanceof MyGoCircuitOpenError) {
+    return "Le service fournisseur est momentanément indisponible. Merci de réessayer dans quelques instants."
+  }
+  if (err instanceof MyGoError) {
+    return "Impossible d'annuler la réservation auprès du fournisseur. Merci de réessayer."
+  }
+  return "Erreur inattendue lors de l'annulation auprès du fournisseur."
+}
 
 const inputSchema = z.object({
   reservationId: z.string().uuid(),
@@ -78,6 +98,7 @@ export async function updateReservationStatus(
           id: reservations.id,
           status: reservations.status,
           publicRef: reservations.publicRef,
+          module: reservations.module,
         })
         .from(reservations)
         .where(
@@ -102,6 +123,34 @@ export async function updateReservationStatus(
       }
 
       const cancelledAt = nextStatus === "cancelled" ? new Date() : null
+
+      // --- Annulation fournisseur (myGo) AVANT la transition de statut ---
+      // Si cette réservation hôtel a été réellement confirmée auprès de myGo
+      // (providerBookingId présent), on annule côté fournisseur d'abord : on
+      // ne veut pas marquer "cancelled" en interne pendant que l'hôtel
+      // attend toujours le client.
+      let providerCancellationFee: number | undefined
+      if (nextStatus === "cancelled" && row.module === "hotel") {
+        const [hotelRow] = await db
+          .select({ providerBookingId: reservationHotel.providerBookingId })
+          .from(reservationHotel)
+          .where(eq(reservationHotel.reservationId, reservationId))
+          .limit(1)
+
+        if (hotelRow?.providerBookingId) {
+          try {
+            const cancellation = await getMyGoClient().cancelBooking({
+              bookingId: Number(hotelRow.providerBookingId),
+            })
+            providerCancellationFee = cancellation.fee
+          } catch (err) {
+            return {
+              ok: false as const,
+              error: describeMyGoCancellationError(err),
+            }
+          }
+        }
+      }
 
       await db
         .update(reservations)
@@ -128,6 +177,9 @@ export async function updateReservationStatus(
             publicRef: row.publicRef,
             from: previousStatus,
             to: nextStatus,
+            ...(providerCancellationFee != null
+              ? { providerCancellationFeeTnd: providerCancellationFee }
+              : {}),
           },
         })
       } catch {

@@ -32,6 +32,9 @@ import {
   ListCurrencyResponse,
   ListHotelResponse,
   ListTagResponse,
+  BookingCreationResponse,
+  BookingCancellationResponse,
+  BookingListResponse,
   type HotelDetailItemT,
   type HotelSearchResultItemT,
   type ListBoardingItemT,
@@ -39,7 +42,10 @@ import {
   type ListCurrencyItemT,
   type ListHotelItemT,
   type ListTagItemT,
+  type BookingListDetailItemT,
 } from "./schemas"
+import { mapBookingConfirmation, mapBookingCancellation } from "./mappers"
+import type { BookingConfirmationDTO, BookingCancellationDTO } from "./types"
 
 // ---------------------------------------------------------------------------
 // Public types for callers (route handlers, server components)
@@ -58,6 +64,49 @@ export interface HotelSearchInput {
     onlyAvailable?: boolean
     tags?: number[]
   }
+}
+
+export interface CreateBookingRoomInput {
+  /** Id de la Room retourné dans HotelSearch. */
+  roomId: number
+  /** Id du Boarding (pension) retourné dans HotelSearch. */
+  boardingId: number
+  view?: number[]
+  supplement?: number[]
+  adults: { civility?: string; name: string; surname: string; holder?: boolean }[]
+  children?: { name: string; surname: string; age: number }[]
+}
+
+export interface CreateBookingInput {
+  /** Token retourné par HotelSearch pour l'offre choisie. Expire — à utiliser rapidement. */
+  token: string
+  cityId: number
+  hotelId: number
+  checkIn: string
+  checkOut: string
+  currency?: string
+  /** true = dry-run (vérifie prix/dispo sans créer la résa) — recommandé avant confirmation finale. */
+  preBooking?: boolean
+  /** 10 = le client règle le solde `AtHotel` directement à l'hôtel. */
+  methodPayment?: number
+  option?: number[]
+  rooms: CreateBookingRoomInput[]
+}
+
+export interface CancelBookingInput {
+  bookingId: number
+  /** true = simulation (frais calculés sans annuler réellement). */
+  preCancelled?: boolean
+  currency?: string
+}
+
+export interface ListBookingsFilters {
+  booking?: number
+  hotel?: number
+  fromDate?: string
+  toDate?: string
+  state?: "OnRequest" | "Validated" | "Cancelled"
+  currency?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -222,6 +271,120 @@ export class MyGoClient {
   }
 
   // -------------------------------------------------------------------------
+  // Booking (mutating — jamais mis en cache)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Crée (ou simule si `input.preBooking`) une réservation hôtel auprès de myGo.
+   *
+   * IMPORTANT — sécurité anti double-booking : contrairement aux appels de lecture,
+   * la confirmation finale (`preBooking` absent/false) n'est JAMAIS retentée en cas
+   * d'erreur réseau/timeout — on ne peut pas savoir si la réservation a été créée
+   * côté myGo avant que la réponse ne se perde. Seul le dry-run (`preBooking: true`)
+   * est sans risque à réessayer.
+   */
+  async createBooking(
+    input: CreateBookingInput,
+  ): Promise<BookingConfirmationDTO> {
+    const body = {
+      HotelBooking: {
+        ...(input.preBooking ? { PreBooking: true } : {}),
+        Token: input.token,
+        ...(input.methodPayment != null
+          ? { MethodPayment: input.methodPayment }
+          : {}),
+        ...(input.currency ? { Currency: input.currency } : {}),
+        City: input.cityId,
+        Hotel: input.hotelId,
+        CheckIn: input.checkIn,
+        CheckOut: input.checkOut,
+        ...(input.option?.length ? { Option: input.option } : {}),
+        Rooms: input.rooms.map((r) => ({
+          Id: r.roomId,
+          Boarding: r.boardingId,
+          ...(r.view?.length ? { View: r.view } : {}),
+          ...(r.supplement?.length ? { Supplement: r.supplement } : {}),
+          Pax: {
+            Adult: r.adults.map((a) => ({
+              Civility: a.civility ?? "M",
+              Name: a.name,
+              Surname: a.surname,
+              Holder: a.holder ?? false,
+            })),
+            ...(r.children?.length
+              ? {
+                  Child: r.children.map((c) => ({
+                    Name: c.name,
+                    Surname: c.surname,
+                    Age: c.age,
+                  })),
+                }
+              : {}),
+          },
+        })),
+      },
+    }
+    const raw = await this.callOnce(
+      "BookingCreation",
+      body,
+      BookingCreationResponse,
+      { retryable: Boolean(input.preBooking) },
+    )
+    return mapBookingConfirmation(raw)
+  }
+
+  /**
+   * Annule une réservation myGo. Idempotent côté fournisseur (annuler une résa
+   * déjà annulée renvoie son état sans nouvel effet de bord) — retries autorisés.
+   */
+  async cancelBooking(
+    input: CancelBookingInput,
+  ): Promise<BookingCancellationDTO> {
+    const body = {
+      Booking: input.bookingId,
+      ...(input.preCancelled ? { PreCancelled: true } : {}),
+      ...(input.currency ? { Currency: input.currency } : {}),
+    }
+    const raw = await this.callOnce(
+      "BookingCancellation",
+      body,
+      BookingCancellationResponse,
+      { retryable: true },
+    )
+    return mapBookingCancellation(raw)
+  }
+
+  /** Historique des réservations déjà créées auprès de myGo. */
+  async listBookings(
+    filters: ListBookingsFilters = {},
+  ): Promise<BookingListDetailItemT[]> {
+    const body: Record<string, unknown> = {}
+    if (filters.currency) body.Currency = filters.currency
+    const hasFilters =
+      filters.booking != null ||
+      filters.hotel != null ||
+      filters.fromDate ||
+      filters.toDate ||
+      filters.state
+    if (hasFilters) {
+      body.Filters = {
+        ...(filters.booking != null ? { Booking: filters.booking } : {}),
+        ...(filters.hotel != null ? { Hotel: filters.hotel } : {}),
+        ...(filters.fromDate ? { FromDate: filters.fromDate } : {}),
+        ...(filters.toDate ? { ToDate: filters.toDate } : {}),
+        ...(filters.state ? { State: filters.state } : {}),
+      }
+    }
+    const raw = await this.callOnce(
+      "BookingList",
+      body,
+      BookingListResponse,
+      { retryable: true },
+    )
+    return raw.BookingDetail ?? []
+  }
+
+  // -------------------------------------------------------------------------
   // Internal: HTTP call with retries / circuit / cache
   // -------------------------------------------------------------------------
 
@@ -247,7 +410,9 @@ export class MyGoClient {
     method: string,
     body: Record<string, unknown>,
     schema: S,
+    callOptions: { retryable?: boolean } = {},
   ): Promise<import("zod").infer<S>> {
+    const retryable = callOptions.retryable ?? true
     const cfg = getMyGoConfig()
 
     if (this.breaker.isOpen()) {
@@ -314,8 +479,9 @@ export class MyGoClient {
           throw err
         }
 
-        // Erreurs réseau / timeout / 5xx → retry avec backoff
-        const isLast = attempt === cfg.maxRetries
+        // Erreurs réseau / timeout / 5xx → retry avec backoff (sauf appels non-retryable :
+        // ex. BookingCreation finale, où réessayer risquerait une double réservation)
+        const isLast = !retryable || attempt === cfg.maxRetries
         if (isLast) {
           this.breaker.onFailure()
           timer.end({ attempt, error: redactPii(err instanceof Error ? err.message : String(err)), final: true })

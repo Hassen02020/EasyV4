@@ -1,12 +1,26 @@
 /**
- * GET /api/hotels/search?cityId=10&checkin=2026-07-15&checkout=2026-07-20&adults=2&children=5,7
+ * GET /api/hotels/search-public?cityId=10&checkin=2026-07-15&checkout=2026-07-20&adults=2&children=5,7
  *
- * Recherche d'hôtels via myGo HotelSearch — accès B2B/partenaire
- * authentifié (`requirePartnerSession`). Pour l'accès public B2C, voir
- * `/api/hotels/search-public` : même moteur de recherche partagé
- * (`lib/mygo/search-core.ts`), contexte d'authentification différent.
+ * Recherche d'hôtels via myGo HotelSearch — accès PUBLIC B2C, aucune
+ * session requise. Utilise le même moteur de recherche partagé
+ * (`lib/mygo/search-core.ts`) que `/api/hotels/search` (B2B/partenaire
+ * authentifié) : une seule logique métier, deux contextes d'authentification.
  *
- * Cache court (5min) — les prix changent vite.
+ * Frontière de sécurité — cette route :
+ *   - n'accepte QUE les paramètres de recherche (destination, dates,
+ *     occupation, filtres d'affichage) — `HotelSearchQuerySchema` ne
+ *     contient aucun champ `agencyId`/`partnerId`/`walletId`/prix/marge ;
+ *   - ne renvoie jamais les credentials myGo (server-only,
+ *     `getMyGoConfig()`/`MyGoClient`, jamais exposés au DTO) ;
+ *   - ne renvoie que le DTO normalisé (`HotelOfferDTO`), jamais la réponse
+ *     XML/JSON brute de myGo ;
+ *   - est rate-limitée par IP (bucket dédié `hotels:search-public:*`,
+ *     distinct du bucket B2B `hotels:search:*`) pour protéger le quota
+ *     fournisseur d'un visiteur anonyme abusif.
+ *
+ * Voir EASYV4_B2C_PUBLIC_SEARCH_REPORT.md pour l'audit complet ayant motivé
+ * cette séparation (au lieu de simplement retirer `requirePartnerSession`
+ * de la route B2B existante, qui reste protégée et inchangée).
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -16,17 +30,13 @@ import {
   executeHotelSearch,
 } from "@/lib/mygo/search-core"
 import { rateLimit } from "@/lib/rate-limit"
-import { requirePartnerSession } from "@/lib/api/auth-guard"
 
 export const revalidate = 300 // 5 min — les prix changent vite
 
 export async function GET(req: NextRequest) {
-  const session = await requirePartnerSession(req)
-  if (session instanceof NextResponse) return session
-
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
-  const limit = await rateLimit(`hotels:search:${ip}`)
+  const limit = await rateLimit(`hotels:search-public:${ip}`)
   if (!limit.ok) {
     return NextResponse.json(
       {

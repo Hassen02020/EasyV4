@@ -1,7 +1,11 @@
 "use client"
 
 /**
- * Hook client `useHotelSearch` — encapsule la requête `/api/hotels/search`.
+ * Hook client `useHotelSearch` — encapsule la requête
+ * `/api/hotels/search-public` (recherche B2C publique, aucune session
+ * requise — voir EASYV4_B2C_PUBLIC_SEARCH_REPORT.md). Utilisé uniquement
+ * par la page de résultats publique (`app/hotels/search/page.tsx`) ; le
+ * portail B2B `/pro` n'utilise pas ce hook.
  *
  * Lecture des paramètres depuis `useSearchParams` (cityId, checkin, checkout,
  * adults, children, stars, onlyAvailable). Renvoie `{ status, data, error }`
@@ -84,7 +88,7 @@ export function useHotelSearch(): HotelSearchHookState {
   useEffect(() => {
     if (!queryString) return
     const ctrl = new AbortController()
-    fetch(`/api/hotels/search?${queryString}`, { signal: ctrl.signal })
+    fetch(`/api/hotels/search-public?${queryString}`, { signal: ctrl.signal })
       .then(async (r) => {
         if (!r.ok) {
           const body = (await r.json().catch(() => ({}))) as {

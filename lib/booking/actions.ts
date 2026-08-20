@@ -262,6 +262,18 @@ export async function createReservationFromDraft(input: {
   )
 
   try {
+    // Point d'injection de test — UNIQUEMENT actif en MYGO_MODE=virtual, pour
+    // exercer le chemin de compensation réel (voir catch ci-dessous) sur le
+    // scénario "myGo a confirmé, l'écriture DB locale échoue ensuite" (item 22
+    // du cahier des charges Virtual MyGo). Ne fait rien en mode live.
+    if (
+      myGoBooking &&
+      process.env.MYGO_MODE === "virtual" &&
+      process.env.MYGO_SIMULATION_SCENARIO === "DB_FAILURE"
+    ) {
+      throw new Error("SIMULATED_DB_FAILURE: injected by virtual test harness")
+    }
+
     const result = await withTenantContext(
       { agencyId, userId: authUserId, isSuperAdmin: false },
       async (tx) => {

@@ -329,6 +329,15 @@ export const BookingRoomItem = z
   })
   .passthrough()
 
+/** true si l'ErrorMessage indique une vraie réponse d'erreur ([] / null / undefined = succès). */
+function isErrorResponse(errorMessage: unknown): boolean {
+  return (
+    errorMessage != null &&
+    !Array.isArray(errorMessage) &&
+    typeof errorMessage === "object"
+  )
+}
+
 export const BookingCreationResponse = z
   .object({
     Id: FlexibleInt.optional(),
@@ -344,6 +353,24 @@ export const BookingCreationResponse = z
     ErrorMessage,
   })
   .passthrough()
+  .superRefine((val, ctx) => {
+    // Champs marqués "Y" (mandatory) par la doc myGo sur une réponse de
+    // SUCCÈS — laissés .optional() ci-dessus uniquement pour tolérer une
+    // vraie réponse d'erreur (qui, elle, ne les porte pas). Un succès sans
+    // TotalPrice/State/Currency/Id ne doit jamais passer silencieusement
+    // (voir authoritativeUnitPrice — un TotalPrice absent traité comme 0
+    // serait une réservation facturée gratuitement).
+    if (isErrorResponse(val.ErrorMessage)) return
+    for (const field of ["Id", "TotalPrice", "State", "Currency"] as const) {
+      if (val[field] === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: `${field} is required on a successful BookingCreation response`,
+        })
+      }
+    }
+  })
 
 export const BookingCancellationResponse = z
   .object({

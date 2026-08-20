@@ -22,6 +22,12 @@ interface BookingData {
   children: number
   pricePerNight: number
   totalPrice: number
+  /** Champs fournisseur myGo — nécessaires pour BookingCreation (voir handleBookHotel). */
+  myGoToken: string
+  cityId?: number
+  boardingId: number
+  boardingCode: string
+  roomId: number
 }
 
 interface RoomOption {
@@ -30,6 +36,9 @@ interface RoomOption {
   freeCancellationDate: string
   available: boolean
   price: number
+  /** Id/code myGo du Boarding auquel appartient cette chambre — requis pour BookingCreation. */
+  boardingId?: number
+  boardingCode?: string
 }
 
 interface CardHotelShape {
@@ -47,6 +56,9 @@ interface CardHotelShape {
   mealPlan: string
   mealOptions?: string[]
   rooms?: RoomOption[]
+  /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
+  myGoToken: string
+  cityId?: number
 }
 
 const PLACEHOLDER_IMG =
@@ -58,7 +70,7 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
   const allRooms = offer.boardings.flatMap((b) =>
     b.pax.flatMap((p) =>
       p.rooms.map((r) => ({
-        boardName: b.name,
+        boarding: b,
         room: r,
       })),
     ),
@@ -68,20 +80,22 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
       best === null || cur.room.price < best.room.price ? cur : best,
     null,
   )
-  const mealPlan = cheapest?.boardName ?? offer.boardings[0]?.name ?? "—"
+  const mealPlan = cheapest?.boarding.name ?? offer.boardings[0]?.name ?? "—"
   const mealOptions = Array.from(new Set(offer.boardings.map((b) => b.name)))
 
   const rooms: RoomOption[] = allRooms
     .filter((r) => !r.room.stopReservation)
     .slice(0, 6)
-    .map(({ room, boardName }) => ({
+    .map(({ room, boarding }) => ({
       id: room.id,
-      name: `${room.name} • ${boardName}`,
+      name: `${room.name} • ${boarding.name}`,
       freeCancellationDate:
         room.cancellationPolicies.find((p) => p.nature === "BEFORE_ARRIVAL")
           ?.fromDate ?? "—",
       available: !room.stopReservation,
       price: Math.round(room.price),
+      boardingId: boarding.id,
+      boardingCode: boarding.code,
     }))
 
   const images = h.image ? [h.image] : [PLACEHOLDER_IMG]
@@ -110,6 +124,8 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
     mealPlan,
     mealOptions,
     rooms,
+    myGoToken: offer.token,
+    cityId: h.cityId,
   }
 }
 
@@ -151,7 +167,16 @@ export function HotelListings({
     mealPlan: string,
     room?: RoomOption,
   ) => {
-    if (!onBookHotel || !room || !checkin || !checkout) return
+    if (
+      !onBookHotel ||
+      !room ||
+      !checkin ||
+      !checkout ||
+      room.boardingId == null ||
+      room.boardingCode == null
+    ) {
+      return
+    }
     let nights = 1
     try {
       nights = Math.max(
@@ -175,6 +200,11 @@ export function HotelListings({
       children: childrenAges?.split(",").filter(Boolean).length ?? 0,
       pricePerNight: Math.round(room.price / nights),
       totalPrice: room.price,
+      myGoToken: cardHotel.myGoToken,
+      cityId: cardHotel.cityId,
+      boardingId: room.boardingId,
+      boardingCode: room.boardingCode,
+      roomId: room.id,
     })
   }
 

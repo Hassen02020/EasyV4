@@ -20,12 +20,17 @@ import {
   ListTagResponse,
   HotelDetailResponse,
   HotelSearchResponse,
+  BookingCreationResponse,
+  BookingCancellationResponse,
+  BookingListResponse,
 } from "../schemas"
 import {
   dedupeOffersByHotelId,
   isRealHotelOffer,
   lowestPrice,
   mapBoarding,
+  mapBookingCancellation,
+  mapBookingConfirmation,
   mapCity,
   mapCurrency,
   mapHotelDetails,
@@ -197,6 +202,47 @@ test("dedupeOffersByHotelId: keeps best entry, merges boardings", () => {
   assert.deepEqual(boardingNames, ["Demi Pension", "Soft All Inclusive"])
   // Lowest price across both entries
   assert.equal(houda.fromPrice, 1450)
+})
+
+test("mapBookingConfirmation extracts room/boarding/cancellation policy", () => {
+  const raw = BookingCreationResponse.parse(readFixture("bookingcreation.json"))
+  const dto = mapBookingConfirmation(raw)
+  assert.equal(dto.bookingId, 918273)
+  assert.equal(dto.hotelId, 646)
+  assert.equal(dto.hotelName, "Yocca Hotel Residence (Lella Halima)")
+  assert.equal(dto.state, "Validated")
+  assert.equal(dto.currency, "TND")
+  assert.equal(dto.totalPrice, 651)
+  assert.equal(dto.rooms.length, 1)
+  const room = dto.rooms[0]!
+  assert.equal(room.id, 5521)
+  assert.equal(room.boardingId, 5)
+  assert.equal(room.boardingCode, "DP")
+  assert.equal(room.boardingName, "Demi Pension")
+  assert.equal(room.cancellationPolicies.length, 1)
+  assert.equal(room.cancellationPolicies[0]!.fees, 100)
+})
+
+test("mapBookingCancellation extracts fee/state", () => {
+  const raw = BookingCancellationResponse.parse(
+    readFixture("bookingcancellation.json"),
+  )
+  const dto = mapBookingCancellation(raw)
+  assert.equal(dto.bookingId, 918273)
+  assert.equal(dto.fee, 65.1)
+  assert.equal(dto.currency, "TND")
+  assert.equal(dto.preCancelled, false)
+  assert.equal(dto.cancelledAt, "2026-08-25 14:32")
+})
+
+test("BookingListResponse schema parses BookingDetail history", () => {
+  const raw = BookingListResponse.parse(readFixture("bookinglist.json"))
+  assert.ok(raw.BookingDetail)
+  assert.equal(raw.BookingDetail!.length, 1)
+  const item = raw.BookingDetail![0]!
+  assert.equal(item.Id, 918273)
+  assert.equal(item.State, "Validated")
+  assert.equal(item.TotalPrice, 651)
 })
 
 test("Auth error response is captured in ErrorMessage object", () => {

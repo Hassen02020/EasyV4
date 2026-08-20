@@ -1,0 +1,31 @@
+{
+  "BookingDetail": [
+    {
+      "Id": 918273,
+      "Hotel": {
+        "Id": 646,
+        "Name": "Yocca Hotel Residence (Lella Halima)",
+        "Category": { "Title": "4 étoiles", "Star": "4" },
+        "City": { "Id": 10, "Name": "Hammamet", "Region": "Cap Bon" }
+      },
+      "CheckIn": "2026-09-10",
+      "CheckOut": "2026-09-13",
+      "Rooms": [
+        {
+          "Id": 5521,
+          "Name": "Chambre Double Vue Jardin",
+          "Boarding": { "Id": 5, "Code": "DP", "Name": "Demi Pension" }
+        }
+      ],
+      "Source": 1,
+      "Currency": "TND",
+      "State": "Validated",
+      "TotalPrice": "651.000",
+      "Created": "2026-08-20 10:15",
+      "Validated": "2026-08-20 10:15",
+      "Cancelled": null,
+      "Fee": null
+    }
+  ],
+  "ErrorMessage": []
+}

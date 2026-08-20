@@ -282,23 +282,52 @@ export const HotelSearchResponse = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// Booking responses (Iteration 4 — schemas in place but not yet wired)
+// Booking responses
 // ---------------------------------------------------------------------------
 
 export const BookingState = z.enum(["OnRequest", "Validated", "Cancelled"])
 
-export const BookingPaxAdult = z.object({
-  Civility: z.string(),
-  Name: z.string(),
-  Surname: z.string(),
-  Holder: z.boolean(),
-})
+export const BookingPaxAdult = z
+  .object({
+    Civility: z.string(),
+    Name: z.string(),
+    Surname: z.string(),
+    Holder: z.boolean(),
+  })
+  .partial({ Civility: true, Holder: true })
 
 export const BookingPaxChild = z.object({
   Name: z.string(),
   Surname: z.string(),
   Age: FlexibleInt,
 })
+
+export const BookingRoomBoarding = z.object({
+  Id: FlexibleInt,
+  Code: z.string().optional(),
+  Name: z.string(),
+})
+
+export const BookingRoomPax = z
+  .object({
+    Adult: z.array(BookingPaxAdult).nullish(),
+    Child: z.array(BookingPaxChild).nullish(),
+  })
+  .partial()
+
+export const BookingRoomItem = z
+  .object({
+    Id: FlexibleInt,
+    Name: z.string().optional(),
+    Boarding: BookingRoomBoarding.optional(),
+    View: z.array(z.unknown()).nullish(),
+    Supplement: z.array(z.unknown()).nullish(),
+    Reduction: z.array(z.string()).nullish(),
+    CancellationPolicy: z.array(CancellationPolicy).nullish(),
+    NotRefundable: z.boolean().nullish(),
+    Pax: BookingRoomPax.optional(),
+  })
+  .passthrough()
 
 export const BookingCreationResponse = z
   .object({
@@ -307,10 +336,11 @@ export const BookingCreationResponse = z
     CheckIn: z.string().optional(),
     CheckOut: z.string().optional(),
     AtHotel: NumericString.nullish(),
+    Rooms: z.array(BookingRoomItem).nullish(),
+    Source: FlexibleInt.nullish(),
+    Currency: z.string().optional(),
     State: BookingState.optional(),
     TotalPrice: NumericString.optional(),
-    Currency: z.string().optional(),
-    Source: FlexibleInt.nullish(),
     ErrorMessage,
   })
   .passthrough()
@@ -327,6 +357,29 @@ export const BookingCancellationResponse = z
   })
   .passthrough()
 
+export const BookingListDetailItem = z
+  .object({
+    Id: FlexibleInt,
+    Hotel: ListHotelItem.optional(),
+    CheckIn: z.string().optional(),
+    CheckOut: z.string().optional(),
+    Rooms: z.array(BookingRoomItem).nullish(),
+    Source: FlexibleInt.nullish(),
+    Currency: z.string().optional(),
+    State: BookingState.optional(),
+    TotalPrice: NumericString.optional(),
+    Created: z.string().optional(),
+    Validated: z.string().nullish(),
+    Cancelled: z.string().nullish(),
+    Fee: NumericString.nullish(),
+  })
+  .passthrough()
+
+export const BookingListResponse = z.object({
+  BookingDetail: z.array(BookingListDetailItem).nullable().optional(),
+  ErrorMessage,
+})
+
 // ---------------------------------------------------------------------------
 // Type exports
 // ---------------------------------------------------------------------------
@@ -341,3 +394,11 @@ export type HotelSearchResultItemT = z.infer<typeof HotelSearchResultItem>
 export type RoomOfferT = z.infer<typeof RoomOffer>
 export type BoardingOfferT = z.infer<typeof BoardingOffer>
 export type CancellationPolicyT = z.infer<typeof CancellationPolicy>
+export type BookingPaxAdultT = z.infer<typeof BookingPaxAdult>
+export type BookingPaxChildT = z.infer<typeof BookingPaxChild>
+export type BookingRoomItemT = z.infer<typeof BookingRoomItem>
+export type BookingCreationResponseT = z.infer<typeof BookingCreationResponse>
+export type BookingCancellationResponseT = z.infer<
+  typeof BookingCancellationResponse
+>
+export type BookingListDetailItemT = z.infer<typeof BookingListDetailItem>

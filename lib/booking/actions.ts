@@ -18,6 +18,137 @@ import { walletDebitReservation } from "@/lib/wallet/actions"
 import { inngest } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
+import { getMyGoClient, mapBookingListItemToConfirmation, type BookingConfirmationDTO } from "@/lib/mygo"
+import {
+  authoritativeUnitPrice,
+  bookingConfirmationMatchesExpectedHotel,
+  buildMyGoBookingRequest,
+  classifyMyGoBookingError,
+  describeMyGoBookingErrorForUser,
+  extractHotelProviderMetadata,
+  isAmbiguousBookingError,
+  reconcileAmbiguousBooking,
+  type HotelProviderMetadata,
+  type MyGoBookingErrorKind,
+} from "./hotel-provider-booking"
+
+/**
+ * Confirme la réservation hôtel auprès de myGo (fournisseur Tunisie) quand le
+ * draft porte des métadonnées myGo valides (recherche réelle, pas une offre
+ * démo). Appelé AVANT toute écriture DB / débit wallet : si myGo refuse
+ * (prix/dispo changés, token expiré…), on ne crée ni réservation ni débit.
+ *
+ * Cas ambigu (timeout/réseau — on ne sait pas si myGo a créé la résa avant
+ * que la réponse ne se perde) : tentative de réconciliation en lecture
+ * seule via BookingList (documenté par myGo, pas une clé d'idempotence
+ * inventée). N'adopte le résultat que s'il y a EXACTEMENT une correspondance
+ * univoque ; sinon on refuse de deviner et on remonte un statut explicitement
+ * "ambigu" plutôt qu'un simple échec (l'utilisateur ne doit pas être invité à
+ * relancer une réservation qui a peut-être déjà été créée côté hôtel).
+ */
+async function confirmHotelWithProvider(
+  draft: BookingDraft,
+  traveler: TravelerInput,
+): Promise<
+  | { attempted: false }
+  | {
+      attempted: true
+      ok: true
+      booking: BookingConfirmationDTO
+      providerMeta: HotelProviderMetadata
+    }
+  | {
+      attempted: true
+      ok: false
+      error: string
+      kind: MyGoBookingErrorKind
+    }
+> {
+  if (draft.module !== "hotel") return { attempted: false }
+  const providerMeta = extractHotelProviderMetadata(
+    draft.metadata as Record<string, unknown> | undefined,
+  )
+  if (!providerMeta) return { attempted: false }
+
+  try {
+    const booking = await getMyGoClient().createBooking(
+      buildMyGoBookingRequest({ draft, traveler, providerMeta }),
+    )
+    if (!bookingConfirmationMatchesExpectedHotel(booking, providerMeta)) {
+      // Réponse myGo incohérente avec le contexte de recherche d'origine —
+      // la résa existe peut-être bien côté fournisseur (Hotel.Id X au lieu
+      // de Y attendu) : on ne peut pas l'annuler en confiance sans savoir
+      // laquelle c'est vraiment, donc on remonte l'état comme ambigu plutôt
+      // que de créer une réservation locale pour le mauvais hôtel.
+      return {
+        attempted: true,
+        ok: false,
+        error: describeMyGoBookingErrorForUser("AMBIGUOUS_SUPPLIER_STATE"),
+        kind: "AMBIGUOUS_SUPPLIER_STATE",
+      }
+    }
+    return { attempted: true, ok: true, booking, providerMeta }
+  } catch (err) {
+    const kind = classifyMyGoBookingError(err)
+    if (!isAmbiguousBookingError(kind)) {
+      return {
+        attempted: true,
+        ok: false,
+        error: describeMyGoBookingErrorForUser(kind),
+        kind,
+      }
+    }
+
+    const reconciled = await tryReconcileAmbiguousBooking(providerMeta, draft)
+    if (reconciled) {
+      return { attempted: true, ok: true, booking: reconciled, providerMeta }
+    }
+    return {
+      attempted: true,
+      ok: false,
+      error: describeMyGoBookingErrorForUser("AMBIGUOUS_SUPPLIER_STATE"),
+      kind: "AMBIGUOUS_SUPPLIER_STATE",
+    }
+  }
+}
+
+/**
+ * Best-effort : interroge BookingList pour retrouver une réservation créée
+ * malgré une réponse perdue. Ne lève jamais — un échec de réconciliation
+ * doit se traduire par "ambigu, non résolu", pas par une exception qui
+ * remonterait une erreur différente à l'appelant.
+ */
+async function tryReconcileAmbiguousBooking(
+  providerMeta: HotelProviderMetadata,
+  draft: BookingDraft,
+): Promise<BookingConfirmationDTO | null> {
+  const hotelId = providerMeta.hotelId ?? Number(draft.offerId)
+  if (!hotelId) return null
+  try {
+    const list = await getMyGoClient().listBookings({
+      hotel: hotelId,
+      fromDate: draft.startDate,
+      toDate: draft.startDate,
+    })
+    const match = reconcileAmbiguousBooking(
+      list.map((b) => ({
+        bookingId: b.Id,
+        hotelId: b.Hotel?.Id,
+        checkIn: b.CheckIn,
+        checkOut: b.CheckOut,
+        state: b.State,
+        createdAt: b.Created,
+      })),
+      { hotelId, checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate },
+      Date.now(),
+    )
+    if (!match) return null
+    const full = list.find((b) => b.Id === match.bookingId)
+    return full ? mapBookingListItemToConfirmation(full) : null
+  } catch {
+    return null
+  }
+}
 
 function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
@@ -96,12 +227,39 @@ export async function createReservationFromDraft(input: {
 
   const draft = draftParse.data
   const traveler = travelerParse.data
-  const breakdown = computePriceBreakdown({
-    unitPriceTnd: draft.unitPriceTnd,
-    adults: draft.adults,
-    children: draft.children,
-    unitChildPriceTnd: draft.unitChildPriceTnd,
-  })
+
+  // --- Confirmation fournisseur (myGo) AVANT toute écriture DB / débit wallet ---
+  // Si le draft porte des métadonnées myGo (recherche hôtel réelle) et que le
+  // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
+  // aucune réservation ni débit wallet ne doit être créé pour une chambre
+  // qu'on n'a pas réellement confirmée auprès de l'hôtel.
+  const providerConfirmation = await confirmHotelWithProvider(draft, traveler)
+  if (providerConfirmation.attempted && !providerConfirmation.ok) {
+    return { ok: false, error: providerConfirmation.error }
+  }
+  const myGoBooking = providerConfirmation.attempted
+    ? providerConfirmation.booking
+    : null
+  const providerMeta = providerConfirmation.attempted
+    ? providerConfirmation.providerMeta
+    : null
+
+  // Le total myGo (quand disponible) fait foi — le brouillon est un token
+  // base64url non signé, donc `draft.unitPriceTnd` n'est pas fiable à 100 %.
+  const breakdown = computePriceBreakdown(
+    myGoBooking
+      ? {
+          ...authoritativeUnitPrice(myGoBooking.totalPrice, draft.adults),
+          adults: draft.adults,
+          children: draft.children,
+        }
+      : {
+          unitPriceTnd: draft.unitPriceTnd,
+          adults: draft.adults,
+          children: draft.children,
+          unitChildPriceTnd: draft.unitChildPriceTnd,
+        },
+  )
 
   try {
     const result = await withTenantContext(
@@ -181,6 +339,12 @@ export async function createReservationFromDraft(input: {
             children: draft.children,
             breakdown,
             metadata: draft.metadata ?? null,
+            ...(myGoBooking
+              ? {
+                  myGoBookingId: myGoBooking.bookingId,
+                  myGoState: myGoBooking.state ?? null,
+                }
+              : {}),
           },
         })
         .returning({ id: reservations.id, publicRef: reservations.publicRef })
@@ -195,16 +359,37 @@ export async function createReservationFromDraft(input: {
             (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
           ),
         )
+        const confirmedRoom = myGoBooking?.rooms[0]
         await tx.insert(reservationHotel).values({
           reservationId,
           agencyId,
-          hotelId: Number(draft.offerId) || 0,
-          hotelName: draft.offerLabel,
+          providerBookingId: myGoBooking
+            ? String(myGoBooking.bookingId)
+            : undefined,
+          providerToken: providerMeta?.myGoToken,
+          hotelId:
+            myGoBooking?.hotelId ??
+            providerMeta?.hotelId ??
+            (Number(draft.offerId) || 0),
+          hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
+          cityId: providerMeta?.cityId,
           checkIn: draft.startDate,
           checkOut: draft.endDate ?? draft.startDate,
           nights,
           adults: draft.adults,
-          childrenAges: [],
+          childrenAges: providerMeta?.childrenAges ?? [],
+          boardCode: confirmedRoom?.boardingCode ?? providerMeta?.boardingCode,
+          boardName: confirmedRoom?.boardingName,
+          rooms: myGoBooking?.rooms ?? undefined,
+          // 10 = solde à régler à l'hôtel (myGo AtHotel > 0) — reflète la
+          // réponse fournisseur, pas une option choisie côté app (le wallet
+          // couvre déjà la totalité `breakdown.totalTnd` par défaut).
+          methodPayment: myGoBooking?.atHotel ? 10 : undefined,
+          atHotelAmount:
+            myGoBooking?.atHotel != null
+              ? String(myGoBooking.atHotel)
+              : undefined,
+          cancellationPolicies: confirmedRoom?.cancellationPolicies ?? undefined,
         })
       }
 
@@ -260,18 +445,38 @@ export async function createReservationFromDraft(input: {
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
   } catch (err) {
+    // --- Échec APRÈS confirmation myGo (écriture DB, débit wallet insuffisant…) ---
+    // À ce stade la réservation existe réellement chez le fournisseur. Sans
+    // compensation on se retrouverait avec "réservation myGo confirmée MAIS
+    // aucune trace/débit côté Easy2Book" — on tente donc d'annuler la résa
+    // myGo pour revenir à un état cohérent des deux côtés. Best-effort :
+    // si l'annulation échoue aussi, on le signale explicitement plutôt que
+    // de rendre un message d'erreur générique qui masquerait le problème.
+    let compensationNote = ""
+    if (myGoBooking) {
+      try {
+        await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
+      } catch {
+        compensationNote =
+          ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
+      }
+    }
+
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.startsWith("INSUFFICIENT_BALANCE:")) {
       const amount = msg.split(":")[1]
       return {
         ok: false,
-        error: `Solde insuffisant — il vous faut ${amount} DT. Rechargez votre wallet puis réessayez.`,
+        error: `Solde insuffisant — il vous faut ${amount} DT. Rechargez votre wallet puis réessayez.${compensationNote}`,
       }
     }
     if (msg.startsWith("WALLET_ERROR:")) {
-      return { ok: false, error: msg.split(":")[1] ?? "Erreur wallet" }
+      return { ok: false, error: (msg.split(":")[1] ?? "Erreur wallet") + compensationNote }
     }
-    return { ok: false, error: "Erreur interne lors de la création de la réservation" }
+    return {
+      ok: false,
+      error: "Erreur interne lors de la création de la réservation." + compensationNote,
+    }
   }
 }
 

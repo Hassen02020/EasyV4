@@ -14,6 +14,11 @@ import {
   Car,
   MapPin,
   CalendarDays,
+  Users,
+  Plus,
+  Minus,
+  Clock,
+  ArrowLeftRight,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -30,9 +35,19 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import dynamic from "next/dynamic"
 
 import { toast } from "sonner"
+
+import { addDays, differenceInCalendarDays, format } from "date-fns"
 
 import type { CatalogTransferZone } from "@/lib/db/schema"
 
@@ -67,6 +82,7 @@ function futureDate(days: number): string {
 }
 
 const TODAY_ISO = iso(new Date())
+const TOMORROW_ISO = futureDate(1)
 
 function buildSampleBookingUrl(input: {
   module: BookingDraft["module"]
@@ -214,6 +230,74 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** Ligne compteur +/- réutilisée par les popovers Voyageurs/Occupants. */
+function CounterRow({
+  label,
+  sublabel,
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  label: string
+  sublabel?: string
+  min: number
+  max: number
+  value: number
+  onChange: (next: number) => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        {sublabel && (
+          <p className="text-muted-foreground text-xs">{sublabel}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2.5">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-7 rounded-full"
+          onClick={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
+          aria-label={`Diminuer : ${label}`}
+        >
+          <Minus className="size-3" />
+        </Button>
+        <span className="w-5 text-center text-sm font-medium">{value}</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-7 rounded-full"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+          aria-label={`Augmenter : ${label}`}
+        >
+          <Plus className="size-3" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** "3 nuits" / "1 nuit" à partir de deux dates ISO (yyyy-MM-dd). */
+function nightsLabel(checkIn: string, checkOut: string): string | null {
+  if (!checkIn || !checkOut) return null
+  const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn))
+  if (nights <= 0) return null
+  return `${nights} nuit${nights > 1 ? "s" : ""}`
+}
+
+/** Ajoute `days` jours à une date ISO (yyyy-MM-dd) et retourne une date ISO. */
+function addDaysIso(dateIso: string, days: number): string {
+  return format(addDays(new Date(dateIso), days), "yyyy-MM-dd")
+}
+
+const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`)
+
 function SearchSubmit({
   children = "RECHERCHER",
 }: {
@@ -237,26 +321,79 @@ function SearchSubmit({
 
 function VolsForm() {
   const router = useRouter()
+  const [tripType, setTripType] = useState<"roundtrip" | "oneway">("roundtrip")
   const [travelClass, setTravelClass] = useState("economique")
   const [flexible, setFlexible] = useState(false)
+  const [departureDate, setDepartureDate] = useState(TODAY_ISO)
+  const [returnDate, setReturnDate] = useState(TOMORROW_ISO)
+  const [adults, setAdults] = useState(1)
+  const [children, setChildren] = useState(0)
+  const [babies, setBabies] = useState(0)
+  const [paxOpen, setPaxOpen] = useState(false)
+
+  const paxSummary = [
+    `${adults} adulte${adults > 1 ? "s" : ""}`,
+    children > 0 ? `${children} enfant${children > 1 ? "s" : ""}` : null,
+    babies > 0 ? `${babies} bébé${babies > 1 ? "s" : ""}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
         const fd = new FormData(e.currentTarget)
+        const origin = ((fd.get("origin") as string) || "Tunis (TUN)").trim()
+        const destination = (
+          (fd.get("destination") as string) || "Istanbul (IST)"
+        ).trim()
+
+        if (origin.toLowerCase() === destination.toLowerCase()) {
+          toast.error(
+            "L'aéroport de départ et d'arrivée doivent être différents.",
+          )
+          return
+        }
+        if (tripType === "roundtrip" && returnDate < departureDate) {
+          toast.error("La date de retour doit être après la date de départ.")
+          return
+        }
+
         const params = new URLSearchParams()
-        params.set("origin", (fd.get("origin") as string) || "TUN")
-        params.set("destination", (fd.get("destination") as string) || "IST")
-        const dates = (fd.get("dates") as string)?.trim()
-        if (dates) params.set("dates", dates)
+        params.set("origin", origin)
+        params.set("destination", destination)
+        params.set("tripType", tripType)
+        params.set("departureDate", departureDate)
+        if (tripType === "roundtrip") params.set("returnDate", returnDate)
         params.set("class", travelClass)
-        params.set("adults", "1")
+        params.set("adults", String(adults))
+        if (children > 0) params.set("children", String(children))
+        if (babies > 0) params.set("babies", String(babies))
         if (flexible) params.set("flexible", "1")
         router.push(`/vols?${params.toString()}`)
       }}
       className="space-y-4"
     >
+      <Tabs
+        value={tripType}
+        onValueChange={(v) => {
+          const next = v as "roundtrip" | "oneway"
+          setTripType(next)
+          if (next === "roundtrip" && returnDate < departureDate) {
+            setReturnDate(departureDate)
+          }
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="roundtrip" className="gap-1.5">
+            <ArrowLeftRight className="size-3.5" />
+            Aller-retour
+          </TabsTrigger>
+          <TabsTrigger value="oneway">Aller simple</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <FieldLabel>Départ de</FieldLabel>
@@ -279,17 +416,89 @@ function VolsForm() {
         </div>
 
         <div className="space-y-1.5">
-          <FieldLabel>Dates</FieldLabel>
+          <FieldLabel>Date de départ</FieldLabel>
 
           <div className="relative">
-            <CalendarDays className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
             <Input
-              name="dates"
-              placeholder="Choisir les dates"
+              type="date"
+              value={departureDate}
+              min={TODAY_ISO}
+              onChange={(e) => {
+                setDepartureDate(e.target.value)
+                if (tripType === "roundtrip" && returnDate < e.target.value) {
+                  setReturnDate(e.target.value)
+                }
+              }}
               className="rounded-xl pl-9"
             />
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <FieldLabel>Date de retour</FieldLabel>
+
+          <div className="relative">
+            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+
+            <Input
+              type="date"
+              value={returnDate}
+              min={departureDate}
+              disabled={tripType === "oneway"}
+              onChange={(e) => setReturnDate(e.target.value)}
+              className="rounded-xl pl-9 disabled:opacity-50"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <FieldLabel>Passagers</FieldLabel>
+
+          <Popover open={paxOpen} onOpenChange={setPaxOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 w-full justify-start rounded-xl px-3 font-normal"
+              >
+                <Users className="text-muted-foreground mr-2 size-4 shrink-0" />
+                <span className="truncate">{paxSummary}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 space-y-4" align="start">
+              <CounterRow
+                label="Adultes"
+                sublabel="12 ans et plus"
+                min={1}
+                max={9}
+                value={adults}
+                onChange={(n) => {
+                  setAdults(n)
+                  if (babies > n) setBabies(n)
+                }}
+              />
+              <CounterRow
+                label="Enfants"
+                sublabel="2-11 ans, siège occupé"
+                min={0}
+                max={8}
+                value={children}
+                onChange={setChildren}
+              />
+              <CounterRow
+                label="Bébés"
+                sublabel="0-2 ans, sur les genoux"
+                min={0}
+                max={adults}
+                value={babies}
+                onChange={setBabies}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="space-y-1.5">
@@ -335,21 +544,47 @@ function VolsForm() {
 
 function HotelsMondeForm() {
   const router = useRouter()
+  const [checkIn, setCheckIn] = useState(TODAY_ISO)
+  const [checkOut, setCheckOut] = useState(TOMORROW_ISO)
+  const [rooms, setRooms] = useState(1)
+  const [adults, setAdults] = useState(2)
+  const [children, setChildren] = useState(0)
+  const [babies, setBabies] = useState(0)
+  const [occupancyOpen, setOccupancyOpen] = useState(false)
+
+  const nights = nightsLabel(checkIn, checkOut)
+  const occupancySummary = [
+    `${rooms} chambre${rooms > 1 ? "s" : ""}`,
+    `${adults} adulte${adults > 1 ? "s" : ""}`,
+    children > 0 ? `${children} enfant${children > 1 ? "s" : ""}` : null,
+    babies > 0 ? `${babies} bébé${babies > 1 ? "s" : ""}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
         const fd = new FormData(e.currentTarget)
-        const params = new URLSearchParams()
         const destination = (fd.get("destination") as string)?.trim()
+
+        if (checkOut <= checkIn) {
+          toast.error(
+            "La date de départ doit être après la date d'arrivée (1 nuit minimum).",
+          )
+          return
+        }
+
+        const params = new URLSearchParams()
         if (destination) params.set("destination", destination)
-        const checkin = (fd.get("checkin") as string)?.trim()
-        if (checkin) params.set("checkin", checkin)
-        const checkout = (fd.get("checkout") as string)?.trim()
-        if (checkout) params.set("checkout", checkout)
-        const query = params.toString()
-        router.push(query ? `/hotels-monde?${query}` : "/hotels-monde")
+        params.set("checkin", checkIn)
+        params.set("checkout", checkOut)
+        params.set("rooms", String(rooms))
+        params.set("adults", String(adults))
+        if (children > 0) params.set("children", String(children))
+        if (babies > 0) params.set("babies", String(babies))
+        router.push(`/hotels-monde?${params.toString()}`)
       }}
       className="space-y-4"
     >
@@ -369,33 +604,94 @@ function HotelsMondeForm() {
         </div>
 
         <div className="space-y-1.5">
-          <FieldLabel>Check-in</FieldLabel>
+          <FieldLabel>Arrivée</FieldLabel>
 
           <div className="relative">
             <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
             <Input
-              name="checkin"
               type="date"
+              value={checkIn}
               min={TODAY_ISO}
+              onChange={(e) => {
+                setCheckIn(e.target.value)
+                if (checkOut <= e.target.value) {
+                  setCheckOut(addDaysIso(e.target.value, 1))
+                }
+              }}
               className="rounded-xl pl-9"
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <FieldLabel>Check-out</FieldLabel>
+          <FieldLabel>
+            Départ{nights ? <span className="text-primary"> · {nights}</span> : null}
+          </FieldLabel>
 
           <div className="relative">
             <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
             <Input
-              name="checkout"
               type="date"
-              min={TODAY_ISO}
+              value={checkOut}
+              min={checkIn ? addDaysIso(checkIn, 1) : TOMORROW_ISO}
+              onChange={(e) => setCheckOut(e.target.value)}
               className="rounded-xl pl-9"
             />
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:w-1/2">
+        <div className="space-y-1.5">
+          <FieldLabel>Chambres et voyageurs</FieldLabel>
+
+          <Popover open={occupancyOpen} onOpenChange={setOccupancyOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 w-full justify-start rounded-xl px-3 font-normal"
+              >
+                <Users className="text-muted-foreground mr-2 size-4 shrink-0" />
+                <span className="truncate">{occupancySummary}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 space-y-4" align="start">
+              <CounterRow
+                label="Chambres"
+                min={1}
+                max={8}
+                value={rooms}
+                onChange={setRooms}
+              />
+              <CounterRow
+                label="Adultes"
+                sublabel="18 ans et plus"
+                min={1}
+                max={16}
+                value={adults}
+                onChange={setAdults}
+              />
+              <CounterRow
+                label="Enfants"
+                sublabel="3-11 ans"
+                min={0}
+                max={8}
+                value={children}
+                onChange={setChildren}
+              />
+              <CounterRow
+                label="Bébés"
+                sublabel="0-2 ans"
+                min={0}
+                max={8}
+                value={babies}
+                onChange={setBabies}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -739,28 +1035,54 @@ const CAR_CATEGORIES = [
 function CarForm() {
   const router = useRouter()
   const [location, setLocation] = useState("")
+  const [pickupDate, setPickupDate] = useState(TODAY_ISO)
+  const [pickupTime, setPickupTime] = useState("10:00")
+  const [returnDate, setReturnDate] = useState(TOMORROW_ISO)
+  const [returnTime, setReturnTime] = useState("10:00")
   const [category, setCategory] = useState("economique")
   const [withDriver, setWithDriver] = useState(false)
+  const [differentReturn, setDifferentReturn] = useState(false)
+  const [returnLocation, setReturnLocation] = useState("")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        const fd = new FormData(e.currentTarget)
+
+        if (!location) {
+          toast.error("Veuillez sélectionner un lieu de prise en charge.")
+          return
+        }
+        if (differentReturn && !returnLocation) {
+          toast.error("Veuillez sélectionner un lieu de restitution.")
+          return
+        }
+        const pickupAt = new Date(`${pickupDate}T${pickupTime}`)
+        const returnAt = new Date(`${returnDate}T${returnTime}`)
+        if (returnAt <= pickupAt) {
+          toast.error(
+            "La restitution doit avoir lieu après la prise en charge (24h minimum recommandées).",
+          )
+          return
+        }
+
         const params = new URLSearchParams()
-        if (location) params.set("location", location)
-        const pickupDate = (fd.get("pickupDate") as string)?.trim()
-        if (pickupDate) params.set("pickupDate", pickupDate)
-        const returnDate = (fd.get("returnDate") as string)?.trim()
-        if (returnDate) params.set("returnDate", returnDate)
+        params.set("location", location)
+        params.set("pickupDate", pickupDate)
+        params.set("pickupTime", pickupTime)
+        params.set("returnDate", returnDate)
+        params.set("returnTime", returnTime)
         params.set("category", category)
         if (withDriver) params.set("driver", "1")
-        const query = params.toString()
-        router.push(query ? `/car?${query}` : "/car")
+        if (differentReturn && returnLocation) {
+          params.set("differentReturn", "1")
+          params.set("returnLocation", returnLocation)
+        }
+        router.push(`/car?${params.toString()}`)
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <FieldLabel>Lieu de prise en charge</FieldLabel>
 
@@ -779,33 +1101,92 @@ function CarForm() {
           </Select>
         </div>
 
+        {differentReturn && (
+          <div className="space-y-1.5">
+            <FieldLabel>Lieu de restitution</FieldLabel>
+
+            <Select value={returnLocation} onValueChange={setReturnLocation}>
+              <SelectTrigger className="w-full rounded-xl">
+                <SelectValue placeholder="Aéroport ou ville" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {CAR_LOCATIONS.map((l) => (
+                  <SelectItem key={l.value} value={l.value}>
+                    {l.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="space-y-1.5">
-          <FieldLabel>Date de prise</FieldLabel>
+          <FieldLabel>Prise en charge</FieldLabel>
 
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input
-              name="pickupDate"
-              type="date"
-              min={TODAY_ISO}
-              className="rounded-xl pl-9"
-            />
+              <Input
+                type="date"
+                value={pickupDate}
+                min={TODAY_ISO}
+                onChange={(e) => {
+                  setPickupDate(e.target.value)
+                  if (returnDate < e.target.value) {
+                    setReturnDate(e.target.value)
+                  }
+                }}
+                className="rounded-xl pl-9"
+              />
+            </div>
+
+            <Select value={pickupTime} onValueChange={setPickupTime}>
+              <SelectTrigger className="w-28 rounded-xl">
+                <Clock className="text-muted-foreground size-3.5 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {HOURS.map((h) => (
+                  <SelectItem key={h} value={h}>
+                    {h}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <FieldLabel>Date de retour</FieldLabel>
+          <FieldLabel>Restitution</FieldLabel>
 
-          <div className="relative">
-            <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <CalendarDays className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 
-            <Input
-              name="returnDate"
-              type="date"
-              min={TODAY_ISO}
-              className="rounded-xl pl-9"
-            />
+              <Input
+                type="date"
+                value={returnDate}
+                min={pickupDate || TODAY_ISO}
+                onChange={(e) => setReturnDate(e.target.value)}
+                className="rounded-xl pl-9"
+              />
+            </div>
+
+            <Select value={returnTime} onValueChange={setReturnTime}>
+              <SelectTrigger className="w-28 rounded-xl">
+                <Clock className="text-muted-foreground size-3.5 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {HOURS.map((h) => (
+                  <SelectItem key={h} value={h}>
+                    {h}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -828,20 +1209,41 @@ function CarForm() {
         </div>
       </div>
 
-      <div className="flex flex-col items-start justify-between gap-4 pt-2 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="car-driver"
-            checked={withDriver}
-            onCheckedChange={(v) => setWithDriver(v === true)}
-          />
+      <div className="flex flex-col items-start gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="car-different-return"
+              checked={differentReturn}
+              onCheckedChange={(v) => {
+                const next = v === true
+                setDifferentReturn(next)
+                if (!next) setReturnLocation("")
+              }}
+            />
 
-          <label
-            htmlFor="car-driver"
-            className="text-muted-foreground cursor-pointer text-sm"
-          >
-            Avec chauffeur
-          </label>
+            <label
+              htmlFor="car-different-return"
+              className="text-muted-foreground cursor-pointer text-sm"
+            >
+              Restituer à une agence différente
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="car-driver"
+              checked={withDriver}
+              onCheckedChange={(v) => setWithDriver(v === true)}
+            />
+
+            <label
+              htmlFor="car-driver"
+              className="text-muted-foreground cursor-pointer text-sm"
+            >
+              Avec chauffeur
+            </label>
+          </div>
         </div>
 
         <SearchSubmit />

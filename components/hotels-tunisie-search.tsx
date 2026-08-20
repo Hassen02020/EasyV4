@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useCities } from "@/hooks/use-cities"
-import { format } from "date-fns"
+import { addDays, differenceInCalendarDays, format } from "date-fns"
 import { fr } from "date-fns/locale"
 import {
   MapPin,
@@ -85,15 +85,27 @@ export function HotelsTunisieSearch() {
   const [selectedCity, setSelectedCity] = useState<City | null>(null)
   const [citySearchOpen, setCitySearchOpen] = useState(false)
 
-  // Date selection state
-  const [checkinDate, setCheckinDate] = useState<Date | undefined>()
-  const [checkoutDate, setCheckoutDate] = useState<Date | undefined>()
+  // Date selection state — arrivée = aujourd'hui, départ = demain (1 nuit
+  // minimum) par défaut, standard OTA plutôt que des champs vides.
+  const [checkinDate, setCheckinDate] = useState<Date | undefined>(new Date())
+  const [checkoutDate, setCheckoutDate] = useState<Date | undefined>(
+    addDays(new Date(), 1),
+  )
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
 
   // Pax state
+  const [rooms, setRooms] = useState(1)
   const [adults, setAdults] = useState(2)
+  // Bébés (0-2 ans) et Enfants (3-17 ans) sont distincts côté UX, mais
+  // partagent le même tableau d'âges côté requête — c'est exactement ce que
+  // le schéma MyGo (`Pax.Child: number[]`) attend déjà, donc aucune
+  // modification du contrat d'API : on ajoute juste un âge par défaut selon
+  // le bouton cliqué (1 an pour un bébé, 5 ans pour un enfant).
   const [childrenAges, setChildrenAges] = useState<number[]>([])
   const [paxPopoverOpen, setPaxPopoverOpen] = useState(false)
+
+  const babiesCount = childrenAges.filter((age) => age <= 2).length
+  const bigKidsCount = childrenAges.filter((age) => age > 2).length
 
   // Filters state
   const [onlyAvailable, setOnlyAvailable] = useState(true)
@@ -143,6 +155,7 @@ export function HotelsTunisieSearch() {
       city: selectedCity?.name ?? "",
       checkin: request.BookingDetails.Checkin,
       checkout: request.BookingDetails.Checkout,
+      rooms: String(rooms),
       adults: String(request.Pax.Adult),
     })
     if (request.Pax.Child.length > 0) {
@@ -158,12 +171,24 @@ export function HotelsTunisieSearch() {
     router.push(`/hotels/search?${params.toString()}`)
   }
 
-  const isFormValid = selectedCity && checkinDate && checkoutDate
+  const nightsCount =
+    checkinDate && checkoutDate
+      ? differenceInCalendarDays(checkoutDate, checkinDate)
+      : 0
+
+  const isFormValid =
+    selectedCity && checkinDate && checkoutDate && nightsCount >= 1
 
   // Children management
+  const addBaby = () => {
+    if (childrenAges.length < 4) {
+      setChildrenAges([...childrenAges, 1]) // Bébé, âge par défaut 1 an
+    }
+  }
+
   const addChild = () => {
     if (childrenAges.length < 4) {
-      setChildrenAges([...childrenAges, 5]) // Default age 5
+      setChildrenAges([...childrenAges, 5]) // Enfant, âge par défaut 5 ans
     }
   }
 
@@ -186,28 +211,34 @@ export function HotelsTunisieSearch() {
     }
   }
 
-  // Date range display
+  // Date range display — inclut le nombre de nuitées ("3 nuits").
   const dateRangeDisplay = useMemo(() => {
     if (checkinDate && checkoutDate) {
-      return `${format(checkinDate, "dd MMM", { locale: fr })} - ${format(checkoutDate, "dd MMM yyyy", { locale: fr })}`
+      const nights =
+        nightsCount > 0
+          ? ` · ${nightsCount} nuit${nightsCount > 1 ? "s" : ""}`
+          : ""
+      return `${format(checkinDate, "dd MMM", { locale: fr })} - ${format(checkoutDate, "dd MMM yyyy", { locale: fr })}${nights}`
     }
     if (checkinDate) {
       return `${format(checkinDate, "dd MMM yyyy", { locale: fr })} - ...`
     }
     return "Sélectionner les dates"
-  }, [checkinDate, checkoutDate])
+  }, [checkinDate, checkoutDate, nightsCount])
 
   // Pax display
   const paxDisplay = useMemo(() => {
     const parts: string[] = []
+    parts.push(`${rooms} Chambre${rooms > 1 ? "s" : ""}`)
     parts.push(`${adults} Adulte${adults > 1 ? "s" : ""}`)
-    if (childrenAges.length > 0) {
-      parts.push(
-        `${childrenAges.length} Enfant${childrenAges.length > 1 ? "s" : ""}`,
-      )
+    if (bigKidsCount > 0) {
+      parts.push(`${bigKidsCount} Enfant${bigKidsCount > 1 ? "s" : ""}`)
+    }
+    if (babiesCount > 0) {
+      parts.push(`${babiesCount} Bébé${babiesCount > 1 ? "s" : ""}`)
     }
     return parts.join(", ")
-  }, [adults, childrenAges])
+  }, [rooms, adults, bigKidsCount, babiesCount])
 
   return (
     <div className="space-y-5">
@@ -363,6 +394,34 @@ export function HotelsTunisieSearch() {
             </PopoverTrigger>
             <PopoverContent className="w-[320px] p-4" align="start">
               <div className="space-y-4">
+                {/* Rooms */}
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">Chambres</p>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8 rounded-full"
+                      onClick={() => setRooms(Math.max(1, rooms - 1))}
+                      disabled={rooms <= 1}
+                    >
+                      <Minus className="size-3" />
+                    </Button>
+                    <span className="w-6 text-center font-medium">
+                      {rooms}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8 rounded-full"
+                      onClick={() => setRooms(Math.min(8, rooms + 1))}
+                      disabled={rooms >= 8}
+                    >
+                      <Plus className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Adults */}
                 <div className="flex items-center justify-between">
                   <div>
@@ -400,7 +459,7 @@ export function HotelsTunisieSearch() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Enfants</p>
-                    <p className="text-muted-foreground text-xs">0-17 ans</p>
+                    <p className="text-muted-foreground text-xs">3-17 ans</p>
                   </div>
                   <Button
                     variant="outline"
@@ -414,13 +473,32 @@ export function HotelsTunisieSearch() {
                   </Button>
                 </div>
 
-                {/* Children Age Selectors */}
+                {/* Babies Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Bébés</p>
+                    <p className="text-muted-foreground text-xs">0-2 ans</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={addBaby}
+                    disabled={childrenAges.length >= 4}
+                  >
+                    <Plus className="mr-1 size-3" />
+                    Ajouter
+                  </Button>
+                </div>
+
+                {/* Children/Babies Age Selectors — un seul tableau d'âges
+                    partagé (voir commentaire du state childrenAges) */}
                 {childrenAges.length > 0 && (
                   <div className="border-muted space-y-2 border-l-2 pl-2">
                     {childrenAges.map((age, index) => (
                       <div key={index} className="flex items-center gap-3">
                         <span className="text-muted-foreground w-16 text-sm">
-                          Enfant {index + 1}
+                          {age <= 2 ? "Bébé" : "Enfant"} {index + 1}
                         </span>
                         <select
                           value={age}

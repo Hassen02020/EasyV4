@@ -143,17 +143,48 @@ export function validateSearchDateRange(
 }
 
 /**
- * Exécute la recherche myGo pour une query déjà validée (schéma + dates) et
- * renvoie la réponse HTTP prête à l'emploi (démo, dégradé, ou résultats
- * réels dédupliqués). Ni authentification ni rate-limiting ici — la
- * responsabilité de l'appelant (`route.ts`).
+ * Résultat "données pures" d'une recherche myGo — sans mise en forme HTTP
+ * (pas de `NextResponse`, pas de headers). Permet à un Server Component
+ * (ex. `/pro/(app)/hotels/page.tsx`, Phase 8) d'appeler directement le
+ * moteur partagé sans passer par un aller-retour HTTP vers sa propre route
+ * API — tout en restant l'unique implémentation (route handlers ET Server
+ * Components appellent ce même code, jamais deux moteurs distincts).
  */
-export async function executeHotelSearch(
+export type HotelSearchRunResult =
+  | {
+      ok: true
+      dto: HotelSearchResultDTO
+      degraded: boolean
+      degradedReason?: string
+      fromStaleCache: boolean
+      isDemoMode?: boolean
+    }
+  | {
+      ok: false
+      status: number
+      error: string
+      message?: string
+      retryAfterSeconds?: number
+    }
+
+/**
+ * Exécute la recherche myGo pour une query déjà validée (schéma + dates) et
+ * renvoie un résultat pur (démo, dégradé, ou résultats réels dédupliqués).
+ * Ni authentification ni rate-limiting ici — la responsabilité de
+ * l'appelant (`route.ts` ou Server Component).
+ */
+export async function runHotelSearch(
   q: HotelSearchQuery,
-): Promise<NextResponse> {
+): Promise<HotelSearchRunResult> {
   if (isDemoMode()) {
-    return demoSearchResponse(q.cityId)
+    return demoSearchResult(q.cityId)
   }
+  return runRealHotelSearch(q)
+}
+
+async function runRealHotelSearch(
+  q: HotelSearchQuery,
+): Promise<HotelSearchRunResult> {
 
   const searchInput = {
     cityId: q.cityId,
@@ -189,23 +220,22 @@ export async function executeHotelSearch(
         count: s.count,
         offers: Array.isArray(s.hotels) ? s.hotels : [],
       }
-      return NextResponse.json(dto, {
-        status: 200,
-        headers: {
-          "Cache-Control": "no-store",
-          "X-Degraded-Mode": "1",
-          "X-Degraded-Reason": fallbackResult.reason,
-        },
-      })
+      return {
+        ok: true,
+        dto,
+        degraded: true,
+        degradedReason: fallbackResult.reason,
+        fromStaleCache: false,
+      }
     }
-    return NextResponse.json(
-      {
-        error: "service_unavailable",
-        message:
-          "Le service hôtelier est temporairement indisponible. Veuillez réessayer dans quelques instants.",
-      },
-      { status: 503, headers: { "Retry-After": "120" } },
-    )
+    return {
+      ok: false,
+      status: 503,
+      error: "service_unavailable",
+      message:
+        "Le service hôtelier est temporairement indisponible. Veuillez réessayer dans quelques instants.",
+      retryAfterSeconds: 120,
+    }
   }
 
   const result = fallbackResult.data
@@ -217,22 +247,61 @@ export async function executeHotelSearch(
       count: offers.length,
       offers,
     }
-    const headers: HeadersInit = {
-      "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+    return {
+      ok: true,
+      dto,
+      degraded: false,
+      fromStaleCache: fallbackResult.fromStaleCache,
     }
-    if (fallbackResult.fromStaleCache)
-      (headers as Record<string, string>)["X-From-Cache"] = "1"
-    return NextResponse.json(dto, { status: 200, headers })
   } catch (err) {
-    return mapErrorToResponse(err)
+    return mapErrorToRunResult(err)
   }
 }
 
-function demoSearchResponse(cityId: number): NextResponse {
+/**
+ * Exécute la recherche myGo et renvoie directement la réponse HTTP prête à
+ * l'emploi — utilisé par les route handlers (`/api/hotels/search*`).
+ * Fine couche de mise en forme HTTP au-dessus de `runHotelSearch`.
+ */
+export async function executeHotelSearch(
+  q: HotelSearchQuery,
+): Promise<NextResponse> {
+  const result = await runHotelSearch(q)
+
+  if (!result.ok) {
+    const headers: Record<string, string> = {}
+    if (result.retryAfterSeconds != null) {
+      headers["Retry-After"] = String(result.retryAfterSeconds)
+    }
+    return NextResponse.json(
+      { error: result.error, message: result.message },
+      { status: result.status, headers },
+    )
+  }
+
+  if (result.degraded) {
+    return NextResponse.json(result.dto, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Degraded-Mode": "1",
+        "X-Degraded-Reason": result.degradedReason ?? "",
+      },
+    })
+  }
+
+  const headers: Record<string, string> = result.isDemoMode
+    ? { "x-demo-mode": "1" }
+    : { "Cache-Control": "public, max-age=300, stale-while-revalidate=60" }
+  if (result.fromStaleCache) headers["X-From-Cache"] = "1"
+  return NextResponse.json(result.dto, { status: 200, headers })
+}
+
+function demoSearchResult(cityId: number): HotelSearchRunResult {
   const parsed = HotelSearchResponse.safeParse(hotelSearchFixture)
   if (!parsed.success || !parsed.data.HotelSearch) {
     const empty: HotelSearchResultDTO = { count: 0, offers: [] }
-    return NextResponse.json(empty, { status: 200 })
+    return { ok: true, dto: empty, degraded: false, fromStaleCache: false }
   }
   const rawOffers = parsed.data.HotelSearch.filter(
     (h) => h.Hotel?.City?.Id === cityId,
@@ -245,30 +314,32 @@ function demoSearchResponse(cityId: number): NextResponse {
     count: offers.length,
     offers,
   }
-  return NextResponse.json(dto, {
-    status: 200,
-    headers: { "x-demo-mode": "1" },
-  })
+  return {
+    ok: true,
+    dto,
+    degraded: false,
+    fromStaleCache: false,
+    isDemoMode: true,
+  }
 }
 
-function mapErrorToResponse(err: unknown): NextResponse {
+function mapErrorToRunResult(err: unknown): HotelSearchRunResult {
   if (err instanceof MyGoAuthError) {
-    return NextResponse.json(
-      { error: "auth_failed", message: "myGo credentials invalid" },
-      { status: 502 },
-    )
+    return {
+      ok: false,
+      status: 502,
+      error: "auth_failed",
+      message: "myGo credentials invalid",
+    }
   }
   if (err instanceof MyGoError) {
-    return NextResponse.json(
-      { error: err.kind, message: err.message },
-      { status: 502 },
-    )
+    return { ok: false, status: 502, error: err.kind, message: err.message }
   }
-  return NextResponse.json(
-    {
-      error: "internal",
-      message: err instanceof Error ? err.message : "unknown",
-    },
-    { status: 500 },
-  )
+  return {
+    ok: false,
+    status: 500,
+    error: "internal",
+    message: err instanceof Error ? err.message : "unknown",
+  }
 }
+

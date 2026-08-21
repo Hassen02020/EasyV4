@@ -14,66 +14,78 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-const LOCATIONS = [
-  { value: "TUN_AIRPORT", label: "Aéroport Tunis-Carthage" },
-  { value: "MIR_AIRPORT", label: "Aéroport Monastir" },
-  { value: "DJE_AIRPORT", label: "Aéroport Djerba" },
-  { value: "SFA_AIRPORT", label: "Aéroport Sfax" },
-  { value: "TUNIS_CENTRE", label: "Tunis Centre-Ville" },
-  { value: "SOUSSE", label: "Sousse" },
-  { value: "HAMMAMET", label: "Hammamet" },
-  { value: "NABEUL", label: "Nabeul" },
-  { value: "BIZERTE", label: "Bizerte" },
-  { value: "GABES", label: "Gabès" },
-]
-
-const CATEGORIES = [
-  { value: "economy", label: "Économique (Clio, Peugeot 208…)" },
-  { value: "compact", label: "Compacte (Golf, Focus…)" },
-  { value: "suv", label: "SUV (Duster, Tucson…)" },
-  { value: "minivan", label: "Monospace / Van (7 places)" },
-  { value: "premium", label: "Premium (BMW, Mercedes…)" },
-]
+import type { CarLocation, CarCategory } from "@/lib/db/schema"
 
 /**
- * Le moteur de recherche rapide de la page d'accueil (booking-engine.tsx
- * ::CarForm) utilise ses propres clés de lieu/catégorie, différentes de
- * celles de cette page (LOCATIONS/CATEGORIES ci-dessus, alignées sur le
- * catalogue réel de location de voiture). On ne fait correspondre que les
- * paires dont le lieu/la catégorie désignent sans ambiguïté la même chose
- * — pas de correspondance approximative entre deux aéroports distincts.
+ * Le moteur de recherche rapide de la page d'accueil
+ * (booking-engine.tsx::CarForm) envoie des slugs fixes ("tunis-airport",
+ * "hammamet"…) qui ne correspondent à aucun id réel de `car_locations`
+ * (uuid généré à la création de chaque lieu par l'agence). On ne
+ * présélectionne que si on peut faire correspondre le slug à un lieu réel
+ * sans ambiguïté (code aéroport IATA ou nom de ville) — jamais une valeur
+ * inventée si rien ne correspond.
  */
-const LOCATION_FROM_HOME: Record<string, string> = {
-  "tunis-airport": "TUN_AIRPORT",
-  "djerba-airport": "DJE_AIRPORT",
-  hammamet: "HAMMAMET",
-  sousse: "SOUSSE",
+const AIRPORT_CODE_FROM_HOME: Record<string, string> = {
+  "tunis-airport": "TUN",
+  "djerba-airport": "DJE",
+}
+const CITY_FROM_HOME: Record<string, string> = {
+  hammamet: "Hammamet",
+  sousse: "Sousse",
 }
 
-const CATEGORY_FROM_HOME: Record<string, string> = {
+function matchLocation(input: string | undefined, locations: CarLocation[]): string {
+  if (!input) return ""
+  const code = AIRPORT_CODE_FROM_HOME[input]
+  if (code) {
+    const byCode = locations.find((l) => l.airportCode === code)
+    if (byCode) return byCode.id
+  }
+  const city = CITY_FROM_HOME[input]
+  if (city) {
+    const byCity = locations.find((l) => l.city.toLowerCase() === city.toLowerCase())
+    if (byCity) return byCity.id
+  }
+  return ""
+}
+
+const CATEGORY_CODE_FROM_HOME: Record<string, string> = {
   economique: "economy",
   compacte: "compact",
   suv: "suv",
   luxe: "premium",
 }
 
-export function CarSearch({
-  initialLocation,
-  initialPickupDate,
-  initialReturnDate,
-  initialCategory,
-}: {
+function matchCategory(input: string | undefined, categories: CarCategory[]): string {
+  if (!input) return ""
+  const code = CATEGORY_CODE_FROM_HOME[input]
+  if (!code) return ""
+  const byCode = categories.find((c) => c.code.toLowerCase() === code)
+  return byCode?.id ?? ""
+}
+
+interface CarSearchProps {
+  locations: CarLocation[]
+  categories: CarCategory[]
   initialLocation?: string
   initialPickupDate?: string
   initialReturnDate?: string
   initialCategory?: string
-} = {}) {
+}
+
+export function CarSearch({
+  locations,
+  categories,
+  initialLocation,
+  initialPickupDate,
+  initialReturnDate,
+  initialCategory,
+}: CarSearchProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const [pickupLocation, setPickupLocation] = useState(
-    () => LOCATION_FROM_HOME[initialLocation ?? ""] ?? "",
+  const [pickupLocation, setPickupLocation] = useState(() =>
+    matchLocation(initialLocation, locations),
   )
   const [dropoffLocation, setDropoffLocation] = useState("")
   const [sameDropoff, setSameDropoff] = useState(true)
@@ -87,11 +99,13 @@ export function CarSearch({
       : (initialReturnDate ?? ""),
   )
   const [returnTime, setReturnTime] = useState("10:00")
-  const [category, setCategory] = useState(
-    () => CATEGORY_FROM_HOME[initialCategory ?? ""] ?? "",
-  )
+  const [category, setCategory] = useState(() => matchCategory(initialCategory, categories))
 
   function handleSearch() {
+    if (locations.length === 0) {
+      toast.error("Aucun lieu de prise en charge disponible pour le moment.")
+      return
+    }
     if (!pickupLocation) {
       toast.error("Veuillez sélectionner un lieu de prise en charge.")
       return
@@ -137,11 +151,17 @@ export function CarSearch({
               <SelectValue placeholder="Sélectionner…" />
             </SelectTrigger>
             <SelectContent>
-              {LOCATIONS.map((l) => (
-                <SelectItem key={l.value} value={l.value}>
-                  {l.label}
+              {locations.length === 0 ? (
+                <SelectItem value="_" disabled>
+                  Aucun lieu disponible
                 </SelectItem>
-              ))}
+              ) : (
+                locations.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -166,7 +186,7 @@ export function CarSearch({
           {sameDropoff ? (
             <div className="flex h-10 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
               {pickupLocation
-                ? LOCATIONS.find((l) => l.value === pickupLocation)?.label
+                ? locations.find((l) => l.id === pickupLocation)?.name
                 : "Identique à la prise en charge"}
             </div>
           ) : (
@@ -175,9 +195,9 @@ export function CarSearch({
                 <SelectValue placeholder="Sélectionner…" />
               </SelectTrigger>
               <SelectContent>
-                {LOCATIONS.map((l) => (
-                  <SelectItem key={l.value} value={l.value}>
-                    {l.label}
+                {locations.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -241,9 +261,9 @@ export function CarSearch({
               <SelectValue placeholder="Toutes catégories" />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.label}
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
                 </SelectItem>
               ))}
             </SelectContent>

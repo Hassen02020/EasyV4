@@ -4,8 +4,10 @@ import {
   applyMargin,
   applyMarginsToHotel,
   applyMarginsToOffers,
+  applyMarginToHotelOffer,
   DEFAULT_MARGINS,
   marginDelta,
+  type MarginMap,
   type MarginRule,
 } from "../pricing"
 
@@ -73,6 +75,44 @@ test("applyMarginsToOffers : marge appliquée à chaque RoomOffer", () => {
   const out = applyMarginsToOffers(offers, map)
   assert.equal(out[0]!.price, 625)
   assert.equal(out[1]!.price, 1525)
+})
+
+test("applyMarginToHotelOffer : marque le prix de chaque chambre et fromPrice, immuablement", () => {
+  const margins: MarginMap = { ...DEFAULT_MARGINS, hotel: percent10 }
+  const offer = {
+    fromPrice: 250,
+    boardings: [
+      {
+        pax: [
+          {
+            rooms: [
+              { price: 250 },
+              { price: 380 },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+  const original = JSON.parse(JSON.stringify(offer))
+  const marked = applyMarginToHotelOffer(offer, margins)
+
+  assert.equal(marked.fromPrice, 275) // 250 * 1.10
+  assert.equal(marked.boardings[0]!.pax[0]!.rooms[0]!.price, 275)
+  assert.equal(marked.boardings[0]!.pax[0]!.rooms[1]!.price, 418) // 380 * 1.10
+  // Immutabilité : l'offre d'origine n'est pas modifiée.
+  assert.deepEqual(offer, original)
+})
+
+test("applyMarginToHotelOffer : marge inactive laisse les prix inchangés", () => {
+  const margins: MarginMap = {
+    ...DEFAULT_MARGINS,
+    hotel: { marginType: "percent", marginValue: 10, isActive: false },
+  }
+  const offer = { fromPrice: 250, boardings: [{ pax: [{ rooms: [{ price: 250 }] }] }] }
+  const marked = applyMarginToHotelOffer(offer, margins)
+  assert.equal(marked.fromPrice, 250)
+  assert.equal(marked.boardings[0]!.pax[0]!.rooms[0]!.price, 250)
 })
 
 test("DEFAULT_MARGINS contient les 6 modules", () => {

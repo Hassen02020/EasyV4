@@ -3,14 +3,26 @@
 import { useState } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { ChevronDown, Star, X } from "lucide-react"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
+import { ArrowUpDown, Check, ChevronDown, SlidersHorizontal, Star, X } from "lucide-react"
 import type { HotelFacets, HotelFilterState } from "@/lib/mygo/facets"
-import { EMPTY_FILTER_STATE } from "@/lib/mygo/facets"
+import { countActiveFilters, EMPTY_FILTER_STATE } from "@/lib/mygo/facets"
+import { SORT_OPTIONS, type HotelSortMode } from "@/lib/mygo/sort"
 
 interface FilterSectionProps {
   title: string
@@ -91,7 +103,7 @@ function StarRating({ stars }: { stars: number }) {
   )
 }
 
-interface FilterSidebarProps {
+interface FilterControlsProps {
   facets: HotelFacets | null
   state: HotelFilterState
   onChange: (next: HotelFilterState) => void
@@ -101,13 +113,19 @@ interface FilterSidebarProps {
   disabled?: boolean
 }
 
-export function FilterSidebar({
+/**
+ * Contenu des filtres seul (sans le cadre `<aside>`) — extrait de
+ * `FilterSidebar` pour être réutilisé à la fois dans la sidebar desktop et
+ * dans le bottom-sheet mobile (`MobileFilterSortBar`), sans dupliquer la
+ * logique de toggle/reset.
+ */
+export function FilterControls({
   facets,
   state,
   onChange,
   currency = "TND",
   disabled = false,
-}: FilterSidebarProps) {
+}: FilterControlsProps) {
   const priceMin = facets?.priceMin ?? 0
   const priceMax = facets?.priceMax ?? 1000
   const currentRange = state.priceRange ?? [priceMin, priceMax]
@@ -134,14 +152,7 @@ export function FilterSidebar({
   const handleReset = () => onChange(EMPTY_FILTER_STATE)
 
   return (
-    <aside
-      className="bg-card border-border sticky top-20 rounded-lg border p-5"
-      aria-busy={disabled}
-    >
-      <h2 className="text-primary mb-5 text-lg font-bold">
-        Affinez vos résultats
-      </h2>
-
+    <>
       <div className="space-y-4">
         {/* Tarifs et disponibilités */}
         <FilterSection title="Tarifs et disponibilités">
@@ -268,6 +279,83 @@ export function FilterSidebar({
       >
         Réinitialiser les filtres
       </button>
+    </>
+  )
+}
+
+/**
+ * Squelette affiché tant qu'aucune facette n'est encore connue (premier
+ * chargement — `facets === null`) : évite un panneau vide/à moitié rendu
+ * pendant que la recherche myGo est en cours.
+ */
+function FilterControlsSkeleton() {
+  return (
+    <div className="space-y-6" aria-hidden="true">
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-5 w-32" />
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-full rounded-full" />
+      </div>
+    </div>
+  )
+}
+
+interface FilterSidebarProps {
+  facets: HotelFacets | null
+  state: HotelFilterState
+  onChange: (next: HotelFilterState) => void
+  /** Devise (TND par défaut) — affichée en suffixe du curseur de prix. */
+  currency?: string
+  /** Désactive l'interaction si true (ex. pendant le loading). */
+  disabled?: boolean
+  /**
+   * Recherche en cours (pas encore de réponse) — distinct de "réponse reçue,
+   * zéro résultat" : les deux produisent `facets === null` (aucune offre
+   * pour calculer des facets), mais seul le premier justifie un squelette.
+   * Sans ce signal explicite, un résultat de recherche légitimement vide
+   * afficherait un squelette de chargement indéfiniment — un mensonge d'UI.
+   */
+  loading?: boolean
+}
+
+/** Sidebar desktop — cadre `<aside>` + squelette de chargement + `FilterControls`. */
+export function FilterSidebar({
+  facets,
+  state,
+  onChange,
+  currency = "TND",
+  disabled = false,
+  loading = false,
+}: FilterSidebarProps) {
+  return (
+    <aside
+      className="bg-card border-border sticky top-20 rounded-lg border p-5"
+      aria-busy={disabled}
+    >
+      <h2 className="text-primary mb-5 text-lg font-bold">
+        Affinez vos résultats
+      </h2>
+      {loading ? (
+        <FilterControlsSkeleton />
+      ) : (
+        <FilterControls
+          facets={facets}
+          state={state}
+          onChange={onChange}
+          currency={currency}
+          disabled={disabled}
+        />
+      )}
     </aside>
   )
 }
@@ -375,6 +463,128 @@ export function FilterChips({
       >
         Effacer tous les filtres
       </button>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mobile — bottom-sheets Vaul dédiés Filtres / Tri.                          */
+/*                                                                            */
+/* Desktop garde la sidebar + le SortSelect existants inchangés (masqués ici */
+/* via `lg:hidden` côté page). Sur mobile, la sidebar empilée verticalement  */
+/* forçait à faire défiler tous les filtres avant d'atteindre le premier     */
+/* résultat — remplacée par deux boutons dédiés ("Filtres"/"Trier") ouvrant  */
+/* chacun un bottom-sheet, sur le composant `Drawer` déjà basé sur Vaul      */
+/* (`components/ui/drawer.tsx`, déjà une dépendance du projet).             */
+/* -------------------------------------------------------------------------- */
+
+interface MobileFilterSortBarProps {
+  facets: HotelFacets | null
+  filterState: HotelFilterState
+  onFilterChange: (next: HotelFilterState) => void
+  sortMode: HotelSortMode
+  onSortChange: (mode: HotelSortMode) => void
+  currency?: string
+  disabled?: boolean
+  /** Recherche en cours — voir le même commentaire sur `FilterSidebarProps.loading`. */
+  loading?: boolean
+  /**
+   * Au moins un résultat à trier — masque/désactive le déclencheur "Trier"
+   * quand la recherche a répondu avec zéro offre, même comportement que le
+   * `SortSelect` desktop (`status === "success" && sortedOffers.length > 0`).
+   */
+  hasResults?: boolean
+}
+
+export function MobileFilterSortBar({
+  facets,
+  filterState,
+  onFilterChange,
+  sortMode,
+  onSortChange,
+  currency = "TND",
+  disabled = false,
+  loading = false,
+  hasResults = true,
+}: MobileFilterSortBarProps) {
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const activeCount = countActiveFilters(filterState, facets)
+  const currentSortLabel =
+    SORT_OPTIONS.find((opt) => opt.value === sortMode)?.label ?? SORT_OPTIONS[0]!.label
+
+  return (
+    <div className="mb-4 flex gap-2 lg:hidden">
+      <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DrawerTrigger asChild>
+          <Button variant="outline" size="sm" className="flex-1 gap-2" disabled={disabled}>
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filtres
+            {activeCount > 0 && (
+              <span className="bg-primary text-primary-foreground ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold">
+                {activeCount}
+              </span>
+            )}
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>Filtres</DrawerTitle>
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto px-4">
+            {loading ? (
+              <FilterControlsSkeleton />
+            ) : (
+              <FilterControls
+                facets={facets}
+                state={filterState}
+                onChange={onFilterChange}
+                currency={currency}
+                disabled={disabled}
+              />
+            )}
+          </div>
+          <DrawerFooter>
+            <DrawerClose asChild>
+              <Button className="w-full">Voir les résultats</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer>
+        <DrawerTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-2"
+            disabled={disabled || !hasResults}
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            <span className="truncate">{currentSortLabel}</span>
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Trier par</DrawerTitle>
+          </DrawerHeader>
+          <div className="flex flex-col px-2 pb-4">
+            {SORT_OPTIONS.map((opt) => (
+              <DrawerClose asChild key={opt.value}>
+                <button
+                  type="button"
+                  onClick={() => onSortChange(opt.value)}
+                  className="hover:bg-muted flex items-center justify-between rounded-lg px-3 py-3 text-left text-sm"
+                >
+                  {opt.label}
+                  {opt.value === sortMode && (
+                    <Check className="text-primary h-4 w-4" />
+                  )}
+                </button>
+              </DrawerClose>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   )
 }

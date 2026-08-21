@@ -43,8 +43,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
 import {
   Drawer,
   DrawerClose,
@@ -151,6 +149,7 @@ function TabPills({
 
   return (
     <div
+      role="tablist"
       className={cn(
         "no-scrollbar flex gap-1.5 overflow-x-auto scroll-smooth",
         className,
@@ -164,8 +163,9 @@ function TabPills({
           <button
             key={tab.id}
             type="button"
+            role="tab"
+            aria-selected={isActive}
             onClick={() => onSelect(tab.id)}
-            aria-current={isActive ? "page" : undefined}
             className={cn(
               "flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all duration-200",
               isActive
@@ -477,35 +477,49 @@ function VolsForm() {
       }}
       className="space-y-5"
     >
-      <Tabs
-        value={tripType}
-        onValueChange={(v) => {
-          const next = v as "roundtrip" | "oneway"
-          setTripType(next)
-          if (next === "roundtrip" && returnDate < departureDate) {
-            setReturnDate(departureDate)
-          }
-        }}
-      >
-        <TabsList className="bg-muted/70 h-10 rounded-full p-1">
-          <TabsTrigger
-            value="roundtrip"
-            className="gap-1.5 rounded-full data-[state=active]:shadow-sm"
+      {/* Pilules aller-retour/aller simple — pas de panneau de contenu Radix
+          associé (le contenu réel est piloté par le state `tripType`
+          ci-dessus, pas par des `TabsContent`) : boutons role="tab" simples
+          plutôt que le primitive `Tabs` de Radix, qui générait sinon un
+          `aria-controls` pointant vers un `TabsContent` jamais monté
+          (violation axe-core "aria-valid-attr-value"). */}
+      <div role="tablist" className="bg-muted/70 inline-flex h-10 gap-1 rounded-full p-1">
+        {(
+          [
+            { value: "roundtrip" as const, label: "Aller-retour", icon: ArrowLeftRight },
+            { value: "oneway" as const, label: "Aller simple", icon: null },
+          ]
+        ).map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tripType === value}
+            onClick={() => {
+              setTripType(value)
+              if (value === "roundtrip" && returnDate < departureDate) {
+                setReturnDate(departureDate)
+              }
+            }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors",
+              tripType === value
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            <ArrowLeftRight className="size-3.5" />
-            Aller-retour
-          </TabsTrigger>
-          <TabsTrigger value="oneway" className="rounded-full data-[state=active]:shadow-sm">
-            Aller simple
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+            {Icon && <Icon className="size-3.5" />}
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <div className={FIELD_SHELL}>
           <FieldLabel icon={MapPin}>Départ de</FieldLabel>
           <Input
             name="origin"
+            aria-label="Départ de"
             defaultValue="Tunis (TUN)"
             className={FIELD_INPUT_RESET}
           />
@@ -515,6 +529,7 @@ function VolsForm() {
           <FieldLabel icon={MapPin}>Destination</FieldLabel>
           <Input
             name="destination"
+            aria-label="Destination"
             defaultValue="Istanbul (IST)"
             className={FIELD_INPUT_RESET}
           />
@@ -524,6 +539,7 @@ function VolsForm() {
           <FieldLabel icon={CalendarDays}>Date de départ</FieldLabel>
           <Input
             type="date"
+            aria-label="Date de départ"
             value={departureDate}
             min={TODAY_ISO}
             onChange={(e) => {
@@ -545,6 +561,7 @@ function VolsForm() {
           <FieldLabel icon={CalendarDays}>Date de retour</FieldLabel>
           <Input
             type="date"
+            aria-label="Date de retour"
             value={returnDate}
             min={departureDate}
             disabled={tripType === "oneway"}
@@ -601,7 +618,7 @@ function VolsForm() {
         <div className={FIELD_SHELL}>
           <FieldLabel icon={Briefcase}>Classe</FieldLabel>
           <Select value={travelClass} onValueChange={setTravelClass}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
+            <SelectTrigger aria-label="Classe" className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
               <SelectValue placeholder="Classe" />
             </SelectTrigger>
 

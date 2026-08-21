@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { HotelCard } from "@/components/hotel-card"
@@ -187,6 +188,10 @@ interface HotelListingsProps {
    * fiche hôtel pour que l'état survive l'aller-retour. */
   currentSearchQuery?: string
   onBookHotel?: (data: BookingData) => void
+  /** Réinitialise les filtres actifs — affiché dans l'état vide "0 résultat
+   * après filtrage" uniquement (pas de fausse action si la recherche myGo
+   * elle-même n'a renvoyé aucun hôtel : voir `cardHotels.length === 0`). */
+  onClearFilters?: () => void
 }
 
 export function HotelListings({
@@ -207,6 +212,7 @@ export function HotelListings({
   activeBoardFilters = [],
   currentSearchQuery,
   onBookHotel,
+  onClearFilters,
 }: HotelListingsProps) {
   const router = useRouter()
 
@@ -368,11 +374,49 @@ export function HotelListings({
       </div>
 
       <div className="space-y-4">
-        {cardHotels.length === 0 && (
-          <div className="border-border text-muted-foreground rounded-lg border p-6 text-sm">
-            Aucun hôtel ne correspond aux filtres sélectionnés.
-          </div>
-        )}
+        {cardHotels.length === 0 &&
+          (totalCount === 0 ? (
+            // Zéro hôtel renvoyé par myGo lui-même (pas un effet des filtres
+            // client) — proposer de changer la recherche, pas d'effacer des
+            // filtres qui n'y sont pour rien.
+            <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
+              <p className="font-medium text-foreground">
+                Aucun hôtel disponible pour cette recherche
+              </p>
+              <p className="mt-1">
+                Essayez d&apos;autres dates ou une autre destination.
+              </p>
+              <Link
+                href="/"
+                className="text-primary mt-3 inline-block text-sm font-medium hover:underline"
+              >
+                Modifier la recherche
+              </Link>
+            </div>
+          ) : (
+            // Des hôtels existent (totalCount > 0) mais les filtres actifs
+            // les excluent tous — l'action réelle est d'effacer les filtres,
+            // pas de changer la recherche elle-même.
+            <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
+              <p className="font-medium text-foreground">
+                Aucun hôtel ne correspond aux filtres sélectionnés
+              </p>
+              <p className="mt-1">
+                {totalCount} hôtel{totalCount > 1 ? "s" : ""} trouvé
+                {totalCount > 1 ? "s" : ""} pour cette recherche — essayez
+                d&apos;élargir vos filtres.
+              </p>
+              {onClearFilters && (
+                <button
+                  type="button"
+                  onClick={onClearFilters}
+                  className="text-primary mt-3 text-sm font-medium hover:underline"
+                >
+                  Effacer tous les filtres
+                </button>
+              )}
+            </div>
+          ))}
         {cardHotels.map((hotel) => (
           <HotelCard
             key={hotel.id}

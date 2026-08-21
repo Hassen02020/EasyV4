@@ -16,6 +16,8 @@ import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown } from "./pricing"
 import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -259,10 +261,25 @@ export async function createReservationFromDraft(input: {
 
   // Le total myGo (quand disponible) fait foi — le brouillon est un token
   // base64url non signé, donc `draft.unitPriceTnd` n'est pas fiable à 100 %.
+  //
+  // Phase 9 : `createReservationFromDraft` n'est atteignable qu'avec une
+  // session résolue par `getCurrentPartnerProfile` ci-dessus (agence
+  // `agency_type = 'partner'` par construction — voir Cas 1/Cas 2 de
+  // `lib/auth/partner-profile.ts`, aucune autre voie n'existe vers cette
+  // action). Le montant réellement débité doit donc toujours être le prix
+  // AGENCE (marge appliquée), jamais le prix net fournisseur — sinon
+  // brancher le pont B2B hôtel (Phase 9) sur ce pipeline aurait débité les
+  // agences au prix net myGo, sans aucune marge, pour toute réservation
+  // hôtel réellement confirmée. Marge existante réutilisée telle quelle
+  // (`applyMargin`, `getMarginsForAgency`) — pas une deuxième formule.
+  const agencyHotelPrice = myGoBooking
+    ? applyMargin(myGoBooking.totalPrice, (await getMarginsForAgency(agencyId, authUserId)).hotel)
+    : null
+
   const breakdown = computePriceBreakdown(
     myGoBooking
       ? {
-          ...authoritativeUnitPrice(myGoBooking.totalPrice, draft.adults),
+          ...authoritativeUnitPrice(agencyHotelPrice ?? myGoBooking.totalPrice, draft.adults),
           adults: draft.adults,
           children: draft.children,
         }

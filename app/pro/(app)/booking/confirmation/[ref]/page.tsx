@@ -11,6 +11,7 @@ import {
   ArrowRight,
   BedDouble,
   User,
+  Download,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -167,6 +168,14 @@ export default async function ProBookingConfirmationPage({
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
           </Button>
+          {reservation ? (
+            <Button asChild variant="outline" className="flex-1 rounded-xl">
+              <a href={`/api/pro/reservations/${reservation.id}/voucher`} target="_blank" rel="noopener noreferrer">
+                <Download className="mr-1.5 h-4 w-4" />
+                Télécharger le voucher
+              </a>
+            </Button>
+          ) : null}
           <Button asChild variant="outline" className="flex-1 rounded-xl">
             <Link href="/pro">Nouvelle recherche</Link>
           </Button>

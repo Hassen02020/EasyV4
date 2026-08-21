@@ -9,6 +9,7 @@ import {
   validateSearchDateRange,
   HotelSearchQuerySchema,
   MAX_SEARCH_NIGHTS,
+  runHotelSearch,
 } from "../search-core"
 
 test("validateSearchDateRange : accepte un séjour valide", () => {
@@ -96,5 +97,44 @@ test("HotelSearchQuerySchema : n'accepte aucun champ de prix/agence/wallet côt�
     assert.equal("agencyId" in data, false)
     assert.equal("walletId" in data, false)
     assert.equal("partnerId" in data, false)
+  }
+})
+
+// runHotelSearch — pas de MYGO_LOGIN dans cet environnement de test, donc
+// isDemoMode() est vrai : ces tests exercent le même chemin fixture que
+// /api/hotels/search et /api/hotels/search-public en local/preview, et
+// confirment que le refactor executeHotelSearch -> runHotelSearch (Phase 8,
+// pour réutilisation directe côté Server Component B2B) n'a rien changé au
+// comportement en mode démo.
+
+test("runHotelSearch (démo) : renvoie les offres réelles du fixture pour une ville connue", async () => {
+  const q = HotelSearchQuerySchema.parse({
+    cityId: "10",
+    checkin: "2026-09-01",
+    checkout: "2026-09-05",
+    adults: "2",
+  })
+  const result = await runHotelSearch(q)
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.isDemoMode, true)
+    assert.equal(result.degraded, false)
+    assert.ok(result.dto.count > 0)
+    assert.equal(result.dto.offers.length, result.dto.count)
+  }
+})
+
+test("runHotelSearch (démo) : ville inconnue du fixture renvoie zéro résultat, pas une erreur", async () => {
+  const q = HotelSearchQuerySchema.parse({
+    cityId: "999999",
+    checkin: "2026-09-01",
+    checkout: "2026-09-05",
+    adults: "2",
+  })
+  const result = await runHotelSearch(q)
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.dto.count, 0)
+    assert.deepEqual(result.dto.offers, [])
   }
 })

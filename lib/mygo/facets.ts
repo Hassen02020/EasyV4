@@ -234,3 +234,33 @@ export function applyFilters(
     return true
   })
 }
+
+/**
+ * Nombre de filtres actuellement actifs — pour le badge du bouton "Filtres"
+ * du bottom-sheet mobile (`MobileFilterSortBar`). Compte chaque valeur
+ * cochée individuellement (ex. 2 étoiles cochées = 2), même logique que les
+ * chips affichées par `FilterChips` (plage de prix comptée seulement si
+ * réellement resserrée par rapport à `facets`, jamais sur une valeur par défaut).
+ */
+export function countActiveFilters(
+  state: HotelFilterState,
+  facets: HotelFacets | null,
+): number {
+  let count =
+    state.stars.length +
+    state.boardings.length +
+    state.facilities.length +
+    (state.recommendedOnly ? 1 : 0) +
+    (state.freeCancellationOnly ? 1 : 0) +
+    (state.availableOnly ? 1 : 0)
+
+  if (
+    state.priceRange &&
+    facets &&
+    (state.priceRange[0] > facets.priceMin || state.priceRange[1] < facets.priceMax)
+  ) {
+    count += 1
+  }
+
+  return count
+}

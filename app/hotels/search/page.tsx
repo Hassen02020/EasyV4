@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { SearchHeader } from "@/components/search-header"
-import { FilterSidebar, FilterChips } from "@/components/filter-sidebar"
+import { FilterSidebar, FilterChips, MobileFilterSortBar } from "@/components/filter-sidebar"
 import { HotelListings } from "@/components/hotel-listings"
 import { useHotelSearch } from "@/lib/mygo/use-hotel-search"
 import {
@@ -24,6 +24,7 @@ import {
 } from "@/lib/mygo/sort"
 import { SortSelect } from "@/components/sort-select"
 import { encodeDraft } from "@/lib/booking/draft-store"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface BookingData {
   id: number
@@ -180,17 +181,29 @@ function HotelSearchContent() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="flex flex-col gap-6 lg:flex-row">
-          <div className="w-full shrink-0 lg:w-1/4">
+          <div className="hidden shrink-0 lg:block lg:w-1/4">
             <FilterSidebar
               facets={facets}
               state={filters}
               onChange={updateFilters}
               currency={currency}
               disabled={status !== "success"}
+              loading={status === "loading"}
             />
           </div>
 
           <div className="flex-1">
+            <MobileFilterSortBar
+              facets={facets}
+              filterState={filters}
+              onFilterChange={updateFilters}
+              sortMode={sortMode}
+              onSortChange={updateSort}
+              currency={currency}
+              disabled={status !== "success"}
+              loading={status === "loading"}
+              hasResults={status === "success" && sortedOffers.length > 0}
+            />
             <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
               <FilterChips
                 state={filters}
@@ -199,7 +212,9 @@ function HotelSearchContent() {
                 onChange={updateFilters}
               />
               {status === "success" && sortedOffers.length > 0 && (
-                <SortSelect value={sortMode} onChange={updateSort} />
+                <div className="hidden lg:block">
+                  <SortSelect value={sortMode} onChange={updateSort} />
+                </div>
               )}
             </div>
             <HotelListings
@@ -228,9 +243,45 @@ function HotelSearchContent() {
   )
 }
 
+/**
+ * Squelette de la coquille de page — visible seulement le temps que
+ * `useSearchParams()` (frontière Suspense côté client) se résolve, avant
+ * même que `useHotelSearch` ne démarre sa propre requête. Évite un flash de
+ * page blanche plutôt qu'un état de chargement piloté par de vraies données.
+ */
+function HotelSearchPageSkeleton() {
+  return (
+    <div className="bg-background min-h-screen" aria-hidden="true">
+      <div className="border-border border-b px-4 py-4">
+        <div className="mx-auto max-w-7xl">
+          <Skeleton className="h-6 w-56" />
+        </div>
+      </div>
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <div className="hidden shrink-0 lg:block lg:w-1/4">
+            <div className="bg-card border-border space-y-4 rounded-lg border p-5">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </div>
+          <div className="flex-1 space-y-4">
+            <Skeleton className="h-8 w-72" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-56 w-full" />
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
 export default function HotelSearchPage() {
   return (
-    <Suspense fallback={<div className="bg-background min-h-screen" />}>
+    <Suspense fallback={<HotelSearchPageSkeleton />}>
       <HotelSearchContent />
     </Suspense>
   )

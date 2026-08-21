@@ -9,9 +9,11 @@ import assert from "node:assert/strict"
 import {
   applyFilters,
   computeFacets,
+  countActiveFilters,
   EMPTY_FILTER_STATE,
   filtersFromSearchParams,
   filtersToSearchParams,
+  type HotelFacets,
   type HotelFilterState,
 } from "../facets"
 import type { HotelOfferDTO } from "../types"
@@ -303,4 +305,42 @@ test("filtersFromSearchParams : ignore un f_price malformé", () => {
   const params = new URLSearchParams({ f_price: "abc-def" })
   const decoded = filtersFromSearchParams(params)
   assert.equal(decoded.priceRange, null)
+})
+
+const SAMPLE_FACETS: HotelFacets = {
+  stars: [],
+  boardings: [],
+  facilities: [],
+  priceMin: 100,
+  priceMax: 900,
+  recommendedCount: 0,
+  freeCancellationCount: 0,
+  availableCount: 0,
+}
+
+test("countActiveFilters : état vide = 0", () => {
+  assert.equal(countActiveFilters(EMPTY_FILTER_STATE, SAMPLE_FACETS), 0)
+  assert.equal(countActiveFilters(EMPTY_FILTER_STATE, null), 0)
+})
+
+test("countActiveFilters : compte chaque valeur cochée individuellement", () => {
+  const filters: HotelFilterState = {
+    ...EMPTY_FILTER_STATE,
+    stars: [4, 5],
+    boardings: ["All Inclusive"],
+    recommendedOnly: true,
+  }
+  assert.equal(countActiveFilters(filters, SAMPLE_FACETS), 4)
+})
+
+test("countActiveFilters : plage de prix comptée seulement si resserrée par rapport aux facets", () => {
+  const atDefault: HotelFilterState = { ...EMPTY_FILTER_STATE, priceRange: [100, 900] }
+  assert.equal(countActiveFilters(atDefault, SAMPLE_FACETS), 0)
+
+  const narrowed: HotelFilterState = { ...EMPTY_FILTER_STATE, priceRange: [200, 800] }
+  assert.equal(countActiveFilters(narrowed, SAMPLE_FACETS), 1)
+
+  // Sans facets connus (chargement), on ne peut pas savoir si la plage est
+  // "resserrée" par rapport à quoi que ce soit — ne pas la compter.
+  assert.equal(countActiveFilters(narrowed, null), 0)
 })

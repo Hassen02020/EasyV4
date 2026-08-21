@@ -15,20 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-const AIRPORTS = [
-  { code: "TUN", label: "Tunis–Carthage (TUN)" },
-  { code: "SFA", label: "Sfax–Thyna (SFA)" },
-  { code: "TOE", label: "Tozeur–Nefta (TOE)" },
-  { code: "MIR", label: "Monastir Habib Bourguiba (MIR)" },
-  { code: "DJE", label: "Djerba–Zarzis (DJE)" },
-  { code: "CDG", label: "Paris Charles de Gaulle (CDG)" },
-  { code: "ORY", label: "Paris Orly (ORY)" },
-  { code: "LYS", label: "Lyon Saint-Exupéry (LYS)" },
-  { code: "FCO", label: "Rome Fiumicino (FCO)" },
-  { code: "IST", label: "Istanbul (IST)" },
-  { code: "DXB", label: "Dubaï (DXB)" },
-]
+import { AIRPORTS, parseAirportInput, parseCabin, type CabinClass } from "@/lib/vols/search-state"
 
 const CABIN_CLASSES = [
   { value: "ECONOMY", label: "Économique" },
@@ -38,19 +25,11 @@ const CABIN_CLASSES = [
 ]
 
 /** Le moteur rapide de la page d'accueil envoie "Tunis (TUN)" / "Istanbul (IST)" —
- * on extrait le code IATA entre parenthèses et on vérifie qu'il existe bien
- * dans AIRPORTS avant de préremplir, plutôt que d'imposer un code inconnu. */
+ * on extrait le code IATA et on vérifie qu'il existe bien dans AIRPORTS avant
+ * de préremplir, plutôt que d'imposer un code inconnu au menu déroulant. */
 function matchAirportCode(input: string | undefined): string {
-  if (!input) return ""
-  const fromParens = input.match(/\(([A-Za-z]{3})\)\s*$/)
-  const candidate = (fromParens?.[1] ?? input).trim().toUpperCase()
-  return AIRPORTS.some((a) => a.code === candidate) ? candidate : ""
-}
-
-const CABIN_FROM_HOME: Record<string, string> = {
-  economique: "ECONOMY",
-  premium: "PREMIUM_ECONOMY",
-  business: "BUSINESS",
+  const code = parseAirportInput(input)
+  return code && AIRPORTS.some((a) => a.code === code) ? code : ""
 }
 
 export function FlightSearch({
@@ -79,9 +58,7 @@ export function FlightSearch({
     initialAdults && /^[1-9][0-9]?$/.test(initialAdults) ? initialAdults : "1",
   )
   const [children, setChildren] = useState("0")
-  const [cabin, setCabin] = useState(
-    () => CABIN_FROM_HOME[initialCabin ?? ""] ?? "ECONOMY",
-  )
+  const [cabin, setCabin] = useState(() => parseCabin(initialCabin))
 
   function swapAirports() {
     const tmp = origin
@@ -259,7 +236,7 @@ export function FlightSearch({
 
         <div className="space-y-2">
           <Label className="text-sm">Classe</Label>
-          <Select value={cabin} onValueChange={setCabin}>
+          <Select value={cabin} onValueChange={(v) => setCabin(v as CabinClass)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

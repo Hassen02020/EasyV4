@@ -1,13 +1,23 @@
 /**
  * GET /api/vols/search
  * Recherche de vols via le client lib/vols/client.ts
+ *
+ * Route publique (B2C) — corrigé lors de la reconstruction du Results
+ * Journey Vols (voir EASYV4_SEARCH_ENGINES_AUDIT_REPORT.md) : cette route
+ * exigeait `requirePartnerSession`, alors que sa seule utilisation réelle
+ * est le widget de recherche public de la homepage (`components/
+ * booking-engine.tsx` → `/vols` → `/vols/search`) — même bug de classe que
+ * celui déjà trouvé et corrigé sur `/api/hotels/search` cette session (voir
+ * EASYV4_B2C_PUBLIC_SEARCH_REPORT.md) : un visiteur anonyme tombait
+ * systématiquement sur une erreur de session au lieu de résultats. Le
+ * schéma de requête ci-dessous n'accepte aucun champ prix/marge/agence/
+ * wallet — rien à protéger derrière une session ici.
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { searchFlights } from "@/lib/vols/client"
 import { rateLimit } from "@/lib/rate-limit"
-import { requirePartnerSession } from "@/lib/api/auth-guard"
 
 export const runtime = "nodejs"
 export const revalidate = 0
@@ -23,11 +33,8 @@ const SearchSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await requirePartnerSession(req)
-  if (session instanceof NextResponse) return session
-
   const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "anon"
-  const rl = await rateLimit(ip)
+  const rl = await rateLimit(`vols:search:${ip}`)
   if (!rl.ok) {
     return NextResponse.json({ error: "Trop de requêtes" }, { status: 429 })
   }

@@ -89,6 +89,77 @@ test("sortOffers ne mute pas le tableau d'entrée", () => {
   assert.deepEqual(offers, original)
 })
 
+function makeOfferWithBoardings(
+  id: number,
+  boardings: { name: string; price: number }[],
+): HotelOfferDTO {
+  return {
+    hotel: { id, name: `Hotel ${id}`, facilities: [], themes: [] },
+    token: `token-${id}`,
+    currency: "TND",
+    fromPrice: Math.min(...boardings.map((b) => b.price)),
+    recommended: false,
+    boardings: boardings.map((b, i) => ({
+      id: i,
+      code: b.name.slice(0, 3).toUpperCase(),
+      name: b.name,
+      pax: [
+        {
+          adult: 2,
+          child: [],
+          rooms: [
+            {
+              id: 100 + i,
+              name: "Standard",
+              price: b.price,
+              stopReservation: false,
+              notRefundable: false,
+              cancellationPolicies: [],
+            },
+          ],
+        },
+      ],
+    })),
+  }
+}
+
+test("sortOffers price_asc avec filtre de pension actif : trie sur le prix de LA pension filtrée, pas sur fromPrice global", () => {
+  // Hotel 1 : moins cher globalement (RO 200), mais AI plus cher (500)
+  // Hotel 2 : plus cher globalement (RO 300), mais AI moins cher (450)
+  // Sans le fix, price_asc trierait sur fromPrice (200 < 300 -> [1, 2]),
+  // alors que les cards affichent 500 (Hotel 1) et 450 (Hotel 2) une fois
+  // le filtre "All Inclusive" actif — un ordre visuellement décroissant.
+  const hotel1 = makeOfferWithBoardings(1, [
+    { name: "Petit-déjeuner", price: 200 },
+    { name: "All Inclusive", price: 500 },
+  ])
+  const hotel2 = makeOfferWithBoardings(2, [
+    { name: "Petit-déjeuner", price: 300 },
+    { name: "All Inclusive", price: 450 },
+  ])
+  const sorted = sortOffers([hotel1, hotel2], "price_asc", ["All Inclusive"])
+  assert.deepEqual(
+    sorted.map((o) => o.hotel.id),
+    [2, 1],
+  )
+})
+
+test("sortOffers price_asc sans filtre de pension : se comporte comme avant (fromPrice global)", () => {
+  const hotel1 = makeOfferWithBoardings(1, [
+    { name: "Petit-déjeuner", price: 200 },
+    { name: "All Inclusive", price: 500 },
+  ])
+  const hotel2 = makeOfferWithBoardings(2, [
+    { name: "Petit-déjeuner", price: 300 },
+    { name: "All Inclusive", price: 450 },
+  ])
+  const sorted = sortOffers([hotel1, hotel2], "price_asc", [])
+  assert.deepEqual(
+    sorted.map((o) => o.hotel.id),
+    [1, 2],
+  )
+})
+
 test("isHotelSortMode : reconnaît uniquement les modes valides", () => {
   assert.equal(isHotelSortMode("price_asc"), true)
   assert.equal(isHotelSortMode("recommended"), true)

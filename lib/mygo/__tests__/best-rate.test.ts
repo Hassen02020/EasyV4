@@ -7,7 +7,9 @@ import assert from "node:assert/strict"
 import { selectBestRate } from "../best-rate"
 import type { HotelOfferDTO } from "../types"
 
-function makeOffer(boardings: { name: string; price: number }[]): HotelOfferDTO {
+function makeOffer(
+  boardings: { name: string; price: number; stopReservation?: boolean }[],
+): HotelOfferDTO {
   return {
     hotel: { id: 1, name: "Test Hotel", facilities: [], themes: [] },
     token: "token-1",
@@ -27,7 +29,7 @@ function makeOffer(boardings: { name: string; price: number }[]): HotelOfferDTO 
               id: 100 + i,
               name: "Standard",
               price: b.price,
-              stopReservation: false,
+              stopReservation: b.stopReservation ?? false,
               notRefundable: false,
               cancellationPolicies: [],
             },
@@ -82,4 +84,31 @@ test("selectBestRate : offre sans aucune chambre renvoie null", () => {
     boardings: [],
   }
   assert.equal(selectBestRate(offer, []), null)
+})
+
+test("selectBestRate : ignore une chambre stopReservation même moins chère (pas réellement réservable)", () => {
+  const offer = makeOffer([
+    { name: "Petit-déjeuner", price: 150, stopReservation: true },
+    { name: "All Inclusive", price: 380, stopReservation: false },
+  ])
+  const rate = selectBestRate(offer, [])
+  assert.deepEqual(rate, { price: 380, boardingName: "All Inclusive" })
+})
+
+test("selectBestRate : si TOUTES les chambres sont stopReservation, replie sur l'ensemble plutôt que de ne rien afficher", () => {
+  const offer = makeOffer([
+    { name: "Petit-déjeuner", price: 150, stopReservation: true },
+    { name: "All Inclusive", price: 380, stopReservation: true },
+  ])
+  const rate = selectBestRate(offer, [])
+  assert.deepEqual(rate, { price: 150, boardingName: "Petit-déjeuner" })
+})
+
+test("selectBestRate : filtre pension + chambre stopReservation dans la pension filtrée → ignore la stopReservation", () => {
+  const offer = makeOffer([
+    { name: "All Inclusive", price: 300, stopReservation: true },
+    { name: "All Inclusive", price: 380, stopReservation: false },
+  ])
+  const rate = selectBestRate(offer, ["All Inclusive"])
+  assert.deepEqual(rate, { price: 380, boardingName: "All Inclusive" })
 })

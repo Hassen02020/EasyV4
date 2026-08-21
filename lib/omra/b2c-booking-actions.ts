@@ -21,6 +21,7 @@ import {
   omraPackages,
   omraAllotments,
   omraPilgrims,
+  auditEvents,
 } from "@/lib/db/schema"
 import {
   B2C_DEFAULT_AGENCY_ID,
@@ -28,6 +29,7 @@ import {
   type OmraB2CBookingInput,
   type OmraB2CBookingResult,
 } from "@/lib/omra/b2c-booking-shared"
+import { queueInAppNotification } from "@/lib/notifications/dispatch"
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
@@ -223,6 +225,37 @@ export async function createOmraB2CBooking(
           updatedAt: new Date(),
         })
         .where(eq(omraAllotments.id, allotment.id))
+
+      /* 10. Événement d'audit (historique de la réservation) */
+      await tx.insert(auditEvents).values({
+        agencyId,
+        actorUserId: null,
+        entityType: "reservation",
+        entityId: reservationId,
+        action: "create",
+        diff: {
+          channel: "b2c_public",
+          module: "omra",
+          publicRef,
+          packageName: pkg.name,
+          departureDate: input.departureDate,
+          pilgrims: pilgrimCount,
+          totalTnd,
+          status: "pending",
+        },
+      })
+
+      /* 11. Notification back-office (badge admin) */
+      await queueInAppNotification(tx, {
+        agencyId,
+        type: "omra_reservation_created",
+        audience: "admin",
+        title: `Nouvelle réservation Omra ${publicRef}`,
+        body: `${pkg.name} · ${pilgrimCount} pèlerin(s) · ${totalTnd.toLocaleString("fr-FR")} TND · ${input.contactFirstName} ${input.contactLastName}`,
+        entityType: "reservation",
+        entityId: reservationId,
+        metadata: { publicRef, module: "omra" },
+      })
 
       return { reservationId, publicRef }
     })

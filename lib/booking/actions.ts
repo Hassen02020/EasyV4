@@ -259,8 +259,43 @@ export async function createReservationFromDraft(input: {
     ? providerConfirmation.providerMeta
     : null
 
-  // Le total myGo (quand disponible) fait foi — le brouillon est un token
-  // base64url non signé, donc `draft.unitPriceTnd` n'est pas fiable à 100 %.
+  // SÉCURITÉ (Phase 11, P0) : `draft` provient de `decodeDraft()`, un token
+  // base64url NON SIGNÉ (voir lib/booking/draft-store.ts) — n'importe quel
+  // compte partenaire authentifié peut forger un draft avec
+  // `unitPriceTnd` arbitraire (ex. 0.001 DT) via
+  // `bootstrapDraftFromParams()` (app/booking/page.tsx), qui lit
+  // `unitPriceTnd` directement depuis la query string sans validation
+  // contre une offre réelle. Avant ce correctif, quand `myGoBooking` était
+  // `null` — donc pour TOUT module autre que "hotel", ET pour "hotel" avec
+  // des métadonnées myGo absentes/invalides — le prix débité tombait sur
+  // `draft.unitPriceTnd`, entièrement contrôlé par le client : un compte
+  // partenaire pouvait se faire débiter un montant dérisoire pour une
+  // réservation réellement créée et confirmée en base.
+  //
+  // Aucun module autre que "hotel" (via myGo, chemin ci-dessus) n'a
+  // aujourd'hui de source de prix serveur fiable branchée sur CE pipeline
+  // générique : Transferts/Omra/Car ont leurs propres actions dédiées
+  // (`createTransferBooking`, `createOmraBooking`, `createCarBooking`) qui
+  // calculent déjà le prix côté serveur depuis de vraies tables — elles ne
+  // passent pas par ici. Vols/Hôtels Monde n'ont pas de réservation réelle
+  // du tout (booking désactivé en UI, aucun fournisseur branché). Donc
+  // refuser ce chemin dès que `myGoBooking` est `null` ne retire aucune
+  // fonctionnalité réellement utilisée aujourd'hui (le seul appelant vivant,
+  // `app/hotels/search/page.tsx::handleBookHotel`, fournit toujours des
+  // métadonnées myGo valides) — et ferme la faille pour tout appel direct/
+  // forgé, qu'il cible "hotel" sans métadonnées ou n'importe quel autre
+  // module.
+  if (!myGoBooking) {
+    return {
+      ok: false,
+      error:
+        "Cette réservation ne peut pas être confirmée : aucun prix vérifié par le fournisseur n'est disponible pour cette offre.",
+    }
+  }
+
+  // Le total myGo fait foi — le brouillon est un token base64url non signé,
+  // donc `draft.unitPriceTnd` n'est jamais utilisé pour calculer le montant
+  // réellement débité (voir garde ci-dessus).
   //
   // Phase 9 : `createReservationFromDraft` n'est atteignable qu'avec une
   // session résolue par `getCurrentPartnerProfile` ci-dessus (agence
@@ -272,24 +307,16 @@ export async function createReservationFromDraft(input: {
   // agences au prix net myGo, sans aucune marge, pour toute réservation
   // hôtel réellement confirmée. Marge existante réutilisée telle quelle
   // (`applyMargin`, `getMarginsForAgency`) — pas une deuxième formule.
-  const agencyHotelPrice = myGoBooking
-    ? applyMargin(myGoBooking.totalPrice, (await getMarginsForAgency(agencyId, authUserId)).hotel)
-    : null
-
-  const breakdown = computePriceBreakdown(
-    myGoBooking
-      ? {
-          ...authoritativeUnitPrice(agencyHotelPrice ?? myGoBooking.totalPrice, draft.adults),
-          adults: draft.adults,
-          children: draft.children,
-        }
-      : {
-          unitPriceTnd: draft.unitPriceTnd,
-          adults: draft.adults,
-          children: draft.children,
-          unitChildPriceTnd: draft.unitChildPriceTnd,
-        },
+  const agencyHotelPrice = applyMargin(
+    myGoBooking.totalPrice,
+    (await getMarginsForAgency(agencyId, authUserId)).hotel,
   )
+
+  const breakdown = computePriceBreakdown({
+    ...authoritativeUnitPrice(agencyHotelPrice, draft.adults),
+    adults: draft.adults,
+    children: draft.children,
+  })
 
   try {
     // Point d'injection de test — UNIQUEMENT actif en MYGO_MODE=virtual, pour

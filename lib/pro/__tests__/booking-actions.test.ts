@@ -574,3 +574,112 @@ test("debitPartnerCredit : txOverride propage un solde insuffisant sans muter qu
   if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
   assert.deepEqual(journal, [{ kind: "SELECT_FOR_UPDATE" }])
 })
+
+/* -------------------------------------------------------------------------- */
+/* Tests : idempotence (clé d'idempotence + cache Redis)                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Faux client Redis minimal — même contrat que `input.redisOverride`.
+ * `debitPartnerCredit` stocke/lit toujours une chaîne déjà JSON-stringifiée
+ * lui-même (`redis.set(key, JSON.stringify(successResult), ...)` puis
+ * `JSON.parse(await redis.get<string>(key))`) — le mock ne doit donc pas
+ * re-sérialiser, juste stocker/retourner la chaîne telle quelle.
+ */
+function makeMockRedis() {
+  const store = new Map<string, string>()
+  return {
+    redis: {
+      get: async <T>(key: string) => (store.has(key) ? (store.get(key) as T) : null),
+      set: async (key: string, value: string) => {
+        store.set(key, value)
+      },
+    },
+    store,
+  }
+}
+
+test("debitPartnerCredit : un deuxième appel avec la même idempotencyKey ne redébite pas (résultat caché retourné)", async () => {
+  ensureDatabaseUrl()
+  const { db, journal } = makeMockDb({
+    currentBalance: "1000.000",
+    agencyExists: true,
+    insertReturnsId: "movement-uuid-once",
+  })
+  const { redis } = makeMockRedis()
+
+  const first = (await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 700,
+    reference: "B2B-IDEM-1",
+    description: "Réservation idempotente",
+    dbOverride: db,
+    redisOverride: redis,
+    idempotencyKey: "reservation-idem-key-1-debit",
+  })) as DebitPartnerCreditResult
+
+  assert.equal(first.ok, true)
+
+  const second = (await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 700,
+    reference: "B2B-IDEM-1",
+    description: "Réservation idempotente",
+    dbOverride: db,
+    redisOverride: redis,
+    idempotencyKey: "reservation-idem-key-1-debit",
+  })) as DebitPartnerCreditResult
+
+  // Même résultat exact renvoyé, et surtout : aucune deuxième transaction
+  // n'a été ouverte (le journal ne contient qu'un seul cycle complet).
+  assert.deepEqual(second, first)
+  assert.equal(
+    journal.filter((e) => e.kind === "TX_BEGIN").length,
+    1,
+    "une seule transaction doit avoir été ouverte au total",
+  )
+  assert.equal(
+    journal.filter((e) => e.kind === "INSERT_MOVEMENT").length,
+    1,
+    "un seul mouvement comptable doit avoir été inséré",
+  )
+})
+
+test("debitPartnerCredit : deux idempotencyKey différentes débitent bien deux fois", async () => {
+  ensureDatabaseUrl()
+  const { db, journal } = makeMockDb({
+    currentBalance: "1000.000",
+    agencyExists: true,
+    insertReturnsId: "movement-uuid",
+  })
+  const { redis } = makeMockRedis()
+
+  const first = (await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 300,
+    reference: "B2B-IDEM-A",
+    description: "test",
+    dbOverride: db,
+    redisOverride: redis,
+    idempotencyKey: "key-A",
+  })) as DebitPartnerCreditResult
+  const second = (await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 300,
+    reference: "B2B-IDEM-B",
+    description: "test",
+    dbOverride: db,
+    redisOverride: redis,
+    idempotencyKey: "key-B",
+  })) as DebitPartnerCreditResult
+
+  assert.equal(first.ok, true)
+  assert.equal(second.ok, true)
+  // Deux clés distinctes → deux mouvements réellement insérés (pas de faux
+  // positif du guard d'idempotence entre deux réservations différentes).
+  assert.equal(
+    journal.filter((e) => e.kind === "INSERT_MOVEMENT").length,
+    2,
+    "deux mouvements comptables distincts doivent avoir été insérés",
+  )
+})

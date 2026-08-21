@@ -98,8 +98,27 @@ export type DebitPartnerCreditInput = {
    * Clé d'idempotence UUID (ex: reservationId + "-debit").
    * Si fournie, un double appel avec la même clé retournera le résultat
    * original sans réexécuter le débit. TTL 24h dans Redis.
+   *
+   * ⚠️ Dépend de `getRedis()` (Upstash) — si `UPSTASH_REDIS_REST_URL`/
+   * `_TOKEN` sont absentes en production, `getRedis()` retourne `null` et
+   * cette protection est silencieusement inactive (chaque appel réexécute
+   * le débit). Le verrou `FOR UPDATE` reste correct pour la concurrence
+   * réelle, mais ne déduplique pas une requête qui rejoue la même clé
+   * après coup (double-clic, retry réseau) — vérifier que les variables
+   * Upstash sont bien configurées en production.
    */
   idempotencyKey?: string
+  /**
+   * Override du client Redis pour tests unitaires (mock). En production,
+   * laisser `undefined` : on appelle `getRedis()` automatiquement. Le sous-
+   * ensemble minimal réellement utilisé ici (`get`/`set` sur des chaînes),
+   * pas le client Upstash complet — reste découplable en tests comme
+   * `dbOverride`.
+   */
+  redisOverride?: {
+    get: <T>(key: string) => Promise<T | null>
+    set: (key: string, value: string, opts?: { ex: number }) => Promise<unknown>
+  }
   /**
    * Override du client Drizzle pour tests unitaires (mock). En production,
    * laisser `undefined` : on appelle `getDb()` automatiquement.
@@ -206,7 +225,7 @@ export async function debitPartnerCredit(
 ): Promise<DebitPartnerCreditResult> {
   // Guard idempotence : si la clé a déjà été traitée, retourner le résultat cached
   if (input.idempotencyKey) {
-    const redis = getRedis()
+    const redis = input.redisOverride ?? getRedis()
     if (redis) {
       const idemCacheKey = `e2b:idem:debit:${input.idempotencyKey}`
       const cached = await redis.get<string>(idemCacheKey)
@@ -352,7 +371,7 @@ export async function debitPartnerCredit(
 
       // Persister dans Redis pour l'idempotence (TTL 24h)
       if (input.idempotencyKey) {
-        const redis = getRedis()
+        const redis = input.redisOverride ?? getRedis()
         if (redis) {
           await redis.set(
             `e2b:idem:debit:${input.idempotencyKey}`,

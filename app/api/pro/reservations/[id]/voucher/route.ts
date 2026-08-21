@@ -15,12 +15,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, reservationHotel, customers } from "@/lib/db/schema"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
+import { isVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
 export async function GET(
   req: NextRequest,
@@ -48,9 +49,13 @@ export async function GET(
     )
   }
 
-  // `withTenantContext` scope la lecture à `profile.agency.id` — un
-  // partenaire ne peut jamais récupérer le voucher d'une réservation
-  // appartenant à une autre agence, quel que soit l'id fourni dans l'URL.
+  // `withTenantContext` scope déjà la lecture à `profile.agency.id` via RLS,
+  // mais on filtre aussi explicitement `agencyId` dans la requête elle-même
+  // (défense en profondeur, même pattern que
+  // `lib/pro/reservation-detail.ts::loadReservationByRef`) — un partenaire
+  // ne peut récupérer le voucher d'une réservation d'une autre agence ni
+  // via RLS, ni via un id deviné/énuméré si jamais RLS venait à être
+  // contourné (ex. rôle DB avec BYPASSRLS).
   const row = await withTenantContext(
     { agencyId: profile.agency.id, userId: user.id, isSuperAdmin: false },
     async (tx) => {
@@ -58,6 +63,7 @@ export async function GET(
         .select({
           publicRef: reservations.publicRef,
           module: reservations.module,
+          status: reservations.status,
           tndAmount: reservations.tndAmount,
           customerFirstName: customers.firstName,
           customerLastName: customers.lastName,
@@ -74,7 +80,12 @@ export async function GET(
           reservationHotel,
           eq(reservationHotel.reservationId, reservations.id),
         )
-        .where(eq(reservations.id, reservationId))
+        .where(
+          and(
+            eq(reservations.id, reservationId),
+            eq(reservations.agencyId, profile.agency.id),
+          ),
+        )
         .limit(1)
       return r ?? null
     },
@@ -83,9 +94,15 @@ export async function GET(
   if (!row) {
     return NextResponse.json({ error: "not_found" }, { status: 404 })
   }
-  if (row.module !== "hotel" || !row.hotelName || !row.checkIn || !row.checkOut) {
+  if (!isVoucherEligible(row)) {
     return NextResponse.json(
-      { error: "voucher_unavailable", message: "Aucun voucher hôtel pour cette réservation." },
+      {
+        error: "voucher_unavailable",
+        message:
+          row.module === "hotel"
+            ? "Le voucher n'est disponible qu'une fois la réservation confirmée."
+            : "Aucun voucher hôtel pour cette réservation.",
+      },
       { status: 404 },
     )
   }

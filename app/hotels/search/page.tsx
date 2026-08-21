@@ -11,6 +11,7 @@ import { useHotelSearch } from "@/lib/mygo/use-hotel-search"
 import {
   applyFilters,
   computeFacets,
+  EMPTY_FILTER_STATE,
   filtersFromSearchParams,
   filtersToSearchParams,
   FILTER_URL_KEYS,
@@ -123,9 +124,12 @@ function HotelSearchContent() {
 
   // Tri appliqué APRÈS le filtrage — toujours côté client sur les offres
   // déjà chargées, jamais un nouvel appel myGo (voir lib/mygo/sort.ts).
+  // `filters.boardings` transmis pour que le tri prix suive le même prix
+  // que celui réellement affiché sur chaque card (Best Rate Engine) plutôt
+  // que le prix le moins cher toutes pensions confondues.
   const sortedOffers = useMemo(
-    () => sortOffers(filteredOffers, sortMode),
-    [filteredOffers, sortMode],
+    () => sortOffers(filteredOffers, sortMode, filters.boardings),
+    [filteredOffers, sortMode, filters.boardings],
   )
 
   // Chaîne de requête complète actuelle — transmise telle quelle à la fiche
@@ -235,6 +239,7 @@ function HotelSearchContent() {
               activeBoardFilters={filters.boardings}
               currentSearchQuery={currentSearchQuery}
               onBookHotel={handleBookHotel}
+              onClearFilters={() => updateFilters(EMPTY_FILTER_STATE)}
             />
           </div>
         </div>

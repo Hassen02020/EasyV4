@@ -672,6 +672,63 @@ export const auditEvents = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* Notifications (back-office in-app + canaux sortants extensibles)           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * File de notifications multi-canal.
+ *
+ * Conçue pour être extensible : chaque ligne représente une notification à
+ * diffuser sur un canal (`in_app` par défaut, puis `email` / `sms` /
+ * `whatsapp`). Les notifications `in_app` alimentent le badge compteur du
+ * back-office (non lues = `read_at IS NULL`). Les canaux sortants portent un
+ * `status` (pending → sent / failed / skipped) et un destinataire.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    /** Canal de diffusion : in_app | email | sms | whatsapp. */
+    channel: varchar("channel", { length: 16 }).notNull().default("in_app"),
+    /** Type d'événement métier (ex. omra_reservation_created). */
+    type: varchar("type", { length: 48 }).notNull(),
+    /** Public cible : admin (back-office) | customer. */
+    audience: varchar("audience", { length: 16 }).notNull().default("admin"),
+    title: varchar("title", { length: 160 }).notNull(),
+    body: text("body"),
+    /** Entité liée (deep-link back-office). */
+    entityType: varchar("entity_type", { length: 32 }),
+    entityId: text("entity_id"),
+    /** Destinataire pour canaux sortants (email / téléphone). */
+    recipient: varchar("recipient", { length: 160 }),
+    /** Statut de diffusion : pending | sent | failed | skipped. */
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    /** Erreur éventuelle renvoyée par le canal sortant. */
+    error: text("error"),
+    /** Horodatage de lecture (in_app) — NULL = non lue. */
+    readAt: timestamp("read_at", { withTimezone: true }),
+    /** Horodatage d'envoi effectif (canaux sortants). */
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("notifications_agency_idx").on(t.agencyId),
+    index("notifications_agency_read_idx").on(t.agencyId, t.readAt),
+    index("notifications_entity_idx").on(t.entityType, t.entityId),
+    index("notifications_type_idx").on(t.type),
+  ],
+)
+
+export type Notification = typeof notifications.$inferSelect
+export type NewNotification = typeof notifications.$inferInsert
+
+/* -------------------------------------------------------------------------- */
 /* Catalog tables (production interne, modules Voyages / Activités /          */
 /* Transferts / Omra). Squelette minimal pour itérations 5-9.                 */
 /* -------------------------------------------------------------------------- */

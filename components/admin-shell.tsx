@@ -91,6 +91,7 @@ type NavItem = {
   title: string
   icon: React.ElementType
   href: string
+  badgeCount?: number
   subItems?: { title: string; href: string; icon: React.ElementType }[]
 }
 
@@ -212,22 +213,64 @@ const superAdminNavItems: NavItem[] = [
   },
 ]
 
-function getNavItems(role: AdminShellRole): NavItem[] {
+function omraReservationsNavItem(pendingOmraCount = 0): NavItem {
+  return {
+    title: "Omra — Réservations",
+    icon: Moon,
+    href: "/admin/omra/reservations",
+    badgeCount: pendingOmraCount,
+    subItems: [
+      {
+        title: "Toutes les réservations",
+        href: "/admin/omra/reservations",
+        icon: Calendar,
+      },
+      {
+        title: "En attente",
+        href: "/admin/omra/reservations?status=pending",
+        icon: Clock,
+      },
+      {
+        title: "Confirmées",
+        href: "/admin/omra/reservations?status=confirmed",
+        icon: CheckCircle2,
+      },
+      {
+        title: "Annulées",
+        href: "/admin/omra/reservations?status=cancelled",
+        icon: XCircle,
+      },
+    ],
+  }
+}
+
+function getNavItems(
+  role: AdminShellRole,
+  pendingOmraCount = 0,
+): NavItem[] {
+  const omraItem = omraReservationsNavItem(pendingOmraCount)
   switch (role) {
     case "super_admin":
       return [
         ...baseNavItems,
         ...managerNavItems,
+        omraItem,
         ...technicalNavItems,
         ...superAdminNavItems,
       ]
     case "manager":
-      return [...baseNavItems, ...managerNavItems, ...technicalNavItems]
+      return [
+        ...baseNavItems,
+        ...managerNavItems,
+        omraItem,
+        ...technicalNavItems,
+      ]
     case "agent_resa":
       // Agent résa : accès limité aux réservations, produits (lecture), et support
       return [
         ...baseNavItems,
         managerNavItems[0]!, // B2C Réservations (avec subItems)
+        omraItem, // Omra — Réservations
         managerNavItems[2]!, // Produits (lecture seule)
         managerNavItems[5]!, // Support & Clients
       ]
@@ -277,13 +320,15 @@ function getBreadcrumb(pathname: string) {
 export function AdminShell({
   user,
   children,
+  pendingOmraCount = 0,
 }: {
   user: AdminShellUser
   children: React.ReactNode
+  pendingOmraCount?: number
 }) {
   const pathname = usePathname()
   const breadcrumbs = getBreadcrumb(pathname)
-  const navItems = getNavItems(user.role)
+  const navItems = getNavItems(user.role, pendingOmraCount)
 
   return (
     <SidebarProvider>
@@ -318,6 +363,13 @@ export function AdminShell({
                     pathname === item.href ||
                     pathname.startsWith(item.href + "/")
 
+                  const badge =
+                    item.badgeCount && item.badgeCount > 0 ? (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">
+                        {item.badgeCount > 99 ? "99+" : item.badgeCount}
+                      </span>
+                    ) : null
+
                   if (item.subItems) {
                     return (
                       <Collapsible
@@ -330,7 +382,10 @@ export function AdminShell({
                             <SidebarMenuButton isActive={isActive}>
                               <item.icon className="size-4" />
                               <span>{item.title}</span>
-                              <ChevronDown className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                              {badge}
+                              <ChevronDown
+                                className={`${badge ? "ml-1" : "ml-auto"} size-4 transition-transform group-data-[state=open]/collapsible:rotate-180`}
+                              />
                             </SidebarMenuButton>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
@@ -361,6 +416,7 @@ export function AdminShell({
                         <Link href={item.href}>
                           <item.icon className="size-4" />
                           <span>{item.title}</span>
+                          {badge}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

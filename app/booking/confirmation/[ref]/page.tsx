@@ -132,10 +132,19 @@ export default async function ConfirmationPage({
                 <Button asChild variant="outline" className="flex-1">
                   <Link href="/">Retour à l&apos;accueil</Link>
                 </Button>
-                <Button className="flex-1" disabled>
-                  <Download className="mr-2 size-4" />
-                  Télécharger le voucher (bientôt)
-                </Button>
+                {row.status === "confirmed" || row.status === "completed" ? (
+                  <Button asChild className="flex-1">
+                    <a href={`/api/booking/voucher/${row.publicRef}`} target="_blank" rel="noopener noreferrer">
+                      <Download className="mr-2 size-4" />
+                      Télécharger le voucher
+                    </a>
+                  </Button>
+                ) : (
+                  <Button className="flex-1" disabled>
+                    <Download className="mr-2 size-4" />
+                    Voucher disponible après confirmation
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

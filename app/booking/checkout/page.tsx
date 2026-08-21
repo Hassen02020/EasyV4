@@ -62,8 +62,7 @@ function CheckoutContent({
             Récapitulatif & paiement
           </h1>
           <p className="text-muted-foreground mb-6">
-            Vérifiez votre commande puis confirmez le paiement (simulation
-            sécurisée pour démonstration).
+            Vérifiez votre commande puis choisissez votre mode de règlement.
           </p>
           <BookingSteps current={3} />
 

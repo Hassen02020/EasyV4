@@ -50,7 +50,7 @@ import {
  * "ambigu" plutôt qu'un simple échec (l'utilisateur ne doit pas être invité à
  * relancer une réservation qui a peut-être déjà été créée côté hôtel).
  */
-async function confirmHotelWithProvider(
+export async function confirmHotelWithProvider(
   draft: BookingDraft,
   traveler: TravelerInput,
 ): Promise<
@@ -158,7 +158,7 @@ function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
 }
 
-async function nextPublicRef(
+export async function nextPublicRef(
   db: ReturnType<typeof getDb> | Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0],
   agencyId: string,
 ): Promise<string> {
@@ -617,6 +617,21 @@ export async function createReservationFromDraft(input: {
   }
 }
 
+/**
+ * Point d'entrée unique du tunnel `/booking/*` — le seul appelant vivant
+ * aujourd'hui est `app/hotels/search/page.tsx::handleBookHotel` (recherche
+ * hôtel publique B2C), donc ce tunnel doit fonctionner sans session.
+ *
+ * Phase 12 : bascule vers `createGuestReservationFromDraft` (paiement en
+ * ligne / règlement différé, agence OTA directe) dès qu'aucune session
+ * partenaire n'est résolue — c'est le blocker P0 business identifié en
+ * Phase 11 ("aucun parcours B2C n'aboutit à un paiement réel"). Si une
+ * session partenaire EST résolue (un partenaire connecté qui utiliserait
+ * malgré tout cette ancienne route générique), le comportement B2B exact
+ * d'avant Phase 12 est conservé sans aucune modification —
+ * `createReservationFromDraft` (et son correctif P0 Phase 11) reste
+ * intact et inchangé.
+ */
 export async function submitCheckoutAction(formData: FormData): Promise<void> {
   const token = String(formData.get("draft") ?? "")
   if (!token) {
@@ -626,9 +641,35 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
   if (!payload || !payload.traveler) {
     throw new Error("Brouillon invalide ou incomplet")
   }
-  const result = await createReservationFromDraft({
+  const paymentMethod = String(formData.get("paymentMethod") ?? "card")
+
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const partnerProfile = user ? await getCurrentPartnerProfile(user.id) : null
+
+  if (partnerProfile) {
+    const result = await createReservationFromDraft({
+      draft: payload.draft,
+      traveler: payload.traveler,
+    })
+    if (!result.ok) {
+      throw new Error(result.error)
+    }
+    redirect(`/booking/confirmation/${result.publicRef}`)
+  }
+
+  const { createGuestReservationFromDraft } = await import("./guest-actions")
+  const { createHash } = await import("node:crypto")
+  const result = await createGuestReservationFromDraft({
     draft: payload.draft,
     traveler: payload.traveler,
+    paymentMethod: paymentMethod === "transfer" || paymentMethod === "cash" ? paymentMethod : "card",
+    // Stable pour une soumission identique (même brouillon, même mode de
+    // paiement) — un double-clic/retry réseau reproduit la même clé et ne
+    // recrée pas une deuxième réservation (voir withGuestIdempotency).
+    idempotencyKey: createHash("sha256").update(`${token}:${paymentMethod}`).digest("hex"),
   })
   if (!result.ok) {
     throw new Error(result.error)

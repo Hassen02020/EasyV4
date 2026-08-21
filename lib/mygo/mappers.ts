@@ -17,6 +17,7 @@ import {
   type BoardingOfferT,
   type CancellationPolicyT,
 } from "./schemas"
+import { sanitizeHtmlToText } from "./sanitize-html"
 import type {
   CityDTO,
   BoardingDTO,
@@ -114,12 +115,14 @@ export function mapHotelSummary(raw: ListHotelItemT): HotelSummaryDTO {
 
 export function mapHotelDetails(raw: HotelDetailItemT): HotelDetailsDTO {
   const summary = mapHotelSummary(raw as ListHotelItemT)
+  const shortDesc = sanitizeHtmlToText(raw.ShortDescription)
+  const longDesc = sanitizeHtmlToText(raw.LongDescription)
   return {
     ...summary,
     email: raw.Email ?? undefined,
     phone: raw.Phone ?? undefined,
-    shortDescription: raw.ShortDescription ?? undefined,
-    longDescription: raw.LongDescription ?? undefined,
+    shortDescription: shortDesc || undefined,
+    longDescription: longDesc || undefined,
     checkInTime: raw.CheckIn ?? undefined,
     checkOutTime: raw.CheckOut ?? undefined,
     type: raw.Type ?? undefined,
@@ -221,4 +224,64 @@ export function mapHotelOffer(raw: HotelSearchResultItemT): HotelOfferDTO {
     recommended: Boolean(raw.Recommended),
     boardings: (raw.Price?.Boarding ?? []).map(mapBoardingOffer),
   }
+}
+
+/**
+ * myGo retourne parfois plusieurs entrées pour le même Hotel.Id (sources
+ * différentes, promotions, ou doublon avec/sans étoiles). On garde la "meilleure"
+ * variante par hotel.id : on privilégie l'entrée avec étoiles connues, puis le
+ * prix le plus bas. Tous les boardings sont mergés pour ne pas perdre d'options
+ * de pension.
+ */
+export function dedupeOffersByHotelId(offers: HotelOfferDTO[]): HotelOfferDTO[] {
+  const byId = new Map<number, HotelOfferDTO>()
+  for (const offer of offers) {
+    const id = offer.hotel.id
+    const existing = byId.get(id)
+    if (!existing) {
+      byId.set(id, offer)
+      continue
+    }
+    const better = pickBetterOffer(existing, offer)
+    const merged: HotelOfferDTO = {
+      ...better,
+      boardings: mergeBoardings(existing.boardings, offer.boardings),
+      fromPrice:
+        existing.fromPrice > 0 && offer.fromPrice > 0
+          ? Math.min(existing.fromPrice, offer.fromPrice)
+          : Math.max(existing.fromPrice, offer.fromPrice),
+      recommended: existing.recommended || offer.recommended,
+    }
+    byId.set(id, merged)
+  }
+  return Array.from(byId.values())
+}
+
+function pickBetterOffer(a: HotelOfferDTO, b: HotelOfferDTO): HotelOfferDTO {
+  const aStars = a.hotel.stars ?? 0
+  const bStars = b.hotel.stars ?? 0
+  if (aStars > 0 && bStars === 0) return a
+  if (bStars > 0 && aStars === 0) return b
+  // Both or neither have stars → keep the one with more facilities/themes/album
+  const aScore =
+    (a.hotel.facilities?.length ?? 0) +
+    (a.hotel.themes?.length ?? 0) +
+    (a.hotel.image ? 1 : 0)
+  const bScore =
+    (b.hotel.facilities?.length ?? 0) +
+    (b.hotel.themes?.length ?? 0) +
+    (b.hotel.image ? 1 : 0)
+  return bScore > aScore ? b : a
+}
+
+function mergeBoardings(
+  a: BoardingOfferDTO[],
+  b: BoardingOfferDTO[],
+): BoardingOfferDTO[] {
+  const seen = new Map<string, BoardingOfferDTO>()
+  for (const board of [...a, ...b]) {
+    const key = board.code || board.name
+    if (!seen.has(key)) seen.set(key, board)
+  }
+  return Array.from(seen.values())
 }

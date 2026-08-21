@@ -12,7 +12,9 @@ export {
   mapHotelOffer,
   isRealHotelOffer,
   lowestPrice,
+  dedupeOffersByHotelId,
 } from "./mappers"
+export { sanitizeHtmlToText } from "./sanitize-html"
 export type {
   CityDTO,
   BoardingDTO,

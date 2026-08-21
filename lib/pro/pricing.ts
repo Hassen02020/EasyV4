@@ -152,3 +152,40 @@ export function applyMarginsToOffers<T extends { price: number }>(
     price: applyMargin(o.price, rule),
   }))
 }
+
+/**
+ * Applique la marge `hotel` à une offre myGo réelle (`HotelOfferDTO`,
+ * `lib/mygo/types.ts`) — pour le portail B2B une fois branché sur le vrai
+ * moteur de recherche (Phase 8), au lieu du fixture `ProHotel` ci-dessus.
+ * Marque chaque prix de chambre (toutes pensions confondues) et `fromPrice`
+ * avec la même règle, immuablement — jamais de mutation de l'offre myGo
+ * d'origine.
+ *
+ * `fromPrice` est recalculé en appliquant la marge directement au
+ * `fromPrice` net plutôt qu'en reprenant le minimum des chambres marginées
+ * : `applyMargin` étant une transformation monotone (même règle sur toutes
+ * les chambres), le résultat est strictement identique, sans dupliquer la
+ * logique d'exclusion `stopReservation` déjà faite une fois à la source
+ * (`lowestPrice`, `lib/mygo/mappers.ts`).
+ */
+export function applyMarginToHotelOffer<
+  T extends {
+    fromPrice: number
+    boardings: {
+      pax: { rooms: { price: number }[] }[]
+    }[]
+  },
+>(offer: T, margins: MarginMap): T {
+  const rule = margins.hotel
+  return {
+    ...offer,
+    fromPrice: applyMargin(offer.fromPrice, rule),
+    boardings: offer.boardings.map((b) => ({
+      ...b,
+      pax: b.pax.map((p) => ({
+        ...p,
+        rooms: p.rooms.map((r) => ({ ...r, price: applyMargin(r.price, rule) })),
+      })),
+    })),
+  }
+}

@@ -17,3 +17,8 @@ node_modules
 
 # TypeScript
 *.tsbuildinfo
+
+# Test artifacts (locaux, ne pas commit)
+test-plan*.md
+test-report*.md
+test-plan*.txt

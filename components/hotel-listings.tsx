@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { HotelCard } from "@/components/hotel-card"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { HotelOfferDTO, HotelSearchResultDTO } from "@/lib/mygo/types"
+import type { HotelOfferDTO } from "@/lib/mygo/types"
 
 interface BookingData {
   id: number
@@ -22,10 +22,6 @@ interface BookingData {
   children: number
   pricePerNight: number
   totalPrice: number
-}
-
-interface HotelListingsProps {
-  onBookHotel?: (data: BookingData) => void
 }
 
 interface RoomOption {
@@ -116,77 +112,38 @@ function toCardShape(offer: HotelOfferDTO): CardHotelShape {
   }
 }
 
-interface SearchState {
-  status: "idle" | "loading" | "success" | "error"
-  data: HotelSearchResultDTO | null
-  error: string | null
+interface HotelListingsProps {
+  /** Offres déjà filtrées prêtes à afficher. */
+  offers: HotelOfferDTO[]
+  /** Total brut (avant filtrage) — pour le header "X hôtels à Y". */
+  totalCount: number
+  /** Devise affichée (passée par la page parente, par défaut TND). */
+  currency?: string
+  status: "loading" | "success" | "error"
+  error?: string | null
+  cityName: string
+  checkin: string | null
+  checkout: string | null
+  adults: string
+  /** Âges enfants en CSV (ex. "5,8"), tel quel depuis l'URL. */
+  childrenAges: string | null
+  onBookHotel?: (data: BookingData) => void
 }
 
-export function HotelListings({ onBookHotel }: HotelListingsProps) {
-  const searchParams = useSearchParams()
-  const [state, setState] = useState<SearchState>({
-    status: "idle",
-    data: null,
-    error: null,
-  })
-
-  const cityId = searchParams.get("cityId")
-  const checkin = searchParams.get("checkin")
-  const checkout = searchParams.get("checkout")
-  const adults = searchParams.get("adults") ?? "2"
-  const children = searchParams.get("children")
-  const stars = searchParams.get("stars")
-  const onlyAvailable = searchParams.get("onlyAvailable")
-  const cityName = searchParams.get("city") ?? "Tunisie"
-
-  const queryString = useMemo(() => {
-    if (!cityId || !checkin || !checkout) return null
-    const params = new URLSearchParams({ cityId, checkin, checkout, adults })
-    if (children) params.set("children", children)
-    if (stars) params.set("stars", stars)
-    if (onlyAvailable) params.set("onlyAvailable", onlyAvailable)
-    return params.toString()
-  }, [cityId, checkin, checkout, adults, children, stars, onlyAvailable])
-
-  useEffect(() => {
-    if (!queryString) return
-    const ctrl = new AbortController()
-    fetch(`/api/hotels/search?${queryString}`, { signal: ctrl.signal })
-      .then(async (r) => {
-        if (!r.ok) {
-          const body = (await r.json().catch(() => ({}))) as {
-            message?: string
-            error?: string
-          }
-          throw new Error(body.message ?? body.error ?? `HTTP ${r.status}`)
-        }
-        return r.json() as Promise<HotelSearchResultDTO>
-      })
-      .then((data) => setState({ status: "success", data, error: null }))
-      .catch((err: unknown) => {
-        if ((err as { name?: string }).name === "AbortError") return
-        setState({
-          status: "error",
-          data: null,
-          error: err instanceof Error ? err.message : "Erreur inconnue",
-        })
-      })
-    return () => ctrl.abort()
-  }, [queryString])
-
-  // Initial state: loading if we have a query, error if we don't.
-  // Computed at render time to avoid synchronous setState in effect.
-  const effectiveStatus: SearchState["status"] =
-    state.status === "idle"
-      ? queryString
-        ? "loading"
-        : "error"
-      : state.status
-  const effectiveError =
-    state.error ??
-    (state.status === "idle" && !queryString
-      ? "Critères de recherche incomplets — retournez à l'accueil."
-      : null)
+export function HotelListings({
+  offers,
+  totalCount,
+  currency = "TND",
+  status,
+  error,
+  cityName,
+  checkin,
+  checkout,
+  adults,
+  childrenAges,
+  onBookHotel,
+}: HotelListingsProps) {
+  const router = useRouter()
 
   const handleBookHotel = (
     cardHotel: CardHotelShape,
@@ -211,10 +168,20 @@ export function HotelListings({ onBookHotel }: HotelListingsProps) {
       checkOut: checkout,
       nights,
       adults: Number(adults),
-      children: children?.split(",").filter(Boolean).length ?? 0,
+      children: childrenAges?.split(",").filter(Boolean).length ?? 0,
       pricePerNight: Math.round(room.price / nights),
       totalPrice: room.price,
     })
+  }
+
+  const handleViewDetails = (hotelId: number) => {
+    const params = new URLSearchParams()
+    if (checkin) params.set("checkin", checkin)
+    if (checkout) params.set("checkout", checkout)
+    if (adults) params.set("adults", adults)
+    if (childrenAges) params.set("children", childrenAges)
+    const qs = params.toString()
+    router.push(`/hotels/${hotelId}${qs ? `?${qs}` : ""}`)
   }
 
   const headerSubtitle = useMemo(() => {
@@ -223,18 +190,20 @@ export function HotelListings({ onBookHotel }: HotelListingsProps) {
       const f = parseISO(checkin)
       const t = parseISO(checkout)
       const nights = Math.max(1, differenceInCalendarDays(t, f))
-      return `${format(f, "d MMM", { locale: fr })} - ${format(t, "d MMM yyyy", { locale: fr })} · ${nights} nuit${nights > 1 ? "s" : ""} · ${adults} adulte${Number(adults) > 1 ? "s" : ""}`
+      const childCount = childrenAges?.split(",").filter(Boolean).length ?? 0
+      const paxLabel =
+        childCount > 0
+          ? `${adults} adulte${Number(adults) > 1 ? "s" : ""}, ${childCount} enfant${childCount > 1 ? "s" : ""}`
+          : `${adults} adulte${Number(adults) > 1 ? "s" : ""}`
+      return `${format(f, "d MMM", { locale: fr })} - ${format(t, "d MMM yyyy", { locale: fr })} · ${nights} nuit${nights > 1 ? "s" : ""} · ${paxLabel}`
     } catch {
       return ""
     }
-  }, [checkin, checkout, adults])
+  }, [checkin, checkout, adults, childrenAges])
 
-  const cardHotels = useMemo(
-    () => (state.data?.offers ?? []).map(toCardShape),
-    [state.data],
-  )
+  const cardHotels = useMemo(() => offers.map(toCardShape), [offers])
 
-  if (effectiveStatus === "loading") {
+  if (status === "loading") {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-72" />
@@ -246,10 +215,10 @@ export function HotelListings({ onBookHotel }: HotelListingsProps) {
     )
   }
 
-  if (effectiveStatus === "error") {
+  if (status === "error") {
     return (
       <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-        Erreur de recherche : {effectiveError ?? "inconnue"}
+        Erreur de recherche : {error ?? "inconnue"}
       </div>
     )
   }
@@ -259,7 +228,12 @@ export function HotelListings({ onBookHotel }: HotelListingsProps) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold text-foreground">
-            {state.data?.count ?? 0} hôtel{(state.data?.count ?? 0) > 1 ? "s" : ""} à {cityName}
+            {totalCount} hôtel{totalCount > 1 ? "s" : ""} à {cityName}
+            {offers.length !== totalCount && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                ({offers.length} après filtrage)
+              </span>
+            )}
           </h1>
           {headerSubtitle && (
             <p className="text-sm text-muted-foreground">{headerSubtitle}</p>
@@ -270,14 +244,16 @@ export function HotelListings({ onBookHotel }: HotelListingsProps) {
       <div className="space-y-4">
         {cardHotels.length === 0 && (
           <div className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
-            Aucun hôtel disponible sur ces dates pour ce critère.
+            Aucun hôtel ne correspond aux filtres sélectionnés.
           </div>
         )}
         {cardHotels.map((hotel) => (
           <HotelCard
             key={hotel.id}
             hotel={hotel}
+            currency={currency}
             onBook={(mealPlan, room) => handleBookHotel(hotel, mealPlan, room)}
+            onViewDetails={() => handleViewDetails(hotel.id)}
           />
         ))}
       </div>

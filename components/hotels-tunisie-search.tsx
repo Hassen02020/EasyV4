@@ -261,6 +261,7 @@ export function HotelsTunisieSearch() {
               <button
                 type="button"
                 role="combobox"
+                aria-label="Destination"
                 aria-expanded={citySearchOpen}
                 aria-controls="hotel-search-city-listbox"
                 className={FIELD_SHELL}
@@ -330,7 +331,14 @@ export function HotelsTunisieSearch() {
         <div className="min-w-0 flex-1">
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
             <PopoverTrigger asChild>
-              <button type="button" className={FIELD_SHELL}>
+              <button
+                type="button"
+                role="combobox"
+                aria-label="Dates du séjour"
+                aria-expanded={datePopoverOpen}
+                aria-controls="hotel-search-dates-panel"
+                className={FIELD_SHELL}
+              >
                 <FieldLabel icon={Calendar}>Dates du séjour</FieldLabel>
                 <span
                   className={cn(
@@ -342,7 +350,7 @@ export function HotelsTunisieSearch() {
                 </span>
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent id="hotel-search-dates-panel" className="w-auto p-0" align="start">
               <div className="border-b p-3">
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex-1">

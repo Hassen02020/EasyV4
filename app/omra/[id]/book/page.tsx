@@ -33,7 +33,7 @@ async function getBookablePackage(id: string) {
       .where(
         and(
           eq(omraPackages.id, id),
-          eq(omraPackages.status, "active"),
+          eq(omraPackages.status, "published"),
           eq(omraPackages.agencyId, agencyId),
         ),
       )

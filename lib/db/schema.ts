@@ -700,6 +700,8 @@ export const catalogPackages = pgTable(
     inclusions: text("inclusions").array(),
     exclusions: text("exclusions").array(),
     status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /** Canaux de distribution : 'b2c' / 'b2b' / 'white_label'. Phase 13. */
+    channels: text("channels").array().notNull().default(["b2c"]),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -762,6 +764,8 @@ export const catalogActivities = pgTable(
     /** ex. {child:"<12y", senior:">=65y"}. */
     tariffRules: jsonb("tariff_rules"),
     status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /** Canaux de distribution : 'b2c' / 'b2b' / 'white_label'. Phase 13. */
+    channels: text("channels").array().notNull().default(["b2c"]),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

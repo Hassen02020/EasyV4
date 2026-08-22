@@ -29,7 +29,7 @@ async function getBookablePackage(slug: string) {
       .where(
         and(
           eq(catalogPackages.slug, slug),
-          eq(catalogPackages.status, "active"),
+          eq(catalogPackages.status, "published"),
           eq(catalogPackages.agencyId, agencyId),
         ),
       )

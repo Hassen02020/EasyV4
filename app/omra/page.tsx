@@ -36,7 +36,7 @@ async function getActivePackages(filters: SearchFilters) {
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
     return await withSystemContext(async (db) => {
-    const conditions = [eq(omraPackages.status, "active"), eq(omraPackages.agencyId, agencyId)]
+    const conditions = [eq(omraPackages.status, "published"), eq(omraPackages.agencyId, agencyId)]
 
     const programme = filters.programme
     if (programme && (omraPackageType.enumValues as readonly string[]).includes(programme)) {

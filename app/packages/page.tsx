@@ -59,7 +59,7 @@ async function getActivePackages(filters: SearchFilters) {
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
     return await withSystemContext(async (db) => {
-    const conditions = [eq(catalogPackages.status, "active"), eq(catalogPackages.agencyId, agencyId)]
+    const conditions = [eq(catalogPackages.status, "published"), eq(catalogPackages.agencyId, agencyId)]
 
     const searchTerm = filters.destination
       ? DESTINATION_SEARCH_TERMS[filters.destination]

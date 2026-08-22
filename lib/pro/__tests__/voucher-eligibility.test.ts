@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { isVoucherEligible, isOmraVoucherEligible } from "../voucher-eligibility"
+import { isVoucherEligible, isOmraVoucherEligible, isPackageVoucherEligible } from "../voucher-eligibility"
 
 const baseHotelRow = {
   module: "hotel",
@@ -89,6 +89,51 @@ test("isOmraVoucherEligible : false pour un module non-omra même confirmé", ()
 test("isOmraVoucherEligible : false si les données de séjour Omra sont incomplètes", () => {
   assert.equal(
     isOmraVoucherEligible({ module: "omra", status: "confirmed", packageName: null, departureDate: "2026-03-01", returnDate: "2026-03-11" }),
+    false,
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* isPackageVoucherEligible (Phase 12, Partie 9-10)                           */
+/* -------------------------------------------------------------------------- */
+
+const basePackageRow = {
+  module: "package",
+  packageName: "Istanbul Découverte — 5 jours",
+  departureDate: "2026-05-01",
+  returnDate: "2026-05-06",
+}
+
+test("isPackageVoucherEligible : true pour une réservation Package confirmée", () => {
+  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "confirmed" }), true)
+})
+
+test("isPackageVoucherEligible : true pour un voyage terminé (completed)", () => {
+  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "completed" }), true)
+})
+
+test("isPackageVoucherEligible : false pour une réservation encore pending", () => {
+  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "pending" }), false)
+})
+
+test("isPackageVoucherEligible : false pour une réservation annulée", () => {
+  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "cancelled" }), false)
+})
+
+test("isPackageVoucherEligible : false pour une réservation remboursée", () => {
+  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "refunded" }), false)
+})
+
+test("isPackageVoucherEligible : false pour un module non-package même confirmé", () => {
+  assert.equal(
+    isPackageVoucherEligible({ module: "omra", status: "confirmed", packageName: null, departureDate: null, returnDate: null }),
+    false,
+  )
+})
+
+test("isPackageVoucherEligible : false si les données de voyage sont incomplètes", () => {
+  assert.equal(
+    isPackageVoucherEligible({ module: "package", status: "confirmed", packageName: null, departureDate: "2026-05-01", returnDate: "2026-05-06" }),
     false,
   )
 })

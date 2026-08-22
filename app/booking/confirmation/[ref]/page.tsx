@@ -15,6 +15,13 @@ import { ConfirmationStatusBadge } from "@/components/booking/confirmation-statu
 
 export const dynamic = "force-dynamic"
 
+/** Route de téléchargement voucher par module — chaque module a son propre PDF (Hôtel/Omra/Package). */
+const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
+  hotel: "/api/booking/voucher",
+  omra: "/api/omra/voucher",
+  package: "/api/packages/voucher",
+}
+
 export default async function ConfirmationPage({
   params,
 }: {
@@ -135,7 +142,7 @@ export default async function ConfirmationPage({
                 {row.status === "confirmed" || row.status === "completed" ? (
                   <Button asChild className="flex-1">
                     <a
-                      href={`${row.module === "omra" ? "/api/omra/voucher" : "/api/booking/voucher"}/${row.publicRef}`}
+                      href={`${VOUCHER_ROUTE_BY_MODULE[row.module] ?? "/api/booking/voucher"}/${row.publicRef}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

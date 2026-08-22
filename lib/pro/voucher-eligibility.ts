@@ -55,3 +55,20 @@ export function isOmraVoucherEligible(
   if (!row.packageName || !row.departureDate || !row.returnDate) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
 }
+
+/** Éligibilité voucher Voyage Organisé (Package) — même règle, fonction dédiée. */
+export interface PackageVoucherEligibilityInput {
+  module: string
+  status: string
+  packageName: string | null | undefined
+  departureDate: string | null | undefined
+  returnDate: string | null | undefined
+}
+
+export function isPackageVoucherEligible(
+  row: PackageVoucherEligibilityInput,
+): row is PackageVoucherEligibilityInput & { packageName: string; departureDate: string; returnDate: string } {
+  if (row.module !== "package") return false
+  if (!row.packageName || !row.departureDate || !row.returnDate) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}

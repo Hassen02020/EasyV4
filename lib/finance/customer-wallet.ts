@@ -12,13 +12,29 @@
  * un propriétaire `customerId` au lieu de `agencyId` — pas une réécriture
  * du moteur B2B, un second propriétaire sur le même mécanisme éprouvé.
  *
- * Accès exclusivement via `withSystemContext` (rôle service, bypass RLS) :
- * un client final B2C n'a aujourd'hui aucune session Supabase Auth (voir
- * lib/booking/guest-actions.ts), donc aucune policy RLS tenant-scoped ne
- * peut légitimement s'appliquer à ces lignes — `wallet_accounts_tenant_isolation`
- * (`agency_id = current_agency_id() OR is_super_admin()`) ne laisse déjà
- * passer une ligne `agency_id IS NULL` que sous `is_super_admin()`, donc ce
- * module ne doit JAMAIS être appelé sous un contexte tenant partenaire.
+ * RLS — défaut trouvé et corrigé en Phase 14.3 (validation live contre une
+ * vraie DB Postgres, jamais détectable par les tests unitaires à DB mockée
+ * de la phase précédente) : `wallet_accounts_tenant_isolation`
+ * (`agency_id = current_agency_id() OR is_super_admin()`) ne laisse passer
+ * une ligne `agency_id IS NULL` (client) que sous `is_super_admin()` — or
+ * les DEUX appelants réels (`guest-actions.ts::runCreateGuestReservation`
+ * pour le débit, `refund-actions.ts::refundReservation` pour un staff non
+ * super_admin comme `agent_compta`) passent leur transaction via
+ * `txOverride` avec `isSuperAdmin: false` (à raison : le reste de LEUR
+ * transaction — réservation, paiement, audit — reste correctement scopé à
+ * l'agence). Sans correctif, tout débit/crédit wallet client échouait
+ * silencieusement en environnement RLS réel (`app_runtime`, non-BYPASSRLS)
+ * — confirmé en reproduisant l'INSERT en direct contre Postgres. Ce module
+ * élève donc lui-même `app.is_super_admin` à `true` (portée `LOCAL`, donc
+ * limitée à LA transaction en cours, jamais un privilège durable) juste
+ * avant ses propres écritures — jamais délégué à l'appelant. Les
+ * instructions déjà exécutées avant cet appel dans la transaction parente
+ * (ex. l'INSERT `reservations` dans guest-actions.ts) ont déjà été évaluées
+ * sous le contexte scopé-agence d'origine ; celles qui suivent (mise à jour
+ * du statut, INSERT `payments`/`auditEvents`) filtrent déjà explicitement
+ * par `agencyId` en dur, donc rester élevé pour le reste de ces
+ * transactions précises et déjà entièrement validées côté serveur ne leur
+ * ouvre aucun accès cross-agence réel.
  *
  * IMPORTANT (Wallet/Payment Core, garde explicite) : ce module ne doit
  * JAMAIS être utilisé pour simuler un règlement carte ou espèces/virement
@@ -31,8 +47,9 @@
  * lib/booking/guest-actions.ts) — jamais par ce module.
  */
 
-import { eq, and, isNull } from "drizzle-orm"
+import { eq, and, isNull, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { getRedis } from "@/lib/cache/redis"
 import { walletAccounts, walletLedger, type NewWalletLedger } from "@/lib/db/schema"
 
@@ -48,6 +65,8 @@ export type DrizzleLikeTx = {
   select: (...args: unknown[]) => DrizzleLikeChain
   insert: (...args: unknown[]) => DrizzleLikeChain
   update: (...args: unknown[]) => DrizzleLikeChain
+  /** Pour élever `app.is_super_admin` (portée LOCAL) avant l'écriture wallet — voir garde RLS en tête de fichier. */
+  execute: (query: unknown) => Promise<unknown>
 }
 
 export type DrizzleLikeChain = {
@@ -135,6 +154,14 @@ async function lockOrCreateCustomerWallet(
   tx: DrizzleLikeTx,
   customerId: string,
 ): Promise<{ id: string; currentBalance: string }> {
+  // Portée LOCAL (voir garde RLS en tête de fichier) : élève le contexte
+  // pour CETTE transaction uniquement, jamais un privilège durable — sans
+  // ça, l'INSERT/SELECT ci-dessous échoue sous RLS réelle dès que
+  // l'appelant (guest-actions.ts, refund-actions.ts) n'est pas déjà
+  // super_admin, ce qui est le cas normal pour une transaction B2C/staff
+  // scopée à une agence.
+  await tx.execute(sql`select set_config('app.is_super_admin', 'true', true)`)
+
   const selectChain = tx
     .select({ id: walletAccounts.id, currentBalance: walletAccounts.currentBalance })
     .from?.(walletAccounts)
@@ -334,14 +361,22 @@ export async function creditCustomerWallet(
   }
 }
 
-/** Solde client courant — 0 si aucun compte wallet n'existe encore (jamais crédité). */
+/**
+ * Solde client courant — 0 si aucun compte wallet n'existe encore (jamais
+ * crédité). Passe par `withSystemContext` — même garde RLS que l'écriture
+ * (voir tête de fichier) : une lecture directe via `getDb()` sans contexte
+ * élevé est bloquée par `wallet_accounts_tenant_isolation` pour toute ligne
+ * `agency_id IS NULL`, et renvoyait silencieusement 0 même avec un solde
+ * réel non nul (trouvé en Phase 14.3, live contre une vraie DB Postgres).
+ */
 export async function getCustomerWalletBalance(customerId: string): Promise<number> {
   if (!process.env.DATABASE_URL) return 0
-  const db = getDb()
-  const [wallet] = await db
-    .select({ currentBalance: walletAccounts.currentBalance })
-    .from(walletAccounts)
-    .where(and(eq(walletAccounts.customerId, customerId), eq(walletAccounts.type, "credit"), isNull(walletAccounts.agencyId)))
-    .limit(1)
+  const [wallet] = await withSystemContext((tx) =>
+    tx
+      .select({ currentBalance: walletAccounts.currentBalance })
+      .from(walletAccounts)
+      .where(and(eq(walletAccounts.customerId, customerId), eq(walletAccounts.type, "credit"), isNull(walletAccounts.agencyId)))
+      .limit(1),
+  )
   return wallet ? parseTnd(wallet.currentBalance) : 0
 }

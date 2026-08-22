@@ -21,7 +21,7 @@ import {
   type DrizzleLikeDb,
 } from "../customer-wallet"
 
-type OpKind = "TX_BEGIN" | "SELECT_FOR_UPDATE" | "INSERT_WALLET" | "INSERT_LEDGER" | "UPDATE_BALANCE" | "TX_COMMIT" | "TX_ROLLBACK"
+type OpKind = "TX_BEGIN" | "SET_RLS_BYPASS" | "SELECT_FOR_UPDATE" | "INSERT_WALLET" | "INSERT_LEDGER" | "UPDATE_BALANCE" | "TX_COMMIT" | "TX_ROLLBACK"
 type OpEvent = { kind: OpKind; payload?: Record<string, unknown> }
 
 type MockOptions = {
@@ -54,6 +54,10 @@ function makeMockDb(opts: MockOptions): { db: DrizzleLikeDb; journal: OpEvent[] 
 
   function makeTx() {
     return {
+      execute: async () => {
+        journal.push({ kind: "SET_RLS_BYPASS" })
+        return []
+      },
       select: () => ({
         from: () => ({
           where: () => ({
@@ -147,6 +151,7 @@ test("debitCustomerWallet : succès avec solde suffisant, ordre des opérations"
   }
   assert.deepEqual(journal.map((j) => j.kind), [
     "TX_BEGIN",
+    "SET_RLS_BYPASS",
     "SELECT_FOR_UPDATE",
     "INSERT_LEDGER",
     "UPDATE_BALANCE",
@@ -172,7 +177,7 @@ test("debitCustomerWallet : refuse si solde insuffisant (rollback, aucun débit)
 
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
-  assert.deepEqual(journal.map((j) => j.kind), ["TX_BEGIN", "SELECT_FOR_UPDATE", "TX_ROLLBACK"])
+  assert.deepEqual(journal.map((j) => j.kind), ["TX_BEGIN", "SET_RLS_BYPASS", "SELECT_FOR_UPDATE", "TX_ROLLBACK"])
 })
 
 test("debitCustomerWallet : crée le compte wallet client au premier débit (jamais de découvert)", async () => {
@@ -189,7 +194,7 @@ test("debitCustomerWallet : crée le compte wallet client au premier débit (jam
   // Aucun solde préexistant (0) < 10 demandé → insuffisant, jamais de découvert
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
-  assert.deepEqual(journal.map((j) => j.kind), ["TX_BEGIN", "SELECT_FOR_UPDATE", "INSERT_WALLET", "TX_ROLLBACK"])
+  assert.deepEqual(journal.map((j) => j.kind), ["TX_BEGIN", "SET_RLS_BYPASS", "SELECT_FOR_UPDATE", "INSERT_WALLET", "TX_ROLLBACK"])
 })
 
 test("debitCustomerWallet : rejette un montant invalide avant toute I/O", async () => {
@@ -267,6 +272,7 @@ test("creditCustomerWallet : crédite un remboursement, ordre des opérations", 
   }
   assert.deepEqual(journal.map((j) => j.kind), [
     "TX_BEGIN",
+    "SET_RLS_BYPASS",
     "SELECT_FOR_UPDATE",
     "INSERT_LEDGER",
     "UPDATE_BALANCE",

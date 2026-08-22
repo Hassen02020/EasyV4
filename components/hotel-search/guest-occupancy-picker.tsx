@@ -34,6 +34,15 @@ interface GuestOccupancyPickerProps {
   onChange?: (rooms: RoomOccupancy[]) => void
   nationality?: Nationality
   onNationalityChange?: (nationality: Nationality) => void
+  /**
+   * Le sélecteur de nationalité n'a de sens que si le fournisseur
+   * l'exploite réellement pour le pricing (ex. Hôtels Monde). MyGo (Hôtel
+   * Tunisie) n'a aucun paramètre nationalité dans `HotelSearchQuerySchema`
+   * — l'afficher là créerait un contrôle qui ne fait rien, plutôt que de
+   * fabriquer une capacité fournisseur. Défaut `true` pour ne rien changer
+   * aux intégrations existantes (Hôtels Monde).
+   */
+  showNationality?: boolean
 }
 
 const CHILD_AGE_OPTIONS: ChildAge[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
@@ -43,6 +52,7 @@ export function GuestOccupancyPicker({
   onChange,
   nationality = "resident",
   onNationalityChange,
+  showNationality = true,
 }: GuestOccupancyPickerProps) {
   const [rooms, dispatch] = useReducer(
     (state: RoomOccupancy[], action: RoomAction) => {
@@ -128,31 +138,33 @@ export function GuestOccupancyPicker({
 
   return (
     <div className="space-y-4">
-      {/* Nationalité */}
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-2">
-          <Globe className="h-4 w-4" />
-          Nationalité
-        </Label>
-        <RadioGroup
-          value={nationality}
-          onValueChange={handleNationalityChange}
-          className="flex gap-4"
-        >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="resident" id="resident" />
-            <Label htmlFor="resident" className="font-normal cursor-pointer">
-              Résident
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="non_resident" id="non_resident" />
-            <Label htmlFor="non_resident" className="font-normal cursor-pointer">
-              Non-résident
-            </Label>
-          </div>
-        </RadioGroup>
-      </div>
+      {/* Nationalité — seulement si le fournisseur l'exploite réellement (voir showNationality) */}
+      {showNationality && (
+        <div className="flex items-center justify-between">
+          <Label className="flex items-center gap-2">
+            <Globe className="h-4 w-4" />
+            Nationalité
+          </Label>
+          <RadioGroup
+            value={nationality}
+            onValueChange={handleNationalityChange}
+            className="flex gap-4"
+          >
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="resident" id="resident" />
+              <Label htmlFor="resident" className="font-normal cursor-pointer">
+                Résident
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="non_resident" id="non_resident" />
+              <Label htmlFor="non_resident" className="font-normal cursor-pointer">
+                Non-résident
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+      )}
 
       {/* Chambres */}
       <div className="space-y-3">

@@ -24,6 +24,10 @@ coverage/
 *.tsbuildinfo
 *.log
 
+# Playwright run artifacts (traces, screenshots) — not repo content
+/test-results/
+/playwright-report/
+
 # OS
 .DS_Store
 Thumbs.db

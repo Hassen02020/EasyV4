@@ -108,6 +108,7 @@ export const reservationStatus = pgEnum("reservation_status", [
   "no_show",
   "completed", // séjour terminé
   "refunded",
+  "expired", // paiement manuel jamais reçu sous 24h (payment_expires_at dépassé)
 ])
 
 export const paymentStatus = pgEnum("payment_status", [
@@ -382,6 +383,11 @@ export const reservations = pgTable(
       .defaultNow(),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /** Deadline de règlement manuel (cash/virement) — dépassée sans paiement
+     * confirmé, la réservation passe `expired` (cron
+     * /api/cron/expire-pending-payments). `null` pour tout ce qui n'est pas
+     * une réservation `pending` en attente de règlement manuel. */
+    paymentExpiresAt: timestamp("payment_expires_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("reservations_public_ref_uniq").on(t.agencyId, t.publicRef),
@@ -625,6 +631,12 @@ export const payments = pgTable(
     index("payments_reservation_idx").on(t.reservationId),
     index("payments_psp_order_idx").on(t.pspOrderId),
     index("payments_status_idx").on(t.agencyId, t.status),
+    /** Au plus un paiement `captured` par réservation — garde DB contre le
+     * double débit/double capture (staff qui re-clique VERIFY, webhook
+     * rejoué en parallèle d'une vérification manuelle, etc.). */
+    uniqueIndex("payments_reservation_captured_uniq")
+      .on(t.reservationId)
+      .where(sql`${t.status} = 'captured'`),
   ],
 )
 

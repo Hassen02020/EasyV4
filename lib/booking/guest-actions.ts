@@ -57,12 +57,28 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { getMyGoClient } from "@/lib/mygo"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "./guest-idempotency"
 
-export type GuestPaymentMethod = "card" | "transfer" | "cash"
+export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash"
+
+/** Délai de règlement manuel (cash/virement) avant expiration automatique — Wallet/Payment Core. */
+const MANUAL_PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/** Marqueur interne pour distinguer un échec de débit wallet (attendu, pas
+ * une erreur système) d'une vraie erreur DB dans le `catch` englobant. */
+class WalletDebitFailedError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message)
+    this.name = "WalletDebitFailedError"
+  }
+}
 
 export type CreateGuestReservationResult =
   | { ok: true; reservationId: string; publicRef: string; status: "confirmed" | "pending" }
@@ -184,7 +200,12 @@ async function runCreateGuestReservation(
     // cette branche n'est aujourd'hui jamais atteinte en pratique.
   }
 
-  const isImmediatelyPaid = paymentMethod === "card"
+  // "wallet" ne peut être tranché qu'APRÈS avoir résolu customerId (donc à
+  // l'intérieur de la transaction, une fois la ligne `customers` posée) —
+  // "card" reste tranché avant, car c'est un appel externe (PSP) qui ne
+  // dépend d'aucune ligne DB. isImmediatelyPaid n'est donc définitif qu'en
+  // sortie de transaction.
+  const isImmediatelyPaidByCard = paymentMethod === "card"
 
   try {
     const result = await withTenantContext(
@@ -219,6 +240,17 @@ async function runCreateGuestReservation(
 
         const publicRef = await nextPublicRef(tx, agencyId)
 
+        // Fenêtre de règlement manuel 24h — posée uniquement pour ce qui
+        // reste réellement `pending` en sortie de transaction (transfer/
+        // cash, ou wallet en cas de solde insuffisant ne serait de toute
+        // façon jamais atteint ici : voir le débit ci-dessous, qui fait
+        // échouer toute la transaction avant ce point). `card` : jamais de
+        // fenêtre, soit confirmé immédiatement soit rejeté avant tout INSERT.
+        const paymentExpiresAt =
+          paymentMethod === "transfer" || paymentMethod === "cash"
+            ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)
+            : null
+
         const inserted = await tx
           .insert(reservations)
           .values({
@@ -233,6 +265,7 @@ async function runCreateGuestReservation(
             tndAmount: String(breakdown.totalTnd),
             depositAmount: String(breakdown.depositTnd),
             depositPaid: "0",
+            paymentExpiresAt: paymentExpiresAt ?? undefined,
             providerPayload: {
               offerId: draft.offerId,
               offerLabel: draft.offerLabel,
@@ -281,6 +314,30 @@ async function runCreateGuestReservation(
           diff: { module: draft.module, publicRef, total: breakdown.totalTnd, via: "b2c_guest", paymentMethod },
         })
 
+        let isImmediatelyPaid = isImmediatelyPaidByCard
+
+        if (paymentMethod === "wallet") {
+          // Débit AVANT toute confirmation — dans la MÊME transaction que
+          // la création de la réservation (txOverride), pour l'atomicité
+          // déjà établie par debitPartnerCredit côté B2B : un solde
+          // insuffisant doit annuler la réservation entière (ROLLBACK),
+          // jamais laisser une réservation `pending` orpheline d'un débit
+          // qui n'a pas eu lieu. Solde serveur-autoritaire uniquement — le
+          // montant vient de `breakdown.totalTnd` (calculé plus haut à
+          // partir du prix myGo réel + marge), jamais d'une valeur client.
+          const debit = await debitCustomerWallet({
+            customerId,
+            amountTnd: breakdown.totalTnd,
+            reservationId,
+            description: `Réservation ${draft.module} — ${draft.offerLabel}`,
+            txOverride: tx as Parameters<typeof debitCustomerWallet>[0]["txOverride"],
+          })
+          if (!debit.ok) {
+            throw new WalletDebitFailedError(debit.code, debit.message)
+          }
+          isImmediatelyPaid = true
+        }
+
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
@@ -291,7 +348,7 @@ async function runCreateGuestReservation(
             agencyId,
             reservationId,
             psp: "manual",
-            method: "card",
+            method: paymentMethod === "wallet" ? "wallet" : "card",
             originalCurrency: "TND",
             originalAmount: breakdown.totalTnd.toFixed(2),
             tndAmount: breakdown.totalTnd.toFixed(2),
@@ -304,7 +361,9 @@ async function runCreateGuestReservation(
           // dans l'UI existante. Réservation réelle, statut `pending` :
           // aucun voucher (Phase 11 : confirmed/completed uniquement),
           // aucune facture tant que le règlement n'est pas confirmé
-          // manuellement par un opérateur.
+          // manuellement par un opérateur (voir
+          // lib/finance/manual-payment-actions.ts). `paymentExpiresAt`
+          // (posé ci-dessus) déclenche l'expiration automatique 24h.
           await tx.insert(payments).values({
             agencyId,
             reservationId,
@@ -319,11 +378,17 @@ async function runCreateGuestReservation(
         }
 
         const finalStatus: "confirmed" | "pending" = isImmediatelyPaid ? "confirmed" : "pending"
-        return { reservationId, publicRef, status: finalStatus }
+        return { reservationId, publicRef, status: finalStatus, isImmediatelyPaid }
       },
     )
 
-    if (traveler.email) {
+    // "booking/confirmed" déclenche processConfirmedBooking (PDF voucher +
+    // email) sans revérifier le statut — voir Phase 14.2 : cet événement ne
+    // doit JAMAIS partir pour une réservation restée `pending`
+    // (transfer/cash non réglé), sous peine d'envoyer un vrai voucher pour
+    // une résa non payée. Même garde que le chemin B2B
+    // (lib/booking/actions.ts), reproduite ici.
+    if (result.isImmediatelyPaid && traveler.email) {
       await sendEvent("booking/confirmed", {
         reservationId: result.reservationId,
         publicRef: result.publicRef,
@@ -344,7 +409,7 @@ async function runCreateGuestReservation(
 
     // Facture uniquement pour un règlement réellement capturé maintenant —
     // jamais pour une réservation `pending` non payée (voir Phase 12 §12).
-    if (isImmediatelyPaid) {
+    if (result.isImmediatelyPaid) {
       try {
         const invoiceResult = await generateInvoiceForReservation({
           agencyId,
@@ -363,12 +428,26 @@ async function runCreateGuestReservation(
     }
 
     return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef, status: result.status }
-  } catch {
+  } catch (err) {
     let compensationNote = ""
     try {
       await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
     } catch {
       compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
+    }
+    // Solde wallet insuffisant : transaction annulée (ROLLBACK, aucune
+    // réservation créée), résa fournisseur compensée ci-dessus — message
+    // clair plutôt que l'erreur interne générique, même distinction que
+    // INSUFFICIENT_BALANCE côté B2B (lib/booking/actions.ts).
+    if (err instanceof WalletDebitFailedError) {
+      return {
+        ok: false,
+        error:
+          err.code === "INSUFFICIENT_FUNDS"
+            ? `Solde wallet insuffisant pour ce règlement.${compensationNote}`
+            : `${err.message}${compensationNote}`,
+        code: err.code,
+      }
     }
     return {
       ok: false,

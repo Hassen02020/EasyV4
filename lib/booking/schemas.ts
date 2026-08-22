@@ -90,6 +90,7 @@ export type BookingDraft = z.infer<typeof bookingDraftSchema>
 
 export const paymentMethodSchema = z.enum([
   "card",
+  "wallet",
   "transfer",
   "cash",
   "at_hotel",

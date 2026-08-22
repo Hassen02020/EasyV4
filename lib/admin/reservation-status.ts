@@ -14,6 +14,7 @@ export const RESERVATION_STATUSES = [
   "no_show",
   "completed",
   "refunded",
+  "expired",
 ] as const
 
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number]
@@ -22,22 +23,26 @@ export type ReservationStatus = (typeof RESERVATION_STATUSES)[number]
  * Transitions autorisées depuis chaque statut.
  *
  * Règles métier :
- *  - pending     -> confirmed, on_request, cancelled
+ *  - pending     -> confirmed, on_request, cancelled, expired
  *  - on_request  -> confirmed, cancelled
  *  - confirmed   -> cancelled, completed, refunded
  *  - cancelled   -> pending (réouverture exceptionnelle)
  *  - no_show     -> refunded
  *  - completed   -> refunded
  *  - refunded    -> (terminal)
+ *  - expired     -> (terminal — Wallet/Payment Core : ne peut plus être
+ *                    payée, validée par le staff, ni recevoir de voucher
+ *                    ou de confirmation ; voir isTransitionAllowed)
  */
 const ALLOWED_TRANSITIONS: Record<ReservationStatus, ReservationStatus[]> = {
-  pending: ["confirmed", "on_request", "cancelled"],
+  pending: ["confirmed", "on_request", "cancelled", "expired"],
   on_request: ["confirmed", "cancelled"],
   confirmed: ["cancelled", "completed", "refunded"],
   cancelled: ["pending"],
   no_show: ["refunded"],
   completed: ["refunded"],
   refunded: [],
+  expired: [],
 }
 
 export function isTransitionAllowed(

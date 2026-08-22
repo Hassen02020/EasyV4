@@ -60,6 +60,23 @@ const MODULE_LABELS: Record<string, string> = {
   car: "Location Voiture",
 }
 
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  card: "Carte bancaire",
+  wallet: "Wallet",
+  transfer: "Virement bancaire",
+  cash: "Espèces",
+  at_hotel: "Paiement à l'hôtel",
+}
+
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  pending: "en attente de vérification",
+  captured: "réglé",
+  failed: "échoué",
+  refunded: "remboursé",
+  authorized: "autorisé",
+  partial_refund: "partiellement remboursé",
+}
+
 // ─── Components ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: BookingStatus }) {
@@ -98,6 +115,16 @@ function StatusBadge({ status }: { status: BookingStatus }) {
       color: "bg-red-100 text-red-700 border-red-200",
       icon: XCircle,
     },
+    expired: {
+      label: t("statusExpired"),
+      color: "bg-gray-100 text-gray-600 border-gray-200",
+      icon: XCircle,
+    },
+    completed: {
+      label: "Séjour terminé",
+      color: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      icon: CheckCircle2,
+    },
   }
   const cfg = STATUS_CONFIG[status]
   const Icon = cfg.icon
@@ -120,6 +147,8 @@ function Timeline({ status }: { status: BookingStatus }) {
     cancelled: 0,
     refunded: 0,
     no_show: 0,
+    expired: 0,
+    completed: 3,
   }
   const TIMELINE_STEPS = [
     { label: t("demandeRecue"), step: 1 },
@@ -244,6 +273,43 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
 
         <Separator />
 
+        {/* Paiement */}
+        {(booking.payment || booking.paymentExpiresAt) && (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {booking.payment && (
+                <div className="text-sm">
+                  <p className="text-muted-foreground text-xs">Méthode de paiement</p>
+                  <p className="text-foreground font-medium">
+                    {PAYMENT_METHOD_LABEL[booking.payment.method] ?? booking.payment.method}
+                    {" — "}
+                    <span
+                      className={
+                        booking.payment.status === "captured"
+                          ? "text-emerald-600"
+                          : booking.payment.status === "refunded"
+                            ? "text-muted-foreground"
+                            : "text-amber-600"
+                      }
+                    >
+                      {PAYMENT_STATUS_LABEL[booking.payment.status] ?? booking.payment.status}
+                    </span>
+                  </p>
+                </div>
+              )}
+              {booking.status === "pending" && booking.paymentExpiresAt && (
+                <div className="text-sm">
+                  <p className="text-muted-foreground text-xs">Délai de règlement</p>
+                  <p className="text-foreground font-medium">
+                    Avant le {formatDate(booking.paymentExpiresAt)}
+                  </p>
+                </div>
+              )}
+            </div>
+            <Separator />
+          </>
+        )}
+
         {/* Price + dates */}
         <div className="flex items-end justify-between">
           <div>
@@ -280,16 +346,25 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 pt-1">
-          <Button variant="outline" size="sm" className="gap-1.5" disabled>
-            <Download className="h-4 w-4" />
-            {t("voucherPdf")}
-          </Button>
+          {(booking.status === "confirmed" || booking.status === "completed") &&
+          booking.module === "hotel" ? (
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <a href={`/api/booking/voucher/${booking.publicRef}`} target="_blank" rel="noreferrer">
+                <Download className="h-4 w-4" />
+                {t("voucherPdf")}
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" className="gap-1.5" disabled>
+              <Download className="h-4 w-4" />
+              {t("voucherPdf")}
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-1.5" disabled>
             <Download className="h-4 w-4" />
             {t("facturePdf")}
           </Button>
-          {(booking.status === "pending" ||
-            booking.status === "on_request") && (
+          {booking.status === "pending" && (
             <Button
               variant="destructive"
               size="sm"
@@ -302,10 +377,33 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
           )}
         </div>
 
+        {booking.status === "pending" && (
+          <div className="bg-muted/50 space-y-1 rounded-lg p-3 text-xs">
+            {booking.onlinePaymentAvailable ? (
+              <p>Vous pouvez régler cette réservation en ligne.</p>
+            ) : (
+              <p>
+                Le paiement en ligne n&apos;est pas encore disponible pour cette réservation.
+                {booking.payment?.method === "cash"
+                  ? " Réglez en espèces à notre agence avant la date limite ci-dessus."
+                  : booking.payment?.method === "transfer"
+                    ? " Réglez par virement bancaire (coordonnées envoyées par email) avant la date limite ci-dessus."
+                    : ""}
+              </p>
+            )}
+          </div>
+        )}
+
+        {booking.status === "expired" && (
+          <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-xs font-medium">
+            Le délai de règlement (24h) est dépassé — cette réservation ne peut plus être payée ni
+            validée. Contactez-nous si vous souhaitez effectuer une nouvelle réservation.
+          </div>
+        )}
+
         {(booking.status === "pending" || booking.status === "on_request") && (
           <p className="text-muted-foreground text-xs">
-            * Les téléchargements et annulations seront disponibles
-            prochainement. Contactez{" "}
+            * L&apos;annulation en ligne sera disponible prochainement. Contactez{" "}
             <a href="tel:+21698140514" className="text-primary hover:underline">
               +216 98 140 514
             </a>{" "}

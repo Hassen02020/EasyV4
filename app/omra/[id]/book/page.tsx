@@ -10,7 +10,7 @@
 
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { and, eq, gte } from "drizzle-orm"
+import { and, eq, gte, arrayContains } from "drizzle-orm"
 import { ArrowLeft } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -20,7 +20,8 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { OmraGuestBookingForm } from "@/components/omra/omra-guest-booking-form"
 import { BookingSteps } from "@/components/booking/booking-steps"
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 async function getBookablePackage(id: string) {
   if (!UUID_RE.test(id)) return null
@@ -35,6 +36,7 @@ async function getBookablePackage(id: string) {
           eq(omraPackages.id, id),
           eq(omraPackages.status, "published"),
           eq(omraPackages.agencyId, agencyId),
+          arrayContains(omraPackages.channels, ["b2c"]),
         ),
       )
       .limit(1)
@@ -87,7 +89,8 @@ export default async function OmraBookPage({
           </Link>
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{pkg.name}</h1>
           <p className="text-muted-foreground mb-6">
-            Renseignez les fiches pèlerins et choisissez votre mode de règlement.
+            Renseignez les fiches pèlerins et choisissez votre mode de
+            règlement.
           </p>
           <BookingSteps current={2} />
 
@@ -97,11 +100,17 @@ export default async function OmraBookPage({
               packageName={pkg.name}
               basePrice={parseFloat(pkg.basePrice)}
               durationDays={pkg.durationDays}
-              defaultDepartureDate={date && departures.some((d) => d.departureDate === date) ? date : undefined}
+              defaultDepartureDate={
+                date && departures.some((d) => d.departureDate === date)
+                  ? date
+                  : undefined
+              }
               departures={departures.map((d) => ({
                 departureDate: d.departureDate,
                 availableCount: d.availableCount,
-                price: d.overridePrice ? parseFloat(d.overridePrice) : parseFloat(pkg.basePrice),
+                price: d.overridePrice
+                  ? parseFloat(d.overridePrice)
+                  : parseFloat(pkg.basePrice),
               }))}
             />
           </div>

@@ -128,7 +128,8 @@ async function runCreateGuestOmraBooking(
           .where(and(eq(omraPackages.id, booking.packageId), eq(omraPackages.agencyId, agencyId)))
           .limit(1)
         if (!pkg) throw new Error("PACKAGE_NOT_FOUND")
-        if (pkg.status !== "active") throw new Error("PACKAGE_NOT_ACTIVE")
+        if (pkg.status !== "published") throw new Error("PACKAGE_NOT_ACTIVE")
+        if (!pkg.channels?.includes("b2c")) throw new Error("PACKAGE_NOT_ACTIVE")
 
         const [allotment] = await tx
           .select()

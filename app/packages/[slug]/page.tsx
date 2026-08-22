@@ -18,7 +18,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import Image from "next/image"
-import { and, eq, gte } from "drizzle-orm"
+import { and, eq, gte, arrayContains } from "drizzle-orm"
 import {
   ArrowLeft,
   Calendar,
@@ -82,6 +82,7 @@ async function getPackageWithDepartures(slug: string) {
             eq(catalogPackages.slug, slug),
             eq(catalogPackages.status, "published"),
             eq(catalogPackages.agencyId, agencyId),
+            arrayContains(catalogPackages.channels, ["b2c"]),
           ),
         )
         .limit(1)

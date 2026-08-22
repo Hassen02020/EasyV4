@@ -123,7 +123,8 @@ async function runCreateGuestPackageBooking(
           .where(and(eq(catalogPackages.id, booking.packageId), eq(catalogPackages.agencyId, agencyId)))
           .limit(1)
         if (!pkg) throw new Error("PACKAGE_NOT_FOUND")
-        if (pkg.status !== "active") throw new Error("PACKAGE_NOT_ACTIVE")
+        if (pkg.status !== "published") throw new Error("PACKAGE_NOT_ACTIVE")
+        if (!pkg.channels?.includes("b2c")) throw new Error("PACKAGE_NOT_ACTIVE")
 
         const [departure] = await tx
           .select()

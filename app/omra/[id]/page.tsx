@@ -17,7 +17,7 @@
 
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { and, eq, gte } from "drizzle-orm"
+import { and, eq, gte, arrayContains } from "drizzle-orm"
 import {
   ArrowLeft,
   Calendar,
@@ -74,6 +74,7 @@ async function getPackageWithDepartures(id: string) {
             eq(omraPackages.id, id),
             eq(omraPackages.status, "published"),
             eq(omraPackages.agencyId, agencyId),
+            arrayContains(omraPackages.channels, ["b2c"]),
           ),
         )
         .limit(1)

@@ -9,7 +9,7 @@
 
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { and, eq, gte } from "drizzle-orm"
+import { and, eq, gte, arrayContains } from "drizzle-orm"
 import { ArrowLeft } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -31,6 +31,7 @@ async function getBookablePackage(slug: string) {
           eq(catalogPackages.slug, slug),
           eq(catalogPackages.status, "published"),
           eq(catalogPackages.agencyId, agencyId),
+          arrayContains(catalogPackages.channels, ["b2c"]),
         ),
       )
       .limit(1)
@@ -43,7 +44,10 @@ async function getBookablePackage(slug: string) {
         and(
           eq(catalogPackageDepartures.packageId, pkg.id),
           eq(catalogPackageDepartures.status, "open"),
-          gte(catalogPackageDepartures.departureDate, new Date().toISOString().split("T")[0]!),
+          gte(
+            catalogPackageDepartures.departureDate,
+            new Date().toISOString().split("T")[0]!,
+          ),
         ),
       )
       .orderBy(catalogPackageDepartures.departureDate)
@@ -95,14 +99,20 @@ export default async function PackageBookPage({
             <PackageGuestBookingForm
               packageId={pkg.id}
               packageTitle={pkg.title}
-              defaultDepartureId={departure && departures.some((d) => d.id === departure) ? departure : undefined}
+              defaultDepartureId={
+                departure && departures.some((d) => d.id === departure)
+                  ? departure
+                  : undefined
+              }
               departures={departures.map((d) => ({
                 id: d.id,
                 departureDate: d.departureDate,
                 returnDate: d.returnDate,
                 seatsLeft: d.seatsLeft,
                 adultPriceTnd: parseFloat(d.adultPriceTnd),
-                childPriceTnd: d.childPriceTnd ? parseFloat(d.childPriceTnd) : undefined,
+                childPriceTnd: d.childPriceTnd
+                  ? parseFloat(d.childPriceTnd)
+                  : undefined,
               }))}
             />
           </div>

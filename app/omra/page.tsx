@@ -10,7 +10,7 @@ import { OmraSearch } from "@/components/omra/omra-search"
 import { OmraPackageList } from "@/components/omra/omra-package-list"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
-import { and, eq, gte, inArray, sql } from "drizzle-orm"
+import { and, eq, gte, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
 export const dynamic = "force-dynamic"
@@ -36,7 +36,7 @@ async function getActivePackages(filters: SearchFilters) {
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
     return await withSystemContext(async (db) => {
-    const conditions = [eq(omraPackages.status, "published"), eq(omraPackages.agencyId, agencyId)]
+    const conditions = [eq(omraPackages.status, "published"), eq(omraPackages.agencyId, agencyId), arrayContains(omraPackages.channels, ["b2c"])]
 
     const programme = filters.programme
     if (programme && (omraPackageType.enumValues as readonly string[]).includes(programme)) {

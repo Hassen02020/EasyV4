@@ -61,6 +61,7 @@ import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { getMyGoClient } from "@/lib/mygo"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
+import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-payment"
 import { withGuestIdempotency } from "./guest-idempotency"
 
 export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash"
@@ -169,26 +170,25 @@ async function runCreateGuestReservation(
   )
 
   // --- Paiement en ligne immédiat ---
-  // Tenté AVANT toute écriture DB : si le paiement échoue ou si aucun
-  // provider n'est configuré, aucune réservation locale n'est créée — et la
-  // réservation fournisseur (déjà confirmée chez myGo à ce stade) est
-  // annulée en compensation, même logique que le catch de
-  // createReservationFromDraft.
+  // Tenté AVANT toute écriture DB : si le paiement échoue OU si le provider
+  // lève une exception (timeout réseau, etc. — voir
+  // lib/booking/guest-card-payment.ts, correctif Phase 15), aucune
+  // réservation locale n'est créée — et la réservation fournisseur (déjà
+  // confirmée chez myGo à ce stade) est annulée en compensation, même
+  // logique que le catch de createReservationFromDraft.
   if (paymentMethod === "card") {
-    const provider = getPaymentProvider()
-    const paymentResult = await provider.createPayment({
-      amountTnd: breakdown.totalTnd,
-      currency: "TND",
-      reference: `guest-${Date.now()}`,
-      description: `Réservation ${draft.module} — ${draft.offerLabel}`,
-      customerEmail: traveler.email,
-    })
+    const paymentResult = await attemptCardPayment(
+      getPaymentProvider(),
+      {
+        amountTnd: breakdown.totalTnd,
+        currency: "TND",
+        reference: generateGuestPaymentReference(),
+        description: `Réservation ${draft.module} — ${draft.offerLabel}`,
+        customerEmail: traveler.email,
+      },
+      () => getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId }),
+    )
     if (!paymentResult.ok) {
-      try {
-        await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
-      } catch {
-        /* best-effort — voir note de compensation dans actions.ts */
-      }
       return {
         ok: false,
         error: paymentResult.message ?? "Le paiement n'a pas pu être traité.",

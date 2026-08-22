@@ -22,19 +22,19 @@ const METHODS: {
   {
     key: "card",
     label: "Carte bancaire",
-    desc: "Paiement immédiat via passerelle sécurisée (simulation)",
+    desc: "Paiement en ligne immédiat",
     icon: CreditCard,
   },
   {
     key: "transfer",
     label: "Virement bancaire",
-    desc: "Recevez les coordonnées par email après validation",
+    desc: "Réservation enregistrée, coordonnées de virement envoyées par email — voucher émis après confirmation du règlement",
     icon: Banknote,
   },
   {
     key: "cash",
     label: "Espèces en agence",
-    desc: "Réservation maintenue 48 h en attente de paiement",
+    desc: "Réservation maintenue 48 h en attente de paiement — voucher émis après confirmation du règlement",
     icon: Wallet,
   },
 ]

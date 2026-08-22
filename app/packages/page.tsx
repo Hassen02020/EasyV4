@@ -9,7 +9,8 @@ import { PackageSearch } from "@/components/packages/package-search"
 import { PackageList } from "@/components/packages/package-list"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
-import { and, eq, gte, ilike, inArray, sql } from "drizzle-orm"
+import { and, eq, gte, ilike, inArray, sql, arrayContains } from "drizzle-orm"
+import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
 export const dynamic = "force-dynamic"
 
@@ -51,9 +52,14 @@ function parseDurationRange(duration: string): [number, number | undefined] | nu
 
 async function getActivePackages(filters: SearchFilters) {
   try {
-    // Catalogue public (trafic anonyme, pas de session storefront).
+    // Catalogue public (trafic anonyme, pas de session storefront) — scopé à
+    // l'agence OTA directe, même modèle que Car/Hôtels/Transferts/Omra
+    // (getDefaultAgencyId) : on n'affiche jamais un package qu'un visiteur
+    // anonyme ne pourrait ensuite pas réserver via le guest checkout.
+    const agencyId = await getDefaultAgencyId()
+    if (!agencyId) return []
     return await withSystemContext(async (db) => {
-    const conditions = [eq(catalogPackages.status, "active")]
+    const conditions = [eq(catalogPackages.status, "published"), eq(catalogPackages.agencyId, agencyId), arrayContains(catalogPackages.channels, ["b2c"])]
 
     const searchTerm = filters.destination
       ? DESTINATION_SEARCH_TERMS[filters.destination]

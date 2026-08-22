@@ -207,6 +207,14 @@ export const agencies = pgTable(
       .notNull()
       .default("19.00"),
     status: varchar("status", { length: 16 }).notNull().default("active"),
+    /**
+     * White Label (Phase 13.1) : hôte/domaine public dédié à cette agence
+     * quand elle sert un storefront de marque blanche (ex.
+     * "voyages.exemple.tn"). NULL pour Easy2Book B2C et pour les agences
+     * partenaires B2B classiques (`/pro` reste leur seul accès, pas de
+     * domaine dédié). Résolution : `lib/tenant/resolve-tenant.ts`.
+     */
+    domain: varchar("domain", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -217,6 +225,7 @@ export const agencies = pgTable(
   (t) => [
     uniqueIndex("agencies_slug_uniq").on(t.slug),
     index("agencies_type_idx").on(t.agencyType),
+    uniqueIndex("agencies_domain_uniq").on(t.domain),
   ],
 )
 
@@ -700,6 +709,8 @@ export const catalogPackages = pgTable(
     inclusions: text("inclusions").array(),
     exclusions: text("exclusions").array(),
     status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /** Canaux de distribution : 'b2c' / 'b2b' / 'white_label'. Phase 13. */
+    channels: text("channels").array().notNull().default(["b2c"]),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -762,6 +773,8 @@ export const catalogActivities = pgTable(
     /** ex. {child:"<12y", senior:">=65y"}. */
     tariffRules: jsonb("tariff_rules"),
     status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /** Canaux de distribution : 'b2c' / 'b2b' / 'white_label'. Phase 13. */
+    channels: text("channels").array().notNull().default(["b2c"]),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -797,6 +810,11 @@ export const catalogActivitySessions = pgTable(
     childPriceTnd: decimal("child_price_tnd", { precision: 14, scale: 2 }),
     seniorPriceTnd: decimal("senior_price_tnd", { precision: 14, scale: 2 }),
     status: varchar("status", { length: 16 }).notNull().default("open"),
+    /**
+     * Date limite de réservation (Phase 13.1). NULL = pas de délai dédié,
+     * la date/heure de la session elle-même fait office de coupure.
+     */
+    bookingDeadline: timestamp("booking_deadline", { withTimezone: true }),
   },
   (t) => [
     index("catalog_act_sess_agency_idx").on(t.agencyId),
@@ -928,6 +946,73 @@ export const pricingMargins = pgTable(
   (t) => [
     index("pricing_margins_agency_idx").on(t.agencyId),
     uniqueIndex("pricing_margins_agency_module_uniq").on(t.agencyId, t.module),
+  ],
+)
+
+/** Type de produit autorisé — mêmes 3 valeurs que les triads catalogue Phase 13. */
+export const authorizedProductType = pgEnum("authorized_product_type", [
+  "package",
+  "omra",
+  "activity",
+])
+
+/**
+ * Autorisations de revente B2B / White Label (Phase 13.1).
+ *
+ * Constat de l'audit Phase 13.1 : `catalog_packages`/`omra_packages`/
+ * `catalog_activities` ont une policy RLS stricte `agency_id =
+ * current_agency_id()` (0001_rls_policies.sql) — un produit appartient à
+ * l'agence OTA qui l'a créé (`assertProductManager`). Une agence
+ * partenaire B2B (agencyType='partner') n'a donc, par construction,
+ * JAMAIS pu lire un produit qu'elle n'a pas créé elle-même — et
+ * `assertProductManager` interdit justement aux agences non-OTA d'en
+ * créer. Résultat : `createOmraBooking` (B2B, déjà existant) ne pouvait
+ * matériellement jamais trouver de package pour une vraie agence
+ * partenaire, RLS bloquant la lecture en amont de toute logique
+ * applicative. C'est le vrai verrou derrière le gap "B2B — vendre les
+ * nouveaux produits".
+ *
+ * Cette table est la liste explicite des autorisations : quelle agence
+ * (`agency_id`, un partenaire B2B OU un tenant White Label) peut voir et
+ * vendre quel produit (`product_type` + `product_id`, pas de FK Postgres
+ * cross-table possible avec 3 tables cibles différentes — intégrité
+ * garantie côté applicatif par `assertProductManager` + validation du
+ * productId à la création de l'autorisation).
+ *
+ * `channel` distingue une autorisation B2B classique d'une autorisation
+ * White Label — même table, pas un deuxième système ("Ne crée pas un
+ * deuxième système B2B").
+ *
+ * Le `agency_id = current_agency_id()` du produit lui-même RESTE le seul
+ * chemin d'ÉCRITURE (WITH CHECK inchangé dans la migration RLS) : une
+ * autorisation donne un accès LECTURE SEULE au produit d'un tiers, jamais
+ * un droit de le modifier.
+ */
+export const productAuthorizations = pgTable(
+  "product_authorizations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Agence revendeuse (partenaire B2B ou tenant White Label). */
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    productType: authorizedProductType("product_type").notNull(),
+    productId: uuid("product_id").notNull(),
+    /** 'b2b' (revente agence classique) ou 'white_label' (tenant marque blanche). */
+    channel: varchar("channel", { length: 16 }).notNull().default("b2b"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("product_auth_agency_product_uniq").on(t.agencyId, t.productType, t.productId),
+    index("product_auth_product_idx").on(t.productType, t.productId),
+    index("product_auth_agency_idx").on(t.agencyId),
   ],
 )
 
@@ -1561,7 +1646,12 @@ export type CatalogPackage = typeof catalogPackages.$inferSelect
 export type NewCatalogPackage = typeof catalogPackages.$inferInsert
 export type CatalogPackageDeparture = typeof catalogPackageDepartures.$inferSelect
 export type CatalogActivity = typeof catalogActivities.$inferSelect
+export type CatalogActivitySession = typeof catalogActivitySessions.$inferSelect
 export type CatalogTransferZone = typeof catalogTransferZones.$inferSelect
+
+// Product authorizations (B2B / White Label — Phase 13.1)
+export type ProductAuthorization = typeof productAuthorizations.$inferSelect
+export type NewProductAuthorization = typeof productAuthorizations.$inferInsert
 
 // Audit Logs
 export type AuditLog = typeof auditLogs.$inferSelect

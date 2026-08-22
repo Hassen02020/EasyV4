@@ -31,3 +31,60 @@ export function isVoucherEligible(
   if (!row.hotelName || !row.checkIn || !row.checkOut) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
 }
+
+/**
+ * Éligibilité voucher Omra — même règle que `isVoucherEligible` ci-dessus
+ * (Phase 11 : `confirmed`/`completed` uniquement, jamais `pending` ni
+ * `cancelled`/`refunded`), fonction dédiée plutôt qu'une extension de
+ * `isVoucherEligible` pour ne jamais toucher au garde déjà audité et validé
+ * en Phase 11 (RÈGLE ABSOLUE Phase 12 : ne pas réécrire un correctif déjà
+ * validé).
+ */
+export interface OmraVoucherEligibilityInput {
+  module: string
+  status: string
+  packageName: string | null | undefined
+  departureDate: string | null | undefined
+  returnDate: string | null | undefined
+}
+
+export function isOmraVoucherEligible(
+  row: OmraVoucherEligibilityInput,
+): row is OmraVoucherEligibilityInput & { packageName: string; departureDate: string; returnDate: string } {
+  if (row.module !== "omra") return false
+  if (!row.packageName || !row.departureDate || !row.returnDate) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
+/** Éligibilité voucher Voyage Organisé (Package) — même règle, fonction dédiée. */
+export interface PackageVoucherEligibilityInput {
+  module: string
+  status: string
+  packageName: string | null | undefined
+  departureDate: string | null | undefined
+  returnDate: string | null | undefined
+}
+
+export function isPackageVoucherEligible(
+  row: PackageVoucherEligibilityInput,
+): row is PackageVoucherEligibilityInput & { packageName: string; departureDate: string; returnDate: string } {
+  if (row.module !== "package") return false
+  if (!row.packageName || !row.departureDate || !row.returnDate) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
+/** Éligibilité voucher Attraction (Phase 13.1) — même règle, fonction dédiée. */
+export interface ActivityVoucherEligibilityInput {
+  module: string
+  status: string
+  activityName: string | null | undefined
+  sessionDate: string | null | undefined
+}
+
+export function isActivityVoucherEligible(
+  row: ActivityVoucherEligibilityInput,
+): row is ActivityVoucherEligibilityInput & { activityName: string; sessionDate: string } {
+  if (row.module !== "activity") return false
+  if (!row.activityName || !row.sessionDate) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}

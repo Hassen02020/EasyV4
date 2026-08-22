@@ -179,7 +179,10 @@ export async function createOmraBooking(
         throw new Error("PACKAGE_NOT_FOUND")
       }
 
-      if (pkg.status !== "active") {
+      if (pkg.status !== "published") {
+        throw new Error("PACKAGE_NOT_ACTIVE")
+      }
+      if (!pkg.channels?.includes("b2b")) {
         throw new Error("PACKAGE_NOT_ACTIVE")
       }
 

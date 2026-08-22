@@ -6,18 +6,20 @@
  * mais cette route n'existait pas — chaque clic "Voir le programme" menait
  * à un 404. Catalogue → Détail uniquement ici : aucun nouveau moteur créé.
  *
- * Réservation : contrairement à Omra, il n'existe ICI AUCUN moteur de
- * réservation, ni B2C ni B2B (aucun `createPackageBooking`, confirmé par
- * recherche dans tout `lib/`) — construire ce moteur est explicitement hors
- * périmètre de cette phase ("ne pas créer de nouveaux moteurs"). Le CTA
- * redirige donc vers un contact réel plutôt que de simuler un flux de
- * paiement inexistant. Documenté comme gap pour une phase dédiée.
+ * Réservation (Phase 12, Partie 9-10) : le CTA mène désormais à
+ * `/packages/[slug]/book`, qui utilise `createGuestPackageBooking`
+ * (lib/packages/booking-actions.ts) — le premier moteur de réservation
+ * Packages (aucun n'existait avant, ni B2C ni B2B), construit sur le
+ * modèle de données déjà réel (`catalog_packages`/`catalog_package_departures`,
+ * stock et prix réels, `reservation_package` déjà prêt). Le contact
+ * WhatsApp/téléphone reste disponible en option secondaire.
  */
 
+import { cache } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import Image from "next/image"
-import { and, eq, gte } from "drizzle-orm"
+import { and, eq, gte, arrayContains } from "drizzle-orm"
 import {
   ArrowLeft,
   Calendar,
@@ -36,6 +38,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
+import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
 const CONTACT_PHONE = "+21698140514"
 const CONTACT_PHONE_DISPLAY = "+216 98 140 514"
@@ -67,13 +70,22 @@ function parseItinerary(raw: unknown): ItineraryDay[] {
   )
 }
 
-async function getPackageWithDepartures(slug: string) {
+const getPackageWithDepartures = cache(async (slug: string) => {
   try {
+    const agencyId = await getDefaultAgencyId()
+    if (!agencyId) return null
     return await withSystemContext(async (db) => {
       const [pkg] = await db
         .select()
         .from(catalogPackages)
-        .where(and(eq(catalogPackages.slug, slug), eq(catalogPackages.status, "active")))
+        .where(
+          and(
+            eq(catalogPackages.slug, slug),
+            eq(catalogPackages.status, "published"),
+            eq(catalogPackages.agencyId, agencyId),
+            arrayContains(catalogPackages.channels, ["b2c"]),
+          ),
+        )
         .limit(1)
       if (!pkg) return null
 
@@ -99,6 +111,38 @@ async function getPackageWithDepartures(slug: string) {
     })
   } catch {
     return null
+  }
+})
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const result = await getPackageWithDepartures(slug)
+  if (!result) return {}
+  const { pkg } = result
+  const description =
+    pkg.shortDescription ??
+    pkg.longDescription ??
+    `Voyage organisé ${pkg.title} — ${pkg.durationDays ?? ""} jours — Easy2Book.`
+  return {
+    title: `${pkg.title} — Voyages Organisés | Easy2Book`,
+    description,
+    openGraph: {
+      title: pkg.title,
+      description,
+      type: "website",
+      url: `/packages/${pkg.slug}`,
+      images: pkg.coverImage ? [{ url: pkg.coverImage }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: pkg.title,
+      description,
+      images: pkg.coverImage ? [pkg.coverImage] : undefined,
+    },
   }
 }
 
@@ -302,20 +346,34 @@ export default async function PackageDetailPage({
                 </div>
               )}
 
-              {/* Aucun moteur de réservation Packages n'existe (ni B2C, ni
-                  B2B) — voir le commentaire de tête de ce fichier. */}
-              <Button asChild className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
-                <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
-                  <Phone className="h-4 w-4" />
-                  Réserver — contacter un conseiller
-                </a>
-              </Button>
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                ou appelez le{" "}
-                <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-violet-700">
-                  {CONTACT_PHONE_DISPLAY}
-                </a>
-              </p>
+              {departures.length > 0 ? (
+                <>
+                  <Button asChild className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
+                    <Link href={`/packages/${pkg.slug}/book`}>Réserver en ligne</Link>
+                  </Button>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    ou contactez un conseiller au{" "}
+                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-violet-700">
+                      {CONTACT_PHONE_DISPLAY}
+                    </a>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Button asChild className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
+                    <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
+                      <Phone className="h-4 w-4" />
+                      Contacter un conseiller
+                    </a>
+                  </Button>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    ou appelez le{" "}
+                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-violet-700">
+                      {CONTACT_PHONE_DISPLAY}
+                    </a>
+                  </p>
+                </>
+              )}
             </div>
           </aside>
         </div>

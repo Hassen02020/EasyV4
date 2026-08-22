@@ -137,10 +137,13 @@ export const omraPackages = pgTable(
     
     /** Métadonnées (itinéraire détaillé, conditions) */
     metadata: jsonb("metadata"),
-    
-    /** Statut du package */
-    status: varchar("status", { length: 16 }).notNull().default("active"),
-    
+
+    /** Statut du package : 'draft' / 'published' / 'suspended' / 'archived'. */
+    status: varchar("status", { length: 16 }).notNull().default("draft"),
+
+    /** Canaux de distribution : 'b2c' / 'b2b' / 'white_label'. Phase 13. */
+    channels: text("channels").array().notNull().default(["b2c"]),
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

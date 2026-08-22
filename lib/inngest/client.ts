@@ -9,7 +9,11 @@
 import { Inngest } from "inngest"
 
 export type Events = {
-  /** Réservation confirmée — déclenche génération PDF + envoi email. */
+  /**
+   * Réservation confirmée — déclenche en parallèle (fonctions Inngest
+   * indépendantes, retries indépendants) : génération PDF + envoi email,
+   * notification WhatsApp client, synchronisation CRM.
+   */
   "booking/confirmed": {
     data: {
       reservationId: string
@@ -17,6 +21,8 @@ export type Events = {
       agencyId: string
       customerEmail: string
       customerName: string
+      /** Format libre (tel que saisi) — normalisé E.164 par chaque consommateur qui en a besoin (ex. lib/whatsapp/provider.ts). */
+      customerPhone: string
       hotelName: string
       checkIn: string
       checkOut: string

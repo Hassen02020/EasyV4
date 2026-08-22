@@ -395,6 +395,7 @@ async function runCreateGuestReservation(
         agencyId,
         customerEmail: traveler.email,
         customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
+        customerPhone: traveler.phone,
         hotelName: myGoBooking.hotelName ?? draft.offerLabel,
         checkIn: draft.startDate,
         checkOut: draft.endDate ?? draft.startDate,

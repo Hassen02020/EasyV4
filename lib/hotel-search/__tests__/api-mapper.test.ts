@@ -46,14 +46,18 @@ test("toHotelSearchParams : plusieurs chambres encode la vraie composition via r
   assert.equal(params.get("roomsCount"), "2")
 })
 
-test("toHotelSearchParams : hotelId et zone transmis quand renseignés", () => {
+test("toHotelSearchParams : hotelId transmis quand renseigné, zone absente (aucun consommateur aval)", () => {
   const state = stateWith({
     destination: { cityId: 10, hotelId: 4821, zone: "Cap Bon" },
     rooms: [{ adults: 2, children: 0, childAges: [] }],
   })
   const params = toHotelSearchParams(state)
   assert.equal(params.get("hotelId"), "4821")
-  assert.equal(params.get("zone"), "Cap Bon")
+  assert.equal(
+    params.get("zone"),
+    null,
+    "destination.zone n'est pas encore lu par /hotels/search — pas de clé inerte",
+  )
 })
 
 test("toHotelSearchParams : stars et onlyAvailable transmis via options", () => {

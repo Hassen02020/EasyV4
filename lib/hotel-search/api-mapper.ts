@@ -50,9 +50,11 @@ export function toHotelSearchParams(
   if (state.destination.hotelId != null) {
     params.set("hotelId", String(state.destination.hotelId))
   }
-  if (state.destination.zone) {
-    params.set("zone", state.destination.zone)
-  }
+  // `destination.zone` (City.region) n'est pas encore consommé par
+  // `/hotels/search` ni par `HotelSearchQuerySchema` — l'écrire dans l'URL
+  // sans lecteur en aval créerait un paramètre inerte. Reste disponible sur
+  // `state.destination.zone` pour un futur filtre zone réel, jamais envoyé
+  // ici tant qu'aucun consommateur n'existe.
 
   params.set("checkin", formatDate(state.dates.checkIn))
   params.set("checkout", formatDate(state.dates.checkOut))

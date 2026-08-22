@@ -12,6 +12,7 @@ export const translations = {
     tabHotelsMonde: "Hôtels Monde",
     tabOmraty: "Omraty",
     tabVoyages: "Voyages Organisés",
+    tabAttractions: "Attractions",
     tabTransferts: "Transferts",
     tabCar: "Car",
     // Formulaire vols
@@ -137,6 +138,7 @@ export const translations = {
     tabHotelsMonde: "فنادق العالم",
     tabOmraty: "عمرتي",
     tabVoyages: "رحلات منظمة",
+    tabAttractions: "الأنشطة",
     tabTransferts: "نقل",
     tabCar: "سيارة",
     // Formulaire vols
@@ -262,6 +264,7 @@ export const translations = {
     tabHotelsMonde: "Hotels World",
     tabOmraty: "Omraty",
     tabVoyages: "Packages",
+    tabAttractions: "Attractions",
     tabTransferts: "Transfers",
     tabCar: "Car",
     // Flights form

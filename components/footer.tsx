@@ -150,6 +150,7 @@ export function Footer() {
                     "tabHotelsMonde",
                     "tabOmraty",
                     "tabVoyages",
+                    "tabAttractions",
                   ] as const
                 ).map((key) => (
                   <li key={key}>

@@ -72,3 +72,19 @@ export function isPackageVoucherEligible(
   if (!row.packageName || !row.departureDate || !row.returnDate) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
 }
+
+/** Éligibilité voucher Attraction (Phase 13.1) — même règle, fonction dédiée. */
+export interface ActivityVoucherEligibilityInput {
+  module: string
+  status: string
+  activityName: string | null | undefined
+  sessionDate: string | null | undefined
+}
+
+export function isActivityVoucherEligible(
+  row: ActivityVoucherEligibilityInput,
+): row is ActivityVoucherEligibilityInput & { activityName: string; sessionDate: string } {
+  if (row.module !== "activity") return false
+  if (!row.activityName || !row.sessionDate) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}

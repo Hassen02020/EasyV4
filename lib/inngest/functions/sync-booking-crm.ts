@@ -2,15 +2,13 @@
  * Inngest function — synchronisation CRM (booking/confirmed).
  *
  * Branche "CRM" du Event/Retry Engine, en parallèle d'Email/WhatsApp.
- * Aucun système CRM n'est choisi/configuré pour ce projet (voir
- * lib/crm/provider.ts) — cette fonction existe pour que le point d'entrée
- * du pipeline soit déjà câblé, mais s'arrête proprement (pas un échec, pas
- * de retry gaspillé contre un état permanent) tant qu'aucun adaptateur
- * réel n'est branché dans `getCrmProvider()`.
+ * Toute la logique (idempotence, audit, appel provider) vit dans
+ * lib/crm/sync-booking.ts — directement testable sans harnais Inngest.
+ * Ce fichier n'est qu'un fin wrapper de câblage.
  */
 
 import { inngest, type Events } from "@/lib/inngest/client"
-import { getCrmProvider, hasConfiguredCrmProvider } from "@/lib/crm/provider"
+import { syncBookingToCrm } from "@/lib/crm/sync-booking"
 
 export const syncBookingCrm = inngest.createFunction(
   {
@@ -29,26 +27,21 @@ export const syncBookingCrm = inngest.createFunction(
     const d = event.data
 
     return step.run("sync-crm", async () => {
-      if (!hasConfiguredCrmProvider()) {
-        return { skipped: true, reason: "CRM_PROVIDER_NOT_CONFIGURED" }
-      }
-
-      const result = await getCrmProvider().syncBooking({
+      const outcome = await syncBookingToCrm({
         reservationId: d.reservationId,
-        publicRef: d.publicRef,
         agencyId: d.agencyId,
+        publicRef: d.publicRef,
         customerEmail: d.customerEmail,
         customerName: d.customerName,
         customerPhone: d.customerPhone,
         totalTnd: d.totalTnd,
-        confirmedAt: new Date().toISOString(),
       })
 
-      if (!result.ok) {
-        throw new Error(`CRM sync failed: ${result.code} — ${result.message}`)
+      if (outcome.outcome === "failed") {
+        throw new Error(`CRM sync failed: ${outcome.code} — ${outcome.message}`)
       }
 
-      return { synced: true, providerRecordId: result.providerRecordId }
+      return outcome
     })
   },
 )

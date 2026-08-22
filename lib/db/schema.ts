@@ -690,6 +690,13 @@ export const auditEvents = pgTable(
     index("audit_agency_idx").on(t.agencyId),
     index("audit_entity_idx").on(t.entityType, t.entityId),
     index("audit_actor_idx").on(t.actorUserId),
+    /** Au plus une notification WhatsApp envoyée / synchronisation CRM
+     * réussie par entité — garde DB contre le double envoi sur retry
+     * Inngest, en plus de la vérification applicative (voir
+     * lib/whatsapp/send-booking-confirmation.ts, lib/crm/sync-booking.ts). */
+    uniqueIndex("audit_events_notification_success_uniq")
+      .on(t.entityType, t.entityId, t.action)
+      .where(sql`${t.action} in ('notification.whatsapp.sent', 'notification.crm.synced')`),
   ],
 )
 

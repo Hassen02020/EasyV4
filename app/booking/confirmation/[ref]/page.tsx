@@ -134,7 +134,11 @@ export default async function ConfirmationPage({
                 </Button>
                 {row.status === "confirmed" || row.status === "completed" ? (
                   <Button asChild className="flex-1">
-                    <a href={`/api/booking/voucher/${row.publicRef}`} target="_blank" rel="noopener noreferrer">
+                    <a
+                      href={`${row.module === "omra" ? "/api/omra/voucher" : "/api/booking/voucher"}/${row.publicRef}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       <Download className="mr-2 size-4" />
                       Télécharger le voucher
                     </a>

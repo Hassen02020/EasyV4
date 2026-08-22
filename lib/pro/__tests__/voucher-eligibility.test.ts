@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { isVoucherEligible } from "../voucher-eligibility"
+import { isVoucherEligible, isOmraVoucherEligible } from "../voucher-eligibility"
 
 const baseHotelRow = {
   module: "hotel",
@@ -44,6 +44,51 @@ test("isVoucherEligible : false pour un module non-hôtel même confirmé", () =
 test("isVoucherEligible : false si les données de séjour sont incomplètes", () => {
   assert.equal(
     isVoucherEligible({ module: "hotel", status: "confirmed", hotelName: null, checkIn: "2026-09-10", checkOut: "2026-09-13" }),
+    false,
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* isOmraVoucherEligible (Phase 12, Partie 7)                                 */
+/* -------------------------------------------------------------------------- */
+
+const baseOmraRow = {
+  module: "omra",
+  packageName: "Omra Ramadan 2026 — 10 jours",
+  departureDate: "2026-03-01",
+  returnDate: "2026-03-11",
+}
+
+test("isOmraVoucherEligible : true pour une réservation Omra confirmée", () => {
+  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "confirmed" }), true)
+})
+
+test("isOmraVoucherEligible : true pour un séjour Omra terminé (completed)", () => {
+  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "completed" }), true)
+})
+
+test("isOmraVoucherEligible : false pour une réservation Omra encore pending (pas de faux voucher)", () => {
+  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "pending" }), false)
+})
+
+test("isOmraVoucherEligible : false pour une réservation Omra annulée", () => {
+  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "cancelled" }), false)
+})
+
+test("isOmraVoucherEligible : false pour une réservation Omra remboursée", () => {
+  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "refunded" }), false)
+})
+
+test("isOmraVoucherEligible : false pour un module non-omra même confirmé", () => {
+  assert.equal(
+    isOmraVoucherEligible({ module: "hotel", status: "confirmed", packageName: null, departureDate: null, returnDate: null }),
+    false,
+  )
+})
+
+test("isOmraVoucherEligible : false si les données de séjour Omra sont incomplètes", () => {
+  assert.equal(
+    isOmraVoucherEligible({ module: "omra", status: "confirmed", packageName: null, departureDate: "2026-03-01", returnDate: "2026-03-11" }),
     false,
   )
 })

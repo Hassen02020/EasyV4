@@ -6,16 +6,13 @@
  * mais cette route n'existait pas — chaque clic "Voir le programme" menait
  * à un 404. Catalogue → Détail uniquement ici : aucun nouveau moteur créé.
  *
- * Réservation : `createOmraBooking` (lib/omra/booking-actions.ts) existe et
- * fonctionne, mais exige une session partenaire authentifiée et débite le
- * wallet de l'agence — ce n'est pas un moteur de self-checkout B2C (il
- * n'est d'ailleurs branché nulle part aujourd'hui, sinon `/pro/sandbox`
- * avec des données mockées). Plutôt que d'afficher un bouton "Réserver"
- * qui échouerait silencieusement pour un visiteur anonyme (même gap que
- * documenté pour Vols), le CTA de cette page redirige vers un contact réel
- * — cohérent avec l'état vide déjà utilisé par `OmraPackageList`. Le
- * branchement B2B (agence connectée → `createOmraBooking`) reste un gap
- * documenté pour une phase dédiée.
+ * Réservation (Phase 12, Partie 7) : le CTA mène désormais à
+ * `/omra/[id]/book`, qui utilise `createGuestOmraBooking`
+ * (lib/omra/guest-booking-actions.ts) — un chemin B2C parallèle à
+ * `createOmraBooking` (toujours utilisé tel quel pour le B2B) qui ne
+ * requiert aucune session partenaire et ne débite jamais le wallet d'une
+ * agence. Le contact WhatsApp/téléphone reste disponible en option
+ * secondaire pour les demandes hors-ligne.
  */
 
 import Link from "next/link"
@@ -39,6 +36,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages } from "@/lib/db/schema"
+import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
 const PACKAGE_TYPE_LABELS: Record<string, string> = {
   omra: "Omra Régulière",
@@ -65,11 +63,19 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 async function getPackageWithDepartures(id: string) {
   if (!UUID_RE.test(id)) return null
   try {
+    const agencyId = await getDefaultAgencyId()
+    if (!agencyId) return null
     return await withSystemContext(async (db) => {
       const [pkg] = await db
         .select()
         .from(omraPackages)
-        .where(and(eq(omraPackages.id, id), eq(omraPackages.status, "active")))
+        .where(
+          and(
+            eq(omraPackages.id, id),
+            eq(omraPackages.status, "active"),
+            eq(omraPackages.agencyId, agencyId),
+          ),
+        )
         .limit(1)
       if (!pkg) return null
 
@@ -241,21 +247,34 @@ export default async function OmraPackageDetailPage({
                   </p>
                 </div>
               )}
-              {/* Pas de self-checkout B2C ici : createOmraBooking exige une
-                  session partenaire et débite le wallet d'une agence — voir
-                  le commentaire de tête de ce fichier. */}
-              <Button asChild className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
-                <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
-                  <Phone className="h-4 w-4" />
-                  Réserver — contacter un conseiller
-                </a>
-              </Button>
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                ou appelez le{" "}
-                <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-emerald-700">
-                  {CONTACT_PHONE_DISPLAY}
-                </a>
-              </p>
+              {departures.length > 0 ? (
+                <>
+                  <Button asChild className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
+                    <Link href={`/omra/${pkg.id}/book`}>Réserver en ligne</Link>
+                  </Button>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    ou contactez un conseiller au{" "}
+                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-emerald-700">
+                      {CONTACT_PHONE_DISPLAY}
+                    </a>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Button asChild className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
+                    <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
+                      <Phone className="h-4 w-4" />
+                      Contacter un conseiller
+                    </a>
+                  </Button>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    ou appelez le{" "}
+                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-emerald-700">
+                      {CONTACT_PHONE_DISPLAY}
+                    </a>
+                  </p>
+                </>
+              )}
               <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 <span>

@@ -31,3 +31,27 @@ export function isVoucherEligible(
   if (!row.hotelName || !row.checkIn || !row.checkOut) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
 }
+
+/**
+ * Éligibilité voucher Omra — même règle que `isVoucherEligible` ci-dessus
+ * (Phase 11 : `confirmed`/`completed` uniquement, jamais `pending` ni
+ * `cancelled`/`refunded`), fonction dédiée plutôt qu'une extension de
+ * `isVoucherEligible` pour ne jamais toucher au garde déjà audité et validé
+ * en Phase 11 (RÈGLE ABSOLUE Phase 12 : ne pas réécrire un correctif déjà
+ * validé).
+ */
+export interface OmraVoucherEligibilityInput {
+  module: string
+  status: string
+  packageName: string | null | undefined
+  departureDate: string | null | undefined
+  returnDate: string | null | undefined
+}
+
+export function isOmraVoucherEligible(
+  row: OmraVoucherEligibilityInput,
+): row is OmraVoucherEligibilityInput & { packageName: string; departureDate: string; returnDate: string } {
+  if (row.module !== "omra") return false
+  if (!row.packageName || !row.departureDate || !row.returnDate) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}

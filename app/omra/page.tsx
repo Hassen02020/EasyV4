@@ -11,6 +11,7 @@ import { OmraPackageList } from "@/components/omra/omra-package-list"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
 import { and, eq, gte, inArray, sql } from "drizzle-orm"
+import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
 export const dynamic = "force-dynamic"
 
@@ -28,9 +29,14 @@ interface SearchFilters {
 
 async function getActivePackages(filters: SearchFilters) {
   try {
-    // Catalogue public (trafic anonyme, pas de session storefront).
+    // Catalogue public (trafic anonyme, pas de session storefront) — scopé à
+    // l'agence OTA directe, même modèle que Car/Hôtels/Transferts
+    // (getDefaultAgencyId) : on n'affiche jamais un package qu'un visiteur
+    // anonyme ne pourrait ensuite pas réserver via le guest checkout.
+    const agencyId = await getDefaultAgencyId()
+    if (!agencyId) return []
     return await withSystemContext(async (db) => {
-    const conditions = [eq(omraPackages.status, "active")]
+    const conditions = [eq(omraPackages.status, "active"), eq(omraPackages.agencyId, agencyId)]
 
     const programme = filters.programme
     if (programme && (omraPackageType.enumValues as readonly string[]).includes(programme)) {

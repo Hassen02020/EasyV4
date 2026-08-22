@@ -15,6 +15,7 @@
  * secondaire pour les demandes hors-ligne.
  */
 
+import { cache } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { and, eq, gte, arrayContains } from "drizzle-orm"
@@ -60,7 +61,7 @@ function formatDate(d: string | Date | null): string {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-async function getPackageWithDepartures(id: string) {
+const getPackageWithDepartures = cache(async (id: string) => {
   if (!UUID_RE.test(id)) return null
   try {
     const agencyId = await getDefaultAgencyId()
@@ -96,6 +97,29 @@ async function getPackageWithDepartures(id: string) {
     })
   } catch {
     return null
+  }
+})
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const result = await getPackageWithDepartures(id)
+  if (!result) return {}
+  const { pkg } = result
+  const description = pkg.description ?? `Programme Omra ${pkg.durationDays} jours au départ de Tunisie — Easy2Book.`
+  return {
+    title: `${pkg.name} — Omra | Easy2Book`,
+    description,
+    openGraph: {
+      title: pkg.name,
+      description,
+      type: "website",
+      url: `/omra/${pkg.id}`,
+    },
+    twitter: { card: "summary_large_image", title: pkg.name, description },
   }
 }
 

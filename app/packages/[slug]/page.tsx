@@ -15,6 +15,7 @@
  * WhatsApp/téléphone reste disponible en option secondaire.
  */
 
+import { cache } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import Image from "next/image"
@@ -69,7 +70,7 @@ function parseItinerary(raw: unknown): ItineraryDay[] {
   )
 }
 
-async function getPackageWithDepartures(slug: string) {
+const getPackageWithDepartures = cache(async (slug: string) => {
   try {
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return null
@@ -110,6 +111,38 @@ async function getPackageWithDepartures(slug: string) {
     })
   } catch {
     return null
+  }
+})
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const result = await getPackageWithDepartures(slug)
+  if (!result) return {}
+  const { pkg } = result
+  const description =
+    pkg.shortDescription ??
+    pkg.longDescription ??
+    `Voyage organisé ${pkg.title} — ${pkg.durationDays ?? ""} jours — Easy2Book.`
+  return {
+    title: `${pkg.title} — Voyages Organisés | Easy2Book`,
+    description,
+    openGraph: {
+      title: pkg.title,
+      description,
+      type: "website",
+      url: `/packages/${pkg.slug}`,
+      images: pkg.coverImage ? [{ url: pkg.coverImage }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: pkg.title,
+      description,
+      images: pkg.coverImage ? [pkg.coverImage] : undefined,
+    },
   }
 }
 

@@ -26,7 +26,8 @@ import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { catalogPackages, catalogPackageDepartures, auditEvents } from "@/lib/db/schema"
-import { assertProductManager, isValidProductStatus, type ProductChannel } from "./product-guard"
+import { assertProductManager } from "./product-guard"
+import { isValidProductStatus, type ProductChannel } from "./product-constants"
 import { packageProductSchema, packageDepartureSchema, type PackageProductInput, type PackageDepartureInput } from "./schemas/package-product"
 
 export type ProductActionResult<T = { id: string }> =

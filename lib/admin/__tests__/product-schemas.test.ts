@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { PRODUCT_STATUSES, isValidProductStatus, PRODUCT_CHANNELS } from "../product-guard"
+import { PRODUCT_STATUSES, isValidProductStatus, PRODUCT_CHANNELS } from "../product-constants"
 import { packageProductSchema, packageDepartureSchema } from "../schemas/package-product"
 import { omraProductSchema, omraDepartureSchema, omraProductMetadataSchema } from "../schemas/omra-product"
 import { activityProductSchema, activitySessionSchema } from "../schemas/activity-product"

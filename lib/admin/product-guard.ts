@@ -45,13 +45,3 @@ export async function assertProductManager(): Promise<ProductManagerContext> {
 
   return { userId: user.id, agencyId: profile.agencyId }
 }
-
-export const PRODUCT_STATUSES = ["draft", "published", "suspended", "archived"] as const
-export type ProductStatus = (typeof PRODUCT_STATUSES)[number]
-
-export function isValidProductStatus(value: string): value is ProductStatus {
-  return (PRODUCT_STATUSES as readonly string[]).includes(value)
-}
-
-export const PRODUCT_CHANNELS = ["b2c", "b2b", "white_label"] as const
-export type ProductChannel = (typeof PRODUCT_CHANNELS)[number]

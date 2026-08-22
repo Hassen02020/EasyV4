@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { PRODUCT_CHANNELS } from "../product-guard"
+import { PRODUCT_CHANNELS } from "../product-constants"
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/
 

@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import type { RoomOccupancy, RoomAction, Nationality, ChildAge } from "@/lib/hotel-search/types"
 import { hotelSearchReducer, calculateOccupancySummary } from "@/lib/hotel-search/reducer"
-import { SEARCH_CONSTRAINTS } from "@/lib/hotel-search/types"
+import { SEARCH_CONSTRAINTS, isBaby } from "@/lib/hotel-search/types"
 
 interface GuestOccupancyPickerProps {
   initialState?: RoomOccupancy[]
@@ -86,14 +86,36 @@ export function GuestOccupancyPicker({
     dispatch({ type: "UPDATE_ADULTS", payload: { roomIndex, delta } })
   }
 
-  const handleAddChild = (roomIndex: number) => {
-    if (rooms[roomIndex].children < SEARCH_CONSTRAINTS.MAX_CHILDREN_PER_ROOM) {
-      dispatch({ type: "ADD_CHILD", payload: { roomIndex } })
+  /**
+   * `ADD_CHILD` (reducer) initialise toujours l'âge à 0 (bébé) — pour un
+   * ajout "Enfant" (3-17 ans), on enchaîne immédiatement un
+   * `UPDATE_CHILD_AGE` vers un âge par défaut plus réaliste (5 ans), sans
+   * changer le contrat du reducer. Un ajout "Bébé" n'a rien à faire de plus,
+   * le défaut 0 est déjà correct.
+   */
+  const handleAddChild = (roomIndex: number, kind: "baby" | "child") => {
+    if (rooms[roomIndex].children >= SEARCH_CONSTRAINTS.MAX_CHILDREN_PER_ROOM) return
+    dispatch({ type: "ADD_CHILD", payload: { roomIndex } })
+    if (kind === "child") {
+      const newChildIndex = rooms[roomIndex].childAges.length
+      dispatch({ type: "UPDATE_CHILD_AGE", payload: { roomIndex, childIndex: newChildIndex, age: 5 } })
     }
   }
 
   const handleRemoveChild = (roomIndex: number, childIndex: number) => {
     dispatch({ type: "REMOVE_CHILD", payload: { roomIndex, childIndex } })
+  }
+
+  /** Retire le dernier enfant correspondant à la catégorie (bébé ou enfant) — pas systématiquement le dernier de la liste. */
+  const handleRemoveChildByKind = (roomIndex: number, kind: "baby" | "child") => {
+    const ages = rooms[roomIndex].childAges
+    for (let i = ages.length - 1; i >= 0; i--) {
+      const matches = kind === "baby" ? isBaby(ages[i]) : !isBaby(ages[i])
+      if (matches) {
+        handleRemoveChild(roomIndex, i)
+        return
+      }
+    }
   }
 
   const handleUpdateChildAge = (roomIndex: number, childIndex: number, age: ChildAge) => {
@@ -187,37 +209,79 @@ export function GuestOccupancyPicker({
                     </div>
                   </div>
 
-                  {/* Enfants */}
+                  {/* Enfants (3-17 ans) et Bébés (0-2 ans) — même modèle
+                      `childAges[]` côté fournisseur, distinction purement
+                      d'affichage (voir isBaby dans lib/hotel-search/types.ts) */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Baby className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Enfants</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          disabled={room.children === 0}
-                          onClick={() => handleRemoveChild(roomIndex, room.children - 1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-6 text-center text-sm font-medium">
-                          {room.children}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          disabled={room.children >= SEARCH_CONSTRAINTS.MAX_CHILDREN_PER_ROOM}
-                          onClick={() => handleAddChild(roomIndex)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
+                    {(() => {
+                      const bigKidsCount = room.childAges.filter((a) => !isBaby(a)).length
+                      const babiesCount = room.childAges.filter(isBaby).length
+                      const atMax = room.children >= SEARCH_CONSTRAINTS.MAX_CHILDREN_PER_ROOM
+                      return (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">Enfants</span>
+                              <span className="text-muted-foreground text-xs">3-17 ans</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={bigKidsCount === 0}
+                                onClick={() => handleRemoveChildByKind(roomIndex, "child")}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm font-medium">
+                                {bigKidsCount}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={atMax}
+                                onClick={() => handleAddChild(roomIndex, "child")}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Baby className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">Bébés</span>
+                              <span className="text-muted-foreground text-xs">0-2 ans</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={babiesCount === 0}
+                                onClick={() => handleRemoveChildByKind(roomIndex, "baby")}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm font-medium">
+                                {babiesCount}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={atMax}
+                                onClick={() => handleAddChild(roomIndex, "baby")}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )
+                    })()}
 
                     {/* Âges des enfants */}
                     {room.children > 0 && (

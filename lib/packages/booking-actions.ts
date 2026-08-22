@@ -27,7 +27,7 @@
 
 import { eq, and, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { withTenantContext } from "@/lib/db/tenant-context"
+import { withTenantContext, resolveSessionContext } from "@/lib/db/tenant-context"
 import {
   customers,
   reservations,
@@ -42,7 +42,13 @@ import { computePriceBreakdown } from "@/lib/booking/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
-import { packageGuestBookingSchema, type PackageGuestBookingInput } from "./schemas"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
+import {
+  packageGuestBookingSchema,
+  packagePartnerBookingSchema,
+  type PackageGuestBookingInput,
+  type PackagePartnerBookingInput,
+} from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import type { TravelerInput } from "@/lib/booking/schemas"
 
@@ -314,6 +320,229 @@ async function runCreateGuestPackageBooking(
       DEPARTURE_NOT_FOUND: "Départ introuvable pour ce voyage",
       DEPARTURE_NOT_OPEN: "Ce départ n'est plus ouvert à la réservation",
       INSUFFICIENT_STOCK: msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
+    }
+    const code = Object.keys(codes).find((k) => msg.startsWith(k))
+    return { ok: false, error: code ? codes[code] : "Erreur interne lors de la création de la réservation.", code: code ?? "INTERNAL_ERROR" }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* B2B (Phase 13.1, gap #2) — même modèle que createOmraBooking/            */
+/* createActivityBooking : session partenaire, débit wallet, pas de marge   */
+/* appliquée (cohérence avec createOmraBooking, déjà validé, qui n'en       */
+/* applique pas non plus — voir lib/activities/booking-actions.ts).         */
+/* -------------------------------------------------------------------------- */
+
+export type CreatePackageBookingResult =
+  | { ok: true; reservationId: string; publicRef: string }
+  | { ok: false; error: string; code?: string }
+
+export async function createPackageBooking(
+  input: PackagePartnerBookingInput,
+): Promise<CreatePackageBookingResult> {
+  if (!process.env.DATABASE_URL) {
+    return { ok: false, error: "Base de données non configurée" }
+  }
+
+  const parsed = packagePartnerBookingSchema.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+    }
+  }
+  const booking = parsed.data
+  const paxCount = booking.adults + booking.children
+
+  const session = await resolveSessionContext()
+  if (!session.ok) {
+    return { ok: false, error: "Non authentifié" }
+  }
+  if (!session.agencyId) {
+    return { ok: false, error: "Profil utilisateur introuvable" }
+  }
+  const agencyId = session.agencyId
+  const createdByUserId = session.userId
+
+  try {
+    const result = await withTenantContext(
+      { agencyId, userId: createdByUserId, isSuperAdmin: session.isSuperAdmin },
+      async (tx) => {
+        // RLS décide si cette agence peut voir ce package : propriétaire OU autorisée (product_authorizations).
+        const [pkg] = await tx
+          .select()
+          .from(catalogPackages)
+          .where(eq(catalogPackages.id, booking.packageId))
+          .limit(1)
+        if (!pkg) throw new Error("PACKAGE_NOT_FOUND")
+        if (pkg.status !== "published") throw new Error("PACKAGE_NOT_ACTIVE")
+        if (!pkg.channels?.includes("b2b")) throw new Error("PACKAGE_NOT_ACTIVE")
+
+        const [departure] = await tx
+          .select()
+          .from(catalogPackageDepartures)
+          .where(
+            and(
+              eq(catalogPackageDepartures.id, booking.departureId),
+              eq(catalogPackageDepartures.packageId, booking.packageId),
+            ),
+          )
+          .limit(1)
+          .for("update")
+        if (!departure) throw new Error("DEPARTURE_NOT_FOUND")
+        if (departure.status !== "open") throw new Error("DEPARTURE_NOT_OPEN")
+
+        const seatsLeft = departure.totalSeats - departure.bookedSeats
+        if (seatsLeft < paxCount) {
+          throw new Error(`INSUFFICIENT_STOCK: ${seatsLeft} places disponibles, ${paxCount} demandées`)
+        }
+
+        const unitPriceTnd = parseFloat(departure.adultPriceTnd)
+        const unitChildPriceTnd = departure.childPriceTnd ? parseFloat(departure.childPriceTnd) : undefined
+        const breakdown = computePriceBreakdown({
+          unitPriceTnd,
+          adults: booking.adults,
+          children: booking.children,
+          unitChildPriceTnd,
+          depositPercent: 100,
+        })
+        const totalTnd = breakdown.totalTnd
+
+        const [customer] = await tx
+          .insert(customers)
+          .values({
+            agencyId,
+            civility: "M",
+            firstName: booking.customerFirstName,
+            lastName: booking.customerLastName,
+            email: booking.customerEmail || undefined,
+            phone: booking.customerPhone,
+          })
+          .returning({ id: customers.id })
+        const customerId = customer.id
+
+        const publicRef = await nextPackagePublicRef(tx, agencyId)
+        const [reservation] = await tx
+          .insert(reservations)
+          .values({
+            agencyId,
+            customerId,
+            publicRef,
+            module: "package",
+            source: "internal",
+            status: "pending",
+            originalCurrency: "TND",
+            originalAmount: String(totalTnd),
+            tndAmount: String(totalTnd),
+            depositAmount: String(totalTnd),
+            depositPaid: "0",
+            providerPayload: {
+              packageId: booking.packageId,
+              departureId: booking.departureId,
+              adults: booking.adults,
+              children: booking.children,
+              breakdown,
+              offerLabel: pkg.title,
+              startDate: departure.departureDate,
+              endDate: departure.returnDate,
+              channel: "b2b",
+            },
+          })
+          .returning({ id: reservations.id })
+        const reservationId = reservation.id
+
+        const debitResult = await debitPartnerCredit({
+          agencyId,
+          amountTnd: totalTnd,
+          reference: publicRef,
+          description: `Réservation Voyage Organisé — ${pkg.title}`,
+          createdByUserId,
+          reservationId,
+          idempotencyKey: `booking-debit:${reservationId}`,
+          txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+        })
+        if (!debitResult.ok) {
+          throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
+        }
+
+        await tx
+          .update(reservations)
+          .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+          .where(eq(reservations.id, reservationId))
+
+        await tx.insert(payments).values({
+          agencyId,
+          reservationId,
+          psp: "manual",
+          method: "wallet",
+          originalCurrency: "TND",
+          originalAmount: totalTnd.toFixed(2),
+          tndAmount: totalTnd.toFixed(2),
+          kind: "deposit",
+          status: "captured",
+          capturedAt: new Date(),
+        })
+
+        await tx.insert(reservationPackage).values({
+          reservationId,
+          agencyId,
+          packageId: booking.packageId,
+          departureId: booking.departureId,
+          departureDate: departure.departureDate,
+          returnDate: departure.returnDate,
+          adults: booking.adults,
+          childrenAges: booking.childrenAges,
+          travelers: [{
+            firstName: booking.customerFirstName,
+            lastName: booking.customerLastName,
+            phone: booking.customerPhone,
+            email: booking.customerEmail || undefined,
+            isPrimary: true,
+          }],
+        })
+
+        await tx
+          .update(catalogPackageDepartures)
+          .set({ bookedSeats: departure.bookedSeats + paxCount })
+          .where(eq(catalogPackageDepartures.id, departure.id))
+
+        await tx.insert(auditEvents).values({
+          agencyId,
+          actorUserId: createdByUserId,
+          entityType: "reservation",
+          entityId: reservationId,
+          action: "package_booking.created",
+          diff: { packageId: booking.packageId, departureId: booking.departureId, paxCount, totalTnd, publicRef, via: "b2b" },
+        })
+
+        return { reservationId, publicRef }
+      },
+    )
+
+    try {
+      const invoiceResult = await generateInvoiceForReservation({
+        agencyId,
+        reservationId: result.reservationId,
+        actorUserId: createdByUserId,
+      })
+      if (!invoiceResult.ok) {
+        console.error("[package-b2b] génération facture échouée", invoiceResult.error)
+      }
+    } catch (err) {
+      console.error("[package-b2b] génération facture échouée", err instanceof Error ? err.message : String(err))
+    }
+
+    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const codes: Record<string, string> = {
+      PACKAGE_NOT_FOUND: "Voyage organisé introuvable ou non autorisé pour votre agence",
+      PACKAGE_NOT_ACTIVE: "Ce voyage n'est plus disponible en B2B",
+      DEPARTURE_NOT_FOUND: "Départ introuvable pour ce voyage",
+      DEPARTURE_NOT_OPEN: "Ce départ n'est plus ouvert à la réservation",
+      INSUFFICIENT_STOCK: msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
+      INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
+      WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
     return { ok: false, error: code ? codes[code] : "Erreur interne lors de la création de la réservation.", code: code ?? "INTERNAL_ERROR" }

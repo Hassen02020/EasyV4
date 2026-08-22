@@ -22,7 +22,7 @@
 import { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Plus, Building2, Moon, Briefcase, Ticket, Package as PackageIcon } from "lucide-react"
+import { Plus, Building2, Moon, Briefcase, Ticket, Package as PackageIcon, Share2 } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -131,6 +131,12 @@ export default async function ProductsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/products/authorizations">
+              <Share2 className="mr-2 h-4 w-4" />
+              Autorisations B2B
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/admin/products/new/omra">
               <Plus className="mr-2 h-4 w-4" />

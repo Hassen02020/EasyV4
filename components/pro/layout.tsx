@@ -20,8 +20,6 @@ import {
   RefreshCw,
   PanelLeft,
   Car,
-  Activity,
-  PackageOpen,
   Moon,
   Sun,
 } from "lucide-react"
@@ -116,21 +114,14 @@ const BOOKING_NAV: NavItem[] = [
     href: "/pro/transfers",
   },
   {
-    title: "Omra",
+    // Phase 13.1 : Omraty / Voyages Organisés / Attractions unifiés dans
+    // /pro/produits (liste des produits autorisés pour cette agence, voir
+    // lib/b2b/authorized-products.ts) — remplace les 3 anciens liens morts
+    // /pro/omra, /pro/activities et /pro/packages (aucune page derrière,
+    // 2 déjà marqués "Bientôt", 1 non marqué par erreur).
+    title: "Produits (Omra, Voyages, Attractions)",
     icon: Moon,
-    href: "/pro/omra",
-  },
-  {
-    title: "Activités",
-    icon: Activity,
-    href: "/pro/activities",
-    badge: "Bientôt",
-  },
-  {
-    title: "Formules",
-    icon: PackageOpen,
-    href: "/pro/packages",
-    badge: "Bientôt",
+    href: "/pro/produits",
   },
 ]
 
@@ -205,9 +196,7 @@ const PATH_LABELS: Record<string, string> = {
   travelers: "Voyageurs",
   confirmation: "Confirmation",
   transfers: "Transferts",
-  omra: "Omra",
-  activities: "Activités",
-  packages: "Formules",
+  produits: "Produits",
 }
 
 function buildBreadcrumbs(pathname: string) {

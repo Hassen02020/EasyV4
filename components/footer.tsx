@@ -146,13 +146,10 @@ export function Footer() {
               <ul className="space-y-2 text-sm text-white/70">
                 {(
                   [
-                    "tabVols",
                     "tabHotelsTunisie",
                     "tabHotelsMonde",
                     "tabOmraty",
                     "tabVoyages",
-                    "tabTransferts",
-                    "locationVoiture",
                   ] as const
                 ).map((key) => (
                   <li key={key}>

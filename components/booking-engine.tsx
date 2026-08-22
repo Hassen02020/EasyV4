@@ -92,14 +92,22 @@ function futureDate(days: number): string {
 const TODAY_ISO = iso(new Date())
 const TOMORROW_ISO = futureDate(1)
 
+/**
+ * Navigation commerciale (Phase 13, Partie 20) : le périmètre de lancement
+ * prioritaire est Hôtels Tunisie / Hôtels Monde / Omraty / Voyages
+ * Organisés — Vols/Transferts/Car restent des modules réels (code et
+ * pages intacts, atteignables directement via /vols, /transferts, /car)
+ * mais ne sont plus mis en avant dans l'onglet de recherche principal,
+ * pour ne pas disperser l'effort commercial. Aucun onglet Attractions
+ * ajouté ici : contrairement aux 4 tabs ci-dessous, Attractions n'a
+ * aucun parcours public de réservation pour l'instant (voir
+ * lib/admin/activities-actions.ts) — un onglet mènerait à un flux mort.
+ */
 const tabsConfig = [
-  { id: "vols", labelKey: "tabVols", icon: Plane },
   { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2 },
   { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe },
   { id: "omraty", labelKey: "tabOmraty", icon: Moon },
   { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase },
-  { id: "transferts", labelKey: "tabTransferts", icon: Bus },
-  { id: "car", labelKey: "tabCar", icon: Car },
 ] as const
 
 type TabId = (typeof tabsConfig)[number]["id"]
@@ -118,8 +126,6 @@ function ActiveModuleForm({
   transferZones: CatalogTransferZone[]
 }) {
   switch (activeTab) {
-    case "vols":
-      return <VolsForm />
     case "hotels-tunisie":
       return <HotelsTunisieSearch />
     case "hotels-monde":
@@ -128,10 +134,6 @@ function ActiveModuleForm({
       return <OmratyForm />
     case "voyages-organises":
       return <VoyagesOrganisesForm />
-    case "transferts":
-      return <TransfertsForm zones={transferZones} />
-    case "car":
-      return <CarForm />
   }
 }
 
@@ -187,7 +189,7 @@ export function BookingEngine({
 }: {
   transferZones?: CatalogTransferZone[]
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("vols")
+  const [activeTab, setActiveTab] = useState<TabId>("hotels-tunisie")
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useT()
 

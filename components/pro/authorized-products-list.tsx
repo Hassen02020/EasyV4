@@ -1,17 +1,19 @@
 "use client"
 
 /**
- * AuthorizedProductsList — /pro/produits (Phase 13.1, gap #2).
+ * AuthorizedProductsList — /pro/produits (Phase 13.1 gap #2, Phase 13.2
+ * gap #1).
  *
- * Réservation compacte pour Voyages Organisés et Attractions (contact
- * simple + participants, `createPackageBooking`/`createActivityBooking`
- * B2B). Omra reste listé (preuve que l'autorisation/RLS fonctionne pour
- * les 3 types) mais son formulaire pèlerin complet (identité, passeport,
- * contact d'urgence — `OmraPilgrimInput`) n'est pas dupliqué ici en
- * version simplifiée : plutôt que de fabriquer des données pèlerin
- * factices pour remplir un formulaire compact, la ligne Omra renvoie vers
- * `/pro/sandbox`, seul endroit qui collecte aujourd'hui une fiche pèlerin
- * complète. Documenté comme gap dans le rapport Phase 13.1, pas masqué.
+ * Réservation compacte inline pour Voyages Organisés et Attractions
+ * (contact simple + participants, `createPackageBooking`/
+ * `createActivityBooking` B2B). Omra a besoin d'un vrai formulaire pèlerin
+ * complet (identité, passeport, contact d'urgence — `OmraPilgrimInput`),
+ * trop grand pour une ligne compacte : sa carte renvoie vers
+ * `/pro/produits/omra/[id]`, une page dédiée qui réutilise le schéma Zod
+ * et la structure de saisie déjà validés côté B2C
+ * (`OmraPartnerBookingForm`, sur le modèle exact d'`OmraGuestBookingForm`)
+ * plutôt que de fabriquer une version simplifiée. Remplace l'ancien renvoi
+ * vers `/pro/sandbox` (données mockées) du Phase 13.1.
  */
 
 import { useState, useTransition } from "react"
@@ -58,7 +60,7 @@ export function AuthorizedProductsList({ products }: AuthorizedProductsListProps
               </div>
               {p.productType === "omra" ? (
                 <Button variant="outline" size="sm" asChild>
-                  <a href="/pro/sandbox">Réserver via /pro/sandbox</a>
+                  <a href={`/pro/produits/omra/${p.productId}`}>Voir le programme</a>
                 </Button>
               ) : (
                 <Button

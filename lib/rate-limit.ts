@@ -105,8 +105,20 @@ export async function rateLimit(
 
   const upstash = getUpstashLimiter()
   if (upstash) {
-    const { success, limit, remaining, reset } = await upstash.limit(identifier)
-    return { ok: success, limit, remaining, reset }
+    try {
+      const { success, limit, remaining, reset } = await upstash.limit(identifier)
+      return { ok: success, limit, remaining, reset }
+    } catch (err) {
+      // Panne/timeout Upstash (pas "non configuré" — Redis est bien
+      // configuré mais injoignable à cet instant précis) : le rate limiting
+      // est une mesure de protection, pas une garantie de sécurité — on
+      // échoue "ouvert" (requête autorisée) plutôt que de faire planter la
+      // route entière (500) pour toute recherche tant que Redis ne répond
+      // pas. Mêmes principes de dégradation gracieuse que `withGuestIdempotency`
+      // et `memoize`/`memoizeSWR` (lib/cache/redis.ts) en cas d'absence Redis.
+      console.error(`[rateLimit] Upstash indisponible pour "${identifier}", échec ouvert :`, err)
+      return { ok: true, limit: 0, remaining: 0, reset: Date.now() }
+    }
   }
 
   return _memLimiter(identifier)

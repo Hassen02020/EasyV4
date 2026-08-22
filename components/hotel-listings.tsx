@@ -32,10 +32,24 @@ interface BookingData {
   roomId: number
 }
 
+/**
+ * Statut d'annulation honnête, dérivé de `RoomOfferDTO.notRefundable` +
+ * `cancellationPolicies` (déjà normalisés par myGo, jamais fabriqués) :
+ *   - "free"          : au moins une politique BEFORE_ARRIVAL sans frais —
+ *                        annulation gratuite avant `beforeDate`.
+ *   - "non_refundable": `notRefundable === true` côté fournisseur.
+ *   - "unknown"        : ni l'un ni l'autre — myGo n'a communiqué aucune
+ *                        politique exploitable, on ne l'invente pas.
+ */
+type CancellationStatus =
+  | { kind: "free"; beforeDate: string }
+  | { kind: "non_refundable" }
+  | { kind: "unknown" }
+
 interface RoomOption {
   id: number
   name: string
-  freeCancellationDate: string
+  cancellation: CancellationStatus
   available: boolean
   price: number
   /** Id/code myGo du Boarding auquel appartient cette chambre — requis pour BookingCreation. */
@@ -58,6 +72,8 @@ interface CardHotelShape {
   mealPlan: string
   mealOptions?: string[]
   rooms?: RoomOption[]
+  /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
+  pricePerNight?: number
   /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
   myGoToken: string
   cityId?: number
@@ -77,9 +93,23 @@ const PLACEHOLDER_IMG =
  * chambre All Inclusive la moins chère est à 380, la card affiche 380 (le
  * vrai prix pour ce que l'utilisateur a demandé), pas 250.
  */
+/** Dérive un statut d'annulation honnête depuis les données myGo — jamais un badge par défaut fabriqué. */
+function cancellationStatusFor(room: {
+  notRefundable: boolean
+  cancellationPolicies: { nature: string; fees: number; fromDate?: string }[]
+}): CancellationStatus {
+  if (room.notRefundable) return { kind: "non_refundable" }
+  const freePolicy = room.cancellationPolicies.find(
+    (p) => p.nature === "BEFORE_ARRIVAL" && p.fees === 0 && p.fromDate,
+  )
+  if (freePolicy?.fromDate) return { kind: "free", beforeDate: freePolicy.fromDate }
+  return { kind: "unknown" }
+}
+
 function toCardShape(
   offer: HotelOfferDTO,
   activeBoardings: string[] = [],
+  nights?: number,
 ): CardHotelShape {
   const h = offer.hotel
   const allRooms = offer.boardings.flatMap((b) =>
@@ -113,9 +143,7 @@ function toCardShape(
         roomGroupCount > 1
           ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`
           : `${room.name} • ${boarding.name}`,
-      freeCancellationDate:
-        room.cancellationPolicies.find((p) => p.nature === "BEFORE_ARRIVAL")
-          ?.fromDate ?? "—",
+      cancellation: cancellationStatusFor(room),
       available: !room.stopReservation,
       price: Math.round(room.price),
       boardingId: boarding.id,
@@ -153,6 +181,8 @@ function toCardShape(
     mealPlan,
     mealOptions,
     rooms,
+    pricePerNight:
+      nights && nights > 0 ? Math.round(displayPrice / nights) : undefined,
     myGoToken: offer.token,
     cityId: h.cityId,
   }
@@ -216,6 +246,17 @@ export function HotelListings({
 }: HotelListingsProps) {
   const router = useRouter()
 
+  // Nombre de nuits partagé (récap header, prix/nuit sur chaque card, calcul
+  // du draft de réservation) — un seul calcul, jamais trois divergents.
+  const nightsCount = useMemo(() => {
+    if (!checkin || !checkout) return undefined
+    try {
+      return Math.max(1, differenceInCalendarDays(parseISO(checkout), parseISO(checkin)))
+    } catch {
+      return undefined
+    }
+  }, [checkin, checkout])
+
   const handleBookHotel = (
     cardHotel: CardHotelShape,
     mealPlan: string,
@@ -231,15 +272,7 @@ export function HotelListings({
     ) {
       return
     }
-    let nights = 1
-    try {
-      nights = Math.max(
-        1,
-        differenceInCalendarDays(parseISO(checkout), parseISO(checkin)),
-      )
-    } catch {
-      nights = 1
-    }
+    const nights = nightsCount ?? 1
     onBookHotel({
       id: cardHotel.id,
       name: cardHotel.name,
@@ -297,8 +330,8 @@ export function HotelListings({
   }, [checkin, checkout, adults, childrenAges])
 
   const cardHotels = useMemo(
-    () => offers.map((offer) => toCardShape(offer, activeBoardFilters)),
-    [offers, activeBoardFilters],
+    () => offers.map((offer) => toCardShape(offer, activeBoardFilters, nightsCount)),
+    [offers, activeBoardFilters, nightsCount],
   )
 
   if (status === "loading") {

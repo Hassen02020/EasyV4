@@ -20,10 +20,16 @@ import {
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
 
+/** Statut d'annulation honnête — voir components/hotel-listings.tsx::cancellationStatusFor, jamais un badge par défaut fabriqué. */
+type CancellationStatus =
+  | { kind: "free"; beforeDate: string }
+  | { kind: "non_refundable" }
+  | { kind: "unknown" }
+
 interface RoomOption {
   id: number
   name: string
-  freeCancellationDate: string
+  cancellation: CancellationStatus
   available: boolean
   price: number
   boardingId?: number
@@ -46,10 +52,33 @@ interface HotelCardProps {
     mealPlan: string
     mealOptions?: string[]
     rooms?: RoomOption[]
+    pricePerNight?: number
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
   currency?: string
+}
+
+function CancellationBadge({ status }: { status: CancellationStatus }) {
+  if (status.kind === "free") {
+    return (
+      <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+        Annulation gratuite avant le {status.beforeDate}
+      </span>
+    )
+  }
+  if (status.kind === "non_refundable") {
+    return (
+      <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
+        Non remboursable
+      </span>
+    )
+  }
+  return (
+    <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs">
+      Conditions d&apos;annulation non communiquées
+    </span>
+  )
 }
 
 const amenityIcons: Record<string, React.ReactNode> = {
@@ -209,12 +238,17 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
             )}
 
             <div className="text-right">
-              <p className="text-muted-foreground mb-1 text-xs">À partir de</p>
+              <p className="text-muted-foreground mb-1 text-xs">Séjour total</p>
               <div className="flex items-baseline justify-end gap-1">
                 <span className="text-primary text-2xl font-bold">
                   {format(hotel.discountedPrice)}
                 </span>
               </div>
+              {hotel.pricePerNight != null && (
+                <p className="text-muted-foreground text-xs">
+                  soit {format(hotel.pricePerNight)} / nuit
+                </p>
+              )}
               <p className="text-muted-foreground mt-1 text-xs">
                 {mealOptions[selectedMealPlan]}
               </p>
@@ -310,10 +344,8 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
                     >
                       {room.name}
                     </p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                        Annulation gratuite avant le {room.freeCancellationDate}
-                      </span>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <CancellationBadge status={room.cancellation} />
                       <span
                         className={`rounded px-2 py-0.5 text-xs ${
                           room.available

@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { normalizeHost } from "../resolve-tenant"
+import { normalizeHost } from "../host"
 
 test("normalizeHost : laisse un domaine simple inchangé", () => {
   assert.equal(normalizeHost("exemple.tn"), "exemple.tn")

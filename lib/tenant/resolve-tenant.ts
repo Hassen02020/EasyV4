@@ -1,8 +1,8 @@
-"use server"
+import "server-only"
 
 /**
  * Résolution tenant White Label par domaine (Phase 13.1, gap #3 —
- * fondation minimale).
+ * fondation minimale ; Phase 13.2, câblage runtime).
  *
  * `agencies` EST le modèle tenant existant du projet (voir le commentaire
  * de `agencyType` dans lib/db/schema.ts : "ota // OTA Easy2Book elle-même
@@ -14,17 +14,29 @@
  * `defaultLanguage`/`defaultCurrency`, déjà présents sur `agencies` depuis
  * avant cette phase — pas de nouvelle colonne "branding" inventée ici).
  *
- * HORS PÉRIMÈTRE, délibérément ("fondation minimale, pas une grosse
- * plateforme") : aucun routage middleware par host n'est câblé sur cette
- * fonction — les pages publiques (`/omra`, `/packages`, `/attractions`)
- * continuent d'utiliser `getDefaultAgencyId()` sans changement de
- * comportement. Documenté comme gap restant dans le rapport, pas
- * silencieusement laissé de côté.
+ * Phase 13.2 : le chemin RUNTIME réel (proxy.ts → getDefaultAgencyId())
+ * n'utilise PAS cette fonction — `proxy.ts` tourne sur l'Edge runtime, qui
+ * ne supporte pas la connexion Postgres directe de Drizzle (le driver
+ * `postgres` a besoin de `net`/`tls`, absents côté Edge — même classe de
+ * bug déjà rencontrée et corrigée en Phase 13 pour `product-guard.ts`).
+ * `proxy.ts` fait donc sa propre résolution, via le client Supabase déjà
+ * utilisé là-bas pour la garde RBAC `/admin` (PostgREST, HTTP, donc
+ * Edge-safe), et propage le résultat via un header de requête que
+ * `lib/agencies/default-agency.ts::getDefaultAgencyId()` lit ensuite.
+ * `resolveTenantByDomain` (Drizzle, ce fichier) reste un utilitaire
+ * Node-only disponible pour du code serveur qui tourne déjà hors Edge
+ * (Server Component, script) — pas dupliqué sans raison : ce sont deux
+ * couches d'accès BDD différentes pour deux runtimes différents, pas deux
+ * fois la même logique métier (la requête elle-même est un simple
+ * `agencies.domain = ?`).
  */
 
 import { eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
+import { normalizeHost } from "./host"
+
+export { normalizeHost }
 
 export interface ResolvedTenant {
   agencyId: string
@@ -34,15 +46,6 @@ export interface ResolvedTenant {
   defaultLanguage: string
   defaultCurrency: string
   domain: string
-}
-
-/**
- * Normalise un host de requête HTTP ("www.exemple.tn:3000") en domaine
- * comparable à `agencies.domain` ("exemple.tn"). Ne retire QUE "www." et le
- * port — ne devine jamais un domaine, ne fabrique rien.
- */
-export function normalizeHost(host: string): string {
-  return host.trim().toLowerCase().replace(/^www\./, "").replace(/:\d+$/, "")
 }
 
 /**

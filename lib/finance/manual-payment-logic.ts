@@ -18,14 +18,39 @@ export const MANUAL_PAYMENT_ALLOWED_ROLES = [
   "agent_compta",
 ] as const
 
-export type ManualPaymentMethod = "cash" | "transfer" | "deposit"
+/**
+ * Méthodes de règlement manuel staff (Phase 16.2) — couvre le modèle
+ * tunisien réel : CASH, BANK_TRANSFER (`transfer`), BANK_DEPOSIT
+ * (`deposit`), MANDATE (`mandate`), WALLET, PAY_AT_HOTEL (`at_hotel`).
+ * ADVANCE n'est PAS une méthode distincte ici : un versement partiel EST
+ * déjà une avance par construction (voir `computeCaptureKind` — le champ
+ * `payments.kind` existant, "deposit"/"balance", encode exactement cette
+ * distinction, dérivé du solde restant plutôt que choisi par le staff).
+ */
+export type ManualPaymentMethod = "cash" | "transfer" | "deposit" | "mandate" | "wallet" | "at_hotel"
 
-/** `deposit` (dépôt bancaire) n'a pas de valeur d'enum `payment_method`
- * dédiée — mappé sur `transfer` (canal fonctionnellement identique : un
- * règlement différé prouvé par une référence de dépôt), la référence
- * fournie par le staff précise le canal réel. Additif : pas de nouvel enum. */
-export function toPaymentMethod(method: ManualPaymentMethod): "cash" | "transfer" {
-  return method === "cash" ? "cash" : "transfer"
+/** `deposit` (dépôt bancaire) et `mandate` (mandat) n'ont pas de valeur
+ * d'enum `payment_method` dédiée — mappés sur `transfer` (canal
+ * fonctionnellement identique : un règlement différé prouvé par une
+ * référence), la référence fournie par le staff précise le canal réel
+ * exact. `wallet`/`at_hotel`/`cash` ont leur propre valeur d'enum déjà
+ * existante. Additif : pas de nouvel enum DB (réutilise `payment_method`
+ * tel quel). */
+export function toPaymentMethod(method: ManualPaymentMethod): "cash" | "transfer" | "wallet" | "at_hotel" {
+  if (method === "cash") return "cash"
+  if (method === "wallet") return "wallet"
+  if (method === "at_hotel") return "at_hotel"
+  return "transfer" // deposit | mandate
+}
+
+/**
+ * `payments.kind` ("deposit" = acompte / "balance" = solde) dérivé
+ * server-side du solde restant APRÈS cette capture — jamais choisi par le
+ * staff : une capture qui n'épuise pas encore le solde restant est un
+ * acompte (ADVANCE), celle qui l'épuise est le règlement du solde.
+ */
+export function computeCaptureKind(remainingAfterCaptureTnd: number, epsilon: number): "deposit" | "balance" {
+  return remainingAfterCaptureTnd > epsilon ? "deposit" : "balance"
 }
 
 /**

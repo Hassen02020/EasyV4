@@ -619,6 +619,13 @@ export const payments = pgTable(
       .default("0"),
     capturedAt: timestamp("captured_at", { withTimezone: true }),
     refundedAt: timestamp("refunded_at", { withTimezone: true }),
+    /** Clé déterministe par TENTATIVE de capture (Phase 16.2) — remplace
+     * l'ancienne garde `payments_reservation_captured_uniq` qui bloquait
+     * TOUT deuxième paiement capturé par réservation (incompatible avec le
+     * modèle Wallet + virement + PAY_AT_HOTEL). Une tentative rejouée
+     * (même clé) est rejetée ; deux versements légitimes différents
+     * (clés différentes) sont tous deux acceptés. */
+    idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -631,12 +638,11 @@ export const payments = pgTable(
     index("payments_reservation_idx").on(t.reservationId),
     index("payments_psp_order_idx").on(t.pspOrderId),
     index("payments_status_idx").on(t.agencyId, t.status),
-    /** Au plus un paiement `captured` par réservation — garde DB contre le
-     * double débit/double capture (staff qui re-clique VERIFY, webhook
-     * rejoué en parallèle d'une vérification manuelle, etc.). */
-    uniqueIndex("payments_reservation_captured_uniq")
-      .on(t.reservationId)
-      .where(sql`${t.status} = 'captured'`),
+    /** Au plus une capture par tentative (clé d'idempotence) — voir
+     * commentaire de `idempotencyKey`. */
+    uniqueIndex("payments_capture_idempotency_uniq")
+      .on(t.reservationId, t.idempotencyKey)
+      .where(sql`${t.status} = 'captured' and ${t.idempotencyKey} is not null`),
   ],
 )
 

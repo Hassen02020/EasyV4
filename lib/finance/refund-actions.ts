@@ -1,21 +1,36 @@
 "use server"
 
 /**
- * Remboursement staff — Wallet/Payment Core.
+ * Remboursement staff — Wallet/Payment Core, étendu Phase 16.2 (Partial
+ * Payment Ledger) pour un remboursement partiel.
  *
- * Périmètre volontairement minimal et honnête : rembourse un paiement
- * CAPTURÉ (carte, wallet, ou manuel déjà vérifié) en créditant le solde
- * wallet du CLIENT (lib/finance/customer-wallet.ts — jamais une agence),
- * lié au paiement/réservation d'origine. N'émet AUCUN virement/
- * remboursement carte réel — ce projet n'a pas d'adaptateur PSP réel
- * (lib/payment/provider.ts) capable de rembourser un vrai paiement carte ;
- * inventer cet appel serait fabriquer une réponse fournisseur. Le
- * remboursement "physique" (virement retour, espèces) reste manuel côté
- * staff, hors périmètre de cette action — seul le crédit wallet + la
- * traçabilité comptable sont automatisés ici.
+ * Périmètre volontairement minimal et honnête : rembourse un ou plusieurs
+ * paiements CAPTURÉS (carte, wallet, ou manuel déjà vérifié — désormais
+ * potentiellement PLUSIEURS lignes par réservation, voir
+ * lib/finance/payment-summary.ts) en créditant le solde wallet du CLIENT
+ * (lib/finance/customer-wallet.ts — jamais une agence), lié à la
+ * réservation d'origine. N'émet AUCUN virement/remboursement carte réel —
+ * ce projet n'a pas d'adaptateur PSP réel (lib/payment/provider.ts)
+ * capable de rembourser un vrai paiement carte ; inventer cet appel
+ * serait fabriquer une réponse fournisseur. Le remboursement "physique"
+ * (virement retour, espèces) reste manuel côté staff, hors périmètre de
+ * cette action — seul le crédit wallet + la traçabilité comptable sont
+ * automatisés ici.
+ *
+ * Remboursement partiel (`amountTnd` fourni) : consomme les lignes
+ * `payments` remboursables (captured/partial_refund) dans l'ordre de
+ * capture, ligne par ligne, jusqu'à épuiser le montant demandé — chaque
+ * ligne garde son propre `refundedAmount` honnête (jamais un remboursement
+ * global déconnecté des lignes réelles). `partial_refund` (valeur d'enum
+ * déjà déclarée, jamais utilisée avant cette phase) marque une ligne
+ * partiellement consommée ; `refunded` une ligne intégralement consommée.
+ * Le statut de la RÉSERVATION ne passe à `refunded` que si ce
+ * remboursement épuise la totalité du montant remboursable (cohérent avec
+ * la Phase 16.1 : le statut de réservation reste indépendant de l'état de
+ * paiement, sauf transition explicite déjà existante).
  */
 
-import { eq, and } from "drizzle-orm"
+import { eq, and, inArray, asc } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, payments, auditEvents } from "@/lib/db/schema"
@@ -23,19 +38,27 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isTransitionAllowed } from "@/lib/admin/reservation-status"
 import { creditCustomerWallet } from "./customer-wallet"
+import { TND_EPSILON } from "./payment-summary"
+import { allocateRefund } from "./refund-allocation"
 
 const ALLOWED_ROLES = ["super_admin", "manager", "agent_compta"] as const
 
 const inputSchema = z.object({
   reservationId: z.string().uuid(),
   reason: z.string().min(1).max(500),
+  /** Omis = remboursement total du montant encore remboursable. */
+  amountTnd: z.coerce.number().positive().optional(),
 })
 
 export type RefundReservationInput = z.infer<typeof inputSchema>
 
 export type RefundReservationResult =
-  | { ok: true; reservationId: string; publicRef: string; refundedTnd: string }
-  | { ok: false; error: string; code?: "UNAUTHORIZED" | "NOT_REFUNDABLE" | "NO_CAPTURED_PAYMENT" }
+  | { ok: true; reservationId: string; publicRef: string; refundedTnd: string; fullyRefunded: boolean }
+  | {
+      ok: false
+      error: string
+      code?: "UNAUTHORIZED" | "NOT_REFUNDABLE" | "NO_CAPTURED_PAYMENT" | "AMOUNT_EXCEEDS_CAPTURED"
+    }
 
 export async function refundReservation(
   raw: RefundReservationInput,
@@ -80,49 +103,62 @@ export async function refundReservation(
         .for("update")
 
       if (!reservation) return { ok: false as const, error: "Réservation introuvable" }
-      if (!isTransitionAllowed(reservation.status, "refunded")) {
-        return {
-          ok: false as const,
-          code: "NOT_REFUNDABLE" as const,
-          error: `Statut actuel "${reservation.status}" : remboursement impossible depuis cet état.`,
-        }
-      }
 
-      const [payment] = await tx
+      // Verrouille TOUTES les lignes remboursables (captured ou déjà
+      // partiellement remboursées) — plus une seule ligne supposée
+      // (Phase 16.2 : une réservation peut avoir plusieurs captures).
+      const refundableRows = await tx
         .select({ id: payments.id, tndAmount: payments.tndAmount, refundedAmount: payments.refundedAmount })
         .from(payments)
         .where(
           and(
             eq(payments.reservationId, reservation.id),
             eq(payments.agencyId, agencyId),
-            eq(payments.status, "captured"),
+            inArray(payments.status, ["captured", "partial_refund"]),
           ),
         )
+        .orderBy(asc(payments.capturedAt))
         .for("update")
 
-      if (!payment) {
+      const allocation = allocateRefund(refundableRows, input.amountTnd, TND_EPSILON)
+      if (!allocation.ok) {
+        return { ok: false as const, code: allocation.code, error: allocation.error }
+      }
+      const { requestedTnd, fullyRefunded, updates } = allocation
+
+      if (fullyRefunded && !isTransitionAllowed(reservation.status, "refunded")) {
         return {
           ok: false as const,
-          code: "NO_CAPTURED_PAYMENT" as const,
-          error: "Aucun paiement capturé trouvé pour cette réservation — rien à rembourser.",
+          code: "NOT_REFUNDABLE" as const,
+          error: `Statut actuel "${reservation.status}" : remboursement total impossible depuis cet état.`,
         }
       }
 
-      await tx
-        .update(payments)
-        .set({ status: "refunded", refundedAmount: payment.tndAmount, refundedAt: new Date(), updatedAt: new Date() })
-        .where(eq(payments.id, payment.id))
+      // Applique l'allocation ligne par ligne — chaque ligne garde son
+      // propre refundedAmount honnête (voir lib/finance/refund-allocation.ts).
+      for (const update of updates) {
+        await tx
+          .update(payments)
+          .set({
+            refundedAmount: update.newRefundedAmount.toFixed(2),
+            status: update.newStatus,
+            refundedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(payments.id, update.id))
+      }
 
-      await tx
-        .update(reservations)
-        .set({ status: "refunded", updatedAt: new Date() })
-        .where(eq(reservations.id, reservation.id))
+      if (fullyRefunded) {
+        await tx
+          .update(reservations)
+          .set({ status: "refunded", updatedAt: new Date() })
+          .where(eq(reservations.id, reservation.id))
+      }
 
       const credit = await creditCustomerWallet({
         customerId: reservation.customerId,
-        amountTnd: Number.parseFloat(payment.tndAmount),
+        amountTnd: requestedTnd,
         reservationId: reservation.id,
-        paymentId: payment.id,
         description: `Remboursement réservation ${reservation.publicRef} — ${input.reason}`,
         source: "refund",
         txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
@@ -137,10 +173,21 @@ export async function refundReservation(
         entityType: "reservation",
         entityId: reservation.id,
         action: "payment.refunded",
-        diff: { publicRef: reservation.publicRef, amountTnd: payment.tndAmount, reason: input.reason },
+        diff: {
+          publicRef: reservation.publicRef,
+          amountTnd: requestedTnd.toFixed(2),
+          fullyRefunded,
+          reason: input.reason,
+        },
       })
 
-      return { ok: true as const, reservationId: reservation.id, publicRef: reservation.publicRef, refundedTnd: payment.tndAmount }
+      return {
+        ok: true as const,
+        reservationId: reservation.id,
+        publicRef: reservation.publicRef,
+        refundedTnd: requestedTnd.toFixed(2),
+        fullyRefunded,
+      }
     },
   )
 

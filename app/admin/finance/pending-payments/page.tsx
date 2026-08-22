@@ -31,8 +31,8 @@ import { Badge } from "@/components/ui/badge"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { reservations, customers } from "@/lib/db/schema"
-import { and, eq, desc } from "drizzle-orm"
+import { reservations, customers, payments } from "@/lib/db/schema"
+import { and, eq, desc, inArray } from "drizzle-orm"
 import { MANUAL_PAYMENT_ALLOWED_ROLES } from "@/lib/finance/manual-payment-logic"
 import { VerifyPaymentButton } from "@/components/admin/verify-payment-button"
 
@@ -74,16 +74,46 @@ async function loadPendingPayments(agencyId: string) {
         : []
     const customerMap = new Map(customerRows.map((c) => [c.id, c]))
 
+    // Solde déjà encaissé par réservation (Phase 16.2 — paiement partiel) :
+    // une réservation `pending` peut avoir reçu un ou plusieurs versements
+    // captured sans encore être intégralement payée.
+    const reservationIds = rows.map((r) => r.id)
+    const capturedRows =
+      reservationIds.length > 0
+        ? await db
+            .select({
+              reservationId: payments.reservationId,
+              tndAmount: payments.tndAmount,
+              refundedAmount: payments.refundedAmount,
+            })
+            .from(payments)
+            .where(
+              and(
+                inArray(payments.reservationId, reservationIds),
+                inArray(payments.status, ["captured", "partial_refund", "refunded"]),
+              ),
+            )
+        : []
+    const collectedByReservation = new Map<string, number>()
+    for (const p of capturedRows) {
+      const net = Number.parseFloat(p.tndAmount) - Number.parseFloat(p.refundedAmount)
+      collectedByReservation.set(p.reservationId, (collectedByReservation.get(p.reservationId) ?? 0) + net)
+    }
+
     const now = Date.now()
     return rows.map((r) => {
       const payload = (r.providerPayload as Record<string, unknown> | null) ?? {}
       const expiresAt = r.paymentExpiresAt ? new Date(r.paymentExpiresAt) : null
+      const collectedTnd = collectedByReservation.get(r.id) ?? 0
+      const remainingTnd = Math.max(Number.parseFloat(r.tndAmount) - collectedTnd, 0)
       return {
         ...r,
         method: typeof payload.paymentMethod === "string" ? payload.paymentMethod : "—",
         customer: customerMap.get(r.customerId),
         expiresAt,
         isPastDeadline: expiresAt ? expiresAt.getTime() < now : false,
+        collectedTnd,
+        remainingTnd,
       }
     })
   })
@@ -133,7 +163,9 @@ export default async function PendingPaymentsPage() {
                     <TableHead>Référence</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Méthode</TableHead>
-                    <TableHead className="text-right">Montant</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Encaissé</TableHead>
+                    <TableHead className="text-right">Restant</TableHead>
                     <TableHead>Expiration (24h)</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
@@ -156,6 +188,16 @@ export default async function PendingPaymentsPage() {
                         <TableCell className="text-right font-semibold">
                           {Number.parseFloat(row.tndAmount).toLocaleString("fr-FR")} DT
                         </TableCell>
+                        <TableCell className="text-right">
+                          {row.collectedTnd > 0 ? (
+                            <Badge variant="outline">{row.collectedTnd.toLocaleString("fr-FR")} DT</Badge>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {row.remainingTnd.toLocaleString("fr-FR")} DT
+                        </TableCell>
                         <TableCell>
                           {expiresAt ? (
                             <Badge variant={isPastDeadline ? "destructive" : "outline"}>
@@ -169,6 +211,7 @@ export default async function PendingPaymentsPage() {
                           <VerifyPaymentButton
                             reservationId={row.id}
                             defaultMethod={row.method === "cash" ? "cash" : "transfer"}
+                            remainingTnd={row.remainingTnd}
                             disabled={isPastDeadline}
                           />
                         </TableCell>

@@ -4,6 +4,7 @@ import assert from "node:assert/strict"
 import {
   MANUAL_PAYMENT_ALLOWED_ROLES,
   toPaymentMethod,
+  computeCaptureKind,
   isPastPaymentDeadline,
 } from "../manual-payment-logic"
 
@@ -23,9 +24,25 @@ test("toPaymentMethod : cash reste cash", () => {
   assert.equal(toPaymentMethod("cash"), "cash")
 })
 
-test("toPaymentMethod : transfer et deposit mappent tous deux sur transfer (pas de nouvel enum)", () => {
+test("toPaymentMethod : transfer, deposit et mandate mappent tous sur transfer (pas de nouvel enum)", () => {
   assert.equal(toPaymentMethod("transfer"), "transfer")
   assert.equal(toPaymentMethod("deposit"), "transfer")
+  assert.equal(toPaymentMethod("mandate"), "transfer")
+})
+
+test("toPaymentMethod : wallet et at_hotel gardent leur propre valeur d'enum", () => {
+  assert.equal(toPaymentMethod("wallet"), "wallet")
+  assert.equal(toPaymentMethod("at_hotel"), "at_hotel")
+})
+
+test("computeCaptureKind : 'deposit' (acompte) quand du solde reste après la capture", () => {
+  assert.equal(computeCaptureKind(700, 0.005), "deposit")
+  assert.equal(computeCaptureKind(0.01, 0.005), "deposit")
+})
+
+test("computeCaptureKind : 'balance' (solde) quand la capture épuise le restant", () => {
+  assert.equal(computeCaptureKind(0, 0.005), "balance")
+  assert.equal(computeCaptureKind(0.001, 0.005), "balance") // sous la tolérance flottante
 })
 
 test("isPastPaymentDeadline : false si aucune deadline posée (pas de fenêtre — ex. carte)", () => {

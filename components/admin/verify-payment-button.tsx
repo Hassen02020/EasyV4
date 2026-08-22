@@ -30,22 +30,29 @@ import { verifyManualPayment } from "@/lib/finance/manual-payment-actions"
 export function VerifyPaymentButton({
   reservationId,
   defaultMethod,
+  remainingTnd,
   disabled,
 }: {
   reservationId: string
   defaultMethod: "cash" | "transfer"
+  /** Solde restant affiché à titre indicatif — le serveur revalide le montant, jamais confiance au client. */
+  remainingTnd: number
   disabled?: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [reference, setReference] = useState("")
+  const [amount, setAmount] = useState(() => remainingTnd.toFixed(2))
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  const amountTnd = Number.parseFloat(amount)
+  const amountValid = Number.isFinite(amountTnd) && amountTnd > 0
 
   function handleVerify() {
     setError(null)
     startTransition(async () => {
-      const result = await verifyManualPayment({ reservationId, method: defaultMethod, reference })
+      const result = await verifyManualPayment({ reservationId, method: defaultMethod, reference, amountTnd })
       if (!result.ok) {
         setError(result.error)
         return
@@ -72,6 +79,19 @@ export function VerifyPaymentButton({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
+          <Label htmlFor="payment-amount">Montant encaissé (DT) — solde restant : {remainingTnd.toFixed(2)} DT</Label>
+          <Input
+            id="payment-amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            max={remainingTnd}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={isPending}
+          />
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="payment-reference">Référence du règlement</Label>
           <Input
             id="payment-reference"
@@ -87,7 +107,11 @@ export function VerifyPaymentButton({
           </Alert>
         )}
         <DialogFooter>
-          <Button onClick={handleVerify} disabled={isPending || reference.trim().length === 0} className="gap-2">
+          <Button
+            onClick={handleVerify}
+            disabled={isPending || reference.trim().length === 0 || !amountValid}
+            className="gap-2"
+          >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             Confirmer le règlement
           </Button>

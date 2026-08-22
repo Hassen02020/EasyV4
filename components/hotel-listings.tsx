@@ -9,6 +9,10 @@ import { HotelCard } from "@/components/hotel-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
 import { selectBestRate } from "@/lib/mygo/best-rate"
+import {
+  cancellationStatusFor,
+  type CancellationStatus,
+} from "@/lib/hotel-search/cancellation"
 
 interface BookingData {
   id: number
@@ -31,20 +35,6 @@ interface BookingData {
   boardingCode: string
   roomId: number
 }
-
-/**
- * Statut d'annulation honnête, dérivé de `RoomOfferDTO.notRefundable` +
- * `cancellationPolicies` (déjà normalisés par myGo, jamais fabriqués) :
- *   - "free"          : au moins une politique BEFORE_ARRIVAL sans frais —
- *                        annulation gratuite avant `beforeDate`.
- *   - "non_refundable": `notRefundable === true` côté fournisseur.
- *   - "unknown"        : ni l'un ni l'autre — myGo n'a communiqué aucune
- *                        politique exploitable, on ne l'invente pas.
- */
-type CancellationStatus =
-  | { kind: "free"; beforeDate: string }
-  | { kind: "non_refundable" }
-  | { kind: "unknown" }
 
 interface RoomOption {
   id: number
@@ -93,19 +83,6 @@ const PLACEHOLDER_IMG =
  * chambre All Inclusive la moins chère est à 380, la card affiche 380 (le
  * vrai prix pour ce que l'utilisateur a demandé), pas 250.
  */
-/** Dérive un statut d'annulation honnête depuis les données myGo — jamais un badge par défaut fabriqué. */
-function cancellationStatusFor(room: {
-  notRefundable: boolean
-  cancellationPolicies: { nature: string; fees: number; fromDate?: string }[]
-}): CancellationStatus {
-  if (room.notRefundable) return { kind: "non_refundable" }
-  const freePolicy = room.cancellationPolicies.find(
-    (p) => p.nature === "BEFORE_ARRIVAL" && p.fees === 0 && p.fromDate,
-  )
-  if (freePolicy?.fromDate) return { kind: "free", beforeDate: freePolicy.fromDate }
-  return { kind: "unknown" }
-}
-
 function toCardShape(
   offer: HotelOfferDTO,
   activeBoardings: string[] = [],

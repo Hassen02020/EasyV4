@@ -19,12 +19,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
-
-/** Statut d'annulation honnête — voir components/hotel-listings.tsx::cancellationStatusFor, jamais un badge par défaut fabriqué. */
-type CancellationStatus =
-  | { kind: "free"; beforeDate: string }
-  | { kind: "non_refundable" }
-  | { kind: "unknown" }
+import type { CancellationStatus } from "@/lib/hotel-search/cancellation"
 
 interface RoomOption {
   id: number

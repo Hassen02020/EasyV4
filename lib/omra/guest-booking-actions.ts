@@ -55,7 +55,13 @@ import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 
 export type CreateGuestOmraBookingResult =
-  | { ok: true; reservationId: string; publicRef: string; status: "confirmed" | "pending" }
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      guestAccessToken: string
+      status: "confirmed" | "pending"
+    }
   | { ok: false; error: string; code?: string }
 
 function pad(n: number, w = 6) {
@@ -219,8 +225,9 @@ async function runCreateGuestOmraBooking(
               paymentMethod,
             },
           })
-          .returning({ id: reservations.id })
+          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
         const reservationId = reservation.id
+        const guestAccessToken = reservation.guestAccessToken
 
         if (isImmediatelyPaid) {
           await tx
@@ -314,6 +321,7 @@ async function runCreateGuestOmraBooking(
         return {
           reservationId,
           publicRef,
+          guestAccessToken,
           status: (isImmediatelyPaid ? "confirmed" : "pending") as "confirmed" | "pending",
           packageName: pkg.name,
           totalTnd,
@@ -351,7 +359,13 @@ async function runCreateGuestOmraBooking(
       }
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef, status: result.status }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
+      status: result.status,
+    }
   } catch (err) {
     if (err instanceof PaymentRejected) {
       return { ok: false, error: err.message, code: err.code }

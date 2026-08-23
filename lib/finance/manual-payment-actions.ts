@@ -331,6 +331,7 @@ export async function verifyManualPayment(
           .select({
             module: reservations.module,
             tndAmount: reservations.tndAmount,
+            guestAccessToken: reservations.guestAccessToken,
             customerEmail: customers.email,
             customerFirstName: customers.firstName,
             customerLastName: customers.lastName,
@@ -356,6 +357,7 @@ export async function verifyManualPayment(
         reservationId: outcome.reservationId,
         publicRef: outcome.publicRef,
         agencyId,
+        guestAccessToken: detail.guestAccessToken,
         customerEmail: detail.customerEmail,
         customerName: `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
         customerPhone: detail.customerPhone ?? "",

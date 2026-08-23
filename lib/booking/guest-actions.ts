@@ -82,7 +82,13 @@ class WalletDebitFailedError extends Error {
 }
 
 export type CreateGuestReservationResult =
-  | { ok: true; reservationId: string; publicRef: string; status: "confirmed" | "pending" }
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      guestAccessToken: string
+      status: "confirmed" | "pending"
+    }
   | { ok: false; error: string; code?: string }
 
 export async function createGuestReservationFromDraft(input: {
@@ -137,7 +143,12 @@ async function findReservationByGuestIdempotencyKey(
 ): Promise<CreateGuestReservationResult | null> {
   const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
     tx
-      .select({ id: reservations.id, publicRef: reservations.publicRef, status: reservations.status })
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+        status: reservations.status,
+      })
       .from(reservations)
       .where(and(eq(reservations.agencyId, agencyId), eq(reservations.guestIdempotencyKey, idempotencyKey)))
       .limit(1),
@@ -148,6 +159,7 @@ async function findReservationByGuestIdempotencyKey(
     ok: true,
     reservationId: row.id,
     publicRef: row.publicRef,
+    guestAccessToken: row.guestAccessToken,
     status: row.status === "confirmed" ? "confirmed" : "pending",
   }
 }
@@ -292,7 +304,7 @@ async function runCreateGuestReservation(
             ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)
             : null
 
-        let inserted: { id: string; publicRef: string }[]
+        let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
         try {
           inserted = await tx
             .insert(reservations)
@@ -325,7 +337,11 @@ async function runCreateGuestReservation(
                 myGoState: myGoBooking.state ?? null,
               },
             })
-            .returning({ id: reservations.id, publicRef: reservations.publicRef })
+            .returning({
+              id: reservations.id,
+              publicRef: reservations.publicRef,
+              guestAccessToken: reservations.guestAccessToken,
+            })
         } catch (err) {
           // Double-submit vraiment simultané : l'autre requête a gagné la
           // course sur reservations_guest_idempotency_uniq. Rien d'autre
@@ -339,6 +355,7 @@ async function runCreateGuestReservation(
           throw err
         }
         const reservationId = inserted[0].id
+        const guestAccessToken = inserted[0].guestAccessToken
 
         const confirmedRoom = myGoBooking.rooms[0]
         await tx.insert(reservationHotel).values({
@@ -434,7 +451,14 @@ async function runCreateGuestReservation(
         }
 
         const finalStatus: "confirmed" | "pending" = isImmediatelyPaid ? "confirmed" : "pending"
-        return { reservationId, publicRef, status: finalStatus, isImmediatelyPaid, conflict: false as const }
+        return {
+          reservationId,
+          publicRef,
+          guestAccessToken,
+          status: finalStatus,
+          isImmediatelyPaid,
+          conflict: false as const,
+        }
       },
     )
 
@@ -469,6 +493,7 @@ async function runCreateGuestReservation(
         reservationId: result.reservationId,
         publicRef: result.publicRef,
         agencyId,
+        guestAccessToken: result.guestAccessToken,
         customerEmail: traveler.email,
         customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
         customerPhone: traveler.phone,
@@ -504,7 +529,13 @@ async function runCreateGuestReservation(
       }
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef, status: result.status }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
+      status: result.status,
+    }
   } catch (err) {
     let compensationNote = ""
     try {

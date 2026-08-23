@@ -23,6 +23,7 @@ import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getMyGoClient } from "@/lib/mygo"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
+import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { logger } from "@/lib/logger"
 import {
   classifyMyGoBookingError,
@@ -107,6 +108,26 @@ export async function updateReservationStatus(
         return {
           ok: false as const,
           error: `Transition interdite : ${previousStatus} → ${nextStatus}`,
+        }
+      }
+
+      // --- Phase 21.1 (P0-2) — une réservation ne peut jamais être confirmée
+      // tant qu'elle n'est pas intégralement payée. Seule source de vérité :
+      // getReservationPaymentSummary (jamais depositPaid, jamais un SUM
+      // recalculé ici, jamais un montant fourni par le client). Ce chemin
+      // générique (dropdown /admin/reservations) n'avait jusqu'ici AUCUNE
+      // vérification de paiement — contrairement à verifyManualPayment, qui
+      // confirme déjà correctement sous cette même condition.
+      if (nextStatus === "confirmed") {
+        const summary = await getReservationPaymentSummary({
+          reservationId,
+          txOverride: db as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+        })
+        if (summary.paymentState !== "FULLY_PAID") {
+          return {
+            ok: false as const,
+            error: `Confirmation refusée : paiement incomplet (${summary.paymentState}, restant ${summary.remainingTnd.toFixed(2)} DT). Une réservation ne peut être confirmée qu'une fois intégralement réglée.`,
+          }
         }
       }
 

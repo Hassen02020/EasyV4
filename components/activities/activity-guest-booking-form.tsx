@@ -132,7 +132,7 @@ export function ActivityGuestBookingForm({
         setIsSubmitting(false)
         return
       }
-      router.push(`/booking/confirmation/${result.publicRef}`)
+      router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
       setIsSubmitting(false)

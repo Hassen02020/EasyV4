@@ -6,29 +6,35 @@
  * `app/api/pro/reservations/[id]/voucher/route.ts` (Phase 11 :
  * `isVoucherEligible`, jamais de voucher pour une réservation non
  * confirmée), mais accessible SANS session — le client final n'a pas de
- * compte partenaire à présenter. Accès scopé par la connaissance de la
- * référence publique (`publicRef`), exactement le même modèle déjà en
- * place et documenté sur `app/booking/confirmation/[ref]/page.tsx`
- * ("accès restreint par la connaissance de la référence publique") — pas
- * un nouveau choix de sécurité, la même décision déjà prise pour cette
- * page voisine.
+ * compte partenaire à présenter.
+ *
+ * Phase 21.1 (P0-1) : `publicRef` (séquentiel/devinable) seul n'est PLUS
+ * la frontière d'accès — `?token=` (`reservations.guestAccessToken`,
+ * privé, aléatoire, jamais dérivable de `publicRef`) est désormais
+ * OBLIGATOIRE et vérifié dans la MÊME requête. `withSystemContext()`
+ * reste nécessaire (route sans session), mais c'est le token qui protège,
+ * pas le ref.
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, reservationHotel, customers, agencies } from "@/lib/db/schema"
 import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
 import { isVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ ref: string }> },
 ) {
   const { ref } = await params
+  const token = req.nextUrl.searchParams.get("token")
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "server_misconfigured" }, { status: 500 })
+  }
+  if (!token) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 })
   }
 
   const row = await withSystemContext(async (tx) => {
@@ -53,7 +59,7 @@ export async function GET(
       .innerJoin(customers, eq(customers.id, reservations.customerId))
       .innerJoin(agencies, eq(agencies.id, reservations.agencyId))
       .leftJoin(reservationHotel, eq(reservationHotel.reservationId, reservations.id))
-      .where(eq(reservations.publicRef, ref))
+      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
       .limit(1)
     return r ?? null
   })

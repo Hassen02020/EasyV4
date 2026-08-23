@@ -393,6 +393,21 @@ export const reservations = pgTable(
      * booking guest (B2B, admin manuel...) : backstop DB indépendant de
      * Redis contre le double-submit simultané / le retry après timeout. */
     guestIdempotencyKey: text("guest_idempotency_key"),
+    /** Phase 21.1 (P0-1) — second identifiant privé, cryptographiquement
+     * aléatoire, requis EN PLUS de `publicRef` par les routes guest
+     * (confirmation/voucher) sans session. `publicRef` est séquentiel/
+     * prévisible (`TG-2026-000123`) et reste l'identifiant humain de
+     * support/communication — jamais utilisé seul comme frontière d'accès.
+     * DEFAULT non-constant (`gen_random_uuid()` x2, 256 bits) : Postgres
+     * réécrit la table et évalue une valeur DISTINCTE par ligne existante à
+     * l'ALTER (comportement documenté, vérifié en direct sur ce projet),
+     * donc aucune réservation existante ne reste sans token. Jamais fourni
+     * par le client, jamais affiché dans /admin ou /pro. */
+    guestAccessToken: text("guest_access_token")
+      .notNull()
+      .default(
+        sql`(replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''))`,
+      ),
   },
   (t) => [
     uniqueIndex("reservations_public_ref_uniq").on(t.agencyId, t.publicRef),
@@ -404,6 +419,7 @@ export const reservations = pgTable(
     uniqueIndex("reservations_guest_idempotency_uniq")
       .on(t.guestIdempotencyKey)
       .where(sql`${t.guestIdempotencyKey} is not null`),
+    uniqueIndex("reservations_guest_access_token_uniq").on(t.guestAccessToken),
   ],
 )
 

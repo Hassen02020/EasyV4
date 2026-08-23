@@ -184,7 +184,7 @@ export async function nextPublicRef(
 }
 
 export type CreateReservationResult =
-  | { ok: true; reservationId: string; publicRef: string }
+  | { ok: true; reservationId: string; publicRef: string; guestAccessToken: string }
   | { ok: false; error: string }
 
 export async function createReservationFromDraft(input: {
@@ -416,8 +416,13 @@ export async function createReservationFromDraft(input: {
               : {}),
           },
         })
-        .returning({ id: reservations.id, publicRef: reservations.publicRef })
+        .returning({
+          id: reservations.id,
+          publicRef: reservations.publicRef,
+          guestAccessToken: reservations.guestAccessToken,
+        })
       const reservationId = inserted[0].id
+      const guestAccessToken = inserted[0].guestAccessToken
 
       if (draft.module === "hotel") {
         const confirmedRoom = myGoBooking?.rooms[0]
@@ -533,7 +538,7 @@ export async function createReservationFromDraft(input: {
         },
       })
 
-      return { reservationId, publicRef, agencyId }
+      return { reservationId, publicRef, agencyId, guestAccessToken }
       },
     )
 
@@ -552,6 +557,7 @@ export async function createReservationFromDraft(input: {
         reservationId: result.reservationId,
         publicRef: result.publicRef,
         agencyId: result.agencyId,
+        guestAccessToken: result.guestAccessToken,
         customerEmail: traveler.email,
         customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
         customerPhone: traveler.phone,
@@ -581,7 +587,12 @@ export async function createReservationFromDraft(input: {
       console.error("[booking] génération facture échouée", err instanceof Error ? err.message : String(err))
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
+    }
   } catch (err) {
     // --- Échec APRÈS confirmation myGo (écriture DB, débit wallet insuffisant…) ---
     // À ce stade la réservation existe réellement chez le fournisseur. Sans
@@ -658,7 +669,7 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
     if (!result.ok) {
       throw new Error(result.error)
     }
-    redirect(`/booking/confirmation/${result.publicRef}`)
+    redirect(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
   }
 
   const { createGuestReservationFromDraft } = await import("./guest-actions")
@@ -675,5 +686,5 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
   if (!result.ok) {
     throw new Error(result.error)
   }
-  redirect(`/booking/confirmation/${result.publicRef}`)
+  redirect(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
 }

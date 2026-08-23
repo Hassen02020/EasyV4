@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CheckCircle2, Mail, Calendar, User, Download } from "lucide-react"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,13 +24,23 @@ const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
 
 export default async function ConfirmationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ ref: string }>
+  searchParams: Promise<{ token?: string }>
 }) {
   const { ref } = await params
+  const { token } = await searchParams
   if (!process.env.DATABASE_URL) notFound()
-  // Page publique de confirmation post-checkout (pas de session client) —
-  // accès restreint par la connaissance de la référence publique.
+  // Page publique de confirmation post-checkout (pas de session client).
+  // Phase 21.1 (P0-1) : publicRef SEUL n'est plus suffisant — séquentiel/
+  // devinable (TG-2026-000123). Le second facteur `guestAccessToken`
+  // (privé, aléatoire, jamais dérivable de publicRef) est OBLIGATOIRE ici,
+  // combiné dans la MÊME clause WHERE que publicRef. Sans lui — absent ou
+  // incorrect — la réservation n'est jamais lue, quel que soit le ref :
+  // withSystemContext() reste nécessaire (page sans session), mais le
+  // token devient la vraie frontière d'accès, pas publicRef.
+  if (!token) notFound()
   const rows = await withSystemContext((db) =>
     db
       .select({
@@ -49,7 +59,7 @@ export default async function ConfirmationPage({
       })
       .from(reservations)
       .leftJoin(customers, eq(reservations.customerId, customers.id))
-      .where(eq(reservations.publicRef, ref))
+      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
       .limit(1),
   )
   const row = rows[0]
@@ -142,7 +152,7 @@ export default async function ConfirmationPage({
                 {row.status === "confirmed" || row.status === "completed" ? (
                   <Button asChild className="flex-1">
                     <a
-                      href={`${VOUCHER_ROUTE_BY_MODULE[row.module] ?? "/api/booking/voucher"}/${row.publicRef}`}
+                      href={`${VOUCHER_ROUTE_BY_MODULE[row.module] ?? "/api/booking/voucher"}/${row.publicRef}?token=${token}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

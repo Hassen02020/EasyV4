@@ -718,6 +718,39 @@ export const auditEvents = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* Permission grants (Phase 22) — délégation explicite au-dessus du baseline  */
+/* par rôle (lib/auth/rbac.ts / lib/auth/permissions.ts). Une ligne = override */
+/* explicite (accordé/révoqué) pour CE user, dans SON agence ; son absence =  */
+/* comportement baseline du rôle inchangé. Ne remplace aucun rôle existant.   */
+/* -------------------------------------------------------------------------- */
+export const permissionGrants = pgTable(
+  "permission_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    userId: uuid("user_id").notNull(),
+    /** Clé de lib/auth/rbac.ts::Permission (ex. "staff.create", "accounting.view"). */
+    permission: text("permission").notNull(),
+    /** true = permission accordée au-delà du baseline ; false = baseline révoqué pour ce user précis. */
+    granted: boolean("granted").notNull(),
+    grantedByUserId: uuid("granted_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("permission_grants_user_permission_uniq").on(t.agencyId, t.userId, t.permission),
+    index("permission_grants_agency_idx").on(t.agencyId),
+    index("permission_grants_user_idx").on(t.userId),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* Catalog tables (production interne, modules Voyages / Activités /          */
 /* Transferts / Omra). Squelette minimal pour itérations 5-9.                 */
 /* -------------------------------------------------------------------------- */

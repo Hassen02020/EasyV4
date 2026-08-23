@@ -37,11 +37,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { StaffRowActions } from "@/components/admin/staff-row-actions"
+import { PermissionGrantEditor } from "@/components/permissions/permission-grant-editor"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { users } from "@/lib/db/schema"
+import { users, agencies } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
+import { getAgencyPermissionGrants, getBaselinePermissions } from "@/lib/auth/permissions"
+import { RBAC_PERMISSIONS } from "@/lib/auth/rbac-permission-list"
 
 export const metadata: Metadata = {
   title: "Personnel — Manager",
@@ -103,6 +106,18 @@ async function loadStaff(agencyId: string) {
   }
 }
 
+async function loadAgencyName(agencyId: string): Promise<string> {
+  try {
+    const [row] = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (db) =>
+      db.select({ name: agencies.name }).from(agencies).where(eq(agencies.id, agencyId)).limit(1),
+    )
+    return row?.name ?? "—"
+  } catch (error) {
+    console.error("[loadAgencyName]", error)
+    return "—"
+  }
+}
+
 export default async function StaffPage() {
   const supabase = await createServerSupabase()
   const {
@@ -120,6 +135,14 @@ export default async function StaffPage() {
   }
 
   const staff = await loadStaff(profile.agencyId)
+  const agencyName = await loadAgencyName(profile.agencyId)
+  const isSuperAdmin = profile.role === "super_admin"
+  const grantsByUser = isSuperAdmin
+    ? await getAgencyPermissionGrants(
+        profile.agencyId,
+        staff.map((s) => s.id),
+      )
+    : new Map<string, { permission: (typeof RBAC_PERMISSIONS)[number]; granted: boolean }[]>()
 
   const stats = {
     total: staff.length,
@@ -221,6 +244,7 @@ export default async function StaffPage() {
                   <TableRow>
                     <TableHead>Agent</TableHead>
                     <TableHead>Rôle</TableHead>
+                    <TableHead>Agence</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Dernière Connexion</TableHead>
@@ -262,6 +286,7 @@ export default async function StaffPage() {
                             {roleConfig.label}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{agencyName}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <Mail className="h-3 w-3 text-gray-400" />
@@ -287,13 +312,24 @@ export default async function StaffPage() {
                             : "Jamais"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <StaffRowActions
-                            memberId={member.id}
-                            displayName={member.name || member.email}
-                            status={member.status as "active" | "suspended"}
-                            role={member.role}
-                            isSelf={member.id === profile.id}
-                          />
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isSuperAdmin && member.id !== profile.id ? (
+                              <PermissionGrantEditor
+                                targetUserId={member.id}
+                                displayName={member.name || member.email}
+                                permissions={RBAC_PERMISSIONS}
+                                baseline={getBaselinePermissions(member.role)}
+                                initialOverrides={grantsByUser.get(member.id) ?? []}
+                              />
+                            ) : null}
+                            <StaffRowActions
+                              memberId={member.id}
+                              displayName={member.name || member.email}
+                              status={member.status as "active" | "suspended"}
+                              role={member.role}
+                              isSelf={member.id === profile.id}
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     )

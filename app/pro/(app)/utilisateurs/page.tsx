@@ -4,8 +4,13 @@ import { ProPageShell } from "@/components/pro/pro-page-shell"
 import { UsersManager } from "@/components/pro/users-manager"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
-import { canManagePartnerUsers } from "@/lib/auth/partner-permissions"
 import { loadPartnerUsers } from "@/lib/pro/users-data"
+import {
+  getAgencyPermissionGrants,
+  getBaselinePermissions,
+  getEffectivePermission,
+  PARTNER_DELEGATABLE_PERMISSIONS,
+} from "@/lib/auth/permissions"
 
 export const metadata = { title: "Utilisateurs | Espace Pro Easy2Book" }
 
@@ -21,29 +26,55 @@ export default async function ProUsersPage() {
   const profile = await getCurrentPartnerProfile(user.id)
   if (!profile) redirect("/pro/login")
 
-  // "Droits owner" (voir EASYV4_DEEP_AUDIT_REPORT.md / modèle B2C < Partner
-  // Agent < Partner Owner < Admin OTA) : la gestion des collaborateurs de
-  // l'agence (inviter/activer/supprimer) est réservée au owner. Avant ce
-  // correctif, un `partner_agent` atterrissait sur la même page sans aucune
-  // vérification — même si l'action "Inviter" reste un mock frontend pour
-  // l'instant (aucune écriture DB), cette porte doit exister dès maintenant
-  // pour ne pas être oubliée le jour où l'invitation sera branchée en vrai.
-  // `super_admin` conservé pour le mode "vue B2B simulée" (cohérent avec le
-  // reste de /pro, voir app/pro/(app)/layout.tsx).
-  if (!canManagePartnerUsers(profile.role)) {
+  // Consultation ouverte aux 3 rôles /pro valides (owner, agent, super_admin
+  // en vue B2B simulée) — même scope RLS agence, "pas de partition par
+  // agent" (Phase 22) : la différence owner/agent est OPÉRATIONNELLE, pas
+  // de visibilité, donc l'agent peut voir cette page (lecture seule). La
+  // gestion fine (statut, délégation) est en plus conditionnée au grant
+  // explicite "staff.edit" (Phase 22/23) — jamais automatique du seul rôle
+  // owner, voir `canManage` plus bas.
+  const isValidPartnerRole =
+    profile.role === "partner_owner" || profile.role === "partner_agent" || profile.role === "super_admin"
+  if (!isValidPartnerRole) {
     redirect("/pro?forbidden=utilisateurs")
   }
 
   const initial = await loadPartnerUsers(profile.agency.id)
+
+  const isOwner = profile.role === "partner_owner"
+  const canManage =
+    isOwner &&
+    (await getEffectivePermission({
+      agencyId: profile.agency.id,
+      userId: profile.userId,
+      role: "partner_owner",
+      permission: "staff.edit",
+    }))
+
+  const agentIds = initial.filter((u) => u.role === "partner_agent").map((u) => u.id)
+  const grantsByUser = canManage
+    ? await getAgencyPermissionGrants(profile.agency.id, agentIds)
+    : new Map<string, { permission: (typeof PARTNER_DELEGATABLE_PERMISSIONS)[number]; granted: boolean }[]>()
 
   return (
     <ProPageShell
       icon={Users}
       title="Utilisateurs de l'agence"
       iconTone="secondary"
-      description="Invitez vos collaborateurs et gérez leurs accès au portail Pro."
+      description={
+        canManage
+          ? "Gérez le statut de vos agents et déléguez-leur des permissions."
+          : "Consultez les collaborateurs de votre agence."
+      }
     >
-      <UsersManager initial={initial} maxAgents={5} />
+      <UsersManager
+        initial={initial}
+        canManage={canManage}
+        currentUserId={profile.userId}
+        delegatablePermissions={PARTNER_DELEGATABLE_PERMISSIONS}
+        agentBaseline={getBaselinePermissions("partner_agent")}
+        grantsByUser={Object.fromEntries(grantsByUser)}
+      />
     </ProPageShell>
   )
 }

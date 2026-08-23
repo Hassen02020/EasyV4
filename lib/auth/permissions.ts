@@ -17,7 +17,7 @@
  * du rôle si aucun override n'existe.
  */
 
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import type { AdminShellRole } from "@/components/admin-shell"
 import type { PartnerRole } from "./partner-profile"
 import {
@@ -126,4 +126,38 @@ export async function getEffectivePermission(input: EffectivePermissionInput): P
 
   if (rows[0]) return rows[0].granted
   return hasBaselinePermission(role, permission)
+}
+
+export type PermissionGrantRow = { permission: Permission; granted: boolean }
+
+/**
+ * Overrides explicites (permission_grants) pour un groupe d'utilisateurs
+ * d'UNE MÊME agence — lecture seule, pour affichage UI (Phase 23). Ne
+ * calcule jamais l'effectif seul : le composant doit toujours combiner
+ * avec `getBaselinePermissions(role)` pour afficher l'état réel.
+ */
+export async function getAgencyPermissionGrants(
+  agencyId: string,
+  userIds: readonly string[],
+): Promise<Map<string, PermissionGrantRow[]>> {
+  const map = new Map<string, PermissionGrantRow[]>()
+  if (userIds.length === 0) return map
+
+  const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
+    tx
+      .select({
+        userId: permissionGrants.userId,
+        permission: permissionGrants.permission,
+        granted: permissionGrants.granted,
+      })
+      .from(permissionGrants)
+      .where(and(eq(permissionGrants.agencyId, agencyId), inArray(permissionGrants.userId, [...userIds]))),
+  )
+
+  for (const row of rows) {
+    const list = map.get(row.userId) ?? []
+    list.push({ permission: row.permission as Permission, granted: row.granted })
+    map.set(row.userId, list)
+  }
+  return map
 }

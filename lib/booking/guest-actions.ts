@@ -116,19 +116,60 @@ export async function createGuestReservationFromDraft(input: {
   }
 
   return withGuestIdempotency(input.idempotencyKey, () =>
-    runCreateGuestReservation(draftParse.data, travelerParse.data, methodParse.data as GuestPaymentMethod),
+    runCreateGuestReservation(
+      draftParse.data,
+      travelerParse.data,
+      methodParse.data as GuestPaymentMethod,
+      input.idempotencyKey,
+    ),
   )
+}
+
+/**
+ * Backstop DB (Phase 20) — retrouve une réservation guest déjà créée pour
+ * cette clé d'idempotence exacte (même token de brouillon + même méthode
+ * de paiement), sans jamais réattaquer myGo/le paiement. `null` = aucune
+ * réservation existante pour cette clé, l'appelant peut procéder.
+ */
+async function findReservationByGuestIdempotencyKey(
+  agencyId: string,
+  idempotencyKey: string,
+): Promise<CreateGuestReservationResult | null> {
+  const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
+    tx
+      .select({ id: reservations.id, publicRef: reservations.publicRef, status: reservations.status })
+      .from(reservations)
+      .where(and(eq(reservations.agencyId, agencyId), eq(reservations.guestIdempotencyKey, idempotencyKey)))
+      .limit(1),
+  )
+  const row = rows[0]
+  if (!row) return null
+  return {
+    ok: true,
+    reservationId: row.id,
+    publicRef: row.publicRef,
+    status: row.status === "confirmed" ? "confirmed" : "pending",
+  }
 }
 
 async function runCreateGuestReservation(
   draft: BookingDraft,
   traveler: TravelerInput,
   paymentMethod: GuestPaymentMethod,
+  idempotencyKey: string,
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
     return { ok: false, error: "Aucune agence de vente directe n'est configurée pour le moment." }
   }
+
+  // --- Backstop DB idempotence (Phase 20) — indépendant de Redis ---
+  // Un retry après timeout (ou un appel alors que Redis est indisponible)
+  // retrouve directement la réservation déjà créée, AVANT tout appel
+  // fournisseur (myGo) ou tentative de paiement — jamais un second hold
+  // myGo ni un second débit pour la même soumission.
+  const existingByKey = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
+  if (existingByKey) return existingByKey
 
   // --- Revalidation fournisseur RÉELLE (myGo) — jamais de prix client-fourni ---
   // Même garde que le correctif P0 Phase 11 (lib/booking/actions.ts) : sans
@@ -251,37 +292,52 @@ async function runCreateGuestReservation(
             ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)
             : null
 
-        const inserted = await tx
-          .insert(reservations)
-          .values({
-            agencyId,
-            publicRef,
-            customerId,
-            module: "hotel",
-            source: "internal",
-            status: "pending",
-            originalCurrency: draft.currency,
-            originalAmount: String(breakdown.totalTnd),
-            tndAmount: String(breakdown.totalTnd),
-            depositAmount: String(breakdown.depositTnd),
-            depositPaid: "0",
-            paymentExpiresAt: paymentExpiresAt ?? undefined,
-            providerPayload: {
-              offerId: draft.offerId,
-              offerLabel: draft.offerLabel,
-              startDate: draft.startDate,
-              endDate: draft.endDate,
-              adults: draft.adults,
-              children: draft.children,
-              breakdown,
-              metadata: draft.metadata ?? null,
-              channel: "b2c_guest",
-              paymentMethod,
-              myGoBookingId: myGoBooking.bookingId,
-              myGoState: myGoBooking.state ?? null,
-            },
-          })
-          .returning({ id: reservations.id, publicRef: reservations.publicRef })
+        let inserted: { id: string; publicRef: string }[]
+        try {
+          inserted = await tx
+            .insert(reservations)
+            .values({
+              agencyId,
+              publicRef,
+              customerId,
+              module: "hotel",
+              source: "internal",
+              status: "pending",
+              originalCurrency: draft.currency,
+              originalAmount: String(breakdown.totalTnd),
+              tndAmount: String(breakdown.totalTnd),
+              depositAmount: String(breakdown.depositTnd),
+              depositPaid: "0",
+              paymentExpiresAt: paymentExpiresAt ?? undefined,
+              guestIdempotencyKey: idempotencyKey,
+              providerPayload: {
+                offerId: draft.offerId,
+                offerLabel: draft.offerLabel,
+                startDate: draft.startDate,
+                endDate: draft.endDate,
+                adults: draft.adults,
+                children: draft.children,
+                breakdown,
+                metadata: draft.metadata ?? null,
+                channel: "b2c_guest",
+                paymentMethod,
+                myGoBookingId: myGoBooking.bookingId,
+                myGoState: myGoBooking.state ?? null,
+              },
+            })
+            .returning({ id: reservations.id, publicRef: reservations.publicRef })
+        } catch (err) {
+          // Double-submit vraiment simultané : l'autre requête a gagné la
+          // course sur reservations_guest_idempotency_uniq. Rien d'autre
+          // n'a encore été écrit pour CETTE tentative (pas de wallet debit,
+          // pas de reservation_hotel) — on s'arrête ici, le hold myGo de
+          // cette tentative perdante sera compensé par l'appelant.
+          const pgErr = err as { code?: string }
+          if (pgErr.code === "23505") {
+            return { conflict: true as const }
+          }
+          throw err
+        }
         const reservationId = inserted[0].id
 
         const confirmedRoom = myGoBooking.rooms[0]
@@ -378,9 +434,29 @@ async function runCreateGuestReservation(
         }
 
         const finalStatus: "confirmed" | "pending" = isImmediatelyPaid ? "confirmed" : "pending"
-        return { reservationId, publicRef, status: finalStatus, isImmediatelyPaid }
+        return { reservationId, publicRef, status: finalStatus, isImmediatelyPaid, conflict: false as const }
       },
     )
+
+    if (result.conflict) {
+      // Cette tentative a perdu la course sur reservations_guest_idempotency_uniq
+      // — l'autre requête (même token+méthode) a déjà créé la réservation
+      // réelle. Compense le hold myGo redondant de CETTE tentative (best
+      // effort, même logique que le catch général plus bas) puis renvoie le
+      // résultat de la réservation gagnante, jamais une erreur générique.
+      try {
+        await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
+      } catch {
+        /* best effort — un hold myGo redondant sans réservation locale associée
+         * n'a aucun impact financier/paiement côté Easy2Book. */
+      }
+      const winner = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
+      if (winner) return winner
+      return {
+        ok: false,
+        error: "Cette réservation est en cours de traitement par une autre requête — réessayez dans quelques secondes.",
+      }
+    }
 
     // "booking/confirmed" déclenche processConfirmedBooking (PDF voucher +
     // email) sans revérifier le statut — voir Phase 14.2 : cet événement ne

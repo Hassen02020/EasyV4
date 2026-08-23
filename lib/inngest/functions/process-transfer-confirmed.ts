@@ -8,12 +8,14 @@
 
 import { inngest, type Events } from "@/lib/inngest/client"
 import { Resend } from "resend"
+import { makeOnFailure } from "@/lib/inngest/on-failure"
 
 export const processTransferConfirmed = inngest.createFunction(
   {
     id: "process-transfer-confirmed",
     name: "Transfert confirmé — notifications",
     triggers: { event: "booking/transfer.confirmed" },
+    onFailure: makeOnFailure("process-transfer-confirmed"),
   },
   async ({
     event,

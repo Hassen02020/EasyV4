@@ -9,6 +9,7 @@
 
 import { inngest, type Events } from "@/lib/inngest/client"
 import { syncBookingToCrm } from "@/lib/crm/sync-booking"
+import { makeOnFailure } from "@/lib/inngest/on-failure"
 
 export const syncBookingCrm = inngest.createFunction(
   {
@@ -16,6 +17,7 @@ export const syncBookingCrm = inngest.createFunction(
     name: "Réservation confirmée — synchronisation CRM",
     retries: 3,
     triggers: { event: "booking/confirmed" },
+    onFailure: makeOnFailure("sync-booking-crm"),
   },
   async ({
     event,

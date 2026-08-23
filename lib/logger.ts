@@ -16,6 +16,8 @@
  * ```
  */
 
+import { captureError, type ErrorContext } from "@/lib/observability/capture-error"
+
 type LogLevel = "debug" | "info" | "warn" | "error"
 
 const LEVELS: Record<LogLevel, number> = {
@@ -71,6 +73,11 @@ function log(
   const line = IS_PROD ? formatJson(level, msg, ctx) : formatPretty(level, msg, ctx)
   if (level === "error") {
     console.error(line)
+    // Beaucoup d'appelants passent déjà l'erreur sous forme de string dans
+    // `ctx` (ex. `{ err: error.message }`) plutôt que l'objet Error natif —
+    // on reconstruit une Error à partir du message loggé pour garder une
+    // trace exploitable côté Sentry sans devoir réécrire chaque site d'appel.
+    captureError(new Error(msg), ctx as ErrorContext)
   } else if (level === "warn") {
     console.warn(line)
   } else {

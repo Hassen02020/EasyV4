@@ -10,6 +10,7 @@ import { Resend } from "resend"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
+import { makeOnFailure } from "@/lib/inngest/on-failure"
 
 // Lazy initialization pour éviter l'erreur au build
 function getResend() {
@@ -25,6 +26,7 @@ export const processWalletCredit = inngest.createFunction(
     name: "Process Wallet Credit — Notify Agency",
     retries: 3,
     triggers: { event: "wallet/credited" },
+    onFailure: makeOnFailure("process-wallet-credit"),
   },
   async ({ event }: { event: { data: Events["wallet/credited"]["data"] } }) => {
     const { agencyId, amount, newBalance, method, txId } = event.data

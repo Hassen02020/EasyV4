@@ -55,8 +55,8 @@ export type AdminReservationRow = {
   originalCurrency: string
   originalAmount: number
   tndAmount: number
+  /** Acompte DEMANDÉ (config), pas ce qui a été payé — pour ça, voir getReservationPaymentSummary. */
   depositAmount: number | null
-  depositPaid: number
   createdAt: string
   cancelledAt: string | null
 }
@@ -111,7 +111,6 @@ export async function loadAdminReservations(
         originalAmount: reservations.originalAmount,
         tndAmount: reservations.tndAmount,
         depositAmount: reservations.depositAmount,
-        depositPaid: reservations.depositPaid,
         createdAt: reservations.createdAt,
         cancelledAt: reservations.cancelledAt,
       })
@@ -179,7 +178,6 @@ export async function loadAdminReservationsPage(
         originalAmount: reservations.originalAmount,
         tndAmount: reservations.tndAmount,
         depositAmount: reservations.depositAmount,
-        depositPaid: reservations.depositPaid,
         createdAt: reservations.createdAt,
         cancelledAt: reservations.cancelledAt,
       })
@@ -235,7 +233,6 @@ function mapRow(row: {
   originalAmount: string | null
   tndAmount: string | null
   depositAmount: string | null
-  depositPaid: string | null
   createdAt: Date
   cancelledAt: Date | null
 }): AdminReservationRow {
@@ -255,7 +252,6 @@ function mapRow(row: {
     tndAmount: Number(row.tndAmount ?? 0),
     depositAmount:
       row.depositAmount === null ? null : Number(row.depositAmount),
-    depositPaid: Number(row.depositPaid ?? 0),
     createdAt: row.createdAt.toISOString(),
     cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
   }
@@ -321,7 +317,6 @@ export async function loadAllReservations(
         originalAmount: reservations.originalAmount,
         tndAmount: reservations.tndAmount,
         depositAmount: reservations.depositAmount,
-        depositPaid: reservations.depositPaid,
         createdAt: reservations.createdAt,
         cancelledAt: reservations.cancelledAt,
       })

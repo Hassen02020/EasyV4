@@ -14,6 +14,7 @@
 
 import { inngest, type Events } from "@/lib/inngest/client"
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp/send-booking-confirmation"
+import { makeOnFailure } from "@/lib/inngest/on-failure"
 
 export const sendWhatsAppConfirmation = inngest.createFunction(
   {
@@ -21,6 +22,7 @@ export const sendWhatsAppConfirmation = inngest.createFunction(
     name: "Réservation confirmée — notification WhatsApp",
     retries: 3,
     triggers: { event: "booking/confirmed" },
+    onFailure: makeOnFailure("send-whatsapp-confirmation"),
   },
   async ({
     event,

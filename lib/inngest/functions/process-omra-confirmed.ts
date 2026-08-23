@@ -8,12 +8,14 @@
 
 import { inngest, type Events } from "@/lib/inngest/client"
 import { Resend } from "resend"
+import { makeOnFailure } from "@/lib/inngest/on-failure"
 
 export const processOmraConfirmed = inngest.createFunction(
   {
     id: "process-omra-confirmed",
     name: "Omra confirmée — dossier & email",
     triggers: { event: "booking/omra.confirmed" },
+    onFailure: makeOnFailure("process-omra-confirmed"),
   },
   async ({
     event,

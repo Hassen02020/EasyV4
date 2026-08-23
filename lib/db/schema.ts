@@ -388,6 +388,11 @@ export const reservations = pgTable(
      * /api/cron/expire-pending-payments). `null` pour tout ce qui n'est pas
      * une réservation `pending` en attente de règlement manuel. */
     paymentExpiresAt: timestamp("payment_expires_at", { withTimezone: true }),
+    /** Clé d'idempotence guest checkout B2C (Phase 20) — sha256(token:method),
+     * voir lib/booking/guest-actions.ts. NULL pour tout ce qui n'est pas un
+     * booking guest (B2B, admin manuel...) : backstop DB indépendant de
+     * Redis contre le double-submit simultané / le retry après timeout. */
+    guestIdempotencyKey: text("guest_idempotency_key"),
   },
   (t) => [
     uniqueIndex("reservations_public_ref_uniq").on(t.agencyId, t.publicRef),
@@ -396,6 +401,9 @@ export const reservations = pgTable(
     index("reservations_customer_idx").on(t.customerId),
     index("reservations_status_idx").on(t.agencyId, t.status),
     index("reservations_created_idx").on(t.agencyId, t.createdAt),
+    uniqueIndex("reservations_guest_idempotency_uniq")
+      .on(t.guestIdempotencyKey)
+      .where(sql`${t.guestIdempotencyKey} is not null`),
   ],
 )
 
@@ -696,13 +704,16 @@ export const auditEvents = pgTable(
     index("audit_agency_idx").on(t.agencyId),
     index("audit_entity_idx").on(t.entityType, t.entityId),
     index("audit_actor_idx").on(t.actorUserId),
-    /** Au plus une notification WhatsApp envoyée / synchronisation CRM
-     * réussie par entité — garde DB contre le double envoi sur retry
-     * Inngest, en plus de la vérification applicative (voir
-     * lib/whatsapp/send-booking-confirmation.ts, lib/crm/sync-booking.ts). */
+    /** Au plus une notification WhatsApp/email voucher envoyée, ou
+     * synchronisation CRM réussie, par entité — garde DB contre le double
+     * envoi sur retry Inngest, en plus de la vérification applicative (voir
+     * lib/whatsapp/send-booking-confirmation.ts, lib/crm/sync-booking.ts,
+     * lib/inngest/functions/process-confirmed-booking.ts). */
     uniqueIndex("audit_events_notification_success_uniq")
       .on(t.entityType, t.entityId, t.action)
-      .where(sql`${t.action} in ('notification.whatsapp.sent', 'notification.crm.synced')`),
+      .where(
+        sql`${t.action} in ('notification.whatsapp.sent', 'notification.crm.synced', 'notification.voucher_email.sent')`,
+      ),
   ],
 )
 

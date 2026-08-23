@@ -678,7 +678,10 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
     draft: payload.draft,
     traveler: payload.traveler,
     paymentMethod:
-      paymentMethod === "transfer" || paymentMethod === "cash" || paymentMethod === "wallet"
+      paymentMethod === "transfer" ||
+      paymentMethod === "cash" ||
+      paymentMethod === "wallet" ||
+      paymentMethod === "at_hotel"
         ? paymentMethod
         : "card",
     // Stable pour une soumission identique (même brouillon, même mode de

@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { ShieldCheck, CreditCard, Banknote, Wallet } from "lucide-react"
+import { ShieldCheck, CreditCard, Banknote, Wallet, Building2 } from "lucide-react"
 import { submitCheckoutAction } from "@/lib/booking/actions"
 import { checkoutSchema } from "@/lib/booking/schemas"
 
-type Method = "card" | "transfer" | "cash" | "wallet"
+type Method = "card" | "transfer" | "cash" | "wallet" | "at_hotel"
 
 const METHODS: {
   key: Method
@@ -42,6 +42,12 @@ const METHODS: {
     label: "Solde Easy2Book",
     desc: "Débité de votre solde client (crédité lors d'un remboursement précédent) — le montant exact est vérifié et prélevé par le serveur au moment de la validation",
     icon: Wallet,
+  },
+  {
+    key: "at_hotel",
+    label: "Paiement à l'hôtel",
+    desc: "Réservation enregistrée, aucun règlement en ligne — le paiement est effectué directement à l'hôtel lors du séjour, voucher émis après confirmation du règlement",
+    icon: Building2,
   },
 ]
 

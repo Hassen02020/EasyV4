@@ -65,7 +65,7 @@ import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-
 import { withGuestIdempotency } from "./guest-idempotency"
 import { pgErrorCode } from "@/lib/db/pg-error"
 
-export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash"
+export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash" | "at_hotel"
 
 /** Délai de règlement manuel (cash/virement) avant expiration automatique — Wallet/Payment Core. */
 const MANUAL_PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -118,7 +118,7 @@ export async function createGuestReservationFromDraft(input: {
     }
   }
   const methodParse = paymentMethodSchema.safeParse(input.paymentMethod)
-  if (!methodParse.success || methodParse.data === "at_hotel") {
+  if (!methodParse.success) {
     return { ok: false, error: "Mode de paiement invalide pour une réservation en ligne." }
   }
 
@@ -300,6 +300,15 @@ async function runCreateGuestReservation(
         // façon jamais atteint ici : voir le débit ci-dessous, qui fait
         // échouer toute la transaction avant ce point). `card` : jamais de
         // fenêtre, soit confirmé immédiatement soit rejeté avant tout INSERT.
+        // `at_hotel` : pas de fenêtre non plus — contrairement à
+        // transfer/cash (réglés en principe sous 24h), le règlement à
+        // l'hôtel n'a lieu qu'au check-in, potentiellement des semaines
+        // plus tard ; poser une expiration de 24h annulerait la réservation
+        // avant même le séjour. La réservation reste `pending` (jamais
+        // auto-expirée par le cron, qui ne cible que les lignes avec un
+        // paymentExpiresAt non nul) jusqu'à un règlement manuel constaté par
+        // le staff (verifyManualPayment, method déjà supporté) ou une
+        // annulation manuelle explicite.
         const paymentExpiresAt =
           paymentMethod === "transfer" || paymentMethod === "cash"
             ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)

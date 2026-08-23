@@ -307,42 +307,49 @@ async function runCreateGuestReservation(
 
         let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
         try {
-          inserted = await tx
-            .insert(reservations)
-            .values({
-              agencyId,
-              publicRef,
-              customerId,
-              module: "hotel",
-              source: "internal",
-              status: "pending",
-              originalCurrency: draft.currency,
-              originalAmount: String(breakdown.totalTnd),
-              tndAmount: String(breakdown.totalTnd),
-              depositAmount: String(breakdown.depositTnd),
-              depositPaid: "0",
-              paymentExpiresAt: paymentExpiresAt ?? undefined,
-              guestIdempotencyKey: idempotencyKey,
-              providerPayload: {
-                offerId: draft.offerId,
-                offerLabel: draft.offerLabel,
-                startDate: draft.startDate,
-                endDate: draft.endDate,
-                adults: draft.adults,
-                children: draft.children,
-                breakdown,
-                metadata: draft.metadata ?? null,
-                channel: "b2c_guest",
-                paymentMethod,
-                myGoBookingId: myGoBooking.bookingId,
-                myGoState: myGoBooking.state ?? null,
-              },
-            })
-            .returning({
-              id: reservations.id,
-              publicRef: reservations.publicRef,
-              guestAccessToken: reservations.guestAccessToken,
-            })
+          // Savepoint (transaction imbriquée) : si l'INSERT échoue sur le
+          // conflit d'unicité, seul ce sous-bloc est annulé. Sans savepoint,
+          // Postgres marque toute la transaction externe `tx` "aborted" dès
+          // la première erreur — même en capturant l'exception ici, le COMMIT
+          // final de `tx` échouerait quand même avec la même erreur brute.
+          inserted = await tx.transaction((tx2) =>
+            tx2
+              .insert(reservations)
+              .values({
+                agencyId,
+                publicRef,
+                customerId,
+                module: "hotel",
+                source: "internal",
+                status: "pending",
+                originalCurrency: draft.currency,
+                originalAmount: String(breakdown.totalTnd),
+                tndAmount: String(breakdown.totalTnd),
+                depositAmount: String(breakdown.depositTnd),
+                depositPaid: "0",
+                paymentExpiresAt: paymentExpiresAt ?? undefined,
+                guestIdempotencyKey: idempotencyKey,
+                providerPayload: {
+                  offerId: draft.offerId,
+                  offerLabel: draft.offerLabel,
+                  startDate: draft.startDate,
+                  endDate: draft.endDate,
+                  adults: draft.adults,
+                  children: draft.children,
+                  breakdown,
+                  metadata: draft.metadata ?? null,
+                  channel: "b2c_guest",
+                  paymentMethod,
+                  myGoBookingId: myGoBooking.bookingId,
+                  myGoState: myGoBooking.state ?? null,
+                },
+              })
+              .returning({
+                id: reservations.id,
+                publicRef: reservations.publicRef,
+                guestAccessToken: reservations.guestAccessToken,
+              }),
+          )
         } catch (err) {
           // Double-submit vraiment simultané : l'autre requête a gagné la
           // course sur reservations_guest_idempotency_uniq. Rien d'autre

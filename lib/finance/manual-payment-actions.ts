@@ -207,20 +207,25 @@ export async function verifyManualPayment(
         // vérification concurrente — tout en acceptant un versement
         // légitimement différent (autre méthode/référence/montant).
         try {
-          await tx.insert(payments).values({
-            agencyId,
-            reservationId: row.id,
-            psp: "manual",
-            method: toPaymentMethod(input.method as ManualPaymentMethod),
-            pspTransactionId: input.reference,
-            idempotencyKey,
-            originalCurrency: "TND",
-            originalAmount: input.amountTnd.toFixed(2),
-            tndAmount: input.amountTnd.toFixed(2),
-            kind: computeCaptureKind(remainingAfter, TND_EPSILON),
-            status: "captured",
-            capturedAt: new Date(),
-          })
+          // Savepoint : sans lui, un conflit ici laisserait `tx` "aborted"
+          // et ferait échouer le COMMIT final avec l'erreur brute, même en
+          // capturant l'exception (le débit wallet qui suit réutilise `tx`).
+          await tx.transaction((tx2) =>
+            tx2.insert(payments).values({
+              agencyId,
+              reservationId: row.id,
+              psp: "manual",
+              method: toPaymentMethod(input.method as ManualPaymentMethod),
+              pspTransactionId: input.reference,
+              idempotencyKey,
+              originalCurrency: "TND",
+              originalAmount: input.amountTnd.toFixed(2),
+              tndAmount: input.amountTnd.toFixed(2),
+              kind: computeCaptureKind(remainingAfter, TND_EPSILON),
+              status: "captured",
+              capturedAt: new Date(),
+            }),
+          )
         } catch (err) {
           if (pgErrorCode(err) === "23505") {
             return {

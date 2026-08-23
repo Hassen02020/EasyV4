@@ -17,6 +17,7 @@
  */
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   ArrowDown,
@@ -450,7 +451,12 @@ export function ReservationsDataTable({
               pageRows.map((row) => (
                 <TableRow key={row.id} data-testid={`row-${row.publicRef}`}>
                   <TableCell className="font-mono text-xs">
-                    {row.publicRef}
+                    <Link
+                      href={`/admin/reservations/${row.id}`}
+                      className="hover:underline"
+                    >
+                      {row.publicRef}
+                    </Link>
                   </TableCell>
                   {showAgencyColumn ? (
                     <TableCell>

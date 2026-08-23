@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { type ColumnDef } from "@tanstack/react-table"
 import { toast } from "sonner"
@@ -162,9 +163,11 @@ function ReservationActionsCell({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled>
-            <Eye className="mr-1.5 h-3.5 w-3.5" />
-            Consulter
+          <DropdownMenuItem asChild>
+            <Link href={`/pro/reservations/${reservation.id}`}>
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+              Consulter
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem disabled>
             <Printer className="mr-1.5 h-3.5 w-3.5" />

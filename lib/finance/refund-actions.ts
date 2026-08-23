@@ -40,8 +40,9 @@ import { isTransitionAllowed } from "@/lib/admin/reservation-status"
 import { creditCustomerWallet } from "./customer-wallet"
 import { TND_EPSILON } from "./payment-summary"
 import { allocateRefund } from "./refund-allocation"
+import { REFUND_ALLOWED_ROLES } from "./refund-logic"
 
-const ALLOWED_ROLES = ["super_admin", "manager", "agent_compta"] as const
+const ALLOWED_ROLES = REFUND_ALLOWED_ROLES
 
 const inputSchema = z.object({
   reservationId: z.string().uuid(),

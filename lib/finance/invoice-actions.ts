@@ -29,6 +29,7 @@ import { desc, eq } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, partnerInvoices, reservations } from "@/lib/db/schema"
 import type { DrizzleTransaction } from "@/lib/db/client"
+import { pgErrorCode } from "@/lib/db/pg-error"
 
 /* -------------------------------------------------------------------------- */
 /* Génération                                                                  */
@@ -103,28 +104,36 @@ export async function generateInvoiceForReservation(
             : `Réservation ${reservation.module}`
 
         try {
-          const invoiceNumber = await nextInvoiceNumber(tx, input.agencyId)
-          const [created] = await tx
-            .insert(partnerInvoices)
-            .values({
-              agencyId: input.agencyId,
-              invoiceNumber,
-              invoiceType: "facture",
-              validationDate: new Date().toISOString().slice(0, 10),
-              reservationId: input.reservationId,
-              lineItems: [
-                { reservationId: input.reservationId, label, amount: totalTtc },
-              ],
-              totalHt: totalTtc.toFixed(2),
-              totalTva: "0.00",
-              totalTtc: totalTtc.toFixed(2),
-              amountPaid: totalTtc.toFixed(2),
-              status: "paid",
-            })
-            .returning({
-              id: partnerInvoices.id,
-              invoiceNumber: partnerInvoices.invoiceNumber,
-            })
+          // Savepoint (transaction imbriquée) : si l'INSERT échoue sur le
+          // conflit d'unicité, seul ce sous-bloc est annulé — la transaction
+          // externe `tx` reste utilisable pour la relecture ci-dessous. Sans
+          // savepoint, Postgres marque toute la transaction "aborted" après
+          // la première erreur et le SELECT de relecture échoue à son tour.
+          const created = await tx.transaction(async (tx2) => {
+            const invoiceNumber = await nextInvoiceNumber(tx2, input.agencyId)
+            const [row] = await tx2
+              .insert(partnerInvoices)
+              .values({
+                agencyId: input.agencyId,
+                invoiceNumber,
+                invoiceType: "facture",
+                validationDate: new Date().toISOString().slice(0, 10),
+                reservationId: input.reservationId,
+                lineItems: [
+                  { reservationId: input.reservationId, label, amount: totalTtc },
+                ],
+                totalHt: totalTtc.toFixed(2),
+                totalTva: "0.00",
+                totalTtc: totalTtc.toFixed(2),
+                amountPaid: totalTtc.toFixed(2),
+                status: "paid",
+              })
+              .returning({
+                id: partnerInvoices.id,
+                invoiceNumber: partnerInvoices.invoiceNumber,
+              })
+            return row
+          })
 
           return {
             ok: true,
@@ -133,11 +142,10 @@ export async function generateInvoiceForReservation(
             alreadyExisted: false,
           }
         } catch (err) {
-          const pgErr = err as { code?: string }
           // 23505 = unique_violation — un appel concurrent a déjà créé la
           // facture (reservation_id OU invoice_number) : on relit la sienne
           // plutôt que d'échouer, c'est la définition même de l'idempotence.
-          if (pgErr.code !== "23505") throw err
+          if (pgErrorCode(err) !== "23505") throw err
 
           const [existing] = await tx
             .select({
@@ -167,6 +175,44 @@ export async function generateInvoiceForReservation(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Lecture pour rendu PDF (Phase 21.2)                                        */
+/* -------------------------------------------------------------------------- */
+
+export interface InvoiceRecordForReservation {
+  invoiceNumber: string
+  validationDate: string | null
+  totalHt: string
+  totalTva: string
+  totalTtc: string
+}
+
+/**
+ * Lit la facture déjà émise pour une réservation, si elle existe.
+ * `generateInvoiceForReservation` ne crée une facture QUE pour une
+ * réservation `confirmed` (donc, depuis Phase 21.1, FULLY_PAID) — l'absence
+ * de ligne ici signifie simplement "pas encore facturée" (paiement partiel
+ * ou non confirmée), jamais une seconde logique de calcul : ce n'est
+ * qu'une lecture de l'enregistrement déjà écrit par `generateInvoiceForReservation`.
+ */
+export async function findInvoiceForReservation(
+  tx: DrizzleTransaction,
+  reservationId: string,
+): Promise<InvoiceRecordForReservation | null> {
+  const [row] = await tx
+    .select({
+      invoiceNumber: partnerInvoices.invoiceNumber,
+      validationDate: partnerInvoices.validationDate,
+      totalHt: partnerInvoices.totalHt,
+      totalTva: partnerInvoices.totalTva,
+      totalTtc: partnerInvoices.totalTtc,
+    })
+    .from(partnerInvoices)
+    .where(eq(partnerInvoices.reservationId, reservationId))
+    .limit(1)
+  return row ?? null
+}
+
+/* -------------------------------------------------------------------------- */
 /* Lecture                                                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -180,6 +226,7 @@ export interface PartnerInvoiceRow {
   totalTtc: string
   amountPaid: string
   status: string
+  reservationId: string | null
 }
 
 export interface AdminInvoiceRow extends PartnerInvoiceRow {
@@ -207,6 +254,7 @@ export async function listPartnerInvoices(
           totalTtc: partnerInvoices.totalTtc,
           amountPaid: partnerInvoices.amountPaid,
           status: partnerInvoices.status,
+          reservationId: partnerInvoices.reservationId,
         })
         .from(partnerInvoices)
         .where(eq(partnerInvoices.agencyId, agencyId))
@@ -242,6 +290,7 @@ export async function listAdminInvoices(
         totalTtc: partnerInvoices.totalTtc,
         amountPaid: partnerInvoices.amountPaid,
         status: partnerInvoices.status,
+        reservationId: partnerInvoices.reservationId,
         agencyId: partnerInvoices.agencyId,
         agencyName: agencies.name,
       })

@@ -44,6 +44,7 @@ export default async function PartnerReservationDetailPage({
 
   const voucherHref =
     detail.module === "hotel" ? `/api/pro/reservations/${detail.id}/voucher` : null
+  const invoiceHref = `/api/pro/reservations/${detail.id}/invoice`
 
-  return <ReservationDetailView detail={detail} voucherHref={voucherHref} />
+  return <ReservationDetailView detail={detail} voucherHref={voucherHref} invoiceHref={invoiceHref} />
 }

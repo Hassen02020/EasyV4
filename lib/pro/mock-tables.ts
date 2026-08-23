@@ -51,6 +51,8 @@ export type PartnerInvoice = {
   totalSales?: number
   /** Montant payé */
   paidAmount?: number
+  /** Réservation facturée individuellement — absente pour une facture consolidée multi-réservations. */
+  reservationId?: string
 }
 
 export type PaymentMode = "transfer" | "card" | "cash" | "check" | "credit_account"

@@ -256,10 +256,23 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
                             <Eye className="mr-1.5 h-3.5 w-3.5" />
                             Consulter
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Download className="mr-1.5 h-3.5 w-3.5" />
-                            Télécharger PDF
-                          </DropdownMenuItem>
+                          {inv.reservationId ? (
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={`/api/pro/reservations/${inv.reservationId}/invoice`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Download className="mr-1.5 h-3.5 w-3.5" />
+                                Télécharger PDF
+                              </a>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem disabled>
+                              <Download className="mr-1.5 h-3.5 w-3.5" />
+                              Télécharger PDF
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem>
                             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                             Générer un avoir

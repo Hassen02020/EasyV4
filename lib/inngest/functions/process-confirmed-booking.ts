@@ -17,6 +17,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { auditEvents, reservations } from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
+import { pgErrorCode } from "@/lib/db/pg-error"
 
 const ACTION_VOUCHER_EMAIL_SENT = "notification.voucher_email.sent"
 
@@ -60,8 +61,7 @@ async function recordVoucherEmailSent(agencyId: string, reservationId: string, p
   } catch (err) {
     // audit_events_notification_success_uniq — course authentiquement
     // concurrente (ex. livraison dupliquée d'événement) : no-op idempotent.
-    const pgErr = err as { code?: string }
-    if (pgErr.code === "23505") return
+    if (pgErrorCode(err) === "23505") return
     throw err
   }
 }

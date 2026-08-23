@@ -1151,7 +1151,15 @@ export const partnerInvoices = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("partner_invoices_number_uniq").on(t.invoiceNumber),
+    /** Phase 21.2 — scopé PAR AGENCE (jamais global) : nextInvoiceNumber()
+     * (lib/finance/invoice-actions.ts) compte les factures existantes de
+     * la SEULE agence appelante pour calculer le prochain numéro — un
+     * index global sur invoiceNumber seul faisait donc collisionner la
+     * "FA-2026-00001" de deux agences différentes dès que chacune émettait
+     * sa première facture de l'année (bug latent trouvé en vérification
+     * live Phase 21.2, jamais un choix de design). Même motif que
+     * `reservations_public_ref_uniq` (agencyId, publicRef), déjà correct. */
+    uniqueIndex("partner_invoices_number_uniq").on(t.agencyId, t.invoiceNumber),
     index("partner_invoices_agency_idx").on(t.agencyId),
     index("partner_invoices_status_idx").on(t.agencyId, t.status),
     uniqueIndex("partner_invoices_reservation_uniq")

@@ -31,6 +31,7 @@ import {
 } from "@/lib/booking/hotel-provider-booking"
 import {
   RESERVATION_STATUSES,
+  RESERVATION_STATUS_ALLOWED_ROLES,
   isTransitionAllowed,
   type ReservationStatus,
 } from "./reservation-status"
@@ -75,6 +76,14 @@ export async function updateReservationStatus(
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile?.agencyId) {
     return { ok: false, error: "Profil administrateur introuvable ou non lié à une agence" }
+  }
+  // Phase 21.2 (P1) — même frontière que la page /admin/reservations
+  // (jusqu'ici imposée seulement côté UI) : un changement de statut, y
+  // compris une annulation qui déclenche un remboursement, exige un rôle
+  // avec responsabilité réservation, jamais agent_compta/agent_excursions
+  // ni un profil partenaire B2B en appelant directement cette action.
+  if (!(RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
+    return { ok: false, error: "Votre rôle n'est pas autorisé à changer le statut d'une réservation." }
   }
   const agencyId = profile.agencyId
 

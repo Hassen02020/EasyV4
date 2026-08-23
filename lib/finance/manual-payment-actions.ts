@@ -48,6 +48,7 @@ import { generateInvoiceForReservation } from "./invoice-actions"
 import { sendEvent } from "@/lib/inngest/client"
 import { debitCustomerWallet } from "./customer-wallet"
 import { getReservationPaymentSummary, TND_EPSILON, type PaymentState } from "./payment-summary"
+import { pgErrorCode } from "@/lib/db/pg-error"
 import {
   MANUAL_PAYMENT_ALLOWED_ROLES,
   toPaymentMethod,
@@ -221,8 +222,7 @@ export async function verifyManualPayment(
             capturedAt: new Date(),
           })
         } catch (err) {
-          const pgErr = err as { code?: string }
-          if (pgErr.code === "23505") {
+          if (pgErrorCode(err) === "23505") {
             return {
               ok: false as const,
               code: "ALREADY_PROCESSED" as const,

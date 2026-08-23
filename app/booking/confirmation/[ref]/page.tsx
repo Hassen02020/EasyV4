@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
+import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import { ConfirmationStatusBadge } from "@/components/booking/confirmation-status-badge"
@@ -41,8 +42,8 @@ export default async function ConfirmationPage({
   // withSystemContext() reste nécessaire (page sans session), mais le
   // token devient la vraie frontière d'accès, pas publicRef.
   if (!token) notFound()
-  const rows = await withSystemContext((db) =>
-    db
+  const { row, hasInvoice } = await withSystemContext(async (db) => {
+    const rows = await db
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
@@ -60,9 +61,12 @@ export default async function ConfirmationPage({
       .from(reservations)
       .leftJoin(customers, eq(reservations.customerId, customers.id))
       .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
-      .limit(1),
-  )
-  const row = rows[0]
+      .limit(1)
+    const found = rows[0]
+    if (!found) return { row: undefined, hasInvoice: false }
+    const invoice = await findInvoiceForReservation(db, found.id)
+    return { row: found, hasInvoice: !!invoice }
+  })
   if (!row) notFound()
 
   const pl = row.providerPayload as {
@@ -166,6 +170,18 @@ export default async function ConfirmationPage({
                     Voucher disponible après confirmation
                   </Button>
                 )}
+                {hasInvoice ? (
+                  <Button asChild variant="outline" className="flex-1">
+                    <a
+                      href={`/api/booking/invoice/${row.publicRef}?token=${token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Download className="mr-2 size-4" />
+                      Télécharger la facture
+                    </a>
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>

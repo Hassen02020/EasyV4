@@ -31,6 +31,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { auditEvents } from "@/lib/db/schema"
 import { getWhatsAppProvider, type WhatsAppProvider } from "./provider"
 import { hasConfiguredWhatsAppProvider } from "./provider"
+import { pgErrorCode } from "@/lib/db/pg-error"
 
 const ACTION_SENT = "notification.whatsapp.sent"
 const ACTION_FAILED = "notification.whatsapp.failed"
@@ -105,8 +106,7 @@ export const defaultNotificationAuditStore: NotificationAuditStore = {
       // authentiquement concurrente (ex. livraison dupliquée d'événement)
       // peut faire échouer un 2ᵉ INSERT "sent" ici, jamais un vrai double
       // envoi côté client — traité comme un no-op idempotent, pas une erreur.
-      const pgErr = err as { code?: string }
-      if (pgErr.code === "23505" && action === ACTION_SENT) return
+      if (pgErrorCode(err) === "23505" && action === ACTION_SENT) return
       throw err
     }
   },

@@ -51,7 +51,7 @@ function HotelDetailContent({ id }: { id: string }) {
 
   useEffect(() => {
     const ctrl = new AbortController()
-    fetch(`/api/hotels/details/${id}`, { signal: ctrl.signal })
+    fetch(`/api/hotels/details-public/${id}`, { signal: ctrl.signal })
       .then(async (r) => {
         if (!r.ok) {
           const body = (await r.json().catch(() => ({}))) as {

@@ -70,12 +70,14 @@ export function ReservationDetailView({
   showAgency = false,
   actions,
   voucherHref,
+  invoiceHref,
 }: {
   detail: ReservationDetail
   /** Affiche le panneau Agence/Partenaire — pertinent surtout pour la vue Master Admin cross-agence. */
   showAgency?: boolean
   actions?: React.ReactNode
   voucherHref?: string | null
+  invoiceHref?: string | null
 }) {
   const paymentState = PAYMENT_STATE_LABEL[detail.paymentSummary.paymentState] ?? PAYMENT_STATE_LABEL.UNPAID
 
@@ -196,7 +198,7 @@ export function ReservationDetailView({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p>
+            <p className="flex items-center gap-2">
               Facture :{" "}
               {detail.invoice ? (
                 <span className="font-medium">
@@ -205,6 +207,11 @@ export function ReservationDetailView({
               ) : (
                 <span className="text-muted-foreground">Aucune facture générée</span>
               )}
+              {detail.invoice && invoiceHref ? (
+                <Link href={invoiceHref} className="text-primary inline-flex items-center gap-1 font-medium underline">
+                  <Download className="h-3.5 w-3.5" /> Télécharger
+                </Link>
+              ) : null}
             </p>
             <p className="flex items-center gap-2">
               Voucher :{" "}

@@ -23,6 +23,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { auditEvents } from "@/lib/db/schema"
 import { getCrmProvider, hasConfiguredCrmProvider, type CrmProvider } from "./provider"
 import type { NotificationAuditStore } from "@/lib/whatsapp/send-booking-confirmation"
+import { pgErrorCode } from "@/lib/db/pg-error"
 
 const ACTION_SYNCED = "notification.crm.synced"
 const ACTION_FAILED = "notification.crm.failed"
@@ -75,8 +76,7 @@ export const defaultCrmAuditStore: NotificationAuditStore = {
     } catch (err) {
       // `audit_events_notification_success_uniq` — même garde DB que
       // lib/whatsapp/send-booking-confirmation.ts, voir son commentaire.
-      const pgErr = err as { code?: string }
-      if (pgErr.code === "23505" && action === ACTION_SYNCED) return
+      if (pgErrorCode(err) === "23505" && action === ACTION_SYNCED) return
       throw err
     }
   },

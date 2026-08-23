@@ -63,3 +63,20 @@ export function getAllowedTransitions(
 ): ReservationStatus[] {
   return ALLOWED_TRANSITIONS[from] ?? []
 }
+
+/**
+ * Rôles staff autorisés à changer le statut d'une réservation (y compris
+ * annuler, qui déclenche un remboursement dans la même transaction — voir
+ * `lib/admin/actions.ts::updateReservationStatus`). Phase 21.2 : cette
+ * liste existait déjà, mais UNIQUEMENT comme garde d'affichage de page
+ * (`app/admin/reservations/page.tsx`) — la Server Action elle-même
+ * n'imposait aucun rôle, seulement un profil admin résolu avec une
+ * agence. Un Server Action Next.js reste directement appelable (POST)
+ * indépendamment de la page qui l'invoque normalement : un `agent_compta`
+ * ou `agent_excursions` (jamais censés voir cette page ni gérer des
+ * réservations) pouvait donc annuler une réservation en appelant l'action
+ * directement. Extrait ici (même motif que `MANUAL_PAYMENT_ALLOWED_ROLES`/
+ * `REFUND_ALLOWED_ROLES`) pour être la même source de vérité des deux
+ * côtés — page ET action — au lieu d'un doublon qui pouvait diverger.
+ */
+export const RESERVATION_STATUS_ALLOWED_ROLES = ["super_admin", "manager", "agent_resa"] as const

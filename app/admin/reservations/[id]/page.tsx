@@ -58,6 +58,7 @@ export default async function AdminReservationDetailPage({
       detail={detail}
       showAgency
       voucherHref={`/api/admin/reservations/${detail.id}/voucher`}
+      invoiceHref={`/api/admin/reservations/${detail.id}/invoice`}
       actions={
         <>
           {canVerifyPayment && detail.paymentSummary.remainingTnd > 0 ? (

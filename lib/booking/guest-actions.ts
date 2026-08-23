@@ -63,6 +63,7 @@ import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-payment"
 import { withGuestIdempotency } from "./guest-idempotency"
+import { pgErrorCode } from "@/lib/db/pg-error"
 
 export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash"
 
@@ -348,8 +349,7 @@ async function runCreateGuestReservation(
           // n'a encore été écrit pour CETTE tentative (pas de wallet debit,
           // pas de reservation_hotel) — on s'arrête ici, le hold myGo de
           // cette tentative perdante sera compensé par l'appelant.
-          const pgErr = err as { code?: string }
-          if (pgErr.code === "23505") {
+          if (pgErrorCode(err) === "23505") {
             return { conflict: true as const }
           }
           throw err

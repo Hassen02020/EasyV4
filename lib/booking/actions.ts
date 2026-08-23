@@ -677,7 +677,10 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
   const result = await createGuestReservationFromDraft({
     draft: payload.draft,
     traveler: payload.traveler,
-    paymentMethod: paymentMethod === "transfer" || paymentMethod === "cash" ? paymentMethod : "card",
+    paymentMethod:
+      paymentMethod === "transfer" || paymentMethod === "cash" || paymentMethod === "wallet"
+        ? paymentMethod
+        : "card",
     // Stable pour une soumission identique (même brouillon, même mode de
     // paiement) — un double-clic/retry réseau reproduit la même clé et ne
     // recrée pas une deuxième réservation (voir withGuestIdempotency).

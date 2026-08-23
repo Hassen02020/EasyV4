@@ -67,13 +67,13 @@ function CheckoutContent({
           <BookingSteps current={3} />
 
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
+            <div className="min-w-0 space-y-6 lg:col-span-2">
               <Card>
                 <CardContent className="space-y-3 p-6">
                   <Badge variant="secondary">
                     {MODULE_LABEL[draft.module] ?? draft.module}
                   </Badge>
-                  <h2 className="text-lg font-semibold">{draft.offerLabel}</h2>
+                  <h2 className="text-lg font-semibold break-words">{draft.offerLabel}</h2>
                   <Separator />
                   <dl className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
                     <Row k="Départ" v={formatDate(draft.startDate)} />

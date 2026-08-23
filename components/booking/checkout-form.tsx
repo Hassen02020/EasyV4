@@ -11,7 +11,7 @@ import { ShieldCheck, CreditCard, Banknote, Wallet } from "lucide-react"
 import { submitCheckoutAction } from "@/lib/booking/actions"
 import { checkoutSchema } from "@/lib/booking/schemas"
 
-type Method = "card" | "transfer" | "cash" | "at_hotel"
+type Method = "card" | "transfer" | "cash" | "wallet"
 
 const METHODS: {
   key: Method
@@ -35,6 +35,12 @@ const METHODS: {
     key: "cash",
     label: "Espèces en agence",
     desc: "Réservation maintenue 48 h en attente de paiement — voucher émis après confirmation du règlement",
+    icon: Wallet,
+  },
+  {
+    key: "wallet",
+    label: "Solde Easy2Book",
+    desc: "Débité de votre solde client (crédité lors d'un remboursement précédent) — le montant exact est vérifié et prélevé par le serveur au moment de la validation",
     icon: Wallet,
   },
 ]
@@ -130,7 +136,7 @@ export function CheckoutForm({ token }: { token: string }) {
             />
             <Label
               htmlFor="cgv"
-              className="text-muted-foreground text-sm leading-snug"
+              className="text-muted-foreground flex-wrap text-sm leading-snug"
             >
               J&apos;accepte les{" "}
               <Link

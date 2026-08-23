@@ -22,6 +22,8 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getMyGoClient } from "@/lib/mygo"
+import { applyReservationRefund } from "@/lib/finance/refund-logic"
+import { logger } from "@/lib/logger"
 import {
   classifyMyGoBookingError,
   describeMyGoCancellationErrorForUser,
@@ -84,6 +86,7 @@ export async function updateReservationStatus(
           status: reservations.status,
           publicRef: reservations.publicRef,
           module: reservations.module,
+          customerId: reservations.customerId,
         })
         .from(reservations)
         .where(
@@ -161,6 +164,37 @@ export async function updateReservationStatus(
           ),
         )
 
+      // --- Intégrité paiement/ledger : une annulation ne doit jamais
+      // laisser un paiement CAPTURÉ orphelin. Une réservation B2B (financée
+      // par le crédit agence, jamais par `payments` — voir
+      // lib/pro/booking-actions.ts) n'a simplement aucune ligne à
+      // rembourser ici : NO_CAPTURED_PAYMENT est alors un no-op silencieux,
+      // pas une erreur. Le remboursement, s'il y en a un, s'applique dans
+      // la MÊME transaction que le changement de statut.
+      let refundedTnd: number | undefined
+      if (nextStatus === "cancelled") {
+        const refund = await applyReservationRefund({
+          tx: db,
+          agencyId,
+          reservationId,
+          customerId: row.customerId,
+          publicRef: row.publicRef,
+          reason: "Annulation réservation (back-office)",
+          actorUserId: user.id,
+        })
+        if (refund.ok) {
+          refundedTnd = refund.refundedTnd
+        } else if (refund.code !== "NO_CAPTURED_PAYMENT") {
+          // Ne jamais `return` un échec ici : le statut a déjà été mis à
+          // jour ci-dessus dans CETTE transaction — un `return` la
+          // committerait quand même (seul un throw fait rollback). On
+          // préfère throw pour annuler aussi le changement de statut plutôt
+          // que de committer un statut "cancelled" incohérent avec un
+          // remboursement en échec.
+          throw new Error(refund.error)
+        }
+      }
+
       try {
         await db.insert(auditEvents).values({
           agencyId,
@@ -175,6 +209,7 @@ export async function updateReservationStatus(
             ...(providerCancellationFee != null
               ? { providerCancellationFeeTnd: providerCancellationFee }
               : {}),
+            ...(refundedTnd != null ? { refundedTnd: refundedTnd.toFixed(2) } : {}),
           },
         })
       } catch {
@@ -183,7 +218,10 @@ export async function updateReservationStatus(
 
       return { ok: true as const, row, previousStatus }
     },
-  )
+  ).catch((err: unknown) => {
+    logger.error("[updateReservationStatus] transaction failed", { err })
+    return { ok: false as const, error: "Échec de l'opération — aucune modification appliquée." }
+  })
 
   if (!outcome.ok) {
     return { ok: false, error: outcome.error }

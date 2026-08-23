@@ -291,6 +291,8 @@ export default async function StaffPage() {
                             memberId={member.id}
                             displayName={member.name || member.email}
                             status={member.status as "active" | "suspended"}
+                            role={member.role}
+                            isSelf={member.id === profile.id}
                           />
                         </TableCell>
                       </TableRow>

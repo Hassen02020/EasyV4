@@ -30,17 +30,14 @@
  * paiement, sauf transition explicite déjà existante).
  */
 
-import { eq, and, inArray, asc } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { reservations, payments, auditEvents } from "@/lib/db/schema"
+import { reservations } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isTransitionAllowed } from "@/lib/admin/reservation-status"
-import { creditCustomerWallet } from "./customer-wallet"
-import { TND_EPSILON } from "./payment-summary"
-import { allocateRefund } from "./refund-allocation"
-import { REFUND_ALLOWED_ROLES } from "./refund-logic"
+import { applyReservationRefund, REFUND_ALLOWED_ROLES } from "./refund-logic"
 
 const ALLOWED_ROLES = REFUND_ALLOWED_ROLES
 
@@ -105,49 +102,27 @@ export async function refundReservation(
 
       if (!reservation) return { ok: false as const, error: "Réservation introuvable" }
 
-      // Verrouille TOUTES les lignes remboursables (captured ou déjà
-      // partiellement remboursées) — plus une seule ligne supposée
-      // (Phase 16.2 : une réservation peut avoir plusieurs captures).
-      const refundableRows = await tx
-        .select({ id: payments.id, tndAmount: payments.tndAmount, refundedAmount: payments.refundedAmount })
-        .from(payments)
-        .where(
-          and(
-            eq(payments.reservationId, reservation.id),
-            eq(payments.agencyId, agencyId),
-            inArray(payments.status, ["captured", "partial_refund"]),
-          ),
-        )
-        .orderBy(asc(payments.capturedAt))
-        .for("update")
-
-      const allocation = allocateRefund(refundableRows, input.amountTnd, TND_EPSILON)
-      if (!allocation.ok) {
-        return { ok: false as const, code: allocation.code, error: allocation.error }
+      const result = await applyReservationRefund({
+        tx,
+        agencyId,
+        reservationId: reservation.id,
+        customerId: reservation.customerId,
+        publicRef: reservation.publicRef,
+        reason: input.reason,
+        actorUserId: user.id,
+        amountTnd: input.amountTnd,
+        checkFullRefundAllowed: () =>
+          isTransitionAllowed(reservation.status, "refunded")
+            ? { ok: true }
+            : {
+                ok: false,
+                error: `Statut actuel "${reservation.status}" : remboursement total impossible depuis cet état.`,
+              },
+      })
+      if (!result.ok) {
+        return { ok: false as const, code: result.code, error: result.error }
       }
-      const { requestedTnd, fullyRefunded, updates } = allocation
-
-      if (fullyRefunded && !isTransitionAllowed(reservation.status, "refunded")) {
-        return {
-          ok: false as const,
-          code: "NOT_REFUNDABLE" as const,
-          error: `Statut actuel "${reservation.status}" : remboursement total impossible depuis cet état.`,
-        }
-      }
-
-      // Applique l'allocation ligne par ligne — chaque ligne garde son
-      // propre refundedAmount honnête (voir lib/finance/refund-allocation.ts).
-      for (const update of updates) {
-        await tx
-          .update(payments)
-          .set({
-            refundedAmount: update.newRefundedAmount.toFixed(2),
-            status: update.newStatus,
-            refundedAt: new Date(),
-            updatedAt: new Date(),
-          })
-          .where(eq(payments.id, update.id))
-      }
+      const { refundedTnd, fullyRefunded } = result
 
       if (fullyRefunded) {
         await tx
@@ -156,37 +131,11 @@ export async function refundReservation(
           .where(eq(reservations.id, reservation.id))
       }
 
-      const credit = await creditCustomerWallet({
-        customerId: reservation.customerId,
-        amountTnd: requestedTnd,
-        reservationId: reservation.id,
-        description: `Remboursement réservation ${reservation.publicRef} — ${input.reason}`,
-        source: "refund",
-        txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
-      })
-      if (!credit.ok) {
-        throw new Error(`Échec du crédit wallet client : ${credit.message}`)
-      }
-
-      await tx.insert(auditEvents).values({
-        agencyId,
-        actorUserId: user.id,
-        entityType: "reservation",
-        entityId: reservation.id,
-        action: "payment.refunded",
-        diff: {
-          publicRef: reservation.publicRef,
-          amountTnd: requestedTnd.toFixed(2),
-          fullyRefunded,
-          reason: input.reason,
-        },
-      })
-
       return {
         ok: true as const,
         reservationId: reservation.id,
         publicRef: reservation.publicRef,
-        refundedTnd: requestedTnd.toFixed(2),
+        refundedTnd: refundedTnd.toFixed(2),
         fullyRefunded,
       }
     },

@@ -27,7 +27,7 @@
 
 import { desc, eq } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { partnerInvoices, reservations } from "@/lib/db/schema"
+import { agencies, partnerInvoices, reservations } from "@/lib/db/schema"
 import type { DrizzleTransaction } from "@/lib/db/client"
 
 /* -------------------------------------------------------------------------- */
@@ -182,6 +182,11 @@ export interface PartnerInvoiceRow {
   status: string
 }
 
+export interface AdminInvoiceRow extends PartnerInvoiceRow {
+  agencyId: string
+  agencyName: string | null
+}
+
 export async function listPartnerInvoices(
   agencyId: string,
   actorUserId: string,
@@ -206,6 +211,45 @@ export async function listPartnerInvoices(
         .from(partnerInvoices)
         .where(eq(partnerInvoices.agencyId, agencyId))
         .orderBy(desc(partnerInvoices.createdAt)),
+  )
+
+  return rows
+}
+
+/**
+ * Vue Master Admin (Phase 18) — même requête que `listPartnerInvoices`,
+ * étendue au nom d'agence pour un affichage cross-agence. `agencyId: null`
+ * = toutes les agences (super_admin uniquement, RLS via `is_super_admin()`) ;
+ * fourni = une seule agence (manager/agent_compta, scope déjà appliqué par
+ * `withTenantContext`).
+ */
+export async function listAdminInvoices(
+  agencyId: string | null,
+  actorUserId: string,
+  isSuperAdmin: boolean,
+): Promise<AdminInvoiceRow[]> {
+  if (!process.env.DATABASE_URL) return []
+
+  const rows = await withTenantContext({ agencyId, userId: actorUserId, isSuperAdmin }, (tx) =>
+    tx
+      .select({
+        id: partnerInvoices.id,
+        invoiceNumber: partnerInvoices.invoiceNumber,
+        invoiceType: partnerInvoices.invoiceType,
+        validationDate: partnerInvoices.validationDate,
+        totalHt: partnerInvoices.totalHt,
+        totalTva: partnerInvoices.totalTva,
+        totalTtc: partnerInvoices.totalTtc,
+        amountPaid: partnerInvoices.amountPaid,
+        status: partnerInvoices.status,
+        agencyId: partnerInvoices.agencyId,
+        agencyName: agencies.name,
+      })
+      .from(partnerInvoices)
+      .leftJoin(agencies, eq(agencies.id, partnerInvoices.agencyId))
+      .where(agencyId ? eq(partnerInvoices.agencyId, agencyId) : undefined)
+      .orderBy(desc(partnerInvoices.createdAt))
+      .limit(200),
   )
 
   return rows

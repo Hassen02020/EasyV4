@@ -70,6 +70,14 @@ export async function getCurrentAdminProfile(
     ) {
       return null
     }
+    // Compte désactivé (Phase 18 — user management) : même règle que
+    // lib/auth/partner-profile.ts::getCurrentPartnerProfile, qui l'appliquait
+    // déjà côté /pro. Sans ce filtre, suspendre un membre du staff Easy2Book
+    // via `users.status` n'avait aucun effet réel côté /admin — l'utilisateur
+    // restait connecté et pleinement actif malgré la suspension affichée.
+    if (profile.status !== "active") {
+      return null
+    }
 
     return {
       id: userId,

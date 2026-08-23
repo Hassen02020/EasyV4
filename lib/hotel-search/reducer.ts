@@ -3,8 +3,8 @@
  * Assure l'immuabilité et la prévisibilité des états complexes
  */
 
-import type { RoomAction, RoomOccupancy, HotelSearchState } from "./types"
-import { defaultRoomOccupancy, SEARCH_CONSTRAINTS } from "./types"
+import type { RoomAction, HotelSearchState } from "./types"
+import { defaultRoomOccupancy, SEARCH_CONSTRAINTS, isBaby } from "./types"
 
 /**
  * Réduit une action sur l'état de recherche
@@ -150,6 +150,11 @@ export function calculateOccupancySummary(state: HotelSearchState) {
   const totalRooms = state.rooms.length
   const totalAdults = state.rooms.reduce((sum, room) => sum + room.adults, 0)
   const totalChildren = state.rooms.reduce((sum, room) => sum + room.children, 0)
+  const totalBabies = state.rooms.reduce(
+    (sum, room) => sum + room.childAges.filter(isBaby).length,
+    0,
+  )
+  const totalBigKids = totalChildren - totalBabies
   const totalGuests = totalAdults + totalChildren
   const hasChildren = totalChildren > 0
 
@@ -157,6 +162,8 @@ export function calculateOccupancySummary(state: HotelSearchState) {
     totalRooms,
     totalAdults,
     totalChildren,
+    totalBabies,
+    totalBigKids,
     totalGuests,
     hasChildren,
   }

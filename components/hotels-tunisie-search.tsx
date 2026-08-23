@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useCities } from "@/hooks/use-cities"
+import { useHotels } from "@/hooks/use-hotels"
 import { addDays, differenceInCalendarDays, format } from "date-fns"
 import { fr } from "date-fns/locale"
 import {
@@ -11,10 +12,9 @@ import {
   Users,
   Star,
   X,
-  Plus,
-  Minus,
   Search,
   Check,
+  Building2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -35,35 +35,18 @@ import {
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { FIELD_SHELL, FieldLabel } from "@/components/search-field"
-import { splitIntoRooms, encodeRoomsParam } from "@/lib/mygo/room-split"
+import { GuestOccupancyPicker } from "@/components/hotel-search/guest-occupancy-picker"
+import { calculateOccupancySummary } from "@/lib/hotel-search/reducer"
+import { toHotelSearchParams } from "@/lib/hotel-search/api-mapper"
+import type { RoomOccupancy, HotelSearchState } from "@/lib/hotel-search/types"
+import { defaultRoomOccupancy } from "@/lib/hotel-search/types"
 
 // ============================================================================
 // Types matching MyGo API Schema (le client myGo expose `/api/hotels/cities`)
 // ============================================================================
 
 import type { City } from "@/hooks/use-cities"
-
-interface Pax {
-  Adult: number
-  Child: number[] // Array of ages (0-17)
-}
-
-interface BookingDetails {
-  Checkin: string // YYYY-MM-DD
-  Checkout: string // YYYY-MM-DD
-}
-
-interface Filters {
-  OnlyAvailable: boolean
-  Category: number[] // Stars array [3, 4, 5]
-}
-
-interface HotelSearchRequest {
-  CityId: number
-  BookingDetails: BookingDetails
-  Pax: Pax
-  Filters: Filters
-}
+import type { HotelSummaryDTO } from "@/lib/mygo/types"
 
 // ============================================================================
 // Static fallback (défini dans useCities)
@@ -95,19 +78,31 @@ export function HotelsTunisieSearch() {
   )
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
 
-  // Pax state
-  const [rooms, setRooms] = useState(1)
-  const [adults, setAdults] = useState(2)
-  // Bébés (0-2 ans) et Enfants (3-17 ans) sont distincts côté UX, mais
-  // partagent le même tableau d'âges côté requête — c'est exactement ce que
-  // le schéma MyGo (`Pax.Child: number[]`) attend déjà, donc aucune
-  // modification du contrat d'API : on ajoute juste un âge par défaut selon
-  // le bouton cliqué (1 an pour un bébé, 5 ans pour un enfant).
-  const [childrenAges, setChildrenAges] = useState<number[]>([])
+  // Occupation réelle par chambre (canonique, réutilisée telle quelle —
+  // voir lib/hotel-search/types.ts) : plus d'agrégat "adults total" +
+  // répartition estimée, chaque chambre porte sa vraie composition.
+  const [occupancyRooms, setOccupancyRooms] = useState<RoomOccupancy[]>([
+    { ...defaultRoomOccupancy },
+  ])
   const [paxPopoverOpen, setPaxPopoverOpen] = useState(false)
+  const occupancySummary = useMemo(
+    () =>
+      calculateOccupancySummary({
+        rooms: occupancyRooms,
+        dates: { checkIn: new Date(), checkOut: new Date(), nights: 0 },
+        nationality: "resident",
+        destination: {},
+      }),
+    [occupancyRooms],
+  )
 
-  const babiesCount = childrenAges.filter((age) => age <= 2).length
-  const bigKidsCount = childrenAges.filter((age) => age > 2).length
+  // Destination : ville (autocomplete existant) ou hôtel précis (recherche
+  // directe — HotelSearchQuerySchema.hotelId, déjà supporté côté
+  // fournisseur, jamais exposé côté formulaire jusqu'ici).
+  const [destinationMode, setDestinationMode] = useState<"city" | "hotel">("city")
+  const [selectedHotel, setSelectedHotel] = useState<HotelSummaryDTO | null>(null)
+  const [hotelSearchOpen, setHotelSearchOpen] = useState(false)
+  const { hotels, loading: hotelsLoading } = useHotels(undefined, destinationMode === "hotel")
 
   // Filters state
   const [onlyAvailable, setOnlyAvailable] = useState(true)
@@ -117,99 +112,54 @@ export function HotelsTunisieSearch() {
   // Cities (TanStack Query — dedup, retries, stale-while-revalidate)
   const { cities, loading: citiesLoading, error: citiesError } = useCities()
 
-  // Build the API request object
-  const buildSearchRequest = useCallback((): HotelSearchRequest | null => {
-    if (!selectedCity || !checkinDate || !checkoutDate) {
-      return null
-    }
-
-    return {
-      CityId: selectedCity.id,
-      BookingDetails: {
-        Checkin: format(checkinDate, "yyyy-MM-dd"),
-        Checkout: format(checkoutDate, "yyyy-MM-dd"),
-      },
-      Pax: {
-        Adult: adults,
-        Child: childrenAges,
-      },
-      Filters: {
-        OnlyAvailable: onlyAvailable,
-        Category: selectedStars,
-      },
-    }
-  }, [
-    selectedCity,
-    checkinDate,
-    checkoutDate,
-    adults,
-    childrenAges,
-    onlyAvailable,
-    selectedStars,
-  ])
-
-  const handleSearch = () => {
-    const request = buildSearchRequest()
-    if (!request) return
-
-    const params = new URLSearchParams({
-      cityId: String(request.CityId),
-      city: selectedCity?.name ?? "",
-      checkin: request.BookingDetails.Checkin,
-      checkout: request.BookingDetails.Checkout,
-      roomsCount: String(rooms),
-      adults: String(request.Pax.Adult),
-    })
-    if (request.Pax.Child.length > 0) {
-      params.set("children", request.Pax.Child.join(","))
-    }
-    if (request.Filters.Category.length > 0) {
-      params.set("stars", request.Filters.Category.join(","))
-    }
-    if (request.Filters.OnlyAvailable) {
-      params.set("onlyAvailable", "1")
-    }
-    // Recherche multi-chambres réelle (le connecteur myGo accepte nativement
-    // `Rooms: [{Adult, Child}]`, voir lib/mygo/client.ts) — au-delà d'une
-    // chambre, on répartit équitablement les adultes et les âges renseignés
-    // pour que la disponibilité/prix reflètent la vraie composition du
-    // groupe plutôt qu'une seule chambre agrégée.
-    if (rooms > 1) {
-      params.set("rooms", encodeRoomsParam(splitIntoRooms(rooms, adults, childrenAges)))
-    }
-
-    router.push(`/hotels/search?${params.toString()}`)
-  }
-
   const nightsCount =
     checkinDate && checkoutDate
       ? differenceInCalendarDays(checkoutDate, checkinDate)
       : 0
 
   const isFormValid =
-    selectedCity && checkinDate && checkoutDate && nightsCount >= 1
+    (destinationMode === "city" ? !!selectedCity : !!selectedHotel) &&
+    !!checkinDate &&
+    !!checkoutDate &&
+    nightsCount >= 1
 
-  // Children management
-  const addBaby = () => {
-    if (childrenAges.length < 4) {
-      setChildrenAges([...childrenAges, 1]) // Bébé, âge par défaut 1 an
+  // Build the canonical search state, then delegate entirely au vrai
+  // provider adapter (lib/hotel-search/api-mapper.ts::toHotelSearchParams)
+  // — plus de construction de query params dupliquée ici.
+  const buildSearchState = useCallback((): HotelSearchState | null => {
+    if (!checkinDate || !checkoutDate) return null
+    if (destinationMode === "city" && !selectedCity) return null
+    if (destinationMode === "hotel" && !selectedHotel) return null
+
+    return {
+      destination:
+        destinationMode === "hotel" && selectedHotel
+          ? {
+              cityId: selectedHotel.cityId,
+              city: selectedHotel.cityName,
+              hotelId: selectedHotel.id,
+              hotelName: selectedHotel.name,
+            }
+          : { cityId: selectedCity!.id, city: selectedCity!.name, zone: selectedCity!.region },
+      dates: { checkIn: checkinDate, checkOut: checkoutDate, nights: nightsCount },
+      rooms: occupancyRooms,
+      nationality: "resident", // myGo (Hôtel Tunisie) n'exploite pas ce paramètre — voir GuestOccupancyPicker showNationality={false}.
     }
-  }
+  }, [destinationMode, selectedCity, selectedHotel, checkinDate, checkoutDate, nightsCount, occupancyRooms])
 
-  const addChild = () => {
-    if (childrenAges.length < 4) {
-      setChildrenAges([...childrenAges, 5]) // Enfant, âge par défaut 5 ans
+  const handleSearch = () => {
+    const state = buildSearchState()
+    if (!state) return
+    const params = toHotelSearchParams(state, {
+      stars: selectedStars,
+      onlyAvailable,
+    })
+    if (destinationMode === "city" && selectedCity) {
+      params.set("city", selectedCity.name)
+    } else if (destinationMode === "hotel" && selectedHotel?.cityName) {
+      params.set("city", selectedHotel.cityName)
     }
-  }
-
-  const removeChild = (index: number) => {
-    setChildrenAges(childrenAges.filter((_, i) => i !== index))
-  }
-
-  const updateChildAge = (index: number, age: number) => {
-    const newAges = [...childrenAges]
-    newAges[index] = age
-    setChildrenAges(newAges)
+    router.push(`/hotels/search?${params.toString()}`)
   }
 
   // Star filter toggle
@@ -236,93 +186,178 @@ export function HotelsTunisieSearch() {
     return "Sélectionner les dates"
   }, [checkinDate, checkoutDate, nightsCount])
 
-  // Pax display
+  // Pax display — dérivé du vrai résumé d'occupation par chambre (plus
+  // d'agrégat séparé désynchronisable de l'état réel des chambres).
   const paxDisplay = useMemo(() => {
+    const { totalRooms, totalAdults, totalBigKids, totalBabies } =
+      occupancySummary
     const parts: string[] = []
-    parts.push(`${rooms} Chambre${rooms > 1 ? "s" : ""}`)
-    parts.push(`${adults} Adulte${adults > 1 ? "s" : ""}`)
-    if (bigKidsCount > 0) {
-      parts.push(`${bigKidsCount} Enfant${bigKidsCount > 1 ? "s" : ""}`)
+    parts.push(`${totalRooms} Chambre${totalRooms > 1 ? "s" : ""}`)
+    parts.push(`${totalAdults} Adulte${totalAdults > 1 ? "s" : ""}`)
+    if (totalBigKids > 0) {
+      parts.push(`${totalBigKids} Enfant${totalBigKids > 1 ? "s" : ""}`)
     }
-    if (babiesCount > 0) {
-      parts.push(`${babiesCount} Bébé${babiesCount > 1 ? "s" : ""}`)
+    if (totalBabies > 0) {
+      parts.push(`${totalBabies} Bébé${totalBabies > 1 ? "s" : ""}`)
     }
     return parts.join(", ")
-  }, [rooms, adults, bigKidsCount, babiesCount])
+  }, [occupancySummary])
 
   return (
     <div className="space-y-5">
       {/* Main Search Row */}
       <div className="flex flex-col gap-2.5 lg:flex-row">
-        {/* City Autocomplete */}
+        {/* Destination : ville (zone touristique) ou hôtel précis */}
         <div className="min-w-0 flex-1">
-          <Popover open={citySearchOpen} onOpenChange={setCitySearchOpen}>
+          <Popover
+            open={destinationMode === "city" ? citySearchOpen : hotelSearchOpen}
+            onOpenChange={
+              destinationMode === "city" ? setCitySearchOpen : setHotelSearchOpen
+            }
+          >
             <PopoverTrigger asChild>
               <button
                 type="button"
                 role="combobox"
                 aria-label="Destination"
-                aria-expanded={citySearchOpen}
-                aria-controls="hotel-search-city-listbox"
+                aria-expanded={
+                  destinationMode === "city" ? citySearchOpen : hotelSearchOpen
+                }
+                aria-controls="hotel-search-destination-listbox"
                 className={FIELD_SHELL}
               >
-                <FieldLabel icon={MapPin}>Destination</FieldLabel>
-                {selectedCity ? (
+                <FieldLabel icon={destinationMode === "city" ? MapPin : Building2}>
+                  Destination
+                </FieldLabel>
+                {destinationMode === "city" ? (
+                  selectedCity ? (
+                    <span className="truncate text-sm font-semibold">
+                      {selectedCity.name}
+                      {selectedCity.region && (
+                        <span className="text-muted-foreground ml-1 font-normal">
+                          ({selectedCity.region})
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground truncate text-sm font-normal">
+                      Rechercher une ville...
+                    </span>
+                  )
+                ) : selectedHotel ? (
                   <span className="truncate text-sm font-semibold">
-                    {selectedCity.name}
-                    {selectedCity.region && (
-                      <span className="text-muted-foreground ml-1 font-normal">
-                        ({selectedCity.region})
-                      </span>
-                    )}
+                    {selectedHotel.name}
                   </span>
                 ) : (
                   <span className="text-muted-foreground truncate text-sm font-normal">
-                    Rechercher une ville...
+                    Rechercher un hôtel...
                   </span>
                 )}
               </button>
             </PopoverTrigger>
             <PopoverContent
-              id="hotel-search-city-listbox"
+              id="hotel-search-destination-listbox"
               className="w-[320px] p-0"
               align="start"
             >
-              <Command>
-                <CommandInput placeholder="Rechercher une ville..." />
-                <CommandList>
-                  <CommandEmpty>
-                    {citiesLoading
-                      ? "Chargement..."
-                      : citiesError
-                        ? `Erreur de chargement (${citiesError})`
-                        : "Aucune ville trouvée."}
-                  </CommandEmpty>
-                  <CommandGroup heading="Zones touristiques">
-                    {cities.map((city) => (
-                      <CommandItem
-                        key={city.id}
-                        value={`${city.name} ${city.region || ""}`}
-                        onSelect={() => {
-                          setSelectedCity(city)
-                          setCitySearchOpen(false)
-                        }}
-                      >
-                        <MapPin className="text-muted-foreground mr-2 size-4" />
-                        <span>{city.name}</span>
-                        {city.region && (
+              {/* Toggle Ville / Hôtel — recherche directe par hôtel
+                  (myGo::listHotels, déjà exposée par /api/hotels/list) */}
+              <div className="flex gap-1 border-b p-2">
+                <button
+                  type="button"
+                  onClick={() => setDestinationMode("city")}
+                  className={cn(
+                    "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                    destinationMode === "city"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  Ville / Zone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDestinationMode("hotel")}
+                  className={cn(
+                    "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                    destinationMode === "hotel"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  Hôtel
+                </button>
+              </div>
+
+              {destinationMode === "city" ? (
+                <Command>
+                  <CommandInput placeholder="Rechercher une ville..." />
+                  <CommandList>
+                    <CommandEmpty>
+                      {citiesLoading
+                        ? "Chargement..."
+                        : citiesError
+                          ? `Erreur de chargement (${citiesError})`
+                          : "Aucune ville trouvée."}
+                    </CommandEmpty>
+                    <CommandGroup heading="Zones touristiques">
+                      {cities.map((city) => (
+                        <CommandItem
+                          key={city.id}
+                          value={`${city.name} ${city.region || ""}`}
+                          onSelect={() => {
+                            setSelectedCity(city)
+                            setCitySearchOpen(false)
+                          }}
+                        >
+                          <MapPin className="text-muted-foreground mr-2 size-4" />
+                          <span>{city.name}</span>
+                          {city.region && (
+                            <span className="text-muted-foreground ml-auto text-xs">
+                              {city.region}
+                            </span>
+                          )}
+                          {selectedCity?.id === city.id && (
+                            <Check className="text-primary ml-2 size-4" />
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              ) : (
+                <Command>
+                  <CommandInput placeholder="Rechercher un hôtel..." />
+                  <CommandList>
+                    <CommandEmpty>
+                      {hotelsLoading
+                        ? "Chargement..."
+                        : "Aucun hôtel trouvé."}
+                    </CommandEmpty>
+                    <CommandGroup heading="Hôtels">
+                      {hotels.map((hotel) => (
+                        <CommandItem
+                          key={hotel.id}
+                          value={`${hotel.name} ${hotel.cityName}`}
+                          onSelect={() => {
+                            setSelectedHotel(hotel)
+                            setHotelSearchOpen(false)
+                          }}
+                        >
+                          <Building2 className="text-muted-foreground mr-2 size-4" />
+                          <span>{hotel.name}</span>
                           <span className="text-muted-foreground ml-auto text-xs">
-                            {city.region}
+                            {hotel.cityName}
                           </span>
-                        )}
-                        {selectedCity?.id === city.id && (
-                          <Check className="text-primary ml-2 size-4" />
-                        )}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
+                          {selectedHotel?.id === hotel.id && (
+                            <Check className="text-primary ml-2 size-4" />
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              )}
             </PopoverContent>
           </Popover>
         </div>
@@ -400,140 +435,17 @@ export function HotelsTunisieSearch() {
                 <span className="truncate text-sm font-semibold">{paxDisplay}</span>
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[320px] rounded-2xl p-4 shadow-e2b-elevated" align="start">
-              <div className="space-y-4">
-                {/* Rooms */}
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">Chambres</p>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-8 rounded-full"
-                      onClick={() => setRooms(Math.max(1, rooms - 1))}
-                      disabled={rooms <= 1}
-                    >
-                      <Minus className="size-3" />
-                    </Button>
-                    <span className="w-6 text-center font-medium">
-                      {rooms}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-8 rounded-full"
-                      onClick={() => setRooms(Math.min(8, rooms + 1))}
-                      disabled={rooms >= 8}
-                    >
-                      <Plus className="size-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Adults */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Adultes</p>
-                    <p className="text-muted-foreground text-xs">
-                      18 ans et plus
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-8 rounded-full"
-                      onClick={() => setAdults(Math.max(1, adults - 1))}
-                      disabled={adults <= 1}
-                    >
-                      <Minus className="size-3" />
-                    </Button>
-                    <span className="w-6 text-center font-medium">
-                      {adults}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-8 rounded-full"
-                      onClick={() => setAdults(Math.min(6, adults + 1))}
-                      disabled={adults >= 6}
-                    >
-                      <Plus className="size-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Children Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Enfants</p>
-                    <p className="text-muted-foreground text-xs">3-17 ans</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full"
-                    onClick={addChild}
-                    disabled={childrenAges.length >= 4}
-                  >
-                    <Plus className="mr-1 size-3" />
-                    Ajouter
-                  </Button>
-                </div>
-
-                {/* Babies Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Bébés</p>
-                    <p className="text-muted-foreground text-xs">0-2 ans</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full"
-                    onClick={addBaby}
-                    disabled={childrenAges.length >= 4}
-                  >
-                    <Plus className="mr-1 size-3" />
-                    Ajouter
-                  </Button>
-                </div>
-
-                {/* Children/Babies Age Selectors — un seul tableau d'âges
-                    partagé (voir commentaire du state childrenAges) */}
-                {childrenAges.length > 0 && (
-                  <div className="border-muted space-y-2 border-l-2 pl-2">
-                    {childrenAges.map((age, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <span className="text-muted-foreground w-16 text-sm">
-                          {age <= 2 ? "Bébé" : "Enfant"} {index + 1}
-                        </span>
-                        <select
-                          value={age}
-                          onChange={(e) =>
-                            updateChildAge(index, parseInt(e.target.value))
-                          }
-                          className="border-input bg-background focus-visible:ring-ring flex h-9 w-full max-w-[100px] rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-                        >
-                          {Array.from({ length: 18 }, (_, i) => (
-                            <option key={i} value={i}>
-                              {i} an{i > 1 ? "s" : ""}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive size-7"
-                          onClick={() => removeChild(index)}
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <PopoverContent
+              className="shadow-e2b-elevated max-h-[70vh] w-[340px] overflow-y-auto rounded-2xl p-4"
+              align="start"
+            >
+              {/* myGo (Hôtel Tunisie) n'exploite aucun paramètre nationalité
+                  — voir showNationality dans guest-occupancy-picker.tsx. */}
+              <GuestOccupancyPicker
+                initialState={occupancyRooms}
+                onChange={setOccupancyRooms}
+                showNationality={false}
+              />
             </PopoverContent>
           </Popover>
         </div>

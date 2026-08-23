@@ -33,6 +33,7 @@ import {
   searchDestinations,
   type Destination,
 } from "@/lib/pro/destinations"
+import { encodeRoomsParam } from "@/lib/mygo/room-split"
 import type { ProModule } from "./pro-module-tabs"
 
 interface ProSearchBarProps {
@@ -160,7 +161,21 @@ export function ProSearchBar({ module }: ProSearchBarProps) {
       params.set("checkin", format(dateRange.from!, "yyyy-MM-dd"))
       params.set("checkout", format(dateRange.to!, "yyyy-MM-dd"))
       params.set("nights", String(nights))
-      params.set("rooms", String(rooms.length))
+      // Encodage compact réel (voir HotelSearchQuerySchema::rooms côté
+      // lib/mygo/search-core.ts) — auparavant `String(rooms.length)`
+      // envoyait un simple compte de chambres ("2") que `decodeRoomsParam`
+      // interprète comme une seule chambre à 2 adultes, perdant la vraie
+      // composition (nombre de chambres, âges des enfants) déjà collectée
+      // ci-dessus par `updateRoom`/`addRoom`.
+      params.set(
+        "rooms",
+        encodeRoomsParam(
+          rooms.map((r) => ({
+            adults: r.adults,
+            childAges: r.childrenAges.length > 0 ? r.childrenAges : undefined,
+          })),
+        ),
+      )
       params.set("adults", String(rooms.reduce((a, r) => a + r.adults, 0)))
       params.set("children", String(rooms.reduce((a, r) => a + r.children, 0)))
       const target =

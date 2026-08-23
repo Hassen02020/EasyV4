@@ -323,7 +323,21 @@ async function runCreateGuestReservation(
       },
     )
 
-    if (traveler.email) {
+    // "booking/confirmed" déclenche processConfirmedBooking (PDF voucher +
+    // email, lib/inngest/functions/process-confirmed-booking.ts), qui rend
+    // et envoie le voucher SANS revérifier le statut de la réservation.
+    // Trouvé en Phase 14.2 : cet événement partait pour TOUT paiement
+    // (`if (traveler.email)` seul), y compris "transfer"/"cash" — une
+    // réservation encore `pending`, non réglée. Le client recevait alors un
+    // vrai voucher PDF pour une résa non confirmée, contredisant à la fois
+    // le commentaire de tête de ce fichier ("le voucher... uniquement une
+    // fois le règlement confirmé") et isVoucherEligible (lib/pro/
+    // voucher-eligibility.ts), déjà correctement appliqué par la route de
+    // téléchargement à la demande (/api/booking/voucher/[ref]) mais pas ici.
+    // Le chemin B2B (lib/booking/actions.ts) était lui déjà correct : il
+    // n'émet cet événement qu'après un débit wallet réussi et un statut
+    // "confirmed" effectif — même garde reproduite ici.
+    if (isImmediatelyPaid && traveler.email) {
       await sendEvent("booking/confirmed", {
         reservationId: result.reservationId,
         publicRef: result.publicRef,

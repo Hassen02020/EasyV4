@@ -28,7 +28,15 @@ export type Nationality = "resident" | "non_resident"
  */
 export interface HotelSearchState {
   destination: {
+    /** Nom affiché (ex. "Hammamet"). */
     city?: string
+    /** Id myGo de la ville (`CityDTO.id`) — requis pour interroger le fournisseur, distinct du nom affiché. */
+    cityId?: number
+    /** Région/zone touristique (`CityDTO.region`, ex. "Cap Bon") — filtre/regroupement, pas un paramètre distinct côté fournisseur. */
+    zone?: string
+    /** Hôtel précis choisi directement (recherche par nom d'hôtel) — `HotelSearchQuerySchema.hotelId` le supporte déjà nativement. */
+    hotelId?: number
+    hotelName?: string
     country?: string
     countryCode?: string // ISO 3166-1 alpha-2 (TN, FR, MA...)
     coordinates?: { lat: number; lng: number }
@@ -102,6 +110,23 @@ export interface OccupancySummary {
   totalRooms: number
   totalAdults: number
   totalChildren: number
+  /** Sous-ensemble de `totalChildren` : enfants d'âge <= BABY_MAX_AGE (voir `isBaby`). */
+  totalBabies: number
+  /** `totalChildren - totalBabies`. */
+  totalBigKids: number
   totalGuests: number
   hasChildren: boolean
+}
+
+/**
+ * Âge maximum considéré "bébé" (0-2 ans) — distinction purement UX, déjà
+ * utilisée par `components/hotels-tunisie-search.tsx` avant ce fichier.
+ * Le fournisseur (myGo `Pax.Child: number[]`) ne distingue jamais bébé et
+ * enfant : les deux restent un seul et même `childAges[]` par chambre —
+ * aucune capacité fournisseur inventée, seulement un libellé d'affichage.
+ */
+export const BABY_MAX_AGE = 2
+
+export function isBaby(age: number): boolean {
+  return age <= BABY_MAX_AGE
 }

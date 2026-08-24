@@ -22,6 +22,7 @@ import {
   Car,
   Moon,
   Sun,
+  Plug,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -165,6 +166,11 @@ const SETTINGS_NAV: NavItem[] = [
     href: "/pro/marges",
   },
   {
+    title: "Fournisseurs",
+    icon: Plug,
+    href: "/pro/suppliers",
+  },
+  {
     title: "Utilisateurs",
     icon: Users,
     href: "/pro/utilisateurs",
@@ -190,6 +196,7 @@ const PATH_LABELS: Record<string, string> = {
   factures: "Factures",
   etablissement: "Établissement",
   marges: "Marges",
+  suppliers: "Fournisseurs",
   utilisateurs: "Utilisateurs",
   "change-password": "Mot de passe",
   booking: "Réservation",

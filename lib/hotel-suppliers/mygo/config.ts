@@ -3,11 +3,16 @@
  * lib/mygo/config.ts (source de vérité inchangée). Ne redéfinit aucune
  * variable d'env, ne duplique aucune logique de credentials.
  */
-import { getMyGoConfig } from "@/lib/mygo/config"
+import { getMyGoConfig, type MyGoConfig } from "@/lib/mygo/config"
 
-export function isMyGoConfigured(): boolean {
+/**
+ * `override` — PHASE 27 : statut d'un compte fournisseur tenant (identifiants
+ * résolus par `resolveSupplierAccount()`), jamais lu depuis l'environnement
+ * process quand fourni. Omis => comportement inchangé (compte global `MYGO_*`).
+ */
+export function isMyGoConfigured(override?: MyGoConfig): boolean {
   try {
-    const cfg = getMyGoConfig()
+    const cfg = getMyGoConfig(override)
     return Boolean(cfg.login && cfg.password)
   } catch {
     return false

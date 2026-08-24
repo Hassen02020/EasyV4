@@ -7,9 +7,9 @@
  * MYGO_MODE (lib/mygo/config.ts, inchangé) — dupliquer cette bascule dans
  * deux classes distinctes aurait été une régression, pas une abstraction.
  */
-import { getMyGoClient } from "@/lib/mygo/client"
+import { getMyGoClient, createMyGoClientForAccount, type MyGoClient } from "@/lib/mygo/client"
 import { runHotelSearch, type HotelSearchQuery } from "@/lib/mygo/search-core"
-import { getMyGoConfig } from "@/lib/mygo/config"
+import { getMyGoConfig, type MyGoConfig } from "@/lib/mygo/config"
 import type { HotelSupplierDriver, SupplierSearchResult, SupplierHotelDetails } from "../core/supplier"
 import type {
   HotelSearchRequest,
@@ -31,14 +31,26 @@ import { mapHotelDetails } from "@/lib/mygo/mappers"
 export class MyGoDriver implements HotelSupplierDriver {
   readonly supplier = "mygo" as const
 
+  /**
+   * PHASE 27 — compte fournisseur tenant (identifiants résolus par
+   * `resolveSupplierAccount()`), jamais lus depuis l'environnement process
+   * quand fournis. Omis => comportement 100% inchangé (compte global
+   * `MYGO_*`, singleton `this.client`) — c'est le chemin emprunté par
+   * `createMyGoDriver()` (Phase 26, toujours l'unique factory par défaut).
+   */
+  constructor(
+    private readonly client: MyGoClient = getMyGoClient(),
+    private readonly configOverride?: MyGoConfig,
+  ) {}
+
   getConfigStatus(): "CONFIGURED" | "NOT_CONFIGURED" {
-    return isMyGoConfigured() ? "CONFIGURED" : "NOT_CONFIGURED"
+    return isMyGoConfigured(this.configOverride) ? "CONFIGURED" : "NOT_CONFIGURED"
   }
 
   /** Indique si les résultats proviennent du simulateur local — jamais présenté comme une disponibilité réelle (section 26). */
   isVirtualMode(): boolean {
     try {
-      return getMyGoConfig().mode === "virtual"
+      return getMyGoConfig(this.configOverride).mode === "virtual"
     } catch {
       return false
     }
@@ -63,7 +75,7 @@ export class MyGoDriver implements HotelSupplierDriver {
       onlyAvailable: true,
       rooms: request.rooms.length ? request.rooms.map((r) => ({ adults: r.adults, childAges: r.childAges })) : null,
     }
-    const result = await runHotelSearch(query)
+    const result = await runHotelSearch(query, this.configOverride ? { client: this.client } : undefined)
     if (!result.ok) {
       throw new SupplierApiError("mygo", result.message ?? result.error, result)
     }
@@ -78,7 +90,7 @@ export class MyGoDriver implements HotelSupplierDriver {
       throw new SupplierNotConfiguredError("mygo")
     }
     const hotelId = Number(request.supplierHotelCode)
-    const raw = await getMyGoClient().hotelDetail(hotelId)
+    const raw = await this.client.hotelDetail(hotelId)
     if (!raw) {
       throw new SupplierApiError("mygo", `Hôtel myGo introuvable: ${request.supplierHotelCode}`)
     }
@@ -115,7 +127,7 @@ export class MyGoDriver implements HotelSupplierDriver {
     const decoded = decodeMyGoSupplierToken(request.supplierToken)
     const totalAdults = request.rooms.reduce((sum, r) => sum + r.adults, 0)
     try {
-      const confirmation = await getMyGoClient().createBooking({
+      const confirmation = await this.client.createBooking({
         token: decoded.searchToken,
         cityId: decoded.cityId,
         hotelId: decoded.hotelId,
@@ -180,7 +192,7 @@ export class MyGoDriver implements HotelSupplierDriver {
     }
     const decoded = decodeMyGoSupplierToken(request.supplierToken)
     try {
-      const confirmation = await getMyGoClient().createBooking({
+      const confirmation = await this.client.createBooking({
         token: decoded.searchToken,
         cityId: decoded.cityId,
         hotelId: decoded.hotelId,
@@ -222,7 +234,7 @@ export class MyGoDriver implements HotelSupplierDriver {
 
   async getBooking(request: SupplierBookingLookup): Promise<SupplierBooking> {
     const bookingId = Number(request.supplierBookingReference)
-    const list = await getMyGoClient().listBookings({ booking: bookingId })
+    const list = await this.client.listBookings({ booking: bookingId })
     const row = list[0]
     if (!row) {
       return { supplierBookingReference: request.supplierBookingReference, state: "UNKNOWN" }
@@ -248,7 +260,7 @@ export class MyGoDriver implements HotelSupplierDriver {
       return { ok: false, code: "NOT_CONFIGURED", message: "myGo non configuré." }
     }
     try {
-      const result = await getMyGoClient().cancelBooking({
+      const result = await this.client.cancelBooking({
         bookingId: Number(request.supplierBookingReference),
         preCancelled: request.dryRun,
       })
@@ -271,4 +283,16 @@ export class MyGoDriver implements HotelSupplierDriver {
 
 export function createMyGoDriver(): MyGoDriver {
   return new MyGoDriver()
+}
+
+/**
+ * PHASE 27 — Driver MyGo pour UN compte fournisseur tenant précis (master,
+ * agence ou marque blanche). Toujours la MÊME classe `MyGoDriver` (jamais de
+ * `MyGoAgencyDriver`/`MyGoWhiteLabelDriver`) — seul le client HTTP sous-jacent
+ * change, via `createMyGoClientForAccount` (breaker Redis dédié à ce compte,
+ * cache de données statiques namespacé). `accountId` et `config` proviennent
+ * TOUJOURS de `resolveSupplierAccount()` — jamais construits ailleurs.
+ */
+export function createMyGoDriverForAccount(accountId: string, config: MyGoConfig): MyGoDriver {
+  return new MyGoDriver(createMyGoClientForAccount(accountId, config), config)
 }

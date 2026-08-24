@@ -1,32 +1,23 @@
 /**
- * /admin/suppliers — Gestion des fournisseurs API XML
+ * /admin/suppliers — PHASE 27 : Master Admin Control Plane fournisseurs
+ * hôteliers multi-tenant. Remplace la page cosmétique précédente (lisait
+ * l'ancienne table `suppliers`, boutons sans handler) — même URL, contenu
+ * entièrement réel : comptes/credentials chiffrés/autorisations réels via
+ * `lib/hotel-suppliers/tenant/accounts.ts` (Server Actions, super_admin
+ * uniquement, RLS `hotel_supplier_*`).
  *
- * Permet de configurer et gérer les connexions aux fournisseurs externes
- * (MyGo, Amadeus, Sabre, Expedia, etc.)
+ * Marque blanche : pas de portail séparé — un `manager`/`super_admin` sur
+ * une agence `agencyType='ota'` avec `domain` non nul (marque blanche) est
+ * déjà scopé par la RLS existante en tant qu'agence "propriétaire" comme
+ * n'importe quelle autre — voir rapport final Phase 27, section G.
  */
-
 import { Metadata } from "next"
-import Link from "next/link"
 import { redirect } from "next/navigation"
-import {
-  Plus,
-  Search,
-  Settings,
-  Activity,
-  RefreshCw,
-  Plug,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  type LucideIcon,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Plug, CheckCircle, Ban, AlertTriangle, HelpCircle, Users2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -38,43 +29,41 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { withTenantContext } from "@/lib/db/tenant-context"
-import { suppliers, supplierStatus, supplierType } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import {
+  listAllSupplierAccounts,
+  listHotelSuppliersCatalog,
+  listAgenciesForPicker,
+  listAuthorizationsForAccount,
+} from "@/lib/hotel-suppliers/tenant/accounts"
+import { CreateSupplierAccountDialog } from "@/components/admin/suppliers/create-supplier-account-dialog"
+import { SupplierAccountRowActions } from "@/components/admin/suppliers/supplier-account-row-actions"
 
 export const metadata: Metadata = {
-  title: "Fournisseurs API — Manager",
-  description: "Gestion des connexions API XML fournisseurs",
+  title: "Fournisseurs hôteliers — Master Admin",
+  description: "Comptes fournisseur multi-tenant (myGo, Tunisia Bed, Cyberesa, 3T)",
 }
 
 export const dynamic = "force-dynamic"
 
-const SUPPLIER_TYPE_LABELS: Record<string, string> = {
-  mygo: "MyGo",
-  amadeus: "Amadeus",
-  sabre: "Sabre",
-  expedia: "Expedia",
-  booking: "Booking.com",
-  travelgate: "Travelgate",
-  hotelbeds: "Hotelbeds",
-  custom: "Custom",
+const STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
+  active: { label: "Actif", className: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
+  disabled: { label: "Désactivé", className: "bg-gray-100 text-gray-800", icon: Ban },
+  invalid_credentials: { label: "Identifiants invalides", className: "bg-red-100 text-red-800", icon: AlertTriangle },
+  not_configured: { label: "Non configuré", className: "bg-gray-100 text-gray-600", icon: HelpCircle },
+  error: { label: "Erreur", className: "bg-red-100 text-red-800", icon: AlertTriangle },
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon }> = {
-  active: { label: "Actif", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
-  inactive: { label: "Inactif", color: "bg-gray-100 text-gray-800", icon: Clock },
-  maintenance: { label: "Maintenance", color: "bg-amber-100 text-amber-800", icon: AlertCircle },
-  error: { label: "Erreur", color: "bg-red-100 text-red-800", icon: AlertCircle },
+const OWNER_TYPE_LABEL: Record<string, string> = {
+  master: "Master",
+  agency: "Agence",
+  whitelabel: "Marque blanche",
+}
+
+const DOC_STATUS_LABEL: Record<string, string> = {
+  documented: "Documenté",
+  documentation_required: "Documentation requise",
 }
 
 export default async function SuppliersPage() {
@@ -82,211 +71,139 @@ export default async function SuppliersPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/login?next=/admin/suppliers")
-  }
+  if (!user) redirect("/login?next=/admin/suppliers")
 
   const profile = await getCurrentAdminProfile(user.id)
-  const allowedRoles = ["super_admin", "manager"]
-  if (!profile || !allowedRoles.includes(profile.role)) {
-    redirect("/admin")
-  }
+  if (!profile || profile.role !== "super_admin") redirect("/admin")
 
-  // suppliers est une ressource plateforme (pas d'agency_id) ; sa policy RLS
-  // (0013_suppliers_policy_fix.sql) accepte tout contexte authentifié réel,
-  // pas seulement super_admin — un userId réel suffit, pas besoin d'inflater
-  // isSuperAdmin.
-  const supplierList = await withTenantContext(
-    { agencyId: profile.agencyId, userId: user.id, isSuperAdmin: false },
-    (db) => db.select().from(suppliers).orderBy(suppliers.name),
+  const [catalog, accounts, agencyOptions] = await Promise.all([
+    listHotelSuppliersCatalog(),
+    listAllSupplierAccounts(),
+    listAgenciesForPicker(),
+  ])
+
+  const authorizationsByAccount = new Map<string, { id: string; agencyId: string; agencyName: string }[]>()
+  await Promise.all(
+    accounts
+      .filter((a) => a.ownerType === "master")
+      .map(async (a) => {
+        authorizationsByAccount.set(a.id, await listAuthorizationsForAccount(a.id))
+      }),
   )
+
+  const creatableSuppliers = catalog.map((s) => ({ id: s.id, code: s.code, name: s.name, documentationStatus: s.documentationStatus }))
+  const agencyPickerOptions = agencyOptions.map((a) => ({ id: a.id, name: a.name, agencyType: a.agencyType, domain: a.domain }))
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-foreground text-3xl font-bold tracking-tight">
-            Fournisseurs API
-          </h1>
+          <h1 className="text-foreground text-3xl font-bold tracking-tight">Fournisseurs hôteliers</h1>
           <p className="text-muted-foreground mt-1">
-            Configurez et gérez les connexions API XML aux fournisseurs externes
+            Comptes fournisseur multi-tenant — master, agences partenaires et marques blanches, chacun avec ses propres
+            identifiants chiffrés, exécutés via un unique driver par fournisseur.
           </p>
         </div>
-        <Button className="bg-sidebar" asChild>
-          <Link href="/admin/suppliers/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau fournisseur
-          </Link>
-        </Button>
+        <CreateSupplierAccountDialog suppliers={creatableSuppliers} agencies={agencyPickerOptions} />
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Fournisseurs</CardTitle>
-            <Plug className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{supplierList.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Actifs</CardTitle>
-            <CheckCircle className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-emerald-600">
-              {supplierList.filter((s) => s.status === "active").length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">En Maintenance</CardTitle>
-            <AlertCircle className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-amber-600">
-              {supplierList.filter((s) => s.status === "maintenance").length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Auto-sync</CardTitle>
-            <RefreshCw className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-purple-600">
-              {supplierList.filter((s) => s.autoSync).length}
-            </p>
-          </CardContent>
-        </Card>
+        {catalog.map((s) => (
+          <Card key={s.id}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">{s.name}</CardTitle>
+              <Plug className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{accounts.filter((a) => a.supplierId === s.id).length}</p>
+              <Badge variant="outline" className="mt-1">
+                {DOC_STATUS_LABEL[s.documentationStatus] ?? s.documentationStatus}
+              </Badge>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Suppliers Table */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input placeholder="Rechercher un fournisseur..." className="pl-9" />
-            </div>
-          </div>
+          <CardTitle className="text-base">Comptes fournisseur</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Compte</TableHead>
+                  <TableHead>Fournisseur</TableHead>
+                  <TableHead>Propriétaire</TableHead>
                   <TableHead>Statut</TableHead>
-                  <TableHead>API URL</TableHead>
-                  <TableHead>Auto-sync</TableHead>
-                  <TableHead>Dernière Sync</TableHead>
+                  <TableHead>Mode</TableHead>
+                  <TableHead>Priorité</TableHead>
+                  <TableHead>Dernier test</TableHead>
+                  <TableHead>Partage</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {supplierList.length === 0 ? (
+                {accounts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Aucun fournisseur configuré. Commencez par en ajouter un.
+                    <TableCell colSpan={9} className="text-muted-foreground py-8 text-center">
+                      Aucun compte fournisseur configuré. Commencez par en créer un.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  supplierList.map((supplier) => {
-                    const statusConfig = STATUS_CONFIG[supplier.status] || STATUS_CONFIG.inactive
-                    const StatusIcon = statusConfig.icon
-
+                  accounts.map((a) => {
+                    const statusConfig = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.not_configured
+                    const StatusIcon = statusConfig!.icon
+                    const authorizedAgencies = authorizationsByAccount.get(a.id) ?? []
                     return (
-                      <TableRow key={supplier.id} className="hover:bg-gray-50">
+                      <TableRow key={a.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-lg">
-                              <Plug className="h-5 w-5" />
+                            <div className="bg-primary/10 text-primary flex h-9 w-9 items-center justify-center rounded-lg">
+                              <Plug className="h-4 w-4" />
                             </div>
                             <div>
-                              <p className="font-medium">{supplier.name}</p>
-                              {supplier.website && (
-                                <a
-                                  href={supplier.website}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:underline"
-                                >
-                                  {supplier.website}
-                                </a>
-                              )}
+                              <p className="font-medium">{a.displayName}</p>
+                              <p className="text-muted-foreground text-xs">{a.agencyName}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">
-                            {SUPPLIER_TYPE_LABELS[supplier.type] || supplier.type}
-                          </Badge>
+                          <Badge variant="outline">{a.supplierName}</Badge>
                         </TableCell>
+                        <TableCell>{OWNER_TYPE_LABEL[a.ownerType] ?? a.ownerType}</TableCell>
                         <TableCell>
-                          <Badge className={statusConfig.color}>
+                          <Badge className={statusConfig!.className}>
                             <StatusIcon className="mr-1 h-3 w-3" />
-                            {statusConfig.label}
+                            {statusConfig!.label}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {supplier.apiUrl || "—"}
+                        <TableCell className="text-sm">{a.mode}</TableCell>
+                        <TableCell className="text-sm">{a.priority}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {a.lastTestedAt ? new Date(a.lastTestedAt).toLocaleString("fr-FR") : "Jamais"}
+                          {a.lastTestStatus ? ` · ${a.lastTestStatus}` : ""}
                         </TableCell>
                         <TableCell>
-                          {supplier.autoSync ? (
-                            <Badge className="bg-purple-100 text-purple-800">
-                              <RefreshCw className="mr-1 h-3 w-3" />
-                              {supplier.syncInterval}
+                          {a.ownerType === "master" ? (
+                            <Badge variant="outline">
+                              <Users2 className="mr-1 h-3 w-3" />
+                              {a.authorizedAgencyCount} agence(s)
                             </Badge>
                           ) : (
-                            <span className="text-gray-400">—</span>
+                            <span className="text-muted-foreground text-xs">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm text-gray-500">
-                          {supplier.lastSyncAt
-                            ? new Date(supplier.lastSyncAt).toLocaleString("fr-FR")
-                            : "Jamais"}
-                        </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label={`Configurer ${supplier.name}`}>
-                                <Settings className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/suppliers/${supplier.id}`}>
-                                  <Activity className="mr-2 h-4 w-4" />
-                                  Voir détails
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/suppliers/${supplier.id}/edit`}>
-                                  <Settings className="mr-2 h-4 w-4" />
-                                  Configurer
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Synchroniser maintenant
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <AlertCircle className="mr-2 h-4 w-4" />
-                                {supplier.status === "active" ? "Désactiver" : "Activer"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <SupplierAccountRowActions
+                            accountId={a.id}
+                            displayName={a.displayName}
+                            status={a.status}
+                            ownerType={a.ownerType}
+                            agencies={agencyPickerOptions}
+                            authorizedAgencies={authorizedAgencies}
+                          />
                         </TableCell>
                       </TableRow>
                     )

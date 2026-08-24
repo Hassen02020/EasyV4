@@ -1950,6 +1950,28 @@ export {
 } from "./schema/suppliers"
 
 /* -------------------------------------------------------------------------- */
+/* Hotel Supplier Control Plane (Phase 27) — imported from schema/hotel-suppliers.ts */
+/* -------------------------------------------------------------------------- */
+
+export {
+  hotelSuppliers,
+  hotelSupplierAccounts,
+  hotelSupplierCredentials,
+  hotelSupplierAuthorizations,
+  hotelSupplierDocStatus,
+  hotelSupplierOwnerType,
+  hotelSupplierAccountStatus,
+  type HotelSupplierRow,
+  type NewHotelSupplierRow,
+  type HotelSupplierAccountRow,
+  type NewHotelSupplierAccountRow,
+  type HotelSupplierCredentialRow,
+  type NewHotelSupplierCredentialRow,
+  type HotelSupplierAuthorizationRow,
+  type NewHotelSupplierAuthorizationRow,
+} from "./schema/hotel-suppliers"
+
+/* -------------------------------------------------------------------------- */
 /* Validation Module — imported from schema/validation.ts                     */
 /* -------------------------------------------------------------------------- */
 

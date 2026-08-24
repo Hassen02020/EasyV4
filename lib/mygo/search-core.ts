@@ -28,6 +28,7 @@ import {
   MyGoAuthError,
   MyGoError,
 } from "./index"
+import type { MyGoClient } from "./client"
 import { HotelSearchResponse } from "./schemas"
 import type { HotelSearchResultDTO } from "./types"
 import hotelSearchFixture from "./__fixtures__/hotelsearch.json"
@@ -168,6 +169,19 @@ export type HotelSearchRunResult =
     }
 
 /**
+ * PHASE 27 — `client` : compte fournisseur MyGo appartenant à une agence
+ * (identifiants résolus par `resolveSupplierAccount()`), jamais le singleton
+ * global `getMyGoClient()`. Fourni => le repli "démo" (absence de
+ * `MYGO_LOGIN` process-global) est ignoré : un compte tenant résolu a par
+ * construction des identifiants réels (sinon `resolveSupplierAccount()` ne
+ * l'aurait jamais renvoyé), la question "démo ou pas" ne se pose donc que
+ * pour le compte global historique.
+ */
+export interface RunHotelSearchOverrides {
+  client?: MyGoClient
+}
+
+/**
  * Exécute la recherche myGo pour une query déjà validée (schéma + dates) et
  * renvoie un résultat pur (démo, dégradé, ou résultats réels dédupliqués).
  * Ni authentification ni rate-limiting ici — la responsabilité de
@@ -175,15 +189,17 @@ export type HotelSearchRunResult =
  */
 export async function runHotelSearch(
   q: HotelSearchQuery,
+  overrides?: RunHotelSearchOverrides,
 ): Promise<HotelSearchRunResult> {
-  if (isDemoMode()) {
+  if (!overrides?.client && isDemoMode()) {
     return demoSearchResult(q.cityId)
   }
-  return runRealHotelSearch(q)
+  return runRealHotelSearch(q, overrides)
 }
 
 async function runRealHotelSearch(
   q: HotelSearchQuery,
+  overrides?: RunHotelSearchOverrides,
 ): Promise<HotelSearchRunResult> {
 
   const searchInput = {
@@ -202,8 +218,9 @@ async function runRealHotelSearch(
     },
   }
 
+  const client = overrides?.client ?? getMyGoClient()
   const fallbackResult = await searchWithFallback(searchInput, () =>
-    instrument("mygo.search", () => getMyGoClient().searchHotels(searchInput)),
+    instrument("mygo.search", () => client.searchHotels(searchInput)),
   )
 
   if (fallbackResult.degraded) {

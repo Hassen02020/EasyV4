@@ -22,6 +22,7 @@ import {
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { ProRoomSelector } from "@/components/pro/pro-room-selector"
 
 type DetailSearchParams = {
@@ -84,10 +85,13 @@ export default async function ProHotelDetailPage({
   const dateCheck = validateSearchDateRange(q.checkin, q.checkout)
   if (!dateCheck.ok) notFound()
 
-  const [result, margins] = await Promise.all([
-    runHotelSearch(q),
+  // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la session
+  // partenaire courante (voir lib/hotel-suppliers/tenant/live-resolution.ts).
+  const [access, margins] = await Promise.all([
+    resolvePartnerMyGoAccess(),
     getActivePartnerMargins(),
   ])
+  const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
 
   if (!result.ok || result.dto.offers.length === 0) {
     return (

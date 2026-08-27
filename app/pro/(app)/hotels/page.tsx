@@ -22,6 +22,7 @@ import {
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   filtersFromSearchParams,
   type HotelFilterState,
@@ -119,10 +120,14 @@ export default async function ProHotelsSerpPage({
     )
   }
 
-  const [result, margins] = await Promise.all([
-    runHotelSearch(q),
+  // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la session
+  // partenaire courante (jamais le compte global MYGO_* si un compte tenant
+  // est configuré) — voir lib/hotel-suppliers/tenant/live-resolution.ts.
+  const [access, margins] = await Promise.all([
+    resolvePartnerMyGoAccess(),
     getActivePartnerMargins(),
   ])
+  const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
 
   if (!result.ok) {
     const title =

@@ -279,11 +279,18 @@ async function runRealHotelSearch(
  * Exécute la recherche myGo et renvoie directement la réponse HTTP prête à
  * l'emploi — utilisé par les route handlers (`/api/hotels/search*`).
  * Fine couche de mise en forme HTTP au-dessus de `runHotelSearch`.
+ *
+ * PHASE 27.1 — `overrides` : simple passthrough vers `runHotelSearch()`,
+ * jamais interprété ici. Permet à l'appelant (route/page) de fournir un
+ * client MyGo résolu pour le tenant courant (`resolveMyGoAccessForTenant()`)
+ * — omis, comportement 100% inchangé (compte global `MYGO_*`, démo-mode
+ * inclus).
  */
 export async function executeHotelSearch(
   q: HotelSearchQuery,
+  overrides?: RunHotelSearchOverrides,
 ): Promise<NextResponse> {
-  const result = await runHotelSearch(q)
+  const result = await runHotelSearch(q, overrides)
 
   if (!result.ok) {
     const headers: Record<string, string> = {}

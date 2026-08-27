@@ -254,6 +254,27 @@ export function describeMyGoCancellationErrorForUser(
   }
 }
 
+/**
+ * PHASE 27.1 — même wording que `describeMyGoCancellationErrorForUser`, mais
+ * pour un résultat déjà normalisé par le Hub (`SupplierCancellationResult`,
+ * lib/hotel-suppliers/core/types.ts) plutôt qu'une exception `MyGoClient`
+ * brute — c'est le chemin utilisé par `driver.cancel()`. L'annulation est
+ * retry-safe côté fournisseur (contrairement à la création) : pas de notion
+ * d'état "ambigu" ici, un échec peut toujours être retenté sans risque.
+ */
+export function describeSupplierCancellationErrorForUser(code: string): string {
+  switch (code) {
+    case "AUTH_ERROR":
+      return "Le service fournisseur est momentanément indisponible. Merci de réessayer dans quelques instants."
+    case "TIMEOUT":
+      return "Impossible de confirmer l'annulation auprès du fournisseur. Merci de réessayer."
+    case "NOT_CONFIGURED":
+      return "Ce fournisseur n'est pas configuré pour votre compte. Merci de contacter le support."
+    default:
+      return "Le fournisseur a refusé l'annulation. Merci de contacter le support."
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Réconciliation après échec ambigu (voir isAmbiguousBookingError)
 // ---------------------------------------------------------------------------

@@ -21,14 +21,11 @@ import { reservations, reservationHotel, auditEvents } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getMyGoClient } from "@/lib/mygo"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { logger } from "@/lib/logger"
-import {
-  classifyMyGoBookingError,
-  describeMyGoCancellationErrorForUser,
-} from "@/lib/booking/hotel-provider-booking"
+import { describeSupplierCancellationErrorForUser } from "@/lib/booking/hotel-provider-booking"
+import { resolveMyGoAccessForTenant, partnerTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   RESERVATION_STATUSES,
   RESERVATION_STATUS_ALLOWED_ROLES,
@@ -86,6 +83,14 @@ export async function updateReservationStatus(
     return { ok: false, error: "Votre rôle n'est pas autorisé à changer le statut d'une réservation." }
   }
   const agencyId = profile.agencyId
+
+  // PHASE 27.1 — compte fournisseur MyGo résolu AVANT la transaction de
+  // changement de statut (jamais un appel réseau imbriqué dans la même
+  // transaction que l'écriture réservation) — voir
+  // lib/hotel-suppliers/tenant/live-resolution.ts.
+  const myGoAccess = await resolveMyGoAccessForTenant(
+    partnerTenantContext(agencyId, user.id, profile.role === "super_admin"),
+  )
 
   const outcome = await withTenantContext(
     { agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
@@ -161,22 +166,24 @@ export async function updateReservationStatus(
           .limit(1)
 
         if (hotelRow?.providerBookingId) {
-          try {
-            const cancellation = await getMyGoClient().cancelBooking({
-              bookingId: Number(hotelRow.providerBookingId),
-            })
-            providerCancellationFee = cancellation.fee
-          } catch (err) {
+          // PHASE 27.1 — annulation via le Hub (driver résolu pour ce
+          // tenant), jamais getMyGoClient() directement — voir
+          // lib/hotel-suppliers/tenant/live-resolution.ts.
+          const cancellation = await myGoAccess.driver.cancel({
+            supplier: "mygo",
+            supplierBookingReference: String(hotelRow.providerBookingId),
+          })
+          if (!cancellation.ok) {
             // Annulation retry-safe côté fournisseur (idempotente) : on ne
             // change PAS le statut local, l'admin peut relancer sans risque
             // — contrairement à la création, une annulation ré-essayée est
             // sans danger (no-op si déjà annulée côté myGo).
-            const kind = classifyMyGoBookingError(err)
             return {
               ok: false as const,
-              error: describeMyGoCancellationErrorForUser(kind),
+              error: describeSupplierCancellationErrorForUser(cancellation.code),
             }
           }
+          providerCancellationFee = cancellation.penaltyAmount
         }
       }
 

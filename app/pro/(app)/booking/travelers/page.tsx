@@ -13,6 +13,7 @@ import {
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { matchSelectedRoom } from "@/lib/booking/room-match"
+import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 
 type BookingSearchParams = {
   hotelId?: string
@@ -96,10 +97,13 @@ export default async function ProBookingTravelersPage({
     // page de sélection de chambre) ; la revalidation finale et autoritaire
     // reste BookingCreation lui-même, exécuté par createReservationFromDraft
     // (inchangé) au moment de la confirmation.
-    const [result, margins] = await Promise.all([
-      runHotelSearch(q),
+    // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la
+    // session partenaire courante (voir lib/hotel-suppliers/tenant/live-resolution.ts).
+    const [access, margins] = await Promise.all([
+      resolvePartnerMyGoAccess(),
       getActivePartnerMargins(),
     ])
+    const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
 
     const rawOffer = result.ok ? result.dto.offers[0] : null
     const boardingIdNum = Number(search.boardingId)

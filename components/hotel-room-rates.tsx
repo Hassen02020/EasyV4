@@ -62,6 +62,7 @@ export function HotelRoomRates({ rooms, onBook, showHeader = true }: HotelRoomRa
             key={room.id}
             type="button"
             onClick={() => setSelectedRoom(room.id)}
+            aria-pressed={selectedRoom === room.id}
             className={`hover:bg-muted/30 flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
               selectedRoom === room.id ? "bg-primary/5 border-l-primary border-l-4" : ""
             }`}

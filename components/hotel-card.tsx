@@ -88,23 +88,28 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
             style={{
               backgroundImage: `url(${hotel.images[currentImage]})`,
             }}
+            role="img"
+            aria-label={`Photo de ${hotel.name}`}
           />
 
           {/* PHASE 30 — visibles par défaut sur mobile (aucun hover tactile) ;
               révélées au survol seulement à partir de md (pointeur souris),
               corrige des flèches inaccessibles sur tactile trouvé pendant
-              l'audit. */}
+              l'audit. PHASE 30 (audit) — aria-label en français (cohérence
+              avec le reste de l'UI) + type="button" explicite. */}
           <button
+            type="button"
             onClick={prevImage}
             className="bg-card/90 hover:bg-card absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Previous image"
+            aria-label="Photo précédente"
           >
             <ChevronLeft className="text-foreground h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={nextImage}
             className="bg-card/90 hover:bg-card absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Next image"
+            aria-label="Photo suivante"
           >
             <ChevronRight className="text-foreground h-4 w-4" />
           </button>
@@ -114,21 +119,25 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
             {hotel.images.map((_, i) => (
               <button
                 key={i}
+                type="button"
                 onClick={() => setCurrentImage(i)}
                 className={`h-2 w-2 rounded-full transition-colors ${
                   i === currentImage ? "bg-card" : "bg-card/50"
                 }`}
-                aria-label={`View image ${i + 1}`}
+                aria-label={`Voir la photo ${i + 1}`}
               />
             ))}
           </div>
 
           {/* Wishlist Button */}
           <button
+            type="button"
             onClick={() => setIsWishlisted(!isWishlisted)}
             className="bg-card/90 hover:bg-card absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
             aria-label={
-              isWishlisted ? "Remove from wishlist" : "Add to wishlist"
+              isWishlisted
+                ? "Retirer des favoris"
+                : "Ajouter aux favoris"
             }
           >
             <Heart
@@ -231,6 +240,15 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
               </div>
               <p className="text-muted-foreground mt-1 text-xs">
                 {mealOptions[selectedMealPlan]}
+                {/* PHASE 30 (audit K/L) — signale qu'il existe d'autres
+                    formules réelles sans devoir déplier la card, comme le
+                    fait déjà l'annulation gratuite ci-dessous. */}
+                {mealOptions.length > 1 && (
+                  <span className="text-muted-foreground/70">
+                    {" "}
+                    · {mealOptions.length} formules disponibles
+                  </span>
+                )}
               </p>
               {/* PHASE 30.2 — répond à "l'annulation est-elle gratuite ?"
                   directement sur la card (donnée réelle, même règle 3-états

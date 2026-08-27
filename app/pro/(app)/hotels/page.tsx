@@ -18,11 +18,11 @@ import { findDestinationById } from "@/lib/pro/destinations"
 import {
   HotelSearchQuerySchema,
   validateSearchDateRange,
-  runHotelSearch,
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
 import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { runSearchThroughHub, logHubSearchObservability } from "@/lib/hotel-suppliers/search-hub"
 import {
   filtersFromSearchParams,
   type HotelFilterState,
@@ -127,7 +127,11 @@ export default async function ProHotelsSerpPage({
     resolvePartnerMyGoAccess(),
     getActivePartnerMargins(),
   ])
-  const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
+  // PHASE 28 — même orchestration Hub que /api/hotels/search — un seul
+  // appel réseau myGo, résultat déjà autoritaire réutilisé pour
+  // l'observabilité (voir lib/hotel-suppliers/search-hub.ts).
+  const { runResult: result, hubResult } = await runSearchThroughHub(q, access)
+  logHubSearchObservability(hubResult, { supplierAccountId: access.accountId })
 
   if (!result.ok) {
     const title =

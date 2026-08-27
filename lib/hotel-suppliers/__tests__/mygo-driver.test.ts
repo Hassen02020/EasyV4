@@ -45,6 +45,40 @@ test("MyGoDriver.search : destinationId non numérique -> erreur explicite, jama
   )
 })
 
+test("MyGoDriver.search : repasse stars/onlyAvailable de la requête (PHASE 28 — auparavant ignorés/écrasés en dur)", async () => {
+  const config: MyGoConfig = {
+    mode: "live",
+    login: "test-login",
+    password: "test-password",
+    baseUrl: "https://example.invalid/api/hotel",
+    timeoutMs: 8000,
+    maxRetries: 3,
+    staticDataTtlSeconds: 86400,
+    searchTtlSeconds: 300,
+  }
+  let capturedInput: { filters?: { categories?: number[]; onlyAvailable?: boolean } } | undefined
+  const client = {
+    searchHotels: async (input: unknown) => {
+      capturedInput = input as typeof capturedInput
+      return { hotels: [], searchId: "s1", count: 0 }
+    },
+  } as unknown as MyGoClient
+  const driver = new MyGoDriver(client, config)
+
+  await driver.search({
+    destinationId: "10",
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    rooms: [{ adults: 2 }],
+    currency: "TND",
+    stars: [4, 5],
+    onlyAvailable: false,
+  })
+
+  assert.deepEqual(capturedInput?.filters?.categories, [4, 5])
+  assert.equal(capturedInput?.filters?.onlyAvailable, false)
+})
+
 function runInIsolatedProcess(env: Record<string, string | undefined>): { status: string; isVirtual: boolean } {
   // Écrit un vrai fichier temporaire exécuté par tsx dans un process neuf
   // (importer le driver et imprimer son état en JSON sur stdout) — seule

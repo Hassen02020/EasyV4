@@ -14,6 +14,7 @@ import type {
   HubSearchResult,
   SupplierName,
   SupplierRunStatus,
+  SupplierRunDetail,
   NormalizedHotel,
   NormalizedRate,
 } from "./types"
@@ -95,6 +96,7 @@ export async function searchAcrossSuppliers(
   const outcomes = await Promise.allSettled(drivers.map((d) => runDriver(d, request, timeoutMs)))
 
   const supplierStatus: Record<string, SupplierRunStatus> = {}
+  const supplierDetails: Record<string, SupplierRunDetail> = {}
   const failedSuppliers: SupplierName[] = []
   const allHotels: NormalizedHotel[] = []
   const allRates: NormalizedRate[] = []
@@ -103,6 +105,12 @@ export async function searchAcrossSuppliers(
     if (outcome.status !== "fulfilled") continue // runDriver catch tout en interne — filet de sécurité seulement
     const r = outcome.value
     supplierStatus[r.supplier] = r.status
+    supplierDetails[r.supplier] = {
+      status: r.status,
+      elapsedMs: r.elapsedMs,
+      errorCode: r.errorCode,
+      errorMessage: r.errorMessage,
+    }
     if (r.status !== "SUCCESS") failedSuppliers.push(r.supplier)
     allHotels.push(...r.hotels)
     allRates.push(...r.rates)
@@ -117,5 +125,6 @@ export async function searchAcrossSuppliers(
     supplierStatus: supplierStatus as Record<SupplierName, SupplierRunStatus>,
     elapsedMs: Date.now() - start,
     failedSuppliers,
+    supplierDetails: supplierDetails as Record<SupplierName, SupplierRunDetail>,
   }
 }

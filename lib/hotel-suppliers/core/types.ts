@@ -23,6 +23,10 @@ export interface HotelSearchRequest {
   nationality?: string
   currency: string
   language?: string
+  /** PHASE 28 — filtre catégorie (étoiles), générique à tout fournisseur qui le supporte. Absent/vide = aucun filtre. */
+  stars?: number[]
+  /** PHASE 28 — ne renvoyer que les offres réellement disponibles (comportement historique myGo : true par défaut). */
+  onlyAvailable?: boolean
 }
 
 export interface HotelDetailsRequest {
@@ -151,6 +155,14 @@ export interface SupplierSearchOutcome {
   rates: NormalizedRate[]
 }
 
+/** PHASE 28 — détail par fournisseur, pour l'observabilité (jamais de credentials). */
+export interface SupplierRunDetail {
+  status: SupplierRunStatus
+  elapsedMs: number
+  errorCode?: string
+  errorMessage?: string
+}
+
 export interface HubSearchResult {
   correlationId: string
   results: NormalizedHotel[]
@@ -158,6 +170,8 @@ export interface HubSearchResult {
   supplierStatus: Record<SupplierName, SupplierRunStatus>
   elapsedMs: number
   failedSuppliers: SupplierName[]
+  /** PHASE 28 — additif, ne remplace pas supplierStatus/failedSuppliers (déjà utilisés ailleurs). */
+  supplierDetails: Record<SupplierName, SupplierRunDetail>
 }
 
 export type CheckRateResult =

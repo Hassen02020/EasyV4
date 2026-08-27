@@ -80,8 +80,14 @@ export class MyGoDriver implements HotelSupplierDriver {
       adults: request.rooms[0]?.adults ?? 1,
       children: request.rooms[0]?.childAges ?? [],
       currency: request.currency,
-      stars: [],
-      onlyAvailable: true,
+      // PHASE 28 — repasse les filtres tels que fournis (au lieu de les
+      // ignorer) : nécessaire pour que la requête myGo construite ici soit
+      // identique à celle du pipeline natif (lib/mygo/search-core.ts) quand
+      // le Hub réutilise un résultat déjà récupéré (voir search-hub.ts) —
+      // sinon deux clés de cache différentes déclencheraient un second appel
+      // réel à myGo pour la même recherche.
+      stars: request.stars ?? [],
+      onlyAvailable: request.onlyAvailable ?? true,
       rooms: request.rooms.length ? request.rooms.map((r) => ({ adults: r.adults, childAges: r.childAges })) : null,
     }
     const result = await runHotelSearch(query, this.configOverride ? { client: this.client } : undefined)

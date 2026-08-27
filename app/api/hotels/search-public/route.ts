@@ -27,10 +27,10 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   HotelSearchQuerySchema,
   validateSearchDateRange,
-  executeHotelSearch,
 } from "@/lib/mygo/search-core"
 import { rateLimit } from "@/lib/rate-limit"
 import { resolveMyGoAccessForTenant, guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
 
 export const revalidate = 300 // 5 min — les prix changent vite
 
@@ -81,5 +81,7 @@ export async function GET(req: NextRequest) {
   // lib/hotel-suppliers/tenant/live-resolution.ts.
   const tenantContext = await guestTenantContext()
   const access = tenantContext ? await resolveMyGoAccessForTenant(tenantContext) : undefined
-  return executeHotelSearch(q, access?.client ? { client: access.client } : undefined)
+  // PHASE 28 — recherche orchestrée par le Hub — contrat de réponse
+  // inchangé, voir lib/hotel-suppliers/search-hub.ts.
+  return executeHotelSearchThroughHub(q, access, { agencyId: tenantContext?.agencyId ?? null })
 }

@@ -113,8 +113,13 @@ export function filtersFromSearchParams(
   }
 }
 
-/** Vrai si l'offre a au moins une chambre annulable gratuitement (BEFORE_ARRIVAL). */
-function hasFreeCancellation(offer: HotelOfferDTO): boolean {
+/**
+ * Vrai si l'offre a au moins une chambre annulable gratuitement (BEFORE_ARRIVAL).
+ * Exportée (PHASE 30.2) — c'est la logique de référence pour "l'annulation
+ * est-elle gratuite ?" réutilisée telle quelle par les cards B2C et B2B,
+ * jamais une seconde implémentation susceptible de diverger.
+ */
+export function hasFreeCancellation(offer: HotelOfferDTO): boolean {
   return offer.boardings.some((b) =>
     b.pax.some((p) =>
       p.rooms.some(

@@ -10,6 +10,7 @@ import type { RoomOption } from "@/components/hotel-room-rates"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
 import { selectBestRate } from "@/lib/mygo/best-rate"
+import { hasFreeCancellation } from "@/lib/mygo/facets"
 
 interface BookingData {
   id: number
@@ -52,6 +53,14 @@ export interface CardHotelShape {
   mealPlan: string
   mealOptions?: string[]
   rooms?: RoomOption[]
+  /**
+   * PHASE 30.2 — vrai si AU MOINS une chambre de l'offre a une politique
+   * d'annulation réellement gratuite (même règle 3-états que `rooms[].
+   * cancellation`, voir hotel-room-rates.tsx) — permet d'afficher la
+   * réponse à "l'annulation est-elle gratuite ?" directement sur la card,
+   * sans devoir déplier "Tarifs & chambres" pour le savoir.
+   */
+  hasFreeCancellation: boolean
   /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
   myGoToken: string
   cityId?: number
@@ -179,6 +188,10 @@ export function toCardShape(
     mealPlan,
     mealOptions,
     rooms,
+    // Même définition que le filtre "Annulation gratuite seulement"
+    // (lib/mygo/facets.ts) — jamais une seconde logique susceptible de
+    // diverger (ex. sur la prise en compte des chambres stopReservation).
+    hasFreeCancellation: hasFreeCancellation(offer),
     myGoToken: offer.token,
     cityId: h.cityId,
   }

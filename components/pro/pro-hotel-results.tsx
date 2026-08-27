@@ -24,7 +24,7 @@
 import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { MapPin, Calendar, Users, Star, ArrowRight } from "lucide-react"
+import { MapPin, Calendar, Users, Star, ArrowRight, ShieldCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   FilterSidebar,
@@ -37,6 +37,7 @@ import {
   computeFacets,
   filtersToSearchParams,
   FILTER_URL_KEYS,
+  hasFreeCancellation,
   type HotelFilterState,
 } from "@/lib/mygo/facets"
 import { sortOffers, type HotelSortMode } from "@/lib/mygo/sort"
@@ -75,6 +76,11 @@ function ProHotelResultCard({
   const boardingNames = Array.from(
     new Set(offer.boardings.map((b) => b.name).filter(Boolean)),
   )
+  // PHASE 30.2 — même donnée/logique réelle que le filtre "Annulation
+  // gratuite seulement" (lib/mygo/facets.ts), affichée directement sur la
+  // card B2B pour répondre à "l'annulation est-elle gratuite ?" sans ouvrir
+  // la fiche hôtel — parité avec la card B2C (components/hotel-card.tsx).
+  const freeCancellation = hasFreeCancellation(offer)
   return (
     <article className="bg-card border-border/60 shadow-e2b-soft overflow-hidden rounded-2xl border">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:p-5">
@@ -128,6 +134,12 @@ function ProHotelResultCard({
             <p className="text-primary text-xl font-bold tabular-nums">
               {offer.fromPrice.toLocaleString("fr-FR")} {currency}
             </p>
+            {freeCancellation && (
+              <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Annulation gratuite
+              </p>
+            )}
           </div>
           {/* PHASE 30 — la fiche hôtel B2B (app/pro/(app)/hotels/[id]/page.tsx)
               et le sélecteur de chambres (ProRoomSelector) sont branchés sur

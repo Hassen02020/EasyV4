@@ -14,6 +14,7 @@ import {
   Heart,
   ChevronDown,
   ChevronUp,
+  ShieldCheck,
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
@@ -37,6 +38,8 @@ interface HotelCardProps {
     mealPlan: string
     mealOptions?: string[]
     rooms?: RoomOption[]
+    /** PHASE 30.2 — permet d'afficher "Annulation gratuite" sans devoir déplier "Tarifs & chambres". */
+    hasFreeCancellation?: boolean
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
@@ -229,6 +232,16 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
               <p className="text-muted-foreground mt-1 text-xs">
                 {mealOptions[selectedMealPlan]}
               </p>
+              {/* PHASE 30.2 — répond à "l'annulation est-elle gratuite ?"
+                  directement sur la card (donnée réelle, même règle 3-états
+                  que la liste de chambres dépliée) — pas besoin d'ouvrir
+                  "Tarifs & chambres" pour le savoir. */}
+              {hotel.hasFreeCancellation && (
+                <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Annulation gratuite
+                </p>
+              )}
             </div>
 
             <div className="mt-3 flex w-full flex-col gap-2">

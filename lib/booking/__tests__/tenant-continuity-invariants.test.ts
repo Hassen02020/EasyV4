@@ -46,10 +46,10 @@ test("lib/booking/actions.ts : confirmHotelWithProvider() utilise le client tena
   assert.equal(countOccurrences(actionsSrc, "const client = access.client ?? getMyGoClient()"), 1)
 })
 
-test("lib/booking/actions.ts : la compensation (catch de createReservationFromDraft) annule via myGoAccess.client — MÊME compte que la création, jamais un client re-résolu", () => {
+test("lib/booking/actions.ts : les 2 sites de compensation (conflit idempotence B2B, catch général) annulent via myGoAccess.client — MÊME compte que la création, jamais un client re-résolu", () => {
   assert.equal(
     countOccurrences(actionsSrc, "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })"),
-    1,
+    2,
   )
 })
 

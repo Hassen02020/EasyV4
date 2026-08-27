@@ -388,10 +388,15 @@ export const reservations = pgTable(
      * /api/cron/expire-pending-payments). `null` pour tout ce qui n'est pas
      * une réservation `pending` en attente de règlement manuel. */
     paymentExpiresAt: timestamp("payment_expires_at", { withTimezone: true }),
-    /** Clé d'idempotence guest checkout B2C (Phase 20) — sha256(token:method),
-     * voir lib/booking/guest-actions.ts. NULL pour tout ce qui n'est pas un
-     * booking guest (B2B, admin manuel...) : backstop DB indépendant de
-     * Redis contre le double-submit simultané / le retry après timeout. */
+    /** Clé d'idempotence checkout — sha256(token:method) pour le guest
+     * checkout B2C (Phase 20, lib/booking/guest-actions.ts) et
+     * sha256(token:b2b) pour la création B2B (audit production readiness —
+     * createReservationFromDraft n'avait initialement aucune protection
+     * contre le double-submit, contrairement au chemin guest ; réutilise la
+     * MÊME colonne/index plutôt qu'une seconde, voir lib/booking/actions.ts).
+     * NULL pour tout ce qui n'est ni l'un ni l'autre (admin manuel...) :
+     * backstop DB indépendant de Redis contre le double-submit simultané /
+     * le retry après timeout. */
     guestIdempotencyKey: text("guest_idempotency_key"),
     /** Phase 21.1 (P0-1) — second identifiant privé, cryptographiquement
      * aléatoire, requis EN PLUS de `publicRef` par les routes guest

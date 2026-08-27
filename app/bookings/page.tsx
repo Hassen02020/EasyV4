@@ -344,12 +344,22 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions — PHASE 30.1 : les liens voucher/facture manquaient le
+            `?token=` requis par les routes guest (même frontière d'accès
+            que /booking/confirmation/[ref], Phase 21.1 : publicRef seul
+            n'est jamais suffisant) — 404 systématique en pratique.
+            "Facture PDF" était aussi désactivé sans condition ; utilise
+            maintenant `hasInvoice` (réellement émise), même logique que la
+            page de confirmation. */}
         <div className="flex flex-wrap gap-2 pt-1">
           {(booking.status === "confirmed" || booking.status === "completed") &&
           booking.module === "hotel" ? (
             <Button variant="outline" size="sm" className="gap-1.5" asChild>
-              <a href={`/api/booking/voucher/${booking.publicRef}`} target="_blank" rel="noreferrer">
+              <a
+                href={`/api/booking/voucher/${booking.publicRef}?token=${booking.guestAccessToken}`}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <Download className="h-4 w-4" />
                 {t("voucherPdf")}
               </a>
@@ -360,10 +370,23 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
               {t("voucherPdf")}
             </Button>
           )}
-          <Button variant="outline" size="sm" className="gap-1.5" disabled>
-            <Download className="h-4 w-4" />
-            {t("facturePdf")}
-          </Button>
+          {booking.hasInvoice ? (
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <a
+                href={`/api/booking/invoice/${booking.publicRef}?token=${booking.guestAccessToken}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Download className="h-4 w-4" />
+                {t("facturePdf")}
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" className="gap-1.5" disabled>
+              <Download className="h-4 w-4" />
+              {t("facturePdf")}
+            </Button>
+          )}
           {booking.status === "pending" && (
             <Button
               variant="destructive"

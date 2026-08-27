@@ -165,17 +165,29 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
               {hotel.location}
             </button>
 
-            {/* Tags */}
+            {/* Tags — PHASE 30.1 : "Promo" (même donnée réelle que le prix
+                barré, hotel.discountPercent > 0, voir toCardShape) rendu
+                avec un accent distinct pour ressortir au scan rapide de la
+                card, jamais une seconde source de vérité. */}
             <div className="mb-3 flex flex-wrap gap-1.5">
-              {hotel.tags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className="bg-secondary/30 border-primary/30 text-primary rounded-full px-2 py-0.5 text-xs font-normal"
-                >
-                  {tag}
-                </Badge>
-              ))}
+              {hotel.tags.map((tag) =>
+                tag === "Promo" ? (
+                  <Badge
+                    key={tag}
+                    className="rounded-full border-transparent bg-red-500 px-2 py-0.5 text-xs font-semibold text-white hover:bg-red-500"
+                  >
+                    🔥 Promo
+                  </Badge>
+                ) : (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="bg-secondary/30 border-primary/30 text-primary rounded-full px-2 py-0.5 text-xs font-normal"
+                  >
+                    {tag}
+                  </Badge>
+                ),
+              )}
             </div>
 
             {/* Amenities */}

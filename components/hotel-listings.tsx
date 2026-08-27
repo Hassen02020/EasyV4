@@ -132,14 +132,6 @@ export function toCardShape(
 
   const images = h.image ? [h.image] : [PLACEHOLDER_IMG]
   const stars = h.stars ?? 0
-  const tags: string[] = []
-  if (offer.recommended) tags.push("Recommandé")
-  for (const t of (h.themes ?? []).slice(0, 3)) tags.push(t)
-
-  const amenities: string[] = []
-  for (const f of h.facilities.slice(0, 4)) {
-    if (f.title) amenities.push(f.title)
-  }
 
   // Prix affiché = celui du "meilleur tarif" retenu ci-dessus (déjà
   // conscient du filtre de pension actif), pas systématiquement le prix
@@ -158,6 +150,19 @@ export function toCardShape(
   const discountPercent = hasRealDiscount
     ? Math.round((1 - displayPrice / originalPrice) * 100)
     : 0
+
+  const tags: string[] = []
+  if (offer.recommended) tags.push("Recommandé")
+  // PHASE 30.1 — même donnée réelle que le badge prix barré (discountPercent
+  // > 0, myGo basePrice), juste rendue aussi comme tag visible en scan rapide
+  // de la card — jamais une seconde source/logique de promotion.
+  if (hasRealDiscount) tags.push("Promo")
+  for (const t of (h.themes ?? []).slice(0, 3)) tags.push(t)
+
+  const amenities: string[] = []
+  for (const f of h.facilities.slice(0, 4)) {
+    if (f.title) amenities.push(f.title)
+  }
 
   return {
     id: h.id,

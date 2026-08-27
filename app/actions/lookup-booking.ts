@@ -4,6 +4,7 @@ import { eq, and, ilike, desc } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers, payments } from "@/lib/db/schema"
 import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
+import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 export type BookingLookupResult =
   | { ok: true; booking: BookingSummary }
@@ -36,6 +37,16 @@ export interface BookingSummary {
   payment: { method: string; status: string } | null
   /** Vrai seulement si un adaptateur de paiement réel est configuré (STRIPE_SECRET_KEY/SPS_SECRET_KEY) — jamais fabriqué. */
   onlinePaymentAvailable: boolean
+  /**
+   * Second facteur d'accès aux téléchargements guest (voucher/facture) —
+   * même mécanisme que `/booking/confirmation/[ref]` (Phase 21.1) : jamais
+   * `publicRef` seul. Renvoyé ici seulement après que le client a déjà
+   * prouvé la possession de la réservation via le couple ref+email exact
+   * exigé par `lookupBooking` ci-dessous.
+   */
+  guestAccessToken: string
+  /** Vrai seulement si une facture a réellement été émise (`findInvoiceForReservation`) — jamais déduit du statut seul. */
+  hasInvoice: boolean
   customer: {
     firstName: string
     lastName: string
@@ -76,6 +87,7 @@ export async function lookupBooking(
           confirmedAt: reservations.confirmedAt,
           cancelledAt: reservations.cancelledAt,
           paymentExpiresAt: reservations.paymentExpiresAt,
+          guestAccessToken: reservations.guestAccessToken,
           firstName: customers.firstName,
           lastName: customers.lastName,
           email: customers.email,
@@ -110,6 +122,14 @@ export async function lookupBooking(
         .limit(1),
     )
 
+    // Même logique que /booking/confirmation/[ref] : n'annonce une facture
+    // que si `findInvoiceForReservation` en a réellement trouvé une émise —
+    // jamais déduit de `status === "confirmed"` seul (voir sa doc : émise
+    // seulement une fois intégralement réglée).
+    const invoice = await withSystemContext((db) =>
+      findInvoiceForReservation(db, row.id),
+    )
+
     return {
       ok: true,
       booking: {
@@ -126,6 +146,8 @@ export async function lookupBooking(
         paymentExpiresAt: row.paymentExpiresAt?.toISOString() ?? null,
         payment: lastPayment ? { method: lastPayment.method, status: lastPayment.status } : null,
         onlinePaymentAvailable: hasConfiguredPaymentProvider(),
+        guestAccessToken: row.guestAccessToken,
+        hasInvoice: invoice != null,
         customer: {
           firstName: row.firstName,
           lastName: row.lastName,

@@ -12,6 +12,11 @@ import {
   Phone,
   Star,
   Calendar,
+  ShieldCheck,
+  Building2,
+  Heart,
+  Flame,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -278,24 +283,38 @@ function HotelDetailContent({ id }: { id: string }) {
 
   // "WHY CHOOSE" — uniquement des constats vérifiables tirés des données
   // déjà chargées (fiche hôtel + tarifs) : jamais une note/avis inventés.
-  // Section absente si aucun constat réel ne s'applique.
+  // Section absente si aucun constat réel ne s'applique. PHASE 30.3 — une
+  // icône distincte par TYPE de constat (catégorie/annulation/équipements/
+  // thème/promo), jamais une seule icône générique répétée pour tout.
   const whyChooseReasons = useMemo(() => {
     if (!hotel) return []
-    const reasons: string[] = []
+    const reasons: { icon: LucideIcon; text: string }[] = []
     if ((hotel.stars ?? 0) >= 4) {
-      reasons.push(`Hôtel ${hotel.stars} étoiles`)
+      reasons.push({ icon: Star, text: `Hôtel ${hotel.stars} étoiles` })
     }
     if (rooms.some((r) => r.cancellation === "FREE")) {
-      reasons.push("Annulation gratuite disponible sur au moins une chambre")
+      reasons.push({
+        icon: ShieldCheck,
+        text: "Annulation gratuite disponible sur au moins une chambre",
+      })
     }
     if (hotel.facilities.length >= 5) {
-      reasons.push(`${hotel.facilities.length} équipements sur place`)
+      reasons.push({
+        icon: Building2,
+        text: `${hotel.facilities.length} équipements sur place`,
+      })
     }
     if (hotel.themes.length > 0) {
-      reasons.push(`Idéal pour : ${hotel.themes.slice(0, 2).join(", ")}`)
+      reasons.push({
+        icon: Heart,
+        text: `Idéal pour : ${hotel.themes.slice(0, 2).join(", ")}`,
+      })
     }
     if (cardShape && cardShape.discountPercent > 0) {
-      reasons.push(`Tarif actuellement réduit de ${cardShape.discountPercent}%`)
+      reasons.push({
+        icon: Flame,
+        text: `Tarif actuellement réduit de ${cardShape.discountPercent}%`,
+      })
     }
     return reasons
   }, [hotel, rooms, cardShape])
@@ -481,13 +500,13 @@ function HotelDetailContent({ id }: { id: string }) {
                   Pourquoi choisir cet hôtel
                 </h2>
                 <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {whyChooseReasons.map((reason) => (
+                  {whyChooseReasons.map(({ icon: Icon, text }) => (
                     <li
-                      key={reason}
-                      className="border-border bg-card flex items-start gap-2 rounded-lg border p-3 text-sm"
+                      key={text}
+                      className="border-border bg-card flex items-start gap-2.5 rounded-lg border p-3 text-sm"
                     >
-                      <Star className="mt-0.5 h-4 w-4 shrink-0 fill-amber-400 text-amber-400" />
-                      <span className="text-foreground">{reason}</span>
+                      <Icon className="text-primary mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="text-foreground">{text}</span>
                     </li>
                   ))}
                 </ul>
@@ -589,6 +608,18 @@ function HotelDetailContent({ id }: { id: string }) {
                     {similarHotels.map((alt) => {
                       const altQs = new URLSearchParams(searchParams.toString())
                       const href = `/hotels/${alt.id}?${altQs.toString()}`
+                      // PHASE 30.3 — étiquette DÉTERMINISTE, jamais un score
+                      // inventé : compare deux champs réels déjà chargés
+                      // (prix affiché, étoiles) de cette alternative contre
+                      // l'hôtel courant. "Moins cher" prioritaire sur "Même
+                      // catégorie" (plus déterminant pour la décision) — une
+                      // seule étiquette à la fois pour ne pas surcharger.
+                      const comparisonLabel =
+                        cardShape && alt.discountedPrice < cardShape.discountedPrice
+                          ? "Moins cher"
+                          : cardShape && alt.stars === cardShape.stars && alt.stars > 0
+                            ? "Même catégorie"
+                            : null
                       return (
                         <Link
                           key={alt.id}
@@ -598,11 +629,20 @@ function HotelDetailContent({ id }: { id: string }) {
                           <div
                             className="h-20 w-20 shrink-0 rounded-md bg-cover bg-center"
                             style={{ backgroundImage: `url(${alt.images[0]})` }}
+                            role="img"
+                            aria-label={`Photo de ${alt.name}`}
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="text-foreground truncate text-sm font-medium">
-                              {alt.name}
-                            </p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-foreground truncate text-sm font-medium">
+                                {alt.name}
+                              </p>
+                              {comparisonLabel && (
+                                <span className="bg-secondary/30 text-primary shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium">
+                                  {comparisonLabel}
+                                </span>
+                              )}
+                            </div>
                             <div className="mt-0.5 flex items-center gap-0.5">
                               {Array.from({ length: alt.stars }).map((_, i) => (
                                 <Star
@@ -629,16 +669,39 @@ function HotelDetailContent({ id }: { id: string }) {
 
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
             <div className="bg-card border-border space-y-4 rounded-lg border p-5">
-              <div>
-                <p className="text-muted-foreground text-xs">
-                  Vérifier les tarifs
-                </p>
-                <p className="text-foreground mt-1 text-sm">
-                  {checkin && checkout
-                    ? "Pour vos dates et voyageurs sélectionnés"
-                    : "Choisissez vos dates pour voir les disponibilités"}
-                </p>
-              </div>
+              {/* PHASE 30.3 — point d'entrée prix dans la zone de décision
+                  sticky (audit : absent jusqu'ici, le prix n'apparaissait
+                  qu'en scrollant jusqu'à "Chambres et tarifs") — seulement
+                  quand un prix réel est chargé (cardShape), jamais avant. */}
+              {cardShape ? (
+                <div>
+                  <p className="text-muted-foreground text-xs">À partir de</p>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    {cardShape.discountPercent > 0 && (
+                      <span className="text-muted-foreground text-sm line-through">
+                        {format(cardShape.originalPrice)}
+                      </span>
+                    )}
+                    <span className="text-primary text-2xl font-bold">
+                      {format(cardShape.discountedPrice)}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {cardShape.mealPlan}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-muted-foreground text-xs">
+                    Vérifier les tarifs
+                  </p>
+                  <p className="text-foreground mt-1 text-sm">
+                    {checkin && checkout
+                      ? "Pour vos dates et voyageurs sélectionnés"
+                      : "Choisissez vos dates pour voir les disponibilités"}
+                  </p>
+                </div>
+              )}
 
               <Button
                 className="w-full gap-2"

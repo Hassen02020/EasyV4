@@ -18,6 +18,7 @@ import type {
   SupplierBookingResult,
   SupplierBookingLookup,
   SupplierBooking,
+  SupplierBookingReconciliationResult,
   SupplierCancellationRequest,
   SupplierCancellationResult,
   SupplierName,
@@ -45,13 +46,21 @@ export function createDocumentationRequiredDriver(
       return Promise.resolve({ ok: false, code: "NOT_CONFIGURED", message: reason })
     },
     book(_request: SupplierBookingRequest): Promise<SupplierBookingResult> {
-      return Promise.resolve({ ok: false, code: "NOT_CONFIGURED", message: reason })
+      return Promise.resolve({ outcome: "DEFINITIVE_FAILURE", code: "NOT_CONFIGURED", message: reason })
     },
     getBooking(request: SupplierBookingLookup): Promise<SupplierBooking> {
       return Promise.resolve({ supplierBookingReference: request.supplierBookingReference, state: "UNKNOWN" })
     },
     cancel(_request: SupplierCancellationRequest): Promise<SupplierCancellationResult> {
       return Promise.resolve({ ok: false, code: "NOT_CONFIGURED", message: reason })
+    },
+    // Pas de paramètre déclaré (au lieu de `_request: SupplierBookingReconciliationRequest`,
+    // le style des autres méthodes ci-dessus) — TypeScript accepte qu'une
+    // méthode ignore des arguments de l'interface qu'elle implémente ; ça
+    // évite un nouvel avertissement lint "unused var" pour ce seul ajout
+    // Phase 27.2, sans toucher au style pré-existant des méthodes voisines.
+    reconcileBooking(): Promise<SupplierBookingReconciliationResult> {
+      return Promise.resolve({ outcome: "UNSUPPORTED" })
     },
   }
 }

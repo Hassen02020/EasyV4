@@ -20,13 +20,22 @@ import type {
   SupplierBookingResult,
   SupplierBookingLookup,
   SupplierBooking,
+  SupplierBookingReconciliationRequest,
+  SupplierBookingReconciliationResult,
   SupplierCancellationRequest,
   SupplierCancellationResult,
 } from "../core/types"
 import { SupplierApiError, SupplierNotConfiguredError } from "../core/errors"
 import { isMyGoConfigured } from "./config"
 import { mapMyGoHotelSummary, mapMyGoOfferToRates, decodeMyGoSupplierToken } from "./mapper"
-import { mapHotelDetails } from "@/lib/mygo/mappers"
+import { mapHotelDetails, mapBookingListItemToConfirmation } from "@/lib/mygo/mappers"
+/**
+ * PHASE 27.2 — réutilise la classification d'erreur MyGo EXISTANTE (déjà
+ * utilisée par Booking Core, lib/booking/actions.ts) plutôt que d'en inventer
+ * une seconde qui pourrait diverger avec le temps. `lib/booking/hotel-provider-booking.ts`
+ * ne dépend elle-même que de lib/mygo/** — aucun cycle réel introduit.
+ */
+import { classifyMyGoBookingError, isAmbiguousBookingError, reconcileAmbiguousBooking, type MyGoBookingErrorKind } from "@/lib/booking/hotel-provider-booking"
 
 export class MyGoDriver implements HotelSupplierDriver {
   readonly supplier = "mygo" as const
@@ -185,10 +194,10 @@ export class MyGoDriver implements HotelSupplierDriver {
 
   async book(request: SupplierBookingRequest): Promise<SupplierBookingResult> {
     if (this.getConfigStatus() === "NOT_CONFIGURED") {
-      return { ok: false, code: "NOT_CONFIGURED", message: "myGo non configuré." }
+      return { outcome: "DEFINITIVE_FAILURE", code: "NOT_CONFIGURED", message: "myGo non configuré." }
     }
     if (!request.supplierToken) {
-      return { ok: false, code: "SUPPLIER_ERROR", message: "supplierToken myGo manquant pour Book." }
+      return { outcome: "DEFINITIVE_FAILURE", code: "SUPPLIER_ERROR", message: "supplierToken myGo manquant pour Book." }
     }
     const decoded = decodeMyGoSupplierToken(request.supplierToken)
     try {
@@ -212,7 +221,7 @@ export class MyGoDriver implements HotelSupplierDriver {
         ],
       })
       return {
-        ok: true,
+        outcome: "SUCCESS",
         supplierBookingReference: String(confirmation.bookingId),
         // confirmation.totalPrice = prix total faisant foi (voir
         // BookingConfirmationDTO) — jamais confirmation.atHotel, qui n'est
@@ -220,15 +229,63 @@ export class MyGoDriver implements HotelSupplierDriver {
         confirmedNetPrice: confirmation.totalPrice,
         currency: confirmation.currency,
         state: confirmation.state === "OnRequest" ? "ON_REQUEST" : "CONFIRMED",
+        hotelId: confirmation.hotelId != null ? String(confirmation.hotelId) : undefined,
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      const name = err instanceof Error ? err.constructor.name : ""
-      if (name === "MyGoTimeoutError") return { ok: false, code: "TIMEOUT", message }
-      if (name === "MyGoAuthError") return { ok: false, code: "AUTH_ERROR", message }
-      if (/no.?availab/i.test(message)) return { ok: false, code: "NO_AVAILABILITY", message }
-      if (/price/i.test(message)) return { ok: false, code: "RATE_CHANGED", message }
-      return { ok: false, code: "SUPPLIER_ERROR", message }
+      return classifyBookOutcome(err)
+    }
+  }
+
+  /**
+   * PHASE 27.2 — best-effort, lecture seule : réutilise `listBookings()`
+   * (déjà utilisé par la réconciliation existante,
+   * lib/booking/actions.ts::tryReconcileAmbiguousBooking) et la MÊME
+   * fonction pure de correspondance `reconcileAmbiguousBooking` — aucune
+   * seconde logique de réconciliation inventée.
+   */
+  async reconcileBooking(request: SupplierBookingReconciliationRequest): Promise<SupplierBookingReconciliationResult> {
+    if (this.getConfigStatus() === "NOT_CONFIGURED") {
+      return { outcome: "UNSUPPORTED" }
+    }
+    const hotelId = Number(request.supplierHotelCode)
+    if (!Number.isFinite(hotelId) || hotelId <= 0) {
+      return { outcome: "UNSUPPORTED" }
+    }
+    try {
+      const list = await this.client.listBookings({
+        hotel: hotelId,
+        fromDate: request.checkIn,
+        toDate: request.checkIn,
+      })
+      const match = reconcileAmbiguousBooking(
+        list.map((b) => ({
+          bookingId: b.Id,
+          hotelId: b.Hotel?.Id,
+          checkIn: b.CheckIn,
+          checkOut: b.CheckOut,
+          state: b.State,
+          createdAt: b.Created,
+        })),
+        { hotelId, checkIn: request.checkIn, checkOut: request.checkOut },
+        Date.now(),
+        request.windowMinutes,
+      )
+      if (!match) return { outcome: "NOT_FOUND" }
+      const full = list.find((b) => b.Id === match.bookingId)
+      if (!full) return { outcome: "NOT_FOUND" }
+      const confirmation = mapBookingListItemToConfirmation(full)
+      return {
+        outcome: "FOUND",
+        supplierBookingReference: String(confirmation.bookingId),
+        confirmedNetPrice: confirmation.totalPrice,
+        currency: confirmation.currency,
+        state: confirmation.state === "OnRequest" ? "ON_REQUEST" : "CONFIRMED",
+        hotelId: confirmation.hotelId != null ? String(confirmation.hotelId) : undefined,
+      }
+    } catch {
+      // La réconciliation elle-même a échoué (réseau/timeout sur BookingList)
+      // — l'état reste incertain, jamais "certainement pas créée".
+      return { outcome: "STILL_AMBIGUOUS", message: "Impossible d'interroger BookingList pour réconcilier — état toujours incertain." }
     }
   }
 
@@ -278,6 +335,36 @@ export class MyGoDriver implements HotelSupplierDriver {
       if (name === "MyGoAuthError") return { ok: false, code: "AUTH_ERROR", message }
       return { ok: false, code: "SUPPLIER_ERROR", message }
     }
+  }
+}
+
+/**
+ * PHASE 27.2 — traduit `MyGoBookingErrorKind` (classification EXISTANTE de
+ * Booking Core, voir hotel-provider-booking.ts) vers le résultat discriminé
+ * du Hub. `isAmbiguousBookingError()` reste la SEULE source de vérité pour
+ * "ambigu ou non" — ne jamais dupliquer ce jugement ici avec une logique
+ * différente.
+ */
+function classifyBookOutcome(err: unknown): SupplierBookingResult {
+  const kind: MyGoBookingErrorKind = classifyMyGoBookingError(err)
+  const message = err instanceof Error ? err.message : String(err)
+
+  if (isAmbiguousBookingError(kind)) {
+    const code = kind === "TIMEOUT" ? "TIMEOUT" : kind === "MALFORMED_RESPONSE" ? "MALFORMED_RESPONSE" : "NETWORK_ERROR"
+    return { outcome: "AMBIGUOUS", code, message }
+  }
+
+  switch (kind) {
+    case "AUTHENTICATION_ERROR":
+      return { outcome: "DEFINITIVE_FAILURE", code: "AUTH_ERROR", message }
+    case "NO_AVAILABILITY":
+      return { outcome: "DEFINITIVE_FAILURE", code: "NO_AVAILABILITY", message }
+    case "PRICE_CHANGED":
+      return { outcome: "DEFINITIVE_FAILURE", code: "RATE_CHANGED", message }
+    default:
+      // CIRCUIT_OPEN, MYGO_BUSINESS_ERROR, UNKNOWN_ERROR — jamais classés
+      // ambigus par la classification existante ; on ne diverge pas d'elle.
+      return { outcome: "DEFINITIVE_FAILURE", code: "SUPPLIER_ERROR", message }
   }
 }
 

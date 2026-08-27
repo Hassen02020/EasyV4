@@ -8,6 +8,7 @@ import { encodeMyGoSupplierToken } from "../mygo/mapper"
 import type { MyGoClient } from "@/lib/mygo/client"
 import type { MyGoConfig } from "@/lib/mygo/config"
 import type { BookingConfirmationDTO, BookingCancellationDTO } from "@/lib/mygo/types"
+import { MyGoAuthError, MyGoTimeoutError, MyGoNetworkError, MyGoSchemaError, MyGoApiError } from "@/lib/mygo"
 
 /**
  * lib/mygo/config.ts::getMyGoConfig() met en cache son résultat au niveau
@@ -208,22 +209,16 @@ test("MyGoDriver.book : utilise confirmation.totalPrice comme confirmedNetPrice 
     correlationId: "test-correlation-id",
   })
 
-  assert.equal(result.ok, true)
-  if (result.ok) {
+  assert.equal(result.outcome, "SUCCESS")
+  if (result.outcome === "SUCCESS") {
     assert.equal(result.confirmedNetPrice, 1838.7)
     assert.equal(result.supplierBookingReference, "42")
     assert.equal(result.state, "CONFIRMED")
   }
 })
 
-test("MyGoDriver.book : erreur d'authentification fournisseur -> code AUTH_ERROR normalisé, jamais présenté comme un échec générique", async () => {
-  class MyGoAuthError extends Error {
-    constructor() {
-      super("Authentication failed")
-      this.name = "MyGoAuthError"
-    }
-  }
-  const client = mockClient({ createBooking: async () => { throw new MyGoAuthError() } })
+test("MyGoDriver.book : erreur d'authentification fournisseur -> DEFINITIVE_FAILURE/AUTH_ERROR, jamais AMBIGUOUS (Phase 27.2)", async () => {
+  const client = mockClient({ createBooking: async () => { throw new MyGoAuthError("Authentication failed") } })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.book({
@@ -240,8 +235,217 @@ test("MyGoDriver.book : erreur d'authentification fournisseur -> code AUTH_ERROR
     correlationId: "test-correlation-id-2",
   })
 
-  assert.equal(result.ok, false)
-  if (!result.ok) assert.equal(result.code, "AUTH_ERROR")
+  assert.equal(result.outcome, "DEFINITIVE_FAILURE")
+  if (result.outcome === "DEFINITIVE_FAILURE") assert.equal(result.code, "AUTH_ERROR")
+})
+
+test("MyGoDriver.book : timeout fournisseur -> AMBIGUOUS/TIMEOUT — jamais un échec définitif, réservation peut-être créée (Phase 27.2)", async () => {
+  const client = mockClient({ createBooking: async () => { throw new MyGoTimeoutError(5000) } })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.book({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    supplierRateCode: "rate-1",
+    roomId: "99",
+    supplierToken: TEST_TOKEN,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    currency: "TND",
+    expectedNetPrice: 1838.7,
+    travelers: [{ firstName: "Test", lastName: "Traveler", isHolder: true }],
+    correlationId: "test-correlation-id-timeout",
+  })
+
+  assert.equal(result.outcome, "AMBIGUOUS")
+  if (result.outcome === "AMBIGUOUS") assert.equal(result.code, "TIMEOUT")
+})
+
+test("MyGoDriver.book : un timeout AMBIGUOUS n'appelle createBooking qu'UNE SEULE FOIS — aucun second BOOK en aveugle (Phase 27.2)", async () => {
+  let createBookingCalls = 0
+  const client = mockClient({
+    createBooking: async () => {
+      createBookingCalls++
+      throw new MyGoTimeoutError(5000)
+    },
+  })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.book({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    supplierRateCode: "rate-1",
+    roomId: "99",
+    supplierToken: TEST_TOKEN,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    currency: "TND",
+    expectedNetPrice: 1838.7,
+    travelers: [{ firstName: "Test", lastName: "Traveler", isHolder: true }],
+    correlationId: "test-correlation-id-no-blind-retry",
+  })
+
+  assert.equal(result.outcome, "AMBIGUOUS")
+  assert.equal(createBookingCalls, 1, "book() ne doit JAMAIS retenter createBooking lui-même après un état ambigu")
+})
+
+test("MyGoDriver.book : un résultat SUCCESS ne contient AUCUN champ credential/config — surface exactement le contrat Hub (Phase 27.2)", async () => {
+  const confirmation: BookingConfirmationDTO = {
+    bookingId: 42,
+    rooms: [],
+    currency: "TND",
+    totalPrice: 1838.7,
+    atHotel: 0,
+    state: "Validated",
+  }
+  const client = mockClient({ createBooking: async () => confirmation })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.book({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    supplierRateCode: "rate-1",
+    roomId: "99",
+    supplierToken: TEST_TOKEN,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    currency: "TND",
+    expectedNetPrice: 1838.7,
+    travelers: [{ firstName: "Test", lastName: "Traveler", isHolder: true }],
+    correlationId: "test-correlation-id-no-leak",
+  })
+
+  assert.deepEqual(
+    new Set(Object.keys(result)),
+    new Set(["outcome", "supplierBookingReference", "confirmedNetPrice", "currency", "state", "hotelId"]),
+  )
+})
+
+test("MyGoDriver.book : erreur réseau fournisseur -> AMBIGUOUS/NETWORK_ERROR (Phase 27.2)", async () => {
+  const client = mockClient({ createBooking: async () => { throw new MyGoNetworkError("ECONNRESET") } })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.book({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    supplierRateCode: "rate-1",
+    roomId: "99",
+    supplierToken: TEST_TOKEN,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    currency: "TND",
+    expectedNetPrice: 1838.7,
+    travelers: [{ firstName: "Test", lastName: "Traveler", isHolder: true }],
+    correlationId: "test-correlation-id-network",
+  })
+
+  assert.equal(result.outcome, "AMBIGUOUS")
+  if (result.outcome === "AMBIGUOUS") assert.equal(result.code, "NETWORK_ERROR")
+})
+
+test("MyGoDriver.book : réponse malformée fournisseur -> AMBIGUOUS/MALFORMED_RESPONSE, jamais classé comme définitif (Phase 27.2)", async () => {
+  const client = mockClient({ createBooking: async () => { throw new MyGoSchemaError("createBooking", ["totalPrice manquant"]) } })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.book({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    supplierRateCode: "rate-1",
+    roomId: "99",
+    supplierToken: TEST_TOKEN,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    currency: "TND",
+    expectedNetPrice: 1838.7,
+    travelers: [{ firstName: "Test", lastName: "Traveler", isHolder: true }],
+    correlationId: "test-correlation-id-malformed",
+  })
+
+  assert.equal(result.outcome, "AMBIGUOUS")
+  if (result.outcome === "AMBIGUOUS") assert.equal(result.code, "MALFORMED_RESPONSE")
+})
+
+test("MyGoDriver.book : indisponibilité fournisseur -> DEFINITIVE_FAILURE/NO_AVAILABILITY, jamais ambigu (Phase 27.2)", async () => {
+  const client = mockClient({ createBooking: async () => { throw new MyGoApiError("createBooking", 400, "No availability for this room") } })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.book({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    supplierRateCode: "rate-1",
+    roomId: "99",
+    supplierToken: TEST_TOKEN,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    currency: "TND",
+    expectedNetPrice: 1838.7,
+    travelers: [{ firstName: "Test", lastName: "Traveler", isHolder: true }],
+    correlationId: "test-correlation-id-no-avail",
+  })
+
+  assert.equal(result.outcome, "DEFINITIVE_FAILURE")
+  if (result.outcome === "DEFINITIVE_FAILURE") assert.equal(result.code, "NO_AVAILABILITY")
+})
+
+test("MyGoDriver.reconcileBooking : une seule réservation correspondante récente -> FOUND, jamais un second BOOK nécessaire (Phase 27.2)", async () => {
+  const client = mockClient({
+    listBookings: async () =>
+      [
+        {
+          Id: 777,
+          Hotel: { Id: 555 },
+          CheckIn: "2026-09-10",
+          CheckOut: "2026-09-13",
+          State: "Validated",
+          Created: new Date().toISOString(),
+          Currency: "TND",
+          TotalPrice: 1838.7,
+          Rooms: [],
+        },
+      ] as unknown as Awaited<ReturnType<MyGoClient["listBookings"]>>,
+  })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.reconcileBooking({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+  })
+
+  assert.equal(result.outcome, "FOUND")
+  if (result.outcome === "FOUND") {
+    assert.equal(result.supplierBookingReference, "777")
+    assert.equal(result.confirmedNetPrice, 1838.7)
+  }
+})
+
+test("MyGoDriver.reconcileBooking : aucune réservation correspondante -> NOT_FOUND (Phase 27.2)", async () => {
+  const client = mockClient({ listBookings: async () => [] })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.reconcileBooking({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+  })
+
+  assert.equal(result.outcome, "NOT_FOUND")
+})
+
+test("MyGoDriver.reconcileBooking : BookingList elle-même inaccessible -> STILL_AMBIGUOUS, jamais un faux NOT_FOUND (Phase 27.2)", async () => {
+  const client = mockClient({ listBookings: async () => { throw new MyGoNetworkError("ECONNRESET") } })
+  const driver = new MyGoDriver(client, TEST_CONFIG)
+
+  const result = await driver.reconcileBooking({
+    supplier: "mygo",
+    supplierHotelCode: "555",
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+  })
+
+  assert.equal(result.outcome, "STILL_AMBIGUOUS")
 })
 
 test("MyGoDriver.cancel : mappe fee/currency/bookingId correctement vers SupplierCancellationResult", async () => {

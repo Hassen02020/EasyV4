@@ -33,6 +33,7 @@ function fakeDriver(
     book: () => Promise.reject(new Error("not used in this test")),
     getBooking: () => Promise.reject(new Error("not used in this test")),
     cancel: () => Promise.reject(new Error("not used in this test")),
+    reconcileBooking: () => Promise.reject(new Error("not used in this test")),
   }
 }
 

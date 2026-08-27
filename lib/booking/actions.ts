@@ -23,6 +23,8 @@ import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { getMyGoClient, mapBookingListItemToConfirmation, type BookingConfirmationDTO } from "@/lib/mygo"
+import type { MyGoClient } from "@/lib/mygo/client"
+import { resolveMyGoAccessForTenant, partnerTenantContext, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   authoritativeUnitPrice,
   bookingConfirmationMatchesExpectedHotel,
@@ -49,10 +51,38 @@ import {
  * univoque ; sinon on refuse de deviner et on remonte un statut explicitement
  * "ambigu" plutôt qu'un simple échec (l'utilisateur ne doit pas être invité à
  * relancer une réservation qui a peut-être déjà été créée côté hôtel).
+ *
+ * PHASE 27.2 — TENANT-SCOPED : `access` (résolu par
+ * `resolveMyGoAccessForTenant()`, JAMAIS construit ailleurs) porte le
+ * client myGo du COMPTE FOURNISSEUR DU TENANT (agence propre, marque
+ * blanche ou master) — `access.client` est `undefined` uniquement quand
+ * aucun compte fournisseur n'est configuré pour ce tenant, auquel cas on
+ * retombe explicitement sur `getMyGoClient()` (comportement global
+ * historique inchangé, jamais un accès implicite à un autre tenant). Le
+ * MÊME `access` doit être réutilisé par l'appelant pour la compensation
+ * (annulation) en cas d'échec après confirmation — jamais un client
+ * re-résolu ou global à ce stade (continuité de compte, section 27.2).
+ *
+ * NB architecture : la création réelle passe par ce client tenant-résolu
+ * directement (pas par `HotelSupplierDriver.book()`) — le contrat Hub
+ * `SupplierBookingResult` est délibérément provider-neutre et plus fin que
+ * `BookingConfirmationDTO` (pas de rooms/boardingCode/hotelName/atHotel),
+ * or `reservationHotel` (ligne ~427 plus bas) a besoin de ces champs pour
+ * l'affichage ET pour le split de paiement à l'hôtel (`atHotel`) — les
+ * perdre serait une régression de paiement, pas une simplification.
+ * Élargir le contrat Hub à ces champs spécifiques myGo, ou redesigner
+ * l'écriture DB de Booking Core pour s'en passer, sont tous deux hors
+ * périmètre de cette phase ("smallest additive change", "ne pas redesigner
+ * Booking Core"). La classification SUCCESS/DEFINITIVE_FAILURE/AMBIGUOUS
+ * reste néanmoins EXACTEMENT celle du driver (`classifyMyGoBookingError`/
+ * `isAmbiguousBookingError`, réutilisées ici sans divergence), et la
+ * réconciliation réutilise la MÊME fonction pure
+ * (`reconcileAmbiguousBooking`) que `MyGoDriver.reconcileBooking()`.
  */
 export async function confirmHotelWithProvider(
   draft: BookingDraft,
   traveler: TravelerInput,
+  access: ResolvedMyGoAccess,
 ): Promise<
   | { attempted: false }
   | {
@@ -74,8 +104,9 @@ export async function confirmHotelWithProvider(
   )
   if (!providerMeta) return { attempted: false }
 
+  const client = access.client ?? getMyGoClient()
   try {
-    const booking = await getMyGoClient().createBooking(
+    const booking = await client.createBooking(
       buildMyGoBookingRequest({ draft, traveler, providerMeta }),
     )
     if (!bookingConfirmationMatchesExpectedHotel(booking, providerMeta)) {
@@ -103,7 +134,7 @@ export async function confirmHotelWithProvider(
       }
     }
 
-    const reconciled = await tryReconcileAmbiguousBooking(providerMeta, draft)
+    const reconciled = await tryReconcileAmbiguousBooking(providerMeta, draft, client)
     if (reconciled) {
       return { attempted: true, ok: true, booking: reconciled, providerMeta }
     }
@@ -121,15 +152,21 @@ export async function confirmHotelWithProvider(
  * malgré une réponse perdue. Ne lève jamais — un échec de réconciliation
  * doit se traduire par "ambigu, non résolu", pas par une exception qui
  * remonterait une erreur différente à l'appelant.
+ *
+ * PHASE 27.2 — `client` est TOUJOURS celui déjà résolu pour ce tenant par
+ * `confirmHotelWithProvider` (le même qui a tenté le BOOK) — jamais un
+ * second client global/tenant différent, pour ne pas interroger le
+ * mauvais compte fournisseur lors de la réconciliation.
  */
 async function tryReconcileAmbiguousBooking(
   providerMeta: HotelProviderMetadata,
   draft: BookingDraft,
+  client: MyGoClient,
 ): Promise<BookingConfirmationDTO | null> {
   const hotelId = providerMeta.hotelId ?? Number(draft.offerId)
   if (!hotelId) return null
   try {
-    const list = await getMyGoClient().listBookings({
+    const list = await client.listBookings({
       hotel: hotelId,
       fromDate: draft.startDate,
       toDate: draft.startDate,
@@ -198,6 +235,7 @@ export async function createReservationFromDraft(input: {
   // Résoudre l'agencyId depuis la session authentifiée — jamais hardcodé
   let agencyId: string
   let authUserId: string
+  let myGoAccess: ResolvedMyGoAccess
   try {
     const supabase = await createServerSupabase()
     const { data: { user } } = await supabase.auth.getUser()
@@ -206,6 +244,14 @@ export async function createReservationFromDraft(input: {
     if (!profile) return { ok: false, error: "Profil partenaire introuvable" }
     agencyId = profile.agency.id
     authUserId = user.id
+    // PHASE 27.2 — compte fournisseur myGo DE CETTE AGENCE (ou du compte
+    // partagé qu'elle est autorisée à utiliser) — jamais le client global
+    // `MYGO_*` tant qu'un compte tenant est configuré. Résolu UNE SEULE FOIS
+    // ici et réutilisé pour BOOK, la réconciliation ambiguë ET la
+    // compensation (annulation) plus bas — continuité de compte obligatoire.
+    myGoAccess = await resolveMyGoAccessForTenant(
+      partnerTenantContext(agencyId, authUserId, profile.role === "super_admin"),
+    )
   } catch {
     return { ok: false, error: "Erreur d'authentification" }
   }
@@ -248,7 +294,7 @@ export async function createReservationFromDraft(input: {
   // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
   // aucune réservation ni débit wallet ne doit être créé pour une chambre
   // qu'on n'a pas réellement confirmée auprès de l'hôtel.
-  const providerConfirmation = await confirmHotelWithProvider(draft, traveler)
+  const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
     return { ok: false, error: providerConfirmation.error }
   }
@@ -604,7 +650,10 @@ export async function createReservationFromDraft(input: {
     let compensationNote = ""
     if (myGoBooking) {
       try {
-        await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
+        // PHASE 27.2 — MÊME client tenant-résolu que celui qui a créé la
+        // réservation (myGoAccess.client, résolu une seule fois plus haut) —
+        // jamais un repli vers un client différent lors de la compensation.
+        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
       } catch {
         compensationNote =
           ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`

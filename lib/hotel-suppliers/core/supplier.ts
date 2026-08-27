@@ -7,6 +7,8 @@ import type {
   SupplierBookingResult,
   SupplierBookingLookup,
   SupplierBooking,
+  SupplierBookingReconciliationRequest,
+  SupplierBookingReconciliationResult,
   SupplierCancellationRequest,
   SupplierCancellationResult,
   NormalizedHotel,
@@ -41,6 +43,16 @@ export interface HotelSupplierDriver {
   book(request: SupplierBookingRequest): Promise<SupplierBookingResult>
   getBooking(request: SupplierBookingLookup): Promise<SupplierBooking>
   cancel(request: SupplierCancellationRequest): Promise<SupplierCancellationResult>
+
+  /**
+   * PHASE 27.2 — best-effort, lecture seule : retrouve une réservation créée
+   * malgré une réponse BOOK perdue (`SupplierBookingResult.outcome ===
+   * "AMBIGUOUS"`). Un driver qui n'a pas de mécanisme fiable pour ça renvoie
+   * `{ outcome: "UNSUPPORTED" }` — jamais un faux NOT_FOUND, qui serait
+   * interprété comme "certainement pas créée" et pourrait déclencher un
+   * second BOOK dangereux.
+   */
+  reconcileBooking(request: SupplierBookingReconciliationRequest): Promise<SupplierBookingReconciliationResult>
 }
 
 export type { SupplierName, SupplierRunStatus }

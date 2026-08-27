@@ -174,26 +174,70 @@ export type CheckRateResult =
       newRate?: NormalizedRate
     }
 
+/**
+ * PHASE 27.2 — discriminant explicite `outcome` (jamais un simple `ok`
+ * booléen) : un timeout/erreur réseau sur BookingCreation laisse un état
+ * réellement AMBIGU (myGo a peut-être créé la réservation avant que la
+ * réponse ne se perde) — très différent d'un refus DÉFINITIF (prix/dispo
+ * changés, credentials invalides...). Confondre les deux au niveau du
+ * type système est exactement ce qui permettait auparavant un second BOOK
+ * "en aveugle" après un échec ambigu. Le driver ne DEVINE jamais lequel :
+ * il ne peut classifier que ce que l'erreur fournisseur lui indique
+ * réellement (voir MyGoDriver.book(), qui réutilise
+ * lib/booking/hotel-provider-booking.ts::classifyMyGoBookingError — la
+ * même classification que Booking Core utilise déjà, jamais une seconde
+ * heuristique divergente).
+ */
 export type SupplierBookingResult =
   | {
-      ok: true
+      outcome: "SUCCESS"
       supplierBookingReference: string
       confirmedNetPrice: number
       currency: string
       state: "CONFIRMED" | "ON_REQUEST"
+      /** Optionnel — présent quand le driver peut le fournir, pour préserver les vérifications de cohérence existantes (ex. bookingConfirmationMatchesExpectedHotel). */
+      hotelId?: string
     }
   | {
-      ok: false
-      code:
-        | "RATE_CHANGED"
-        | "NO_AVAILABILITY"
-        | "AMBIGUOUS_SUPPLIER_STATE"
-        | "SUPPLIER_ERROR"
-        | "AUTH_ERROR"
-        | "TIMEOUT"
-        | "NOT_CONFIGURED"
+      /** Refus définitif — jamais réessayé en aveugle, mais un NOUVEAU CheckRate/BOOK explicite reste possible si l'utilisateur relance. */
+      outcome: "DEFINITIVE_FAILURE"
+      code: "RATE_CHANGED" | "NO_AVAILABILITY" | "SUPPLIER_ERROR" | "AUTH_ERROR" | "NOT_CONFIGURED"
       message: string
     }
+  | {
+      /** État incertain — le driver ne sait pas si la réservation a été créée. Ne JAMAIS relancer BOOK ; l'appelant doit passer par reconcileBooking(). */
+      outcome: "AMBIGUOUS"
+      code: "TIMEOUT" | "NETWORK_ERROR" | "MALFORMED_RESPONSE" | "UNKNOWN_ERROR"
+      message: string
+    }
+
+/**
+ * PHASE 27.2 — capacité de réconciliation minimale, provider-neutre. Un
+ * driver qui ne peut pas offrir de réconciliation fiable renvoie
+ * `UNSUPPORTED` (jamais un faux NOT_FOUND) — l'appelant garde alors l'état
+ * ambigu tel quel plutôt que de perdre l'information.
+ */
+export interface SupplierBookingReconciliationRequest {
+  supplier: SupplierName
+  supplierHotelCode: string
+  checkIn: string
+  checkOut: string
+  /** Fenêtre de récence (minutes) pour la recherche best-effort — le driver applique son propre défaut si omis. */
+  windowMinutes?: number
+}
+
+export type SupplierBookingReconciliationResult =
+  | {
+      outcome: "FOUND"
+      supplierBookingReference: string
+      confirmedNetPrice: number
+      currency: string
+      state: "CONFIRMED" | "ON_REQUEST"
+      hotelId?: string
+    }
+  | { outcome: "NOT_FOUND" }
+  | { outcome: "STILL_AMBIGUOUS"; message: string }
+  | { outcome: "UNSUPPORTED" }
 
 export interface SupplierBooking {
   supplierBookingReference: string

@@ -59,6 +59,7 @@ import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { getMyGoClient } from "@/lib/mygo"
+import { resolveMyGoAccessForTenant, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-payment"
@@ -175,6 +176,20 @@ async function runCreateGuestReservation(
   if (!agencyId) {
     return { ok: false, error: "Aucune agence de vente directe n'est configurée pour le moment." }
   }
+  // PHASE 27.2 — compte fournisseur myGo de L'AGENCE OTA DIRECTE (jamais le
+  // client global `MYGO_*` tant qu'un compte tenant est configuré pour
+  // elle). Même sémantique tenant que `guestTenantContext()`
+  // (isSuperAdmin: true reflète uniquement l'absence de session guest, pas
+  // un accès élargi — voir lib/hotel-suppliers/tenant/live-resolution.ts) ;
+  // reconstruit ici directement plutôt que de rappeler `guestTenantContext()`
+  // pour éviter une seconde résolution de `agencyId` déjà connu ci-dessus.
+  // Résolu UNE SEULE FOIS, réutilisé pour BOOK, la réconciliation ambiguë ET
+  // toutes les compensations (annulation) plus bas.
+  const myGoAccess: ResolvedMyGoAccess = await resolveMyGoAccessForTenant({
+    agencyId,
+    userId: "",
+    isSuperAdmin: true,
+  })
 
   // --- Backstop DB idempotence (Phase 20) — indépendant de Redis ---
   // Un retry après timeout (ou un appel alors que Redis est indisponible)
@@ -188,7 +203,7 @@ async function runCreateGuestReservation(
   // Même garde que le correctif P0 Phase 11 (lib/booking/actions.ts) : sans
   // confirmation fournisseur valide, aucun prix n'est jamais calculé ni
   // débité, quel que soit le module ou le mode de paiement.
-  const providerConfirmation = await confirmHotelWithProvider(draft, traveler)
+  const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
     return { ok: false, error: providerConfirmation.error }
   }
@@ -240,7 +255,8 @@ async function runCreateGuestReservation(
         description: `Réservation ${draft.module} — ${draft.offerLabel}`,
         customerEmail: traveler.email,
       },
-      () => getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId }),
+      // PHASE 27.2 — même compte tenant que celui qui a créé le hold.
+      () => (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId }),
     )
     if (!paymentResult.ok) {
       return {
@@ -485,7 +501,7 @@ async function runCreateGuestReservation(
       // effort, même logique que le catch général plus bas) puis renvoie le
       // résultat de la réservation gagnante, jamais une erreur générique.
       try {
-        await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
+        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
       } catch {
         /* best effort — un hold myGo redondant sans réservation locale associée
          * n'a aucun impact financier/paiement côté Easy2Book. */
@@ -555,7 +571,7 @@ async function runCreateGuestReservation(
   } catch (err) {
     let compensationNote = ""
     try {
-      await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
     } catch {
       compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
     }

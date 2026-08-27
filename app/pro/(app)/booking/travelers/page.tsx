@@ -14,6 +14,7 @@ import {
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { matchSelectedRoom } from "@/lib/booking/room-match"
 import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { buildUnavailableRoomBackHref } from "@/lib/pro/room-unavailable-link"
 
 type BookingSearchParams = {
   hotelId?: string
@@ -38,7 +39,24 @@ export const metadata = {
 
 export const dynamic = "force-dynamic"
 
-function UnavailableState({ hotelId, checkin, checkout }: { hotelId: string; checkin?: string; checkout?: string }) {
+function UnavailableState({
+  hotelId,
+  cityId,
+  checkin,
+  checkout,
+  adults,
+}: {
+  hotelId: string
+  /** PHASE 30.4 — audit : absent auparavant sur 2 des 3 sites d'appel alors
+      que `search.cityId` était déjà connu à ce stade, "Retour aux chambres"
+      atterrissait alors sur l'écran "Recherche incomplète" de
+      /pro/hotels/[id] (qui EXIGE cityId) au lieu d'y renvoyer réellement
+      l'agent — perte de contexte, pas une nouvelle règle métier. */
+  cityId?: string
+  checkin?: string
+  checkout?: string
+  adults?: string
+}) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
       <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-2xl border p-8 text-center text-sm">
@@ -50,7 +68,7 @@ function UnavailableState({ hotelId, checkin, checkout }: { hotelId: string; che
           Merci de choisir une nouvelle chambre.
         </p>
         <Button asChild variant="outline" className="mt-4 rounded-xl">
-          <Link href={`/pro/hotels/${hotelId}?checkin=${checkin ?? ""}&checkout=${checkout ?? ""}`}>
+          <Link href={buildUnavailableRoomBackHref(hotelId, { cityId, checkin, checkout, adults })}>
             Retour aux chambres
           </Link>
         </Button>
@@ -76,7 +94,15 @@ export default async function ProBookingTravelersPage({
       !search.boardingId ||
       !search.roomId
     ) {
-      return <UnavailableState hotelId={search.hotelId} checkin={search.checkin} checkout={search.checkout} />
+      return (
+        <UnavailableState
+          hotelId={search.hotelId}
+          cityId={search.cityId}
+          checkin={search.checkin}
+          checkout={search.checkout}
+          adults={search.adults}
+        />
+      )
     }
 
     const parsed = HotelSearchQuerySchema.safeParse({
@@ -88,7 +114,15 @@ export default async function ProBookingTravelersPage({
       hotelId: search.hotelId,
     })
     if (!parsed.success) {
-      return <UnavailableState hotelId={search.hotelId} checkin={search.checkin} checkout={search.checkout} />
+      return (
+        <UnavailableState
+          hotelId={search.hotelId}
+          cityId={search.cityId}
+          checkin={search.checkin}
+          checkout={search.checkout}
+          adults={search.adults}
+        />
+      )
     }
 
     const q = parsed.data
@@ -111,7 +145,15 @@ export default async function ProBookingTravelersPage({
     const matchedRoom = rawOffer ? matchSelectedRoom(rawOffer, boardingIdNum, roomIdNum) : null
 
     if (!rawOffer || !matchedRoom) {
-      return <UnavailableState hotelId={search.hotelId} checkin={search.checkin} checkout={search.checkout} />
+      return (
+        <UnavailableState
+          hotelId={search.hotelId}
+          cityId={String(q.cityId)}
+          checkin={q.checkin}
+          checkout={q.checkout}
+          adults={String(q.adults)}
+        />
+      )
     }
 
     const offer = applyMarginToHotelOffer(rawOffer, margins)

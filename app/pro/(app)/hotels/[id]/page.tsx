@@ -103,8 +103,17 @@ export default async function ProHotelDetailPage({
               : "Cet hôtel n'est plus disponible pour ces dates"}
           </p>
           {!result.ok && result.message && <p className="mt-1">{result.message}</p>}
+          {/* PHASE 30.4 — audit : `q` (recherche déjà validée à ce stade)
+              était disponible mais pas réutilisé ; "Retour aux résultats"
+              renvoyait vers /pro/hotels SANS aucun paramètre, forçant
+              l'agent à ressaisir toute la recherche au lieu de simplement
+              revoir les résultats pour les mêmes ville/dates/voyageurs. */}
           <Button asChild variant="outline" className="mt-4 rounded-xl">
-            <Link href="/pro/hotels">Retour aux résultats</Link>
+            <Link
+              href={`/pro/hotels?cityId=${q.cityId}&checkin=${q.checkin}&checkout=${q.checkout}&adults=${q.adults}${search.children ? `&children=${search.children}` : ""}`}
+            >
+              Retour aux résultats
+            </Link>
           </Button>
         </div>
       </div>

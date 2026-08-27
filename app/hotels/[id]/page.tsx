@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -58,6 +58,10 @@ function HotelDetailContent({ id }: { id: string }) {
   }>({ loadedId: null, status: "idle", data: null, error: null })
 
   const [activeImage, setActiveImage] = useState(0)
+  // PHASE 30.4 — cible de scroll/focus pour le CTA sidebar "Voir les
+  // disponibilités" quand les tarifs de cet hôtel sont déjà chargés sur
+  // cette page (voir handleCheckAvailability).
+  const roomsHeadingRef = useRef<HTMLHeadingElement>(null)
 
   // PHASE 30 — tarifs/chambres réels pour CET hôtel, scopés via le même
   // paramètre `hotelId` déjà supporté par HotelSearchQuerySchema/myGo (voir
@@ -242,10 +246,25 @@ function HotelDetailContent({ id }: { id: string }) {
 
   const handleCheckAvailability = () => {
     if (!hotel) return
+    // PHASE 30.4 — audit : quand les tarifs de CET hôtel sont déjà chargés
+    // sur la page courante (mêmes dates/voyageurs), ce CTA redirigeait
+    // quand même vers une nouvelle recherche SERP complète — une boucle de
+    // navigation inutile (nouvel appel réseau, perte de la position de
+    // scroll) pour ré-afficher une information déjà visible plus bas sur
+    // CETTE page. On scrolle/focus vers "Chambres et tarifs" à la place —
+    // aucune nouvelle recherche, aucun rechargement.
+    if (roomsEffectiveStatus === "success") {
+      roomsHeadingRef.current?.focus()
+      roomsHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      return
+    }
     if (checkin && checkout && hotel.cityId) {
       // Repart de la recherche courante telle quelle (filtres, tri,
       // multi-chambres…) — seuls cityId/city sont recalés depuis la fiche
-      // hôtel (source de vérité pour cet hôtel précis).
+      // hôtel (source de vérité pour cet hôtel précis). Repli conservé pour
+      // les cas où les tarifs de cet hôtel ne sont PAS encore chargés/
+      // disponibles sur cette page (dates absentes, cityId pas encore
+      // connu, erreur de chargement) — jamais une page vide sans action.
       const qs = new URLSearchParams(searchParams.toString())
       qs.set("cityId", String(hotel.cityId))
       if (hotel.cityName) qs.set("city", hotel.cityName)
@@ -378,9 +397,23 @@ function HotelDetailContent({ id }: { id: string }) {
             Impossible de charger les détails de cet hôtel :{" "}
             {state.error ?? "introuvable"}
           </div>
+          {/* PHASE 30.4 — audit : ce lien renvoyait toujours vers l'accueil,
+              même quand la recherche d'origine (destination/dates/
+              voyageurs/filtres) est intacte dans `searchParams` (arrivée
+              normale depuis la SERP, voir hotel-listings.tsx::
+              handleViewDetails) — forçant à tout ressaisir pour une simple
+              erreur de chargement des DÉTAILS d'un hôtel, pas de la
+              recherche elle-même. */}
           <div className="mt-4">
-            <Link href="/" className="text-primary text-sm hover:underline">
-              ← Retour à l&apos;accueil
+            <Link
+              href={
+                searchParams.toString()
+                  ? `/hotels/search?${searchParams.toString()}`
+                  : "/"
+              }
+              className="text-primary text-sm hover:underline"
+            >
+              ← {searchParams.toString() ? "Retour aux résultats" : "Retour à l'accueil"}
             </Link>
           </div>
         </main>
@@ -468,7 +501,11 @@ function HotelDetailContent({ id }: { id: string }) {
                 (/api/hotels/search-public scopé par hotelId), jamais un
                 second pipeline. */}
             <section>
-              <h2 className="text-primary mb-3 text-lg font-semibold">
+              <h2
+                ref={roomsHeadingRef}
+                tabIndex={-1}
+                className="text-primary mb-3 text-lg font-semibold outline-none"
+              >
                 Chambres et tarifs
               </h2>
               {roomsEffectiveStatus === "idle" ? (
@@ -709,9 +746,11 @@ function HotelDetailContent({ id }: { id: string }) {
                 size="lg"
               >
                 <Calendar className="h-4 w-4" />
-                {checkin && checkout
-                  ? "Voir les disponibilités"
-                  : "Choisir mes dates"}
+                {roomsEffectiveStatus === "success"
+                  ? "Voir les chambres disponibles"
+                  : checkin && checkout
+                    ? "Voir les disponibilités"
+                    : "Choisir mes dates"}
               </Button>
 
               {(hotel.email || hotel.phone) && (

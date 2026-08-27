@@ -10,7 +10,7 @@
  * corrigé Phase 30 dans components/hotel-listings.tsx::toCardShape).
  */
 import { useState } from "react"
-import { Check } from "lucide-react"
+import { Check, Utensils, ShieldCheck, ShieldOff, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCurrency } from "@/components/currency-context"
 
@@ -56,6 +56,15 @@ export function HotelRoomRates({ rooms, onBook, showHeader = true }: HotelRoomRa
         </div>
       )}
 
+      {/*
+       * PHASE 30.3 — chaque ligne est une PROPOSITION COMMERCIALE ATOMIQUE :
+       * room + board + cancellation + price + CTA restent visuellement DANS
+       * le même bloc cliquable (jamais éclatés dans des zones séparées qui
+       * pourraient laisser croire qu'une annulation/un prix s'applique à une
+       * autre chambre) — seule la DENSITÉ/hiérarchie change ici, jamais la
+       * structure de données (room.boardingName reste la source de vérité
+       * pour la réservation, jamais un texte parsé/deviné).
+       */}
       <div className="divide-border divide-y">
         {rooms.map((room) => (
           <button
@@ -63,53 +72,79 @@ export function HotelRoomRates({ rooms, onBook, showHeader = true }: HotelRoomRa
             type="button"
             onClick={() => setSelectedRoom(room.id)}
             aria-pressed={selectedRoom === room.id}
-            className={`hover:bg-muted/30 flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
-              selectedRoom === room.id ? "bg-primary/5 border-l-primary border-l-4" : ""
+            className={`hover:bg-muted/30 flex w-full items-start justify-between gap-4 px-4 py-4 text-left transition-colors ${
+              selectedRoom === room.id ? "bg-primary/5 border-l-primary border-l-4" : "border-l-4 border-l-transparent"
             }`}
           >
-            <div className="flex items-center gap-3">
-              {selectedRoom === room.id && (
-                <div className="bg-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
+            <div className="flex min-w-0 items-start gap-3">
+              <div
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                  selectedRoom === room.id
+                    ? "bg-primary border-primary"
+                    : "border-border bg-transparent"
+                }`}
+              >
+                {selectedRoom === room.id && (
                   <Check className="text-primary-foreground h-3 w-3" />
-                </div>
-              )}
-              <div>
+                )}
+              </div>
+              <div className="min-w-0 space-y-1.5">
                 <p
                   className={`font-medium ${selectedRoom === room.id ? "text-primary" : "text-foreground"}`}
                 >
                   {room.name}
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  {room.cancellation === "FREE" && (
-                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+
+                {/* Pension — ligne propre et iconée, séparée du nom de
+                    chambre (donnée réelle : room.boardingName). */}
+                <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                  <Utensils className="h-3.5 w-3.5 shrink-0" />
+                  {room.boardingName}
+                </p>
+
+                {/* Annulation — icône dédiée par état, jamais un badge
+                    générique unique pour les 3 états. */}
+                <p
+                  className={`flex items-center gap-1.5 text-xs font-medium ${
+                    room.cancellation === "FREE"
+                      ? "text-emerald-700"
+                      : room.cancellation === "NON_REFUNDABLE"
+                        ? "text-muted-foreground"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {room.cancellation === "FREE" ? (
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                       {room.freeCancellationDate
                         ? `Annulation gratuite avant le ${room.freeCancellationDate}`
                         : "Annulation gratuite"}
-                    </span>
-                  )}
-                  {room.cancellation === "NON_REFUNDABLE" && (
-                    <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs">
+                    </>
+                  ) : room.cancellation === "NON_REFUNDABLE" ? (
+                    <>
+                      <ShieldOff className="h-3.5 w-3.5 shrink-0" />
                       Non remboursable
-                    </span>
-                  )}
-                  {room.cancellation === "UNKNOWN" && (
-                    <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs">
+                    </>
+                  ) : (
+                    <>
+                      <HelpCircle className="h-3.5 w-3.5 shrink-0" />
                       Conditions d&apos;annulation sur demande
-                    </span>
+                    </>
                   )}
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs ${
-                      room.available
-                        ? "bg-muted text-muted-foreground"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {room.available ? "Disponible" : "Sur demande"}
-                  </span>
-                </div>
+                </p>
+
+                <span
+                  className={`inline-block rounded px-2 py-0.5 text-xs ${
+                    room.available
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {room.available ? "Disponible" : "Sur demande"}
+                </span>
               </div>
             </div>
-            <span className="text-primary shrink-0 text-lg font-bold">
+            <span className="text-primary shrink-0 text-lg font-bold whitespace-nowrap">
               {format(room.price)}
             </span>
           </button>

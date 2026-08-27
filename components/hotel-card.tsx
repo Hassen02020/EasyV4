@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldCheck,
+  Award,
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
@@ -177,10 +178,15 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
               {hotel.location}
             </button>
 
-            {/* Tags — PHASE 30.1 : "Promo" (même donnée réelle que le prix
-                barré, hotel.discountPercent > 0, voir toCardShape) rendu
-                avec un accent distinct pour ressortir au scan rapide de la
-                card, jamais une seconde source de vérité. */}
+            {/* Tags — PHASE 30.3 : chaque badge communique un signal
+                DIFFÉRENT, jamais un style générique unique :
+                - "Promo" = opportunité de prix (offer.discountPercent > 0,
+                  myGo basePrice réel) → accent rouge/feu ;
+                - "Recommandé" = choix du Ranking Engine (offer.recommended,
+                  backend) → accent plein primary/award, JAMAIS confondu
+                  avec un simple thème (avant Phase 30.3 : même style
+                  outline que les tags de thème, donc invisible au scan) ;
+                - thèmes réels (h.themes) = information neutre → outline. */}
             <div className="mb-3 flex flex-wrap gap-1.5">
               {hotel.tags.map((tag) =>
                 tag === "Promo" ? (
@@ -189,6 +195,14 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
                     className="rounded-full border-transparent bg-red-500 px-2 py-0.5 text-xs font-semibold text-white hover:bg-red-500"
                   >
                     🔥 Promo
+                  </Badge>
+                ) : tag === "Recommandé" ? (
+                  <Badge
+                    key={tag}
+                    className="bg-primary text-primary-foreground hover:bg-primary flex items-center gap-1 rounded-full border-transparent px-2 py-0.5 text-xs font-semibold"
+                  >
+                    <Award className="h-3 w-3" />
+                    Recommandé
                   </Badge>
                 ) : (
                   <Badge

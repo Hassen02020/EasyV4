@@ -17,8 +17,8 @@
  *     pro-room-selector.tsx lit pourtant `cancellationPolicies.some(...)`
  *     sur PLUSIEURS paliers.
  *   - `HotelOfferDTO.recommended` n'a pas d'équivalent Normalized — utilisé
- *     pour le tri/filtre "recommandés" dans hotel-card.tsx, hotels-serp.tsx,
- *     pro-hotel-results.tsx.
+ *     pour le tri/filtre "recommandés" dans hotel-card.tsx (B2C) et
+ *     pro-hotel-results.tsx (B2B).
  *   - `basePrice`/`photo`/`description`/`quantity` par chambre n'existent
  *     pas côté Normalized (contrat Hub volontairement provider-neutre).
  * Élargir le contrat Hub pour porter ces champs spécifiques myGo, ou les

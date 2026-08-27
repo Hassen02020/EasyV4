@@ -188,6 +188,8 @@ export default async function ProHotelsSerpPage({
           nights,
           adults: q.adults,
           children: q.children.length,
+          cityId: q.cityId,
+          childrenAges: q.children,
         }}
       />
     </div>

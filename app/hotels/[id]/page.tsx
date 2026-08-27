@@ -17,8 +17,12 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import type { HotelDetailsDTO } from "@/lib/mygo/types"
+import type { HotelDetailsDTO, HotelOfferDTO, HotelSearchResultDTO } from "@/lib/mygo/types"
 import { use } from "react"
+import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"
+import { toCardShape } from "@/components/hotel-listings"
+import { encodeDraft } from "@/lib/booking/draft-store"
+import { useCurrency } from "@/components/currency-context"
 
 const PLACEHOLDER_IMG =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=600&fit=crop"
@@ -39,6 +43,7 @@ export default function HotelDetailPage({ params }: DetailPageProps) {
 function HotelDetailContent({ id }: { id: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { format } = useCurrency()
 
   const [state, setState] = useState<{
     loadedId: string | null
@@ -48,6 +53,20 @@ function HotelDetailContent({ id }: { id: string }) {
   }>({ loadedId: null, status: "idle", data: null, error: null })
 
   const [activeImage, setActiveImage] = useState(0)
+
+  // PHASE 30 — tarifs/chambres réels pour CET hôtel, scopés via le même
+  // paramètre `hotelId` déjà supporté par HotelSearchQuerySchema/myGo (voir
+  // lib/mygo/search-core.ts, lib/mygo/client.ts) — aucune nouvelle route,
+  // aucun nouveau paramètre inventé. `/api/hotels/details-public/[id]`
+  // reste volontairement sans prix (voir sa doc) : les tarifs viennent
+  // exclusivement de /api/hotels/search-public, comme sur la SERP.
+  const [roomsState, setRoomsState] = useState<{
+    /** Clé de la dernière requête résolue (checkin|checkout|adults|children|cityId) — comparée à la clé courante au rendu (même idiome que `state.loadedId` ci-dessus) pour dériver "loading" sans setState synchrone dans l'effet. */
+    loadedKey: string | null
+    status: "success" | "error"
+    offer: HotelSearchResultDTO["offers"][number] | null
+    error: string | null
+  }>({ loadedKey: null, status: "success", offer: null, error: null })
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -90,6 +109,112 @@ function HotelDetailContent({ id }: { id: string }) {
   const adults = searchParams.get("adults") ?? "2"
   const children = searchParams.get("children")
 
+  // Clé de la requête courante — `null` tant qu'on n'a pas de quoi
+  // construire une requête valide (dates absentes, ou cityId pas encore
+  // connu le temps que la fiche hôtel charge).
+  const roomsRequestKey =
+    checkin && checkout && state.data?.cityId
+      ? `${id}|${checkin}|${checkout}|${adults}|${children ?? ""}|${state.data.cityId}`
+      : null
+
+  // PHASE 30 — recherche re-scopée sur CET hôtel uniquement (`hotelId`),
+  // dès que dates + cityId connus — même moteur/même route publique que la
+  // SERP (jamais un second pipeline de recherche/normalisation). Aucun
+  // setState synchrone dans le corps de l'effet (même idiome que l'effet
+  // de détails ci-dessus) — "loading" est dérivé au rendu en comparant
+  // `roomsState.loadedKey` à `roomsRequestKey`.
+  useEffect(() => {
+    if (!roomsRequestKey || !checkin || !checkout) return
+    const ctrl = new AbortController()
+    const params = new URLSearchParams({ hotelId: id, checkin, checkout, adults })
+    if (children) params.set("children", children)
+    if (state.data?.cityId) params.set("cityId", String(state.data.cityId))
+    fetch(`/api/hotels/search-public?${params.toString()}`, { signal: ctrl.signal })
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string }
+          throw new Error(body.message ?? body.error ?? `HTTP ${r.status}`)
+        }
+        return r.json() as Promise<HotelSearchResultDTO>
+      })
+      .then((data) => {
+        setRoomsState({
+          loadedKey: roomsRequestKey,
+          status: "success",
+          offer: data.offers[0] ?? null,
+          error: null,
+        })
+      })
+      .catch((err: unknown) => {
+        if ((err as { name?: string }).name === "AbortError") return
+        setRoomsState({
+          loadedKey: roomsRequestKey,
+          status: "error",
+          offer: null,
+          error: err instanceof Error ? err.message : "Erreur inconnue",
+        })
+      })
+    return () => ctrl.abort()
+  }, [roomsRequestKey, id, checkin, checkout, adults, children, state.data?.cityId])
+
+  const roomsEffectiveStatus: "idle" | "loading" | "success" | "error" =
+    !roomsRequestKey
+      ? "idle"
+      : roomsState.loadedKey !== roomsRequestKey
+        ? "loading"
+        : roomsState.status
+
+  // PHASE 30 — "Hôtels similaires" (section ALTERNATIVES) : mêmes hôtels
+  // que ceux réellement renvoyés par le moteur de recherche pour la même
+  // ville/dates/voyageurs (jamais une liste inventée) — même route/même
+  // classement serveur (Ranking Engine) que la SERP, juste filtrée pour
+  // exclure l'hôtel courant. Clé au niveau ville (pas d'hôtel) : les
+  // mêmes alternatives valent pour toutes les fiches hôtel de cette ville.
+  const [altState, setAltState] = useState<{
+    loadedKey: string | null
+    status: "success" | "error"
+    offers: HotelOfferDTO[]
+    error: string | null
+  }>({ loadedKey: null, status: "success", offers: [], error: null })
+
+  const altRequestKey =
+    checkin && checkout && state.data?.cityId
+      ? `${state.data.cityId}|${checkin}|${checkout}|${adults}|${children ?? ""}`
+      : null
+
+  useEffect(() => {
+    if (!altRequestKey || !checkin || !checkout || !state.data?.cityId) return
+    const ctrl = new AbortController()
+    const params = new URLSearchParams({
+      cityId: String(state.data.cityId),
+      checkin,
+      checkout,
+      adults,
+    })
+    if (children) params.set("children", children)
+    fetch(`/api/hotels/search-public?${params.toString()}`, { signal: ctrl.signal })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json() as Promise<HotelSearchResultDTO>
+      })
+      .then((data) => {
+        setAltState({ loadedKey: altRequestKey, status: "success", offers: data.offers, error: null })
+      })
+      .catch((err: unknown) => {
+        if ((err as { name?: string }).name === "AbortError") return
+        setAltState({
+          loadedKey: altRequestKey,
+          status: "error",
+          offers: [],
+          error: err instanceof Error ? err.message : "Erreur inconnue",
+        })
+      })
+    return () => ctrl.abort()
+  }, [altRequestKey, checkin, checkout, adults, children, state.data?.cityId])
+
+  const altEffectiveStatus: "idle" | "loading" | "success" | "error" =
+    !altRequestKey ? "idle" : altState.loadedKey !== altRequestKey ? "loading" : altState.status
+
   const hotel = state.data
   const images = useMemo(() => {
     if (!hotel) return [] as string[]
@@ -128,6 +253,99 @@ function HotelDetailContent({ id }: { id: string }) {
     } else {
       router.push("/")
     }
+  }
+
+  // PHASE 30 — réutilise EXACTEMENT le même mapping offre→chambres que la
+  // SERP (components/hotel-listings.tsx::toCardShape) : mêmes règles de
+  // meilleur tarif, mêmes 3 états d'annulation, jamais une seconde logique.
+  const cardShape = useMemo(
+    () => (roomsState.offer ? toCardShape(roomsState.offer) : null),
+    [roomsState.offer],
+  )
+  const rooms: RoomOption[] = useMemo(() => cardShape?.rooms ?? [], [cardShape])
+
+  // ALTERNATIVES — mêmes offres que le moteur de recherche a réellement
+  // renvoyées pour cette ville/ces dates (déjà classées côté serveur par le
+  // Ranking Engine existant, jamais re-triées ici), hôtel courant exclu,
+  // même mapping offre→card que la SERP (toCardShape).
+  const similarHotels = useMemo(() => {
+    if (!hotel) return []
+    return altState.offers
+      .filter((o) => o.hotel.id !== hotel.id)
+      .slice(0, 4)
+      .map((o) => toCardShape(o))
+  }, [altState.offers, hotel])
+
+  // "WHY CHOOSE" — uniquement des constats vérifiables tirés des données
+  // déjà chargées (fiche hôtel + tarifs) : jamais une note/avis inventés.
+  // Section absente si aucun constat réel ne s'applique.
+  const whyChooseReasons = useMemo(() => {
+    if (!hotel) return []
+    const reasons: string[] = []
+    if ((hotel.stars ?? 0) >= 4) {
+      reasons.push(`Hôtel ${hotel.stars} étoiles`)
+    }
+    if (rooms.some((r) => r.cancellation === "FREE")) {
+      reasons.push("Annulation gratuite disponible sur au moins une chambre")
+    }
+    if (hotel.facilities.length >= 5) {
+      reasons.push(`${hotel.facilities.length} équipements sur place`)
+    }
+    if (hotel.themes.length > 0) {
+      reasons.push(`Idéal pour : ${hotel.themes.slice(0, 2).join(", ")}`)
+    }
+    if (cardShape && cardShape.discountPercent > 0) {
+      reasons.push(`Tarif actuellement réduit de ${cardShape.discountPercent}%`)
+    }
+    return reasons
+  }, [hotel, rooms, cardShape])
+
+  const handleBookRoom = (mealPlan: string, room?: RoomOption) => {
+    if (!hotel || !room || !checkin || !checkout || !cardShape) return
+    if (room.boardingId == null || room.boardingCode == null) return
+    let nights = 1
+    try {
+      const ms =
+        new Date(`${checkout}T00:00:00Z`).getTime() -
+        new Date(`${checkin}T00:00:00Z`).getTime()
+      nights = Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)))
+    } catch {
+      nights = 1
+    }
+    const adultsNum = Number(adults) || 1
+    const childrenAgesArr = (children ?? "")
+      .split(",")
+      .map((a) => parseInt(a, 10))
+      .filter((n) => Number.isFinite(n))
+    // Même contrat de brouillon que app/hotels/search/page.tsx::handleBookHotel
+    // (même pipeline CheckRate/BookingCreation, jamais un second tunnel).
+    const token = encodeDraft({
+      draft: {
+        module: "hotel",
+        offerId: String(hotel.id),
+        offerLabel: `${hotel.name} — ${room.name}`,
+        startDate: checkin,
+        endDate: checkout,
+        adults: adultsNum,
+        children: childrenAgesArr.length,
+        unitPriceTnd: room.price / adultsNum,
+        currency: "TND",
+        metadata: {
+          hotelImage: images[0],
+          mealPlan,
+          nights,
+          location: cardShape.location,
+          myGoToken: cardShape.myGoToken,
+          cityId: cardShape.cityId,
+          hotelId: hotel.id,
+          boardingId: room.boardingId,
+          boardingCode: room.boardingCode,
+          roomId: room.id,
+          childrenAges: childrenAgesArr,
+        },
+      },
+    })
+    router.push(`/booking?d=${encodeURIComponent(token)}`)
   }
 
   if (effectiveStatus === "loading") return <DetailSkeleton />
@@ -224,6 +442,58 @@ function HotelDetailContent({ id }: { id: string }) {
               )}
             </div>
 
+            {/* PHASE 30 — ROOMS & RATES : la fiche hôtel n'affichait
+                jusqu'ici AUCUN tarif/chambre (trouvé pendant l'audit) — la
+                réservation n'était possible que depuis la card de la SERP.
+                Même moteur de recherche/tarification que la SERP
+                (/api/hotels/search-public scopé par hotelId), jamais un
+                second pipeline. */}
+            <section>
+              <h2 className="text-primary mb-3 text-lg font-semibold">
+                Chambres et tarifs
+              </h2>
+              {roomsEffectiveStatus === "idle" ? (
+                <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
+                  Sélectionnez vos dates pour voir les tarifs disponibles.
+                </div>
+              ) : roomsEffectiveStatus === "loading" ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : roomsEffectiveStatus === "error" ? (
+                <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-4 text-sm">
+                  Impossible de charger les tarifs : {roomsState.error}
+                </div>
+              ) : (
+                <HotelRoomRates rooms={rooms} onBook={handleBookRoom} showHeader={false} />
+              )}
+            </section>
+
+            {/* PHASE 30 — WHY CHOOSE : uniquement des constats réels tirés
+                des données déjà chargées (voir whyChooseReasons ci-dessus) —
+                jamais de note/avis fabriqués. Absente si aucun constat ne
+                s'applique. */}
+            {whyChooseReasons.length > 0 && (
+              <section>
+                <h2 className="text-primary mb-3 text-lg font-semibold">
+                  Pourquoi choisir cet hôtel
+                </h2>
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {whyChooseReasons.map((reason) => (
+                    <li
+                      key={reason}
+                      className="border-border bg-card flex items-start gap-2 rounded-lg border p-3 text-sm"
+                    >
+                      <Star className="mt-0.5 h-4 w-4 shrink-0 fill-amber-400 text-amber-400" />
+                      <span className="text-foreground">{reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {hotel.shortDescription && (
               <section>
                 <h2 className="text-primary mb-2 text-lg font-semibold">
@@ -291,6 +561,69 @@ function HotelDetailContent({ id }: { id: string }) {
                   ))}
                 </div>
               </section>
+            )}
+
+            {/* PHASE 30 — ALTERNATIVES : mêmes hôtels que le moteur de
+                recherche renvoie réellement pour cette ville/ces dates
+                (voir similarHotels ci-dessus), jamais une liste inventée.
+                N'apparaît que si des dates sont sélectionnées (les
+                alternatives dépendent de la disponibilité/prix réels). */}
+            {altEffectiveStatus === "loading" ? (
+              <section>
+                <h2 className="text-primary mb-3 text-lg font-semibold">
+                  Hôtels similaires
+                </h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-28 w-full" />
+                </div>
+              </section>
+            ) : (
+              altEffectiveStatus === "success" &&
+              similarHotels.length > 0 && (
+                <section>
+                  <h2 className="text-primary mb-3 text-lg font-semibold">
+                    Hôtels similaires
+                  </h2>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {similarHotels.map((alt) => {
+                      const altQs = new URLSearchParams(searchParams.toString())
+                      const href = `/hotels/${alt.id}?${altQs.toString()}`
+                      return (
+                        <Link
+                          key={alt.id}
+                          href={href}
+                          className="border-border bg-card hover:border-primary/50 flex gap-3 rounded-lg border p-3 transition-colors"
+                        >
+                          <div
+                            className="h-20 w-20 shrink-0 rounded-md bg-cover bg-center"
+                            style={{ backgroundImage: `url(${alt.images[0]})` }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-foreground truncate text-sm font-medium">
+                              {alt.name}
+                            </p>
+                            <div className="mt-0.5 flex items-center gap-0.5">
+                              {Array.from({ length: alt.stars }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className="h-3 w-3 fill-amber-400 text-amber-400"
+                                />
+                              ))}
+                            </div>
+                            <p className="text-muted-foreground mt-1 truncate text-xs">
+                              {alt.location}
+                            </p>
+                            <p className="text-primary mt-1 text-sm font-semibold">
+                              À partir de {format(alt.discountedPrice)}
+                            </p>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </section>
+              )
             )}
           </div>
 
@@ -420,7 +753,9 @@ function Gallery({
       </div>
 
       {safe.length > 1 && (
-        <div className="mt-3 grid grid-cols-6 gap-2">
+        // PHASE 30 — 4 colonnes sur mobile (au lieu de 6, cibles tactiles trop
+        // petites, trouvé pendant l'audit), 6 à partir de sm.
+        <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
           {safe.slice(0, 6).map((url, i) => (
             <button
               key={i}

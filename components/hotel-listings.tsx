@@ -6,6 +6,7 @@ import Link from "next/link"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { HotelCard } from "@/components/hotel-card"
+import type { RoomOption } from "@/components/hotel-room-rates"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
 import { selectBestRate } from "@/lib/mygo/best-rate"
@@ -32,18 +33,11 @@ interface BookingData {
   roomId: number
 }
 
-interface RoomOption {
-  id: number
-  name: string
-  freeCancellationDate: string
-  available: boolean
-  price: number
-  /** Id/code myGo du Boarding auquel appartient cette chambre — requis pour BookingCreation. */
-  boardingId?: number
-  boardingCode?: string
-}
+// RoomOption réutilisé tel quel depuis components/hotel-room-rates.tsx —
+// voir ce fichier pour la doc des 3 états `cancellation` (bug corrigé Phase
+// 30 : plus jamais réduit à une seule date/badge "gratuite" inconditionnel).
 
-interface CardHotelShape {
+export interface CardHotelShape {
   id: number
   name: string
   location: string
@@ -77,7 +71,7 @@ const PLACEHOLDER_IMG =
  * chambre All Inclusive la moins chère est à 380, la card affiche 380 (le
  * vrai prix pour ce que l'utilisateur a demandé), pas 250.
  */
-function toCardShape(
+export function toCardShape(
   offer: HotelOfferDTO,
   activeBoardings: string[] = [],
 ): CardHotelShape {
@@ -107,20 +101,34 @@ function toCardShape(
   const rooms: RoomOption[] = allRooms
     .filter((r) => !r.room.stopReservation)
     .slice(0, 8)
-    .map(({ room, boarding, groupIndex }) => ({
-      id: room.id,
-      name:
-        roomGroupCount > 1
-          ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`
-          : `${room.name} • ${boarding.name}`,
-      freeCancellationDate:
-        room.cancellationPolicies.find((p) => p.nature === "BEFORE_ARRIVAL")
-          ?.fromDate ?? "—",
-      available: !room.stopReservation,
-      price: Math.round(room.price),
-      boardingId: boarding.id,
-      boardingCode: boarding.code,
-    }))
+    .map(({ room, boarding, groupIndex }) => {
+      // Même règle que lib/mygo/facets.ts::hasFreeCancellation et
+      // components/pro/pro-room-selector.tsx — une politique BEFORE_ARRIVAL
+      // ne veut dire "gratuite" que si ses frais sont réellement nuls.
+      const freePolicy = room.notRefundable
+        ? undefined
+        : room.cancellationPolicies.find(
+            (p) => p.nature === "BEFORE_ARRIVAL" && p.fees === 0,
+          )
+      return {
+        id: room.id,
+        name:
+          roomGroupCount > 1
+            ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`
+            : `${room.name} • ${boarding.name}`,
+        cancellation: (room.notRefundable
+          ? "NON_REFUNDABLE"
+          : freePolicy
+            ? "FREE"
+            : "UNKNOWN") as RoomOption["cancellation"],
+        freeCancellationDate: freePolicy?.fromDate,
+        available: !room.stopReservation,
+        price: Math.round(room.price),
+        boardingId: boarding.id,
+        boardingCode: boarding.code,
+        boardingName: boarding.name,
+      }
+    })
 
   const images = h.image ? [h.image] : [PLACEHOLDER_IMG]
   const stars = h.stars ?? 0
@@ -138,6 +146,19 @@ function toCardShape(
   // brut le plus bas de l'offre — voir le commentaire Best Rate Engine.
   const displayPrice = Math.round(bestRate?.price ?? offer.fromPrice)
 
+  // PHASE 30 — remise réelle uniquement quand myGo renvoie basePrice > price
+  // pour la chambre au meilleur tarif (jamais fabriquée — voir RoomOfferDTO.
+  // basePrice, lib/mygo/mappers.ts). `bestRate` peut être `null` (offre sans
+  // chambre réservable) : pas de remise dans ce cas.
+  const roundedBasePrice =
+    bestRate?.basePrice != null ? Math.round(bestRate.basePrice) : undefined
+  const hasRealDiscount =
+    roundedBasePrice != null && roundedBasePrice > displayPrice
+  const originalPrice = hasRealDiscount ? roundedBasePrice : displayPrice
+  const discountPercent = hasRealDiscount
+    ? Math.round((1 - displayPrice / originalPrice) * 100)
+    : 0
+
   return {
     id: h.id,
     name: h.name,
@@ -146,9 +167,9 @@ function toCardShape(
     stars,
     amenities,
     tags,
-    originalPrice: displayPrice,
+    originalPrice,
     discountedPrice: displayPrice,
-    discountPercent: 0,
+    discountPercent,
     images,
     mealPlan,
     mealOptions,

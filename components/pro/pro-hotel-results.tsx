@@ -23,7 +23,8 @@
 
 import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { MapPin, Calendar, Users, Star } from "lucide-react"
+import Link from "next/link"
+import { MapPin, Calendar, Users, Star, ArrowRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   FilterSidebar,
@@ -54,15 +55,22 @@ interface ProHotelResultsProps {
     nights?: number
     adults?: number
     children?: number
+    /** Requis pour construire le lien vers la fiche hôtel B2B (`/pro/hotels/[id]` attend cityId+checkin+checkout+adults). */
+    cityId?: number
+    /** Âges enfants réels (pas juste le compte) — reportés tels quels sur la fiche hôtel, comme côté B2C. */
+    childrenAges?: number[]
   }
 }
 
 function ProHotelResultCard({
   offer,
   currency,
+  detailHref,
 }: {
   offer: HotelOfferDTO
   currency: string
+  /** `null` quand les paramètres de recherche (cityId/dates) sont incomplets — CTA désactivé plutôt que de router vers une fiche cassée. */
+  detailHref: string | null
 }) {
   const boardingNames = Array.from(
     new Set(offer.boardings.map((b) => b.name).filter(Boolean)),
@@ -86,7 +94,13 @@ function ProHotelResultCard({
             )}
           </div>
           <h3 className="text-foreground mt-0.5 text-lg leading-tight font-semibold">
-            {offer.hotel.name}
+            {detailHref ? (
+              <Link href={detailHref} className="hover:text-primary hover:underline">
+                {offer.hotel.name}
+              </Link>
+            ) : (
+              offer.hotel.name
+            )}
           </h3>
           <p className="text-muted-foreground mt-1 inline-flex items-center gap-1 text-xs">
             <MapPin className="h-3 w-3" />
@@ -115,20 +129,29 @@ function ProHotelResultCard({
               {offer.fromPrice.toLocaleString("fr-FR")} {currency}
             </p>
           </div>
-          {/* Détail hôtel + sélection de chambre + BookingCreation B2B ne
-              sont pas encore branchés sur le vrai moteur myGo (le sélecteur
-              de chambres et le tunnel de réservation /pro restent sur les
-              fixtures existantes) — voir EASYV4_B2B_HOTELS_PHASE8_REPORT.md.
-              CTA volontairement désactivé plutôt que de router vers un flux
-              qui échouerait silencieusement. */}
-          <button
-            type="button"
-            disabled
-            title="Réservation B2B sur données réelles — bientôt disponible"
-            className="border-border text-muted-foreground cursor-not-allowed rounded-xl border px-4 py-2 text-sm font-medium opacity-60"
-          >
-            Réservation — bientôt
-          </button>
+          {/* PHASE 30 — la fiche hôtel B2B (app/pro/(app)/hotels/[id]/page.tsx)
+              et le sélecteur de chambres (ProRoomSelector) sont branchés sur
+              le vrai moteur myGo depuis la Phase 9 et tout le tunnel jusqu'à
+              createReservationFromDraft est réel et testé (voir audit Phase
+              30) — seul CE lien manquait pour l'atteindre depuis la SERP. */}
+          {detailHref ? (
+            <Link
+              href={detailHref}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+            >
+              Voir les chambres
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="Dates de recherche incomplètes"
+              className="border-border text-muted-foreground cursor-not-allowed rounded-xl border px-4 py-2 text-sm font-medium opacity-60"
+            >
+              Voir les chambres
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -163,6 +186,23 @@ export function ProHotelResults({
     else params.set("sort", mode)
     router.replace(`/pro/hotels?${params.toString()}`, { scroll: false })
   }
+
+  // Lien fiche hôtel commun à toutes les cards — `null` si la recherche
+  // n'a pas les paramètres requis par /pro/hotels/[id] (cityId+dates),
+  // auquel cas le CTA reste désactivé plutôt que de router vers une 404.
+  const detailBaseParams = useMemo(() => {
+    if (!context.cityId || !context.checkin || !context.checkout) return null
+    const p = new URLSearchParams({
+      cityId: String(context.cityId),
+      checkin: context.checkin,
+      checkout: context.checkout,
+      adults: String(context.adults ?? 2),
+    })
+    if (context.childrenAges && context.childrenAges.length > 0) {
+      p.set("children", context.childrenAges.join(","))
+    }
+    return p
+  }, [context.cityId, context.checkin, context.checkout, context.adults, context.childrenAges])
 
   const facets = useMemo(
     () => (offers.length > 0 ? computeFacets(offers) : null),
@@ -281,7 +321,14 @@ export function ProHotelResults({
             </div>
           ) : (
             sortedOffers.map((offer) => (
-              <ProHotelResultCard key={offer.hotel.id} offer={offer} currency={currency} />
+              <ProHotelResultCard
+                key={offer.hotel.id}
+                offer={offer}
+                currency={currency}
+                detailHref={
+                  detailBaseParams ? `/pro/hotels/${offer.hotel.id}?${detailBaseParams.toString()}` : null
+                }
+              />
             ))
           )}
         </div>

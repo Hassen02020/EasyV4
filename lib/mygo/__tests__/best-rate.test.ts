@@ -8,7 +8,12 @@ import { selectBestRate } from "../best-rate"
 import type { HotelOfferDTO } from "../types"
 
 function makeOffer(
-  boardings: { name: string; price: number; stopReservation?: boolean }[],
+  boardings: {
+    name: string
+    price: number
+    stopReservation?: boolean
+    basePrice?: number
+  }[],
 ): HotelOfferDTO {
   return {
     hotel: { id: 1, name: "Test Hotel", facilities: [], themes: [] },
@@ -29,6 +34,7 @@ function makeOffer(
               id: 100 + i,
               name: "Standard",
               price: b.price,
+              basePrice: b.basePrice,
               stopReservation: b.stopReservation ?? false,
               notRefundable: false,
               cancellationPolicies: [],
@@ -72,6 +78,19 @@ test("selectBestRate : filtre ne correspondant à aucune pension de l'offre repl
   const offer = makeOffer([{ name: "Petit-déjeuner", price: 250 }])
   const rate = selectBestRate(offer, ["All Inclusive"])
   assert.deepEqual(rate, { price: 250, boardingName: "Petit-déjeuner" })
+})
+
+test("selectBestRate : basePrice réel de myGo remonté quand présent sur la chambre gagnante", () => {
+  const offer = makeOffer([
+    { name: "Petit-déjeuner", price: 250, basePrice: 320 },
+    { name: "All Inclusive", price: 380 },
+  ])
+  const rate = selectBestRate(offer, [])
+  assert.deepEqual(rate, {
+    price: 250,
+    boardingName: "Petit-déjeuner",
+    basePrice: 320,
+  })
 })
 
 test("selectBestRate : offre sans aucune chambre renvoie null", () => {

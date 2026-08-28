@@ -74,7 +74,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               className="ml-2 gap-1.5 border-sidebar text-sidebar hover:bg-sidebar hover:text-white"
               asChild
             >
-              <Link href="/login">
+              <Link href="/compte">
                 <User className="size-4" />
                 {t("connexion")}
               </Link>

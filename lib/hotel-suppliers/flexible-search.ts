@@ -23,8 +23,35 @@
 
 import type { HotelSearchQuery } from "@/lib/mygo/search-core"
 import { validateSearchDateRange } from "@/lib/mygo/search-core"
+import { selectBestRate } from "@/lib/mygo/best-rate"
+import type { HotelOfferDTO } from "@/lib/mygo/types"
 import { runSearchThroughHub } from "./search-hub"
 import type { ResolvedMyGoAccess } from "./tenant/live-resolution"
+
+/**
+ * PHASE 37 — prix le plus bas RÉELLEMENT affichable pour une date candidate,
+ * parmi toutes les offres réellement renvoyées par le Hub pour cette date.
+ * Pure, extraite pour être testable indépendamment de tout appel réseau.
+ *
+ * Confirmé en environnement réel : un hôtel dont TOUTES les chambres sont
+ * `stopReservation` (complet/sur demande pour ces dates) a
+ * `offer.fromPrice === 0` (sentinelle "aucune chambre réservable", voir
+ * lib/mygo/mappers.ts::lowestPrice — exclut volontairement les chambres
+ * stopReservation du calcul). Un simple `Math.min` sur les `fromPrice` bruts
+ * laissait ce 0 l'emporter et s'afficher comme "dès 0 DT — Meilleur prix"
+ * pour toute la fenêtre de dates flexibles. On réutilise EXACTEMENT le même
+ * Best Rate Engine que la card SERP (components/hotel-listings.tsx::
+ * toCardShape → selectBestRate, lib/mygo/best-rate.ts) plutôt qu'une
+ * seconde logique de prix : prix indicatif le plus bas quand aucune chambre
+ * n'est réservable, jamais 0 pour une offre qui a réellement des chambres.
+ * `undefined` quand aucune offre n'a de prix exploitable (jamais fabriqué).
+ */
+export function lowestDisplayPrice(offers: HotelOfferDTO[]): number | undefined {
+  const prices = offers
+    .map((o) => selectBestRate(o)?.price ?? o.fromPrice)
+    .filter((p) => p > 0)
+  return prices.length > 0 ? Math.min(...prices) : undefined
+}
 
 /**
  * Fenêtre maximale — ancrée sur les exemples explicitement demandés
@@ -152,7 +179,10 @@ export async function runFlexibleHotelSearch(
     if (offers.length === 0) {
       return { ...c, ok: true, offersCount: 0 }
     }
-    const fromPrice = Math.min(...offers.map((o) => o.fromPrice))
+    const fromPrice = lowestDisplayPrice(offers)
+    if (fromPrice === undefined) {
+      return { ...c, ok: true, offersCount: offers.length }
+    }
     return {
       ...c,
       ok: true,

@@ -10,9 +10,11 @@
 import { strict as assert } from "node:assert"
 import { test } from "node:test"
 import { HotelSearchQuerySchema } from "../../mygo/search-core"
+import type { HotelOfferDTO } from "../../mygo/types"
 import {
   generateFlexibleDateCandidates,
   runFlexibleHotelSearch,
+  lowestDisplayPrice,
   MAX_FLEX_DAYS,
 } from "../flexible-search"
 
@@ -133,6 +135,82 @@ test("runFlexibleHotelSearch (démo) : ville sans offre reste ok:true avec offer
     assert.equal(c.offersCount, 0)
     assert.equal(c.fromPrice, undefined)
   }
+})
+
+test("lowestDisplayPrice : ignore la sentinelle fromPrice=0 d'un hôtel entièrement en stopReservation (bug confirmé en environnement réel — 'dès 0 DT — Meilleur prix')", () => {
+  // Reproduction exacte du fixture réel (Virtual Hotel 051, 2026-09-10 →
+  // 2026-09-13) : toutes les chambres de toutes les pensions sont
+  // stopReservation, donc offer.fromPrice (lib/mygo/mappers.ts::lowestPrice)
+  // vaut 0 — jamais un vrai prix. lowestDisplayPrice doit retomber sur le
+  // prix indicatif du Best Rate Engine (447), jamais laisser gagner le 0.
+  const soldOutOffer: HotelOfferDTO = {
+    hotel: { id: 500051, name: "Virtual Hotel 051", facilities: [], themes: [] },
+    token: "tok",
+    currency: "TND",
+    fromPrice: 0,
+    recommended: false,
+    boardings: [
+      {
+        id: 3,
+        code: "LS",
+        name: "Logement Simple",
+        pax: [
+          {
+            adult: 2,
+            child: [],
+            rooms: [
+              {
+                id: 5900513,
+                name: "Chambre Double",
+                price: 447,
+                stopReservation: true,
+                notRefundable: false,
+                cancellationPolicies: [],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+  assert.equal(lowestDisplayPrice([soldOutOffer]), 447)
+
+  // Un candidat mélangeant un hôtel entièrement complet (447 indicatif) et
+  // un hôtel réellement réservable moins cher (399 réel) doit retenir le
+  // prix RÉELLEMENT réservable le plus bas parmi les deux — pas de biais
+  // artificiel en faveur de l'indicatif.
+  const bookableOffer: HotelOfferDTO = {
+    ...soldOutOffer,
+    hotel: { ...soldOutOffer.hotel, id: 500099, name: "Virtual Hotel 099" },
+    fromPrice: 399,
+    boardings: [
+      {
+        id: 3,
+        code: "LS",
+        name: "Logement Simple",
+        pax: [
+          {
+            adult: 2,
+            child: [],
+            rooms: [
+              {
+                id: 6000001,
+                name: "Chambre Double",
+                price: 399,
+                stopReservation: false,
+                notRefundable: false,
+                cancellationPolicies: [],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+  assert.equal(lowestDisplayPrice([soldOutOffer, bookableOffer]), 399)
+
+  // Aucune offre présente → aucun prix fabriqué.
+  assert.equal(lowestDisplayPrice([]), undefined)
 })
 
 test("runFlexibleHotelSearch : requestedCheckin/requestedCheckout reflètent la requête d'origine, pas un candidat", async () => {

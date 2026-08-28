@@ -16,6 +16,7 @@ import {
   ChevronUp,
   ShieldCheck,
   Award,
+  Lightbulb,
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
@@ -41,6 +42,8 @@ interface HotelCardProps {
     rooms?: RoomOption[]
     /** PHASE 30.2 — permet d'afficher "Annulation gratuite" sans devoir déplier "Tarifs & chambres". */
     hasFreeCancellation?: boolean
+    /** PHASE 33 — "Pourquoi ce choix ?", une seule raison réelle la plus pertinente (voir toCardShape). `null`/absent si aucun constat ne s'applique. */
+    whyChoose?: string | null
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
@@ -272,6 +275,15 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
                 <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Annulation gratuite
+                </p>
+              )}
+              {/* PHASE 33 — "Pourquoi ce choix ?" : une seule raison réelle,
+                  jamais affichée si aucun constat ne s'applique (voir
+                  toCardShape::whyChoose). */}
+              {hotel.whyChoose && (
+                <p className="text-muted-foreground mt-1.5 inline-flex items-center gap-1 text-xs">
+                  <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  {hotel.whyChoose}
                 </p>
               )}
             </div>

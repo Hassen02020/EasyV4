@@ -61,6 +61,14 @@ export interface CardHotelShape {
    * sans devoir déplier "Tarifs & chambres" pour le savoir.
    */
   hasFreeCancellation: boolean
+  /**
+   * PHASE 33 — courte explication "Pourquoi ce choix ?" pour la card SERP
+   * (1 seule raison, la plus pertinente — contrairement à la liste
+   * complète "Pourquoi choisir cet hôtel" de la fiche hôtel, l'espace de
+   * la card ne permet qu'une phrase). `null` si aucun constat réel ne
+   * s'applique — jamais une phrase générique de remplissage.
+   */
+  whyChoose: string | null
   /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
   myGoToken: string
   cityId?: number
@@ -173,6 +181,24 @@ export function toCardShape(
     if (f.title) amenities.push(f.title)
   }
 
+  // PHASE 33 — "Pourquoi ce choix ?" : UNE seule raison réelle, la plus
+  // pertinente pour la décision (ordre de priorité), jamais une phrase de
+  // remplissage quand aucun constat ne s'applique. L'annulation gratuite
+  // n'est volontairement PAS candidate ici : elle a déjà sa propre ligne
+  // dédiée sur la card (hotel.hasFreeCancellation) — l'y répéter serait
+  // redondant, pas une seconde information.
+  const whyChoose: string | null = offer.recommended
+    ? "Recommandé selon le classement"
+    : hasRealDiscount
+      ? "Offre promotionnelle"
+      : mealOptions.some((m) => /all inclusive/i.test(m))
+        ? "All Inclusive disponible"
+        : mealOptions.length > 1
+          ? `${mealOptions.length} formules disponibles`
+          : stars >= 4
+            ? `Hôtel ${stars} étoiles`
+            : null
+
   return {
     id: h.id,
     name: h.name,
@@ -192,6 +218,7 @@ export function toCardShape(
     // (lib/mygo/facets.ts) — jamais une seconde logique susceptible de
     // diverger (ex. sur la prise en compte des chambres stopReservation).
     hasFreeCancellation: hasFreeCancellation(offer),
+    whyChoose,
     myGoToken: offer.token,
     cityId: h.cityId,
   }

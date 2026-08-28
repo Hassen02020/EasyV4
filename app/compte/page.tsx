@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { ArrowLeft, Mail, Phone, User as UserIcon } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
-import { BookingCard } from "@/components/booking-summary-card"
+import { CompteReservationList } from "@/components/compte/compte-reservation-list"
 import { CompteLogoutButton } from "@/components/compte/compte-logout-button"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 
@@ -107,11 +107,7 @@ export default async function ComptePage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {result.bookings.map((booking) => (
-              <BookingCard key={booking.id} booking={booking} />
-            ))}
-          </div>
+          <CompteReservationList bookings={result.bookings} />
         )}
       </div>
     </div>

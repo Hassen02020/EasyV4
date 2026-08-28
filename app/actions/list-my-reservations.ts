@@ -30,13 +30,14 @@
  * (élargit l'ensemble matché, ne le restreint jamais).
  */
 
-import { eq, and, or, ilike, desc } from "drizzle-orm"
+import { eq, desc } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { reservations, customers, payments } from "@/lib/db/schema"
 import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
 import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
+import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import type { BookingSummary, BookingStatus } from "@/lib/booking/summary-types"
 
 export type MyReservationsResult =
@@ -94,10 +95,11 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
         .from(reservations)
         .innerJoin(customers, eq(reservations.customerId, customers.id))
         .where(
-          and(
-            eq(customers.agencyId, tenant.agencyId ?? ""),
-            or(eq(customers.authUserId, user.id), ilike(customers.email, user.email!)),
-          ),
+          ownedByCurrentCustomer({
+            agencyId: tenant.agencyId ?? "",
+            authUserId: user.id,
+            verifiedEmail: user.email!,
+          }),
         )
         .orderBy(desc(reservations.createdAt))
         .limit(MAX_RESERVATIONS)

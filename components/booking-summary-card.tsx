@@ -8,6 +8,7 @@
  * jamais une seconde carte susceptible de diverger.
  */
 
+import { useState, useTransition } from "react"
 import {
   Clock,
   CheckCircle2,
@@ -25,6 +26,8 @@ import {
   User,
   Phone,
   Mail,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -190,10 +193,49 @@ function Timeline({ status }: { status: BookingStatus }) {
   )
 }
 
-export function BookingCard({ booking }: { booking: BookingSummary }) {
+interface BookingCardProps {
+  booking: BookingSummary
+  /**
+   * PHASE "POLICY MANAGER" (volet A) — annulation réelle, disponible
+   * UNIQUEMENT depuis le compte client authentifié (`app/compte/page.tsx`,
+   * `cancelMyHotelReservation`) : `/bookings` (lookup anonyme ref+email)
+   * NE transmet PAS ce prop — l'annulation y reste indisponible (l'identité
+   * n'y est prouvée que par un texte email, pas une session vérifiée), même
+   * card, même composant, juste une capacité en moins. Renvoie `{ok:false,
+   * error}` plutôt que de lever — la card affiche l'erreur inline, jamais
+   * un throw non géré.
+   */
+  onCancel?: (bookingId: string) => Promise<{ ok: boolean; error?: string }>
+}
+
+export function BookingCard({ booking, onCancel }: BookingCardProps) {
   const t = useT()
   const ModuleIcon = MODULE_ICONS[booking.module] ?? Briefcase
   const moduleLabel = MODULE_LABELS[booking.module] ?? booking.module
+  const [confirming, setConfirming] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  // Hôtel uniquement (voir lib/booking/customer-cancel-actions.ts — seul
+  // module câblé pour l'instant, Omra/Package/Activity n'ont aucune
+  // exécution d'annulation à ce jour, voir l'audit Policy Manager).
+  const canCancelOnline =
+    Boolean(onCancel) &&
+    booking.module === "hotel" &&
+    (booking.status === "pending" || booking.status === "confirmed" || booking.status === "on_request")
+
+  function handleConfirmCancel() {
+    if (!onCancel) return
+    setCancelError(null)
+    startTransition(async () => {
+      const result = await onCancel(booking.id)
+      if (!result.ok) {
+        setCancelError(result.error ?? "L'annulation a échoué.")
+        return
+      }
+      setConfirming(false)
+    })
+  }
 
   function formatDate(iso: string | null) {
     if (!iso) return "—"
@@ -374,18 +416,61 @@ export function BookingCard({ booking }: { booking: BookingSummary }) {
               {t("facturePdf")}
             </Button>
           )}
-          {booking.status === "pending" && (
+          {canCancelOnline ? (
             <Button
               variant="destructive"
               size="sm"
               className="ml-auto gap-1.5"
-              disabled
+              onClick={() => setConfirming(true)}
+              disabled={pending}
             >
               <XCircle className="h-4 w-4" />
               {t("annuler")}
             </Button>
+          ) : (
+            booking.status === "pending" && (
+              <Button variant="destructive" size="sm" className="ml-auto gap-1.5" disabled>
+                <XCircle className="h-4 w-4" />
+                {t("annuler")}
+              </Button>
+            )
           )}
         </div>
+
+        {canCancelOnline && confirming && (
+          <div className="border-destructive/40 bg-destructive/5 space-y-3 rounded-lg border p-3 text-sm">
+            <p className="text-foreground flex items-start gap-2">
+              <AlertTriangle className="text-destructive mt-0.5 h-4 w-4 shrink-0" />
+              Confirmer l&apos;annulation de cette réservation ? Les frais réels du fournisseur
+              hôtelier seront appliqués ; le solde éventuel sera crédité sur votre wallet
+              Easy2Book (jamais un remboursement carte automatique).
+            </p>
+            {cancelError && <p className="text-destructive text-xs font-medium">{cancelError}</p>}
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleConfirmCancel}
+                disabled={pending}
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                Confirmer l&apos;annulation
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setConfirming(false)
+                  setCancelError(null)
+                }}
+                disabled={pending}
+              >
+                Garder ma réservation
+              </Button>
+            </div>
+          </div>
+        )}
 
         {booking.status === "pending" && (
           <div className="bg-muted/50 space-y-1 rounded-lg p-3 text-xs">
@@ -411,7 +496,7 @@ export function BookingCard({ booking }: { booking: BookingSummary }) {
           </div>
         )}
 
-        {(booking.status === "pending" || booking.status === "on_request") && (
+        {!canCancelOnline && (booking.status === "pending" || booking.status === "on_request") && (
           <p className="text-muted-foreground text-xs">
             * L&apos;annulation en ligne sera disponible prochainement. Contactez{" "}
             <a href="tel:+21698140514" className="text-primary hover:underline">

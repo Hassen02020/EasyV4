@@ -7,8 +7,6 @@ import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
 import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
 
-export type { BookingStatus, BookingSummary }
-
 export type BookingLookupResult =
   | { ok: true; booking: BookingSummary }
   | { ok: false; error: string }

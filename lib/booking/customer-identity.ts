@@ -25,7 +25,7 @@
  * compris quand personne n'est connecté.
  */
 
-import { eq, and } from "drizzle-orm"
+import { eq, and, or, ilike } from "drizzle-orm"
 import { createServerSupabase } from "@/lib/supabase/server"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customers } from "@/lib/db/schema"
@@ -67,6 +67,26 @@ export async function resolveLinkedAuthUserId(
   } catch {
     return null
   }
+}
+
+/**
+ * Condition WHERE partagée : "cette ligne `customers` appartient-elle à la
+ * session Supabase courante ?" — UNIQUE définition réutilisée par
+ * `app/actions/list-my-reservations.ts` (liste) et
+ * `lib/booking/customer-cancel-actions.ts` (vérification avant annulation),
+ * pour ne jamais laisser diverger la règle d'accès entre "voir" et "agir
+ * sur" une réservation. Toujours scopée par agence (isolation tenant) ET
+ * par identité (authUserId OU email vérifié) — jamais l'un sans l'autre.
+ */
+export function ownedByCurrentCustomer(params: {
+  agencyId: string
+  authUserId: string
+  verifiedEmail: string
+}) {
+  return and(
+    eq(customers.agencyId, params.agencyId),
+    or(eq(customers.authUserId, params.authUserId), ilike(customers.email, params.verifiedEmail)),
+  )
 }
 
 export interface LinkableTraveler {

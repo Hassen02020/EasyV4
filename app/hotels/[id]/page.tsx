@@ -16,6 +16,14 @@ import {
   Building2,
   Heart,
   Flame,
+  Wifi,
+  Waves,
+  Car,
+  Wind,
+  Dumbbell,
+  UtensilsCrossed,
+  Sparkles,
+  Check,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -31,6 +39,29 @@ import { useCurrency } from "@/components/currency-context"
 
 const PLACEHOLDER_IMG =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=600&fit=crop"
+
+/**
+ * PHASE 31 — icône PUREMENT visuelle par mot-clé sur le libellé réel de la
+ * facilité (myGo, texte libre) — jamais une donnée inventée, juste un
+ * glyphe : si aucun mot-clé ne correspond, repli sur une icône générique
+ * (Check), jamais une icône trompeuse par défaut.
+ */
+const FACILITY_KEYWORD_ICONS: [RegExp, LucideIcon][] = [
+  [/wi-?fi|internet/i, Wifi],
+  [/piscine|pool/i, Waves],
+  [/parking|garage/i, Car],
+  [/climatisation|air condition/i, Wind],
+  [/fitness|salle de sport|gym/i, Dumbbell],
+  [/restaurant|petit-d[ée]jeuner|bar\b/i, UtensilsCrossed],
+  [/spa|massage|bien-[êe]tre/i, Sparkles],
+]
+
+function facilityIcon(title: string): LucideIcon {
+  for (const [pattern, Icon] of FACILITY_KEYWORD_ICONS) {
+    if (pattern.test(title)) return Icon
+  }
+  return Check
+}
 
 interface DetailPageProps {
   params: Promise<{ id: string }>
@@ -584,15 +615,19 @@ function HotelDetailContent({ id }: { id: string }) {
                         <h3 className="text-foreground mb-1.5 text-sm font-medium">
                           {cat}
                         </h3>
-                        <ul className="space-y-1">
-                          {items.map((item, i) => (
-                            <li
-                              key={`${cat}-${i}`}
-                              className="text-muted-foreground text-sm"
-                            >
-                              • {item}
-                            </li>
-                          ))}
+                        <ul className="space-y-1.5">
+                          {items.map((item, i) => {
+                            const Icon = facilityIcon(item)
+                            return (
+                              <li
+                                key={`${cat}-${i}`}
+                                className="text-muted-foreground flex items-center gap-2 text-sm"
+                              >
+                                <Icon className="text-primary/70 h-4 w-4 shrink-0" />
+                                {item}
+                              </li>
+                            )
+                          })}
                         </ul>
                       </div>
                     ),

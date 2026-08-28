@@ -16,6 +16,18 @@ import { useCurrency } from "@/components/currency-context"
 
 export interface RoomOption {
   id: number
+  /**
+   * PHASE 36 — identité UI unique, DISTINCTE de `id` : myGo réutilise le
+   * même `room.id` pour le même type de chambre à travers PLUSIEURS
+   * pensions (ex. "Chambre Familiale" existe avec le même id sous
+   * "Logement Simple" ET "Logement Petit Déjeuner") — confirmé en
+   * environnement réel (React "duplicate key" + une sélection qui
+   * résolvait sur la MAUVAISE pension/le mauvais prix via
+   * `rooms.find(r => r.id === selectedRoom)`). `key` (boardingId+id+groupe)
+   * reste unique par ligne réellement affichée ; `id` continue de porter
+   * le vrai roomId myGo, inchangé pour la réservation (BookingCreation).
+   */
+  key: string
   name: string
   /** Jamais réduit à une seule date : une chambre non remboursable ou sans politique BEFORE_ARRIVAL à 0 frais ne doit jamais afficher "gratuite". */
   cancellation: "FREE" | "NON_REFUNDABLE" | "UNKNOWN"
@@ -52,11 +64,11 @@ export function HotelRoomRates({
   onSelectionChange,
 }: HotelRoomRatesProps) {
   const { format } = useCurrency()
-  const [selectedRoom, setSelectedRoom] = useState<number | null>(null)
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
 
-  const selectRoom = (id: number) => {
-    setSelectedRoom(id)
-    onSelectionChange?.(rooms.find((r) => r.id === id) ?? null)
+  const selectRoom = (key: string) => {
+    setSelectedRoom(key)
+    onSelectionChange?.(rooms.find((r) => r.key === key) ?? null)
   }
 
   return (
@@ -87,29 +99,29 @@ export function HotelRoomRates({
       <div className="divide-border divide-y">
         {rooms.map((room) => (
           <button
-            key={room.id}
+            key={room.key}
             type="button"
-            onClick={() => selectRoom(room.id)}
-            aria-pressed={selectedRoom === room.id}
+            onClick={() => selectRoom(room.key)}
+            aria-pressed={selectedRoom === room.key}
             className={`hover:bg-muted/30 flex w-full items-start justify-between gap-4 px-4 py-4 text-left transition-colors ${
-              selectedRoom === room.id ? "bg-primary/5 border-l-primary border-l-4" : "border-l-4 border-l-transparent"
+              selectedRoom === room.key ? "bg-primary/5 border-l-primary border-l-4" : "border-l-4 border-l-transparent"
             }`}
           >
             <div className="flex min-w-0 items-start gap-3">
               <div
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                  selectedRoom === room.id
+                  selectedRoom === room.key
                     ? "bg-primary border-primary"
                     : "border-border bg-transparent"
                 }`}
               >
-                {selectedRoom === room.id && (
+                {selectedRoom === room.key && (
                   <Check className="text-primary-foreground h-3 w-3" />
                 )}
               </div>
               <div className="min-w-0 space-y-1.5">
                 <p
-                  className={`font-medium ${selectedRoom === room.id ? "text-primary" : "text-foreground"}`}
+                  className={`font-medium ${selectedRoom === room.key ? "text-primary" : "text-foreground"}`}
                 >
                   {room.name}
                 </p>
@@ -174,7 +186,7 @@ export function HotelRoomRates({
         <div className="bg-muted/30 border-border flex justify-end border-t px-4 py-3">
           <Button
             onClick={() => {
-              const selected = rooms.find((r) => r.id === selectedRoom)
+              const selected = rooms.find((r) => r.key === selectedRoom)
               onBook?.(selected?.boardingName ?? "", selected)
             }}
             disabled={!selectedRoom}

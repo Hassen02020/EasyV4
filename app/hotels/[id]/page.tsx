@@ -330,7 +330,7 @@ function HotelDetailContent({ id }: { id: string }) {
   // synchrone dans un effet dans ce fichier — même convention que
   // `effectiveStatus`/`roomsEffectiveStatus` ci-dessus).
   const effectiveSelectedRoom =
-    selectedRoom && rooms.some((r) => r.id === selectedRoom.id) ? selectedRoom : null
+    selectedRoom && rooms.some((r) => r.key === selectedRoom.key) ? selectedRoom : null
 
   // ALTERNATIVES — mêmes offres que le moteur de recherche a réellement
   // renvoyées pour cette ville/ces dates (déjà classées côté serveur par le

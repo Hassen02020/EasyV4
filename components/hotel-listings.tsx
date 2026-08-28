@@ -129,6 +129,13 @@ export function toCardShape(
           )
       return {
         id: room.id,
+        // PHASE 36 — identité UI unique (voir doc de RoomOption.key) : myGo
+        // réutilise le même room.id pour le même type de chambre à travers
+        // PLUSIEURS pensions (bug de sélection confirmé en environnement
+        // réel — "duplicate key" + Réserver résolvant sur la mauvaise
+        // pension). boarding.id + room.id + groupIndex reste unique par
+        // ligne réellement affichée.
+        key: `${boarding.id}-${room.id}-${groupIndex}`,
         name:
           roomGroupCount > 1
             ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`

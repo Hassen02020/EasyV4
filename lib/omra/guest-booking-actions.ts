@@ -53,6 +53,7 @@ import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
+import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 
 export type CreateGuestOmraBookingResult =
   | {
@@ -106,14 +107,22 @@ export async function createGuestOmraBooking(input: {
     )
     .digest("hex")
 
+  // PHASE "CUSTOMER RESERVATION LINK" — résolu AVANT la transaction (I/O
+  // Supabase, aucune raison de le faire depuis l'intérieur d'une transaction
+  // DB) : `null` pour tout visiteur non connecté ou dont l'email de session
+  // ne correspond pas exactement à l'email du premier pèlerin (voir
+  // lib/booking/customer-identity.ts — jamais un rattachement ambigu).
+  const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.pilgrims[0]?.email)
+
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestOmraBooking(parsed.data, input.paymentMethod),
+    runCreateGuestOmraBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
   )
 }
 
 async function runCreateGuestOmraBooking(
   booking: OmraGuestBookingInput,
   paymentMethod: GuestPaymentMethod,
+  linkedAuthUserId: string | null,
 ): Promise<CreateGuestOmraBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -192,6 +201,12 @@ async function runCreateGuestOmraBooking(
             civicIdType: "passport",
             birthDate: firstPilgrim.birthDate,
             nationality: firstPilgrim.nationality,
+            // PHASE "CUSTOMER RESERVATION LINK" — nouvelle ligne dans tous
+            // les cas (ce module ne réutilise jamais un customer existant),
+            // donc aucun risque de réattribuer une ligne préexistante :
+            // `null` pour tout visiteur non connecté (comportement guest
+            // inchangé), voir lib/booking/customer-identity.ts.
+            authUserId: linkedAuthUserId ?? undefined,
           })
           .returning({ id: customers.id })
         const customerId = customer.id

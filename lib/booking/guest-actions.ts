@@ -16,8 +16,12 @@
  *     (`getDefaultAgencyId()`, `agency_type='ota'`) — même helper déjà
  *     utilisé par les vitrines publiques Transferts/Car (Phase 9-10), pas
  *     un nouveau concept.
- *   - Aucun compte Supabase Auth n'est créé pour le client — Supabase Auth
- *     reste réservé à l'identité staff/partenaire, exactement comme avant.
+ *   - Aucun compte Supabase Auth n'est créé PAR cette fonction — un client
+ *     peut réserver sans jamais s'authentifier (comportement inchangé). Si
+ *     une session Supabase existe déjà (compte B2C, voir app/compte/**) et
+ *     que son email vérifié correspond exactement à l'email voyageur saisi,
+ *     `customers.authUserId` est renseigné pour permettre l'historique
+ *     (voir lib/booking/customer-identity.ts) — jamais l'inverse.
  *
  * Règlement (voir lib/payment/provider.ts) : contrairement au B2B, un
  * booking B2C n'est JAMAIS réglé via `debitPartnerCredit` (ce ledger
@@ -42,7 +46,6 @@
 import { eq, and } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import {
-  customers,
   reservations,
   reservationHotel,
   payments,
@@ -65,6 +68,7 @@ import { getPaymentProvider } from "@/lib/payment/provider"
 import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-payment"
 import { withGuestIdempotency } from "./guest-idempotency"
 import { pgErrorCode } from "@/lib/db/pg-error"
+import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./customer-identity"
 
 export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash" | "at_hotel"
 
@@ -123,12 +127,19 @@ export async function createGuestReservationFromDraft(input: {
     return { ok: false, error: "Mode de paiement invalide pour une réservation en ligne." }
   }
 
+  // PHASE "CUSTOMER RESERVATION LINK" — résolu AVANT la transaction (I/O
+  // Supabase). `null` pour tout visiteur non connecté, ou dont l'email de
+  // session ne correspond pas exactement à l'email voyageur saisi — voir
+  // lib/booking/customer-identity.ts (jamais un rattachement ambigu).
+  const linkedAuthUserId = await resolveLinkedAuthUserId(travelerParse.data.email)
+
   return withGuestIdempotency(input.idempotencyKey, () =>
     runCreateGuestReservation(
       draftParse.data,
       travelerParse.data,
       methodParse.data as GuestPaymentMethod,
       input.idempotencyKey,
+      linkedAuthUserId,
     ),
   )
 }
@@ -171,6 +182,7 @@ async function runCreateGuestReservation(
   traveler: TravelerInput,
   paymentMethod: GuestPaymentMethod,
   idempotencyKey: string,
+  linkedAuthUserId: string | null,
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -281,32 +293,14 @@ async function runCreateGuestReservation(
     const result = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       async (tx) => {
-        let customerId: string
-        const existing = await tx
-          .select({ id: customers.id })
-          .from(customers)
-          .where(and(eq(customers.agencyId, agencyId), eq(customers.email, traveler.email)))
-          .limit(1)
-        if (existing[0]) {
-          customerId = existing[0].id
-        } else {
-          const inserted = await tx
-            .insert(customers)
-            .values({
-              agencyId,
-              civility: traveler.civility,
-              firstName: traveler.firstName,
-              lastName: traveler.lastName,
-              email: traveler.email,
-              phone: traveler.phone,
-              civicId: traveler.civicId,
-              civicIdType: traveler.civicIdType,
-              birthDate: traveler.birthDate || null,
-              nationality: traveler.nationality || null,
-            })
-            .returning({ id: customers.id })
-          customerId = inserted[0].id
-        }
+        // PHASE "CUSTOMER RESERVATION LINK" — find-or-create + rattachement
+        // `authUserId` sûr, logique UNIQUE partagée avec le module Omra/
+        // Package/Activité (voir lib/booking/customer-identity.ts).
+        const customerId = await resolveOrCreateLinkedCustomer(tx, {
+          agencyId,
+          traveler,
+          linkedAuthUserId,
+        })
 
         const publicRef = await nextPublicRef(tx, agencyId)
 

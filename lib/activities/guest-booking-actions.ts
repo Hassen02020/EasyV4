@@ -43,6 +43,7 @@ import {
 } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import type { TravelerInput } from "@/lib/booking/schemas"
+import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 
 export type CreateGuestActivityBookingResult =
   | {
@@ -111,14 +112,18 @@ export async function createGuestActivityBooking(input: {
     )
     .digest("hex")
 
+  // PHASE "CUSTOMER RESERVATION LINK" — voir lib/booking/customer-identity.ts.
+  const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.traveler.email)
+
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestActivityBooking(parsed.data, input.paymentMethod),
+    runCreateGuestActivityBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
   )
 }
 
 async function runCreateGuestActivityBooking(
   booking: ActivityGuestBookingInput,
   paymentMethod: GuestPaymentMethod,
+  linkedAuthUserId: string | null,
 ): Promise<CreateGuestActivityBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -207,6 +212,10 @@ async function runCreateGuestActivityBooking(
             civicIdType: traveler.civicIdType,
             birthDate: traveler.birthDate || undefined,
             nationality: traveler.nationality || undefined,
+            // PHASE "CUSTOMER RESERVATION LINK" — nouvelle ligne dans tous
+            // les cas, aucune réattribution possible ; `null` = guest
+            // inchangé. Voir lib/booking/customer-identity.ts.
+            authUserId: linkedAuthUserId ?? undefined,
           })
           .returning({ id: customers.id })
         const customerId = customer.id

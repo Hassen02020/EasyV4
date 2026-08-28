@@ -20,16 +20,17 @@
  * réservations faites sur un autre tenant, même avec le même email — même
  * isolation que tout le reste de la plateforme.
  *
- * Aucune écriture ici : ce module ne touche ni Booking Core, ni le parcours
- * guest checkout (`lib/booking/guest-actions.ts` et équivalents par module)
- * — `customers.authUserId` n'est pas encore renseigné/lu, c'est un choix
- * délibéré pour rester dans une implémentation minimale (voir le rapport de
- * phase : lier l'identité Supabase à la création de compte client
- * nécessiterait de toucher la création de réservation dans CHAQUE module,
- * hors périmètre ici).
+ * Aucune écriture ici. Depuis la phase "CUSTOMER RESERVATION LINK",
+ * `customers.authUserId` est renseigné à la création de réservation (voir
+ * lib/booking/customer-identity.ts + guest-actions.ts par module) : le
+ * WHERE ci-dessous matche par `authUserId = session.user.id` OU par email
+ * vérifié — jamais l'un au lieu de l'autre. L'email reste nécessaire pour
+ * l'historique antérieur à cette phase (lignes `customers` jamais taguées
+ * `authUserId`) ; `authUserId` est le signal le plus fort dès qu'il existe
+ * (élargit l'ensemble matché, ne le restreint jamais).
  */
 
-import { eq, and, ilike, desc } from "drizzle-orm"
+import { eq, and, or, ilike, desc } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { reservations, customers, payments } from "@/lib/db/schema"
@@ -93,7 +94,10 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
         .from(reservations)
         .innerJoin(customers, eq(reservations.customerId, customers.id))
         .where(
-          and(eq(customers.agencyId, tenant.agencyId ?? ""), ilike(customers.email, user.email!)),
+          and(
+            eq(customers.agencyId, tenant.agencyId ?? ""),
+            or(eq(customers.authUserId, user.id), ilike(customers.email, user.email!)),
+          ),
         )
         .orderBy(desc(reservations.createdAt))
         .limit(MAX_RESERVATIONS)

@@ -148,6 +148,12 @@ export function FilterControls({
       : [...state.facilities, title]
     onChange({ ...state, facilities: next })
   }
+  const toggleTheme = (title: string) => {
+    const next = state.themes.includes(title)
+      ? state.themes.filter((t) => t !== title)
+      : [...state.themes, title]
+    onChange({ ...state, themes: next })
+  }
 
   const handleReset = () => onChange(EMPTY_FILTER_STATE)
 
@@ -206,6 +212,28 @@ export function FilterControls({
                 </div>
               ))}
             </div>
+          </FilterSection>
+        )}
+
+        {/* Thème du séjour — PHASE 37 : seul canal actionnable pour les
+            scénarios "voyage de noces"/"famille" du Decision Engine (myGo
+            hotel.themes, déjà affiché en badge sur la card, jamais filtrable
+            jusqu'ici). Un hôtel correspond dès qu'IL PORTE AU MOINS UN des
+            thèmes cochés (même logique OR que "Type de pension" ci-dessous —
+            jamais toutes les cases à la fois, une seule offre n'ayant en
+            pratique qu'un ou deux thèmes réels). */}
+        {(facets?.themes.length ?? 0) > 0 && (
+          <FilterSection title="Thème du séjour">
+            {facets!.themes.map(({ title, count }) => (
+              <CheckboxItem
+                key={title}
+                id={`theme-${title}`}
+                label={title}
+                count={count}
+                checked={state.themes.includes(title)}
+                onCheckedChange={() => toggleTheme(title)}
+              />
+            ))}
           </FilterSection>
         )}
 
@@ -401,6 +429,13 @@ export function FilterChips({
       label: f,
       onRemove: () =>
         onChange({ ...state, facilities: state.facilities.filter((x) => x !== f) }),
+    })
+  }
+  for (const th of state.themes) {
+    chips.push({
+      key: `theme-${th}`,
+      label: th,
+      onRemove: () => onChange({ ...state, themes: state.themes.filter((x) => x !== th) }),
     })
   }
   if (

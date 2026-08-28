@@ -35,6 +35,7 @@ import { SortSelect } from "@/components/sort-select"
 import {
   applyFilters,
   computeFacets,
+  EMPTY_FILTER_STATE,
   filtersToSearchParams,
   FILTER_URL_KEYS,
   hasFreeCancellation,
@@ -314,17 +315,7 @@ export function ProHotelResults({
               {offers.length > 0 && (
                 <button
                   type="button"
-                  onClick={() =>
-                    updateFilters({
-                      stars: [],
-                      boardings: [],
-                      facilities: [],
-                      priceRange: null,
-                      recommendedOnly: false,
-                      freeCancellationOnly: false,
-                      availableOnly: false,
-                    })
-                  }
+                  onClick={() => updateFilters(EMPTY_FILTER_STATE)}
                   className="text-primary mt-3 text-sm font-medium hover:underline"
                 >
                   Effacer tous les filtres

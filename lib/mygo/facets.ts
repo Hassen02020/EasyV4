@@ -6,6 +6,11 @@
  *  - étoiles (3, 4, 5) avec compteur
  *  - types de pension (toutes les `boardings.name` distinctes)
  *  - équipements (union des `facilities.title`)
+ *  - thèmes de séjour (union des `hotel.themes` — myGo `raw.Theme`, ex.
+ *    "Romantique"/"Famille"/"Affaires" : PHASE 37, seul canal actionnable
+ *    pour les scénarios "voyage de noces"/"famille" du Decision Engine —
+ *    donnée réelle déjà affichée en badge sur la card, jamais un signal
+ *    déduit/inventé, juste rendue filtrable comme étoiles/pension)
  *  - prix (min/max sur `offer.fromPrice`)
  *  - `recommended` count
  *  - `notRefundable` / `freeCancellation` / `available` counts
@@ -17,6 +22,7 @@ export interface HotelFacets {
   stars: { value: number; count: number }[]
   boardings: { name: string; count: number }[]
   facilities: { title: string; count: number }[]
+  themes: { title: string; count: number }[]
   priceMin: number
   priceMax: number
   recommendedCount: number
@@ -31,6 +37,8 @@ export interface HotelFilterState {
   boardings: string[]
   /** Titres d'équipements cochés. Vide = pas de filtre. */
   facilities: string[]
+  /** Thèmes de séjour cochés (myGo `hotel.themes`, ex. "Romantique"/"Famille"). Vide = pas de filtre. */
+  themes: string[]
   /** Bornes [min, max] en devise courante. */
   priceRange: [number, number] | null
   recommendedOnly: boolean
@@ -42,6 +50,7 @@ export const EMPTY_FILTER_STATE: HotelFilterState = {
   stars: [],
   boardings: [],
   facilities: [],
+  themes: [],
   priceRange: null,
   recommendedOnly: false,
   freeCancellationOnly: false,
@@ -59,6 +68,7 @@ export function filtersToSearchParams(filters: HotelFilterState): URLSearchParam
   if (filters.stars.length > 0) params.set("f_stars", filters.stars.join(","))
   if (filters.boardings.length > 0) params.set("f_board", filters.boardings.join("|"))
   if (filters.facilities.length > 0) params.set("f_amenities", filters.facilities.join("|"))
+  if (filters.themes.length > 0) params.set("f_theme", filters.themes.join("|"))
   if (filters.priceRange) {
     params.set("f_price", `${filters.priceRange[0]}-${filters.priceRange[1]}`)
   }
@@ -73,6 +83,7 @@ export const FILTER_URL_KEYS = [
   "f_stars",
   "f_board",
   "f_amenities",
+  "f_theme",
   "f_price",
   "f_rec",
   "f_cancel",
@@ -85,6 +96,7 @@ export function filtersFromSearchParams(
   const starsRaw = searchParams.get("f_stars")
   const boardRaw = searchParams.get("f_board")
   const amenitiesRaw = searchParams.get("f_amenities")
+  const themesRaw = searchParams.get("f_theme")
   const priceRaw = searchParams.get("f_price")
 
   let priceRange: [number, number] | null = null
@@ -106,6 +118,7 @@ export function filtersFromSearchParams(
       : [],
     boardings: boardRaw ? boardRaw.split("|").filter(Boolean) : [],
     facilities: amenitiesRaw ? amenitiesRaw.split("|").filter(Boolean) : [],
+    themes: themesRaw ? themesRaw.split("|").filter(Boolean) : [],
     priceRange,
     recommendedOnly: searchParams.get("f_rec") === "1",
     freeCancellationOnly: searchParams.get("f_cancel") === "1",
@@ -144,6 +157,7 @@ export function computeFacets(offers: HotelOfferDTO[]): HotelFacets {
   const starsMap = new Map<number, number>()
   const boardingsMap = new Map<string, number>()
   const facilitiesMap = new Map<string, number>()
+  const themesMap = new Map<string, number>()
   let priceMin = Infinity
   let priceMax = -Infinity
   let recommendedCount = 0
@@ -172,6 +186,14 @@ export function computeFacets(offers: HotelOfferDTO[]): HotelFacets {
       }
     }
 
+    const seenThemes = new Set<string>()
+    for (const theme of offer.hotel.themes ?? []) {
+      if (theme && !seenThemes.has(theme)) {
+        seenThemes.add(theme)
+        themesMap.set(theme, (themesMap.get(theme) ?? 0) + 1)
+      }
+    }
+
     if (offer.fromPrice > 0) {
       priceMin = Math.min(priceMin, offer.fromPrice)
       priceMax = Math.max(priceMax, offer.fromPrice)
@@ -195,6 +217,9 @@ export function computeFacets(offers: HotelOfferDTO[]): HotelFacets {
       .map(([title, count]) => ({ title, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 30),
+    themes: Array.from(themesMap.entries())
+      .map(([title, count]) => ({ title, count }))
+      .sort((a, b) => b.count - a.count),
     priceMin: Math.floor(priceMin),
     priceMax: Math.ceil(priceMax),
     recommendedCount,
@@ -226,6 +251,11 @@ export function applyFilters(
         return false
     }
 
+    if (filters.themes.length > 0) {
+      const offerThemes = offer.hotel.themes ?? []
+      if (!filters.themes.some((t) => offerThemes.includes(t))) return false
+    }
+
     if (filters.priceRange) {
       const [min, max] = filters.priceRange
       if (offer.fromPrice < min || offer.fromPrice > max) return false
@@ -255,6 +285,7 @@ export function countActiveFilters(
     state.stars.length +
     state.boardings.length +
     state.facilities.length +
+    state.themes.length +
     (state.recommendedOnly ? 1 : 0) +
     (state.freeCancellationOnly ? 1 : 0) +
     (state.availableOnly ? 1 : 0)

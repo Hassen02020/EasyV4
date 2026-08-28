@@ -54,6 +54,7 @@ import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
+import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
 
 export type CreateGuestOmraBookingResult =
   | {
@@ -170,6 +171,17 @@ async function runCreateGuestOmraBooking(
           : parseFloat(pkg.basePrice)
         const totalTnd = pricePerPilgrim * pilgrimCount
 
+        // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---
+        // Résolue et figée AU MOMENT de cette réservation précise (spécifique
+        // au package > défaut agence > aucune) — voir lib/booking/policy-engine.ts.
+        // Un changement de version ultérieur ne modifie jamais ce snapshot.
+        const resolvedPolicy = await resolveCancellationPolicy(tx, {
+          agencyId,
+          productType: "omra",
+          productId: booking.packageId,
+        })
+        const policySnapshot = buildPolicySnapshot(resolvedPolicy, booking.policyAccepted)
+
         // --- 2. Règlement (card = paiement réel immédiat, jamais de faux succès) ---
         if (paymentMethod === "card") {
           const provider = getPaymentProvider()
@@ -238,6 +250,7 @@ async function runCreateGuestOmraBooking(
               children: 0,
               channel: "b2c_guest",
               paymentMethod,
+              policySnapshot,
             },
           })
           .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })

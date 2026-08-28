@@ -28,6 +28,8 @@ import {
   Mail,
   Loader2,
   AlertTriangle,
+  Ticket,
+  Wallet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -40,6 +42,7 @@ const MODULE_ICONS: Record<string, React.ElementType> = {
   hotel_world: Globe,
   omra: Moon,
   package: Briefcase,
+  activity: Ticket,
   transfer: Bus,
   car: Car,
 }
@@ -50,9 +53,13 @@ const MODULE_LABELS: Record<string, string> = {
   hotel_world: "Hôtel International",
   omra: "Omraty",
   package: "Voyage Organisé",
+  activity: "Attraction",
   transfer: "Transfert",
   car: "Location Voiture",
 }
+
+/** Modules gérés par le Policy Engine (annulation via `cancelMyPolicyReservation`) — distinct de l'hôtel (`cancelMyHotelReservation`, politique myGo). */
+const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   card: "Carte bancaire",
@@ -196,16 +203,19 @@ function Timeline({ status }: { status: BookingStatus }) {
 interface BookingCardProps {
   booking: BookingSummary
   /**
-   * PHASE "POLICY MANAGER" (volet A) — annulation réelle, disponible
-   * UNIQUEMENT depuis le compte client authentifié (`app/compte/page.tsx`,
-   * `cancelMyHotelReservation`) : `/bookings` (lookup anonyme ref+email)
-   * NE transmet PAS ce prop — l'annulation y reste indisponible (l'identité
-   * n'y est prouvée que par un texte email, pas une session vérifiée), même
-   * card, même composant, juste une capacité en moins. Renvoie `{ok:false,
-   * error}` plutôt que de lever — la card affiche l'erreur inline, jamais
-   * un throw non géré.
+   * PHASE "POLICY MANAGER" (volet A, hôtel) + "POLICY ENGINE" (volet B,
+   * Omra/Package/Activity) — annulation réelle, disponible UNIQUEMENT
+   * depuis le compte client authentifié (`app/compte/page.tsx`) :
+   * `/bookings` (lookup anonyme ref+email) NE transmet PAS ce prop —
+   * l'annulation y reste indisponible (l'identité n'y est prouvée que par
+   * un texte email, pas une session vérifiée), même card, même composant,
+   * juste une capacité en moins. Renvoie `{ok:false, error}` plutôt que de
+   * lever — la card affiche l'erreur inline, jamais un throw non géré.
+   * `messages` (Policy Engine uniquement) porte les libellés exacts requis
+   * ("Annulation acceptée" / "Frais configurés: X" / "Crédit Easy2Book: X")
+   * — affichés tels quels, jamais reformulés.
    */
-  onCancel?: (bookingId: string) => Promise<{ ok: boolean; error?: string }>
+  onCancel?: (bookingId: string) => Promise<{ ok: boolean; error?: string; messages?: string[] }>
 }
 
 export function BookingCard({ booking, onCancel }: BookingCardProps) {
@@ -214,14 +224,16 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
   const moduleLabel = MODULE_LABELS[booking.module] ?? booking.module
   const [confirming, setConfirming] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  const [successMessages, setSuccessMessages] = useState<string[] | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // Hôtel uniquement (voir lib/booking/customer-cancel-actions.ts — seul
-  // module câblé pour l'instant, Omra/Package/Activity n'ont aucune
-  // exécution d'annulation à ce jour, voir l'audit Policy Manager).
+  // Hôtel (myGo, `cancelMyHotelReservation`) + Omra/Package/Activity
+  // (Policy Engine, `cancelMyPolicyReservation`) — les deux mécanismes
+  // réels d'annulation en ligne existants à ce jour.
+  const isPolicyEngineModule = POLICY_ENGINE_MODULES.includes(booking.module)
   const canCancelOnline =
     Boolean(onCancel) &&
-    booking.module === "hotel" &&
+    (booking.module === "hotel" || isPolicyEngineModule) &&
     (booking.status === "pending" || booking.status === "confirmed" || booking.status === "on_request")
 
   function handleConfirmCancel() {
@@ -234,6 +246,7 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
         return
       }
       setConfirming(false)
+      setSuccessMessages(result.messages ?? null)
     })
   }
 
@@ -375,6 +388,46 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
           )}
         </div>
 
+        {/* Politique d'annulation (Omra/Package/Activity — Policy Engine) —
+            snapshot FIGÉ au moment de CETTE réservation, jamais recalculé. */}
+        {isPolicyEngineModule && booking.cancellationPolicy !== undefined && (
+          <>
+            <Separator />
+            {booking.cancellationPolicy === null ? (
+              <p className="text-muted-foreground text-xs">
+                Politique d&apos;annulation non définie au moment de cette réservation.
+              </p>
+            ) : (
+              <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <span>
+                  Annulable :{" "}
+                  <span className="text-foreground font-medium">
+                    {booking.cancellationPolicy.cancellable && !booking.cancellationPolicy.nonRefundable
+                      ? "Oui"
+                      : "Non"}
+                  </span>
+                </span>
+                {booking.cancellationPolicy.cancellationFeePercent != null && (
+                  <span>
+                    Frais :{" "}
+                    <span className="text-foreground font-medium">
+                      {booking.cancellationPolicy.cancellationFeePercent}%
+                    </span>
+                  </span>
+                )}
+                {booking.cancellationPolicy.deadlineHours != null && (
+                  <span>
+                    Échéance :{" "}
+                    <span className="text-foreground font-medium">
+                      {booking.cancellationPolicy.deadlineHours} h
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
         {/* Actions — PHASE 30.1 : les liens voucher/facture exigent le
             `?token=` requis par les routes guest (même frontière d'accès
             que /booking/confirmation/[ref], Phase 21.1 : publicRef seul
@@ -437,13 +490,24 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
           )}
         </div>
 
+        {successMessages && successMessages.length > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-0.5">
+              {successMessages.map((m) => (
+                <p key={m} className="font-medium">{m}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
         {canCancelOnline && confirming && (
           <div className="border-destructive/40 bg-destructive/5 space-y-3 rounded-lg border p-3 text-sm">
             <p className="text-foreground flex items-start gap-2">
               <AlertTriangle className="text-destructive mt-0.5 h-4 w-4 shrink-0" />
-              Confirmer l&apos;annulation de cette réservation ? Les frais réels du fournisseur
-              hôtelier seront appliqués ; le solde éventuel sera crédité sur votre wallet
-              Easy2Book (jamais un remboursement carte automatique).
+              {isPolicyEngineModule
+                ? "Confirmer l'annulation de cette réservation ? Le résultat (frais éventuels, crédit) dépend de la politique d'annulation applicable ; tout crédit sera versé sur votre wallet Easy2Book (jamais un remboursement carte automatique)."
+                : "Confirmer l'annulation de cette réservation ? Les frais réels du fournisseur hôtelier seront appliqués ; le solde éventuel sera crédité sur votre wallet Easy2Book (jamais un remboursement carte automatique)."}
             </p>
             {cancelError && <p className="text-destructive text-xs font-medium">{cancelError}</p>}
             <div className="flex gap-2">

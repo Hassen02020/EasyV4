@@ -16,6 +16,17 @@ export type BookingStatus =
   | "expired"
   | "completed"
 
+/** Politique d'annulation FIGÉE au moment de la réservation (Omra/Package/Activity uniquement — voir lib/booking/policy-engine.ts). `undefined` = module non concerné (ex. hôtel, régi par myGo) ; `null` = aucune politique n'était définie au moment de cette réservation. */
+export interface BookingCancellationPolicySummary {
+  cancellable: boolean
+  modifiable: boolean
+  deadlineHours: number | null
+  cancellationFeePercent: number | null
+  refundAllowed: boolean
+  creditAllowed: boolean
+  nonRefundable: boolean
+}
+
 export interface BookingSummary {
   id: string
   publicRef: string
@@ -47,4 +58,6 @@ export interface BookingSummary {
     email: string
     phone: string | null
   }
+  /** Omra/Package/Activity uniquement — `undefined` pour les autres modules. */
+  cancellationPolicy?: BookingCancellationPolicySummary | null
 }

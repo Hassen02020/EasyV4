@@ -26,6 +26,8 @@ import { Loader2, Users, Calendar, CreditCard, Banknote, Wallet } from "lucide-r
 import { createGuestActivityBooking } from "@/lib/activities/guest-booking-actions"
 import { activityGuestBookingSchema, type ActivityGuestBookingInput } from "@/lib/activities/schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
+import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
+import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
 
 interface SessionOption {
   id: string
@@ -71,6 +73,8 @@ export function ActivityGuestBookingForm({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
+  const [resolvedPolicy, setResolvedPolicy] = useState<ResolvedPolicy | null | undefined>(undefined)
 
   const form = useForm<ActivityGuestBookingInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,15 +122,23 @@ export function ActivityGuestBookingForm({
     form.setValue("childrenAges", ages)
   }
 
+  // La case d'acceptation n'est exigée que si une politique réelle a été
+  // résolue pour cette attraction (voir components/booking/cancellation-policy-display.tsx).
+  const policyAcceptanceRequired = resolvedPolicy != null && !policyAccepted
+
   async function onSubmit(data: ActivityGuestBookingInput) {
     if (!acceptCgv) {
       setSubmitError("Vous devez accepter les conditions générales de vente.")
       return
     }
+    if (policyAcceptanceRequired) {
+      setSubmitError("Vous devez accepter la politique d'annulation.")
+      return
+    }
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      const result = await createGuestActivityBooking({ booking: data, paymentMethod: method })
+      const result = await createGuestActivityBooking({ booking: { ...data, policyAccepted }, paymentMethod: method })
       if (!result.ok) {
         setSubmitError(result.error)
         setIsSubmitting(false)
@@ -317,6 +329,15 @@ export function ActivityGuestBookingForm({
           </CardContent>
         </Card>
 
+        {/* Politique d'annulation */}
+        <CancellationPolicyDisplay
+          productType="activity"
+          productId={activityId}
+          accepted={policyAccepted}
+          onAcceptedChange={setPolicyAccepted}
+          onPolicyResolved={setResolvedPolicy}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle>Mode de paiement</CardTitle>
@@ -389,7 +410,7 @@ export function ActivityGuestBookingForm({
           type="submit"
           size="lg"
           className="w-full"
-          disabled={isSubmitting || !watchedSessionId || !acceptCgv}
+          disabled={isSubmitting || !watchedSessionId || !acceptCgv || policyAcceptanceRequired}
         >
           {isSubmitting ? (
             <>

@@ -1107,6 +1107,74 @@ export const productAuthorizations = pgTable(
 )
 
 /**
+ * Policy Engine — politiques d'annulation/modification, Omra/Package/
+ * Activity UNIQUEMENT (jamais Hôtel : `cancellationPolicies` fournisseur
+ * myGo, normalisées par le Universal Hub, restent la seule autorité —
+ * voir lib/booking/cancel-actions.ts et lib/booking/customer-cancel-
+ * actions.ts, non touchés par cette table).
+ *
+ * Versionnée, jamais écrasée : "modifier" = INSERT d'une nouvelle ligne
+ * avec `version = ancienne + 1` et `isActive: true`, en désactivant
+ * l'ancienne (`isActive: false`) — l'historique complet reste en base,
+ * interrogeable, jamais supprimé. Une réservation déjà créée garde SA
+ * PROPRE copie figée de la politique acceptée (voir
+ * `reservations.providerPayload.policySnapshot`, lib/booking/policy-
+ * engine.ts) — un changement de version ultérieur ne change jamais
+ * rétroactivement ce qu'un client a déjà accepté.
+ *
+ * Résolution (lib/booking/policy-engine.ts::resolveCancellationPolicy) :
+ * produit/offre spécifique (`productId` non nul) > politique par défaut de
+ * l'agence pour ce `productType` (`productId` nul) > aucune politique
+ * (`null` — jamais un défaut inventé, ex. "10% de frais").
+ *
+ * Champs volontairement TOUS nullables sauf `cancellable`/`modifiable`/
+ * `refundAllowed`/`creditAllowed` (le Master Admin doit trancher ces 4
+ * questions oui/non pour publier une politique) — `deadlineHours` et
+ * `cancellationFeePercent` restent `null` tant que l'Admin ne les a pas
+ * explicitement saisis : `null` ≠ `0`, jamais confondus.
+ */
+export const cancellationPolicies = pgTable(
+  "cancellation_policies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    productType: authorizedProductType("product_type").notNull(),
+    /** `null` = politique par défaut pour tout ce `productType` chez cette agence. Sinon : id du produit précis (catalog_packages.id / omra_packages.id / catalog_activities.id — pas de FK Postgres cross-table, même choix déjà fait par `product_authorizations`). */
+    productId: uuid("product_id"),
+    version: integer("version").notNull().default(1),
+    isActive: boolean("is_active").notNull().default(true),
+    cancellable: boolean("cancellable").notNull(),
+    modifiable: boolean("modifiable").notNull(),
+    /** Heures avant le début du service au-delà desquelles la politique ne s'applique plus telle quelle (voir `postDeadlineDescription`). `null` = aucune échéance configurée. */
+    deadlineHours: integer("deadline_hours"),
+    /** 0–100. `null` = aucun frais configuré (distinct de 0 explicite). */
+    cancellationFeePercent: decimal("cancellation_fee_percent", { precision: 5, scale: 2 }),
+    refundAllowed: boolean("refund_allowed").notNull(),
+    creditAllowed: boolean("credit_allowed").notNull(),
+    nonRefundable: boolean("non_refundable").notNull().default(false),
+    requiresValidatedDocument: boolean("requires_validated_document").notNull().default(false),
+    /** Texte libre décrivant les conditions après l'échéance — jamais un calcul automatique inventé. */
+    postDeadlineDescription: text("post_deadline_description"),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("cancellation_policies_lookup_idx").on(t.agencyId, t.productType, t.productId, t.isActive),
+    index("cancellation_policies_agency_idx").on(t.agencyId),
+  ],
+)
+
+/**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *
  * Une facture peut grouper plusieurs réservations (lignes JSONB).

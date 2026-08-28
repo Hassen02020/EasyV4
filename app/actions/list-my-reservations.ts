@@ -39,6 +39,9 @@ import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import type { BookingSummary, BookingStatus } from "@/lib/booking/summary-types"
+import type { PolicySnapshot } from "@/lib/booking/policy-engine"
+
+const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
 
 export type MyReservationsResult =
   | { ok: true; email: string; bookings: BookingSummary[] }
@@ -87,6 +90,7 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
           cancelledAt: reservations.cancelledAt,
           paymentExpiresAt: reservations.paymentExpiresAt,
           guestAccessToken: reservations.guestAccessToken,
+          providerPayload: reservations.providerPayload,
           firstName: customers.firstName,
           lastName: customers.lastName,
           email: customers.email,
@@ -114,6 +118,26 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
           .limit(1)
         const invoice = await findInvoiceForReservation(tx, row.id)
 
+        // Policy Engine (Omra/Package/Activity uniquement) — la politique
+        // FIGÉE au moment de CETTE réservation, jamais une résolution live
+        // (voir lib/booking/policy-engine.ts, doc de tête).
+        let cancellationPolicy: BookingSummary["cancellationPolicy"] = undefined
+        if (POLICY_ENGINE_MODULES.includes(row.module)) {
+          const payload = (row.providerPayload ?? {}) as { policySnapshot?: PolicySnapshot }
+          const policy = payload.policySnapshot?.policy ?? null
+          cancellationPolicy = policy
+            ? {
+                cancellable: policy.cancellable,
+                modifiable: policy.modifiable,
+                deadlineHours: policy.deadlineHours,
+                cancellationFeePercent: policy.cancellationFeePercent,
+                refundAllowed: policy.refundAllowed,
+                creditAllowed: policy.creditAllowed,
+                nonRefundable: policy.nonRefundable,
+              }
+            : null
+        }
+
         result.push({
           id: row.id,
           publicRef: row.publicRef,
@@ -136,6 +160,7 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
             email: row.email ?? "",
             phone: row.phone ?? null,
           },
+          cancellationPolicy,
         })
       }
       return result

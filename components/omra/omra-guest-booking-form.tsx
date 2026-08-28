@@ -40,6 +40,8 @@ import {
 import { createGuestOmraBooking } from "@/lib/omra/guest-booking-actions"
 import { omraGuestBookingSchema, type OmraGuestBookingInput } from "@/lib/omra/schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
+import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
+import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
 
 interface DepartureOption {
   departureDate: string
@@ -102,6 +104,8 @@ export function OmraGuestBookingForm({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
+  const [resolvedPolicy, setResolvedPolicy] = useState<ResolvedPolicy | null | undefined>(undefined)
 
   const form = useForm<OmraGuestBookingInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -121,16 +125,25 @@ export function OmraGuestBookingForm({
   const pricePerPilgrim = selectedDeparture?.price ?? basePrice
   const totalPrice = pricePerPilgrim * watchedPilgrims.length
 
+  // La case d'acceptation n'est exigée que si une politique réelle a été
+  // résolue pour ce package — aucune politique publiée n'est jamais
+  // bloquante (voir components/booking/cancellation-policy-display.tsx).
+  const policyAcceptanceRequired = resolvedPolicy != null && !policyAccepted
+
   async function onSubmit(data: OmraGuestBookingInput) {
     if (!acceptCgv) {
       setSubmitError("Vous devez accepter les conditions générales de vente.")
+      return
+    }
+    if (policyAcceptanceRequired) {
+      setSubmitError("Vous devez accepter la politique d'annulation.")
       return
     }
     setIsSubmitting(true)
     setSubmitError(null)
     try {
       const result = await createGuestOmraBooking({
-        booking: data,
+        booking: { ...data, policyAccepted },
         paymentMethod: method,
       })
       if (!result.ok) {
@@ -352,6 +365,15 @@ export function OmraGuestBookingForm({
           </CardContent>
         </Card>
 
+        {/* Politique d'annulation */}
+        <CancellationPolicyDisplay
+          productType="omra"
+          productId={packageId}
+          accepted={policyAccepted}
+          onAcceptedChange={setPolicyAccepted}
+          onPolicyResolved={setResolvedPolicy}
+        />
+
         {/* Règlement */}
         <Card>
           <CardHeader>
@@ -424,7 +446,7 @@ export function OmraGuestBookingForm({
           type="submit"
           size="lg"
           className="w-full"
-          disabled={isSubmitting || !watchedDepartureDate || !acceptCgv}
+          disabled={isSubmitting || !watchedDepartureDate || !acceptCgv || policyAcceptanceRequired}
         >
           {isSubmitting ? (
             <>

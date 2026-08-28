@@ -93,6 +93,11 @@ function HotelDetailContent({ id }: { id: string }) {
   // disponibilités" quand les tarifs de cet hôtel sont déjà chargés sur
   // cette page (voir handleCheckAvailability).
   const roomsHeadingRef = useRef<HTMLHeadingElement>(null)
+  // PHASE 32 — chambre actuellement sélectionnée dans "Chambres et tarifs"
+  // (notifiée par HotelRoomRates, source de vérité toujours interne à ce
+  // composant) — permet au panneau sticky de refléter le choix réel du
+  // client plutôt qu'un simple prix générique "à partir de".
+  const [selectedRoom, setSelectedRoom] = useState<RoomOption | null>(null)
 
   // PHASE 30 — tarifs/chambres réels pour CET hôtel, scopés via le même
   // paramètre `hotelId` déjà supporté par HotelSearchQuerySchema/myGo (voir
@@ -319,6 +324,14 @@ function HotelDetailContent({ id }: { id: string }) {
   )
   const rooms: RoomOption[] = useMemo(() => cardShape?.rooms ?? [], [cardShape])
 
+  // PHASE 32 — si les chambres rechargent (nouvelles dates) et que la
+  // sélection précédente n'existe plus dans la nouvelle liste, on l'ignore
+  // au rendu plutôt que de la "nettoyer" via un effet (jamais de setState
+  // synchrone dans un effet dans ce fichier — même convention que
+  // `effectiveStatus`/`roomsEffectiveStatus` ci-dessus).
+  const effectiveSelectedRoom =
+    selectedRoom && rooms.some((r) => r.id === selectedRoom.id) ? selectedRoom : null
+
   // ALTERNATIVES — mêmes offres que le moteur de recherche a réellement
   // renvoyées pour cette ville/ces dates (déjà classées côté serveur par le
   // Ranking Engine existant, jamais re-triées ici), hôtel courant exclu,
@@ -364,6 +377,18 @@ function HotelDetailContent({ id }: { id: string }) {
       reasons.push({
         icon: Flame,
         text: `Tarif actuellement réduit de ${cardShape.discountPercent}%`,
+      })
+    }
+    // PHASE 32 — dérivées de cardShape.mealOptions (pensions RÉELLES de
+    // cette offre, déjà chargées) : jamais une pension inventée ni un
+    // décompte fabriqué.
+    if (cardShape?.mealOptions?.some((m) => /all inclusive/i.test(m))) {
+      reasons.push({ icon: UtensilsCrossed, text: "Formule All Inclusive disponible" })
+    }
+    if ((cardShape?.mealOptions?.length ?? 0) > 1) {
+      reasons.push({
+        icon: UtensilsCrossed,
+        text: `${cardShape!.mealOptions!.length} formules de pension au choix`,
       })
     }
     return reasons
@@ -554,7 +579,12 @@ function HotelDetailContent({ id }: { id: string }) {
                   Impossible de charger les tarifs : {roomsState.error}
                 </div>
               ) : (
-                <HotelRoomRates rooms={rooms} onBook={handleBookRoom} showHeader={false} />
+                <HotelRoomRates
+                  rooms={rooms}
+                  onBook={handleBookRoom}
+                  showHeader={false}
+                  onSelectionChange={setSelectedRoom}
+                />
               )}
             </section>
 
@@ -744,8 +774,35 @@ function HotelDetailContent({ id }: { id: string }) {
               {/* PHASE 30.3 — point d'entrée prix dans la zone de décision
                   sticky (audit : absent jusqu'ici, le prix n'apparaissait
                   qu'en scrollant jusqu'à "Chambres et tarifs") — seulement
-                  quand un prix réel est chargé (cardShape), jamais avant. */}
-              {cardShape ? (
+                  quand un prix réel est chargé (cardShape), jamais avant.
+                  PHASE 32 — reflète la chambre RÉELLEMENT sélectionnée par
+                  le client dans la liste ci-dessus quand il y en a une
+                  (même prix/pension/annulation, jamais une seconde
+                  logique) ; repli sur le prix générique "à partir de"
+                  sinon. */}
+              {effectiveSelectedRoom ? (
+                <div>
+                  <p className="text-muted-foreground text-xs">
+                    Chambre sélectionnée
+                  </p>
+                  <p className="text-foreground mt-1 text-sm font-medium">
+                    {effectiveSelectedRoom.name}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
+                    <UtensilsCrossed className="h-3 w-3" />
+                    {effectiveSelectedRoom.boardingName}
+                  </p>
+                  {effectiveSelectedRoom.cancellation === "FREE" && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-emerald-700">
+                      <ShieldCheck className="h-3 w-3" />
+                      Annulation gratuite
+                    </p>
+                  )}
+                  <p className="text-primary mt-1.5 text-2xl font-bold">
+                    {format(effectiveSelectedRoom.price)}
+                  </p>
+                </div>
+              ) : cardShape ? (
                 <div>
                   <p className="text-muted-foreground text-xs">À partir de</p>
                   <div className="mt-1 flex items-baseline gap-1.5">

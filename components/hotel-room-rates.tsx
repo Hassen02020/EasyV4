@@ -34,11 +34,30 @@ interface HotelRoomRatesProps {
   onBook?: (mealPlan: string, room?: RoomOption) => void
   /** `false` masque le bandeau titre "Chambres et tarifs disponibles" (déjà présent ailleurs, ex. h2 de section sur la fiche hôtel). */
   showHeader?: boolean
+  /**
+   * PHASE 32 — notifie le parent de la chambre actuellement sélectionnée
+   * (ou `null` si aucune) — permet par ex. au panneau d'achat sticky de la
+   * fiche hôtel de refléter "Chambre sélectionnée : X — Y TND" au lieu du
+   * seul prix générique. Composant non-contrôlé : `selectedRoom` reste la
+   * source de vérité interne, ce callback n'est qu'une notification.
+   * Optionnel — la card SERP (repliable) ne le fournit pas.
+   */
+  onSelectionChange?: (room: RoomOption | null) => void
 }
 
-export function HotelRoomRates({ rooms, onBook, showHeader = true }: HotelRoomRatesProps) {
+export function HotelRoomRates({
+  rooms,
+  onBook,
+  showHeader = true,
+  onSelectionChange,
+}: HotelRoomRatesProps) {
   const { format } = useCurrency()
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null)
+
+  const selectRoom = (id: number) => {
+    setSelectedRoom(id)
+    onSelectionChange?.(rooms.find((r) => r.id === id) ?? null)
+  }
 
   return (
     <div className="border-border bg-card overflow-hidden rounded-lg border">
@@ -70,7 +89,7 @@ export function HotelRoomRates({ rooms, onBook, showHeader = true }: HotelRoomRa
           <button
             key={room.id}
             type="button"
-            onClick={() => setSelectedRoom(room.id)}
+            onClick={() => selectRoom(room.id)}
             aria-pressed={selectedRoom === room.id}
             className={`hover:bg-muted/30 flex w-full items-start justify-between gap-4 px-4 py-4 text-left transition-colors ${
               selectedRoom === room.id ? "bg-primary/5 border-l-primary border-l-4" : "border-l-4 border-l-transparent"

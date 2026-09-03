@@ -190,18 +190,22 @@ const managerNavItems: NavItem[] = [
 
 const technicalNavItems: NavItem[] = [
   {
-    title: "Configuration XML",
-    icon: Settings,
-    href: "/admin/config",
-  },
-  {
-    title: "Inventaire Statique",
+    title: "Verrous d'inventaire",
     icon: Database,
     href: "/admin/inventory",
   },
 ]
 
 const superAdminNavItems: NavItem[] = [
+  {
+    // Pointait vers /admin/config, une route qui n'a jamais existé.
+    // /admin/suppliers (Phase 27) EST la configuration fournisseurs réelle
+    // — déjà construite, déjà réelle (super_admin uniquement, voir sa
+    // propre doc de tête), mais jusqu'ici jamais reliée à un lien de nav.
+    title: "Fournisseurs",
+    icon: Settings,
+    href: "/admin/suppliers",
+  },
   {
     title: "Administration Système",
     icon: Shield,
@@ -256,7 +260,8 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "admin") label = "Admin"
     if (paths[i] === "reservations") label = "Réservations"
     if (paths[i] === "config") label = "Configuration XML"
-    if (paths[i] === "inventory") label = "Inventaire"
+    if (paths[i] === "inventory") label = "Verrous d'inventaire"
+    if (paths[i] === "suppliers") label = "Fournisseurs"
     if (paths[i] === "support") label = "Support"
     if (paths[i] === "vols") label = "Vols"
     if (paths[i] === "hotels") label = "Hôtels Tunisie"

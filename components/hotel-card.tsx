@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Award,
   Lightbulb,
+  CheckCircle2,
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
@@ -50,11 +51,26 @@ interface HotelCardProps {
   currency?: string
 }
 
-const amenityIcons: Record<string, React.ReactNode> = {
-  "Wi-Fi": <Wifi className="h-4 w-4" />,
-  Pool: <Waves className="h-4 w-4" />,
-  Breakfast: <Coffee className="h-4 w-4" />,
-  Spa: <Sparkles className="h-4 w-4" />,
+// Les libellés d'équipement viennent tels quels du fournisseur myGo
+// (hotel.facilities[].title, texte libre — souvent en français : "Piscine",
+// "Petit-déjeuner"…), jamais une clé anglaise fixe : une correspondance
+// exacte contre "Pool"/"Breakfast" ne matchait donc quasiment jamais la
+// donnée réelle. Recherche par mot-clé (FR + EN) au lieu d'un lookup exact,
+// avec une icône générique de repli plutôt qu'aucune icône.
+const AMENITY_ICON_RULES: { keywords: string[]; icon: React.ReactNode }[] = [
+  { keywords: ["wifi", "wi-fi"], icon: <Wifi className="h-4 w-4" /> },
+  { keywords: ["pool", "piscine"], icon: <Waves className="h-4 w-4" /> },
+  {
+    keywords: ["breakfast", "petit-déjeuner", "petit déjeuner", "petit dejeuner"],
+    icon: <Coffee className="h-4 w-4" />,
+  },
+  { keywords: ["spa"], icon: <Sparkles className="h-4 w-4" /> },
+]
+
+function resolveAmenityIcon(amenity: string): React.ReactNode {
+  const normalized = amenity.toLowerCase()
+  const rule = AMENITY_ICON_RULES.find((r) => r.keywords.some((k) => normalized.includes(k)))
+  return rule?.icon ?? <CheckCircle2 className="h-4 w-4" />
 }
 
 export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
@@ -226,7 +242,7 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
                   key={amenity}
                   className="flex items-center gap-1.5 text-sm"
                 >
-                  {amenityIcons[amenity]}
+                  {resolveAmenityIcon(amenity)}
                   <span>{amenity}</span>
                 </div>
               ))}

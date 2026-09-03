@@ -25,7 +25,7 @@ import {
   listCancellationPoliciesForAgency,
   publishCancellationPolicyForAgency,
   deactivateCancellationPolicyForAgency,
-} from "@/lib/admin/cancellation-policy-actions"
+} from "@/lib/admin/cancellation-policy-core"
 
 async function isDbAvailable(): Promise<boolean> {
   try {
@@ -228,4 +228,70 @@ test("isolation tenant : une politique publiée pour l'agence A est invisible po
 
   const listB = await listCancellationPoliciesForAgency(agencyB)
   assert.equal(listB.filter((r) => r.productId === productId).length, 0)
+})
+
+test("publishCancellationPolicyForAgency : pourcentage de frais négatif → rejeté (Phase 38A, gap confirmé)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  // Sans cette validation, un pourcentage négatif ferait dépasser
+  // `creditableTnd` au montant réellement capturé lors de l'annulation
+  // (`AMOUNT_EXCEEDS_CAPTURED`), cassant l'annulation en entier. Rejeté ici,
+  // à la source, plutôt que de compter sur ce filet en aval.
+  await assert.rejects(
+    () =>
+      publishCancellationPolicyForAgency(agencyA, userId, {
+        productType: "activity",
+        productId: randomUUID(),
+        cancellable: true,
+        modifiable: false,
+        refundAllowed: true,
+        creditAllowed: true,
+        cancellationFeePercent: -10,
+      }),
+    /entre 0 et 100/,
+  )
+})
+
+test("publishCancellationPolicyForAgency : pourcentage de frais > 100 → rejeté", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  await assert.rejects(
+    () =>
+      publishCancellationPolicyForAgency(agencyA, userId, {
+        productType: "activity",
+        productId: randomUUID(),
+        cancellable: true,
+        modifiable: false,
+        refundAllowed: true,
+        creditAllowed: true,
+        cancellationFeePercent: 150,
+      }),
+    /entre 0 et 100/,
+  )
+})
+
+test("cancellation_policies : le CHECK en base rejette aussi un pourcentage négatif écrit hors de la fonction applicative (défense en profondeur)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  await assert.rejects(() =>
+    withSystemContext((tx) =>
+      tx.insert(cancellationPolicies).values({
+        agencyId: agencyA,
+        productType: "activity",
+        productId: randomUUID(),
+        version: 1,
+        isActive: true,
+        cancellable: true,
+        modifiable: false,
+        refundAllowed: true,
+        creditAllowed: true,
+        cancellationFeePercent: "-5",
+      }),
+    ),
+  )
+})
+
+test("cancellation_policies : RLS force row level security est activé (Phase 38A, gap de cohérence confirmé)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const [row] = await withSystemContext((tx) =>
+    tx.execute(sql`select relforcerowsecurity from pg_class where relname = 'cancellation_policies'`),
+  ) as unknown as Array<{ relforcerowsecurity: boolean }>
+  assert.equal(row?.relforcerowsecurity, true, "cancellation_policies doit avoir FORCE ROW LEVEL SECURITY, comme les tables tenant-scopées sœurs")
 })

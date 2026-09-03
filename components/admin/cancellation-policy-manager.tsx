@@ -22,11 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  publishCancellationPolicy,
-  deactivateCancellationPolicy,
-  type CancellationPolicyRow,
-} from "@/lib/admin/cancellation-policy-actions"
+import { publishCancellationPolicy, deactivateCancellationPolicy } from "@/lib/admin/cancellation-policy-actions"
+import type { CancellationPolicyRow } from "@/lib/admin/cancellation-policy-core"
 import type { PolicyProductType } from "@/lib/booking/policy-engine"
 
 interface ProductRow {

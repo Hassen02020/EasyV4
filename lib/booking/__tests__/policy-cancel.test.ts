@@ -13,7 +13,7 @@
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
-import { eq, sql } from "drizzle-orm"
+import { eq, and, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   agencies,
@@ -28,7 +28,7 @@ import {
   walletLedger,
 } from "@/lib/db/schema"
 import { getCustomerWalletBalance } from "@/lib/finance/customer-wallet"
-import { cancelPolicyReservationCore } from "../policy-cancel-actions"
+import { cancelPolicyReservationCore } from "../policy-cancel-core"
 import type { PolicySnapshot } from "../policy-engine"
 
 async function isDbAvailable(): Promise<boolean> {
@@ -250,6 +250,65 @@ test("cancelPolicyReservationCore : politique avec frais 20% → crédit wallet 
   assert.ok(audit.some((e) => e.action === "reservation.cancelled" && (e.diff as Record<string, unknown>)?.via === "policy_engine"))
 })
 
+test("cancelPolicyReservationCore : frais 100% + paiement capturé → annulation réussit quand même avec 0 DT crédité (Phase 38A, gap confirmé)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  // Avant le correctif Phase 38A : `applyReservationRefund` était appelé
+  // avec `amountTnd: 0`, `creditCustomerWallet` rejetait ce montant
+  // (`isValidWalletAmount` exige > 0), l'erreur était levée DANS la
+  // transaction → rollback complet → la réservation restait "confirmed"
+  // pour toujours, aucune annulation possible. Preuve empirique obtenue
+  // avant correctif : résultat `{ok:false}`, statut inchangé.
+  const reservationId = await insertReservation({
+    tndAmount: "500.00",
+    policySnapshot: makeSnapshot({ cancellationFeePercent: 100 }),
+    withCapturedPayment: true,
+  })
+  const balanceBefore = await getCustomerWalletBalance(ownerCustomerId)
+
+  const result = await cancelPolicyReservationCore(
+    { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
+    { authUserId: ownerAuthUserId, verifiedEmail: ownerEmail },
+    reservationId,
+  )
+
+  assert.equal(result.ok, true, "l'annulation doit réussir même avec 0 DT à créditer")
+  if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
+  assert.equal(result.creditedTnd, 0)
+  assert.deepEqual(result.messages, ["Annulation acceptée", "Frais configurés: 100%", "Crédit Easy2Book: 0.000 DT"])
+
+  const balanceAfter = await getCustomerWalletBalance(ownerCustomerId)
+  assert.equal(balanceAfter, balanceBefore, "aucun mouvement wallet quand le crédit dû est 0")
+
+  const [row] = await withSystemContext((tx) =>
+    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+  )
+  assert.equal(row!.status, "cancelled", "la réservation doit bien passer à cancelled malgré le crédit nul")
+})
+
+test("cancelPolicyReservationCore : refundAllowed=false ET creditAllowed=false + paiement capturé → annulation réussit avec 0 DT crédité", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const reservationId = await insertReservation({
+    tndAmount: "500.00",
+    policySnapshot: makeSnapshot({ refundAllowed: false, creditAllowed: false }),
+    withCapturedPayment: true,
+  })
+
+  const result = await cancelPolicyReservationCore(
+    { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
+    { authUserId: ownerAuthUserId, verifiedEmail: ownerEmail },
+    reservationId,
+  )
+
+  assert.equal(result.ok, true)
+  if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
+  assert.equal(result.creditedTnd, 0)
+
+  const [row] = await withSystemContext((tx) =>
+    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+  )
+  assert.equal(row!.status, "cancelled")
+})
+
 test("cancelPolicyReservationCore : cancellable=false → refusé, aucun crédit, aucun changement de statut", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const reservationId = await insertReservation({
@@ -394,4 +453,116 @@ test("cancelPolicyReservationCore : libère le stock consommé à la réservatio
     tx.select({ bookedSeats: catalogPackageDepartures.bookedSeats }).from(catalogPackageDepartures).where(eq(catalogPackageDepartures.id, departureId)),
   )
   assert.equal(after1!.bookedSeats, 0, "les 2 places consommées par cette réservation sont rendues disponibles")
+})
+
+test("cancelPolicyReservationCore : CONCURRENCE RÉELLE — deux annulations simultanées de la même réservation → un seul crédit, une seule libération de stock (Phase 38A)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  // Départ dédié à ce test (distinct de `departureId` partagé par les autres
+  // tests) — évite toute interférence avec le solde de places vérifié par
+  // le test de libération de stock ci-dessus.
+  const concurrentDepartureId = await withSystemContext(async (tx) => {
+    const [d] = await tx
+      .insert(catalogPackageDepartures)
+      .values({
+        agencyId: agencyA,
+        packageId,
+        departureDate: "2027-03-01",
+        returnDate: "2027-03-08",
+        adultPriceTnd: "500.00",
+        totalSeats: 10,
+        bookedSeats: 2,
+        status: "open",
+      })
+      .returning({ id: catalogPackageDepartures.id })
+    return d!.id
+  })
+
+  const reservationId = await withSystemContext(async (tx) => {
+    const [r] = await tx
+      .insert(reservations)
+      .values({
+        agencyId: agencyA,
+        customerId: ownerCustomerId,
+        publicRef: `PKT-${randomUUID().slice(0, 8)}`,
+        module: "package",
+        source: "internal",
+        status: "confirmed",
+        originalCurrency: "TND",
+        originalAmount: "1000.00",
+        tndAmount: "1000.00",
+        depositAmount: "1000.00",
+        depositPaid: "1000.00",
+        providerPayload: { policySnapshot: makeSnapshot({ cancellationFeePercent: 0 }) },
+      })
+      .returning({ id: reservations.id })
+    const reservationId = r!.id
+    await tx.insert(payments).values({
+      agencyId: agencyA,
+      reservationId,
+      psp: "manual",
+      method: "card",
+      originalCurrency: "TND",
+      originalAmount: "1000.00",
+      tndAmount: "1000.00",
+      kind: "deposit",
+      status: "captured",
+      capturedAt: new Date(),
+    })
+    await tx.insert(reservationPackage).values({
+      reservationId,
+      agencyId: agencyA,
+      packageId,
+      departureId: concurrentDepartureId,
+      departureDate: "2027-03-01",
+      returnDate: "2027-03-08",
+      adults: 2,
+      childrenAges: [],
+    })
+    return reservationId
+  })
+
+  const balanceBefore = await getCustomerWalletBalance(ownerCustomerId)
+
+  const [resultA, resultB] = await Promise.all([
+    cancelPolicyReservationCore(
+      { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
+      { authUserId: ownerAuthUserId, verifiedEmail: ownerEmail },
+      reservationId,
+    ),
+    cancelPolicyReservationCore(
+      { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
+      { authUserId: ownerAuthUserId, verifiedEmail: ownerEmail },
+      reservationId,
+    ),
+  ])
+
+  const outcomes = [resultA, resultB]
+  const succeeded = outcomes.filter((r) => r.ok && r.allowed)
+  const failed = outcomes.filter((r) => !(r.ok && r.allowed))
+  assert.equal(succeeded.length, 1, "exactement une des deux requêtes concurrentes doit réussir l'annulation")
+  assert.equal(failed.length, 1, "l'autre doit échouer proprement (verrou FOR UPDATE + re-vérification du statut)")
+  if (!failed[0]!.ok) {
+    assert.match(failed[0]!.error, /annulée par une autre action|impossible de l'annuler/)
+  }
+
+  const balanceAfter = await getCustomerWalletBalance(ownerCustomerId)
+  assert.equal(balanceAfter - balanceBefore, 1000, "le crédit wallet n'est appliqué qu'une seule fois, jamais deux")
+
+  const [row] = await withSystemContext((tx) =>
+    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+  )
+  assert.equal(row!.status, "cancelled")
+
+  const [departureAfter] = await withSystemContext((tx) =>
+    tx
+      .select({ bookedSeats: catalogPackageDepartures.bookedSeats })
+      .from(catalogPackageDepartures)
+      .where(eq(catalogPackageDepartures.id, concurrentDepartureId)),
+  )
+  assert.equal(departureAfter!.bookedSeats, 0, "le stock (2 places) n'est libéré qu'une seule fois, jamais deux (jamais négatif)")
+
+  const auditRows = await withSystemContext((tx) =>
+    tx.select().from(auditEvents).where(and(eq(auditEvents.entityId, reservationId), eq(auditEvents.action, "reservation.cancelled"))),
+  )
+  assert.equal(auditRows.length, 1, "une seule trace d'audit 'reservation.cancelled', jamais deux")
 })

@@ -30,7 +30,7 @@ export const processOmraConfirmed = inngest.createFunction(
       if (!process.env.RESEND_API_KEY) return { skipped: true }
       const resend = new Resend(process.env.RESEND_API_KEY)
 
-      await resend.emails.send({
+      const { error } = await resend.emails.send({
         from: "Easy2Book Omraty <omra@easy2book.tn>",
         to: d.contactEmail,
         subject: `Confirmation Omra ${d.publicRef} — ${d.packageName}`,
@@ -46,6 +46,16 @@ export const processOmraConfirmed = inngest.createFunction(
           <p>Easy2Book Omraty — La Mecque & Médine avec confiance</p>
         `,
       })
+
+      if (error) {
+        console.error("[process-omra-confirmed] envoi email échoué", {
+          reservationId: d.reservationId,
+          publicRef: d.publicRef,
+          error: error.message,
+        })
+        return { sent: false, error: error.message }
+      }
+      return { sent: true }
     })
 
     return { reservationId: d.reservationId }

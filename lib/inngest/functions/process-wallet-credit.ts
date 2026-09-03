@@ -20,6 +20,33 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY)
 }
 
+/**
+ * Traduit le `method` de l'événement `wallet/credited` en libellé FR.
+ * Les seules valeurs réellement émises (voir les 3 appelants de
+ * sendEvent("wallet/credited", ...)) sont l'enum `recharge_method` réel
+ * (lib/db/schema.ts, cash/bank_transfer/postal_transfer/postal_mandate/
+ * check/card_international — lib/finance/recharge-actions.ts::notifyMethod),
+ * "ADMIN_DIRECT" (lib/admin/agencies-actions.ts) et "PSP_<PROVIDER>"
+ * (app/api/payment/webhook/route.ts). L'ancienne map ne couvrait aucune de
+ * ces valeurs (VIREMENT/MANDAT/CASH/ZITOUNA_PAY n'existent nulle part) —
+ * l'email affichait donc toujours le code brut au lieu d'un libellé.
+ */
+const RECHARGE_METHOD_LABEL: Record<string, string> = {
+  cash: "espèces",
+  bank_transfer: "virement bancaire",
+  postal_transfer: "virement postal",
+  postal_mandate: "mandat postal",
+  check: "chèque",
+  card_international: "carte internationale",
+  ADMIN_DIRECT: "crédit direct admin",
+}
+
+export function resolveWalletCreditMethodLabel(method: string): string {
+  if (method in RECHARGE_METHOD_LABEL) return RECHARGE_METHOD_LABEL[method]!
+  if (method.startsWith("PSP_")) return `paiement en ligne (${method.slice(4)})`
+  return method
+}
+
 export const processWalletCredit = inngest.createFunction(
   {
     id: "process-wallet-credit",
@@ -49,15 +76,8 @@ export const processWalletCredit = inngest.createFunction(
     }
 
     /* Step 2 — Envoyer l'email de confirmation rechargement */
-    const methodLabel: Record<string, string> = {
-      VIREMENT: "virement bancaire",
-      MANDAT: "mandat postal",
-      CASH: "espèces",
-      ZITOUNA_PAY: "Zitouna Pay",
-    }
-
     const resend = getResend()
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: "Easy2Book <noreply@easy2book.tn>",
       to: agency.email!,
       subject: `✅ Wallet rechargé — +${amount.toFixed(3)} DT`,
@@ -73,7 +93,7 @@ export const processWalletCredit = inngest.createFunction(
             </tr>
             <tr>
               <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Méthode</td>
-              <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${methodLabel[method] ?? method}</td>
+              <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${resolveWalletCreditMethodLabel(method)}</td>
             </tr>
             <tr>
               <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Nouveau solde</td>
@@ -90,6 +110,15 @@ export const processWalletCredit = inngest.createFunction(
         </div>
       `,
     })
+
+    if (error) {
+      console.error("[process-wallet-credit] envoi email échoué", {
+        agencyId,
+        txId,
+        error: error.message,
+      })
+      return { success: false, reason: "email_send_failed", agencyId, amount }
+    }
 
     return { success: true, agencyId, amount }
   },

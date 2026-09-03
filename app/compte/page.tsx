@@ -5,8 +5,10 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
 import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
 import { getMyLoyaltyHistory } from "@/app/actions/get-my-loyalty-history"
+import { listMyFavorites } from "@/app/actions/list-my-favorites"
 import { CompteReservationList } from "@/components/compte/compte-reservation-list"
 import { CompteLoyaltyCard } from "@/components/compte/compte-loyalty-card"
+import { CompteFavoritesCard } from "@/components/compte/compte-favorites-card"
 import { CompteLogoutButton } from "@/components/compte/compte-logout-button"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 
@@ -27,10 +29,11 @@ export default async function ComptePage() {
     redirect("/compte/connexion?next=/compte")
   }
 
-  const [result, loyalty, loyaltyHistory] = await Promise.all([
+  const [result, loyalty, loyaltyHistory, favorites] = await Promise.all([
     listMyReservations(),
     getMyLoyaltySummary(),
     getMyLoyaltyHistory(),
+    listMyFavorites(),
   ])
 
   const NON_REDEEMABLE_STATUSES = new Set(["cancelled", "refunded", "expired"])
@@ -97,6 +100,10 @@ export default async function ComptePage() {
               </span>
             )}
           </div>
+        )}
+
+        {favorites.ok && favorites.favorites.length > 0 && (
+          <CompteFavoritesCard favorites={favorites.favorites} />
         )}
 
         {loyalty.ok ? (

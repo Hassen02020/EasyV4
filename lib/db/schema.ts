@@ -1262,6 +1262,54 @@ export const loyaltyLedger = pgTable(
   ],
 )
 
+/* -------------------------------------------------------------------------- */
+/* Favoris (Wishlist)                                                         */
+/*                                                                            */
+/* Rattaché à `auth_user_id` (Supabase), JAMAIS à `customers.id` : un client  */
+/* peut mettre un hôtel en favori avant toute réservation, donc avant qu'une  */
+/* ligne `customers` existe pour lui (contrairement à Loyalty, où le compte   */
+/* n'existe qu'après une réservation — voir lib/booking/customer-identity.ts).*/
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Un favori par (agence, utilisateur, type, référence) — contrainte unique
+ * qui rend `toggleFavorite` idempotent (un double-clic / retry réseau ne
+ * crée jamais de doublon). `itemRef` est TOUJOURS du texte : uuid du produit
+ * catalogue local (omra/package/activity) ou identifiant myGo (hôtel, qui
+ * n'a aucune fiche catalogue locale). `title`/`imageUrl`/`location`/
+ * `priceFrom`/`href` sont un INSTANTANÉ capturé au moment de l'ajout — pour
+ * afficher la liste "Mes favoris" sans redépendre d'un appel fournisseur
+ * live ; jamais réutilisé comme prix ou disponibilité réels au moment de la
+ * réservation (voir lib/favorites/favorites-core.ts).
+ */
+export const customerFavorites = pgTable(
+  "customer_favorites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    authUserId: uuid("auth_user_id").notNull(),
+    /** 'hotel' | 'omra' | 'package' | 'activity' */
+    itemType: varchar("item_type", { length: 16 }).notNull(),
+    itemRef: varchar("item_ref", { length: 128 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    imageUrl: text("image_url"),
+    location: varchar("location", { length: 255 }),
+    priceFrom: decimal("price_from", { precision: 12, scale: 2 }),
+    currency: varchar("currency", { length: 3 }),
+    href: varchar("href", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("customer_favorites_uniq").on(t.agencyId, t.authUserId, t.itemType, t.itemRef),
+    index("customer_favorites_user_idx").on(t.authUserId, t.createdAt),
+    index("customer_favorites_agency_idx").on(t.agencyId),
+  ],
+)
+
 /**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *

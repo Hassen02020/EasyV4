@@ -49,6 +49,11 @@ interface HotelCardProps {
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
   currency?: string
+  /** PHASE FAVORIS — état réel (persisté), fourni par l'appelant qui a chargé listMyFavorites(). `undefined` tant que non chargé : le cœur reste neutre plutôt que d'afficher un faux "non favori". */
+  isFavorited?: boolean
+  /** Absent tant que l'appelant n'a pas câblé la bascule réelle (toggleFavorite) — le bouton reste alors désactivé plutôt que de simuler un succès local. */
+  onToggleFavorite?: () => void
+  favoritePending?: boolean
 }
 
 // Les libellés d'équipement viennent tels quels du fournisseur myGo
@@ -73,10 +78,16 @@ function resolveAmenityIcon(amenity: string): React.ReactNode {
   return rule?.icon ?? <CheckCircle2 className="h-4 w-4" />
 }
 
-export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
+export function HotelCard({
+  hotel,
+  onBook,
+  onViewDetails,
+  isFavorited,
+  onToggleFavorite,
+  favoritePending,
+}: HotelCardProps) {
   const { format } = useCurrency()
   const [currentImage, setCurrentImage] = useState(0)
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const [selectedMealPlan, setSelectedMealPlan] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -152,20 +163,16 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
           {/* Wishlist Button */}
           <button
             type="button"
-            onClick={() => setIsWishlisted(!isWishlisted)}
-            className="bg-card/90 hover:bg-card absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-            aria-label={
-              isWishlisted
-                ? "Retirer des favoris"
-                : "Ajouter aux favoris"
-            }
+            onClick={onToggleFavorite}
+            disabled={!onToggleFavorite || favoritePending}
+            className="bg-card/90 hover:bg-card absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label={isFavorited ? "Retirer des favoris" : "Ajouter aux favoris"}
+            aria-pressed={isFavorited ?? false}
           >
             <Heart
               className={`h-4 w-4 ${
-                isWishlisted
-                  ? "fill-destructive text-destructive"
-                  : "text-foreground"
-              }`}
+                isFavorited ? "fill-destructive text-destructive" : "text-foreground"
+              } ${favoritePending ? "animate-pulse" : ""}`}
             />
           </button>
         </div>

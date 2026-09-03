@@ -1,16 +1,19 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
+import { toast } from "sonner"
 import { HotelCard } from "@/components/hotel-card"
 import type { RoomOption } from "@/components/hotel-room-rates"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
 import { selectBestRate } from "@/lib/mygo/best-rate"
 import { hasFreeCancellation } from "@/lib/mygo/facets"
+import { listMyFavorites } from "@/app/actions/list-my-favorites"
+import { toggleFavorite } from "@/app/actions/toggle-favorite"
 
 interface BookingData {
   id: number
@@ -289,6 +292,70 @@ export function HotelListings({
 }: HotelListingsProps) {
   const router = useRouter()
 
+  // Favoris — état réel chargé une fois (pas par card, pour éviter N appels
+  // pour N résultats) ; `undefined` tant que non chargé (le cœur reste
+  // neutre, voir hotel-card.tsx) plutôt que de démarrer sur un faux "non
+  // favori" avant que la requête réponde.
+  const [favoriteHotelIds, setFavoriteHotelIds] = useState<Set<string> | undefined>(undefined)
+  const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    listMyFavorites().then((result) => {
+      if (cancelled || !result.ok) return
+      setFavoriteHotelIds(
+        new Set(result.favorites.filter((f) => f.itemType === "hotel").map((f) => f.itemRef)),
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleToggleFavorite = (cardHotel: CardHotelShape) => {
+    const itemRef = String(cardHotel.id)
+    if (pendingFavoriteIds.has(itemRef)) return
+    setPendingFavoriteIds((prev) => new Set(prev).add(itemRef))
+    toggleFavorite({
+      itemType: "hotel",
+      itemRef,
+      title: cardHotel.name,
+      imageUrl: cardHotel.images[0] ?? null,
+      location: cardHotel.location,
+      // `discountedPrice` est toujours en TND base (voir hotel-card.tsx qui
+      // le passe tel quel à `format()`, lequel convertit DEPUIS le TND) —
+      // jamais la prop `currency` de ce composant, qui porte en réalité la
+      // devise fournisseur myGo, sans rapport avec l'unité de ce montant.
+      priceFrom: cardHotel.discountedPrice,
+      currency: "TND",
+      href: `/hotels/${cardHotel.id}`,
+    })
+      .then((result) => {
+        if (!result.ok) {
+          if (result.code === "NOT_AUTHENTICATED") {
+            toast.error("Connectez-vous pour ajouter des favoris.")
+          } else {
+            toast.error(result.error)
+          }
+          return
+        }
+        setFavoriteHotelIds((prev) => {
+          const next = new Set(prev ?? [])
+          if (result.favorited) next.add(itemRef)
+          else next.delete(itemRef)
+          return next
+        })
+      })
+      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .finally(() => {
+        setPendingFavoriteIds((prev) => {
+          const next = new Set(prev)
+          next.delete(itemRef)
+          return next
+        })
+      })
+  }
+
   const handleBookHotel = (
     cardHotel: CardHotelShape,
     mealPlan: string,
@@ -497,6 +564,9 @@ export function HotelListings({
             currency={currency}
             onBook={(mealPlan, room) => handleBookHotel(hotel, mealPlan, room)}
             onViewDetails={() => handleViewDetails(hotel.id)}
+            isFavorited={favoriteHotelIds?.has(String(hotel.id))}
+            onToggleFavorite={() => handleToggleFavorite(hotel)}
+            favoritePending={pendingFavoriteIds.has(String(hotel.id))}
           />
         ))}
       </div>

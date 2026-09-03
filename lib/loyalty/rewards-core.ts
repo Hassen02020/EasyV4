@@ -44,9 +44,9 @@
  *    silencieux).
  */
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { loyaltyAccounts, loyaltyLedger } from "@/lib/db/schema"
+import { loyaltyAccounts, loyaltyLedger, reservations } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
 /* Règles métier V1 — constantes explicites, jamais un nombre magique inline */
@@ -137,6 +137,77 @@ export async function getLoyaltyAccountSummary(
 ): Promise<LoyaltyAccountRow | null> {
   const [row] = await tx.select().from(loyaltyAccounts).where(eq(loyaltyAccounts.customerId, customerId)).limit(1)
   return row ?? null
+}
+
+/* -------------------------------------------------------------------------- */
+/* Historique — lecture seule, pour `/compte` (Phase 38E). Un seul libellé   */
+/* client par événement métier : `convert_pending_out` n'est jamais renvoyé  */
+/* (c'est la moitié "sortie" interne d'une conversion pending→available déjà */
+/* racontée par `convert_available_in` — l'afficher en plus serait un doublon */
+/* du même événement, pas une seconde information). Ne renvoie JAMAIS un id  */
+/* interne (ledger.id, loyaltyAccountId, customerId, idempotencyKey,        */
+/* metadata) ni la `description` brute (qui contient l'UUID de réservation) */
+/* — seulement `reservationPublicRef`/`reservationModule` via jointure,     */
+/* jamais l'UUID lui-même.                                                  */
+/* -------------------------------------------------------------------------- */
+
+export const LOYALTY_LEDGER_DISPLAY_TYPES = [
+  "earn_pending",
+  "convert_available_in",
+  "redeem",
+  "reverse_pending",
+  "reverse_available",
+  "reinstate",
+  "expire",
+] as const
+export type LoyaltyLedgerDisplayType = (typeof LOYALTY_LEDGER_DISPLAY_TYPES)[number]
+
+export interface LoyaltyLedgerHistoryEntry {
+  type: LoyaltyLedgerDisplayType
+  bucket: "pending" | "available"
+  points: number
+  createdAt: Date
+  reservationPublicRef: string | null
+  reservationModule: string | null
+}
+
+export async function listLoyaltyLedgerForCustomer(
+  tx: DrizzleTransaction,
+  customerId: string,
+  limit = 20,
+): Promise<LoyaltyLedgerHistoryEntry[]> {
+  const rows = await tx
+    .select({
+      type: loyaltyLedger.type,
+      bucket: loyaltyLedger.bucket,
+      points: loyaltyLedger.points,
+      createdAt: loyaltyLedger.createdAt,
+      reservationPublicRef: reservations.publicRef,
+      reservationModule: reservations.module,
+    })
+    .from(loyaltyLedger)
+    .leftJoin(reservations, eq(loyaltyLedger.reservationId, reservations.id))
+    .where(
+      and(
+        eq(loyaltyLedger.customerId, customerId),
+        sql`${loyaltyLedger.type} != 'convert_pending_out'`,
+      ),
+    )
+    .orderBy(desc(loyaltyLedger.createdAt))
+    .limit(limit)
+
+  return rows
+    .filter((r): r is typeof r & { type: LoyaltyLedgerDisplayType } =>
+      (LOYALTY_LEDGER_DISPLAY_TYPES as readonly string[]).includes(r.type),
+    )
+    .map((r) => ({
+      type: r.type,
+      bucket: r.bucket as "pending" | "available",
+      points: r.points,
+      createdAt: r.createdAt,
+      reservationPublicRef: r.reservationPublicRef,
+      reservationModule: r.reservationModule,
+    }))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -476,6 +547,37 @@ export async function redeemPoints(
       ok: false,
       error: `Solde disponible insuffisant : ${account.availablePoints} points, ${params.pointsToRedeem} demandés.`,
       code: "INSUFFICIENT_BALANCE",
+    }
+  }
+
+  // Phase 38E — le plafond de 10% porte sur LA RÉSERVATION (cumulé), pas sur
+  // un seul appel : sans ceci, plusieurs rédemptions successives contre la
+  // MÊME réservation (clés d'idempotence distinctes, chacune sous le
+  // plafond) pouvaient ensemble dépasser 10% du montant éligible — jamais
+  // détecté car seul `params.pointsToRedeem` était comparé à `maxPoints`,
+  // jamais le cumul déjà dépensé. `reinstateRedeemedPoints` (ci-dessous)
+  // anticipait déjà explicitement plusieurs lignes "redeem" par réservation
+  // (voir `sumLedgerForReservation` + types:["redeem"]) — même calcul
+  // réutilisé ici pour rester cohérent avec ce que `reinstateRedeemedPoints`
+  // considère déjà comme "effectivement dépensé" sur cette réservation.
+  const alreadyRedeemedNegative = await sumLedgerForReservation(tx, {
+    loyaltyAccountId: account.id,
+    reservationId: params.targetReservationId,
+    bucket: "available",
+    types: ["redeem"],
+  })
+  const alreadyReinstated = await sumLedgerForReservation(tx, {
+    loyaltyAccountId: account.id,
+    reservationId: params.targetReservationId,
+    bucket: "available",
+    types: ["reinstate"],
+  })
+  const netAlreadyRedeemed = Math.max(0, -alreadyRedeemedNegative - alreadyReinstated)
+  if (netAlreadyRedeemed + params.pointsToRedeem > maxPoints) {
+    return {
+      ok: false,
+      error: `Rédemption maximale pour cette réservation : ${maxPoints} points au total (10% du montant éligible) — ${netAlreadyRedeemed} déjà utilisés.`,
+      code: "ABOVE_MAXIMUM",
     }
   }
 

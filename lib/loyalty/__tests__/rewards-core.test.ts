@@ -11,7 +11,7 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
-import { agencies, customers, loyaltyAccounts, loyaltyLedger } from "@/lib/db/schema"
+import { agencies, customers, reservations, loyaltyAccounts, loyaltyLedger } from "@/lib/db/schema"
 import {
   earnPendingPoints,
   convertPendingToAvailable,
@@ -20,6 +20,7 @@ import {
   reinstateRedeemedPoints,
   expireInactiveAccountsForAgency,
   getLoyaltyAccountSummary,
+  listLoyaltyLedgerForCustomer,
   computeEarnedPoints,
   computeMaxRedeemablePoints,
 } from "../rewards-core"
@@ -75,6 +76,7 @@ after(async () => {
     await tx.delete(loyaltyLedger).where(eq(loyaltyLedger.agencyId, agencyB))
     await tx.delete(loyaltyAccounts).where(eq(loyaltyAccounts.agencyId, agencyA))
     await tx.delete(loyaltyAccounts).where(eq(loyaltyAccounts.agencyId, agencyB))
+    await tx.delete(reservations).where(eq(reservations.agencyId, agencyA))
     await tx.delete(customers).where(eq(customers.agencyId, agencyA))
     await tx.delete(customers).where(eq(customers.agencyId, agencyB))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
@@ -387,6 +389,95 @@ test("redeemPoints : succès — décrémente le solde exact, jamais un montant 
   assert.equal(summary?.lifetimeRedeemedPoints, 1200)
 })
 
+test("redeemPoints : idempotence — rejouer la même clé ne dépense jamais deux fois", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const customerId = await freshCustomer(agencyA)
+  const rEarn = randomUUID()
+  await withTenantContext(tenantA(), (tx) =>
+    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "hotel", eligibleTnd: 2000, idempotencyKey: `earn-pending:${rEarn}` }),
+  )
+  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+
+  const rSpend = randomUUID()
+  const key = `redeem:${rSpend}`
+  const first = await withTenantContext(tenantA(), (tx) =>
+    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 100000, pointsToRedeem: 1200, idempotencyKey: key }),
+  )
+  assert.equal(first.ok, true)
+
+  const before = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const second = await withTenantContext(tenantA(), (tx) =>
+    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 100000, pointsToRedeem: 1200, idempotencyKey: key }),
+  )
+  assert.equal(second.ok, true, "rejouer la même clé renvoie ok:true (résultat déjà obtenu), jamais une erreur")
+  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  assert.equal(after?.availablePoints, before?.availablePoints, "aucun débit supplémentaire au second appel")
+  assert.equal(after?.lifetimeRedeemedPoints, before?.lifetimeRedeemedPoints, "aucun double comptage du cumul dépensé")
+})
+
+test("redeemPoints : PLAFOND CUMULATIF (Phase 38E, gap confirmé) — deux rédemptions successives sous le plafond individuel mais dépassant ensemble 10% de la réservation → la seconde est refusée", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const customerId = await freshCustomer(agencyA)
+  const rEarn = randomUUID()
+  // Solde disponible large, pour isoler le test sur le plafond (pas le solde).
+  await withTenantContext(tenantA(), (tx) =>
+    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "hotel", eligibleTnd: 50000, idempotencyKey: `earn-pending:${rEarn}` }),
+  )
+  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+
+  // Réservation cible : 1000 TND éligibles → plafond 10% = 10000 points.
+  const rSpend = randomUUID()
+  const first = await withTenantContext(tenantA(), (tx) =>
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 1000,
+      pointsToRedeem: 6000,
+      idempotencyKey: `redeem:${rSpend}:1`,
+    }),
+  )
+  assert.equal(first.ok, true, "6000 points, sous le plafond individuel de 10000 → accepté")
+
+  // Avant le correctif : ce second appel (6000 pts, lui aussi sous le
+  // plafond INDIVIDUEL de 10000) était accepté à tort — cumul réel
+  // 6000+6000=12000 > 10000, jamais détecté car seul `pointsToRedeem` de CET
+  // appel était comparé au plafond, jamais le cumul déjà dépensé sur cette
+  // réservation (voir `reinstateRedeemedPoints`, qui somme lui-même TOUTES
+  // les lignes "redeem" d'une réservation — preuve que plusieurs rédemptions
+  // par réservation sont un cas normal et anticipé).
+  const second = await withTenantContext(tenantA(), (tx) =>
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 1000,
+      pointsToRedeem: 6000,
+      idempotencyKey: `redeem:${rSpend}:2`,
+    }),
+  )
+  assert.equal(second.ok, false, "le cumul (6000+6000=12000) dépasse le plafond de 10000 — doit être refusé")
+  if (second.ok) throw new Error("expected ok:false")
+  assert.equal(second.code, "ABOVE_MAXIMUM")
+
+  // Une troisième rédemption qui reste SOUS le plafond cumulatif restant
+  // (10000-6000=4000) doit, elle, réussir.
+  const third = await withTenantContext(tenantA(), (tx) =>
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 1000,
+      pointsToRedeem: 4000,
+      idempotencyKey: `redeem:${rSpend}:3`,
+    }),
+  )
+  assert.equal(third.ok, true, "4000 points restants sous le plafond cumulatif de 10000 → accepté")
+
+  const summary = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  assert.equal(summary?.lifetimeRedeemedPoints, 10000, "exactement 10000 points dépensés au total sur cette réservation, jamais plus")
+})
+
 /* -------------------------------------------------------------------------- */
 /* REINSTATE — la réservation cible de la rédemption est annulée/remboursée   */
 /* -------------------------------------------------------------------------- */
@@ -494,4 +585,72 @@ test("expireInactiveAccountsForAgency : n'expire jamais un compte actif récemme
   const result = await withTenantContext(tenantA(), (tx) => expireInactiveAccountsForAgency(tx, { agencyId: agencyA }))
   // Le compte a une activité fraîche (vient d'être créé/mis à jour) : ne doit pas apparaître.
   assert.equal(result.accountsExpired, 0)
+})
+
+/* -------------------------------------------------------------------------- */
+/* HISTORIQUE (Phase 38E) — listLoyaltyLedgerForCustomer, pour /compte       */
+/* -------------------------------------------------------------------------- */
+
+test("listLoyaltyLedgerForCustomer : expose earn/convert/redeem/reverse avec la référence publique de réservation, jamais convert_pending_out ni un UUID brut", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const customerId = await freshCustomer(agencyA)
+  const publicRef = `HTL-${randomUUID().slice(0, 8)}`
+  const reservationId = await withSystemContext(async (tx) => {
+    const [r] = await tx
+      .insert(reservations)
+      .values({
+        agencyId: agencyA,
+        customerId,
+        publicRef,
+        module: "hotel",
+        source: "internal",
+        status: "completed",
+        originalCurrency: "TND",
+        originalAmount: "500.00",
+        tndAmount: "500.00",
+      })
+      .returning({ id: reservations.id })
+    return r!.id
+  })
+
+  await withTenantContext(tenantA(), (tx) =>
+    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId, module: "hotel", eligibleTnd: 500, idempotencyKey: `earn-pending:${reservationId}` }),
+  )
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId, idempotencyKey: `convert:${reservationId}` }),
+  )
+
+  const history = await withTenantContext(tenantA(), (tx) => listLoyaltyLedgerForCustomer(tx, customerId, 20))
+
+  // Le type de retour de `listLoyaltyLedgerForCustomer` exclut déjà
+  // "convert_pending_out" par construction (LoyaltyLedgerDisplayType) — ce
+  // test vérifie l'exclusion RUNTIME réelle (pas seulement le type statique)
+  // en comparant sur `string`, sinon TS refuserait la comparaison comme
+  // toujours fausse.
+  assert.equal(
+    history.some((h) => (h.type as string) === "convert_pending_out"),
+    false,
+    "jamais la moitié interne 'sortie' d'une conversion — déjà racontée par convert_available_in",
+  )
+  const earnEntry = history.find((h) => h.type === "earn_pending")
+  assert.ok(earnEntry, "l'événement earn_pending doit apparaître dans l'historique")
+  assert.equal(earnEntry!.points, 500)
+  assert.equal(earnEntry!.reservationPublicRef, publicRef, "la référence publique de réservation est exposée via jointure")
+  assert.equal(
+    JSON.stringify(earnEntry).includes(reservationId),
+    false,
+    "l'UUID interne de la réservation ne doit jamais apparaître dans l'entrée exposée au client",
+  )
+
+  const convertEntry = history.find((h) => h.type === "convert_available_in")
+  assert.ok(convertEntry, "l'événement convert_available_in doit apparaître")
+  assert.equal(convertEntry!.points, 500)
+  assert.equal(convertEntry!.reservationPublicRef, publicRef)
+
+  for (const key of Object.keys(earnEntry as object)) {
+    assert.ok(
+      ["type", "bucket", "points", "createdAt", "reservationPublicRef", "reservationModule"].includes(key),
+      `champ inattendu exposé côté client : ${key}`,
+    )
+  }
 })

@@ -4,6 +4,7 @@ import { ArrowLeft, Mail, Phone, User as UserIcon } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
 import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
+import { getMyLoyaltyHistory } from "@/app/actions/get-my-loyalty-history"
 import { CompteReservationList } from "@/components/compte/compte-reservation-list"
 import { CompteLoyaltyCard } from "@/components/compte/compte-loyalty-card"
 import { CompteLogoutButton } from "@/components/compte/compte-logout-button"
@@ -26,8 +27,18 @@ export default async function ComptePage() {
     redirect("/compte/connexion?next=/compte")
   }
 
-  const result = await listMyReservations()
-  const loyalty = await getMyLoyaltySummary()
+  const [result, loyalty, loyaltyHistory] = await Promise.all([
+    listMyReservations(),
+    getMyLoyaltySummary(),
+    getMyLoyaltyHistory(),
+  ])
+
+  const NON_REDEEMABLE_STATUSES = new Set(["cancelled", "refunded", "expired"])
+  const eligibleReservations = result.ok
+    ? result.bookings
+        .filter((b) => !NON_REDEEMABLE_STATUSES.has(b.status))
+        .map((b) => ({ id: b.id, publicRef: b.publicRef, module: b.module }))
+    : []
 
   // La plus récente réservation sert de source pour l'aperçu profil
   // (nom/téléphone) — `customers` n'a pas de ligne canonique unique par
@@ -88,12 +99,18 @@ export default async function ComptePage() {
           </div>
         )}
 
-        {loyalty.ok && (
+        {loyalty.ok ? (
           <CompteLoyaltyCard
             pendingPoints={loyalty.pendingPoints}
             availablePoints={loyalty.availablePoints}
+            history={loyaltyHistory.ok ? loyaltyHistory.entries : []}
+            eligibleReservations={eligibleReservations}
           />
-        )}
+        ) : loyalty.error !== "NOT_AUTHENTICATED" ? (
+          <div className="border-destructive/40 bg-destructive/5 text-destructive mb-6 rounded-2xl border p-4 text-sm">
+            Impossible de charger votre solde Easy2Book Rewards pour le moment. {loyalty.error}
+          </div>
+        ) : null}
 
         {!result.ok ? (
           <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-2xl border p-6 text-sm">

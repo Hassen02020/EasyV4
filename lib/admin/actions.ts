@@ -23,7 +23,12 @@ import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
-import { earnPendingPoints, convertPendingToAvailable, reverseEarnedPoints } from "@/lib/loyalty/rewards-core"
+import {
+  earnPendingPoints,
+  convertPendingToAvailable,
+  reverseEarnedPoints,
+  reinstateRedeemedPoints,
+} from "@/lib/loyalty/rewards-core"
 import { logger } from "@/lib/logger"
 import { describeSupplierCancellationErrorForUser } from "@/lib/booking/hotel-provider-booking"
 import { resolveMyGoAccessForTenant, partnerTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
@@ -217,6 +222,7 @@ export async function updateReservationStatus(
       let loyaltyPointsEarned: number | undefined
       let loyaltyPointsConverted: number | undefined
       let loyaltyPointsReversed: number | undefined
+      let loyaltyPointsReinstated: number | undefined
       if (nextStatus === "confirmed" && confirmedSummary) {
         const earnResult = await earnPendingPoints(db, {
           agencyId,
@@ -250,6 +256,19 @@ export async function updateReservationStatus(
         if (reverseResult.reversed) {
           loyaltyPointsReversed = reverseResult.pointsReversedFromPending + reverseResult.pointsReversedFromAvailable
         }
+
+        // Symétrique de reverseEarnedPoints ci-dessus, mais pour les points
+        // DÉPENSÉS sur cette réservation (redeemPoints) — sans ceci, un
+        // client qui voit sa réservation annulée/remboursée par le
+        // back-office perdait définitivement les points payés dessus.
+        const reinstateResult = await reinstateRedeemedPoints(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          idempotencyKey: `reinstate:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (reinstateResult.reinstated) loyaltyPointsReinstated = reinstateResult.points
       }
 
       // --- Intégrité paiement/ledger : une annulation ne doit jamais
@@ -301,6 +320,7 @@ export async function updateReservationStatus(
             ...(loyaltyPointsEarned != null ? { loyaltyPointsEarned } : {}),
             ...(loyaltyPointsConverted != null ? { loyaltyPointsConverted } : {}),
             ...(loyaltyPointsReversed != null ? { loyaltyPointsReversed } : {}),
+            ...(loyaltyPointsReinstated != null ? { loyaltyPointsReinstated } : {}),
           },
         })
       } catch {

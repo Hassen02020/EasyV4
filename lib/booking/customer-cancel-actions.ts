@@ -46,7 +46,7 @@ import { getMyGoClient } from "@/lib/mygo"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
-import { reverseEarnedPoints } from "@/lib/loyalty/rewards-core"
+import { reverseEarnedPoints, reinstateRedeemedPoints } from "@/lib/loyalty/rewards-core"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -197,6 +197,19 @@ export async function cancelMyHotelReservation(
         customerId: preCheck.customerId,
         reservationId,
         idempotencyKey: `reverse:${reservationId}`,
+        actorUserId: user.id,
+      })
+
+      // Symétrique de reverseEarnedPoints ci-dessus, mais pour les points
+      // DÉPENSÉS sur cette réservation (redeemPoints) — sans ceci, un client
+      // qui annule une réservation contre laquelle il avait payé avec des
+      // points perdait ces points définitivement. No-op silencieux si rien
+      // n'avait été dépensé sur cette réservation.
+      await reinstateRedeemedPoints(tx, {
+        agencyId: tenant.agencyId ?? "",
+        customerId: preCheck.customerId,
+        reservationId,
+        idempotencyKey: `reinstate:${reservationId}`,
         actorUserId: user.id,
       })
 

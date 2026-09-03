@@ -146,17 +146,17 @@ export function Footer() {
               <ul className="space-y-2 text-sm text-white/70">
                 {(
                   [
-                    "tabHotelsTunisie",
-                    "tabHotelsMonde",
-                    "tabOmraty",
-                    "tabVoyages",
-                    "tabAttractions",
+                    { key: "tabHotelsTunisie", href: "/" },
+                    { key: "tabHotelsMonde", href: "/hotels-monde" },
+                    { key: "tabOmraty", href: "/omra" },
+                    { key: "tabVoyages", href: "/packages" },
+                    { key: "tabAttractions", href: "/attractions" },
                   ] as const
-                ).map((key) => (
+                ).map(({ key, href }) => (
                   <li key={key}>
-                    <a href="#" className="transition-colors hover:text-white">
+                    <Link href={href} className="transition-colors hover:text-white">
                       {t(key)}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

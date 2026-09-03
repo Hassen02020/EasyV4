@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 
 const PACKAGE_TYPE_LABELS: Record<string, string> = {
   omra: "Omra Régulière",
@@ -307,6 +308,15 @@ export default async function OmraPackageDetailPage({
                   spécialisés Omra.
                 </span>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <LeadCaptureForm
+                productType="omra"
+                productRef={pkg.id}
+                productLabel={pkg.name}
+                title="Être rappelé pour cette Omra"
+              />
             </div>
           </aside>
         </div>

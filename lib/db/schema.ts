@@ -1310,6 +1310,55 @@ export const customerFavorites = pgTable(
   ],
 )
 
+/* -------------------------------------------------------------------------- */
+/* CRM / Leads                                                                */
+/*                                                                            */
+/* Capture des demandes de contact ("Être rappelé" / "Demander un devis")    */
+/* déposées par un visiteur AVANT toute réservation — distinct de `customers` */
+/* (créé seulement au moment d'une réservation réelle) et de                 */
+/* lib/crm/provider.ts (pousse une réservation CONFIRMÉE vers un CRM externe,*/
+/* jamais branché faute de système choisi). Tant qu'aucun CRM externe n'est  */
+/* configuré, cette table EST le CRM — jamais un formulaire "fantôme" qui    */
+/* affiche un succès sans rien persister.                                    */
+/* -------------------------------------------------------------------------- */
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    firstName: varchar("first_name", { length: 100 }).notNull(),
+    lastName: varchar("last_name", { length: 100 }),
+    email: varchar("email", { length: 320 }),
+    phone: varchar("phone", { length: 32 }),
+    message: text("message"),
+    /** 'hotel' | 'omra' | 'package' | 'activity' | 'general' */
+    productType: varchar("product_type", { length: 16 }).notNull().default("general"),
+    /** uuid produit catalogue (omra/package/activity) ou id myGo (hôtel) — texte, jamais de FK stricte (voir customerFavorites.itemRef, même raisonnement). */
+    productRef: varchar("product_ref", { length: 128 }),
+    /** Instantané du titre produit au moment de la demande — évite un join pour afficher la liste des leads. */
+    productLabel: varchar("product_label", { length: 255 }),
+    /** Chemin de la page d'où la demande a été envoyée (ex. "/packages/mon-voyage") — utile pour prioriser/comprendre la demande, jamais affiché comme donnée client. */
+    sourcePage: varchar("source_page", { length: 255 }).notNull(),
+    /** 'new' | 'contacted' | 'converted' | 'closed' */
+    status: varchar("status", { length: 16 }).notNull().default("new"),
+    staffNotes: text("staff_notes"),
+    handledByUserId: uuid("handled_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
+    index("leads_agency_idx").on(t.agencyId),
+  ],
+)
+
 /**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *

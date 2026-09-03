@@ -11,9 +11,7 @@ import {
   Headphones,
   LogOut,
   ChevronDown,
-  Building2,
   Moon,
-  Plane,
   Users,
   Shield,
   Activity,
@@ -139,18 +137,22 @@ const managerNavItems: NavItem[] = [
     title: "Produits & Catalogue",
     icon: Package,
     href: "/admin/products",
+    // Hôtels/Vols n'ont jamais de sous-item ici : ce catalogue (Phase 13,
+    // /admin/products) ne gère que package/omra/activity — les hôtels
+    // viennent du fournisseur MyGo, aucun produit vol n'existe dans ce
+    // builder. Les 3 sous-items ci-dessous pointaient auparavant vers
+    // /admin/products/packages|omra|activities, des routes qui n'ont jamais
+    // existé (seule /admin/products, avec ses 3 onglets, est réelle).
     subItems: [
-      { title: "Hôtels", href: "/admin/products/hotels", icon: Building2 },
-      { title: "Vols", href: "/admin/products/flights", icon: Plane },
       {
         title: "Voyages Organisés",
-        href: "/admin/products/packages",
+        href: "/admin/products",
         icon: Briefcase,
       },
-      { title: "Omra", href: "/admin/products/omra", icon: Moon },
+      { title: "Omra", href: "/admin/products", icon: Moon },
       {
         title: "Activités",
-        href: "/admin/products/activities",
+        href: "/admin/products",
         icon: Activity,
       },
     ],

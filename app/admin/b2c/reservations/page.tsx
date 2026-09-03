@@ -255,8 +255,8 @@ export default async function B2CReservationsPage({
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button size="sm" className="bg-sidebar" asChild>
-            <Link href="/admin/b2c/reservations/new">Nouvelle réservation</Link>
+          <Button size="sm" className="bg-sidebar" disabled title="Pas encore disponible">
+            Nouvelle réservation
           </Button>
         </div>
       </div>
@@ -446,26 +446,34 @@ export default async function B2CReservationsPage({
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                   <DropdownMenuItem asChild>
                                     <Link
-                                      href={`/admin/b2c/reservations/${reservation.id}`}
+                                      href={`/admin/reservations/${reservation.id}`}
                                     >
                                       <Eye className="mr-2 h-4 w-4" />
                                       Voir détails
                                     </Link>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem>
+                                  <DropdownMenuItem disabled title="Pas encore disponible">
                                     <Edit className="mr-2 h-4 w-4" />
                                     Modifier
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   {reservation.status === "pending" && (
-                                    <DropdownMenuItem className="text-emerald-600">
+                                    <DropdownMenuItem
+                                      disabled
+                                      title="Utilisez /admin/reservations pour changer le statut"
+                                      className="text-emerald-600"
+                                    >
                                       <CheckCircle2 className="mr-2 h-4 w-4" />
                                       Confirmer
                                     </DropdownMenuItem>
                                   )}
                                   {(reservation.status === "pending" ||
                                     reservation.status === "confirmed") && (
-                                    <DropdownMenuItem className="text-red-600">
+                                    <DropdownMenuItem
+                                      disabled
+                                      title="Utilisez /admin/reservations pour changer le statut"
+                                      className="text-red-600"
+                                    >
                                       <XCircle className="mr-2 h-4 w-4" />
                                       Annuler
                                     </DropdownMenuItem>

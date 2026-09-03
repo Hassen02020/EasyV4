@@ -85,10 +85,14 @@ export function MarginsForm({ initial }: MarginsFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
-    // Mock — sera Server Action sur pricing_margins en phase 9
+    // Aucun Server Action d'écriture sur pricing_margins n'existe encore
+    // (seule la lecture via getActivePartnerMargins est câblée — voir
+    // app/pro/(app)/marges/page.tsx) : jamais un faux succès affiché tant
+    // que rien n'est réellement persisté, même discipline que
+    // PAYMENT_PROVIDER_NOT_CONFIGURED côté paiement.
     setTimeout(() => {
       setSubmitting(false)
-      toast.success("Marges enregistrées (mock — phase 9 : Server Action)")
+      toast.error("Modification des marges pas encore disponible — contactez votre gestionnaire de compte.")
     }, 600)
   }
 

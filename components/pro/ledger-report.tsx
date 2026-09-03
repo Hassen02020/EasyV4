@@ -187,7 +187,7 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
               Réinitialiser
             </Button>
 
-            <Button className="rounded-xl">
+            <Button className="rounded-xl" disabled title="Pas encore disponible">
               <Download className="mr-1.5 h-3.5 w-3.5" />
               Générer un rapport
             </Button>

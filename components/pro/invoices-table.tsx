@@ -252,7 +252,7 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem disabled title="Pas encore disponible">
                             <Eye className="mr-1.5 h-3.5 w-3.5" />
                             Consulter
                           </DropdownMenuItem>
@@ -268,12 +268,12 @@ export function InvoicesTable({ rows }: InvoicesTableProps) {
                               </a>
                             </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem disabled>
+                            <DropdownMenuItem disabled title="Aucune réservation associée à cette facture">
                               <Download className="mr-1.5 h-3.5 w-3.5" />
                               Télécharger PDF
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem>
+                          <DropdownMenuItem disabled title="Pas encore disponible">
                             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                             Générer un avoir
                           </DropdownMenuItem>

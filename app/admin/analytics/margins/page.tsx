@@ -17,13 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarIcon, TrendingUp, TrendingDown, Minus, DollarSign, Package, Users } from "lucide-react"
-import {
-  getMarginKPIs,
-  getMarginBySupplier,
-  getMarginByProductType,
-  getTopMarginReservations,
-  getMarginEvolution,
-} from "@/lib/reporting/margin-analytics"
+import { getMarginKPIs } from "@/lib/reporting/margin-analytics"
 
 type MarginKPIs = {
   period: { start: Date; end: Date }
@@ -52,14 +46,20 @@ export default function MarginsDashboardPage() {
     to: new Date(),
   })
 
+  const [loadError, setLoadError] = useState<string | null>(null)
+
   const loadKPIs = async () => {
     setLoading(true)
+    setLoadError(null)
     try {
-      // TODO: Remplacer avec l'agencyId réel
-      const data = await getMarginKPIs("agency-id", dateRange.from, dateRange.to)
+      // L'agence est résolue côté serveur depuis la session admin —
+      // jamais fournie par le client (voir lib/reporting/margin-analytics.ts).
+      const data = await getMarginKPIs(dateRange.from, dateRange.to)
       setKpis(data)
     } catch (error) {
       console.error("Erreur chargement KPIs:", error)
+      setKpis(null)
+      setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des KPIs.")
     } finally {
       setLoading(false)
     }
@@ -144,6 +144,15 @@ export default function MarginsDashboardPage() {
         <div className="flex items-center justify-center h-64">
           <p className="text-muted-foreground">Chargement...</p>
         </div>
+      ) : loadError ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 h-64 text-center">
+            <p className="text-destructive text-sm font-medium">{loadError}</p>
+            <Button variant="outline" onClick={loadKPIs}>
+              Réessayer
+            </Button>
+          </CardContent>
+        </Card>
       ) : kpis ? (
         <>
           {/* KPIs Cards */}

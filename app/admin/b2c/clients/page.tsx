@@ -5,7 +5,6 @@
  */
 
 import { Metadata } from "next"
-import Link from "next/link"
 import { redirect } from "next/navigation"
 import {
   Users,
@@ -158,11 +157,9 @@ export default async function B2CClientsPage() {
             Base de données clients et historique
           </p>
         </div>
-        <Button className="bg-sidebar" asChild>
-          <Link href="/admin/b2c/clients/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau client
-          </Link>
+        <Button className="bg-sidebar" disabled title="Pas encore disponible">
+          <Plus className="mr-2 h-4 w-4" />
+          Nouveau client
         </Button>
       </div>
 
@@ -296,17 +293,15 @@ export default async function B2CClientsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/b2c/clients/${client.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Voir profil
-                              </Link>
+                            <DropdownMenuItem disabled title="Pas encore disponible">
+                              <Eye className="mr-2 h-4 w-4" />
+                              Voir profil
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem disabled title="Pas encore disponible">
                               <Edit className="mr-2 h-4 w-4" />
                               Modifier
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem disabled title="Pas encore disponible">
                               <FileText className="mr-2 h-4 w-4" />
                               Voir réservations
                             </DropdownMenuItem>

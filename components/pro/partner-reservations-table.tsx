@@ -169,11 +169,11 @@ function ReservationActionsCell({
               Consulter
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
+          <DropdownMenuItem disabled title="Pas encore disponible">
             <Printer className="mr-1.5 h-3.5 w-3.5" />
             Imprimer devis
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
+          <DropdownMenuItem disabled title="Pas encore disponible">
             <FileText className="mr-1.5 h-3.5 w-3.5" />
             Facture proforma
           </DropdownMenuItem>

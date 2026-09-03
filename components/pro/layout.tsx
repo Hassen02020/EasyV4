@@ -19,7 +19,6 @@ import {
   Wallet,
   RefreshCw,
   PanelLeft,
-  Car,
   Moon,
   Sun,
   Plug,
@@ -109,11 +108,12 @@ const BOOKING_NAV: NavItem[] = [
     icon: BedDouble,
     href: "/pro/hotels",
   },
-  {
-    title: "Transferts",
-    icon: Car,
-    href: "/pro/transfers",
-  },
+  // "Transferts" retiré (Phase 38G, gap confirmé) : /pro/transfers n'a
+  // jamais existé — aucun moteur de réservation Transferts B2B n'est
+  // construit (seule la vitrine publique /transferts l'est). Un lien mort
+  // dans la nav est pire qu'une entrée absente ; la re-pointer vers la
+  // vitrine publique sortirait le partenaire de sa session Pro, ce qui
+  // serait trompeur plutôt qu'un vrai correctif.
   {
     // Phase 13.1 : Omraty / Voyages Organisés / Attractions unifiés dans
     // /pro/produits (liste des produits autorisés pour cette agence, voir

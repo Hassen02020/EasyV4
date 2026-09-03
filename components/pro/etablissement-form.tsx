@@ -88,10 +88,12 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
     e.preventDefault()
     if (!validate()) return
     setSubmitting(true)
-    // Mock — sera un Server Action lié à agencies en phase 9
+    // Aucun Server Action d'écriture sur `agencies` n'existe encore : jamais
+    // un faux succès affiché tant que rien n'est réellement persisté, même
+    // discipline que PAYMENT_PROVIDER_NOT_CONFIGURED côté paiement.
     setTimeout(() => {
       setSubmitting(false)
-      toast.success("Établissement enregistré (mock — phase 9 : Server Action)")
+      toast.error("Modification du profil établissement pas encore disponible — contactez votre gestionnaire de compte.")
     }, 700)
   }
 

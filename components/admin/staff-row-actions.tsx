@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -110,11 +109,9 @@ export function StaffRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href={`/admin/staff/${memberId}`}>
-              <Eye className="mr-2 h-4 w-4" />
-              Voir profil
-            </Link>
+          <DropdownMenuItem disabled title="Pas encore disponible">
+            <Eye className="mr-2 h-4 w-4" />
+            Voir profil
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={isSelf}

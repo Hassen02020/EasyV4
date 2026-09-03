@@ -26,8 +26,11 @@ import {
   auditEvents,
   walletAccounts,
   walletLedger,
+  loyaltyAccounts,
+  loyaltyLedger,
 } from "@/lib/db/schema"
 import { getCustomerWalletBalance } from "@/lib/finance/customer-wallet"
+import { earnPendingPoints, convertPendingToAvailable, getLoyaltyAccountSummary } from "@/lib/loyalty/rewards-core"
 import { cancelPolicyReservationCore } from "../policy-cancel-core"
 import type { PolicySnapshot } from "../policy-engine"
 
@@ -203,6 +206,8 @@ after(async () => {
       await tx.delete(walletLedger).where(eq(walletLedger.walletAccountId, w.id))
     }
     await tx.delete(walletAccounts).where(eq(walletAccounts.customerId, ownerCustomerId))
+    await tx.delete(loyaltyLedger).where(eq(loyaltyLedger.agencyId, agencyA))
+    await tx.delete(loyaltyAccounts).where(eq(loyaltyAccounts.agencyId, agencyA))
     await tx.delete(reservationPackage).where(eq(reservationPackage.agencyId, agencyA))
     await tx.delete(payments).where(eq(payments.agencyId, agencyA))
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyA))
@@ -565,4 +570,102 @@ test("cancelPolicyReservationCore : CONCURRENCE RÉELLE — deux annulations sim
     tx.select().from(auditEvents).where(and(eq(auditEvents.entityId, reservationId), eq(auditEvents.action, "reservation.cancelled"))),
   )
   assert.equal(auditRows.length, 1, "une seule trace d'audit 'reservation.cancelled', jamais deux")
+})
+
+/* -------------------------------------------------------------------------- */
+/* Easy2Book Rewards (Phase 38D) — wiring : reprise des points à            */
+/* l'annulation via cancelPolicyReservationCore. Assertions en DELTA (avant/ */
+/* après CE test), jamais en valeur absolue : ownerCustomerId est partagé   */
+/* entre tous les tests de ce fichier, un solde absolu dépendrait de l'ordre */
+/* d'exécution — voir la leçon Phase 38D (lib/loyalty/__tests__/rewards-core.test.ts). */
+/* -------------------------------------------------------------------------- */
+
+test("cancelPolicyReservationCore : Easy2Book Rewards — reprend les points PENDING gagnés sur la réservation annulée", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const reservationId = await insertReservation({
+    tndAmount: "500.00",
+    policySnapshot: makeSnapshot({ cancellationFeePercent: 0 }),
+    withCapturedPayment: true,
+  })
+
+  const before = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  const earn = await withSystemContext((tx) =>
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId: ownerCustomerId,
+      reservationId,
+      module: "package",
+      eligibleTnd: 500,
+      idempotencyKey: `earn-pending:${reservationId}`,
+    }),
+  )
+  assert.equal(earn.ok && earn.awarded, true)
+  const afterEarn = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  assert.equal(afterEarn!.pendingPoints - (before?.pendingPoints ?? 0), 500, "fixture : 500 points bien crédités en pending avant l'annulation")
+
+  const result = await cancelPolicyReservationCore(
+    { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
+    { authUserId: ownerAuthUserId, verifiedEmail: ownerEmail },
+    reservationId,
+  )
+  assert.equal(result.ok, true)
+  if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
+
+  const after = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  assert.equal(
+    after!.pendingPoints,
+    before?.pendingPoints ?? 0,
+    "les points en attente gagnés sur la réservation annulée sont intégralement repris",
+  )
+})
+
+test("cancelPolicyReservationCore : Easy2Book Rewards — reprend aussi les points déjà AVAILABLE (post-conversion) sur la réservation annulée", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const reservationId = await insertReservation({
+    tndAmount: "300.00",
+    policySnapshot: makeSnapshot({ cancellationFeePercent: 0 }),
+    withCapturedPayment: true,
+  })
+
+  const before = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  await withSystemContext((tx) =>
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId: ownerCustomerId,
+      reservationId,
+      module: "package",
+      eligibleTnd: 300,
+      idempotencyKey: `earn-pending:${reservationId}`,
+    }),
+  )
+  const convert = await withSystemContext((tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId: ownerCustomerId,
+      reservationId,
+      idempotencyKey: `convert-available:${reservationId}`,
+    }),
+  )
+  assert.equal(convert.ok && convert.converted, true)
+  const afterConvert = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  assert.equal(
+    afterConvert!.availablePoints - (before?.availablePoints ?? 0),
+    300,
+    "fixture : 300 points bien convertis en available avant l'annulation",
+  )
+
+  const result = await cancelPolicyReservationCore(
+    { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
+    { authUserId: ownerAuthUserId, verifiedEmail: ownerEmail },
+    reservationId,
+  )
+  assert.equal(result.ok, true)
+  if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
+
+  const after = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  assert.equal(
+    after!.availablePoints,
+    before?.availablePoints ?? 0,
+    "les points disponibles issus de la réservation annulée sont intégralement repris",
+  )
 })

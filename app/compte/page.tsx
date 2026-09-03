@@ -3,7 +3,9 @@ import { redirect } from "next/navigation"
 import { ArrowLeft, Mail, Phone, User as UserIcon } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
+import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
 import { CompteReservationList } from "@/components/compte/compte-reservation-list"
+import { CompteLoyaltyCard } from "@/components/compte/compte-loyalty-card"
 import { CompteLogoutButton } from "@/components/compte/compte-logout-button"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 
@@ -25,6 +27,7 @@ export default async function ComptePage() {
   }
 
   const result = await listMyReservations()
+  const loyalty = await getMyLoyaltySummary()
 
   // La plus récente réservation sert de source pour l'aperçu profil
   // (nom/téléphone) — `customers` n'a pas de ligne canonique unique par
@@ -83,6 +86,13 @@ export default async function ComptePage() {
               </span>
             )}
           </div>
+        )}
+
+        {loyalty.ok && (
+          <CompteLoyaltyCard
+            pendingPoints={loyalty.pendingPoints}
+            availablePoints={loyalty.availablePoints}
+          />
         )}
 
         {!result.ok ? (

@@ -23,6 +23,7 @@ import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
+import { earnPendingPoints, convertPendingToAvailable, reverseEarnedPoints } from "@/lib/loyalty/rewards-core"
 import { logger } from "@/lib/logger"
 import { describeSupplierCancellationErrorForUser } from "@/lib/booking/hotel-provider-booking"
 import { resolveMyGoAccessForTenant, partnerTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
@@ -132,6 +133,7 @@ export async function updateReservationStatus(
       // générique (dropdown /admin/reservations) n'avait jusqu'ici AUCUNE
       // vérification de paiement — contrairement à verifyManualPayment, qui
       // confirme déjà correctement sous cette même condition.
+      let confirmedSummary: Awaited<ReturnType<typeof getReservationPaymentSummary>> | undefined
       if (nextStatus === "confirmed") {
         const summary = await getReservationPaymentSummary({
           reservationId,
@@ -143,6 +145,7 @@ export async function updateReservationStatus(
             error: `Confirmation refusée : paiement incomplet (${summary.paymentState}, restant ${summary.remainingTnd.toFixed(2)} DT). Une réservation ne peut être confirmée qu'une fois intégralement réglée.`,
           }
         }
+        confirmedSummary = summary
       }
 
       const cancelledAt = nextStatus === "cancelled" ? new Date() : null
@@ -201,6 +204,54 @@ export async function updateReservationStatus(
           ),
         )
 
+      // --- Easy2Book Rewards (Phase 38D) — mêmes contrats que
+      // lib/loyalty/rewards-core.ts (voir doc de tête du fichier) : earn
+      // pending à "confirmed" (montant éligible = getReservationPaymentSummary,
+      // déjà calculé ci-dessus), conversion pending→available UNIQUEMENT à
+      // "completed" (seul point d'écriture de ce statut), reprise à
+      // "cancelled"/"refunded". Modules non éligibles (Omra) et réservations
+      // n'ayant jamais gagné de point sont des no-op silencieux gérés par le
+      // moteur lui-même — jamais un throw pour ça. Toujours dans LA MÊME
+      // transaction que le changement de statut : jamais un point cohérent
+      // avec un statut qui, lui, aurait rollback.
+      let loyaltyPointsEarned: number | undefined
+      let loyaltyPointsConverted: number | undefined
+      let loyaltyPointsReversed: number | undefined
+      if (nextStatus === "confirmed" && confirmedSummary) {
+        const earnResult = await earnPendingPoints(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          module: row.module,
+          eligibleTnd: confirmedSummary.collectedTnd,
+          idempotencyKey: `earn-pending:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (earnResult.ok && earnResult.awarded) loyaltyPointsEarned = earnResult.points
+      }
+      if (nextStatus === "completed") {
+        const convertResult = await convertPendingToAvailable(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          idempotencyKey: `convert-available:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (convertResult.ok && convertResult.converted) loyaltyPointsConverted = convertResult.points
+      }
+      if (nextStatus === "cancelled" || nextStatus === "refunded") {
+        const reverseResult = await reverseEarnedPoints(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          idempotencyKey: `reverse:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (reverseResult.reversed) {
+          loyaltyPointsReversed = reverseResult.pointsReversedFromPending + reverseResult.pointsReversedFromAvailable
+        }
+      }
+
       // --- Intégrité paiement/ledger : une annulation ne doit jamais
       // laisser un paiement CAPTURÉ orphelin. Une réservation B2B (financée
       // par le crédit agence, jamais par `payments` — voir
@@ -247,6 +298,9 @@ export async function updateReservationStatus(
               ? { providerCancellationFeeTnd: providerCancellationFee }
               : {}),
             ...(refundedTnd != null ? { refundedTnd: refundedTnd.toFixed(2) } : {}),
+            ...(loyaltyPointsEarned != null ? { loyaltyPointsEarned } : {}),
+            ...(loyaltyPointsConverted != null ? { loyaltyPointsConverted } : {}),
+            ...(loyaltyPointsReversed != null ? { loyaltyPointsReversed } : {}),
           },
         })
       } catch {

@@ -45,6 +45,8 @@ import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import type { TravelerInput } from "@/lib/booking/schemas"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
+import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
+import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 
 export type CreateGuestActivityBookingResult =
   | {
@@ -283,6 +285,24 @@ async function runCreateGuestActivityBooking(
           status: isImmediatelyPaid ? "captured" : "pending",
           capturedAt: isImmediatelyPaid ? new Date() : undefined,
         })
+
+        // Easy2Book Rewards (Phase 38D) — B2C uniquement (voir doc de tête
+        // lib/loyalty/rewards-core.ts), montant éligible = paiement
+        // réellement capturé, jamais totalTnd seul.
+        if (isImmediatelyPaid) {
+          const rewardsSummary = await getReservationPaymentSummary({
+            reservationId,
+            txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+          })
+          await earnPendingPoints(tx, {
+            agencyId,
+            customerId,
+            reservationId,
+            module: "activity",
+            eligibleTnd: rewardsSummary.collectedTnd,
+            idempotencyKey: `earn-pending:${reservationId}`,
+          })
+        }
 
         // --- 6. Extension Activity ---
         await tx.insert(reservationActivity).values({

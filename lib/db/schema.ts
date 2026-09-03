@@ -1174,6 +1174,94 @@ export const cancellationPolicies = pgTable(
   ],
 )
 
+/* -------------------------------------------------------------------------- */
+/* Easy2Book Rewards (Loyalty V1, Phase 38D)                                  */
+/*                                                                            */
+/* Même modèle éprouvé que Wallet (wallet_accounts + wallet_ledger) : un      */
+/* compte par client (soldes dénormalisés pour lecture rapide) + un grand    */
+/* livre APPEND-ONLY qui reste la SEULE source de vérité — voir              */
+/* lib/loyalty/rewards-core.ts. Table DISTINCTE du Wallet (jamais fusionnée) */
+/* : les points ne sont ni de l'argent, ni transférables, ni encaissables.   */
+/* -------------------------------------------------------------------------- */
+
+export const loyaltyAccounts = pgTable(
+  "loyalty_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    pendingPoints: integer("pending_points").notNull().default(0),
+    availablePoints: integer("available_points").notNull().default(0),
+    lifetimeEarnedPoints: integer("lifetime_earned_points").notNull().default(0),
+    lifetimeRedeemedPoints: integer("lifetime_redeemed_points").notNull().default(0),
+    /** Base de l'expiration après 24 mois d'inactivité. */
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("loyalty_accounts_customer_uniq").on(t.customerId),
+    index("loyalty_accounts_agency_idx").on(t.agencyId),
+  ],
+)
+
+/**
+ * Grand livre — jamais modifié ni supprimé après insertion. `idempotencyKey`
+ * garantit "au plus une fois" par événement métier (retry réseau,
+ * double-clic, webhook rejoué). Chaque ligne ne touche QU'UN SEUL bucket
+ * (pending ou available) — une conversion pending→available s'écrit comme
+ * deux lignes dans la même transaction.
+ */
+export const loyaltyLedger = pgTable(
+  "loyalty_ledger",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    loyaltyAccountId: uuid("loyalty_account_id")
+      .notNull()
+      .references(() => loyaltyAccounts.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    /** 'earn_pending' | 'convert_pending_out' | 'convert_available_in' | 'redeem' | 'reverse_pending' | 'reverse_available' | 'reinstate' | 'expire' */
+    type: varchar("type", { length: 32 }).notNull(),
+    bucket: varchar("bucket", { length: 16 }).notNull(),
+    /** Delta signé appliqué à CE bucket. */
+    points: integer("points").notNull(),
+    balanceBefore: integer("balance_before").notNull(),
+    balanceAfter: integer("balance_after").notNull(),
+    /** Réservation à l'origine (earn/convert/reverse) ou cible (redeem/reinstate) du mouvement. Jamais de FK stricte. */
+    reservationId: uuid("reservation_id"),
+    description: text("description").notNull(),
+    metadata: jsonb("metadata"),
+    idempotencyKey: text("idempotency_key"),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("loyalty_ledger_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
+    index("loyalty_ledger_account_idx").on(t.loyaltyAccountId, t.createdAt),
+    index("loyalty_ledger_reservation_idx").on(t.reservationId),
+    index("loyalty_ledger_agency_idx").on(t.agencyId),
+  ],
+)
+
 /**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *

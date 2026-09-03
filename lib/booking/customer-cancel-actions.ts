@@ -46,6 +46,7 @@ import { getMyGoClient } from "@/lib/mygo"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
+import { reverseEarnedPoints } from "@/lib/loyalty/rewards-core"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -186,6 +187,18 @@ export async function cancelMyHotelReservation(
         .update(reservations)
         .set({ status: "cancelled", cancelledAt: new Date() })
         .where(eq(reservations.id, reservationId))
+
+      // Easy2Book Rewards (Phase 38D) — reprise des points gagnés (pending
+      // ou déjà available) sur cette réservation, même transaction que
+      // l'annulation. No-op silencieux si rien n'avait été gagné (module non
+      // éligible, ou réservation encore `pending` jamais confirmée).
+      await reverseEarnedPoints(tx, {
+        agencyId: tenant.agencyId ?? "",
+        customerId: preCheck.customerId,
+        reservationId,
+        idempotencyKey: `reverse:${reservationId}`,
+        actorUserId: user.id,
+      })
 
       await tx.insert(auditEvents).values({
         agencyId: tenant.agencyId ?? "",

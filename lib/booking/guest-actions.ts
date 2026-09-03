@@ -69,6 +69,8 @@ import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-
 import { withGuestIdempotency } from "./guest-idempotency"
 import { pgErrorCode } from "@/lib/db/pg-error"
 import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./customer-identity"
+import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
+import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 
 export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash" | "at_hotel"
 
@@ -454,6 +456,24 @@ async function runCreateGuestReservation(
             kind: "deposit",
             status: "captured",
             capturedAt: new Date(),
+          })
+
+          // Easy2Book Rewards (Phase 38D) — montant éligible = paiement
+          // réellement capturé (lib/finance/payment-summary.ts), jamais
+          // breakdown.totalTnd (prix calculé, pas encaissé). Même
+          // transaction que la confirmation : jamais un point sans
+          // réservation confirmée derrière.
+          const rewardsSummary = await getReservationPaymentSummary({
+            reservationId,
+            txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+          })
+          await earnPendingPoints(tx, {
+            agencyId,
+            customerId,
+            reservationId,
+            module: "hotel",
+            eligibleTnd: rewardsSummary.collectedTnd,
+            idempotencyKey: `earn-pending:${reservationId}`,
           })
         } else {
           // Règlement différé (virement/espèces) — déjà annoncé comme tel

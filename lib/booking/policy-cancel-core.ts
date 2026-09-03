@@ -63,6 +63,7 @@ import { isValidWalletAmount } from "@/lib/finance/customer-wallet"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import { evaluateCancellation, type PolicySnapshot } from "@/lib/booking/policy-engine"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
+import { reverseEarnedPoints } from "@/lib/loyalty/rewards-core"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -217,6 +218,18 @@ export async function cancelPolicyReservationCore(
         .where(eq(reservations.id, reservationId))
 
       await releaseStock(tx, preCheck.module as CancellableModule, reservationId)
+
+      // Easy2Book Rewards (Phase 38D) — reprise des points gagnés sur cette
+      // réservation, même transaction que l'annulation. No-op silencieux
+      // pour Omra (module exclu par défaut) ou toute réservation n'ayant
+      // jamais gagné de point (jamais confirmée).
+      await reverseEarnedPoints(tx, {
+        agencyId: tenant.agencyId ?? "",
+        customerId: preCheck.customerId,
+        reservationId,
+        idempotencyKey: `reverse:${reservationId}`,
+        actorUserId,
+      })
 
       await tx.insert(auditEvents).values({
         agencyId: tenant.agencyId ?? "",

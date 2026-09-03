@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { createBrowserSupabase } from "@/lib/supabase/client"
+import { clearUserRoleCookie } from "@/app/actions/validate-role"
 import { cn } from "@/lib/utils"
 
 const LANGUAGES = [
@@ -109,6 +110,10 @@ export function ProHeader({ user, agency }: ProHeaderProps) {
     startTransition(async () => {
       const supabase = createBrowserSupabase()
       await supabase.auth.signOut()
+      // Sinon le cookie de rôle posé par /login/select survit à la
+      // déconnexion et pourrait fausser le routage du prochain utilisateur
+      // sur ce même navigateur (voir app/api/auth/signout/route.ts).
+      await clearUserRoleCookie()
       router.replace("/pro/login")
       router.refresh()
     })

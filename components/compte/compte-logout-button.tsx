@@ -4,6 +4,7 @@ import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { LogOut, Loader2 } from "lucide-react"
 import { createBrowserSupabase } from "@/lib/supabase/client"
+import { clearUserRoleCookie } from "@/app/actions/validate-role"
 import { Button } from "@/components/ui/button"
 
 export function CompteLogoutButton() {
@@ -14,6 +15,10 @@ export function CompteLogoutButton() {
     startTransition(async () => {
       const supabase = createBrowserSupabase()
       await supabase.auth.signOut()
+      // Sinon le cookie de rôle posé par /login/select (s'il en reste un
+      // sur ce navigateur) survit à la déconnexion — voir
+      // app/api/auth/signout/route.ts.
+      await clearUserRoleCookie()
       router.replace("/compte/connexion")
       router.refresh()
     })

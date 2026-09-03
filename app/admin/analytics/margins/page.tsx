@@ -10,14 +10,30 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarIcon, TrendingUp, TrendingDown, Minus, DollarSign, Package, Users } from "lucide-react"
-import { getMarginKPIs } from "@/lib/reporting/margin-analytics"
+import {
+  getMarginKPIs,
+  getMarginBySupplier,
+  getMarginByProductType,
+  getTopMarginReservations,
+  getMarginEvolution,
+  type MarginBySupplier,
+  type MarginByProductType,
+  type TopMarginReservation,
+} from "@/lib/reporting/margin-analytics"
 
 type MarginKPIs = {
   period: { start: Date; end: Date }
@@ -35,6 +51,18 @@ type MarginKPIs = {
   marginTrendPercent: number
 }
 
+type MarginEvolutionPoint = { date: string; margin: number; revenue: number }
+
+const PRODUCT_TYPE_LABEL: Record<string, string> = {
+  hotel: "Hôtel",
+  flight: "Vol",
+  omra: "Omra",
+  package: "Voyage organisé",
+  activity: "Activité",
+  transfer: "Transfert",
+  car: "Location voiture",
+}
+
 export default function MarginsDashboardPage() {
   const [kpis, setKpis] = useState<MarginKPIs | null>(null)
   const [loading, setLoading] = useState(true)
@@ -47,6 +75,10 @@ export default function MarginsDashboardPage() {
   })
 
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [suppliers, setSuppliers] = useState<MarginBySupplier[]>([])
+  const [productTypes, setProductTypes] = useState<MarginByProductType[]>([])
+  const [topReservations, setTopReservations] = useState<TopMarginReservation[]>([])
+  const [evolution, setEvolution] = useState<MarginEvolutionPoint[]>([])
 
   const loadKPIs = async () => {
     setLoading(true)
@@ -54,8 +86,18 @@ export default function MarginsDashboardPage() {
     try {
       // L'agence est résolue côté serveur depuis la session admin —
       // jamais fournie par le client (voir lib/reporting/margin-analytics.ts).
-      const data = await getMarginKPIs(dateRange.from, dateRange.to)
+      const [data, bySupplier, byProductType, topMargins, evolutionData] = await Promise.all([
+        getMarginKPIs(dateRange.from, dateRange.to),
+        getMarginBySupplier(dateRange.from, dateRange.to),
+        getMarginByProductType(dateRange.from, dateRange.to),
+        getTopMarginReservations(dateRange.from, dateRange.to),
+        getMarginEvolution(dateRange.from, dateRange.to),
+      ])
       setKpis(data)
+      setSuppliers(bySupplier)
+      setProductTypes(byProductType)
+      setTopReservations(topMargins)
+      setEvolution(evolutionData)
     } catch (error) {
       console.error("Erreur chargement KPIs:", error)
       setKpis(null)
@@ -245,9 +287,30 @@ export default function MarginsDashboardPage() {
                   <CardTitle>Évolution des marges</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Graphique d&apos;évolution des marges dans le temps (à implémenter)
-                  </p>
+                  {evolution.length === 0 ? (
+                    <p className="text-muted-foreground py-8 text-center text-sm">
+                      Aucune réservation sur cette période.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Chiffre d&apos;affaires</TableHead>
+                          <TableHead className="text-right">Marge</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {evolution.map((point) => (
+                          <TableRow key={point.date}>
+                            <TableCell>{format(new Date(point.date), "dd/MM/yyyy", { locale: fr })}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(point.revenue)}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(point.margin)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -258,9 +321,34 @@ export default function MarginsDashboardPage() {
                   <CardTitle>Marges par fournisseur</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Tableau des marges par fournisseur (à implémenter)
-                  </p>
+                  {suppliers.length === 0 ? (
+                    <p className="text-muted-foreground py-8 text-center text-sm">
+                      Aucune réservation sur cette période.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fournisseur</TableHead>
+                          <TableHead className="text-right">Réservations</TableHead>
+                          <TableHead className="text-right">Chiffre d&apos;affaires</TableHead>
+                          <TableHead className="text-right">Marge</TableHead>
+                          <TableHead className="text-right">% Marge</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {suppliers.map((s) => (
+                          <TableRow key={s.supplierId}>
+                            <TableCell>{s.supplierName}</TableCell>
+                            <TableCell className="text-right">{s.reservationCount}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(s.totalRevenue)}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(s.totalMargin)}</TableCell>
+                            <TableCell className="text-right">{formatPercent(s.marginPercent)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -271,9 +359,34 @@ export default function MarginsDashboardPage() {
                   <CardTitle>Marges par type de produit</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Tableau des marges par type de produit (à implémenter)
-                  </p>
+                  {productTypes.length === 0 ? (
+                    <p className="text-muted-foreground py-8 text-center text-sm">
+                      Aucune réservation sur cette période.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type de produit</TableHead>
+                          <TableHead className="text-right">Réservations</TableHead>
+                          <TableHead className="text-right">Chiffre d&apos;affaires</TableHead>
+                          <TableHead className="text-right">Marge</TableHead>
+                          <TableHead className="text-right">% Marge</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {productTypes.map((p) => (
+                          <TableRow key={p.productType}>
+                            <TableCell>{PRODUCT_TYPE_LABEL[p.productType] ?? p.productType}</TableCell>
+                            <TableCell className="text-right">{p.reservationCount}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(p.totalRevenue)}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(p.totalMargin)}</TableCell>
+                            <TableCell className="text-right">{formatPercent(p.marginPercent)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -284,9 +397,36 @@ export default function MarginsDashboardPage() {
                   <CardTitle>Top réservations (marge)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Liste des réservations avec les meilleures marges (à implémenter)
-                  </p>
+                  {topReservations.length === 0 ? (
+                    <p className="text-muted-foreground py-8 text-center text-sm">
+                      Aucune réservation sur cette période.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Référence</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Prix de vente</TableHead>
+                          <TableHead className="text-right">Marge</TableHead>
+                          <TableHead className="text-right">% Marge</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {topReservations.map((r) => (
+                          <TableRow key={r.reservationId}>
+                            <TableCell className="font-mono text-xs">{r.publicRef}</TableCell>
+                            <TableCell>{PRODUCT_TYPE_LABEL[r.productType] ?? r.productType}</TableCell>
+                            <TableCell>{format(new Date(r.createdAt), "dd/MM/yyyy", { locale: fr })}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(r.salePriceTnd)}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(r.marginAmount)}</TableCell>
+                            <TableCell className="text-right">{formatPercent(r.marginPercent)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

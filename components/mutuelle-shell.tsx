@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { createBrowserSupabase } from "@/lib/supabase/client"
+import { clearUserRoleCookie } from "@/app/actions/validate-role"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 
@@ -41,6 +42,10 @@ export function MutuelleShell({
   async function handleLogout() {
     const supabase = createBrowserSupabase()
     await supabase.auth.signOut()
+    // Sinon le cookie de rôle posé par /login/select survit à la
+    // déconnexion et pourrait fausser le routage du prochain utilisateur
+    // sur ce même navigateur (voir app/api/auth/signout/route.ts).
+    await clearUserRoleCookie()
     window.location.href = "/mutuelle/login"
   }
 

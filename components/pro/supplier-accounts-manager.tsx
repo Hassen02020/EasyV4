@@ -13,6 +13,7 @@ import {
   KeyRound,
   Loader2,
   Users2,
+  ArrowUpDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,6 +56,7 @@ import {
   rotateOwnSupplierCredentials,
   setOwnSupplierAccountStatus,
   testOwnSupplierConnection,
+  updateOwnSupplierAccountPriority,
   type AgencySupplierAccountRow,
 } from "@/lib/hotel-suppliers/tenant/agency-accounts"
 
@@ -86,6 +88,8 @@ export function SupplierAccountsManager({
   const [isPending, startTransition] = useTransition()
   const [createOpen, setCreateOpen] = useState(false)
   const [rotateFor, setRotateFor] = useState<AgencySupplierAccountRow | null>(null)
+  const [priorityFor, setPriorityFor] = useState<AgencySupplierAccountRow | null>(null)
+  const [priorityValue, setPriorityValue] = useState("100")
 
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? "")
   const [displayName, setDisplayName] = useState("")
@@ -159,6 +163,20 @@ export function SupplierAccountsManager({
       setRotateFor(null)
       setLogin("")
       setPassword("")
+      router.refresh()
+    })
+  }
+
+  function handleUpdatePriority() {
+    if (!priorityFor) return
+    startTransition(async () => {
+      const result = await updateOwnSupplierAccountPriority(priorityFor.id, Number(priorityValue) || 100)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+      toast.success("Priorité mise à jour.")
+      setPriorityFor(null)
       router.refresh()
     })
   }
@@ -246,6 +264,7 @@ export function SupplierAccountsManager({
             <TableHead>Fournisseur</TableHead>
             <TableHead>Origine</TableHead>
             <TableHead>Statut</TableHead>
+            <TableHead>Priorité</TableHead>
             <TableHead>Dernier test</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -253,7 +272,7 @@ export function SupplierAccountsManager({
         <TableBody>
           {accounts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground py-8 text-center">
+              <TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
                 Aucun compte fournisseur disponible. {canManage ? "Créez-en un pour commencer." : "Contactez votre administrateur."}
               </TableCell>
             </TableRow>
@@ -286,6 +305,9 @@ export function SupplierAccountsManager({
                   <TableCell>
                     <Badge className={statusConfig!.className}>{statusConfig!.label}</Badge>
                   </TableCell>
+                  <TableCell className="text-muted-foreground text-sm tabular-nums">
+                    {a.priority}
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {a.lastTestedAt ? new Date(a.lastTestedAt).toLocaleString("fr-FR") : "Jamais"}
                     {a.lastTestStatus ? ` · ${a.lastTestStatus}` : ""}
@@ -308,6 +330,16 @@ export function SupplierAccountsManager({
                             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setRotateFor(a) }}>
                               <KeyRound className="mr-2 h-4 w-4" />
                               Changer les identifiants
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault()
+                                setPriorityValue(String(a.priority))
+                                setPriorityFor(a)
+                              }}
+                            >
+                              <ArrowUpDown className="mr-2 h-4 w-4" />
+                              Modifier la priorité
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -347,6 +379,34 @@ export function SupplierAccountsManager({
           </div>
           <DialogFooter>
             <Button onClick={handleRotate} disabled={isPending}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!priorityFor} onOpenChange={(open) => !open && setPriorityFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Priorité — {priorityFor?.displayName}</DialogTitle>
+            <DialogDescription>
+              Détermine l&apos;ordre d&apos;essai entre vos comptes fournisseurs lors d&apos;une recherche —
+              une valeur plus basse est essayée en premier.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>Priorité</Label>
+              <Input
+                type="number"
+                min={1}
+                value={priorityValue}
+                onChange={(e) => setPriorityValue(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleUpdatePriority} disabled={isPending}>
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
             </Button>
           </DialogFooter>

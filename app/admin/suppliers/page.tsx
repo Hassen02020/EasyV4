@@ -203,6 +203,9 @@ export default async function SuppliersPage() {
                             ownerType={a.ownerType}
                             agencies={agencyPickerOptions}
                             authorizedAgencies={authorizedAgencies}
+                            priority={a.priority}
+                            timeoutMs={a.timeoutMs}
+                            isDefault={a.isDefault}
                           />
                         </TableCell>
                       </TableRow>

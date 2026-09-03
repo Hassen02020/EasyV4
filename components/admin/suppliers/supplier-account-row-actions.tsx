@@ -11,10 +11,12 @@ import {
   KeyRound,
   Users,
   Loader2,
+  Pencil,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +46,7 @@ import {
   testSupplierConnection,
   authorizeAgencyForAccount,
   revokeAgencyAuthorization,
+  updateSupplierAccount,
 } from "@/lib/hotel-suppliers/tenant/accounts"
 
 interface AgencyOption {
@@ -64,6 +67,9 @@ export function SupplierAccountRowActions({
   ownerType,
   agencies,
   authorizedAgencies,
+  priority,
+  timeoutMs,
+  isDefault,
 }: {
   accountId: string
   displayName: string
@@ -71,14 +77,22 @@ export function SupplierAccountRowActions({
   ownerType: string
   agencies: AgencyOption[]
   authorizedAgencies: AuthorizedAgency[]
+  priority: number
+  timeoutMs: number | null
+  isDefault: boolean
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [rotateOpen, setRotateOpen] = useState(false)
   const [authorizeOpen, setAuthorizeOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [login, setLogin] = useState("")
   const [password, setPassword] = useState("")
   const [pickedAgencyId, setPickedAgencyId] = useState(agencies[0]?.id ?? "")
+  const [editDisplayName, setEditDisplayName] = useState(displayName)
+  const [editPriority, setEditPriority] = useState(String(priority))
+  const [editTimeoutMs, setEditTimeoutMs] = useState(timeoutMs != null ? String(timeoutMs) : "")
+  const [editIsDefault, setEditIsDefault] = useState(isDefault)
 
   const isActive = status === "active"
 
@@ -133,6 +147,40 @@ export function SupplierAccountRowActions({
     })
   }
 
+  function handleEdit() {
+    const trimmedName = editDisplayName.trim()
+    if (!trimmedName) {
+      toast.error("Le nom est requis.")
+      return
+    }
+    const parsedPriority = Number(editPriority)
+    if (!Number.isFinite(parsedPriority) || parsedPriority < 0) {
+      toast.error("Priorité invalide.")
+      return
+    }
+    const parsedTimeoutMs = editTimeoutMs.trim() === "" ? null : Number(editTimeoutMs)
+    if (parsedTimeoutMs != null && (!Number.isFinite(parsedTimeoutMs) || parsedTimeoutMs <= 0)) {
+      toast.error("Timeout invalide.")
+      return
+    }
+    startTransition(async () => {
+      const result = await updateSupplierAccount({
+        accountId,
+        displayName: trimmedName,
+        priority: parsedPriority,
+        timeoutMs: parsedTimeoutMs,
+        isDefault: editIsDefault,
+      })
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+      toast.success("Compte fournisseur mis à jour.")
+      setEditOpen(false)
+      router.refresh()
+    })
+  }
+
   function handleRevoke(authorizedAgencyId: string) {
     startTransition(async () => {
       const result = await revokeAgencyAuthorization(accountId, authorizedAgencyId)
@@ -161,6 +209,10 @@ export function SupplierAccountRowActions({
             <PlugZap className="mr-2 h-4 w-4" />
             Tester la connexion
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setEditOpen(true) }}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Modifier
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setRotateOpen(true) }}>
             <KeyRound className="mr-2 h-4 w-4" />
             Changer les identifiants
@@ -181,6 +233,58 @@ export function SupplierAccountRowActions({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier — {displayName}</DialogTitle>
+            <DialogDescription>
+              Nom, priorité de sélection (agence/type/priorité — voir Best Rate Engine), délai fournisseur et compte par
+              défaut.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>Nom</Label>
+              <Input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Priorité (plus bas = préféré)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={editPriority}
+                onChange={(e) => setEditPriority(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Timeout (ms, vide = défaut système)</Label>
+              <Input
+                type="number"
+                min={1}
+                value={editTimeoutMs}
+                onChange={(e) => setEditTimeoutMs(e.target.value)}
+                placeholder="Ex. 8000"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id={`is-default-${accountId}`}
+                checked={editIsDefault}
+                onCheckedChange={(checked) => setEditIsDefault(checked === true)}
+              />
+              <Label htmlFor={`is-default-${accountId}`} className="font-normal">
+                Compte par défaut pour cette agence/ce fournisseur
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleEdit} disabled={isPending}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={rotateOpen} onOpenChange={setRotateOpen}>
         <DialogContent>

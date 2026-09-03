@@ -88,3 +88,39 @@ export function isActivityVoucherEligible(
   if (!row.activityName || !row.sessionDate) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
 }
+
+/**
+ * PHASE 38B (Voucher Hardening) — SEULE source de vérité pour "quelle route
+ * de téléchargement voucher pour quel module ?". Avant cette extraction,
+ * deux copies indépendantes de cette table existaient
+ * (`app/booking/confirmation/[ref]/page.tsx` et
+ * `components/booking-summary-card.tsx`) et avaient déjà divergé : la
+ * première omettait `activity` (son fallback `?? "/api/booking/voucher"`
+ * routait silencieusement une confirmation Activity vers le PDF hôtel, qui
+ * la rejette), la seconde n'autorisait QUE `hotel` alors que les routes
+ * Omra/Package/Activity existent et fonctionnent déjà — un client avec une
+ * réservation confirmée dans l'un de ces 3 modules voyait un bouton
+ * "Voucher PDF" désactivé en permanence sur `/compte` sans raison
+ * technique. Une seule table désormais, réutilisée aux deux endroits.
+ */
+export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
+  hotel: "/api/booking/voucher",
+  omra: "/api/omra/voucher",
+  package: "/api/packages/voucher",
+  activity: "/api/activities/voucher",
+}
+
+/**
+ * Construit le lien de téléchargement voucher pour un module donné, ou
+ * `null` si ce module n'a pas de route voucher (vol/transfert/voiture —
+ * jamais un lien fabriqué vers une route qui n'existe pas).
+ */
+export function voucherHrefForModule(
+  module: string,
+  publicRef: string,
+  token: string,
+): string | null {
+  const base = VOUCHER_ROUTE_BY_MODULE[module]
+  if (!base) return null
+  return `${base}/${publicRef}?token=${token}`
+}

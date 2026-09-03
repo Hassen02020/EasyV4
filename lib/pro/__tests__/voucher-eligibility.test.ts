@@ -1,7 +1,12 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { isVoucherEligible, isOmraVoucherEligible, isPackageVoucherEligible } from "../voucher-eligibility"
+import {
+  isVoucherEligible,
+  isOmraVoucherEligible,
+  isPackageVoucherEligible,
+  voucherHrefForModule,
+} from "../voucher-eligibility"
 
 const baseHotelRow = {
   module: "hotel",
@@ -136,4 +141,48 @@ test("isPackageVoucherEligible : false si les données de voyage sont incomplèt
     isPackageVoucherEligible({ module: "package", status: "confirmed", packageName: null, departureDate: "2026-05-01", returnDate: "2026-05-06" }),
     false,
   )
+})
+
+/* -------------------------------------------------------------------------- */
+/* voucherHrefForModule (Phase 38B — Voucher Hardening)                       */
+/*                                                                            */
+/* Source unique de vérité pour la route voucher par module — avant cette    */
+/* extraction, deux copies indépendantes (confirmation page + /compte)       */
+/* avaient déjà divergé : l'une omettait "activity" (fallback silencieux     */
+/* vers le PDF hôtel), l'autre n'autorisait QUE "hotel" alors que les routes */
+/* Omra/Package/Activity existent et fonctionnent déjà.                     */
+/* -------------------------------------------------------------------------- */
+
+test("voucherHrefForModule : construit le bon lien pour hotel", () => {
+  assert.equal(
+    voucherHrefForModule("hotel", "TG-2026-000123", "tok123"),
+    "/api/booking/voucher/TG-2026-000123?token=tok123",
+  )
+})
+
+test("voucherHrefForModule : construit le bon lien pour omra", () => {
+  assert.equal(
+    voucherHrefForModule("omra", "OM-2026-000045", "tokabc"),
+    "/api/omra/voucher/OM-2026-000045?token=tokabc",
+  )
+})
+
+test("voucherHrefForModule : construit le bon lien pour package", () => {
+  assert.equal(
+    voucherHrefForModule("package", "PK-2026-000007", "tokxyz"),
+    "/api/packages/voucher/PK-2026-000007?token=tokxyz",
+  )
+})
+
+test("voucherHrefForModule : construit le bon lien pour activity (gap Phase 38A confirmé — manquait sur la page de confirmation)", () => {
+  assert.equal(
+    voucherHrefForModule("activity", "AT-2026-000099", "tokqqq"),
+    "/api/activities/voucher/AT-2026-000099?token=tokqqq",
+  )
+})
+
+test("voucherHrefForModule : null pour un module sans route voucher (jamais un lien fabriqué vers une route inexistante)", () => {
+  assert.equal(voucherHrefForModule("flight", "FL-2026-000001", "tok"), null)
+  assert.equal(voucherHrefForModule("transfer", "TR-2026-000001", "tok"), null)
+  assert.equal(voucherHrefForModule("car", "CR-2026-000001", "tok"), null)
 })

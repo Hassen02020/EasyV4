@@ -13,15 +13,9 @@ import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import { ConfirmationStatusBadge } from "@/components/booking/confirmation-status-badge"
+import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
 
 export const dynamic = "force-dynamic"
-
-/** Route de téléchargement voucher par module — chaque module a son propre PDF (Hôtel/Omra/Package). */
-const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
-  hotel: "/api/booking/voucher",
-  omra: "/api/omra/voucher",
-  package: "/api/packages/voucher",
-}
 
 export default async function ConfirmationPage({
   params,
@@ -76,6 +70,11 @@ export default async function ConfirmationPage({
     adults?: number
     children?: number
   } | null
+
+  const voucherHref =
+    row.status === "confirmed" || row.status === "completed"
+      ? voucherHrefForModule(row.module, row.publicRef, token)
+      : null
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -153,13 +152,9 @@ export default async function ConfirmationPage({
                 <Button asChild variant="outline" className="flex-1">
                   <Link href="/">Retour à l&apos;accueil</Link>
                 </Button>
-                {row.status === "confirmed" || row.status === "completed" ? (
+                {voucherHref ? (
                   <Button asChild className="flex-1">
-                    <a
-                      href={`${VOUCHER_ROUTE_BY_MODULE[row.module] ?? "/api/booking/voucher"}/${row.publicRef}?token=${token}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a href={voucherHref} target="_blank" rel="noopener noreferrer">
                       <Download className="mr-2 size-4" />
                       Télécharger le voucher
                     </a>

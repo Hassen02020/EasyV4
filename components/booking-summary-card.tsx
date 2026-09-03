@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useT } from "@/components/locale-context"
 import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
+import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
 
 const MODULE_ICONS: Record<string, React.ElementType> = {
   flight: Plane,
@@ -60,6 +61,7 @@ const MODULE_LABELS: Record<string, string> = {
 
 /** Modules gérés par le Policy Engine (annulation via `cancelMyPolicyReservation`) — distinct de l'hôtel (`cancelMyHotelReservation`, politique myGo). */
 const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
+
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   card: "Carte bancaire",
@@ -434,24 +436,25 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
             n'est jamais suffisant) — "Facture PDF" utilise `hasInvoice`
             (réellement émise), même logique que la page de confirmation. */}
         <div className="flex flex-wrap gap-2 pt-1">
-          {(booking.status === "confirmed" || booking.status === "completed") &&
-          booking.module === "hotel" ? (
-            <Button variant="outline" size="sm" className="gap-1.5" asChild>
-              <a
-                href={`/api/booking/voucher/${booking.publicRef}?token=${booking.guestAccessToken}`}
-                target="_blank"
-                rel="noreferrer"
-              >
+          {(() => {
+            const voucherHref =
+              booking.status === "confirmed" || booking.status === "completed"
+                ? voucherHrefForModule(booking.module, booking.publicRef, booking.guestAccessToken)
+                : null
+            return voucherHref ? (
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                <a href={voucherHref} target="_blank" rel="noreferrer">
+                  <Download className="h-4 w-4" />
+                  {t("voucherPdf")}
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="gap-1.5" disabled>
                 <Download className="h-4 w-4" />
                 {t("voucherPdf")}
-              </a>
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" className="gap-1.5" disabled>
-              <Download className="h-4 w-4" />
-              {t("voucherPdf")}
-            </Button>
-          )}
+              </Button>
+            )
+          })()}
           {booking.hasInvoice ? (
             <Button variant="outline" size="sm" className="gap-1.5" asChild>
               <a

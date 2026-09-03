@@ -58,10 +58,7 @@ type ProductRow = {
 const TYPE_META: Record<ProductRow["type"], { label: string; icon: typeof Building2; color: string; editPath?: (id: string) => string }> = {
   package: { label: "Voyages Organisés", icon: Briefcase, color: "bg-violet-500", editPath: (id) => `/admin/products/package/${id}` },
   omra: { label: "Omra", icon: Moon, color: "bg-emerald-500", editPath: (id) => `/admin/products/omra/${id}` },
-  // Pas de page d'édition pour l'instant — Attractions n'a pas de moteur de
-  // réservation, voir lib/admin/activities-actions.ts. Créer/publier/
-  // dupliquer restent possibles, "Modifier" est masqué (ProductRowActions).
-  activity: { label: "Attractions", icon: Ticket, color: "bg-amber-500" },
+  activity: { label: "Attractions", icon: Ticket, color: "bg-amber-500", editPath: (id) => `/admin/products/activity/${id}` },
 }
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {

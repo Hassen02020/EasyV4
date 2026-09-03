@@ -11,14 +11,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2 } from "lucide-react"
-import { createActivityProduct } from "@/lib/admin/activities-actions"
+import { Loader2, Plus, Trash2 } from "lucide-react"
+import { createActivityProduct, updateActivityProduct } from "@/lib/admin/activities-actions"
 import { activityProductSchema, type ActivityProductInput } from "@/lib/admin/schemas/activity-product"
 import { PRODUCT_CHANNELS } from "@/lib/admin/product-constants"
 
 const CHANNEL_LABEL: Record<string, string> = { b2c: "B2C (grand public)", b2b: "B2B (agences)", white_label: "Marque blanche" }
 
-export function ActivityProductForm() {
+export function ActivityProductForm({
+  productId,
+  initial,
+}: {
+  productId?: string
+  initial?: Partial<ActivityProductInput>
+}) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -26,36 +32,62 @@ export function ActivityProductForm() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(activityProductSchema) as any,
     defaultValues: {
-      code: "",
-      title: "",
-      location: "",
-      shortDescription: "",
-      longDescription: "",
-      durationMinutes: 240,
-      coverImage: "",
-      galleryUrls: [],
-      inclusions: [],
-      exclusions: [],
-      channels: ["b2c"],
+      code: initial?.code ?? "",
+      title: initial?.title ?? "",
+      location: initial?.location ?? "",
+      shortDescription: initial?.shortDescription ?? "",
+      longDescription: initial?.longDescription ?? "",
+      durationMinutes: initial?.durationMinutes ?? 240,
+      coverImage: initial?.coverImage ?? "",
+      galleryUrls: initial?.galleryUrls ?? [],
+      inclusions: initial?.inclusions ?? [],
+      exclusions: initial?.exclusions ?? [],
+      channels: initial?.channels ?? ["b2c"],
     },
   })
 
   const channels = useWatch({ control: form.control, name: "channels" })
+  const galleryUrls = useWatch({ control: form.control, name: "galleryUrls" })
+  const inclusions = useWatch({ control: form.control, name: "inclusions" })
+  const exclusions = useWatch({ control: form.control, name: "exclusions" })
 
   function toggleChannel(channel: string, checked: boolean) {
     const next = checked ? [...channels, channel] : channels.filter((c) => c !== channel)
     form.setValue("channels", next as ActivityProductInput["channels"])
   }
 
+  function addListItem(field: "galleryUrls" | "inclusions" | "exclusions") {
+    const current = form.getValues(field)
+    form.setValue(field, [...current, ""])
+  }
+
+  function updateListItem(field: "galleryUrls" | "inclusions" | "exclusions", index: number, value: string) {
+    const current = [...form.getValues(field)]
+    current[index] = value
+    form.setValue(field, current)
+  }
+
+  function removeListItem(field: "galleryUrls" | "inclusions" | "exclusions", index: number) {
+    form.setValue(field, form.getValues(field).filter((_, i) => i !== index))
+  }
+
   async function onSubmit(data: ActivityProductInput) {
     setIsSubmitting(true)
-    const result = await createActivityProduct(data)
+    const cleaned = {
+      ...data,
+      galleryUrls: data.galleryUrls.filter(Boolean),
+      inclusions: data.inclusions.filter(Boolean),
+      exclusions: data.exclusions.filter(Boolean),
+    }
+    const result = productId
+      ? await updateActivityProduct(productId, cleaned)
+      : await createActivityProduct(cleaned)
     setIsSubmitting(false)
     if (!result.ok) {
       toast.error(result.error)
       return
     }
-    toast.success("Attraction créée en brouillon.")
+    toast.success(productId ? "Attraction mise à jour." : "Attraction créée en brouillon.")
     router.push("/admin/products")
     router.refresh()
   }
@@ -98,9 +130,38 @@ export function ActivityProductForm() {
 
       <Card>
         <CardHeader><CardTitle>Médias</CardTitle></CardHeader>
-        <CardContent>
-          <Label>Image de couverture (URL)</Label>
-          <Input {...form.register("coverImage")} placeholder="https://..." className="mt-1" />
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Image de couverture (URL)</Label>
+            <Input {...form.register("coverImage")} placeholder="https://..." className="mt-1" />
+          </div>
+          <ListEditor
+            label="Galerie (URLs)"
+            items={galleryUrls}
+            onAdd={() => addListItem("galleryUrls")}
+            onUpdate={(i, v) => updateListItem("galleryUrls", i, v)}
+            onRemove={(i) => removeListItem("galleryUrls", i)}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Inclus / Non inclus</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <ListEditor
+            label="Inclus"
+            items={inclusions}
+            onAdd={() => addListItem("inclusions")}
+            onUpdate={(i, v) => updateListItem("inclusions", i, v)}
+            onRemove={(i) => removeListItem("inclusions", i)}
+          />
+          <ListEditor
+            label="Non inclus"
+            items={exclusions}
+            onAdd={() => addListItem("exclusions")}
+            onUpdate={(i, v) => updateListItem("exclusions", i, v)}
+            onRemove={(i) => removeListItem("exclusions", i)}
+          />
         </CardContent>
       </Card>
 
@@ -119,8 +180,39 @@ export function ActivityProductForm() {
 
       <Button type="submit" size="lg" disabled={isSubmitting}>
         {isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-        Créer en brouillon
+        {productId ? "Enregistrer" : "Créer en brouillon"}
       </Button>
     </form>
+  )
+}
+
+function ListEditor({
+  label,
+  items,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  label: string
+  items: string[]
+  onAdd: () => void
+  onUpdate: (i: number, v: string) => void
+  onRemove: (i: number) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      {items.map((item, i) => (
+        <div key={i} className="flex gap-2">
+          <Input value={item} onChange={(e) => onUpdate(i, e.target.value)} />
+          <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(i)}>
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+        <Plus className="mr-1 size-4" /> Ajouter
+      </Button>
+    </div>
   )
 }

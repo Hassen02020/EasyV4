@@ -63,6 +63,8 @@ export function PackageProductForm({
   const channels = useWatch({ control: form.control, name: "channels" })
   const inclusions = useWatch({ control: form.control, name: "inclusions" })
   const exclusions = useWatch({ control: form.control, name: "exclusions" })
+  const departureLocations = useWatch({ control: form.control, name: "departureLocations" })
+  const galleryUrls = useWatch({ control: form.control, name: "galleryUrls" })
 
   function toggleChannel(channel: string, checked: boolean) {
     const next = checked ? [...channels, channel] : channels.filter((c) => c !== channel)
@@ -136,29 +138,45 @@ export function PackageProductForm({
 
       <Card>
         <CardHeader><CardTitle>Médias</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <div>
             <Label>Image de couverture (URL)</Label>
             <Input {...form.register("coverImage")} placeholder="https://..." className="mt-1" />
           </div>
+          <ListEditor
+            label="Galerie (URLs)"
+            items={galleryUrls}
+            onAdd={() => addListItem("galleryUrls")}
+            onUpdate={(i, v) => updateListItem("galleryUrls", i, v)}
+            onRemove={(i) => removeListItem("galleryUrls", i)}
+          />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader><CardTitle>Durée & transport</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <Label>Jours *</Label>
-            <Input type="number" min={1} {...form.register("durationDays", { valueAsNumber: true })} className="mt-1" />
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label>Jours *</Label>
+              <Input type="number" min={1} {...form.register("durationDays", { valueAsNumber: true })} className="mt-1" />
+            </div>
+            <div>
+              <Label>Nuits *</Label>
+              <Input type="number" min={0} {...form.register("durationNights", { valueAsNumber: true })} className="mt-1" />
+            </div>
+            <div>
+              <Label>Mode de transport</Label>
+              <Input {...form.register("transportMode")} placeholder="Avion + Bus" className="mt-1" />
+            </div>
           </div>
-          <div>
-            <Label>Nuits *</Label>
-            <Input type="number" min={0} {...form.register("durationNights", { valueAsNumber: true })} className="mt-1" />
-          </div>
-          <div>
-            <Label>Mode de transport</Label>
-            <Input {...form.register("transportMode")} placeholder="Avion + Bus" className="mt-1" />
-          </div>
+          <ListEditor
+            label="Lieux de départ"
+            items={departureLocations}
+            onAdd={() => addListItem("departureLocations")}
+            onUpdate={(i, v) => updateListItem("departureLocations", i, v)}
+            onRemove={(i) => removeListItem("departureLocations", i)}
+          />
         </CardContent>
       </Card>
 

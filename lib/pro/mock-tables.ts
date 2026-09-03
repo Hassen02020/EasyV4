@@ -55,7 +55,13 @@ export type PartnerInvoice = {
   reservationId?: string
 }
 
-export type PaymentMode = "transfer" | "card" | "cash" | "check" | "credit_account"
+export type PaymentMode =
+  | "cash"
+  | "bank_transfer"
+  | "postal_transfer"
+  | "postal_mandate"
+  | "check"
+  | "card_international"
 
 export type PartnerPayment = {
   id: string
@@ -65,24 +71,8 @@ export type PartnerPayment = {
   reference?: string
   /** Mode de paiement */
   mode: PaymentMode
-  /** Date d'échéance */
-  dueDate?: string
-  /** Date d'émission */
-  emissionDate?: string
-  /** Montant original */
-  originalAmount?: number
-  /** Devise originale */
-  originalCurrency?: string
-  /** Taux de change appliqué */
-  appliedRate?: number
-  /** Montant TND */
-  tndAmount?: number
-  /** Montant restant dû */
-  remainingAmount?: number
-  /** Crédit appliqué */
-  credit?: number
-  /** Référence de facture associée */
-  invoiceRef?: string
+  /** Statut de validation de la demande de recharge */
+  status: "pending" | "validated" | "rejected"
 }
 
 export type PartnerLedgerEntry = {
@@ -172,8 +162,13 @@ export function generateMockInvoices(count: number = 10): PartnerInvoice[] {
 }
 
 export function generateMockPayments(count: number = 10): PartnerPayment[] {
-  const methods = ["Virement", "Carte", "Espèces", "Chèque"]
-  const modes: PaymentMode[] = ["transfer", "card", "cash", "check", "credit_account"]
+  const methods = ["Virement bancaire", "Virement postal", "Espèces", "Chèque"]
+  const modes: PaymentMode[] = [
+    "bank_transfer",
+    "postal_transfer",
+    "cash",
+    "check",
+  ]
 
   return Array.from({ length: count }, (_, i) => ({
     id: `pay-${i + 1}`,
@@ -181,6 +176,7 @@ export function generateMockPayments(count: number = 10): PartnerPayment[] {
     amount: Math.round(Math.random() * 2000 + 100),
     method: methods[i % methods.length]!,
     mode: modes[i % modes.length]!,
+    status: "validated" as const,
     reference:
       i % 2 === 0 ? `REF-${Math.floor(Math.random() * 10000)}` : undefined,
   }))

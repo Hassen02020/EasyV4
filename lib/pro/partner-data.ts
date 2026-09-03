@@ -214,7 +214,7 @@ export async function loadPartnerPayments(
       date: r.createdAt.toISOString().slice(0, 10),
       amount: parseFloat(r.amount as string),
       method: r.method,
-      mode: r.method as "transfer" | "card" | "cash" | "check" | "credit_account",
+      mode: r.method,
       reference: r.paymentReference ?? undefined,
       status: r.status,
       note: r.note ?? undefined,

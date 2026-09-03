@@ -1,40 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  HeartHandshake,
-  Users,
-  FileText,
-  TrendingUp,
-  AlertCircle,
-  ArrowRight,
-  Clock,
-} from "lucide-react"
-import Link from "next/link"
+import { HeartHandshake, Users, FileText, TrendingUp, AlertCircle } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
-const MOCK_STATS = {
-  dossiersActifs: 12,
-  dossiersEnAttente: 3,
-  facturesMois: 8,
-  montantTotal: 24500,
-}
-const MOCK_DOSSIERS = [
-  {
-    id: "MUT-2024-001",
-    nom: "Dupont Martin",
-    statut: "actif",
-    dateDepart: "2024-07-15",
-    destination: "Tunisie",
-  },
-  {
-    id: "MUT-2024-002",
-    nom: "Bernard Sophie",
-    statut: "en_attente",
-    dateDepart: "2024-08-01",
-    destination: "Turquie",
-  },
+const STAT_CARDS = [
+  { label: "Dossiers Actifs", sub: "Assurés en voyage", icon: HeartHandshake, iconClass: "text-violet-500" },
+  { label: "En Attente", sub: "Dossiers à valider", icon: Users, iconClass: "text-amber-500" },
+  { label: "Factures Ce Mois", sub: undefined, icon: FileText, iconClass: "text-blue-500" },
+  { label: "Montant Total", sub: undefined, icon: TrendingUp, iconClass: "text-emerald-500" },
 ]
 
 export default function MutuelleDashboard() {
@@ -50,101 +23,47 @@ export default function MutuelleDashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Dossiers Actifs
-            </CardTitle>
-            <HeartHandshake className="h-4 w-4 text-violet-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{MOCK_STATS.dossiersActifs}</p>
-            <p className="text-muted-foreground text-xs">Assurés en voyage</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">En Attente</CardTitle>
-            <Clock className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{MOCK_STATS.dossiersEnAttente}</p>
-            <p className="text-muted-foreground text-xs">Dossiers à valider</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Factures Ce Mois
-            </CardTitle>
-            <FileText className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{MOCK_STATS.facturesMois}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Montant Total</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {MOCK_STATS.montantTotal.toLocaleString("fr-FR")} DT
-            </p>
-          </CardContent>
-        </Card>
+        {STAT_CARDS.map((stat) => (
+          <Card key={stat.label}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">
+                {stat.label}
+              </CardTitle>
+              <stat.icon className={`h-4 w-4 ${stat.iconClass}`} />
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-2xl font-bold">—</p>
+              {stat.sub && (
+                <p className="text-muted-foreground text-xs">{stat.sub}</p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle className="text-base">Dossiers Récents</CardTitle>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/mutuelle/dossiers" className="gap-1">
-              Voir tout <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {MOCK_DOSSIERS.map((d) => (
-              <div
-                key={d.id}
-                className="hover:bg-muted/50 flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100">
-                    <Users className="h-4 w-4 text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{d.nom}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {d.id} • {d.dateDepart} • {d.destination}
-                    </p>
-                  </div>
-                </div>
-                <Badge
-                  className={
-                    d.statut === "actif"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-amber-100 text-amber-800"
-                  }
-                >
-                  {d.statut === "actif" ? "Actif" : "En attente"}
-                </Badge>
-              </div>
-            ))}
+          <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-center text-sm">
+            <Users className="h-6 w-6" />
+            <p>
+              La gestion des dossiers assurés n&apos;est pas encore reliée à
+              une source de données.
+            </p>
+            <p className="text-xs">Contactez votre gestionnaire de compte.</p>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-amber-200 bg-amber-50">
+      <Card className="border-border bg-muted/30">
         <CardContent className="flex items-start gap-3 py-4">
-          <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600" />
+          <AlertCircle className="text-muted-foreground mt-0.5 h-5 w-5" />
           <div>
-            <p className="font-medium text-amber-800">Alertes Mutuelle</p>
-            <p className="text-sm text-amber-700">
-              2 dossiers arrivent à expiration dans les 7 prochains jours.
+            <p className="font-medium">Alertes Mutuelle</p>
+            <p className="text-muted-foreground text-sm">
+              Aucune source de données connectée pour le moment — fonctionnalité à venir.
             </p>
           </div>
         </CardContent>

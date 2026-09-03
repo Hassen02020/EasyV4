@@ -34,6 +34,77 @@ export interface CreditRechargeOutcome {
   newBalance: number
 }
 
+export interface ReverseRechargeOutcome {
+  agencyId: string
+  movementId: string
+  amount: number
+  newBalance: number
+}
+
+/**
+ * Annule le crédit d'une recharge déjà `validated`, suite à un remboursement
+ * PSP (webhook `refunded`) — seul appelant : app/api/payment/webhook/route.ts,
+ * uniquement quand `pending.status === "validated"` (rien à annuler sinon,
+ * la recharge n'ayant jamais été créditée). Même discipline que
+ * `creditRechargeRequest` : verrou `FOR UPDATE`, écriture via
+ * `set_agency_deposit_balance`, mouvement `partner_credit_movements` tracé
+ * (type `debit`, montant négatif — un remboursement PSP retire des fonds du
+ * wallet agence, à ne pas confondre avec le type `refund` qui désigne un
+ * remboursement EN FAVEUR de l'agence).
+ */
+export async function reverseRechargeCredit(
+  tx: DrizzleTransaction,
+  request: RechargeRequestForCredit,
+  opts: { description: string },
+): Promise<ReverseRechargeOutcome> {
+  const amount = parseFloat(request.amount)
+
+  const [agency] = await tx
+    .select({ depositBalance: agencies.depositBalance })
+    .from(agencies)
+    .where(eq(agencies.id, request.agencyId))
+    .for("update")
+
+  if (!agency) throw new Error("AGENCY_NOT_FOUND")
+
+  const currentBalance = parseFloat(agency.depositBalance)
+  const newBalance = currentBalance - amount
+
+  await tx.execute(
+    sql`SELECT set_agency_deposit_balance(${request.agencyId}::uuid, ${newBalance.toFixed(3)}::numeric)`,
+  )
+
+  const [movement] = await tx
+    .insert(partnerCreditMovements)
+    .values({
+      agencyId: request.agencyId,
+      movementType: "debit",
+      amount: (-amount).toFixed(3),
+      balanceAfter: newBalance.toFixed(3),
+      reference: `REFUND-${request.id.slice(0, 8).toUpperCase()}`,
+      description: opts.description,
+      createdByUserId: null,
+    })
+    .returning({ id: partnerCreditMovements.id })
+
+  await tx
+    .update(walletRechargeRequests)
+    .set({
+      status: "rejected",
+      rejectionReason: "Paiement remboursé par le PSP",
+      reviewedByUserId: null,
+      reviewedAt: new Date(),
+    })
+    .where(eq(walletRechargeRequests.id, request.id))
+
+  return {
+    agencyId: request.agencyId,
+    movementId: movement.id,
+    amount,
+    newBalance,
+  }
+}
+
 export async function creditRechargeRequest(
   tx: DrizzleTransaction,
   request: RechargeRequestForCredit,

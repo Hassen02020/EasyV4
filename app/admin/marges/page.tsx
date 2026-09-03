@@ -4,6 +4,9 @@
  */
 
 import { Suspense } from "react"
+import { redirect } from "next/navigation"
+import { createServerSupabase } from "@/lib/supabase/server"
+import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { yieldRules, agencies } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
@@ -15,10 +18,7 @@ export const metadata = { title: "Gestion des Marges | Admin" }
 async function getData() {
   try {
     // Vue cross-agence (toutes les agences partenaires + toutes les règles
-    // de marge) : is_super_admin=true requis. Aucune session à résoudre ici
-    // (userId placeholder) — cette page n'est accessible qu'après le gate
-    // OTA-staff du layout /admin (app/admin/layout.tsx), et aucune policy
-    // sur agencies/yield_rules ne dépend de app.current_user_id.
+    // de marge) : is_super_admin=true requis.
     return await withTenantContext(
       { agencyId: null, userId: "", isSuperAdmin: true },
       async (db) => {
@@ -39,6 +39,21 @@ async function getData() {
 }
 
 export default async function MargesPage() {
+  // Écriture (upsertYieldRule/toggleYieldRule) déjà restreinte à super_admin
+  // (lib/yield/actions.ts::assertAdminForYield) — la lecture doit l'être
+  // pareillement : cette vue expose les règles de marge de TOUTES les
+  // agences partenaires, pas seulement celle de l'utilisateur courant.
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/login?next=/admin/marges")
+
+  const profile = await getCurrentAdminProfile(user.id)
+  if (profile?.role !== "super_admin") {
+    redirect("/admin")
+  }
+
   const { agencies: agenciesList, rules } = await getData()
 
   return (

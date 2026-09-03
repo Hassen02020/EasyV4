@@ -5,7 +5,6 @@
  */
 
 import { Metadata } from "next"
-import Link from "next/link"
 import { redirect } from "next/navigation"
 import {
   Users,
@@ -170,11 +169,9 @@ export default async function UsersManagementPage() {
             Administration des comptes et rôles — {allUsers.length} utilisateurs
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90" asChild>
-          <Link href="/admin/users/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nouvel Utilisateur
-          </Link>
+        <Button className="bg-primary hover:bg-primary/90" disabled title="Pas encore disponible">
+          <Plus className="mr-2 h-4 w-4" />
+          Nouvel Utilisateur
         </Button>
       </div>
 

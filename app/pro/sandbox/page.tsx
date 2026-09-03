@@ -8,6 +8,7 @@
  *   - TransferBookingForm
  */
 
+import { notFound } from "next/navigation"
 import { WalletStatus } from "@/components/pro/wallet-status"
 import { OmraBookingForm } from "@/components/omra/omra-booking-form"
 import { TransferBookingForm } from "@/components/transfer/transfer-booking-form"
@@ -49,6 +50,14 @@ const MOCK_OMRA_PACKAGE = {
 }
 
 export default async function SandboxPage() {
+  // Page de test sans session, contre une agence fictive — jamais joignable
+  // en production (voir footer). Rien d'autre ne la protégeait jusqu'ici :
+  // pas dans le groupe de routes app/pro/(app) donc pas de gate du layout,
+  // et aucun middleware racine dans ce repo.
+  if (process.env.NODE_ENV === "production") {
+    notFound()
+  }
+
   const zones = await getActiveZones()
 
   return (

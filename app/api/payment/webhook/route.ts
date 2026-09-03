@@ -26,7 +26,7 @@ import { eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { paymentEvents, pspWebhooks, walletRechargeRequests } from "@/lib/db/schema"
 import { sendEvent } from "@/lib/inngest/client"
-import { creditRechargeRequest } from "@/lib/finance/wallet-credit"
+import { creditRechargeRequest, reverseRechargeCredit } from "@/lib/finance/wallet-credit"
 import { verifySpsSignature, verifyStripeSignature } from "@/lib/payment/signing"
 import {
   classifyEventType,
@@ -162,6 +162,48 @@ export async function POST(request: NextRequest) {
       return { status: "no_match" as const }
     }
 
+    if (kind === "refunded") {
+      // Un remboursement PSP ne peut annuler QUE une recharge déjà `validated`
+      // (créditée) — sur une demande encore `pending` ou déjà `rejected`,
+      // rien n'a jamais été crédité, donc rien à annuler. Traité AVANT le
+      // garde-fou générique "déjà traité" ci-dessous : c'est justement le cas
+      // `validated` que ce garde-fou intercepterait sinon, empêchant toute
+      // annulation réelle (bug corrigé — voir historique).
+      if (pending.status === "validated") {
+        const reversal = await reverseRechargeCredit(tx, pending, {
+          description: `Remboursement PSP — ${provider.toUpperCase()} (webhook ${eventType}, réf. ${charge.providerRef})`,
+        })
+
+        await tx.insert(pspWebhooks).values({
+          agencyId: pending.agencyId,
+          psp: provider as "stripe" | "sps",
+          eventType,
+          payload: auditPayload,
+          signatureOk,
+          processedAt: new Date(),
+        })
+
+        return {
+          status: "refunded" as const,
+          agencyId: reversal.agencyId,
+          txId: reversal.movementId,
+          amount: reversal.amount,
+          newBalance: reversal.newBalance,
+        }
+      }
+
+      await tx.insert(pspWebhooks).values({
+        agencyId: pending.agencyId,
+        psp: provider as "stripe" | "sps",
+        eventType,
+        payload: auditPayload,
+        signatureOk,
+        processedAt: new Date(),
+        error: "REFUND_ON_NON_VALIDATED_REQUEST",
+      })
+      return { status: "refund_ignored" as const }
+    }
+
     if (pending.status !== "pending") {
       // Déjà traité (validé ou rejeté) — un second event_id pour le même
       // paiement (Stripe envoie souvent payment_intent.succeeded ET
@@ -200,24 +242,8 @@ export async function POST(request: NextRequest) {
       return { status: "payment_failed" as const, agencyId: pending.agencyId }
     }
 
-    if (kind === "refunded") {
-      // Remboursement d'une recharge déjà créditée n'est possible que si la
-      // demande a bien été validée (sinon rien à annuler — un refund sur une
-      // recharge encore pending, jamais créditée, est ignoré : STRIPE ne
-      // devrait pas l'envoyer avant un succeeded, mais on ne suppose rien).
-      await tx.insert(pspWebhooks).values({
-        agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps",
-        eventType,
-        payload: auditPayload,
-        signatureOk,
-        processedAt: new Date(),
-        error: "REFUND_ON_NON_VALIDATED_REQUEST",
-      })
-      return { status: "refund_ignored" as const }
-    }
-
-    // kind === "succeeded"
+    // kind === "succeeded" (only remaining possibility: "refunded" and
+    // "failed" both returned above, "unknown" was filtered out earlier)
     const match = matchesPendingRecharge(pending, charge)
     if (!match.ok) {
       await tx

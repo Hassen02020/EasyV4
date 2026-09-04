@@ -10,7 +10,11 @@ export const metadata = { title: "Mes clients | Espace Pro Easy2Book" }
 
 export const dynamic = "force-dynamic"
 
-export default async function ProClientsPage() {
+export default async function ProClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/pro/login")
@@ -18,7 +22,8 @@ export default async function ProClientsPage() {
   const profile = await getCurrentPartnerProfile(user.id)
   if (!profile) redirect("/pro/login")
 
-  const rows = await loadPartnerClients(profile.agency.id)
+  const { q } = await searchParams
+  const rows = await loadPartnerClients(profile.agency.id, q)
 
   return (
     <ProPageShell

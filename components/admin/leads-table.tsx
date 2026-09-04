@@ -7,6 +7,7 @@
  */
 
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 import { Search, Mail, Phone, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -53,6 +54,7 @@ const PRODUCT_TYPE_LABEL: Record<LeadRow["productType"], string> = {
 
 function LeadStatusCell({ lead }: { lead: LeadRow }) {
   const [status, setStatus] = useState<LeadStatus>(lead.status)
+  const [updatedAt, setUpdatedAt] = useState(() => new Date(lead.updatedAt))
   const [pending, setPending] = useState(false)
 
   function handleChange(value: string) {
@@ -61,13 +63,23 @@ function LeadStatusCell({ lead }: { lead: LeadRow }) {
     setPending(true)
     updateLeadStatus({ id: lead.id, status: next })
       .then((result) => {
-        if (result.ok) setStatus(next)
+        if (result.ok) {
+          setStatus(next)
+          setUpdatedAt(new Date())
+        } else {
+          toast.error(result.error || "Échec de la mise à jour du statut.")
+        }
       })
+      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
       .finally(() => setPending(false))
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Badge className={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Badge>
+        {pending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+      </div>
       <Select value={status} onValueChange={handleChange} disabled={pending}>
         <SelectTrigger className="w-36">
           <SelectValue />
@@ -80,7 +92,12 @@ function LeadStatusCell({ lead }: { lead: LeadRow }) {
           ))}
         </SelectContent>
       </Select>
-      {pending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+      {status !== "new" && (
+        <p className="text-muted-foreground text-xs">
+          Suivi le{" "}
+          {updatedAt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+        </p>
+      )}
     </div>
   )
 }
@@ -185,9 +202,6 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="mb-1">
-                        <Badge className={STATUS_COLOR[lead.status]}>{STATUS_LABEL[lead.status]}</Badge>
-                      </div>
                       <LeadStatusCell lead={lead} />
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">

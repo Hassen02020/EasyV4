@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { updateMyAgencyProfile } from "@/lib/pro/etablissement-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -86,15 +87,18 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!validate()) return
+    if (!validate() || submitting) return
     setSubmitting(true)
-    // Aucun Server Action d'écriture sur `agencies` n'existe encore : jamais
-    // un faux succès affiché tant que rien n'est réellement persisté, même
-    // discipline que PAYMENT_PROVIDER_NOT_CONFIGURED côté paiement.
-    setTimeout(() => {
-      setSubmitting(false)
-      toast.error("Modification du profil établissement pas encore disponible — contactez votre gestionnaire de compte.")
-    }, 700)
+    updateMyAgencyProfile(state)
+      .then((result) => {
+        if (!result.ok) {
+          toast.error(result.error)
+          return
+        }
+        toast.success("Profil établissement mis à jour.")
+      })
+      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .finally(() => setSubmitting(false))
   }
 
   return (

@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { formatTND } from "@/lib/pro/format"
+import { upsertMyPricingMargin } from "@/lib/pro/margins-actions"
 
 export type MarginModule =
   | "hotel"
@@ -84,16 +85,31 @@ export function MarginsForm({ initial }: MarginsFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (submitting) return
     setSubmitting(true)
-    // Aucun Server Action d'écriture sur pricing_margins n'existe encore
-    // (seule la lecture via getActivePartnerMargins est câblée — voir
-    // app/pro/(app)/marges/page.tsx) : jamais un faux succès affiché tant
-    // que rien n'est réellement persisté, même discipline que
-    // PAYMENT_PROVIDER_NOT_CONFIGURED côté paiement.
-    setTimeout(() => {
+    ;(async () => {
+      const results = await Promise.all(
+        rows.map((row) =>
+          upsertMyPricingMargin({
+            module: row.module,
+            marginType: row.marginType,
+            marginValue: row.marginValue,
+            isActive: row.isActive,
+          }),
+        ),
+      )
       setSubmitting(false)
-      toast.error("Modification des marges pas encore disponible — contactez votre gestionnaire de compte.")
-    }, 600)
+      const failed = results.filter((r) => !r.ok)
+      if (failed.length > 0) {
+        toast.error(
+          failed.length === results.length
+            ? (failed[0] as { ok: false; error: string }).error
+            : `${failed.length} module(s) non enregistré(s) — réessayez.`,
+        )
+        return
+      }
+      toast.success("Marges enregistrées.")
+    })()
   }
 
   return (

@@ -111,6 +111,23 @@ export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
 }
 
 /**
+ * Éligibilité voucher pour les écrans détail Admin/Pro
+ * (`ReservationDetailView`, `/api/admin/.../voucher` et
+ * `/api/pro/.../voucher`) — ces deux routes ne gèrent QUE le module hôtel
+ * (elles réutilisent `isVoucherEligible` ci-dessus, pas les variantes
+ * Omra/Package/Activity, contrairement aux routes guest publiques
+ * `/api/{omra,packages,activities}/voucher`). Sert uniquement à décider
+ * d'afficher ou non le lien "Télécharger" AVANT même d'appeler la route :
+ * sans ce garde, le lien restait affiché (et cliquable) pour une
+ * réservation `cancelled`/`pending` alors que la route le refuse déjà (404
+ * `voucher_unavailable`) — un lien qui échoue toujours n'est pas "invalide
+ * après annulation", c'est un lien resté affiché par erreur.
+ */
+export function isHotelReservationVoucherEligible(module: string, status: string): boolean {
+  return module === "hotel" && VOUCHER_ELIGIBLE_STATUSES.has(status)
+}
+
+/**
  * Construit le lien de téléchargement voucher pour un module donné, ou
  * `null` si ce module n'a pas de route voucher (vol/transfert/voiture —
  * jamais un lien fabriqué vers une route qui n'existe pas).

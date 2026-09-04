@@ -44,6 +44,7 @@ export default async function AdminReservationsPage({
     agencyId?: string
     status?: string
     module?: string
+    search?: string
   }>
 }) {
   const supabase = await createServerSupabase()
@@ -78,6 +79,7 @@ export default async function AdminReservationsPage({
       agencyId: params.agencyId ?? null,
       status: params.status ?? null,
       module: params.module ?? null,
+      search: params.search ?? null,
       cursor,
       limit: 50,
     })
@@ -86,7 +88,11 @@ export default async function AdminReservationsPage({
     nextCursor = result.nextCursor
     hasMore = result.hasMore
   } else {
-    const result = await loadAdminReservationsPage(profile.agencyId, 25, cursor)
+    const result = await loadAdminReservationsPage(profile.agencyId, 25, cursor, {
+      status: params.status ?? null,
+      module: params.module ?? null,
+      search: params.search ?? null,
+    })
     available = result.available
     rows = result.rows
     nextCursor = result.nextCursor

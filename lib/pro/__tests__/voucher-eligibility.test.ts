@@ -5,6 +5,7 @@ import {
   isVoucherEligible,
   isOmraVoucherEligible,
   isPackageVoucherEligible,
+  isHotelReservationVoucherEligible,
   voucherHrefForModule,
 } from "../voucher-eligibility"
 
@@ -185,4 +186,36 @@ test("voucherHrefForModule : null pour un module sans route voucher (jamais un l
   assert.equal(voucherHrefForModule("flight", "FL-2026-000001", "tok"), null)
   assert.equal(voucherHrefForModule("transfer", "TR-2026-000001", "tok"), null)
   assert.equal(voucherHrefForModule("car", "CR-2026-000001", "tok"), null)
+})
+
+/* -------------------------------------------------------------------------- */
+/* isHotelReservationVoucherEligible (Réservations+vouchers — écrans détail   */
+/* Admin/Pro : /api/admin/.../voucher et /api/pro/.../voucher ne gèrent que   */
+/* le module hôtel, contrairement aux routes guest publiques par module)      */
+/* -------------------------------------------------------------------------- */
+
+test("isHotelReservationVoucherEligible : true pour hôtel confirmé", () => {
+  assert.equal(isHotelReservationVoucherEligible("hotel", "confirmed"), true)
+})
+
+test("isHotelReservationVoucherEligible : true pour hôtel terminé (completed)", () => {
+  assert.equal(isHotelReservationVoucherEligible("hotel", "completed"), true)
+})
+
+test("isHotelReservationVoucherEligible : false pour hôtel annulé (voucher invalidé après annulation)", () => {
+  assert.equal(isHotelReservationVoucherEligible("hotel", "cancelled"), false)
+})
+
+test("isHotelReservationVoucherEligible : false pour hôtel remboursé", () => {
+  assert.equal(isHotelReservationVoucherEligible("hotel", "refunded"), false)
+})
+
+test("isHotelReservationVoucherEligible : false pour hôtel encore pending (pas de voucher pour paiement non confirmé)", () => {
+  assert.equal(isHotelReservationVoucherEligible("hotel", "pending"), false)
+})
+
+test("isHotelReservationVoucherEligible : false pour un module non-hôtel même confirmé (routes admin/pro n'ont pas de rendu Omra/Package/Activity)", () => {
+  assert.equal(isHotelReservationVoucherEligible("omra", "confirmed"), false)
+  assert.equal(isHotelReservationVoucherEligible("package", "confirmed"), false)
+  assert.equal(isHotelReservationVoucherEligible("activity", "confirmed"), false)
 })

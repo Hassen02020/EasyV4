@@ -7,7 +7,7 @@
  * pas serveur tant que c'est < 1000).
  */
 
-import { and, desc, eq, gte, lt, or, sql } from "drizzle-orm"
+import { and, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, customers, reservations } from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
@@ -71,6 +71,27 @@ export type CursorPageResult = {
   rows: AdminReservationRow[]
   nextCursor: string | null
   hasMore: boolean
+}
+
+/**
+ * Prédicat de recherche texte réutilisé par les deux loaders — recherche
+ * référence/nom/email/téléphone. Filtrait auparavant uniquement côté
+ * client sur les lignes déjà chargées (≤ 50/25 lignes) alors que la
+ * pagination est en réalité serveur (cursor) — une recherche portant sur
+ * une réservation hors de la page courante renvoyait silencieusement
+ * "aucun résultat" au lieu de la trouver.
+ */
+function buildSearchCondition(search: string | null | undefined) {
+  const q = search?.trim()
+  if (!q) return undefined
+  const pattern = `%${q}%`
+  return or(
+    ilike(reservations.publicRef, pattern),
+    ilike(customers.firstName, pattern),
+    ilike(customers.lastName, pattern),
+    ilike(customers.email, pattern),
+    ilike(customers.phone, pattern),
+  )
 }
 
 const EMPTY: AdminReservationsData = { available: false, rows: [] }
@@ -141,23 +162,27 @@ export async function loadAdminReservationsPage(
   agencyId: string,
   limit = 25,
   cursor?: Cursor | null,
+  filters?: { status?: string | null; module?: string | null; search?: string | null },
 ): Promise<CursorPageResult> {
   if (!process.env.DATABASE_URL) return EMPTY_PAGE
 
   try {
-    const base = eq(reservations.agencyId, agencyId)
-    const where = cursor
-      ? and(
-          base,
-          or(
+    const conditions = [
+      eq(reservations.agencyId, agencyId),
+      filters?.status ? eq(reservations.status, filters.status as "pending") : undefined,
+      filters?.module ? eq(reservations.module, filters.module as "hotel") : undefined,
+      buildSearchCondition(filters?.search),
+      cursor
+        ? or(
             lt(reservations.createdAt, new Date(cursor.createdAt)),
             and(
               eq(reservations.createdAt, new Date(cursor.createdAt)),
               lt(reservations.id, cursor.id),
             ),
-          ),
-        )
-      : base
+          )
+        : undefined,
+    ].filter(Boolean)
+    const where = and(...(conditions as Parameters<typeof and>))
 
     const rows = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
@@ -265,6 +290,7 @@ export type AllReservationsOpts = {
   agencyId?: string | null
   status?: string | null
   module?: string | null
+  search?: string | null
   since?: Date | null
   limit?: number
   cursor?: Cursor | null
@@ -282,6 +308,7 @@ export async function loadAllReservations(
       opts.agencyId ? eq(reservations.agencyId, opts.agencyId) : undefined,
       opts.status ? eq(reservations.status, opts.status as "pending") : undefined,
       opts.module ? eq(reservations.module, opts.module as "hotel") : undefined,
+      buildSearchCondition(opts.search),
       opts.since ? gte(reservations.createdAt, opts.since) : undefined,
       opts.cursor
         ? or(

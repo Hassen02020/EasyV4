@@ -4,6 +4,7 @@ export const translations = {
   fr: {
     // Header
     connexion: "Connexion",
+    monCompte: "Mon compte",
     myBookings: "My Bookings",
     help: "Aide",
     // Tabs moteur de recherche
@@ -131,6 +132,7 @@ export const translations = {
   ar: {
     // Header
     connexion: "تسجيل الدخول",
+    monCompte: "حسابي",
     myBookings: "حجوزاتي",
     help: "مساعدة",
     // Tabs moteur de recherche
@@ -258,6 +260,7 @@ export const translations = {
   en: {
     // Header
     connexion: "Sign In",
+    monCompte: "My Account",
     myBookings: "My Bookings",
     help: "Help",
     // Search engine tabs

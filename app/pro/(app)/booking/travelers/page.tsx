@@ -12,6 +12,7 @@ import {
   runHotelSearch,
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
+import { computePriceBreakdown } from "@/lib/booking/pricing"
 import { matchSelectedRoom } from "@/lib/booking/room-match"
 import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { buildUnavailableRoomBackHref } from "@/lib/pro/room-unavailable-link"
@@ -168,6 +169,22 @@ export default async function ProBookingTravelersPage({
       .map((a) => Number.parseInt(a, 10))
       .filter((n) => Number.isFinite(n) && n >= 0 && n <= 17)
 
+    // PHASE R3 — `priceTnd` ci-dessus est le prix agence HT (avant TVA) ;
+    // la TVA (19 %, cf. computePriceBreakdown) est systématiquement ajoutée
+    // au moment du débit réel (lib/booking/actions.ts::createReservationFromDraft,
+    // via authoritativeUnitPrice + computePriceBreakdown). Le Récapitulatif
+    // affichait jusqu'ici `priceTnd` HT sous le libellé "Total (prix agence)",
+    // ~19 % sous le montant réellement débité — trouvé lors du re-walk du
+    // parcours Pro (le message "Solde insuffisant" citait un montant que rien
+    // à l'écran n'expliquait). On affiche donc le même total TTC que celui
+    // qui sera effectivement débité.
+    const breakdown = computePriceBreakdown({
+      unitPriceTnd: q.adults > 0 ? priceTnd / q.adults : priceTnd,
+      unitChildPriceTnd: 0,
+      adults: q.adults,
+      children: childrenAges.length,
+    })
+
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
         <div className="mb-4 flex items-center justify-between">
@@ -193,6 +210,7 @@ export default async function ProBookingTravelersPage({
           roomName={matchedRoom.room.name}
           boardingName={matchedRoom.boarding.name}
           priceTnd={priceTnd}
+          totalTnd={breakdown.totalTnd}
           currency={offer.currency}
           checkin={q.checkin}
           checkout={q.checkout}

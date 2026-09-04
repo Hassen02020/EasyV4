@@ -40,6 +40,8 @@ interface ProBookingTravelersFormProps {
   roomName: string
   boardingName: string
   priceTnd: number
+  /** Total TTC (TVA 19 % incluse) — le montant réellement débité à la confirmation. */
+  totalTnd: number
   currency: string
   checkin: string
   checkout: string
@@ -71,6 +73,7 @@ export function ProBookingTravelersForm({
   roomName,
   boardingName,
   priceTnd,
+  totalTnd,
   currency,
   checkin,
   checkout,
@@ -265,9 +268,9 @@ export function ProBookingTravelersForm({
           </div>
         </dl>
         <div className="border-border/50 mt-4 border-t pt-3">
-          <p className="text-muted-foreground text-xs">Total (prix agence)</p>
+          <p className="text-muted-foreground text-xs">Total TTC (TVA 19% incluse)</p>
           <p className="text-primary text-xl font-bold tabular-nums">
-            {priceTnd.toLocaleString("fr-FR")} {currency}
+            {totalTnd.toLocaleString("fr-FR")} {currency}
           </p>
           <p className="text-muted-foreground mt-1 text-xs">
             Revérifié et débité de votre wallet au moment de la confirmation

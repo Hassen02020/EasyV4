@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
   HelpCircle,
@@ -15,14 +15,33 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { CurrencySwitcher } from "@/components/currency-switcher"
 import type { Locale } from "@/lib/locale"
 import { useT } from "@/components/locale-context"
+import { createBrowserSupabase } from "@/lib/supabase/client"
 
 interface HeaderProps {
   currentLocale?: Locale
+  /** Résolu côté serveur par HeaderWrapper quand disponible ; sinon résolu ici côté client. */
+  isLoggedIn?: boolean
 }
 
-export function Header({ currentLocale = "fr" }: HeaderProps) {
+export function Header({ currentLocale = "fr", isLoggedIn }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(!!isLoggedIn)
   const t = useT()
+
+  useEffect(() => {
+    if (isLoggedIn !== undefined) return
+    let cancelled = false
+    const supabase = createBrowserSupabase()
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!cancelled) setLoggedIn(!!user)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isLoggedIn])
 
   return (
     <header className="bg-card border-border sticky top-0 z-50 border-b shadow-sm">
@@ -76,7 +95,7 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
             >
               <Link href="/compte">
                 <User className="size-4" />
-                {t("connexion")}
+                {loggedIn ? t("monCompte") : t("connexion")}
               </Link>
             </Button>
           </div>
@@ -125,9 +144,9 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
                 className="w-full gap-2 bg-sidebar hover:bg-sidebar/90"
                 asChild
               >
-                <Link href="/login">
+                <Link href="/compte" onClick={() => setMobileMenuOpen(false)}>
                   <User className="size-4" />
-                  {t("connexion")}
+                  {loggedIn ? t("monCompte") : t("connexion")}
                 </Link>
               </Button>
             </div>

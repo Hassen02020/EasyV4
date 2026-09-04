@@ -13,11 +13,14 @@ import { Headphones } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LeadsTable } from "@/components/admin/leads-table"
 import { LeadScoringSettings } from "@/components/admin/lead-scoring-settings"
+import { LeadRelanceSettings } from "@/components/admin/lead-relance-settings"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { listLeads } from "@/lib/admin/leads-actions"
 import { getLeadScoreRules } from "@/lib/admin/lead-scoring-actions"
+import { getLeadRelanceSettings } from "@/lib/admin/lead-relance-actions"
 import { defaultLeadScoreRuleMap } from "@/lib/crm/lead-scoring-core"
+import { defaultLeadRelanceSettings } from "@/lib/crm/lead-relance-core"
 
 export const metadata: Metadata = {
   title: "Support & Clients — Admin",
@@ -42,9 +45,14 @@ export default async function SupportPage() {
     redirect("/admin")
   }
 
-  const [result, scoreRulesResult] = await Promise.all([listLeads(), getLeadScoreRules()])
+  const [result, scoreRulesResult, relanceSettingsResult] = await Promise.all([
+    listLeads(),
+    getLeadScoreRules(),
+    getLeadRelanceSettings(),
+  ])
   const scoreRules = scoreRulesResult.ok ? scoreRulesResult.rules : defaultLeadScoreRuleMap()
-  const canConfigureScoring = ["super_admin", "manager"].includes(profile.role)
+  const relanceSettings = relanceSettingsResult.ok ? relanceSettingsResult.settings : defaultLeadRelanceSettings()
+  const canConfigure = ["super_admin", "manager"].includes(profile.role)
 
   return (
     <div className="space-y-6">
@@ -58,7 +66,8 @@ export default async function SupportPage() {
         </p>
       </div>
 
-      {canConfigureScoring && <LeadScoringSettings initial={scoreRules} />}
+      {canConfigure && <LeadScoringSettings initial={scoreRules} />}
+      {canConfigure && <LeadRelanceSettings initial={relanceSettings} />}
 
       {!result.ok ? (
         <Card>
@@ -74,7 +83,7 @@ export default async function SupportPage() {
           </CardContent>
         </Card>
       ) : (
-        <LeadsTable leads={result.leads} scoreRules={scoreRules} />
+        <LeadsTable leads={result.leads} scoreRules={scoreRules} relanceSettings={relanceSettings} />
       )}
     </div>
   )

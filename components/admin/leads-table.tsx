@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Search, Mail, Phone, Loader2, Link2, ExternalLink } from "lucide-react"
+import { Search, Mail, Phone, Loader2, Link2, ExternalLink, AlertCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -38,6 +38,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { updateLeadStatus, convertLead, searchReservationsForLeadLink } from "@/lib/admin/leads-actions"
 import type { LeadRow, LeadStatus, ReservationLinkCandidate } from "@/lib/crm/leads-core"
 import { computeLeadScore, type LeadScoreRuleMap } from "@/lib/crm/lead-scoring-core"
+import { isLeadStale, type LeadRelanceSettingsValue } from "@/lib/crm/lead-relance-core"
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: "Nouveau",
@@ -306,14 +307,26 @@ function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
   )
 }
 
-export function LeadsTable({ leads, scoreRules }: { leads: LeadRow[]; scoreRules: LeadScoreRuleMap }) {
+export function LeadsTable({
+  leads,
+  scoreRules,
+  relanceSettings,
+}: {
+  leads: LeadRow[]
+  scoreRules: LeadScoreRuleMap
+  relanceSettings: LeadRelanceSettingsValue
+}) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return leads.filter((lead) => {
-      if (statusFilter !== "all" && lead.status !== statusFilter) return false
+      if (statusFilter === "stale") {
+        if (!isLeadStale(lead, relanceSettings)) return false
+      } else if (statusFilter !== "all" && lead.status !== statusFilter) {
+        return false
+      }
       if (q) {
         const haystack = [lead.firstName, lead.lastName, lead.email, lead.phone, lead.productLabel]
           .filter(Boolean)
@@ -323,7 +336,7 @@ export function LeadsTable({ leads, scoreRules }: { leads: LeadRow[]; scoreRules
       }
       return true
     })
-  }, [leads, search, statusFilter])
+  }, [leads, search, statusFilter, relanceSettings])
 
   return (
     <Card>
@@ -349,6 +362,7 @@ export function LeadsTable({ leads, scoreRules }: { leads: LeadRow[]; scoreRules
                   {STATUS_LABEL[s]}
                 </SelectItem>
               ))}
+              {relanceSettings.isEnabled && <SelectItem value="stale">À relancer</SelectItem>}
             </SelectContent>
           </Select>
         </div>
@@ -411,6 +425,11 @@ export function LeadsTable({ leads, scoreRules }: { leads: LeadRow[]; scoreRules
                     </TableCell>
                     <TableCell>
                       <LeadStatusCell lead={lead} />
+                      {isLeadStale(lead, relanceSettings) && (
+                        <Badge variant="outline" className="mt-1 gap-1 border-amber-200 bg-amber-100 text-amber-800">
+                          <AlertCircle className="h-3 w-3" /> À relancer
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(lead.createdAt).toLocaleDateString("fr-FR", {

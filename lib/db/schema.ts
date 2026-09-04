@@ -1403,6 +1403,34 @@ export const leadScoringRules = pgTable(
 )
 
 /**
+ * Relance des leads (0045, étape 3/3 : Conversion → Scoring → Relance).
+ * Portée limitée à l'ALERTE STAFF (un lead "new" sans suivi depuis
+ * `thresholdDays` devient visible dans /admin/support) — PAS un envoi
+ * automatique vers le lead (WhatsApp/email), qui exigerait un contenu
+ * marketing et, pour WhatsApp, un template pré-approuvé Meta : décision
+ * produit non tranchée, jamais inventée ici. Voir `isLeadStale()`
+ * (lib/crm/lead-relance-core.ts).
+ */
+export const leadRelanceSettings = pgTable(
+  "lead_relance_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    thresholdDays: integer("threshold_days").notNull().default(3),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("lead_relance_settings_agency_uniq").on(t.agencyId)],
+)
+
+/**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *
  * Une facture peut grouper plusieurs réservations (lignes JSONB).
@@ -2024,6 +2052,8 @@ export type PricingMargin = typeof pricingMargins.$inferSelect
 export type NewPricingMargin = typeof pricingMargins.$inferInsert
 export type LeadScoringRule = typeof leadScoringRules.$inferSelect
 export type NewLeadScoringRule = typeof leadScoringRules.$inferInsert
+export type LeadRelanceSetting = typeof leadRelanceSettings.$inferSelect
+export type NewLeadRelanceSetting = typeof leadRelanceSettings.$inferInsert
 export type PartnerInvoice = typeof partnerInvoices.$inferSelect
 export type NewPartnerInvoice = typeof partnerInvoices.$inferInsert
 export type PartnerPayment = typeof partnerPayments.$inferSelect

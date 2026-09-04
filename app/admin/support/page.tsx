@@ -12,9 +12,12 @@ import { redirect } from "next/navigation"
 import { Headphones } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LeadsTable } from "@/components/admin/leads-table"
+import { LeadScoringSettings } from "@/components/admin/lead-scoring-settings"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { listLeads } from "@/lib/admin/leads-actions"
+import { getLeadScoreRules } from "@/lib/admin/lead-scoring-actions"
+import { defaultLeadScoreRuleMap } from "@/lib/crm/lead-scoring-core"
 
 export const metadata: Metadata = {
   title: "Support & Clients — Admin",
@@ -39,7 +42,9 @@ export default async function SupportPage() {
     redirect("/admin")
   }
 
-  const result = await listLeads()
+  const [result, scoreRulesResult] = await Promise.all([listLeads(), getLeadScoreRules()])
+  const scoreRules = scoreRulesResult.ok ? scoreRulesResult.rules : defaultLeadScoreRuleMap()
+  const canConfigureScoring = ["super_admin", "manager"].includes(profile.role)
 
   return (
     <div className="space-y-6">
@@ -52,6 +57,8 @@ export default async function SupportPage() {
           Demandes de contact (&laquo;&nbsp;Être rappelé&nbsp;&raquo; / &laquo;&nbsp;Demander un devis&nbsp;&raquo;) déposées depuis le site.
         </p>
       </div>
+
+      {canConfigureScoring && <LeadScoringSettings initial={scoreRules} />}
 
       {!result.ok ? (
         <Card>
@@ -67,7 +74,7 @@ export default async function SupportPage() {
           </CardContent>
         </Card>
       ) : (
-        <LeadsTable leads={result.leads} />
+        <LeadsTable leads={result.leads} scoreRules={scoreRules} />
       )}
     </div>
   )

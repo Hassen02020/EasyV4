@@ -34,8 +34,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { updateLeadStatus, convertLead, searchReservationsForLeadLink } from "@/lib/admin/leads-actions"
 import type { LeadRow, LeadStatus, ReservationLinkCandidate } from "@/lib/crm/leads-core"
+import { computeLeadScore, type LeadScoreRuleMap } from "@/lib/crm/lead-scoring-core"
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: "Nouveau",
@@ -193,6 +195,39 @@ function ConvertLeadDialog({
   )
 }
 
+function scoreTone(total: number): string {
+  if (total >= 75) return "bg-emerald-100 text-emerald-800 border-emerald-200"
+  if (total >= 50) return "bg-amber-100 text-amber-800 border-amber-200"
+  return "bg-gray-100 text-gray-700 border-gray-200"
+}
+
+/** Score toujours transparent : le détail signal-par-signal est visible au survol, jamais un nombre opaque. */
+function LeadScoreCell({ lead, rules }: { lead: LeadRow; rules: LeadScoreRuleMap }) {
+  const score = useMemo(() => computeLeadScore(lead, rules), [lead, rules])
+  return (
+    <HoverCard openDelay={100}>
+      <HoverCardTrigger asChild>
+        <Badge variant="outline" className={`cursor-help font-semibold ${scoreTone(score.total)}`}>
+          {score.total}
+        </Badge>
+      </HoverCardTrigger>
+      <HoverCardContent className="w-72">
+        <p className="mb-2 text-xs font-semibold">Détail du score</p>
+        <ul className="space-y-1 text-xs">
+          {score.breakdown.map((item) => (
+            <li key={item.signal} className="flex items-center justify-between gap-2">
+              <span className={item.matched ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+              <span className={item.points > 0 ? "font-medium text-emerald-700" : "text-muted-foreground"}>
+                {item.matched ? `+${item.points}` : "0"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
 function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
   const [lead, setLead] = useState(initialLead)
   const [status, setStatus] = useState<LeadStatus>(initialLead.status)
@@ -271,7 +306,7 @@ function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
   )
 }
 
-export function LeadsTable({ leads }: { leads: LeadRow[] }) {
+export function LeadsTable({ leads, scoreRules }: { leads: LeadRow[]; scoreRules: LeadScoreRuleMap }) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
@@ -326,6 +361,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
                 <TableHead>Contact</TableHead>
                 <TableHead>Demande</TableHead>
                 <TableHead>Message</TableHead>
+                <TableHead>Score</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Reçu le</TableHead>
               </TableRow>
@@ -333,7 +369,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     Aucune demande ne correspond à ces filtres.
                   </TableCell>
                 </TableRow>
@@ -369,6 +405,9 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <LeadScoreCell lead={lead} rules={scoreRules} />
                     </TableCell>
                     <TableCell>
                       <LeadStatusCell lead={lead} />

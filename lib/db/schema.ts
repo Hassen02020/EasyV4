@@ -1372,6 +1372,37 @@ export const leads = pgTable(
 )
 
 /**
+ * Scoring des leads (0044, étape 2/3 : Conversion → Scoring → Relance).
+ * 4 signaux FIXES objectivement observables (jamais un critère métier
+ * inventé) — chacun vaut un nombre de points configurable par le staff OTA
+ * via `lead-scoring-actions.ts`. Voir `computeLeadScore()`
+ * (lib/crm/lead-scoring-core.ts) pour le calcul, toujours transparent (le
+ * détail signal-par-signal est retourné, jamais un score opaque).
+ */
+export const leadScoringRules = pgTable(
+  "lead_scoring_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    signal: varchar("signal", { length: 32 }).notNull(),
+    points: integer("points").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("lead_scoring_rules_agency_idx").on(t.agencyId),
+    uniqueIndex("lead_scoring_rules_agency_signal_uniq").on(t.agencyId, t.signal),
+  ],
+)
+
+/**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *
  * Une facture peut grouper plusieurs réservations (lignes JSONB).
@@ -1991,6 +2022,8 @@ export type Payment = typeof payments.$inferSelect
 export type NewPayment = typeof payments.$inferInsert
 export type PricingMargin = typeof pricingMargins.$inferSelect
 export type NewPricingMargin = typeof pricingMargins.$inferInsert
+export type LeadScoringRule = typeof leadScoringRules.$inferSelect
+export type NewLeadScoringRule = typeof leadScoringRules.$inferInsert
 export type PartnerInvoice = typeof partnerInvoices.$inferSelect
 export type NewPartnerInvoice = typeof partnerInvoices.$inferInsert
 export type PartnerPayment = typeof partnerPayments.$inferSelect

@@ -61,6 +61,7 @@ import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { getMyGoClient } from "@/lib/mygo"
 import { resolveMyGoAccessForTenant, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { sendEvent } from "@/lib/inngest/client"
@@ -414,6 +415,19 @@ async function runCreateGuestReservation(
           action: "reservation.created",
           diff: { module: draft.module, publicRef, total: breakdown.totalTnd, via: "b2c_guest", paymentMethod },
         })
+
+        // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges
+        // (voir lib/finance/reservation-financials.ts). Réutilise les DEUX
+        // montants déjà calculés plus haut par `applyMargin()`, jamais un
+        // recalcul.
+        if (draft.module === "hotel") {
+          await recordReservationFinancials({
+            tx,
+            reservationId,
+            supplierPriceTnd: myGoBooking.totalPrice,
+            salePriceTnd: agencyPrice,
+          })
+        }
 
         let isImmediatelyPaid = isImmediatelyPaidByCard
 

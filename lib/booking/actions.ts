@@ -21,6 +21,7 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
@@ -593,6 +594,19 @@ export async function createReservationFromDraft(input: {
           via: "front-office",
         },
       })
+
+      // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges
+      // (`/admin/analytics/margins`), jusqu'ici jamais renseigné (voir
+      // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
+      // déjà calculés plus haut par `applyMargin()`, jamais un recalcul.
+      if (draft.module === "hotel" && myGoBooking) {
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: myGoBooking.totalPrice,
+          salePriceTnd: agencyHotelPrice,
+        })
+      }
 
       // --- Débit crédit agence — dans la MÊME transaction (txOverride) : sans ça,
       // le débit committerait indépendamment de l'insertion de la réservation

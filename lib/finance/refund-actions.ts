@@ -84,23 +84,35 @@ export async function refundReservation(
   if (!(ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
     return { ok: false, code: "UNAUTHORIZED", error: "Votre rôle n'est pas autorisé à effectuer un remboursement." }
   }
-  const agencyId = profile.agencyId
+  const isSuperAdmin = profile.role === "super_admin"
 
   const outcome = await withTenantContext(
-    { agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+    { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
     async (tx) => {
+      // Un super_admin doit pouvoir rembourser N'IMPORTE QUELLE réservation
+      // (Vue consolidée /admin/reservations, cross-agence), pas seulement
+      // celles de sa propre agence "domicile" — voir même correctif sur
+      // lib/admin/actions.ts::updateReservationStatus. L'agence utilisée
+      // ensuite pour `applyReservationRefund` est celle RÉELLE de la
+      // réservation (`reservation.agencyId`), jamais `profile.agencyId`.
       const [reservation] = await tx
         .select({
           id: reservations.id,
           status: reservations.status,
           publicRef: reservations.publicRef,
           customerId: reservations.customerId,
+          agencyId: reservations.agencyId,
         })
         .from(reservations)
-        .where(and(eq(reservations.id, input.reservationId), eq(reservations.agencyId, agencyId)))
+        .where(
+          isSuperAdmin
+            ? eq(reservations.id, input.reservationId)
+            : and(eq(reservations.id, input.reservationId), eq(reservations.agencyId, profile.agencyId)),
+        )
         .for("update")
 
       if (!reservation) return { ok: false as const, error: "Réservation introuvable" }
+      const agencyId = reservation.agencyId
 
       const result = await applyReservationRefund({
         tx,

@@ -88,18 +88,44 @@ export async function updateReservationStatus(
   if (!(RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
     return { ok: false, error: "Votre rôle n'est pas autorisé à changer le statut d'une réservation." }
   }
-  const agencyId = profile.agencyId
+  const isSuperAdmin = profile.role === "super_admin"
+
+  // Résout l'agence RÉELLE propriétaire de la réservation — jamais
+  // `profile.agencyId` telle quelle : un super_admin doit pouvoir changer le
+  // statut de N'IMPORTE QUELLE réservation (Vue consolidée /admin/
+  // reservations le lui montre déjà, cross-agence), pas seulement celles de
+  // sa propre agence "domicile". Sans cette résolution, chaque opération
+  // tenant-scopée ci-dessous (myGo, débit/remboursement, audit) utilisait
+  // silencieusement `profile.agencyId` — un super_admin obtenait "Réservation
+  // introuvable" pour toute réservation d'une autre agence.
+  const agencyLookup = await withTenantContext(
+    { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
+    (db) =>
+      db
+        .select({ agencyId: reservations.agencyId })
+        .from(reservations)
+        .where(
+          isSuperAdmin
+            ? eq(reservations.id, reservationId)
+            : and(eq(reservations.id, reservationId), eq(reservations.agencyId, profile.agencyId)),
+        )
+        .limit(1),
+  )
+  const agencyId = agencyLookup[0]?.agencyId
+  if (!agencyId) {
+    return { ok: false, error: "Réservation introuvable" }
+  }
 
   // PHASE 27.1 — compte fournisseur MyGo résolu AVANT la transaction de
   // changement de statut (jamais un appel réseau imbriqué dans la même
   // transaction que l'écriture réservation) — voir
   // lib/hotel-suppliers/tenant/live-resolution.ts.
   const myGoAccess = await resolveMyGoAccessForTenant(
-    partnerTenantContext(agencyId, user.id, profile.role === "super_admin"),
+    partnerTenantContext(agencyId, user.id, isSuperAdmin),
   )
 
   const outcome = await withTenantContext(
-    { agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+    { agencyId, userId: user.id, isSuperAdmin },
     async (db) => {
       const current = await db
         .select({

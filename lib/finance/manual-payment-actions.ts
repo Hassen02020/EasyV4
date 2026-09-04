@@ -136,13 +136,24 @@ export async function verifyManualPayment(
       error: "Votre rôle n'est pas autorisé à valider un règlement manuel.",
     }
   }
-  const agencyId = profile.agencyId
+  const isSuperAdmin = profile.role === "super_admin"
+
+  // Capturé depuis la réservation RÉELLE dans la transaction ci-dessous —
+  // jamais `profile.agencyId` (voir garde cross-agence plus bas). Utilisé
+  // après la transaction pour la facture/le voucher.
+  let resolvedAgencyId: string | undefined
 
   let outcome: Extract<VerifyManualPaymentResult, { ok: true }> | Extract<VerifyManualPaymentResult, { ok: false }>
   try {
     outcome = await withTenantContext(
-      { agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+      { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
       async (tx) => {
+        // Un super_admin doit pouvoir valider un règlement manuel sur
+        // N'IMPORTE QUELLE réservation (Vue consolidée /admin/reservations,
+        // cross-agence), pas seulement celles de sa propre agence
+        // "domicile" — même correctif que updateReservationStatus/
+        // refundReservation. `agencyId` ci-dessous est celui RÉEL de la
+        // réservation, jamais `profile.agencyId`.
         const [row] = await tx
           .select({
             id: reservations.id,
@@ -151,14 +162,21 @@ export async function verifyManualPayment(
             tndAmount: reservations.tndAmount,
             paymentExpiresAt: reservations.paymentExpiresAt,
             customerId: reservations.customerId,
+            agencyId: reservations.agencyId,
           })
           .from(reservations)
-          .where(and(eq(reservations.id, input.reservationId), eq(reservations.agencyId, agencyId)))
+          .where(
+            isSuperAdmin
+              ? eq(reservations.id, input.reservationId)
+              : and(eq(reservations.id, input.reservationId), eq(reservations.agencyId, profile.agencyId)),
+          )
           .for("update")
 
         if (!row) {
           return { ok: false as const, error: "Réservation introuvable" }
         }
+        const agencyId = row.agencyId
+        resolvedAgencyId = agencyId
 
         // Expiration défensive server-authoritative — même si le cron
         // /api/cron/expire-pending-payments n'est pas encore passé, une
@@ -312,9 +330,13 @@ export async function verifyManualPayment(
   // acompte partiel) — hors transaction, best-effort : la réservation et
   // le paiement sont déjà commités, un échec ici ne doit jamais invalider
   // un règlement réellement reçu. ---
+  // outcome.ok && outcome.fullyPaid garantit que la transaction ci-dessus a
+  // atteint la ligne `resolvedAgencyId = agencyId` avant de retourner ok:true.
+  const finalAgencyId = resolvedAgencyId as string
+
   try {
     const invoiceResult = await generateInvoiceForReservation({
-      agencyId,
+      agencyId: finalAgencyId,
       reservationId: outcome.reservationId,
       actorUserId: user.id,
     })
@@ -330,7 +352,7 @@ export async function verifyManualPayment(
 
   try {
     const [detail] = await withTenantContext(
-      { agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+      { agencyId: isSuperAdmin ? null : finalAgencyId, userId: user.id, isSuperAdmin },
       (tx) =>
         tx
           .select({
@@ -361,7 +383,7 @@ export async function verifyManualPayment(
       await sendEvent("booking/confirmed", {
         reservationId: outcome.reservationId,
         publicRef: outcome.publicRef,
-        agencyId,
+        agencyId: finalAgencyId,
         guestAccessToken: detail.guestAccessToken,
         customerEmail: detail.customerEmail,
         customerName: `${detail.customerFirstName} ${detail.customerLastName}`.trim(),

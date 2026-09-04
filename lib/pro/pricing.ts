@@ -32,13 +32,19 @@
 
  */
 
-export type MarginModule =
-  | "hotel"
-  | "flight"
-  | "omra"
-  | "package"
-  | "activity"
-  | "transfer"
+/**
+ * omra/package/activity/car délibérément EXCLUS : ces modules n'ont pas de
+ * coût net séparé du prix de vente — l'agence fixe directement le prix
+ * payé par le client au niveau du catalogue produit (`overridePrice`/
+ * `basePrice` dans omra_allotments/omra_packages, même principe pour
+ * Packages/Activités ; RLS `agency_id = current_agency_id()` confirme que
+ * chaque agence ne voit/réserve que son propre catalogue, jamais un
+ * modèle de revente grossiste). Appliquer une marge par-dessus gonflerait
+ * silencieusement un prix déjà fixé par l'agence — jamais fait ici. Car
+ * reste hors périmètre tant que le module n'est pas commercialisable
+ * (voir EASYV4_CAR_DECISION.md — FEATURE_CAR=false, aucun catalogue).
+ */
+export type MarginModule = "hotel" | "flight" | "transfer"
 
 export type MarginRule = {
   marginType: "percent" | "fixed"
@@ -64,12 +70,6 @@ export const DEFAULT_MARGINS: MarginMap = {
   hotel: { marginType: "percent", marginValue: 10, isActive: true },
 
   flight: { marginType: "fixed", marginValue: 25, isActive: true },
-
-  omra: { marginType: "percent", marginValue: 8, isActive: true },
-
-  package: { marginType: "percent", marginValue: 12, isActive: true },
-
-  activity: { marginType: "percent", marginValue: 15, isActive: true },
 
   transfer: { marginType: "fixed", marginValue: 10, isActive: true },
 }

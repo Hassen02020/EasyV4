@@ -53,12 +53,11 @@ interface Props {
   initialMargins: PricingMargin[]
 }
 
+// omra/package/activity retirés : ces modules n'ont pas de coût net séparé
+// du prix de vente — voir lib/pro/pricing.ts (commentaire MarginModule).
 const MODULE_LABELS: Record<string, string> = {
   hotel: "Hôtels Tunisie",
   flight: "Vols",
-  omra: "Omra",
-  package: "Voyages Organisés",
-  activity: "Activités",
   transfer: "Transferts",
 }
 

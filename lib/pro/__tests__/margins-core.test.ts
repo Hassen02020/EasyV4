@@ -94,7 +94,7 @@ test("upsertPricingMarginCore : deux modules distincts coexistent pour la même 
   await withTenantContext(ctx, (tx) =>
     upsertPricingMarginCore(tx, {
       agencyId: agencyA,
-      module: "omra",
+      module: "transfer",
       marginType: "percent",
       marginValue: 8,
       isActive: true,
@@ -103,5 +103,5 @@ test("upsertPricingMarginCore : deux modules distincts coexistent pour la même 
 
   const rows = await withTenantContext(ctx, (tx) => listPricingMarginsCore(tx, { agencyId: agencyA }))
   const modules = rows.map((r) => r.module).sort()
-  assert.deepEqual(modules, ["hotel", "omra"])
+  assert.deepEqual(modules, ["hotel", "transfer"])
 })

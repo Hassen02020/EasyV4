@@ -8,14 +8,9 @@ export const metadata = { title: "Marges de vente | Espace Pro Easy2Book" }
 
 export const dynamic = "force-dynamic"
 
-const MODULES: MarginModule[] = [
-  "hotel",
-  "flight",
-  "omra",
-  "package",
-  "activity",
-  "transfer",
-]
+// omra/package/activity retirés : ces modules n'ont pas de coût net séparé
+// du prix de vente — voir lib/pro/pricing.ts (commentaire MarginModule).
+const MODULES: MarginModule[] = ["hotel", "flight", "transfer"]
 
 export default async function ProMarginsPage() {
   // Phase 9 : lit la table pricing_margins via getActivePartnerMargins

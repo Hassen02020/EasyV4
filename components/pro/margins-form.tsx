@@ -5,8 +5,6 @@ import {
   Building2,
   Plane,
   Car,
-  Moon,
-  Sun,
   Percent,
   Coins,
   Save,
@@ -22,13 +20,9 @@ import { cn } from "@/lib/utils"
 import { formatTND } from "@/lib/pro/format"
 import { upsertMyPricingMargin } from "@/lib/pro/margins-actions"
 
-export type MarginModule =
-  | "hotel"
-  | "flight"
-  | "omra"
-  | "package"
-  | "activity"
-  | "transfer"
+// omra/package/activity retirés : ces modules n'ont pas de coût net séparé
+// du prix de vente — voir lib/pro/pricing.ts (commentaire MarginModule).
+export type MarginModule = "hotel" | "flight" | "transfer"
 
 export type MarginRow = {
   module: MarginModule
@@ -50,17 +44,6 @@ const MODULE_META: Record<
     label: "Vols",
     icon: Plane,
     description: "Billetterie aérienne",
-  },
-  omra: { label: "Omra", icon: Moon, description: "Pèlerinage Omra" },
-  package: {
-    label: "Voyages organisés",
-    icon: Sun,
-    description: "Packages tout inclus",
-  },
-  activity: {
-    label: "Activités",
-    icon: Sun,
-    description: "Excursions & expériences",
   },
   transfer: {
     label: "Transferts",

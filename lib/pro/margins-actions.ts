@@ -23,8 +23,13 @@ import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { invalidateMarginsCache } from "./server-context"
 import { upsertPricingMarginCore } from "./margins-core"
 
+// omra/package/activity retirés : ces modules n'ont pas de coût net séparé
+// du prix de vente (l'agence fixe directement le prix au niveau du
+// catalogue produit) — voir le commentaire détaillé sur MarginModule
+// (lib/pro/pricing.ts). Car reste hors périmètre (module non
+// commercialisable, voir EASYV4_CAR_DECISION.md).
 const MarginInputSchema = z.object({
-  module: z.enum(["hotel", "flight", "omra", "package", "activity", "transfer"]),
+  module: z.enum(["hotel", "flight", "transfer"]),
   marginType: z.enum(["percent", "fixed"]),
   marginValue: z.coerce.number().min(0).max(1000),
   isActive: z.boolean(),

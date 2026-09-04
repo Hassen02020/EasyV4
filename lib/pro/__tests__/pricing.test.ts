@@ -115,15 +115,8 @@ test("applyMarginToHotelOffer : marge inactive laisse les prix inchangés", () =
   assert.equal(marked.boardings[0]!.pax[0]!.rooms[0]!.price, 250)
 })
 
-test("DEFAULT_MARGINS contient les 6 modules", () => {
-  const expected = [
-    "hotel",
-    "flight",
-    "omra",
-    "package",
-    "activity",
-    "transfer",
-  ]
+test("DEFAULT_MARGINS contient les 3 modules marginables (omra/package/activity/car exclus)", () => {
+  const expected = ["hotel", "flight", "transfer"]
   for (const m of expected) {
     const rule = DEFAULT_MARGINS[m as keyof typeof DEFAULT_MARGINS]
     assert.ok(rule, `Module ${m} doit avoir une règle par défaut`)

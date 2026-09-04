@@ -30,6 +30,7 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -256,6 +257,18 @@ export async function createTransferBooking(
         kind: "deposit",
         status: "captured",
         capturedAt: new Date(),
+      })
+
+      // Coût base ↔ prix agence — alimente le Dashboard Marges (même motif
+      // que lib/booking/actions.ts pour l'hôtel) : réutilise les DEUX
+      // montants déjà calculés par calculateTransferPrice()/applyMargin(),
+      // jamais un recalcul. preMargin = basePriceTnd + nightSurchargeAmount
+      // (pricing.totalTnd - marginAmount, cf. lib/transfers/pricing.ts).
+      await recordReservationFinancials({
+        tx,
+        reservationId,
+        supplierPriceTnd: pricing.basePriceTnd + pricing.nightSurchargeAmount,
+        salePriceTnd: pricing.totalTnd,
       })
 
       /* ------------------------------------------------------------------

@@ -1,8 +1,12 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
+import { and, eq } from "drizzle-orm"
 import { updateSession } from "@/lib/supabase/middleware"
-import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
+import { createServerSupabase } from "@/lib/supabase/server"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
+import { getCurrentAdminProfile } from "@/lib/auth/profile"
+import { withSystemContext } from "@/lib/db/tenant-context"
+import { agencies } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/tenant/host"
 import { isTenantExemptRoute } from "@/lib/tenant/route-scope"
 import {
@@ -10,6 +14,15 @@ import {
   TENANT_DOMAIN_HEADER,
   TENANT_BRAND_NAME_HEADER,
 } from "@/lib/tenant/current-tenant"
+
+// Note : `proxy.ts` (contrairement à l'ancien `middleware.ts`) tourne
+// toujours sur le runtime Node.js — c'est ce qui permet aux deux requêtes
+// ci-dessous d'ouvrir une connexion Postgres directe via Drizzle
+// (postgres-js, TCP) au lieu de passer par le client Supabase "REST"
+// (PostgREST), dont le modèle de session RLS (auth.uid()) est incompatible
+// avec celui du reste de l'app (GUCs `app.*` posés par
+// lib/db/tenant-context.ts) — voir resolveTenantForHost() et la garde RBAC
+// plus bas.
 
 /** Headers de sécurité appliqués sur toutes les réponses HTML et API */
 const SECURITY_HEADERS: Record<string, string> = {
@@ -28,16 +41,14 @@ const ADMIN_ROUTES = /^\/admin(\/|$)/
 /**
  * Résout le tenant White Label pour ce host (Phase 13.2, câblage runtime).
  *
- * Utilise le client Supabase "service role" (bypass RLS), pas
- * `createServerSupabase()` (respecte RLS) : `agencies_select` exige
- * `id = current_agency_id() OR is_super_admin()` — un visiteur anonyme
- * du storefront n'a NI session NI agence courante, donc RLS bloquerait
- * systématiquement cette lecture avec le client normal. Le service role
- * est justifié ici (même style que la garde RBAC juste en dessous, qui
- * lit `users`/`agencies` sans RLS via une fonction SECURITY DEFINER) : on
- * ne sélectionne QUE des colonnes déjà publiques par nature pour un
- * storefront (id/brand_name/domain/status) — jamais `deposit_balance`,
- * `matricule_fiscale` ou toute autre colonne agence sensible.
+ * Passe par `withSystemContext()` (bypass RLS via le GUC `app.is_super_admin`,
+ * lib/db/tenant-context.ts) plutôt que RLS + une session normale : un visiteur
+ * anonyme du storefront n'a NI session NI agence courante, donc `agencies_select`
+ * (`id = current_agency_id() OR is_super_admin()`) bloquerait systématiquement
+ * cette lecture. Justifié ici comme pour la garde RBAC plus bas : on ne
+ * sélectionne QUE des colonnes déjà publiques par nature pour un storefront
+ * (id/brand_name/domain/status) — jamais `deposit_balance`, `matricule_fiscale`
+ * ou toute autre colonne agence sensible.
  */
 async function resolveTenantForHost(
   host: string | null,
@@ -47,16 +58,22 @@ async function resolveTenantForHost(
   if (!normalized) return null
 
   try {
-    const supabase = createServiceRoleSupabase()
-    const { data } = await supabase
-      .from("agencies")
-      .select("id, brand_name, domain, status")
-      .eq("domain", normalized)
-      .eq("status", "active")
-      .maybeSingle()
+    const data = await withSystemContext((db) =>
+      db
+        .select({
+          id: agencies.id,
+          brandName: agencies.brandName,
+          domain: agencies.domain,
+          status: agencies.status,
+        })
+        .from(agencies)
+        .where(and(eq(agencies.domain, normalized), eq(agencies.status, "active")))
+        .limit(1)
+        .then((rows) => rows[0]),
+    )
 
-    if (!data) return null
-    return { agencyId: data.id, domain: data.domain as string, brandName: data.brand_name }
+    if (!data || !data.domain) return null
+    return { agencyId: data.id, domain: data.domain, brandName: data.brandName }
   } catch {
     // Panne BDD/config manquante : on ne bloque jamais le storefront par
     // défaut pour une erreur de résolution tenant — retombe simplement sur
@@ -103,20 +120,12 @@ export async function proxy(request: NextRequest) {
     // Rôle ET type d'agence : voir lib/auth/admin-gate.ts pour le pourquoi
     // (manager/agent_resa/etc. sont des rôles partagés entre staff Easy2Book
     // et personnel d'agence partenaire — le rôle seul ne suffit pas).
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role, agencies(agency_type)")
-      .eq("id", user.id)
-      .single()
+    // getCurrentAdminProfile() passe par resolve_session_context() (SQL
+    // SECURITY DEFINER, Drizzle direct) — jamais bloqué par RLS/is_super_admin(),
+    // même mécanisme que app/admin/layout.tsx et tout le reste de /admin.
+    const profile = await getCurrentAdminProfile(user.id)
 
-    const agencyRel = (
-      profile?.agencies as { agency_type?: string } | { agency_type?: string }[] | null
-    )
-    const resolvedAgencyType = Array.isArray(agencyRel)
-      ? agencyRel[0]?.agency_type
-      : agencyRel?.agency_type
-
-    if (!isAllowedIntoAdmin(profile?.role, resolvedAgencyType)) {
+    if (!isAllowedIntoAdmin(profile?.role, profile?.agencyType)) {
       return NextResponse.redirect(new URL("/unauthorized", request.url))
     }
   }

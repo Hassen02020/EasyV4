@@ -22,17 +22,112 @@ export const REFUND_ALLOWED_ROLES = ["super_admin", "manager", "agent_compta"] a
  * le passe à `refunded` seulement si intégralement remboursé ;
  * updateReservationStatus le passe déjà à `cancelled` séparément).
  * `NO_CAPTURED_PAYMENT` n'est pas une erreur pour un appelant "annulation" :
- * une réservation B2B (financée par le crédit agence, jamais par
- * `payments`) ou une réservation B2C jamais payée n'a simplement rien à
- * rembourser — l'appelant doit traiter ce cas comme un no-op, pas un échec.
+ * une réservation jamais payée (aucune ligne `payments` capturée) n'a
+ * simplement rien à rembourser — l'appelant doit traiter ce cas comme un
+ * no-op, pas un échec.
+ *
+ * B2B (crédit agence, `lib/pro/booking-actions.ts::debitPartnerCredit`) :
+ * une ligne `payments` (method "wallet") EST créée en miroir du débit
+ * `partner_credit_movements` (voir `lib/booking/actions.ts`), donc CE cas a
+ * bien un montant "remboursable" au sens de cette fonction — mais le crédit
+ * doit revenir au crédit agence, pas au wallet client. Voir
+ * `wasFundedByAgencyCredit` ci-dessous.
  */
 
-import { and, asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { auditEvents, payments } from "@/lib/db/schema"
+import { agencies, auditEvents, partnerCreditMovements, payments } from "@/lib/db/schema"
 import { creditCustomerWallet } from "./customer-wallet"
 import { TND_EPSILON } from "./payment-summary"
 import { allocateRefund } from "./refund-allocation"
+
+/**
+ * Détecte si CETTE réservation a été financée par le crédit agence B2B
+ * (`debitPartnerCredit`, appelé depuis `lib/booking/actions.ts` pour le
+ * tunnel Pro) plutôt que par un paiement B2C classique (carte/espèces/
+ * virement/wallet client). Seul signal fiable : un mouvement
+ * `partner_credit_movements` de type `debit` lié à `reservationId` — posé
+ * UNE SEULE FOIS par réservation (idempotence `booking-debit:${reservationId}`
+ * côté débit). Trouvé en E2E production-readiness : sans cette détection,
+ * `applyReservationRefund` créditait TOUJOURS le wallet client
+ * (`wallet_accounts`/`wallet_ledger`, table B2C — voir customer-wallet.ts),
+ * y compris pour une réservation B2B — l'agence perdait alors réellement le
+ * montant débité à la réservation, jamais restitué à son crédit propre.
+ */
+async function wasFundedByAgencyCredit(
+  tx: DrizzleTransaction,
+  reservationId: string,
+): Promise<boolean> {
+  const [debitMovement] = await tx
+    .select({ id: partnerCreditMovements.id })
+    .from(partnerCreditMovements)
+    .where(
+      and(
+        eq(partnerCreditMovements.reservationId, reservationId),
+        eq(partnerCreditMovements.movementType, "debit"),
+      ),
+    )
+    .limit(1)
+  return Boolean(debitMovement)
+}
+
+/**
+ * Restitue un remboursement au crédit de dépôt de l'agence (B2B) —
+ * symétrique de `debitPartnerCredit` (lib/pro/booking-actions.ts) et même
+ * mécanique que l'annulation self-service Pro
+ * (lib/booking/cancel-actions.ts::cancelHotelReservation), dupliquée ici
+ * plutôt que partagée : ce fichier n'a pas de dépendance vers le flux Pro
+ * self-service, et l'un et l'autre restent des points d'entrée distincts
+ * (staff/admin ici, partenaire lui-même là-bas) sur le MÊME solde et le
+ * MÊME ledger — jamais un second système de comptes.
+ *
+ * `set_agency_deposit_balance()` reste le SEUL canal autorisé pour écrire
+ * `agencies.deposit_balance` : la table n'a pas de policy RLS UPDATE pour
+ * une session tenant normale (uniquement `is_super_admin()`), un
+ * `tx.update(agencies)` direct serait silencieusement filtré — voir le
+ * commentaire détaillé dans `lib/pro/booking-actions.ts::debitPartnerCredit`.
+ * `movementType: "refund"` — déjà dans l'enum `credit_movement_type`
+ * ("remboursement (+)"), jamais une nouvelle valeur inventée.
+ */
+async function creditAgencyForRefund(
+  tx: DrizzleTransaction,
+  params: {
+    agencyId: string
+    reservationId: string
+    publicRef: string
+    amountTnd: number
+    reason: string
+    actorUserId: string
+  },
+): Promise<void> {
+  const [agency] = await tx
+    .select({ depositBalance: agencies.depositBalance })
+    .from(agencies)
+    .where(eq(agencies.id, params.agencyId))
+    .for("update")
+
+  if (!agency) {
+    throw new Error(`Agence introuvable pour le remboursement (agencyId=${params.agencyId})`)
+  }
+
+  const currentBalance = Number.parseFloat(agency.depositBalance)
+  const newBalance = currentBalance + params.amountTnd
+
+  await tx.execute(
+    sql`SELECT set_agency_deposit_balance(${params.agencyId}::uuid, ${newBalance.toFixed(3)}::numeric)`,
+  )
+
+  await tx.insert(partnerCreditMovements).values({
+    agencyId: params.agencyId,
+    movementType: "refund",
+    amount: params.amountTnd.toFixed(3),
+    balanceAfter: newBalance.toFixed(3),
+    reference: `REFUND-${params.publicRef}`,
+    description: `Remboursement réservation ${params.publicRef} — ${params.reason}`,
+    reservationId: params.reservationId,
+    createdByUserId: params.actorUserId,
+  })
+}
 
 export interface ApplyReservationRefundInput {
   tx: DrizzleTransaction
@@ -103,16 +198,30 @@ export async function applyReservationRefund(
       .where(eq(payments.id, update.id))
   }
 
-  const credit = await creditCustomerWallet({
-    customerId,
-    amountTnd: requestedTnd,
-    reservationId,
-    description: `Remboursement réservation ${publicRef} — ${reason}`,
-    source: "refund",
-    txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
-  })
-  if (!credit.ok) {
-    throw new Error(`Échec du crédit wallet client : ${credit.message}`)
+  // Restitue au MÊME solde qui a été débité à la réservation — jamais un
+  // crédit wallet client pour une réservation financée par le crédit
+  // agence B2B (voir wasFundedByAgencyCredit ci-dessus).
+  if (await wasFundedByAgencyCredit(tx, reservationId)) {
+    await creditAgencyForRefund(tx, {
+      agencyId,
+      reservationId,
+      publicRef,
+      amountTnd: requestedTnd,
+      reason,
+      actorUserId,
+    })
+  } else {
+    const credit = await creditCustomerWallet({
+      customerId,
+      amountTnd: requestedTnd,
+      reservationId,
+      description: `Remboursement réservation ${publicRef} — ${reason}`,
+      source: "refund",
+      txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
+    })
+    if (!credit.ok) {
+      throw new Error(`Échec du crédit wallet client : ${credit.message}`)
+    }
   }
 
   await tx.insert(auditEvents).values({

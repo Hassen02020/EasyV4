@@ -20,9 +20,12 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import {
   listLeadsCore,
   updateLeadStatusCore,
+  convertLeadCore,
+  searchReservationsForLeadLinkCore,
   LEAD_STATUSES,
   type LeadRow,
   type LeadStatus,
+  type ReservationLinkCandidate,
 } from "@/lib/crm/leads-core"
 
 const SUPPORT_STAFF_ROLES = ["super_admin", "manager", "agent_resa"] as const
@@ -92,6 +95,16 @@ export async function updateLeadStatus(input: {
   if (!input.id || typeof input.id !== "string") {
     return { ok: false, error: "Identifiant invalide." }
   }
+  // "converted" exige une réservation liée — voir convertLead() ci-dessous.
+  // Jamais un simple changement de statut déclaratif (audit CRM : c'était
+  // exactement ce défaut avant la migration 0043).
+  if (input.status === "converted") {
+    return {
+      ok: false,
+      error: "Utilisez « Lier à une réservation » pour marquer une demande comme convertie.",
+    }
+  }
+  const status = input.status
 
   try {
     const result = await withTenantContext(
@@ -100,7 +113,7 @@ export async function updateLeadStatus(input: {
         updateLeadStatusCore(tx, {
           agencyId: ctx.agencyId,
           id: input.id,
-          status: input.status,
+          status,
           staffNotes: input.staffNotes,
           handledByUserId: ctx.userId,
         }),
@@ -110,6 +123,90 @@ export async function updateLeadStatus(input: {
     return { ok: true }
   } catch (err) {
     console.error("[updateLeadStatus]", err)
+    return { ok: false, error: "Erreur technique. Veuillez réessayer." }
+  }
+}
+
+export type ConvertLeadActionResult = { ok: true } | { ok: false; error: string }
+
+export async function convertLead(input: {
+  id: string
+  reservationId: string
+  staffNotes?: string
+}): Promise<ConvertLeadActionResult> {
+  let ctx: SupportStaffContext
+  try {
+    ctx = await assertSupportStaff()
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
+  }
+  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!input.id || !input.reservationId) {
+    return { ok: false, error: "Identifiant invalide." }
+  }
+
+  try {
+    const result = await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) =>
+        convertLeadCore(tx, {
+          agencyId: ctx.agencyId,
+          id: input.id,
+          reservationId: input.reservationId,
+          staffNotes: input.staffNotes,
+          handledByUserId: ctx.userId,
+        }),
+    )
+    if (!result.ok) return { ok: false, error: result.error }
+    revalidatePath("/admin/support")
+    return { ok: true }
+  } catch (err) {
+    console.error("[convertLead]", err)
+    return { ok: false, error: "Erreur technique. Veuillez réessayer." }
+  }
+}
+
+export type SearchReservationsForLeadLinkResult =
+  | { ok: true; reservations: ReservationLinkCandidate[] }
+  | { ok: false; error: string }
+
+/**
+ * Candidats de réservation pour lier un lead donné. Sans `query`, suggère
+ * par correspondance email/téléphone du lead ; avec `query`, recherche
+ * libre — voir searchReservationsForLeadLinkCore.
+ */
+export async function searchReservationsForLeadLink(input: {
+  leadId: string
+  query?: string
+}): Promise<SearchReservationsForLeadLinkResult> {
+  let ctx: SupportStaffContext
+  try {
+    ctx = await assertSupportStaff()
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
+  }
+  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!input.leadId) return { ok: false, error: "Identifiant invalide." }
+
+  try {
+    const rows = await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      async (tx) => {
+        const leadRows = await listLeadsCore(tx, { agencyId: ctx.agencyId })
+        const lead = leadRows.find((l) => l.id === input.leadId)
+        if (!lead) return null
+        return searchReservationsForLeadLinkCore(tx, {
+          agencyId: ctx.agencyId,
+          email: lead.email,
+          phone: lead.phone,
+          query: input.query,
+        })
+      },
+    )
+    if (rows === null) return { ok: false, error: "Demande introuvable." }
+    return { ok: true, reservations: rows }
+  } catch (err) {
+    console.error("[searchReservationsForLeadLink]", err)
     return { ok: false, error: "Erreur technique. Veuillez réessayer." }
   }
 }

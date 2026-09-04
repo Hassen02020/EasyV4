@@ -6,9 +6,10 @@
  * client, actions par ligne).
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { toast } from "sonner"
-import { Search, Mail, Phone, Loader2 } from "lucide-react"
+import { Search, Mail, Phone, Loader2, Link2, ExternalLink } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -27,8 +28,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { updateLeadStatus } from "@/lib/admin/leads-actions"
-import type { LeadRow, LeadStatus } from "@/lib/crm/leads-core"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { updateLeadStatus, convertLead, searchReservationsForLeadLink } from "@/lib/admin/leads-actions"
+import type { LeadRow, LeadStatus, ReservationLinkCandidate } from "@/lib/crm/leads-core"
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: "Nouveau",
@@ -52,14 +59,154 @@ const PRODUCT_TYPE_LABEL: Record<LeadRow["productType"], string> = {
   general: "Général",
 }
 
-function LeadStatusCell({ lead }: { lead: LeadRow }) {
-  const [status, setStatus] = useState<LeadStatus>(lead.status)
-  const [updatedAt, setUpdatedAt] = useState(() => new Date(lead.updatedAt))
+/**
+ * Recherche + sélection d'une réservation réelle pour convertir un lead —
+ * jamais un lien automatique (voir convertLeadCore, lib/crm/leads-core.ts).
+ * Ouverte quand le staff choisit "Converti" dans le Select de statut ;
+ * annuler laisse le statut inchangé.
+ */
+function ConvertLeadDialog({
+  lead,
+  onCancel,
+  onConverted,
+}: {
+  lead: LeadRow
+  onCancel: () => void
+  onConverted: (reservationId: string) => void
+}) {
+  const [query, setQuery] = useState("")
+  const [candidates, setCandidates] = useState<ReservationLinkCandidate[]>([])
+  const [loading, setLoading] = useState(false)
+  const [confirming, setConfirming] = useState<string | null>(null)
+  const [searched, setSearched] = useState(false)
+
+  useEffect(() => {
+    runSearch("")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function runSearch(q: string) {
+    setLoading(true)
+    searchReservationsForLeadLink({ leadId: lead.id, query: q || undefined })
+      .then((result) => {
+        setSearched(true)
+        if (result.ok) {
+          setCandidates(result.reservations)
+        } else {
+          toast.error(result.error || "Échec de la recherche.")
+        }
+      })
+      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .finally(() => setLoading(false))
+  }
+
+  function handleConfirm(reservationId: string) {
+    if (confirming) return
+    setConfirming(reservationId)
+    convertLead({ id: lead.id, reservationId })
+      .then((result) => {
+        if (result.ok) {
+          toast.success("Demande marquée comme convertie.")
+          onConverted(reservationId)
+        } else {
+          toast.error(result.error || "Échec de la conversion.")
+        }
+      })
+      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .finally(() => setConfirming(null))
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            Lier {lead.firstName} {lead.lastName ?? ""} à une réservation
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-muted-foreground text-xs">
+          Sélectionnez la réservation réelle produite par cette demande. Sans
+          correspondance ci-dessous, recherchez par référence, nom, email ou
+          téléphone.
+        </p>
+
+        <div className="relative">
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Réf. réservation, nom, email, téléphone…"
+            className="pl-9"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                runSearch(query)
+              }
+            }}
+          />
+        </div>
+
+        <div className="max-h-72 space-y-2 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : candidates.length === 0 ? (
+            <p className="text-muted-foreground py-8 text-center text-sm">
+              {searched ? "Aucune réservation correspondante." : "Recherche…"}
+            </p>
+          ) : (
+            candidates.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => handleConfirm(r.id)}
+                disabled={confirming !== null}
+                className="hover:border-primary hover:bg-primary/5 flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left text-sm transition-colors disabled:opacity-60"
+              >
+                <div>
+                  <p className="font-medium">{r.publicRef}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {r.customerFirstName} {r.customerLastName} — {r.customerEmail ?? r.customerPhone ?? "—"}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {new Date(r.createdAt).toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}{" "}
+                    · {r.status}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{parseFloat(r.tndAmount).toFixed(2)} DT</span>
+                  {confirming === r.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
+  const [lead, setLead] = useState(initialLead)
+  const [status, setStatus] = useState<LeadStatus>(initialLead.status)
+  const [updatedAt, setUpdatedAt] = useState(() => new Date(initialLead.updatedAt))
   const [pending, setPending] = useState(false)
+  const [convertOpen, setConvertOpen] = useState(false)
 
   function handleChange(value: string) {
     const next = value as LeadStatus
     if (next === status || pending) return
+    if (next === "converted") {
+      setConvertOpen(true)
+      return
+    }
     setPending(true)
     updateLeadStatus({ id: lead.id, status: next })
       .then((result) => {
@@ -72,6 +219,13 @@ function LeadStatusCell({ lead }: { lead: LeadRow }) {
       })
       .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
       .finally(() => setPending(false))
+  }
+
+  function handleConverted(reservationId: string) {
+    setStatus("converted")
+    setUpdatedAt(new Date())
+    setLead((l) => ({ ...l, reservationId, convertedAt: new Date() }))
+    setConvertOpen(false)
   }
 
   return (
@@ -97,6 +251,21 @@ function LeadStatusCell({ lead }: { lead: LeadRow }) {
           Suivi le{" "}
           {updatedAt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
         </p>
+      )}
+      {status === "converted" && lead.reservationId && (
+        <Link
+          href={`/admin/reservations/${lead.reservationId}`}
+          className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+        >
+          Réservation liée <ExternalLink className="h-3 w-3" />
+        </Link>
+      )}
+      {convertOpen && (
+        <ConvertLeadDialog
+          lead={lead}
+          onCancel={() => setConvertOpen(false)}
+          onConverted={handleConverted}
+        />
       )}
     </div>
   )

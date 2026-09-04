@@ -1346,6 +1346,17 @@ export const leads = pgTable(
     status: varchar("status", { length: 16 }).notNull().default("new"),
     staffNotes: text("staff_notes"),
     handledByUserId: uuid("handled_by_user_id"),
+    /**
+     * Réservation réelle produite par ce lead — jamais renseigné
+     * automatiquement (voir convertLeadCore, lib/crm/leads-core.ts) : le
+     * staff choisit explicitement la réservation lors de la conversion.
+     * UNIQUE (0043) : une réservation ne peut être la conversion que d'un
+     * seul lead. CHECK (0043) : `status='converted'` exige cette colonne.
+     */
+    reservationId: uuid("reservation_id").references(() => reservations.id, {
+      onDelete: "set null",
+    }),
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1356,6 +1367,7 @@ export const leads = pgTable(
   (t) => [
     index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
     index("leads_agency_idx").on(t.agencyId),
+    uniqueIndex("leads_reservation_id_uniq").on(t.reservationId),
   ],
 )
 

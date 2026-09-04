@@ -14,10 +14,6 @@ import {
   Phone,
   Calendar,
   ShoppingBag,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  FileText,
   User,
 } from "lucide-react"
 import {
@@ -38,14 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { B2cClientRowActions } from "@/components/admin/b2c-client-row-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -285,28 +274,9 @@ export default async function B2CClientsPage() {
                         {new Date(client.createdAt).toLocaleDateString("fr-FR")}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label={`Actions pour ${client.firstName} ${client.lastName}`}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem disabled title="Pas encore disponible">
-                              <Eye className="mr-2 h-4 w-4" />
-                              Voir profil
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled title="Pas encore disponible">
-                              <Edit className="mr-2 h-4 w-4" />
-                              Modifier
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled title="Pas encore disponible">
-                              <FileText className="mr-2 h-4 w-4" />
-                              Voir réservations
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <B2cClientRowActions
+                          displayName={`${client.firstName} ${client.lastName}`}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

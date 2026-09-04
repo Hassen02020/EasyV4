@@ -95,7 +95,7 @@ export default function BookingsPage() {
                 id="ref"
                 value={ref}
                 onChange={(e) => setRef(e.target.value.toUpperCase())}
-                placeholder="ex: E2B-2026-XXXXXX"
+                placeholder="ex: TG-2026-XXXXXX"
                 className="font-mono tracking-widest uppercase"
                 required
                 disabled={isPending}

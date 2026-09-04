@@ -251,7 +251,13 @@ function ListEditor({
       {items.map((item, i) => (
         <div key={i} className="flex gap-2">
           <Input value={item} onChange={(e) => onUpdate(i, e.target.value)} />
-          <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(i)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Supprimer cet élément de ${label.toLowerCase()}`}
+            onClick={() => onRemove(i)}
+          >
             <Trash2 className="size-4" />
           </Button>
         </div>

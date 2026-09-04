@@ -5,7 +5,7 @@ export const translations = {
     // Header
     connexion: "Connexion",
     monCompte: "Mon compte",
-    myBookings: "My Bookings",
+    myBookings: "Mes réservations",
     help: "Aide",
     // Tabs moteur de recherche
     tabVols: "Vols",

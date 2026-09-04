@@ -412,6 +412,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setRooms(Math.max(1, rooms - 1))}
                       disabled={rooms <= 1}
+                      aria-label="Diminuer le nombre de chambres"
                     >
                       <Minus className="size-3" />
                     </Button>
@@ -424,6 +425,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setRooms(Math.min(8, rooms + 1))}
                       disabled={rooms >= 8}
+                      aria-label="Augmenter le nombre de chambres"
                     >
                       <Plus className="size-3" />
                     </Button>
@@ -445,6 +447,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setAdults(Math.max(1, adults - 1))}
                       disabled={adults <= 1}
+                      aria-label="Diminuer le nombre d'adultes"
                     >
                       <Minus className="size-3" />
                     </Button>
@@ -457,6 +460,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setAdults(Math.min(6, adults + 1))}
                       disabled={adults >= 6}
+                      aria-label="Augmenter le nombre d'adultes"
                     >
                       <Plus className="size-3" />
                     </Button>
@@ -526,6 +530,7 @@ export function HotelsTunisieSearch() {
                           size="icon"
                           className="text-muted-foreground hover:text-destructive size-7"
                           onClick={() => removeChild(index)}
+                          aria-label={`Supprimer ${age <= 2 ? "bébé" : "enfant"} ${index + 1}`}
                         >
                           <X className="size-4" />
                         </Button>

@@ -80,8 +80,6 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
           <div className="mt-1 text-2xl font-bold tabular-nums">
             {formatTND(currentBalance)}
           </div>
-
-          <p className="text-xs opacity-80">Cohérent avec le widget header</p>
         </div>
 
         <div className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4">

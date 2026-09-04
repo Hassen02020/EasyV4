@@ -149,20 +149,22 @@ export default function MarginsDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Dashboard Marges</h1>
           <p className="text-muted-foreground">
             Suivi des marges en temps réel
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {format(dateRange.from, "dd/MM/yyyy", { locale: fr })} -{" "}
-                {format(dateRange.to, "dd/MM/yyyy", { locale: fr })}
+              <Button variant="outline" className="w-full sm:w-auto">
+                <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">
+                  {format(dateRange.from, "dd/MM/yyyy", { locale: fr })} -{" "}
+                  {format(dateRange.to, "dd/MM/yyyy", { locale: fr })}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">

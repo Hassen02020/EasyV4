@@ -43,8 +43,6 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
       .finally(() => setRemovingId(null))
   }
 
-  if (items.length === 0) return null
-
   return (
     <div className="bg-card border-border mb-6 rounded-2xl border p-4">
       <div className="mb-3 flex items-center gap-2">
@@ -52,6 +50,12 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
         <span className="text-foreground text-sm font-semibold">Mes favoris</span>
       </div>
 
+      {items.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          Vous n&apos;avez pas encore de favoris. Cliquez sur le cœur d&apos;un hôtel, d&apos;un
+          voyage ou d&apos;une activité pour le retrouver ici.
+        </p>
+      ) : (
       <ul className="space-y-2">
         {items.map((fav) => (
           <li
@@ -100,6 +104,7 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
           </li>
         ))}
       </ul>
+      )}
     </div>
   )
 }

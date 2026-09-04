@@ -120,6 +120,11 @@ const STATUS_LABEL: Record<
     className: "border-sidebar/30 bg-sidebar/10 text-sidebar",
     icon: XCircle,
   },
+  expired: {
+    label: "Expirée",
+    className: "border-destructive/40 bg-destructive/10 text-destructive",
+    icon: XCircle,
+  },
 }
 
 const ALL_STATUSES: ReservationStatus[] = [
@@ -130,6 +135,7 @@ const ALL_STATUSES: ReservationStatus[] = [
   "no_show",
   "completed",
   "refunded",
+  "expired",
 ]
 
 const TND_FORMAT = new Intl.NumberFormat("fr-FR", {

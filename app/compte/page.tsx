@@ -102,9 +102,7 @@ export default async function ComptePage() {
           </div>
         )}
 
-        {favorites.ok && favorites.favorites.length > 0 && (
-          <CompteFavoritesCard favorites={favorites.favorites} />
-        )}
+        {favorites.ok && <CompteFavoritesCard favorites={favorites.favorites} />}
 
         {loyalty.ok ? (
           <CompteLoyaltyCard

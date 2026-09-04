@@ -22,7 +22,7 @@ const METHODS: {
   {
     key: "card",
     label: "Carte bancaire",
-    desc: "Paiement en ligne immédiat",
+    desc: "Paiement en ligne immédiat — bientôt disponible",
     icon: CreditCard,
   },
   {
@@ -53,7 +53,12 @@ const METHODS: {
 
 export function CheckoutForm({ token }: { token: string }) {
   const [pending, startTransition] = useTransition()
-  const [method, setMethod] = useState<Method>("card")
+  // "card" échoue systématiquement (aucun provider de paiement en ligne
+  // configuré, voir lib/payment/provider.ts::NotConfiguredPaymentProvider)
+  // — ne jamais le pré-sélectionner pour ne pas envoyer le premier essai
+  // dans une impasse. "at_hotel" est la méthode sans risque par défaut :
+  // aucune coordonnée bancaire requise, réservation enregistrée telle quelle.
+  const [method, setMethod] = useState<Method>("at_hotel")
   const [acceptCgv, setAcceptCgv] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

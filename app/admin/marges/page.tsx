@@ -12,6 +12,7 @@
  */
 
 import { Suspense } from "react"
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
@@ -66,12 +67,20 @@ export default async function MargesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Gestion des Marges</h1>
-        <p className="text-sm text-muted-foreground">
-          Configurez les marges de vente par module et par agence partenaire — appliquées en temps réel au
-          prix affiché (lib/pro/pricing.ts::applyMargin).
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Gestion des Marges</h1>
+          <p className="text-sm text-muted-foreground">
+            Configurez les marges de vente par module et par agence partenaire — appliquées en temps réel au
+            prix affiché (lib/pro/pricing.ts::applyMargin).
+          </p>
+        </div>
+        <Link
+          href="/admin/analytics/margins"
+          className="shrink-0 text-sm font-medium text-primary hover:underline"
+        >
+          Voir les analytics de marge →
+        </Link>
       </div>
 
       <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-muted" />}>

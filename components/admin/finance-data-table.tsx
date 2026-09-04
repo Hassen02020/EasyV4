@@ -10,7 +10,7 @@ import {
   RefreshCw,
 } from "lucide-react"
 
-import { DataTable, SortIcon } from "@/components/ui/data-table"
+import { DataTable } from "@/components/ui/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -103,16 +103,7 @@ function exportToCsv(rows: FinanceMovementRow[]) {
 const columns: ColumnDef<FinanceMovementRow>[] = [
   {
     accessorKey: "createdAt",
-    header: ({ column }) => (
-      <button
-        type="button"
-        className="inline-flex cursor-pointer items-center gap-1"
-        onClick={column.getToggleSortingHandler()}
-      >
-        Date
-        <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-      </button>
-    ),
+    header: "Date",
     cell: ({ row }) => (
       <span className="text-muted-foreground text-xs tabular-nums">
         {new Date(row.original.createdAt).toLocaleString("fr-FR", {
@@ -128,16 +119,7 @@ const columns: ColumnDef<FinanceMovementRow>[] = [
   },
   {
     accessorKey: "agencyName",
-    header: ({ column }) => (
-      <button
-        type="button"
-        className="inline-flex cursor-pointer items-center gap-1"
-        onClick={column.getToggleSortingHandler()}
-      >
-        Agence
-        <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-      </button>
-    ),
+    header: "Agence",
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-1.5 text-sm">
         <Building2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
@@ -168,16 +150,7 @@ const columns: ColumnDef<FinanceMovementRow>[] = [
   },
   {
     accessorKey: "amount",
-    header: ({ column }) => (
-      <button
-        type="button"
-        className="ml-auto inline-flex cursor-pointer items-center gap-1"
-        onClick={column.getToggleSortingHandler()}
-      >
-        Montant
-        <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-      </button>
-    ),
+    header: () => <span className="ml-auto">Montant</span>,
     cell: ({ row }) => {
       const amount = row.original.amount
       return (

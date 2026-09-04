@@ -343,7 +343,7 @@ export function AdminShell({
                           <CollapsibleContent>
                             <SidebarMenuSub>
                               {item.subItems.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.href}>
+                                <SidebarMenuSubItem key={subItem.title}>
                                   <SidebarMenuSubButton
                                     asChild
                                     isActive={pathname === subItem.href}

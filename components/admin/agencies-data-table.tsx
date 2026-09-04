@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { DataTable, SortIcon } from "@/components/ui/data-table"
+import { DataTable } from "@/components/ui/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -191,16 +191,7 @@ function buildColumns(
   return [
     {
       accessorKey: "name",
-      header: ({ column }) => (
-        <button
-          type="button"
-          className="inline-flex cursor-pointer items-center"
-          onClick={column.getToggleSortingHandler()}
-        >
-          Agence
-          <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-        </button>
-      ),
+      header: "Agence",
       cell: ({ row }) => {
         const agency = row.original
         const initials = (agency.brandName ?? agency.name).charAt(0).toUpperCase()
@@ -233,16 +224,11 @@ function buildColumns(
     },
     {
       accessorKey: "userCount",
-      header: ({ column }) => (
-        <button
-          type="button"
-          className="inline-flex cursor-pointer items-center"
-          onClick={column.getToggleSortingHandler()}
-        >
+      header: () => (
+        <span className="inline-flex items-center">
           <Users className="mr-1 h-3.5 w-3.5" />
           Utilisateurs
-          <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-        </button>
+        </span>
       ),
       cell: ({ row }) => (
         <span className="tabular-nums">{row.original.userCount}</span>
@@ -250,16 +236,7 @@ function buildColumns(
     },
     {
       accessorKey: "depositBalance",
-      header: ({ column }) => (
-        <button
-          type="button"
-          className="inline-flex cursor-pointer items-center"
-          onClick={column.getToggleSortingHandler()}
-        >
-          Solde Wallet
-          <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-        </button>
-      ),
+      header: "Solde Wallet",
       cell: ({ row }) => {
         const a = row.original
         if (a.agencyType !== "partner")

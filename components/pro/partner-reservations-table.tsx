@@ -24,7 +24,7 @@ import {
   XCircle,
 } from "lucide-react"
 
-import { DataTable, SortIcon } from "@/components/ui/data-table"
+import { DataTable } from "@/components/ui/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -250,16 +250,7 @@ function ReservationActionsCell({
 const columns: ColumnDef<PartnerReservationRow>[] = [
   {
     accessorKey: "publicRef",
-    header: ({ column }) => (
-      <button
-        type="button"
-        className="inline-flex cursor-pointer items-center"
-        onClick={column.getToggleSortingHandler()}
-      >
-        Référence
-        <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-      </button>
-    ),
+    header: "Référence",
     cell: ({ row }) => (
       <div className="font-mono">
         <p className="text-foreground text-xs font-semibold tabular-nums">
@@ -273,16 +264,7 @@ const columns: ColumnDef<PartnerReservationRow>[] = [
   },
   {
     accessorKey: "customerName",
-    header: ({ column }) => (
-      <button
-        type="button"
-        className="inline-flex cursor-pointer items-center"
-        onClick={column.getToggleSortingHandler()}
-      >
-        Client
-        <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-      </button>
-    ),
+    header: "Client",
     cell: ({ row }) => (
       <div>
         <p className="text-foreground text-sm font-medium">
@@ -355,16 +337,7 @@ const columns: ColumnDef<PartnerReservationRow>[] = [
   },
   {
     accessorKey: "tndAmount",
-    header: ({ column }) => (
-      <button
-        type="button"
-        className="ml-auto inline-flex cursor-pointer items-center"
-        onClick={column.getToggleSortingHandler()}
-      >
-        Vente
-        <SortIcon direction={column.getIsSorted() as "asc" | "desc" | false} />
-      </button>
-    ),
+    header: () => <span className="ml-auto">Vente</span>,
     cell: ({ row }) => (
       <p className="text-primary text-right text-sm font-bold tabular-nums">
         {formatTND(row.original.tndAmount)}

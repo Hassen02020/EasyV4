@@ -42,6 +42,7 @@ import {
   type HotelFilterState,
 } from "@/lib/mygo/facets"
 import { sortOffers, type HotelSortMode } from "@/lib/mygo/sort"
+import { selectBestRate } from "@/lib/mygo/best-rate"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
 
 interface ProHotelResultsProps {
@@ -82,6 +83,11 @@ function ProHotelResultCard({
   // card B2B pour répondre à "l'annulation est-elle gratuite ?" sans ouvrir
   // la fiche hôtel — parité avec la card B2C (components/hotel-card.tsx).
   const freeCancellation = hasFreeCancellation(offer)
+  // Même garde que lowestDisplayPrice() (lib/hotel-suppliers/flexible-search.ts) :
+  // `offer.fromPrice` peut être la sentinelle myGo à 0 quand l'hôtel est
+  // entièrement en stopReservation — selectBestRate() calcule le vrai
+  // meilleur tarif à partir des chambres, jamais cette sentinelle brute.
+  const displayPrice = selectBestRate(offer)?.price ?? offer.fromPrice
   return (
     <article className="bg-card border-border/60 shadow-e2b-soft overflow-hidden rounded-2xl border">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:p-5">
@@ -118,7 +124,7 @@ function ProHotelResultCard({
               {boardingNames.map((name) => (
                 <span
                   key={name}
-                  className="border-secondary/50 text-secondary bg-secondary/5 inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-medium"
+                  className="border-secondary/50 text-secondary-foreground bg-secondary/5 inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-medium"
                 >
                   {name}
                 </span>
@@ -133,7 +139,7 @@ function ProHotelResultCard({
               Prix agence, à partir de
             </p>
             <p className="text-primary text-xl font-bold tabular-nums">
-              {offer.fromPrice.toLocaleString("fr-FR")} {currency}
+              {displayPrice.toLocaleString("fr-FR")} {currency}
             </p>
             {freeCancellation && (
               <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">

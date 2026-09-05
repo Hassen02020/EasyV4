@@ -1430,6 +1430,84 @@ export const leadRelanceSettings = pgTable(
   (t) => [uniqueIndex("lead_relance_settings_agency_uniq").on(t.agencyId)],
 )
 
+export const CRM_CHANNELS = ["whatsapp", "instagram", "messenger", "call", "email", "web"] as const
+export type CrmChannel = (typeof CRM_CHANNELS)[number]
+
+/**
+ * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
+ * cible joint à l'audit senior OTA. Modèle agnostique du canal ; seul
+ * WhatsApp a une intégration entrante réelle à ce stade (voir
+ * app/api/webhooks/whatsapp/route.ts) — Instagram/Messenger/Call restent
+ * des valeurs de `channel` valides mais sans provider branché (pas de
+ * credentials Meta App Review / téléphonie), jamais simulés.
+ */
+export const crmConversations = pgTable(
+  "crm_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** 'whatsapp' | 'instagram' | 'messenger' | 'call' | 'email' | 'web' */
+    channel: varchar("channel", { length: 16 }).notNull(),
+    contactPhone: varchar("contact_phone", { length: 32 }),
+    contactExternalId: varchar("contact_external_id", { length: 128 }),
+    contactName: varchar("contact_name", { length: 200 }),
+    leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    /** 'open' | 'closed' */
+    status: varchar("status", { length: 16 }).notNull().default("open"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    /** Dernier message ENTRANT — base du calcul de la fenêtre de service WhatsApp 24h. */
+    lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
+    lastMessagePreview: varchar("last_message_preview", { length: 500 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("crm_conversations_agency_channel_phone_uniq")
+      .on(t.agencyId, t.channel, t.contactPhone)
+      .where(sql`${t.contactPhone} is not null`),
+    uniqueIndex("crm_conversations_agency_channel_external_uniq")
+      .on(t.agencyId, t.channel, t.contactExternalId)
+      .where(sql`${t.contactExternalId} is not null`),
+    index("crm_conversations_agency_idx").on(t.agencyId, t.lastMessageAt),
+    index("crm_conversations_lead_idx").on(t.leadId),
+  ],
+)
+
+export const crmMessages = pgTable(
+  "crm_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Dénormalisé depuis crmConversations, même convention que payments.agencyId. */
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => crmConversations.id, { onDelete: "cascade" }),
+    /** 'inbound' | 'outbound' */
+    direction: varchar("direction", { length: 8 }).notNull(),
+    body: text("body"),
+    handledByUserId: uuid("handled_by_user_id"),
+    /** wamid Meta (ou équivalent futur) — idempotence des redélivrances webhook. */
+    externalMessageId: varchar("external_message_id", { length: 128 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("crm_messages_external_message_id_uniq")
+      .on(t.externalMessageId)
+      .where(sql`${t.externalMessageId} is not null`),
+    index("crm_messages_conversation_idx").on(t.conversationId, t.createdAt),
+  ],
+)
+
 /**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *

@@ -68,6 +68,9 @@ function makeFakeProvider(result: WhatsAppMessageResult): {
         calls.push(input)
         return result
       },
+      async sendSessionMessage() {
+        return result
+      },
     },
   }
 }

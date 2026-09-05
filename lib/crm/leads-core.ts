@@ -68,6 +68,19 @@ export async function createLeadCore(
   return { id: inserted!.id }
 }
 
+export async function getLeadCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; id: string },
+): Promise<LeadRow | null> {
+  const [row] = await tx
+    .select()
+    .from(leads)
+    .where(and(eq(leads.id, params.id), eq(leads.agencyId, params.agencyId)))
+    .limit(1)
+  if (!row) return null
+  return { ...row, productType: row.productType as LeadProductType, status: row.status as LeadStatus }
+}
+
 /**
  * Les 200 leads les plus récents de l'agence — pas de pagination cursor
  * (volume attendu bien en-deçà, contrairement aux réservations) ; à revoir

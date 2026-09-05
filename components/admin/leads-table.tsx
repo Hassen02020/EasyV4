@@ -39,6 +39,7 @@ import { updateLeadStatus, convertLead, searchReservationsForLeadLink } from "@/
 import type { LeadRow, LeadStatus, ReservationLinkCandidate } from "@/lib/crm/leads-core"
 import { computeLeadScore, type LeadScoreRuleMap } from "@/lib/crm/lead-scoring-core"
 import { isLeadStale, type LeadRelanceSettingsValue } from "@/lib/crm/lead-relance-core"
+import { Customer360Button } from "@/components/admin/customer-360-panel"
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: "Nouveau",
@@ -378,12 +379,13 @@ export function LeadsTable({
                 <TableHead>Score</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Reçu le</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     Aucune demande ne correspond à ces filtres.
                   </TableCell>
                 </TableRow>
@@ -437,6 +439,12 @@ export function LeadsTable({
                         month: "short",
                         year: "numeric",
                       })}
+                    </TableCell>
+                    <TableCell>
+                      <Customer360Button
+                        leadId={lead.id}
+                        leadName={`${lead.firstName} ${lead.lastName ?? ""}`.trim()}
+                      />
                     </TableCell>
                   </TableRow>
                 ))

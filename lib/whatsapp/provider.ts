@@ -39,6 +39,17 @@ export interface SendTemplateMessageInput {
   bodyParams: string[]
 }
 
+export interface SendSessionMessageInput {
+  /** Numéro destinataire, format libre — normalisé en interne. */
+  to: string
+  /** Texte libre — n'est accepté par l'API Meta QUE dans la fenêtre de
+   * service de 24h suivant le dernier message du client (voir
+   * canSendSessionMessage, lib/crm/inbox-core.ts) ; l'appelant doit
+   * vérifier cette fenêtre AVANT d'appeler cette méthode, jamais ici (pas
+   * d'accès DB dans ce fichier). */
+  body: string
+}
+
 export interface WhatsAppMessageResult {
   ok: boolean
   code?: WhatsAppProviderCode
@@ -56,6 +67,7 @@ export interface WhatsAppProvider {
   readonly name: string
   readonly configured: boolean
   sendTemplateMessage(input: SendTemplateMessageInput): Promise<WhatsAppMessageResult>
+  sendSessionMessage(input: SendSessionMessageInput): Promise<WhatsAppMessageResult>
 }
 
 /**
@@ -87,6 +99,15 @@ class NotConfiguredWhatsAppProvider implements WhatsAppProvider {
         "Notification WhatsApp non disponible (WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID absents).",
     }
   }
+
+  async sendSessionMessage(): Promise<WhatsAppMessageResult> {
+    return {
+      ok: false,
+      code: "WHATSAPP_PROVIDER_NOT_CONFIGURED",
+      message:
+        "Réponse WhatsApp non disponible (WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID absents).",
+    }
+  }
 }
 
 /**
@@ -114,8 +135,7 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
       }
     }
 
-    const url = `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`
-    const body = {
+    return this.postMessage({
       messaging_product: "whatsapp",
       to,
       type: "template",
@@ -133,7 +153,29 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
             }
           : {}),
       },
+    })
+  }
+
+  async sendSessionMessage(input: SendSessionMessageInput): Promise<WhatsAppMessageResult> {
+    const to = normalizeWhatsAppPhone(input.to)
+    if (!to) {
+      return {
+        ok: false,
+        code: "WHATSAPP_INVALID_PHONE",
+        message: `Numéro invalide pour l'envoi WhatsApp : "${input.to}".`,
+      }
     }
+
+    return this.postMessage({
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: input.body },
+    })
+  }
+
+  private async postMessage(body: Record<string, unknown>): Promise<WhatsAppMessageResult> {
+    const url = `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`
 
     let response: Response
     try {

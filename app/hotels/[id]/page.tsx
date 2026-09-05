@@ -36,6 +36,7 @@ import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"
 import { toCardShape } from "@/components/hotel-listings"
 import { encodeDraft } from "@/lib/booking/draft-store"
 import { useCurrency } from "@/components/currency-context"
+import { ProductReviewsSectionClient } from "@/components/reviews/product-reviews-section-client"
 
 const PLACEHOLDER_IMG =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=600&fit=crop"
@@ -890,6 +891,8 @@ function HotelDetailContent({ id }: { id: string }) {
             </div>
           </aside>
         </div>
+
+        <ProductReviewsSectionClient module="hotel" productRef={String(hotel.id)} />
       </main>
 
       <Footer />

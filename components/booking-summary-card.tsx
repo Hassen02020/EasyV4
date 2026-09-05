@@ -30,12 +30,19 @@ import {
   AlertTriangle,
   Ticket,
   Wallet,
+  Star,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import { useT } from "@/components/locale-context"
 import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
 import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
+
+/** Modules pour lesquels un avis a du sens — même liste que REVIEW_MODULES
+ * (lib/reviews/reviews-core.ts), dupliquée ici pour ne jamais importer de
+ * code serveur (schema/DB) dans ce composant client. */
+const REVIEWABLE_MODULES = ["hotel", "omra", "package", "activity"]
 
 const MODULE_ICONS: Record<string, React.ElementType> = {
   flight: Plane,
@@ -218,9 +225,16 @@ interface BookingCardProps {
    * — affichés tels quels, jamais reformulés.
    */
   onCancel?: (bookingId: string) => Promise<{ ok: boolean; error?: string; messages?: string[] }>
+  /**
+   * Avis client — même frontière que `onCancel` : `/compte`
+   * (authentifié) seul le transmet, `/bookings` (lookup anonyme) ne le
+   * fait jamais (soumettre un avis exige une session Supabase vérifiée,
+   * pas juste ref+email — voir app/actions/submit-review.ts).
+   */
+  onReview?: (bookingId: string, rating: number, comment: string) => Promise<{ ok: boolean; error?: string }>
 }
 
-export function BookingCard({ booking, onCancel }: BookingCardProps) {
+export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
   const t = useT()
   const ModuleIcon = MODULE_ICONS[booking.module] ?? Briefcase
   const moduleLabel = MODULE_LABELS[booking.module] ?? booking.module
@@ -228,6 +242,32 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [successMessages, setSuccessMessages] = useState<string[] | null>(null)
   const [pending, startTransition] = useTransition()
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState("")
+  const [reviewError, setReviewError] = useState<string | null>(null)
+  const [reviewSubmitted, setReviewSubmitted] = useState(booking.hasReview)
+  const [reviewPending, startReviewTransition] = useTransition()
+
+  const canReview =
+    Boolean(onReview) &&
+    REVIEWABLE_MODULES.includes(booking.module) &&
+    (booking.status === "confirmed" || booking.status === "completed") &&
+    !reviewSubmitted
+
+  function handleSubmitReview() {
+    if (!onReview) return
+    setReviewError(null)
+    startReviewTransition(async () => {
+      const result = await onReview(booking.id, reviewRating, reviewComment)
+      if (!result.ok) {
+        setReviewError(result.error ?? "L'envoi de l'avis a échoué.")
+        return
+      }
+      setReviewSubmitted(true)
+      setReviewOpen(false)
+    })
+  }
 
   // Hôtel (myGo, `cancelMyHotelReservation`) + Omra/Package/Activity
   // (Policy Engine, `cancelMyPolicyReservation`) — les deux mécanismes
@@ -472,6 +512,22 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
               {t("facturePdf")}
             </Button>
           )}
+          {canReview ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setReviewOpen(true)}
+            >
+              <Star className="h-4 w-4" />
+              Laisser un avis
+            </Button>
+          ) : reviewSubmitted && REVIEWABLE_MODULES.includes(booking.module) ? (
+            <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Avis envoyé
+            </span>
+          ) : null}
           {canCancelOnline ? (
             <Button
               variant="destructive"
@@ -492,6 +548,56 @@ export function BookingCard({ booking, onCancel }: BookingCardProps) {
             )
           )}
         </div>
+
+        {canReview && reviewOpen && (
+          <div className="border-border bg-muted/20 space-y-3 rounded-lg border p-3 text-sm">
+            <p className="text-foreground font-medium">Votre avis sur ce séjour/cette expérience</p>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setReviewRating(n)}
+                  aria-label={`${n} étoile${n > 1 ? "s" : ""}`}
+                  className="p-0.5"
+                >
+                  <Star
+                    className={
+                      n <= reviewRating
+                        ? "h-6 w-6 fill-amber-400 text-amber-400"
+                        : "text-muted-foreground h-6 w-6"
+                    }
+                  />
+                </button>
+              ))}
+            </div>
+            <Textarea
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              placeholder="Votre commentaire (optionnel)"
+              className="min-h-20 text-sm"
+              maxLength={2000}
+            />
+            {reviewError && <p className="text-destructive text-xs font-medium">{reviewError}</p>}
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={handleSubmitReview}
+                disabled={reviewPending}
+              >
+                {reviewPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+                Envoyer l&apos;avis
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setReviewOpen(false)} disabled={reviewPending}>
+                Annuler
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Votre avis sera visible publiquement après modération par notre équipe.
+            </p>
+          </div>
+        )}
 
         {successMessages && successMessages.length > 0 && (
           <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">

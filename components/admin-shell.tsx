@@ -26,6 +26,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Star,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -185,6 +186,11 @@ const managerNavItems: NavItem[] = [
     title: "Support & Clients",
     icon: Headphones,
     href: "/admin/support",
+  },
+  {
+    title: "Avis clients",
+    icon: Star,
+    href: "/admin/reviews",
   },
 ]
 

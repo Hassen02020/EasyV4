@@ -1310,6 +1310,52 @@ export const customerFavorites = pgTable(
   ],
 )
 
+export const REVIEW_MODULES = ["hotel", "omra", "package", "activity"] as const
+export const REVIEW_STATUSES = ["pending", "approved", "rejected"] as const
+
+/**
+ * Avis clients (0047) — un avis n'existe QUE rattaché à une réservation
+ * réelle (unique sur reservationId), jamais un formulaire libre. Modéré
+ * avant publication : voir lib/reviews/reviews-core.ts pour la garantie
+ * qu'aucune lecture publique ne renvoie un statut autre que 'approved'.
+ */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    reservationId: uuid("reservation_id")
+      .notNull()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    /** 'hotel' | 'omra' | 'package' | 'activity' */
+    module: varchar("module", { length: 16 }).notNull(),
+    /** uuid catalogue ou id myGo texte — même raisonnement que customerFavorites.itemRef. */
+    productRef: varchar("product_ref", { length: 128 }).notNull(),
+    rating: integer("rating").notNull(),
+    comment: text("comment"),
+    /** 'pending' | 'approved' | 'rejected' */
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    moderatedByUserId: uuid("moderated_by_user_id"),
+    moderatedAt: timestamp("moderated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("reviews_reservation_id_uniq").on(t.reservationId),
+    index("reviews_product_idx").on(t.agencyId, t.module, t.productRef, t.status),
+    index("reviews_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
+  ],
+)
+
 /* -------------------------------------------------------------------------- */
 /* CRM / Leads                                                                */
 /*                                                                            */

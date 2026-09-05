@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation"
 import { BookingCard } from "@/components/booking-summary-card"
 import { cancelMyHotelReservation } from "@/lib/booking/customer-cancel-actions"
 import { cancelMyPolicyReservation } from "@/lib/booking/policy-cancel-actions"
+import { submitReview } from "@/app/actions/submit-review"
 import type { BookingSummary } from "@/lib/booking/summary-types"
 
 const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
@@ -43,6 +44,13 @@ export function CompteReservationList({ bookings }: { bookings: BookingSummary[]
     return { ok: false, error: result.error }
   }
 
+  async function handleReview(bookingId: string, rating: number, comment: string) {
+    const result = await submitReview({ reservationId: bookingId, rating, comment: comment || undefined })
+    if (!result.ok) return { ok: false, error: result.error }
+    router.refresh()
+    return { ok: true }
+  }
+
   return (
     <div className="space-y-4">
       {bookings.map((booking) => (
@@ -50,6 +58,7 @@ export function CompteReservationList({ bookings }: { bookings: BookingSummary[]
           key={booking.id}
           booking={booking}
           onCancel={(id) => handleCancel(id, booking.module)}
+          onReview={handleReview}
         />
       ))}
     </div>

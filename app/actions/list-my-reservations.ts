@@ -33,7 +33,7 @@
 import { eq, desc } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
-import { reservations, customers, payments } from "@/lib/db/schema"
+import { reservations, customers, payments, reviews } from "@/lib/db/schema"
 import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
 import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -117,6 +117,11 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
           .orderBy(desc(payments.createdAt))
           .limit(1)
         const invoice = await findInvoiceForReservation(tx, row.id)
+        const [existingReview] = await tx
+          .select({ id: reviews.id })
+          .from(reviews)
+          .where(eq(reviews.reservationId, row.id))
+          .limit(1)
 
         // Policy Engine (Omra/Package/Activity uniquement) — la politique
         // FIGÉE au moment de CETTE réservation, jamais une résolution live
@@ -161,6 +166,7 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
             phone: row.phone ?? null,
           },
           cancellationPolicy,
+          hasReview: existingReview != null,
         })
       }
       return result

@@ -2,7 +2,7 @@
 
 import { eq, and, ilike, desc } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, customers, payments } from "@/lib/db/schema"
+import { reservations, customers, payments, reviews } from "@/lib/db/schema"
 import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
 import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
@@ -85,6 +85,9 @@ export async function lookupBooking(
     const invoice = await withSystemContext((db) =>
       findInvoiceForReservation(db, row.id),
     )
+    const [existingReview] = await withSystemContext((db) =>
+      db.select({ id: reviews.id }).from(reviews).where(eq(reviews.reservationId, row.id)).limit(1),
+    )
 
     return {
       ok: true,
@@ -104,6 +107,7 @@ export async function lookupBooking(
         onlinePaymentAvailable: hasConfiguredPaymentProvider(),
         guestAccessToken: row.guestAccessToken,
         hasInvoice: invoice != null,
+        hasReview: existingReview != null,
         customer: {
           firstName: row.firstName,
           lastName: row.lastName,

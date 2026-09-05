@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
 
 function formatDate(d: string | Date | null): string {
   if (!d) return "—"
@@ -275,6 +276,10 @@ export default async function ActivityDetailPage({
               </div>
             </div>
           </aside>
+        </div>
+
+        <div className="mx-auto max-w-4xl px-4 pb-8">
+          <ProductReviewsSection agencyId={activity.agencyId} module="activity" productRef={activity.id} />
         </div>
       </main>
       <Footer />

@@ -32,8 +32,21 @@
 
 import { eq, desc } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
+import type { DrizzleTransaction } from "@/lib/db/client"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
-import { reservations, customers, payments, reviews } from "@/lib/db/schema"
+import {
+  reservations,
+  customers,
+  payments,
+  reviews,
+  reservationHotel,
+  reservationPackage,
+  reservationActivity,
+  reservationOmra,
+  catalogPackages,
+  catalogActivities,
+  omraPackages,
+} from "@/lib/db/schema"
 import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
 import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -42,6 +55,107 @@ import type { BookingSummary, BookingStatus } from "@/lib/booking/summary-types"
 import type { PolicySnapshot } from "@/lib/booking/policy-engine"
 
 const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
+
+/**
+ * Détail produit lisible (destination/produit, dates, voyageurs — ticket
+ * E2B-004 section UX) — lu depuis la table d'extension propre à chaque
+ * module, jamais deviné depuis `providerPayload` (dont la forme n'est ni
+ * stable ni garantie identique entre modules). `null` si la réservation n'a
+ * pas de ligne d'extension (jamais une erreur — juste rien à afficher).
+ */
+export async function getProductDetails(
+  tx: DrizzleTransaction,
+  reservationId: string,
+  module: string,
+): Promise<BookingSummary["product"]> {
+  switch (module) {
+    case "hotel": {
+      const [row] = await tx
+        .select({
+          hotelName: reservationHotel.hotelName,
+          cityName: reservationHotel.cityName,
+          checkIn: reservationHotel.checkIn,
+          checkOut: reservationHotel.checkOut,
+          adults: reservationHotel.adults,
+          childrenAges: reservationHotel.childrenAges,
+        })
+        .from(reservationHotel)
+        .where(eq(reservationHotel.reservationId, reservationId))
+        .limit(1)
+      if (!row) return null
+      return {
+        label: row.cityName ? `${row.hotelName} — ${row.cityName}` : row.hotelName,
+        startDate: row.checkIn,
+        endDate: row.checkOut,
+        travelers: row.adults + (row.childrenAges?.length ?? 0),
+      }
+    }
+    case "package": {
+      const [row] = await tx
+        .select({
+          title: catalogPackages.title,
+          departureDate: reservationPackage.departureDate,
+          returnDate: reservationPackage.returnDate,
+          adults: reservationPackage.adults,
+          childrenAges: reservationPackage.childrenAges,
+        })
+        .from(reservationPackage)
+        .innerJoin(catalogPackages, eq(reservationPackage.packageId, catalogPackages.id))
+        .where(eq(reservationPackage.reservationId, reservationId))
+        .limit(1)
+      if (!row) return null
+      return {
+        label: row.title,
+        startDate: row.departureDate,
+        endDate: row.returnDate,
+        travelers: row.adults + (row.childrenAges?.length ?? 0),
+      }
+    }
+    case "activity": {
+      const [row] = await tx
+        .select({
+          title: catalogActivities.title,
+          sessionDate: reservationActivity.sessionDate,
+          adults: reservationActivity.adults,
+          children: reservationActivity.children,
+          seniors: reservationActivity.seniors,
+        })
+        .from(reservationActivity)
+        .innerJoin(catalogActivities, eq(reservationActivity.activityId, catalogActivities.id))
+        .where(eq(reservationActivity.reservationId, reservationId))
+        .limit(1)
+      if (!row) return null
+      return {
+        label: row.title,
+        startDate: row.sessionDate,
+        endDate: row.sessionDate,
+        travelers: row.adults + row.children + row.seniors,
+      }
+    }
+    case "omra": {
+      const [row] = await tx
+        .select({
+          name: omraPackages.name,
+          departureDate: reservationOmra.departureDate,
+          returnDate: reservationOmra.returnDate,
+          pilgrims: reservationOmra.pilgrims,
+        })
+        .from(reservationOmra)
+        .innerJoin(omraPackages, eq(reservationOmra.omraPackageId, omraPackages.id))
+        .where(eq(reservationOmra.reservationId, reservationId))
+        .limit(1)
+      if (!row) return null
+      return {
+        label: row.name,
+        startDate: row.departureDate,
+        endDate: row.returnDate,
+        travelers: row.pilgrims,
+      }
+    }
+    default:
+      return null
+  }
+}
 
 export type MyReservationsResult =
   | { ok: true; email: string; bookings: BookingSummary[] }
@@ -117,6 +231,7 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
           .orderBy(desc(payments.createdAt))
           .limit(1)
         const invoice = await findInvoiceForReservation(tx, row.id)
+        const product = await getProductDetails(tx, row.id, row.module)
         const [existingReview] = await tx
           .select({ id: reviews.id })
           .from(reviews)
@@ -167,6 +282,7 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
           },
           cancellationPolicy,
           hasReview: existingReview != null,
+          product,
         })
       }
       return result

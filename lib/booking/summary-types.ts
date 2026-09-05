@@ -62,4 +62,19 @@ export interface BookingSummary {
   cancellationPolicy?: BookingCancellationPolicySummary | null
   /** Vrai si un avis existe déjà pour cette réservation (peu importe son statut de modération) — jamais un second avis. */
   hasReview: boolean
+  /**
+   * Détail produit optionnel — lu depuis la table d'extension du module
+   * (`reservation_hotel`/`reservation_package`/`reservation_activity`/
+   * `reservation_omra`), jamais recalculé/deviné. `undefined` quand la
+   * réservation n'a pas (ou plus) de ligne d'extension associée (ex. très
+   * ancien enregistrement) — l'UI doit alors simplement ne rien afficher.
+   */
+  product?: {
+    /** Nom hôtel / titre package / titre activité / nom package Omra. */
+    label: string
+    startDate: string
+    endDate: string
+    /** Nombre total de voyageurs (adultes + enfants/seniors/pèlerins). */
+    travelers: number
+  } | null
 }

@@ -54,12 +54,13 @@ export function CompteReservationList({ bookings }: { bookings: BookingSummary[]
   return (
     <div className="space-y-4">
       {bookings.map((booking) => (
-        <BookingCard
-          key={booking.id}
-          booking={booking}
-          onCancel={(id) => handleCancel(id, booking.module)}
-          onReview={handleReview}
-        />
+        <div key={booking.id} id={`reservation-${booking.id}`} className="scroll-mt-4">
+          <BookingCard
+            booking={booking}
+            onCancel={(id) => handleCancel(id, booking.module)}
+            onReview={handleReview}
+          />
+        </div>
       ))}
     </div>
   )

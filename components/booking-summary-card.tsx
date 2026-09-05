@@ -31,6 +31,8 @@ import {
   Ticket,
   Wallet,
   Star,
+  MapPin,
+  Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -320,6 +322,28 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
       </div>
 
       <div className="space-y-5 p-5">
+        {/* Destination/produit, dates, voyageurs — ticket E2B-004 */}
+        {booking.product ? (
+          <div className="bg-muted/40 flex flex-col gap-2 rounded-xl p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 font-medium text-foreground">
+              <MapPin className="text-muted-foreground h-4 w-4 shrink-0" />
+              <span>{booking.product.label}</span>
+            </div>
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span className="flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                {booking.product.startDate === booking.product.endDate
+                  ? formatDate(booking.product.startDate)
+                  : `${formatDate(booking.product.startDate)} — ${formatDate(booking.product.endDate)}`}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                {booking.product.travelers}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
         {/* Timeline */}
         <div className="flex justify-center">
           <Timeline status={booking.status} />

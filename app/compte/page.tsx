@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { ArrowLeft, Mail, Phone, User as UserIcon } from "lucide-react"
+import { ArrowLeft, CalendarDays, Mail, MapPin, Phone, User as UserIcon } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
 import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
@@ -50,6 +50,25 @@ export default async function ComptePage() {
   // l'instant, affichage seul.
   const profile = result.ok ? result.bookings[0]?.customer : undefined
 
+  // "Prochaine réservation" (ticket E2B-004, section UX) — le prochain
+  // départ à venir parmi les réservations encore actives, jamais une
+  // réservation déjà annulée/remboursée/expirée/terminée. Utilise
+  // `product.startDate` (lu depuis la table d'extension du module — voir
+  // list-my-reservations.ts) : les modules sans extension connue (flight,
+  // transfer, car) n'ont pas de `product` et ne peuvent donc pas être
+  // candidats ici, ce qui est le comportement honnête voulu (pas de date
+  // devinée).
+  const UPCOMING_STATUSES = new Set(["pending", "on_request", "confirmed"])
+  const today = new Date().toISOString().slice(0, 10)
+  const nextReservation = result.ok
+    ? result.bookings
+        .filter(
+          (b) =>
+            UPCOMING_STATUSES.has(b.status) && b.product && b.product.startDate >= today,
+        )
+        .sort((a, b) => a.product!.startDate.localeCompare(b.product!.startDate))[0]
+    : undefined
+
   return (
     <div className="from-background via-background to-accent/5 min-h-screen bg-gradient-to-br">
       {/* Top bar — même convention que /bookings (page "compte", pas le site marchand complet). */}
@@ -76,7 +95,9 @@ export default async function ComptePage() {
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-foreground text-3xl font-bold">Mon compte</h1>
+            <h1 className="text-foreground text-3xl font-bold">
+              {profile?.firstName ? `Bonjour ${profile.firstName}` : "Mon compte"}
+            </h1>
             <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-sm">
               <Mail className="h-3.5 w-3.5" />
               {user.email}
@@ -84,6 +105,31 @@ export default async function ComptePage() {
           </div>
           <CompteLogoutButton />
         </div>
+
+        {nextReservation && nextReservation.product && (
+          <Link
+            href={`#reservation-${nextReservation.id}`}
+            className="border-sidebar/20 bg-sidebar/5 hover:bg-sidebar/10 mb-6 flex flex-col gap-2 rounded-2xl border p-4 text-sm transition-colors sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div>
+              <p className="text-sidebar text-xs font-semibold tracking-wide uppercase">
+                Prochaine réservation
+              </p>
+              <p className="text-foreground mt-1 flex items-center gap-1.5 font-medium">
+                <MapPin className="text-muted-foreground h-4 w-4 shrink-0" />
+                {nextReservation.product.label}
+              </p>
+            </div>
+            <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              {new Date(nextReservation.product.startDate).toLocaleDateString("fr-FR", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+            </div>
+          </Link>
+        )}
 
         {profile && (profile.firstName || profile.phone) && (
           <div className="bg-card border-border mb-6 flex flex-wrap items-center gap-4 rounded-2xl border p-4 text-sm">

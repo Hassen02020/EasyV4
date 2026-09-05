@@ -1,15 +1,18 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { ShieldCheck, CreditCard, Banknote, Wallet, Building2 } from "lucide-react"
+import { ShieldCheck, CreditCard, Banknote, Wallet, Building2, ShoppingCart } from "lucide-react"
 import { submitCheckoutAction } from "@/lib/booking/actions"
 import { checkoutSchema } from "@/lib/booking/schemas"
+import { decodeDraft } from "@/lib/booking/draft-store"
+import { useCart } from "@/lib/cart/use-cart"
 
 type Method = "card" | "transfer" | "cash" | "wallet" | "at_hotel"
 
@@ -52,6 +55,8 @@ const METHODS: {
 ]
 
 export function CheckoutForm({ token }: { token: string }) {
+  const router = useRouter()
+  const cart = useCart()
   const [pending, startTransition] = useTransition()
   // "card" échoue systématiquement (aucun provider de paiement en ligne
   // configuré, voir lib/payment/provider.ts::NotConfiguredPaymentProvider)
@@ -61,6 +66,19 @@ export function CheckoutForm({ token }: { token: string }) {
   const [method, setMethod] = useState<Method>("at_hotel")
   const [acceptCgv, setAcceptCgv] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function onAddToCart() {
+    const payload = decodeDraft(token)
+    if (!payload?.traveler) {
+      toast.error("Informations voyageur manquantes — revenez à l'étape précédente.")
+      return
+    }
+    const { draft, traveler } = payload
+    const priceTnd = draft.unitPriceTnd * draft.adults + (draft.unitChildPriceTnd ?? 0) * draft.children
+    cart.add({ module: "hotel", title: draft.offerLabel, priceTnd, draft, traveler })
+    toast.success("Ajouté au panier.")
+    router.push("/panier")
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -183,14 +201,26 @@ export function CheckoutForm({ token }: { token: string }) {
             Paiement sécurisé — vos données ne sont jamais stockées en clair.
           </div>
 
-          <Button
-            type="submit"
-            size="lg"
-            disabled={pending || !acceptCgv}
-            className="w-full"
-          >
-            {pending ? "Validation de la réservation…" : "Confirmer & payer"}
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full sm:flex-1"
+              onClick={onAddToCart}
+            >
+              <ShoppingCart className="mr-2 size-4" />
+              Ajouter au panier
+            </Button>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={pending || !acceptCgv}
+              className="w-full sm:flex-1"
+            >
+              {pending ? "Validation de la réservation…" : "Confirmer & payer"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

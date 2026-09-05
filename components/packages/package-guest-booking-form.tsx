@@ -17,6 +17,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,12 +27,13 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Users, Calendar, CreditCard, Banknote, Wallet } from "lucide-react"
+import { Loader2, Users, Calendar, CreditCard, Banknote, Wallet, ShoppingCart } from "lucide-react"
 import { createGuestPackageBooking } from "@/lib/packages/booking-actions"
 import { packageGuestBookingSchema, type PackageGuestBookingInput } from "@/lib/packages/schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
+import { useCart } from "@/lib/cart/use-cart"
 
 interface DepartureOption {
   id: string
@@ -72,6 +74,7 @@ export function PackageGuestBookingForm({
   defaultDepartureId,
 }: PackageGuestBookingFormProps) {
   const router = useRouter()
+  const cart = useCart()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
@@ -152,6 +155,21 @@ export function PackageGuestBookingForm({
       setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
       setIsSubmitting(false)
     }
+  }
+
+  function onAddToCart(data: PackageGuestBookingInput) {
+    if (policyAcceptanceRequired) {
+      setSubmitError("Vous devez accepter la politique d'annulation.")
+      return
+    }
+    cart.add({
+      module: "package",
+      title: packageTitle,
+      priceTnd: totalPrice,
+      booking: { ...data, policyAccepted },
+    })
+    toast.success("Ajouté au panier.")
+    router.push("/panier")
   }
 
   return (
@@ -405,21 +423,34 @@ export function PackageGuestBookingForm({
           </CardContent>
         </Card>
 
-        <Button
-          type="submit"
-          size="lg"
-          className="w-full"
-          disabled={isSubmitting || !watchedDepartureId || !acceptCgv || policyAcceptanceRequired}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              Traitement en cours…
-            </>
-          ) : (
-            "Confirmer & payer"
-          )}
-        </Button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="w-full sm:flex-1"
+            disabled={!watchedDepartureId || policyAcceptanceRequired}
+            onClick={form.handleSubmit(onAddToCart)}
+          >
+            <ShoppingCart className="mr-2 size-4" />
+            Ajouter au panier
+          </Button>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full sm:flex-1"
+            disabled={isSubmitting || !watchedDepartureId || !acceptCgv || policyAcceptanceRequired}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Traitement en cours…
+              </>
+            ) : (
+              "Confirmer & payer"
+            )}
+          </Button>
+        </div>
       </form>
     </div>
   )

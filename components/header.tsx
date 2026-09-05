@@ -16,6 +16,7 @@ import { CurrencySwitcher } from "@/components/currency-switcher"
 import type { Locale } from "@/lib/locale"
 import { useT } from "@/components/locale-context"
 import { createBrowserSupabase } from "@/lib/supabase/client"
+import { CartBadgeLink } from "@/components/cart/cart-badge-link"
 
 interface HeaderProps {
   currentLocale?: Locale
@@ -87,6 +88,8 @@ export function Header({ currentLocale = "fr", isLoggedIn }: HeaderProps) {
               {t("myBookings")}
             </Link>
 
+            <CartBadgeLink variant="desktop" />
+
             <Button
               variant="outline"
               size="sm"
@@ -139,6 +142,9 @@ export function Header({ currentLocale = "fr", isLoggedIn }: HeaderProps) {
               <CalendarCheck className="size-5 text-sidebar" />
               <span>{t("myBookings")}</span>
             </Link>
+            <div onClick={() => setMobileMenuOpen(false)}>
+              <CartBadgeLink variant="mobile" />
+            </div>
             <div className="border-border border-t pt-4">
               <Button
                 className="w-full gap-2 bg-sidebar hover:bg-sidebar/90"

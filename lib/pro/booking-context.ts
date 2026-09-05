@@ -26,7 +26,7 @@ export type SelectedOffer = {
 export type BookingContext = {
   hotel: ProHotel
   offers: SelectedOffer[]
-  /** Somme TND TTC de toutes les offres × qty avant marge / coupon. */
+  /** Somme TND TTC de toutes les offres × qty, marge déjà appliquée. */
   subtotal: number
   /** Total chambres sélectionnées. */
   roomsCount: number

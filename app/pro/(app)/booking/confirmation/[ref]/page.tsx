@@ -24,7 +24,6 @@ import { loadReservationByRef } from "@/lib/pro/reservation-detail"
 type ConfirmationSearchParams = {
   payment?: string
   total?: string
-  coupon?: string
   ref?: string
 }
 
@@ -141,10 +140,6 @@ export default async function ProBookingConfirmationPage({
               label="Mode de paiement"
               value={paymentInfo.label}
             />
-          ) : null}
-
-          {search.coupon ? (
-            <Field icon={FileText} label="Coupon appliqué" value={search.coupon} />
           ) : null}
 
           {search.ref ? (

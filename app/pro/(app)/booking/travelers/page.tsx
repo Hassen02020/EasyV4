@@ -258,8 +258,7 @@ export default async function ProBookingTravelersPage({
           Finalisation de la réservation
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Renseignez les voyageurs, appliquez votre coupon éventuel puis
-          sélectionnez le mode de paiement.
+          Renseignez les voyageurs puis sélectionnez le mode de paiement.
         </p>
       </header>
 

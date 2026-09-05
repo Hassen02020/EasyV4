@@ -277,7 +277,7 @@ async function runCreateGuestReservation(
   //    PENDING corrélé par `pspOrderId`, jamais confirmée ici : seul le
   //    webhook signé (app/api/payment/reservation-webhook/route.ts) confirme.
   const cardPaymentReference = generateGuestPaymentReference()
-  let cardRedirect: { url: string; psp: "sps" | "stripe" | "manual" | "virtual" } | null = null
+  let cardRedirect: { url: string; psp: "sps" | "stripe" | "manual" | "virtual" | "paymee" } | null = null
   if (paymentMethod === "card") {
     const paymentResult = await attemptCardPayment(
       getPaymentProvider(),
@@ -287,6 +287,9 @@ async function runCreateGuestReservation(
         reference: cardPaymentReference,
         description: `Réservation ${draft.module} — ${draft.offerLabel}`,
         customerEmail: traveler.email,
+        customerFirstName: traveler.firstName,
+        customerLastName: traveler.lastName,
+        customerPhone: traveler.phone,
       },
       // PHASE 27.2 — même compte tenant que celui qui a créé le hold.
       () => (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId }),

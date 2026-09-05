@@ -21,12 +21,20 @@ import {
 // peut être posé dans l'environnement de test local (.env.local) sans
 // rapport avec ce que CE fichier vérifie.
 let savedPaymentMode: string | undefined
+let savedPaymentProvider: string | undefined
+let savedPaymeeApiKey: string | undefined
 before(() => {
   savedPaymentMode = process.env.PAYMENT_MODE
+  savedPaymentProvider = process.env.PAYMENT_PROVIDER
+  savedPaymeeApiKey = process.env.PAYMEE_API_KEY
   delete process.env.PAYMENT_MODE
+  delete process.env.PAYMENT_PROVIDER
+  delete process.env.PAYMEE_API_KEY
 })
 after(() => {
   if (savedPaymentMode !== undefined) process.env.PAYMENT_MODE = savedPaymentMode
+  if (savedPaymentProvider !== undefined) process.env.PAYMENT_PROVIDER = savedPaymentProvider
+  if (savedPaymeeApiKey !== undefined) process.env.PAYMEE_API_KEY = savedPaymeeApiKey
 })
 
 test("getPaymentProvider() : renvoie un provider non configuré tant qu'aucune clé n'est présente", () => {
@@ -104,4 +112,38 @@ test("getPaymentStatus() : found=false — aucune transaction fantôme n'est jam
   const result = await provider.getPaymentStatus("fake-payment-id")
   assert.equal(result.found, false)
   assert.equal(result.status, undefined)
+})
+
+test("getPaymentProvider() : PAYMENT_PROVIDER=paymee sélectionne PaymeePaymentProvider, jamais un défaut implicite", () => {
+  process.env.PAYMENT_PROVIDER = "paymee"
+  try {
+    const provider = getPaymentProvider()
+    assert.equal(provider.name, "paymee")
+  } finally {
+    delete process.env.PAYMENT_PROVIDER
+  }
+})
+
+test("getPaymentProvider() : PAYMENT_MODE=virtual gagne toujours sur PAYMENT_PROVIDER=paymee — un environnement de test ne bascule jamais accidentellement sur un vrai PSP", () => {
+  process.env.PAYMENT_MODE = "virtual"
+  process.env.PAYMENT_PROVIDER = "paymee"
+  try {
+    const provider = getPaymentProvider()
+    assert.equal(provider.name, "virtual")
+  } finally {
+    delete process.env.PAYMENT_MODE
+    delete process.env.PAYMENT_PROVIDER
+  }
+})
+
+test("hasConfiguredPaymentProvider() : true seulement si PAYMENT_PROVIDER=paymee ET PAYMEE_API_KEY sont TOUS LES DEUX présents", () => {
+  process.env.PAYMENT_PROVIDER = "paymee"
+  try {
+    assert.equal(hasConfiguredPaymentProvider(), false) // clé absente
+    process.env.PAYMEE_API_KEY = "fake_key"
+    assert.equal(hasConfiguredPaymentProvider(), true)
+  } finally {
+    delete process.env.PAYMENT_PROVIDER
+    delete process.env.PAYMEE_API_KEY
+  }
 })

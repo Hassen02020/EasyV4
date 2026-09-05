@@ -35,10 +35,19 @@ export interface NormalizedChargeEvent {
 export type ChargeEventKind = "succeeded" | "failed" | "refunded" | "unknown"
 
 export function classifyEventType(eventType: string): ChargeEventKind {
-  if (eventType === "payment_intent.succeeded" || eventType === "charge.captured" || eventType === "sps.payment.captured") {
+  if (
+    eventType === "payment_intent.succeeded" ||
+    eventType === "charge.captured" ||
+    eventType === "sps.payment.captured" ||
+    eventType === "paymee.payment.success"
+  ) {
     return "succeeded"
   }
-  if (eventType === "payment_intent.payment_failed" || eventType === "sps.payment.refused") {
+  if (
+    eventType === "payment_intent.payment_failed" ||
+    eventType === "sps.payment.refused" ||
+    eventType === "paymee.payment.failed"
+  ) {
     return "failed"
   }
   if (eventType === "charge.refunded" || eventType === "sps.payment.refunded") {
@@ -106,6 +115,51 @@ export function normalizeSpsEvent(
     providerRef,
     amountTnd,
     currency: currency.toUpperCase(),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Paymee (payload JSON — voir lib/payment/paymee-signing.ts pour           */
+/* l'avertissement complet sur le contrat non vérifié contre la doc primaire) */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Normalise un webhook Paymee déjà vérifié (check_sum). `providerRef` est
+ * posé sur `order_id` — la référence QUE NOUS avons transmise à Paymee au
+ * moment de `PaymeePaymentProvider.createPayment()` (voir
+ * lib/payment/paymee-provider.ts), jamais le `token` généré par Paymee :
+ * c'est `payments.pspOrderId` (notre propre référence) qui sert de clé de
+ * corrélation dans tout ce tunnel (même convention que SPS/Virtual — voir
+ * reservation-payment-logic.ts::matchesPendingPayment). Paymee ne facture
+ * qu'en TND (devise unique de la plateforme, information publique établie —
+ * jamais une supposition liée au contrat non vérifié ci-dessus) : `currency`
+ * est donc toujours "TND" ici, jamais lue depuis un champ absent du payload.
+ */
+export function normalizePaymeeEvent(
+  body: Record<string, unknown>,
+  eventType: string,
+): NormalizedChargeEvent | null {
+  const token = typeof body["token"] === "string" ? body["token"] : null
+  const orderId = typeof body["order_id"] === "string" ? body["order_id"] : null
+  const paymentId = body["payment_id"]
+  const amountRaw = body["amount"]
+
+  if (!token || !orderId) return null
+
+  const amountTnd = typeof amountRaw === "string" ? Number(amountRaw) : Number(amountRaw)
+  if (!Number.isFinite(amountTnd)) return null
+
+  const eventId =
+    paymentId !== undefined && paymentId !== null && paymentId !== ""
+      ? `paymee-payment-${paymentId}`
+      : `paymee-${token}-${eventType}`
+
+  return {
+    eventId,
+    eventType,
+    providerRef: orderId,
+    amountTnd,
+    currency: "TND",
   }
 }
 

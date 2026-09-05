@@ -42,7 +42,7 @@ export type WebhookOutcome =
   | { status: "refund_ignored" }
 
 export interface ProcessReservationWebhookInput {
-  provider: "stripe" | "sps"
+  provider: "stripe" | "sps" | "paymee"
   eventId: string
   eventType: string
   /** `null` quand le payload n'a pas pu être normalisé (parsé mais forme inattendue). */

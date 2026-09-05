@@ -44,7 +44,13 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { verifySpsSignature, verifyStripeSignature } from "@/lib/payment/signing"
-import { normalizeSpsEvent, normalizeStripeEvent, type NormalizedChargeEvent } from "@/lib/payment/webhook-logic"
+import { verifyPaymeeChecksum, normalizePaymeeStatus } from "@/lib/payment/paymee-signing"
+import {
+  normalizeSpsEvent,
+  normalizeStripeEvent,
+  normalizePaymeeEvent,
+  type NormalizedChargeEvent,
+} from "@/lib/payment/webhook-logic"
 import {
   processReservationWebhookCore,
   loadConfirmedBookingDetail,
@@ -52,7 +58,7 @@ import {
 } from "@/lib/payment/reservation-webhook-core"
 
 export async function POST(request: NextRequest) {
-  const provider = request.nextUrl.searchParams.get("provider") // 'stripe' | 'sps'
+  const provider = request.nextUrl.searchParams.get("provider") // 'stripe' | 'sps' | 'paymee'
 
   const rawBody = await request.arrayBuffer()
   const bodyBuffer = Buffer.from(rawBody)
@@ -112,6 +118,47 @@ export async function POST(request: NextRequest) {
     eventType = spsType
     charge = normalizeSpsEvent(body, spsType)
     eventId = charge?.eventId ?? body["transaction_id"] ?? body["order_id"] ?? `sps-unknown-${Date.now()}`
+  } else if (provider === "paymee") {
+    // Paymee — voir lib/payment/paymee-provider.ts et paymee-signing.ts pour
+    // l'avertissement complet sur le contrat non vérifié contre la doc
+    // primaire (accès réseau bloqué dans cet environnement de build).
+    const paymeeApiKey = process.env.PAYMEE_API_KEY
+    if (!paymeeApiKey) {
+      console.error("[ReservationWebhook] PAYMEE_API_KEY manquant")
+      return NextResponse.json({ error: "Misconfigured" }, { status: 500 })
+    }
+    let body: Record<string, unknown>
+    try {
+      body = JSON.parse(bodyBuffer.toString("utf8")) as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+    }
+    const token = typeof body["token"] === "string" ? body["token"] : null
+    const checkSum =
+      typeof body["check_sum"] === "string"
+        ? body["check_sum"]
+        : typeof body["checksum"] === "string"
+          ? (body["checksum"] as string)
+          : null
+    if (!token) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 })
+    }
+    signatureOk = verifyPaymeeChecksum({
+      token,
+      paymentStatusRaw: body["payment_status"],
+      checkSum,
+      apiKey: paymeeApiKey,
+    })
+    if (!signatureOk) {
+      console.warn("[ReservationWebhook/Paymee] check_sum invalide — requête rejetée")
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
+    }
+    rawPayload = body
+    const paymentStatus = normalizePaymeeStatus(body["payment_status"])
+    const paymeeEventType = paymentStatus === true ? "paymee.payment.success" : "paymee.payment.failed"
+    eventType = paymeeEventType
+    charge = normalizePaymeeEvent(body, paymeeEventType)
+    eventId = charge?.eventId ?? `paymee-${token}-${paymeeEventType}`
   } else {
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 })
   }
@@ -122,7 +169,7 @@ export async function POST(request: NextRequest) {
 
   const result: WebhookOutcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
-      provider: provider as "stripe" | "sps",
+      provider: provider as "stripe" | "sps" | "paymee",
       eventId,
       eventType,
       charge,

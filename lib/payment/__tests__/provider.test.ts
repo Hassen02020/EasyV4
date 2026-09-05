@@ -7,13 +7,27 @@
  * sur chaque opération — jamais un faux `SUCCESS`.
  */
 
-import test from "node:test"
+import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 
 import {
   getPaymentProvider,
   hasConfiguredPaymentProvider,
 } from "@/lib/payment/provider"
+
+// Ce fichier teste spécifiquement le comportement "non configuré" par
+// défaut — indépendant de PAYMENT_MODE=virtual (Virtual Payment Provider,
+// test/dev uniquement, voir lib/payment/virtual-payment-provider.ts), qui
+// peut être posé dans l'environnement de test local (.env.local) sans
+// rapport avec ce que CE fichier vérifie.
+let savedPaymentMode: string | undefined
+before(() => {
+  savedPaymentMode = process.env.PAYMENT_MODE
+  delete process.env.PAYMENT_MODE
+})
+after(() => {
+  if (savedPaymentMode !== undefined) process.env.PAYMENT_MODE = savedPaymentMode
+})
 
 test("getPaymentProvider() : renvoie un provider non configuré tant qu'aucune clé n'est présente", () => {
   const savedStripe = process.env.STRIPE_SECRET_KEY

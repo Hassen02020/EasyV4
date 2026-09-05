@@ -26,6 +26,8 @@
  * interface, une fois la documentation d'intégration réelle disponible.
  */
 
+import { VirtualPaymentProvider, isVirtualPaymentModeEnabled } from "./virtual-payment-provider"
+
 export type PaymentProviderCode =
   | "PAYMENT_PROVIDER_NOT_CONFIGURED"
   | "PAYMENT_DECLINED"
@@ -53,6 +55,17 @@ export interface PaymentResult {
   providerPaymentId?: string
   /** Statut normalisé, indépendant du provider réel. */
   status?: "requires_action" | "succeeded" | "failed" | "refunded"
+  /** Présent uniquement quand `status: "requires_action"` — URL de la page
+   * de paiement hébergée par le PSP vers laquelle rediriger le navigateur
+   * (modèle SPS Monétique Tunisie/Stripe Checkout : le paiement lui-même
+   * n'est jamais confirmé de façon synchrone ici, seulement via le webhook
+   * signé une fois le client revenu de cette page — voir
+   * app/api/payment/reservation-webhook/route.ts). */
+  redirectUrl?: string
+  /** Présent uniquement quand `status: "requires_action"` — PSP réel qui va
+   * confirmer via webhook, pour poser `payments.psp` correctement (jamais
+   * déduit de `provider.name`, qui n'a pas la même contrainte d'enum DB). */
+  psp?: "sps" | "stripe" | "manual" | "virtual"
 }
 
 export interface PaymentStatusResult {
@@ -131,6 +144,18 @@ export function hasConfiguredPaymentProvider(): boolean {
  * branché ici (voir note de fichier).
  */
 export function getPaymentProvider(): PaymentProvider {
+  // Virtual Payment Provider — test/dev UNIQUEMENT (voir
+  // lib/payment/virtual-payment-provider.ts::isVirtualPaymentModeEnabled,
+  // jamais vrai en production, même garde que MYGO_MODE=virtual). Vérifié
+  // AVANT `hasConfiguredPaymentProvider()` : les deux ne peuvent jamais
+  // être vrais en même temps en pratique (aucune vraie clé PSP n'est
+  // censée exister dans un environnement PAYMENT_MODE=virtual), mais si
+  // jamais elles l'étaient, le mode virtuel explicite gagne — un
+  // environnement de test ne doit jamais basculer accidentellement sur un
+  // vrai PSP.
+  if (isVirtualPaymentModeEnabled()) {
+    return new VirtualPaymentProvider()
+  }
   // Aucun adaptateur réel n'est branché aujourd'hui (voir note de fichier :
   // devise TND non supportée par Stripe, contrat SPS non vérifié). Le jour
   // où un adaptateur réel existe, l'ajouter ici en le sélectionnant selon

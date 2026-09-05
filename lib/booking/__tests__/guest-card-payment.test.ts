@@ -102,6 +102,25 @@ test("attemptCardPayment : un échec de compensation après une exception provid
   assert.equal(result.code, "PROVIDER_ERROR")
 })
 
+test("attemptCardPayment : requires_action (paiement redirect-based) — redirectUrl/psp propagés tels quels", async () => {
+  const provider = makeProvider({
+    result: {
+      ok: true,
+      status: "requires_action",
+      providerPaymentId: "guest-test-ref",
+      psp: "virtual",
+      redirectUrl: "/paiement-simule/guest-test-ref",
+    },
+  })
+
+  const result = await attemptCardPayment(provider, BASE_INPUT, async () => {})
+
+  assert.equal(result.ok, true)
+  assert.equal(result.status, "requires_action")
+  assert.equal(result.redirectUrl, "/paiement-simule/guest-test-ref")
+  assert.equal(result.psp, "virtual")
+})
+
 test("generateGuestPaymentReference : références uniques, préfixées 'guest-'", () => {
   const a = generateGuestPaymentReference()
   const b = generateGuestPaymentReference()

@@ -860,5 +860,10 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
   if (!result.ok) {
     throw new Error(result.error)
   }
-  redirect(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+  // Paiement en ligne redirect-based (SPS/Paymee/Stripe Checkout) : le
+  // navigateur part sur la page hébergée par le PSP — la réservation reste
+  // `pending` tant que le webhook signé ne l'a pas confirmée (voir
+  // lib/booking/guest-actions.ts). Sinon (règlement immédiat/différé),
+  // comportement historique inchangé.
+  redirect(result.redirectUrl ?? `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
 }

@@ -132,6 +132,7 @@ export const paymentPsp = pgEnum("payment_psp", [
   "sps", // SPS Monétique Tunisie (local — futur)
   "stripe", // Stripe (international — anticipé)
   "manual", // Validation manuelle admin (wallet recharge)
+  "virtual", // Virtual Payment Provider — test/dev uniquement, jamais en prod
 ])
 
 export const transferVehicleType = pgEnum("transfer_vehicle_type", [

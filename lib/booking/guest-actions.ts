@@ -66,6 +66,7 @@ import { getMyGoClient } from "@/lib/mygo"
 import { resolveMyGoAccessForTenant, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
+import { ONLINE_PAYMENT_WINDOW_MS } from "@/lib/payment/reservation-payment-logic"
 import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-payment"
 import { withGuestIdempotency } from "./guest-idempotency"
 import { pgErrorCode } from "@/lib/db/pg-error"
@@ -97,6 +98,11 @@ export type CreateGuestReservationResult =
       publicRef: string
       guestAccessToken: string
       status: "confirmed" | "pending"
+      /** Présent uniquement pour "card" quand un PSP réel (redirect-based)
+       * est configuré — le navigateur doit y être redirigé pour compléter
+       * le paiement ; la réservation reste `pending` jusqu'au webhook signé
+       * (voir app/api/payment/reservation-webhook/route.ts). */
+      redirectUrl?: string
     }
   | { ok: false; error: string; code?: string }
 
@@ -253,20 +259,32 @@ async function runCreateGuestReservation(
     Math.round((hotelEndDate.getTime() - hotelStartDate.getTime()) / (1000 * 60 * 60 * 24)),
   )
 
-  // --- Paiement en ligne immédiat ---
+  // --- Paiement en ligne carte ---
   // Tenté AVANT toute écriture DB : si le paiement échoue OU si le provider
   // lève une exception (timeout réseau, etc. — voir
   // lib/booking/guest-card-payment.ts, correctif Phase 15), aucune
   // réservation locale n'est créée — et la réservation fournisseur (déjà
   // confirmée chez myGo à ce stade) est annulée en compensation, même
   // logique que le catch de createReservationFromDraft.
+  //
+  // Deux issues possibles quand `paymentResult.ok` :
+  //  - `status: "succeeded"` (capture synchrone, jamais atteint tant qu'aucun
+  //    adaptateur réel ne fonctionne ainsi) → comportement historique inchangé,
+  //    réservation confirmée immédiatement plus bas (`isImmediatelyPaidByCard`).
+  //  - `status: "requires_action"` + `redirectUrl` (modèle réel SPS/Paymee/
+  //    Stripe Checkout — paiement hébergé, jamais confirmé de façon
+  //    synchrone) → la réservation est créée `pending` avec un `payments`
+  //    PENDING corrélé par `pspOrderId`, jamais confirmée ici : seul le
+  //    webhook signé (app/api/payment/reservation-webhook/route.ts) confirme.
+  const cardPaymentReference = generateGuestPaymentReference()
+  let cardRedirect: { url: string; psp: "sps" | "stripe" | "manual" | "virtual" } | null = null
   if (paymentMethod === "card") {
     const paymentResult = await attemptCardPayment(
       getPaymentProvider(),
       {
         amountTnd: breakdown.totalTnd,
         currency: "TND",
-        reference: generateGuestPaymentReference(),
+        reference: cardPaymentReference,
         description: `Réservation ${draft.module} — ${draft.offerLabel}`,
         customerEmail: traveler.email,
       },
@@ -280,17 +298,21 @@ async function runCreateGuestReservation(
         code: paymentResult.code,
       }
     }
-    // Un vrai provider confirmerait ici avant de continuer — aucun
-    // adaptateur réel n'existe encore (voir lib/payment/provider.ts), donc
-    // cette branche n'est aujourd'hui jamais atteinte en pratique.
+    if (paymentResult.status === "requires_action" && paymentResult.redirectUrl) {
+      cardRedirect = { url: paymentResult.redirectUrl, psp: paymentResult.psp ?? "manual" }
+    }
+    // Sinon (`status: "succeeded"`) : comportement historique — aucun
+    // adaptateur réel ne confirme ainsi aujourd'hui, cette branche n'est
+    // donc en pratique jamais atteinte hors provider de test synchrone.
   }
 
   // "wallet" ne peut être tranché qu'APRÈS avoir résolu customerId (donc à
   // l'intérieur de la transaction, une fois la ligne `customers` posée) —
   // "card" reste tranché avant, car c'est un appel externe (PSP) qui ne
   // dépend d'aucune ligne DB. isImmediatelyPaid n'est donc définitif qu'en
-  // sortie de transaction.
-  const isImmediatelyPaidByCard = paymentMethod === "card"
+  // sortie de transaction. Jamais immédiat quand `cardRedirect` est posé —
+  // le paiement carte redirect-based n'est confirmé que par le webhook.
+  const isImmediatelyPaidByCard = paymentMethod === "card" && !cardRedirect
 
   try {
     const result = await withTenantContext(
@@ -311,9 +333,14 @@ async function runCreateGuestReservation(
         // reste réellement `pending` en sortie de transaction (transfer/
         // cash, ou wallet en cas de solde insuffisant ne serait de toute
         // façon jamais atteint ici : voir le débit ci-dessous, qui fait
-        // échouer toute la transaction avant ce point). `card` : jamais de
-        // fenêtre, soit confirmé immédiatement soit rejeté avant tout INSERT.
-        // `at_hotel` : pas de fenêtre non plus — contrairement à
+        // échouer toute la transaction avant ce point). `card` sans
+        // redirection : jamais de fenêtre, soit confirmé immédiatement soit
+        // rejeté avant tout INSERT. `card` AVEC redirection (paiement en
+        // ligne réel en attente du webhook) : fenêtre COURTE
+        // (ONLINE_PAYMENT_WINDOW_MS, session de paiement PSP, pas un
+        // règlement différé) — jamais 24h, un client au milieu d'un
+        // paiement carte ne doit pas garder son offre "réservée" un jour
+        // entier. `at_hotel` : pas de fenêtre non plus — contrairement à
         // transfer/cash (réglés en principe sous 24h), le règlement à
         // l'hôtel n'a lieu qu'au check-in, potentiellement des semaines
         // plus tard ; poser une expiration de 24h annulerait la réservation
@@ -325,7 +352,9 @@ async function runCreateGuestReservation(
         const paymentExpiresAt =
           paymentMethod === "transfer" || paymentMethod === "cash"
             ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)
-            : null
+            : cardRedirect
+              ? new Date(Date.now() + ONLINE_PAYMENT_WINDOW_MS)
+              : null
 
         let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
         try {
@@ -489,6 +518,25 @@ async function runCreateGuestReservation(
             eligibleTnd: rewardsSummary.collectedTnd,
             idempotencyKey: `earn-pending:${reservationId}`,
           })
+        } else if (cardRedirect) {
+          // Paiement en ligne redirect-based (SPS/Paymee/Stripe Checkout) —
+          // réservation réelle, statut `pending`, `payments` PENDING corrélé
+          // par `pspOrderId` : seul le webhook signé
+          // (app/api/payment/reservation-webhook/route.ts) capture ce
+          // paiement et confirme la réservation. Jamais de voucher/facture
+          // ici (Phase 11 : confirmed/completed uniquement).
+          await tx.insert(payments).values({
+            agencyId,
+            reservationId,
+            psp: cardRedirect.psp,
+            method: "card",
+            pspOrderId: cardPaymentReference,
+            originalCurrency: "TND",
+            originalAmount: breakdown.totalTnd.toFixed(2),
+            tndAmount: breakdown.totalTnd.toFixed(2),
+            kind: "deposit",
+            status: "pending",
+          })
         } else {
           // Règlement différé (virement/espèces) — déjà annoncé comme tel
           // dans l'UI existante. Réservation réelle, statut `pending` :
@@ -517,6 +565,7 @@ async function runCreateGuestReservation(
           guestAccessToken,
           status: finalStatus,
           isImmediatelyPaid,
+          redirectUrl: cardRedirect?.url,
           conflict: false as const,
         }
       },
@@ -595,6 +644,7 @@ async function runCreateGuestReservation(
       publicRef: result.publicRef,
       guestAccessToken: result.guestAccessToken,
       status: result.status,
+      redirectUrl: result.redirectUrl,
     }
   } catch (err) {
     let compensationNote = ""

@@ -1,9 +1,13 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { MapPin, Calendar, Users, ChevronDown, Search } from "lucide-react"
+import { MapPin, Calendar, Users, ChevronDown, Search, User } from "lucide-react"
 import Link from "next/link"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
+import { CartBadgeLink } from "@/components/cart/cart-badge-link"
+import { createBrowserSupabase } from "@/lib/supabase/client"
+import { useT } from "@/components/locale-context"
 
 interface SearchHeaderProps {
   city?: string
@@ -16,6 +20,23 @@ export function SearchHeader({
   dateRange = "Sélectionner les dates",
   paxLabel = "2 Adultes",
 }: SearchHeaderProps) {
+  const t = useT()
+  const [loggedIn, setLoggedIn] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const supabase = createBrowserSupabase()
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!cancelled) setLoggedIn(!!user)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <header className="bg-card border-border sticky top-0 z-50 border-b shadow-sm">
       <div className="mx-auto max-w-7xl px-4 py-3">
@@ -88,6 +109,14 @@ export function SearchHeader({
                 <ChevronDown className="h-4 w-4" />
               </button>
             </div>
+            <div className="bg-border h-6 w-px" />
+            <CartBadgeLink variant="desktop" />
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Link href="/compte">
+                <User className="size-4" />
+                {loggedIn ? t("monCompte") : t("connexion")}
+              </Link>
+            </Button>
           </div>
         </div>
       </div>

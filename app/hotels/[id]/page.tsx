@@ -29,7 +29,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
+// Page 100% client ("use client" en tête de fichier) : ne peut pas importer
+// le wrapper serveur components/footer.tsx (next/headers, server-only) —
+// utilise directement le client component, repli Easy2Book identique au
+// comportement précédent (pas de régression, juste pas encore White Label
+// sur cette page précise).
+import { FooterClient as Footer } from "@/components/footer-client"
 import type { HotelDetailsDTO, HotelOfferDTO, HotelSearchResultDTO } from "@/lib/mygo/types"
 import { use } from "react"
 import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"

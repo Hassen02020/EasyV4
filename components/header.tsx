@@ -22,9 +22,13 @@ interface HeaderProps {
   currentLocale?: Locale
   /** Résolu côté serveur par HeaderWrapper quand disponible ; sinon résolu ici côté client. */
   isLoggedIn?: boolean
+  /** Nom d'agence White Label résolu par proxy.ts (via HeaderWrapper) ; absent = domaine par défaut Easy2Book. */
+  brandName?: string | null
+  /** Logo d'agence White Label ; absent = logo Easy2Book par défaut. */
+  logoUrl?: string | null
 }
 
-export function Header({ currentLocale = "fr", isLoggedIn }: HeaderProps) {
+export function Header({ currentLocale = "fr", isLoggedIn, brandName, logoUrl }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [loggedIn, setLoggedIn] = useState(!!isLoggedIn)
   const t = useT()
@@ -52,14 +56,27 @@ export function Header({ currentLocale = "fr", isLoggedIn }: HeaderProps) {
           <Link
             href="/"
             className="flex items-center gap-2"
-            aria-label="Easy2Book — retour à l'accueil"
+            aria-label={brandName ? `${brandName} — retour à l'accueil` : "Easy2Book — retour à l'accueil"}
           >
-            <Easy2BookLogo withWordmark={false} className="size-10 bg-gray-100" priority />
-            <span className="text-xl font-bold">
-              <span className="text-sidebar">Easy</span>
-              <span className="text-accent">2</span>
-              <span className="text-sidebar">Book</span>
-            </span>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- logo d'agence hébergé sur un CDN arbitraire (agencies.logoUrl), non listé dans next.config remotePatterns
+              <img
+                src={logoUrl}
+                alt={brandName ?? "Logo agence"}
+                className="size-10 rounded bg-gray-100 object-contain"
+              />
+            ) : (
+              <Easy2BookLogo withWordmark={false} className="size-10 bg-gray-100" priority />
+            )}
+            {brandName ? (
+              <span className="text-xl font-bold text-sidebar">{brandName}</span>
+            ) : (
+              <span className="text-xl font-bold">
+                <span className="text-sidebar">Easy</span>
+                <span className="text-accent">2</span>
+                <span className="text-sidebar">Book</span>
+              </span>
+            )}
           </Link>
 
           {/* Desktop Right Actions */}

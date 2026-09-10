@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { parseLocale, LOCALE_COOKIE } from "@/lib/locale"
 import { createServerSupabase } from "@/lib/supabase/server"
+import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 import { Header } from "@/components/header"
 
 export async function HeaderWrapper() {
@@ -10,5 +11,13 @@ export async function HeaderWrapper() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  return <Header currentLocale={locale} isLoggedIn={!!user} />
+  const tenant = await getRequestTenantInfo()
+  return (
+    <Header
+      currentLocale={locale}
+      isLoggedIn={!!user}
+      brandName={tenant?.brandName ?? null}
+      logoUrl={tenant?.logoUrl ?? null}
+    />
+  )
 }

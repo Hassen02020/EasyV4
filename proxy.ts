@@ -13,6 +13,7 @@ import {
   TENANT_AGENCY_ID_HEADER,
   TENANT_DOMAIN_HEADER,
   TENANT_BRAND_NAME_HEADER,
+  TENANT_LOGO_URL_HEADER,
 } from "@/lib/tenant/current-tenant"
 
 // Note : `proxy.ts` (contrairement à l'ancien `middleware.ts`) tourne
@@ -52,7 +53,7 @@ const ADMIN_ROUTES = /^\/admin(\/|$)/
  */
 async function resolveTenantForHost(
   host: string | null,
-): Promise<{ agencyId: string; domain: string; brandName: string | null } | null> {
+): Promise<{ agencyId: string; domain: string; brandName: string | null; logoUrl: string | null } | null> {
   if (!host) return null
   const normalized = normalizeHost(host)
   if (!normalized) return null
@@ -65,6 +66,7 @@ async function resolveTenantForHost(
           brandName: agencies.brandName,
           domain: agencies.domain,
           status: agencies.status,
+          logoUrl: agencies.logoUrl,
         })
         .from(agencies)
         .where(and(eq(agencies.domain, normalized), eq(agencies.status, "active")))
@@ -73,7 +75,7 @@ async function resolveTenantForHost(
     )
 
     if (!data || !data.domain) return null
-    return { agencyId: data.id, domain: data.domain, brandName: data.brandName }
+    return { agencyId: data.id, domain: data.domain, brandName: data.brandName, logoUrl: data.logoUrl }
   } catch {
     // Panne BDD/config manquante : on ne bloque jamais le storefront par
     // défaut pour une erreur de résolution tenant — retombe simplement sur
@@ -94,6 +96,7 @@ export async function proxy(request: NextRequest) {
   request.headers.delete(TENANT_AGENCY_ID_HEADER)
   request.headers.delete(TENANT_DOMAIN_HEADER)
   request.headers.delete(TENANT_BRAND_NAME_HEADER)
+  request.headers.delete(TENANT_LOGO_URL_HEADER)
 
   if (!isTenantExemptRoute(pathname)) {
     const tenant = await resolveTenantForHost(request.headers.get("host"))
@@ -101,6 +104,7 @@ export async function proxy(request: NextRequest) {
       request.headers.set(TENANT_AGENCY_ID_HEADER, tenant.agencyId)
       request.headers.set(TENANT_DOMAIN_HEADER, tenant.domain)
       if (tenant.brandName) request.headers.set(TENANT_BRAND_NAME_HEADER, tenant.brandName)
+      if (tenant.logoUrl) request.headers.set(TENANT_LOGO_URL_HEADER, tenant.logoUrl)
     }
   }
 

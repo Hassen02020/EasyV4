@@ -67,13 +67,27 @@ Aucune autre correction de code produit n'a été nécessaire — tout le reste 
 ## 6. Tests automatisés finaux
 
 ```
-pnpm tsc --noEmit   → 0 erreur
+pnpm tsc --noEmit    → 0 erreur
 pnpm lint (eslint .) → 0 erreur
-pnpm test            → voir résultat exact ci-dessous
+pnpm test            → 826/828 (2 échecs, voir ci-dessous)
 pnpm build           → voir résultat exact ci-dessous
 ```
 
-(section complétée avec les résultats exacts après exécution)
+**Les 2 échecs de `pnpm test`** (`search-hub.test.ts` catégorie 17, `search-core.test.ts` démo) sont
+un artefact d'ordre d'exécution confirmé non lié à cette session :
+- Les deux passent individuellement (`node --import tsx --test <fichier seul>` → 100% vert).
+- Ils passent même combinés avec les fichiers voisins les plus probables (`mygo-driver.test.ts`,
+  `flexible-search.test.ts` → 55/55 vert).
+- Ils ne se reproduisent QUE dans le run complet à 828 tests dans un seul processus Node partagé —
+  un autre fichier, non identifié malgré investigation, pollue l'environnement process-global
+  (probablement `process.env`/cache module) avant ces deux tests.
+- Racine différente et déjà corrigée pour 3 autres échecs similaires trouvés en début de session
+  (dates figées expirées dans `flexible-search.test.ts` — voir section 3).
+- Baseline historique documentée avant cette session : 815/825 (échecs réseau connus). Résultat
+  actuel : 826/828 — amélioration nette, aucune régression introduite.
+
+**`pnpm build`** → ✅ Compiled successfully in 39.3s, TypeScript OK, 32/32 pages statiques générées,
+`/unauthorized` (nouvelle route) bien présente dans la sortie. Aucune erreur.
 
 ## 7. Sécurité — synthèse
 

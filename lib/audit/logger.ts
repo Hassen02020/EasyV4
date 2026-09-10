@@ -20,7 +20,7 @@
 "use server"
 
 import { headers } from "next/headers"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   auditLogs,
   type AuditActionType,
@@ -168,9 +168,11 @@ export async function logAuditAction({
     // 4. Calcul du diff
     const changes = computeChanges(oldValue, newValue)
 
-    // 5. Insertion en base
-    const db = getDb()
-
+    // 5. Insertion en base — withSystemContext() : le logger d'audit écrit
+    // pour n'importe quel acteur/agence (admin, pro, système), jamais un
+    // seul tenant courant ; is_super_admin() satisfait la policy RLS
+    // "agency_id = current_agency_id() OR is_super_admin()" quelle que soit
+    // l'agence réellement taguée sur la ligne (`agencyId` ci-dessus).
     const logEntry: NewAuditLog = {
       agencyId,
       userId: user?.id || null,
@@ -187,10 +189,9 @@ export async function logAuditAction({
       metadata: metadata || null,
     }
 
-    const [inserted] = await db
-      .insert(auditLogs)
-      .values(logEntry)
-      .returning({ id: auditLogs.id })
+    const [inserted] = await withSystemContext((db) =>
+      db.insert(auditLogs).values(logEntry).returning({ id: auditLogs.id }),
+    )
 
     if (!inserted) {
       throw new Error("Insertion failed")
@@ -359,13 +360,6 @@ export async function getAuditLogs(params: {
   } = params
 
   try {
-    const db = getDb()
-
-    const query = db
-      .select()
-      .from(auditLogs)
-      .where(eq(auditLogs.agencyId, agencyId))
-
     // Filtres optionnels
     const filters = [eq(auditLogs.agencyId, agencyId)]
 
@@ -376,13 +370,15 @@ export async function getAuditLogs(params: {
     if (fromDate) filters.push(gte(auditLogs.createdAt, fromDate))
     if (toDate) filters.push(lte(auditLogs.createdAt, toDate))
 
-    const results = await db
-      .select()
-      .from(auditLogs)
-      .where(and(...filters))
-      .orderBy(desc(auditLogs.createdAt))
-      .limit(limit)
-      .offset(offset)
+    const results = await withSystemContext((db) =>
+      db
+        .select()
+        .from(auditLogs)
+        .where(and(...filters))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limit)
+        .offset(offset),
+    )
 
     return { success: true, logs: results }
   } catch (error) {

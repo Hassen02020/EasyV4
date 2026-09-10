@@ -1,10 +1,12 @@
 "use server"
 
+import { headers } from "next/headers"
 import { eq, and, ilike, desc } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers, payments, reviews } from "@/lib/db/schema"
 import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
 import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { rateLimit } from "@/lib/rate-limit"
 import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
 
 export type BookingLookupResult =
@@ -24,6 +26,18 @@ export async function lookupBooking(
 
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Service temporairement indisponible." }
+  }
+
+  // `publicRef` est séquentiel par agence/année (ex. TG-2026-000123, voir
+  // nextPublicRef()) — jamais l'unique frontière d'accès en théorie, mais un
+  // attaquant connaissant déjà l'email d'un client pourrait sinon brute-forcer
+  // le petit espace de compteurs restant. Même bucket IP que les autres
+  // Server Actions guest publiques (lib/rate-limit.ts).
+  const hdrs = await headers()
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
+  const limit = await rateLimit(`booking:lookup:${ip}`)
+  if (!limit.ok) {
+    return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." }
   }
 
   try {

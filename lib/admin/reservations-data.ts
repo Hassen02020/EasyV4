@@ -61,11 +61,6 @@ export type AdminReservationRow = {
   cancelledAt: string | null
 }
 
-export type AdminReservationsData = {
-  available: boolean
-  rows: AdminReservationRow[]
-}
-
 export type CursorPageResult = {
   available: boolean
   rows: AdminReservationRow[]
@@ -94,64 +89,11 @@ function buildSearchCondition(search: string | null | undefined) {
   )
 }
 
-const EMPTY: AdminReservationsData = { available: false, rows: [] }
 const EMPTY_PAGE: CursorPageResult = {
   available: false,
   rows: [],
   nextCursor: null,
   hasMore: false,
-}
-
-/* -------------------------------------------------------------------------- */
-/* Legacy loader (kept for dashboard compatibility)                         */
-/* -------------------------------------------------------------------------- */
-
-export async function loadAdminReservations(
-  agencyId: string,
-  limit = 500,
-): Promise<AdminReservationsData> {
-  if (!process.env.DATABASE_URL) return EMPTY
-
-  try {
-    const rows = await withTenantContext(
-      { agencyId, userId: "", isSuperAdmin: false },
-      (db) =>
-    db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        agencyId: reservations.agencyId,
-        agencyName: sql<string | null>`COALESCE(${agencies.brandName}, ${agencies.name})`,
-        module: reservations.module,
-        status: reservations.status,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        phone: customers.phone,
-        originalCurrency: reservations.originalCurrency,
-        originalAmount: reservations.originalAmount,
-        tndAmount: reservations.tndAmount,
-        depositAmount: reservations.depositAmount,
-        createdAt: reservations.createdAt,
-        cancelledAt: reservations.cancelledAt,
-      })
-      .from(reservations)
-      .leftJoin(customers, eq(customers.id, reservations.customerId))
-      .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .where(and(eq(reservations.agencyId, agencyId)))
-      .orderBy(desc(reservations.createdAt))
-      .limit(limit),
-    )
-
-    return {
-      available: true,
-      rows: rows.map(mapRow),
-    }
-  } catch (error) {
-    const { logger } = await import("@/lib/logger")
-    logger.error("loadAdminReservations failed", { code: error instanceof Error ? error.constructor.name : "unknown" })
-    return EMPTY
-  }
 }
 
 /* -------------------------------------------------------------------------- */

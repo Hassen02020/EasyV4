@@ -33,7 +33,7 @@ export function WalletStatus({
 
   const refresh = () => {
     startTransition(async () => {
-      const result = await getWalletBalance(agencyId)
+      const result = await getWalletBalance()
       if (result.ok) {
         setBalance(result.data.balance)
         setCurrency(result.data.currency)

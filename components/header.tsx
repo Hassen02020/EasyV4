@@ -91,7 +91,7 @@ export function Header({ currentLocale = "fr", isLoggedIn, brandName, logoUrl }:
               className="gap-1.5 text-sm font-medium"
               asChild
             >
-              <Link href="#help">
+              <Link href="tel:+21698140514">
                 <HelpCircle className="size-4" />
                 {t("help")}
               </Link>
@@ -144,7 +144,7 @@ export function Header({ currentLocale = "fr", isLoggedIn, brandName, logoUrl }:
             <LanguageSwitcher currentLocale={currentLocale} variant="mobile" />
             <CurrencySwitcher variant="mobile" />
             <Link
-              href="#help"
+              href="tel:+21698140514"
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >

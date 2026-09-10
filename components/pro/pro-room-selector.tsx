@@ -138,7 +138,7 @@ export function ProRoomSelector({ hotelId, offer, searchQuery }: ProRoomSelector
                       {row.roomName}
                     </td>
                     <td className="px-3 py-3">
-                      <span className="border-secondary/40 text-secondary bg-secondary/5 inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-semibold">
+                      <span className="border-secondary/40 text-secondary-foreground bg-secondary/5 inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-semibold">
                         {row.boardingName}
                       </span>
                     </td>

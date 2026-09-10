@@ -5,8 +5,10 @@ import "server-only"
  * résolu par `proxy.ts` pour la requête courante (Phase 13.2).
  *
  * `proxy.ts` (Edge runtime) résout le host et pose le header
- * `x-tenant-agency-id` (+ `x-tenant-domain`/`x-tenant-brand-name` pour un
- * usage futur d'affichage) AVANT que la requête n'atteigne le rendu de
+ * `x-tenant-agency-id` (+ `x-tenant-domain`/`x-tenant-brand-name`/
+ * `x-tenant-logo-url`, consommés par `components/header-wrapper.tsx` pour
+ * l'affichage white-label du header public) AVANT que la requête n'atteigne
+ * le rendu de
  * page — ce fichier ne fait AUCUNE nouvelle résolution, il lit seulement
  * ce que `proxy.ts` a déjà validé (host trouvé dans `agencies.domain`,
  * agence `status = 'active'`). Aucune valeur ici ne vient jamais
@@ -25,6 +27,7 @@ export { resolveEffectiveAgencyId }
 export const TENANT_AGENCY_ID_HEADER = "x-tenant-agency-id"
 export const TENANT_DOMAIN_HEADER = "x-tenant-domain"
 export const TENANT_BRAND_NAME_HEADER = "x-tenant-brand-name"
+export const TENANT_LOGO_URL_HEADER = "x-tenant-logo-url"
 
 /** Agence tenant résolue pour la requête courante par `proxy.ts`, ou `null` (domaine par défaut). */
 export async function getRequestTenantAgencyId(): Promise<string | null> {
@@ -41,9 +44,10 @@ export interface RequestTenantInfo {
   agencyId: string
   domain: string
   brandName: string | null
+  logoUrl: string | null
 }
 
-/** Infos tenant complètes (agencyId + domain + brandName) pour la requête courante, ou `null`. */
+/** Infos tenant complètes (agencyId + domain + brandName + logoUrl) pour la requête courante, ou `null`. */
 export async function getRequestTenantInfo(): Promise<RequestTenantInfo | null> {
   try {
     const h = await headers()
@@ -53,6 +57,7 @@ export async function getRequestTenantInfo(): Promise<RequestTenantInfo | null> 
       agencyId,
       domain: h.get(TENANT_DOMAIN_HEADER) ?? "",
       brandName: h.get(TENANT_BRAND_NAME_HEADER) || null,
+      logoUrl: h.get(TENANT_LOGO_URL_HEADER) || null,
     }
   } catch {
     return null

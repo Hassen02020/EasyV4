@@ -17,7 +17,8 @@
  */
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowDown,
   ArrowUp,
@@ -119,6 +120,11 @@ const STATUS_LABEL: Record<
     className: "border-sidebar/30 bg-sidebar/10 text-sidebar",
     icon: XCircle,
   },
+  expired: {
+    label: "Expirée",
+    className: "border-destructive/40 bg-destructive/10 text-destructive",
+    icon: XCircle,
+  },
 }
 
 const ALL_STATUSES: ReservationStatus[] = [
@@ -129,6 +135,7 @@ const ALL_STATUSES: ReservationStatus[] = [
   "no_show",
   "completed",
   "refunded",
+  "expired",
 ]
 
 const TND_FORMAT = new Intl.NumberFormat("fr-FR", {
@@ -206,9 +213,14 @@ export function ReservationsDataTable({
   showAgencyColumn?: boolean
 }) {
   const router = useRouter()
-  const [search, setSearch] = React.useState("")
-  const [statusFilter, setStatusFilter] = React.useState<string>("all")
-  const [moduleFilter, setModuleFilter] = React.useState<string>("all")
+  const searchParams = useSearchParams()
+  const [search, setSearch] = React.useState(() => searchParams.get("search") ?? "")
+  const [statusFilter, setStatusFilter] = React.useState<string>(
+    () => searchParams.get("status") ?? "all",
+  )
+  const [moduleFilter, setModuleFilter] = React.useState<string>(
+    () => searchParams.get("module") ?? "all",
+  )
   const [sortKey, setSortKey] = React.useState<SortKey>("createdAt")
   const [sortDir, setSortDir] = React.useState<SortDir>("desc")
   const [page, setPage] = React.useState(0)
@@ -219,6 +231,62 @@ export function ReservationsDataTable({
   } | null>(null)
 
   const pageSize = 10
+
+  // Recherche/filtres portaient auparavant uniquement sur les lignes déjà
+  // chargées côté serveur (page cursor de 25/50 lignes) : au-delà de cette
+  // page, une recherche par référence/nom/email/téléphone ou un filtre
+  // statut/module renvoyait silencieusement "aucun résultat" pour une
+  // réservation qui existe bien en base. On synchronise donc ces filtres
+  // dans l'URL pour que le Server Component (lib/admin/reservations-data.ts)
+  // les applique en base — la recherche/filtrage local ci-dessous reste en
+  // place pour un retour instantané pendant la frappe, mais s'exerce
+  // maintenant sur des lignes déjà correctement filtrées côté serveur.
+  function pushFilters(next: {
+    search?: string
+    status?: string
+    module?: string
+  }) {
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.delete("cursor")
+    const merged = {
+      search: next.search ?? search,
+      status: next.status ?? statusFilter,
+      module: next.module ?? moduleFilter,
+    }
+    if (merged.search.trim()) sp.set("search", merged.search.trim())
+    else sp.delete("search")
+    if (merged.status !== "all") sp.set("status", merged.status)
+    else sp.delete("status")
+    if (merged.module !== "all") sp.set("module", merged.module)
+    else sp.delete("module")
+    const qs = sp.toString()
+    router.push(`/admin/reservations${qs ? `?${qs}` : ""}`)
+  }
+
+  const isFirstRender = React.useRef(true)
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    const timer = setTimeout(() => {
+      if (search.trim() !== (searchParams.get("search") ?? "")) {
+        pushFilters({ search })
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
+
+  function handleStatusFilterChange(value: string) {
+    setStatusFilter(value)
+    pushFilters({ status: value })
+  }
+
+  function handleModuleFilterChange(value: string) {
+    setModuleFilter(value)
+    pushFilters({ module: value })
+  }
 
   useRealtimeTable("reservations", (event) => {
     router.refresh()
@@ -332,7 +400,7 @@ export function ReservationsDataTable({
             aria-label="Rechercher une réservation"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger
             className="w-full sm:w-44"
             aria-label="Filtrer par statut"
@@ -348,7 +416,7 @@ export function ReservationsDataTable({
             ))}
           </SelectContent>
         </Select>
-        <Select value={moduleFilter} onValueChange={setModuleFilter}>
+        <Select value={moduleFilter} onValueChange={handleModuleFilterChange}>
           <SelectTrigger
             className="w-full sm:w-48"
             aria-label="Filtrer par module"
@@ -450,7 +518,12 @@ export function ReservationsDataTable({
               pageRows.map((row) => (
                 <TableRow key={row.id} data-testid={`row-${row.publicRef}`}>
                   <TableCell className="font-mono text-xs">
-                    {row.publicRef}
+                    <Link
+                      href={`/admin/reservations/${row.id}`}
+                      className="hover:underline"
+                    >
+                      {row.publicRef}
+                    </Link>
                   </TableCell>
                   {showAgencyColumn ? (
                     <TableCell>

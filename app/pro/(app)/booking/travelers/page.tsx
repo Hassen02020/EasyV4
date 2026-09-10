@@ -12,7 +12,10 @@ import {
   runHotelSearch,
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
+import { computePriceBreakdown } from "@/lib/booking/pricing"
 import { matchSelectedRoom } from "@/lib/booking/room-match"
+import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { buildUnavailableRoomBackHref } from "@/lib/pro/room-unavailable-link"
 
 type BookingSearchParams = {
   hotelId?: string
@@ -37,7 +40,24 @@ export const metadata = {
 
 export const dynamic = "force-dynamic"
 
-function UnavailableState({ hotelId, checkin, checkout }: { hotelId: string; checkin?: string; checkout?: string }) {
+function UnavailableState({
+  hotelId,
+  cityId,
+  checkin,
+  checkout,
+  adults,
+}: {
+  hotelId: string
+  /** PHASE 30.4 — audit : absent auparavant sur 2 des 3 sites d'appel alors
+      que `search.cityId` était déjà connu à ce stade, "Retour aux chambres"
+      atterrissait alors sur l'écran "Recherche incomplète" de
+      /pro/hotels/[id] (qui EXIGE cityId) au lieu d'y renvoyer réellement
+      l'agent — perte de contexte, pas une nouvelle règle métier. */
+  cityId?: string
+  checkin?: string
+  checkout?: string
+  adults?: string
+}) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
       <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-2xl border p-8 text-center text-sm">
@@ -49,7 +69,7 @@ function UnavailableState({ hotelId, checkin, checkout }: { hotelId: string; che
           Merci de choisir une nouvelle chambre.
         </p>
         <Button asChild variant="outline" className="mt-4 rounded-xl">
-          <Link href={`/pro/hotels/${hotelId}?checkin=${checkin ?? ""}&checkout=${checkout ?? ""}`}>
+          <Link href={buildUnavailableRoomBackHref(hotelId, { cityId, checkin, checkout, adults })}>
             Retour aux chambres
           </Link>
         </Button>
@@ -75,7 +95,15 @@ export default async function ProBookingTravelersPage({
       !search.boardingId ||
       !search.roomId
     ) {
-      return <UnavailableState hotelId={search.hotelId} checkin={search.checkin} checkout={search.checkout} />
+      return (
+        <UnavailableState
+          hotelId={search.hotelId}
+          cityId={search.cityId}
+          checkin={search.checkin}
+          checkout={search.checkout}
+          adults={search.adults}
+        />
+      )
     }
 
     const parsed = HotelSearchQuerySchema.safeParse({
@@ -87,7 +115,15 @@ export default async function ProBookingTravelersPage({
       hotelId: search.hotelId,
     })
     if (!parsed.success) {
-      return <UnavailableState hotelId={search.hotelId} checkin={search.checkin} checkout={search.checkout} />
+      return (
+        <UnavailableState
+          hotelId={search.hotelId}
+          cityId={search.cityId}
+          checkin={search.checkin}
+          checkout={search.checkout}
+          adults={search.adults}
+        />
+      )
     }
 
     const q = parsed.data
@@ -96,10 +132,13 @@ export default async function ProBookingTravelersPage({
     // page de sélection de chambre) ; la revalidation finale et autoritaire
     // reste BookingCreation lui-même, exécuté par createReservationFromDraft
     // (inchangé) au moment de la confirmation.
-    const [result, margins] = await Promise.all([
-      runHotelSearch(q),
+    // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la
+    // session partenaire courante (voir lib/hotel-suppliers/tenant/live-resolution.ts).
+    const [access, margins] = await Promise.all([
+      resolvePartnerMyGoAccess(),
       getActivePartnerMargins(),
     ])
+    const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
 
     const rawOffer = result.ok ? result.dto.offers[0] : null
     const boardingIdNum = Number(search.boardingId)
@@ -107,7 +146,15 @@ export default async function ProBookingTravelersPage({
     const matchedRoom = rawOffer ? matchSelectedRoom(rawOffer, boardingIdNum, roomIdNum) : null
 
     if (!rawOffer || !matchedRoom) {
-      return <UnavailableState hotelId={search.hotelId} checkin={search.checkin} checkout={search.checkout} />
+      return (
+        <UnavailableState
+          hotelId={search.hotelId}
+          cityId={String(q.cityId)}
+          checkin={q.checkin}
+          checkout={q.checkout}
+          adults={String(q.adults)}
+        />
+      )
     }
 
     const offer = applyMarginToHotelOffer(rawOffer, margins)
@@ -121,6 +168,22 @@ export default async function ProBookingTravelersPage({
       .split(",")
       .map((a) => Number.parseInt(a, 10))
       .filter((n) => Number.isFinite(n) && n >= 0 && n <= 17)
+
+    // PHASE R3 — `priceTnd` ci-dessus est le prix agence HT (avant TVA) ;
+    // la TVA (19 %, cf. computePriceBreakdown) est systématiquement ajoutée
+    // au moment du débit réel (lib/booking/actions.ts::createReservationFromDraft,
+    // via authoritativeUnitPrice + computePriceBreakdown). Le Récapitulatif
+    // affichait jusqu'ici `priceTnd` HT sous le libellé "Total (prix agence)",
+    // ~19 % sous le montant réellement débité — trouvé lors du re-walk du
+    // parcours Pro (le message "Solde insuffisant" citait un montant que rien
+    // à l'écran n'expliquait). On affiche donc le même total TTC que celui
+    // qui sera effectivement débité.
+    const breakdown = computePriceBreakdown({
+      unitPriceTnd: q.adults > 0 ? priceTnd / q.adults : priceTnd,
+      unitChildPriceTnd: 0,
+      adults: q.adults,
+      children: childrenAges.length,
+    })
 
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
@@ -147,6 +210,7 @@ export default async function ProBookingTravelersPage({
           roomName={matchedRoom.room.name}
           boardingName={matchedRoom.boarding.name}
           priceTnd={priceTnd}
+          totalTnd={breakdown.totalTnd}
           currency={offer.currency}
           checkin={q.checkin}
           checkout={q.checkout}
@@ -194,8 +258,7 @@ export default async function ProBookingTravelersPage({
           Finalisation de la réservation
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Renseignez les voyageurs, appliquez votre coupon éventuel puis
-          sélectionnez le mode de paiement.
+          Renseignez les voyageurs puis sélectionnez le mode de paiement.
         </p>
       </header>
 

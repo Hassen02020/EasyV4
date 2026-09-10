@@ -1,17 +1,20 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { ShieldCheck, CreditCard, Banknote, Wallet } from "lucide-react"
+import { ShieldCheck, CreditCard, Banknote, Wallet, Building2, ShoppingCart } from "lucide-react"
 import { submitCheckoutAction } from "@/lib/booking/actions"
 import { checkoutSchema } from "@/lib/booking/schemas"
+import { decodeDraft } from "@/lib/booking/draft-store"
+import { useCart } from "@/lib/cart/use-cart"
 
-type Method = "card" | "transfer" | "cash" | "at_hotel"
+type Method = "card" | "transfer" | "cash" | "wallet" | "at_hotel"
 
 const METHODS: {
   key: Method
@@ -22,7 +25,7 @@ const METHODS: {
   {
     key: "card",
     label: "Carte bancaire",
-    desc: "Paiement en ligne immédiat",
+    desc: "Paiement en ligne immédiat — bientôt disponible",
     icon: CreditCard,
   },
   {
@@ -37,13 +40,45 @@ const METHODS: {
     desc: "Réservation maintenue 48 h en attente de paiement — voucher émis après confirmation du règlement",
     icon: Wallet,
   },
+  {
+    key: "wallet",
+    label: "Solde Easy2Book",
+    desc: "Débité de votre solde client (crédité lors d'un remboursement précédent) — le montant exact est vérifié et prélevé par le serveur au moment de la validation",
+    icon: Wallet,
+  },
+  {
+    key: "at_hotel",
+    label: "Paiement à l'hôtel",
+    desc: "Réservation enregistrée, aucun règlement en ligne — le paiement est effectué directement à l'hôtel lors du séjour, voucher émis après confirmation du règlement",
+    icon: Building2,
+  },
 ]
 
 export function CheckoutForm({ token }: { token: string }) {
+  const router = useRouter()
+  const cart = useCart()
   const [pending, startTransition] = useTransition()
-  const [method, setMethod] = useState<Method>("card")
+  // "card" échoue systématiquement (aucun provider de paiement en ligne
+  // configuré, voir lib/payment/provider.ts::NotConfiguredPaymentProvider)
+  // — ne jamais le pré-sélectionner pour ne pas envoyer le premier essai
+  // dans une impasse. "at_hotel" est la méthode sans risque par défaut :
+  // aucune coordonnée bancaire requise, réservation enregistrée telle quelle.
+  const [method, setMethod] = useState<Method>("at_hotel")
   const [acceptCgv, setAcceptCgv] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function onAddToCart() {
+    const payload = decodeDraft(token)
+    if (!payload?.traveler) {
+      toast.error("Informations voyageur manquantes — revenez à l'étape précédente.")
+      return
+    }
+    const { draft, traveler } = payload
+    const priceTnd = draft.unitPriceTnd * draft.adults + (draft.unitChildPriceTnd ?? 0) * draft.children
+    cart.add({ module: "hotel", title: draft.offerLabel, priceTnd, draft, traveler })
+    toast.success("Ajouté au panier.")
+    router.push("/panier")
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -130,7 +165,7 @@ export function CheckoutForm({ token }: { token: string }) {
             />
             <Label
               htmlFor="cgv"
-              className="text-muted-foreground text-sm leading-snug"
+              className="text-muted-foreground flex-wrap text-sm leading-snug"
             >
               J&apos;accepte les{" "}
               <Link
@@ -166,14 +201,26 @@ export function CheckoutForm({ token }: { token: string }) {
             Paiement sécurisé — vos données ne sont jamais stockées en clair.
           </div>
 
-          <Button
-            type="submit"
-            size="lg"
-            disabled={pending || !acceptCgv}
-            className="w-full"
-          >
-            {pending ? "Validation de la réservation…" : "Confirmer & payer"}
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full sm:flex-1"
+              onClick={onAddToCart}
+            >
+              <ShoppingCart className="mr-2 size-4" />
+              Ajouter au panier
+            </Button>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={pending || !acceptCgv}
+              className="w-full sm:flex-1"
+            >
+              {pending ? "Validation de la réservation…" : "Confirmer & payer"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

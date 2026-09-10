@@ -21,13 +21,20 @@ import { reservations, reservationHotel, auditEvents } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { getMyGoClient } from "@/lib/mygo"
+import { applyReservationRefund } from "@/lib/finance/refund-logic"
+import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import {
-  classifyMyGoBookingError,
-  describeMyGoCancellationErrorForUser,
-} from "@/lib/booking/hotel-provider-booking"
+  earnPendingPoints,
+  convertPendingToAvailable,
+  reverseEarnedPoints,
+  reinstateRedeemedPoints,
+} from "@/lib/loyalty/rewards-core"
+import { logger } from "@/lib/logger"
+import { describeSupplierCancellationErrorForUser } from "@/lib/booking/hotel-provider-booking"
+import { resolveMyGoAccessForTenant, partnerTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   RESERVATION_STATUSES,
+  RESERVATION_STATUS_ALLOWED_ROLES,
   isTransitionAllowed,
   type ReservationStatus,
 } from "./reservation-status"
@@ -73,10 +80,52 @@ export async function updateReservationStatus(
   if (!profile?.agencyId) {
     return { ok: false, error: "Profil administrateur introuvable ou non lié à une agence" }
   }
-  const agencyId = profile.agencyId
+  // Phase 21.2 (P1) — même frontière que la page /admin/reservations
+  // (jusqu'ici imposée seulement côté UI) : un changement de statut, y
+  // compris une annulation qui déclenche un remboursement, exige un rôle
+  // avec responsabilité réservation, jamais agent_compta/agent_excursions
+  // ni un profil partenaire B2B en appelant directement cette action.
+  if (!(RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
+    return { ok: false, error: "Votre rôle n'est pas autorisé à changer le statut d'une réservation." }
+  }
+  const isSuperAdmin = profile.role === "super_admin"
+
+  // Résout l'agence RÉELLE propriétaire de la réservation — jamais
+  // `profile.agencyId` telle quelle : un super_admin doit pouvoir changer le
+  // statut de N'IMPORTE QUELLE réservation (Vue consolidée /admin/
+  // reservations le lui montre déjà, cross-agence), pas seulement celles de
+  // sa propre agence "domicile". Sans cette résolution, chaque opération
+  // tenant-scopée ci-dessous (myGo, débit/remboursement, audit) utilisait
+  // silencieusement `profile.agencyId` — un super_admin obtenait "Réservation
+  // introuvable" pour toute réservation d'une autre agence.
+  const agencyLookup = await withTenantContext(
+    { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
+    (db) =>
+      db
+        .select({ agencyId: reservations.agencyId })
+        .from(reservations)
+        .where(
+          isSuperAdmin
+            ? eq(reservations.id, reservationId)
+            : and(eq(reservations.id, reservationId), eq(reservations.agencyId, profile.agencyId)),
+        )
+        .limit(1),
+  )
+  const agencyId = agencyLookup[0]?.agencyId
+  if (!agencyId) {
+    return { ok: false, error: "Réservation introuvable" }
+  }
+
+  // PHASE 27.1 — compte fournisseur MyGo résolu AVANT la transaction de
+  // changement de statut (jamais un appel réseau imbriqué dans la même
+  // transaction que l'écriture réservation) — voir
+  // lib/hotel-suppliers/tenant/live-resolution.ts.
+  const myGoAccess = await resolveMyGoAccessForTenant(
+    partnerTenantContext(agencyId, user.id, isSuperAdmin),
+  )
 
   const outcome = await withTenantContext(
-    { agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+    { agencyId, userId: user.id, isSuperAdmin },
     async (db) => {
       const current = await db
         .select({
@@ -84,6 +133,7 @@ export async function updateReservationStatus(
           status: reservations.status,
           publicRef: reservations.publicRef,
           module: reservations.module,
+          customerId: reservations.customerId,
         })
         .from(reservations)
         .where(
@@ -107,6 +157,28 @@ export async function updateReservationStatus(
         }
       }
 
+      // --- Phase 21.1 (P0-2) — une réservation ne peut jamais être confirmée
+      // tant qu'elle n'est pas intégralement payée. Seule source de vérité :
+      // getReservationPaymentSummary (jamais depositPaid, jamais un SUM
+      // recalculé ici, jamais un montant fourni par le client). Ce chemin
+      // générique (dropdown /admin/reservations) n'avait jusqu'ici AUCUNE
+      // vérification de paiement — contrairement à verifyManualPayment, qui
+      // confirme déjà correctement sous cette même condition.
+      let confirmedSummary: Awaited<ReturnType<typeof getReservationPaymentSummary>> | undefined
+      if (nextStatus === "confirmed") {
+        const summary = await getReservationPaymentSummary({
+          reservationId,
+          txOverride: db as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+        })
+        if (summary.paymentState !== "FULLY_PAID") {
+          return {
+            ok: false as const,
+            error: `Confirmation refusée : paiement incomplet (${summary.paymentState}, restant ${summary.remainingTnd.toFixed(2)} DT). Une réservation ne peut être confirmée qu'une fois intégralement réglée.`,
+          }
+        }
+        confirmedSummary = summary
+      }
+
       const cancelledAt = nextStatus === "cancelled" ? new Date() : null
 
       // --- Annulation fournisseur (myGo) AVANT la transition de statut ---
@@ -128,22 +200,24 @@ export async function updateReservationStatus(
           .limit(1)
 
         if (hotelRow?.providerBookingId) {
-          try {
-            const cancellation = await getMyGoClient().cancelBooking({
-              bookingId: Number(hotelRow.providerBookingId),
-            })
-            providerCancellationFee = cancellation.fee
-          } catch (err) {
+          // PHASE 27.1 — annulation via le Hub (driver résolu pour ce
+          // tenant), jamais getMyGoClient() directement — voir
+          // lib/hotel-suppliers/tenant/live-resolution.ts.
+          const cancellation = await myGoAccess.driver.cancel({
+            supplier: "mygo",
+            supplierBookingReference: String(hotelRow.providerBookingId),
+          })
+          if (!cancellation.ok) {
             // Annulation retry-safe côté fournisseur (idempotente) : on ne
             // change PAS le statut local, l'admin peut relancer sans risque
             // — contrairement à la création, une annulation ré-essayée est
             // sans danger (no-op si déjà annulée côté myGo).
-            const kind = classifyMyGoBookingError(err)
             return {
               ok: false as const,
-              error: describeMyGoCancellationErrorForUser(kind),
+              error: describeSupplierCancellationErrorForUser(cancellation.code),
             }
           }
+          providerCancellationFee = cancellation.penaltyAmount
         }
       }
 
@@ -161,6 +235,99 @@ export async function updateReservationStatus(
           ),
         )
 
+      // --- Easy2Book Rewards (Phase 38D) — mêmes contrats que
+      // lib/loyalty/rewards-core.ts (voir doc de tête du fichier) : earn
+      // pending à "confirmed" (montant éligible = getReservationPaymentSummary,
+      // déjà calculé ci-dessus), conversion pending→available UNIQUEMENT à
+      // "completed" (seul point d'écriture de ce statut), reprise à
+      // "cancelled"/"refunded". Modules non éligibles (Omra) et réservations
+      // n'ayant jamais gagné de point sont des no-op silencieux gérés par le
+      // moteur lui-même — jamais un throw pour ça. Toujours dans LA MÊME
+      // transaction que le changement de statut : jamais un point cohérent
+      // avec un statut qui, lui, aurait rollback.
+      let loyaltyPointsEarned: number | undefined
+      let loyaltyPointsConverted: number | undefined
+      let loyaltyPointsReversed: number | undefined
+      let loyaltyPointsReinstated: number | undefined
+      if (nextStatus === "confirmed" && confirmedSummary) {
+        const earnResult = await earnPendingPoints(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          module: row.module,
+          eligibleTnd: confirmedSummary.collectedTnd,
+          idempotencyKey: `earn-pending:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (earnResult.ok && earnResult.awarded) loyaltyPointsEarned = earnResult.points
+      }
+      if (nextStatus === "completed") {
+        const convertResult = await convertPendingToAvailable(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          idempotencyKey: `convert-available:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (convertResult.ok && convertResult.converted) loyaltyPointsConverted = convertResult.points
+      }
+      if (nextStatus === "cancelled" || nextStatus === "refunded") {
+        const reverseResult = await reverseEarnedPoints(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          idempotencyKey: `reverse:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (reverseResult.reversed) {
+          loyaltyPointsReversed = reverseResult.pointsReversedFromPending + reverseResult.pointsReversedFromAvailable
+        }
+
+        // Symétrique de reverseEarnedPoints ci-dessus, mais pour les points
+        // DÉPENSÉS sur cette réservation (redeemPoints) — sans ceci, un
+        // client qui voit sa réservation annulée/remboursée par le
+        // back-office perdait définitivement les points payés dessus.
+        const reinstateResult = await reinstateRedeemedPoints(db, {
+          agencyId,
+          customerId: row.customerId,
+          reservationId,
+          idempotencyKey: `reinstate:${reservationId}`,
+          actorUserId: user.id,
+        })
+        if (reinstateResult.reinstated) loyaltyPointsReinstated = reinstateResult.points
+      }
+
+      // --- Intégrité paiement/ledger : une annulation ne doit jamais
+      // laisser un paiement CAPTURÉ orphelin. Une réservation B2B (financée
+      // par le crédit agence, jamais par `payments` — voir
+      // lib/pro/booking-actions.ts) n'a simplement aucune ligne à
+      // rembourser ici : NO_CAPTURED_PAYMENT est alors un no-op silencieux,
+      // pas une erreur. Le remboursement, s'il y en a un, s'applique dans
+      // la MÊME transaction que le changement de statut.
+      let refundedTnd: number | undefined
+      if (nextStatus === "cancelled") {
+        const refund = await applyReservationRefund({
+          tx: db,
+          agencyId,
+          reservationId,
+          customerId: row.customerId,
+          publicRef: row.publicRef,
+          reason: "Annulation réservation (back-office)",
+          actorUserId: user.id,
+        })
+        if (refund.ok) {
+          refundedTnd = refund.refundedTnd
+        } else if (refund.code !== "NO_CAPTURED_PAYMENT") {
+          // Ne jamais `return` un échec ici : le statut a déjà été mis à
+          // jour ci-dessus dans CETTE transaction — un `return` la
+          // committerait quand même (seul un throw fait rollback). On
+          // préfère throw pour annuler aussi le changement de statut plutôt
+          // que de committer un statut "cancelled" incohérent avec un
+          // remboursement en échec.
+          throw new Error(refund.error)
+        }
+      }
+
       try {
         await db.insert(auditEvents).values({
           agencyId,
@@ -175,6 +342,11 @@ export async function updateReservationStatus(
             ...(providerCancellationFee != null
               ? { providerCancellationFeeTnd: providerCancellationFee }
               : {}),
+            ...(refundedTnd != null ? { refundedTnd: refundedTnd.toFixed(2) } : {}),
+            ...(loyaltyPointsEarned != null ? { loyaltyPointsEarned } : {}),
+            ...(loyaltyPointsConverted != null ? { loyaltyPointsConverted } : {}),
+            ...(loyaltyPointsReversed != null ? { loyaltyPointsReversed } : {}),
+            ...(loyaltyPointsReinstated != null ? { loyaltyPointsReinstated } : {}),
           },
         })
       } catch {
@@ -183,7 +355,10 @@ export async function updateReservationStatus(
 
       return { ok: true as const, row, previousStatus }
     },
-  )
+  ).catch((err: unknown) => {
+    logger.error("[updateReservationStatus] transaction failed", { err })
+    return { ok: false as const, error: "Échec de l'opération — aucune modification appliquée." }
+  })
 
   if (!outcome.ok) {
     return { ok: false, error: outcome.error }

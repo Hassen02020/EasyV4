@@ -13,6 +13,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,10 +23,13 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Users, Calendar, CreditCard, Banknote, Wallet } from "lucide-react"
+import { Loader2, Users, Calendar, CreditCard, Banknote, Wallet, ShoppingCart } from "lucide-react"
 import { createGuestActivityBooking } from "@/lib/activities/guest-booking-actions"
 import { activityGuestBookingSchema, type ActivityGuestBookingInput } from "@/lib/activities/schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
+import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
+import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
+import { useCart } from "@/lib/cart/use-cart"
 
 interface SessionOption {
   id: string
@@ -67,10 +71,13 @@ export function ActivityGuestBookingForm({
   defaultSessionId,
 }: ActivityGuestBookingFormProps) {
   const router = useRouter()
+  const cart = useCart()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
+  const [resolvedPolicy, setResolvedPolicy] = useState<ResolvedPolicy | null | undefined>(undefined)
 
   const form = useForm<ActivityGuestBookingInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,25 +125,48 @@ export function ActivityGuestBookingForm({
     form.setValue("childrenAges", ages)
   }
 
+  // La case d'acceptation n'est exigée que si une politique réelle a été
+  // résolue pour cette attraction (voir components/booking/cancellation-policy-display.tsx).
+  const policyAcceptanceRequired = resolvedPolicy != null && !policyAccepted
+
   async function onSubmit(data: ActivityGuestBookingInput) {
     if (!acceptCgv) {
       setSubmitError("Vous devez accepter les conditions générales de vente.")
       return
     }
+    if (policyAcceptanceRequired) {
+      setSubmitError("Vous devez accepter la politique d'annulation.")
+      return
+    }
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      const result = await createGuestActivityBooking({ booking: data, paymentMethod: method })
+      const result = await createGuestActivityBooking({ booking: { ...data, policyAccepted }, paymentMethod: method })
       if (!result.ok) {
         setSubmitError(result.error)
         setIsSubmitting(false)
         return
       }
-      router.push(`/booking/confirmation/${result.publicRef}`)
+      router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
       setIsSubmitting(false)
     }
+  }
+
+  function onAddToCart(data: ActivityGuestBookingInput) {
+    if (policyAcceptanceRequired) {
+      setSubmitError("Vous devez accepter la politique d'annulation.")
+      return
+    }
+    cart.add({
+      module: "activity",
+      title: activityTitle,
+      priceTnd: totalPrice,
+      booking: { ...data, policyAccepted },
+    })
+    toast.success("Ajouté au panier.")
+    router.push("/panier")
   }
 
   return (
@@ -317,6 +347,15 @@ export function ActivityGuestBookingForm({
           </CardContent>
         </Card>
 
+        {/* Politique d'annulation */}
+        <CancellationPolicyDisplay
+          productType="activity"
+          productId={activityId}
+          accepted={policyAccepted}
+          onAcceptedChange={setPolicyAccepted}
+          onPolicyResolved={setResolvedPolicy}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle>Mode de paiement</CardTitle>
@@ -385,21 +424,34 @@ export function ActivityGuestBookingForm({
           </CardContent>
         </Card>
 
-        <Button
-          type="submit"
-          size="lg"
-          className="w-full"
-          disabled={isSubmitting || !watchedSessionId || !acceptCgv}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              Traitement en cours…
-            </>
-          ) : (
-            "Confirmer & payer"
-          )}
-        </Button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="w-full sm:flex-1"
+            disabled={!watchedSessionId || policyAcceptanceRequired}
+            onClick={form.handleSubmit(onAddToCart)}
+          >
+            <ShoppingCart className="mr-2 size-4" />
+            Ajouter au panier
+          </Button>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full sm:flex-1"
+            disabled={isSubmitting || !watchedSessionId || !acceptCgv || policyAcceptanceRequired}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Traitement en cours…
+              </>
+            ) : (
+              "Confirmer & payer"
+            )}
+          </Button>
+        </div>
       </form>
     </div>
   )

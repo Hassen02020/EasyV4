@@ -12,24 +12,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
-  ChevronRight as ArrowRight,
   ChevronDown,
   ChevronUp,
-  Check,
+  ShieldCheck,
+  Award,
+  Lightbulb,
+  CheckCircle2,
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
-import type { CancellationStatus } from "@/lib/hotel-search/cancellation"
+import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"
 
-interface RoomOption {
-  id: number
-  name: string
-  cancellation: CancellationStatus
-  available: boolean
-  price: number
-  boardingId?: number
-  boardingCode?: string
-}
+export type { RoomOption }
 
 interface HotelCardProps {
   hotel: {
@@ -47,49 +41,57 @@ interface HotelCardProps {
     mealPlan: string
     mealOptions?: string[]
     rooms?: RoomOption[]
+    /** PHASE 30.2 — permet d'afficher "Annulation gratuite" sans devoir déplier "Tarifs & chambres". */
+    hasFreeCancellation?: boolean
+    /** PHASE 33 — "Pourquoi ce choix ?", une seule raison réelle la plus pertinente (voir toCardShape). `null`/absent si aucun constat ne s'applique. */
+    whyChoose?: string | null
+    /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
     pricePerNight?: number
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
   currency?: string
+  /** PHASE FAVORIS — état réel (persisté), fourni par l'appelant qui a chargé listMyFavorites(). `undefined` tant que non chargé : le cœur reste neutre plutôt que d'afficher un faux "non favori". */
+  isFavorited?: boolean
+  /** Absent tant que l'appelant n'a pas câblé la bascule réelle (toggleFavorite) — le bouton reste alors désactivé plutôt que de simuler un succès local. */
+  onToggleFavorite?: () => void
+  favoritePending?: boolean
 }
 
-function CancellationBadge({ status }: { status: CancellationStatus }) {
-  if (status.kind === "free") {
-    return (
-      <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-        Annulation gratuite avant le {status.beforeDate}
-      </span>
-    )
-  }
-  if (status.kind === "non_refundable") {
-    return (
-      <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
-        Non remboursable
-      </span>
-    )
-  }
-  return (
-    <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs">
-      Conditions d&apos;annulation non communiquées
-    </span>
-  )
+// Les libellés d'équipement viennent tels quels du fournisseur myGo
+// (hotel.facilities[].title, texte libre — souvent en français : "Piscine",
+// "Petit-déjeuner"…), jamais une clé anglaise fixe : une correspondance
+// exacte contre "Pool"/"Breakfast" ne matchait donc quasiment jamais la
+// donnée réelle. Recherche par mot-clé (FR + EN) au lieu d'un lookup exact,
+// avec une icône générique de repli plutôt qu'aucune icône.
+const AMENITY_ICON_RULES: { keywords: string[]; icon: React.ReactNode }[] = [
+  { keywords: ["wifi", "wi-fi"], icon: <Wifi className="h-4 w-4" /> },
+  { keywords: ["pool", "piscine"], icon: <Waves className="h-4 w-4" /> },
+  {
+    keywords: ["breakfast", "petit-déjeuner", "petit déjeuner", "petit dejeuner"],
+    icon: <Coffee className="h-4 w-4" />,
+  },
+  { keywords: ["spa"], icon: <Sparkles className="h-4 w-4" /> },
+]
+
+function resolveAmenityIcon(amenity: string): React.ReactNode {
+  const normalized = amenity.toLowerCase()
+  const rule = AMENITY_ICON_RULES.find((r) => r.keywords.some((k) => normalized.includes(k)))
+  return rule?.icon ?? <CheckCircle2 className="h-4 w-4" />
 }
 
-const amenityIcons: Record<string, React.ReactNode> = {
-  "Wi-Fi": <Wifi className="h-4 w-4" />,
-  Pool: <Waves className="h-4 w-4" />,
-  Breakfast: <Coffee className="h-4 w-4" />,
-  Spa: <Sparkles className="h-4 w-4" />,
-}
-
-export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
+export function HotelCard({
+  hotel,
+  onBook,
+  onViewDetails,
+  isFavorited,
+  onToggleFavorite,
+  favoritePending,
+}: HotelCardProps) {
   const { format } = useCurrency()
   const [currentImage, setCurrentImage] = useState(0)
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const [selectedMealPlan, setSelectedMealPlan] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
-  const [selectedRoom, setSelectedRoom] = useState<number | null>(null)
 
   const mealOptions = hotel.mealOptions || [hotel.mealPlan]
 
@@ -119,20 +121,28 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
             style={{
               backgroundImage: `url(${hotel.images[currentImage]})`,
             }}
+            role="img"
+            aria-label={`Photo de ${hotel.name}`}
           />
 
-          {/* Image Navigation */}
+          {/* PHASE 30 — visibles par défaut sur mobile (aucun hover tactile) ;
+              révélées au survol seulement à partir de md (pointeur souris),
+              corrige des flèches inaccessibles sur tactile trouvé pendant
+              l'audit. PHASE 30 (audit) — aria-label en français (cohérence
+              avec le reste de l'UI) + type="button" explicite. */}
           <button
+            type="button"
             onClick={prevImage}
-            className="bg-card/90 hover:bg-card absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-            aria-label="Previous image"
+            className="bg-card/90 hover:bg-card absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
+            aria-label="Photo précédente"
           >
             <ChevronLeft className="text-foreground h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={nextImage}
-            className="bg-card/90 hover:bg-card absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-            aria-label="Next image"
+            className="bg-card/90 hover:bg-card absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
+            aria-label="Photo suivante"
           >
             <ChevronRight className="text-foreground h-4 w-4" />
           </button>
@@ -142,29 +152,29 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
             {hotel.images.map((_, i) => (
               <button
                 key={i}
+                type="button"
                 onClick={() => setCurrentImage(i)}
                 className={`h-2 w-2 rounded-full transition-colors ${
                   i === currentImage ? "bg-card" : "bg-card/50"
                 }`}
-                aria-label={`View image ${i + 1}`}
+                aria-label={`Voir la photo ${i + 1}`}
               />
             ))}
           </div>
 
           {/* Wishlist Button */}
           <button
-            onClick={() => setIsWishlisted(!isWishlisted)}
-            className="bg-card/90 hover:bg-card absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-            aria-label={
-              isWishlisted ? "Remove from wishlist" : "Add to wishlist"
-            }
+            type="button"
+            onClick={onToggleFavorite}
+            disabled={!onToggleFavorite || favoritePending}
+            className="bg-card/90 hover:bg-card absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label={isFavorited ? "Retirer des favoris" : "Ajouter aux favoris"}
+            aria-pressed={isFavorited ?? false}
           >
             <Heart
               className={`h-4 w-4 ${
-                isWishlisted
-                  ? "fill-destructive text-destructive"
-                  : "text-foreground"
-              }`}
+                isFavorited ? "fill-destructive text-destructive" : "text-foreground"
+              } ${favoritePending ? "animate-pulse" : ""}`}
             />
           </button>
         </div>
@@ -196,17 +206,42 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
               {hotel.location}
             </button>
 
-            {/* Tags */}
+            {/* Tags — PHASE 30.3 : chaque badge communique un signal
+                DIFFÉRENT, jamais un style générique unique :
+                - "Promo" = opportunité de prix (offer.discountPercent > 0,
+                  myGo basePrice réel) → accent rouge/feu ;
+                - "Recommandé" = choix du Ranking Engine (offer.recommended,
+                  backend) → accent plein primary/award, JAMAIS confondu
+                  avec un simple thème (avant Phase 30.3 : même style
+                  outline que les tags de thème, donc invisible au scan) ;
+                - thèmes réels (h.themes) = information neutre → outline. */}
             <div className="mb-3 flex flex-wrap gap-1.5">
-              {hotel.tags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className="bg-secondary/30 border-primary/30 text-primary rounded-full px-2 py-0.5 text-xs font-normal"
-                >
-                  {tag}
-                </Badge>
-              ))}
+              {hotel.tags.map((tag) =>
+                tag === "Promo" ? (
+                  <Badge
+                    key={tag}
+                    className="rounded-full border-transparent bg-red-500 px-2 py-0.5 text-xs font-semibold text-white hover:bg-red-500"
+                  >
+                    🔥 Promo
+                  </Badge>
+                ) : tag === "Recommandé" ? (
+                  <Badge
+                    key={tag}
+                    className="bg-primary text-primary-foreground hover:bg-primary flex items-center gap-1 rounded-full border-transparent px-2 py-0.5 text-xs font-semibold"
+                  >
+                    <Award className="h-3 w-3" />
+                    Recommandé
+                  </Badge>
+                ) : (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="bg-secondary/30 border-primary/30 text-primary rounded-full px-2 py-0.5 text-xs font-normal"
+                  >
+                    {tag}
+                  </Badge>
+                ),
+              )}
             </div>
 
             {/* Amenities */}
@@ -216,7 +251,7 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
                   key={amenity}
                   className="flex items-center gap-1.5 text-sm"
                 >
-                  {amenityIcons[amenity]}
+                  {resolveAmenityIcon(amenity)}
                   <span>{amenity}</span>
                 </div>
               ))}
@@ -225,16 +260,22 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
 
           {/* Pricing Section */}
           <div className="border-border flex min-w-[150px] flex-col items-end justify-between border-t pt-4 md:border-t-0 md:border-l md:pt-0 md:pl-4">
-            {/* Exclusive Badge */}
+            {/* PHASE 30 — badge affiché uniquement quand une remise RÉELLE
+                existe (myGo basePrice > price), jamais inconditionnellement. */}
             {hotel.discountPercent > 0 && (
               <div className="bg-primary text-primary-foreground mb-2 rounded-full px-2 py-1 text-xs font-semibold">
-                Exclusive
+                -{hotel.discountPercent}%
               </div>
             )}
 
             <div className="text-right">
-              <p className="text-muted-foreground mb-1 text-xs">Séjour total</p>
-              <div className="flex items-baseline justify-end gap-1">
+              <p className="text-muted-foreground mb-1 text-xs">À partir de</p>
+              <div className="flex items-baseline justify-end gap-1.5">
+                {hotel.discountPercent > 0 && (
+                  <span className="text-muted-foreground text-sm line-through">
+                    {format(hotel.originalPrice)}
+                  </span>
+                )}
                 <span className="text-primary text-2xl font-bold">
                   {format(hotel.discountedPrice)}
                 </span>
@@ -246,7 +287,35 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
               )}
               <p className="text-muted-foreground mt-1 text-xs">
                 {mealOptions[selectedMealPlan]}
+                {/* PHASE 30 (audit K/L) — signale qu'il existe d'autres
+                    formules réelles sans devoir déplier la card, comme le
+                    fait déjà l'annulation gratuite ci-dessous. */}
+                {mealOptions.length > 1 && (
+                  <span className="text-muted-foreground/70">
+                    {" "}
+                    · {mealOptions.length} formules disponibles
+                  </span>
+                )}
               </p>
+              {/* PHASE 30.2 — répond à "l'annulation est-elle gratuite ?"
+                  directement sur la card (donnée réelle, même règle 3-états
+                  que la liste de chambres dépliée) — pas besoin d'ouvrir
+                  "Tarifs & chambres" pour le savoir. */}
+              {hotel.hasFreeCancellation && (
+                <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Annulation gratuite
+                </p>
+              )}
+              {/* PHASE 33 — "Pourquoi ce choix ?" : une seule raison réelle,
+                  jamais affichée si aucun constat ne s'applique (voir
+                  toCardShape::whyChoose). */}
+              {hotel.whyChoose && (
+                <p className="text-muted-foreground mt-1.5 inline-flex items-center gap-1 text-xs">
+                  <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  {hotel.whyChoose}
+                </p>
+              )}
             </div>
 
             <div className="mt-3 flex w-full flex-col gap-2">
@@ -275,15 +344,17 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
         </div>
       </div>
 
-      {/* Meal Plan Tabs */}
+      {/* Meal Plan Tabs — PHASE 30 : défile horizontalement au lieu de
+          déborder/couper les libellés quand 3+ pensions existent (BB/HB/
+          FB/AI courant sur myGo), trouvé pendant l'audit mobile. */}
       {mealOptions.length > 1 && (
         <div className="border-border bg-muted/30 border-t">
-          <div className="flex">
+          <div className="flex overflow-x-auto">
             {mealOptions.map((plan, index) => (
               <button
                 key={plan}
                 onClick={() => setSelectedMealPlan(index)}
-                className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`shrink-0 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedMealPlan === index
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -296,86 +367,10 @@ export function HotelCard({ hotel, onBook, onViewDetails }: HotelCardProps) {
         </div>
       )}
 
-      {/* Room Selection Section */}
+      {/* Room Selection Section — voir components/hotel-room-rates.tsx (partagé avec la fiche hôtel). */}
       {isExpanded && (
-        <div className="border-border bg-card border-t">
-          {/* Room Header — libellé neutre : l'occupation réelle (nombre de
-              chambres/adultes) est déjà reflétée dans le nom de chaque
-              chambre ("… (Chambre N)") quand la recherche en couvre
-              plusieurs, on n'affiche jamais une occupation inventée ici. */}
-          <div className="bg-muted/30 border-border border-b px-4 py-3">
-            <h4 className="text-foreground font-semibold">
-              Chambres et tarifs disponibles
-            </h4>
-          </div>
-
-          {rooms.length === 0 && (
-            <div className="text-muted-foreground px-4 py-6 text-sm">
-              Aucune chambre disponible pour cette offre.
-            </div>
-          )}
-
-          {/* Room Options */}
-          <div className="divide-border divide-y">
-            {rooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => setSelectedRoom(room.id)}
-                className={`hover:bg-muted/30 flex w-full items-center justify-between px-4 py-3 text-left transition-colors ${
-                  selectedRoom === room.id
-                    ? "bg-primary/5 border-l-primary border-l-4"
-                    : ""
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {selectedRoom === room.id && (
-                    <div className="bg-primary flex h-5 w-5 items-center justify-center rounded-full">
-                      <Check className="text-primary-foreground h-3 w-3" />
-                    </div>
-                  )}
-                  <div>
-                    <p
-                      className={`font-medium ${selectedRoom === room.id ? "text-primary" : "text-foreground"}`}
-                    >
-                      {room.name}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <CancellationBadge status={room.cancellation} />
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs ${
-                          room.available
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {room.available ? "Disponible" : "Sur demande"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-primary text-lg font-bold">
-                    {format(room.price)}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Book Button */}
-          <div className="bg-muted/30 border-border flex justify-end border-t px-4 py-3">
-            <Button
-              onClick={() => {
-                const selected = rooms.find((r) => r.id === selectedRoom)
-                onBook?.(mealOptions[selectedMealPlan], selected)
-              }}
-              disabled={!selectedRoom}
-              className="gap-2"
-            >
-              Réserver
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="border-border border-t">
+          <HotelRoomRates rooms={rooms} onBook={onBook} />
         </div>
       )}
     </div>

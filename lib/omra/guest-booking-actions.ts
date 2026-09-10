@@ -53,9 +53,17 @@ import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
+import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
+import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
 
 export type CreateGuestOmraBookingResult =
-  | { ok: true; reservationId: string; publicRef: string; status: "confirmed" | "pending" }
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      guestAccessToken: string
+      status: "confirmed" | "pending"
+    }
   | { ok: false; error: string; code?: string }
 
 function pad(n: number, w = 6) {
@@ -100,14 +108,22 @@ export async function createGuestOmraBooking(input: {
     )
     .digest("hex")
 
+  // PHASE "CUSTOMER RESERVATION LINK" — résolu AVANT la transaction (I/O
+  // Supabase, aucune raison de le faire depuis l'intérieur d'une transaction
+  // DB) : `null` pour tout visiteur non connecté ou dont l'email de session
+  // ne correspond pas exactement à l'email du premier pèlerin (voir
+  // lib/booking/customer-identity.ts — jamais un rattachement ambigu).
+  const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.pilgrims[0]?.email)
+
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestOmraBooking(parsed.data, input.paymentMethod),
+    runCreateGuestOmraBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
   )
 }
 
 async function runCreateGuestOmraBooking(
   booking: OmraGuestBookingInput,
   paymentMethod: GuestPaymentMethod,
+  linkedAuthUserId: string | null,
 ): Promise<CreateGuestOmraBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -155,6 +171,17 @@ async function runCreateGuestOmraBooking(
           : parseFloat(pkg.basePrice)
         const totalTnd = pricePerPilgrim * pilgrimCount
 
+        // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---
+        // Résolue et figée AU MOMENT de cette réservation précise (spécifique
+        // au package > défaut agence > aucune) — voir lib/booking/policy-engine.ts.
+        // Un changement de version ultérieur ne modifie jamais ce snapshot.
+        const resolvedPolicy = await resolveCancellationPolicy(tx, {
+          agencyId,
+          productType: "omra",
+          productId: booking.packageId,
+        })
+        const policySnapshot = buildPolicySnapshot(resolvedPolicy, booking.policyAccepted)
+
         // --- 2. Règlement (card = paiement réel immédiat, jamais de faux succès) ---
         if (paymentMethod === "card") {
           const provider = getPaymentProvider()
@@ -186,6 +213,12 @@ async function runCreateGuestOmraBooking(
             civicIdType: "passport",
             birthDate: firstPilgrim.birthDate,
             nationality: firstPilgrim.nationality,
+            // PHASE "CUSTOMER RESERVATION LINK" — nouvelle ligne dans tous
+            // les cas (ce module ne réutilise jamais un customer existant),
+            // donc aucun risque de réattribuer une ligne préexistante :
+            // `null` pour tout visiteur non connecté (comportement guest
+            // inchangé), voir lib/booking/customer-identity.ts.
+            authUserId: linkedAuthUserId ?? undefined,
           })
           .returning({ id: customers.id })
         const customerId = customer.id
@@ -217,10 +250,12 @@ async function runCreateGuestOmraBooking(
               children: 0,
               channel: "b2c_guest",
               paymentMethod,
+              policySnapshot,
             },
           })
-          .returning({ id: reservations.id })
+          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
         const reservationId = reservation.id
+        const guestAccessToken = reservation.guestAccessToken
 
         if (isImmediatelyPaid) {
           await tx
@@ -314,6 +349,7 @@ async function runCreateGuestOmraBooking(
         return {
           reservationId,
           publicRef,
+          guestAccessToken,
           status: (isImmediatelyPaid ? "confirmed" : "pending") as "confirmed" | "pending",
           packageName: pkg.name,
           totalTnd,
@@ -351,7 +387,13 @@ async function runCreateGuestOmraBooking(
       }
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef, status: result.status }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
+      status: result.status,
+    }
   } catch (err) {
     if (err instanceof PaymentRejected) {
       return { ok: false, error: err.message, code: err.code }

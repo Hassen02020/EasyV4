@@ -17,13 +17,12 @@
  * Toutes les sommes sont stockées en `numeric(12, 3)` (millimes TND).
  */
 
-import { eq, sql } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 
 import { getDb } from "@/lib/db/client"
 import { getRedis } from "@/lib/cache/redis"
 import { metrics } from "@/lib/observability/metrics"
 import {
-  agencies,
   partnerCreditMovements,
   type NewPartnerCreditMovement,
 } from "@/lib/db/schema"
@@ -260,18 +259,25 @@ export async function debitPartnerCredit(
       // ------------------------------------------------------------------
       // 1. Verrou pessimiste row-level sur l'agence partenaire.
       //
-      // `.for("update")` génère `SELECT ... FOR UPDATE` côté Postgres :
-      // toute autre transaction tentant un FOR UPDATE / UPDATE / DELETE
-      // sur cette ligne attendra notre `COMMIT` ou `ROLLBACK`.
+      // Passe par la fonction SECURITY DEFINER `lock_agency_for_debit()`
+      // (drizzle/manual/0025_agency_debit_lock_rls_gap.sql), pas par un
+      // `tx.select(agencies)...for("update")` direct : trouvé en Phase 14.3
+      // (validation live, jamais détectable par des tests à DB mockée) —
+      // Postgres consulte AUSSI la policy UPDATE de la table pour un
+      // `SELECT ... FOR UPDATE` (verrouiller une ligne exige la permission
+      // UPDATE, pas seulement SELECT). `agencies` n'a de policy UPDATE que
+      // pour `is_super_admin()` (`agencies_admin_write`) — donc CE VERROU
+      // échouait silencieusement (0 ligne, "AGENCY_NOT_FOUND") pour CHAQUE
+      // réservation B2B réelle (isSuperAdmin toujours false ici), avant
+      // même d'atteindre `set_agency_deposit_balance()`. Même pattern que
+      // ce correctif existant : la fonction vérifie elle-même
+      // `current_agency_id() = p_agency_id OR is_super_admin()` avant de
+      // verrouiller, donc pas de bypass cross-agence malgré SECURITY
+      // DEFINER.
       // ------------------------------------------------------------------
-      const selectChain = tx
-        .select({
-          id: agencies.id,
-          depositBalance: agencies.depositBalance,
-        })
-        .from?.(agencies)
-        .where?.(eq(agencies.id, input.agencyId))
-      const lockedRows = (await selectChain?.for?.("update")) as Array<{
+      const lockedRows = (await tx.execute(
+        sql`select id, deposit_balance as "depositBalance" from lock_agency_for_debit(${input.agencyId}::uuid)`,
+      )) as Array<{
         id: string
         depositBalance: string
       }>

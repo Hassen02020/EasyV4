@@ -2,27 +2,34 @@
  * GET /api/packages/voucher/[ref]
  *
  * Téléchargement du voucher PDF Voyage Organisé — même mécanisme que
- * `/api/booking/voucher/[ref]` (Hôtel) et `/api/omra/voucher/[ref]` (Omra) :
- * accès scopé par la connaissance de la référence publique, garde
- * `isPackageVoucherEligible` (jamais de voucher pour une réservation non
- * confirmée/payée).
+ * `/api/booking/voucher/[ref]` (Hôtel) et `/api/omra/voucher/[ref]` (Omra),
+ * garde `isPackageVoucherEligible` (jamais de voucher pour une réservation
+ * non confirmée/payée).
+ *
+ * Phase 21.1 (P0-1) : `publicRef` seul n'est plus la frontière d'accès —
+ * `?token=` (`guestAccessToken`) est désormais obligatoire, voir
+ * `app/api/booking/voucher/[ref]/route.ts` pour le détail du correctif.
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, reservationPackage, catalogPackages, customers, agencies } from "@/lib/db/schema"
 import { renderPackageVoucherPdf } from "@/lib/pdf/voucher-package"
 import { isPackageVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ ref: string }> },
 ) {
   const { ref } = await params
+  const token = req.nextUrl.searchParams.get("token")
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "server_misconfigured" }, { status: 500 })
+  }
+  if (!token) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 })
   }
 
   const row = await withSystemContext(async (tx) => {
@@ -47,7 +54,7 @@ export async function GET(
       .innerJoin(agencies, eq(agencies.id, reservations.agencyId))
       .leftJoin(reservationPackage, eq(reservationPackage.reservationId, reservations.id))
       .leftJoin(catalogPackages, eq(catalogPackages.id, reservationPackage.packageId))
-      .where(eq(reservations.publicRef, ref))
+      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
       .limit(1)
     return r ?? null
   })

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { redirect } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import {
   CheckCircle2,
   FileText,
@@ -24,7 +24,6 @@ import { loadReservationByRef } from "@/lib/pro/reservation-detail"
 type ConfirmationSearchParams = {
   payment?: string
   total?: string
-  coupon?: string
   ref?: string
 }
 
@@ -61,6 +60,12 @@ export default async function ProBookingConfirmationPage({
   if (!profile) redirect("/pro/login")
 
   const reservation = await loadReservationByRef(ref, profile.agency.id)
+
+  // Sans réservation trouvée (agence différente, ref inexistante ou
+  // simple faute de frappe dans l'URL) ET sans `?total=` — donc aucune
+  // preuve qu'on vient bien d'un redirect post-réservation réel — on ne
+  // doit jamais afficher un écran "Réservation enregistrée" fictif.
+  if (!reservation && !search.total) notFound()
 
   const total = reservation?.totalTnd ?? (search.total ? Number.parseFloat(search.total) : 0)
   const paymentInfo = search.payment ? (PAYMENT_LABEL[search.payment] ?? null) : null
@@ -135,10 +140,6 @@ export default async function ProBookingConfirmationPage({
               label="Mode de paiement"
               value={paymentInfo.label}
             />
-          ) : null}
-
-          {search.coupon ? (
-            <Field icon={FileText} label="Coupon appliqué" value={search.coupon} />
           ) : null}
 
           {search.ref ? (

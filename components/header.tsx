@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
   HelpCircle,
@@ -15,14 +15,38 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { CurrencySwitcher } from "@/components/currency-switcher"
 import type { Locale } from "@/lib/locale"
 import { useT } from "@/components/locale-context"
+import { createBrowserSupabase } from "@/lib/supabase/client"
+import { CartBadgeLink } from "@/components/cart/cart-badge-link"
 
 interface HeaderProps {
   currentLocale?: Locale
+  /** Résolu côté serveur par HeaderWrapper quand disponible ; sinon résolu ici côté client. */
+  isLoggedIn?: boolean
+  /** Nom d'agence White Label résolu par proxy.ts (via HeaderWrapper) ; absent = domaine par défaut Easy2Book. */
+  brandName?: string | null
+  /** Logo d'agence White Label ; absent = logo Easy2Book par défaut. */
+  logoUrl?: string | null
 }
 
-export function Header({ currentLocale = "fr" }: HeaderProps) {
+export function Header({ currentLocale = "fr", isLoggedIn, brandName, logoUrl }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(!!isLoggedIn)
   const t = useT()
+
+  useEffect(() => {
+    if (isLoggedIn !== undefined) return
+    let cancelled = false
+    const supabase = createBrowserSupabase()
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!cancelled) setLoggedIn(!!user)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isLoggedIn])
 
   return (
     <header className="bg-card border-border sticky top-0 z-50 border-b shadow-sm">
@@ -32,14 +56,27 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
           <Link
             href="/"
             className="flex items-center gap-2"
-            aria-label="Easy2Book — retour à l'accueil"
+            aria-label={brandName ? `${brandName} — retour à l'accueil` : "Easy2Book — retour à l'accueil"}
           >
-            <Easy2BookLogo withWordmark={false} className="size-10 bg-gray-100" priority />
-            <span className="text-xl font-bold">
-              <span className="text-sidebar">Easy</span>
-              <span className="text-accent">2</span>
-              <span className="text-sidebar">Book</span>
-            </span>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- logo d'agence hébergé sur un CDN arbitraire (agencies.logoUrl), non listé dans next.config remotePatterns
+              <img
+                src={logoUrl}
+                alt={brandName ?? "Logo agence"}
+                className="size-10 rounded bg-gray-100 object-contain"
+              />
+            ) : (
+              <Easy2BookLogo withWordmark={false} className="size-10 bg-gray-100" priority />
+            )}
+            {brandName ? (
+              <span className="text-xl font-bold text-sidebar">{brandName}</span>
+            ) : (
+              <span className="text-xl font-bold">
+                <span className="text-sidebar">Easy</span>
+                <span className="text-accent">2</span>
+                <span className="text-sidebar">Book</span>
+              </span>
+            )}
           </Link>
 
           {/* Desktop Right Actions */}
@@ -68,15 +105,17 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               {t("myBookings")}
             </Link>
 
+            <CartBadgeLink variant="desktop" />
+
             <Button
               variant="outline"
               size="sm"
               className="ml-2 gap-1.5 border-sidebar text-sidebar hover:bg-sidebar hover:text-white"
               asChild
             >
-              <Link href="/login">
+              <Link href="/compte">
                 <User className="size-4" />
-                {t("connexion")}
+                {loggedIn ? t("monCompte") : t("connexion")}
               </Link>
             </Button>
           </div>
@@ -120,14 +159,17 @@ export function Header({ currentLocale = "fr" }: HeaderProps) {
               <CalendarCheck className="size-5 text-sidebar" />
               <span>{t("myBookings")}</span>
             </Link>
+            <div onClick={() => setMobileMenuOpen(false)}>
+              <CartBadgeLink variant="mobile" />
+            </div>
             <div className="border-border border-t pt-4">
               <Button
                 className="w-full gap-2 bg-sidebar hover:bg-sidebar/90"
                 asChild
               >
-                <Link href="/login">
+                <Link href="/compte" onClick={() => setMobileMenuOpen(false)}>
                   <User className="size-4" />
-                  {t("connexion")}
+                  {loggedIn ? t("monCompte") : t("connexion")}
                 </Link>
               </Button>
             </div>

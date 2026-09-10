@@ -8,6 +8,8 @@
 export interface VoucherEmailProps {
   customerName: string
   publicRef: string
+  /** Phase 21.1 — requis pour construire un lien de confirmation valide (publicRef seul est insuffisant, voir app/booking/confirmation/[ref]/page.tsx). */
+  guestAccessToken: string
   hotelName: string
   checkIn: string
   checkOut: string
@@ -29,7 +31,7 @@ function formatDate(iso: string): string {
  * Compatible Resend `html` field (string synchrone).
  */
 export function renderVoucherEmailHtml(props: VoucherEmailProps): string {
-  const { customerName, publicRef, hotelName, checkIn, checkOut, nights } = props
+  const { customerName, publicRef, guestAccessToken, hotelName, checkIn, checkOut, nights } = props
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -94,7 +96,7 @@ export function renderVoucherEmailHtml(props: VoucherEmailProps): string {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
                 <tr>
                   <td align="center">
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://easy2book.tn"}/booking/confirmation/${publicRef}"
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://easy2book.tn"}/booking/confirmation/${publicRef}?token=${guestAccessToken}"
                        style="display:inline-block;background:#1e40af;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:600;font-size:14px;">
                       Voir ma réservation
                     </a>

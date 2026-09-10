@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { updateMyAgencyProfile } from "@/lib/pro/etablissement-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -86,13 +87,18 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!validate()) return
+    if (!validate() || submitting) return
     setSubmitting(true)
-    // Mock — sera un Server Action lié à agencies en phase 9
-    setTimeout(() => {
-      setSubmitting(false)
-      toast.success("Établissement enregistré (mock — phase 9 : Server Action)")
-    }, 700)
+    updateMyAgencyProfile(state)
+      .then((result) => {
+        if (!result.ok) {
+          toast.error(result.error)
+          return
+        }
+        toast.success("Profil établissement mis à jour.")
+      })
+      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .finally(() => setSubmitting(false))
   }
 
   return (

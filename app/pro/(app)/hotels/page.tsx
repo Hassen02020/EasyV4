@@ -18,10 +18,11 @@ import { findDestinationById } from "@/lib/pro/destinations"
 import {
   HotelSearchQuerySchema,
   validateSearchDateRange,
-  runHotelSearch,
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { runSearchThroughHub, logHubSearchObservability } from "@/lib/hotel-suppliers/search-hub"
 import {
   filtersFromSearchParams,
   type HotelFilterState,
@@ -119,10 +120,18 @@ export default async function ProHotelsSerpPage({
     )
   }
 
-  const [result, margins] = await Promise.all([
-    runHotelSearch(q),
+  // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la session
+  // partenaire courante (jamais le compte global MYGO_* si un compte tenant
+  // est configuré) — voir lib/hotel-suppliers/tenant/live-resolution.ts.
+  const [access, margins] = await Promise.all([
+    resolvePartnerMyGoAccess(),
     getActivePartnerMargins(),
   ])
+  // PHASE 28 — même orchestration Hub que /api/hotels/search — un seul
+  // appel réseau myGo, résultat déjà autoritaire réutilisé pour
+  // l'observabilité (voir lib/hotel-suppliers/search-hub.ts).
+  const { runResult: result, hubResult } = await runSearchThroughHub(q, access)
+  logHubSearchObservability(hubResult, { supplierAccountId: access.accountId })
 
   if (!result.ok) {
     const title =
@@ -179,6 +188,8 @@ export default async function ProHotelsSerpPage({
           nights,
           adults: q.adults,
           children: q.children.length,
+          cityId: q.cityId,
+          childrenAges: q.children,
         }}
       />
     </div>

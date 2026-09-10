@@ -1,18 +1,19 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
+import { toast } from "sonner"
 import { HotelCard } from "@/components/hotel-card"
+import type { RoomOption } from "@/components/hotel-room-rates"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
 import { selectBestRate } from "@/lib/mygo/best-rate"
-import {
-  cancellationStatusFor,
-  type CancellationStatus,
-} from "@/lib/hotel-search/cancellation"
+import { hasFreeCancellation } from "@/lib/mygo/facets"
+import { listMyFavorites } from "@/app/actions/list-my-favorites"
+import { toggleFavorite } from "@/app/actions/toggle-favorite"
 
 interface BookingData {
   id: number
@@ -36,18 +37,11 @@ interface BookingData {
   roomId: number
 }
 
-interface RoomOption {
-  id: number
-  name: string
-  cancellation: CancellationStatus
-  available: boolean
-  price: number
-  /** Id/code myGo du Boarding auquel appartient cette chambre — requis pour BookingCreation. */
-  boardingId?: number
-  boardingCode?: string
-}
+// RoomOption réutilisé tel quel depuis components/hotel-room-rates.tsx —
+// voir ce fichier pour la doc des 3 états `cancellation` (bug corrigé Phase
+// 30 : plus jamais réduit à une seule date/badge "gratuite" inconditionnel).
 
-interface CardHotelShape {
+export interface CardHotelShape {
   id: number
   name: string
   location: string
@@ -62,6 +56,22 @@ interface CardHotelShape {
   mealPlan: string
   mealOptions?: string[]
   rooms?: RoomOption[]
+  /**
+   * PHASE 30.2 — vrai si AU MOINS une chambre de l'offre a une politique
+   * d'annulation réellement gratuite (même règle 3-états que `rooms[].
+   * cancellation`, voir hotel-room-rates.tsx) — permet d'afficher la
+   * réponse à "l'annulation est-elle gratuite ?" directement sur la card,
+   * sans devoir déplier "Tarifs & chambres" pour le savoir.
+   */
+  hasFreeCancellation: boolean
+  /**
+   * PHASE 33 — courte explication "Pourquoi ce choix ?" pour la card SERP
+   * (1 seule raison, la plus pertinente — contrairement à la liste
+   * complète "Pourquoi choisir cet hôtel" de la fiche hôtel, l'espace de
+   * la card ne permet qu'une phrase). `null` si aucun constat réel ne
+   * s'applique — jamais une phrase générique de remplissage.
+   */
+  whyChoose: string | null
   /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
   pricePerNight?: number
   /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
@@ -83,7 +93,7 @@ const PLACEHOLDER_IMG =
  * chambre All Inclusive la moins chère est à 380, la card affiche 380 (le
  * vrai prix pour ce que l'utilisateur a demandé), pas 250.
  */
-function toCardShape(
+export function toCardShape(
   offer: HotelOfferDTO,
   activeBoardings: string[] = [],
   nights?: number,
@@ -114,23 +124,69 @@ function toCardShape(
   const rooms: RoomOption[] = allRooms
     .filter((r) => !r.room.stopReservation)
     .slice(0, 8)
-    .map(({ room, boarding, groupIndex }) => ({
-      id: room.id,
-      name:
-        roomGroupCount > 1
-          ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`
-          : `${room.name} • ${boarding.name}`,
-      cancellation: cancellationStatusFor(room),
-      available: !room.stopReservation,
-      price: Math.round(room.price),
-      boardingId: boarding.id,
-      boardingCode: boarding.code,
-    }))
+    .map(({ room, boarding, groupIndex }) => {
+      // Même règle que lib/mygo/facets.ts::hasFreeCancellation et
+      // components/pro/pro-room-selector.tsx — une politique BEFORE_ARRIVAL
+      // ne veut dire "gratuite" que si ses frais sont réellement nuls.
+      const freePolicy = room.notRefundable
+        ? undefined
+        : room.cancellationPolicies.find(
+            (p) => p.nature === "BEFORE_ARRIVAL" && p.fees === 0,
+          )
+      return {
+        id: room.id,
+        // PHASE 36 — identité UI unique (voir doc de RoomOption.key) : myGo
+        // réutilise le même room.id pour le même type de chambre à travers
+        // PLUSIEURS pensions (bug de sélection confirmé en environnement
+        // réel — "duplicate key" + Réserver résolvant sur la mauvaise
+        // pension). boarding.id + room.id + groupIndex reste unique par
+        // ligne réellement affichée.
+        key: `${boarding.id}-${room.id}-${groupIndex}`,
+        name:
+          roomGroupCount > 1
+            ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`
+            : `${room.name} • ${boarding.name}`,
+        cancellation: (room.notRefundable
+          ? "NON_REFUNDABLE"
+          : freePolicy
+            ? "FREE"
+            : "UNKNOWN") as RoomOption["cancellation"],
+        freeCancellationDate: freePolicy?.fromDate,
+        available: !room.stopReservation,
+        price: Math.round(room.price),
+        boardingId: boarding.id,
+        boardingCode: boarding.code,
+        boardingName: boarding.name,
+      }
+    })
 
   const images = h.image ? [h.image] : [PLACEHOLDER_IMG]
   const stars = h.stars ?? 0
+
+  // Prix affiché = celui du "meilleur tarif" retenu ci-dessus (déjà
+  // conscient du filtre de pension actif), pas systématiquement le prix
+  // brut le plus bas de l'offre — voir le commentaire Best Rate Engine.
+  const displayPrice = Math.round(bestRate?.price ?? offer.fromPrice)
+
+  // PHASE 30 — remise réelle uniquement quand myGo renvoie basePrice > price
+  // pour la chambre au meilleur tarif (jamais fabriquée — voir RoomOfferDTO.
+  // basePrice, lib/mygo/mappers.ts). `bestRate` peut être `null` (offre sans
+  // chambre réservable) : pas de remise dans ce cas.
+  const roundedBasePrice =
+    bestRate?.basePrice != null ? Math.round(bestRate.basePrice) : undefined
+  const hasRealDiscount =
+    roundedBasePrice != null && roundedBasePrice > displayPrice
+  const originalPrice = hasRealDiscount ? roundedBasePrice : displayPrice
+  const discountPercent = hasRealDiscount
+    ? Math.round((1 - displayPrice / originalPrice) * 100)
+    : 0
+
   const tags: string[] = []
   if (offer.recommended) tags.push("Recommandé")
+  // PHASE 30.1 — même donnée réelle que le badge prix barré (discountPercent
+  // > 0, myGo basePrice), juste rendue aussi comme tag visible en scan rapide
+  // de la card — jamais une seconde source/logique de promotion.
+  if (hasRealDiscount) tags.push("Promo")
   for (const t of (h.themes ?? []).slice(0, 3)) tags.push(t)
 
   const amenities: string[] = []
@@ -138,10 +194,23 @@ function toCardShape(
     if (f.title) amenities.push(f.title)
   }
 
-  // Prix affiché = celui du "meilleur tarif" retenu ci-dessus (déjà
-  // conscient du filtre de pension actif), pas systématiquement le prix
-  // brut le plus bas de l'offre — voir le commentaire Best Rate Engine.
-  const displayPrice = Math.round(bestRate?.price ?? offer.fromPrice)
+  // PHASE 33 — "Pourquoi ce choix ?" : UNE seule raison réelle, la plus
+  // pertinente pour la décision (ordre de priorité), jamais une phrase de
+  // remplissage quand aucun constat ne s'applique. L'annulation gratuite
+  // n'est volontairement PAS candidate ici : elle a déjà sa propre ligne
+  // dédiée sur la card (hotel.hasFreeCancellation) — l'y répéter serait
+  // redondant, pas une seconde information.
+  const whyChoose: string | null = offer.recommended
+    ? "Recommandé selon le classement"
+    : hasRealDiscount
+      ? "Offre promotionnelle"
+      : mealOptions.some((m) => /all inclusive/i.test(m))
+        ? "All Inclusive disponible"
+        : mealOptions.length > 1
+          ? `${mealOptions.length} formules disponibles`
+          : stars >= 4
+            ? `Hôtel ${stars} étoiles`
+            : null
 
   return {
     id: h.id,
@@ -151,13 +220,18 @@ function toCardShape(
     stars,
     amenities,
     tags,
-    originalPrice: displayPrice,
+    originalPrice,
     discountedPrice: displayPrice,
-    discountPercent: 0,
+    discountPercent,
     images,
     mealPlan,
     mealOptions,
     rooms,
+    // Même définition que le filtre "Annulation gratuite seulement"
+    // (lib/mygo/facets.ts) — jamais une seconde logique susceptible de
+    // diverger (ex. sur la prise en compte des chambres stopReservation).
+    hasFreeCancellation: hasFreeCancellation(offer),
+    whyChoose,
     pricePerNight:
       nights && nights > 0 ? Math.round(displayPrice / nights) : undefined,
     myGoToken: offer.token,
@@ -222,6 +296,70 @@ export function HotelListings({
   onClearFilters,
 }: HotelListingsProps) {
   const router = useRouter()
+
+  // Favoris — état réel chargé une fois (pas par card, pour éviter N appels
+  // pour N résultats) ; `undefined` tant que non chargé (le cœur reste
+  // neutre, voir hotel-card.tsx) plutôt que de démarrer sur un faux "non
+  // favori" avant que la requête réponde.
+  const [favoriteHotelIds, setFavoriteHotelIds] = useState<Set<string> | undefined>(undefined)
+  const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    listMyFavorites().then((result) => {
+      if (cancelled || !result.ok) return
+      setFavoriteHotelIds(
+        new Set(result.favorites.filter((f) => f.itemType === "hotel").map((f) => f.itemRef)),
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleToggleFavorite = (cardHotel: CardHotelShape) => {
+    const itemRef = String(cardHotel.id)
+    if (pendingFavoriteIds.has(itemRef)) return
+    setPendingFavoriteIds((prev) => new Set(prev).add(itemRef))
+    toggleFavorite({
+      itemType: "hotel",
+      itemRef,
+      title: cardHotel.name,
+      imageUrl: cardHotel.images[0] ?? null,
+      location: cardHotel.location,
+      // `discountedPrice` est toujours en TND base (voir hotel-card.tsx qui
+      // le passe tel quel à `format()`, lequel convertit DEPUIS le TND) —
+      // jamais la prop `currency` de ce composant, qui porte en réalité la
+      // devise fournisseur myGo, sans rapport avec l'unité de ce montant.
+      priceFrom: cardHotel.discountedPrice,
+      currency: "TND",
+      href: `/hotels/${cardHotel.id}`,
+    })
+      .then((result) => {
+        if (!result.ok) {
+          if (result.code === "NOT_AUTHENTICATED") {
+            toast.error("Connectez-vous pour ajouter des favoris.")
+          } else {
+            toast.error(result.error)
+          }
+          return
+        }
+        setFavoriteHotelIds((prev) => {
+          const next = new Set(prev ?? [])
+          if (result.favorited) next.add(itemRef)
+          else next.delete(itemRef)
+          return next
+        })
+      })
+      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .finally(() => {
+        setPendingFavoriteIds((prev) => {
+          const next = new Set(prev)
+          next.delete(itemRef)
+          return next
+        })
+      })
+  }
 
   // Nombre de nuits partagé (récap header, prix/nuit sur chaque card, calcul
   // du draft de réservation) — un seul calcul, jamais trois divergents.
@@ -434,6 +572,9 @@ export function HotelListings({
             currency={currency}
             onBook={(mealPlan, room) => handleBookHotel(hotel, mealPlan, room)}
             onViewDetails={() => handleViewDetails(hotel.id)}
+            isFavorited={favoriteHotelIds?.has(String(hotel.id))}
+            onToggleFavorite={() => handleToggleFavorite(hotel)}
+            favoritePending={pendingFavoriteIds.has(String(hotel.id))}
           />
         ))}
       </div>

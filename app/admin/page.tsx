@@ -89,10 +89,22 @@ function statusBadge(status: RecentBooking["status"]) {
     case "cancelled":
     case "no_show":
     case "refunded":
+    case "expired":
       return (
         <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/10">
           <XCircle className="mr-1 size-3" />
-          {status === "refunded" ? "Remboursé" : "Annulé"}
+          {status === "refunded"
+            ? "Remboursé"
+            : status === "expired"
+              ? "Expiré"
+              : "Annulé"}
+        </Badge>
+      )
+    case "completed":
+      return (
+        <Badge className="bg-success/10 text-success hover:bg-success/10">
+          <CheckCircle className="mr-1 size-3" />
+          Terminé
         </Badge>
       )
     default:

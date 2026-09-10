@@ -203,6 +203,33 @@ test("applyFilters: filtre par facility (AND — toutes doivent être présentes
   assert.deepEqual(result.map((o) => o.hotel.id).sort(), [1, 3])
 })
 
+test("applyFilters: filtre par thème (OR — au moins un thème coché présent, comme boardings)", () => {
+  const offers = [
+    makeOffer({ id: 1, name: "A", stars: 4, price: 500, themes: ["Romantique"] }),
+    makeOffer({ id: 2, name: "B", stars: 5, price: 1200, themes: ["Famille", "Détente"] }),
+    makeOffer({ id: 3, name: "C", stars: 4, price: 800, themes: ["Affaires"] }),
+  ]
+  const filters: HotelFilterState = {
+    ...EMPTY_FILTER_STATE,
+    themes: ["Romantique", "Famille"],
+  }
+  const result = applyFilters(offers, filters)
+  assert.deepEqual(result.map((o) => o.hotel.id).sort(), [1, 2])
+})
+
+test("computeFacets: agrège les thèmes distincts par offre avec leur compte", () => {
+  const offers = [
+    makeOffer({ id: 1, name: "A", stars: 4, price: 500, themes: ["Romantique", "Charme"] }),
+    makeOffer({ id: 2, name: "B", stars: 5, price: 1200, themes: ["Romantique"] }),
+    makeOffer({ id: 3, name: "C", stars: 4, price: 800, themes: [] }),
+  ]
+  const facets = computeFacets(offers)
+  const romantique = facets.themes.find((t) => t.title === "Romantique")
+  const charme = facets.themes.find((t) => t.title === "Charme")
+  assert.equal(romantique?.count, 2)
+  assert.equal(charme?.count, 1)
+})
+
 test("applyFilters: filtre par prix range", () => {
   const offers = [
     makeOffer({ id: 1, name: "A", stars: 4, price: 500 }),
@@ -281,6 +308,7 @@ test("filtersToSearchParams / filtersFromSearchParams : round-trip fidèle", () 
     stars: [4, 5],
     boardings: ["All Inclusive", "Demi Pension"],
     facilities: ["Piscine", "Spa"],
+    themes: ["Romantique", "Famille"],
     priceRange: [200, 900],
     recommendedOnly: true,
     freeCancellationOnly: true,
@@ -311,6 +339,7 @@ const SAMPLE_FACETS: HotelFacets = {
   stars: [],
   boardings: [],
   facilities: [],
+  themes: [],
   priceMin: 100,
   priceMax: 900,
   recommendedCount: 0,
@@ -328,9 +357,10 @@ test("countActiveFilters : compte chaque valeur cochée individuellement", () =>
     ...EMPTY_FILTER_STATE,
     stars: [4, 5],
     boardings: ["All Inclusive"],
+    themes: ["Romantique"],
     recommendedOnly: true,
   }
-  assert.equal(countActiveFilters(filters, SAMPLE_FACETS), 4)
+  assert.equal(countActiveFilters(filters, SAMPLE_FACETS), 5)
 })
 
 test("countActiveFilters : plage de prix comptée seulement si resserrée par rapport aux facets", () => {

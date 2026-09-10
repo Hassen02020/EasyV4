@@ -19,9 +19,9 @@ import {
   Wallet,
   RefreshCw,
   PanelLeft,
-  Car,
   Moon,
   Sun,
+  Plug,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -80,6 +80,7 @@ export type ProSidebarUser = {
 export type ProSidebarAgency = {
   name: string
   brandName: string | null
+  logoUrl: string | null
   depositBalance: string
   creditLowThreshold: string
   maskCredit: boolean
@@ -108,11 +109,12 @@ const BOOKING_NAV: NavItem[] = [
     icon: BedDouble,
     href: "/pro/hotels",
   },
-  {
-    title: "Transferts",
-    icon: Car,
-    href: "/pro/transfers",
-  },
+  // "Transferts" retiré (Phase 38G, gap confirmé) : /pro/transfers n'a
+  // jamais existé — aucun moteur de réservation Transferts B2B n'est
+  // construit (seule la vitrine publique /transferts l'est). Un lien mort
+  // dans la nav est pire qu'une entrée absente ; la re-pointer vers la
+  // vitrine publique sortirait le partenaire de sa session Pro, ce qui
+  // serait trompeur plutôt qu'un vrai correctif.
   {
     // Phase 13.1 : Omraty / Voyages Organisés / Attractions unifiés dans
     // /pro/produits (liste des produits autorisés pour cette agence, voir
@@ -165,6 +167,11 @@ const SETTINGS_NAV: NavItem[] = [
     href: "/pro/marges",
   },
   {
+    title: "Fournisseurs",
+    icon: Plug,
+    href: "/pro/suppliers",
+  },
+  {
     title: "Utilisateurs",
     icon: Users,
     href: "/pro/utilisateurs",
@@ -190,6 +197,7 @@ const PATH_LABELS: Record<string, string> = {
   factures: "Factures",
   etablissement: "Établissement",
   marges: "Marges",
+  suppliers: "Fournisseurs",
   utilisateurs: "Utilisateurs",
   "change-password": "Mot de passe",
   booking: "Réservation",
@@ -421,11 +429,20 @@ export function ProShell({
 
           {/* Agence */}
           <div className="mt-2 flex items-center gap-2 rounded-lg px-1 py-1">
-            <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-md">
-              <span className="text-primary text-xs font-bold">
-                {agencyLabel.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            {agency.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- logo d'agence hébergé sur un CDN arbitraire (agencies.logoUrl), non listé dans next.config remotePatterns
+              <img
+                src={agency.logoUrl}
+                alt={agencyLabel}
+                className="h-7 w-7 shrink-0 rounded-md object-contain"
+              />
+            ) : (
+              <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-md">
+                <span className="text-primary text-xs font-bold">
+                  {agencyLabel.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
             <div className="min-w-0">
               <p className="text-sidebar-foreground truncate text-xs font-semibold">
                 {agencyLabel}

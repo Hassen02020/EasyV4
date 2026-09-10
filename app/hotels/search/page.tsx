@@ -26,6 +26,8 @@ import {
 import { SortSelect } from "@/components/sort-select"
 import { encodeDraft } from "@/lib/booking/draft-store"
 import { Skeleton } from "@/components/ui/skeleton"
+import { FlexibleDateSearch } from "@/components/flexible-date-search"
+import { applyFlexDaysToParams, applyFlexibleCandidateToParams } from "@/lib/mygo/use-flexible-hotel-search"
 
 interface BookingData {
   id: number
@@ -71,6 +73,13 @@ function HotelSearchContent() {
     const raw = searchParams.get("sort")
     return isHotelSortMode(raw) ? raw : DEFAULT_SORT_MODE
   })
+  // PHASE 35 — dates flexibles (Phase 34, /api/hotels/search-flexible) :
+  // 0 = "Exactes", comportement 100% inchangé, aucun appel supplémentaire
+  // (voir components/flexible-date-search.tsx / useFlexibleHotelSearch).
+  const [flexDays, setFlexDaysState] = useState<number>(() => {
+    const raw = Number.parseInt(searchParams.get("flexDays") ?? "0", 10)
+    return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 3) : 0
+  })
 
   const { status, data, error, errorCode, degraded, fromStaleCache, retry } =
     useHotelSearch()
@@ -92,6 +101,23 @@ function HotelSearchContent() {
     const params = new URLSearchParams(searchParams.toString())
     if (mode === DEFAULT_SORT_MODE) params.delete("sort")
     else params.set("sort", mode)
+    router.replace(`/hotels/search?${params.toString()}`, { scroll: false })
+  }
+
+  const updateFlexDays = (next: number) => {
+    setFlexDaysState(next)
+    const params = applyFlexDaysToParams(searchParams, next)
+    router.replace(`/hotels/search?${params.toString()}`, { scroll: false })
+  }
+
+  // PHASE 35 — sécurité de réservation : sélectionner une date candidate ne
+  // fait QUE remplacer checkin/checkout par les dates réellement candidates
+  // et repasser en mode "Exactes" (flexDays=0) — ça redéclenche la
+  // recherche CLASSIQUE (useHotelSearch) pour CES dates précises, jamais
+  // une réservation construite depuis le résumé de comparaison flexible.
+  const selectFlexibleCandidate = (candidateCheckin: string, candidateCheckout: string) => {
+    setFlexDaysState(0)
+    const params = applyFlexibleCandidateToParams(searchParams, candidateCheckin, candidateCheckout)
     router.replace(`/hotels/search?${params.toString()}`, { scroll: false })
   }
 
@@ -207,6 +233,13 @@ function HotelSearchContent() {
               disabled={status !== "success"}
               loading={status === "loading"}
               hasResults={status === "success" && sortedOffers.length > 0}
+            />
+            <FlexibleDateSearch
+              flexDays={flexDays}
+              onFlexDaysChange={updateFlexDays}
+              requestedCheckin={checkin}
+              requestedCheckout={checkout}
+              onSelectCandidate={selectFlexibleCandidate}
             />
             <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
               <FilterChips

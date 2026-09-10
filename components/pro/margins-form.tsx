@@ -5,8 +5,6 @@ import {
   Building2,
   Plane,
   Car,
-  Moon,
-  Sun,
   Percent,
   Coins,
   Save,
@@ -20,14 +18,11 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { formatTND } from "@/lib/pro/format"
+import { upsertMyPricingMargin } from "@/lib/pro/margins-actions"
 
-export type MarginModule =
-  | "hotel"
-  | "flight"
-  | "omra"
-  | "package"
-  | "activity"
-  | "transfer"
+// omra/package/activity retirés : ces modules n'ont pas de coût net séparé
+// du prix de vente — voir lib/pro/pricing.ts (commentaire MarginModule).
+export type MarginModule = "hotel" | "flight" | "transfer"
 
 export type MarginRow = {
   module: MarginModule
@@ -49,17 +44,6 @@ const MODULE_META: Record<
     label: "Vols",
     icon: Plane,
     description: "Billetterie aérienne",
-  },
-  omra: { label: "Omra", icon: Moon, description: "Pèlerinage Omra" },
-  package: {
-    label: "Voyages organisés",
-    icon: Sun,
-    description: "Packages tout inclus",
-  },
-  activity: {
-    label: "Activités",
-    icon: Sun,
-    description: "Excursions & expériences",
   },
   transfer: {
     label: "Transferts",
@@ -84,12 +68,31 @@ export function MarginsForm({ initial }: MarginsFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (submitting) return
     setSubmitting(true)
-    // Mock — sera Server Action sur pricing_margins en phase 9
-    setTimeout(() => {
+    ;(async () => {
+      const results = await Promise.all(
+        rows.map((row) =>
+          upsertMyPricingMargin({
+            module: row.module,
+            marginType: row.marginType,
+            marginValue: row.marginValue,
+            isActive: row.isActive,
+          }),
+        ),
+      )
       setSubmitting(false)
-      toast.success("Marges enregistrées (mock — phase 9 : Server Action)")
-    }, 600)
+      const failed = results.filter((r) => !r.ok)
+      if (failed.length > 0) {
+        toast.error(
+          failed.length === results.length
+            ? (failed[0] as { ok: false; error: string }).error
+            : `${failed.length} module(s) non enregistré(s) — réessayez.`,
+        )
+        return
+      }
+      toast.success("Marges enregistrées.")
+    })()
   }
 
   return (

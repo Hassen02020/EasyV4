@@ -43,9 +43,19 @@ import {
 } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import type { TravelerInput } from "@/lib/booking/schemas"
+import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
+import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
+import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
+import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 
 export type CreateGuestActivityBookingResult =
-  | { ok: true; reservationId: string; publicRef: string; status: "confirmed" | "pending" }
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      guestAccessToken: string
+      status: "confirmed" | "pending"
+    }
   | { ok: false; error: string; code?: string }
 
 function pad(n: number, w = 6) {
@@ -105,14 +115,18 @@ export async function createGuestActivityBooking(input: {
     )
     .digest("hex")
 
+  // PHASE "CUSTOMER RESERVATION LINK" — voir lib/booking/customer-identity.ts.
+  const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.traveler.email)
+
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestActivityBooking(parsed.data, input.paymentMethod),
+    runCreateGuestActivityBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
   )
 }
 
 async function runCreateGuestActivityBooking(
   booking: ActivityGuestBookingInput,
   paymentMethod: GuestPaymentMethod,
+  linkedAuthUserId: string | null,
 ): Promise<CreateGuestActivityBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -171,6 +185,16 @@ async function runCreateGuestActivityBooking(
         })
         const totalTnd = breakdown.totalTnd
 
+        // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---
+        // Résolue et figée AU MOMENT de cette réservation précise (spécifique
+        // à l'attraction > défaut agence > aucune) — voir lib/booking/policy-engine.ts.
+        const resolvedPolicy = await resolveCancellationPolicy(tx, {
+          agencyId,
+          productType: "activity",
+          productId: booking.activityId,
+        })
+        const policySnapshot = buildPolicySnapshot(resolvedPolicy, booking.policyAccepted)
+
         // --- 3. Règlement (card = paiement réel immédiat, jamais de faux succès) ---
         if (paymentMethod === "card") {
           const provider = getPaymentProvider()
@@ -201,6 +225,10 @@ async function runCreateGuestActivityBooking(
             civicIdType: traveler.civicIdType,
             birthDate: traveler.birthDate || undefined,
             nationality: traveler.nationality || undefined,
+            // PHASE "CUSTOMER RESERVATION LINK" — nouvelle ligne dans tous
+            // les cas, aucune réattribution possible ; `null` = guest
+            // inchangé. Voir lib/booking/customer-identity.ts.
+            authUserId: linkedAuthUserId ?? undefined,
           })
           .returning({ id: customers.id })
         const customerId = customer.id
@@ -231,10 +259,12 @@ async function runCreateGuestActivityBooking(
               sessionDate: session.sessionDate,
               channel: "b2c_guest",
               paymentMethod,
+              policySnapshot,
             },
           })
-          .returning({ id: reservations.id })
+          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
         const reservationId = reservation.id
+        const guestAccessToken = reservation.guestAccessToken
 
         if (isImmediatelyPaid) {
           await tx
@@ -255,6 +285,24 @@ async function runCreateGuestActivityBooking(
           status: isImmediatelyPaid ? "captured" : "pending",
           capturedAt: isImmediatelyPaid ? new Date() : undefined,
         })
+
+        // Easy2Book Rewards (Phase 38D) — B2C uniquement (voir doc de tête
+        // lib/loyalty/rewards-core.ts), montant éligible = paiement
+        // réellement capturé, jamais totalTnd seul.
+        if (isImmediatelyPaid) {
+          const rewardsSummary = await getReservationPaymentSummary({
+            reservationId,
+            txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+          })
+          await earnPendingPoints(tx, {
+            agencyId,
+            customerId,
+            reservationId,
+            module: "activity",
+            eligibleTnd: rewardsSummary.collectedTnd,
+            idempotencyKey: `earn-pending:${reservationId}`,
+          })
+        }
 
         // --- 6. Extension Activity ---
         await tx.insert(reservationActivity).values({
@@ -287,6 +335,7 @@ async function runCreateGuestActivityBooking(
         return {
           reservationId,
           publicRef,
+          guestAccessToken,
           status: (isImmediatelyPaid ? "confirmed" : "pending") as "confirmed" | "pending",
         }
       },
@@ -312,7 +361,13 @@ async function runCreateGuestActivityBooking(
       }
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef, status: result.status }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
+      status: result.status,
+    }
   } catch (err) {
     if (err instanceof PaymentRejected) {
       return { ok: false, error: err.message, code: err.code }

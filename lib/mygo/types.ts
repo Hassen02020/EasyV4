@@ -64,6 +64,38 @@ export interface HotelDetailsDTO extends HotelSummaryDTO {
   options: { id: number; title: string }[]
 }
 
+/**
+ * PHASE 30.2 — DATA ENRICHMENT ROADMAP (documentation only, no code here).
+ *
+ * myGo does not provide any of the following today (confirmed by reading
+ * schemas.ts/types.ts/mappers.ts in full) — the frontend must NOT fabricate
+ * them. Each would need its own backend adapter/data source before any UI
+ * can honestly claim it, exactly like `RoomOfferDTO.basePrice` did:
+ *
+ *   - TripAdvisor / Google reviews & ratings — needs a review-provider
+ *     adapter (own supplier-style config/credentials), matched to a hotel
+ *     by name+city (no stable cross-ID exists yet), cached server-side
+ *     (never fetched client-side, never exposing the provider's own API key).
+ *   - Google Places (or equivalent) — nearby attractions, business hours,
+ *     photos beyond myGo's own album.
+ *   - Beach/city-center distance — needs either myGo to start returning it,
+ *     or a geocoded reference-point table per city (Tunisia-specific) and a
+ *     haversine computation from `HotelSummaryDTO.latitude/longitude`
+ *     (present today, but with no reference point to measure against).
+ *   - Family suitability / free-child / child-free — no such flag anywhere
+ *     in myGo's HotelSearch or HotelDetails response; would need either a
+ *     myGo field EasyV4 doesn't currently request/receive, or a manually
+ *     curated per-hotel override table (admin-maintained, clearly labelled
+ *     as editorial, never presented as "official myGo data").
+ *   - Destination-level intelligence (best time to visit, area guides) —
+ *     out of scope for a single supplier integration; would be a content/
+ *     CMS layer, not a supplier data field.
+ *
+ * None of the above are implemented. Do not add heuristic guesses for any
+ * of them (e.g. inferring "family friendly" from theme strings) — that is
+ * still fabrication, just indirect.
+ */
+
 export type CancellationType = "PRICE" | "PERCENT" | "NIGHT" | string
 export type CancellationNature =
   | "NO_SHOW"

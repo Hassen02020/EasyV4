@@ -35,6 +35,7 @@ import {
   mapCurrency,
   mapHotelDetails,
   mapHotelOffer,
+  mapRoomOffer,
   mapTag,
 } from "../mappers"
 import type { HotelOfferDTO } from "../types"
@@ -144,6 +145,25 @@ test("HotelSearch: schema parses, real-hotel filter, lowestPrice, mapHotelOffer"
   // lowestPrice cohérent
   const lp = lowestPrice(yocca!)
   assert.equal(offer.fromPrice, lp)
+})
+
+test("mapRoomOffer : BasePrice réel de myGo mappé tel quel (jamais fabriqué)", () => {
+  const withBasePrice = mapRoomOffer({
+    Id: 1,
+    Name: "Standard",
+    Price: 250,
+    BasePrice: 320,
+  })
+  assert.equal(withBasePrice.basePrice, 320)
+
+  // myGo ne renvoie pas toujours BasePrice — doit rester `undefined`, jamais
+  // une valeur inventée (ex. égale à `price`).
+  const withoutBasePrice = mapRoomOffer({
+    Id: 2,
+    Name: "Standard",
+    Price: 250,
+  })
+  assert.equal(withoutBasePrice.basePrice, undefined)
 })
 
 test("Filtre les offres non-hôtelières du résultat global", () => {

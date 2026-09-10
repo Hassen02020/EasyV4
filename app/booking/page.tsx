@@ -8,7 +8,7 @@ import {
   Check,
   ChevronLeft,
 } from "lucide-react"
-import { Header } from "@/components/header"
+import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

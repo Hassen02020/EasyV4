@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { createBrowserSupabase } from "@/lib/supabase/client"
 
 type Rule = {
   label: string
@@ -45,24 +46,53 @@ export function ChangePasswordForm() {
   const passwordsMatch = next.length > 0 && next === confirm
   const canSubmit = current.length > 0 && allRulesPass && passwordsMatch
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     if (!canSubmit) return
+    if (current === next) {
+      setError("Le nouveau mot de passe doit être différent de l'ancien.")
+      return
+    }
     setSubmitting(true)
-    setTimeout(() => {
-      setSubmitting(false)
-      if (current === next) {
-        setError("Le nouveau mot de passe doit être différent de l'ancien.")
+    try {
+      // Même client Supabase navigateur déjà utilisé pour la connexion
+      // (voir components/login-form.tsx/pro-login-form.tsx) — jamais un
+      // second mécanisme d'auth. Ré-authentification avec le mot de passe
+      // actuel AVANT modification : confirme qu'il est correct sans exposer
+      // d'API dédiée, `signInWithPassword` échoue proprement sinon.
+      const supabase = createBrowserSupabase()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user?.email) {
+        setError("Session expirée — reconnectez-vous.")
+        return
+      }
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: current,
+      })
+      if (reauthError) {
+        setError("Mot de passe actuel incorrect.")
+        return
+      }
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: next,
+      })
+      if (updateError) {
+        setError(updateError.message || "Erreur lors de la mise à jour du mot de passe.")
         return
       }
       setCurrent("")
       setNext("")
       setConfirm("")
-      toast.success(
-        "Mot de passe modifié (mock — phase 9 : Supabase auth.updateUser)",
-      )
-    }, 700)
+      toast.success("Mot de passe modifié avec succès.")
+    } catch {
+      setError("Erreur technique. Veuillez réessayer.")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (

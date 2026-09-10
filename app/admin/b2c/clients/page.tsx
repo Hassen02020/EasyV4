@@ -5,7 +5,6 @@
  */
 
 import { Metadata } from "next"
-import Link from "next/link"
 import { redirect } from "next/navigation"
 import {
   Users,
@@ -15,10 +14,6 @@ import {
   Phone,
   Calendar,
   ShoppingBag,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  FileText,
   User,
 } from "lucide-react"
 import {
@@ -39,14 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { B2cClientRowActions } from "@/components/admin/b2c-client-row-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -158,11 +146,9 @@ export default async function B2CClientsPage() {
             Base de données clients et historique
           </p>
         </div>
-        <Button className="bg-sidebar" asChild>
-          <Link href="/admin/b2c/clients/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau client
-          </Link>
+        <Button className="bg-sidebar" disabled title="Pas encore disponible">
+          <Plus className="mr-2 h-4 w-4" />
+          Nouveau client
         </Button>
       </div>
 
@@ -288,30 +274,9 @@ export default async function B2CClientsPage() {
                         {new Date(client.createdAt).toLocaleDateString("fr-FR")}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label={`Actions pour ${client.firstName} ${client.lastName}`}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/b2c/clients/${client.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Voir profil
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Modifier
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <FileText className="mr-2 h-4 w-4" />
-                              Voir réservations
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <B2cClientRowActions
+                          displayName={`${client.firstName} ${client.lastName}`}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

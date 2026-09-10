@@ -1,9 +1,11 @@
 "use server"
 
 import { redirect } from "next/navigation"
+import { createHash } from "node:crypto"
 import { eq, desc, and, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
 import { withTenantContext } from "@/lib/db/tenant-context"
+import { pgErrorCode } from "@/lib/db/pg-error"
 import {
   customers,
   reservations,
@@ -19,10 +21,13 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { getMyGoClient, mapBookingListItemToConfirmation, type BookingConfirmationDTO } from "@/lib/mygo"
+import type { MyGoClient } from "@/lib/mygo/client"
+import { resolveMyGoAccessForTenant, partnerTenantContext, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   authoritativeUnitPrice,
   bookingConfirmationMatchesExpectedHotel,
@@ -49,10 +54,38 @@ import {
  * univoque ; sinon on refuse de deviner et on remonte un statut explicitement
  * "ambigu" plutôt qu'un simple échec (l'utilisateur ne doit pas être invité à
  * relancer une réservation qui a peut-être déjà été créée côté hôtel).
+ *
+ * PHASE 27.2 — TENANT-SCOPED : `access` (résolu par
+ * `resolveMyGoAccessForTenant()`, JAMAIS construit ailleurs) porte le
+ * client myGo du COMPTE FOURNISSEUR DU TENANT (agence propre, marque
+ * blanche ou master) — `access.client` est `undefined` uniquement quand
+ * aucun compte fournisseur n'est configuré pour ce tenant, auquel cas on
+ * retombe explicitement sur `getMyGoClient()` (comportement global
+ * historique inchangé, jamais un accès implicite à un autre tenant). Le
+ * MÊME `access` doit être réutilisé par l'appelant pour la compensation
+ * (annulation) en cas d'échec après confirmation — jamais un client
+ * re-résolu ou global à ce stade (continuité de compte, section 27.2).
+ *
+ * NB architecture : la création réelle passe par ce client tenant-résolu
+ * directement (pas par `HotelSupplierDriver.book()`) — le contrat Hub
+ * `SupplierBookingResult` est délibérément provider-neutre et plus fin que
+ * `BookingConfirmationDTO` (pas de rooms/boardingCode/hotelName/atHotel),
+ * or `reservationHotel` (ligne ~427 plus bas) a besoin de ces champs pour
+ * l'affichage ET pour le split de paiement à l'hôtel (`atHotel`) — les
+ * perdre serait une régression de paiement, pas une simplification.
+ * Élargir le contrat Hub à ces champs spécifiques myGo, ou redesigner
+ * l'écriture DB de Booking Core pour s'en passer, sont tous deux hors
+ * périmètre de cette phase ("smallest additive change", "ne pas redesigner
+ * Booking Core"). La classification SUCCESS/DEFINITIVE_FAILURE/AMBIGUOUS
+ * reste néanmoins EXACTEMENT celle du driver (`classifyMyGoBookingError`/
+ * `isAmbiguousBookingError`, réutilisées ici sans divergence), et la
+ * réconciliation réutilise la MÊME fonction pure
+ * (`reconcileAmbiguousBooking`) que `MyGoDriver.reconcileBooking()`.
  */
 export async function confirmHotelWithProvider(
   draft: BookingDraft,
   traveler: TravelerInput,
+  access: ResolvedMyGoAccess,
 ): Promise<
   | { attempted: false }
   | {
@@ -74,8 +107,9 @@ export async function confirmHotelWithProvider(
   )
   if (!providerMeta) return { attempted: false }
 
+  const client = access.client ?? getMyGoClient()
   try {
-    const booking = await getMyGoClient().createBooking(
+    const booking = await client.createBooking(
       buildMyGoBookingRequest({ draft, traveler, providerMeta }),
     )
     if (!bookingConfirmationMatchesExpectedHotel(booking, providerMeta)) {
@@ -103,7 +137,7 @@ export async function confirmHotelWithProvider(
       }
     }
 
-    const reconciled = await tryReconcileAmbiguousBooking(providerMeta, draft)
+    const reconciled = await tryReconcileAmbiguousBooking(providerMeta, draft, client)
     if (reconciled) {
       return { attempted: true, ok: true, booking: reconciled, providerMeta }
     }
@@ -121,15 +155,21 @@ export async function confirmHotelWithProvider(
  * malgré une réponse perdue. Ne lève jamais — un échec de réconciliation
  * doit se traduire par "ambigu, non résolu", pas par une exception qui
  * remonterait une erreur différente à l'appelant.
+ *
+ * PHASE 27.2 — `client` est TOUJOURS celui déjà résolu pour ce tenant par
+ * `confirmHotelWithProvider` (le même qui a tenté le BOOK) — jamais un
+ * second client global/tenant différent, pour ne pas interroger le
+ * mauvais compte fournisseur lors de la réconciliation.
  */
 async function tryReconcileAmbiguousBooking(
   providerMeta: HotelProviderMetadata,
   draft: BookingDraft,
+  client: MyGoClient,
 ): Promise<BookingConfirmationDTO | null> {
   const hotelId = providerMeta.hotelId ?? Number(draft.offerId)
   if (!hotelId) return null
   try {
-    const list = await getMyGoClient().listBookings({
+    const list = await client.listBookings({
       hotel: hotelId,
       fromDate: draft.startDate,
       toDate: draft.startDate,
@@ -184,12 +224,56 @@ export async function nextPublicRef(
 }
 
 export type CreateReservationResult =
-  | { ok: true; reservationId: string; publicRef: string }
+  | { ok: true; reservationId: string; publicRef: string; guestAccessToken: string }
   | { ok: false; error: string }
+
+/**
+ * Backstop DB idempotence B2B (trouvé pendant l'audit production readiness
+ * — `createReservationFromDraft` n'avait AUCUNE protection contre un
+ * double-submit/retry réseau, contrairement au chemin guest (Phase 20) : un
+ * double-clic pouvait créer deux réservations, deux réservations myGo ET
+ * deux débits wallet distincts pour une seule intention de réservation.
+ * Réutilise la MÊME colonne/index unique que le guest checkout
+ * (`guestIdempotencyKey`/`reservations_guest_idempotency_uniq`, voir
+ * lib/db/schema.ts) — la clé est dérivée d'un hash du token de brouillon
+ * (globalement unique en pratique), donc partager l'espace de clés entre
+ * guest et B2B ne crée aucun risque de collision réel ; aucune migration
+ * de schéma nécessaire.
+ */
+async function findReservationByCheckoutIdempotencyKey(
+  agencyId: string,
+  idempotencyKey: string,
+): Promise<CreateReservationResult | null> {
+  const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
+    tx
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+      })
+      .from(reservations)
+      .where(and(eq(reservations.agencyId, agencyId), eq(reservations.guestIdempotencyKey, idempotencyKey)))
+      .limit(1),
+  )
+  const row = rows[0]
+  if (!row) return null
+  return { ok: true, reservationId: row.id, publicRef: row.publicRef, guestAccessToken: row.guestAccessToken }
+}
 
 export async function createReservationFromDraft(input: {
   draft: BookingDraft
   traveler: TravelerInput
+  /**
+   * Clé stable pour cette soumission précise — même contrat que le guest
+   * checkout (voir guest-actions.ts::withGuestIdempotency). Optionnelle :
+   * si omise, dérivée automatiquement de `draft`+`traveler` (déterministe —
+   * un double-clic/retry soumet le même contenu, donc la même clé) pour
+   * que TOUS les appelants (formulaire B2B "front-office" via un token de
+   * brouillon, ET les formulaires composants qui construisent le draft
+   * directement en mémoire, sans token) soient protégés sans code
+   * dupliqué par appelant.
+   */
+  idempotencyKey?: string
 }): Promise<CreateReservationResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -198,6 +282,7 @@ export async function createReservationFromDraft(input: {
   // Résoudre l'agencyId depuis la session authentifiée — jamais hardcodé
   let agencyId: string
   let authUserId: string
+  let myGoAccess: ResolvedMyGoAccess
   try {
     const supabase = await createServerSupabase()
     const { data: { user } } = await supabase.auth.getUser()
@@ -206,6 +291,14 @@ export async function createReservationFromDraft(input: {
     if (!profile) return { ok: false, error: "Profil partenaire introuvable" }
     agencyId = profile.agency.id
     authUserId = user.id
+    // PHASE 27.2 — compte fournisseur myGo DE CETTE AGENCE (ou du compte
+    // partagé qu'elle est autorisée à utiliser) — jamais le client global
+    // `MYGO_*` tant qu'un compte tenant est configuré. Résolu UNE SEULE FOIS
+    // ici et réutilisé pour BOOK, la réconciliation ambiguë ET la
+    // compensation (annulation) plus bas — continuité de compte obligatoire.
+    myGoAccess = await resolveMyGoAccessForTenant(
+      partnerTenantContext(agencyId, authUserId, profile.role === "super_admin"),
+    )
   } catch {
     return { ok: false, error: "Erreur d'authentification" }
   }
@@ -232,6 +325,13 @@ export async function createReservationFromDraft(input: {
   const draft = draftParse.data
   const traveler = travelerParse.data
 
+  // Dérivée du contenu validé (déterministe : un double-clic/retry soumet le
+  // même draft+traveler, donc produit la même clé) quand l'appelant n'en
+  // fournit pas une explicitement — voir doc du paramètre plus haut.
+  const idempotencyKey =
+    input.idempotencyKey ??
+    createHash("sha256").update(JSON.stringify({ draft, traveler })).digest("hex")
+
   // Calculé une seule fois, réutilisé pour l'insert reservationHotel ET pour
   // le payload de l'événement Inngest booking/confirmed après la transaction.
   const hotelStartDate = new Date(draft.startDate)
@@ -243,12 +343,19 @@ export async function createReservationFromDraft(input: {
     ),
   )
 
+  // --- Backstop DB idempotence (mêmes garanties que le guest checkout) ---
+  // Un retry après timeout (ou un double-clic) retrouve directement la
+  // réservation déjà créée, AVANT tout appel fournisseur (myGo) ou débit —
+  // jamais un second hold myGo ni un second débit pour la même soumission.
+  const existingByKey = await findReservationByCheckoutIdempotencyKey(agencyId, idempotencyKey)
+  if (existingByKey) return existingByKey
+
   // --- Confirmation fournisseur (myGo) AVANT toute écriture DB / débit wallet ---
   // Si le draft porte des métadonnées myGo (recherche hôtel réelle) et que le
   // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
   // aucune réservation ni débit wallet ne doit être créé pour une chambre
   // qu'on n'a pas réellement confirmée auprès de l'hôtel.
-  const providerConfirmation = await confirmHotelWithProvider(draft, traveler)
+  const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
     return { ok: false, error: providerConfirmation.error }
   }
@@ -385,39 +492,60 @@ export async function createReservationFromDraft(input: {
 
       const publicRef = await nextPublicRef(tx, agencyId)
 
-      const inserted = await tx
-        .insert(reservations)
-        .values({
-          agencyId,
-          publicRef,
-          customerId,
-          module: draft.module,
-          source: "internal",
-          status: "pending",
-          originalCurrency: draft.currency,
-          originalAmount: String(breakdown.totalTnd),
-          tndAmount: String(breakdown.totalTnd),
-          depositAmount: String(breakdown.depositTnd),
-          depositPaid: "0",
-          providerPayload: {
-            offerId: draft.offerId,
-            offerLabel: draft.offerLabel,
-            startDate: draft.startDate,
-            endDate: draft.endDate,
-            adults: draft.adults,
-            children: draft.children,
-            breakdown,
-            metadata: draft.metadata ?? null,
-            ...(myGoBooking
-              ? {
-                  myGoBookingId: myGoBooking.bookingId,
-                  myGoState: myGoBooking.state ?? null,
-                }
-              : {}),
-          },
-        })
-        .returning({ id: reservations.id, publicRef: reservations.publicRef })
+      let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
+      try {
+        // Sous-transaction : une violation de reservations_guest_idempotency_uniq
+        // (double-submit vraiment simultané) ne doit annuler QUE cet insert,
+        // jamais toute la transaction englobante — rien d'autre n'a encore
+        // été écrit pour cette tentative (pas de wallet debit, pas de
+        // reservation_hotel) à ce stade.
+        inserted = await tx.transaction((tx2) =>
+          tx2
+            .insert(reservations)
+            .values({
+              agencyId,
+              publicRef,
+              customerId,
+              module: draft.module,
+              source: "internal",
+              status: "pending",
+              originalCurrency: draft.currency,
+              originalAmount: String(breakdown.totalTnd),
+              tndAmount: String(breakdown.totalTnd),
+              depositAmount: String(breakdown.depositTnd),
+              depositPaid: "0",
+              guestIdempotencyKey: idempotencyKey,
+              providerPayload: {
+                offerId: draft.offerId,
+                offerLabel: draft.offerLabel,
+                startDate: draft.startDate,
+                endDate: draft.endDate,
+                adults: draft.adults,
+                children: draft.children,
+                breakdown,
+                metadata: draft.metadata ?? null,
+                ...(myGoBooking
+                  ? {
+                      myGoBookingId: myGoBooking.bookingId,
+                      myGoState: myGoBooking.state ?? null,
+                    }
+                  : {}),
+              },
+            })
+            .returning({
+              id: reservations.id,
+              publicRef: reservations.publicRef,
+              guestAccessToken: reservations.guestAccessToken,
+            }),
+        )
+      } catch (err) {
+        if (pgErrorCode(err) === "23505") {
+          return { conflict: true as const }
+        }
+        throw err
+      }
       const reservationId = inserted[0].id
+      const guestAccessToken = inserted[0].guestAccessToken
 
       if (draft.module === "hotel") {
         const confirmedRoom = myGoBooking?.rooms[0]
@@ -466,6 +594,19 @@ export async function createReservationFromDraft(input: {
           via: "front-office",
         },
       })
+
+      // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges
+      // (`/admin/analytics/margins`), jusqu'ici jamais renseigné (voir
+      // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
+      // déjà calculés plus haut par `applyMargin()`, jamais un recalcul.
+      if (draft.module === "hotel" && myGoBooking) {
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: myGoBooking.totalPrice,
+          salePriceTnd: agencyHotelPrice,
+        })
+      }
 
       // --- Débit crédit agence — dans la MÊME transaction (txOverride) : sans ça,
       // le débit committerait indépendamment de l'insertion de la réservation
@@ -533,9 +674,32 @@ export async function createReservationFromDraft(input: {
         },
       })
 
-      return { reservationId, publicRef, agencyId }
+      return { reservationId, publicRef, agencyId, guestAccessToken, conflict: false as const }
       },
     )
+
+    if (result.conflict) {
+      // Cette tentative a perdu la course sur reservations_guest_idempotency_uniq
+      // — une autre requête (même brouillon+contexte) a déjà créé la
+      // réservation réelle. Compense le hold myGo redondant de CETTE
+      // tentative (best effort, même logique que le catch général plus bas)
+      // puis renvoie le résultat de la réservation gagnante, jamais une
+      // erreur générique.
+      if (myGoBooking) {
+        try {
+          await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+        } catch {
+          /* best effort — un hold myGo redondant sans réservation locale associée
+           * n'a aucun impact financier/paiement côté Easy2Book. */
+        }
+      }
+      const winner = await findReservationByCheckoutIdempotencyKey(agencyId, idempotencyKey)
+      if (winner) return winner
+      return {
+        ok: false,
+        error: "Cette réservation est en cours de traitement par une autre requête — réessayez dans quelques secondes.",
+      }
+    }
 
     // --- Événement Inngest (hors transaction, fire-and-forget) ---
     // Déclenche processConfirmedBooking (PDF voucher + email) — payload
@@ -552,8 +716,10 @@ export async function createReservationFromDraft(input: {
         reservationId: result.reservationId,
         publicRef: result.publicRef,
         agencyId: result.agencyId,
+        guestAccessToken: result.guestAccessToken,
         customerEmail: traveler.email,
         customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
+        customerPhone: traveler.phone,
         hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
         checkIn: draft.startDate,
         checkOut: draft.endDate ?? draft.startDate,
@@ -580,7 +746,12 @@ export async function createReservationFromDraft(input: {
       console.error("[booking] génération facture échouée", err instanceof Error ? err.message : String(err))
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
+    }
   } catch (err) {
     // --- Échec APRÈS confirmation myGo (écriture DB, débit wallet insuffisant…) ---
     // À ce stade la réservation existe réellement chez le fournisseur. Sans
@@ -592,7 +763,10 @@ export async function createReservationFromDraft(input: {
     let compensationNote = ""
     if (myGoBooking) {
       try {
-        await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
+        // PHASE 27.2 — MÊME client tenant-résolu que celui qui a créé la
+        // réservation (myGoAccess.client, résolu une seule fois plus haut) —
+        // jamais un repli vers un client différent lors de la compensation.
+        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
       } catch {
         compensationNote =
           ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
@@ -649,23 +823,35 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser()
   const partnerProfile = user ? await getCurrentPartnerProfile(user.id) : null
 
+
   if (partnerProfile) {
     const result = await createReservationFromDraft({
       draft: payload.draft,
       traveler: payload.traveler,
+      // Stable pour une soumission identique (même brouillon) — un
+      // double-clic/retry réseau reproduit la même clé et ne recrée pas une
+      // deuxième réservation (voir findReservationByCheckoutIdempotencyKey).
+      // Pas de paymentMethod ici : le B2B débite toujours le wallet agence,
+      // aucun choix utilisateur ne varie entre deux tentatives du même brouillon.
+      idempotencyKey: createHash("sha256").update(`${token}:b2b`).digest("hex"),
     })
     if (!result.ok) {
       throw new Error(result.error)
     }
-    redirect(`/booking/confirmation/${result.publicRef}`)
+    redirect(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
   }
 
   const { createGuestReservationFromDraft } = await import("./guest-actions")
-  const { createHash } = await import("node:crypto")
   const result = await createGuestReservationFromDraft({
     draft: payload.draft,
     traveler: payload.traveler,
-    paymentMethod: paymentMethod === "transfer" || paymentMethod === "cash" ? paymentMethod : "card",
+    paymentMethod:
+      paymentMethod === "transfer" ||
+      paymentMethod === "cash" ||
+      paymentMethod === "wallet" ||
+      paymentMethod === "at_hotel"
+        ? paymentMethod
+        : "card",
     // Stable pour une soumission identique (même brouillon, même mode de
     // paiement) — un double-clic/retry réseau reproduit la même clé et ne
     // recrée pas une deuxième réservation (voir withGuestIdempotency).
@@ -674,5 +860,10 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
   if (!result.ok) {
     throw new Error(result.error)
   }
-  redirect(`/booking/confirmation/${result.publicRef}`)
+  // Paiement en ligne redirect-based (SPS/Paymee/Stripe Checkout) : le
+  // navigateur part sur la page hébergée par le PSP — la réservation reste
+  // `pending` tant que le webhook signé ne l'a pas confirmée (voir
+  // lib/booking/guest-actions.ts). Sinon (règlement immédiat/différé),
+  // comportement historique inchangé.
+  redirect(result.redirectUrl ?? `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
 }

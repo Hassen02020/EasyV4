@@ -28,6 +28,7 @@ import {
   MyGoAuthError,
   MyGoError,
 } from "./index"
+import type { MyGoClient } from "./client"
 import { HotelSearchResponse } from "./schemas"
 import type { HotelSearchResultDTO } from "./types"
 import hotelSearchFixture from "./__fixtures__/hotelsearch.json"
@@ -168,6 +169,19 @@ export type HotelSearchRunResult =
     }
 
 /**
+ * PHASE 27 — `client` : compte fournisseur MyGo appartenant à une agence
+ * (identifiants résolus par `resolveSupplierAccount()`), jamais le singleton
+ * global `getMyGoClient()`. Fourni => le repli "démo" (absence de
+ * `MYGO_LOGIN` process-global) est ignoré : un compte tenant résolu a par
+ * construction des identifiants réels (sinon `resolveSupplierAccount()` ne
+ * l'aurait jamais renvoyé), la question "démo ou pas" ne se pose donc que
+ * pour le compte global historique.
+ */
+export interface RunHotelSearchOverrides {
+  client?: MyGoClient
+}
+
+/**
  * Exécute la recherche myGo pour une query déjà validée (schéma + dates) et
  * renvoie un résultat pur (démo, dégradé, ou résultats réels dédupliqués).
  * Ni authentification ni rate-limiting ici — la responsabilité de
@@ -175,15 +189,17 @@ export type HotelSearchRunResult =
  */
 export async function runHotelSearch(
   q: HotelSearchQuery,
+  overrides?: RunHotelSearchOverrides,
 ): Promise<HotelSearchRunResult> {
-  if (isDemoMode()) {
+  if (!overrides?.client && isDemoMode()) {
     return demoSearchResult(q.cityId)
   }
-  return runRealHotelSearch(q)
+  return runRealHotelSearch(q, overrides)
 }
 
 async function runRealHotelSearch(
   q: HotelSearchQuery,
+  overrides?: RunHotelSearchOverrides,
 ): Promise<HotelSearchRunResult> {
 
   const searchInput = {
@@ -202,8 +218,9 @@ async function runRealHotelSearch(
     },
   }
 
+  const client = overrides?.client ?? getMyGoClient()
   const fallbackResult = await searchWithFallback(searchInput, () =>
-    instrument("mygo.search", () => getMyGoClient().searchHotels(searchInput)),
+    instrument("mygo.search", () => client.searchHotels(searchInput)),
   )
 
   if (fallbackResult.degraded) {
@@ -259,15 +276,14 @@ async function runRealHotelSearch(
 }
 
 /**
- * Exécute la recherche myGo et renvoie directement la réponse HTTP prête à
- * l'emploi — utilisé par les route handlers (`/api/hotels/search*`).
- * Fine couche de mise en forme HTTP au-dessus de `runHotelSearch`.
+ * Met en forme un `HotelSearchRunResult` déjà calculé en réponse HTTP.
+ * Extrait de `executeHotelSearch()` (PHASE 28) pour rester composable — le
+ * Hub (`lib/hotel-suppliers/search-hub.ts`) appelle `runHotelSearch()`
+ * UNE SEULE FOIS puis réutilise ce même formatage, plutôt que de dupliquer
+ * cette mise en forme ou de déclencher un second appel réseau myGo.
+ * Comportement byte-for-byte identique à l'ancien corps d'`executeHotelSearch`.
  */
-export async function executeHotelSearch(
-  q: HotelSearchQuery,
-): Promise<NextResponse> {
-  const result = await runHotelSearch(q)
-
+export function formatHotelSearchResponse(result: HotelSearchRunResult): NextResponse {
   if (!result.ok) {
     const headers: Record<string, string> = {}
     if (result.retryAfterSeconds != null) {
@@ -295,6 +311,25 @@ export async function executeHotelSearch(
     : { "Cache-Control": "public, max-age=300, stale-while-revalidate=60" }
   if (result.fromStaleCache) headers["X-From-Cache"] = "1"
   return NextResponse.json(result.dto, { status: 200, headers })
+}
+
+/**
+ * Exécute la recherche myGo et renvoie directement la réponse HTTP prête à
+ * l'emploi — utilisé par les route handlers (`/api/hotels/search*`).
+ * Fine couche de mise en forme HTTP au-dessus de `runHotelSearch`.
+ *
+ * PHASE 27.1 — `overrides` : simple passthrough vers `runHotelSearch()`,
+ * jamais interprété ici. Permet à l'appelant (route/page) de fournir un
+ * client MyGo résolu pour le tenant courant (`resolveMyGoAccessForTenant()`)
+ * — omis, comportement 100% inchangé (compte global `MYGO_*`, démo-mode
+ * inclus).
+ */
+export async function executeHotelSearch(
+  q: HotelSearchQuery,
+  overrides?: RunHotelSearchOverrides,
+): Promise<NextResponse> {
+  const result = await runHotelSearch(q, overrides)
+  return formatHotelSearchResponse(result)
 }
 
 function demoSearchResult(cityId: number): HotelSearchRunResult {

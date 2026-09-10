@@ -4,7 +4,8 @@ export const translations = {
   fr: {
     // Header
     connexion: "Connexion",
-    myBookings: "My Bookings",
+    monCompte: "Mon compte",
+    myBookings: "Mes réservations",
     help: "Aide",
     // Tabs moteur de recherche
     tabVols: "Vols",
@@ -94,6 +95,7 @@ export const translations = {
     statusCancelled: "Annulée",
     statusRefunded: "Remboursée",
     statusNoShow: "No-show",
+    statusExpired: "Expirée",
     demandeRecue: "Demande reçue",
     enTraitement: "En traitement",
     mesReservations: "Mes Réservations",
@@ -130,6 +132,7 @@ export const translations = {
   ar: {
     // Header
     connexion: "تسجيل الدخول",
+    monCompte: "حسابي",
     myBookings: "حجوزاتي",
     help: "مساعدة",
     // Tabs moteur de recherche
@@ -220,6 +223,7 @@ export const translations = {
     statusCancelled: "ملغاة",
     statusRefunded: "مستردة",
     statusNoShow: "No-show",
+    statusExpired: "منتهية الصلاحية",
     demandeRecue: "تلقي الطلب",
     enTraitement: "جارٍ المعالجة",
     mesReservations: "حجوزاتي",
@@ -256,6 +260,7 @@ export const translations = {
   en: {
     // Header
     connexion: "Sign In",
+    monCompte: "My Account",
     myBookings: "My Bookings",
     help: "Help",
     // Search engine tabs
@@ -346,6 +351,7 @@ export const translations = {
     statusCancelled: "Cancelled",
     statusRefunded: "Refunded",
     statusNoShow: "No-show",
+    statusExpired: "Expired",
     demandeRecue: "Request received",
     enTraitement: "Processing",
     mesReservations: "My Bookings",

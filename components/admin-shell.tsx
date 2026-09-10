@@ -11,9 +11,7 @@ import {
   Headphones,
   LogOut,
   ChevronDown,
-  Building2,
   Moon,
-  Plane,
   Users,
   Shield,
   Activity,
@@ -28,6 +26,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Star,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -139,18 +138,22 @@ const managerNavItems: NavItem[] = [
     title: "Produits & Catalogue",
     icon: Package,
     href: "/admin/products",
+    // Hôtels/Vols n'ont jamais de sous-item ici : ce catalogue (Phase 13,
+    // /admin/products) ne gère que package/omra/activity — les hôtels
+    // viennent du fournisseur MyGo, aucun produit vol n'existe dans ce
+    // builder. Les 3 sous-items ci-dessous pointaient auparavant vers
+    // /admin/products/packages|omra|activities, des routes qui n'ont jamais
+    // existé (seule /admin/products, avec ses 3 onglets, est réelle).
     subItems: [
-      { title: "Hôtels", href: "/admin/products/hotels", icon: Building2 },
-      { title: "Vols", href: "/admin/products/flights", icon: Plane },
       {
         title: "Voyages Organisés",
-        href: "/admin/products/packages",
+        href: "/admin/products",
         icon: Briefcase,
       },
-      { title: "Omra", href: "/admin/products/omra", icon: Moon },
+      { title: "Omra", href: "/admin/products", icon: Moon },
       {
         title: "Activités",
-        href: "/admin/products/activities",
+        href: "/admin/products",
         icon: Activity,
       },
     ],
@@ -184,22 +187,31 @@ const managerNavItems: NavItem[] = [
     icon: Headphones,
     href: "/admin/support",
   },
+  {
+    title: "Avis clients",
+    icon: Star,
+    href: "/admin/reviews",
+  },
 ]
 
 const technicalNavItems: NavItem[] = [
   {
-    title: "Configuration XML",
-    icon: Settings,
-    href: "/admin/config",
-  },
-  {
-    title: "Inventaire Statique",
+    title: "Verrous d'inventaire",
     icon: Database,
     href: "/admin/inventory",
   },
 ]
 
 const superAdminNavItems: NavItem[] = [
+  {
+    // Pointait vers /admin/config, une route qui n'a jamais existé.
+    // /admin/suppliers (Phase 27) EST la configuration fournisseurs réelle
+    // — déjà construite, déjà réelle (super_admin uniquement, voir sa
+    // propre doc de tête), mais jusqu'ici jamais reliée à un lien de nav.
+    title: "Fournisseurs",
+    icon: Settings,
+    href: "/admin/suppliers",
+  },
   {
     title: "Administration Système",
     icon: Shield,
@@ -254,7 +266,8 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "admin") label = "Admin"
     if (paths[i] === "reservations") label = "Réservations"
     if (paths[i] === "config") label = "Configuration XML"
-    if (paths[i] === "inventory") label = "Inventaire"
+    if (paths[i] === "inventory") label = "Verrous d'inventaire"
+    if (paths[i] === "suppliers") label = "Fournisseurs"
     if (paths[i] === "support") label = "Support"
     if (paths[i] === "vols") label = "Vols"
     if (paths[i] === "hotels") label = "Hôtels Tunisie"
@@ -336,7 +349,7 @@ export function AdminShell({
                           <CollapsibleContent>
                             <SidebarMenuSub>
                               {item.subItems.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.href}>
+                                <SidebarMenuSubItem key={subItem.title}>
                                   <SidebarMenuSubButton
                                     asChild
                                     isActive={pathname === subItem.href}

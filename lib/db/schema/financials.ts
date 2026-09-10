@@ -12,10 +12,13 @@
  *  Chaque mouvement wallet enregistre balanceBefore + balanceAfter pour auditabilité.
  */
 
+import { sql } from "drizzle-orm"
 import {
   boolean,
+  check,
   date,
   decimal,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -120,7 +123,17 @@ export const walletAccounts = pgTable(
   "wallet_accounts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    agencyId: uuid("agency_id").notNull(),
+    /** Propriétaire agence (B2B) — exclusif avec `customerId`, voir CHECK
+     * `wallet_accounts_owner_check`. */
+    agencyId: uuid("agency_id"),
+    /** Propriétaire client final (B2C) — Wallet/Payment Core : réactive ces
+     * tables (jamais écrites par aucun flux réel avant cette migration,
+     * confirmé par grep sur tout le dépôt) pour le seul besoin réellement
+     * nouveau, le solde client, plutôt que d'inventer une 4ᵉ table wallet.
+     * Le moteur B2B réel (`agencies.deposit_balance` +
+     * `partner_credit_movements`, utilisé par `debitPartnerCredit`) reste
+     * intact et n'écrit jamais ici. */
+    customerId: uuid("customer_id"),
 
     type: walletAccountType("type").notNull().default("credit"),
 
@@ -147,6 +160,13 @@ export const walletAccounts = pgTable(
   },
   (t) => [
     uniqueIndex("wallet_accounts_agency_type_idx").on(t.agencyId, t.type),
+    index("wallet_accounts_customer_idx")
+      .on(t.customerId)
+      .where(sql`${t.customerId} IS NOT NULL`),
+    check(
+      "wallet_accounts_owner_check",
+      sql`(${t.agencyId} is not null and ${t.customerId} is null) or (${t.agencyId} is null and ${t.customerId} is not null)`,
+    ),
   ],
 )
 

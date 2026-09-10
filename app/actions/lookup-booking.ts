@@ -1,39 +1,17 @@
 "use server"
 
-import { eq, and, ilike } from "drizzle-orm"
+import { headers } from "next/headers"
+import { eq, and, ilike, desc } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, customers } from "@/lib/db/schema"
+import { reservations, customers, payments, reviews } from "@/lib/db/schema"
+import { hasConfiguredPaymentProvider } from "@/lib/payment/provider"
+import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { rateLimit } from "@/lib/rate-limit"
+import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
 
 export type BookingLookupResult =
   | { ok: true; booking: BookingSummary }
   | { ok: false; error: string }
-
-export type BookingStatus =
-  | "pending"
-  | "on_request"
-  | "confirmed"
-  | "cancelled"
-  | "refunded"
-  | "no_show"
-
-export interface BookingSummary {
-  id: string
-  publicRef: string
-  module: string
-  status: BookingStatus
-  originalAmount: string
-  originalCurrency: string
-  tndAmount: string
-  createdAt: string
-  confirmedAt: string | null
-  cancelledAt: string | null
-  customer: {
-    firstName: string
-    lastName: string
-    email: string
-    phone: string | null
-  }
-}
 
 export async function lookupBooking(
   ref: string,
@@ -48,6 +26,18 @@ export async function lookupBooking(
 
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Service temporairement indisponible." }
+  }
+
+  // `publicRef` est séquentiel par agence/année (ex. TG-2026-000123, voir
+  // nextPublicRef()) — jamais l'unique frontière d'accès en théorie, mais un
+  // attaquant connaissant déjà l'email d'un client pourrait sinon brute-forcer
+  // le petit espace de compteurs restant. Même bucket IP que les autres
+  // Server Actions guest publiques (lib/rate-limit.ts).
+  const hdrs = await headers()
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
+  const limit = await rateLimit(`booking:lookup:${ip}`)
+  if (!limit.ok) {
+    return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." }
   }
 
   try {
@@ -66,6 +56,8 @@ export async function lookupBooking(
           createdAt: reservations.createdAt,
           confirmedAt: reservations.confirmedAt,
           cancelledAt: reservations.cancelledAt,
+          paymentExpiresAt: reservations.paymentExpiresAt,
+          guestAccessToken: reservations.guestAccessToken,
           firstName: customers.firstName,
           lastName: customers.lastName,
           email: customers.email,
@@ -91,6 +83,26 @@ export async function lookupBooking(
       }
     }
 
+    const [lastPayment] = await withSystemContext((db) =>
+      db
+        .select({ method: payments.method, status: payments.status })
+        .from(payments)
+        .where(eq(payments.reservationId, row.id))
+        .orderBy(desc(payments.createdAt))
+        .limit(1),
+    )
+
+    // Même logique que /booking/confirmation/[ref] : n'annonce une facture
+    // que si `findInvoiceForReservation` en a réellement trouvé une émise —
+    // jamais déduit de `status === "confirmed"` seul (voir sa doc : émise
+    // seulement une fois intégralement réglée).
+    const invoice = await withSystemContext((db) =>
+      findInvoiceForReservation(db, row.id),
+    )
+    const [existingReview] = await withSystemContext((db) =>
+      db.select({ id: reviews.id }).from(reviews).where(eq(reviews.reservationId, row.id)).limit(1),
+    )
+
     return {
       ok: true,
       booking: {
@@ -104,6 +116,12 @@ export async function lookupBooking(
         createdAt: row.createdAt.toISOString(),
         confirmedAt: row.confirmedAt?.toISOString() ?? null,
         cancelledAt: row.cancelledAt?.toISOString() ?? null,
+        paymentExpiresAt: row.paymentExpiresAt?.toISOString() ?? null,
+        payment: lastPayment ? { method: lastPayment.method, status: lastPayment.status } : null,
+        onlinePaymentAvailable: hasConfiguredPaymentProvider(),
+        guestAccessToken: row.guestAccessToken,
+        hasInvoice: invoice != null,
+        hasReview: existingReview != null,
         customer: {
           firstName: row.firstName,
           lastName: row.lastName,

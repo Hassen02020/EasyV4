@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
-import { Coffee, MapPin, RefreshCw, ShieldCheck, Star, Users } from "lucide-react"
+import { Coffee, Info, MapPin, RefreshCw, ShieldCheck, Star, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -131,33 +131,48 @@ function HotelCard({ offer }: { offer: WorldHotelOffer }) {
 function WorldHotelSearchSummary({
   state,
   count,
+  isDemo,
 }: {
   state: WorldHotelSearchState
   count: number
+  isDemo: boolean
 }) {
   const paxLabel = `${state.adults} adulte${state.adults > 1 ? "s" : ""} · ${state.rooms} chambre${state.rooms > 1 ? "s" : ""}`
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 className="text-foreground text-xl font-bold">
-          Hôtels à {state.city}, {state.country}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {formatDateHeader(state.checkIn)} → {formatDateHeader(state.checkOut)}
-          {" · "}
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3 w-3" />
-            {paxLabel}
-          </span>
-          {" · "}
-          {count} hôtel{count > 1 ? "s" : ""} trouvé{count > 1 ? "s" : ""}
-        </p>
+    <div className="mb-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-foreground text-xl font-bold">
+            Hôtels à {state.city}, {state.country}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {formatDateHeader(state.checkIn)} → {formatDateHeader(state.checkOut)}
+            {" · "}
+            <span className="inline-flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {paxLabel}
+            </span>
+            {" · "}
+            {count} hôtel{count > 1 ? "s" : ""} trouvé{count > 1 ? "s" : ""}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/hotels-monde?destination=${state.destination}`}>
+            Modifier la recherche
+          </Link>
+        </Button>
       </div>
-      <Button variant="outline" size="sm" asChild>
-        <Link href={`/hotels-monde?destination=${state.destination}`}>
-          Modifier la recherche
-        </Link>
-      </Button>
+      {isDemo && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            <strong>Résultats à titre indicatif.</strong> La connexion à un fournisseur hôtelier
+            international réel n&apos;est pas encore configurée — ces hôtels et prix sont des
+            exemples, pas une disponibilité réelle. La réservation en ligne n&apos;est pas encore
+            proposée.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -244,7 +259,11 @@ export function WorldHotelResultsContent() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6">
-      <WorldHotelSearchSummary state={parsed.state} count={filteredSorted.length} />
+      <WorldHotelSearchSummary
+        state={parsed.state}
+        count={filteredSorted.length}
+        isDemo={offers.some((o) => o.source === "demo")}
+      />
 
       {status === "loading" && (
         <div className="space-y-4">

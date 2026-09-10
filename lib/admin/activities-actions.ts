@@ -9,15 +9,16 @@
  * générique documenté "itérations 5-9" dans lib/db/schema.ts). Ce fichier
  * suit donc exactement le même patron que packages-actions.ts.
  *
- * IMPORTANT — portée volontairement limitée : ceci construit la gestion
- * CATALOGUE (créer/publier/suspendre/dupliquer une attraction), mais AUCUN
- * moteur de réservation Attractions n'existe encore (contrairement à
- * Omra/Packages, qui avaient déjà leur moteur B2C avant cette Phase 13) —
- * `reservation_activity` existe dans le schéma mais rien ne l'alimente. Un
- * admin peut donc dès maintenant créer et publier une attraction, mais
- * aucune page publique ne permet encore de la réserver. Documenté comme
- * limite explicite dans le rapport Phase 13, pas construit ici pour ne pas
- * dépasser le temps disponible de cette phase.
+ * Ce fichier construit la gestion CATALOGUE (créer/publier/suspendre/
+ * dupliquer une attraction, gérer ses sessions — voir aussi
+ * createActivitySession plus bas et components/admin/activity-session-manager.tsx).
+ * Le moteur de réservation B2C (Phase 13.1, gap #1) est un fichier séparé :
+ * lib/activities/guest-booking-actions.ts::createGuestActivityBooking,
+ * appelé depuis app/attractions/[slug]/book/page.tsx via
+ * ActivityGuestBookingForm — il écrit bien dans `reservation_activity`.
+ * (Note historique : une version antérieure de ce commentaire affirmait
+ * qu'aucun moteur de réservation n'existait encore — c'était vrai au
+ * moment de la Phase 13, plus depuis que la Phase 13.1 a comblé ce gap.)
  */
 
 import { eq, and } from "drizzle-orm"

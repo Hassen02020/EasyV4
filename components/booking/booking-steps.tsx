@@ -27,7 +27,7 @@ export function BookingSteps({ current }: { current: 1 | 2 | 3 | 4 }) {
             </div>
             <span
               className={cn(
-                "text-sm font-medium",
+                "hidden text-sm font-medium sm:inline",
                 active ? "text-foreground" : "text-muted-foreground",
               )}
             >

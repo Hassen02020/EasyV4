@@ -102,36 +102,26 @@ function makeMockDb(opts: MockOptions): {
 
   function makeTx() {
     if (opts.throwInTx) {
-      // throw immédiatement la première fois qu'on appelle select.
+      // throw immédiatement au premier appel (désormais le verrou, via
+      // execute() → lock_agency_for_debit(), pas select()).
       return {
-        select: () => {
-          throw opts.throwInTx as Error
-        },
+        select: () => ({}) as never,
         insert: () => ({}) as never,
         update: () => ({}) as never,
+        execute: async () => {
+          throw opts.throwInTx as Error
+        },
       }
     }
 
+    // Le verrou pessimiste passe par `lock_agency_for_debit()` (RPC
+    // SECURITY DEFINER — voir drizzle/manual/0025_agency_debit_lock_rls_gap.sql),
+    // pas un `tx.select(agencies)...for("update")` : `execute()` est donc
+    // appelé deux fois dans l'ordre — 1) le verrou, 2) la mise à jour du
+    // solde via `set_agency_deposit_balance()`.
+    let executeCallCount = 0
     return {
-      select: () => ({
-        from: () => ({
-          where: () => ({
-            for: async (...forArgs: unknown[]) => {
-              journal.push({
-                kind: "SELECT_FOR_UPDATE",
-                payload: { strength: forArgs[0] },
-              })
-              if (!opts.agencyExists) return []
-              return [
-                {
-                  id: "agency-uuid-test",
-                  depositBalance: opts.currentBalance,
-                },
-              ]
-            },
-          }),
-        }),
-      }),
+      select: () => ({}) as never,
       insert: () => ({
         values: (...args: unknown[]) => ({
           returning: async () => {
@@ -153,6 +143,17 @@ function makeMockDb(opts: MockOptions): {
         }),
       }),
       execute: async (query: unknown) => {
+        executeCallCount += 1
+        if (executeCallCount === 1) {
+          journal.push({ kind: "SELECT_FOR_UPDATE", payload: { strength: "update" } })
+          if (!opts.agencyExists) return []
+          return [
+            {
+              id: "agency-uuid-test",
+              depositBalance: opts.currentBalance,
+            },
+          ]
+        }
         journal.push({ kind: "UPDATE_BALANCE", payload: { query } })
         return undefined
       },
@@ -467,20 +468,9 @@ test("debitPartnerCredit : précision exacte à la 3e décimale (TND millime)", 
 test("debitPartnerCredit : avec txOverride, s'exécute DANS la transaction fournie (pas de transaction propre)", async () => {
   ensureDatabaseUrl()
   const journal: OpEvent[] = []
+  let executeCallCount = 0
   const tx: DrizzleLikeTx = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          for: async (...forArgs: unknown[]) => {
-            journal.push({
-              kind: "SELECT_FOR_UPDATE",
-              payload: { strength: forArgs[0] },
-            })
-            return [{ id: "agency-uuid-test", depositBalance: "5000.000" }]
-          },
-        }),
-      }),
-    }),
+    select: () => ({}) as never,
     insert: () => ({
       values: (...args: unknown[]) => ({
         returning: async () => {
@@ -500,6 +490,11 @@ test("debitPartnerCredit : avec txOverride, s'exécute DANS la transaction fourn
       }),
     }),
     execute: async () => {
+      executeCallCount += 1
+      if (executeCallCount === 1) {
+        journal.push({ kind: "SELECT_FOR_UPDATE", payload: { strength: "update" } })
+        return [{ id: "agency-uuid-test", depositBalance: "5000.000" }]
+      }
       journal.push({ kind: "UPDATE_BALANCE" })
       return undefined
     },
@@ -531,16 +526,7 @@ test("debitPartnerCredit : txOverride propage un solde insuffisant sans muter qu
   ensureDatabaseUrl()
   const journal: OpEvent[] = []
   const tx: DrizzleLikeTx = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          for: async () => {
-            journal.push({ kind: "SELECT_FOR_UPDATE" })
-            return [{ id: "agency-uuid-test", depositBalance: "50.000" }]
-          },
-        }),
-      }),
-    }),
+    select: () => ({}) as never,
     insert: () => ({
       values: () => ({
         returning: async () => {
@@ -557,8 +543,8 @@ test("debitPartnerCredit : txOverride propage un solde insuffisant sans muter qu
       }),
     }),
     execute: async () => {
-      journal.push({ kind: "UPDATE_BALANCE" })
-      return undefined
+      journal.push({ kind: "SELECT_FOR_UPDATE" })
+      return [{ id: "agency-uuid-test", depositBalance: "50.000" }]
     },
   }
 

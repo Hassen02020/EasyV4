@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,7 +30,6 @@ interface UserRowActionsProps {
  * strictement frontend pour cette session (aucune Server Action créée).
  */
 export function UserRowActions({
-  userId,
   displayName,
   status,
 }: UserRowActionsProps) {
@@ -58,10 +56,12 @@ export function UserRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href={`/admin/users/${userId}`}>Modifier</Link>
+          <DropdownMenuItem disabled title="Pas encore disponible">
+            Modifier
           </DropdownMenuItem>
-          <DropdownMenuItem>Changer le rôle</DropdownMenuItem>
+          <DropdownMenuItem disabled title="Pas encore disponible">
+            Changer le rôle
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className={isActive ? "text-destructive" : "text-success"}

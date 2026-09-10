@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CheckCircle2, Mail, Calendar, User, Download } from "lucide-react"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,30 +9,35 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
+import { findInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import { ConfirmationStatusBadge } from "@/components/booking/confirmation-status-badge"
+import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
 
 export const dynamic = "force-dynamic"
 
-/** Route de téléchargement voucher par module — chaque module a son propre PDF (Hôtel/Omra/Package). */
-const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
-  hotel: "/api/booking/voucher",
-  omra: "/api/omra/voucher",
-  package: "/api/packages/voucher",
-}
-
 export default async function ConfirmationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ ref: string }>
+  searchParams: Promise<{ token?: string }>
 }) {
   const { ref } = await params
+  const { token } = await searchParams
   if (!process.env.DATABASE_URL) notFound()
-  // Page publique de confirmation post-checkout (pas de session client) —
-  // accès restreint par la connaissance de la référence publique.
-  const rows = await withSystemContext((db) =>
-    db
+  // Page publique de confirmation post-checkout (pas de session client).
+  // Phase 21.1 (P0-1) : publicRef SEUL n'est plus suffisant — séquentiel/
+  // devinable (TG-2026-000123). Le second facteur `guestAccessToken`
+  // (privé, aléatoire, jamais dérivable de publicRef) est OBLIGATOIRE ici,
+  // combiné dans la MÊME clause WHERE que publicRef. Sans lui — absent ou
+  // incorrect — la réservation n'est jamais lue, quel que soit le ref :
+  // withSystemContext() reste nécessaire (page sans session), mais le
+  // token devient la vraie frontière d'accès, pas publicRef.
+  if (!token) notFound()
+  const { row, hasInvoice } = await withSystemContext(async (db) => {
+    const rows = await db
       .select({
         id: reservations.id,
         publicRef: reservations.publicRef,
@@ -49,10 +54,13 @@ export default async function ConfirmationPage({
       })
       .from(reservations)
       .leftJoin(customers, eq(reservations.customerId, customers.id))
-      .where(eq(reservations.publicRef, ref))
-      .limit(1),
-  )
-  const row = rows[0]
+      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
+      .limit(1)
+    const found = rows[0]
+    if (!found) return { row: undefined, hasInvoice: false }
+    const invoice = await findInvoiceForReservation(db, found.id)
+    return { row: found, hasInvoice: !!invoice }
+  })
   if (!row) notFound()
 
   const pl = row.providerPayload as {
@@ -62,6 +70,11 @@ export default async function ConfirmationPage({
     adults?: number
     children?: number
   } | null
+
+  const voucherHref =
+    row.status === "confirmed" || row.status === "completed"
+      ? voucherHrefForModule(row.module, row.publicRef, token)
+      : null
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -139,13 +152,9 @@ export default async function ConfirmationPage({
                 <Button asChild variant="outline" className="flex-1">
                   <Link href="/">Retour à l&apos;accueil</Link>
                 </Button>
-                {row.status === "confirmed" || row.status === "completed" ? (
+                {voucherHref ? (
                   <Button asChild className="flex-1">
-                    <a
-                      href={`${VOUCHER_ROUTE_BY_MODULE[row.module] ?? "/api/booking/voucher"}/${row.publicRef}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a href={voucherHref} target="_blank" rel="noopener noreferrer">
                       <Download className="mr-2 size-4" />
                       Télécharger le voucher
                     </a>
@@ -156,6 +165,18 @@ export default async function ConfirmationPage({
                     Voucher disponible après confirmation
                   </Button>
                 )}
+                {hasInvoice ? (
+                  <Button asChild variant="outline" className="flex-1">
+                    <a
+                      href={`/api/booking/invoice/${row.publicRef}?token=${token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Download className="mr-2 size-4" />
+                      Télécharger la facture
+                    </a>
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>

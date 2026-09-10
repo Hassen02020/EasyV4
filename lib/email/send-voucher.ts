@@ -20,6 +20,8 @@ export interface SendVoucherEmailInput {
   to: string
   customerName: string
   publicRef: string
+  /** Phase 21.1 — requis pour construire un lien de confirmation valide (publicRef seul est insuffisant, voir app/booking/confirmation/[ref]/page.tsx). */
+  guestAccessToken: string
   hotelName: string
   checkIn: string
   checkOut: string
@@ -36,6 +38,7 @@ export async function sendVoucherEmail(input: SendVoucherEmailInput): Promise<vo
     to,
     customerName,
     publicRef,
+    guestAccessToken,
     hotelName,
     checkIn,
     checkOut,
@@ -46,6 +49,7 @@ export async function sendVoucherEmail(input: SendVoucherEmailInput): Promise<vo
   const html = renderVoucherEmailHtml({
     customerName,
     publicRef,
+    guestAccessToken,
     hotelName,
     checkIn,
     checkOut,

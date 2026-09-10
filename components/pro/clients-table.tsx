@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { Search, Mail, Phone, User } from "lucide-react"
 
@@ -24,20 +25,29 @@ interface ClientsTableProps {
 }
 
 export function ClientsTable({ rows }: ClientsTableProps) {
-  const [q, setQ] = useState("")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "")
+  const isFirstRender = useRef(true)
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-
-    if (!needle) return rows
-
-    return rows.filter(
-      (r) =>
-        r.name.toLowerCase().includes(needle) ||
-        r.email.toLowerCase().includes(needle) ||
-        (r.phone ?? "").includes(needle),
-    )
-  }, [rows, q])
+  // `rows` est déjà filtré côté serveur (loadPartnerClients ne renvoie que
+  // les 200 clients les plus récents — un filtre purement client masquait
+  // silencieusement les clients plus anciens dès qu'une agence en a plus
+  // de 200, même correctif que components/admin/reservations-data-table.tsx).
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    const timeout = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (q.trim()) params.set("q", q.trim())
+      else params.delete("q")
+      router.push(`?${params.toString()}`)
+    }, 400)
+    return () => clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q])
 
   return (
     <div className="space-y-4">
@@ -80,7 +90,7 @@ export function ClientsTable({ rows }: ClientsTableProps) {
           </TableHeader>
 
           <TableBody>
-            {filtered.length === 0 ? (
+            {rows.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={5}
@@ -90,7 +100,7 @@ export function ClientsTable({ rows }: ClientsTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((c) => (
+              rows.map((c) => (
                 <TableRow key={c.id} className="hover:bg-muted/30">
                   <TableCell>
                     <span className="inline-flex items-center gap-2">
@@ -140,8 +150,8 @@ export function ClientsTable({ rows }: ClientsTableProps) {
         </Table>
 
         <div className="border-border/60 text-muted-foreground border-t px-4 py-2 text-xs">
-          {filtered.length} client{filtered.length > 1 ? "s" : ""} affiché
-          {filtered.length > 1 ? "s" : ""}
+          {rows.length} client{rows.length > 1 ? "s" : ""} affiché
+          {rows.length > 1 ? "s" : ""}
         </div>
       </section>
     </div>

@@ -13,6 +13,8 @@ import {
   processWalletCredit,
   processTransferConfirmed,
   processOmraConfirmed,
+  sendWhatsAppConfirmation,
+  syncBookingCrm,
 } from "@/lib/inngest/functions"
 
 export const { GET, POST, PUT } = serve({
@@ -22,5 +24,7 @@ export const { GET, POST, PUT } = serve({
     processWalletCredit,
     processTransferConfirmed,
     processOmraConfirmed,
+    sendWhatsAppConfirmation,
+    syncBookingCrm,
   ],
 })

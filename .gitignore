@@ -41,6 +41,11 @@ Thumbs.db
 # Claude Code local tooling (agent worktrees, session scratch) — never repo content
 .claude/
 
+# Serveur GoTrue local factice (certs auto-signés + comptes de test), utilisé
+# uniquement pour la QA authentifiée en environnement de dev isolé — jamais
+# du code applicatif, jamais à committer.
+.tmp-mock-gotrue/
+
 # Rapports de test ad-hoc générés à la racine (les archives versionnées vivent
 # dans docs/tests/)
 /test-plan*.md

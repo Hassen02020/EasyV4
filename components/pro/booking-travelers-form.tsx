@@ -7,13 +7,11 @@ import {
   User,
   UserPlus,
   Hash,
-  TicketPercent,
   AlertTriangle,
   Wallet,
   Banknote,
   Building2,
   CreditCard,
-  CheckCircle2,
   Loader2,
   ArrowRight,
 } from "lucide-react"
@@ -86,12 +84,6 @@ const PAYMENT_OPTIONS: Array<{
   },
 ]
 
-const VALID_COUPONS: Record<string, { label: string; discount: number }> = {
-  EASY10: { label: "EASY10 — −10 %", discount: 0.1 },
-  TUNISIA5: { label: "TUNISIA5 — −5 %", discount: 0.05 },
-  WELCOME20: { label: "WELCOME20 — −20 %", discount: 0.2 },
-}
-
 interface BookingTravelersFormProps {
   context: BookingContext
   /** Searchparams reportés (dates, pax, nights). */
@@ -132,21 +124,11 @@ export function BookingTravelersForm({
   })
   const [internalRef, setInternalRef] = useState("")
   const [matricule, setMatricule] = useState("")
-  const [couponInput, setCouponInput] = useState("")
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string
-    discount: number
-    label: string
-  } | null>(null)
-  const [couponError, setCouponError] = useState<string | null>(null)
   const [payment, setPayment] = useState<PaymentMode | null>(null)
-  const [editableTotal, setEditableTotal] = useState<number | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const baseTotal = context.subtotal
-  const discountAmount = appliedCoupon ? baseTotal * appliedCoupon.discount : 0
-  const totalAfterCoupon = baseTotal - discountAmount
-  const finalTotal = editableTotal !== null ? editableTotal : totalAfterCoupon
+  const finalTotal = baseTotal
 
   const mainTravelerValid = Boolean(
     mainTraveler.civility &&
@@ -162,28 +144,6 @@ export function BookingTravelersForm({
     setTravelers((prev) =>
       prev.map((t, i) => (i === index ? { ...t, ...patch } : t)),
     )
-  }
-
-  function applyCoupon() {
-    const code = couponInput.trim().toUpperCase()
-    if (!code) {
-      setCouponError("Saisissez un code")
-      return
-    }
-    const found = VALID_COUPONS[code]
-    if (!found) {
-      setCouponError("Coupon invalide ou expiré")
-      setAppliedCoupon(null)
-      return
-    }
-    setCouponError(null)
-    setAppliedCoupon({ code, discount: found.discount, label: found.label })
-  }
-
-  function removeCoupon() {
-    setAppliedCoupon(null)
-    setCouponInput("")
-    setCouponError(null)
   }
 
   function handleSubmit() {
@@ -209,7 +169,6 @@ export function BookingTravelersForm({
           hotelId: context.hotel.id,
           internalRef: internalRef || undefined,
           matricule: matricule || undefined,
-          coupon: appliedCoupon?.code || undefined,
           paymentMode: payment,
           offers: context.offers.map((s) => ({
             id: s.offer.id,
@@ -241,8 +200,6 @@ export function BookingTravelersForm({
       router.refresh()
       router.push(
         `/pro/booking/confirmation/${result.publicRef}?payment=${payment}&total=${finalTotal.toFixed(3)}&hotelId=${context.hotel.id}${
-          appliedCoupon ? `&coupon=${appliedCoupon.code}` : ""
-        }${
           internalRef ? `&ref=${encodeURIComponent(internalRef)}` : ""
         }`,
       )
@@ -461,75 +418,7 @@ export function BookingTravelersForm({
           </div>
         </section>
 
-        {/* Étape 2 — Coupon */}
-        <section className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4 md:p-5">
-          <header className="mb-3 flex items-center gap-2">
-            <div className="bg-accent/15 text-accent flex h-9 w-9 items-center justify-center rounded-xl">
-              <TicketPercent className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-foreground text-base font-semibold">
-                Coupon de Réduction
-              </h2>
-              <p className="text-muted-foreground text-xs">
-                Codes valides en démo : EASY10 · TUNISIA5 · WELCOME20
-              </p>
-            </div>
-          </header>
-
-          {appliedCoupon ? (
-            <div className="border-accent/40 bg-accent/10 flex items-center justify-between gap-3 rounded-xl border px-3 py-2">
-              <div className="inline-flex items-center gap-2 text-sm">
-                <CheckCircle2 className="text-accent h-4 w-4" />
-                <span className="text-foreground font-semibold">
-                  {appliedCoupon.label}
-                </span>
-                <span className="text-muted-foreground">
-                  −{formatTND(discountAmount)}
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={removeCoupon}
-              >
-                Retirer
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <Label htmlFor="coupon" className="text-xs">
-                  Code promo
-                </Label>
-                <Input
-                  id="coupon"
-                  value={couponInput}
-                  onChange={(e) => {
-                    setCouponInput(e.target.value)
-                    setCouponError(null)
-                  }}
-                  placeholder="Ex : EASY10"
-                  className="mt-1 uppercase"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={applyCoupon}
-                className="rounded-xl"
-              >
-                Appliquer
-              </Button>
-            </div>
-          )}
-          {couponError ? (
-            <p className="text-destructive mt-2 text-xs">{couponError}</p>
-          ) : null}
-        </section>
-
-        {/* Étape 3 — Paiement */}
+        {/* Étape 2 — Paiement */}
         <section className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4 md:p-5">
           <header className="mb-3 flex items-center gap-2">
             <div className="bg-secondary/15 text-secondary flex h-9 w-9 items-center justify-center rounded-xl">
@@ -637,46 +526,11 @@ export function BookingTravelersForm({
           </ul>
 
           <div className="border-border/50 space-y-1.5 border-t pt-3 text-sm">
-            <Row label="Sous-total" value={formatTND(baseTotal)} />
-            {appliedCoupon ? (
-              <Row
-                label={`Réduction (${appliedCoupon.code})`}
-                value={`−${formatTND(discountAmount)}`}
-                positive
-              />
-            ) : null}
             <Row label="Total TTC" value={formatTND(finalTotal)} strong />
-            <details className="text-muted-foreground pt-1 text-xs">
-              <summary className="hover:text-foreground cursor-pointer">
-                Ajuster le total (avec marge agence)
-              </summary>
-              <div className="mt-2 flex items-center gap-2">
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.001"
-                  value={
-                    editableTotal !== null ? editableTotal : totalAfterCoupon
-                  }
-                  onChange={(e) =>
-                    setEditableTotal(Number.parseFloat(e.target.value) || 0)
-                  }
-                  className="h-8 text-xs"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditableTotal(null)}
-                >
-                  Réinitialiser
-                </Button>
-              </div>
-              <p className="mt-1 text-[10px]">
-                Permet de saisir manuellement le total client après marge — sera
-                remplacé par lecture <code>pricing_margins</code> en phase 9.
-              </p>
-            </details>
+            <p className="text-muted-foreground text-[10px]">
+              Montant estimatif après marge — le prix définitif est confirmé et
+              débité par le serveur à l&apos;enregistrement.
+            </p>
           </div>
 
           {submitError ? (

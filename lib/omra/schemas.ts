@@ -54,6 +54,11 @@ export const omraGuestBookingSchema = z.object({
     .array(omraPilgrimSchema)
     .min(1, "Au moins un pèlerin requis")
     .max(100, "Maximum 100 pèlerins"),
+  // Coché par le client s'il a vu et accepté la politique d'annulation
+  // affichée avant validation (voir lib/booking/policy-engine.ts). `false`
+  // par défaut : n'a de sens que si une politique existe réellement pour ce
+  // package — absence de politique = rien à accepter, jamais bloquant.
+  policyAccepted: z.boolean().optional().default(false),
 })
 .superRefine((data, ctx) => {
   if (!data.pilgrims[0]?.email) {

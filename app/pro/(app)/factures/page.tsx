@@ -42,6 +42,7 @@ export default async function ProInvoicesPage() {
     totalTVA: Number(inv.totalTva),
     totalSales: Number(inv.totalTtc),
     paidAmount: Number(inv.amountPaid),
+    reservationId: inv.reservationId ?? undefined,
   }))
 
   return (

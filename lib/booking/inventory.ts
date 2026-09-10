@@ -25,7 +25,7 @@ import { eq, and, lt } from "drizzle-orm"
 import { logger } from "@/lib/logger"
 import { metrics } from "@/lib/observability/metrics"
 import { getRedis } from "@/lib/cache/redis"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { inventoryLocks, type NewInventoryLock } from "@/lib/db/schema"
 
 // ---------------------------------------------------------------------------
@@ -134,7 +134,6 @@ export async function acquireLock(
 
   // Trace DB (fire-and-forget — ne bloque pas le tunnel)
   try {
-    const db = getDb()
     const lockRecord: NewInventoryLock = {
       agencyId: input.agencyId,
       redisKey: auditKey,
@@ -145,13 +144,15 @@ export async function acquireLock(
       status: "active",
       expiresAt,
     }
-    await db
-      .insert(inventoryLocks)
-      .values(lockRecord)
-      .onConflictDoUpdate({
-        target: [inventoryLocks.redisKey],
-        set: { expiresAt, status: "active" },
-      })
+    await withSystemContext((db) =>
+      db
+        .insert(inventoryLocks)
+        .values(lockRecord)
+        .onConflictDoUpdate({
+          target: [inventoryLocks.redisKey],
+          set: { expiresAt, status: "active" },
+        }),
+    )
   } catch (err) {
     logger.warn("[inventory] Trace DB acquireLock échouée", { err: String(err), module: input.module, itemId: input.itemId })
   }
@@ -184,19 +185,20 @@ export async function releaseLock(input: ReleaseLockInput): Promise<void> {
   }
 
   try {
-    const db = getDb()
-    await db
-      .update(inventoryLocks)
-      .set({
-        status: input.reservationId ? "confirmed" : "released",
-        reservationId: input.reservationId ?? null,
-      })
-      .where(
-        and(
-          eq(inventoryLocks.redisKey, auditKey),
-          eq(inventoryLocks.status, "active"),
+    await withSystemContext((db) =>
+      db
+        .update(inventoryLocks)
+        .set({
+          status: input.reservationId ? "confirmed" : "released",
+          reservationId: input.reservationId ?? null,
+        })
+        .where(
+          and(
+            eq(inventoryLocks.redisKey, auditKey),
+            eq(inventoryLocks.status, "active"),
+          ),
         ),
-      )
+    )
   } catch (err) {
     logger.warn("[inventory] Trace DB releaseLock échouée", { err: String(err), module: input.module, itemId: input.itemId })
   }
@@ -230,16 +232,17 @@ export async function refreshLock(
   }
 
   try {
-    const db = getDb()
-    await db
-      .update(inventoryLocks)
-      .set({ expiresAt })
-      .where(
-        and(
-          eq(inventoryLocks.redisKey, auditKey),
-          eq(inventoryLocks.status, "active"),
+    await withSystemContext((db) =>
+      db
+        .update(inventoryLocks)
+        .set({ expiresAt })
+        .where(
+          and(
+            eq(inventoryLocks.redisKey, auditKey),
+            eq(inventoryLocks.status, "active"),
+          ),
         ),
-      )
+    )
   } catch (err) {
     logger.warn("[inventory] Trace DB refreshLock échouée", { err: String(err), module: input.module, itemId: input.itemId })
   }
@@ -274,16 +277,17 @@ export async function checkLock(
 
   // Fallback DB si Redis absent
   try {
-    const db = getDb()
-    const [lock] = await db
-      .select({ expiresAt: inventoryLocks.expiresAt })
-      .from(inventoryLocks)
-      .where(
-        and(
-          eq(inventoryLocks.redisKey, auditKey),
-          eq(inventoryLocks.status, "active"),
+    const [lock] = await withSystemContext((db) =>
+      db
+        .select({ expiresAt: inventoryLocks.expiresAt })
+        .from(inventoryLocks)
+        .where(
+          and(
+            eq(inventoryLocks.redisKey, auditKey),
+            eq(inventoryLocks.status, "active"),
+          ),
         ),
-      )
+    )
     if (lock && lock.expiresAt > new Date()) {
       return { held: true, expiresAt: lock.expiresAt }
     }
@@ -304,17 +308,18 @@ export async function checkLock(
  */
 export async function cleanExpiredLocks(): Promise<{ cleaned: number }> {
   try {
-    const db = getDb()
-    const rows = await db
-      .update(inventoryLocks)
-      .set({ status: "expired" })
-      .where(
-        and(
-          eq(inventoryLocks.status, "active"),
-          lt(inventoryLocks.expiresAt, new Date()),
-        ),
-      )
-      .returning({ id: inventoryLocks.id })
+    const rows = await withSystemContext((db) =>
+      db
+        .update(inventoryLocks)
+        .set({ status: "expired" })
+        .where(
+          and(
+            eq(inventoryLocks.status, "active"),
+            lt(inventoryLocks.expiresAt, new Date()),
+          ),
+        )
+        .returning({ id: inventoryLocks.id }),
+    )
     return { cleaned: rows.length }
   } catch {
     return { cleaned: 0 }

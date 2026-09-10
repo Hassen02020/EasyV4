@@ -16,10 +16,7 @@ import {
   XCircle,
   Clock,
   DollarSign,
-  MoreHorizontal,
   Download,
-  Eye,
-  Edit,
   Trash2,
   User,
   Plane,
@@ -48,14 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { B2cReservationRowActions } from "@/components/admin/b2c-reservation-row-actions"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -255,8 +245,8 @@ export default async function B2CReservationsPage({
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button size="sm" className="bg-sidebar" asChild>
-            <Link href="/admin/b2c/reservations/new">Nouvelle réservation</Link>
+          <Button size="sm" className="bg-sidebar" disabled title="Pas encore disponible">
+            Nouvelle réservation
           </Button>
         </div>
       </div>
@@ -436,42 +426,11 @@ export default async function B2CReservationsPage({
                               ).toLocaleDateString("fr-FR")}
                             </TableCell>
                             <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" aria-label={`Actions pour la réservation ${reservation.publicRef}`}>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                  <DropdownMenuItem asChild>
-                                    <Link
-                                      href={`/admin/b2c/reservations/${reservation.id}`}
-                                    >
-                                      <Eye className="mr-2 h-4 w-4" />
-                                      Voir détails
-                                    </Link>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Modifier
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  {reservation.status === "pending" && (
-                                    <DropdownMenuItem className="text-emerald-600">
-                                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                                      Confirmer
-                                    </DropdownMenuItem>
-                                  )}
-                                  {(reservation.status === "pending" ||
-                                    reservation.status === "confirmed") && (
-                                    <DropdownMenuItem className="text-red-600">
-                                      <XCircle className="mr-2 h-4 w-4" />
-                                      Annuler
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <B2cReservationRowActions
+                                reservationId={reservation.id}
+                                publicRef={reservation.publicRef}
+                                status={reservation.status}
+                              />
                             </TableCell>
                           </TableRow>
                         )

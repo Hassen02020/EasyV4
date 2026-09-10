@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 
-import { Building2, Wallet, CreditCard, Banknote, Coins } from "lucide-react"
+import { Building2, Wallet, CreditCard, Banknote, Coins, Send } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 
@@ -25,15 +25,35 @@ const MODE_META: Record<
   PartnerPayment["mode"],
   { label: string; icon: typeof Wallet }
 > = {
-  transfer: { label: "Virement", icon: Building2 },
-
-  card: { label: "Carte bancaire", icon: CreditCard },
-
   cash: { label: "Espèces", icon: Coins },
+
+  bank_transfer: { label: "Virement bancaire", icon: Building2 },
+
+  postal_transfer: { label: "Virement postal", icon: Send },
+
+  postal_mandate: { label: "Mandat postal", icon: Send },
 
   check: { label: "Chèque", icon: Banknote },
 
-  credit_account: { label: "Compte de dépôt", icon: Wallet },
+  card_international: { label: "Carte internationale", icon: CreditCard },
+}
+
+const STATUS_META: Record<
+  PartnerPayment["status"],
+  { label: string; className: string }
+> = {
+  pending: {
+    label: "En attente",
+    className: "bg-amber-100 text-amber-800 border-amber-200",
+  },
+  validated: {
+    label: "Validé",
+    className: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  },
+  rejected: {
+    label: "Refusé",
+    className: "bg-destructive/10 text-destructive border-destructive/20",
+  },
 }
 
 interface PaymentsTableProps {
@@ -94,21 +114,13 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
 
               <TableHead className="font-semibold">Mode</TableHead>
 
-              <TableHead className="font-semibold">Échéance</TableHead>
-
-              <TableHead className="font-semibold">Émission</TableHead>
+              <TableHead className="font-semibold">Référence</TableHead>
 
               <TableHead className="text-right font-semibold">
-                Montant origine
+                Montant
               </TableHead>
 
-              <TableHead className="text-right font-semibold">
-                Restant
-              </TableHead>
-
-              <TableHead className="text-right font-semibold">Crédit</TableHead>
-
-              <TableHead className="font-semibold">Facture</TableHead>
+              <TableHead className="font-semibold">Statut</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -116,7 +128,7 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={5}
                   className="text-muted-foreground py-12 text-center"
                 >
                   Aucun règlement sur cette période.
@@ -127,6 +139,8 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
                 const Mode = MODE_META[p.mode]
 
                 const ModeIcon = Mode.icon
+
+                const Status = STATUS_META[p.status]
 
                 return (
                   <TableRow key={p.id} className="hover:bg-muted/30">
@@ -145,32 +159,18 @@ export function PaymentsTable({ rows }: PaymentsTableProps) {
                       </Badge>
                     </TableCell>
 
-                    <TableCell className="text-xs tabular-nums">
-                      {p.dueDate}
-                    </TableCell>
-
-                    <TableCell className="text-xs tabular-nums">
-                      {p.emissionDate}
+                    <TableCell className="font-mono text-xs">
+                      {p.reference ?? "—"}
                     </TableCell>
 
                     <TableCell className="text-foreground text-right text-sm tabular-nums">
-                      {formatTND(p.originalAmount ?? 0)}
+                      {formatTND(p.amount)}
                     </TableCell>
 
-                    <TableCell
-                      className={`text-right text-sm tabular-nums ${(p.remainingAmount ?? 0) > 0 ? "text-destructive font-bold" : "text-muted-foreground"}`}
-                    >
-                      {formatTND(p.remainingAmount ?? 0)}
-                    </TableCell>
-
-                    <TableCell
-                      className={`text-right text-sm tabular-nums ${(p.credit ?? 0) > 0 ? "font-bold text-emerald-600" : "text-muted-foreground"}`}
-                    >
-                      {(p.credit ?? 0) > 0 ? formatTND(p.credit ?? 0) : "—"}
-                    </TableCell>
-
-                    <TableCell className="font-mono text-xs">
-                      {p.invoiceRef ?? "—"}
+                    <TableCell>
+                      <Badge variant="outline" className={Status.className}>
+                        {Status.label}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 )

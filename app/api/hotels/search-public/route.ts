@@ -27,9 +27,10 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   HotelSearchQuerySchema,
   validateSearchDateRange,
-  executeHotelSearch,
 } from "@/lib/mygo/search-core"
 import { rateLimit } from "@/lib/rate-limit"
+import { resolveMyGoAccessForTenant, guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
 
 export const revalidate = 300 // 5 min — les prix changent vite
 
@@ -74,5 +75,13 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  return executeHotelSearch(q)
+  // PHASE 27.1 — visiteur anonyme : compte fournisseur MyGo résolu pour
+  // l'agence OTA par défaut (même résolution white-label-aware que le reste
+  // du guest booking, jamais un ID accepté du client) — voir
+  // lib/hotel-suppliers/tenant/live-resolution.ts.
+  const tenantContext = await guestTenantContext()
+  const access = tenantContext ? await resolveMyGoAccessForTenant(tenantContext) : undefined
+  // PHASE 28 — recherche orchestrée par le Hub — contrat de réponse
+  // inchangé, voir lib/hotel-suppliers/search-hub.ts.
+  return executeHotelSearchThroughHub(q, access, { agencyId: tenantContext?.agencyId ?? null })
 }

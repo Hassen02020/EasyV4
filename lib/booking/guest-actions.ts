@@ -16,8 +16,12 @@
  *     (`getDefaultAgencyId()`, `agency_type='ota'`) — même helper déjà
  *     utilisé par les vitrines publiques Transferts/Car (Phase 9-10), pas
  *     un nouveau concept.
- *   - Aucun compte Supabase Auth n'est créé pour le client — Supabase Auth
- *     reste réservé à l'identité staff/partenaire, exactement comme avant.
+ *   - Aucun compte Supabase Auth n'est créé PAR cette fonction — un client
+ *     peut réserver sans jamais s'authentifier (comportement inchangé). Si
+ *     une session Supabase existe déjà (compte B2C, voir app/compte/**) et
+ *     que son email vérifié correspond exactement à l'email voyageur saisi,
+ *     `customers.authUserId` est renseigné pour permettre l'historique
+ *     (voir lib/booking/customer-identity.ts) — jamais l'inverse.
  *
  * Règlement (voir lib/payment/provider.ts) : contrairement au B2B, un
  * booking B2C n'est JAMAIS réglé via `debitPartnerCredit` (ce ledger
@@ -42,7 +46,6 @@
 import { eq, and } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import {
-  customers,
   reservations,
   reservationHotel,
   payments,
@@ -57,15 +60,50 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { getMyGoClient } from "@/lib/mygo"
+import { resolveMyGoAccessForTenant, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
+import { ONLINE_PAYMENT_WINDOW_MS } from "@/lib/payment/reservation-payment-logic"
+import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-payment"
 import { withGuestIdempotency } from "./guest-idempotency"
+import { pgErrorCode } from "@/lib/db/pg-error"
+import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./customer-identity"
+import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
+import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 
-export type GuestPaymentMethod = "card" | "transfer" | "cash"
+export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash" | "at_hotel"
+
+/** Délai de règlement manuel (cash/virement) avant expiration automatique — Wallet/Payment Core. */
+const MANUAL_PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/** Marqueur interne pour distinguer un échec de débit wallet (attendu, pas
+ * une erreur système) d'une vraie erreur DB dans le `catch` englobant. */
+class WalletDebitFailedError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message)
+    this.name = "WalletDebitFailedError"
+  }
+}
 
 export type CreateGuestReservationResult =
-  | { ok: true; reservationId: string; publicRef: string; status: "confirmed" | "pending" }
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      guestAccessToken: string
+      status: "confirmed" | "pending"
+      /** Présent uniquement pour "card" quand un PSP réel (redirect-based)
+       * est configuré — le navigateur doit y être redirigé pour compléter
+       * le paiement ; la réservation reste `pending` jusqu'au webhook signé
+       * (voir app/api/payment/reservation-webhook/route.ts). */
+      redirectUrl?: string
+    }
   | { ok: false; error: string; code?: string }
 
 export async function createGuestReservationFromDraft(input: {
@@ -94,30 +132,99 @@ export async function createGuestReservationFromDraft(input: {
     }
   }
   const methodParse = paymentMethodSchema.safeParse(input.paymentMethod)
-  if (!methodParse.success || methodParse.data === "at_hotel") {
+  if (!methodParse.success) {
     return { ok: false, error: "Mode de paiement invalide pour une réservation en ligne." }
   }
 
+  // PHASE "CUSTOMER RESERVATION LINK" — résolu AVANT la transaction (I/O
+  // Supabase). `null` pour tout visiteur non connecté, ou dont l'email de
+  // session ne correspond pas exactement à l'email voyageur saisi — voir
+  // lib/booking/customer-identity.ts (jamais un rattachement ambigu).
+  const linkedAuthUserId = await resolveLinkedAuthUserId(travelerParse.data.email)
+
   return withGuestIdempotency(input.idempotencyKey, () =>
-    runCreateGuestReservation(draftParse.data, travelerParse.data, methodParse.data as GuestPaymentMethod),
+    runCreateGuestReservation(
+      draftParse.data,
+      travelerParse.data,
+      methodParse.data as GuestPaymentMethod,
+      input.idempotencyKey,
+      linkedAuthUserId,
+    ),
   )
+}
+
+/**
+ * Backstop DB (Phase 20) — retrouve une réservation guest déjà créée pour
+ * cette clé d'idempotence exacte (même token de brouillon + même méthode
+ * de paiement), sans jamais réattaquer myGo/le paiement. `null` = aucune
+ * réservation existante pour cette clé, l'appelant peut procéder.
+ */
+async function findReservationByGuestIdempotencyKey(
+  agencyId: string,
+  idempotencyKey: string,
+): Promise<CreateGuestReservationResult | null> {
+  const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
+    tx
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+        status: reservations.status,
+      })
+      .from(reservations)
+      .where(and(eq(reservations.agencyId, agencyId), eq(reservations.guestIdempotencyKey, idempotencyKey)))
+      .limit(1),
+  )
+  const row = rows[0]
+  if (!row) return null
+  return {
+    ok: true,
+    reservationId: row.id,
+    publicRef: row.publicRef,
+    guestAccessToken: row.guestAccessToken,
+    status: row.status === "confirmed" ? "confirmed" : "pending",
+  }
 }
 
 async function runCreateGuestReservation(
   draft: BookingDraft,
   traveler: TravelerInput,
   paymentMethod: GuestPaymentMethod,
+  idempotencyKey: string,
+  linkedAuthUserId: string | null,
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
     return { ok: false, error: "Aucune agence de vente directe n'est configurée pour le moment." }
   }
+  // PHASE 27.2 — compte fournisseur myGo de L'AGENCE OTA DIRECTE (jamais le
+  // client global `MYGO_*` tant qu'un compte tenant est configuré pour
+  // elle). Même sémantique tenant que `guestTenantContext()`
+  // (isSuperAdmin: true reflète uniquement l'absence de session guest, pas
+  // un accès élargi — voir lib/hotel-suppliers/tenant/live-resolution.ts) ;
+  // reconstruit ici directement plutôt que de rappeler `guestTenantContext()`
+  // pour éviter une seconde résolution de `agencyId` déjà connu ci-dessus.
+  // Résolu UNE SEULE FOIS, réutilisé pour BOOK, la réconciliation ambiguë ET
+  // toutes les compensations (annulation) plus bas.
+  const myGoAccess: ResolvedMyGoAccess = await resolveMyGoAccessForTenant({
+    agencyId,
+    userId: "",
+    isSuperAdmin: true,
+  })
+
+  // --- Backstop DB idempotence (Phase 20) — indépendant de Redis ---
+  // Un retry après timeout (ou un appel alors que Redis est indisponible)
+  // retrouve directement la réservation déjà créée, AVANT tout appel
+  // fournisseur (myGo) ou tentative de paiement — jamais un second hold
+  // myGo ni un second débit pour la même soumission.
+  const existingByKey = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
+  if (existingByKey) return existingByKey
 
   // --- Revalidation fournisseur RÉELLE (myGo) — jamais de prix client-fourni ---
   // Même garde que le correctif P0 Phase 11 (lib/booking/actions.ts) : sans
   // confirmation fournisseur valide, aucun prix n'est jamais calculé ni
   // débité, quel que soit le module ou le mode de paiement.
-  const providerConfirmation = await confirmHotelWithProvider(draft, traveler)
+  const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
     return { ok: false, error: providerConfirmation.error }
   }
@@ -152,104 +259,164 @@ async function runCreateGuestReservation(
     Math.round((hotelEndDate.getTime() - hotelStartDate.getTime()) / (1000 * 60 * 60 * 24)),
   )
 
-  // --- Paiement en ligne immédiat ---
-  // Tenté AVANT toute écriture DB : si le paiement échoue ou si aucun
-  // provider n'est configuré, aucune réservation locale n'est créée — et la
-  // réservation fournisseur (déjà confirmée chez myGo à ce stade) est
-  // annulée en compensation, même logique que le catch de
-  // createReservationFromDraft.
+  // --- Paiement en ligne carte ---
+  // Tenté AVANT toute écriture DB : si le paiement échoue OU si le provider
+  // lève une exception (timeout réseau, etc. — voir
+  // lib/booking/guest-card-payment.ts, correctif Phase 15), aucune
+  // réservation locale n'est créée — et la réservation fournisseur (déjà
+  // confirmée chez myGo à ce stade) est annulée en compensation, même
+  // logique que le catch de createReservationFromDraft.
+  //
+  // Deux issues possibles quand `paymentResult.ok` :
+  //  - `status: "succeeded"` (capture synchrone, jamais atteint tant qu'aucun
+  //    adaptateur réel ne fonctionne ainsi) → comportement historique inchangé,
+  //    réservation confirmée immédiatement plus bas (`isImmediatelyPaidByCard`).
+  //  - `status: "requires_action"` + `redirectUrl` (modèle réel SPS/Paymee/
+  //    Stripe Checkout — paiement hébergé, jamais confirmé de façon
+  //    synchrone) → la réservation est créée `pending` avec un `payments`
+  //    PENDING corrélé par `pspOrderId`, jamais confirmée ici : seul le
+  //    webhook signé (app/api/payment/reservation-webhook/route.ts) confirme.
+  const cardPaymentReference = generateGuestPaymentReference()
+  let cardRedirect: { url: string; psp: "sps" | "stripe" | "manual" | "virtual" | "paymee" } | null = null
   if (paymentMethod === "card") {
-    const provider = getPaymentProvider()
-    const paymentResult = await provider.createPayment({
-      amountTnd: breakdown.totalTnd,
-      currency: "TND",
-      reference: `guest-${Date.now()}`,
-      description: `Réservation ${draft.module} — ${draft.offerLabel}`,
-      customerEmail: traveler.email,
-    })
+    const paymentResult = await attemptCardPayment(
+      getPaymentProvider(),
+      {
+        amountTnd: breakdown.totalTnd,
+        currency: "TND",
+        reference: cardPaymentReference,
+        description: `Réservation ${draft.module} — ${draft.offerLabel}`,
+        customerEmail: traveler.email,
+        customerFirstName: traveler.firstName,
+        customerLastName: traveler.lastName,
+        customerPhone: traveler.phone,
+      },
+      // PHASE 27.2 — même compte tenant que celui qui a créé le hold.
+      () => (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId }),
+    )
     if (!paymentResult.ok) {
-      try {
-        await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
-      } catch {
-        /* best-effort — voir note de compensation dans actions.ts */
-      }
       return {
         ok: false,
         error: paymentResult.message ?? "Le paiement n'a pas pu être traité.",
         code: paymentResult.code,
       }
     }
-    // Un vrai provider confirmerait ici avant de continuer — aucun
-    // adaptateur réel n'existe encore (voir lib/payment/provider.ts), donc
-    // cette branche n'est aujourd'hui jamais atteinte en pratique.
+    if (paymentResult.status === "requires_action" && paymentResult.redirectUrl) {
+      cardRedirect = { url: paymentResult.redirectUrl, psp: paymentResult.psp ?? "manual" }
+    }
+    // Sinon (`status: "succeeded"`) : comportement historique — aucun
+    // adaptateur réel ne confirme ainsi aujourd'hui, cette branche n'est
+    // donc en pratique jamais atteinte hors provider de test synchrone.
   }
 
-  const isImmediatelyPaid = paymentMethod === "card"
+  // "wallet" ne peut être tranché qu'APRÈS avoir résolu customerId (donc à
+  // l'intérieur de la transaction, une fois la ligne `customers` posée) —
+  // "card" reste tranché avant, car c'est un appel externe (PSP) qui ne
+  // dépend d'aucune ligne DB. isImmediatelyPaid n'est donc définitif qu'en
+  // sortie de transaction. Jamais immédiat quand `cardRedirect` est posé —
+  // le paiement carte redirect-based n'est confirmé que par le webhook.
+  const isImmediatelyPaidByCard = paymentMethod === "card" && !cardRedirect
 
   try {
     const result = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       async (tx) => {
-        let customerId: string
-        const existing = await tx
-          .select({ id: customers.id })
-          .from(customers)
-          .where(and(eq(customers.agencyId, agencyId), eq(customers.email, traveler.email)))
-          .limit(1)
-        if (existing[0]) {
-          customerId = existing[0].id
-        } else {
-          const inserted = await tx
-            .insert(customers)
-            .values({
-              agencyId,
-              civility: traveler.civility,
-              firstName: traveler.firstName,
-              lastName: traveler.lastName,
-              email: traveler.email,
-              phone: traveler.phone,
-              civicId: traveler.civicId,
-              civicIdType: traveler.civicIdType,
-              birthDate: traveler.birthDate || null,
-              nationality: traveler.nationality || null,
-            })
-            .returning({ id: customers.id })
-          customerId = inserted[0].id
-        }
+        // PHASE "CUSTOMER RESERVATION LINK" — find-or-create + rattachement
+        // `authUserId` sûr, logique UNIQUE partagée avec le module Omra/
+        // Package/Activité (voir lib/booking/customer-identity.ts).
+        const customerId = await resolveOrCreateLinkedCustomer(tx, {
+          agencyId,
+          traveler,
+          linkedAuthUserId,
+        })
 
         const publicRef = await nextPublicRef(tx, agencyId)
 
-        const inserted = await tx
-          .insert(reservations)
-          .values({
-            agencyId,
-            publicRef,
-            customerId,
-            module: "hotel",
-            source: "internal",
-            status: "pending",
-            originalCurrency: draft.currency,
-            originalAmount: String(breakdown.totalTnd),
-            tndAmount: String(breakdown.totalTnd),
-            depositAmount: String(breakdown.depositTnd),
-            depositPaid: "0",
-            providerPayload: {
-              offerId: draft.offerId,
-              offerLabel: draft.offerLabel,
-              startDate: draft.startDate,
-              endDate: draft.endDate,
-              adults: draft.adults,
-              children: draft.children,
-              breakdown,
-              metadata: draft.metadata ?? null,
-              channel: "b2c_guest",
-              paymentMethod,
-              myGoBookingId: myGoBooking.bookingId,
-              myGoState: myGoBooking.state ?? null,
-            },
-          })
-          .returning({ id: reservations.id, publicRef: reservations.publicRef })
+        // Fenêtre de règlement manuel 24h — posée uniquement pour ce qui
+        // reste réellement `pending` en sortie de transaction (transfer/
+        // cash, ou wallet en cas de solde insuffisant ne serait de toute
+        // façon jamais atteint ici : voir le débit ci-dessous, qui fait
+        // échouer toute la transaction avant ce point). `card` sans
+        // redirection : jamais de fenêtre, soit confirmé immédiatement soit
+        // rejeté avant tout INSERT. `card` AVEC redirection (paiement en
+        // ligne réel en attente du webhook) : fenêtre COURTE
+        // (ONLINE_PAYMENT_WINDOW_MS, session de paiement PSP, pas un
+        // règlement différé) — jamais 24h, un client au milieu d'un
+        // paiement carte ne doit pas garder son offre "réservée" un jour
+        // entier. `at_hotel` : pas de fenêtre non plus — contrairement à
+        // transfer/cash (réglés en principe sous 24h), le règlement à
+        // l'hôtel n'a lieu qu'au check-in, potentiellement des semaines
+        // plus tard ; poser une expiration de 24h annulerait la réservation
+        // avant même le séjour. La réservation reste `pending` (jamais
+        // auto-expirée par le cron, qui ne cible que les lignes avec un
+        // paymentExpiresAt non nul) jusqu'à un règlement manuel constaté par
+        // le staff (verifyManualPayment, method déjà supporté) ou une
+        // annulation manuelle explicite.
+        const paymentExpiresAt =
+          paymentMethod === "transfer" || paymentMethod === "cash"
+            ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)
+            : cardRedirect
+              ? new Date(Date.now() + ONLINE_PAYMENT_WINDOW_MS)
+              : null
+
+        let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
+        try {
+          // Savepoint (transaction imbriquée) : si l'INSERT échoue sur le
+          // conflit d'unicité, seul ce sous-bloc est annulé. Sans savepoint,
+          // Postgres marque toute la transaction externe `tx` "aborted" dès
+          // la première erreur — même en capturant l'exception ici, le COMMIT
+          // final de `tx` échouerait quand même avec la même erreur brute.
+          inserted = await tx.transaction((tx2) =>
+            tx2
+              .insert(reservations)
+              .values({
+                agencyId,
+                publicRef,
+                customerId,
+                module: "hotel",
+                source: "internal",
+                status: "pending",
+                originalCurrency: draft.currency,
+                originalAmount: String(breakdown.totalTnd),
+                tndAmount: String(breakdown.totalTnd),
+                depositAmount: String(breakdown.depositTnd),
+                depositPaid: "0",
+                paymentExpiresAt: paymentExpiresAt ?? undefined,
+                guestIdempotencyKey: idempotencyKey,
+                providerPayload: {
+                  offerId: draft.offerId,
+                  offerLabel: draft.offerLabel,
+                  startDate: draft.startDate,
+                  endDate: draft.endDate,
+                  adults: draft.adults,
+                  children: draft.children,
+                  breakdown,
+                  metadata: draft.metadata ?? null,
+                  channel: "b2c_guest",
+                  paymentMethod,
+                  myGoBookingId: myGoBooking.bookingId,
+                  myGoState: myGoBooking.state ?? null,
+                },
+              })
+              .returning({
+                id: reservations.id,
+                publicRef: reservations.publicRef,
+                guestAccessToken: reservations.guestAccessToken,
+              }),
+          )
+        } catch (err) {
+          // Double-submit vraiment simultané : l'autre requête a gagné la
+          // course sur reservations_guest_idempotency_uniq. Rien d'autre
+          // n'a encore été écrit pour CETTE tentative (pas de wallet debit,
+          // pas de reservation_hotel) — on s'arrête ici, le hold myGo de
+          // cette tentative perdante sera compensé par l'appelant.
+          if (pgErrorCode(err) === "23505") {
+            return { conflict: true as const }
+          }
+          throw err
+        }
         const reservationId = inserted[0].id
+        const guestAccessToken = inserted[0].guestAccessToken
 
         const confirmedRoom = myGoBooking.rooms[0]
         await tx.insert(reservationHotel).values({
@@ -281,6 +448,43 @@ async function runCreateGuestReservation(
           diff: { module: draft.module, publicRef, total: breakdown.totalTnd, via: "b2c_guest", paymentMethod },
         })
 
+        // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges
+        // (voir lib/finance/reservation-financials.ts). Réutilise les DEUX
+        // montants déjà calculés plus haut par `applyMargin()`, jamais un
+        // recalcul.
+        if (draft.module === "hotel") {
+          await recordReservationFinancials({
+            tx,
+            reservationId,
+            supplierPriceTnd: myGoBooking.totalPrice,
+            salePriceTnd: agencyPrice,
+          })
+        }
+
+        let isImmediatelyPaid = isImmediatelyPaidByCard
+
+        if (paymentMethod === "wallet") {
+          // Débit AVANT toute confirmation — dans la MÊME transaction que
+          // la création de la réservation (txOverride), pour l'atomicité
+          // déjà établie par debitPartnerCredit côté B2B : un solde
+          // insuffisant doit annuler la réservation entière (ROLLBACK),
+          // jamais laisser une réservation `pending` orpheline d'un débit
+          // qui n'a pas eu lieu. Solde serveur-autoritaire uniquement — le
+          // montant vient de `breakdown.totalTnd` (calculé plus haut à
+          // partir du prix myGo réel + marge), jamais d'une valeur client.
+          const debit = await debitCustomerWallet({
+            customerId,
+            amountTnd: breakdown.totalTnd,
+            reservationId,
+            description: `Réservation ${draft.module} — ${draft.offerLabel}`,
+            txOverride: tx as Parameters<typeof debitCustomerWallet>[0]["txOverride"],
+          })
+          if (!debit.ok) {
+            throw new WalletDebitFailedError(debit.code, debit.message)
+          }
+          isImmediatelyPaid = true
+        }
+
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
@@ -291,7 +495,7 @@ async function runCreateGuestReservation(
             agencyId,
             reservationId,
             psp: "manual",
-            method: "card",
+            method: paymentMethod === "wallet" ? "wallet" : "card",
             originalCurrency: "TND",
             originalAmount: breakdown.totalTnd.toFixed(2),
             tndAmount: breakdown.totalTnd.toFixed(2),
@@ -299,12 +503,51 @@ async function runCreateGuestReservation(
             status: "captured",
             capturedAt: new Date(),
           })
+
+          // Easy2Book Rewards (Phase 38D) — montant éligible = paiement
+          // réellement capturé (lib/finance/payment-summary.ts), jamais
+          // breakdown.totalTnd (prix calculé, pas encaissé). Même
+          // transaction que la confirmation : jamais un point sans
+          // réservation confirmée derrière.
+          const rewardsSummary = await getReservationPaymentSummary({
+            reservationId,
+            txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+          })
+          await earnPendingPoints(tx, {
+            agencyId,
+            customerId,
+            reservationId,
+            module: "hotel",
+            eligibleTnd: rewardsSummary.collectedTnd,
+            idempotencyKey: `earn-pending:${reservationId}`,
+          })
+        } else if (cardRedirect) {
+          // Paiement en ligne redirect-based (SPS/Paymee/Stripe Checkout) —
+          // réservation réelle, statut `pending`, `payments` PENDING corrélé
+          // par `pspOrderId` : seul le webhook signé
+          // (app/api/payment/reservation-webhook/route.ts) capture ce
+          // paiement et confirme la réservation. Jamais de voucher/facture
+          // ici (Phase 11 : confirmed/completed uniquement).
+          await tx.insert(payments).values({
+            agencyId,
+            reservationId,
+            psp: cardRedirect.psp,
+            method: "card",
+            pspOrderId: cardPaymentReference,
+            originalCurrency: "TND",
+            originalAmount: breakdown.totalTnd.toFixed(2),
+            tndAmount: breakdown.totalTnd.toFixed(2),
+            kind: "deposit",
+            status: "pending",
+          })
         } else {
           // Règlement différé (virement/espèces) — déjà annoncé comme tel
           // dans l'UI existante. Réservation réelle, statut `pending` :
           // aucun voucher (Phase 11 : confirmed/completed uniquement),
           // aucune facture tant que le règlement n'est pas confirmé
-          // manuellement par un opérateur.
+          // manuellement par un opérateur (voir
+          // lib/finance/manual-payment-actions.ts). `paymentExpiresAt`
+          // (posé ci-dessus) déclenche l'expiration automatique 24h.
           await tx.insert(payments).values({
             agencyId,
             reservationId,
@@ -319,31 +562,53 @@ async function runCreateGuestReservation(
         }
 
         const finalStatus: "confirmed" | "pending" = isImmediatelyPaid ? "confirmed" : "pending"
-        return { reservationId, publicRef, status: finalStatus }
+        return {
+          reservationId,
+          publicRef,
+          guestAccessToken,
+          status: finalStatus,
+          isImmediatelyPaid,
+          redirectUrl: cardRedirect?.url,
+          conflict: false as const,
+        }
       },
     )
 
+    if (result.conflict) {
+      // Cette tentative a perdu la course sur reservations_guest_idempotency_uniq
+      // — l'autre requête (même token+méthode) a déjà créé la réservation
+      // réelle. Compense le hold myGo redondant de CETTE tentative (best
+      // effort, même logique que le catch général plus bas) puis renvoie le
+      // résultat de la réservation gagnante, jamais une erreur générique.
+      try {
+        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+      } catch {
+        /* best effort — un hold myGo redondant sans réservation locale associée
+         * n'a aucun impact financier/paiement côté Easy2Book. */
+      }
+      const winner = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
+      if (winner) return winner
+      return {
+        ok: false,
+        error: "Cette réservation est en cours de traitement par une autre requête — réessayez dans quelques secondes.",
+      }
+    }
+
     // "booking/confirmed" déclenche processConfirmedBooking (PDF voucher +
-    // email, lib/inngest/functions/process-confirmed-booking.ts), qui rend
-    // et envoie le voucher SANS revérifier le statut de la réservation.
-    // Trouvé en Phase 14.2 : cet événement partait pour TOUT paiement
-    // (`if (traveler.email)` seul), y compris "transfer"/"cash" — une
-    // réservation encore `pending`, non réglée. Le client recevait alors un
-    // vrai voucher PDF pour une résa non confirmée, contredisant à la fois
-    // le commentaire de tête de ce fichier ("le voucher... uniquement une
-    // fois le règlement confirmé") et isVoucherEligible (lib/pro/
-    // voucher-eligibility.ts), déjà correctement appliqué par la route de
-    // téléchargement à la demande (/api/booking/voucher/[ref]) mais pas ici.
-    // Le chemin B2B (lib/booking/actions.ts) était lui déjà correct : il
-    // n'émet cet événement qu'après un débit wallet réussi et un statut
-    // "confirmed" effectif — même garde reproduite ici.
-    if (isImmediatelyPaid && traveler.email) {
+    // email) sans revérifier le statut — voir Phase 14.2 : cet événement ne
+    // doit JAMAIS partir pour une réservation restée `pending`
+    // (transfer/cash non réglé), sous peine d'envoyer un vrai voucher pour
+    // une résa non payée. Même garde que le chemin B2B
+    // (lib/booking/actions.ts), reproduite ici.
+    if (result.isImmediatelyPaid && traveler.email) {
       await sendEvent("booking/confirmed", {
         reservationId: result.reservationId,
         publicRef: result.publicRef,
         agencyId,
+        guestAccessToken: result.guestAccessToken,
         customerEmail: traveler.email,
         customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
+        customerPhone: traveler.phone,
         hotelName: myGoBooking.hotelName ?? draft.offerLabel,
         checkIn: draft.startDate,
         checkOut: draft.endDate ?? draft.startDate,
@@ -358,7 +623,7 @@ async function runCreateGuestReservation(
 
     // Facture uniquement pour un règlement réellement capturé maintenant —
     // jamais pour une réservation `pending` non payée (voir Phase 12 §12).
-    if (isImmediatelyPaid) {
+    if (result.isImmediatelyPaid) {
       try {
         const invoiceResult = await generateInvoiceForReservation({
           agencyId,
@@ -376,13 +641,34 @@ async function runCreateGuestReservation(
       }
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef, status: result.status }
-  } catch {
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
+      status: result.status,
+      redirectUrl: result.redirectUrl,
+    }
+  } catch (err) {
     let compensationNote = ""
     try {
-      await getMyGoClient().cancelBooking({ bookingId: myGoBooking.bookingId })
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
     } catch {
       compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
+    }
+    // Solde wallet insuffisant : transaction annulée (ROLLBACK, aucune
+    // réservation créée), résa fournisseur compensée ci-dessus — message
+    // clair plutôt que l'erreur interne générique, même distinction que
+    // INSUFFICIENT_BALANCE côté B2B (lib/booking/actions.ts).
+    if (err instanceof WalletDebitFailedError) {
+      return {
+        ok: false,
+        error:
+          err.code === "INSUFFICIENT_FUNDS"
+            ? `Solde wallet insuffisant pour ce règlement.${compensationNote}`
+            : `${err.message}${compensationNote}`,
+        code: err.code,
+      }
     }
     return {
       ok: false,

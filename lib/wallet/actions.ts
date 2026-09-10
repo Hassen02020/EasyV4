@@ -38,7 +38,7 @@ import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createClient } from "@supabase/supabase-js"
 import { getDb } from "@/lib/db/client"
-import { withTenantContext } from "@/lib/db/tenant-context"
+import { withTenantContext, resolveSessionContext } from "@/lib/db/tenant-context"
 import { inngest } from "@/lib/inngest/client"
 import { logger } from "@/lib/logger"
 import type * as schema from "@/lib/db/schema"
@@ -493,13 +493,26 @@ export async function rejectTopUp(
 /* 5. Getter — solde actuel                                                   */
 /* -------------------------------------------------------------------------- */
 
-export async function getWalletBalance(
-  agencyId: string,
-): Promise<WalletActionResult<{ balance: string; currency: string }>> {
+/**
+ * Ne prend plus `agencyId` en paramètre — l'IDOR corrigé ici permettait à
+ * n'importe quel appelant authentifié de lire le solde de n'importe quelle
+ * agence en fournissant son UUID (le seul contrôle était `!process.env.
+ * DATABASE_URL`). L'agence est désormais dérivée de la session Supabase
+ * courante via `resolveSessionContext()`, jamais du client.
+ */
+export async function getWalletBalance(): Promise<
+  WalletActionResult<{ balance: string; currency: string }>
+> {
   if (!process.env.DATABASE_URL) return { ok: false, error: "db_unavailable" }
 
+  const session = await resolveSessionContext()
+  if (!session.ok || !session.agencyId) {
+    return { ok: false, error: "Non authentifié", code: "NOT_AUTHENTICATED" }
+  }
+  const agencyId = session.agencyId
+
   const wallet = await withTenantContext(
-    { agencyId, userId: "", isSuperAdmin: false },
+    { agencyId, userId: session.userId, isSuperAdmin: session.isSuperAdmin },
     (db) => getOrCreateWallet(db as Db, agencyId),
   )
   return { ok: true, data: { balance: wallet.balance, currency: wallet.currency } }

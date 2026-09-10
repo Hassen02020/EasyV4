@@ -7,7 +7,7 @@
  * pas serveur tant que c'est < 1000).
  */
 
-import { and, desc, eq, gte, lt, or, sql } from "drizzle-orm"
+import { and, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, customers, reservations } from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
@@ -55,15 +55,10 @@ export type AdminReservationRow = {
   originalCurrency: string
   originalAmount: number
   tndAmount: number
+  /** Acompte DEMANDÉ (config), pas ce qui a été payé — pour ça, voir getReservationPaymentSummary. */
   depositAmount: number | null
-  depositPaid: number
   createdAt: string
   cancelledAt: string | null
-}
-
-export type AdminReservationsData = {
-  available: boolean
-  rows: AdminReservationRow[]
 }
 
 export type CursorPageResult = {
@@ -73,65 +68,32 @@ export type CursorPageResult = {
   hasMore: boolean
 }
 
-const EMPTY: AdminReservationsData = { available: false, rows: [] }
+/**
+ * Prédicat de recherche texte réutilisé par les deux loaders — recherche
+ * référence/nom/email/téléphone. Filtrait auparavant uniquement côté
+ * client sur les lignes déjà chargées (≤ 50/25 lignes) alors que la
+ * pagination est en réalité serveur (cursor) — une recherche portant sur
+ * une réservation hors de la page courante renvoyait silencieusement
+ * "aucun résultat" au lieu de la trouver.
+ */
+function buildSearchCondition(search: string | null | undefined) {
+  const q = search?.trim()
+  if (!q) return undefined
+  const pattern = `%${q}%`
+  return or(
+    ilike(reservations.publicRef, pattern),
+    ilike(customers.firstName, pattern),
+    ilike(customers.lastName, pattern),
+    ilike(customers.email, pattern),
+    ilike(customers.phone, pattern),
+  )
+}
+
 const EMPTY_PAGE: CursorPageResult = {
   available: false,
   rows: [],
   nextCursor: null,
   hasMore: false,
-}
-
-/* -------------------------------------------------------------------------- */
-/* Legacy loader (kept for dashboard compatibility)                         */
-/* -------------------------------------------------------------------------- */
-
-export async function loadAdminReservations(
-  agencyId: string,
-  limit = 500,
-): Promise<AdminReservationsData> {
-  if (!process.env.DATABASE_URL) return EMPTY
-
-  try {
-    const rows = await withTenantContext(
-      { agencyId, userId: "", isSuperAdmin: false },
-      (db) =>
-    db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        agencyId: reservations.agencyId,
-        agencyName: sql<string | null>`COALESCE(${agencies.brandName}, ${agencies.name})`,
-        module: reservations.module,
-        status: reservations.status,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        phone: customers.phone,
-        originalCurrency: reservations.originalCurrency,
-        originalAmount: reservations.originalAmount,
-        tndAmount: reservations.tndAmount,
-        depositAmount: reservations.depositAmount,
-        depositPaid: reservations.depositPaid,
-        createdAt: reservations.createdAt,
-        cancelledAt: reservations.cancelledAt,
-      })
-      .from(reservations)
-      .leftJoin(customers, eq(customers.id, reservations.customerId))
-      .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .where(and(eq(reservations.agencyId, agencyId)))
-      .orderBy(desc(reservations.createdAt))
-      .limit(limit),
-    )
-
-    return {
-      available: true,
-      rows: rows.map(mapRow),
-    }
-  } catch (error) {
-    const { logger } = await import("@/lib/logger")
-    logger.error("loadAdminReservations failed", { code: error instanceof Error ? error.constructor.name : "unknown" })
-    return EMPTY
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -142,23 +104,27 @@ export async function loadAdminReservationsPage(
   agencyId: string,
   limit = 25,
   cursor?: Cursor | null,
+  filters?: { status?: string | null; module?: string | null; search?: string | null },
 ): Promise<CursorPageResult> {
   if (!process.env.DATABASE_URL) return EMPTY_PAGE
 
   try {
-    const base = eq(reservations.agencyId, agencyId)
-    const where = cursor
-      ? and(
-          base,
-          or(
+    const conditions = [
+      eq(reservations.agencyId, agencyId),
+      filters?.status ? eq(reservations.status, filters.status as "pending") : undefined,
+      filters?.module ? eq(reservations.module, filters.module as "hotel") : undefined,
+      buildSearchCondition(filters?.search),
+      cursor
+        ? or(
             lt(reservations.createdAt, new Date(cursor.createdAt)),
             and(
               eq(reservations.createdAt, new Date(cursor.createdAt)),
               lt(reservations.id, cursor.id),
             ),
-          ),
-        )
-      : base
+          )
+        : undefined,
+    ].filter(Boolean)
+    const where = and(...(conditions as Parameters<typeof and>))
 
     const rows = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
@@ -179,7 +145,6 @@ export async function loadAdminReservationsPage(
         originalAmount: reservations.originalAmount,
         tndAmount: reservations.tndAmount,
         depositAmount: reservations.depositAmount,
-        depositPaid: reservations.depositPaid,
         createdAt: reservations.createdAt,
         cancelledAt: reservations.cancelledAt,
       })
@@ -235,7 +200,6 @@ function mapRow(row: {
   originalAmount: string | null
   tndAmount: string | null
   depositAmount: string | null
-  depositPaid: string | null
   createdAt: Date
   cancelledAt: Date | null
 }): AdminReservationRow {
@@ -255,7 +219,6 @@ function mapRow(row: {
     tndAmount: Number(row.tndAmount ?? 0),
     depositAmount:
       row.depositAmount === null ? null : Number(row.depositAmount),
-    depositPaid: Number(row.depositPaid ?? 0),
     createdAt: row.createdAt.toISOString(),
     cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
   }
@@ -269,6 +232,7 @@ export type AllReservationsOpts = {
   agencyId?: string | null
   status?: string | null
   module?: string | null
+  search?: string | null
   since?: Date | null
   limit?: number
   cursor?: Cursor | null
@@ -286,6 +250,7 @@ export async function loadAllReservations(
       opts.agencyId ? eq(reservations.agencyId, opts.agencyId) : undefined,
       opts.status ? eq(reservations.status, opts.status as "pending") : undefined,
       opts.module ? eq(reservations.module, opts.module as "hotel") : undefined,
+      buildSearchCondition(opts.search),
       opts.since ? gte(reservations.createdAt, opts.since) : undefined,
       opts.cursor
         ? or(
@@ -321,7 +286,6 @@ export async function loadAllReservations(
         originalAmount: reservations.originalAmount,
         tndAmount: reservations.tndAmount,
         depositAmount: reservations.depositAmount,
-        depositPaid: reservations.depositPaid,
         createdAt: reservations.createdAt,
         cancelledAt: reservations.cancelledAt,
       })

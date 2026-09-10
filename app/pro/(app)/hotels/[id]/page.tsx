@@ -22,6 +22,7 @@ import {
 } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { ProRoomSelector } from "@/components/pro/pro-room-selector"
 
 type DetailSearchParams = {
@@ -84,10 +85,13 @@ export default async function ProHotelDetailPage({
   const dateCheck = validateSearchDateRange(q.checkin, q.checkout)
   if (!dateCheck.ok) notFound()
 
-  const [result, margins] = await Promise.all([
-    runHotelSearch(q),
+  // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la session
+  // partenaire courante (voir lib/hotel-suppliers/tenant/live-resolution.ts).
+  const [access, margins] = await Promise.all([
+    resolvePartnerMyGoAccess(),
     getActivePartnerMargins(),
   ])
+  const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
 
   if (!result.ok || result.dto.offers.length === 0) {
     return (
@@ -99,8 +103,17 @@ export default async function ProHotelDetailPage({
               : "Cet hôtel n'est plus disponible pour ces dates"}
           </p>
           {!result.ok && result.message && <p className="mt-1">{result.message}</p>}
+          {/* PHASE 30.4 — audit : `q` (recherche déjà validée à ce stade)
+              était disponible mais pas réutilisé ; "Retour aux résultats"
+              renvoyait vers /pro/hotels SANS aucun paramètre, forçant
+              l'agent à ressaisir toute la recherche au lieu de simplement
+              revoir les résultats pour les mêmes ville/dates/voyageurs. */}
           <Button asChild variant="outline" className="mt-4 rounded-xl">
-            <Link href="/pro/hotels">Retour aux résultats</Link>
+            <Link
+              href={`/pro/hotels?cityId=${q.cityId}&checkin=${q.checkin}&checkout=${q.checkout}&adults=${q.adults}${search.children ? `&children=${search.children}` : ""}`}
+            >
+              Retour aux résultats
+            </Link>
           </Button>
         </div>
       </div>

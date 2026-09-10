@@ -12,11 +12,12 @@ import {
   type ReservationStatus,
 } from "@/lib/admin/reservation-status"
 
-test("RESERVATION_STATUSES expose les 7 statuts métier", () => {
+test("RESERVATION_STATUSES expose les 8 statuts métier", () => {
   assert.deepEqual([...RESERVATION_STATUSES].sort(), [
     "cancelled",
     "completed",
     "confirmed",
+    "expired",
     "no_show",
     "on_request",
     "pending",
@@ -28,8 +29,31 @@ test("transitions autorisées depuis pending", () => {
   assert.equal(isTransitionAllowed("pending", "confirmed"), true)
   assert.equal(isTransitionAllowed("pending", "on_request"), true)
   assert.equal(isTransitionAllowed("pending", "cancelled"), true)
+  assert.equal(isTransitionAllowed("pending", "expired"), true)
   assert.equal(isTransitionAllowed("pending", "completed"), false)
   assert.equal(isTransitionAllowed("pending", "refunded"), false)
+})
+
+test("expired est terminal (aucune transition sortante — ne peut plus être payée, validée, ni recevoir de voucher/confirmation)", () => {
+  for (const s of RESERVATION_STATUSES) {
+    if (s === "expired") continue
+    assert.equal(
+      isTransitionAllowed("expired", s),
+      false,
+      `expired -> ${s} doit être bloqué`,
+    )
+  }
+})
+
+test("aucun statut ne transitionne vers expired sauf pending", () => {
+  for (const s of RESERVATION_STATUSES) {
+    if (s === "pending") continue
+    assert.equal(
+      isTransitionAllowed(s, "expired"),
+      false,
+      `${s} -> expired doit être bloqué`,
+    )
+  }
 })
 
 test("transitions autorisées depuis confirmed", () => {

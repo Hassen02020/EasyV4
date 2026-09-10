@@ -19,6 +19,12 @@ const cspConnectSrc = [
   "https://*.supabase.co",
   "wss://*.supabase.co",
   SUPABASE_HOST ? `https://${SUPABASE_HOST}` : "",
+  // Pendant du `https://` ci-dessus pour un déploiement Supabase self-hosted/
+  // domaine custom (SUPABASE_HOST hors *.supabase.co, donc pas déjà couvert
+  // par le wildcard wss:// juste au-dessus) : sans cette entrée, la
+  // websocket Supabase Realtime de ce host précis est bloquée par le CSP —
+  // trouvé via une CSP violation console sur /admin/reservations.
+  SUPABASE_HOST ? `wss://${SUPABASE_HOST}` : "",
   "https://vitals.vercel-insights.com",
   "https://*.vercel-insights.com",
 ]

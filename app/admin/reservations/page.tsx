@@ -18,6 +18,7 @@ import {
   loadAdminReservationsPage,
   decodeCursor,
 } from "@/lib/admin/reservations-data"
+import { RESERVATION_STATUS_ALLOWED_ROLES } from "@/lib/admin/reservation-status"
 import { logger } from "@/lib/logger"
 import nextDynamic from "next/dynamic"
 import AdminReservationsLoading from "./loading"
@@ -30,7 +31,9 @@ const ReservationsDataTable = nextDynamic(() =>
 
 export const dynamic = "force-dynamic"
 
-const ALLOWED_ROLES = ["super_admin", "manager", "agent_resa"] as const
+// Même source de vérité que la Server Action updateReservationStatus
+// (lib/admin/actions.ts) — voir lib/admin/reservation-status.ts.
+const ALLOWED_ROLES = RESERVATION_STATUS_ALLOWED_ROLES
 type AllowedRole = (typeof ALLOWED_ROLES)[number]
 
 export default async function AdminReservationsPage({
@@ -41,6 +44,7 @@ export default async function AdminReservationsPage({
     agencyId?: string
     status?: string
     module?: string
+    search?: string
   }>
 }) {
   const supabase = await createServerSupabase()
@@ -75,6 +79,7 @@ export default async function AdminReservationsPage({
       agencyId: params.agencyId ?? null,
       status: params.status ?? null,
       module: params.module ?? null,
+      search: params.search ?? null,
       cursor,
       limit: 50,
     })
@@ -83,7 +88,11 @@ export default async function AdminReservationsPage({
     nextCursor = result.nextCursor
     hasMore = result.hasMore
   } else {
-    const result = await loadAdminReservationsPage(profile.agencyId, 25, cursor)
+    const result = await loadAdminReservationsPage(profile.agencyId, 25, cursor, {
+      status: params.status ?? null,
+      module: params.module ?? null,
+      search: params.search ?? null,
+    })
     available = result.available
     rows = result.rows
     nextCursor = result.nextCursor

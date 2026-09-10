@@ -47,6 +47,13 @@ export interface VirtualWebhookOptions {
    * Pour INVALID_SIGNATURE, un secret délibérément différent est utilisé. */
   secret: string
   eventId?: string
+  /**
+   * Route webhook ciblée — `/api/payment/webhook` (wallet B2B, défaut,
+   * comportement historique inchangé) ou `/api/payment/reservation-webhook`
+   * (paiement B2C réservation, voir lib/payment/virtual-checkout-actions.ts).
+   * Les deux routes partagent le même format de requête signée SPS/Stripe.
+   */
+  webhookPath?: string
 }
 
 export interface VirtualWebhookRequest {
@@ -105,12 +112,14 @@ export function buildVirtualWebhookRequest(
           ? "customer.created"
           : "payment_intent.succeeded"
 
+  const webhookPath = opts.webhookPath ?? "/api/payment/webhook"
+
   if (opts.provider === "stripe") {
     const payload = stripeEventPayload(eventId, eventType, ref, amount, currency)
     const signingSecret = scenario === "INVALID_SIGNATURE" ? `${opts.secret}-wrong` : opts.secret
     return {
       scenario,
-      url: (baseUrl) => `${baseUrl}/api/payment/webhook?provider=stripe`,
+      url: (baseUrl) => `${baseUrl}${webhookPath}?provider=stripe`,
       headers: {
         "content-type": "application/json",
         "stripe-signature": buildStripeSignatureHeader(payload, signingSecret),
@@ -140,7 +149,7 @@ export function buildVirtualWebhookRequest(
 
   return {
     scenario,
-    url: (baseUrl) => `${baseUrl}/api/payment/webhook?provider=sps`,
+    url: (baseUrl) => `${baseUrl}${webhookPath}?provider=sps`,
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body,
   }

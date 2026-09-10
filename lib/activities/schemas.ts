@@ -28,6 +28,12 @@ export const activityGuestBookingSchema = z
   .object({
     ...baseActivityBookingFields,
     traveler: travelerSchemaWithIdRule,
+    // Coché par le client s'il a vu et accepté la politique d'annulation
+    // affichée avant validation (voir lib/booking/policy-engine.ts). `false`
+    // par défaut : n'a de sens que si une politique existe réellement pour
+    // cette attraction — absence de politique = rien à accepter, jamais
+    // bloquant.
+    policyAccepted: z.boolean().optional().default(false),
   })
   .superRefine((data, ctx) => {
     if (data.childrenAges.length !== data.children) {

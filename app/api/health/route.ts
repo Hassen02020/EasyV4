@@ -33,15 +33,23 @@ const SLO_TARGETS = {
 
 type SloName = keyof typeof SLO_TARGETS
 
-async function checkRedis(): Promise<{ ok: boolean; latencyMs?: number }> {
+async function checkRedis(): Promise<{ ok: boolean; configured: boolean; latencyMs?: number }> {
   const redis = getRedis()
-  if (!redis) return { ok: false }
+  // Redis (Upstash) est un cache/rate-limit distribué OPTIONNEL — voir
+  // lib/cache/redis.ts : son absence bascule sur un fallback in-memory
+  // documenté (.env.example), ce n'est jamais une panne. Avant ce correctif,
+  // "non configuré" et "configuré mais en échec" retournaient tous deux
+  // { ok: false }, ce qui faisait passer /api/health en "down" (503) sur
+  // tout déploiement sans Upstash provisionné — un faux négatif qui aurait
+  // fait sortir l'app d'un load balancer/health check alors qu'elle
+  // fonctionne normalement.
+  if (!redis) return { ok: true, configured: false }
   const t0 = Date.now()
   try {
     await redis.ping()
-    return { ok: true, latencyMs: Date.now() - t0 }
+    return { ok: true, configured: true, latencyMs: Date.now() - t0 }
   } catch {
-    return { ok: false }
+    return { ok: false, configured: true }
   }
 }
 

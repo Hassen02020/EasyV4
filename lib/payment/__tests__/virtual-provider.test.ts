@@ -34,6 +34,27 @@ function verifyAndParse(
   return { sigOk, charge, eventType }
 }
 
+test("url() : cible /api/payment/webhook (wallet B2B) par défaut, jamais un autre endpoint implicitement", () => {
+  const req = buildVirtualWebhookRequest("CARD_SUCCESS", {
+    provider: "sps",
+    providerRef: PENDING_REQUEST.paymentReference,
+    amountTnd: 150,
+    secret: SPS_SECRET,
+  })
+  assert.equal(req.url("http://localhost:3000"), "http://localhost:3000/api/payment/webhook?provider=sps")
+})
+
+test("url() : webhookPath explicite redirige vers un AUTRE endpoint (ex. /api/payment/reservation-webhook) — régression du bug où le paiement B2C réservation simulé postait par erreur vers le webhook wallet", () => {
+  const req = buildVirtualWebhookRequest("CARD_SUCCESS", {
+    provider: "sps",
+    providerRef: PENDING_REQUEST.paymentReference,
+    amountTnd: 150,
+    secret: SPS_SECRET,
+    webhookPath: "/api/payment/reservation-webhook",
+  })
+  assert.equal(req.url("http://localhost:3000"), "http://localhost:3000/api/payment/reservation-webhook?provider=sps")
+})
+
 for (const provider of ["stripe", "sps"] as const) {
   const secret = provider === "stripe" ? STRIPE_SECRET : SPS_SECRET
 

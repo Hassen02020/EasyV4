@@ -21,10 +21,17 @@
  * Monde). Le comportement honnête par défaut est donc
  * `PAYMENT_PROVIDER_NOT_CONFIGURED` — jamais un faux SUCCESS.
  *
- * Un vrai adaptateur (Stripe pour les devises supportées, SPS pour le TND,
- * ou autre) peut être branché plus tard en implémentant cette même
- * interface, une fois la documentation d'intégration réelle disponible.
+ * E2B-003 — Paymee (lib/payment/paymee-provider.ts) EST un adaptateur réel
+ * (appel HTTP effectif à l'API Paymee, jamais de simulation locale), câblé
+ * ci-dessous derrière `PAYMENT_PROVIDER=paymee` + `PAYMEE_API_KEY` — voir le
+ * fichier pour l'avertissement complet sur les parties du contrat Paymee
+ * non vérifiables dans cet environnement de build (accès réseau à
+ * paymee.tn bloqué). Stripe/SPS restent non branchés pour les raisons
+ * ci-dessus (TND non supporté par Stripe, doc SPS jamais obtenue).
  */
+
+import { VirtualPaymentProvider, isVirtualPaymentModeEnabled } from "./virtual-payment-provider"
+import { PaymeePaymentProvider, isPaymeeSelected } from "./paymee-provider"
 
 export type PaymentProviderCode =
   | "PAYMENT_PROVIDER_NOT_CONFIGURED"
@@ -43,6 +50,12 @@ export interface CreatePaymentInput {
   reference: string
   description: string
   customerEmail: string
+  /** Requis par certains PSP réels (ex. Paymee : first_name/last_name/phone
+   * obligatoires côté API) — optionnels ici pour ne pas casser les
+   * providers existants (Virtual/NotConfigured) qui les ignorent. */
+  customerFirstName?: string
+  customerLastName?: string
+  customerPhone?: string
 }
 
 export interface PaymentResult {
@@ -53,6 +66,17 @@ export interface PaymentResult {
   providerPaymentId?: string
   /** Statut normalisé, indépendant du provider réel. */
   status?: "requires_action" | "succeeded" | "failed" | "refunded"
+  /** Présent uniquement quand `status: "requires_action"` — URL de la page
+   * de paiement hébergée par le PSP vers laquelle rediriger le navigateur
+   * (modèle SPS Monétique Tunisie/Stripe Checkout : le paiement lui-même
+   * n'est jamais confirmé de façon synchrone ici, seulement via le webhook
+   * signé une fois le client revenu de cette page — voir
+   * app/api/payment/reservation-webhook/route.ts). */
+  redirectUrl?: string
+  /** Présent uniquement quand `status: "requires_action"` — PSP réel qui va
+   * confirmer via webhook, pour poser `payments.psp` correctement (jamais
+   * déduit de `provider.name`, qui n'a pas la même contrainte d'enum DB). */
+  psp?: "sps" | "stripe" | "manual" | "virtual" | "paymee"
 }
 
 export interface PaymentStatusResult {
@@ -122,7 +146,11 @@ class NotConfiguredPaymentProvider implements PaymentProvider {
  * ce que cette fonction pure ne fait jamais.
  */
 export function hasConfiguredPaymentProvider(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY) || Boolean(process.env.SPS_SECRET_KEY)
+  return (
+    Boolean(process.env.STRIPE_SECRET_KEY) ||
+    Boolean(process.env.SPS_SECRET_KEY) ||
+    (isPaymeeSelected() && Boolean(process.env.PAYMEE_API_KEY))
+  )
 }
 
 /**
@@ -131,10 +159,30 @@ export function hasConfiguredPaymentProvider(): boolean {
  * branché ici (voir note de fichier).
  */
 export function getPaymentProvider(): PaymentProvider {
-  // Aucun adaptateur réel n'est branché aujourd'hui (voir note de fichier :
-  // devise TND non supportée par Stripe, contrat SPS non vérifié). Le jour
-  // où un adaptateur réel existe, l'ajouter ici en le sélectionnant selon
-  // `hasConfiguredPaymentProvider()` — ne jamais changer le comportement
-  // par défaut en dehors de ce point unique.
+  // Virtual Payment Provider — test/dev UNIQUEMENT (voir
+  // lib/payment/virtual-payment-provider.ts::isVirtualPaymentModeEnabled,
+  // jamais vrai en production, même garde que MYGO_MODE=virtual). Vérifié
+  // AVANT `hasConfiguredPaymentProvider()` : les deux ne peuvent jamais
+  // être vrais en même temps en pratique (aucune vraie clé PSP n'est
+  // censée exister dans un environnement PAYMENT_MODE=virtual), mais si
+  // jamais elles l'étaient, le mode virtuel explicite gagne — un
+  // environnement de test ne doit jamais basculer accidentellement sur un
+  // vrai PSP.
+  if (isVirtualPaymentModeEnabled()) {
+    return new VirtualPaymentProvider()
+  }
+  // E2B-003 — Paymee, sélectionné explicitement par PAYMENT_PROVIDER=paymee
+  // (jamais un défaut implicite). `PaymeePaymentProvider` reste lui-même
+  // honnête si `PAYMEE_API_KEY` est absent (voir paymee-provider.ts) —
+  // jamais un faux succès même si la variable de sélection est mal posée
+  // sans la clé.
+  if (isPaymeeSelected()) {
+    return new PaymeePaymentProvider()
+  }
+  // Aucun autre adaptateur réel n'est branché aujourd'hui (voir note de
+  // fichier : devise TND non supportée par Stripe, contrat SPS non
+  // vérifié). Le jour où un adaptateur réel existe, l'ajouter ici en le
+  // sélectionnant selon `hasConfiguredPaymentProvider()` — ne jamais
+  // changer le comportement par défaut en dehors de ce point unique.
   return new NotConfiguredPaymentProvider()
 }

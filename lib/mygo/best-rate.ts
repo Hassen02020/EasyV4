@@ -13,16 +13,23 @@ import type { HotelOfferDTO } from "./types"
 export interface BestRateSelection {
   price: number
   boardingName: string
+  /**
+   * PHASE 30 — `RoomOfferDTO.basePrice`, quand myGo la renvoie (prix avant
+   * remise réel, jamais fabriqué) — sert à afficher un vrai prix barré côté
+   * card/détail. `undefined` si myGo ne l'a pas fournie pour cette chambre.
+   */
+  basePrice?: number
 }
 
 function flattenRooms(
   offer: HotelOfferDTO,
-): { boardingName: string; price: number; stopReservation: boolean }[] {
+): { boardingName: string; price: number; basePrice?: number; stopReservation: boolean }[] {
   return offer.boardings.flatMap((b) =>
     b.pax.flatMap((p) =>
       p.rooms.map((r) => ({
         boardingName: b.name,
         price: r.price,
+        basePrice: r.basePrice,
         stopReservation: r.stopReservation,
       })),
     ),
@@ -60,5 +67,13 @@ export function selectBestRate(
     (best, cur) => (best === null || cur.price < best.price ? cur : best),
     null,
   )
-  return winner ? { price: winner.price, boardingName: winner.boardingName } : null
+  if (!winner) return null
+  return {
+    price: winner.price,
+    boardingName: winner.boardingName,
+    // N'ajoute la clé que si myGo a réellement fourni un basePrice — sinon
+    // `assert.deepStrictEqual` (utilisé par les tests existants) distingue
+    // `{ basePrice: undefined }` d'un objet sans cette clé.
+    ...(winner.basePrice != null ? { basePrice: winner.basePrice } : {}),
+  }
 }

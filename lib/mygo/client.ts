@@ -12,7 +12,7 @@
 
 import { ZodError, ZodTypeAny } from "zod"
 import { trackLatency } from "@/lib/logger"
-import { getMyGoConfig } from "./config"
+import { getMyGoConfig, type MyGoConfig } from "./config"
 import {
   MyGoApiError,
   MyGoAuthError,
@@ -134,11 +134,30 @@ interface CallOptions {
 /**
  * `MyGoClient` est volontairement stateless (lit la config au runtime).
  * Réutilisable côté serveur (route handlers, server components, server actions).
+ *
+ * PHASE 27 — `configOverride`/`cacheNamespace` : point d'injection minimal
+ * ajouté pour le compte fournisseur multi-tenant (voir `createMyGoClientForAccount`
+ * plus bas). `getMyGoClient()` (singleton existant, `configOverride` omis) est
+ * 100% inchangé — il continue de lire `getMyGoConfig()` (env `MYGO_*`/cache
+ * process-global) exactement comme avant. `cacheNamespace` évite qu'un compte
+ * fournisseur tenant partage son cache de données statiques (villes, hôtels...)
+ * avec un autre compte ou avec le compte global — chaque compte peut avoir un
+ * catalogue/contrat différent chez myGo.
  */
 export class MyGoClient {
   constructor(
     private readonly breaker: CircuitBreaker = getSharedSyncRedisCircuitBreaker(),
+    private readonly configOverride?: MyGoConfig,
+    private readonly cacheNamespace?: string,
   ) {}
+
+  private resolveConfig(): MyGoConfig {
+    return this.configOverride ?? getMyGoConfig()
+  }
+
+  private cacheKey(suffix: string): string {
+    return this.cacheNamespace ? `mygo:${this.cacheNamespace}:${suffix}` : `mygo:${suffix}`
+  }
 
   // -------------------------------------------------------------------------
   // Static data
@@ -151,8 +170,8 @@ export class MyGoClient {
       ListCityResponse,
       (r) => r.ListCity ?? [],
       {
-        cacheKey: "mygo:cities",
-        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+        cacheKey: this.cacheKey("cities"),
+        cacheTtlSeconds: this.resolveConfig().staticDataTtlSeconds,
       },
     )
   }
@@ -164,8 +183,8 @@ export class MyGoClient {
       ListBoardingResponse,
       (r) => r.ListBoarding ?? [],
       {
-        cacheKey: "mygo:boardings",
-        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+        cacheKey: this.cacheKey("boardings"),
+        cacheTtlSeconds: this.resolveConfig().staticDataTtlSeconds,
       },
     )
   }
@@ -177,8 +196,8 @@ export class MyGoClient {
       ListCurrencyResponse,
       (r) => r.ListCurrency ?? [],
       {
-        cacheKey: "mygo:currencies",
-        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+        cacheKey: this.cacheKey("currencies"),
+        cacheTtlSeconds: this.resolveConfig().staticDataTtlSeconds,
       },
     )
   }
@@ -190,8 +209,8 @@ export class MyGoClient {
       ListTagResponse,
       (r) => r.ListTag ?? [],
       {
-        cacheKey: "mygo:tags",
-        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+        cacheKey: this.cacheKey("tags"),
+        cacheTtlSeconds: this.resolveConfig().staticDataTtlSeconds,
       },
     )
   }
@@ -205,8 +224,8 @@ export class MyGoClient {
       ListHotelResponse,
       (r) => r.ListHotel ?? [],
       {
-        cacheKey: `mygo:hotels:${cityId ?? "all"}`,
-        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+        cacheKey: this.cacheKey(`hotels:${cityId ?? "all"}`),
+        cacheTtlSeconds: this.resolveConfig().staticDataTtlSeconds,
       },
     )
   }
@@ -219,8 +238,8 @@ export class MyGoClient {
       HotelDetailResponse,
       (r) => r.HotelDetail ?? null,
       {
-        cacheKey: `mygo:hotel:${hotelId}`,
-        cacheTtlSeconds: getMyGoConfig().staticDataTtlSeconds,
+        cacheKey: this.cacheKey(`hotel:${hotelId}`),
+        cacheTtlSeconds: this.resolveConfig().staticDataTtlSeconds,
       },
     )
   }
@@ -259,7 +278,7 @@ export class MyGoClient {
         })),
       },
     }
-    const cacheKey = `mygo:search:${stableHash(body)}`
+    const cacheKey = this.cacheKey(`search:${stableHash(body)}`)
     return this.cachedCall(
       "HotelSearch",
       body,
@@ -271,7 +290,7 @@ export class MyGoClient {
       }),
       {
         cacheKey,
-        cacheTtlSeconds: getMyGoConfig().searchTtlSeconds,
+        cacheTtlSeconds: this.resolveConfig().searchTtlSeconds,
       },
     )
   }
@@ -440,7 +459,7 @@ export class MyGoClient {
     callOptions: { retryable?: boolean } = {},
   ): Promise<import("zod").infer<S>> {
     const retryable = callOptions.retryable ?? true
-    const cfg = getMyGoConfig()
+    const cfg = this.resolveConfig()
 
     if (this.breaker.isOpen()) {
       const reopensAt = this.breaker.getReopensAt() ?? new Date()
@@ -594,6 +613,24 @@ let sharedClient: MyGoClient | null = null
 export function getMyGoClient(): MyGoClient {
   if (!sharedClient) sharedClient = new MyGoClient()
   return sharedClient
+}
+
+/**
+ * PHASE 27 — Compte fournisseur MyGo appartenant à une agence (master, agence
+ * ou marque blanche) : identifiants résolus par `resolveSupplierAccount()`,
+ * jamais lus depuis l'environnement process. Un breaker Redis DÉDIÉ par
+ * compte (nommé `mygo:<accountId>`) — jamais le breaker partagé `getMyGoClient()`
+ * — pour qu'une panne/erreurs d'identifiants sur UN compte n'ouvre jamais le
+ * circuit pour les autres comptes (y compris le compte global `MYGO_*`).
+ * `getMyGoClient()` (singleton existant) reste totalement inchangé.
+ */
+export function createMyGoClientForAccount(accountId: string, config: MyGoConfig): MyGoClient {
+  const breaker = new SyncRedisCircuitBreaker(`mygo:${accountId}`, {
+    failureThreshold: 5,
+    windowMs: 60_000,
+    coolDownMs: 120_000,
+  })
+  return new MyGoClient(breaker, config, accountId)
 }
 
 // SyncRedisCircuitBreaker re-exported for tests

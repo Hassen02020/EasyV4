@@ -14,14 +14,15 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { createBrowserSupabase } from "@/lib/supabase/client"
+import { clearUserRoleCookie } from "@/app/actions/validate-role"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 
 const NAV_ITEMS = [
-  { href: "/mutuelle", label: "Dashboard", icon: HeartHandshake },
-  { href: "/mutuelle/dossiers", label: "Dossiers Assurés", icon: Users },
-  { href: "/mutuelle/factures", label: "Factures", icon: FileText },
-  { href: "/mutuelle/parametres", label: "Paramètres", icon: Settings },
+  { href: "/mutuelle", label: "Dashboard", icon: HeartHandshake, disabled: false },
+  { href: "/mutuelle/dossiers", label: "Dossiers Assurés", icon: Users, disabled: true },
+  { href: "/mutuelle/factures", label: "Factures", icon: FileText, disabled: true },
+  { href: "/mutuelle/parametres", label: "Paramètres", icon: Settings, disabled: true },
 ]
 
 interface MutuelleShellProps {
@@ -41,6 +42,10 @@ export function MutuelleShell({
   async function handleLogout() {
     const supabase = createBrowserSupabase()
     await supabase.auth.signOut()
+    // Sinon le cookie de rôle posé par /login/select survit à la
+    // déconnexion et pourrait fausser le routage du prochain utilisateur
+    // sur ce même navigateur (voir app/api/auth/signout/route.ts).
+    await clearUserRoleCookie()
     window.location.href = "/mutuelle/login"
   }
 
@@ -67,6 +72,18 @@ export function MutuelleShell({
               item.href === "/mutuelle"
                 ? pathname === "/mutuelle"
                 : pathname.startsWith(item.href)
+            if (item.disabled) {
+              return (
+                <span
+                  key={item.href}
+                  title="Pas encore disponible"
+                  className="text-muted-foreground/50 flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium"
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </span>
+              )
+            }
             return (
               <Link
                 key={item.href}
@@ -145,6 +162,18 @@ export function MutuelleShell({
                   item.href === "/mutuelle"
                     ? pathname === "/mutuelle"
                     : pathname.startsWith(item.href)
+                if (item.disabled) {
+                  return (
+                    <span
+                      key={item.href}
+                      title="Pas encore disponible"
+                      className="text-muted-foreground/50 flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </span>
+                  )
+                }
                 return (
                   <Link
                     key={item.href}

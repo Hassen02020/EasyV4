@@ -39,6 +39,8 @@ import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
+import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
 
 const CONTACT_PHONE = "+21698140514"
 const CONTACT_PHONE_DISPLAY = "+216 98 140 514"
@@ -375,7 +377,20 @@ export default async function PackageDetailPage({
                 </>
               )}
             </div>
+
+            <div className="mt-4">
+              <LeadCaptureForm
+                productType="package"
+                productRef={pkg.id}
+                productLabel={pkg.title}
+                title="Être rappelé pour ce voyage"
+              />
+            </div>
           </aside>
+        </div>
+
+        <div className="mx-auto max-w-4xl px-4 pb-8">
+          <ProductReviewsSection agencyId={pkg.agencyId} module="package" productRef={pkg.id} />
         </div>
       </main>
       <Footer />

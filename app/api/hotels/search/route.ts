@@ -13,10 +13,11 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   HotelSearchQuerySchema,
   validateSearchDateRange,
-  executeHotelSearch,
 } from "@/lib/mygo/search-core"
 import { rateLimit } from "@/lib/rate-limit"
 import { requirePartnerSession } from "@/lib/api/auth-guard"
+import { resolveMyGoAccessForTenant, partnerTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
 
 export const revalidate = 300 // 5 min — les prix changent vite
 
@@ -64,5 +65,13 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  return executeHotelSearch(q)
+  // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de CETTE
+  // session partenaire (jamais le compte global MYGO_* si un compte tenant
+  // est configuré) — voir lib/hotel-suppliers/tenant/live-resolution.ts.
+  const tenantContext = partnerTenantContext(session.agencyId, session.userId, session.role === "super_admin")
+  const access = await resolveMyGoAccessForTenant(tenantContext)
+  // PHASE 28 — recherche orchestrée par le Hub (drivers disponibles,
+  // recherche parallèle, isolation timeout, normalisation/dédup/ranking) ;
+  // contrat de réponse inchangé — voir lib/hotel-suppliers/search-hub.ts.
+  return executeHotelSearchThroughHub(q, access, { agencyId: session.agencyId })
 }

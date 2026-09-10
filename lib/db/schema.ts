@@ -108,6 +108,7 @@ export const reservationStatus = pgEnum("reservation_status", [
   "no_show",
   "completed", // séjour terminé
   "refunded",
+  "expired", // paiement manuel jamais reçu sous 24h (payment_expires_at dépassé)
 ])
 
 export const paymentStatus = pgEnum("payment_status", [
@@ -131,6 +132,8 @@ export const paymentPsp = pgEnum("payment_psp", [
   "sps", // SPS Monétique Tunisie (local — futur)
   "stripe", // Stripe (international — anticipé)
   "manual", // Validation manuelle admin (wallet recharge)
+  "virtual", // Virtual Payment Provider — test/dev uniquement, jamais en prod
+  "paymee", // Paymee (PSP tunisien réel — paiement B2C en ligne, redirection hébergée)
 ])
 
 export const transferVehicleType = pgEnum("transfer_vehicle_type", [
@@ -382,6 +385,36 @@ export const reservations = pgTable(
       .defaultNow(),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /** Deadline de règlement manuel (cash/virement) — dépassée sans paiement
+     * confirmé, la réservation passe `expired` (cron
+     * /api/cron/expire-pending-payments). `null` pour tout ce qui n'est pas
+     * une réservation `pending` en attente de règlement manuel. */
+    paymentExpiresAt: timestamp("payment_expires_at", { withTimezone: true }),
+    /** Clé d'idempotence checkout — sha256(token:method) pour le guest
+     * checkout B2C (Phase 20, lib/booking/guest-actions.ts) et
+     * sha256(token:b2b) pour la création B2B (audit production readiness —
+     * createReservationFromDraft n'avait initialement aucune protection
+     * contre le double-submit, contrairement au chemin guest ; réutilise la
+     * MÊME colonne/index plutôt qu'une seconde, voir lib/booking/actions.ts).
+     * NULL pour tout ce qui n'est ni l'un ni l'autre (admin manuel...) :
+     * backstop DB indépendant de Redis contre le double-submit simultané /
+     * le retry après timeout. */
+    guestIdempotencyKey: text("guest_idempotency_key"),
+    /** Phase 21.1 (P0-1) — second identifiant privé, cryptographiquement
+     * aléatoire, requis EN PLUS de `publicRef` par les routes guest
+     * (confirmation/voucher) sans session. `publicRef` est séquentiel/
+     * prévisible (`TG-2026-000123`) et reste l'identifiant humain de
+     * support/communication — jamais utilisé seul comme frontière d'accès.
+     * DEFAULT non-constant (`gen_random_uuid()` x2, 256 bits) : Postgres
+     * réécrit la table et évalue une valeur DISTINCTE par ligne existante à
+     * l'ALTER (comportement documenté, vérifié en direct sur ce projet),
+     * donc aucune réservation existante ne reste sans token. Jamais fourni
+     * par le client, jamais affiché dans /admin ou /pro. */
+    guestAccessToken: text("guest_access_token")
+      .notNull()
+      .default(
+        sql`(replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''))`,
+      ),
   },
   (t) => [
     uniqueIndex("reservations_public_ref_uniq").on(t.agencyId, t.publicRef),
@@ -390,6 +423,10 @@ export const reservations = pgTable(
     index("reservations_customer_idx").on(t.customerId),
     index("reservations_status_idx").on(t.agencyId, t.status),
     index("reservations_created_idx").on(t.agencyId, t.createdAt),
+    uniqueIndex("reservations_guest_idempotency_uniq")
+      .on(t.guestIdempotencyKey)
+      .where(sql`${t.guestIdempotencyKey} is not null`),
+    uniqueIndex("reservations_guest_access_token_uniq").on(t.guestAccessToken),
   ],
 )
 
@@ -613,6 +650,13 @@ export const payments = pgTable(
       .default("0"),
     capturedAt: timestamp("captured_at", { withTimezone: true }),
     refundedAt: timestamp("refunded_at", { withTimezone: true }),
+    /** Clé déterministe par TENTATIVE de capture (Phase 16.2) — remplace
+     * l'ancienne garde `payments_reservation_captured_uniq` qui bloquait
+     * TOUT deuxième paiement capturé par réservation (incompatible avec le
+     * modèle Wallet + virement + PAY_AT_HOTEL). Une tentative rejouée
+     * (même clé) est rejetée ; deux versements légitimes différents
+     * (clés différentes) sont tous deux acceptés. */
+    idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -625,6 +669,11 @@ export const payments = pgTable(
     index("payments_reservation_idx").on(t.reservationId),
     index("payments_psp_order_idx").on(t.pspOrderId),
     index("payments_status_idx").on(t.agencyId, t.status),
+    /** Au plus une capture par tentative (clé d'idempotence) — voir
+     * commentaire de `idempotencyKey`. */
+    uniqueIndex("payments_capture_idempotency_uniq")
+      .on(t.reservationId, t.idempotencyKey)
+      .where(sql`${t.status} = 'captured' and ${t.idempotencyKey} is not null`),
   ],
 )
 
@@ -678,6 +727,49 @@ export const auditEvents = pgTable(
     index("audit_agency_idx").on(t.agencyId),
     index("audit_entity_idx").on(t.entityType, t.entityId),
     index("audit_actor_idx").on(t.actorUserId),
+    /** Au plus une notification WhatsApp/email voucher envoyée, ou
+     * synchronisation CRM réussie, par entité — garde DB contre le double
+     * envoi sur retry Inngest, en plus de la vérification applicative (voir
+     * lib/whatsapp/send-booking-confirmation.ts, lib/crm/sync-booking.ts,
+     * lib/inngest/functions/process-confirmed-booking.ts). */
+    uniqueIndex("audit_events_notification_success_uniq")
+      .on(t.entityType, t.entityId, t.action)
+      .where(
+        sql`${t.action} in ('notification.whatsapp.sent', 'notification.crm.synced', 'notification.voucher_email.sent')`,
+      ),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
+/* Permission grants (Phase 22) — délégation explicite au-dessus du baseline  */
+/* par rôle (lib/auth/rbac.ts / lib/auth/permissions.ts). Une ligne = override */
+/* explicite (accordé/révoqué) pour CE user, dans SON agence ; son absence =  */
+/* comportement baseline du rôle inchangé. Ne remplace aucun rôle existant.   */
+/* -------------------------------------------------------------------------- */
+export const permissionGrants = pgTable(
+  "permission_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    userId: uuid("user_id").notNull(),
+    /** Clé de lib/auth/rbac.ts::Permission (ex. "staff.create", "accounting.view"). */
+    permission: text("permission").notNull(),
+    /** true = permission accordée au-delà du baseline ; false = baseline révoqué pour ce user précis. */
+    granted: boolean("granted").notNull(),
+    grantedByUserId: uuid("granted_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("permission_grants_user_permission_uniq").on(t.agencyId, t.userId, t.permission),
+    index("permission_grants_agency_idx").on(t.agencyId),
+    index("permission_grants_user_idx").on(t.userId),
   ],
 )
 
@@ -1017,6 +1109,454 @@ export const productAuthorizations = pgTable(
 )
 
 /**
+ * Policy Engine — politiques d'annulation/modification, Omra/Package/
+ * Activity UNIQUEMENT (jamais Hôtel : `cancellationPolicies` fournisseur
+ * myGo, normalisées par le Universal Hub, restent la seule autorité —
+ * voir lib/booking/cancel-actions.ts et lib/booking/customer-cancel-
+ * actions.ts, non touchés par cette table).
+ *
+ * Versionnée, jamais écrasée : "modifier" = INSERT d'une nouvelle ligne
+ * avec `version = ancienne + 1` et `isActive: true`, en désactivant
+ * l'ancienne (`isActive: false`) — l'historique complet reste en base,
+ * interrogeable, jamais supprimé. Une réservation déjà créée garde SA
+ * PROPRE copie figée de la politique acceptée (voir
+ * `reservations.providerPayload.policySnapshot`, lib/booking/policy-
+ * engine.ts) — un changement de version ultérieur ne change jamais
+ * rétroactivement ce qu'un client a déjà accepté.
+ *
+ * Résolution (lib/booking/policy-engine.ts::resolveCancellationPolicy) :
+ * produit/offre spécifique (`productId` non nul) > politique par défaut de
+ * l'agence pour ce `productType` (`productId` nul) > aucune politique
+ * (`null` — jamais un défaut inventé, ex. "10% de frais").
+ *
+ * Champs volontairement TOUS nullables sauf `cancellable`/`modifiable`/
+ * `refundAllowed`/`creditAllowed` (le Master Admin doit trancher ces 4
+ * questions oui/non pour publier une politique) — `deadlineHours` et
+ * `cancellationFeePercent` restent `null` tant que l'Admin ne les a pas
+ * explicitement saisis : `null` ≠ `0`, jamais confondus.
+ */
+export const cancellationPolicies = pgTable(
+  "cancellation_policies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    productType: authorizedProductType("product_type").notNull(),
+    /** `null` = politique par défaut pour tout ce `productType` chez cette agence. Sinon : id du produit précis (catalog_packages.id / omra_packages.id / catalog_activities.id — pas de FK Postgres cross-table, même choix déjà fait par `product_authorizations`). */
+    productId: uuid("product_id"),
+    version: integer("version").notNull().default(1),
+    isActive: boolean("is_active").notNull().default(true),
+    cancellable: boolean("cancellable").notNull(),
+    modifiable: boolean("modifiable").notNull(),
+    /** Heures avant le début du service au-delà desquelles la politique ne s'applique plus telle quelle (voir `postDeadlineDescription`). `null` = aucune échéance configurée. */
+    deadlineHours: integer("deadline_hours"),
+    /** 0–100. `null` = aucun frais configuré (distinct de 0 explicite). */
+    cancellationFeePercent: decimal("cancellation_fee_percent", { precision: 5, scale: 2 }),
+    refundAllowed: boolean("refund_allowed").notNull(),
+    creditAllowed: boolean("credit_allowed").notNull(),
+    nonRefundable: boolean("non_refundable").notNull().default(false),
+    requiresValidatedDocument: boolean("requires_validated_document").notNull().default(false),
+    /** Texte libre décrivant les conditions après l'échéance — jamais un calcul automatique inventé. */
+    postDeadlineDescription: text("post_deadline_description"),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("cancellation_policies_lookup_idx").on(t.agencyId, t.productType, t.productId, t.isActive),
+    index("cancellation_policies_agency_idx").on(t.agencyId),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
+/* Easy2Book Rewards (Loyalty V1, Phase 38D)                                  */
+/*                                                                            */
+/* Même modèle éprouvé que Wallet (wallet_accounts + wallet_ledger) : un      */
+/* compte par client (soldes dénormalisés pour lecture rapide) + un grand    */
+/* livre APPEND-ONLY qui reste la SEULE source de vérité — voir              */
+/* lib/loyalty/rewards-core.ts. Table DISTINCTE du Wallet (jamais fusionnée) */
+/* : les points ne sont ni de l'argent, ni transférables, ni encaissables.   */
+/* -------------------------------------------------------------------------- */
+
+export const loyaltyAccounts = pgTable(
+  "loyalty_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    pendingPoints: integer("pending_points").notNull().default(0),
+    availablePoints: integer("available_points").notNull().default(0),
+    lifetimeEarnedPoints: integer("lifetime_earned_points").notNull().default(0),
+    lifetimeRedeemedPoints: integer("lifetime_redeemed_points").notNull().default(0),
+    /** Base de l'expiration après 24 mois d'inactivité. */
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("loyalty_accounts_customer_uniq").on(t.customerId),
+    index("loyalty_accounts_agency_idx").on(t.agencyId),
+  ],
+)
+
+/**
+ * Grand livre — jamais modifié ni supprimé après insertion. `idempotencyKey`
+ * garantit "au plus une fois" par événement métier (retry réseau,
+ * double-clic, webhook rejoué). Chaque ligne ne touche QU'UN SEUL bucket
+ * (pending ou available) — une conversion pending→available s'écrit comme
+ * deux lignes dans la même transaction.
+ */
+export const loyaltyLedger = pgTable(
+  "loyalty_ledger",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    loyaltyAccountId: uuid("loyalty_account_id")
+      .notNull()
+      .references(() => loyaltyAccounts.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    /** 'earn_pending' | 'convert_pending_out' | 'convert_available_in' | 'redeem' | 'reverse_pending' | 'reverse_available' | 'reinstate' | 'expire' */
+    type: varchar("type", { length: 32 }).notNull(),
+    bucket: varchar("bucket", { length: 16 }).notNull(),
+    /** Delta signé appliqué à CE bucket. */
+    points: integer("points").notNull(),
+    balanceBefore: integer("balance_before").notNull(),
+    balanceAfter: integer("balance_after").notNull(),
+    /** Réservation à l'origine (earn/convert/reverse) ou cible (redeem/reinstate) du mouvement. Jamais de FK stricte. */
+    reservationId: uuid("reservation_id"),
+    description: text("description").notNull(),
+    metadata: jsonb("metadata"),
+    idempotencyKey: text("idempotency_key"),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("loyalty_ledger_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
+    index("loyalty_ledger_account_idx").on(t.loyaltyAccountId, t.createdAt),
+    index("loyalty_ledger_reservation_idx").on(t.reservationId),
+    index("loyalty_ledger_agency_idx").on(t.agencyId),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
+/* Favoris (Wishlist)                                                         */
+/*                                                                            */
+/* Rattaché à `auth_user_id` (Supabase), JAMAIS à `customers.id` : un client  */
+/* peut mettre un hôtel en favori avant toute réservation, donc avant qu'une  */
+/* ligne `customers` existe pour lui (contrairement à Loyalty, où le compte   */
+/* n'existe qu'après une réservation — voir lib/booking/customer-identity.ts).*/
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Un favori par (agence, utilisateur, type, référence) — contrainte unique
+ * qui rend `toggleFavorite` idempotent (un double-clic / retry réseau ne
+ * crée jamais de doublon). `itemRef` est TOUJOURS du texte : uuid du produit
+ * catalogue local (omra/package/activity) ou identifiant myGo (hôtel, qui
+ * n'a aucune fiche catalogue locale). `title`/`imageUrl`/`location`/
+ * `priceFrom`/`href` sont un INSTANTANÉ capturé au moment de l'ajout — pour
+ * afficher la liste "Mes favoris" sans redépendre d'un appel fournisseur
+ * live ; jamais réutilisé comme prix ou disponibilité réels au moment de la
+ * réservation (voir lib/favorites/favorites-core.ts).
+ */
+export const customerFavorites = pgTable(
+  "customer_favorites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    authUserId: uuid("auth_user_id").notNull(),
+    /** 'hotel' | 'omra' | 'package' | 'activity' */
+    itemType: varchar("item_type", { length: 16 }).notNull(),
+    itemRef: varchar("item_ref", { length: 128 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    imageUrl: text("image_url"),
+    location: varchar("location", { length: 255 }),
+    priceFrom: decimal("price_from", { precision: 12, scale: 2 }),
+    currency: varchar("currency", { length: 3 }),
+    href: varchar("href", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("customer_favorites_uniq").on(t.agencyId, t.authUserId, t.itemType, t.itemRef),
+    index("customer_favorites_user_idx").on(t.authUserId, t.createdAt),
+    index("customer_favorites_agency_idx").on(t.agencyId),
+  ],
+)
+
+export const REVIEW_MODULES = ["hotel", "omra", "package", "activity"] as const
+export const REVIEW_STATUSES = ["pending", "approved", "rejected"] as const
+
+/**
+ * Avis clients (0047) — un avis n'existe QUE rattaché à une réservation
+ * réelle (unique sur reservationId), jamais un formulaire libre. Modéré
+ * avant publication : voir lib/reviews/reviews-core.ts pour la garantie
+ * qu'aucune lecture publique ne renvoie un statut autre que 'approved'.
+ */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    reservationId: uuid("reservation_id")
+      .notNull()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    /** 'hotel' | 'omra' | 'package' | 'activity' */
+    module: varchar("module", { length: 16 }).notNull(),
+    /** uuid catalogue ou id myGo texte — même raisonnement que customerFavorites.itemRef. */
+    productRef: varchar("product_ref", { length: 128 }).notNull(),
+    rating: integer("rating").notNull(),
+    comment: text("comment"),
+    /** 'pending' | 'approved' | 'rejected' */
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    moderatedByUserId: uuid("moderated_by_user_id"),
+    moderatedAt: timestamp("moderated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("reviews_reservation_id_uniq").on(t.reservationId),
+    index("reviews_product_idx").on(t.agencyId, t.module, t.productRef, t.status),
+    index("reviews_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
+/* CRM / Leads                                                                */
+/*                                                                            */
+/* Capture des demandes de contact ("Être rappelé" / "Demander un devis")    */
+/* déposées par un visiteur AVANT toute réservation — distinct de `customers` */
+/* (créé seulement au moment d'une réservation réelle) et de                 */
+/* lib/crm/provider.ts (pousse une réservation CONFIRMÉE vers un CRM externe,*/
+/* jamais branché faute de système choisi). Tant qu'aucun CRM externe n'est  */
+/* configuré, cette table EST le CRM — jamais un formulaire "fantôme" qui    */
+/* affiche un succès sans rien persister.                                    */
+/* -------------------------------------------------------------------------- */
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    firstName: varchar("first_name", { length: 100 }).notNull(),
+    lastName: varchar("last_name", { length: 100 }),
+    email: varchar("email", { length: 320 }),
+    phone: varchar("phone", { length: 32 }),
+    message: text("message"),
+    /** 'hotel' | 'omra' | 'package' | 'activity' | 'general' */
+    productType: varchar("product_type", { length: 16 }).notNull().default("general"),
+    /** uuid produit catalogue (omra/package/activity) ou id myGo (hôtel) — texte, jamais de FK stricte (voir customerFavorites.itemRef, même raisonnement). */
+    productRef: varchar("product_ref", { length: 128 }),
+    /** Instantané du titre produit au moment de la demande — évite un join pour afficher la liste des leads. */
+    productLabel: varchar("product_label", { length: 255 }),
+    /** Chemin de la page d'où la demande a été envoyée (ex. "/packages/mon-voyage") — utile pour prioriser/comprendre la demande, jamais affiché comme donnée client. */
+    sourcePage: varchar("source_page", { length: 255 }).notNull(),
+    /** 'new' | 'contacted' | 'converted' | 'closed' */
+    status: varchar("status", { length: 16 }).notNull().default("new"),
+    staffNotes: text("staff_notes"),
+    handledByUserId: uuid("handled_by_user_id"),
+    /**
+     * Réservation réelle produite par ce lead — jamais renseigné
+     * automatiquement (voir convertLeadCore, lib/crm/leads-core.ts) : le
+     * staff choisit explicitement la réservation lors de la conversion.
+     * UNIQUE (0043) : une réservation ne peut être la conversion que d'un
+     * seul lead. CHECK (0043) : `status='converted'` exige cette colonne.
+     */
+    reservationId: uuid("reservation_id").references(() => reservations.id, {
+      onDelete: "set null",
+    }),
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
+    index("leads_agency_idx").on(t.agencyId),
+    uniqueIndex("leads_reservation_id_uniq").on(t.reservationId),
+  ],
+)
+
+/**
+ * Scoring des leads (0044, étape 2/3 : Conversion → Scoring → Relance).
+ * 4 signaux FIXES objectivement observables (jamais un critère métier
+ * inventé) — chacun vaut un nombre de points configurable par le staff OTA
+ * via `lead-scoring-actions.ts`. Voir `computeLeadScore()`
+ * (lib/crm/lead-scoring-core.ts) pour le calcul, toujours transparent (le
+ * détail signal-par-signal est retourné, jamais un score opaque).
+ */
+export const leadScoringRules = pgTable(
+  "lead_scoring_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    signal: varchar("signal", { length: 32 }).notNull(),
+    points: integer("points").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("lead_scoring_rules_agency_idx").on(t.agencyId),
+    uniqueIndex("lead_scoring_rules_agency_signal_uniq").on(t.agencyId, t.signal),
+  ],
+)
+
+/**
+ * Relance des leads (0045, étape 3/3 : Conversion → Scoring → Relance).
+ * Portée limitée à l'ALERTE STAFF (un lead "new" sans suivi depuis
+ * `thresholdDays` devient visible dans /admin/support) — PAS un envoi
+ * automatique vers le lead (WhatsApp/email), qui exigerait un contenu
+ * marketing et, pour WhatsApp, un template pré-approuvé Meta : décision
+ * produit non tranchée, jamais inventée ici. Voir `isLeadStale()`
+ * (lib/crm/lead-relance-core.ts).
+ */
+export const leadRelanceSettings = pgTable(
+  "lead_relance_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    thresholdDays: integer("threshold_days").notNull().default(3),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("lead_relance_settings_agency_uniq").on(t.agencyId)],
+)
+
+export const CRM_CHANNELS = ["whatsapp", "instagram", "messenger", "call", "email", "web"] as const
+export type CrmChannel = (typeof CRM_CHANNELS)[number]
+
+/**
+ * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
+ * cible joint à l'audit senior OTA. Modèle agnostique du canal ; seul
+ * WhatsApp a une intégration entrante réelle à ce stade (voir
+ * app/api/webhooks/whatsapp/route.ts) — Instagram/Messenger/Call restent
+ * des valeurs de `channel` valides mais sans provider branché (pas de
+ * credentials Meta App Review / téléphonie), jamais simulés.
+ */
+export const crmConversations = pgTable(
+  "crm_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** 'whatsapp' | 'instagram' | 'messenger' | 'call' | 'email' | 'web' */
+    channel: varchar("channel", { length: 16 }).notNull(),
+    contactPhone: varchar("contact_phone", { length: 32 }),
+    contactExternalId: varchar("contact_external_id", { length: 128 }),
+    contactName: varchar("contact_name", { length: 200 }),
+    leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    /** 'open' | 'closed' */
+    status: varchar("status", { length: 16 }).notNull().default("open"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    /** Dernier message ENTRANT — base du calcul de la fenêtre de service WhatsApp 24h. */
+    lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
+    lastMessagePreview: varchar("last_message_preview", { length: 500 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("crm_conversations_agency_channel_phone_uniq")
+      .on(t.agencyId, t.channel, t.contactPhone)
+      .where(sql`${t.contactPhone} is not null`),
+    uniqueIndex("crm_conversations_agency_channel_external_uniq")
+      .on(t.agencyId, t.channel, t.contactExternalId)
+      .where(sql`${t.contactExternalId} is not null`),
+    index("crm_conversations_agency_idx").on(t.agencyId, t.lastMessageAt),
+    index("crm_conversations_lead_idx").on(t.leadId),
+  ],
+)
+
+export const crmMessages = pgTable(
+  "crm_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Dénormalisé depuis crmConversations, même convention que payments.agencyId. */
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => crmConversations.id, { onDelete: "cascade" }),
+    /** 'inbound' | 'outbound' */
+    direction: varchar("direction", { length: 8 }).notNull(),
+    body: text("body"),
+    handledByUserId: uuid("handled_by_user_id"),
+    /** wamid Meta (ou équivalent futur) — idempotence des redélivrances webhook. */
+    externalMessageId: varchar("external_message_id", { length: 128 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("crm_messages_external_message_id_uniq")
+      .on(t.externalMessageId)
+      .where(sql`${t.externalMessageId} is not null`),
+    index("crm_messages_conversation_idx").on(t.conversationId, t.createdAt),
+  ],
+)
+
+/**
  * Factures émises par l'OTA à une agence B2B partenaire.
  *
  * Une facture peut grouper plusieurs réservations (lignes JSONB).
@@ -1066,7 +1606,15 @@ export const partnerInvoices = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("partner_invoices_number_uniq").on(t.invoiceNumber),
+    /** Phase 21.2 — scopé PAR AGENCE (jamais global) : nextInvoiceNumber()
+     * (lib/finance/invoice-actions.ts) compte les factures existantes de
+     * la SEULE agence appelante pour calculer le prochain numéro — un
+     * index global sur invoiceNumber seul faisait donc collisionner la
+     * "FA-2026-00001" de deux agences différentes dès que chacune émettait
+     * sa première facture de l'année (bug latent trouvé en vérification
+     * live Phase 21.2, jamais un choix de design). Même motif que
+     * `reservations_public_ref_uniq` (agencyId, publicRef), déjà correct. */
+    uniqueIndex("partner_invoices_number_uniq").on(t.agencyId, t.invoiceNumber),
     index("partner_invoices_agency_idx").on(t.agencyId),
     index("partner_invoices_status_idx").on(t.agencyId, t.status),
     uniqueIndex("partner_invoices_reservation_uniq")
@@ -1628,6 +2176,10 @@ export type Payment = typeof payments.$inferSelect
 export type NewPayment = typeof payments.$inferInsert
 export type PricingMargin = typeof pricingMargins.$inferSelect
 export type NewPricingMargin = typeof pricingMargins.$inferInsert
+export type LeadScoringRule = typeof leadScoringRules.$inferSelect
+export type NewLeadScoringRule = typeof leadScoringRules.$inferInsert
+export type LeadRelanceSetting = typeof leadRelanceSettings.$inferSelect
+export type NewLeadRelanceSetting = typeof leadRelanceSettings.$inferInsert
 export type PartnerInvoice = typeof partnerInvoices.$inferSelect
 export type NewPartnerInvoice = typeof partnerInvoices.$inferInsert
 export type PartnerPayment = typeof partnerPayments.$inferSelect
@@ -1855,6 +2407,28 @@ export {
   type SupplierLog,
   type NewSupplierLog,
 } from "./schema/suppliers"
+
+/* -------------------------------------------------------------------------- */
+/* Hotel Supplier Control Plane (Phase 27) — imported from schema/hotel-suppliers.ts */
+/* -------------------------------------------------------------------------- */
+
+export {
+  hotelSuppliers,
+  hotelSupplierAccounts,
+  hotelSupplierCredentials,
+  hotelSupplierAuthorizations,
+  hotelSupplierDocStatus,
+  hotelSupplierOwnerType,
+  hotelSupplierAccountStatus,
+  type HotelSupplierRow,
+  type NewHotelSupplierRow,
+  type HotelSupplierAccountRow,
+  type NewHotelSupplierAccountRow,
+  type HotelSupplierCredentialRow,
+  type NewHotelSupplierCredentialRow,
+  type HotelSupplierAuthorizationRow,
+  type NewHotelSupplierAuthorizationRow,
+} from "./schema/hotel-suppliers"
 
 /* -------------------------------------------------------------------------- */
 /* Validation Module — imported from schema/validation.ts                     */

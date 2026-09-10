@@ -45,6 +45,8 @@ interface HotelCardProps {
     hasFreeCancellation?: boolean
     /** PHASE 33 — "Pourquoi ce choix ?", une seule raison réelle la plus pertinente (voir toCardShape). `null`/absent si aucun constat ne s'applique. */
     whyChoose?: string | null
+    /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
+    pricePerNight?: number
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
@@ -278,6 +280,11 @@ export function HotelCard({
                   {format(hotel.discountedPrice)}
                 </span>
               </div>
+              {hotel.pricePerNight != null && (
+                <p className="text-muted-foreground text-xs">
+                  soit {format(hotel.pricePerNight)} / nuit
+                </p>
+              )}
               <p className="text-muted-foreground mt-1 text-xs">
                 {mealOptions[selectedMealPlan]}
                 {/* PHASE 30 (audit K/L) — signale qu'il existe d'autres

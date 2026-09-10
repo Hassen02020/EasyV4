@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ConfirmActionDialog } from "@/components/admin/confirm-action-dialog"
 import { MoreHorizontal } from "lucide-react"
+import { setPlatformUserStatus } from "@/lib/admin/users-actions"
 
 interface UserRowActionsProps {
   userId: string
@@ -22,24 +23,29 @@ interface UserRowActionsProps {
 
 /**
  * Menu d'actions pour une ligne de app/admin/users. Suspendre/Réactiver
- * sont protégés par une boîte de confirmation (alert-dialog) — mais aucune
- * Server Action de suspension/réactivation n'existe encore côté back-office
- * pour les utilisateurs (contrairement aux agences/réservations) : la
- * confirmation aboutit donc à un message explicite plutôt qu'à un appel
- * silencieux vers une fonction qui n'existe pas. Cette page reste
- * strictement frontend pour cette session (aucune Server Action créée).
+ * appellent `setPlatformUserStatus` (vue cross-agence, distincte de
+ * `setUserStatus` utilisé par /admin/staff qui reste scopé à une seule
+ * agence) — protégé par confirmation et par les garde-fous serveur
+ * (super_admin uniquement, jamais s'auto-suspendre, jamais suspendre le
+ * dernier super_admin actif de la plateforme).
+ * "Modifier"/"Changer le rôle" restent désactivés — hors périmètre.
  */
 export function UserRowActions({
+  userId,
   displayName,
   status,
 }: UserRowActionsProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const isActive = status === "active"
 
-  function handleConfirmed() {
-    toast.info(
-      `Action "${isActive ? "Suspendre" : "Réactiver"}" non encore reliée à une Server Action back-office — aucun changement n'a été effectué pour ${displayName}.`,
-    )
+  async function handleConfirmed() {
+    const next = isActive ? "suspended" : "active"
+    const res = await setPlatformUserStatus({ userId, status: next })
+    if (res.ok) {
+      toast.success(next === "active" ? "Utilisateur réactivé" : "Utilisateur suspendu")
+    } else {
+      toast.error(res.error)
+    }
   }
 
   return (

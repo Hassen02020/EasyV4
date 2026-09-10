@@ -13,6 +13,14 @@ const MODULES: Array<{
   icon: typeof BedDouble
   /** Couleur principale du tab actif (pastille + halo). */
   hue: string
+  /**
+   * `/pro/{transfer,activities,packages}` n'existent pas (seul `/pro/hotels`
+   * est câblé) — ProSearchBar y redirigeait pourtant sur ces 3 modules,
+   * menant à un vrai 404. Désactivés ici plutôt que de laisser un tab actif
+   * mener nulle part (même traitement que mutuelle-shell.tsx pour ses
+   * sections pas encore livrées) — jamais un clic qui casse silencieusement.
+   */
+  disabled?: boolean
 }> = [
   {
     id: "hotels",
@@ -24,23 +32,26 @@ const MODULES: Array<{
   {
     id: "transfer",
     label: "Transfert",
-    description: "Aéroport, gare, point-à-point",
+    description: "Bientôt disponible",
     icon: Car,
     hue: "bg-muted text-foreground",
+    disabled: true,
   },
   {
     id: "activities",
     label: "Activités",
-    description: "Excursions, loisirs, billetterie",
+    description: "Bientôt disponible",
     icon: Activity,
     hue: "bg-primary/15 text-primary",
+    disabled: true,
   },
   {
     id: "packages",
     label: "Formules",
-    description: "Forfaits combinés Easy2Book",
+    description: "Bientôt disponible",
     icon: PackageOpen,
     hue: "bg-secondary/15 text-secondary",
+    disabled: true,
   },
 ]
 
@@ -76,10 +87,14 @@ export function ProModuleTabs({
             role="tab"
             aria-selected={isActive}
             aria-controls={`${tabsListId}-${mod.id}`}
-            onClick={() => onChange(mod.id)}
+            aria-disabled={mod.disabled}
+            disabled={mod.disabled}
+            onClick={() => !mod.disabled && onChange(mod.id)}
             className={cn(
               "group bg-card focus-visible:ring-primary relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none",
-              "shadow-e2b-soft hover:shadow-e2b-elevated hover:-translate-y-0.5",
+              mod.disabled
+                ? "cursor-not-allowed opacity-50 shadow-none hover:translate-y-0 hover:shadow-none"
+                : "shadow-e2b-soft hover:shadow-e2b-elevated hover:-translate-y-0.5",
               isActive
                 ? "border-primary ring-primary/30 -translate-y-0.5 ring-2"
                 : "border-border/60",

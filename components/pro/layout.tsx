@@ -80,6 +80,7 @@ export type ProSidebarUser = {
 export type ProSidebarAgency = {
   name: string
   brandName: string | null
+  logoUrl: string | null
   depositBalance: string
   creditLowThreshold: string
   maskCredit: boolean
@@ -428,11 +429,20 @@ export function ProShell({
 
           {/* Agence */}
           <div className="mt-2 flex items-center gap-2 rounded-lg px-1 py-1">
-            <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-md">
-              <span className="text-primary text-xs font-bold">
-                {agencyLabel.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            {agency.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- logo d'agence hébergé sur un CDN arbitraire (agencies.logoUrl), non listé dans next.config remotePatterns
+              <img
+                src={agency.logoUrl}
+                alt={agencyLabel}
+                className="h-7 w-7 shrink-0 rounded-md object-contain"
+              />
+            ) : (
+              <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-md">
+                <span className="text-primary text-xs font-bold">
+                  {agencyLabel.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
             <div className="min-w-0">
               <p className="text-sidebar-foreground truncate text-xs font-semibold">
                 {agencyLabel}

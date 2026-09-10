@@ -1,8 +1,14 @@
 /**
- * POST /api/cron/purge-audit
+ * GET|POST /api/cron/purge-audit
  *
  * Supprime les audit_events de plus de 30 jours.
  * Protégé par CRON_SECRET (header Authorization: Bearer <token>).
+ *
+ * GET : Vercel Cron invoque toujours la route configurée par une requête
+ * GET (jamais POST) — sans ce handler, ce cron était listé dans
+ * vercel.json mais recevait un 405 à chaque déclenchement automatique et
+ * ne s'exécutait donc jamais en production. POST reste disponible pour un
+ * déclenchement manuel/externe (cron-job.org, etc.).
  *
  * Usage manuel :
  *   curl -X POST https://<host>/api/cron/purge-audit \
@@ -19,7 +25,7 @@ import { lt, sql } from "drizzle-orm"
 
 export const dynamic = "force-dynamic"
 
-export async function POST(request: Request) {
+async function handlePurge(request: Request) {
   const auth = request.headers.get("authorization")
   const token = auth?.replace("Bearer ", "")
   if (!process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
@@ -51,4 +57,12 @@ export async function POST(request: Request) {
       { status: 500 },
     )
   }
+}
+
+export async function GET(request: Request) {
+  return handlePurge(request)
+}
+
+export async function POST(request: Request) {
+  return handlePurge(request)
 }

@@ -21,7 +21,13 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
+  // Authorization: Bearer — en-tête que Vercel Cron pose automatiquement à
+  // chaque déclenchement (voir process.env.CRON_SECRET côté Vercel) ; sans
+  // ce fallback, ce cron restait listé dans vercel.json mais échouait
+  // silencieusement (401) à chaque exécution automatique. x-cron-secret/
+  // ?secret= restent supportés pour un déclencheur externe (cron-job.org).
+  const bearer = req.headers.get("authorization")?.replace("Bearer ", "")
+  const secret = bearer ?? req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
 
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

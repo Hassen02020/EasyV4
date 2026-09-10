@@ -17,7 +17,10 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
+  // Authorization: Bearer — en-tête posé automatiquement par Vercel Cron ;
+  // x-cron-secret/?secret= restent supportés pour un déclencheur externe.
+  const bearer = req.headers.get("authorization")?.replace("Bearer ", "")
+  const secret = bearer ?? req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
 
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

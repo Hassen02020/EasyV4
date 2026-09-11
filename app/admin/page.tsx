@@ -57,6 +57,7 @@ const MODULE_META: Record<
   { label: string; color: string; icon: typeof Building2 }
 > = {
   hotel: { label: "Hôtels Tunisie", color: "bg-secondary", icon: Building2 },
+  hotel_monde: { label: "Hôtels Monde", color: "bg-secondary", icon: Building2 },
   flight: { label: "Vols", color: "bg-accent", icon: Plane },
   omra: { label: "Omra", color: "bg-primary", icon: Moon },
   package: { label: "Voyages Organisés", color: "bg-emerald-600", icon: Plane },

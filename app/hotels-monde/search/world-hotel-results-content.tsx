@@ -61,7 +61,29 @@ function formatDateHeader(dateStr: string): string {
   }
 }
 
-function HotelCard({ offer }: { offer: WorldHotelOffer }) {
+function bookingHref(offer: WorldHotelOffer, state: WorldHotelSearchState): string | null {
+  if (!offer.offerToken) return null
+  const params = new URLSearchParams({
+    token: offer.offerToken,
+    price: String(offer.totalPriceTnd),
+    currency: offer.currency,
+    name: offer.name,
+    city: offer.city,
+    country: offer.country,
+    checkIn: state.checkIn,
+    checkOut: state.checkOut,
+    nights: String(offer.nights),
+    adults: String(state.adults),
+    rooms: String(state.rooms),
+    refundable: String(offer.refundable),
+    breakfastIncluded: String(offer.breakfastIncluded),
+  })
+  if (offer.stars != null) params.set("stars", String(offer.stars))
+  return `/hotels-monde/book?${params.toString()}`
+}
+
+function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotelSearchState }) {
+  const href = bookingHref(offer, state)
   return (
     <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
@@ -116,12 +138,22 @@ function HotelCard({ offer }: { offer: WorldHotelOffer }) {
               {offer.totalPriceTnd.toLocaleString("fr-FR")} {offer.currency}
             </p>
           </div>
-          {/* Pas de vrai fournisseur (Expedia/Booking) derrière ce prix
-              (mode démo, voir lib/hotels-monde/client.ts) : réservation
-              volontairement non proposée plutôt que de simuler un achat réel. */}
-          <Button size="sm" disabled title="Réservation hôtels monde — bientôt disponible">
-            Réserver — bientôt
-          </Button>
+          {/* Virtual World Hotel Supplier
+              (lib/hotels-monde/virtual-supplier/) : offre, disponibilité,
+              prix et jeton signé sont réels côté serveur — la réservation
+              décrémente un inventaire réel et émet un numéro de
+              confirmation (voir lib/hotels-monde/guest-booking-actions.ts).
+              Seul le fournisseur lui-même est simulé (pas d'Expedia/Booking
+              réel en amont), pas la réservation. */}
+          {href ? (
+            <Button size="sm" asChild>
+              <Link href={href}>Réserver</Link>
+            </Button>
+          ) : (
+            <Button size="sm" disabled>
+              Offre indisponible
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -166,10 +198,11 @@ function WorldHotelSearchSummary({
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            <strong>Résultats à titre indicatif.</strong> La connexion à un fournisseur hôtelier
-            international réel n&apos;est pas encore configurée — ces hôtels et prix sont des
-            exemples, pas une disponibilité réelle. La réservation en ligne n&apos;est pas encore
-            proposée.
+            <strong>Fournisseur hôtelier simulé.</strong> La connexion à un fournisseur international
+            réel (Expedia/Booking) n&apos;est pas encore configurée — ces hôtels et prix sont générés,
+            pas une disponibilité de marché réelle. La réservation reste néanmoins fonctionnelle de
+            bout en bout (disponibilité décrémentée, numéro de confirmation émis) sur cette offre
+            simulée.
           </p>
         </div>
       )}
@@ -262,7 +295,7 @@ export function WorldHotelResultsContent() {
       <WorldHotelSearchSummary
         state={parsed.state}
         count={filteredSorted.length}
-        isDemo={offers.some((o) => o.source === "demo")}
+        isDemo={offers.some((o) => o.source === "virtual")}
       />
 
       {status === "loading" && (
@@ -334,7 +367,7 @@ export function WorldHotelResultsContent() {
                 Aucun hôtel ne correspond aux filtres sélectionnés.
               </div>
             ) : (
-              filteredSorted.map((offer) => <HotelCard key={offer.id} offer={offer} />)
+              filteredSorted.map((offer) => <HotelCard key={offer.id} offer={offer} state={parsed.state} />)
             )}
           </div>
         </div>

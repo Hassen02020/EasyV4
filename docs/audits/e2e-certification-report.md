@@ -419,3 +419,137 @@ infra locale réelle), preuve DB/`psql`/audit_events à chaque étape, captures 
 d'accessibilité réel trouvé ET corrigé par ce cycle (voir §9.5). Limitation connue et documentée :
 aller-retour non modélisé côté moteur (§9.2), inventaire virtuel non restitué au remboursement staff
 (même limitation acceptée que Hôtel/myGo).
+
+## 10. Cycle "Fonctionnalités manquantes vs concurrents" — module Hôtels Monde (Virtual World Hotel Supplier)
+
+Contexte : dernier module sans réservation réelle après le cycle Vols (§9) — recherche uniquement,
+bouton `<Button disabled title="Réservation hôtels monde — bientôt disponible">` (voir matrice, ligne
+"Périmètre réel de réservation par module"). Ce cycle construit une réservation Hôtel Monde réelle de
+bout en bout, sur le même modèle que les Virtual Suppliers déjà certifiés (myGo/Vols) : un fournisseur
+simulé qui se comporte comme un vrai agrégateur hôtelier international (Expedia Rapid/Booking Demand
+API), jamais un `return fake data`. Avec ce cycle, les 6 modules commercialisables disposent tous d'une
+réservation réelle.
+
+### 10.1 Construit
+
+- **`lib/hotels-monde/virtual-supplier/`** (nouveau, 6 fichiers) : `rng.ts`/`catalog.ts` (génération
+  d'offres déterministe par destination/dates/étoiles — 4 à 6 offres, 6 gabarits d'hôtel 2 à 5 étoiles),
+  `inventory-store.ts` (disponibilité réelle en mémoire, ~15% sold-out/~25% limited, verrouillage
+  promise-chain contre la sur-réservation concurrente — même pattern que myGo/Vols), `tokens.ts` (jeton
+  d'offre signé HMAC, TTL 15 min, revalidé au moment de réserver), `scenarios.ts` (5 scénarios de panne
+  injectables : `SOLD_OUT`/`PRICE_CHANGED`/`BOOKING_REJECTED`/`TIMEOUT`, même sous-ensemble que Vols),
+  `engine.ts` (`search()`/`book()`/`cancel()` — `book()` revalide le prix serveur, décrémente
+  l'inventaire atomiquement, émet un numéro de confirmation `WH-XXXXXXXX`, jamais un enregistrement sans
+  confirmation fournisseur).
+- **`lib/hotels-monde/client.ts`** : `searchWorldHotels()` en mode démo appelle désormais réellement
+  `virtual-supplier/engine.ts::search()` (au lieu des 3 fixtures statiques précédentes, indépendantes de
+  la destination/dates demandées) — chaque offre porte un `offerToken` signé à revalider pour réserver,
+  `source: "virtual"` (au lieu de `"demo"`).
+- **`lib/hotels-monde/schemas.ts` + `lib/hotels-monde/guest-booking-actions.ts`** :
+  `createGuestWorldHotelBooking` — même modèle guest checkout qu'Omra/Package/Activity/Vols (agence OTA
+  directe, `withGuestIdempotency`, card/transfer/cash), avec revalidation fournisseur AVANT la
+  transaction DB : `engine.book()` décrémente l'inventaire réel et émet le numéro de confirmation avant
+  tout INSERT ; tout échec après ce point (paiement refusé, conflit d'idempotence) compense via
+  `engine.cancel()` pour restituer l'inventaire. Formulaire simplifié à un seul "lead guest" (pas un
+  voyageur par occupant comme Vols) — une réservation hôtelière porte sur des chambres/nuitées, pas des
+  sièges nominatifs.
+- **Décision d'architecture DB** : réutilise la table d'extension `reservation_hotel` déjà existante
+  (Hôtels Tunisie/myGo — structurellement générique : hotelId/hotelName/cityName/checkIn/checkOut/
+  nights/adults/rooms/providerBookingId) plutôt que de créer une nouvelle table dupliquée, mais avec un
+  **nouveau module `reservation_module` `"hotel_monde"`** (migration
+  `drizzle/manual/0051_hotel_monde_module.sql`, `ALTER TYPE ... ADD VALUE`) — jamais confondu avec
+  `"hotel"` dans le back-office (listes filtrées par module, dashboards). `cityId` reste `NULL`
+  (référentiel `cities` scopé Tunisie, non pertinent pour un hôtel international) ; `hotelId` est un
+  entier synthétique dérivé d'un hash de l'`offerId` (le Virtual World Hotel Supplier n'a pas de
+  catalogue d'IDs numériques réel comme myGo).
+- **UI** : `/hotels-monde/book` (nouvelle route, formulaire lead guest + paiement), bouton "Réserver" du
+  résultat de recherche (`app/hotels-monde/search/world-hotel-results-content.tsx`) maintenant actif
+  (était `disabled title="bientôt disponible"`) — chaque `<Label>`/`<Input>` reçoit `id`/`htmlFor` dès
+  la construction (défaut d'accessibilité déjà trouvé et corrigé sur Vols, jamais réintroduit ici).
+- **Back-office** : `loadModuleDetail()` (`lib/booking/reservation-detail.ts`) et `getProductDetails()`
+  (`app/actions/list-my-reservations.ts`) gèrent désormais le cas `"hotel_monde"` (label distinct "Hôtel
+  Monde", réutilise les colonnes `reservation_hotel`). Voucher PDF dédié
+  (`app/api/hotels-monde/voucher/[ref]` + `isWorldHotelVoucherEligible`,
+  `VOUCHER_ROUTE_BY_MODULE.hotel_monde`) — route séparée de `/api/booking/voucher/[ref]` (zéro risque de
+  régression sur Hôtels Tunisie déjà certifié) mais réutilise directement `renderVoucherPdf`
+  (`lib/pdf/voucher-hotel.tsx`, `VoucherData` déjà générique — aucun nouveau gabarit PDF nécessaire).
+  Libellés module (`MODULE_LABEL`/`MODULE_LABELS`/`MODULE_ICONS`) ajoutés dans `reservations-data-table.tsx`,
+  `reservation-detail-view.tsx`, `booking-summary-card.tsx`, `app/admin/page.tsx`,
+  `app/admin/b2c/reservations/page.tsx`.
+- **Notification** : réutilise l'événement générique `"booking/confirmed"` (déjà consommé par
+  `lib/inngest/functions/process-confirmed-booking.ts`, qui rend `voucher-hotel.tsx` et envoie l'email
+  via Resend) — contrairement à Vols, qui a nécessité un événement/gabarit dédiés, la forme d'une
+  réservation Hôtels Monde (hotelName/checkIn/checkOut/nights/adults/children/totalTnd) est strictement
+  identique à celle d'une réservation Hôtel Tunisie.
+
+### 10.2 Preuves — ce qui a été réellement vérifié
+
+- Suite de tests dédiée : **20/20**, 0 échec (`engine.test.ts` : recherche déterministe, filtre étoiles,
+  jeton signé cohérent, succès NORMAL avec numéro de confirmation émis, décrément/restitution
+  d'inventaire, jeton altéré/malformé/prix falsifié rejetés, les 4 scénarios de panne incluant `TIMEOUT`
+  réellement chronométré ≥2.9s ; `inventory-store.test.ts` : concurrence dernière chambre 2 puis 10
+  tentatives simultanées, jamais négatif). `voucher-eligibility.test.ts` étendu avec 8 tests
+  `isWorldHotelVoucherEligible` + 1 test `voucherHrefForModule("hotel_monde", ...)`. Suite complète
+  finale : **742/742** tests exécutés (147 skipped, DB-mode hors périmètre local), 0 échec.
+- `pnpm tsc --noEmit` → 0 erreur. `pnpm lint` → 0 erreur, 0 nouveau warning. `pnpm build` → succès,
+  `/hotels-monde/book` et `/api/hotels-monde/voucher/[ref]` générés, aucune régression sur les routes
+  existantes.
+
+### 10.3 Certification "Dashboard Operations" navigateur — exécutée et PASS
+
+Même infra locale que le cycle Vols (Postgres 16 déjà seedé — `easyv4_e2e` — plus le mock GoTrue sous
+`.tmp-mock-gotrue/`), `next build` + `next start` (`NODE_TLS_REJECT_UNAUTHORIZED=0`, mock-auth local
+uniquement) et `e2e/dashboard-operations-hotel-monde-lifecycle.spec.ts` exécuté pour de vrai contre un
+serveur en production.
+
+**Résultat : 1/1 PASS** (`dashboard-operations-hotel-monde-lifecycle.spec.ts`, projet chromium,
+`/opt/pw-browsers/chromium` via `PLAYWRIGHT_CHROMIUM_PATH`, ~10s). Les 7 captures
+`dashboard-ops-hotel-monde-01..07.png` sont réelles (issues du run après correction du défaut §10.4, pas
+fabriquées). Vérification `psql` post-run sur la réservation réellement créée par le test
+(`WH-2026-000002`) :
+
+```
+public_ref      | module      | status   | tnd_amount | hotel_name                   | city_name | confirmation
+WH-2026-000002  | hotel_monde | refunded | 1647.00    | Istanbul Royal Resort & Spa  | istanbul  | WH-ACS7C3NY
+
+payments : deposit/manual/cash/pending 1647.00 (créé au booking)
+           balance/manual/cash/refunded 1647.00, refunded_amount=1647.00 (créé à la vérification, remboursé ensuite)
+
+audit_events (ordre réel) :
+  hotel_monde_booking.created  12:39:14
+  payment.manual_verified      12:39:18
+  status_update                12:39:20
+  payment.refunded             12:39:21
+```
+
+### 10.4 Défaut réel trouvé PAR ce run et corrigé avant qu'il ne passe proprement
+
+**Nom d'hôtel dégradé lors de la revalidation prix (`engine.ts::book()`)** : le token d'offre signé ne
+porte que le slug de destination (ex. `"istanbul"`, la valeur `POPULAR_DESTINATIONS`), jamais le nom de
+ville affichable (`"Istanbul"`). La première implémentation de `book()` régénérait le catalogue
+déterministe avec `city: p.destination` (le slug brut) au lieu de résoudre le nom de ville réel — le nom
+d'hôtel enregistré en base devenait `"istanbul Royal Resort & Spa"` (minuscule, cosmétiquement dégradé)
+au lieu de `"Istanbul Royal Resort & Spa"`. Trouvé par la vérification `psql` post-run du premier
+passage du test (réservation `WH-2026-000001`, avant correction), pas seulement par une assertion UI —
+le test Playwright lui-même passait déjà (aucune assertion sur la casse du nom), ce qui aurait laissé
+passer un défaut réel sans la vérification base de données systématique imposée par la méthode. **Corrigé**
+dans `lib/hotels-monde/virtual-supplier/engine.ts::book()` : résolution du nom de ville via
+`destinationByValue(p.destination)?.city` (même référentiel que `search()`,
+`lib/hotels-monde/search-state.ts`) avant régénération du catalogue. Le prix/l'`offerId` ne dépendent
+pas de `city` (seed et clé d'inventaire basés uniquement sur `destination:checkIn:checkOut`) — correctif
+strictement cosmétique, aucun impact sur la revalidation prix ou l'inventaire. Retesté en direct :
+2ème passage (`WH-2026-000002`), `hotel_name` correctement `"Istanbul Royal Resort & Spa"` (voir §10.3).
+
+### 10.5 Verdict module Hôtels Monde
+
+🟢 **CERTIFIÉ — RÉEL, TESTÉ, NAVIGATEUR RÉEL** — même niveau de rigueur que Hôtel/Omra/Package/
+Attractions/Vols : cycle complet créer→rechercher→valider→modifier→annuler exécuté en direct
+(Playwright, infra locale réelle), preuve DB/`psql`/audit_events à chaque étape, captures d'écran
+réelles. Un défaut réel trouvé ET corrigé par ce cycle (nom d'hôtel dégradé à la revalidation prix, voir
+§10.4). Limitation connue et documentée, identique à Hôtel/Vols : inventaire virtuel (in-memory) non
+restitué au remboursement staff (`"hotel_monde"` absent de `CANCELLABLE_MODULES`, scopé aux 3 modules à
+stock LOCAL Omra/Package/Activity).
+
+Avec ce cycle, les **6 modules commercialisables** (Hôtels Tunisie, Omraty, Voyages organisés,
+Attractions, Vols, Hôtels Monde) disposent tous d'une réservation réelle de bout en bout, certifiée
+navigateur réel avec preuve DB à chaque étape du cycle créer→rechercher→valider→modifier→annuler.

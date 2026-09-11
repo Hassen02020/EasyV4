@@ -74,6 +74,7 @@ const DESTRUCTIVE_STATUSES = new Set<ReservationStatus>([
 const MODULE_LABEL: Record<string, { label: string; icon: typeof Building2 }> =
   {
     hotel: { label: "Hôtels Tunisie", icon: Building2 },
+    hotel_monde: { label: "Hôtels Monde", icon: Building2 },
     flight: { label: "Vols", icon: Plane },
     omra: { label: "Omra", icon: Moon },
     package: { label: "Voyages organisés", icon: Plane },

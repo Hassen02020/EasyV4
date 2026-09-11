@@ -6,6 +6,7 @@ import {
   isOmraVoucherEligible,
   isPackageVoucherEligible,
   isHotelReservationVoucherEligible,
+  isWorldHotelVoucherEligible,
   voucherHrefForModule,
 } from "../voucher-eligibility"
 
@@ -191,6 +192,62 @@ test("voucherHrefForModule : route réelle pour vol (Virtual Flight Supplier —
   assert.equal(
     voucherHrefForModule("flight", "FL-2026-000001", "tok"),
     "/api/vols/voucher/FL-2026-000001?token=tok",
+  )
+})
+
+test("voucherHrefForModule : route réelle pour hotel_monde (Virtual World Hotel Supplier — booking réel de bout en bout)", () => {
+  assert.equal(
+    voucherHrefForModule("hotel_monde", "WH-2026-000001", "tok"),
+    "/api/hotels-monde/voucher/WH-2026-000001?token=tok",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* isWorldHotelVoucherEligible (Hôtels Monde — Virtual World Hotel Supplier)   */
+/*                                                                            */
+/* Même règle qu'isVoucherEligible (réutilise la table reservation_hotel)    */
+/* mais scopée à module="hotel_monde", jamais "hotel" (Hôtels Tunisie/myGo)  */
+/* — voir drizzle/manual/0051_hotel_monde_module.sql.                       */
+/* -------------------------------------------------------------------------- */
+
+const baseWorldHotelRow = {
+  module: "hotel_monde",
+  hotelName: "Istanbul Grand Palace",
+  checkIn: "2027-03-15",
+  checkOut: "2027-03-18",
+}
+
+test("isWorldHotelVoucherEligible : true pour une réservation Hôtel Monde confirmée", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "confirmed" }), true)
+})
+
+test("isWorldHotelVoucherEligible : true pour un séjour Hôtel Monde terminé (completed)", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "completed" }), true)
+})
+
+test("isWorldHotelVoucherEligible : false pour une réservation encore pending (pas de faux voucher)", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "pending" }), false)
+})
+
+test("isWorldHotelVoucherEligible : false pour une réservation annulée", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "cancelled" }), false)
+})
+
+test("isWorldHotelVoucherEligible : false pour une réservation remboursée", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "refunded" }), false)
+})
+
+test("isWorldHotelVoucherEligible : false pour le module hotel (Hôtels Tunisie) même confirmé — jamais confondu malgré la table partagée", () => {
+  assert.equal(
+    isWorldHotelVoucherEligible({ module: "hotel", status: "confirmed", hotelName: "X", checkIn: "2027-01-01", checkOut: "2027-01-02" }),
+    false,
+  )
+})
+
+test("isWorldHotelVoucherEligible : false si les données de séjour sont incomplètes", () => {
+  assert.equal(
+    isWorldHotelVoucherEligible({ module: "hotel_monde", status: "confirmed", hotelName: null, checkIn: "2027-03-15", checkOut: "2027-03-18" }),
+    false,
   )
 })
 

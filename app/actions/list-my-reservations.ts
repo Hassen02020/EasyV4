@@ -91,6 +91,27 @@ export async function getProductDetails(
         travelers: row.adults + (row.childrenAges?.length ?? 0),
       }
     }
+    case "hotel_monde": {
+      const [row] = await tx
+        .select({
+          hotelName: reservationHotel.hotelName,
+          cityName: reservationHotel.cityName,
+          checkIn: reservationHotel.checkIn,
+          checkOut: reservationHotel.checkOut,
+          adults: reservationHotel.adults,
+          childrenAges: reservationHotel.childrenAges,
+        })
+        .from(reservationHotel)
+        .where(eq(reservationHotel.reservationId, reservationId))
+        .limit(1)
+      if (!row) return null
+      return {
+        label: row.cityName ? `${row.hotelName} — ${row.cityName}` : row.hotelName,
+        startDate: row.checkIn,
+        endDate: row.checkOut,
+        travelers: row.adults + (row.childrenAges?.length ?? 0),
+      }
+    }
     case "package": {
       const [row] = await tx
         .select({

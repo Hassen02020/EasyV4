@@ -5,14 +5,16 @@ Détail complet des scénarios et preuves : `e2e-certification-report.md`.
 
 ## Résumé exécutif — statut par module (lecture Go-Live)
 
-- **Hôtels Tunisie, Omraty, Voyages organisés, Attractions, Vols** : réservation réelle **certifiée E2E
-  navigateur** — cycle complet créer→rechercher→valider→modifier→annuler exécuté en direct
-  (Playwright, infra locale réelle — Postgres 16 + mock GoTrue + `next start` production), preuve
-  DB/`psql` à chaque étape (reservation/payments/audit_events), captures d'écran. Vols : certifié dans
-  ce cycle (voir report §9.5) — 1 défaut réel trouvé ET corrigé pendant le run (accessibilité
-  Label/Input non associés dans `FlightGuestBookingForm`, qui bloquait aussi `getByLabel` en test).
-- **Hôtels Monde** : recherche uniquement, aucune réservation réelle — honnêtement désactivée dans
-  l'UI, rien à certifier.
+- **Hôtels Tunisie, Omraty, Voyages organisés, Attractions, Vols, Hôtels Monde** : réservation réelle
+  **certifiée E2E navigateur** — cycle complet créer→rechercher→valider→modifier→annuler exécuté en
+  direct (Playwright, infra locale réelle — Postgres 16 + mock GoTrue + `next start` production), preuve
+  DB/`psql` à chaque étape (reservation/payments/audit_events), captures d'écran. Vols : 1 défaut réel
+  trouvé ET corrigé pendant le run (accessibilité Label/Input non associés dans
+  `FlightGuestBookingForm`, qui bloquait aussi `getByLabel` en test). Hôtels Monde : 1 défaut réel trouvé
+  ET corrigé pendant le run (nom d'hôtel dégradé — casse destination brute au lieu du nom de ville — lors
+  de la revalidation prix côté `engine.ts::book()`, voir report §10.5).
+- Les 6 modules commercialisables disposent désormais tous d'une réservation réelle de bout en bout —
+  plus aucun module n'est dans la catégorie "recherche uniquement".
 
 Cette distinction (navigateur réellement certifié vs. un simple mock présenté comme tel) est
 délibérément maintenue explicite dans tout ce document.
@@ -86,6 +88,10 @@ revérifiée en base via `psql` (superuser, hors RLS) après le run, pas seuleme
 | Vols | Rechercher + Valider (même back-office partagé, règlement manuel réel) | PASS | Real | ✅ | ✅ `verifyManualPayment` | ✅ `payments` (cash, capturé), `reservations.status='confirmed'` | `payment.manual_verified` | `dashboard-ops-flight-04,05` | — |
 | Vols | Modifier (dropdown statut, confirmed→completed) | PASS | Real | ✅ | ✅ `updateReservationStatus` | ✅ `reservations.status='completed'` | `status_update` | `dashboard-ops-flight-06` | — |
 | Vols | Annuler (RefundButton, remboursement réel) | PASS | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount=382.00`, `reservations.status='refunded'` (état terminal) | `payment.refunded` | `dashboard-ops-flight-07` | Inventaire virtuel (in-memory) non restitué au remboursement staff — même limitation que Hôtel/myGo, voir report §9.5 |
+| Hôtels Monde | Créer (B2C guest checkout, espèces, Virtual World Hotel Supplier) | PASS | Real (inventaire réel, numéro de confirmation émis) | ✅ | ✅ `createGuestWorldHotelBooking` | ✅ `reservations.status='pending'`, `reservation_hotel` (module `hotel_monde`, "Istanbul Royal Resort & Spa", confirmation `WH-ACS7C3NY`) | `hotel_monde_booking.created` | `dashboard-ops-hotel-monde-01..03` | — |
+| Hôtels Monde | Rechercher + Valider (même back-office partagé, règlement manuel réel) | PASS | Real | ✅ | ✅ `verifyManualPayment` | ✅ `payments` (cash, capturé), `reservations.status='confirmed'` | `payment.manual_verified` | `dashboard-ops-hotel-monde-04,05` | — |
+| Hôtels Monde | Modifier (dropdown statut, confirmed→completed) | PASS | Real | ✅ | ✅ `updateReservationStatus` | ✅ `reservations.status='completed'` | `status_update` | `dashboard-ops-hotel-monde-06` | — |
+| Hôtels Monde | Annuler (RefundButton, remboursement réel) | PASS | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount=1647.00`, `reservations.status='refunded'` (état terminal) | `payment.refunded` | `dashboard-ops-hotel-monde-07` | Inventaire virtuel (in-memory) non restitué au remboursement staff — même limitation que Hôtel/Vols, voir report §10.5 |
 
 **Défaut réel #2 trouvé PAR ce cycle (module Omra) et corrigé — plus grave, silencieux, cross-module** :
 `e2e/dashboard-operations-omra-lifecycle.spec.ts` (même méthode, module Omraty — réservation pèlerin
@@ -125,7 +131,7 @@ sur pourquoi cet ordre est le seul qui fonctionne, contrainte métier découvert
 | Omraty | ✅ | ✅ | Inventaire interne réel (`omra_allotments`, `SELECT…FOR UPDATE`) — Easy2Book EST le fournisseur, pas un mock d'API externe | 🟢 Certifié ce cycle au niveau Dashboard Operations complet (voir table ci-dessus) — 1 défaut trouvé ET corrigé (libération de stock au remboursement staff) |
 | Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`bookedSeats` 1→0 après remboursement) |
 | Attractions | ✅ | ✅ | Idem (`catalog_activity_sessions`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`booked` 1→0 après remboursement) |
-| Hôtels Monde | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation hôtels monde — bientôt disponible">` (`app/hotels-monde/search/world-hotel-results-content.tsx:122`) | — | 🔴 Aucun fournisseur branché, jamais prétendu autrement dans l'UI |
+| Hôtels Monde | ✅ | ✅ | Virtual World Hotel Supplier (nouveau ce cycle) — 5 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`BOOKING_REJECTED`/`TIMEOUT`, voir `lib/hotels-monde/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited, numéro de confirmation réel, revalidation prix serveur avant réservation. Réutilise la table `reservation_hotel` existante avec un module dédié `"hotel_monde"` (jamais confondu avec Hôtels Tunisie/myGo) | 🟢 Certifié ce cycle (Dashboard Operations complet, navigateur réel) — voir report section 10 |
 | Vols | ✅ | ✅ | Virtual Flight Supplier (nouveau ce cycle) — 5 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`BOOKING_REJECTED`/`TIMEOUT`, voir `lib/vols/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited, PNR réel, revalidation prix serveur avant réservation | 🟢 Certifié ce cycle (Dashboard Operations complet, navigateur réel) — voir report section 9 |
 
 **Limitation explicite de ce cycle** : la certification métier OTA complète demandée (les 6 verticaux,
@@ -141,9 +147,13 @@ sert de gabarit reproductible (`e2e/dashboard-operations-*.spec.ts`) pour les cy
 Omraty/Voyages organisés/Attractions.
 
 **Mise à jour (cycle "Vols")** : le module Vols dispose désormais d'une réservation réelle de bout en
-bout (Virtual Flight Supplier, voir report §9) — n'est donc plus dans la catégorie "rien à certifier
-côté réservation". Le spec `dashboard-operations-flight-lifecycle.spec.ts` existe et suit le même
-gabarit, mais n'a pas été exécuté en navigateur ce cycle (infra locale non montée) — voir report §9.3
-pour le détail des preuves obtenues par un autre moyen (tests unitaires/intégration contre le vrai
-moteur). Hôtels Monde reste seul sans aucune réservation réelle à certifier — reconfirmé, pas une
-régression de ce cycle.
+bout (Virtual Flight Supplier, voir report §9) et a depuis été **certifié navigateur réel** dans le
+cycle suivant : `dashboard-operations-flight-lifecycle.spec.ts` exécuté 1/1 PASS contre l'infra locale
+(Postgres 16 + mock GoTrue + `next start`), preuve `psql` à chaque étape (voir report §9.5). N'est donc
+plus dans la catégorie "rien à certifier côté réservation".
+
+**Mise à jour (cycle "Hôtels Monde")** : même traitement complet appliqué au module Hôtels Monde —
+Virtual World Hotel Supplier (moteur dédié, voir report §10), bouton "Réserver" désormais actif sur
+`/hotels-monde/search`, cycle Dashboard Operations certifié navigateur réel
+(`dashboard-operations-hotel-monde-lifecycle.spec.ts`, 1/1 PASS, voir report §10.5). Plus aucun des 6
+modules ne reste dans la catégorie "recherche uniquement, aucune réservation réelle".

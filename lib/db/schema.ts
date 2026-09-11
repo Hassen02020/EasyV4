@@ -89,6 +89,7 @@ export const reservationModule = pgEnum("reservation_module", [
   "transfer",
   "omra",
   "car",
+  "hotel_monde",
 ])
 
 export const reservationSource = pgEnum("reservation_source", [

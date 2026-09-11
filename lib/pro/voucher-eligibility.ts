@@ -107,6 +107,31 @@ export function isFlightVoucherEligible(
 }
 
 /**
+ * Éligibilité voucher Hôtels Monde — même règle (Phase 11 :
+ * `confirmed`/`completed` uniquement), fonction dédiée plutôt qu'une
+ * extension de `isVoucherEligible` : les deux réutilisent la même table
+ * d'extension `reservation_hotel` (voir
+ * drizzle/manual/0051_hotel_monde_module.sql) mais restent deux modules
+ * distincts (`"hotel"` vs `"hotel_monde"`) — jamais un voucher Hôtels Monde
+ * émis pour une ligne `"hotel"` ou inversement.
+ */
+export interface WorldHotelVoucherEligibilityInput {
+  module: string
+  status: string
+  hotelName: string | null | undefined
+  checkIn: string | null | undefined
+  checkOut: string | null | undefined
+}
+
+export function isWorldHotelVoucherEligible(
+  row: WorldHotelVoucherEligibilityInput,
+): row is WorldHotelVoucherEligibilityInput & { hotelName: string; checkIn: string; checkOut: string } {
+  if (row.module !== "hotel_monde") return false
+  if (!row.hotelName || !row.checkIn || !row.checkOut) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
+/**
  * PHASE 38B (Voucher Hardening) — SEULE source de vérité pour "quelle route
  * de téléchargement voucher pour quel module ?". Avant cette extraction,
  * deux copies indépendantes de cette table existaient
@@ -126,6 +151,7 @@ export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
   package: "/api/packages/voucher",
   activity: "/api/activities/voucher",
   flight: "/api/vols/voucher",
+  hotel_monde: "/api/hotels-monde/voucher",
 }
 
 /**

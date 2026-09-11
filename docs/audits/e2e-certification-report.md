@@ -32,13 +32,95 @@ bouton Rembourser, historique d'audit) → Pro d'une autre agence : réservation
 
 Aucune autre correction de code produit n'a été nécessaire — tout le reste testé était déjà correct.
 
+## 3bis. Cycle de certification ciblé — 2 échecs `pnpm test` + tampering prix (post-PR #41)
+
+Ce cycle répond à une exigence explicite : ne jamais qualifier des échecs de test de « pré-existants »
+ou « artefact d'ordre d'exécution » sans preuve technique documentée, et corriger réellement le défaut
+d'affichage de prix avant paiement identifié en section 4 de la version précédente de ce rapport
+(au lieu de le remonter sans le corriger).
+
+### A. Root cause PROUVÉE des 2 échecs `pnpm test` (`search-hub.test.ts` cat. 17, `search-core.test.ts` démo)
+
+Le rapport précédent affirmait « artefact d'ordre d'exécution, cause non identifiée malgré
+investigation ». Cette conclusion était **fausse** — root cause réelle trouvée par test contrôlé :
+
+1. **Reproduction avec la cause suspectée** : `source .env.local && pnpm test` → 826/828, mêmes 2
+   échecs, mêmes diffs (`/tmp/investigate-full.log`).
+2. **Test décisif en environnement propre** : `env -i PATH="$PATH" HOME="$HOME"
+   DATABASE_URL="$DATABASE_URL" pnpm test` (aucune autre variable héritée) → **828/828, 0 échec**
+   (`/tmp/clean-env-test.log`).
+3. **Root cause** : `.env.local` (dev/E2E navigateur, pilote le Virtual MyGo Supplier via des appels
+   HTTP réels) définit `MYGO_MODE=virtual` / `MYGO_LOGIN=...`. Quand ces variables fuitent dans le
+   process `pnpm test` (habitude de `source .env.local` avant de lancer les tests), `isDemoMode()`
+   (`lib/mygo/search-core.ts`) bascule `search-hub.test.ts` et `search-core.test.ts` vers le VRAI
+   Virtual MyGo Supplier au lieu de la fixture statique déterministe attendue — supplier qui émet
+   volontairement un `searchId`/token neufs à chaque appel (non caché, `searchTtlSeconds=0` en mode
+   virtuel, voir `lib/mygo/config.ts::resolveMyGoInfraDefaults`), cassant les assertions "deux appels
+   identiques" écrites pour le mode démo.
+4. Ce n'est PAS un artefact d'ordre d'exécution : ce sont deux méthodologies d'invocation différentes
+   (avec vs sans `.env.local` sourcé) qui donnaient l'illusion d'une flakiness liée à l'ordre.
+
+**Correction réelle** : `scripts/run-tests.mjs` construit désormais un `childEnv` explicite (copie de
+`process.env` avec `MYGO_MODE`/`MYGO_LOGIN`/`MYGO_PASSWORD`/`PAYMENT_MODE`/`PAYMENT_PROVIDER` retirées)
+passé à `spawnSync` — `pnpm test` est maintenant hermétique vis-à-vis de l'environnement de l'appelant,
+que `.env.local` soit sourcé ou non. **Vérifié** : `source .env.local && pnpm test` → 828/828, 0 échec
+(`/tmp/verify-hermetic.log`). Chaque test qui a réellement besoin du mode virtuel le pose lui-même
+localement dans son propre fichier (`mygo-driver.test.ts`, `config.test.ts`,
+`virtual-payment-provider.test.ts`) — aucun test ne dépendait légitimement de ces variables héritées
+de l'extérieur.
+
+### B. Correction du défaut d'affichage prix avant paiement (ex-finding #1 de la section 4)
+
+**Bug confirmé** : le brouillon de réservation (`lib/booking/draft-store.ts`) est un base64url NON
+SIGNÉ, entièrement modifiable côté client une fois dans l'URL `?d=`. `/booking` (étape 1) et
+`/booking/checkout` calculaient le total affiché directement depuis `draft.unitPriceTnd` — falsifiable
+— avant tout paiement. Le montant réellement **facturé** restait déjà correct (le serveur ignore
+`draft.unitPriceTnd` à la capture, voir `lib/booking/guest-actions.ts`/`actions.ts`), mais un client
+pouvait voir un montant puis en payer un autre.
+
+**Correction — le serveur devient l'unique source de vérité pour l'affichage, pas seulement pour la
+capture** :
+- `lib/booking/price-token.ts` (nouveau) : `/api/hotels/search-public` signe (HMAC-SHA256,
+  `PRICE_TOKEN_SECRET`) le prix exact qu'il vient de calculer pour {hôtel, chambre, board, dates,
+  adultes, devise}, et l'attache à chaque chambre (`priceToken`, forme JSON libre, DTO canonique
+  `RoomOfferDTO`/`HotelOfferDTO` intentionnellement inchangé). Aucun second appel fournisseur —
+  décision Phase 30.1 (CheckRate) non rouverte : on rend infalsifiable un prix déjà légitimement
+  calculé par le serveur, on ne recalcule rien.
+- Le `priceToken` est propagé du résultat de recherche jusqu'au brouillon
+  (`app/hotels/[id]/page.tsx`, `app/hotels/search/page.tsx` → `draft.metadata.priceToken`).
+- `resolveDraftHotelPrice()` revérifie ce token (signature + TTL 45 min + correspondance EXACTE
+  hôtel/chambre/board/dates/adultes/devise — jamais un token d'une autre offre accepté) et est
+  appliqué aux DEUX écrans qui affichent un montant avant paiement : `app/booking/page.tsx` (étape 1)
+  et `app/booking/checkout/page.tsx` (étape 3, paiement). En cas d'échec de vérification (absent,
+  expiré, signature invalide, offre différente), l'écran **bloque** l'affichage ("Ce prix n'a plus pu
+  être vérifié — relancez une recherche") au lieu d'un repli silencieux sur le prix client — jamais de
+  montant non garanti affiché. Même garde appliquée à l'ajout panier
+  (`components/booking/checkout-form.tsx::onAddToCart`, via la Server Action
+  `lib/booking/price-token-actions.ts` — un composant client ne peut pas exécuter le HMAC lui-même).
+- Écran de confirmation (`app/booking/confirmation/[ref]/page.tsx`) : vérifié déjà correct sans
+  modification — `row.total` vient de `reservations.tndAmount`, dérivé de `myGoBooking.totalPrice`
+  (réponse fournisseur réelle) + marge, jamais du brouillon client.
+- 12 tests de non-régression ajoutés (`lib/booking/__tests__/price-token.test.ts`) : round-trip
+  sign/verify, prix trafiqué dans le payload (rejeté), signature forgée (rejetée), token expiré
+  (rejeté), réutilisation d'un token valide pour une AUTRE chambre/d'autres dates (`mismatch`),
+  token absent/malformé, `signHotelSearchOffersInPlace` bout-en-bout, `resolveDraftHotelPrice` pour
+  chaque cas (module non-hôtel, pas de token, token valide, token d'une offre différente injecté dans
+  un draft trafiqué).
+- **Retest live** (serveur dev réel, recherche `/api/hotels/search-public` réelle, chambre réelle) :
+  brouillon légitime → `/booking` et `/booking/checkout` affichent 2 261 TND (950 TND/adulte × 2 ×
+  1,19 TVA) ; brouillon avec `unitPriceTnd` falsifié à 1 TND mais `priceToken` réel intact → **toujours
+  2 261 TND affiché**, jamais 1 DT ; `priceToken` avec signature corrompue → écran bloqué, 0 montant
+  affiché. Voir section 6 pour la preuve détaillée de la construction du token de test.
+
+Cette correction ferme entièrement le finding remonté en section 4 de la version précédente — retiré
+de la liste des limitations (voir section 8).
+
 ## 4. Trouvailles remontées SANS correction (décision produit requise)
 
 | # | Sujet | Constat | Pourquoi non corrigé automatiquement |
 |---|---|---|---|
-| 1 | **Affichage prix avant paiement** (`components/booking/checkout-form.tsx:77`) | Preuve live : draft de réservation falsifié côté client (`unitPriceTnd` mis à 1 TND, `myGoToken` signé laissé intact). Le total **affiché** sur `/booking/checkout` avant paiement suit le nombre falsifié ("Sous-total 2 TND"). Le montant **réellement facturé et enregistré en DB** reste correct (1813.88 DT, prix fournisseur réel — le serveur ignore le prix client à la capture, via `authoritativeUnitPrice`/`confirmHotelWithProvider`). Aucune perte financière possible, mais risque de confiance client (le client voit un prix puis en paie un autre) | Corriger proprement exigerait un appel de revérification tarifaire fournisseur au rendu de la page checkout — décision d'architecture déjà explicitement tranchée en Phase 30.1 ("CheckRate implementation decision"). Toucher à cet arbitrage sans validation explicite sort du périmètre "bug sûr et localisé" |
-| 2 | **Création d'agence/tenant** | Bouton "Nouvelle agence" honnêtement désactivé (`disabled title="Pas encore disponible"`) — aucune Server Action, les agences n'existent que via insertion SQL directe | Fonctionnalité complète à construire (formulaire, validation métier, onboarding), pas un bug |
-| 3 | **Branding White Label éditable** (logo/nom/domaine) | `brandName`/`logoUrl` sont lus en base et appliqués en runtime (White Label fonctionnel en lecture), mais aucune UI/action ne permet de les éditer — Phase 13 "White Label foundation (minimal)" est bien une fondation lecture-seule | Idem — feature à construire, pas un défaut |
+| 1 | **Création d'agence/tenant** | Bouton "Nouvelle agence" honnêtement désactivé (`disabled title="Pas encore disponible"`) — aucune Server Action, les agences n'existent que via insertion SQL directe | Fonctionnalité complète à construire (formulaire, validation métier, onboarding), pas un bug |
+| 2 | **Branding White Label éditable** (logo/nom/domaine) | `brandName`/`logoUrl` sont lus en base et appliqués en runtime (White Label fonctionnel en lecture), mais aucune UI/action ne permet de les éditer — Phase 13 "White Label foundation (minimal)" est bien une fondation lecture-seule | Idem — feature à construire, pas un défaut |
 
 ## 5. Tableau de synthèse
 
@@ -68,34 +150,30 @@ Aucune autre correction de code produit n'a été nécessaire — tout le reste 
 
 ```
 pnpm tsc --noEmit    → 0 erreur
-pnpm lint (eslint .) → 0 erreur
-pnpm test            → 826/828 (2 échecs, voir ci-dessous)
-pnpm build           → voir résultat exact ci-dessous
+pnpm lint (eslint .) → 0 erreur (72 warnings pré-existants, aucun nouveau)
+pnpm test            → 840/840, 0 échec (828 + 12 nouveaux tests price-token.test.ts)
+pnpm build           → succès, 0 erreur (voir section 3bis pour le détail des routes)
 ```
 
-**Les 2 échecs de `pnpm test`** (`search-hub.test.ts` catégorie 17, `search-core.test.ts` démo) sont
-un artefact d'ordre d'exécution confirmé non lié à cette session :
-- Les deux passent individuellement (`node --import tsx --test <fichier seul>` → 100% vert).
-- Ils passent même combinés avec les fichiers voisins les plus probables (`mygo-driver.test.ts`,
-  `flexible-search.test.ts` → 55/55 vert).
-- Ils ne se reproduisent QUE dans le run complet à 828 tests dans un seul processus Node partagé —
-  un autre fichier, non identifié malgré investigation, pollue l'environnement process-global
-  (probablement `process.env`/cache module) avant ces deux tests.
-- Racine différente et déjà corrigée pour 3 autres échecs similaires trouvés en début de session
-  (dates figées expirées dans `flexible-search.test.ts` — voir section 3).
-- Baseline historique documentée avant cette session : 815/825 (échecs réseau connus). Résultat
-  actuel : 826/828 — amélioration nette, aucune régression introduite.
+**Les 2 échecs précédemment observés** (`search-hub.test.ts` catégorie 17, `search-core.test.ts`
+démo) sont désormais **prouvés et corrigés** — voir section 3bis.A pour la démonstration complète
+(reproduction avec la cause suspectée, test décisif en environnement propre, root cause exacte,
+correction dans `scripts/run-tests.mjs`, re-vérification `.env.local` sourcé → 828/828). Ce n'était PAS
+un artefact d'ordre d'exécution : l'affirmation du rapport précédent est explicitement rétractée.
 
-**`pnpm build`** → ✅ Compiled successfully in 39.3s, TypeScript OK, 32/32 pages statiques générées,
-`/unauthorized` (nouvelle route) bien présente dans la sortie. Aucune erreur.
+**`pnpm build`** → ✅ Compiled successfully, TypeScript OK, toutes les routes générées (dont
+`/booking`, `/booking/checkout`, `/api/hotels/search-public` modifiées ce cycle), aucune erreur.
 
 ## 7. Sécurité — synthèse
 
 - Tenant isolation : prouvée à 3 niveaux (RLS SQL direct, UI cross-agence, tests DB-mode existants
   couvrant wallets/yield_rules/audit_logs/products/CRM/supplier credentials — 15+ scénarios rien que
   pour les credentials fournisseur).
-- Prix/montant : jamais dérivé du client à la capture (prouvé par tampering live) — un seul défaut
-  d'affichage pré-paiement, sans impact financier, remonté pour arbitrage.
+- Prix/montant : jamais dérivé du client, ni à la capture (déjà vrai) ni à l'affichage (corrigé ce
+  cycle, section 3bis.B) — le serveur signe (HMAC) le prix au moment de la recherche et le revérifie
+  avant tout affichage sur `/booking`, `/booking/checkout` et l'ajout panier ; échec de vérification =
+  écran bloqué, jamais un repli silencieux sur une valeur client. Prouvé par tampering live (token
+  falsifié → toujours le prix serveur affiché ; signature corrompue → écran bloqué).
 - Idempotence paiement : webhook dupliqué, double capture concurrente, wallet debit/credit —
   couverts par tests DB-mode existants.
 - Concurrence : dernier siège Trips prouvé en direct (navigateur réel, 2 requêtes simultanées,
@@ -106,19 +184,20 @@ un artefact d'ordre d'exécution confirmé non lié à cette session :
 
 ## 8. Verdict
 
-**🟡 READY WITH KNOWN LIMITATIONS**
+**🟢 READY WITH KNOWN LIMITATIONS (non-financières)**
 
 La plateforme est fonctionnellement complète et sécurisée sur tous les parcours transactionnels
 testés (B2C/B2B/Admin, Hôtels/Omra/Trips/Attractions, paiement/wallet/refund/voucher, isolation
-multi-tenant). Aucune faille de sécurité exploitable trouvée. Les limitations connues sont toutes
-des fonctionnalités honnêtement non construites (jamais des bugs silencieux) :
+multi-tenant). Aucune faille de sécurité exploitable trouvée. Le seul finding avec une dimension
+sécurité/confiance (affichage prix avant paiement) est **corrigé et testé** ce cycle (section 3bis.B).
+Les limitations restantes sont toutes des fonctionnalités honnêtement non construites (jamais des
+bugs silencieux) :
 
 1. Création d'agence/tenant — à construire.
 2. Édition du branding White Label (logo/nom/domaine) — à construire (lecture/runtime déjà réels).
-3. Affichage du prix avant paiement basé sur une donnée client non vérifiée — décision produit
-   requise (ajouter une revérification tarifaire au rendu de la page, ou accepter le risque
-   documenté).
 
 Rien dans cette liste ne bloque une mise en production limitée (marché pilote / lancement contrôlé)
-tant que (1) et (2) restent gérés manuellement par l'équipe (SQL direct / support), et que (3) est
-un arbitrage produit conscient plutôt qu'un défaut caché.
+tant que (1) et (2) restent gérés manuellement par l'équipe (SQL direct / support).
+
+**PR #41** : mergeable — 840/840 tests (0 échec, cause des 2 précédents prouvée et corrigée),
+0 erreur tsc/lint/build, tampering prix re-testé en direct (bloqué), aucune régression introduite.

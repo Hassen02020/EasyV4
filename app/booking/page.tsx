@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { decodeDraft, encodeDraft } from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
+import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { BookingSteps } from "@/components/booking/booking-steps"
 
 export const dynamic = 'force-dynamic'
@@ -52,8 +53,43 @@ export default async function BookingStep1Page({
   }
 
   const { draft } = payload
+
+  // Certification E2E — même garde qu'à l'étape checkout (voir
+  // app/booking/checkout/page.tsx et lib/booking/price-token.ts) : pour un
+  // module hôtel, jamais `draft.unitPriceTnd` seul si le `priceToken` signé
+  // ne se revérifie pas — on bloque l'affichage plutôt que de montrer un
+  // montant non garanti dès cette première étape.
+  const resolvedPrice = resolveDraftHotelPrice(draft)
+  if (draft.module === "hotel" && !resolvedPrice.verified) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="bg-muted/30 flex-1 py-8">
+          <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6 lg:px-8">
+            <h1 className="mb-2 text-2xl font-bold">
+              Ce prix n&apos;a plus pu être vérifié
+            </h1>
+            <p className="text-muted-foreground mb-6">
+              Pour votre sécurité, nous ne pouvons afficher un montant que
+              lorsqu&apos;il est garanti par notre serveur. Relancez une
+              recherche pour obtenir un tarif à jour.
+            </p>
+            <Link
+              href="/hotels/search"
+              className="text-foreground inline-flex items-center gap-1 underline"
+            >
+              <ChevronLeft className="size-4" />
+              Relancer une recherche d&apos;hôtel
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
   const breakdown = computePriceBreakdown({
-    unitPriceTnd: draft.unitPriceTnd,
+    unitPriceTnd: resolvedPrice.unitPriceTnd,
     adults: draft.adults,
     children: draft.children,
     unitChildPriceTnd: draft.unitChildPriceTnd,

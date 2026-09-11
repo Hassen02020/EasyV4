@@ -39,6 +39,17 @@ export interface RoomOption {
   boardingCode?: string
   /** Pension RÉELLE de cette chambre — fait foi pour la réservation, jamais un onglet/état externe. */
   boardingName: string
+  /**
+   * Certification E2E — jeton HMAC signé par `/api/hotels/search-public`
+   * (voir lib/booking/price-token.ts) attestant que `price` est bien le
+   * montant calculé serveur pour {hotel, chambre, board, dates, adultes,
+   * devise}. Propagé tel quel jusqu'au brouillon de réservation
+   * (`draft.metadata.priceToken`) pour que /booking/checkout puisse
+   * revérifier le total avant tout affichage, au lieu de faire confiance au
+   * brouillon client. Absent si le serveur n'a pas pu signer (jamais
+   * bloquant ici — c'est la vérification côté checkout qui décide).
+   */
+  priceToken?: string
 }
 
 interface HotelRoomRatesProps {

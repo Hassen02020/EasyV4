@@ -442,6 +442,10 @@ function HotelDetailContent({ id }: { id: string }) {
           boardingCode: room.boardingCode,
           roomId: room.id,
           childrenAges: childrenAgesArr,
+          // Certification E2E — jeton de prix signé serveur (voir
+          // lib/booking/price-token.ts), revérifié par /booking/checkout
+          // avant tout affichage financier.
+          priceToken: room.priceToken,
         },
       },
     })

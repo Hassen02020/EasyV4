@@ -48,6 +48,7 @@ interface BookingData {
   boardingId: number
   boardingCode: string
   roomId: number
+  priceToken?: string
 }
 
 function formatDateRange(checkin: string | null, checkout: string | null) {
@@ -199,6 +200,10 @@ function HotelSearchContent() {
           boardingCode: hotelData.boardingCode,
           roomId: hotelData.roomId,
           childrenAges: childrenAgesArr,
+          // Certification E2E — jeton de prix signé serveur (voir
+          // lib/booking/price-token.ts), revérifié par /booking/checkout
+          // avant tout affichage financier.
+          priceToken: hotelData.priceToken,
         },
       },
     })

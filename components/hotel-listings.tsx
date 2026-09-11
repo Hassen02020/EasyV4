@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { HotelCard } from "@/components/hotel-card"
 import type { RoomOption } from "@/components/hotel-room-rates"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { HotelOfferDTO } from "@/lib/mygo/types"
+import type { HotelOfferDTO, RoomOfferDTO } from "@/lib/mygo/types"
 import { selectBestRate } from "@/lib/mygo/best-rate"
 import { hasFreeCancellation } from "@/lib/mygo/facets"
 import { listMyFavorites } from "@/app/actions/list-my-favorites"
@@ -35,6 +35,7 @@ interface BookingData {
   boardingId: number
   boardingCode: string
   roomId: number
+  priceToken?: string
 }
 
 // RoomOption réutilisé tel quel depuis components/hotel-room-rates.tsx —
@@ -157,6 +158,10 @@ export function toCardShape(
         boardingId: boarding.id,
         boardingCode: boarding.code,
         boardingName: boarding.name,
+        // Certification E2E — champ ajouté en JSON libre par
+        // /api/hotels/search-public (lib/booking/price-token.ts), absent du
+        // DTO canonique RoomOfferDTO pour ne pas impacter le tunnel B2B.
+        priceToken: (room as RoomOfferDTO & { priceToken?: string }).priceToken,
       }
     })
 
@@ -407,6 +412,7 @@ export function HotelListings({
       boardingId: room.boardingId,
       boardingCode: room.boardingCode,
       roomId: room.id,
+      priceToken: room.priceToken,
     })
   }
 

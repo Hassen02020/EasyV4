@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
+import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import dynamicImport from "next/dynamic"
 import { Suspense } from "react"
@@ -39,8 +40,49 @@ function CheckoutContent({
   if (!payload || !payload.traveler) redirect("/")
 
   const { draft, traveler } = payload
+
+  // Certification E2E — le brouillon (`?d=`) est un base64url NON SIGNÉ,
+  // entièrement modifiable côté client (voir lib/booking/price-token.ts en
+  // tête de fichier pour la preuve live du bug : un draft trafiqué affichait
+  // avant un total falsifié ici, alors que la charge réelle — déjà correcte,
+  // voir lib/booking/guest-actions.ts/actions.ts — se basait sur le vrai prix
+  // fournisseur). Pour un module hôtel, le serveur revérifie le `priceToken`
+  // signé au moment de la recherche AVANT tout affichage financier : jamais
+  // de repli silencieux sur `draft.unitPriceTnd` seul si la vérification
+  // échoue (token absent/expiré/signature invalide/offre différente) — on
+  // bloque l'écran plutôt que d'afficher (et risquer de faire payer) un
+  // montant non garanti.
+  const resolvedPrice = resolveDraftHotelPrice(draft)
+  if (draft.module === "hotel" && !resolvedPrice.verified) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="bg-muted/30 flex-1 py-8">
+          <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6 lg:px-8">
+            <h1 className="mb-2 text-2xl font-bold">
+              Ce prix n&apos;a plus pu être vérifié
+            </h1>
+            <p className="text-muted-foreground mb-6">
+              Pour votre sécurité, nous ne pouvons afficher un montant que
+              lorsqu&apos;il est garanti par notre serveur. Relancez une
+              recherche pour obtenir un tarif à jour.
+            </p>
+            <Link
+              href="/hotels/search"
+              className="text-foreground inline-flex items-center gap-1 underline"
+            >
+              <ChevronLeft className="size-4" />
+              Relancer une recherche d&apos;hôtel
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
   const breakdown = computePriceBreakdown({
-    unitPriceTnd: draft.unitPriceTnd,
+    unitPriceTnd: resolvedPrice.unitPriceTnd,
     adults: draft.adults,
     children: draft.children,
     unitChildPriceTnd: draft.unitChildPriceTnd,

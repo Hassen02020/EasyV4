@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { ShieldCheck, CreditCard, Banknote, Wallet, Building2, ShoppingCart } from "lucide-react"
 import { submitCheckoutAction } from "@/lib/booking/actions"
+import { resolveDraftPriceAction } from "@/lib/booking/price-token-actions"
 import { checkoutSchema } from "@/lib/booking/schemas"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { useCart } from "@/lib/cart/use-cart"
@@ -74,10 +75,27 @@ export function CheckoutForm({ token }: { token: string }) {
       return
     }
     const { draft, traveler } = payload
-    const priceTnd = draft.unitPriceTnd * draft.adults + (draft.unitChildPriceTnd ?? 0) * draft.children
-    cart.add({ module: "hotel", title: draft.offerLabel, priceTnd, draft, traveler })
-    toast.success("Ajouté au panier.")
-    router.push("/panier")
+    startTransition(async () => {
+      // Certification E2E — jamais `draft.unitPriceTnd` seul pour un module
+      // hôtel : le serveur revérifie le `priceToken` signé à la recherche
+      // avant d'ajouter un montant au panier (voir lib/booking/price-token.ts
+      // en tête de fichier pour la preuve live du bug corrigé). Si la
+      // vérification échoue, on refuse d'ajouter au panier plutôt que
+      // d'afficher un montant non garanti.
+      const resolved = await resolveDraftPriceAction(token)
+      if (draft.module === "hotel" && !resolved.verified) {
+        toast.error(
+          "Ce prix n'a plus pu être vérifié — relancez une recherche pour obtenir un tarif à jour.",
+        )
+        return
+      }
+      const priceTnd =
+        resolved.unitPriceTnd * draft.adults +
+        (draft.unitChildPriceTnd ?? 0) * draft.children
+      cart.add({ module: "hotel", title: draft.offerLabel, priceTnd, draft, traveler })
+      toast.success("Ajouté au panier.")
+      router.push("/panier")
+    })
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -208,6 +226,7 @@ export function CheckoutForm({ token }: { token: string }) {
               size="lg"
               className="w-full sm:flex-1"
               onClick={onAddToCart}
+              disabled={pending}
             >
               <ShoppingCart className="mr-2 size-4" />
               Ajouter au panier

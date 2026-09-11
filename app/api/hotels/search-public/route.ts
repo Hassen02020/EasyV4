@@ -31,6 +31,7 @@ import {
 import { rateLimit } from "@/lib/rate-limit"
 import { resolveMyGoAccessForTenant, guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
+import { signHotelSearchOffersInPlace } from "@/lib/booking/price-token"
 
 export const revalidate = 300 // 5 min — les prix changent vite
 
@@ -83,5 +84,23 @@ export async function GET(req: NextRequest) {
   const access = tenantContext ? await resolveMyGoAccessForTenant(tenantContext) : undefined
   // PHASE 28 — recherche orchestrée par le Hub — contrat de réponse
   // inchangé, voir lib/hotel-suppliers/search-hub.ts.
-  return executeHotelSearchThroughHub(q, access, { agencyId: tenantContext?.agencyId ?? null })
+  const resp = await executeHotelSearchThroughHub(q, access, { agencyId: tenantContext?.agencyId ?? null })
+
+  // Certification E2E — ajoute un `priceToken` signé par chambre (prix
+  // exact que CE serveur vient de calculer), pour que le tunnel B2C
+  // (/booking/checkout) puisse revérifier le total avant affichage plutôt
+  // que de faire confiance au brouillon non signé côté client — voir
+  // lib/booking/price-token.ts. Uniquement sur une réponse 200 avec un
+  // vrai corps `offers` (jamais sur une erreur/rate-limit/redirect).
+  if (resp.status !== 200) return resp
+  let body: Awaited<ReturnType<typeof resp.json>>
+  try {
+    body = await resp.json()
+  } catch {
+    return resp
+  }
+  if (body && typeof body === "object" && Array.isArray((body as { offers?: unknown }).offers)) {
+    signHotelSearchOffersInPlace(body as Parameters<typeof signHotelSearchOffersInPlace>[0], q)
+  }
+  return NextResponse.json(body, { status: resp.status, headers: resp.headers })
 }

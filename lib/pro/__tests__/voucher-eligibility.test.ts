@@ -6,6 +6,7 @@ import {
   isOmraVoucherEligible,
   isPackageVoucherEligible,
   isHotelReservationVoucherEligible,
+  isAdminReservationVoucherEligible,
   isWorldHotelVoucherEligible,
   voucherHrefForModule,
 } from "../voucher-eligibility"
@@ -277,8 +278,43 @@ test("isHotelReservationVoucherEligible : false pour hôtel encore pending (pas 
   assert.equal(isHotelReservationVoucherEligible("hotel", "pending"), false)
 })
 
-test("isHotelReservationVoucherEligible : false pour un module non-hôtel même confirmé (routes admin/pro n'ont pas de rendu Omra/Package/Activity)", () => {
+test("isHotelReservationVoucherEligible : false pour un module non-hôtel même confirmé (scopée au seul module hôtel par design)", () => {
   assert.equal(isHotelReservationVoucherEligible("omra", "confirmed"), false)
   assert.equal(isHotelReservationVoucherEligible("package", "confirmed"), false)
   assert.equal(isHotelReservationVoucherEligible("activity", "confirmed"), false)
+})
+
+/* -------------------------------------------------------------------------- */
+/* isAdminReservationVoucherEligible (fix Final Screenshot Certification —    */
+/* /api/admin/.../voucher et /api/pro/.../voucher dispatchent désormais par   */
+/* module via lib/booking/reservation-voucher-render.ts, réutilisant les     */
+/* mêmes renderers/éligibilités que les routes guest publiques par module)   */
+/* -------------------------------------------------------------------------- */
+
+test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, confirmé", () => {
+  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
+    assert.equal(isAdminReservationVoucherEligible(mod, "confirmed"), true, `module=${mod}`)
+  }
+})
+
+test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, completed", () => {
+  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
+    assert.equal(isAdminReservationVoucherEligible(mod, "completed"), true, `module=${mod}`)
+  }
+})
+
+test("isAdminReservationVoucherEligible : false pour un statut pending, quel que soit le module", () => {
+  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
+    assert.equal(isAdminReservationVoucherEligible(mod, "pending"), false, `module=${mod}`)
+  }
+})
+
+test("isAdminReservationVoucherEligible : false pour cancelled/refunded (voucher invalidé après annulation)", () => {
+  assert.equal(isAdminReservationVoucherEligible("hotel", "cancelled"), false)
+  assert.equal(isAdminReservationVoucherEligible("omra", "refunded"), false)
+})
+
+test("isAdminReservationVoucherEligible : false pour un module sans route voucher (transfert/voiture)", () => {
+  assert.equal(isAdminReservationVoucherEligible("transfer", "confirmed"), false)
+  assert.equal(isAdminReservationVoucherEligible("car", "confirmed"), false)
 })

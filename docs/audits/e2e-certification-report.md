@@ -663,31 +663,51 @@ complète en section 3ter) restent disponibles, inchangées, à la racine de
 `docs/audits/screenshots/` — jamais copiées ni renommées dans le nouveau dossier
 `hotels-tunisie/` pour ne jamais laisser croire qu'elles proviennent de ce cycle.
 
-### 12.3 Défaut réel découvert par ce cycle (non corrigé — hors périmètre)
+### 12.3 Défaut réel découvert par ce cycle — CORRIGÉ (cycle de suivi immédiat)
 
 En construisant la vérification fonctionnelle du voucher (étape 08), le premier essai — cliquer sur
 le vrai lien "Télécharger" de la page admin — a échoué pour les 5 modules rejoués simultanément.
-Cause racine confirmée : `app/admin/reservations/[id]/page.tsx` calcule `voucherHref` uniquement via
+Cause racine confirmée : `app/admin/reservations/[id]/page.tsx` calculait `voucherHref` uniquement via
 `isHotelReservationVoucherEligible(detail.module, detail.status)`
 (`lib/pro/voucher-eligibility.ts`), une fonction scopée à `module === "hotel"` — le bloc "Voucher" de
-la page admin affiche donc "Non disponible pour ce module/statut" pour Omra/Package/Activité/Vols/
-Hôtels Monde **même quand la réservation est confirmée et payée**, alors que chacun de ces modules a
-sa propre fonction d'éligibilité fonctionnelle (`isOmraVoucherEligible`, `isPackageVoucherEligible`,
-`isActivityVoucherEligible`, `isFlightVoucherEligible`, `isWorldHotelVoucherEligible`) et une route de
-téléchargement qui fonctionne réellement.
+la page admin affichait donc "Non disponible pour ce module/statut" pour Omra/Package/Activité/Vols/
+Hôtels Monde **même quand la réservation était confirmée et payée**, alors que la route de
+téléchargement `/api/admin/reservations/[id]/voucher` elle-même ne rendait QUE le module hôtel
+(`renderVoucherPdf`, jamais `renderOmraVoucherPdf`/`renderPackageVoucherPdf`/etc.) — le même défaut
+existait à l'identique côté `/pro/reservations/[id]` (`app/api/pro/reservations/[id]/voucher/route.ts`).
 
-Conformément à l'instruction explicite "ne modifie pas le code métier" de ce cycle, ce défaut **n'a
-pas été corrigé**. Les 5 specs E2E ont été réécrites pour vérifier fonctionnellement la route de
-voucher directement (construction de l'URL réelle via `voucherHrefForModule()`, la même fonction
-utilisée ailleurs dans l'app, combinée au `guestAccessToken` réel capturé depuis l'URL de confirmation
-de réservation, puis `page.request.get()` → HTTP 200 + `content-type: application/pdf`), tout en
-prenant une capture d'écran honnête de l'état réel de la page admin (qui montre toujours "Non
-disponible pour ce module/statut", visible sur `08-voucher.png` de chaque module concerné).
+**Correction appliquée** (immédiatement après la certification, dans le même cycle de travail) :
 
-**Correctif suggéré pour un cycle futur** : dans `app/admin/reservations/[id]/page.tsx`, remplacer
-l'appel à `isHotelReservationVoucherEligible` par un dispatch sur `detail.module` vers la fonction
-d'éligibilité correspondante (ou par `voucherHrefForModule` directement, qui existe déjà et gère les
-6 modules).
+- Nouveau `lib/booking/reservation-voucher-render.ts` : dispatch par module (`switch` sur
+  `reservations.module`, même style que `loadModuleDetail` dans
+  `lib/booking/reservation-detail.ts`), réutilisant EXACTEMENT les mêmes renderers PDF et fonctions
+  d'éligibilité déjà validés par les routes guest publiques (`renderOmraVoucherPdf`,
+  `renderPackageVoucherPdf`, `renderActivityVoucherPdf`, `renderFlightVoucherPdf`, `renderVoucherPdf`
+  pour hôtel/hôtel monde) — aucun nouveau gabarit PDF, aucune nouvelle règle d'éligibilité créée.
+- `app/api/admin/reservations/[id]/voucher/route.ts` et
+  `app/api/pro/reservations/[id]/voucher/route.ts` réécrites pour appeler ce dispatch au lieu de
+  rendre uniquement le module hôtel — auth/scope tenant (RLS via `withTenantContext`) inchangés.
+- Nouvelle fonction `isAdminReservationVoucherEligible(module, status)` (couvrant les 6 modules
+  réservables) dans `lib/pro/voucher-eligibility.ts`, utilisée par les deux pages détail
+  (`app/admin/reservations/[id]/page.tsx`, `app/pro/(app)/reservations/[id]/page.tsx`) à la place de
+  `isHotelReservationVoucherEligible` — celle-ci est conservée telle quelle (fonction toujours
+  valide, toujours testée) mais n'est plus la seule utilisée pour ces deux écrans.
+- 6 nouveaux tests unitaires ajoutés (`lib/pro/__tests__/voucher-eligibility.test.ts`), suite complète
+  toujours verte (747 passed / 0 failed / 147 skipped — DB-mode, comme avant), `tsc --noEmit` et
+  `eslint` propres, build production relancé avec succès.
+
+**Vérification en navigateur réel, après correction** : reconstruction (`pnpm build` + `pnpm start`)
+puis re-exécution complète des 5 specs Dashboard Operations — les 5 passent toujours, et surtout les
+captures `08-voucher.png` de ce cycle montrent désormais **réellement** le lien "Voucher : Télécharger"
+sur la page admin (plus "Non disponible pour ce module/statut") pour Omra/Voyages organisés/
+Attractions/Vols/Hôtels Monde. Vérification additionnelle dédiée : nouvelle réservation Vol
+(`FL-2026-000008`) créée, paiement validé, lien "Télécharger" du bloc Voucher confirmé visible et
+cliquable dans l'UI admin réelle (pas seulement via l'URL construite manuellement), téléchargement
+HTTP 200 / `application/pdf` confirmé sur l'URL réelle du lien (`/api/admin/reservations/{id}/voucher`).
+
+Ce défaut ne relève donc plus de l'exception "ne modifie pas le code métier" du cycle de captures
+initial : il a été traité comme un correctif normal, immédiatement après la certification visuelle,
+sur demande explicite de correction avant l'audit design.
 
 ### 12.4 Inventaire des captures
 

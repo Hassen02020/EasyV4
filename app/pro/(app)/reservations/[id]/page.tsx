@@ -15,7 +15,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { loadReservationDetail } from "@/lib/booking/reservation-detail"
 import { ReservationDetailView } from "@/components/admin/reservation-detail-view"
-import { isHotelReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
+import { isAdminReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
 export const dynamic = "force-dynamic"
 
@@ -43,7 +43,7 @@ export default async function PartnerReservationDetailPage({
 
   if (!detail) notFound()
 
-  const voucherHref = isHotelReservationVoucherEligible(detail.module, detail.status)
+  const voucherHref = isAdminReservationVoucherEligible(detail.module, detail.status)
     ? `/api/pro/reservations/${detail.id}/voucher`
     : null
   const invoiceHref = `/api/pro/reservations/${detail.id}/invoice`

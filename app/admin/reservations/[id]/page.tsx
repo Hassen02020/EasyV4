@@ -18,7 +18,7 @@ import { VerifyPaymentButton } from "@/components/admin/verify-payment-button"
 import { RefundButton } from "@/components/admin/refund-button"
 import { MANUAL_PAYMENT_ALLOWED_ROLES } from "@/lib/finance/manual-payment-logic"
 import { REFUND_ALLOWED_ROLES } from "@/lib/finance/refund-logic"
-import { isHotelReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
+import { isAdminReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
 export const dynamic = "force-dynamic"
 
@@ -65,7 +65,7 @@ export default async function AdminReservationDetailPage({
     (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)
   const canRefund = (REFUND_ALLOWED_ROLES as readonly string[]).includes(profile.role)
   const defaultManualMethod = detail.payments.some((p) => p.method === "transfer") ? "transfer" : "cash"
-  const voucherHref = isHotelReservationVoucherEligible(detail.module, detail.status)
+  const voucherHref = isAdminReservationVoucherEligible(detail.module, detail.status)
     ? `/api/admin/reservations/${detail.id}/voucher`
     : null
 

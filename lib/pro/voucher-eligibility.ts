@@ -89,6 +89,23 @@ export function isActivityVoucherEligible(
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
 }
 
+/** Éligibilité voucher Vol — même règle, fonction dédiée. */
+export interface FlightVoucherEligibilityInput {
+  module: string
+  status: string
+  origin: string | null | undefined
+  destination: string | null | undefined
+  departAt: string | null | undefined
+}
+
+export function isFlightVoucherEligible(
+  row: FlightVoucherEligibilityInput,
+): row is FlightVoucherEligibilityInput & { origin: string; destination: string; departAt: string } {
+  if (row.module !== "flight") return false
+  if (!row.origin || !row.destination || !row.departAt) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
 /**
  * PHASE 38B (Voucher Hardening) — SEULE source de vérité pour "quelle route
  * de téléchargement voucher pour quel module ?". Avant cette extraction,
@@ -108,6 +125,7 @@ export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
   omra: "/api/omra/voucher",
   package: "/api/packages/voucher",
   activity: "/api/activities/voucher",
+  flight: "/api/vols/voucher",
 }
 
 /**

@@ -75,8 +75,33 @@ function formatDateHeader(dateStr: string): string {
   }
 }
 
-function FlightCard({ offer }: { offer: FlightOffer }) {
+function bookingHref(offer: FlightOffer, state: FlightSearchState): string | null {
+  if (!offer.offerToken) return null
+  const firstSegment = offer.segments[0]
+  const lastSegment = offer.segments[offer.segments.length - 1]
+  const params = new URLSearchParams({
+    token: offer.offerToken,
+    price: String(offer.priceTnd),
+    currency: offer.currency,
+    origin: firstSegment.origin,
+    destination: lastSegment.destination,
+    departureAt: firstSegment.departureAt,
+    arrivalAt: lastSegment.arrivalAt,
+    carrier: firstSegment.carrier,
+    flightNumber: firstSegment.flightNumber,
+    stops: String(offer.stops),
+    cabin: firstSegment.cabin,
+    adults: String(state.adults),
+    children: String(state.children),
+    refundable: String(offer.refundable),
+  })
+  if (offer.baggageKg != null) params.set("baggageKg", String(offer.baggageKg))
+  return `/vols/book?${params.toString()}`
+}
+
+function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchState }) {
   const segment = offer.segments[0]
+  const href = bookingHref(offer, state)
   return (
     <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
@@ -123,13 +148,21 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
               {offer.priceTnd.toLocaleString("fr-FR")} {offer.currency}
             </p>
           </div>
-          {/* Pas de vrai fournisseur/PNR derrière ce prix (mode démo, voir
-              lib/vols/client.ts) : réservation volontairement non proposée
-              ici plutôt que de simuler un achat de billet réel — voir
-              EASYV4_VOLS_RESULTS_REPORT.md. */}
-          <Button size="sm" disabled title="Réservation vols — bientôt disponible">
-            Réserver — bientôt
-          </Button>
+          {/* Virtual Flight Supplier (lib/vols/virtual-supplier/) : offre,
+              disponibilité, prix et jeton signé sont réels côté serveur —
+              la réservation décrémente un inventaire réel et émet un PNR
+              (voir lib/vols/guest-booking-actions.ts). Seul le fournisseur
+              lui-même est simulé (pas de GDS Amadeus/Sabre réel en amont),
+              pas la réservation. */}
+          {href ? (
+            <Button size="sm" asChild>
+              <Link href={href}>Réserver</Link>
+            </Button>
+          ) : (
+            <Button size="sm" disabled>
+              Offre indisponible
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -175,9 +208,10 @@ function FlightSearchSummary({
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            <strong>Résultats à titre indicatif.</strong> La connexion à un fournisseur de vols
-            réel n&apos;est pas encore configurée — ces vols, horaires et prix sont des exemples,
-            pas une disponibilité réelle. La réservation en ligne n&apos;est pas encore proposée.
+            <strong>Fournisseur de vols simulé.</strong> La connexion à un GDS réel (Amadeus/Sabre)
+            n&apos;est pas encore configurée — ces compagnies, horaires et prix sont générés, pas une
+            disponibilité de marché réelle. La réservation reste néanmoins fonctionnelle de bout en
+            bout (disponibilité décrémentée, PNR émis) sur cette offre simulée.
           </p>
         </div>
       )}
@@ -272,7 +306,7 @@ export function FlightResultsContent() {
       <FlightSearchSummary
         state={parsed.state}
         count={filteredSorted.length}
-        isDemo={offers.some((o) => o.source === "demo")}
+        isDemo={offers.some((o) => o.source === "virtual")}
       />
 
       {status === "loading" && (
@@ -344,7 +378,7 @@ export function FlightResultsContent() {
                 Aucun vol ne correspond aux filtres sélectionnés.
               </div>
             ) : (
-              filteredSorted.map((offer) => <FlightCard key={offer.id} offer={offer} />)
+              filteredSorted.map((offer) => <FlightCard key={offer.id} offer={offer} state={parsed.state} />)
             )}
           </div>
         </div>

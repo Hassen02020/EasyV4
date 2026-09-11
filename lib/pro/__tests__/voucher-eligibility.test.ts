@@ -183,9 +183,15 @@ test("voucherHrefForModule : construit le bon lien pour activity (gap Phase 38A 
 })
 
 test("voucherHrefForModule : null pour un module sans route voucher (jamais un lien fabriqué vers une route inexistante)", () => {
-  assert.equal(voucherHrefForModule("flight", "FL-2026-000001", "tok"), null)
   assert.equal(voucherHrefForModule("transfer", "TR-2026-000001", "tok"), null)
   assert.equal(voucherHrefForModule("car", "CR-2026-000001", "tok"), null)
+})
+
+test("voucherHrefForModule : route réelle pour vol (Virtual Flight Supplier — booking réel de bout en bout)", () => {
+  assert.equal(
+    voucherHrefForModule("flight", "FL-2026-000001", "tok"),
+    "/api/vols/voucher/FL-2026-000001?token=tok",
+  )
 })
 
 /* -------------------------------------------------------------------------- */

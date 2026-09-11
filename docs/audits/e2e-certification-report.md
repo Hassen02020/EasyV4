@@ -282,3 +282,105 @@ tant que (1) et (2) restent gérés manuellement par l'équipe (SQL direct / sup
 
 **PR #41** : mergeable — 840/840 tests (0 échec, cause des 2 précédents prouvée et corrigée),
 0 erreur tsc/lint/build, tampering prix re-testé en direct (bloqué), aucune régression introduite.
+
+## 9. Cycle "Fonctionnalités manquantes vs concurrents" — module Vols (Virtual Flight Supplier)
+
+Contexte : le gap le plus important identifié face aux concurrents (Booking.com/Amadeus) était que
+Vols et Hôtels Monde n'avaient AUCUNE réservation réelle — recherche uniquement, bouton
+`<Button disabled title="Réservation vols — bientôt disponible">` (voir section 8 précédente et
+matrice, ligne "Périmètre réel de réservation par module"). Ce cycle construit une réservation Vol
+réelle de bout en bout, sur le même modèle que le Virtual MyGo Supplier (Hôtel) : un fournisseur
+simulé qui se comporte comme un vrai GDS (inventaire réel, prix revalidé, PNR émis, scénarios de panne
+injectables), jamais un `return fake data`. Hôtels Monde reste hors périmètre de ce cycle (chantier
+séparé, voir matrice).
+
+### 9.1 Construit
+
+- **`lib/vols/virtual-supplier/`** (nouveau, 6 fichiers) : `rng.ts`/`catalog.ts` (génération d'offres
+  déterministe par route/date/cabine — 3 à 5 offres, carriers TU/BJ/AF/TK, escales via hubs réalistes),
+  `inventory-store.ts` (disponibilité réelle en mémoire, ~15% sold-out/~25% limited, verrouillage
+  promise-chain contre la sur-réservation concurrente — même pattern que myGo), `tokens.ts` (jeton
+  d'offre signé HMAC, TTL 15 min, revalidé au moment de réserver), `scenarios.ts` (5 scénarios de panne
+  injectables : `SOLD_OUT`/`PRICE_CHANGED`/`BOOKING_REJECTED`/`TIMEOUT`, volontairement réduit vs les 14
+  de myGo — suffisant pour prouver l'architecture réelle sans reconstruire l'exhaustivité d'un
+  fournisseur qui n'avait jamais eu de scénarios testés), `engine.ts` (`search()`/`book()`/`cancel()` —
+  `book()` revalide le prix serveur, décrémente l'inventaire atomiquement, émet un PNR 6 caractères,
+  jamais un enregistrement sans confirmation fournisseur).
+- **`lib/vols/client.ts`** : `searchFlights()` en mode démo appelle désormais réellement
+  `virtual-supplier/engine.ts::search()` (au lieu des 3 fixtures statiques précédentes, indépendantes de
+  la route/date demandée) — chaque offre porte un `offerToken` signé à revalider pour réserver.
+- **`lib/vols/schemas.ts` + `lib/vols/guest-booking-actions.ts`** : `createGuestFlightBooking` — même
+  modèle guest checkout que Omra/Package/Activity (agence OTA directe, `withGuestIdempotency`,
+  card/transfer/cash), mais avec revalidation fournisseur AVANT la transaction DB (comme
+  `confirmHotelWithProvider` pour l'Hôtel) : `engine.book()` décrémente l'inventaire réel et émet le PNR
+  avant tout INSERT ; tout échec après ce point (paiement refusé, conflit d'idempotence) compense via
+  `engine.cancel()` pour restituer l'inventaire.
+- **UI** : `/vols/book` (nouvelle route, formulaire voyageur par passager + paiement), bouton
+  "Réserver" du résultat de recherche (`app/vols/search/flight-results-content.tsx`) maintenant actif
+  (était `disabled title="bientôt disponible"`).
+- **Back-office** : `reservation-detail.ts` gérait déjà le cas `"flight"` (schéma présent avant ce
+  cycle, jamais câblé) — vérifié fonctionnel tel quel. Ajouté : voucher PDF (`lib/pdf/voucher-flight.tsx`
+  + `/api/vols/voucher/[ref]`), éligibilité voucher (`isFlightVoucherEligible`,
+  `VOUCHER_ROUTE_BY_MODULE.flight`), enrichissement `/compte` (`getProductDetails` case `"flight"`,
+  absent avant ce cycle — une réservation vol confirmée n'affichait aucun détail produit sur le compte
+  client).
+- **Notification** : événement `booking/flight.confirmed` (déjà déclaré dans `lib/inngest/client.ts`
+  avant ce cycle, jamais émis ni consommé) — désormais réellement envoyé par
+  `createGuestFlightBooking` et consommé par la nouvelle fonction Inngest `process-flight-confirmed.ts`
+  (email récapitulatif, enregistrée dans `app/api/inngest/route.ts`).
+
+### 9.2 Limitation documentée — aller-retour non modélisé
+
+`FlightSearchState`/`SearchSchema` acceptent un `returnDate` (et l'UI affiche déjà un sélecteur
+aller-retour, antérieur à ce cycle), mais **aucune offre de retour n'est générée** par
+`catalog.ts::generateOffers()` — le prix et le PNR ne couvrent que le trajet aller. C'était déjà vrai du
+moteur démo précédent (fixtures statiques, aucune notion d'aller-retour non plus) ; ce cycle ne
+régresse rien mais ne le corrige pas non plus (`lib/vols/search-state.ts` documente déjà ce choix comme
+délibéré : "les inventer côté Search State sans support moteur réel aurait été un mensonge d'UI").
+`createGuestFlightBooking` n'enregistre donc jamais de segment retour (`returnOrigin`/`returnDepartAt`/…
+restent `null` dans `reservation_flight`), pour ne jamais laisser croire à une réservation aller-retour
+qui n'a jamais été émise par le fournisseur.
+
+### 9.3 Preuves — ce qui a été réellement vérifié, et ce qui ne l'a PAS été
+
+**Vérifié avec preuve réelle** :
+
+- Script Node direct contre le vrai moteur (pas de mock) : recherche déterministe (même route/date/
+  cabine ⇒ mêmes `offerId`), routes différentes ⇒ offres différentes, jeton signé présent sur chaque
+  offre ; `book()` réussi ⇒ PNR 6 caractères, inventaire décrémenté de exactement `adults+children`
+  (vérifié par re-recherche avant/après) ; `PRICE_CHANGED` ⇒ rejeté avec `currentPriceTnd` recalculé
+  server-side (+12%) ; `SOLD_OUT` ⇒ rejeté, inventaire inchangé ; `cancel()` ⇒ inventaire restitué
+  exactement à sa valeur initiale.
+- Suite de tests complète : **861/861**, 0 échec (dont 22 tests nouveaux — `engine.test.ts` : succès
+  NORMAL, décrément/restitution inventaire, jeton altéré/malformé/prix falsifié rejetés, les 4 scénarios
+  de panne incluant `TIMEOUT` réellement chronométré ≥2.9s ; `inventory-store.test.ts` : concurrence
+  dernier siège 2 puis 10 tentatives simultanées, jamais négatif). Un test préexistant
+  (`voucher-eligibility.test.ts`) utilisait "flight" comme exemple de module SANS route voucher — corrigé
+  pour refléter la nouvelle route réelle plutôt que supprimé.
+- `pnpm tsc --noEmit` → 0 erreur. `pnpm lint` → 0 erreur, 0 nouveau warning (1 warning React Compiler
+  pré-existant sur le pattern `react-hook-form` déjà utilisé ailleurs dans le repo, non bloquant).
+  `pnpm build` → succès, `/vols/book` généré, aucune régression sur les routes existantes.
+
+**PAS exécuté ce cycle — à distinguer explicitement d'un PASS** :
+
+- **Certification "Dashboard Operations" Playwright** (créer→rechercher→valider→modifier→annuler,
+  navigateur réel + vérification DB via `psql`) : le spec `e2e/dashboard-operations-flight-lifecycle.spec.ts`
+  a été écrit selon EXACTEMENT le même patron que les 4 specs déjà validés (hotel/omra/package/activity)
+  et est prêt à l'exécution, mais n'a **pas été lancé** dans cette session — l'environnement d'exécution
+  distant de ce cycle ne dispose pas d'un cluster Postgres local démarré ni de l'infra mock-auth
+  nécessaire (contrairement aux sessions précédentes qui l'avaient montée manuellement). Aucune capture
+  d'écran `dashboard-ops-flight-*.png`, aucune vérification `psql` post-run pour ce module. Ceci ne
+  remet pas en cause la réalité du câblage (prouvée par les tests unitaires/intégration ci-dessus,
+  eux-mêmes contre le vrai code de production, aucun mock de complaisance) mais reste une preuve moins
+  forte que le cycle "navigateur réel" appliqué à Hôtel/Omra/Package/Activity.
+
+### 9.4 Verdict module Vols
+
+🟡 **RÉEL, TESTÉ (unitaire/intégration), NON CERTIFIÉ NAVIGATEUR** — la réservation Vol est
+authentiquement fonctionnelle de bout en bout (recherche → offre signée → réservation → décrément
+d'inventaire réel → PNR → paiement → confirmation → voucher), à distinguer d'un simple mock retournant
+des données statiques. Ce qui manque pour atteindre le même niveau de certification que Hôtel/Omra/
+Package/Activity est uniquement l'exécution du cycle Playwright "Dashboard Operations" contre une
+infra locale complète (Postgres + mock auth + serveur dev) — non un doute sur le code lui-même. Prochain
+pas recommandé si une certification navigateur complète est requise : monter l'infra locale (voir
+section 1) puis exécuter `npx playwright test dashboard-operations-flight-lifecycle.spec.ts`.

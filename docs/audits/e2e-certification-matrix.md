@@ -68,6 +68,7 @@ revérifiée en base via `psql` (superuser, hors RLS) après le run, pas seuleme
 | Omraty | Annuler (RefundButton) | **FIXED→PASS** | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount`, **`omra_allotments.available_count` restitué** (voir défaut #2 ci-dessous — cassé avant ce cycle) | `payment.refunded` | `dashboard-ops-omra-07` | — |
 | Voyages organisés | Cycle complet (créer/rechercher/valider/modifier/annuler) | PASS | Real (inventaire interne) | ✅ | ✅ mêmes actions partagées | ✅ `catalog_package_departures.bookedSeats` 1→0 après remboursement (fix confirmé) | 4 événements réels | `dashboard-ops-package-01..06` | — |
 | Attractions | Cycle complet (créer/rechercher/valider/modifier/annuler) | PASS | Real (inventaire interne) | ✅ | ✅ mêmes actions partagées | ✅ `catalog_activity_sessions.booked` 1→0 après remboursement (fix confirmé) | 4 événements réels | `dashboard-ops-activity-01..06` | — |
+| Vols | Cycle complet (créer/rechercher/valider/modifier/annuler) | **NON EXÉCUTÉ** (spec écrit, prêt) | Real (Virtual Flight Supplier) | — | — | — | — | — | Infra locale (Postgres + mock auth) non montée ce cycle — voir report §9.3. Preuve de substitution : 22 tests unitaires/intégration contre le vrai moteur (`lib/vols/virtual-supplier/__tests__/`) + script Node direct (search/book/cancel/4 scénarios de panne), résultats réels documentés en §9.3 |
 
 **Défaut réel #2 trouvé PAR ce cycle (module Omra) et corrigé — plus grave, silencieux, cross-module** :
 `e2e/dashboard-operations-omra-lifecycle.spec.ts` (même méthode, module Omraty — réservation pèlerin
@@ -108,7 +109,7 @@ sur pourquoi cet ordre est le seul qui fonctionne, contrainte métier découvert
 | Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`bookedSeats` 1→0 après remboursement) |
 | Attractions | ✅ | ✅ | Idem (`catalog_activity_sessions`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`booked` 1→0 après remboursement) |
 | Hôtels Monde | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation hôtels monde — bientôt disponible">` (`app/hotels-monde/search/world-hotel-results-content.tsx:122`) | — | 🔴 Aucun fournisseur branché, jamais prétendu autrement dans l'UI |
-| Vols | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation vols — bientôt disponible">` (`app/vols/search/flight-results-content.tsx:130`) | — | 🔴 Idem — aucun GDS/fournisseur branché |
+| Vols | ✅ | ✅ | Virtual Flight Supplier (nouveau ce cycle) — 5 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`BOOKING_REJECTED`/`TIMEOUT`, voir `lib/vols/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited, PNR réel, revalidation prix serveur avant réservation | 🟡 Réel + testé (unitaire/intégration, 861/861), **non certifié navigateur** (infra locale non montée ce cycle) — voir report section 9 |
 
 **Limitation explicite de ce cycle** : la certification métier OTA complète demandée (les 6 verticaux,
 chacun comparé à son standard métier de référence — Booking.com/Amadeus/tour-opérateur/ticketing — avec
@@ -120,5 +121,12 @@ défauts réels trouvés ET corrigés (affichage prix pré-paiement falsifiable 
 libérait jamais le stock, cassant la disponibilité affichée sur 3 des 4 modules). Permissions/isolation
 n'ont été retestées en direct QUE sur le module Hôtel ci-dessus, qui
 sert de gabarit reproductible (`e2e/dashboard-operations-*.spec.ts`) pour les cycles suivants sur
-Omraty/Voyages organisés/Attractions. Vols et Hôtels Monde n'ont rien à certifier côté réservation tant
-qu'aucun fournisseur n'y est branché — reconfirmé, pas une régression de ce cycle.
+Omraty/Voyages organisés/Attractions.
+
+**Mise à jour (cycle "Vols")** : le module Vols dispose désormais d'une réservation réelle de bout en
+bout (Virtual Flight Supplier, voir report §9) — n'est donc plus dans la catégorie "rien à certifier
+côté réservation". Le spec `dashboard-operations-flight-lifecycle.spec.ts` existe et suit le même
+gabarit, mais n'a pas été exécuté en navigateur ce cycle (infra locale non montée) — voir report §9.3
+pour le détail des preuves obtenues par un autre moyen (tests unitaires/intégration contre le vrai
+moteur). Hôtels Monde reste seul sans aucune réservation réelle à certifier — reconfirmé, pas une
+régression de ce cycle.

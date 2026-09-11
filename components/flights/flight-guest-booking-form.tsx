@@ -166,8 +166,8 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>Prénom *</Label>
-                  <Input {...form.register(`travelers.${index}.firstName`)} className="mt-1" />
+                  <Label htmlFor={`traveler-${index}-firstName`}>Prénom *</Label>
+                  <Input id={`traveler-${index}-firstName`} {...form.register(`travelers.${index}.firstName`)} className="mt-1" />
                   {form.formState.errors.travelers?.[index]?.firstName ? (
                     <p className="text-destructive mt-1 text-xs">
                       {form.formState.errors.travelers[index]?.firstName?.message}
@@ -175,8 +175,8 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                   ) : null}
                 </div>
                 <div>
-                  <Label>Nom *</Label>
-                  <Input {...form.register(`travelers.${index}.lastName`)} className="mt-1" />
+                  <Label htmlFor={`traveler-${index}-lastName`}>Nom *</Label>
+                  <Input id={`traveler-${index}-lastName`} {...form.register(`travelers.${index}.lastName`)} className="mt-1" />
                   {form.formState.errors.travelers?.[index]?.lastName ? (
                     <p className="text-destructive mt-1 text-xs">
                       {form.formState.errors.travelers[index]?.lastName?.message}
@@ -186,8 +186,8 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <Label>Date de naissance *</Label>
-                  <Input type="date" {...form.register(`travelers.${index}.birthDate`)} className="mt-1" />
+                  <Label htmlFor={`traveler-${index}-birthDate`}>Date de naissance *</Label>
+                  <Input id={`traveler-${index}-birthDate`} type="date" {...form.register(`travelers.${index}.birthDate`)} className="mt-1" />
                   {form.formState.errors.travelers?.[index]?.birthDate ? (
                     <p className="text-destructive mt-1 text-xs">
                       {form.formState.errors.travelers[index]?.birthDate?.message}
@@ -195,12 +195,12 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                   ) : null}
                 </div>
                 <div>
-                  <Label>Genre</Label>
+                  <Label htmlFor={`traveler-${index}-gender`}>Genre</Label>
                   <Select
                     value={form.watch(`travelers.${index}.gender`)}
                     onValueChange={(v) => form.setValue(`travelers.${index}.gender`, v as "male" | "female")}
                   >
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger id={`traveler-${index}-gender`} className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -210,8 +210,9 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                   </Select>
                 </div>
                 <div>
-                  <Label>Nationalité *</Label>
+                  <Label htmlFor={`traveler-${index}-nationality`}>Nationalité *</Label>
                   <Input
+                    id={`traveler-${index}-nationality`}
                     {...form.register(`travelers.${index}.nationality`)}
                     className="mt-1 uppercase"
                     placeholder="TN"
@@ -225,8 +226,8 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                 </div>
               </div>
               <div>
-                <Label>Numéro de passeport / CIN *</Label>
-                <Input {...form.register(`travelers.${index}.passportNumber`)} className="mt-1" />
+                <Label htmlFor={`traveler-${index}-passportNumber`}>Numéro de passeport / CIN *</Label>
+                <Input id={`traveler-${index}-passportNumber`} {...form.register(`travelers.${index}.passportNumber`)} className="mt-1" />
                 {form.formState.errors.travelers?.[index]?.passportNumber ? (
                   <p className="text-destructive mt-1 text-xs">
                     {form.formState.errors.travelers[index]?.passportNumber?.message}
@@ -236,8 +237,8 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
               {index === 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label>Email *</Label>
-                    <Input type="email" {...form.register(`travelers.${index}.email`)} className="mt-1" />
+                    <Label htmlFor={`traveler-${index}-email`}>Email *</Label>
+                    <Input id={`traveler-${index}-email`} type="email" {...form.register(`travelers.${index}.email`)} className="mt-1" />
                     {form.formState.errors.travelers?.[index]?.email ? (
                       <p className="text-destructive mt-1 text-xs">
                         {form.formState.errors.travelers[index]?.email?.message}
@@ -245,8 +246,8 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                     ) : null}
                   </div>
                   <div>
-                    <Label>Téléphone</Label>
-                    <Input type="tel" {...form.register(`travelers.${index}.phone`)} className="mt-1" placeholder="+216 98 140 514" />
+                    <Label htmlFor={`traveler-${index}-phone`}>Téléphone</Label>
+                    <Input id={`traveler-${index}-phone`} type="tel" {...form.register(`travelers.${index}.phone`)} className="mt-1" placeholder="+216 98 140 514" />
                   </div>
                 </div>
               ) : null}

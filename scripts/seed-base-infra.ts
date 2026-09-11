@@ -61,6 +61,7 @@ import {
   catalogPackageDepartures,
   catalogActivities,
   catalogActivitySessions,
+  productAuthorizations,
 } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
@@ -69,6 +70,15 @@ import {
 
 const OTA_AGENCY_ID = "00000000-0000-0000-0000-000000000001"
 const PARTNER_AGENCY_ID = "00000000-0000-0000-0000-000000000002"
+/** Agence partenaire PRÉ-EXISTANTE (trouvée en base, pas créée par ce
+ * script) à laquelle `users.66666666-...` (pro.test) est DÉJÀ rattaché par
+ * un seed antérieur. onConflictDoNothing() sur `users.id` préserve cette
+ * ligne telle quelle plutôt que de la déplacer vers PARTNER_AGENCY_ID — on
+ * respecte l'état réel de la base plutôt que d'imposer notre propre id.
+ * Donc : marges + autorisations produit sont accordées aux DEUX agences
+ * partenaires (celle-ci ET PARTNER_AGENCY_ID), pour que le scénario
+ * fonctionne quel que soit l'id réellement utilisé par pro.test. */
+const EXISTING_PARTNER_AGENCY_ID = "22222222-2222-2222-2222-222222222222"
 
 const ADMIN_USER_ID = "11111111-1111-1111-1111-111111111111"
 const PRO_USER_ID = "66666666-6666-6666-6666-666666666666"
@@ -156,38 +166,40 @@ async function main() {
       ])
       .onConflictDoNothing({ target: users.id })
 
-    console.log("[seed-base] 3/6 pricing_margins (Sahara Voyages)...")
-    await tx
-      .insert(pricingMargins)
-      .values([
-        {
-          agencyId: PARTNER_AGENCY_ID,
-          module: "hotel",
-          marginType: "percent",
-          marginValue: "12.00",
-          isActive: true,
-          notes: "Seed de test — marge hôtel Sahara Voyages",
-        },
-        {
-          agencyId: PARTNER_AGENCY_ID,
-          module: "flight",
-          marginType: "fixed",
-          marginValue: "30.00",
-          isActive: true,
-          notes: "Seed de test — marge vol Sahara Voyages",
-        },
-        {
-          agencyId: PARTNER_AGENCY_ID,
-          module: "transfer",
-          marginType: "fixed",
-          marginValue: "15.00",
-          isActive: true,
-          notes: "Seed de test — marge transfert Sahara Voyages",
-        },
-      ])
-      .onConflictDoNothing({
-        target: [pricingMargins.agencyId, pricingMargins.module],
-      })
+    console.log("[seed-base] 3/6 pricing_margins (agences partenaires)...")
+    for (const partnerId of [PARTNER_AGENCY_ID, EXISTING_PARTNER_AGENCY_ID]) {
+      await tx
+        .insert(pricingMargins)
+        .values([
+          {
+            agencyId: partnerId,
+            module: "hotel",
+            marginType: "percent",
+            marginValue: "12.00",
+            isActive: true,
+            notes: "Seed de test — marge hôtel",
+          },
+          {
+            agencyId: partnerId,
+            module: "flight",
+            marginType: "fixed",
+            marginValue: "30.00",
+            isActive: true,
+            notes: "Seed de test — marge vol",
+          },
+          {
+            agencyId: partnerId,
+            module: "transfer",
+            marginType: "fixed",
+            marginValue: "15.00",
+            isActive: true,
+            notes: "Seed de test — marge transfert",
+          },
+        ])
+        .onConflictDoNothing({
+          target: [pricingMargins.agencyId, pricingMargins.module],
+        })
+    }
 
     console.log("[seed-base] 4/6 Omra package + allotment (OTA)...")
     await tx
@@ -306,6 +318,51 @@ async function main() {
         status: "open",
       })
       .onConflictDoNothing({ target: catalogActivitySessions.id })
+
+    console.log("[seed-base] 7/7 product_authorizations (revente B2B)...")
+    // RLS élargie (drizzle/manual/0023_commerce_completion.sql) : une agence
+    // B2B ne voit un produit catalogue qu'à la condition
+    // `agency_id = current_agency_id() OR EXISTS product_authorizations`.
+    // Nos 3 produits appartiennent à l'agence OTA — sans autorisation
+    // explicite, la sélection RLS de createPackageBooking/createOmraBooking/
+    // activities booking-actions.ts (appelées avec le contexte tenant de
+    // l'agence PARTENAIRE) renverrait *_NOT_FOUND malgré status=published +
+    // channels b2b. Accordée aux DEUX agences partenaires (voir commentaire
+    // sur EXISTING_PARTNER_AGENCY_ID ci-dessus).
+    for (const partnerId of [PARTNER_AGENCY_ID, EXISTING_PARTNER_AGENCY_ID]) {
+      await tx
+        .insert(productAuthorizations)
+        .values([
+          {
+            agencyId: partnerId,
+            productType: "omra",
+            productId: OMRA_PACKAGE_ID,
+            channel: "b2b",
+            isActive: true,
+          },
+          {
+            agencyId: partnerId,
+            productType: "package",
+            productId: CATALOG_PACKAGE_ID,
+            channel: "b2b",
+            isActive: true,
+          },
+          {
+            agencyId: partnerId,
+            productType: "activity",
+            productId: CATALOG_ACTIVITY_ID,
+            channel: "b2b",
+            isActive: true,
+          },
+        ])
+        .onConflictDoNothing({
+          target: [
+            productAuthorizations.agencyId,
+            productAuthorizations.productType,
+            productAuthorizations.productId,
+          ],
+        })
+    }
   })
 
   console.log("[seed-base] ✅ done. Verifying counts...")

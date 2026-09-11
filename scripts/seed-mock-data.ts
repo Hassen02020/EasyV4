@@ -18,7 +18,7 @@
 
 import "dotenv/config"
 import { sql } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   customers,
   reservations,
@@ -31,6 +31,7 @@ import {
   payments,
   auditEvents,
   currencies,
+  partnerInvoices,
 } from "@/lib/db/schema"
 
 const AGENCY_ID = "00000000-0000-0000-0000-000000000001"
@@ -206,9 +207,23 @@ async function main() {
     process.env.DATABASE_URL.replace(/:[^:@]+@/, ":<REDACTED>@"),
   )
 
-  const db = getDb()
-
+  // Toutes les tables métier sont FORCE ROW LEVEL SECURITY (voir
+  // drizzle/manual/0001_rls_policies.sql + 0012_rls_session_context.sql) et
+  // DATABASE_URL pointe sur `app_runtime` (non-superuser, non-BYPASSRLS) :
+  // un insert brut via getDb() est rejeté ("new row violates row-level
+  // security policy"). withSystemContext() pose app.is_super_admin=true
+  // dans une transaction locale — même mécanisme que le code applicatif
+  // utilise pour ses propres tâches système (cron, webhooks) — et rend ce
+  // script de nouveau exécutable tel quel.
+  await withSystemContext(async (db) => {
   console.log("[seed] cleaning agency data...")
+  // partner_invoices.reservation_id est ON DELETE RESTRICT (drizzle/manual/
+  // 0019_partner_invoices_reservation_link.sql, ajouté après ce script) :
+  // les réservations facturées automatiquement (lib/finance/invoice-
+  // actions.ts::generateInvoiceForReservation) bloquent sinon le DELETE FROM
+  // reservations ci-dessous. partner_payments.invoice_id est ON DELETE SET
+  // NULL, donc pas de nettoyage supplémentaire nécessaire pour elle.
+  await db.delete(partnerInvoices).where(sql`agency_id = ${AGENCY_ID}`)
   await db.delete(payments).where(sql`agency_id = ${AGENCY_ID}`)
   await db.delete(reservationHotel).where(sql`agency_id = ${AGENCY_ID}`)
   await db.delete(reservationFlight).where(sql`agency_id = ${AGENCY_ID}`)
@@ -492,6 +507,7 @@ async function main() {
   console.log("  reservations  :", r?.value)
   console.log("  payments      :", p?.value)
   console.log("  audit_events  :", a?.value)
+  }) // fin withSystemContext
 }
 
 main()

@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Star, Plane, Hotel, Users, Clock, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,20 +31,35 @@ function formatDate(d: string | Date | null): string {
 function PackageCard({ pkg }: { pkg: OmraPackage }) {
   const label = PACKAGE_TYPE_LABELS[pkg.type] ?? pkg.type
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
+  // metadata est un jsonb non typé en base (voir lib/admin/schemas/omra-product.ts
+  // pour le rationale : pas de nouvelle colonne dédiée) — lecture défensive.
+  const coverImage = (pkg.metadata as { coverImage?: string } | null)?.coverImage || null
 
   return (
     <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
       <div className="relative bg-gradient-to-br from-emerald-800 to-emerald-600 p-5 text-white">
+        {coverImage && (
+          <Image
+            src={coverImage}
+            alt={pkg.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 33vw"
+          />
+        )}
         <Badge
           variant="secondary"
-          className="absolute right-3 top-3 bg-white/20 text-white"
+          className="absolute right-3 top-3 z-10 bg-white/20 text-white"
         >
           {label}
         </Badge>
-        <h3 className="mb-1 pr-24 text-lg font-semibold leading-tight">
+        <h3 className={`relative z-10 mb-1 pr-24 text-lg font-semibold leading-tight ${coverImage ? "drop-shadow" : ""}`}>
           {pkg.name}
         </h3>
-        <p className="text-sm text-emerald-200">{pkg.description}</p>
+        <p className={`relative z-10 text-sm ${coverImage ? "text-white/90 drop-shadow" : "text-emerald-200"}`}>
+          {pkg.description}
+        </p>
+        {coverImage && <div className="absolute inset-0 bg-black/30" />}
       </div>
 
       <CardContent className="flex flex-1 flex-col gap-3 p-5">

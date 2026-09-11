@@ -201,7 +201,7 @@ actuellement simulé, une fois le point 2 traité le badge redevient valable par
 | # | Constat | Priorité | Modules touchés | Statut |
 |---|---|---|---|---|
 | 2 | Bannière "fournisseur simulé" visible client | **P0 confiance** | Vols, Hôtels Monde | ✅ Corrigé |
-| 1 | Aucune photo produit (cartes + hero) | **P0 conversion** | Les 5 modules | ⏳ Décision requise, voir §Suite |
+| 1 | Aucune photo produit (cartes + hero) | **P0 conversion** | Les 5 modules | Omraty : câblage ✅ corrigé (aucune colonne n'existait). Vraies photos (5 modules) : 🔴 bloqué — accès réseau externe refusé depuis ce sandbox, voir §Suite |
 | 3 | CTA outline/absent plus faible sur 2 modules | P1 conversion | Voyages organisés, Attractions | ✅ Corrigé |
 | 4 | Prix absent des cartes (Attractions ET Voyages organisés) | P1 conversion | Voyages organisés, Attractions | ✅ Corrigé |
 | 6 | Hero sans photographie | P1 premium/conversion | Les 5 modules | ⏳ Décision requise, voir §Suite |
@@ -211,18 +211,51 @@ actuellement simulé, une fois le point 2 traité le badge redevient valable par
 
 ## Suite — ce qui reste, et pourquoi
 
-**Photos produit (constats 1 et 6, P0/P1)** : le modèle de données supporte déjà les photos pour
-Voyages organisés et Attractions (`catalog_packages.coverImage`/`catalog_activities.coverImage`,
-formulaire admin existant avec un champ URL, cartes déjà câblées pour les afficher dès qu'une URL est
-renseignée — vérifié dans le code, ce n'est PAS un défaut de câblage). Le blocage est uniquement
-l'absence d'URL de photo réelle sur les produits de démonstration utilisés pour la certification.
-**Omraty n'a en revanche aucune colonne image** (`omra_packages`) — ajouter le support demanderait une
-vraie migration + un champ formulaire admin, pas juste une donnée à renseigner. **Vols/Hôtels Monde**
-(fournisseurs virtuels génériques, sans fiche catalogue admin par offre) demanderaient une nouvelle
-table de correspondance destination→photo, une décision produit distincte. Aucune photo n'a été
-ajoutée ce cycle : renseigner une URL de photo pour un produit qui n'en a pas nécessite soit des
-photos réelles fournies par l'agence, soit une décision explicite sur une source de photos de
-démonstration — décision qui n'est pas la mienne à prendre unilatéralement.
+**Photos produit (constats 1 et 6, P0/P1) — mise à jour** :
+
+En creusant la base réelle, les cartes Voyages organisés/Attractions ne tombaient pas sur le fallback
+"aucune photo" par défaut de conception — `coverImage` était déjà renseigné pour la plupart des
+produits, mais avec une image générée en interne (un rectangle de couleur unie + texte, encodé en
+`data:image/svg+xml;base64,...`), pas une vraie photo. D'où l'aspect "maquette" malgré un champ
+techniquement rempli.
+
+**Omraty — corrigé ce cycle** : `omra_packages` n'a pas de colonne image dédiée (choix architectural
+déjà documenté dans `lib/admin/schemas/omra-product.ts` : les champs riches Omra vivent dans la
+colonne `metadata` jsonb existante plutôt que de nouvelles colonnes). Ajout de `coverImage` dans
+`omraProductMetadataSchema`, un champ "Image de couverture" dans le formulaire admin
+(`components/admin/omra-product-form.tsx`), et le rendu correspondant sur les cartes
+(`components/omra/omra-package-list.tsx`) — aucune migration nécessaire, `createOmraProduct`/
+`updateOmraProduct` faisaient déjà transiter `metadata` tel quel. Vérifié en navigateur réel : une
+image de test (réutilisant un data URI déjà présent en base, donc sans dépendance réseau) s'affiche
+correctement sur la carte, badge et texte par-dessus, puis retirée après vérification — voir
+`docs/audits/screenshots/corrections/` pour les modules déjà before/after ; le mécanisme Omra est
+prouvé fonctionnel mais n'a pas de capture avant/après dédiée puisqu'aucune vraie photo n'a été
+ajoutée (voir ci-dessous).
+
+**Vraies photos — bloqué, pas par choix** : j'ai testé si je pouvais remplacer les placeholders par de
+vraies photos en réutilisant `images.unsplash.com`, déjà utilisé ailleurs dans ce dépôt exactement
+dans ce rôle (photos génériques de destination/hôtel — `components/hotel-listings.tsx`,
+`components/omraty-section.tsx`, `lib/mygo/virtual-supplier/catalog.ts`, etc., domaine déjà autorisé
+dans `next.config`). En testant l'accès réseau sortant depuis ce sandbox (`curl` vers
+`images.unsplash.com`), la requête est bloquée (`403 Forbidden`) — même famille de blocage que celui
+déjà documenté pour `*.vercel.app` dans `docs/audits/production-verification-blocked.md`. Je ne peux
+donc pas charger une vraie photo dans ce navigateur local pour la vérifier par capture réelle, et je
+n'ai pas voulu écrire des URLs non vérifiées en base : si l'une d'elles était cassée, ça aurait
+remplacé un placeholder honnête par une image brisée, présentée à tort comme "corrigée". Ça aurait
+aussi été contraire à la règle "aucune capture fictive" qui encadre tout ce cycle.
+
+**Ce qu'il faut pour débloquer, concrètement** — un de ces trois chemins :
+1. Vous fournissez de vraies photos (fichiers), que je place dans `public/` et référence en local —
+   zéro dépendance réseau, entièrement vérifiable par capture réelle dans ce sandbox.
+2. Vous confirmez que `images.unsplash.com` (ou un autre CDN) est bien accessible depuis
+   l'environnement de déploiement réel (Vercel) même s'il ne l'est pas depuis ce sandbox — auquel cas
+   je peux renseigner des URLs Unsplash par thème sans capture locale, sur la base de cette
+   confirmation plutôt que d'une vérification que je ne peux pas faire moi-même.
+3. On change de sujet et je documente ce blocage comme définitif pour ce cycle, sans aller plus loin.
+
+**Vols/Hôtels Monde** (fournisseurs virtuels génériques, sans fiche catalogue admin par offre)
+resteraient de toute façon hors de portée d'une simple photo par produit — il faudrait une table de
+correspondance destination→photo, une décision produit distincte, non traitée ce cycle.
 
 **Mobile (constat 7)** : nécessite un cycle de captures dédié à largeur téléphone, pas encore fait.
 

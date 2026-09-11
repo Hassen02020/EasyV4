@@ -5,20 +5,17 @@ Détail complet des scénarios et preuves : `e2e-certification-report.md`.
 
 ## Résumé exécutif — statut par module (lecture Go-Live)
 
-- **Hôtels Tunisie, Omraty, Voyages organisés, Attractions** : réservation réelle **certifiée E2E
+- **Hôtels Tunisie, Omraty, Voyages organisés, Attractions, Vols** : réservation réelle **certifiée E2E
   navigateur** — cycle complet créer→rechercher→valider→modifier→annuler exécuté en direct
-  (Playwright, serveur dev réel, Postgres réel), preuve DB/`psql` à chaque étape, captures d'écran.
-- **Vols** : réservation réelle **de bout en bout côté moteur métier** (Virtual Flight Supplier —
-  inventaire réel, prix revalidé serveur, PNR émis, 5 scénarios de panne), **couverte par une suite de
-  tests complète** (861/861, tsc/lint/build clean) et un spec Playwright **déjà écrit et prêt** — la
-  **certification navigateur reste à exécuter**, seule l'infrastructure locale (Postgres + auth) manque
-  pour la lancer, pas le code.
+  (Playwright, infra locale réelle — Postgres 16 + mock GoTrue + `next start` production), preuve
+  DB/`psql` à chaque étape (reservation/payments/audit_events), captures d'écran. Vols : certifié dans
+  ce cycle (voir report §9.5) — 1 défaut réel trouvé ET corrigé pendant le run (accessibilité
+  Label/Input non associés dans `FlightGuestBookingForm`, qui bloquait aussi `getByLabel` en test).
 - **Hôtels Monde** : recherche uniquement, aucune réservation réelle — honnêtement désactivée dans
   l'UI, rien à certifier.
 
-Cette distinction (navigateur certifié vs. moteur+tests prêts, navigateur à exécuter) est délibérément
-maintenue explicite dans tout ce document — jamais présentée comme équivalente à une certification E2E
-complète tant que le cycle Playwright réel n'a pas tourné.
+Cette distinction (navigateur réellement certifié vs. un simple mock présenté comme tel) est
+délibérément maintenue explicite dans tout ce document.
 
 Légende : PASS / PARTIAL / FAIL / MISSING / NOT WIRED / SKIPPED(baseline)
 
@@ -85,7 +82,10 @@ revérifiée en base via `psql` (superuser, hors RLS) après le run, pas seuleme
 | Omraty | Annuler (RefundButton) | **FIXED→PASS** | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount`, **`omra_allotments.available_count` restitué** (voir défaut #2 ci-dessous — cassé avant ce cycle) | `payment.refunded` | `dashboard-ops-omra-07` | — |
 | Voyages organisés | Cycle complet (créer/rechercher/valider/modifier/annuler) | PASS | Real (inventaire interne) | ✅ | ✅ mêmes actions partagées | ✅ `catalog_package_departures.bookedSeats` 1→0 après remboursement (fix confirmé) | 4 événements réels | `dashboard-ops-package-01..06` | — |
 | Attractions | Cycle complet (créer/rechercher/valider/modifier/annuler) | PASS | Real (inventaire interne) | ✅ | ✅ mêmes actions partagées | ✅ `catalog_activity_sessions.booked` 1→0 après remboursement (fix confirmé) | 4 événements réels | `dashboard-ops-activity-01..06` | — |
-| Vols | Cycle complet (créer/rechercher/valider/modifier/annuler) | **NON EXÉCUTÉ** (spec écrit, prêt) | Real (Virtual Flight Supplier) | — | — | — | — | — | Infra locale (Postgres + mock auth) non montée ce cycle — voir report §9.3. Preuve de substitution : 22 tests unitaires/intégration contre le vrai moteur (`lib/vols/virtual-supplier/__tests__/`) + script Node direct (search/book/cancel/4 scénarios de panne), résultats réels documentés en §9.3 |
+| Vols | Créer (B2C guest checkout, espèces, Virtual Flight Supplier) | PASS | Real (inventaire réel, PNR émis) | ✅ | ✅ `createGuestFlightBooking` | ✅ `reservations.status='pending'`, `reservation_flight` (PNR `WUWZ3N`, TUN→IST) | `flight_booking.created` | `dashboard-ops-flight-01..03` | — |
+| Vols | Rechercher + Valider (même back-office partagé, règlement manuel réel) | PASS | Real | ✅ | ✅ `verifyManualPayment` | ✅ `payments` (cash, capturé), `reservations.status='confirmed'` | `payment.manual_verified` | `dashboard-ops-flight-04,05` | — |
+| Vols | Modifier (dropdown statut, confirmed→completed) | PASS | Real | ✅ | ✅ `updateReservationStatus` | ✅ `reservations.status='completed'` | `status_update` | `dashboard-ops-flight-06` | — |
+| Vols | Annuler (RefundButton, remboursement réel) | PASS | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount=382.00`, `reservations.status='refunded'` (état terminal) | `payment.refunded` | `dashboard-ops-flight-07` | Inventaire virtuel (in-memory) non restitué au remboursement staff — même limitation que Hôtel/myGo, voir report §9.5 |
 
 **Défaut réel #2 trouvé PAR ce cycle (module Omra) et corrigé — plus grave, silencieux, cross-module** :
 `e2e/dashboard-operations-omra-lifecycle.spec.ts` (même méthode, module Omraty — réservation pèlerin
@@ -126,7 +126,7 @@ sur pourquoi cet ordre est le seul qui fonctionne, contrainte métier découvert
 | Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`bookedSeats` 1→0 après remboursement) |
 | Attractions | ✅ | ✅ | Idem (`catalog_activity_sessions`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`booked` 1→0 après remboursement) |
 | Hôtels Monde | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation hôtels monde — bientôt disponible">` (`app/hotels-monde/search/world-hotel-results-content.tsx:122`) | — | 🔴 Aucun fournisseur branché, jamais prétendu autrement dans l'UI |
-| Vols | ✅ | ✅ | Virtual Flight Supplier (nouveau ce cycle) — 5 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`BOOKING_REJECTED`/`TIMEOUT`, voir `lib/vols/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited, PNR réel, revalidation prix serveur avant réservation | 🟡 Réel + testé (unitaire/intégration, 861/861), **non certifié navigateur** (infra locale non montée ce cycle) — voir report section 9 |
+| Vols | ✅ | ✅ | Virtual Flight Supplier (nouveau ce cycle) — 5 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`BOOKING_REJECTED`/`TIMEOUT`, voir `lib/vols/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited, PNR réel, revalidation prix serveur avant réservation | 🟢 Certifié ce cycle (Dashboard Operations complet, navigateur réel) — voir report section 9 |
 
 **Limitation explicite de ce cycle** : la certification métier OTA complète demandée (les 6 verticaux,
 chacun comparé à son standard métier de référence — Booking.com/Amadeus/tour-opérateur/ticketing — avec

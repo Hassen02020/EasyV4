@@ -361,26 +361,61 @@ qui n'a jamais été émise par le fournisseur.
   pré-existant sur le pattern `react-hook-form` déjà utilisé ailleurs dans le repo, non bloquant).
   `pnpm build` → succès, `/vols/book` généré, aucune régression sur les routes existantes.
 
-**PAS exécuté ce cycle — à distinguer explicitement d'un PASS** :
+### 9.5 Certification "Dashboard Operations" navigateur — exécutée et PASS (cycle suivant)
 
-- **Certification "Dashboard Operations" Playwright** (créer→rechercher→valider→modifier→annuler,
-  navigateur réel + vérification DB via `psql`) : le spec `e2e/dashboard-operations-flight-lifecycle.spec.ts`
-  a été écrit selon EXACTEMENT le même patron que les 4 specs déjà validés (hotel/omra/package/activity)
-  et est prêt à l'exécution, mais n'a **pas été lancé** dans cette session — l'environnement d'exécution
-  distant de ce cycle ne dispose pas d'un cluster Postgres local démarré ni de l'infra mock-auth
-  nécessaire (contrairement aux sessions précédentes qui l'avaient montée manuellement). Aucune capture
-  d'écran `dashboard-ops-flight-*.png`, aucune vérification `psql` post-run pour ce module. Ceci ne
-  remet pas en cause la réalité du câblage (prouvée par les tests unitaires/intégration ci-dessus,
-  eux-mêmes contre le vrai code de production, aucun mock de complaisance) mais reste une preuve moins
-  forte que le cycle "navigateur réel" appliqué à Hôtel/Omra/Package/Activity.
+L'infra locale a été montée dans un cycle suivant (Postgres 16 local déjà seedé d'une session
+précédente — `easyv4_e2e`, 10 agences/268 réservations préexistantes — plus le mock GoTrue déjà présent
+sous `.tmp-mock-gotrue/`) et `e2e/dashboard-operations-flight-lifecycle.spec.ts` a été exécuté pour de
+vrai contre un serveur `next start` (production, pas `next dev` — Turbopack en mode dev restait
+indéfiniment bloqué sur la compilation du middleware dans cet environnement sandboxé, sans lien avec le
+code applicatif ; `next build` + `next start` a résolu le blocage et est de toute façon plus
+représentatif d'un environnement de certification).
+
+**Résultat : 1/1 PASS** (`dashboard-operations-flight-lifecycle.spec.ts`, projet chromium,
+`/opt/pw-browsers/chromium` via `PLAYWRIGHT_CHROMIUM_PATH`, ~13s). Les 7 captures
+`dashboard-ops-flight-01..07.png` sont réelles (issues du run, pas fabriquées). Vérification `psql`
+post-run sur la réservation réellement créée par le test (`FL-2026-000002`) :
+
+```
+public_ref      | module | status   | tnd_amount | pnr    | origin | destination
+FL-2026-000002  | flight | refunded | 382.00     | WUWZ3N | TUN    | IST
+
+payments: cash/pending 382.00 → cash/refunded 382.00 (refunded_amount=382.00)
+
+audit_events (ordre réel) :
+  flight_booking.created   12:10:05
+  payment.manual_verified  12:10:10
+  status_update            12:10:13
+  payment.refunded         12:10:15
+```
+
+**Deux défauts réels trouvés PAR ce run et corrigés avant qu'il ne passe** :
+
+1. **Accessibilité — `FlightGuestBookingForm`** : chaque `<Label>` (Prénom, Nom, Date de naissance,
+   Nationalité, Passeport/CIN, Email, Téléphone) était un texte simplement adjacent à son `<Input>`,
+   sans `htmlFor`/`id` — contrairement au patron déjà établi dans `components/booking/travelers-form.tsx`
+   (`<Label htmlFor="firstName">` + `<Input id="firstName">`). Conséquence réelle, pas seulement un souci
+   de sélecteur de test : un lecteur d'écran ne peut pas annoncer quel champ correspond à quel label.
+   `getByLabel()` de Playwright échouait pour la même raison exacte qu'un lecteur d'écran échouerait.
+   **Corrigé** : chaque champ reçoit désormais un `id` unique par index voyageur
+   (`traveler-${index}-firstName`, etc.) et son `<Label>` un `htmlFor` correspondant — commit `f8924fa`.
+2. **Infra de test (pas un défaut de code applicatif)** : le serveur Next.js ne pouvait pas valider les
+   sessions du mock GoTrue local (certificat auto-signé, `https://localhost:54331`) — le NAVIGATEUR
+   accepte le certificat (`ignoreHTTPSErrors: true` dans `playwright.config.ts`), mais le PROCESSUS
+   SERVEUR Node lui-même rejetait la connexion TLS lors de ses propres appels de validation de session
+   (`fetch failed`, vérifié en isolation), provoquant une boucle de redirection silencieuse vers
+   `/login?next=%2Fadmin...` — le paramètre `next` contient la sous-chaîne "admin", ce qui a d'abord fait
+   passer à tort l'assertion `waitForURL(/.*admin/)` du test avant que le vrai symptôme (retour à
+   `/login` dès la navigation suivante) ne soit repéré via un script de diagnostic minimal. **Corrigé**
+   en démarrant le serveur avec `NODE_TLS_REJECT_UNAUTHORIZED=0` — acceptable UNIQUEMENT en local avec ce
+   mock (jamais en production, où Supabase a un vrai certificat) ; sans rapport avec du code livré, donc
+   rien à committer côté application pour ce point.
 
 ### 9.4 Verdict module Vols
 
-🟡 **RÉEL, TESTÉ (unitaire/intégration), NON CERTIFIÉ NAVIGATEUR** — la réservation Vol est
-authentiquement fonctionnelle de bout en bout (recherche → offre signée → réservation → décrément
-d'inventaire réel → PNR → paiement → confirmation → voucher), à distinguer d'un simple mock retournant
-des données statiques. Ce qui manque pour atteindre le même niveau de certification que Hôtel/Omra/
-Package/Activity est uniquement l'exécution du cycle Playwright "Dashboard Operations" contre une
-infra locale complète (Postgres + mock auth + serveur dev) — non un doute sur le code lui-même. Prochain
-pas recommandé si une certification navigateur complète est requise : monter l'infra locale (voir
-section 1) puis exécuter `npx playwright test dashboard-operations-flight-lifecycle.spec.ts`.
+🟢 **CERTIFIÉ — RÉEL, TESTÉ, NAVIGATEUR RÉEL** — même niveau de rigueur que Hôtel/Omra/Package/
+Attractions : cycle complet créer→rechercher→valider→modifier→annuler exécuté en direct (Playwright,
+infra locale réelle), preuve DB/`psql`/audit_events à chaque étape, captures d'écran réelles. Un défaut
+d'accessibilité réel trouvé ET corrigé par ce cycle (voir §9.5). Limitation connue et documentée :
+aller-retour non modélisé côté moteur (§9.2), inventaire virtuel non restitué au remboursement staff
+(même limitation acceptée que Hôtel/myGo).

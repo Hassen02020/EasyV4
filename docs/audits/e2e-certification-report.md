@@ -156,8 +156,9 @@ audit_events (ordre chronologique réel) :
   reservation.created → payment.manual_verified → status_update → payment.refunded
 ```
 
-**Périmètre couvert vs restant** : ce cycle certifie le module Hôtels Tunisie (myGo) au niveau
-"Dashboard Operations" complet. Omraty/Voyages organisés/Attractions ont chacun un flux de réservation
+**Périmètre couvert vs restant** : ce cycle certifie Hôtels Tunisie ET Omraty au niveau "Dashboard
+Operations" complet (`e2e/dashboard-operations-omra-lifecycle.spec.ts`, même méthode — réservation
+pèlerin réelle via `/omra/[id]/book`). Voyages organisés/Attractions ont chacun un flux de réservation
 simple déjà prouvé en direct lors d'un cycle antérieur (catalogue → paiement → confirmation → voucher),
 mais PAS le cycle CRUD complet (modifier/valider/annuler/permissions/isolation) avec ce niveau de
 rigueur — reste à faire, gabarit réutilisable désormais disponible. Vols et Hôtels Monde n'ont aucune
@@ -167,6 +168,18 @@ reconfirmé ce cycle, pas une régression) — voir la table "Périmètre réel 
 Tunisie) était déjà un mock métier réaliste AVANT ce cycle — 14 scénarios (`SOLD_OUT`/`PRICE_CHANGED`/
 `TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/`CURRENCY_MISMATCH`/tokens expirés-tamperés/etc.,
 `lib/mygo/virtual-supplier/scenarios.ts`), confirmé mais pas reconstruit.
+
+**Défaut #2 — plus significatif, trouvé sur le module Omra, corrigé au niveau du code PARTAGÉ (bénéficie
+donc aussi à Voyages organisés et Attractions sans re-test séparé)** : un remboursement TOTAL déclenché
+par le staff (`RefundButton`) ne libérait JAMAIS la capacité retenue (allotment/départ/session) —
+contrairement à l'annulation self-service B2C, qui le fait déjà via `releaseStock()`. Chaque
+remboursement staff réduisait donc silencieusement, et définitivement, la disponibilité réelle affichée
+aux clients — un défaut directement contraire à l'objectif "leader du marché" (la donnée de
+disponibilité est le cœur de la confiance client sur un OTA). **Corrigé** : `releaseStock()` exportée
+depuis `lib/booking/policy-cancel-core.ts`, réutilisée par `lib/finance/refund-actions.ts::refundReservation`
+sur remboursement total, pour les 3 modules à stock local (`omra`/`package`/`activity` — Hôtel exclu,
+son inventaire vit chez myGo). Retesté en direct : l'allotment Omra revient exactement à son niveau
+d'avant après un 2ème cycle complet. Test de garde : `lib/finance/__tests__/refund-releases-stock.test.ts`.
 
 ## 4. Trouvailles remontées SANS correction (décision produit requise)
 

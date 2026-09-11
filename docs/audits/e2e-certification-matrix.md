@@ -62,8 +62,29 @@ revérifiée en base via `psql` (superuser, hors RLS) après le run, pas seuleme
 | Hôtel | Annuler (RefundButton, remboursement) | PASS | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount=1502.08`, `refunded_at`, `reservations.status='refunded'` (état terminal) | `payment.refunded` | `dashboard-ops-09` | — |
 | Hôtel | Permissions (compte Pro → back-office Admin) | PASS | Real | ✅ redirigé, jamais la donnée d'une autre agence | ✅ `isAllowedIntoAdmin` | — | — | `dashboard-ops-10` | — |
 | Hôtel | Isolation (agence Pro ≠ agence OTA créatrice) | PASS | Real | ✅ réservation absente de `/pro/reservations` | ✅ RLS `current_agency_id()` | ✅ | — | `dashboard-ops-11` | — |
+| Omraty | Créer (B2C fiche pèlerin réelle, `/omra/[id]/book`) | PASS | Real (inventaire interne, pas un fournisseur externe) | ✅ | ✅ `createGuestOmraBooking` | ✅ `omra_allotments.reserved_count` +1, `.available_count` -1 | `omra_booking.created` | `dashboard-ops-omra-01..03` | — |
+| Omraty | Rechercher + Valider (même back-office partagé que Hôtel) | PASS | Real | ✅ | ✅ `verifyManualPayment` | ✅ `payments` (balance), `reservations.status='confirmed'` | `payment.manual_verified` | `dashboard-ops-omra-04,05` | — |
+| Omraty | Modifier (dropdown statut, confirmed→completed) | PASS | Real | ✅ | ✅ `updateReservationStatus` | ✅ `reservations.status='completed'` | `status_update` | `dashboard-ops-omra-06` | — |
+| Omraty | Annuler (RefundButton) | **FIXED→PASS** | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount`, **`omra_allotments.available_count` restitué** (voir défaut #2 ci-dessous — cassé avant ce cycle) | `payment.refunded` | `dashboard-ops-omra-07` | — |
 
-**Défaut réel trouvé PAR ce cycle (pas seulement "bouton présent") et corrigé** :
+**Défaut réel #2 trouvé PAR ce cycle (module Omra) et corrigé — plus grave, silencieux, cross-module** :
+`e2e/dashboard-operations-omra-lifecycle.spec.ts` (même méthode, module Omraty — réservation pèlerin
+réelle via `/omra/[id]/book`) a révélé qu'un remboursement TOTAL déclenché par le staff (`RefundButton`,
+`lib/finance/refund-actions.ts::refundReservation`) ne libérait JAMAIS la capacité retenue dans
+`omra_allotments`/`catalog_package_departures`/`catalog_activity_sessions` — contrairement à
+l'annulation self-service B2C (`cancelMyPolicyReservation`), qui appelle déjà `releaseStock()`
+(`lib/booking/policy-cancel-core.ts`). Preuve live : `available_count` restait bloqué à 29/30 après
+remboursement intégral d'une réservation d'1 pèlerin, capacité perdue en silence. Impact business direct
+pour "leader du marché" : chaque remboursement staff sur Omra/Voyages organisés/Attractions réduisait
+définitivement la disponibilité réelle affichée aux clients, sans qu'aucun signal d'erreur n'apparaisse.
+**Corrigé** : `releaseStock()` exportée depuis `policy-cancel-core.ts`, réutilisée par
+`refundReservation` — appelée sur remboursement total UNIQUEMENT pour les modules à stock local
+(`CANCELLABLE_MODULES = ["omra","package","activity"]`, Hôtel exclu — disponibilité chez myGo,
+fournisseur externe). Retesté en direct : 2ème cycle complet, l'allotment revient exactement à son
+niveau d'avant après remboursement. Test de garde ajouté
+(`lib/finance/__tests__/refund-releases-stock.test.ts`).
+
+**Défaut réel #1 trouvé PAR ce cycle (module Hôtel, pas seulement "bouton présent") et corrigé** :
 en changeant le statut vers `on_request` avant de valider le paiement, le bouton "Vérifier" restait
 affiché et cliquable (gating UI basé uniquement sur `remainingTnd > 0`, jamais sur le statut réel) —
 mais `verifyManualPayment` refuse tout statut ≠ `pending`, et `on_request` n'a AUCUNE transition de
@@ -81,8 +102,8 @@ sur pourquoi cet ordre est le seul qui fonctionne, contrainte métier découvert
 | Module | Recherche | Réservation réelle | Mock fournisseur | Statut |
 |---|---|---|---|---|
 | Hôtels Tunisie (myGo) | ✅ | ✅ | Virtual MyGo Supplier — 14 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/`CURRENCY_MISMATCH`/token expiré-tamperé/etc., voir `lib/mygo/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited | 🟢 Certifié ce cycle (Dashboard Operations complet ci-dessus) + baseline B2C antérieure |
-| Omraty | ✅ | ✅ | Inventaire interne réel (`omra_allotments`, `SELECT…FOR UPDATE`) — Easy2Book EST le fournisseur, pas un mock d'API externe | 🟡 Certifié flux E2E simple lors d'un cycle antérieur (catalogue→pèlerin→paiement→confirmation→voucher) — PAS re-testé avec le cycle CRUD complet Dashboard Operations ce cycle-ci |
-| Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟡 Idem Omraty — concurrence dernier siège déjà prouvée en direct (cycle antérieur), pas re-testé ce cycle-ci |
+| Omraty | ✅ | ✅ | Inventaire interne réel (`omra_allotments`, `SELECT…FOR UPDATE`) — Easy2Book EST le fournisseur, pas un mock d'API externe | 🟢 Certifié ce cycle au niveau Dashboard Operations complet (voir table ci-dessus) — 1 défaut trouvé ET corrigé (libération de stock au remboursement staff) |
+| Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟡 Flux simple déjà prouvé (cycle antérieur, concurrence dernier siège) ; le défaut de libération de stock au remboursement (trouvé sur Omra) est corrigé au niveau du code partagé (`refundReservation`) mais PAS re-testé en direct sur ce module précis ce cycle-ci |
 | Attractions | ✅ | ✅ | Idem (`catalog_activity_sessions`) | 🟡 Idem — flux simple déjà prouvé, pas re-testé ce cycle-ci |
 | Hôtels Monde | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation hôtels monde — bientôt disponible">` (`app/hotels-monde/search/world-hotel-results-content.tsx:122`) | — | 🔴 Aucun fournisseur branché, jamais prétendu autrement dans l'UI |
 | Vols | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation vols — bientôt disponible">` (`app/vols/search/flight-results-content.tsx:130`) | — | 🔴 Idem — aucun GDS/fournisseur branché |

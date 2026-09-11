@@ -608,3 +608,103 @@ Ce verdict couvre uniquement la certification fonctionnelle en infra LOCALE. Il 
 vérification de l'environnement de production (variables Vercel/Supabase, déploiement réel,
 comportement du build de production hébergé) — voir le rapport séparé de smoke test production
 lorsqu'il existe, avant toute décision GO-LIVE.
+
+---
+
+## 12. FINAL SCREENSHOT CERTIFICATION (2026-09-11, cycle dédié aux preuves visuelles)
+
+Ce cycle a relancé, réellement dans le navigateur (Playwright, Chromium, infra locale Postgres 16 +
+mock GoTrue + `next start` production), le parcours "Dashboard Operations" complet
+(créer → rechercher → valider → modifier → annuler) pour Omraty, Voyages organisés, Attractions, Vols
+et Hôtels Monde, avec capture d'écran à chaque étape significative. Hôtels Tunisie n'a **pas** pu être
+rejoué ce cycle — raison exacte ci-dessous, aucune capture de substitution fabriquée.
+
+### 12.1 Résultat par module
+
+| Module | E2E | DB Evidence | Screenshots |
+|---|---|---|---|
+| Hôtels Tunisie | PASS (cycle antérieur, non rejoué ce cycle) | PASS (cycle antérieur, non revérifié ce cycle) | N/A ce cycle — voir §12.2 pour la raison exacte ; captures antérieures réelles conservées à `docs/audits/screenshots/dashboard-ops-01..11-*.png` |
+| Omraty | PASS | PASS | PASS |
+| Voyages organisés | PASS | PASS | PASS |
+| Attractions | PASS | PASS | PASS |
+| Vols | PASS | PASS | PASS |
+| Hôtels Monde | PASS | PASS | PASS |
+
+DB Evidence (5 modules rejoués) vérifiée par requête `psql` directe sur `easyv4_e2e`, pas seulement
+lue depuis l'UI :
+
+| Module | public_ref | status final | original_amount | payment captured_at | payment refunded_at |
+|---|---|---|---|---|---|
+| Omraty | OM-2026-000005 | refunded | 4500.00 TND | 2026-09-11 13:57:15 | 2026-09-11 13:57:18 |
+| Voyages organisés | PK-2026-000004 | refunded | 1725.50 TND | 2026-09-11 13:57:26 | 2026-09-11 13:57:29 |
+| Attractions | AT-2026-000004 | refunded | 101.15 TND | 2026-09-11 13:56:41 | 2026-09-11 13:56:45 |
+| Vols | FL-2026-000005 | refunded | 382.00 TND | 2026-09-11 13:56:53 | 2026-09-11 13:56:56 |
+| Hôtels Monde | WH-2026-000005 | refunded | 1647.00 TND | 2026-09-11 13:57:04 | 2026-09-11 13:57:07 |
+
+### 12.2 Hôtels Tunisie — raison exacte de l'absence de captures neuves
+
+Le serveur local ne peut être exécuté que via `next build` + `next start` dans ce sandbox (`next dev`
+reste bloqué indéfiniment en compilation, confirmé avec Turbopack ET avec `--webpack` — problème
+d'environnement sandbox, pas de bundler). Or `next start` compile le code avec
+`process.env.NODE_ENV` remplacé en dur par la chaîne littérale `"production"` **au moment du build**
+(comportement standard Next.js/webpack, pas une lecture à l'exécution). Le garde-fou
+`lib/mygo/config.ts::resolveMyGoMode()` refuse `MYGO_MODE=virtual` dès que
+`NODE_ENV === "production"` — un garde-fou légitime, ajouté délibérément lors d'un cycle antérieur
+pour empêcher tout déploiement réel de tourner en mode fournisseur simulé. Comme le remplacement a
+lieu au build, aucune variable d'environnement positionnée au démarrage ne peut le contourner :
+`NODE_ENV=development`, puis `NODE_ENV=test` avec toutes les variables requises exportées
+manuellement, ont tous deux échoué de façon identique (détail complet des tentatives :
+`docs/audits/global-6-modules-final-audit.md`, section 3). Aucun contournement du garde-fou n'a été
+tenté (l'affaiblir irait à l'encontre de sa raison d'être, et le code métier n'a pas été modifié pour
+cette certification). Détail complet : `docs/audits/screenshots/hotels-tunisie/NOTE.md`.
+
+Les captures réelles d'un cycle antérieur de cette même session (réservation réelle, preuve DB
+complète en section 3ter) restent disponibles, inchangées, à la racine de
+`docs/audits/screenshots/` — jamais copiées ni renommées dans le nouveau dossier
+`hotels-tunisie/` pour ne jamais laisser croire qu'elles proviennent de ce cycle.
+
+### 12.3 Défaut réel découvert par ce cycle (non corrigé — hors périmètre)
+
+En construisant la vérification fonctionnelle du voucher (étape 08), le premier essai — cliquer sur
+le vrai lien "Télécharger" de la page admin — a échoué pour les 5 modules rejoués simultanément.
+Cause racine confirmée : `app/admin/reservations/[id]/page.tsx` calcule `voucherHref` uniquement via
+`isHotelReservationVoucherEligible(detail.module, detail.status)`
+(`lib/pro/voucher-eligibility.ts`), une fonction scopée à `module === "hotel"` — le bloc "Voucher" de
+la page admin affiche donc "Non disponible pour ce module/statut" pour Omra/Package/Activité/Vols/
+Hôtels Monde **même quand la réservation est confirmée et payée**, alors que chacun de ces modules a
+sa propre fonction d'éligibilité fonctionnelle (`isOmraVoucherEligible`, `isPackageVoucherEligible`,
+`isActivityVoucherEligible`, `isFlightVoucherEligible`, `isWorldHotelVoucherEligible`) et une route de
+téléchargement qui fonctionne réellement.
+
+Conformément à l'instruction explicite "ne modifie pas le code métier" de ce cycle, ce défaut **n'a
+pas été corrigé**. Les 5 specs E2E ont été réécrites pour vérifier fonctionnellement la route de
+voucher directement (construction de l'URL réelle via `voucherHrefForModule()`, la même fonction
+utilisée ailleurs dans l'app, combinée au `guestAccessToken` réel capturé depuis l'URL de confirmation
+de réservation, puis `page.request.get()` → HTTP 200 + `content-type: application/pdf`), tout en
+prenant une capture d'écran honnête de l'état réel de la page admin (qui montre toujours "Non
+disponible pour ce module/statut", visible sur `08-voucher.png` de chaque module concerné).
+
+**Correctif suggéré pour un cycle futur** : dans `app/admin/reservations/[id]/page.tsx`, remplacer
+l'appel à `isHotelReservationVoucherEligible` par un dispatch sur `detail.module` vers la fonction
+d'éligibilité correspondante (ou par `voucherHrefForModule` directement, qui existe déjà et gère les
+6 modules).
+
+### 12.4 Inventaire des captures
+
+Total captures neuves produites ce cycle : **40** (8 par module × 5 modules rejoués — chaque module
+compte 9 noms canoniques, 1 marqué N/A par module sans capture de substitution : `02-results` pour
+Omraty/Voyages organisés/Attractions, `03-detail` pour Vols/Hôtels Monde).
+
+```
+docs/audits/screenshots/
+├── hotels-tunisie/NOTE.md                         (raison exacte, aucune capture neuve — voir §12.2)
+├── omraty/                 8 fichiers (02-results : N/A, catalogue = liste de résultats)
+├── voyages-organises/      8 fichiers (02-results : N/A, catalogue = liste de résultats)
+├── attractions/            8 fichiers (02-results : N/A, catalogue = liste de résultats)
+├── vols/                   8 fichiers (03-detail : N/A, pas de page détail séparée)
+├── hotels-monde/           8 fichiers (03-detail : N/A, pas de page détail séparée)
+├── dashboard-ops-01..11-*.png            (11 fichiers, Hôtels Tunisie, cycle antérieur — conservés)
+└── _superseded-prior-cycle/              (31 fichiers, anciennes captures à plat pour les 5 modules
+                                            rejoués ce cycle, déplacées — pas supprimées — pour éviter
+                                            toute confusion avec les nouveaux dossiers par module)
+```

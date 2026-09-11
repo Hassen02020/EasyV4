@@ -42,7 +42,7 @@ export default async function AdminInvoicesPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect("/login?next=/admin/finance/invoices")
+  if (!user) redirect("/login?next=/admin/accounting/invoices")
 
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile || !isAllowedIntoAdmin(profile.role, profile.agencyType)) {

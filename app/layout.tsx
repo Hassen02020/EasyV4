@@ -18,7 +18,7 @@ import { CurrencyProvider } from "@/components/currency-context"
 
 import { LocaleProvider } from "@/components/locale-context"
 
-import { getLocaleFromCookie, LOCALE_COOKIE } from "@/lib/locale"
+import { getLocaleFromCookie, LOCALE_COOKIE, LOCALE_META } from "@/lib/locale"
 
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 
@@ -91,6 +91,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
+      dir={LOCALE_META[locale].dir}
       className={`${geistSans.variable} ${geistMono.variable} bg-background`}
       suppressHydrationWarning
     >

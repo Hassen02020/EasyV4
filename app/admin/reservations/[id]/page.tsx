@@ -50,7 +50,19 @@ export default async function AdminReservationDetailPage({
 
   if (!detail) notFound()
 
-  const canVerifyPayment = (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)
+  // Certification E2E — trouvé en direct (Playwright) : verifyManualPayment
+  // (lib/finance/manual-payment-actions.ts) refuse tout statut différent de
+  // "pending", MAIS ce bouton restait affiché (et cliquable) pour n'importe
+  // quel statut dès que remainingTnd > 0 — dont "on_request", qui n'a même
+  // aucun chemin de retour vers "pending" (ALLOWED_TRANSITIONS.on_request =
+  // ["confirmed","cancelled"], voir lib/admin/reservation-status.ts) : un
+  // agent y arrivait sur un bouton "Vérifier" en apparence normal mais
+  // systématiquement en échec, sans jamais pouvoir revenir dans le seul état
+  // qui l'accepte. On aligne l'affichage sur la précondition réelle du
+  // serveur plutôt que de laisser un bouton présent mais non câblé.
+  const canVerifyPayment =
+    detail.status === "pending" &&
+    (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)
   const canRefund = (REFUND_ALLOWED_ROLES as readonly string[]).includes(profile.role)
   const defaultManualMethod = detail.payments.some((p) => p.method === "transfer") ? "transfer" : "cash"
   const voucherHref = isHotelReservationVoucherEligible(detail.module, detail.status)

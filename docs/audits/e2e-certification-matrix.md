@@ -44,4 +44,55 @@ Légende : PASS / PARTIAL / FAIL / MISSING / NOT WIRED / SKIPPED(baseline)
 
 | 29 | Test suite hermeticity | `pnpm test` indépendant de l'environnement de l'appelant (`.env.local` sourcé ou non) | FIXED→PASS | `scripts/run-tests.mjs` retire `MYGO_MODE`/`MYGO_LOGIN`/`MYGO_PASSWORD`/`PAYMENT_MODE`/`PAYMENT_PROVIDER` de l'env du process enfant `spawnSync`. Vérifié : 828/828 avec ET sans `.env.local` sourcé (voir #9) |
 
-(reste à compléter : certification métier OTA complète multi-modules avec Playwright — cycle suivant, voir demande du 2026-09-10/11)
+## Certification "Dashboard Operations" — cycle de vie complet, preuve Playwright réelle (2026-09-11)
+
+Format demandé : `Module | Fonction | Résultat | Real/Mock | UI | API | DB/RLS | Audit | Capture | Limitation`.
+
+Cycle complet exécuté EN DIRECT (navigateur réel, `e2e/dashboard-operations-hotel-lifecycle.spec.ts` +
+`e2e/dashboard-operations-permissions-isolation.spec.ts`) sur une vraie réservation créée par le test
+lui-même (`TG-2026-001254`) — jamais une simple vérification "le bouton existe". Chaque ligne est
+revérifiée en base via `psql` (superuser, hors RLS) après le run, pas seulement via l'UI :
+
+| Module | Fonction | Résultat | Real/Mock | UI | API | DB/RLS | Audit | Capture | Limitation |
+|---|---|---|---|---|---|---|---|---|---|
+| Hôtel (myGo) | Créer (B2C guest checkout, espèces) | PASS | Real (Virtual MyGo Supplier) | ✅ | ✅ | ✅ `reservations.status='pending'` créé | `reservation.created` | `dashboard-ops-01..04` | — |
+| Hôtel | Rechercher (liste admin, filtre référence) | PASS | Real | ✅ | ✅ | ✅ (RLS super_admin cross-agence) | — | `dashboard-ops-05` | — |
+| Hôtel | Valider (VerifyPaymentButton, règlement manuel) | PASS | Real | ✅ | ✅ `verifyManualPayment` | ✅ `payments` (balance, refs `E2E-CASH-…`), `reservations.status='confirmed'` | `payment.manual_verified` | `dashboard-ops-06,07` | Exige strictement le statut `pending` (voir défaut ci-dessous) |
+| Hôtel | Modifier (dropdown statut, liste, ×1 : confirmed→completed) | PASS | Real | ✅ | ✅ `updateReservationStatus` | ✅ `reservations.status='completed'` | `status_update` | `dashboard-ops-08` | — |
+| Hôtel | Annuler (RefundButton, remboursement) | PASS | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount=1502.08`, `refunded_at`, `reservations.status='refunded'` (état terminal) | `payment.refunded` | `dashboard-ops-09` | — |
+| Hôtel | Permissions (compte Pro → back-office Admin) | PASS | Real | ✅ redirigé, jamais la donnée d'une autre agence | ✅ `isAllowedIntoAdmin` | — | — | `dashboard-ops-10` | — |
+| Hôtel | Isolation (agence Pro ≠ agence OTA créatrice) | PASS | Real | ✅ réservation absente de `/pro/reservations` | ✅ RLS `current_agency_id()` | ✅ | — | `dashboard-ops-11` | — |
+
+**Défaut réel trouvé PAR ce cycle (pas seulement "bouton présent") et corrigé** :
+en changeant le statut vers `on_request` avant de valider le paiement, le bouton "Vérifier" restait
+affiché et cliquable (gating UI basé uniquement sur `remainingTnd > 0`, jamais sur le statut réel) —
+mais `verifyManualPayment` refuse tout statut ≠ `pending`, et `on_request` n'a AUCUNE transition de
+retour vers `pending` (`ALLOWED_TRANSITIONS.on_request = ["confirmed","cancelled"]`, voir
+`lib/admin/reservation-status.ts`) : un agent qui suit ce chemin se retrouve avec un bouton
+apparemment fonctionnel mais qui échoue à chaque tentative, sans issue. **Corrigé** dans
+`app/admin/reservations/[id]/page.tsx` : `VerifyPaymentButton` n'est maintenant rendu QUE si
+`detail.status === "pending"`, alignant l'affichage sur la précondition réelle du serveur. Trouvé et
+corrigé par l'ordonnancement même du test Playwright (valider AVANT modifier, modifier AVANT annuler —
+voir commentaire en tête de `dashboard-operations-hotel-lifecycle.spec.ts` pour le raisonnement complet
+sur pourquoi cet ordre est le seul qui fonctionne, contrainte métier découverte en écrivant le test).
+
+## Périmètre réel de "réservation" par module (vérifié dans le code, pas supposé)
+
+| Module | Recherche | Réservation réelle | Mock fournisseur | Statut |
+|---|---|---|---|---|
+| Hôtels Tunisie (myGo) | ✅ | ✅ | Virtual MyGo Supplier — 14 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/`CURRENCY_MISMATCH`/token expiré-tamperé/etc., voir `lib/mygo/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited | 🟢 Certifié ce cycle (Dashboard Operations complet ci-dessus) + baseline B2C antérieure |
+| Omraty | ✅ | ✅ | Inventaire interne réel (`omra_allotments`, `SELECT…FOR UPDATE`) — Easy2Book EST le fournisseur, pas un mock d'API externe | 🟡 Certifié flux E2E simple lors d'un cycle antérieur (catalogue→pèlerin→paiement→confirmation→voucher) — PAS re-testé avec le cycle CRUD complet Dashboard Operations ce cycle-ci |
+| Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟡 Idem Omraty — concurrence dernier siège déjà prouvée en direct (cycle antérieur), pas re-testé ce cycle-ci |
+| Attractions | ✅ | ✅ | Idem (`catalog_activity_sessions`) | 🟡 Idem — flux simple déjà prouvé, pas re-testé ce cycle-ci |
+| Hôtels Monde | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation hôtels monde — bientôt disponible">` (`app/hotels-monde/search/world-hotel-results-content.tsx:122`) | — | 🔴 Aucun fournisseur branché, jamais prétendu autrement dans l'UI |
+| Vols | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation vols — bientôt disponible">` (`app/vols/search/flight-results-content.tsx:130`) | — | 🔴 Idem — aucun GDS/fournisseur branché |
+
+**Limitation explicite de ce cycle** : la certification métier OTA complète demandée (les 6 verticaux,
+chacun comparé à son standard métier de référence — Booking.com/Amadeus/tour-opérateur/ticketing — avec
+Playwright + captures pour CHAQUE flux : recherche/filtre/tri, revalidation prix, erreurs
+provider/timeout/sold-out, commissions/marges, modification/annulation/remboursement) n'a été menée à ce
+niveau de rigueur (créer→modifier→rechercher→valider→modifier→annuler→DB→audit→permissions→isolation,
+navigateur réel, captures, défaut trouvé ET corrigé) QUE pour le module Hôtels Tunisie ci-dessus, qui
+sert de gabarit reproductible (`e2e/dashboard-operations-*.spec.ts`) pour les cycles suivants sur
+Omraty/Voyages organisés/Attractions. Vols et Hôtels Monde n'ont rien à certifier côté réservation tant
+qu'aucun fournisseur n'y est branché — reconfirmé, pas une régression de ce cycle.

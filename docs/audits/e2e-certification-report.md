@@ -115,6 +115,59 @@ capture** :
 Cette correction ferme entièrement le finding remonté en section 4 de la version précédente — retiré
 de la liste des limitations (voir section 8).
 
+## 3ter. Certification "Dashboard Operations" — cycle CRUD complet, preuve Playwright réelle
+
+Répond à l'exigence explicite : "pas seulement de regarder si les boutons existent" — chaque étape est
+un vrai clic navigateur sur une vraie donnée, revérifiée en base par `psql` (rôle superuser, hors RLS)
+après coup, jamais une simple présence de composant.
+
+**Méthode** : `e2e/dashboard-operations-hotel-lifecycle.spec.ts` crée une VRAIE réservation hôtel B2C
+(myGo virtuel, paiement "Espèces en agence" → statut `pending`), puis, connecté en admin réel
+(Supabase/GoTrue, aucun bypass) : recherche par référence dans `/admin/reservations`, valide le
+règlement manuel (`VerifyPaymentButton`), modifie le statut depuis la liste (`confirmed → completed`),
+rembourse (`RefundButton`, état terminal `refunded`). `e2e/dashboard-operations-permissions-isolation.spec.ts`
+réutilise la MÊME référence pour prouver que le compte Pro (agence différente) ne peut ni atteindre le
+back-office Admin, ni voir cette réservation dans son propre espace. Résultat détaillé (table au format
+`Module | Fonction | Résultat | Real/Mock | UI | API | DB/RLS | Audit | Capture | Limitation`) :
+voir `e2e-certification-matrix.md`, section "Dashboard Operations".
+
+**Ordre du cycle** (créer → rechercher → **valider** → **modifier** → **annuler**, plutôt que l'ordre
+littéral demandé) : trouvé en écrivant le test, pas supposé à l'avance. `verifyManualPayment` exige
+strictement le statut `pending` ; `refunded` (résultat d'"annuler") est un état TERMINAL sans transition
+sortante. Modifier le statut AVANT de valider — ou rembourser avant de modifier — bloque définitivement
+la suite du cycle. Documenté en tête du fichier de test pour que le prochain cycle sur un autre module
+ne reproduise pas la même impasse à l'aveugle.
+
+**Défaut réel trouvé ET corrigé immédiatement** (pas seulement documenté) : le bouton "Vérifier" restait
+affiché et cliquable pour un statut `on_request` — qui n'a AUCUN chemin de retour vers `pending` — menant
+systématiquement à l'erreur serveur `Impossible de valider un règlement : statut actuel "on_request"
+(attendu "pending")`. Exactement le cas "bouton présent mais fonction non câblée" explicitement visé.
+Corrigé dans `app/admin/reservations/[id]/page.tsx` : le bouton n'est plus rendu que si
+`detail.status === "pending"`. Retesté : le cycle complet passe désormais de bout en bout (13 captures
+réelles dans `docs/audits/screenshots/dashboard-ops-*.png`).
+
+**Preuve DB post-cycle** (réservation `TG-2026-001254`, requêtée en superuser) :
+```
+reservations.status = 'refunded'
+payments : cash/deposit (pending, 1502.08 — placeholder initial du checkout) ;
+           cash/balance (refunded, tnd_amount=1502.08, refunded_amount=1502.08,
+           psp_transaction_id='E2E-CASH-…', refunded_at renseigné)
+audit_events (ordre chronologique réel) :
+  reservation.created → payment.manual_verified → status_update → payment.refunded
+```
+
+**Périmètre couvert vs restant** : ce cycle certifie le module Hôtels Tunisie (myGo) au niveau
+"Dashboard Operations" complet. Omraty/Voyages organisés/Attractions ont chacun un flux de réservation
+simple déjà prouvé en direct lors d'un cycle antérieur (catalogue → paiement → confirmation → voucher),
+mais PAS le cycle CRUD complet (modifier/valider/annuler/permissions/isolation) avec ce niveau de
+rigueur — reste à faire, gabarit réutilisable désormais disponible. Vols et Hôtels Monde n'ont aucune
+réservation réelle à certifier (`disabled title="… — bientôt disponible"`, confirmé dans le code,
+reconfirmé ce cycle, pas une régression) — voir la table "Périmètre réel de réservation par module" dans
+`e2e-certification-matrix.md`. Le Virtual MyGo Supplier (fournisseur externe simulé pour Hôtels
+Tunisie) était déjà un mock métier réaliste AVANT ce cycle — 14 scénarios (`SOLD_OUT`/`PRICE_CHANGED`/
+`TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/`CURRENCY_MISMATCH`/tokens expirés-tamperés/etc.,
+`lib/mygo/virtual-supplier/scenarios.ts`), confirmé mais pas reconstruit.
+
 ## 4. Trouvailles remontées SANS correction (décision produit requise)
 
 | # | Sujet | Constat | Pourquoi non corrigé automatiquement |
@@ -164,6 +217,10 @@ un artefact d'ordre d'exécution : l'affirmation du rapport précédent est expl
 **`pnpm build`** → ✅ Compiled successfully, TypeScript OK, toutes les routes générées (dont
 `/booking`, `/booking/checkout`, `/api/hotels/search-public` modifiées ce cycle), aucune erreur.
 
+**E2E Playwright** (`e2e/dashboard-operations-hotel-lifecycle.spec.ts` +
+`e2e/dashboard-operations-permissions-isolation.spec.ts`, navigateur réel, serveur dev réel, DB réelle)
+→ 3/3 passent. Voir section 3ter pour le détail.
+
 ## 7. Sécurité — synthèse
 
 - Tenant isolation : prouvée à 3 niveaux (RLS SQL direct, UI cross-agence, tests DB-mode existants
@@ -190,6 +247,14 @@ La plateforme est fonctionnellement complète et sécurisée sur tous les parcou
 testés (B2C/B2B/Admin, Hôtels/Omra/Trips/Attractions, paiement/wallet/refund/voucher, isolation
 multi-tenant). Aucune faille de sécurité exploitable trouvée. Le seul finding avec une dimension
 sécurité/confiance (affichage prix avant paiement) est **corrigé et testé** ce cycle (section 3bis.B).
+Un second défaut réel — "bouton présent mais fonction non câblée" (`VerifyPaymentButton` cliquable
+dans un état où il échoue systématiquement) — a été trouvé ET corrigé par le cycle "Dashboard
+Operations" (section 3ter), qui certifie le module Hôtels Tunisie au niveau CRUD complet
+(créer/rechercher/valider/modifier/annuler/DB/audit/permissions/isolation) avec preuve Playwright
+réelle. La certification métier OTA complète des 6 verticaux demandée reste un chantier plus large que
+ce cycle : Omraty/Voyages organisés/Attractions ont un flux simple déjà prouvé mais pas encore ce
+niveau de rigueur CRUD ; Vols/Hôtels Monde n'ont aucune réservation réelle à certifier (confirmé,
+honnête, pas une régression).
 Les limitations restantes sont toutes des fonctionnalités honnêtement non construites (jamais des
 bugs silencieux) :
 

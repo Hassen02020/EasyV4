@@ -66,6 +66,8 @@ revérifiée en base via `psql` (superuser, hors RLS) après le run, pas seuleme
 | Omraty | Rechercher + Valider (même back-office partagé que Hôtel) | PASS | Real | ✅ | ✅ `verifyManualPayment` | ✅ `payments` (balance), `reservations.status='confirmed'` | `payment.manual_verified` | `dashboard-ops-omra-04,05` | — |
 | Omraty | Modifier (dropdown statut, confirmed→completed) | PASS | Real | ✅ | ✅ `updateReservationStatus` | ✅ `reservations.status='completed'` | `status_update` | `dashboard-ops-omra-06` | — |
 | Omraty | Annuler (RefundButton) | **FIXED→PASS** | Real | ✅ | ✅ `refundReservation` | ✅ `payments.refunded_amount`, **`omra_allotments.available_count` restitué** (voir défaut #2 ci-dessous — cassé avant ce cycle) | `payment.refunded` | `dashboard-ops-omra-07` | — |
+| Voyages organisés | Cycle complet (créer/rechercher/valider/modifier/annuler) | PASS | Real (inventaire interne) | ✅ | ✅ mêmes actions partagées | ✅ `catalog_package_departures.bookedSeats` 1→0 après remboursement (fix confirmé) | 4 événements réels | `dashboard-ops-package-01..06` | — |
+| Attractions | Cycle complet (créer/rechercher/valider/modifier/annuler) | PASS | Real (inventaire interne) | ✅ | ✅ mêmes actions partagées | ✅ `catalog_activity_sessions.booked` 1→0 après remboursement (fix confirmé) | 4 événements réels | `dashboard-ops-activity-01..06` | — |
 
 **Défaut réel #2 trouvé PAR ce cycle (module Omra) et corrigé — plus grave, silencieux, cross-module** :
 `e2e/dashboard-operations-omra-lifecycle.spec.ts` (même méthode, module Omraty — réservation pèlerin
@@ -103,17 +105,20 @@ sur pourquoi cet ordre est le seul qui fonctionne, contrainte métier découvert
 |---|---|---|---|---|
 | Hôtels Tunisie (myGo) | ✅ | ✅ | Virtual MyGo Supplier — 14 scénarios réalistes (`SOLD_OUT`/`PRICE_CHANGED`/`TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/`CURRENCY_MISMATCH`/token expiré-tamperé/etc., voir `lib/mygo/virtual-supplier/scenarios.ts`), inventaire ~15% sold-out/~25% limited | 🟢 Certifié ce cycle (Dashboard Operations complet ci-dessus) + baseline B2C antérieure |
 | Omraty | ✅ | ✅ | Inventaire interne réel (`omra_allotments`, `SELECT…FOR UPDATE`) — Easy2Book EST le fournisseur, pas un mock d'API externe | 🟢 Certifié ce cycle au niveau Dashboard Operations complet (voir table ci-dessus) — 1 défaut trouvé ET corrigé (libération de stock au remboursement staff) |
-| Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟡 Flux simple déjà prouvé (cycle antérieur, concurrence dernier siège) ; le défaut de libération de stock au remboursement (trouvé sur Omra) est corrigé au niveau du code partagé (`refundReservation`) mais PAS re-testé en direct sur ce module précis ce cycle-ci |
-| Attractions | ✅ | ✅ | Idem (`catalog_activity_sessions`) | 🟡 Idem — flux simple déjà prouvé, pas re-testé ce cycle-ci |
+| Voyages organisés (Packages) | ✅ | ✅ | Idem (inventaire interne, `catalog_package_departures`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`bookedSeats` 1→0 après remboursement) |
+| Attractions | ✅ | ✅ | Idem (`catalog_activity_sessions`) | 🟢 Certifié ce cycle au niveau Dashboard Operations complet — fix de libération de stock revérifié en direct sur ce module (`booked` 1→0 après remboursement) |
 | Hôtels Monde | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation hôtels monde — bientôt disponible">` (`app/hotels-monde/search/world-hotel-results-content.tsx:122`) | — | 🔴 Aucun fournisseur branché, jamais prétendu autrement dans l'UI |
 | Vols | ✅ (résultats affichés) | ❌ **MISSING, honnête** — `<Button disabled title="Réservation vols — bientôt disponible">` (`app/vols/search/flight-results-content.tsx:130`) | — | 🔴 Idem — aucun GDS/fournisseur branché |
 
 **Limitation explicite de ce cycle** : la certification métier OTA complète demandée (les 6 verticaux,
 chacun comparé à son standard métier de référence — Booking.com/Amadeus/tour-opérateur/ticketing — avec
 Playwright + captures pour CHAQUE flux : recherche/filtre/tri, revalidation prix, erreurs
-provider/timeout/sold-out, commissions/marges, modification/annulation/remboursement) n'a été menée à ce
-niveau de rigueur (créer→modifier→rechercher→valider→modifier→annuler→DB→audit→permissions→isolation,
-navigateur réel, captures, défaut trouvé ET corrigé) QUE pour le module Hôtels Tunisie ci-dessus, qui
+provider/timeout/sold-out, commissions/marges, modification/annulation/remboursement) a été menée à ce
+niveau de rigueur (créer→rechercher→valider→modifier→annuler→DB→audit, navigateur réel, captures) pour
+LES 4 MODULES AVEC RÉSERVATION RÉELLE : Hôtels Tunisie, Omraty, Voyages organisés, Attractions — 2
+défauts réels trouvés ET corrigés (affichage prix pré-paiement falsifiable ; remboursement staff qui ne
+libérait jamais le stock, cassant la disponibilité affichée sur 3 des 4 modules). Permissions/isolation
+n'ont été retestées en direct QUE sur le module Hôtel ci-dessus, qui
 sert de gabarit reproductible (`e2e/dashboard-operations-*.spec.ts`) pour les cycles suivants sur
 Omraty/Voyages organisés/Attractions. Vols et Hôtels Monde n'ont rien à certifier côté réservation tant
 qu'aucun fournisseur n'y est branché — reconfirmé, pas une régression de ce cycle.

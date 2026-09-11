@@ -156,18 +156,21 @@ audit_events (ordre chronologique réel) :
   reservation.created → payment.manual_verified → status_update → payment.refunded
 ```
 
-**Périmètre couvert vs restant** : ce cycle certifie Hôtels Tunisie ET Omraty au niveau "Dashboard
-Operations" complet (`e2e/dashboard-operations-omra-lifecycle.spec.ts`, même méthode — réservation
-pèlerin réelle via `/omra/[id]/book`). Voyages organisés/Attractions ont chacun un flux de réservation
-simple déjà prouvé en direct lors d'un cycle antérieur (catalogue → paiement → confirmation → voucher),
-mais PAS le cycle CRUD complet (modifier/valider/annuler/permissions/isolation) avec ce niveau de
-rigueur — reste à faire, gabarit réutilisable désormais disponible. Vols et Hôtels Monde n'ont aucune
-réservation réelle à certifier (`disabled title="… — bientôt disponible"`, confirmé dans le code,
-reconfirmé ce cycle, pas une régression) — voir la table "Périmètre réel de réservation par module" dans
-`e2e-certification-matrix.md`. Le Virtual MyGo Supplier (fournisseur externe simulé pour Hôtels
-Tunisie) était déjà un mock métier réaliste AVANT ce cycle — 14 scénarios (`SOLD_OUT`/`PRICE_CHANGED`/
-`TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/`CURRENCY_MISMATCH`/tokens expirés-tamperés/etc.,
-`lib/mygo/virtual-supplier/scenarios.ts`), confirmé mais pas reconstruit.
+**Périmètre couvert vs restant** : ce cycle certifie LES 4 MODULES AVEC RÉSERVATION RÉELLE au niveau
+"Dashboard Operations" complet — Hôtels Tunisie, Omraty (`dashboard-operations-omra-lifecycle.spec.ts`),
+Voyages organisés (`dashboard-operations-package-lifecycle.spec.ts`) et Attractions
+(`dashboard-operations-activity-lifecycle.spec.ts`), tous via une vraie réservation créée par le test
+lui-même puis gérée sur le même back-office admin partagé, chaque étape revérifiée en base. Permissions
++ isolation cross-agence n'ont été retestées en direct QUE sur Hôtel (le mécanisme — `isAllowedIntoAdmin`
++ RLS `current_agency_id()` — est strictement identique et déjà audité en profondeur pour tous les
+modules dans les cycles précédents, section 5). Vols et Hôtels Monde n'ont aucune réservation réelle à
+certifier (`disabled title="… — bientôt disponible"`, confirmé dans le code, reconfirmé ce cycle, pas
+une régression) — construire ces intégrations (vraies ou mock réaliste) reste le plus gros levier
+"fonctionnalités manquantes vs concurrents" identifié, hors périmètre de ce cycle d'audit. Le Virtual
+MyGo Supplier (fournisseur externe simulé pour Hôtels Tunisie) était déjà un mock métier réaliste AVANT
+ce cycle — 14 scénarios (`SOLD_OUT`/`PRICE_CHANGED`/`TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/
+`CURRENCY_MISMATCH`/tokens expirés-tamperés/etc., `lib/mygo/virtual-supplier/scenarios.ts`), confirmé
+mais pas reconstruit.
 
 **Défaut #2 — plus significatif, trouvé sur le module Omra, corrigé au niveau du code PARTAGÉ (bénéficie
 donc aussi à Voyages organisés et Attractions sans re-test séparé)** : un remboursement TOTAL déclenché

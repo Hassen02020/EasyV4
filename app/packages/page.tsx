@@ -112,11 +112,36 @@ async function getActivePackages(filters: SearchFilters) {
       conditions.push(inArray(catalogPackages.id, packageIds))
     }
 
-    return await db
+    const rows = await db
       .select()
       .from(catalogPackages)
       .where(and(...conditions))
       .orderBy(catalogPackages.title)
+
+    // Prix affiché sur les cartes liste ("À partir de X DT") — agrégé depuis
+    // les départs programmés réels (jamais un prix inventé/statique sur le
+    // package lui-même, qui n'a pas de colonne prix).
+    const priceRows =
+      rows.length === 0
+        ? []
+        : await db
+            .select({
+              packageId: catalogPackageDepartures.packageId,
+              minPrice: sql<string>`MIN(${catalogPackageDepartures.adultPriceTnd})`,
+            })
+            .from(catalogPackageDepartures)
+            .where(
+              and(
+                inArray(catalogPackageDepartures.packageId, rows.map((r) => r.id)),
+                eq(catalogPackageDepartures.status, "open"),
+                gte(catalogPackageDepartures.departureDate, sql`CURRENT_DATE`),
+              ),
+            )
+            .groupBy(catalogPackageDepartures.packageId)
+
+    const priceByPackage = new Map(priceRows.map((r) => [r.packageId, parseFloat(r.minPrice)]))
+
+    return rows.map((pkg) => ({ ...pkg, priceFromTnd: priceByPackage.get(pkg.id) ?? null }))
     })
   } catch {
     return []

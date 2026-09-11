@@ -205,13 +205,11 @@ function FlightSearchSummary({
         </Button>
       </div>
       {isDemo && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="border-border bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            <strong>Fournisseur de vols simulé.</strong> La connexion à un GDS réel (Amadeus/Sabre)
-            n&apos;est pas encore configurée — ces compagnies, horaires et prix sont générés, pas une
-            disponibilité de marché réelle. La réservation reste néanmoins fonctionnelle de bout en
-            bout (disponibilité décrémentée, PNR émis) sur cette offre simulée.
+            Offres de démonstration — la réservation est entièrement fonctionnelle, la connexion à
+            nos compagnies partenaires est en cours de finalisation.
           </p>
         </div>
       )}

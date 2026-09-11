@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import type { CatalogPackage } from "@/lib/db/schema"
 
+type PackageWithPrice = CatalogPackage & { priceFromTnd: number | null }
+
 interface Props {
-  packages: CatalogPackage[]
+  packages: PackageWithPrice[]
 }
 
-function PackageCard({ pkg }: { pkg: CatalogPackage }) {
+function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
   return (
     <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
       <div className="relative h-44 w-full bg-muted">
@@ -63,11 +65,21 @@ function PackageCard({ pkg }: { pkg: CatalogPackage }) {
             </div>
           )}
         </div>
+
+        {pkg.priceFromTnd != null && (
+          <div className="mt-auto">
+            <p className="text-xs text-muted-foreground">À partir de</p>
+            <p className="text-2xl font-bold text-violet-700">
+              {pkg.priceFromTnd.toLocaleString("fr-FR")}
+              <span className="ml-1 text-sm font-normal">DT / personne</span>
+            </p>
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="border-t p-4">
         <Link href={`/packages/${pkg.slug}`} className="w-full">
-          <Button variant="outline" className="w-full gap-2">
+          <Button className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
             Voir le programme
             <ChevronRight className="h-4 w-4" />
           </Button>

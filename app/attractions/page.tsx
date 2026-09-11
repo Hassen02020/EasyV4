@@ -10,11 +10,12 @@ import Image from "next/image"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { catalogActivities } from "@/lib/db/schema"
-import { and, eq, arrayContains } from "drizzle-orm"
+import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
+import { and, eq, arrayContains, gte, inArray, sql } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { MapPin, Clock, Compass } from "lucide-react"
+import { MapPin, Clock, Compass, ChevronRight } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -28,7 +29,7 @@ async function getPublishedActivities() {
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
     return await withSystemContext(async (db) => {
-      return await db
+      const rows = await db
         .select()
         .from(catalogActivities)
         .where(
@@ -39,6 +40,31 @@ async function getPublishedActivities() {
           ),
         )
         .orderBy(catalogActivities.title)
+
+      // Prix affiché sur les cartes ("À partir de X DT") — agrégé depuis les
+      // sessions programmées réelles (jamais un prix inventé/statique sur
+      // l'activité elle-même, qui n'a pas de colonne prix).
+      const priceRows =
+        rows.length === 0
+          ? []
+          : await db
+              .select({
+                activityId: catalogActivitySessions.activityId,
+                minPrice: sql<string>`MIN(${catalogActivitySessions.adultPriceTnd})`,
+              })
+              .from(catalogActivitySessions)
+              .where(
+                and(
+                  inArray(catalogActivitySessions.activityId, rows.map((r) => r.id)),
+                  eq(catalogActivitySessions.status, "open"),
+                  gte(catalogActivitySessions.sessionDate, sql`CURRENT_DATE`),
+                ),
+              )
+              .groupBy(catalogActivitySessions.activityId)
+
+      const priceByActivity = new Map(priceRows.map((r) => [r.activityId, parseFloat(r.minPrice)]))
+
+      return rows.map((a) => ({ ...a, priceFromTnd: priceByActivity.get(a.id) ?? null }))
     })
   } catch {
     return []
@@ -109,11 +135,24 @@ export default async function AttractionsPage() {
                       </p>
                     )}
                     {a.durationMinutes && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="mb-3 flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
                         {a.durationMinutes} min
                       </div>
                     )}
+                    {a.priceFromTnd != null && (
+                      <div className="mb-3">
+                        <p className="text-xs text-muted-foreground">À partir de</p>
+                        <p className="text-2xl font-bold text-teal-700">
+                          {a.priceFromTnd.toLocaleString("fr-FR")}
+                          <span className="ml-1 text-sm font-normal">DT / pers.</span>
+                        </p>
+                      </div>
+                    )}
+                    <Button className="w-full gap-2 bg-teal-700 hover:bg-teal-800" tabIndex={-1}>
+                      Voir les disponibilités
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
                 </Link>
               ))}

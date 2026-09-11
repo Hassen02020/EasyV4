@@ -163,10 +163,19 @@ Voyages organisés (`dashboard-operations-package-lifecycle.spec.ts`) et Attract
 lui-même puis gérée sur le même back-office admin partagé, chaque étape revérifiée en base. Permissions
 + isolation cross-agence n'ont été retestées en direct QUE sur Hôtel (le mécanisme — `isAllowedIntoAdmin`
 + RLS `current_agency_id()` — est strictement identique et déjà audité en profondeur pour tous les
-modules dans les cycles précédents, section 5). Vols et Hôtels Monde n'ont aucune réservation réelle à
-certifier (`disabled title="… — bientôt disponible"`, confirmé dans le code, reconfirmé ce cycle, pas
-une régression) — construire ces intégrations (vraies ou mock réaliste) reste le plus gros levier
-"fonctionnalités manquantes vs concurrents" identifié, hors périmètre de ce cycle d'audit. Le Virtual
+modules dans les cycles précédents, section 5). **[État à la date de CE cycle uniquement — dépassé,
+voir mise à jour ci-dessous]** Vols et Hôtels Monde n'avaient alors aucune réservation réelle à
+certifier (`disabled title="… — bientôt disponible"`, confirmé dans le code à cette date) — construire
+ces intégrations (vraies ou mock réaliste) était le plus gros levier "fonctionnalités manquantes vs
+concurrents" identifié, hors périmètre de CE cycle d'audit précis.
+>
+> **Mise à jour (cycles ultérieurs, voir §9 et §10)** : Vols puis Hôtels Monde disposent désormais
+> chacun d'une réservation réelle de bout en bout (Virtual Flight Supplier / Virtual World Hotel
+> Supplier), certifiée navigateur réel avec preuve DB à chaque étape — les 6 modules commercialisables
+> sont maintenant tous dans cet état. Cette section reste inchangée pour préserver l'historique exact du
+> cycle où elle a été écrite ; se référer à §9 (Vols) et §10 (Hôtels Monde) pour l'état réel actuel.
+
+Le Virtual
 MyGo Supplier (fournisseur externe simulé pour Hôtels Tunisie) était déjà un mock métier réaliste AVANT
 ce cycle — 14 scénarios (`SOLD_OUT`/`PRICE_CHANGED`/`TIMEOUT`/`TIMEOUT_AFTER_ACCEPT`/`BOOKING_REJECTED`/
 `CURRENCY_MISMATCH`/tokens expirés-tamperés/etc., `lib/mygo/virtual-supplier/scenarios.ts`), confirmé
@@ -267,10 +276,16 @@ Un second défaut réel — "bouton présent mais fonction non câblée" (`Verif
 dans un état où il échoue systématiquement) — a été trouvé ET corrigé par le cycle "Dashboard
 Operations" (section 3ter), qui certifie le module Hôtels Tunisie au niveau CRUD complet
 (créer/rechercher/valider/modifier/annuler/DB/audit/permissions/isolation) avec preuve Playwright
-réelle. La certification métier OTA complète des 6 verticaux demandée reste un chantier plus large que
-ce cycle : Omraty/Voyages organisés/Attractions ont un flux simple déjà prouvé mais pas encore ce
-niveau de rigueur CRUD ; Vols/Hôtels Monde n'ont aucune réservation réelle à certifier (confirmé,
-honnête, pas une régression).
+réelle. La certification métier OTA complète des 6 verticaux demandée reste, À LA DATE DE CE CYCLE, un
+chantier plus large que ce cycle : Omraty/Voyages organisés/Attractions ont un flux simple déjà prouvé
+mais pas encore ce niveau de rigueur CRUD ; Vols/Hôtels Monde n'ont alors aucune réservation réelle à
+certifier (confirmé, honnête, pas une régression).
+
+**[Dépassé — voir §9 et §10]** Des cycles ultérieurs ont depuis fermé ce chantier : Omraty/Voyages
+organisés/Attractions ont reçu la même certification "Dashboard Operations" CRUD complète que Hôtels
+Tunisie (section 3ter), Vols a reçu une réservation réelle de bout en bout + certification navigateur
+(§9), et Hôtels Monde de même (§10). Les 6 modules commercialisables sont désormais tous certifiés au
+même niveau de rigueur — voir le verdict final en fin de document.
 Les limitations restantes sont toutes des fonctionnalités honnêtement non construites (jamais des
 bugs silencieux) :
 
@@ -291,8 +306,8 @@ Vols et Hôtels Monde n'avaient AUCUNE réservation réelle — recherche unique
 matrice, ligne "Périmètre réel de réservation par module"). Ce cycle construit une réservation Vol
 réelle de bout en bout, sur le même modèle que le Virtual MyGo Supplier (Hôtel) : un fournisseur
 simulé qui se comporte comme un vrai GDS (inventaire réel, prix revalidé, PNR émis, scénarios de panne
-injectables), jamais un `return fake data`. Hôtels Monde reste hors périmètre de ce cycle (chantier
-séparé, voir matrice).
+injectables), jamais un `return fake data`. Hôtels Monde était hors périmètre de CE cycle précis
+(chantier séparé, mené juste après — voir §10, qui applique exactement la même méthode).
 
 ### 9.1 Construit
 
@@ -553,3 +568,43 @@ stock LOCAL Omra/Package/Activity).
 Avec ce cycle, les **6 modules commercialisables** (Hôtels Tunisie, Omraty, Voyages organisés,
 Attractions, Vols, Hôtels Monde) disposent tous d'une réservation réelle de bout en bout, certifiée
 navigateur réel avec preuve DB à chaque étape du cycle créer→rechercher→valider→modifier→annuler.
+
+---
+
+## 11. VERDICT GLOBAL ACTUEL (état réel à la fin de ce document — prime sur toute mention contraire plus haut)
+
+Ce rapport a été écrit sur plusieurs cycles successifs (sections 1 à 10) ; certaines sections plus haut
+décrivent un état intermédiaire dépassé par un cycle ultérieur (chacune de ces mentions a été annotée
+`[Dépassé — voir §X]` à l'endroit concerné). Cette section 11 est la source de vérité unique sur l'état
+final, pour quiconque ne lirait pas le document dans l'ordre.
+
+**Les 6 modules commercialisables ont tous une réservation réelle de bout en bout, certifiée navigateur
+réel (Playwright, infra locale, preuve DB/`psql`/audit_events à chaque étape du cycle
+créer→rechercher→valider→modifier→annuler) :**
+
+| Module | Fournisseur (réel ou virtuel réaliste) | Certification | Référence |
+|---|---|---|---|
+| Hôtels Tunisie | Virtual MyGo Supplier | 🟢 CERTIFIÉ | Section 3ter |
+| Omraty | Inventaire interne (`omra_allotments`) | 🟢 CERTIFIÉ | Section 3ter |
+| Voyages organisés | Inventaire interne (`catalog_package_departures`) | 🟢 CERTIFIÉ | Section 3ter |
+| Attractions | Inventaire interne (`catalog_activity_sessions`) | 🟢 CERTIFIÉ | Section 3ter |
+| Vols | Virtual Flight Supplier | 🟢 CERTIFIÉ | Section 9 |
+| Hôtels Monde | Virtual World Hotel Supplier | 🟢 CERTIFIÉ | Section 10 |
+
+Aucun des 6 modules n'est plus dans l'état "recherche uniquement, bouton désactivé" — cet état a
+existé historiquement pour Vols et Hôtels Monde (documenté fidèlement dans les sections écrites à
+l'époque) et a été fermé par les cycles décrits en sections 9 et 10.
+
+**Limitations connues, communes aux 6 modules et non régressées par cette certification** :
+- Remboursement staff (`RefundButton`) ne restitue l'inventaire que pour les 3 modules à stock LOCAL
+  (Omra/Package/Activity, via `releaseStock()`) — Hôtel/Vols/Hôtels Monde ont leur inventaire chez un
+  "fournisseur" (réel ou virtuel) qui n'est jamais rappelé par un remboursement staff, même limitation
+  assumée que le comportement historique du module Hôtel/myGo.
+- Vols : aller-retour non modélisé côté moteur (segment retour jamais généré, voir §9.2).
+- Création d'agence/tenant et édition du branding White Label restent des fonctionnalités honnêtement
+  non construites (voir section 8) — sans lien avec la réservation, hors périmètre de ce document.
+
+Ce verdict couvre uniquement la certification fonctionnelle en infra LOCALE. Il ne constitue PAS une
+vérification de l'environnement de production (variables Vercel/Supabase, déploiement réel,
+comportement du build de production hébergé) — voir le rapport séparé de smoke test production
+lorsqu'il existe, avant toute décision GO-LIVE.

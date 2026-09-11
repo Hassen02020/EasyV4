@@ -419,7 +419,8 @@ function SearchSubmit({
 
 // ----------------------------------------------------------------------------
 
-// Per-module forms (visual only — RECHERCHER triggers a toast)
+// Per-module forms — RECHERCHER navigue vers la page de résultats réelle du
+// module (router.push), un toast n'apparaît qu'en cas de saisie invalide.
 
 // ----------------------------------------------------------------------------
 

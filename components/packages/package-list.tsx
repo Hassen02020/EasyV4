@@ -8,19 +8,22 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import type { CatalogPackage } from "@/lib/db/schema"
 
-type PackageWithPrice = CatalogPackage & { priceFromTnd: number | null }
+type PackageWithPrice = CatalogPackage & { priceFromTnd: number | null; coverMediaUrl?: string | null }
 
 interface Props {
   packages: PackageWithPrice[]
 }
 
 function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
+  // Fallback mission §23 : Media System en priorité, sinon coverImage
+  // (legacy), sinon dégradé de marque (jamais de fausse photo, mission §33).
+  const coverImage = pkg.coverMediaUrl || pkg.coverImage
   return (
     <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
       <div className="relative h-44 w-full bg-muted">
-        {pkg.coverImage ? (
+        {coverImage ? (
           <Image
-            src={pkg.coverImage}
+            src={coverImage}
             alt={pkg.title}
             fill
             className="object-cover"

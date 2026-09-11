@@ -11,6 +11,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
 import { and, eq, gte, ilike, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getCoverMediaForProducts } from "@/lib/media/query"
 
 export const dynamic = "force-dynamic"
 
@@ -141,7 +142,15 @@ async function getActivePackages(filters: SearchFilters) {
 
     const priceByPackage = new Map(priceRows.map((r) => [r.packageId, parseFloat(r.minPrice)]))
 
-    return rows.map((pkg) => ({ ...pkg, priceFromTnd: priceByPackage.get(pkg.id) ?? null }))
+    // Media System (mission §24) : couverture prioritaire sur pkg.coverImage
+    // (legacy), en une seule requête pour toute la liste.
+    const coverByPackage = await getCoverMediaForProducts(db, agencyId, "package", rows.map((p) => p.id))
+
+    return rows.map((pkg) => ({
+      ...pkg,
+      priceFromTnd: priceByPackage.get(pkg.id) ?? null,
+      coverMediaUrl: coverByPackage.get(pkg.id)?.cardUrl ?? null,
+    }))
     })
   } catch {
     return []

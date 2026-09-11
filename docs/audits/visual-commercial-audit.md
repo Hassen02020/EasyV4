@@ -265,6 +265,46 @@ un futur passage, priorité plus basse que les points ci-dessus.
 
 ---
 
+## Media System — mise à jour (mission dédiée, postérieure aux constats ci-dessus)
+
+**Architecture média : IMPLEMENTED.** Upload haute résolution, pipeline
+d'optimisation (sharp, 4 variantes générées + original préservé), storage
+adapter (Supabase Storage en cible, filesystem local en fallback
+explicite pour cet environnement), table `product_media` (RLS, index
+unique partiel couverture), Server Actions
+(upload/suppression/réordonnancement/couverture/remplacement),
+`MediaManager` admin et `ProductMediaGallery` public, communs aux 3
+modules Omraty/Voyages Organisés/Attractions. Détail complet :
+`docs/architecture/media-system.md`.
+
+Ceci **répond directement au blocage Unsplash documenté juste au-dessus** :
+l'admin peut désormais uploader une vraie photo depuis son ordinateur,
+sans dépendre d'un CDN externe ni d'un accès réseau sortant depuis ce
+sandbox. Vérifié en navigateur réel (Playwright, local test infra) sur
+les 3 modules : upload multiple avec statut par fichier, previews,
+choix/changement de couverture, réordonnancement, suppression (avec
+réassignation automatique de couverture), remplacement, affichage sur
+carte + page détail + galerie + mobile (390px) avec repli propre
+(dégradé de marque) sur les produits sans média — jamais de fausse
+photo.
+
+**Contenu photographique réel : dépend des photos fournies par les
+administrateurs.** Les captures de vérification utilisent des images de
+test générées localement et explicitement labellisées "TEST IMAGE" —
+jamais une vraie photo de Mecque, Médine, d'un hôtel ou d'une attraction
+réels (règle absolue de la mission Media, appliquée ici aussi). Le
+système est prêt ; les produits Omraty/Voyages Organisés/Attractions
+n'auront de vraies photos commerciales qu'une fois qu'un administrateur
+les aura uploadées via `/admin/products/{omra,package,activity}/[id]`.
+
+Storage Supabase réel (bucket `product-media`, policies) **non testé**
+dans ce sandbox — aucun projet Supabase réel configuré (voir §7.2/7.3 de
+`docs/architecture/media-system.md`). Le backend local
+(`MEDIA_STORAGE_BACKEND=local`) est un mécanisme de test explicite, pas
+utilisé en production.
+
+---
+
 *Sections marquées ✅ CORRIGÉ : implémentées, vérifiées en navigateur réel (rebuild + Playwright),
 preuve DB (`psql`), preuve avant/après dans `docs/audits/screenshots/corrections/`. Le reste de ce
 document ne modifie aucun composant. Chaque correction restante doit être validée

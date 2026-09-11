@@ -2392,6 +2392,17 @@ export {
 } from "./schema/omra"
 
 /* -------------------------------------------------------------------------- */
+/* Media Module (Mission Media) — imported from schema/media.ts               */
+/* -------------------------------------------------------------------------- */
+
+export {
+  productMedia,
+  type ProductMedia,
+  type NewProductMedia,
+  type ProductMediaVariants,
+} from "./schema/media"
+
+/* -------------------------------------------------------------------------- */
 /* Suppliers Module (API XML Integration) — imported from schema/suppliers.ts  */
 /* -------------------------------------------------------------------------- */
 

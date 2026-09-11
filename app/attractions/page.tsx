@@ -15,6 +15,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { and, eq, arrayContains, gte, inArray, sql } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getCoverMediaForProducts } from "@/lib/media/query"
 import { MapPin, Clock, Compass, ChevronRight } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -64,7 +65,15 @@ async function getPublishedActivities() {
 
       const priceByActivity = new Map(priceRows.map((r) => [r.activityId, parseFloat(r.minPrice)]))
 
-      return rows.map((a) => ({ ...a, priceFromTnd: priceByActivity.get(a.id) ?? null }))
+      // Media System (mission §24) : couverture prioritaire sur a.coverImage
+      // (legacy), en une seule requête pour toute la liste.
+      const coverByActivity = await getCoverMediaForProducts(db, agencyId, "activity", rows.map((r) => r.id))
+
+      return rows.map((a) => ({
+        ...a,
+        priceFromTnd: priceByActivity.get(a.id) ?? null,
+        coverMediaUrl: coverByActivity.get(a.id)?.cardUrl ?? null,
+      }))
     })
   } catch {
     return []
@@ -100,16 +109,20 @@ export default async function AttractionsPage() {
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {activities.map((a) => (
+              {activities.map((a) => {
+                // Fallback mission §23 : Media System en priorité, sinon
+                // coverImage (legacy), sinon dégradé de marque (mission §33).
+                const coverImage = a.coverMediaUrl || a.coverImage
+                return (
                 <Link
                   key={a.id}
                   href={`/attractions/${a.slug}`}
                   className="group overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-lg"
                 >
                   <div className="relative h-40 w-full bg-muted">
-                    {a.coverImage ? (
+                    {coverImage ? (
                       <Image
-                        src={a.coverImage}
+                        src={coverImage}
                         alt={a.title}
                         fill
                         className="object-cover transition-transform group-hover:scale-105"
@@ -155,7 +168,8 @@ export default async function AttractionsPage() {
                     </Button>
                   </div>
                 </Link>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

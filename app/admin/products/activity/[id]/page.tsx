@@ -8,6 +8,8 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { ActivityProductForm } from "@/components/admin/activity-product-form"
 import { ActivitySessionManager } from "@/components/admin/activity-session-manager"
+import { MediaManager } from "@/components/admin/media-manager"
+import { getProductMedia } from "@/lib/media/query"
 
 export const dynamic = "force-dynamic"
 
@@ -37,11 +39,12 @@ export default async function EditActivityProductPage({ params }: { params: Prom
         .from(catalogActivitySessions)
         .where(eq(catalogActivitySessions.activityId, id))
         .orderBy(catalogActivitySessions.sessionDate)
-      return { product, sessions }
+      const media = await getProductMedia(tx, profile.agencyId, "activity", id)
+      return { product, sessions, media }
     },
   )
   if (!result) notFound()
-  const { product, sessions } = result
+  const { product, sessions, media } = result
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -52,6 +55,23 @@ export default async function EditActivityProductPage({ params }: { params: Prom
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{product.title}</h1>
         <p className="text-muted-foreground mt-1">Statut {product.status}</p>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Médias</h2>
+        <MediaManager
+          module="activity"
+          productId={product.id}
+          initialMedia={media.map((m) => ({
+            id: m.id,
+            cardUrl: m.cardUrl,
+            thumbnailUrl: m.thumbnailUrl,
+            originalFilename: m.originalFilename,
+            altText: m.altText,
+            sortOrder: m.sortOrder,
+            isCover: m.isCover,
+          }))}
+        />
       </div>
 
       <ActivitySessionManager

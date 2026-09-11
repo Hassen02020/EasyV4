@@ -29,6 +29,8 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
+import { ProductMediaGallery } from "@/components/products/product-media-gallery"
+import { getProductMedia } from "@/lib/media/query"
 
 function formatDate(d: string | Date | null): string {
   if (!d) return "—"
@@ -80,7 +82,9 @@ const getActivityWithSessions = cache(async (slug: string) => {
           return now < deadline
         })
 
-      return { activity, sessions }
+      const media = await getProductMedia(db, agencyId, "activity", activity.id)
+
+      return { activity, sessions, media }
     })
   } catch {
     return null
@@ -125,7 +129,7 @@ export default async function ActivityDetailPage({
   const { slug } = await params
   const result = await getActivityWithSessions(slug)
   if (!result) notFound()
-  const { activity, sessions } = result
+  const { activity, sessions, media } = result
 
   const priceTnd = sessions[0] ? parseFloat(sessions[0].adultPriceTnd) : null
 
@@ -160,6 +164,13 @@ export default async function ActivityDetailPage({
 
         <div className="mx-auto grid max-w-4xl gap-6 px-4 py-8 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
+            {media.length > 0 ? (
+              <ProductMediaGallery
+                productName={activity.title}
+                items={media.map((m) => ({ id: m.id, largeUrl: m.largeUrl, thumbnailUrl: m.thumbnailUrl, altText: m.altText }))}
+              />
+            ) : null}
+
             {activity.longDescription && (
               <section className="rounded-xl border bg-card p-5">
                 <h2 className="mb-3 text-lg font-semibold">Description</h2>

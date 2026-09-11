@@ -8,6 +8,8 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { catalogPackages, catalogPackageDepartures } from "@/lib/db/schema"
 import { PackageProductForm } from "@/components/admin/package-product-form"
 import { PackageDepartureManager } from "@/components/admin/package-departure-manager"
+import { MediaManager } from "@/components/admin/media-manager"
+import { getProductMedia } from "@/lib/media/query"
 
 export const dynamic = "force-dynamic"
 
@@ -37,11 +39,12 @@ export default async function EditPackageProductPage({ params }: { params: Promi
         .from(catalogPackageDepartures)
         .where(eq(catalogPackageDepartures.packageId, id))
         .orderBy(catalogPackageDepartures.departureDate)
-      return { product, departures }
+      const media = await getProductMedia(tx, profile.agencyId, "package", id)
+      return { product, departures, media }
     },
   )
   if (!result) notFound()
-  const { product, departures } = result
+  const { product, departures, media } = result
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -52,6 +55,23 @@ export default async function EditPackageProductPage({ params }: { params: Promi
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{product.title}</h1>
         <p className="text-muted-foreground mt-1">Code {product.code} — statut {product.status}</p>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Médias</h2>
+        <MediaManager
+          module="package"
+          productId={product.id}
+          initialMedia={media.map((m) => ({
+            id: m.id,
+            cardUrl: m.cardUrl,
+            thumbnailUrl: m.thumbnailUrl,
+            originalFilename: m.originalFilename,
+            altText: m.altText,
+            sortOrder: m.sortOrder,
+            isCover: m.isCover,
+          }))}
+        />
       </div>
 
       <PackageDepartureManager

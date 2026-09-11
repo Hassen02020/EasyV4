@@ -9,6 +9,8 @@ import { omraPackages, omraAllotments } from "@/lib/db/schema"
 import { OmraProductForm } from "@/components/admin/omra-product-form"
 import { OmraAllotmentManager } from "@/components/admin/omra-allotment-manager"
 import { omraProductMetadataSchema } from "@/lib/admin/schemas/omra-product"
+import { MediaManager } from "@/components/admin/media-manager"
+import { getProductMedia } from "@/lib/media/query"
 
 export const dynamic = "force-dynamic"
 
@@ -38,11 +40,12 @@ export default async function EditOmraProductPage({ params }: { params: Promise<
         .from(omraAllotments)
         .where(eq(omraAllotments.packageId, id))
         .orderBy(omraAllotments.departureDate)
-      return { product, allotments }
+      const media = await getProductMedia(tx, profile.agencyId, "omra", id)
+      return { product, allotments, media }
     },
   )
   if (!result) notFound()
-  const { product, allotments } = result
+  const { product, allotments, media } = result
   const metadataParsed = omraProductMetadataSchema.safeParse(product.metadata ?? {})
 
   return (
@@ -54,6 +57,23 @@ export default async function EditOmraProductPage({ params }: { params: Promise<
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
         <p className="text-muted-foreground mt-1">Statut {product.status}</p>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Médias</h2>
+        <MediaManager
+          module="omra"
+          productId={product.id}
+          initialMedia={media.map((m) => ({
+            id: m.id,
+            cardUrl: m.cardUrl,
+            thumbnailUrl: m.thumbnailUrl,
+            originalFilename: m.originalFilename,
+            altText: m.altText,
+            sortOrder: m.sortOrder,
+            isCover: m.isCover,
+          }))}
+        />
       </div>
 
       <OmraAllotmentManager

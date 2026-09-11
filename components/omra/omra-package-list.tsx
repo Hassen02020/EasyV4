@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import type { OmraPackage } from "@/lib/db/schema"
 
+type OmraPackageWithMedia = OmraPackage & { coverMediaUrl?: string | null }
+
 interface Props {
-  packages: OmraPackage[]
+  packages: OmraPackageWithMedia[]
 }
 
 const PACKAGE_TYPE_LABELS: Record<string, string> = {
@@ -28,12 +30,15 @@ function formatDate(d: string | Date | null): string {
   })
 }
 
-function PackageCard({ pkg }: { pkg: OmraPackage }) {
+function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
   const label = PACKAGE_TYPE_LABELS[pkg.type] ?? pkg.type
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
-  // metadata est un jsonb non typé en base (voir lib/admin/schemas/omra-product.ts
-  // pour le rationale : pas de nouvelle colonne dédiée) — lecture défensive.
-  const coverImage = (pkg.metadata as { coverImage?: string } | null)?.coverImage || null
+  // Fallback mission §23 : Media System (couverture uploadée par l'admin) en
+  // priorité, sinon l'ancien champ metadata.coverImage (voir
+  // lib/admin/schemas/omra-product.ts), sinon aucune image (pas de fausse
+  // photo générique, mission §33 — juste le dégradé de marque ci-dessous).
+  const legacyCoverImage = (pkg.metadata as { coverImage?: string } | null)?.coverImage || null
+  const coverImage = pkg.coverMediaUrl || legacyCoverImage
 
   return (
     <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">

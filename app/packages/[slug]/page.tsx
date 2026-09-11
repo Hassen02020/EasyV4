@@ -41,6 +41,8 @@ import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
+import { ProductMediaGallery } from "@/components/products/product-media-gallery"
+import { getProductMedia } from "@/lib/media/query"
 
 const CONTACT_PHONE = "+21698140514"
 const CONTACT_PHONE_DISPLAY = "+216 98 140 514"
@@ -109,7 +111,9 @@ const getPackageWithDepartures = cache(async (slug: string) => {
         .map((d) => ({ ...d, seatsLeft: d.totalSeats - d.bookedSeats }))
         .filter((d) => d.seatsLeft > 0)
 
-      return { pkg, departures }
+      const media = await getProductMedia(db, agencyId, "package", pkg.id)
+
+      return { pkg, departures, media }
     })
   } catch {
     return null
@@ -156,21 +160,24 @@ export default async function PackageDetailPage({
   const { slug } = await params
   const result = await getPackageWithDepartures(slug)
   if (!result) notFound()
-  const { pkg, departures } = result
+  const { pkg, departures, media } = result
 
   const itinerary = parseItinerary(pkg.itinerary)
   const contactMessage = encodeURIComponent(
     `Bonjour, je souhaite des informations sur le voyage "${pkg.title}".`,
   )
+  // Fallback mission §23 : Media System (couverture) en priorité sur
+  // pkg.coverImage (legacy) pour le bandeau hero.
+  const heroCover = media.find((m) => m.isCover)?.largeUrl || media[0]?.largeUrl || pkg.coverImage
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 bg-muted/30">
         <div className="relative h-64 w-full bg-muted md:h-80">
-          {pkg.coverImage ? (
+          {heroCover ? (
             <Image
-              src={pkg.coverImage}
+              src={heroCover}
               alt={pkg.title}
               fill
               className="object-cover"
@@ -202,6 +209,13 @@ export default async function PackageDetailPage({
 
         <div className="mx-auto grid max-w-4xl gap-6 px-4 py-8 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
+            {media.length > 0 ? (
+              <ProductMediaGallery
+                productName={pkg.title}
+                items={media.map((m) => ({ id: m.id, largeUrl: m.largeUrl, thumbnailUrl: m.thumbnailUrl, altText: m.altText }))}
+              />
+            ) : null}
+
             {pkg.longDescription && (
               <section className="rounded-xl border bg-card p-5">
                 <h2 className="mb-3 text-lg font-semibold">Description</h2>

@@ -12,6 +12,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
 import { and, eq, gte, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getCoverMediaForProducts } from "@/lib/media/query"
 
 export const dynamic = "force-dynamic"
 
@@ -72,11 +73,16 @@ async function getActivePackages(filters: SearchFilters) {
       conditions.push(inArray(omraPackages.id, packageIds))
     }
 
-    return await db
+    const rows = await db
       .select()
       .from(omraPackages)
       .where(and(...conditions))
       .orderBy(omraPackages.validFrom)
+
+    // Media System (mission §24) : couverture prioritaire sur le fallback
+    // legacy metadata.coverImage, en une seule requête pour toute la liste.
+    const coverByPackage = await getCoverMediaForProducts(db, agencyId, "omra", rows.map((p) => p.id))
+    return rows.map((pkg) => ({ ...pkg, coverMediaUrl: coverByPackage.get(pkg.id)?.cardUrl ?? null }))
     })
   } catch {
     return []

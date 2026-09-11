@@ -40,6 +40,8 @@ import { omraAllotments, omraPackages } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
+import { ProductMediaGallery } from "@/components/products/product-media-gallery"
+import { getProductMedia } from "@/lib/media/query"
 
 const PACKAGE_TYPE_LABELS: Record<string, string> = {
   omra: "Omra Régulière",
@@ -95,7 +97,9 @@ const getPackageWithDepartures = cache(async (id: string) => {
         )
         .orderBy(omraAllotments.departureDate)
 
-      return { pkg, departures }
+      const media = await getProductMedia(db, agencyId, "omra", id)
+
+      return { pkg, departures, media }
     })
   } catch {
     return null
@@ -133,7 +137,7 @@ export default async function OmraPackageDetailPage({
   const { id } = await params
   const result = await getPackageWithDepartures(id)
   if (!result) notFound()
-  const { pkg, departures } = result
+  const { pkg, departures, media } = result
 
   const label = PACKAGE_TYPE_LABELS[pkg.type] ?? pkg.type
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
@@ -176,6 +180,13 @@ export default async function OmraPackageDetailPage({
 
         <div className="mx-auto grid max-w-4xl gap-6 px-4 py-8 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
+            {media.length > 0 ? (
+              <ProductMediaGallery
+                productName={pkg.name}
+                items={media.map((m) => ({ id: m.id, largeUrl: m.largeUrl, thumbnailUrl: m.thumbnailUrl, altText: m.altText }))}
+              />
+            ) : null}
+
             <section className="rounded-xl border bg-card p-5">
               <h2 className="mb-4 text-lg font-semibold">Ce programme inclut</h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

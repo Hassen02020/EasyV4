@@ -3,6 +3,23 @@
 Statut vivant, mis à jour au fil de la boucle TEST → CORRIGE → RETEST.
 Détail complet des scénarios et preuves : `e2e-certification-report.md`.
 
+## Résumé exécutif — statut par module (lecture Go-Live)
+
+- **Hôtels Tunisie, Omraty, Voyages organisés, Attractions** : réservation réelle **certifiée E2E
+  navigateur** — cycle complet créer→rechercher→valider→modifier→annuler exécuté en direct
+  (Playwright, serveur dev réel, Postgres réel), preuve DB/`psql` à chaque étape, captures d'écran.
+- **Vols** : réservation réelle **de bout en bout côté moteur métier** (Virtual Flight Supplier —
+  inventaire réel, prix revalidé serveur, PNR émis, 5 scénarios de panne), **couverte par une suite de
+  tests complète** (861/861, tsc/lint/build clean) et un spec Playwright **déjà écrit et prêt** — la
+  **certification navigateur reste à exécuter**, seule l'infrastructure locale (Postgres + auth) manque
+  pour la lancer, pas le code.
+- **Hôtels Monde** : recherche uniquement, aucune réservation réelle — honnêtement désactivée dans
+  l'UI, rien à certifier.
+
+Cette distinction (navigateur certifié vs. moteur+tests prêts, navigateur à exécuter) est délibérément
+maintenue explicite dans tout ce document — jamais présentée comme équivalente à une certification E2E
+complète tant que le cycle Playwright réel n'a pas tourné.
+
 Légende : PASS / PARTIAL / FAIL / MISSING / NOT WIRED / SKIPPED(baseline)
 
 | # | Module | Scénario | Statut | Note |

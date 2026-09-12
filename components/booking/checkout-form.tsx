@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { ShieldCheck, CreditCard, Banknote, Wallet, Building2, ShoppingCart } from "lucide-react"
+import { ShieldCheck, CreditCard, Banknote, Wallet, Building2, ShoppingCart, Landmark } from "lucide-react"
 import { submitCheckoutAction } from "@/lib/booking/actions"
 import { resolveDraftPriceAction } from "@/lib/booking/price-token-actions"
 import { checkoutSchema } from "@/lib/booking/schemas"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { useCart } from "@/lib/cart/use-cart"
 
-type Method = "card" | "transfer" | "cash" | "wallet" | "at_hotel"
+type Method = "card" | "transfer" | "bank_deposit" | "cash" | "wallet" | "at_hotel"
 
 export function CheckoutForm({ token }: { token: string }) {
   const t = useTranslations("Booking")
@@ -40,6 +40,12 @@ export function CheckoutForm({ token }: { token: string }) {
       label: t("methodTransferLabel"),
       desc: t("methodTransferDesc"),
       icon: Banknote,
+    },
+    {
+      key: "bank_deposit",
+      label: t("methodBankDepositLabel"),
+      desc: t("methodBankDepositDesc"),
+      icon: Landmark,
     },
     {
       key: "cash",

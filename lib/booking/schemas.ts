@@ -92,6 +92,7 @@ export const paymentMethodSchema = z.enum([
   "card",
   "wallet",
   "transfer",
+  "bank_deposit",
   "cash",
   "at_hotel",
 ])

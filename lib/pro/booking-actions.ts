@@ -276,10 +276,11 @@ export async function debitPartnerCredit(
       // DEFINER.
       // ------------------------------------------------------------------
       const lockedRows = (await tx.execute(
-        sql`select id, deposit_balance as "depositBalance" from lock_agency_for_debit(${input.agencyId}::uuid)`,
+        sql`select id, deposit_balance as "depositBalance", reservation_tolerance as "reservationTolerance" from lock_agency_for_debit(${input.agencyId}::uuid)`,
       )) as Array<{
         id: string
         depositBalance: string
+        reservationTolerance: string
       }>
 
       const agency = lockedRows?.[0]
@@ -292,18 +293,32 @@ export async function debitPartnerCredit(
       }
 
       // ------------------------------------------------------------------
-      // 2. Vérification du solde disponible (en TND).
+      // 2. Vérification de la capacité de réservation disponible (en TND).
+      //
+      // `booking_capacity = deposit_balance + reservation_tolerance` — la
+      // tolérance (0 par défaut, configurée par le Master Admin via
+      // `setAgencyReservationTolerance`, lib/admin/agencies-actions.ts)
+      // permet à une agence de continuer à confirmer des réservations même
+      // si son solde devient temporairement négatif, dans cette limite. Le
+      // solde lui-même n'est jamais plafonné à 0 : `newBalance` ci-dessous
+      // peut être négatif, borné uniquement par le CHECK DB
+      // `agencies_deposit_balance_floor` (deposit_balance >= -tolerance,
+      // migration 0053) — même garde-fou en profondeur que l'ancien CHECK
+      // `>= 0` qu'il remplace.
       // ------------------------------------------------------------------
       const currentBalance = parseTnd(agency.depositBalance)
-      if (currentBalance < input.amountTnd) {
+      const tolerance = parseTnd(agency.reservationTolerance)
+      const bookingCapacity = currentBalance + tolerance
+      if (bookingCapacity < input.amountTnd) {
         return {
           ok: false,
           code: "INSUFFICIENT_FUNDS",
           message: `Solde insuffisant : disponible ${formatTnd(
             currentBalance,
-          )} DT, demandé ${formatTnd(input.amountTnd)} DT.`,
+          )} DT (+ tolérance ${formatTnd(tolerance)} DT), demandé ${formatTnd(input.amountTnd)} DT.`,
           details: {
             availableTnd: formatTnd(currentBalance),
+            toleranceTnd: formatTnd(tolerance),
             requestedTnd: formatTnd(input.amountTnd),
           },
         } as DebitPartnerCreditFailure

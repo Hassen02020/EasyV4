@@ -74,7 +74,7 @@ import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./custom
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 
-export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "cash" | "at_hotel"
+export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "bank_deposit" | "cash" | "at_hotel"
 
 /** Délai de règlement manuel (cash/virement) avant expiration automatique — Wallet/Payment Core. */
 const MANUAL_PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -353,7 +353,7 @@ async function runCreateGuestReservation(
         // le staff (verifyManualPayment, method déjà supporté) ou une
         // annulation manuelle explicite.
         const paymentExpiresAt =
-          paymentMethod === "transfer" || paymentMethod === "cash"
+          paymentMethod === "transfer" || paymentMethod === "bank_deposit" || paymentMethod === "cash"
             ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)
             : cardRedirect
               ? new Date(Date.now() + ONLINE_PAYMENT_WINDOW_MS)
@@ -552,7 +552,14 @@ async function runCreateGuestReservation(
             agencyId,
             reservationId,
             psp: "manual",
-            method: paymentMethod,
+            // `bank_deposit` n'a pas sa propre valeur d'enum `payment_method`
+            // (comme `deposit`/`mandate` côté staff — voir
+            // lib/finance/manual-payment-logic.ts::toPaymentMethod) — mappé
+            // sur `transfer`, canal fonctionnellement identique (règlement
+            // différé prouvé par une référence). La distinction guest-facing
+            // reste visible dans `wallet_ledger.metadata.paymentMethod` posée
+            // par le staff à la vérification (verifyManualPayment).
+            method: paymentMethod === "bank_deposit" ? "transfer" : paymentMethod,
             originalCurrency: "TND",
             originalAmount: breakdown.totalTnd.toFixed(2),
             tndAmount: breakdown.totalTnd.toFixed(2),

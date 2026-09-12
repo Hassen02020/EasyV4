@@ -956,6 +956,8 @@
     "methodCardDesc": "Instant online payment — coming soon",
     "methodTransferLabel": "Bank transfer",
     "methodTransferDesc": "Booking recorded, transfer details sent by email — voucher issued once payment is confirmed",
+    "methodBankDepositLabel": "Bank deposit",
+    "methodBankDepositDesc": "Booking recorded, deposit details sent by email — voucher issued once payment is confirmed",
     "methodCashLabel": "Cash at agency",
     "methodCashDesc": "Booking held for 48h pending payment — voucher issued once payment is confirmed",
     "methodWalletLabel": "Easy2Book balance",

@@ -15,9 +15,9 @@
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
-import { eq, sql } from "drizzle-orm"
+import { eq, inArray, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, payments, paymentEvents, pspWebhooks, auditEvents } from "@/lib/db/schema"
+import { agencies, customers, reservations, payments, paymentEvents, pspWebhooks, auditEvents, walletAccounts, walletLedger } from "@/lib/db/schema"
 import { processReservationWebhookCore } from "../reservation-webhook-core"
 import type { NormalizedChargeEvent } from "../webhook-logic"
 
@@ -107,6 +107,20 @@ before(async () => {
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
+    // Le règlement carte/Paymee crédite+débite désormais le wallet client
+    // (recordTargetedWalletSettlement, lib/finance/customer-wallet.ts) —
+    // nettoyer wallet_ledger/wallet_accounts AVANT customers, sinon le
+    // DELETE customers échoue (FK).
+    const walletAccountRows = await tx
+      .select({ id: walletAccounts.id })
+      .from(walletAccounts)
+      .where(eq(walletAccounts.customerId, customerId))
+    if (walletAccountRows.length > 0) {
+      await tx.delete(walletLedger).where(
+        inArray(walletLedger.walletAccountId, walletAccountRows.map((r) => r.id)),
+      )
+    }
+    await tx.delete(walletAccounts).where(eq(walletAccounts.customerId, customerId))
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyId))
     await tx.delete(pspWebhooks).where(eq(pspWebhooks.agencyId, agencyId))
     await tx.delete(payments).where(eq(payments.agencyId, agencyId))

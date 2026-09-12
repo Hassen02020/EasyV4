@@ -45,6 +45,7 @@ async function loadAgencies(userId: string) {
               contactPhone: agencies.contactPhone,
               depositBalance: agencies.depositBalance,
               creditLowThreshold: agencies.creditLowThreshold,
+              reservationTolerance: agencies.reservationTolerance,
               status: agencies.status,
               createdAt: agencies.createdAt,
             })
@@ -69,6 +70,7 @@ async function loadAgencies(userId: string) {
       userCount: userCountMap.get(a.id) || 0,
       depositBalance: parseFloat(a.depositBalance as string) || 0,
       creditLowThreshold: parseFloat(a.creditLowThreshold as string) || 100,
+      reservationTolerance: parseFloat(a.reservationTolerance as string) || 0,
     }))
   } catch (error) {
     logger.error("[loadAgencies] failed", { err: error instanceof Error ? error.message : String(error) })

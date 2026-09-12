@@ -956,6 +956,8 @@
     "methodCardDesc": "خلاص أونلاين فوري — قريب يتوفر",
     "methodTransferLabel": "فيرمون بنكي",
     "methodTransferDesc": "الحجز تسجّل، معطيات الفيرمون تتبعت بالإيمايل — الفوشار يتصدر بعد تأكيد الخلاص",
+    "methodBankDepositLabel": "إيداع بنكي",
+    "methodBankDepositDesc": "الحجز تسجّل، معطيات الإيداع تتبعت بالإيمايل — الفوشار يتصدر بعد تأكيد الخلاص",
     "methodCashLabel": "نقدًا في الوكالة",
     "methodCashDesc": "الحجز يبقى محجوز 48 سا في انتظار الخلاص — الفوشار يتصدر بعد تأكيد الخلاص",
     "methodWalletLabel": "رصيد Easy2Book",

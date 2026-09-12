@@ -36,15 +36,25 @@
  * transactions précises et déjà entièrement validées côté serveur ne leur
  * ouvre aucun accès cross-agence réel.
  *
- * IMPORTANT (Wallet/Payment Core, garde explicite) : ce module ne doit
- * JAMAIS être utilisé pour simuler un règlement carte ou espèces/virement
- * via un aller-retour crédit-puis-débit artificiel. Il sert exactement
- * deux cas réels : (1) débiter un solde client PRÉ-EXISTANT au moment
- * d'une réservation ("wallet" comme mode de paiement), (2) créditer un
- * remboursement authentique lié à une réservation/paiement d'origine. Le
- * règlement carte/espèces/virement passe par `payments` +
- * `auditEvents` (voir lib/finance/manual-payment-actions.ts et
- * lib/booking/guest-actions.ts) — jamais par ce module.
+ * MODÈLE DE RÈGLEMENT (révisé) : un paiement n'est jamais un règlement
+ * direct de la réservation — c'est d'abord une recharge du wallet du client
+ * (quelle que soit la méthode : carte/Paymee en ligne, espèces, virement,
+ * dépôt bancaire), et la réservation consomme ensuite ce wallet par un
+ * débit de même montant. `recordTargetedWalletSettlement` (plus bas) est le
+ * point d'entrée unique pour ce couple crédit+débit "ciblé" (une recharge
+ * immédiatement consommée par LA réservation qui l'a déclenchée) — appelé
+ * par les deux points de confirmation partagés par tous les modules B2C :
+ * `lib/payment/reservation-webhook-core.ts` (carte/Paymee, automatique) et
+ * `lib/finance/manual-payment-actions.ts::verifyManualPayment`
+ * (espèces/virement/dépôt bancaire, validation staff). `debitCustomerWallet`
+ * reste utilisé seul (sans crédit préalable) UNIQUEMENT pour "Solde
+ * Easy2Book" (CUSTOMER_WALLET) — le client dépense un solde qu'il a DÉJÀ,
+ * pas une recharge liée à cette réservation précise. `creditCustomerWallet`
+ * reste utilisé seul pour un remboursement authentique (`source: "refund"`)
+ * ou un crédit direct Master Admin (`source: "adjustment"`,
+ * `lib/admin/customer-wallet-actions.ts`) — un crédit qui laisse un solde
+ * réellement disponible pour un usage futur, contrairement au crédit+débit
+ * ciblé qui nette à zéro pour CE règlement précis.
  */
 
 import { eq, and, isNull, sql } from "drizzle-orm"
@@ -115,14 +125,34 @@ export type DebitCustomerWalletInput = {
   txOverride?: DrizzleLikeTx
 }
 
+/**
+ * Taxonomie unifiée des méthodes de règlement B2C — un paiement recharge
+ * TOUJOURS le wallet client par l'une de ces méthodes, quelle que soit la
+ * politique de validation (automatique pour ONLINE_CARD, staff pour les 3
+ * autres). N'inclut pas CUSTOMER_WALLET (pas de recharge : le client dépense
+ * un solde déjà disponible) ni PARTNER_GUARANTEE (mécanisme B2B distinct —
+ * `agencies.deposit_balance`/`partner_credit_movements`, jamais ce module).
+ */
+export type WalletRechargeMethod = "online_card" | "cash" | "bank_transfer" | "bank_deposit"
+
 export type CreditCustomerWalletInput = {
   customerId: string
   amountTnd: number
   reservationId?: string
   paymentId?: string
   description: string
-  /** Traçabilité de la source du crédit — jamais "recharge" pour un client B2C (pas de flux de rechargement) : "refund" (remboursement) est le seul cas réel aujourd'hui. */
-  source: "refund" | "adjustment"
+  /**
+   * Traçabilité de la source du crédit :
+   *  - une des 4 méthodes de `WalletRechargeMethod` : recharge ciblée,
+   *    toujours suivie d'un débit de même montant dans la même transaction
+   *    (voir `recordTargetedWalletSettlement`) — jamais appelée seule pour
+   *    ce cas.
+   *  - "refund" : remboursement authentique d'une réservation/paiement
+   *    d'origine (lib/finance/refund-logic.ts) — solde réellement disponible.
+   *  - "adjustment" : crédit direct Master Admin, sans paiement réel
+   *    (lib/admin/customer-wallet-actions.ts) — solde réellement disponible.
+   */
+  source: WalletRechargeMethod | "refund" | "adjustment"
   dbOverride?: DrizzleLikeDb
   txOverride?: DrizzleLikeTx
 }
@@ -233,6 +263,7 @@ export async function debitCustomerWallet(
       balanceAfter: formatTnd(balanceAfter),
       description: input.description,
       reservationId: input.reservationId,
+      category: "booking",
     }
     const inserted = (await tx
       .insert(walletLedger)
@@ -326,6 +357,8 @@ export async function creditCustomerWallet(
       description: input.description,
       reservationId: input.reservationId,
       paymentId: input.paymentId,
+      category: input.source === "refund" ? "refund" : input.source === "adjustment" ? "adjustment" : "recharge",
+      metadata: { paymentMethod: input.source },
     }
     const inserted = (await tx
       .insert(walletLedger)
@@ -359,6 +392,68 @@ export async function creditCustomerWallet(
       message: err instanceof Error ? `Échec transactionnel : ${err.message}` : "Échec transactionnel inattendu.",
     }
   }
+}
+
+export type RecordTargetedWalletSettlementInput = {
+  customerId: string
+  /** Montant réellement encaissé POUR CETTE tentative — jamais le total de
+   * la réservation (une réservation peut recevoir plusieurs tentatives
+   * partielles, voir lib/finance/manual-payment-actions.ts). */
+  amountTnd: number
+  reservationId: string
+  paymentId?: string
+  method: WalletRechargeMethod
+  /** Référence lisible pour la description du mouvement (ex. publicRef). */
+  reference: string
+  /** Transaction PARENTE déjà ouverte (webhook ou verifyManualPayment) —
+   * toujours requis : ce couple crédit+débit n'a de sens que DANS la même
+   * transaction que la capture qui le déclenche, jamais en isolation. */
+  txOverride: DrizzleLikeTx
+}
+
+/**
+ * Point d'entrée unique pour "un paiement recharge le wallet, la réservation
+ * le consomme aussitôt" — crédite puis débite le MÊME montant, dans la MÊME
+ * transaction, pour les 4 méthodes de `WalletRechargeMethod`. Le solde
+ * client nette à zéro pour ce règlement précis (comportement voulu : c'est
+ * une recharge CIBLÉE à cette réservation, pas un solde libre comme
+ * CUSTOMER_WALLET) — mais chaque règlement, quelle que soit sa méthode,
+ * laisse désormais une trace crédit+débit auditable dans `wallet_ledger`,
+ * au lieu d'un règlement direct invisible du wallet.
+ *
+ * Le débit ne peut jamais échouer pour "solde insuffisant" ici : on vient
+ * de créditer exactement ce montant dans la même transaction. S'il échoue
+ * quand même (erreur DB inattendue), l'appelant doit laisser l'exception
+ * remonter pour ROLLBACK toute la transaction — jamais un crédit sans son
+ * débit correspondant.
+ */
+export async function recordTargetedWalletSettlement(
+  input: RecordTargetedWalletSettlementInput,
+): Promise<WalletMovementResult> {
+  const credit = await creditCustomerWallet({
+    customerId: input.customerId,
+    amountTnd: input.amountTnd,
+    reservationId: input.reservationId,
+    paymentId: input.paymentId,
+    description: `Recharge ${input.method} — réservation ${input.reference}`,
+    source: input.method,
+    txOverride: input.txOverride,
+  })
+  if (!credit.ok) return credit
+
+  const debit = await debitCustomerWallet({
+    customerId: input.customerId,
+    amountTnd: input.amountTnd,
+    reservationId: input.reservationId,
+    description: `Règlement ${input.method} — réservation ${input.reference}`,
+    txOverride: input.txOverride,
+  })
+  if (!debit.ok) {
+    throw new Error(
+      `INCOHÉRENCE WALLET : crédit ${input.method} réussi (ledger ${credit.ledgerId}) mais débit immédiat échoué (${debit.code}: ${debit.message}) — réservation ${input.reservationId}. Transaction annulée.`,
+    )
+  }
+  return debit
 }
 
 /**

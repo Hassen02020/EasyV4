@@ -956,6 +956,8 @@
     "methodCardDesc": "Paiement en ligne immédiat — bientôt disponible",
     "methodTransferLabel": "Virement bancaire",
     "methodTransferDesc": "Réservation enregistrée, coordonnées de virement envoyées par email — voucher émis après confirmation du règlement",
+    "methodBankDepositLabel": "Dépôt bancaire",
+    "methodBankDepositDesc": "Réservation enregistrée, coordonnées de dépôt envoyées par email — voucher émis après confirmation du règlement",
     "methodCashLabel": "Espèces en agence",
     "methodCashDesc": "Réservation maintenue 48 h en attente de paiement — voucher émis après confirmation du règlement",
     "methodWalletLabel": "Solde Easy2Book",

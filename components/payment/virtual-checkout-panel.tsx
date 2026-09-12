@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { CheckCircle2, XCircle, Loader2, CreditCard } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,7 @@ export function VirtualCheckoutPanel({
   offerLabel: string
 }) {
   const router = useRouter()
+  const t = useTranslations("Paiement")
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
@@ -42,7 +44,7 @@ export function VirtualCheckoutPanel({
         <CreditCard className="text-muted-foreground mb-2 h-8 w-8" />
         <p className="text-muted-foreground text-sm">{offerLabel}</p>
         <p className="text-3xl font-bold">{amountTnd.toFixed(2)} DT</p>
-        <p className="text-muted-foreground text-xs">Réservation {publicRef}</p>
+        <p className="text-muted-foreground text-xs">{t("reservationRefLabel", { ref: publicRef })}</p>
       </CardHeader>
       <CardContent className="space-y-3">
         {error ? (
@@ -57,7 +59,7 @@ export function VirtualCheckoutPanel({
           onClick={() => simulate("success")}
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          Simuler un paiement réussi
+          {t("simulateSuccess")}
         </Button>
         <Button
           className="w-full gap-2"
@@ -67,7 +69,7 @@ export function VirtualCheckoutPanel({
           onClick={() => simulate("failure")}
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-          Simuler un paiement refusé
+          {t("simulateFailure")}
         </Button>
       </CardContent>
     </Card>

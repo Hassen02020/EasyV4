@@ -10,23 +10,25 @@
 
 import { useState } from "react"
 import { Link } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Heart, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useCurrency } from "@/components/currency-context"
 import { removeFavorite } from "@/app/actions/remove-favorite"
 import type { MyFavorite } from "@/app/actions/list-my-favorites"
 
-const ITEM_TYPE_LABEL: Record<MyFavorite["itemType"], string> = {
-  hotel: "Hôtel",
-  omra: "Omra",
-  package: "Voyage organisé",
-  activity: "Activité",
-}
-
 export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) {
+  const t = useTranslations("Compte")
   const { format } = useCurrency()
   const [items, setItems] = useState(favorites)
   const [removingId, setRemovingId] = useState<string | null>(null)
+
+  const ITEM_TYPE_LABEL: Record<MyFavorite["itemType"], string> = {
+    hotel: t("itemTypeHotel"),
+    omra: t("itemTypeOmra"),
+    package: t("itemTypePackage"),
+    activity: t("itemTypeActivity"),
+  }
 
   function handleRemove(id: string) {
     if (removingId) return
@@ -39,7 +41,7 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
         }
         setItems((prev) => prev.filter((f) => f.id !== id))
       })
-      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .catch(() => toast.error(t("genericError")))
       .finally(() => setRemovingId(null))
   }
 
@@ -47,13 +49,12 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
     <div className="bg-card border-border mb-6 rounded-2xl border p-4">
       <div className="mb-3 flex items-center gap-2">
         <Heart className="fill-destructive text-destructive h-4 w-4" />
-        <span className="text-foreground text-sm font-semibold">Mes favoris</span>
+        <span className="text-foreground text-sm font-semibold">{t("myFavoritesTitle")}</span>
       </div>
 
       {items.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Vous n&apos;avez pas encore de favoris. Cliquez sur le cœur d&apos;un hôtel, d&apos;un
-          voyage ou d&apos;une activité pour le retrouver ici.
+          {t("noFavoritesYet")}
         </p>
       ) : (
       <ul className="space-y-2">
@@ -83,7 +84,7 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
               </p>
               {fav.priceFrom != null && (
                 <p className="text-foreground mt-0.5 text-xs font-semibold">
-                  à partir de {format(Number(fav.priceFrom))}
+                  {t("priceFrom", { price: format(Number(fav.priceFrom)) })}
                 </p>
               )}
             </div>
@@ -93,7 +94,7 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
               onClick={() => handleRemove(fav.id)}
               disabled={removingId === fav.id}
               className="text-muted-foreground hover:text-destructive flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60"
-              aria-label="Retirer des favoris"
+              aria-label={t("removeFavoriteAria")}
             >
               {removingId === fav.id ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

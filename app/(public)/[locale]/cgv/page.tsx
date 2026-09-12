@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server"
 import {
   LegalPageLayout,
   LOREM,
@@ -9,18 +10,19 @@ export const metadata = {
   description: "Conditions générales de vente Easy2Book.",
 }
 
-export default function CgvPage() {
+export default async function CgvPage() {
+  const t = await getTranslations("Legal")
   return (
     <LegalPageLayout
-      title="Conditions Générales de Vente"
+      title={t("cgvTitle")}
       intro={LOREM}
       sections={[
-        { heading: "1. Objet", paragraphs: [LOREM_2] },
-        { heading: "2. Réservations et paiement", paragraphs: [LOREM, LOREM_2] },
-        { heading: "3. Modification et annulation", paragraphs: [LOREM_2] },
-        { heading: "4. Responsabilités", paragraphs: [LOREM] },
-        { heading: "5. Réclamations et litiges", paragraphs: [LOREM_2] },
-        { heading: "6. Droit applicable", paragraphs: [LOREM] },
+        { heading: t("cgvObjet"), paragraphs: [LOREM_2] },
+        { heading: t("cgvReservations"), paragraphs: [LOREM, LOREM_2] },
+        { heading: t("cgvModification"), paragraphs: [LOREM_2] },
+        { heading: t("cgvResponsabilites"), paragraphs: [LOREM] },
+        { heading: t("cgvReclamations"), paragraphs: [LOREM_2] },
+        { heading: t("cgvDroit"), paragraphs: [LOREM] },
       ]}
     />
   )

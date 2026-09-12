@@ -7,6 +7,7 @@
  */
 
 import { notFound } from "next/navigation"
+import { getTranslations } from "next-intl/server"
 import { AlertTriangle } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -21,6 +22,7 @@ export default async function VirtualPaymentPage({ params }: { params: Promise<{
   if (!isVirtualPaymentModeEnabled()) notFound()
   const { ref: paymentRef } = await params
   const session = await getVirtualPaymentSession(paymentRef)
+  const t = await getTranslations("Paiement")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -28,10 +30,9 @@ export default async function VirtualPaymentPage({ params }: { params: Promise<{
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12">
         <Alert className="mb-6 border-amber-300 bg-amber-50 text-amber-900">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Environnement de simulation</AlertTitle>
+          <AlertTitle>{t("simulationEnvTitle")}</AlertTitle>
           <AlertDescription>
-            Cette page imite une page de paiement PSP hébergée (SPS Monétique Tunisie) à des fins de
-            test — aucun vrai paiement n&apos;a lieu.
+            {t("simulationEnvDesc")}
           </AlertDescription>
         </Alert>
 

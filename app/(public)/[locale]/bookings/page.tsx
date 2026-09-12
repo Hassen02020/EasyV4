@@ -138,11 +138,11 @@ export default function BookingsPage() {
               )}
             </Button>
             <p className="text-muted-foreground text-center text-xs">
-              Vous avez déjà un compte ?{" "}
+              {t("alreadyHaveAccountPrefix")}{" "}
               <Link href="/compte" className="text-primary font-medium hover:underline">
-                Connectez-vous
+                {t("loginLinkText")}
               </Link>{" "}
-              pour voir toutes vos réservations d&apos;un coup.
+              {t("viewAllReservationsSuffix")}
             </p>
           </form>
         )}

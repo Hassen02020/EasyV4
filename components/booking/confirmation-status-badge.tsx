@@ -17,50 +17,10 @@
 
 import * as React from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { CheckCircle2, Clock, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useRealtimeBroadcast } from "@/lib/supabase/use-realtime-broadcast"
-
-const STATUS_VARIANTS: Record<
-  string,
-  { label: string; className: string; icon: typeof Clock }
-> = {
-  pending: {
-    label: "En attente de validation",
-    className: "bg-amber-500 text-white hover:bg-amber-500",
-    icon: Clock,
-  },
-  on_request: {
-    label: "Sur demande fournisseur",
-    className: "bg-sky-500 text-white hover:bg-sky-500",
-    icon: Clock,
-  },
-  confirmed: {
-    label: "Confirmée par Easy2Book",
-    className: "bg-emerald-600 text-white hover:bg-emerald-600",
-    icon: CheckCircle2,
-  },
-  cancelled: {
-    label: "Annulée",
-    className: "bg-red-600 text-white hover:bg-red-600",
-    icon: XCircle,
-  },
-  completed: {
-    label: "Terminée",
-    className: "bg-emerald-700 text-white hover:bg-emerald-700",
-    icon: CheckCircle2,
-  },
-  refunded: {
-    label: "Remboursée",
-    className: "bg-purple-600 text-white hover:bg-purple-600",
-    icon: XCircle,
-  },
-  no_show: {
-    label: "No-show",
-    className: "bg-slate-500 text-white hover:bg-slate-500",
-    icon: XCircle,
-  },
-}
 
 export function ConfirmationStatusBadge({
   publicRef,
@@ -70,6 +30,49 @@ export function ConfirmationStatusBadge({
   status: string
 }) {
   const router = useRouter()
+  const t = useTranslations("Booking")
+  const tc = useTranslations("Common")
+
+  const STATUS_VARIANTS: Record<
+    string,
+    { label: string; className: string; icon: typeof Clock }
+  > = {
+    pending: {
+      label: t("statusPendingValidation"),
+      className: "bg-amber-500 text-white hover:bg-amber-500",
+      icon: Clock,
+    },
+    on_request: {
+      label: t("statusOnRequestSupplier"),
+      className: "bg-sky-500 text-white hover:bg-sky-500",
+      icon: Clock,
+    },
+    confirmed: {
+      label: t("statusConfirmedByE2B"),
+      className: "bg-emerald-600 text-white hover:bg-emerald-600",
+      icon: CheckCircle2,
+    },
+    cancelled: {
+      label: tc("statusCancelled"),
+      className: "bg-red-600 text-white hover:bg-red-600",
+      icon: XCircle,
+    },
+    completed: {
+      label: t("statusCompletedShort"),
+      className: "bg-emerald-700 text-white hover:bg-emerald-700",
+      icon: CheckCircle2,
+    },
+    refunded: {
+      label: tc("statusRefunded"),
+      className: "bg-purple-600 text-white hover:bg-purple-600",
+      icon: XCircle,
+    },
+    no_show: {
+      label: tc("statusNoShow"),
+      className: "bg-slate-500 text-white hover:bg-slate-500",
+      icon: XCircle,
+    },
+  }
 
   useRealtimeBroadcast(
     `reservation-${publicRef}`,
@@ -89,7 +92,7 @@ export function ConfirmationStatusBadge({
   return (
     <Badge className={`mt-3 gap-1 ${meta.className}`}>
       <Icon className="size-3" />
-      Statut : {meta.label}
+      {t("statusPrefix", { status: meta.label })}
     </Badge>
   )
 }

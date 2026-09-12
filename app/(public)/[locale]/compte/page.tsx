@@ -1,5 +1,5 @@
 import { Link, redirect } from "@/i18n/navigation"
-import { getLocale } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import { ArrowLeft, CalendarDays, Mail, MapPin, Phone, User as UserIcon } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
@@ -11,6 +11,7 @@ import { CompteLoyaltyCard } from "@/components/compte/compte-loyalty-card"
 import { CompteFavoritesCard } from "@/components/compte/compte-favorites-card"
 import { CompteLogoutButton } from "@/components/compte/compte-logout-button"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
+import { getIntlLocale } from "@/lib/i18n-date"
 
 export const dynamic = "force-dynamic"
 
@@ -25,13 +26,18 @@ export default async function ComptePage() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const locale = await getLocale()
+
   if (!user) {
     redirect({
       href: { pathname: "/compte/connexion", query: { next: "/compte" } },
-      locale: await getLocale(),
+      locale,
     })
     return null
   }
+
+  const t = await getTranslations("Compte")
+  const tc = await getTranslations("Common")
 
   const [result, loyalty, loyaltyHistory, favorites] = await Promise.all([
     listMyReservations(),
@@ -91,7 +97,7 @@ export default async function ComptePage() {
             className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Accueil
+            {tc("accueil")}
           </Link>
         </div>
       </div>
@@ -100,7 +106,7 @@ export default async function ComptePage() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-foreground text-3xl font-bold">
-              {profile?.firstName ? `Bonjour ${profile.firstName}` : "Mon compte"}
+              {profile?.firstName ? t("greetingWithName", { name: profile.firstName }) : t("accountTitleFallback")}
             </h1>
             <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-sm">
               <Mail className="h-3.5 w-3.5" />
@@ -117,7 +123,7 @@ export default async function ComptePage() {
           >
             <div>
               <p className="text-sidebar text-xs font-semibold tracking-wide uppercase">
-                Prochaine réservation
+                {t("nextReservationLabel")}
               </p>
               <p className="text-foreground mt-1 flex items-center gap-1.5 font-medium">
                 <MapPin className="text-muted-foreground h-4 w-4 shrink-0" />
@@ -126,7 +132,7 @@ export default async function ComptePage() {
             </div>
             <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
               <CalendarDays className="h-4 w-4 shrink-0" />
-              {new Date(nextReservation.product.startDate).toLocaleDateString("fr-FR", {
+              {new Date(nextReservation.product.startDate).toLocaleDateString(getIntlLocale(locale), {
                 day: "2-digit",
                 month: "long",
                 year: "numeric",
@@ -163,29 +169,29 @@ export default async function ComptePage() {
           />
         ) : loyalty.error !== "NOT_AUTHENTICATED" ? (
           <div className="border-destructive/40 bg-destructive/5 text-destructive mb-6 rounded-2xl border p-4 text-sm">
-            Impossible de charger votre solde Easy2Book Rewards pour le moment. {loyalty.error}
+            {t("loyaltyLoadError", { error: loyalty.error })}
           </div>
         ) : null}
 
         {!result.ok ? (
           <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-2xl border p-6 text-sm">
             {result.error === "NOT_AUTHENTICATED"
-              ? "Session expirée — reconnectez-vous."
+              ? t("sessionExpired")
               : result.error}
           </div>
         ) : result.bookings.length === 0 ? (
           <div className="bg-card border-border rounded-2xl border p-10 text-center">
             <p className="text-foreground text-base font-semibold">
-              Aucune réservation trouvée pour {result.email}
+              {t("noReservationsFound", { email: result.email })}
             </p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Vos futures réservations effectuées avec cet email apparaîtront ici.
+              {t("noReservationsHint")}
             </p>
             <Link
               href="/"
               className="text-primary mt-4 inline-block text-sm font-medium hover:underline"
             >
-              Rechercher un hôtel
+              {t("searchHotelLink")}
             </Link>
           </div>
         ) : (

@@ -37,7 +37,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
+import { getIntlLocale } from "@/lib/i18n-date"
 import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
 import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
 
@@ -58,38 +59,8 @@ const MODULE_ICONS: Record<string, React.ElementType> = {
   car: Car,
 }
 
-const MODULE_LABELS: Record<string, string> = {
-  flight: "Vol",
-  hotel: "Hôtel Tunisie",
-  hotel_world: "Hôtel International",
-  hotel_monde: "Hôtel Monde",
-  omra: "Omraty",
-  package: "Voyage Organisé",
-  activity: "Attraction",
-  transfer: "Transfert",
-  car: "Location Voiture",
-}
-
 /** Modules gérés par le Policy Engine (annulation via `cancelMyPolicyReservation`) — distinct de l'hôtel (`cancelMyHotelReservation`, politique myGo). */
 const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
-
-
-const PAYMENT_METHOD_LABEL: Record<string, string> = {
-  card: "Carte bancaire",
-  wallet: "Wallet",
-  transfer: "Virement bancaire",
-  cash: "Espèces",
-  at_hotel: "Paiement à l'hôtel",
-}
-
-const PAYMENT_STATUS_LABEL: Record<string, string> = {
-  pending: "en attente de vérification",
-  captured: "réglé",
-  failed: "échoué",
-  refunded: "remboursé",
-  authorized: "autorisé",
-  partial_refund: "partiellement remboursé",
-}
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const t = useTranslations("Common")
@@ -133,7 +104,7 @@ function StatusBadge({ status }: { status: BookingStatus }) {
       icon: XCircle,
     },
     completed: {
-      label: "Séjour terminé",
+      label: t("statusCompleted"),
       color: "bg-emerald-100 text-emerald-800 border-emerald-200",
       icon: CheckCircle2,
     },
@@ -240,6 +211,33 @@ interface BookingCardProps {
 
 export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
   const t = useTranslations("Common")
+  const locale = useLocale()
+  const MODULE_LABELS: Record<string, string> = {
+    flight: t("moduleLabelFlightFull"),
+    hotel: t("moduleLabelHotelTunisie"),
+    hotel_world: t("moduleLabelHotelWorld"),
+    hotel_monde: t("moduleLabelHotelMonde"),
+    omra: t("moduleLabelOmraty"),
+    package: t("moduleLabelPackageFull"),
+    activity: t("moduleLabelActivityFull"),
+    transfer: t("moduleLabelTransferFull"),
+    car: t("moduleLabelCarRental"),
+  }
+  const PAYMENT_METHOD_LABEL: Record<string, string> = {
+    card: t("paymentMethodCard"),
+    wallet: t("paymentMethodWallet"),
+    transfer: t("paymentMethodTransfer"),
+    cash: t("paymentMethodCash"),
+    at_hotel: t("paymentMethodAtHotel"),
+  }
+  const PAYMENT_STATUS_LABEL: Record<string, string> = {
+    pending: t("paymentStatusPending"),
+    captured: t("paymentStatusCaptured"),
+    failed: t("paymentStatusFailed"),
+    refunded: t("paymentStatusRefunded"),
+    authorized: t("paymentStatusAuthorized"),
+    partial_refund: t("paymentStatusPartialRefund"),
+  }
   const ModuleIcon = MODULE_ICONS[booking.module] ?? Briefcase
   const moduleLabel = MODULE_LABELS[booking.module] ?? booking.module
   const [confirming, setConfirming] = useState(false)
@@ -265,7 +263,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
     startReviewTransition(async () => {
       const result = await onReview(booking.id, reviewRating, reviewComment)
       if (!result.ok) {
-        setReviewError(result.error ?? "L'envoi de l'avis a échoué.")
+        setReviewError(result.error ?? t("reviewSubmitFailed"))
         return
       }
       setReviewSubmitted(true)
@@ -288,7 +286,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
     startTransition(async () => {
       const result = await onCancel(booking.id)
       if (!result.ok) {
-        setCancelError(result.error ?? "L'annulation a échoué.")
+        setCancelError(result.error ?? t("cancelFailed"))
         return
       }
       setConfirming(false)
@@ -298,7 +296,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
 
   function formatDate(iso: string | null) {
     if (!iso) return "—"
-    return new Date(iso).toLocaleDateString("fr-FR", {
+    return new Date(iso).toLocaleDateString(getIntlLocale(locale), {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -391,7 +389,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {booking.payment && (
                 <div className="text-sm">
-                  <p className="text-muted-foreground text-xs">Méthode de paiement</p>
+                  <p className="text-muted-foreground text-xs">{t("paymentMethodLabel")}</p>
                   <p className="text-foreground font-medium">
                     {PAYMENT_METHOD_LABEL[booking.payment.method] ?? booking.payment.method}
                     {" — "}
@@ -411,9 +409,9 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
               )}
               {booking.status === "pending" && booking.paymentExpiresAt && (
                 <div className="text-sm">
-                  <p className="text-muted-foreground text-xs">Délai de règlement</p>
+                  <p className="text-muted-foreground text-xs">{t("paymentDeadlineLabel")}</p>
                   <p className="text-foreground font-medium">
-                    Avant le {formatDate(booking.paymentExpiresAt)}
+                    {t("beforeDate", { date: formatDate(booking.paymentExpiresAt) })}
                   </p>
                 </div>
               )}
@@ -427,11 +425,11 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
           <div>
             <p className="text-muted-foreground text-xs">{t("montant")}</p>
             <p className="text-foreground text-xl font-bold">
-              {parseFloat(booking.tndAmount).toLocaleString("fr-FR")} DT
+              {parseFloat(booking.tndAmount).toLocaleString(getIntlLocale(locale))} DT
             </p>
             {booking.originalCurrency !== "TND" && (
               <p className="text-muted-foreground text-xs">
-                ({parseFloat(booking.originalAmount).toLocaleString("fr-FR")}{" "}
+                ({parseFloat(booking.originalAmount).toLocaleString(getIntlLocale(locale))}{" "}
                 {booking.originalCurrency})
               </p>
             )}
@@ -463,21 +461,21 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
             <Separator />
             {booking.cancellationPolicy === null ? (
               <p className="text-muted-foreground text-xs">
-                Politique d&apos;annulation non définie au moment de cette réservation.
+                {t("policyUndefinedAtBooking")}
               </p>
             ) : (
               <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 <span>
-                  Annulable :{" "}
+                  {t("cancellableColon")}{" "}
                   <span className="text-foreground font-medium">
                     {booking.cancellationPolicy.cancellable && !booking.cancellationPolicy.nonRefundable
-                      ? "Oui"
-                      : "Non"}
+                      ? t("yes")
+                      : t("no")}
                   </span>
                 </span>
                 {booking.cancellationPolicy.cancellationFeePercent != null && (
                   <span>
-                    Frais :{" "}
+                    {t("feesColon")}{" "}
                     <span className="text-foreground font-medium">
                       {booking.cancellationPolicy.cancellationFeePercent}%
                     </span>
@@ -485,9 +483,9 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 )}
                 {booking.cancellationPolicy.deadlineHours != null && (
                   <span>
-                    Échéance :{" "}
+                    {t("deadlineColon")}{" "}
                     <span className="text-foreground font-medium">
-                      {booking.cancellationPolicy.deadlineHours} h
+                      {booking.cancellationPolicy.deadlineHours} {t("hoursUnit")}
                     </span>
                   </span>
                 )}
@@ -546,12 +544,12 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
               onClick={() => setReviewOpen(true)}
             >
               <Star className="h-4 w-4" />
-              Laisser un avis
+              {t("leaveReviewButton")}
             </Button>
           ) : reviewSubmitted && REVIEWABLE_MODULES.includes(booking.module) ? (
             <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Avis envoyé
+              {t("reviewSentLabel")}
             </span>
           ) : null}
           {canCancelOnline ? (
@@ -577,14 +575,14 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
 
         {canReview && reviewOpen && (
           <div className="border-border bg-muted/20 space-y-3 rounded-lg border p-3 text-sm">
-            <p className="text-foreground font-medium">Votre avis sur ce séjour/cette expérience</p>
+            <p className="text-foreground font-medium">{t("reviewFormTitle")}</p>
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => setReviewRating(n)}
-                  aria-label={`${n} étoile${n > 1 ? "s" : ""}`}
+                  aria-label={t("starAriaLabel", { n })}
                   className="p-0.5"
                 >
                   <Star
@@ -600,7 +598,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
             <Textarea
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
-              placeholder="Votre commentaire (optionnel)"
+              placeholder={t("reviewCommentPlaceholder")}
               className="min-h-20 text-sm"
               maxLength={2000}
             />
@@ -613,14 +611,14 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 disabled={reviewPending}
               >
                 {reviewPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
-                Envoyer l&apos;avis
+                {t("sendReviewButton")}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setReviewOpen(false)} disabled={reviewPending}>
-                Annuler
+                {t("annuler")}
               </Button>
             </div>
             <p className="text-muted-foreground text-xs">
-              Votre avis sera visible publiquement après modération par notre équipe.
+              {t("reviewModerationNotice")}
             </p>
           </div>
         )}
@@ -641,8 +639,8 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
             <p className="text-foreground flex items-start gap-2">
               <AlertTriangle className="text-destructive mt-0.5 h-4 w-4 shrink-0" />
               {isPolicyEngineModule
-                ? "Confirmer l'annulation de cette réservation ? Le résultat (frais éventuels, crédit) dépend de la politique d'annulation applicable ; tout crédit sera versé sur votre wallet Easy2Book (jamais un remboursement carte automatique)."
-                : "Confirmer l'annulation de cette réservation ? Les frais réels du fournisseur hôtelier seront appliqués ; le solde éventuel sera crédité sur votre wallet Easy2Book (jamais un remboursement carte automatique)."}
+                ? t("cancelConfirmPolicyText")
+                : t("cancelConfirmHotelText")}
             </p>
             {cancelError && <p className="text-destructive text-xs font-medium">{cancelError}</p>}
             <div className="flex gap-2">
@@ -654,7 +652,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 disabled={pending}
               >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                Confirmer l&apos;annulation
+                {t("confirmCancelButton")}
               </Button>
               <Button
                 variant="ghost"
@@ -665,7 +663,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 }}
                 disabled={pending}
               >
-                Garder ma réservation
+                {t("keepReservationButton")}
               </Button>
             </div>
           </div>
@@ -674,14 +672,14 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
         {booking.status === "pending" && (
           <div className="bg-muted/50 space-y-1 rounded-lg p-3 text-xs">
             {booking.onlinePaymentAvailable ? (
-              <p>Vous pouvez régler cette réservation en ligne.</p>
+              <p>{t("onlinePaymentAvailableNotice")}</p>
             ) : (
               <p>
-                Le paiement en ligne n&apos;est pas encore disponible pour cette réservation.
+                {t("onlinePaymentUnavailableNotice")}
                 {booking.payment?.method === "cash"
-                  ? " Réglez en espèces à notre agence avant la date limite ci-dessus."
+                  ? t("payCashNotice")
                   : booking.payment?.method === "transfer"
-                    ? " Réglez par virement bancaire (coordonnées envoyées par email) avant la date limite ci-dessus."
+                    ? t("payTransferNotice")
                     : ""}
               </p>
             )}
@@ -690,18 +688,19 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
 
         {booking.status === "expired" && (
           <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-xs font-medium">
-            Le délai de règlement (24h) est dépassé — cette réservation ne peut plus être payée ni
-            validée. Contactez-nous si vous souhaitez effectuer une nouvelle réservation.
+            {t("paymentExpiredNotice")}
           </div>
         )}
 
         {!canCancelOnline && (booking.status === "pending" || booking.status === "on_request") && (
           <p className="text-muted-foreground text-xs">
-            * L&apos;annulation en ligne sera disponible prochainement. Contactez{" "}
-            <a href="tel:+21698140514" className="text-primary hover:underline">
-              +216 98 140 514
-            </a>{" "}
-            pour toute assistance immédiate.
+            {t.rich("cancelSoonAvailableNotice", {
+              phoneLink: (chunks) => (
+                <a href="tel:+21698140514" className="text-primary hover:underline">
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         )}
       </div>

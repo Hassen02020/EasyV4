@@ -1,5 +1,5 @@
 import { Link, redirect } from "@/i18n/navigation"
-import { getLocale } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import { ChevronLeft } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -12,6 +12,7 @@ import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import dynamicImport from "next/dynamic"
 import { Suspense } from "react"
+import { getIntlLocale } from "@/lib/i18n-date"
 
 export const dynamic = 'force-dynamic'
 
@@ -21,15 +22,6 @@ const CheckoutForm = dynamicImport(() =>
 
 type SP = { [k: string]: string | string[] | undefined }
 
-const MODULE_LABEL: Record<string, string> = {
-  hotel: "Hôtel",
-  flight: "Vol",
-  package: "Voyage organisé",
-  omra: "Omra",
-  transfer: "Transfert",
-  activity: "Activité",
-}
-
 async function CheckoutContent({
   searchParams,
 }: {
@@ -37,13 +29,25 @@ async function CheckoutContent({
 }) {
   const token = typeof searchParams.d === "string" ? searchParams.d : undefined
   const payload = decodeDraft(token)
+  const locale = await getLocale()
+  const t = await getTranslations("Booking")
+  const tc = await getTranslations("Common")
+
   if (!payload || !payload.traveler) {
-    const locale = await getLocale()
     redirect({ href: "/", locale })
     return null
   }
 
   const { draft, traveler } = payload
+
+  const MODULE_LABEL: Record<string, string> = {
+    hotel: t("moduleLabelHotel"),
+    flight: t("moduleLabelFlight"),
+    package: t("moduleLabelPackage"),
+    omra: t("moduleLabelOmra"),
+    transfer: t("moduleLabelTransfer"),
+    activity: t("moduleLabelActivity"),
+  }
 
   // Certification E2E — le brouillon (`?d=`) est un base64url NON SIGNÉ,
   // entièrement modifiable côté client (voir lib/booking/price-token.ts en
@@ -64,19 +68,17 @@ async function CheckoutContent({
         <main className="bg-muted/30 flex-1 py-8">
           <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6 lg:px-8">
             <h1 className="mb-2 text-2xl font-bold">
-              Ce prix n&apos;a plus pu être vérifié
+              {t("priceNotVerifiedTitle")}
             </h1>
             <p className="text-muted-foreground mb-6">
-              Pour votre sécurité, nous ne pouvons afficher un montant que
-              lorsqu&apos;il est garanti par notre serveur. Relancez une
-              recherche pour obtenir un tarif à jour.
+              {t("priceNotVerifiedDesc")}
             </p>
             <Link
               href="/hotels/search"
               className="text-foreground inline-flex items-center gap-1 underline"
             >
               <ChevronLeft className="size-4" />
-              Relancer une recherche d&apos;hôtel
+              {t("relaunchHotelSearch")}
             </Link>
           </div>
         </main>
@@ -102,13 +104,13 @@ async function CheckoutContent({
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center text-sm"
           >
             <ChevronLeft className="size-4" />
-            Modifier les voyageurs
+            {t("editTravelers")}
           </Link>
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
-            Récapitulatif & paiement
+            {t("checkoutTitle")}
           </h1>
           <p className="text-muted-foreground mb-6">
-            Vérifiez votre commande puis choisissez votre mode de règlement.
+            {t("checkoutSubtitle")}
           </p>
           <BookingSteps current={3} />
 
@@ -122,19 +124,19 @@ async function CheckoutContent({
                   <h2 className="text-lg font-semibold break-words">{draft.offerLabel}</h2>
                   <Separator />
                   <dl className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
-                    <Row k="Départ" v={formatDate(draft.startDate)} />
+                    <Row k={t("departureLabel")} v={formatDate(draft.startDate, locale)} />
                     {draft.endDate ? (
-                      <Row k="Retour" v={formatDate(draft.endDate)} />
+                      <Row k={t("returnLabel")} v={formatDate(draft.endDate, locale)} />
                     ) : null}
                     <Row
-                      k="Voyageurs"
-                      v={`${draft.adults} adulte${draft.adults > 1 ? "s" : ""}${
+                      k={tc("voyageurs")}
+                      v={`${t("adultsCount", { n: draft.adults })}${
                         draft.children
-                          ? ` + ${draft.children} enfant${draft.children > 1 ? "s" : ""}`
+                          ? ` + ${t("childrenCount", { n: draft.children })}`
                           : ""
                       }`}
                     />
-                    <Row k="Devise" v={draft.currency} />
+                    <Row k={t("currencyLabel")} v={draft.currency} />
                   </dl>
                 </CardContent>
               </Card>
@@ -142,25 +144,25 @@ async function CheckoutContent({
               <Card>
                 <CardContent className="space-y-3 p-6">
                   <h3 className="text-sm font-semibold tracking-wide uppercase">
-                    Voyageur principal
+                    {t("mainTravelerTitle")}
                   </h3>
                   <Separator />
                   <dl className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
                     <Row
-                      k="Nom"
+                      k={t("nameLabel")}
                       v={`${traveler.civility} ${traveler.firstName} ${traveler.lastName}`}
                     />
-                    <Row k="Email" v={traveler.email} />
-                    <Row k="Téléphone" v={traveler.phone} />
+                    <Row k={t("emailLabel")} v={traveler.email} />
+                    <Row k={t("phoneLabel")} v={traveler.phone} />
                     <Row
-                      k={traveler.civicIdType === "cin" ? "CIN" : "Passeport"}
+                      k={traveler.civicIdType === "cin" ? t("cinLabel") : t("passportLabel")}
                       v={traveler.civicId}
                     />
                   </dl>
                 </CardContent>
               </Card>
 
-              <Suspense fallback={<div>Chargement du formulaire...</div>}>
+              <Suspense fallback={<div>{t("loadingForm")}</div>}>
                 <CheckoutForm token={token!} />
               </Suspense>
             </div>
@@ -169,27 +171,27 @@ async function CheckoutContent({
               <Card>
                 <CardContent className="space-y-3 p-5">
                   <h3 className="text-sm font-semibold tracking-wide uppercase">
-                    Total à payer
+                    {t("totalToPay")}
                   </h3>
-                  <Row2 k="Sous-total" v={formatMoney(breakdown.subtotalTnd)} />
-                  <Row2 k="TVA 19 %" v={formatMoney(breakdown.vatTnd)} />
+                  <Row2 k={t("subtotal")} v={formatMoney(breakdown.subtotalTnd)} />
+                  <Row2 k={t("vat")} v={formatMoney(breakdown.vatTnd)} />
                   {breakdown.serviceFeeTnd > 0 ? (
                     <Row2
-                      k="Frais service"
+                      k={t("serviceFee")}
                       v={formatMoney(breakdown.serviceFeeTnd)}
                     />
                   ) : null}
                   <Separator />
                   <div className="flex items-center justify-between text-base font-semibold">
-                    <span>Total TTC</span>
+                    <span>{t("totalIncl")}</span>
                     <span>{formatMoney(breakdown.totalTnd)}</span>
                   </div>
                   <div className="text-muted-foreground flex items-center justify-between text-sm">
-                    <span>Acompte à régler</span>
+                    <span>{t("depositToPay")}</span>
                     <span>{formatMoney(breakdown.depositTnd)}</span>
                   </div>
                   <div className="text-muted-foreground flex items-center justify-between text-sm">
-                    <span>Solde à la prestation</span>
+                    <span>{t("balanceDue")}</span>
                     <span>{formatMoney(breakdown.balanceTnd)}</span>
                   </div>
                 </CardContent>
@@ -208,8 +210,9 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<SP>
 }) {
+  const t = await getTranslations("Booking")
   return (
-    <Suspense fallback={<div>Chargement...</div>}>
+    <Suspense fallback={<div>{t("loadingGeneric")}</div>}>
       <CheckoutContent searchParams={await searchParams} />
     </Suspense>
   )
@@ -231,9 +234,9 @@ function Row2({ k, v }: { k: string; v: string }) {
     </div>
   )
 }
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleDateString("fr-FR", {
+    return new Date(iso).toLocaleDateString(getIntlLocale(locale), {
       day: "2-digit",
       month: "long",
       year: "numeric",

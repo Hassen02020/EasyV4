@@ -1,5 +1,5 @@
 import { Link, redirect } from "@/i18n/navigation"
-import { getLocale } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import { ChevronLeft } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -27,6 +27,7 @@ export default async function TravelersStepPage({
     redirect({ href: "/", locale: await getLocale() })
     return null
   }
+  const t = await getTranslations("Booking")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -38,13 +39,13 @@ export default async function TravelersStepPage({
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center text-sm"
           >
             <ChevronLeft className="size-4" />
-            Retour à l&apos;offre
+            {t("backToOffer")}
           </Link>
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
-            Coordonnées du voyageur
+            {t("travelerDetailsTitle")}
           </h1>
           <p className="text-muted-foreground mb-6">
-            Ces informations apparaîtront sur votre voucher de réservation.
+            {t("travelerDetailsSubtitle")}
           </p>
           <BookingSteps current={2} />
           <div className="mt-8">

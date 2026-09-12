@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation"
 import { notFound } from "next/navigation"
+import { getLocale, getTranslations } from "next-intl/server"
 import { CheckCircle2, Mail, Calendar, User, Download } from "lucide-react"
 import { and, eq } from "drizzle-orm"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
@@ -14,6 +15,7 @@ import { formatMoney } from "@/lib/booking/pricing"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import { ConfirmationStatusBadge } from "@/components/booking/confirmation-status-badge"
 import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
+import { getIntlLocale } from "@/lib/i18n-date"
 
 export const dynamic = "force-dynamic"
 
@@ -63,6 +65,9 @@ export default async function ConfirmationPage({
   })
   if (!row) notFound()
 
+  const locale = await getLocale()
+  const t = await getTranslations("Booking")
+
   const pl = row.providerPayload as {
     offerLabel?: string
     startDate?: string
@@ -86,10 +91,10 @@ export default async function ConfirmationPage({
             <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent p-8 text-center">
               <CheckCircle2 className="mx-auto size-14 text-emerald-600" />
               <h1 className="mt-3 text-2xl font-bold sm:text-3xl">
-                Réservation confirmée
+                {t("confirmedTitle")}
               </h1>
               <p className="text-muted-foreground mt-1">
-                Référence&nbsp;
+                {t("referenceLabel")}&nbsp;
                 <span className="text-foreground font-mono font-semibold">
                   {row.publicRef}
                 </span>
@@ -102,30 +107,30 @@ export default async function ConfirmationPage({
             <CardContent className="space-y-4 p-6">
               <Detail
                 icon={<Calendar className="size-4" />}
-                label="Offre"
+                label={t("offerLabel")}
                 value={pl?.offerLabel ?? "—"}
               />
               {pl?.startDate ? (
                 <Detail
                   icon={<Calendar className="size-4" />}
-                  label="Dates"
-                  value={`${formatDate(pl.startDate)}${pl.endDate ? " — " + formatDate(pl.endDate) : ""}`}
+                  label={t("datesLabel")}
+                  value={`${formatDate(pl.startDate, locale)}${pl.endDate ? " — " + formatDate(pl.endDate, locale) : ""}`}
                 />
               ) : null}
               <Detail
                 icon={<User className="size-4" />}
-                label="Voyageur"
+                label={t("travelerLabel")}
                 value={`${row.customerFirstName ?? ""} ${row.customerLastName ?? ""}`}
               />
               <Detail
                 icon={<Mail className="size-4" />}
-                label="Email"
+                label={t("emailLabel")}
                 value={row.customerEmail ?? "—"}
               />
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">
-                  Montant total
+                  {t("totalAmount")}
                 </span>
                 <span className="text-lg font-semibold">
                   {formatMoney(Number(row.total ?? 0))}
@@ -134,7 +139,7 @@ export default async function ConfirmationPage({
               {row.deposit ? (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground text-sm">
-                    Acompte demandé
+                    {t("depositRequested")}
                   </span>
                   <span className="font-medium">
                     {formatMoney(Number(row.deposit))}
@@ -143,26 +148,28 @@ export default async function ConfirmationPage({
               ) : null}
               <Separator />
               <p className="text-muted-foreground text-sm">
-                Un agent Easy2Book va confirmer votre réservation dans les
-                prochaines heures. Vous recevrez un email avec votre voucher
-                définitif sur{" "}
-                <span className="text-foreground">{row.customerEmail}</span>.
+                {t.rich("confirmationPendingNotice", {
+                  email: row.customerEmail ?? "—",
+                  em: (chunks) => (
+                    <span className="text-foreground">{chunks}</span>
+                  ),
+                })}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button asChild variant="outline" className="flex-1">
-                  <Link href="/">Retour à l&apos;accueil</Link>
+                  <Link href="/">{t("backHome")}</Link>
                 </Button>
                 {voucherHref ? (
                   <Button asChild className="flex-1">
                     <a href={voucherHref} target="_blank" rel="noopener noreferrer">
                       <Download className="mr-2 size-4" />
-                      Télécharger le voucher
+                      {t("downloadVoucher")}
                     </a>
                   </Button>
                 ) : (
                   <Button className="flex-1" disabled>
                     <Download className="mr-2 size-4" />
-                    Voucher disponible après confirmation
+                    {t("voucherAvailableAfterConfirmation")}
                   </Button>
                 )}
                 {hasInvoice ? (
@@ -173,7 +180,7 @@ export default async function ConfirmationPage({
                       rel="noopener noreferrer"
                     >
                       <Download className="mr-2 size-4" />
-                      Télécharger la facture
+                      {t("downloadInvoice")}
                     </a>
                   </Button>
                 ) : null}
@@ -207,9 +214,9 @@ function Detail({
   )
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleDateString("fr-FR", {
+    return new Date(iso).toLocaleDateString(getIntlLocale(locale), {
       day: "2-digit",
       month: "long",
       year: "numeric",

@@ -2,12 +2,14 @@
 
 import { useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { LogOut, Loader2 } from "lucide-react"
 import { createBrowserSupabase } from "@/lib/supabase/client"
 import { clearUserRoleCookie } from "@/app/actions/validate-role"
 import { Button } from "@/components/ui/button"
 
 export function CompteLogoutButton() {
+  const t = useTranslations("Compte")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -27,7 +29,7 @@ export function CompteLogoutButton() {
   return (
     <Button variant="ghost" size="sm" className="gap-1.5" onClick={onLogout} disabled={pending}>
       {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-      Se déconnecter
+      {t("logoutButton")}
     </Button>
   )
 }

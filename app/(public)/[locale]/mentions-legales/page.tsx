@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server"
 import {
   LegalPageLayout,
   LOREM,
@@ -9,17 +10,18 @@ export const metadata = {
   description: "Mentions légales Easy2Book — agence de voyage agréée en Tunisie.",
 }
 
-export default function MentionsLegalesPage() {
+export default async function MentionsLegalesPage() {
+  const t = await getTranslations("Legal")
   return (
     <LegalPageLayout
-      title="Mentions Légales"
+      title={t("mentionsLegalesTitle")}
       intro={LOREM}
       sections={[
-        { heading: "1. Éditeur du site", paragraphs: [LOREM_2] },
-        { heading: "2. Hébergement", paragraphs: [LOREM] },
-        { heading: "3. Agrément et immatriculation", paragraphs: [LOREM_2] },
-        { heading: "4. Propriété intellectuelle", paragraphs: [LOREM] },
-        { heading: "5. Contact", paragraphs: [LOREM_2] },
+        { heading: t("mlEditeur"), paragraphs: [LOREM_2] },
+        { heading: t("mlHebergement"), paragraphs: [LOREM] },
+        { heading: t("mlAgrement"), paragraphs: [LOREM_2] },
+        { heading: t("mlPropriete"), paragraphs: [LOREM] },
+        { heading: t("mlContact"), paragraphs: [LOREM_2] },
       ]}
     />
   )

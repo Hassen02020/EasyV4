@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { Link } from "@/i18n/navigation"
+import { getTranslations } from "next-intl/server"
 import { CompteLoginForm } from "@/components/compte/compte-login-form"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 
@@ -8,7 +9,8 @@ export const metadata = {
   description: "Connectez-vous pour retrouver l'historique de toutes vos réservations Easy2Book.",
 }
 
-export default function CompteConnexionPage() {
+export default async function CompteConnexionPage() {
+  const t = await getTranslations("Compte")
   return (
     <main className="from-background via-background to-accent/10 relative flex min-h-screen items-center justify-center bg-gradient-to-br px-4 py-12">
       <div
@@ -21,14 +23,14 @@ export default function CompteConnexionPage() {
       />
       <div className="e2b-fade-in-up relative w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
-          <Link href="/" aria-label="Retour à l'accueil Easy2Book" className="group">
+          <Link href="/" aria-label={t("backHomeAria")} className="group">
             <Easy2BookLogo className="e2b-logo-pulse h-20 w-20" priority />
           </Link>
           <h1 className="text-foreground mt-6 text-2xl font-semibold tracking-tight">
-            Mon compte
+            {t("connexionPageTitle")}
           </h1>
           <p className="text-muted-foreground mt-1 text-center text-sm">
-            Retrouvez toutes vos réservations, vouchers et factures en un seul endroit
+            {t("connexionPageSubtitle")}
           </p>
         </div>
 
@@ -42,9 +44,9 @@ export default function CompteConnexionPage() {
 
         <div className="mt-6 flex flex-col items-center gap-2 text-center text-xs">
           <p className="text-muted-foreground">
-            Pas envie de vous connecter ?{" "}
+            {t("noAccountPrefix")}{" "}
             <Link href="/bookings" className="text-primary font-medium hover:underline">
-              Retrouver une réservation avec son code
+              {t("lookupWithCodeLink")}
             </Link>
           </p>
         </div>

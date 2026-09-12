@@ -1,5 +1,5 @@
 import { Link, redirect } from "@/i18n/navigation"
-import { getLocale } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import {
   ArrowRight,
   CalendarDays,
@@ -18,19 +18,11 @@ import { decodeDraft, encodeDraft } from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { BookingSteps } from "@/components/booking/booking-steps"
+import { getIntlLocale } from "@/lib/i18n-date"
 
 export const dynamic = 'force-dynamic'
 
 type SP = { [k: string]: string | string[] | undefined }
-
-const MODULE_LABEL: Record<string, string> = {
-  hotel: "Hôtel",
-  flight: "Vol",
-  package: "Voyage organisé",
-  omra: "Omra",
-  transfer: "Transfert",
-  activity: "Activité",
-}
 
 export default async function BookingStep1Page({
   searchParams,
@@ -39,6 +31,18 @@ export default async function BookingStep1Page({
 }) {
   const sp = await searchParams
   const token = typeof sp.d === "string" ? sp.d : undefined
+  const locale = await getLocale()
+  const t = await getTranslations("Booking")
+  const tc = await getTranslations("Common")
+
+  const MODULE_LABEL: Record<string, string> = {
+    hotel: t("moduleLabelHotel"),
+    flight: t("moduleLabelFlight"),
+    package: t("moduleLabelPackage"),
+    omra: t("moduleLabelOmra"),
+    transfer: t("moduleLabelTransfer"),
+    activity: t("moduleLabelActivity"),
+  }
 
   // Si pas de draft, on accepte les paramètres bruts pour bootstrap depuis un lien
   let token2 = token
@@ -49,7 +53,7 @@ export default async function BookingStep1Page({
 
   const payload = decodeDraft(token2)
   if (!payload) {
-    redirect({ href: "/", locale: await getLocale() })
+    redirect({ href: "/", locale })
     return null
   }
 
@@ -68,19 +72,17 @@ export default async function BookingStep1Page({
         <main className="bg-muted/30 flex-1 py-8">
           <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6 lg:px-8">
             <h1 className="mb-2 text-2xl font-bold">
-              Ce prix n&apos;a plus pu être vérifié
+              {t("priceNotVerifiedTitle")}
             </h1>
             <p className="text-muted-foreground mb-6">
-              Pour votre sécurité, nous ne pouvons afficher un montant que
-              lorsqu&apos;il est garanti par notre serveur. Relancez une
-              recherche pour obtenir un tarif à jour.
+              {t("priceNotVerifiedDesc")}
             </p>
             <Link
               href="/hotels/search"
               className="text-foreground inline-flex items-center gap-1 underline"
             >
               <ChevronLeft className="size-4" />
-              Relancer une recherche d&apos;hôtel
+              {t("relaunchHotelSearch")}
             </Link>
           </div>
         </main>
@@ -117,14 +119,13 @@ export default async function BookingStep1Page({
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center text-sm"
           >
             <ChevronLeft className="size-4" />
-            Retour
+            {t("back")}
           </Link>
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
-            Confirmer votre offre
+            {t("confirmOfferTitle")}
           </h1>
           <p className="text-muted-foreground mb-6">
-            Vérifiez les informations avant de continuer vers la saisie
-            voyageurs.
+            {t("confirmOfferSubtitle")}
           </p>
 
           <BookingSteps current={1} />
@@ -143,43 +144,43 @@ export default async function BookingStep1Page({
                       </h2>
                     </div>
                     <Badge className="bg-emerald-500 hover:bg-emerald-500">
-                      Disponible
+                      {t("availableBadge")}
                     </Badge>
                   </div>
                   <Separator />
                   <dl className="grid gap-3 sm:grid-cols-2">
                     <div className="flex items-center gap-2 text-sm">
                       <CalendarDays className="text-muted-foreground size-4" />
-                      <span className="text-muted-foreground">Du</span>
+                      <span className="text-muted-foreground">{t("fromLabel")}</span>
                       <span className="font-medium">
-                        {formatDate(draft.startDate)}
+                        {formatDate(draft.startDate, locale)}
                       </span>
                     </div>
                     {draft.endDate ? (
                       <div className="flex items-center gap-2 text-sm">
                         <CalendarDays className="text-muted-foreground size-4" />
-                        <span className="text-muted-foreground">Au</span>
+                        <span className="text-muted-foreground">{t("toLabel")}</span>
                         <span className="font-medium">
-                          {formatDate(draft.endDate)}
+                          {formatDate(draft.endDate, locale)}
                         </span>
                       </div>
                     ) : null}
                     <div className="flex items-center gap-2 text-sm">
                       <Users className="text-muted-foreground size-4" />
-                      <span className="text-muted-foreground">Voyageurs</span>
+                      <span className="text-muted-foreground">{tc("voyageurs")}</span>
                       <span className="font-medium">
-                        {draft.adults} adulte{draft.adults > 1 ? "s" : ""}
+                        {t("adultsCount", { n: draft.adults })}
                         {draft.children
-                          ? ` + ${draft.children} enfant${draft.children > 1 ? "s" : ""}`
+                          ? ` + ${t("childrenCount", { n: draft.children })}`
                           : ""}
                       </span>
                     </div>
                     {draft.module === "hotel" ? (
                       <div className="flex items-center gap-2 text-sm">
                         <Tag className="text-muted-foreground size-4" />
-                        <span className="text-muted-foreground">Durée</span>
+                        <span className="text-muted-foreground">{t("durationLabel")}</span>
                         <span className="font-medium">
-                          {nights} nuit{nights > 1 ? "s" : ""}
+                          {t("nightsCount", { n: nights })}
                         </span>
                       </div>
                     ) : null}
@@ -188,19 +189,19 @@ export default async function BookingStep1Page({
                   <ul className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
                     <li className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" />
-                      Annulation gratuite jusqu&apos;à 48 h avant
+                      {t("freeCancellation48h")}
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" />
-                      Confirmation immédiate
+                      {t("immediateConfirmation")}
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" />
-                      Support Easy2Book 7j/7
+                      {t("supportNotice")}
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" />
-                      Paiement sécurisé
+                      {t("securePayment")}
                     </li>
                   </ul>
                 </CardContent>
@@ -211,33 +212,33 @@ export default async function BookingStep1Page({
               <Card>
                 <CardContent className="space-y-3 p-5">
                   <h3 className="text-sm font-semibold tracking-wide uppercase">
-                    Récapitulatif prix
+                    {t("priceSummaryTitle")}
                   </h3>
                   <PriceLine
-                    label="Sous-total"
+                    label={t("subtotal")}
                     amount={breakdown.subtotalTnd}
                   />
-                  <PriceLine label="TVA 19%" amount={breakdown.vatTnd} />
+                  <PriceLine label={t("vat")} amount={breakdown.vatTnd} />
                   {breakdown.serviceFeeTnd > 0 ? (
                     <PriceLine
-                      label="Frais service"
+                      label={t("serviceFee")}
                       amount={breakdown.serviceFeeTnd}
                     />
                   ) : null}
                   <Separator />
                   <div className="flex items-center justify-between text-base font-semibold">
-                    <span>Total TTC</span>
+                    <span>{t("totalIncl")}</span>
                     <span>{formatMoney(breakdown.totalTnd)}</span>
                   </div>
                   <div className="text-muted-foreground flex items-center justify-between text-sm">
-                    <span>Acompte 30 %</span>
+                    <span>{t("depositPercent")}</span>
                     <span>{formatMoney(breakdown.depositTnd)}</span>
                   </div>
                   <Button asChild className="w-full" size="lg">
                     <Link
                       href={`/booking/travelers?d=${encodeURIComponent(token2 ?? "")}`}
                     >
-                      Continuer
+                      {t("continueButton")}
                       <ArrowRight className="ml-2 size-4" />
                     </Link>
                   </Button>
@@ -261,9 +262,9 @@ function PriceLine({ label, amount }: { label: string; amount: number }) {
   )
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleDateString("fr-FR", {
+    return new Date(iso).toLocaleDateString(getIntlLocale(locale), {
       weekday: "short",
       day: "2-digit",
       month: "long",

@@ -26,7 +26,8 @@ import {
   DEFAULT_SORT_MODE,
   type HotelSortMode,
 } from "@/lib/mygo/sort"
-import { SortSelect } from "@/components/sort-select"
+import { SortSelect, type SortSelectLabels } from "@/components/sort-select"
+import type { FilterLabels } from "@/components/filter-sidebar"
 import { encodeDraft } from "@/lib/booking/draft-store"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FlexibleDateSearch } from "@/components/flexible-date-search"
@@ -76,6 +77,47 @@ function HotelSearchContent() {
   const locale = useLocale()
   const dateFnsLocale = getDateFnsLocale(locale)
   const searchParams = useSearchParams()
+  // `FilterSidebar`/`FilterChips`/`MobileFilterSortBar`/`SortSelect` sont
+  // partagés avec `/pro` (reste français, pas de NextIntlClientProvider) —
+  // voir le commentaire sur `FilterLabels` dans components/filter-sidebar.tsx.
+  // Ici (storefront public), on construit les vraies traductions via `t`.
+  const sortOptionLabel = (mode: HotelSortMode): string => {
+    switch (mode) {
+      case "recommended":
+        return t("sortRecommended")
+      case "price_asc":
+        return t("sortPriceAsc")
+      case "price_desc":
+        return t("sortPriceDesc")
+      case "best_deal":
+        return t("sortBestDeal")
+    }
+  }
+  const filterLabels: FilterLabels = {
+    sectionAvailability: t("filterSectionAvailability"),
+    recommended: t("filterRecommended"),
+    availableOnly: t("filterAvailableOnly"),
+    freeCancellation: t("freeCancellation"),
+    sectionCategory: t("categoryFilter"),
+    sectionTheme: t("filterSectionTheme"),
+    sectionPrice: (curr) => t("filterSectionPrice", { currency: curr }),
+    sectionBoarding: t("filterSectionBoarding"),
+    sectionFacilities: t("facilitiesCategoryFallback"),
+    resetFilters: t("filterResetButton"),
+    asideTitle: t("filterAsideTitle"),
+    starsLabel: (stars) => t("starsCategoryFallback", { stars }),
+    removeFilterAria: (label) => t("filterRemoveAria", { label }),
+    clearAllFilters: t("clearAllFilters"),
+    filtersButton: t("filterButtonLabel"),
+    seeResults: t("filterSeeResults"),
+    sortByTitle: t("sortByTitle"),
+    sortOptionLabel,
+    sortResultsAria: t("sortResultsAria"),
+  }
+  const sortSelectLabels: SortSelectLabels = {
+    ariaLabel: t("sortResultsAria"),
+    optionLabel: sortOptionLabel,
+  }
   // Filtres et tri initialisés depuis l'URL (lazy init) — survivent à un
   // rafraîchissement de page et à un aller-retour vers la fiche hôtel.
   const [filters, setFiltersState] = useState<HotelFilterState>(() =>
@@ -235,6 +277,7 @@ function HotelSearchContent() {
               currency={currency}
               disabled={status !== "success"}
               loading={status === "loading"}
+              labels={filterLabels}
             />
           </div>
 
@@ -249,6 +292,7 @@ function HotelSearchContent() {
               disabled={status !== "success"}
               loading={status === "loading"}
               hasResults={status === "success" && sortedOffers.length > 0}
+              labels={filterLabels}
             />
             <FlexibleDateSearch
               flexDays={flexDays}
@@ -263,10 +307,11 @@ function HotelSearchContent() {
                 facets={facets}
                 currency={currency}
                 onChange={updateFilters}
+                labels={filterLabels}
               />
               {status === "success" && sortedOffers.length > 0 && (
                 <div className="hidden lg:block">
-                  <SortSelect value={sortMode} onChange={updateSort} />
+                  <SortSelect value={sortMode} onChange={updateSort} labels={sortSelectLabels} />
                 </div>
               )}
             </div>

@@ -8,6 +8,7 @@
  */
 
 import { Link } from "@/i18n/navigation"
+import { getTranslations } from "next-intl/server"
 import { notFound } from "next/navigation"
 import { and, eq, gte, arrayContains } from "drizzle-orm"
 import { ArrowLeft } from "lucide-react"
@@ -72,6 +73,7 @@ export default async function PackageBookPage({
   const result = await getBookablePackage(slug)
   if (!result) notFound()
   const { pkg, departures } = result
+  const t = await getTranslations("Packages")
 
   if (departures.length === 0) {
     notFound()
@@ -87,11 +89,11 @@ export default async function PackageBookPage({
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm"
           >
             <ArrowLeft className="size-4" />
-            Retour au voyage
+            {t("backToPackage")}
           </Link>
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{pkg.title}</h1>
           <p className="text-muted-foreground mb-6">
-            Renseignez les voyageurs et choisissez votre mode de règlement.
+            {t("bookIntro")}
           </p>
           <BookingSteps current={2} />
 

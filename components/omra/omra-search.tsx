@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Search, Calendar, Users, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,32 +14,16 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 
-const MONTHS = [
-  { value: "1", label: "Janvier" },
-  { value: "2", label: "Février" },
-  { value: "3", label: "Mars" },
-  { value: "4", label: "Avril" },
-  { value: "5", label: "Mai" },
-  { value: "6", label: "Juin" },
-  { value: "7", label: "Juillet" },
-  { value: "8", label: "Août" },
-  { value: "9", label: "Septembre" },
-  { value: "10", label: "Octobre" },
-  { value: "11", label: "Novembre" },
-  { value: "12", label: "Décembre" },
-]
+const MONTHS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
 
 // Doit correspondre exactement aux valeurs de l'enum omra_package_type
 // (lib/db/schema/omra.ts) — sinon le filtre ne matcherait aucun package réel.
-const PROGRAMMES = [
-  { value: "omra", label: "Omra" },
-  { value: "ramadan", label: "Omra Ramadan" },
-  { value: "umrah_plus", label: "Omra + Ziarat étendu" },
-  { value: "hajj", label: "Hajj" },
-]
+const PROGRAMMES = ["omra", "ramadan", "umrah_plus", "hajj"]
 
 export function OmraSearch() {
   const router = useRouter()
+  const t = useTranslations("Omra")
+  const tCommon = useTranslations("Common")
   const [programme, setProgramme] = useState("")
   const [month, setMonth] = useState("")
   const [pilgrims, setPilgrims] = useState("2")
@@ -53,21 +38,21 @@ export function OmraSearch() {
 
   return (
     <div className="mb-8 rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="mb-6 text-lg font-semibold">Affiner votre recherche</h2>
+      <h2 className="mb-6 text-lg font-semibold">{t("refineSearch")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-            Programme
+            {tCommon("programme")}
           </Label>
           <Select value={programme} onValueChange={setProgramme}>
             <SelectTrigger>
-              <SelectValue placeholder="Tous programmes" />
+              <SelectValue placeholder={t("allProgrammes")} />
             </SelectTrigger>
             <SelectContent>
               {PROGRAMMES.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
+                <SelectItem key={p} value={p}>
+                  {t(`filterProgrammes.${p}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -77,16 +62,16 @@ export function OmraSearch() {
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            Mois de départ
+            {tCommon("moisDepart")}
           </Label>
           <Select value={month} onValueChange={setMonth}>
             <SelectTrigger>
-              <SelectValue placeholder="Tous les mois" />
+              <SelectValue placeholder={t("allMonths")} />
             </SelectTrigger>
             <SelectContent>
               {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
+                <SelectItem key={m} value={m}>
+                  {t(`months.${m}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -96,7 +81,7 @@ export function OmraSearch() {
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            Pèlerins
+            {t("pilgrimsLabel")}
           </Label>
           <Select value={pilgrims} onValueChange={setPilgrims}>
             <SelectTrigger>
@@ -105,7 +90,7 @@ export function OmraSearch() {
             <SelectContent>
               {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                 <SelectItem key={n} value={String(n)}>
-                  {n} pèlerin{n > 1 ? "s" : ""}
+                  {t("pilgrimsCount", { count: n })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -116,7 +101,7 @@ export function OmraSearch() {
       <div className="mt-4 flex justify-end">
         <Button onClick={handleSearch} className="gap-2">
           <Search className="h-4 w-4" />
-          Rechercher
+          {t("searchButton")}
         </Button>
       </div>
     </div>

@@ -4,6 +4,7 @@
  */
 
 import { Suspense } from "react"
+import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { OmraSearch } from "@/components/omra/omra-search"
@@ -96,6 +97,7 @@ export default async function OmraPage({
 }) {
   const filters = await searchParams
   const packages = await getActivePackages(filters)
+  const t = await getTranslations("Omra")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -104,14 +106,13 @@ export default async function OmraPage({
         <div className="bg-gradient-to-br from-emerald-900 to-emerald-700 px-4 py-12 text-white">
           <div className="mx-auto max-w-4xl text-center">
             <p className="mb-2 text-sm font-medium tracking-widest text-emerald-300 uppercase">
-              Module Omraty
+              {t("kicker")}
             </p>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              Réservez votre Omra sereinement
+              {t("heroTitle")}
             </h1>
             <p className="mx-auto max-w-2xl text-emerald-100">
-              Packages tout inclus — vols, hôtels étoilés à Médine et La Mecque,
-              transport, visa et assistance 7j/7.
+              {t("heroSubtitle")}
             </p>
           </div>
         </div>

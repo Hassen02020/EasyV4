@@ -3,6 +3,7 @@
  * Server Component : charge les packages depuis la table catalog_packages.
  */
 
+import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { PackageSearch } from "@/components/packages/package-search"
@@ -164,6 +165,7 @@ export default async function PackagesPage({
 }) {
   const filters = await searchParams
   const packages = await getActivePackages(filters)
+  const t = await getTranslations("Packages")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -172,14 +174,13 @@ export default async function PackagesPage({
         <div className="bg-gradient-to-br from-violet-900 to-violet-700 px-4 py-12 text-white">
           <div className="mx-auto max-w-4xl text-center">
             <p className="mb-2 text-sm font-medium tracking-widest text-violet-300 uppercase">
-              Voyages Organisés
+              {t("kicker")}
             </p>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              Découvrez le monde avec Easy2Book
+              {t("heroTitle")}
             </h1>
             <p className="mx-auto max-w-2xl text-violet-100">
-              Circuits clés en main, vols + hôtels + guide inclus. Partez l&apos;esprit
-              libre depuis la Tunisie.
+              {t("heroSubtitle")}
             </p>
           </div>
         </div>

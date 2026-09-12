@@ -17,6 +17,7 @@
 
 import { cache } from "react"
 import { Link } from "@/i18n/navigation"
+import { getTranslations } from "next-intl/server"
 import { notFound } from "next/navigation"
 import { and, eq, gte, arrayContains } from "drizzle-orm"
 import {
@@ -43,12 +44,7 @@ import { ProductReviewsSection } from "@/components/reviews/product-reviews-sect
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
 
-const PACKAGE_TYPE_LABELS: Record<string, string> = {
-  omra: "Omra Régulière",
-  hajj: "Hajj",
-  ramadan: "Omra Ramadan",
-  umrah_plus: "Omra + Ziarat",
-}
+const PACKAGE_TYPE_KEYS = new Set(["omra", "hajj", "ramadan", "umrah_plus"])
 
 const CONTACT_PHONE = "+21698140514"
 const CONTACT_PHONE_DISPLAY = "+216 98 140 514"
@@ -138,21 +134,22 @@ export default async function OmraPackageDetailPage({
   const result = await getPackageWithDepartures(id)
   if (!result) notFound()
   const { pkg, departures, media } = result
+  const t = await getTranslations("Omra")
 
-  const label = PACKAGE_TYPE_LABELS[pkg.type] ?? pkg.type
+  const label = PACKAGE_TYPE_KEYS.has(pkg.type) ? t(`packageTypes.${pkg.type}`) : pkg.type
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
 
   const inclusions: { label: string; included: boolean }[] = [
-    { label: "Visa", included: pkg.includesVisa },
-    { label: "Vols", included: pkg.includesFlights },
-    { label: "Hôtels", included: pkg.includesHotels },
-    { label: "Transferts", included: pkg.includesTransfers },
-    { label: "Ziarat (visites religieuses)", included: pkg.includesZiarat },
-    { label: "Guide spirituel accompagnateur", included: pkg.includesGuide },
+    { label: t("inclusions.visa"), included: pkg.includesVisa },
+    { label: t("inclusions.flights"), included: pkg.includesFlights },
+    { label: t("inclusions.hotels"), included: pkg.includesHotels },
+    { label: t("inclusions.transfers"), included: pkg.includesTransfers },
+    { label: t("inclusions.ziarat"), included: pkg.includesZiarat },
+    { label: t("inclusions.guide"), included: pkg.includesGuide },
   ]
 
   const contactMessage = encodeURIComponent(
-    `Bonjour, je souhaite des informations sur le package "${pkg.name}".`,
+    t("whatsappInquiry", { name: pkg.name }),
   )
 
   return (
@@ -166,7 +163,7 @@ export default async function OmraPackageDetailPage({
               className="mb-4 inline-flex items-center gap-1.5 text-sm text-emerald-200 hover:text-white"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Retour aux packages Omra
+              {t("backToList")}
             </Link>
             <Badge variant="secondary" className="mb-3 bg-white/20 text-white">
               {label}
@@ -188,7 +185,7 @@ export default async function OmraPackageDetailPage({
             ) : null}
 
             <section className="rounded-xl border bg-card p-5">
-              <h2 className="mb-4 text-lg font-semibold">Ce programme inclut</h2>
+              <h2 className="mb-4 text-lg font-semibold">{t("inclusionsTitle")}</h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {inclusions.map((item) => (
                   <div key={item.label} className="flex items-center gap-2 text-sm">
@@ -206,19 +203,19 @@ export default async function OmraPackageDetailPage({
               <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm text-muted-foreground sm:grid-cols-4">
                 <div className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
-                  {pkg.durationDays} jours
+                  {t("daysCount", { days: pkg.durationDays })}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Plane className="h-3.5 w-3.5" />
-                  Vol {pkg.includesFlights ? "inclus" : "non inclus"}
+                  {pkg.includesFlights ? t("flightIncluded") : t("flightNotIncluded")}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <HotelIcon className="h-3.5 w-3.5" />
-                  Hôtel {pkg.includesHotels ? "inclus" : "non inclus"}
+                  {pkg.includesHotels ? t("hotelIncluded") : t("hotelNotIncluded")}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" />
-                  {pkg.minPilgrims}–{pkg.maxPilgrims} pèlerins
+                  {t("pilgrimsRange", { min: pkg.minPilgrims, max: pkg.maxPilgrims })}
                 </div>
               </div>
             </section>
@@ -226,12 +223,11 @@ export default async function OmraPackageDetailPage({
             <section className="rounded-xl border bg-card p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <Calendar className="h-4.5 w-4.5" />
-                Départs disponibles
+                {t("departuresTitle")}
               </h2>
               {departures.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Aucun départ n&apos;est ouvert à la réservation pour le moment.
-                  Contactez-nous pour connaître les prochaines dates.
+                  {t("noDeparturesAvailable")}
                 </p>
               ) : (
                 <ul className="divide-y">
@@ -256,7 +252,7 @@ export default async function OmraPackageDetailPage({
                                 : "border-amber-300 bg-amber-50 text-amber-700"
                             }
                           >
-                            {d.availableCount} place{d.availableCount > 1 ? "s" : ""}
+                            {t("seatsAvailable", { count: d.availableCount })}
                           </Badge>
                           {depPrice && (
                             <span className="font-semibold text-emerald-700">
@@ -276,11 +272,11 @@ export default async function OmraPackageDetailPage({
             <div className="sticky top-4 rounded-xl border bg-card p-5">
               {priceTnd && (
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground">À partir de</p>
+                  <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
                   <p className="text-3xl font-bold text-emerald-700">
                     {priceTnd.toLocaleString("fr-FR")}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">
-                      DT / pèlerin
+                      {t("priceUnitPerPilgrim")}
                     </span>
                   </p>
                 </div>
@@ -288,10 +284,10 @@ export default async function OmraPackageDetailPage({
               {departures.length > 0 ? (
                 <>
                   <Button asChild className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
-                    <Link href={`/omra/${pkg.id}/book`}>Réserver en ligne</Link>
+                    <Link href={`/omra/${pkg.id}/book`}>{t("bookOnline")}</Link>
                   </Button>
                   <p className="mt-2 text-center text-xs text-muted-foreground">
-                    ou contactez un conseiller au{" "}
+                    {t("contactAdvisorPrefix")}{" "}
                     <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-emerald-700">
                       {CONTACT_PHONE_DISPLAY}
                     </a>
@@ -302,11 +298,11 @@ export default async function OmraPackageDetailPage({
                   <Button asChild className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
                     <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
                       <Phone className="h-4 w-4" />
-                      Contacter un conseiller
+                      {t("contactAdvisor")}
                     </a>
                   </Button>
                   <p className="mt-2 text-center text-xs text-muted-foreground">
-                    ou appelez le{" "}
+                    {t("orCallUs")}{" "}
                     <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-emerald-700">
                       {CONTACT_PHONE_DISPLAY}
                     </a>
@@ -316,8 +312,7 @@ export default async function OmraPackageDetailPage({
               <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 <span>
-                  Dossier visa, vols et hôtels pris en charge par nos conseillers
-                  spécialisés Omra.
+                  {t("trustNote")}
                 </span>
               </div>
             </div>
@@ -327,7 +322,7 @@ export default async function OmraPackageDetailPage({
                 productType="omra"
                 productRef={pkg.id}
                 productLabel={pkg.name}
-                title="Être rappelé pour cette Omra"
+                title={t("leadCaptureTitle")}
               />
             </div>
           </aside>

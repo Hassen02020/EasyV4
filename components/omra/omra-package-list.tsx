@@ -2,6 +2,7 @@
 
 import { Link } from "@/i18n/navigation"
 import Image from "next/image"
+import { useTranslations } from "next-intl"
 import { Star, Plane, Hotel, Users, Clock, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,12 +15,7 @@ interface Props {
   packages: OmraPackageWithMedia[]
 }
 
-const PACKAGE_TYPE_LABELS: Record<string, string> = {
-  omra: "Omra Régulière",
-  hajj: "Hajj",
-  ramadan: "Omra Ramadan",
-  umrah_plus: "Omra + Ziarat",
-}
+const PACKAGE_TYPE_KEYS = new Set(["omra", "hajj", "ramadan", "umrah_plus"])
 
 function formatDate(d: string | Date | null): string {
   if (!d) return "—"
@@ -31,7 +27,8 @@ function formatDate(d: string | Date | null): string {
 }
 
 function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
-  const label = PACKAGE_TYPE_LABELS[pkg.type] ?? pkg.type
+  const t = useTranslations("Omra")
+  const label = PACKAGE_TYPE_KEYS.has(pkg.type) ? t(`packageTypes.${pkg.type}`) : pkg.type
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
   // Fallback mission §23 : Media System (couverture uploadée par l'admin) en
   // priorité, sinon l'ancien champ metadata.coverImage (voir
@@ -71,33 +68,33 @@ function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Clock className="h-3.5 w-3.5" />
-            <span>{pkg.durationDays} jours</span>
+            <span>{t("daysCount", { days: pkg.durationDays })}</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Users className="h-3.5 w-3.5" />
-            <span>Places dispo</span>
+            <span>{t("seatsAvailableLabel")}</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Plane className="h-3.5 w-3.5" />
-            <span>Vol inclus</span>
+            <span>{t("flightIncluded")}</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Hotel className="h-3.5 w-3.5" />
-            <span>Hôtel inclus</span>
+            <span>{t("hotelIncluded")}</span>
           </div>
         </div>
 
         <div className="rounded-lg bg-muted/50 px-4 py-3">
-          <p className="text-xs text-muted-foreground">Départ à partir du</p>
+          <p className="text-xs text-muted-foreground">{t("departureFrom")}</p>
           <p className="font-medium">{formatDate(pkg.validFrom)}</p>
         </div>
 
         {priceTnd && (
           <div className="mt-auto">
-            <p className="text-xs text-muted-foreground">À partir de</p>
+            <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
             <p className="text-2xl font-bold text-emerald-700">
               {priceTnd.toLocaleString("fr-FR")}
-              <span className="ml-1 text-sm font-normal">DT / pèlerin</span>
+              <span className="ml-1 text-sm font-normal">{t("priceUnitPerPilgrim")}</span>
             </p>
           </div>
         )}
@@ -106,7 +103,7 @@ function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
       <CardFooter className="border-t p-4">
         <Link href={`/omra/${pkg.id}`} className="w-full">
           <Button className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
-            Voir le programme
+            {t("viewProgram")}
             <ChevronRight className="h-4 w-4" />
           </Button>
         </Link>
@@ -116,15 +113,16 @@ function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
 }
 
 export function OmraPackageList({ packages }: Props) {
+  const t = useTranslations("Omra")
   if (packages.length === 0) {
     return (
       <div className="mt-8 rounded-xl border border-dashed bg-card p-12 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
           <Star className="h-8 w-8 text-emerald-600" />
         </div>
-        <h3 className="mb-2 text-lg font-semibold">Aucun package disponible</h3>
+        <h3 className="mb-2 text-lg font-semibold">{t("emptyTitle")}</h3>
         <p className="text-sm text-muted-foreground">
-          Nos packages Omra seront bientôt disponibles. Contactez-nous au{" "}
+          {t("emptyDescriptionPrefix")}{" "}
           <a
             href="tel:+21698140514"
             className="font-medium text-emerald-700 underline"
@@ -140,8 +138,7 @@ export function OmraPackageList({ packages }: Props) {
   return (
     <div className="mt-4">
       <p className="mb-4 text-sm text-muted-foreground">
-        {packages.length} package{packages.length > 1 ? "s" : ""} disponible
-        {packages.length > 1 ? "s" : ""}
+        {t("packagesAvailableCount", { count: packages.length })}
       </p>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {packages.map((pkg) => (

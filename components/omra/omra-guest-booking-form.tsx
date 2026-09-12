@@ -16,6 +16,7 @@
 
 import { useState } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -75,21 +76,15 @@ const emptyPilgrim = {
   requiresSpecialAssistance: false,
 }
 
-const METHODS: { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
-  { key: "card", label: "Carte bancaire", desc: "Paiement en ligne immédiat", icon: CreditCard },
-  {
-    key: "transfer",
-    label: "Virement bancaire",
-    desc: "Coordonnées de virement envoyées par email — voucher émis après confirmation du règlement",
-    icon: Banknote,
-  },
-  {
-    key: "cash",
-    label: "Espèces en agence",
-    desc: "Réservation maintenue en attente de paiement — voucher émis après confirmation du règlement",
-    icon: Wallet,
-  },
-]
+function getMethods(
+  t: ReturnType<typeof useTranslations>,
+): { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] {
+  return [
+    { key: "card", label: t("paymentCardLabel"), desc: t("paymentCardDesc"), icon: CreditCard },
+    { key: "transfer", label: t("paymentTransferLabel"), desc: t("paymentTransferDesc"), icon: Banknote },
+    { key: "cash", label: t("paymentCashLabel"), desc: t("paymentCashDesc"), icon: Wallet },
+  ]
+}
 
 export function OmraGuestBookingForm({
   packageId,
@@ -100,6 +95,8 @@ export function OmraGuestBookingForm({
   defaultDepartureDate,
 }: OmraGuestBookingFormProps) {
   const router = useRouter()
+  const t = useTranslations("Omra")
+  const METHODS = getMethods(t)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
@@ -132,11 +129,11 @@ export function OmraGuestBookingForm({
 
   async function onSubmit(data: OmraGuestBookingInput) {
     if (!acceptCgv) {
-      setSubmitError("Vous devez accepter les conditions générales de vente.")
+      setSubmitError(t("mustAcceptCgv"))
       return
     }
     if (policyAcceptanceRequired) {
-      setSubmitError("Vous devez accepter la politique d'annulation.")
+      setSubmitError(t("mustAcceptPolicy"))
       return
     }
     setIsSubmitting(true)
@@ -153,7 +150,7 @@ export function OmraGuestBookingForm({
       }
       router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
+      setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
     }
   }
@@ -172,18 +169,18 @@ export function OmraGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="size-5" />
-              Date de départ
+              {t("departureDateTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">{packageName}</p>
-            <p className="text-muted-foreground text-xs">{durationDays} jours</p>
+            <p className="text-muted-foreground text-xs">{t("daysCount", { days: durationDays })}</p>
             <Select
               value={watchedDepartureDate}
               onValueChange={(v) => form.setValue("departureDate", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Choisir une date" />
+                <SelectValue placeholder={t("chooseDate")} />
               </SelectTrigger>
               <SelectContent>
                 {departures.map((d) => (
@@ -191,7 +188,7 @@ export function OmraGuestBookingForm({
                     <div className="flex items-center justify-between gap-4">
                       <span>{new Date(d.departureDate).toLocaleDateString("fr-FR")}</span>
                       <Badge variant={d.availableCount > 10 ? "default" : "destructive"}>
-                        {d.availableCount} places
+                        {t("seatsAvailable", { count: d.availableCount })}
                       </Badge>
                     </div>
                   </SelectItem>
@@ -210,7 +207,7 @@ export function OmraGuestBookingForm({
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <User className="size-5" />
-                Fiches pèlerins ({watchedPilgrims.length})
+                {t("pilgrimFilesTitle", { count: watchedPilgrims.length })}
               </span>
               <Button
                 type="button"
@@ -220,16 +217,16 @@ export function OmraGuestBookingForm({
                 disabled={watchedPilgrims.length >= 100}
               >
                 <Plus className="mr-1 size-4" />
-                Ajouter un pèlerin
+                {t("addPilgrim")}
               </Button>
             </CardTitle>
-            <CardDescription>Informations requises pour le visa et la réservation.</CardDescription>
+            <CardDescription>{t("pilgrimInfoDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {fields.map((field, index) => (
               <div key={field.id} className="relative space-y-4 rounded-lg border p-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Pèlerin #{index + 1}</h3>
+                  <h3 className="font-semibold">{t("pilgrimNumber", { n: index + 1 })}</h3>
                   {fields.length > 1 ? (
                     <Button
                       type="button"
@@ -244,13 +241,13 @@ export function OmraGuestBookingForm({
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Prénom *" error={form.formState.errors.pilgrims?.[index]?.firstName?.message}>
+                  <Field label={t("firstNameLabel")} error={form.formState.errors.pilgrims?.[index]?.firstName?.message}>
                     <Input {...form.register(`pilgrims.${index}.firstName`)} placeholder="Ahmed" />
                   </Field>
-                  <Field label="Nom *" error={form.formState.errors.pilgrims?.[index]?.lastName?.message}>
+                  <Field label={t("lastNameLabel")} error={form.formState.errors.pilgrims?.[index]?.lastName?.message}>
                     <Input {...form.register(`pilgrims.${index}.lastName`)} placeholder="Ben Ali" />
                   </Field>
-                  <Field label="Date de naissance *" error={form.formState.errors.pilgrims?.[index]?.birthDate?.message}>
+                  <Field label={t("birthDateLabel")} error={form.formState.errors.pilgrims?.[index]?.birthDate?.message}>
                     <Input type="date" {...form.register(`pilgrims.${index}.birthDate`)} />
                   </Field>
                 </div>
@@ -258,11 +255,11 @@ export function OmraGuestBookingForm({
                 <Separator />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Nationalité *" error={form.formState.errors.pilgrims?.[index]?.nationality?.message}>
+                  <Field label={t("nationalityLabel")} error={form.formState.errors.pilgrims?.[index]?.nationality?.message}>
                     <Input {...form.register(`pilgrims.${index}.nationality`)} placeholder="TN" maxLength={2} />
                   </Field>
                   <div className="space-y-2">
-                    <Label>Genre *</Label>
+                    <Label>{t("genderLabel")}</Label>
                     <Select
                       value={watchedPilgrims[index]?.gender}
                       onValueChange={(v) => form.setValue(`pilgrims.${index}.gender`, v as "male" | "female")}
@@ -271,13 +268,13 @@ export function OmraGuestBookingForm({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="male">Homme</SelectItem>
-                        <SelectItem value="female">Femme</SelectItem>
+                        <SelectItem value="male">{t("gender.male")}</SelectItem>
+                        <SelectItem value="female">{t("gender.female")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Situation matrimoniale *</Label>
+                    <Label>{t("maritalStatusLabel")}</Label>
                     <Select
                       value={watchedPilgrims[index]?.maritalStatus}
                       onValueChange={(v) =>
@@ -288,10 +285,10 @@ export function OmraGuestBookingForm({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="single">Célibataire</SelectItem>
-                        <SelectItem value="married">Marié(e)</SelectItem>
-                        <SelectItem value="widowed">Veuf/Veuve</SelectItem>
-                        <SelectItem value="divorced">Divorcé(e)</SelectItem>
+                        <SelectItem value="single">{t("maritalStatus.single")}</SelectItem>
+                        <SelectItem value="married">{t("maritalStatus.married")}</SelectItem>
+                        <SelectItem value="widowed">{t("maritalStatus.widowed")}</SelectItem>
+                        <SelectItem value="divorced">{t("maritalStatus.divorced")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -300,11 +297,11 @@ export function OmraGuestBookingForm({
                 <Separator />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Téléphone *" error={form.formState.errors.pilgrims?.[index]?.phone?.message}>
+                  <Field label={t("phoneLabel")} error={form.formState.errors.pilgrims?.[index]?.phone?.message}>
                     <Input {...form.register(`pilgrims.${index}.phone`)} placeholder="+216 98 123 456" />
                   </Field>
                   <Field
-                    label={index === 0 ? "Email * (contact du groupe)" : "Email"}
+                    label={index === 0 ? t("emailGroupLabel") : t("emailLabel")}
                     error={form.formState.errors.pilgrims?.[index]?.email?.message}
                   >
                     <Input type="email" {...form.register(`pilgrims.${index}.email`)} placeholder="email@example.com" />
@@ -315,25 +312,25 @@ export function OmraGuestBookingForm({
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <Field
-                    label="Numéro de passeport *"
+                    label={t("passportNumberLabel")}
                     error={form.formState.errors.pilgrims?.[index]?.passportNumber?.message}
                   >
                     <Input {...form.register(`pilgrims.${index}.passportNumber`)} placeholder="A12345678" />
                   </Field>
                   <Field
-                    label="Pays émetteur *"
+                    label={t("passportIssuingCountryLabel")}
                     error={form.formState.errors.pilgrims?.[index]?.passportIssuingCountry?.message}
                   >
                     <Input {...form.register(`pilgrims.${index}.passportIssuingCountry`)} placeholder="TN" maxLength={2} />
                   </Field>
                   <Field
-                    label="Date d'émission *"
+                    label={t("passportIssueDateLabel")}
                     error={form.formState.errors.pilgrims?.[index]?.passportIssueDate?.message}
                   >
                     <Input type="date" {...form.register(`pilgrims.${index}.passportIssueDate`)} />
                   </Field>
                   <Field
-                    label="Date d'expiration *"
+                    label={t("passportExpiryDateLabel")}
                     error={form.formState.errors.pilgrims?.[index]?.passportExpiryDate?.message}
                   >
                     <Input type="date" {...form.register(`pilgrims.${index}.passportExpiryDate`)} />
@@ -341,7 +338,7 @@ export function OmraGuestBookingForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Type de chambre</Label>
+                  <Label>{t("roomTypeLabel")}</Label>
                   <Select
                     value={watchedPilgrims[index]?.roomType}
                     onValueChange={(v) =>
@@ -349,14 +346,14 @@ export function OmraGuestBookingForm({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Choisir" />
+                      <SelectValue placeholder={t("chooseRoomType")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="single">Single</SelectItem>
-                      <SelectItem value="double">Double</SelectItem>
-                      <SelectItem value="triple">Triple</SelectItem>
-                      <SelectItem value="quad">Quadruple</SelectItem>
-                      <SelectItem value="suite">Suite</SelectItem>
+                      <SelectItem value="single">{t("roomType.single")}</SelectItem>
+                      <SelectItem value="double">{t("roomType.double")}</SelectItem>
+                      <SelectItem value="triple">{t("roomType.triple")}</SelectItem>
+                      <SelectItem value="quad">{t("roomType.quad")}</SelectItem>
+                      <SelectItem value="suite">{t("roomType.suite")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -377,7 +374,7 @@ export function OmraGuestBookingForm({
         {/* Règlement */}
         <Card>
           <CardHeader>
-            <CardTitle>Mode de paiement</CardTitle>
+            <CardTitle>{t("paymentMethodTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {METHODS.map((m) => {
@@ -411,7 +408,7 @@ export function OmraGuestBookingForm({
             <div className="flex items-start gap-2 pt-2">
               <Checkbox id="cgv-omra" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
               <Label htmlFor="cgv-omra" className="text-muted-foreground text-sm leading-snug">
-                J&apos;accepte les conditions générales de vente d&apos;Easy2Book.
+                {t("acceptCgv")}
               </Label>
             </div>
           </CardContent>
@@ -422,21 +419,21 @@ export function OmraGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="size-5" />
-              Récapitulatif
+              {t("summaryTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm">Nombre de pèlerins</span>
+              <span className="text-sm">{t("pilgrimsCountLabel")}</span>
               <Badge variant="secondary">{watchedPilgrims.length}</Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm">Prix par pèlerin</span>
+              <span className="text-sm">{t("pricePerPilgrim")}</span>
               <span className="font-semibold">{pricePerPilgrim.toFixed(3)} DT</span>
             </div>
             <Separator />
             <div className="flex items-center justify-between text-lg">
-              <span className="font-semibold">Total TTC</span>
+              <span className="font-semibold">{t("totalTtc")}</span>
               <span className="font-bold text-emerald-700">{totalPrice.toFixed(3)} DT</span>
             </div>
           </CardContent>
@@ -451,10 +448,10 @@ export function OmraGuestBookingForm({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 size-4 animate-spin" />
-              Traitement en cours…
+              {t("processing")}
             </>
           ) : (
-            "Confirmer & payer"
+            t("confirmAndPay")
           )}
         </Button>
       </form>

@@ -17,6 +17,7 @@
 
 import { cache } from "react"
 import { Link } from "@/i18n/navigation"
+import { getTranslations } from "next-intl/server"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import { and, eq, gte, arrayContains } from "drizzle-orm"
@@ -161,10 +162,11 @@ export default async function PackageDetailPage({
   const result = await getPackageWithDepartures(slug)
   if (!result) notFound()
   const { pkg, departures, media } = result
+  const t = await getTranslations("Packages")
 
   const itinerary = parseItinerary(pkg.itinerary)
   const contactMessage = encodeURIComponent(
-    `Bonjour, je souhaite des informations sur le voyage "${pkg.title}".`,
+    t("whatsappInquiry", { name: pkg.title }),
   )
   // Fallback mission §23 : Media System (couverture) en priorité sur
   // pkg.coverImage (legacy) pour le bandeau hero.
@@ -197,7 +199,7 @@ export default async function PackageDetailPage({
                 className="mb-3 inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Retour aux voyages organisés
+                {t("backToList")}
               </Link>
               <p className="mb-1 text-xs font-medium tracking-widest text-violet-300 uppercase">
                 {pkg.code}
@@ -218,7 +220,7 @@ export default async function PackageDetailPage({
 
             {pkg.longDescription && (
               <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-3 text-lg font-semibold">Description</h2>
+                <h2 className="mb-3 text-lg font-semibold">{t("descriptionTitle")}</h2>
                 <p className="whitespace-pre-line text-sm text-muted-foreground">
                   {pkg.longDescription}
                 </p>
@@ -227,7 +229,7 @@ export default async function PackageDetailPage({
 
             {(pkg.inclusions?.length || pkg.exclusions?.length) && (
               <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-4 text-lg font-semibold">Inclus / Non inclus</h2>
+                <h2 className="mb-4 text-lg font-semibold">{t("inclusionsTitle")}</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {pkg.inclusions && pkg.inclusions.length > 0 && (
                     <ul className="space-y-1.5 text-sm">
@@ -255,7 +257,7 @@ export default async function PackageDetailPage({
 
             {itinerary.length > 0 && (
               <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-4 text-lg font-semibold">Itinéraire</h2>
+                <h2 className="mb-4 text-lg font-semibold">{t("itineraryTitle")}</h2>
                 <ol className="space-y-4">
                   {itinerary.map((day) => (
                     <li key={day.day} className="flex gap-3">
@@ -279,12 +281,11 @@ export default async function PackageDetailPage({
             <section className="rounded-xl border bg-card p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <Calendar className="h-4.5 w-4.5" />
-                Prochains départs
+                {t("departuresTitle")}
               </h2>
               {departures.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Aucun départ n&apos;est ouvert à la réservation pour le moment.
-                  Contactez-nous pour connaître les prochaines dates.
+                  {t("noDeparturesAvailable")}
                 </p>
               ) : (
                 <ul className="divide-y">
@@ -308,7 +309,7 @@ export default async function PackageDetailPage({
                               : "border-amber-300 bg-amber-50 text-amber-700"
                           }
                         >
-                          {d.seatsLeft} place{d.seatsLeft > 1 ? "s" : ""}
+                          {t("seatsAvailable", { count: d.seatsLeft })}
                         </Badge>
                         <span className="font-semibold text-violet-700">
                           {parseFloat(d.adultPriceTnd).toLocaleString("fr-FR")} DT
@@ -327,7 +328,7 @@ export default async function PackageDetailPage({
                 {pkg.durationDays && (
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
-                    {pkg.durationDays}J / {pkg.durationNights ?? pkg.durationDays - 1}N
+                    {t("durationBadge", { days: pkg.durationDays, nights: pkg.durationNights ?? pkg.durationDays - 1 })}
                   </div>
                 )}
                 {pkg.transportMode && (
@@ -339,24 +340,24 @@ export default async function PackageDetailPage({
                 {pkg.departureLocations && pkg.departureLocations.length > 0 && (
                   <div className="col-span-2 flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5" />
-                    Départ : {pkg.departureLocations.join(", ")}
+                    {t("departureLocationsLabel")} {pkg.departureLocations.join(", ")}
                   </div>
                 )}
               </div>
 
               {departures[0] && (
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground">À partir de</p>
+                  <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
                   <p className="text-3xl font-bold text-violet-700">
                     {parseFloat(departures[0].adultPriceTnd).toLocaleString("fr-FR")}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">
-                      DT / adulte
+                      {t("priceUnitPerAdult")}
                     </span>
                   </p>
                   {departures[0].childPriceTnd && (
                     <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                       <Users className="h-3 w-3" />
-                      {parseFloat(departures[0].childPriceTnd).toLocaleString("fr-FR")} DT / enfant
+                      {parseFloat(departures[0].childPriceTnd).toLocaleString("fr-FR")} {t("priceUnitPerChild")}
                     </p>
                   )}
                 </div>
@@ -365,10 +366,10 @@ export default async function PackageDetailPage({
               {departures.length > 0 ? (
                 <>
                   <Button asChild className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
-                    <Link href={`/packages/${pkg.slug}/book`}>Réserver en ligne</Link>
+                    <Link href={`/packages/${pkg.slug}/book`}>{t("bookOnline")}</Link>
                   </Button>
                   <p className="mt-2 text-center text-xs text-muted-foreground">
-                    ou contactez un conseiller au{" "}
+                    {t("contactAdvisorPrefix")}{" "}
                     <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-violet-700">
                       {CONTACT_PHONE_DISPLAY}
                     </a>
@@ -379,11 +380,11 @@ export default async function PackageDetailPage({
                   <Button asChild className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
                     <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
                       <Phone className="h-4 w-4" />
-                      Contacter un conseiller
+                      {t("contactAdvisor")}
                     </a>
                   </Button>
                   <p className="mt-2 text-center text-xs text-muted-foreground">
-                    ou appelez le{" "}
+                    {t("orCallUs")}{" "}
                     <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-violet-700">
                       {CONTACT_PHONE_DISPLAY}
                     </a>
@@ -397,7 +398,7 @@ export default async function PackageDetailPage({
                 productType="package"
                 productRef={pkg.id}
                 productLabel={pkg.title}
-                title="Être rappelé pour ce voyage"
+                title={t("leadCaptureTitle")}
               />
             </div>
           </aside>

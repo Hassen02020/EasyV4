@@ -2,6 +2,7 @@
 
 import { Link } from "@/i18n/navigation"
 import Image from "next/image"
+import { useTranslations } from "next-intl"
 import { Globe, Clock, ChevronRight, Plane } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,7 @@ interface Props {
 }
 
 function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
+  const t = useTranslations("Packages")
   // Fallback mission §23 : Media System en priorité, sinon coverImage
   // (legacy), sinon dégradé de marque (jamais de fausse photo, mission §33).
   const coverImage = pkg.coverMediaUrl || pkg.coverImage
@@ -36,7 +38,7 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
         )}
         {pkg.durationDays && (
           <Badge className="absolute left-3 top-3 bg-black/60 text-white">
-            {pkg.durationDays}J / {pkg.durationNights ?? pkg.durationDays - 1}N
+            {t("durationBadge", { days: pkg.durationDays, nights: pkg.durationNights ?? pkg.durationDays - 1 })}
           </Badge>
         )}
       </div>
@@ -64,17 +66,17 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
           {pkg.durationDays && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
-              {pkg.durationDays} jours
+              {t("daysCount", { days: pkg.durationDays })}
             </div>
           )}
         </div>
 
         {pkg.priceFromTnd != null && (
           <div className="mt-auto">
-            <p className="text-xs text-muted-foreground">À partir de</p>
+            <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
             <p className="text-2xl font-bold text-violet-700">
               {pkg.priceFromTnd.toLocaleString("fr-FR")}
-              <span className="ml-1 text-sm font-normal">DT / personne</span>
+              <span className="ml-1 text-sm font-normal">{t("priceUnitPerPerson")}</span>
             </p>
           </div>
         )}
@@ -83,7 +85,7 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
       <CardFooter className="border-t p-4">
         <Link href={`/packages/${pkg.slug}`} className="w-full">
           <Button className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
-            Voir le programme
+            {t("viewProgram")}
             <ChevronRight className="h-4 w-4" />
           </Button>
         </Link>
@@ -93,6 +95,7 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
 }
 
 export function PackageList({ packages }: Props) {
+  const t = useTranslations("Packages")
   if (packages.length === 0) {
     return (
       <div className="mt-4 rounded-xl border border-dashed bg-card p-12 text-center">
@@ -100,11 +103,10 @@ export function PackageList({ packages }: Props) {
           <Globe className="h-8 w-8 text-violet-600" />
         </div>
         <h3 className="mb-2 text-lg font-semibold">
-          Aucun voyage disponible pour le moment
+          {t("emptyTitle")}
         </h3>
         <p className="text-sm text-muted-foreground">
-          Notre équipe prépare de nouveaux circuits. Revenez bientôt ou
-          contactez-nous pour une offre personnalisée.
+          {t("emptyDescription")}
         </p>
       </div>
     )
@@ -113,8 +115,7 @@ export function PackageList({ packages }: Props) {
   return (
     <div>
       <p className="mb-4 text-sm text-muted-foreground">
-        {packages.length} circuit{packages.length > 1 ? "s" : ""} disponible
-        {packages.length > 1 ? "s" : ""}
+        {t("circuitsAvailableCount", { count: packages.length })}
       </p>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {packages.map((pkg) => (

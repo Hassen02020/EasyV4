@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Hotel, Calendar, Users, Search, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ export function WorldHotelSearch({
   initialCheckOut?: string
 } = {}) {
   const router = useRouter()
+  const t = useTranslations("HotelsMonde")
   const [isPending, startTransition] = useTransition()
 
   const [destination, setDestination] = useState(() =>
@@ -43,15 +45,15 @@ export function WorldHotelSearch({
 
   function handleSearch() {
     if (!destination) {
-      toast.error("Veuillez sélectionner une destination.")
+      toast.error(t("toastSelectDestination"))
       return
     }
     if (!checkIn || !checkOut) {
-      toast.error("Veuillez sélectionner les dates d'arrivée et de départ.")
+      toast.error(t("toastSelectDates"))
       return
     }
     if (new Date(checkOut) <= new Date(checkIn)) {
-      toast.error("La date de départ doit être après la date d'arrivée.")
+      toast.error(t("toastReturnAfterArrival"))
       return
     }
 
@@ -67,16 +69,16 @@ export function WorldHotelSearch({
 
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="mb-6 text-xl font-semibold">Trouver un hôtel</h2>
+      <h2 className="mb-6 text-xl font-semibold">{t("findHotelTitle")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2 sm:col-span-2 lg:col-span-1">
           <Label className="flex items-center gap-1.5 text-sm">
             <Hotel className="h-3.5 w-3.5 text-muted-foreground" />
-            Destination
+            {t("destinationLabel")}
           </Label>
           <Select value={destination} onValueChange={setDestination}>
             <SelectTrigger>
-              <SelectValue placeholder="Choisir une destination…" />
+              <SelectValue placeholder={t("destinationPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {POPULAR_DESTINATIONS.map((d) => (
@@ -91,7 +93,7 @@ export function WorldHotelSearch({
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            Arrivée
+            {t("arrivalLabel")}
           </Label>
           <Input
             type="date"
@@ -107,7 +109,7 @@ export function WorldHotelSearch({
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            Départ
+            {t("departureLabel")}
           </Label>
           <Input
             type="date"
@@ -120,7 +122,7 @@ export function WorldHotelSearch({
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            Adultes
+            {t("adultsLabel")}
           </Label>
           <Select value={adults} onValueChange={setAdults}>
             <SelectTrigger>
@@ -129,7 +131,7 @@ export function WorldHotelSearch({
             <SelectContent>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                 <SelectItem key={n} value={String(n)}>
-                  {n} adulte{n > 1 ? "s" : ""}
+                  {t("adultsCountOption", { n })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -137,7 +139,7 @@ export function WorldHotelSearch({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Chambres</Label>
+          <Label className="text-sm">{t("roomsLabel")}</Label>
           <Select value={rooms} onValueChange={setRooms}>
             <SelectTrigger>
               <SelectValue />
@@ -145,7 +147,7 @@ export function WorldHotelSearch({
             <SelectContent>
               {[1, 2, 3, 4, 5].map((n) => (
                 <SelectItem key={n} value={String(n)}>
-                  {n} chambre{n > 1 ? "s" : ""}
+                  {t("roomsCountOption", { n })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -153,15 +155,15 @@ export function WorldHotelSearch({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Catégorie</Label>
+          <Label className="text-sm">{t("categoryLabel")}</Label>
           <Select value={stars} onValueChange={setStars}>
             <SelectTrigger>
-              <SelectValue placeholder="Toutes catégories" />
+              <SelectValue placeholder={t("allCategories")} />
             </SelectTrigger>
             <SelectContent>
               {[5, 4, 3, 2, 1].map((n) => (
                 <SelectItem key={n} value={String(n)}>
-                  {"★".repeat(n)} {n} étoile{n > 1 ? "s" : ""}
+                  {"★".repeat(n)} {t("starsCountOption", { n })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -181,7 +183,7 @@ export function WorldHotelSearch({
           ) : (
             <Search className="h-4 w-4" />
           )}
-          Rechercher
+          {t("searchButton")}
         </Button>
       </div>
     </div>

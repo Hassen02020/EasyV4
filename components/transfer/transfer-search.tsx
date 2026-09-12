@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Car, Calendar, Clock, Users, ArrowRight, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -20,16 +21,16 @@ interface Props {
   zones: CatalogTransferZone[]
 }
 
-const VEHICLES = [
-  { value: "sedan", label: "Berline (1–3 pax)", icon: "🚗" },
-  { value: "van", label: "Van (4–7 pax)", icon: "🚐" },
-  { value: "minibus", label: "Minibus (8–16 pax)", icon: "🚌" },
-  { value: "bus", label: "Bus (17–50 pax)", icon: "🚍" },
-  { value: "luxury", label: "Voiture de luxe", icon: "🏎️" },
-]
-
 export function TransferSearch({ zones }: Props) {
   const router = useRouter()
+  const t = useTranslations("Transferts")
+  const VEHICLES = [
+    { value: "sedan", label: t("vehicleSedan"), icon: "🚗" },
+    { value: "van", label: t("vehicleVan"), icon: "🚐" },
+    { value: "minibus", label: t("vehicleMinibus"), icon: "🚌" },
+    { value: "bus", label: t("vehicleBus"), icon: "🚍" },
+    { value: "luxury", label: t("vehicleLuxury"), icon: "🏎️" },
+  ]
   const [isPending, startTransition] = useTransition()
 
   const [fromZone, setFromZone] = useState("")
@@ -41,15 +42,15 @@ export function TransferSearch({ zones }: Props) {
 
   function handleSearch() {
     if (!fromZone || !toZone) {
-      toast.error("Veuillez sélectionner le lieu de prise en charge et de dépose.")
+      toast.error(t("toastSelectZones"))
       return
     }
     if (!date) {
-      toast.error("Veuillez sélectionner une date.")
+      toast.error(t("toastSelectDate"))
       return
     }
     if (fromZone === toZone) {
-      toast.error("Le lieu de départ et d'arrivée doivent être différents.")
+      toast.error(t("toastSameZones"))
       return
     }
 
@@ -69,22 +70,22 @@ export function TransferSearch({ zones }: Props) {
 
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="mb-6 text-xl font-semibold">Réserver un transfert</h2>
+      <h2 className="mb-6 text-xl font-semibold">{t("title")}</h2>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Car className="h-3.5 w-3.5 text-muted-foreground" />
-            Lieu de prise en charge
+            {t("pickupLocationLabel")}
           </Label>
           <Select value={fromZone} onValueChange={setFromZone}>
             <SelectTrigger>
-              <SelectValue placeholder="Sélectionner une zone…" />
+              <SelectValue placeholder={t("selectZonePlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {zones.length === 0 ? (
                 <SelectItem value="_" disabled>
-                  Aucune zone disponible
+                  {t("noZoneAvailable")}
                 </SelectItem>
               ) : (
                 zones.map((z) => (
@@ -100,11 +101,11 @@ export function TransferSearch({ zones }: Props) {
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-            Lieu de dépose
+            {t("dropoffLocationLabel")}
           </Label>
           <Select value={toZone} onValueChange={setToZone}>
             <SelectTrigger>
-              <SelectValue placeholder="Sélectionner une zone…" />
+              <SelectValue placeholder={t("selectZonePlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {zones
@@ -121,7 +122,7 @@ export function TransferSearch({ zones }: Props) {
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Car className="h-3.5 w-3.5 text-muted-foreground" />
-            Type de véhicule
+            {t("vehicleTypeLabel")}
           </Label>
           <Select value={vehicle} onValueChange={setVehicle}>
             <SelectTrigger>
@@ -140,7 +141,7 @@ export function TransferSearch({ zones }: Props) {
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            Nombre de passagers
+            {t("passengersCountLabel")}
           </Label>
           <Select value={pax} onValueChange={setPax}>
             <SelectTrigger>
@@ -149,7 +150,7 @@ export function TransferSearch({ zones }: Props) {
             <SelectContent>
               {Array.from({ length: 50 }, (_, i) => i + 1).map((n) => (
                 <SelectItem key={n} value={String(n)}>
-                  {n} passager{n > 1 ? "s" : ""}
+                  {t("passengersCountOption", { n })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -159,7 +160,7 @@ export function TransferSearch({ zones }: Props) {
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            Date
+            {t("dateLabel")}
           </Label>
           <Input
             type="date"
@@ -172,7 +173,7 @@ export function TransferSearch({ zones }: Props) {
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            Heure de prise en charge
+            {t("pickupTimeLabel")}
           </Label>
           <Input
             type="time"
@@ -194,7 +195,7 @@ export function TransferSearch({ zones }: Props) {
           ) : (
             <Car className="h-4 w-4" />
           )}
-          Rechercher un transfert
+          {t("searchButton")}
         </Button>
       </div>
     </div>

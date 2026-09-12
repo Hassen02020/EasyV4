@@ -11,6 +11,8 @@
 import { cache } from "react"
 import { Link } from "@/i18n/navigation"
 import { notFound } from "next/navigation"
+import { getTranslations, getLocale } from "next-intl/server"
+import { getIntlLocale } from "@/lib/i18n-date"
 import { and, eq, gte, arrayContains } from "drizzle-orm"
 import {
   ArrowLeft,
@@ -32,9 +34,9 @@ import { ProductReviewsSection } from "@/components/reviews/product-reviews-sect
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
 
-function formatDate(d: string | Date | null): string {
+function formatDate(d: string | Date | null, intlLocale: string): string {
   if (!d) return "—"
-  return new Date(d).toLocaleDateString("fr-FR", {
+  return new Date(d).toLocaleDateString(intlLocale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -130,6 +132,9 @@ export default async function ActivityDetailPage({
   const result = await getActivityWithSessions(slug)
   if (!result) notFound()
   const { activity, sessions, media } = result
+  const t = await getTranslations("Attractions")
+  const locale = await getLocale()
+  const intlLocale = getIntlLocale(locale)
 
   const priceTnd = sessions[0] ? parseFloat(sessions[0].adultPriceTnd) : null
 
@@ -147,7 +152,7 @@ export default async function ActivityDetailPage({
               className="mb-4 inline-flex items-center gap-1.5 text-sm text-teal-200 hover:text-white"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Retour aux attractions
+              {t("backToAttractions")}
             </Link>
             {activity.location && (
               <Badge variant="secondary" className="mb-3 bg-white/20 text-white">
@@ -173,7 +178,7 @@ export default async function ActivityDetailPage({
 
             {activity.longDescription && (
               <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-3 text-lg font-semibold">Description</h2>
+                <h2 className="mb-3 text-lg font-semibold">{t("descriptionTitle")}</h2>
                 <p className="whitespace-pre-line text-sm text-muted-foreground">
                   {activity.longDescription}
                 </p>
@@ -182,7 +187,7 @@ export default async function ActivityDetailPage({
 
             {(inclusions.length > 0 || exclusions.length > 0) && (
               <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-4 text-lg font-semibold">Inclus / Non inclus</h2>
+                <h2 className="mb-4 text-lg font-semibold">{t("inclusionsTitle")}</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {inclusions.length > 0 && (
                     <ul className="space-y-1.5 text-sm">
@@ -208,7 +213,7 @@ export default async function ActivityDetailPage({
                 {activity.durationMinutes && (
                   <div className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-muted-foreground">
                     <Clock className="h-3.5 w-3.5" />
-                    Durée : {activity.durationMinutes} minutes
+                    {t("durationLabel", { minutes: activity.durationMinutes })}
                   </div>
                 )}
               </section>
@@ -217,11 +222,11 @@ export default async function ActivityDetailPage({
             <section className="rounded-xl border bg-card p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <Calendar className="h-4.5 w-4.5" />
-                Sessions disponibles
+                {t("availableSessionsTitle")}
               </h2>
               {sessions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Aucune session n&apos;est ouverte à la réservation pour le moment.
+                  {t("noSessionsOpen")}
                 </p>
               ) : (
                 <ul className="divide-y">
@@ -231,7 +236,7 @@ export default async function ActivityDetailPage({
                       className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
                     >
                       <div>
-                        <span className="font-medium capitalize">{formatDate(s.sessionDate)}</span>
+                        <span className="font-medium capitalize">{formatDate(s.sessionDate, intlLocale)}</span>
                         <span className="text-muted-foreground">
                           {" "}
                           · {s.sessionStart}–{s.sessionEnd}
@@ -246,10 +251,10 @@ export default async function ActivityDetailPage({
                               : "border-amber-300 bg-amber-50 text-amber-700"
                           }
                         >
-                          {s.capacityLeft} place{s.capacityLeft > 1 ? "s" : ""}
+                          {t("placesLeft", { count: s.capacityLeft })}
                         </Badge>
                         <span className="font-semibold text-teal-700">
-                          {parseFloat(s.adultPriceTnd).toLocaleString("fr-FR")} DT
+                          {parseFloat(s.adultPriceTnd).toLocaleString(intlLocale)} DT
                         </span>
                       </div>
                     </li>
@@ -263,27 +268,27 @@ export default async function ActivityDetailPage({
             <div className="sticky top-4 rounded-xl border bg-card p-5">
               {priceTnd && (
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground">À partir de</p>
+                  <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
                   <p className="text-3xl font-bold text-teal-700">
-                    {priceTnd.toLocaleString("fr-FR")}
+                    {priceTnd.toLocaleString(intlLocale)}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">
-                      DT / adulte
+                      {t("perAdult")}
                     </span>
                   </p>
                 </div>
               )}
               {sessions.length > 0 ? (
                 <Button asChild className="w-full gap-2 bg-teal-700 hover:bg-teal-800">
-                  <Link href={`/attractions/${activity.slug}/book`}>Réserver en ligne</Link>
+                  <Link href={`/attractions/${activity.slug}/book`}>{t("bookOnline")}</Link>
                 </Button>
               ) : (
                 <Button disabled className="w-full">
-                  Aucune session disponible
+                  {t("noSessionAvailable")}
                 </Button>
               )}
               <div className="mt-4 flex items-start gap-2 rounded-lg bg-teal-50 p-3 text-xs text-teal-800">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
-                <span>Paiement sécurisé, confirmation immédiate, voucher e-billet.</span>
+                <span>{t("securePaymentNotice")}</span>
               </div>
             </div>
           </aside>

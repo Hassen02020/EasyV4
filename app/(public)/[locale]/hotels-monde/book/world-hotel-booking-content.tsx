@@ -16,6 +16,7 @@
 
 import { Link } from "@/i18n/navigation"
 import { useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import {
   WorldHotelGuestBookingForm,
@@ -52,18 +53,19 @@ function parseOfferFromParams(params: URLSearchParams): WorldHotelBookingOfferSu
 
 export function WorldHotelBookingContent() {
   const searchParams = useSearchParams()
+  const t = useTranslations("HotelsMonde")
   const offer = parseOfferFromParams(searchParams)
 
   if (!offer) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
         <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-          <p className="font-semibold">Offre introuvable ou expirée</p>
+          <p className="font-semibold">{t("offerNotFoundTitle")}</p>
           <p className="mt-1">
-            Cette offre d&apos;hôtel n&apos;est plus valide — relancez une recherche pour obtenir une offre à jour.
+            {t("offerNotFoundDesc")}
           </p>
           <Button asChild variant="outline" className="mt-3">
-            <Link href="/hotels-monde">Retour à la recherche</Link>
+            <Link href="/hotels-monde">{t("backToSearch")}</Link>
           </Button>
         </div>
       </main>
@@ -72,7 +74,7 @@ export function WorldHotelBookingContent() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-foreground mb-6 text-xl font-bold">Finaliser votre réservation d&apos;hôtel</h1>
+      <h1 className="text-foreground mb-6 text-xl font-bold">{t("finalizeBookingTitle")}</h1>
       <WorldHotelGuestBookingForm offer={offer} />
     </main>
   )

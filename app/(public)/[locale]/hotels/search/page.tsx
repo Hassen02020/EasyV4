@@ -3,8 +3,10 @@
 import { Suspense, useMemo, useState } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useSearchParams } from "next/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { format, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
+import type { Locale } from "date-fns"
+import { getDateFnsLocale } from "@/lib/i18n-date"
 import { SearchHeader } from "@/components/search-header"
 import { FilterSidebar, FilterChips, MobileFilterSortBar } from "@/components/filter-sidebar"
 import { HotelListings } from "@/components/hotel-listings"
@@ -52,19 +54,27 @@ interface BookingData {
   priceToken?: string
 }
 
-function formatDateRange(checkin: string | null, checkout: string | null) {
-  if (!checkin || !checkout) return "Sélectionner les dates"
+function formatDateRange(
+  checkin: string | null,
+  checkout: string | null,
+  dateFnsLocale: Locale,
+  fallback: string,
+) {
+  if (!checkin || !checkout) return fallback
   try {
     const from = parseISO(checkin)
     const to = parseISO(checkout)
-    return `${format(from, "dd MMM", { locale: fr })} - ${format(to, "dd MMM yyyy", { locale: fr })}`
+    return `${format(from, "dd MMM", { locale: dateFnsLocale })} - ${format(to, "dd MMM yyyy", { locale: dateFnsLocale })}`
   } catch {
-    return "Sélectionner les dates"
+    return fallback
   }
 }
 
 function HotelSearchContent() {
   const router = useRouter()
+  const t = useTranslations("Hotels")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
   const searchParams = useSearchParams()
   // Filtres et tri initialisés depuis l'URL (lazy init) — survivent à un
   // rafraîchissement de page et à un aller-retour vers la fiche hôtel.
@@ -131,11 +141,11 @@ function HotelSearchContent() {
   const childrenStr = searchParams.get("children")
   const children = childrenStr?.split(",").filter(Boolean).length ?? 0
 
-  const dateRange = formatDateRange(checkin, checkout)
+  const dateRange = formatDateRange(checkin, checkout, dateFnsLocale, t("selectDates"))
   const paxLabel =
     children > 0
-      ? `${adults} Adulte${adults > 1 ? "s" : ""}, ${children} Enfant${children > 1 ? "s" : ""}`
-      : `${adults} Adulte${adults > 1 ? "s" : ""}`
+      ? `${t("paxAdultsCount", { n: adults })}, ${t("paxChildrenCount", { n: children })}`
+      : t("paxAdultsCount", { n: adults })
 
   const allOffers = useMemo(() => data?.offers ?? [], [data])
   const currency = data?.offers?.[0]?.currency ?? "TND"

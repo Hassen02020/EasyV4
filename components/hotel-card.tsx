@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -89,6 +90,7 @@ export function HotelCard({
   favoritePending,
 }: HotelCardProps) {
   const { format } = useCurrency()
+  const t = useTranslations("Hotels")
   const [currentImage, setCurrentImage] = useState(0)
   const [selectedMealPlan, setSelectedMealPlan] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -122,7 +124,7 @@ export function HotelCard({
               backgroundImage: `url(${hotel.images[currentImage]})`,
             }}
             role="img"
-            aria-label={`Photo de ${hotel.name}`}
+            aria-label={t("photoOf", { name: hotel.name })}
           />
 
           {/* PHASE 30 — visibles par défaut sur mobile (aucun hover tactile) ;
@@ -134,7 +136,7 @@ export function HotelCard({
             type="button"
             onClick={prevImage}
             className="bg-card/90 hover:bg-card absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Photo précédente"
+            aria-label={t("prevPhoto")}
           >
             <ChevronLeft className="text-foreground h-4 w-4" />
           </button>
@@ -142,7 +144,7 @@ export function HotelCard({
             type="button"
             onClick={nextImage}
             className="bg-card/90 hover:bg-card absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Photo suivante"
+            aria-label={t("nextPhoto")}
           >
             <ChevronRight className="text-foreground h-4 w-4" />
           </button>
@@ -157,7 +159,7 @@ export function HotelCard({
                 className={`h-2 w-2 rounded-full transition-colors ${
                   i === currentImage ? "bg-card" : "bg-card/50"
                 }`}
-                aria-label={`Voir la photo ${i + 1}`}
+                aria-label={t("viewPhotoAria", { n: i + 1 })}
               />
             ))}
           </div>
@@ -168,7 +170,7 @@ export function HotelCard({
             onClick={onToggleFavorite}
             disabled={!onToggleFavorite || favoritePending}
             className="bg-card/90 hover:bg-card absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label={isFavorited ? "Retirer des favoris" : "Ajouter aux favoris"}
+            aria-label={isFavorited ? t("removeFavorite") : t("addFavorite")}
             aria-pressed={isFavorited ?? false}
           >
             <Heart
@@ -222,7 +224,7 @@ export function HotelCard({
                     key={tag}
                     className="rounded-full border-transparent bg-red-500 px-2 py-0.5 text-xs font-semibold text-white hover:bg-red-500"
                   >
-                    🔥 Promo
+                    🔥 {t("promoBadge")}
                   </Badge>
                 ) : tag === "Recommandé" ? (
                   <Badge
@@ -230,7 +232,7 @@ export function HotelCard({
                     className="bg-primary text-primary-foreground hover:bg-primary flex items-center gap-1 rounded-full border-transparent px-2 py-0.5 text-xs font-semibold"
                   >
                     <Award className="h-3 w-3" />
-                    Recommandé
+                    {t("recommendedBadge")}
                   </Badge>
                 ) : (
                   <Badge
@@ -269,7 +271,7 @@ export function HotelCard({
             )}
 
             <div className="text-right">
-              <p className="text-muted-foreground mb-1 text-xs">À partir de</p>
+              <p className="text-muted-foreground mb-1 text-xs">{t("startingFrom")}</p>
               <div className="flex items-baseline justify-end gap-1.5">
                 {hotel.discountPercent > 0 && (
                   <span className="text-muted-foreground text-sm line-through">
@@ -282,7 +284,7 @@ export function HotelCard({
               </div>
               {hotel.pricePerNight != null && (
                 <p className="text-muted-foreground text-xs">
-                  soit {format(hotel.pricePerNight)} / nuit
+                  {t("perNight", { price: format(hotel.pricePerNight) })}
                 </p>
               )}
               <p className="text-muted-foreground mt-1 text-xs">
@@ -293,7 +295,7 @@ export function HotelCard({
                 {mealOptions.length > 1 && (
                   <span className="text-muted-foreground/70">
                     {" "}
-                    · {mealOptions.length} formules disponibles
+                    · {t("mealPlansAvailable", { count: mealOptions.length })}
                   </span>
                 )}
               </p>
@@ -304,7 +306,7 @@ export function HotelCard({
               {hotel.hasFreeCancellation && (
                 <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Annulation gratuite
+                  {t("freeCancellation")}
                 </p>
               )}
               {/* PHASE 33 — "Pourquoi ce choix ?" : une seule raison réelle,
@@ -325,14 +327,14 @@ export function HotelCard({
                   className="w-full"
                   onClick={onViewDetails}
                 >
-                  Voir détails
+                  {t("viewDetails")}
                 </Button>
               )}
               <Button
                 className="w-full gap-1"
                 onClick={() => setIsExpanded(!isExpanded)}
               >
-                Tarifs & chambres
+                {t("ratesAndRooms")}
                 {isExpanded ? (
                   <ChevronUp className="h-4 w-4" />
                 ) : (

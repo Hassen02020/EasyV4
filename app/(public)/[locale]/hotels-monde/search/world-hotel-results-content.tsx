@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useSearchParams } from "next/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { format, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
+import type { Locale as DateFnsLocale } from "date-fns"
+import { getDateFnsLocale, getIntlLocale } from "@/lib/i18n-date"
 import { Coffee, Info, MapPin, RefreshCw, ShieldCheck, Star, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,13 +28,6 @@ import type { WorldHotelOffer } from "@/lib/hotels-monde/client"
 
 type SortMode = "recommended" | "price_asc" | "price_desc" | "rating_desc"
 
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: "recommended", label: "Recommandés" },
-  { value: "price_asc", label: "Prix croissant" },
-  { value: "price_desc", label: "Prix décroissant" },
-  { value: "rating_desc", label: "Mieux notés" },
-]
-
 function sortOffers(offers: WorldHotelOffer[], mode: SortMode): WorldHotelOffer[] {
   const copy = [...offers]
   switch (mode) {
@@ -53,9 +48,9 @@ function sortOffers(offers: WorldHotelOffer[], mode: SortMode): WorldHotelOffer[
   }
 }
 
-function formatDateHeader(dateStr: string): string {
+function formatDateHeader(dateStr: string, dateFnsLocale: DateFnsLocale): string {
   try {
-    return format(parseISO(dateStr), "d MMMM yyyy", { locale: fr })
+    return format(parseISO(dateStr), "d MMMM yyyy", { locale: dateFnsLocale })
   } catch {
     return dateStr
   }
@@ -83,6 +78,8 @@ function bookingHref(offer: WorldHotelOffer, state: WorldHotelSearchState): stri
 }
 
 function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotelSearchState }) {
+  const t = useTranslations("HotelsMonde")
+  const locale = useLocale()
   const href = bookingHref(offer, state)
   return (
     <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
@@ -105,24 +102,24 @@ function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotel
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span>{offer.city}, {offer.country}</span>
               {offer.distanceFromCenterKm != null && (
-                <span>{offer.distanceFromCenterKm} km du centre</span>
+                <span>{t("distanceFromCenter", { km: offer.distanceFromCenterKm })}</span>
               )}
               {offer.rating != null && (
                 <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
                   {offer.rating.toFixed(1)}/10
-                  {offer.reviewCount != null ? ` · ${offer.reviewCount} avis` : ""}
+                  {offer.reviewCount != null ? ` · ${t("reviewCount", { count: offer.reviewCount })}` : ""}
                 </Badge>
               )}
               {offer.breakfastIncluded && (
                 <span className="inline-flex items-center gap-1">
                   <Coffee className="h-3 w-3" />
-                  Petit-déjeuner inclus
+                  {t("breakfastIncluded")}
                 </span>
               )}
               {offer.refundable && (
                 <span className="inline-flex items-center gap-1">
                   <ShieldCheck className="h-3 w-3" />
-                  Annulation gratuite
+                  {t("freeCancellation")}
                 </span>
               )}
             </div>
@@ -132,10 +129,10 @@ function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotel
         <div className="flex shrink-0 flex-col items-end gap-2 border-t pt-3 md:border-t-0 md:border-l md:pt-0 md:pl-4">
           <div className="text-right">
             <p className="text-muted-foreground text-xs">
-              {offer.nights} nuit{offer.nights > 1 ? "s" : ""} · à partir de
+              {t("nightsFromPrice", { n: offer.nights })}
             </p>
             <p className="text-primary text-2xl font-bold tabular-nums">
-              {offer.totalPriceTnd.toLocaleString("fr-FR")} {offer.currency}
+              {offer.totalPriceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
             </p>
           </div>
           {/* Virtual World Hotel Supplier
@@ -147,11 +144,11 @@ function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotel
               réel en amont), pas la réservation. */}
           {href ? (
             <Button size="sm" asChild>
-              <Link href={href}>Réserver</Link>
+              <Link href={href}>{t("bookButton")}</Link>
             </Button>
           ) : (
             <Button size="sm" disabled>
-              Offre indisponible
+              {t("offerUnavailable")}
             </Button>
           )}
         </div>
@@ -169,28 +166,31 @@ function WorldHotelSearchSummary({
   count: number
   isDemo: boolean
 }) {
-  const paxLabel = `${state.adults} adulte${state.adults > 1 ? "s" : ""} · ${state.rooms} chambre${state.rooms > 1 ? "s" : ""}`
+  const t = useTranslations("HotelsMonde")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
+  const paxLabel = t("paxSummary", { adults: state.adults, rooms: state.rooms })
   return (
     <div className="mb-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-foreground text-xl font-bold">
-            Hôtels à {state.city}, {state.country}
+            {t("hotelsInCity", { city: state.city, country: state.country })}
           </h1>
           <p className="text-muted-foreground text-sm">
-            {formatDateHeader(state.checkIn)} → {formatDateHeader(state.checkOut)}
+            {formatDateHeader(state.checkIn, dateFnsLocale)} → {formatDateHeader(state.checkOut, dateFnsLocale)}
             {" · "}
             <span className="inline-flex items-center gap-1">
               <Users className="h-3 w-3" />
               {paxLabel}
             </span>
             {" · "}
-            {count} hôtel{count > 1 ? "s" : ""} trouvé{count > 1 ? "s" : ""}
+            {t("hotelsFoundCount", { count })}
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link href={`/hotels-monde?destination=${state.destination}`}>
-            Modifier la recherche
+            {t("modifySearch")}
           </Link>
         </Button>
       </div>
@@ -198,8 +198,7 @@ function WorldHotelSearchSummary({
         <div className="border-border bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Offres de démonstration — la réservation est entièrement fonctionnelle, la connexion à
-            nos partenaires hôteliers internationaux est en cours de finalisation.
+            {t("demoNotice")}
           </p>
         </div>
       )}
@@ -210,6 +209,7 @@ function WorldHotelSearchSummary({
 export function WorldHotelResultsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const t = useTranslations("HotelsMonde")
 
   const parsed = useMemo(() => parseWorldHotelSearchParams(searchParams), [searchParams])
   const requestKey = parsed.ok ? JSON.stringify(parsed.state) : null
@@ -247,7 +247,7 @@ export function WorldHotelResultsContent() {
           requestKey,
           status: "error",
           offers: [],
-          error: err instanceof Error ? err.message : "Erreur inconnue",
+          error: err instanceof Error ? err.message : t("unknownError"),
         })
       })
     return () => ctrl.abort()
@@ -277,10 +277,10 @@ export function WorldHotelResultsContent() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
         <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-          <p className="font-semibold">Recherche incomplète</p>
+          <p className="font-semibold">{t("incompleteSearchTitle")}</p>
           <p className="mt-1">{parsed.error}</p>
           <Button asChild variant="outline" className="mt-3">
-            <Link href="/hotels-monde">Retour à la recherche</Link>
+            <Link href="/hotels-monde">{t("backToSearch")}</Link>
           </Button>
         </div>
       </main>
@@ -305,7 +305,7 @@ export function WorldHotelResultsContent() {
 
       {status === "error" && (
         <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-          <p className="font-semibold">Le service de recherche hôtels est indisponible</p>
+          <p className="font-semibold">{t("serviceUnavailableTitle")}</p>
           <p className="mt-1">{error}</p>
           <Button
             variant="outline"
@@ -314,7 +314,7 @@ export function WorldHotelResultsContent() {
             onClick={() => router.replace(`/hotels-monde/search?${searchParams.toString()}`)}
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Réessayer
+            {t("retry")}
           </Button>
         </div>
       )}
@@ -329,7 +329,7 @@ export function WorldHotelResultsContent() {
                 onCheckedChange={(v) => setBreakfastOnly(v === true)}
               />
               <label htmlFor="breakfast-only" className="cursor-pointer text-sm">
-                Petit-déjeuner inclus
+                {t("breakfastIncluded")}
               </label>
             </div>
             <div className="flex items-center gap-2">
@@ -339,7 +339,7 @@ export function WorldHotelResultsContent() {
                 onCheckedChange={(v) => setRefundableOnly(v === true)}
               />
               <label htmlFor="refundable-only" className="cursor-pointer text-sm">
-                Annulation gratuite
+                {t("freeCancellation")}
               </label>
             </div>
             <div className="w-full lg:mt-2">
@@ -348,11 +348,10 @@ export function WorldHotelResultsContent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="recommended">{t("sortRecommended")}</SelectItem>
+                  <SelectItem value="price_asc">{t("sortPriceAsc")}</SelectItem>
+                  <SelectItem value="price_desc">{t("sortPriceDesc")}</SelectItem>
+                  <SelectItem value="rating_desc">{t("sortRatingDesc")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -361,7 +360,7 @@ export function WorldHotelResultsContent() {
           <div className="flex-1 space-y-3">
             {filteredSorted.length === 0 ? (
               <div className="border-border text-muted-foreground rounded-lg border p-6 text-sm">
-                Aucun hôtel ne correspond aux filtres sélectionnés.
+                {t("noHotelsMatchFilters")}
               </div>
             ) : (
               filteredSorted.map((offer) => <HotelCard key={offer.id} offer={offer} state={parsed.state} />)

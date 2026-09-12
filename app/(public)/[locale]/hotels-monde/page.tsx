@@ -2,6 +2,7 @@
  * Page Hôtels Monde — /hotels-monde
  */
 
+import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { WorldHotelSearch } from "@/components/hotels-monde/world-hotel-search"
@@ -24,6 +25,7 @@ export default async function HotelsMondeePage({
   searchParams: Promise<HotelsMondeSearchParams>
 }) {
   const { destination, checkin, checkout } = await searchParams
+  const t = await getTranslations("HotelsMonde")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -32,14 +34,13 @@ export default async function HotelsMondeePage({
         <div className="bg-gradient-to-br from-teal-900 to-teal-700 px-4 py-12 text-white">
           <div className="mx-auto max-w-4xl text-center">
             <p className="mb-2 text-sm font-medium tracking-widest text-teal-300 uppercase">
-              Hôtels Monde
+              {t("kicker")}
             </p>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              Hôtels partout dans le monde
+              {t("heroTitle")}
             </h1>
             <p className="mx-auto max-w-2xl text-teal-100">
-              Plus d&apos;un million d&apos;hôtels, apartments et villas. Comparez les prix
-              et réservez en quelques clics.
+              {t("heroSubtitle")}
             </p>
           </div>
         </div>

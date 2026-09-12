@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import {
   ArrowLeft,
   ChevronLeft,
@@ -86,6 +87,7 @@ function HotelDetailContent({ id }: { id: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { format } = useCurrency()
+  const t = useTranslations("Hotels")
 
   const [state, setState] = useState<{
     loadedId: string | null
@@ -141,11 +143,11 @@ function HotelDetailContent({ id }: { id: string }) {
           loadedId: id,
           status: "error",
           data: null,
-          error: err instanceof Error ? err.message : "Erreur inconnue",
+          error: err instanceof Error ? err.message : t("unknownError"),
         })
       })
     return () => ctrl.abort()
-  }, [id])
+  }, [id, t])
 
   // Derive status at render time (no setState in effect):
   const effectiveStatus: "loading" | "success" | "error" =
@@ -202,11 +204,11 @@ function HotelDetailContent({ id }: { id: string }) {
           loadedKey: roomsRequestKey,
           status: "error",
           offer: null,
-          error: err instanceof Error ? err.message : "Erreur inconnue",
+          error: err instanceof Error ? err.message : t("unknownError"),
         })
       })
     return () => ctrl.abort()
-  }, [roomsRequestKey, id, checkin, checkout, adults, children, state.data?.cityId])
+  }, [roomsRequestKey, id, checkin, checkout, adults, children, state.data?.cityId, t])
 
   const roomsEffectiveStatus: "idle" | "loading" | "success" | "error" =
     !roomsRequestKey
@@ -257,11 +259,11 @@ function HotelDetailContent({ id }: { id: string }) {
           loadedKey: altRequestKey,
           status: "error",
           offers: [],
-          error: err instanceof Error ? err.message : "Erreur inconnue",
+          error: err instanceof Error ? err.message : t("unknownError"),
         })
       })
     return () => ctrl.abort()
-  }, [altRequestKey, checkin, checkout, adults, children, state.data?.cityId])
+  }, [altRequestKey, checkin, checkout, adults, children, state.data?.cityId, t])
 
   const altEffectiveStatus: "idle" | "loading" | "success" | "error" =
     !altRequestKey ? "idle" : altState.loadedKey !== altRequestKey ? "loading" : altState.status
@@ -279,12 +281,12 @@ function HotelDetailContent({ id }: { id: string }) {
     if (!hotel) return new Map<string, string[]>()
     const m = new Map<string, string[]>()
     for (const f of hotel.facilities) {
-      const cat = f.category ?? "Équipements"
+      const cat = f.category ?? t("facilitiesCategoryFallback")
       if (!m.has(cat)) m.set(cat, [])
       m.get(cat)!.push(f.title)
     }
     return m
-  }, [hotel])
+  }, [hotel, t])
 
   const handleCheckAvailability = () => {
     if (!hotel) return
@@ -359,46 +361,46 @@ function HotelDetailContent({ id }: { id: string }) {
     if (!hotel) return []
     const reasons: { icon: LucideIcon; text: string }[] = []
     if ((hotel.stars ?? 0) >= 4) {
-      reasons.push({ icon: Star, text: `Hôtel ${hotel.stars} étoiles` })
+      reasons.push({ icon: Star, text: t("starsCount", { stars: hotel.stars ?? 0 }) })
     }
     if (rooms.some((r) => r.cancellation === "FREE")) {
       reasons.push({
         icon: ShieldCheck,
-        text: "Annulation gratuite disponible sur au moins une chambre",
+        text: t("freeCancellationAvailable"),
       })
     }
     if (hotel.facilities.length >= 5) {
       reasons.push({
         icon: Building2,
-        text: `${hotel.facilities.length} équipements sur place`,
+        text: t("facilitiesOnSite", { count: hotel.facilities.length }),
       })
     }
     if (hotel.themes.length > 0) {
       reasons.push({
         icon: Heart,
-        text: `Idéal pour : ${hotel.themes.slice(0, 2).join(", ")}`,
+        text: t("idealFor", { themes: hotel.themes.slice(0, 2).join(", ") }),
       })
     }
     if (cardShape && cardShape.discountPercent > 0) {
       reasons.push({
         icon: Flame,
-        text: `Tarif actuellement réduit de ${cardShape.discountPercent}%`,
+        text: t("discountedNow", { percent: cardShape.discountPercent }),
       })
     }
     // PHASE 32 — dérivées de cardShape.mealOptions (pensions RÉELLES de
     // cette offre, déjà chargées) : jamais une pension inventée ni un
     // décompte fabriqué.
     if (cardShape?.mealOptions?.some((m) => /all inclusive/i.test(m))) {
-      reasons.push({ icon: UtensilsCrossed, text: "Formule All Inclusive disponible" })
+      reasons.push({ icon: UtensilsCrossed, text: t("allInclusiveAvailable") })
     }
     if ((cardShape?.mealOptions?.length ?? 0) > 1) {
       reasons.push({
         icon: UtensilsCrossed,
-        text: `${cardShape!.mealOptions!.length} formules de pension au choix`,
+        text: t("boardOptionsCount", { count: cardShape!.mealOptions!.length }),
       })
     }
     return reasons
-  }, [hotel, rooms, cardShape])
+  }, [hotel, rooms, cardShape, t])
 
   const handleBookRoom = (mealPlan: string, room?: RoomOption) => {
     if (!hotel || !room || !checkin || !checkout || !cardShape) return
@@ -460,8 +462,7 @@ function HotelDetailContent({ id }: { id: string }) {
         <Header />
         <main className="mx-auto max-w-5xl px-4 py-12">
           <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-            Impossible de charger les détails de cet hôtel :{" "}
-            {state.error ?? "introuvable"}
+            {t("loadError", { error: state.error ?? t("notFound") })}
           </div>
           {/* PHASE 30.4 — audit : ce lien renvoyait toujours vers l'accueil,
               même quand la recherche d'origine (destination/dates/
@@ -479,7 +480,7 @@ function HotelDetailContent({ id }: { id: string }) {
               }
               className="text-primary text-sm hover:underline"
             >
-              ← {searchParams.toString() ? "Retour aux résultats" : "Retour à l'accueil"}
+              ← {searchParams.toString() ? t("backToResults") : t("backToHome")}
             </Link>
           </div>
         </main>
@@ -499,7 +500,7 @@ function HotelDetailContent({ id }: { id: string }) {
           className="text-primary mb-4 inline-flex items-center gap-1.5 text-sm hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
-          Retour aux résultats
+          {t("backToResults")}
         </button>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -530,7 +531,7 @@ function HotelDetailContent({ id }: { id: string }) {
                       </span>
                     )}
                     <span>
-                      {hotel.categoryTitle ?? `${hotel.stars ?? 0} étoiles`}
+                      {hotel.categoryTitle ?? t("starsCategoryFallback", { stars: hotel.stars ?? 0 })}
                     </span>
                   </div>
                 </div>
@@ -572,11 +573,11 @@ function HotelDetailContent({ id }: { id: string }) {
                 tabIndex={-1}
                 className="text-primary mb-3 text-lg font-semibold outline-none"
               >
-                Chambres et tarifs
+                {t("roomsHeadingShort")}
               </h2>
               {roomsEffectiveStatus === "idle" ? (
                 <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
-                  Sélectionnez vos dates pour voir les tarifs disponibles.
+                  {t("selectDatesForRates")}
                 </div>
               ) : roomsEffectiveStatus === "loading" ? (
                 <div className="space-y-2">
@@ -586,7 +587,7 @@ function HotelDetailContent({ id }: { id: string }) {
                 </div>
               ) : roomsEffectiveStatus === "error" ? (
                 <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-4 text-sm">
-                  Impossible de charger les tarifs : {roomsState.error}
+                  {t("unableToLoadRates", { error: roomsState.error ?? t("unknownError") })}
                 </div>
               ) : (
                 <HotelRoomRates
@@ -605,7 +606,7 @@ function HotelDetailContent({ id }: { id: string }) {
             {whyChooseReasons.length > 0 && (
               <section>
                 <h2 className="text-primary mb-3 text-lg font-semibold">
-                  Pourquoi choisir cet hôtel
+                  {t("whyChooseTitle")}
                 </h2>
                 <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {whyChooseReasons.map(({ icon: Icon, text }) => (
@@ -624,7 +625,7 @@ function HotelDetailContent({ id }: { id: string }) {
             {hotel.shortDescription && (
               <section>
                 <h2 className="text-primary mb-2 text-lg font-semibold">
-                  Aperçu
+                  {t("overviewTitle")}
                 </h2>
                 <p className="text-foreground text-sm leading-relaxed">
                   {hotel.shortDescription}
@@ -635,7 +636,7 @@ function HotelDetailContent({ id }: { id: string }) {
             {hotel.longDescription && (
               <section>
                 <h2 className="text-primary mb-2 text-lg font-semibold">
-                  Description
+                  {t("descriptionTitle")}
                 </h2>
                 <p className="text-foreground text-sm leading-relaxed whitespace-pre-line">
                   {hotel.longDescription}
@@ -646,7 +647,7 @@ function HotelDetailContent({ id }: { id: string }) {
             {groupedFacilities.size > 0 && (
               <section>
                 <h2 className="text-primary mb-3 text-lg font-semibold">
-                  Équipements & services
+                  {t("facilitiesTitle")}
                 </h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {Array.from(groupedFacilities.entries()).map(
@@ -679,7 +680,7 @@ function HotelDetailContent({ id }: { id: string }) {
             {hotel.options.length > 0 && (
               <section>
                 <h2 className="text-primary mb-3 text-lg font-semibold">
-                  Options sur place
+                  {t("onSiteOptionsTitle")}
                 </h2>
                 <div className="flex flex-wrap gap-2">
                   {hotel.options.map((opt) => (
@@ -702,7 +703,7 @@ function HotelDetailContent({ id }: { id: string }) {
             {altEffectiveStatus === "loading" ? (
               <section>
                 <h2 className="text-primary mb-3 text-lg font-semibold">
-                  Hôtels similaires
+                  {t("similarHotelsTitle")}
                 </h2>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Skeleton className="h-28 w-full" />
@@ -714,7 +715,7 @@ function HotelDetailContent({ id }: { id: string }) {
               similarHotels.length > 0 && (
                 <section>
                   <h2 className="text-primary mb-3 text-lg font-semibold">
-                    Hôtels similaires
+                    {t("similarHotelsTitle")}
                   </h2>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {similarHotels.map((alt) => {
@@ -728,9 +729,9 @@ function HotelDetailContent({ id }: { id: string }) {
                       // seule étiquette à la fois pour ne pas surcharger.
                       const comparisonLabel =
                         cardShape && alt.discountedPrice < cardShape.discountedPrice
-                          ? "Moins cher"
+                          ? t("cheaperLabel")
                           : cardShape && alt.stars === cardShape.stars && alt.stars > 0
-                            ? "Même catégorie"
+                            ? t("sameCategoryLabel")
                             : null
                       return (
                         <Link
@@ -742,7 +743,7 @@ function HotelDetailContent({ id }: { id: string }) {
                             className="h-20 w-20 shrink-0 rounded-md bg-cover bg-center"
                             style={{ backgroundImage: `url(${alt.images[0]})` }}
                             role="img"
-                            aria-label={`Photo de ${alt.name}`}
+                            aria-label={t("photoOf", { name: alt.name })}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
@@ -767,7 +768,7 @@ function HotelDetailContent({ id }: { id: string }) {
                               {alt.location}
                             </p>
                             <p className="text-primary mt-1 text-sm font-semibold">
-                              À partir de {format(alt.discountedPrice)}
+                              {t("startingFrom")} {format(alt.discountedPrice)}
                             </p>
                           </div>
                         </Link>
@@ -793,7 +794,7 @@ function HotelDetailContent({ id }: { id: string }) {
               {effectiveSelectedRoom ? (
                 <div>
                   <p className="text-muted-foreground text-xs">
-                    Chambre sélectionnée
+                    {t("selectedRoomLabel")}
                   </p>
                   <p className="text-foreground mt-1 text-sm font-medium">
                     {effectiveSelectedRoom.name}
@@ -805,7 +806,7 @@ function HotelDetailContent({ id }: { id: string }) {
                   {effectiveSelectedRoom.cancellation === "FREE" && (
                     <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-emerald-700">
                       <ShieldCheck className="h-3 w-3" />
-                      Annulation gratuite
+                      {t("freeCancellation")}
                     </p>
                   )}
                   <p className="text-primary mt-1.5 text-2xl font-bold">
@@ -814,7 +815,7 @@ function HotelDetailContent({ id }: { id: string }) {
                 </div>
               ) : cardShape ? (
                 <div>
-                  <p className="text-muted-foreground text-xs">À partir de</p>
+                  <p className="text-muted-foreground text-xs">{t("startingFrom")}</p>
                   <div className="mt-1 flex items-baseline gap-1.5">
                     {cardShape.discountPercent > 0 && (
                       <span className="text-muted-foreground text-sm line-through">
@@ -832,12 +833,12 @@ function HotelDetailContent({ id }: { id: string }) {
               ) : (
                 <div>
                   <p className="text-muted-foreground text-xs">
-                    Vérifier les tarifs
+                    {t("checkAvailabilityRates")}
                   </p>
                   <p className="text-foreground mt-1 text-sm">
                     {checkin && checkout
-                      ? "Pour vos dates et voyageurs sélectionnés"
-                      : "Choisissez vos dates pour voir les disponibilités"}
+                      ? t("forYourDatesAndTravelers")
+                      : t("chooseDatesForAvailability")}
                   </p>
                 </div>
               )}
@@ -849,16 +850,16 @@ function HotelDetailContent({ id }: { id: string }) {
               >
                 <Calendar className="h-4 w-4" />
                 {roomsEffectiveStatus === "success"
-                  ? "Voir les chambres disponibles"
+                  ? t("viewAvailableRooms")
                   : checkin && checkout
-                    ? "Voir les disponibilités"
-                    : "Choisir mes dates"}
+                    ? t("viewAvailability")
+                    : t("chooseMyDates")}
               </Button>
 
               {(hotel.email || hotel.phone) && (
                 <div className="border-border space-y-2 border-t pt-4">
                   <h3 className="text-primary text-sm font-semibold">
-                    Contact
+                    {t("contactTitle")}
                   </h3>
                   {hotel.email && (
                     <a
@@ -884,7 +885,7 @@ function HotelDetailContent({ id }: { id: string }) {
               {hotel.latitude && hotel.longitude && (
                 <div className="border-border border-t pt-4">
                   <h3 className="text-primary mb-2 text-sm font-semibold">
-                    Localisation
+                    {t("locationTitle")}
                   </h3>
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${hotel.latitude},${hotel.longitude}`}
@@ -893,7 +894,7 @@ function HotelDetailContent({ id }: { id: string }) {
                     className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
                   >
                     <MapPin className="h-4 w-4" />
-                    Voir sur Google Maps
+                    {t("viewOnGoogleMaps")}
                   </a>
                 </div>
               )}
@@ -918,6 +919,7 @@ function Gallery({
   active: number
   onChange: (next: number) => void
 }) {
+  const t = useTranslations("Hotels")
   const safe = images.length > 0 ? images : [PLACEHOLDER_IMG]
   const idx = Math.min(active, safe.length - 1)
   const next = () => onChange((idx + 1) % safe.length)
@@ -930,7 +932,7 @@ function Gallery({
           className="h-full w-full bg-cover bg-center"
           style={{ backgroundImage: `url(${safe[idx]})` }}
           role="img"
-          aria-label="Photo principale de l'hôtel"
+          aria-label={t("mainPhotoAlt")}
         />
 
         {safe.length > 1 && (
@@ -939,7 +941,7 @@ function Gallery({
               type="button"
               onClick={prev}
               className="bg-card/90 hover:bg-card absolute top-1/2 left-3 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
-              aria-label="Photo précédente"
+              aria-label={t("prevPhoto")}
             >
               <ChevronLeft className="text-foreground h-5 w-5" />
             </button>
@@ -947,7 +949,7 @@ function Gallery({
               type="button"
               onClick={next}
               className="bg-card/90 hover:bg-card absolute top-1/2 right-3 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
-              aria-label="Photo suivante"
+              aria-label={t("nextPhoto")}
             >
               <ChevronRight className="text-foreground h-5 w-5" />
             </button>
@@ -970,7 +972,7 @@ function Gallery({
               className={`relative aspect-square overflow-hidden rounded-md border-2 transition-colors ${
                 i === idx ? "border-primary" : "border-transparent"
               }`}
-              aria-label={`Voir la photo ${i + 1}`}
+              aria-label={t("viewPhotoAria", { n: i + 1 })}
             >
               <div
                 className="h-full w-full bg-cover bg-center"

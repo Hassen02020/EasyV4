@@ -7,6 +7,8 @@
 
 import { Link } from "@/i18n/navigation"
 import Image from "next/image"
+import { getTranslations, getLocale } from "next-intl/server"
+import { getIntlLocale } from "@/lib/i18n-date"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -82,6 +84,8 @@ async function getPublishedActivities() {
 
 export default async function AttractionsPage() {
   const activities = await getPublishedActivities()
+  const t = await getTranslations("Attractions")
+  const locale = await getLocale()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -90,13 +94,13 @@ export default async function AttractionsPage() {
         <div className="bg-gradient-to-br from-teal-900 to-teal-700 px-4 py-12 text-white">
           <div className="mx-auto max-w-4xl text-center">
             <p className="mb-2 text-sm font-medium tracking-widest text-teal-300 uppercase">
-              Attractions
+              {t("kicker")}
             </p>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              Excursions et activités en Tunisie
+              {t("heroTitle")}
             </h1>
             <p className="mx-auto max-w-2xl text-teal-100">
-              Visites guidées, excursions et expériences à réserver en ligne, confirmation immédiate.
+              {t("heroSubtitle")}
             </p>
           </div>
         </div>
@@ -105,7 +109,7 @@ export default async function AttractionsPage() {
           {activities.length === 0 ? (
             <div className="rounded-xl border bg-card p-10 text-center text-muted-foreground">
               <Compass className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-              Aucune attraction disponible pour le moment. Revenez bientôt !
+              {t("emptyState")}
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -150,20 +154,20 @@ export default async function AttractionsPage() {
                     {a.durationMinutes && (
                       <div className="mb-3 flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {a.durationMinutes} min
+                        {t("durationMinutes", { minutes: a.durationMinutes })}
                       </div>
                     )}
                     {a.priceFromTnd != null && (
                       <div className="mb-3">
-                        <p className="text-xs text-muted-foreground">À partir de</p>
+                        <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
                         <p className="text-2xl font-bold text-teal-700">
-                          {a.priceFromTnd.toLocaleString("fr-FR")}
-                          <span className="ml-1 text-sm font-normal">DT / pers.</span>
+                          {a.priceFromTnd.toLocaleString(getIntlLocale(locale))}
+                          <span className="ml-1 text-sm font-normal">{t("perPerson")}</span>
                         </p>
                       </div>
                     )}
                     <Button className="w-full gap-2 bg-teal-700 hover:bg-teal-800" tabIndex={-1}>
-                      Voir les disponibilités
+                      {t("viewAvailability")}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>

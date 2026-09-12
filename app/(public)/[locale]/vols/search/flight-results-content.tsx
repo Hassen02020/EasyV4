@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useSearchParams } from "next/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { format, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
+import type { Locale as DateFnsLocale } from "date-fns"
+import { getDateFnsLocale, getIntlLocale } from "@/lib/i18n-date"
 import { ArrowRight, Info, Luggage, Plane, RefreshCw, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,13 +28,6 @@ import {
 import type { FlightOffer } from "@/lib/vols/client"
 
 type SortMode = "recommended" | "price_asc" | "price_desc" | "duration_asc"
-
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: "recommended", label: "Recommandés" },
-  { value: "price_asc", label: "Prix croissant" },
-  { value: "price_desc", label: "Prix décroissant" },
-  { value: "duration_asc", label: "Durée la plus courte" },
-]
 
 function sortOffers(offers: FlightOffer[], mode: SortMode): FlightOffer[] {
   const copy = [...offers]
@@ -67,9 +62,9 @@ function formatTime(iso: string): string {
   }
 }
 
-function formatDateHeader(dateStr: string): string {
+function formatDateHeader(dateStr: string, dateFnsLocale: DateFnsLocale): string {
   try {
-    return format(parseISO(dateStr), "EEEE d MMMM yyyy", { locale: fr })
+    return format(parseISO(dateStr), "EEEE d MMMM yyyy", { locale: dateFnsLocale })
   } catch {
     return dateStr
   }
@@ -100,6 +95,8 @@ function bookingHref(offer: FlightOffer, state: FlightSearchState): string | nul
 }
 
 function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchState }) {
+  const t = useTranslations("Vols")
+  const locale = useLocale()
   const segment = offer.segments[0]
   const href = bookingHref(offer, state)
   return (
@@ -125,7 +122,7 @@ function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchS
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span>{segment.carrier} {segment.flightNumber}</span>
               <span>{formatMinutes(offer.totalDurationMinutes)}</span>
-              <span>{offer.stops === 0 ? "Vol direct" : `${offer.stops} escale${offer.stops > 1 ? "s" : ""}`}</span>
+              <span>{offer.stops === 0 ? t("directFlight") : t("stopsCount", { count: offer.stops })}</span>
               {offer.baggageKg != null && (
                 <span className="inline-flex items-center gap-1">
                   <Luggage className="h-3 w-3" />
@@ -134,7 +131,7 @@ function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchS
               )}
               {offer.refundable && (
                 <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
-                  Remboursable
+                  {t("refundableBadge")}
                 </Badge>
               )}
             </div>
@@ -143,9 +140,9 @@ function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchS
 
         <div className="flex shrink-0 flex-col items-end gap-2 border-t pt-3 md:border-t-0 md:border-l md:pt-0 md:pl-4">
           <div className="text-right">
-            <p className="text-muted-foreground text-xs">À partir de</p>
+            <p className="text-muted-foreground text-xs">{t("startingFrom")}</p>
             <p className="text-primary text-2xl font-bold tabular-nums">
-              {offer.priceTnd.toLocaleString("fr-FR")} {offer.currency}
+              {offer.priceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
             </p>
           </div>
           {/* Virtual Flight Supplier (lib/vols/virtual-supplier/) : offre,
@@ -156,11 +153,11 @@ function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchS
               pas la réservation. */}
           {href ? (
             <Button size="sm" asChild>
-              <Link href={href}>Réserver</Link>
+              <Link href={href}>{t("bookButton")}</Link>
             </Button>
           ) : (
             <Button size="sm" disabled>
-              Offre indisponible
+              {t("offerUnavailable")}
             </Button>
           )}
         </div>
@@ -178,7 +175,13 @@ function FlightSearchSummary({
   count: number
   isDemo: boolean
 }) {
-  const paxLabel = `${state.adults} adulte${state.adults > 1 ? "s" : ""}${state.children > 0 ? `, ${state.children} enfant${state.children > 1 ? "s" : ""}` : ""}`
+  const t = useTranslations("Vols")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
+  const paxLabel =
+    state.children > 0
+      ? t("paxAdultsChildren", { adults: state.adults, children: state.children })
+      : t("paxAdultsOnly", { n: state.adults })
   return (
     <div className="mb-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -187,20 +190,20 @@ function FlightSearchSummary({
             {airportLabel(state.origin)} → {airportLabel(state.destination)}
           </h1>
           <p className="text-muted-foreground text-sm">
-            {formatDateHeader(state.departureDate)}
-            {state.returnDate ? ` · retour ${formatDateHeader(state.returnDate)}` : " · aller simple"}
+            {formatDateHeader(state.departureDate, dateFnsLocale)}
+            {state.returnDate ? ` · ${t("returnTrip", { date: formatDateHeader(state.returnDate, dateFnsLocale) })}` : ` · ${t("oneWayTrip")}`}
             {" · "}
             <span className="inline-flex items-center gap-1">
               <Users className="h-3 w-3" />
               {paxLabel}
             </span>
             {" · "}
-            {count} vol{count > 1 ? "s" : ""} trouvé{count > 1 ? "s" : ""}
+            {t("flightsFoundCount", { count })}
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link href={`/vols?origin=${state.origin}&destination=${state.destination}&cabin=${state.cabin}&adults=${state.adults}`}>
-            Modifier la recherche
+            {t("modifySearch")}
           </Link>
         </Button>
       </div>
@@ -208,8 +211,7 @@ function FlightSearchSummary({
         <div className="border-border bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Offres de démonstration — la réservation est entièrement fonctionnelle, la connexion à
-            nos compagnies partenaires est en cours de finalisation.
+            {t("demoNotice")}
           </p>
         </div>
       )}
@@ -220,6 +222,7 @@ function FlightSearchSummary({
 export function FlightResultsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const t = useTranslations("Vols")
 
   const parsed = useMemo(() => parseFlightSearchParams(searchParams), [searchParams])
   const requestKey = parsed.ok ? JSON.stringify(parsed.state) : null
@@ -259,7 +262,7 @@ export function FlightResultsContent() {
           requestKey,
           status: "error",
           offers: [],
-          error: err instanceof Error ? err.message : "Erreur inconnue",
+          error: err instanceof Error ? err.message : t("unknownError"),
         })
       })
     return () => ctrl.abort()
@@ -289,10 +292,10 @@ export function FlightResultsContent() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
         <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-          <p className="font-semibold">Recherche incomplète</p>
+          <p className="font-semibold">{t("incompleteSearchTitle")}</p>
           <p className="mt-1">{parsed.error}</p>
           <Button asChild variant="outline" className="mt-3">
-            <Link href="/vols">Retour à la recherche</Link>
+            <Link href="/vols">{t("backToSearch")}</Link>
           </Button>
         </div>
       </main>
@@ -317,7 +320,7 @@ export function FlightResultsContent() {
 
       {status === "error" && (
         <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-          <p className="font-semibold">Le service de recherche de vols est indisponible</p>
+          <p className="font-semibold">{t("serviceUnavailableTitle")}</p>
           <p className="mt-1">{error}</p>
           <Button
             variant="outline"
@@ -326,7 +329,7 @@ export function FlightResultsContent() {
             onClick={() => router.replace(`/vols/search?${searchParams.toString()}`)}
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Réessayer
+            {t("retry")}
           </Button>
         </div>
       )}
@@ -341,7 +344,7 @@ export function FlightResultsContent() {
                 onCheckedChange={(v) => setDirectOnly(v === true)}
               />
               <label htmlFor="direct-only" className="cursor-pointer text-sm">
-                Vols directs uniquement
+                {t("directOnlyFilter")}
               </label>
             </div>
             <div className="flex items-center gap-2">
@@ -351,7 +354,7 @@ export function FlightResultsContent() {
                 onCheckedChange={(v) => setRefundableOnly(v === true)}
               />
               <label htmlFor="refundable-only" className="cursor-pointer text-sm">
-                Remboursable uniquement
+                {t("refundableOnlyFilter")}
               </label>
             </div>
             <div className="w-full lg:mt-2">
@@ -360,11 +363,10 @@ export function FlightResultsContent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="recommended">{t("sortRecommended")}</SelectItem>
+                  <SelectItem value="price_asc">{t("sortPriceAsc")}</SelectItem>
+                  <SelectItem value="price_desc">{t("sortPriceDesc")}</SelectItem>
+                  <SelectItem value="duration_asc">{t("sortDurationAsc")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -373,7 +375,7 @@ export function FlightResultsContent() {
           <div className="flex-1 space-y-3">
             {filteredSorted.length === 0 ? (
               <div className="border-border text-muted-foreground rounded-lg border p-6 text-sm">
-                Aucun vol ne correspond aux filtres sélectionnés.
+                {t("noFlightsMatchFilters")}
               </div>
             ) : (
               filteredSorted.map((offer) => <FlightCard key={offer.id} offer={offer} state={parsed.state} />)

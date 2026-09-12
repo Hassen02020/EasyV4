@@ -10,6 +10,7 @@
  * corrigé Phase 30 dans components/hotel-listings.tsx::toCardShape).
  */
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { Check, Utensils, ShieldCheck, ShieldOff, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCurrency } from "@/components/currency-context"
@@ -75,6 +76,7 @@ export function HotelRoomRates({
   onSelectionChange,
 }: HotelRoomRatesProps) {
   const { format } = useCurrency()
+  const t = useTranslations("Hotels")
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
 
   const selectRoom = (key: string) => {
@@ -87,14 +89,14 @@ export function HotelRoomRates({
       {showHeader && (
         <div className="bg-muted/30 border-border border-b px-4 py-3">
           <h4 className="text-foreground font-semibold">
-            Chambres et tarifs disponibles
+            {t("roomsAndRatesTitle")}
           </h4>
         </div>
       )}
 
       {rooms.length === 0 && (
         <div className="text-muted-foreground px-4 py-6 text-sm">
-          Aucune chambre disponible pour cette offre.
+          {t("noRoomsAvailable")}
         </div>
       )}
 
@@ -159,18 +161,18 @@ export function HotelRoomRates({
                     <>
                       <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                       {room.freeCancellationDate
-                        ? `Annulation gratuite avant le ${room.freeCancellationDate}`
-                        : "Annulation gratuite"}
+                        ? t("freeCancellationUntil", { date: room.freeCancellationDate })
+                        : t("freeCancellation")}
                     </>
                   ) : room.cancellation === "NON_REFUNDABLE" ? (
                     <>
                       <ShieldOff className="h-3.5 w-3.5 shrink-0" />
-                      Non remboursable
+                      {t("nonRefundable")}
                     </>
                   ) : (
                     <>
                       <HelpCircle className="h-3.5 w-3.5 shrink-0" />
-                      Conditions d&apos;annulation sur demande
+                      {t("cancellationOnRequest")}
                     </>
                   )}
                 </p>
@@ -182,7 +184,7 @@ export function HotelRoomRates({
                       : "bg-amber-100 text-amber-700"
                   }`}
                 >
-                  {room.available ? "Disponible" : "Sur demande"}
+                  {room.available ? t("available") : t("onRequest")}
                 </span>
               </div>
             </div>
@@ -203,7 +205,7 @@ export function HotelRoomRates({
             disabled={!selectedRoom}
             className="gap-2"
           >
-            Réserver
+            {t("bookButton")}
           </Button>
         </div>
       )}

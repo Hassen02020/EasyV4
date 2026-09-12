@@ -17,6 +17,7 @@
  * jamais remarqué. Corrigé en même temps que l'ajout de la results layer.
  */
 
+import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { CarSearch } from "@/components/car/car-search"
@@ -75,6 +76,7 @@ export default async function CarPage({
 }) {
   const { location, pickupDate, returnDate, category } = await searchParams
   const { locations, categories } = await getCatalog()
+  const t = await getTranslations("Car")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -83,14 +85,13 @@ export default async function CarPage({
         <div className="bg-gradient-to-br from-orange-900 to-orange-700 px-4 py-12 text-white">
           <div className="mx-auto max-w-4xl text-center">
             <p className="mb-2 text-sm font-medium tracking-widest text-orange-300 uppercase">
-              Location de Voiture
+              {t("kicker")}
             </p>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              Louez votre voiture
+              {t("heroTitle")}
             </h1>
             <p className="mx-auto max-w-2xl text-orange-100">
-              Flotte récente, assurance incluse. Prise en charge aéroport,
-              agences dans toute la Tunisie.
+              {t("heroSubtitle")}
             </p>
           </div>
         </div>

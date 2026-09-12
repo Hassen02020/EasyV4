@@ -17,6 +17,7 @@
 
 import { useState } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, User, CreditCard, Banknote, Wallet, Plane } from "lucide-react"
 import { createGuestFlightBooking, type FlightGuestPaymentMethod } from "@/lib/vols/guest-booking-actions"
 import { flightGuestBookingSchema, type FlightGuestBookingInput } from "@/lib/vols/schemas"
+import { getIntlLocale } from "@/lib/i18n-date"
 
 export interface FlightBookingOfferSummary {
   offerToken: string
@@ -49,22 +51,6 @@ export interface FlightBookingOfferSummary {
   baggageKg: number | null
 }
 
-const METHODS: { key: FlightGuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
-  { key: "card", label: "Carte bancaire", desc: "Paiement en ligne immédiat", icon: CreditCard },
-  {
-    key: "transfer",
-    label: "Virement bancaire",
-    desc: "Coordonnées de virement envoyées par email — billet émis après confirmation du règlement",
-    icon: Banknote,
-  },
-  {
-    key: "cash",
-    label: "Espèces en agence",
-    desc: "Réservation maintenue en attente de paiement — billet émis après confirmation du règlement",
-    icon: Wallet,
-  },
-]
-
 function emptyTraveler() {
   return {
     firstName: "",
@@ -80,10 +66,18 @@ function emptyTraveler() {
 
 export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSummary }) {
   const router = useRouter()
+  const t = useTranslations("Vols")
+  const locale = useLocale()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<FlightGuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
+
+  const METHODS: { key: FlightGuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
+    { key: "card", label: t("methodCard"), desc: t("methodCardDesc"), icon: CreditCard },
+    { key: "transfer", label: t("methodTransfer"), desc: t("methodTransferDesc"), icon: Banknote },
+    { key: "cash", label: t("methodCash"), desc: t("methodCashDesc"), icon: Wallet },
+  ]
 
   const paxCount = Math.max(1, offer.adults + offer.children)
 
@@ -101,7 +95,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
 
   async function onSubmit(data: FlightGuestBookingInput) {
     if (!acceptCgv) {
-      setSubmitError("Vous devez accepter les conditions générales de vente.")
+      setSubmitError(t("mustAcceptCgv"))
       return
     }
     setIsSubmitting(true)
@@ -115,7 +109,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
       }
       router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
+      setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
     }
   }
@@ -133,7 +127,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plane className="size-5" />
-              Votre vol
+              {t("yourFlightTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
@@ -146,10 +140,10 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
               </span>
             </div>
             <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-              <span>{new Date(offer.departureAt).toLocaleString("fr-FR")}</span>
-              <span>{offer.stops === 0 ? "Vol direct" : `${offer.stops} escale${offer.stops > 1 ? "s" : ""}`}</span>
+              <span>{new Date(offer.departureAt).toLocaleString(getIntlLocale(locale))}</span>
+              <span>{offer.stops === 0 ? t("directFlight") : t("stopsCount", { count: offer.stops })}</span>
               <span>{offer.cabin}</span>
-              {offer.refundable ? <span>Remboursable</span> : null}
+              {offer.refundable ? <span>{t("refundableBadge")}</span> : null}
             </div>
           </CardContent>
         </Card>
@@ -159,14 +153,14 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <User className="size-4" />
-                Voyageur #{index + 1}
-                {index === 0 ? <span className="text-muted-foreground text-xs font-normal">(contact principal)</span> : null}
+                {t("travelerTitle", { n: index + 1 })}
+                {index === 0 ? <span className="text-muted-foreground text-xs font-normal">{t("mainContactTag")}</span> : null}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor={`traveler-${index}-firstName`}>Prénom *</Label>
+                  <Label htmlFor={`traveler-${index}-firstName`}>{t("firstNameLabel")}</Label>
                   <Input id={`traveler-${index}-firstName`} {...form.register(`travelers.${index}.firstName`)} className="mt-1" />
                   {form.formState.errors.travelers?.[index]?.firstName ? (
                     <p className="text-destructive mt-1 text-xs">
@@ -175,7 +169,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                   ) : null}
                 </div>
                 <div>
-                  <Label htmlFor={`traveler-${index}-lastName`}>Nom *</Label>
+                  <Label htmlFor={`traveler-${index}-lastName`}>{t("lastNameLabel")}</Label>
                   <Input id={`traveler-${index}-lastName`} {...form.register(`travelers.${index}.lastName`)} className="mt-1" />
                   {form.formState.errors.travelers?.[index]?.lastName ? (
                     <p className="text-destructive mt-1 text-xs">
@@ -186,7 +180,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <Label htmlFor={`traveler-${index}-birthDate`}>Date de naissance *</Label>
+                  <Label htmlFor={`traveler-${index}-birthDate`}>{t("birthDateLabel")}</Label>
                   <Input id={`traveler-${index}-birthDate`} type="date" {...form.register(`travelers.${index}.birthDate`)} className="mt-1" />
                   {form.formState.errors.travelers?.[index]?.birthDate ? (
                     <p className="text-destructive mt-1 text-xs">
@@ -195,7 +189,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                   ) : null}
                 </div>
                 <div>
-                  <Label htmlFor={`traveler-${index}-gender`}>Genre</Label>
+                  <Label htmlFor={`traveler-${index}-gender`}>{t("genderLabel")}</Label>
                   <Select
                     value={form.watch(`travelers.${index}.gender`)}
                     onValueChange={(v) => form.setValue(`travelers.${index}.gender`, v as "male" | "female")}
@@ -204,13 +198,13 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="male">Homme</SelectItem>
-                      <SelectItem value="female">Femme</SelectItem>
+                      <SelectItem value="male">{t("genderMale")}</SelectItem>
+                      <SelectItem value="female">{t("genderFemale")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor={`traveler-${index}-nationality`}>Nationalité *</Label>
+                  <Label htmlFor={`traveler-${index}-nationality`}>{t("nationalityLabel")}</Label>
                   <Input
                     id={`traveler-${index}-nationality`}
                     {...form.register(`travelers.${index}.nationality`)}
@@ -226,7 +220,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                 </div>
               </div>
               <div>
-                <Label htmlFor={`traveler-${index}-passportNumber`}>Numéro de passeport / CIN *</Label>
+                <Label htmlFor={`traveler-${index}-passportNumber`}>{t("passportOrCinLabel")}</Label>
                 <Input id={`traveler-${index}-passportNumber`} {...form.register(`travelers.${index}.passportNumber`)} className="mt-1" />
                 {form.formState.errors.travelers?.[index]?.passportNumber ? (
                   <p className="text-destructive mt-1 text-xs">
@@ -237,7 +231,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
               {index === 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor={`traveler-${index}-email`}>Email *</Label>
+                    <Label htmlFor={`traveler-${index}-email`}>{t("emailLabel")}</Label>
                     <Input id={`traveler-${index}-email`} type="email" {...form.register(`travelers.${index}.email`)} className="mt-1" />
                     {form.formState.errors.travelers?.[index]?.email ? (
                       <p className="text-destructive mt-1 text-xs">
@@ -246,7 +240,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
                     ) : null}
                   </div>
                   <div>
-                    <Label htmlFor={`traveler-${index}-phone`}>Téléphone</Label>
+                    <Label htmlFor={`traveler-${index}-phone`}>{t("phoneLabel")}</Label>
                     <Input id={`traveler-${index}-phone`} type="tel" {...form.register(`travelers.${index}.phone`)} className="mt-1" placeholder="+216 98 140 514" />
                   </div>
                 </div>
@@ -257,7 +251,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
 
         <Card>
           <CardHeader>
-            <CardTitle>Mode de paiement</CardTitle>
+            <CardTitle>{t("paymentMethodTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {METHODS.map((m) => {
@@ -291,7 +285,7 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
             <div className="flex items-start gap-2 pt-2">
               <Checkbox id="cgv-flight" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
               <Label htmlFor="cgv-flight" className="text-muted-foreground text-sm leading-snug">
-                J&apos;accepte les conditions générales de vente d&apos;Easy2Book.
+                {t("acceptCgv")}
               </Label>
             </div>
           </CardContent>
@@ -301,23 +295,23 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="size-5" />
-              Récapitulatif
+              {t("summaryTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm">
-                {paxCount} passager{paxCount > 1 ? "s" : ""}
+                {t("passengersCount", { n: paxCount })}
               </span>
               <span className="font-medium">
-                {offer.priceTnd.toLocaleString("fr-FR")} {offer.currency}
+                {offer.priceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
               </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between text-lg">
-              <span className="font-semibold">Total TTC</span>
+              <span className="font-semibold">{t("totalTtc")}</span>
               <span className="font-bold text-violet-700">
-                {offer.priceTnd.toLocaleString("fr-FR")} {offer.currency}
+                {offer.priceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
               </span>
             </div>
           </CardContent>
@@ -327,10 +321,10 @@ export function FlightGuestBookingForm({ offer }: { offer: FlightBookingOfferSum
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 size-4 animate-spin" />
-              Traitement en cours…
+              {t("processing")}
             </>
           ) : (
-            "Confirmer & payer"
+            t("confirmAndPay")
           )}
         </Button>
       </form>

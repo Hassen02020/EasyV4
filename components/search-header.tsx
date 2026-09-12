@@ -16,12 +16,16 @@ interface SearchHeaderProps {
 }
 
 export function SearchHeader({
-  city = "Hammamet, Tunisie",
-  dateRange = "Sélectionner les dates",
-  paxLabel = "2 Adultes",
+  city,
+  dateRange,
+  paxLabel,
 }: SearchHeaderProps) {
   const t = useTranslations("Common")
+  const tHotels = useTranslations("Hotels")
   const [loggedIn, setLoggedIn] = useState(false)
+  const resolvedCity = city ?? "Hammamet, Tunisie"
+  const resolvedDateRange = dateRange ?? tHotels("selectDates")
+  const resolvedPaxLabel = paxLabel ?? tHotels("paxAdultsCount", { n: 2 })
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +48,7 @@ export function SearchHeader({
           <Link
             href="/"
             className="flex items-center gap-2"
-            aria-label="Easy2Book — retour à l'accueil"
+            aria-label={tHotels("logoHomeAria")}
           >
             <Easy2BookLogo className="size-10" />
             <span className="hidden text-xl font-bold sm:block">
@@ -60,7 +64,7 @@ export function SearchHeader({
                 <MapPin className="text-primary h-4 w-4 shrink-0" />
                 <div className="truncate">
                   <span className="text-foreground text-sm font-medium">
-                    {city}
+                    {resolvedCity}
                   </span>
                 </div>
               </div>
@@ -71,7 +75,7 @@ export function SearchHeader({
                 <Calendar className="text-primary h-4 w-4 shrink-0" />
                 <div>
                   <span className="text-foreground text-sm font-medium">
-                    {dateRange}
+                    {resolvedDateRange}
                   </span>
                 </div>
               </div>
@@ -82,30 +86,30 @@ export function SearchHeader({
                 <Users className="text-primary h-4 w-4 shrink-0" />
                 <div>
                   <span className="text-foreground text-sm font-medium">
-                    {paxLabel}
+                    {resolvedPaxLabel}
                   </span>
                 </div>
               </div>
 
               <Button size="sm" className="shrink-0">
                 <Search className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Modifier</span>
+                <span className="ml-1 hidden sm:inline">{tHotels("modifyButton")}</span>
               </Button>
             </div>
           </div>
 
           <div className="hidden items-center gap-4 lg:flex">
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Afficher :</span>
+              <span className="text-muted-foreground">{tHotels("showLabel")}</span>
               <button className="text-foreground hover:text-primary flex items-center gap-1 font-medium">
-                100 hôtels
+                {tHotels("hotelsCountPlaceholder")}
                 <ChevronDown className="h-4 w-4" />
               </button>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Trier :</span>
+              <span className="text-muted-foreground">{tHotels("sortLabel")}</span>
               <button className="text-foreground hover:text-primary flex items-center gap-1 font-medium">
-                Recommandé
+                {tHotels("recommendedSort")}
                 <ChevronDown className="h-4 w-4" />
               </button>
             </div>

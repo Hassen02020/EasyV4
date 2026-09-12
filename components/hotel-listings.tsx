@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
+import { getDateFnsLocale } from "@/lib/i18n-date"
 import { toast } from "sonner"
 import { HotelCard } from "@/components/hotel-card"
 import type { RoomOption } from "@/components/hotel-room-rates"
@@ -300,6 +301,9 @@ export function HotelListings({
   onClearFilters,
 }: HotelListingsProps) {
   const router = useRouter()
+  const t = useTranslations("Hotels")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
 
   // Favoris — état réel chargé une fois (pas par card, pour éviter N appels
   // pour N résultats) ; `undefined` tant que non chargé (le cœur reste
@@ -342,7 +346,7 @@ export function HotelListings({
       .then((result) => {
         if (!result.ok) {
           if (result.code === "NOT_AUTHENTICATED") {
-            toast.error("Connectez-vous pour ajouter des favoris.")
+            toast.error(t("loginToFavorite"))
           } else {
             toast.error(result.error)
           }
@@ -355,7 +359,7 @@ export function HotelListings({
           return next
         })
       })
-      .catch(() => toast.error("Erreur technique. Veuillez réessayer."))
+      .catch(() => toast.error(t("technicalError")))
       .finally(() => {
         setPendingFavoriteIds((prev) => {
           const next = new Set(prev)
@@ -435,19 +439,19 @@ export function HotelListings({
   const headerSubtitle = useMemo(() => {
     if (!checkin || !checkout) return ""
     try {
-      const f = parseISO(checkin)
-      const t = parseISO(checkout)
-      const nights = Math.max(1, differenceInCalendarDays(t, f))
+      const from = parseISO(checkin)
+      const to = parseISO(checkout)
+      const nights = Math.max(1, differenceInCalendarDays(to, from))
       const childCount = childrenAges?.split(",").filter(Boolean).length ?? 0
       const paxLabel =
         childCount > 0
-          ? `${adults} adulte${Number(adults) > 1 ? "s" : ""}, ${childCount} enfant${childCount > 1 ? "s" : ""}`
-          : `${adults} adulte${Number(adults) > 1 ? "s" : ""}`
-      return `${format(f, "d MMM", { locale: fr })} - ${format(t, "d MMM yyyy", { locale: fr })} · ${nights} nuit${nights > 1 ? "s" : ""} · ${paxLabel}`
+          ? t("paxAdultsChildren", { adults: Number(adults), children: childCount })
+          : t("paxAdultsOnly", { n: Number(adults) })
+      return `${format(from, "d MMM", { locale: dateFnsLocale })} - ${format(to, "d MMM yyyy", { locale: dateFnsLocale })} · ${t("nightsCount", { n: nights })} · ${paxLabel}`
     } catch {
       return ""
     }
-  }, [checkin, checkout, adults, childrenAges])
+  }, [checkin, checkout, adults, childrenAges, t, dateFnsLocale])
 
   const cardHotels = useMemo(
     () => offers.map((offer) => toCardShape(offer, activeBoardFilters, nightsCount)),
@@ -473,23 +477,23 @@ export function HotelListings({
     const isRateLimited = errorCode === "rate_limited"
     const isIncomplete = errorCode === "incomplete_query"
     const title = isUnavailable
-      ? "Le service hôtelier est temporairement indisponible"
+      ? t("serviceUnavailableTitle")
       : isRateLimited
-        ? "Trop de recherches en peu de temps"
+        ? t("rateLimitedTitle")
         : isIncomplete
-          ? "Recherche incomplète"
-          : "Erreur de recherche"
+          ? t("incompleteSearchTitle")
+          : t("searchErrorTitle")
     return (
       <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
         <p className="font-semibold">{title}</p>
-        <p className="mt-1">{error ?? "Erreur inconnue"}</p>
+        <p className="mt-1">{error ?? t("unknownError")}</p>
         {onRetry && !isIncomplete && (
           <button
             type="button"
             onClick={onRetry}
             className="border-destructive/40 hover:bg-destructive/10 mt-3 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
           >
-            Réessayer
+            {t("retry")}
           </button>
         )}
       </div>
@@ -500,23 +504,21 @@ export function HotelListings({
     <div className="space-y-4">
       {degraded && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
-          Résultats affichés depuis un cache récent — le fournisseur hôtelier
-          est momentanément indisponible, les prix et disponibilités seront
-          revérifiés avant toute réservation.
+          {t("degradedNotice")}
         </div>
       )}
       {!degraded && fromStaleCache && (
         <div className="text-muted-foreground text-xs">
-          Résultats mis en cache — actualisation en cours.
+          {t("staleCacheNotice")}
         </div>
       )}
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-foreground text-xl font-bold">
-            {totalCount} hôtel{totalCount > 1 ? "s" : ""} à {cityName}
+            {t("hotelsCountInCity", { count: totalCount, city: cityName })}
             {offers.length !== totalCount && (
               <span className="text-muted-foreground ml-2 text-sm font-normal">
-                ({offers.length} après filtrage)
+                {t("afterFilterCount", { count: offers.length })}
               </span>
             )}
           </h1>
@@ -534,16 +536,16 @@ export function HotelListings({
             // filtres qui n'y sont pour rien.
             <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
               <p className="font-medium text-foreground">
-                Aucun hôtel disponible pour cette recherche
+                {t("noHotelsAvailableTitle")}
               </p>
               <p className="mt-1">
-                Essayez d&apos;autres dates ou une autre destination.
+                {t("noHotelsAvailableHint")}
               </p>
               <Link
                 href="/"
                 className="text-primary mt-3 inline-block text-sm font-medium hover:underline"
               >
-                Modifier la recherche
+                {t("modifySearch")}
               </Link>
             </div>
           ) : (
@@ -552,12 +554,10 @@ export function HotelListings({
             // pas de changer la recherche elle-même.
             <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
               <p className="font-medium text-foreground">
-                Aucun hôtel ne correspond aux filtres sélectionnés
+                {t("noHotelsMatchFiltersTitle")}
               </p>
               <p className="mt-1">
-                {totalCount} hôtel{totalCount > 1 ? "s" : ""} trouvé
-                {totalCount > 1 ? "s" : ""} pour cette recherche — essayez
-                d&apos;élargir vos filtres.
+                {t("hotelsFoundForSearch", { count: totalCount })}
               </p>
               {onClearFilters && (
                 <button
@@ -565,7 +565,7 @@ export function HotelListings({
                   onClick={onClearFilters}
                   className="text-primary mt-3 text-sm font-medium hover:underline"
                 >
-                  Effacer tous les filtres
+                  {t("clearAllFilters")}
                 </button>
               )}
             </div>

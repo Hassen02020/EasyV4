@@ -18,6 +18,7 @@
 
 import { useState } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ import {
   type WorldHotelGuestPaymentMethod,
 } from "@/lib/hotels-monde/guest-booking-actions"
 import { worldHotelGuestBookingSchema, type WorldHotelGuestBookingInput } from "@/lib/hotels-monde/schemas"
+import { getIntlLocale } from "@/lib/i18n-date"
 
 export interface WorldHotelBookingOfferSummary {
   offerToken: string
@@ -53,28 +55,20 @@ export interface WorldHotelBookingOfferSummary {
   stars: number | null
 }
 
-const METHODS: { key: WorldHotelGuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
-  { key: "card", label: "Carte bancaire", desc: "Paiement en ligne immédiat", icon: CreditCard },
-  {
-    key: "transfer",
-    label: "Virement bancaire",
-    desc: "Coordonnées de virement envoyées par email — voucher émis après confirmation du règlement",
-    icon: Banknote,
-  },
-  {
-    key: "cash",
-    label: "Espèces en agence",
-    desc: "Réservation maintenue en attente de paiement — voucher émis après confirmation du règlement",
-    icon: Wallet,
-  },
-]
-
 export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBookingOfferSummary }) {
   const router = useRouter()
+  const t = useTranslations("HotelsMonde")
+  const locale = useLocale()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<WorldHotelGuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
+
+  const METHODS: { key: WorldHotelGuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
+    { key: "card", label: t("methodCard"), desc: t("methodCardDesc"), icon: CreditCard },
+    { key: "transfer", label: t("methodTransfer"), desc: t("methodTransferDesc"), icon: Banknote },
+    { key: "cash", label: t("methodCash"), desc: t("methodCashDesc"), icon: Wallet },
+  ]
 
   const form = useForm<WorldHotelGuestBookingInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -96,7 +90,7 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
 
   async function onSubmit(data: WorldHotelGuestBookingInput) {
     if (!acceptCgv) {
-      setSubmitError("Vous devez accepter les conditions générales de vente.")
+      setSubmitError(t("mustAcceptCgv"))
       return
     }
     setIsSubmitting(true)
@@ -110,7 +104,7 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
       }
       router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
+      setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
     }
   }
@@ -128,7 +122,7 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="size-5" />
-              Votre hôtel
+              {t("yourHotelTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
@@ -140,12 +134,12 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
             </div>
             <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
               <span>
-                {new Date(offer.checkIn).toLocaleDateString("fr-FR")} → {new Date(offer.checkOut).toLocaleDateString("fr-FR")}
+                {new Date(offer.checkIn).toLocaleDateString(getIntlLocale(locale))} → {new Date(offer.checkOut).toLocaleDateString(getIntlLocale(locale))}
               </span>
-              <span>{offer.nights} nuit{offer.nights > 1 ? "s" : ""}</span>
-              <span>{offer.adults} adulte{offer.adults > 1 ? "s" : ""} · {offer.rooms} chambre{offer.rooms > 1 ? "s" : ""}</span>
-              {offer.refundable ? <span>Annulation gratuite</span> : null}
-              {offer.breakfastIncluded ? <span>Petit-déjeuner inclus</span> : null}
+              <span>{t("nightsCount", { n: offer.nights })}</span>
+              <span>{t("paxSummary", { adults: offer.adults, rooms: offer.rooms })}</span>
+              {offer.refundable ? <span>{t("freeCancellation")}</span> : null}
+              {offer.breakfastIncluded ? <span>{t("breakfastIncluded")}</span> : null}
             </div>
           </CardContent>
         </Card>
@@ -154,13 +148,13 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <User className="size-4" />
-              Client principal
+              {t("mainGuestTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label htmlFor="guest-civility">Civilité</Label>
+                <Label htmlFor="guest-civility">{t("civilityLabel")}</Label>
                 <Select
                   value={form.watch("guest.civility")}
                   onValueChange={(v) => form.setValue("guest.civility", v as "M" | "Mme" | "Mlle")}
@@ -169,21 +163,21 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="M">M.</SelectItem>
-                    <SelectItem value="Mme">Mme</SelectItem>
-                    <SelectItem value="Mlle">Mlle</SelectItem>
+                    <SelectItem value="M">{t("civilityM")}</SelectItem>
+                    <SelectItem value="Mme">{t("civilityMme")}</SelectItem>
+                    <SelectItem value="Mlle">{t("civilityMlle")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="guest-firstName">Prénom *</Label>
+                <Label htmlFor="guest-firstName">{t("firstNameLabel")}</Label>
                 <Input id="guest-firstName" {...form.register("guest.firstName")} className="mt-1" />
                 {form.formState.errors.guest?.firstName ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.guest.firstName.message}</p>
                 ) : null}
               </div>
               <div>
-                <Label htmlFor="guest-lastName">Nom *</Label>
+                <Label htmlFor="guest-lastName">{t("lastNameLabel")}</Label>
                 <Input id="guest-lastName" {...form.register("guest.lastName")} className="mt-1" />
                 {form.formState.errors.guest?.lastName ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.guest.lastName.message}</p>
@@ -192,14 +186,14 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label htmlFor="guest-email">Email *</Label>
+                <Label htmlFor="guest-email">{t("emailLabel")}</Label>
                 <Input id="guest-email" type="email" {...form.register("guest.email")} className="mt-1" />
                 {form.formState.errors.guest?.email ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.guest.email.message}</p>
                 ) : null}
               </div>
               <div>
-                <Label htmlFor="guest-phone">Téléphone *</Label>
+                <Label htmlFor="guest-phone">{t("phoneLabel")}</Label>
                 <Input id="guest-phone" type="tel" {...form.register("guest.phone")} className="mt-1" placeholder="+216 98 140 514" />
                 {form.formState.errors.guest?.phone ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.guest.phone.message}</p>
@@ -207,16 +201,16 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
               </div>
             </div>
             <div>
-              <Label htmlFor="guest-nationality">Nationalité</Label>
-              <Input id="guest-nationality" {...form.register("guest.nationality")} className="mt-1" placeholder="Tunisienne" />
+              <Label htmlFor="guest-nationality">{t("nationalityLabel")}</Label>
+              <Input id="guest-nationality" {...form.register("guest.nationality")} className="mt-1" placeholder={t("nationalityPlaceholder")} />
             </div>
             <div>
-              <Label htmlFor="special-requests">Demandes particulières</Label>
+              <Label htmlFor="special-requests">{t("specialRequestsLabel")}</Label>
               <Textarea
                 id="special-requests"
                 {...form.register("specialRequests")}
                 className="mt-1"
-                placeholder="Lit bébé, étage élevé, arrivée tardive…"
+                placeholder={t("specialRequestsPlaceholder")}
                 rows={2}
               />
             </div>
@@ -225,7 +219,7 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
 
         <Card>
           <CardHeader>
-            <CardTitle>Mode de paiement</CardTitle>
+            <CardTitle>{t("paymentMethodTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {METHODS.map((m) => {
@@ -259,7 +253,7 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
             <div className="flex items-start gap-2 pt-2">
               <Checkbox id="cgv-hotel-monde" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
               <Label htmlFor="cgv-hotel-monde" className="text-muted-foreground text-sm leading-snug">
-                J&apos;accepte les conditions générales de vente d&apos;Easy2Book.
+                {t("acceptCgv")}
               </Label>
             </div>
           </CardContent>
@@ -269,23 +263,23 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="size-5" />
-              Récapitulatif
+              {t("summaryTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm">
-                {offer.rooms} chambre{offer.rooms > 1 ? "s" : ""} · {offer.nights} nuit{offer.nights > 1 ? "s" : ""}
+                {t("roomsNightsSummary", { rooms: offer.rooms, nights: offer.nights })}
               </span>
               <span className="font-medium">
-                {offer.priceTnd.toLocaleString("fr-FR")} {offer.currency}
+                {offer.priceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
               </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between text-lg">
-              <span className="font-semibold">Total TTC</span>
+              <span className="font-semibold">{t("totalTtc")}</span>
               <span className="font-bold text-violet-700">
-                {offer.priceTnd.toLocaleString("fr-FR")} {offer.currency}
+                {offer.priceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
               </span>
             </div>
           </CardContent>
@@ -295,10 +289,10 @@ export function WorldHotelGuestBookingForm({ offer }: { offer: WorldHotelBooking
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 size-4 animate-spin" />
-              Traitement en cours…
+              {t("processing")}
             </>
           ) : (
-            "Confirmer & payer"
+            t("confirmAndPay")
           )}
         </Button>
       </form>

@@ -9,6 +9,7 @@
 
 import { Link } from "@/i18n/navigation"
 import { notFound } from "next/navigation"
+import { getTranslations } from "next-intl/server"
 import { and, eq, gte, arrayContains } from "drizzle-orm"
 import { ArrowLeft } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
@@ -74,6 +75,7 @@ export default async function ActivityBookPage({
   const result = await getBookableActivity(slug)
   if (!result) notFound()
   const { activity, sessions } = result
+  const t = await getTranslations("Attractions")
 
   if (sessions.length === 0) {
     notFound()
@@ -89,11 +91,11 @@ export default async function ActivityBookPage({
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm"
           >
             <ArrowLeft className="size-4" />
-            Retour à l&apos;attraction
+            {t("backToAttraction")}
           </Link>
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{activity.title}</h1>
           <p className="text-muted-foreground mb-6">
-            Choisissez votre session et vos informations de contact.
+            {t("chooseSessionAndContact")}
           </p>
           <BookingSteps current={2} />
 

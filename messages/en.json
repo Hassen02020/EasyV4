@@ -971,7 +971,8 @@
     "validatingReservation": "Validating booking…",
     "confirmAndPay": "Confirm & pay",
     "invalidFieldsError": "Invalid fields",
-    "paymentError": "Payment error"
+    "paymentError": "Payment error",
+    "cartModuleNotSupportedToast": "This product type cannot be added to the cart from this page."
   },
   "Paiement": {
     "simulationEnvTitle": "Simulation environment",

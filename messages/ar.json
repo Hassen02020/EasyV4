@@ -971,7 +971,8 @@
     "validatingReservation": "قاعد يتأكد الحجز…",
     "confirmAndPay": "أكّد وخلّص",
     "invalidFieldsError": "حقول ماهيش صحيحة",
-    "paymentError": "خطأ في الخلاص"
+    "paymentError": "خطأ في الخلاص",
+    "cartModuleNotSupportedToast": "لا يمكن إضافة هذا النوع من المنتجات إلى السلة من هذه الصفحة."
   },
   "Paiement": {
     "simulationEnvTitle": "محيط تجريبي",

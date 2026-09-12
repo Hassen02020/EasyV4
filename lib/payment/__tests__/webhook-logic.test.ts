@@ -5,8 +5,10 @@ import {
   classifyEventType,
   normalizeStripeEvent,
   normalizeSpsEvent,
+  normalizePaymeeEvent,
   matchesPendingRecharge,
 } from "../webhook-logic"
+import { matchesPendingPayment } from "../reservation-payment-logic"
 
 test("classifyEventType : mappe les types Stripe/SPS connus", () => {
   assert.equal(classifyEventType("payment_intent.succeeded"), "succeeded")
@@ -127,4 +129,46 @@ test("matchesPendingRecharge : tolère l'arrondi flottant sous le millime", () =
     { eventId: "evt_1", eventType: "payment_intent.succeeded", providerRef: "pi_abc", amountTnd: 150.0001, currency: "TND" },
   )
   assert.deepEqual(result, { ok: true })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Paymee — normalizePaymeeEvent                                              */
+/* -------------------------------------------------------------------------- */
+
+test("normalizePaymeeEvent : retombe sur `amount` quand `received_amount` est absent (comportement historique)", () => {
+  const charge = normalizePaymeeEvent(
+    { token: "tok_1", order_id: "order_1", amount: 150, payment_id: "pmt_1" },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.amountTnd, 150)
+  assert.equal(charge!.providerRef, "order_1")
+  assert.equal(charge!.currency, "TND")
+})
+
+test("normalizePaymeeEvent : préfère `received_amount` à `amount` quand les deux sont présents (règle comptable la plus défensive — voir avertissement de fichier)", () => {
+  const charge = normalizePaymeeEvent(
+    { token: "tok_2", order_id: "order_2", amount: 150, received_amount: 145.5, cost: 4.5, payment_id: "pmt_2" },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.amountTnd, 145.5)
+})
+
+test("normalizePaymeeEvent : `received_amount` inférieur au montant attendu fait échouer la corrélation stricte (jamais une confirmation en trop)", () => {
+  const charge = normalizePaymeeEvent(
+    { token: "tok_3", order_id: "order_3", amount: 150, received_amount: 145.5 },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  const match = matchesPendingPayment(
+    { pspOrderId: "order_3", originalAmount: "150.00", originalCurrency: "TND" },
+    charge!,
+  )
+  assert.deepEqual(match, { ok: false, reason: "AMOUNT_MISMATCH" })
+})
+
+test("normalizePaymeeEvent : token ou order_id manquant -> null", () => {
+  assert.equal(normalizePaymeeEvent({ order_id: "order_1", amount: 150 }, "paymee.payment.success"), null)
+  assert.equal(normalizePaymeeEvent({ token: "tok_1", amount: 150 }, "paymee.payment.success"), null)
 })

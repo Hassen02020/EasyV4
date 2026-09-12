@@ -971,7 +971,8 @@
     "validatingReservation": "Validation de la réservation…",
     "confirmAndPay": "Confirmer & payer",
     "invalidFieldsError": "Champs invalides",
-    "paymentError": "Erreur paiement"
+    "paymentError": "Erreur paiement",
+    "cartModuleNotSupportedToast": "Ce type de produit ne peut pas être ajouté au panier depuis cette page."
   },
   "Paiement": {
     "simulationEnvTitle": "Environnement de simulation",

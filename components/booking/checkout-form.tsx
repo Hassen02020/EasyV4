@@ -76,6 +76,23 @@ export function CheckoutForm({ token }: { token: string }) {
       return
     }
     const { draft, traveler } = payload
+    // Bug connu corrigé : ce bouton construisait une `CartLineHotel` avec
+    // `module: "hotel"` codé en dur quel que soit `draft.module` (le
+    // brouillon générique de ce tunnel — voir bootstrapDraftFromParams()
+    // dans app/(public)/[locale]/booking/page.tsx — peut porter "flight"/
+    // "package"/"omra"/"transfer"/"activity"), donc mal étiqueter le panier
+    // pour tout autre module. Le panier (lib/cart/cart-types.ts) ne sait de
+    // toute façon construire une ligne valide qu'à partir de CE payload
+    // générique `draft`+`traveler` pour le module hôtel — Package/Activité
+    // ont leur PROPRE bouton "Ajouter au panier" dédié (voir
+    // package-guest-booking-form.tsx/activity-guest-booking-form.tsx) avec
+    // leur propre shape `booking`. Donc : jamais mislabelliser, refuser
+    // proprement plutôt que fabriquer une ligne pour un module que ce
+    // composant ne sait pas représenter.
+    if (draft.module !== "hotel") {
+      toast.error(t("cartModuleNotSupportedToast"))
+      return
+    }
     startTransition(async () => {
       // Certification E2E — jamais `draft.unitPriceTnd` seul pour un module
       // hôtel : le serveur revérifie le `priceToken` signé à la recherche
@@ -84,7 +101,7 @@ export function CheckoutForm({ token }: { token: string }) {
       // vérification échoue, on refuse d'ajouter au panier plutôt que
       // d'afficher un montant non garanti.
       const resolved = await resolveDraftPriceAction(token)
-      if (draft.module === "hotel" && !resolved.verified) {
+      if (!resolved.verified) {
         toast.error(t("priceNotVerifiedToast"))
         return
       }

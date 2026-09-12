@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { Heart, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useCurrency } from "@/components/currency-context"

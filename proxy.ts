@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { and, eq } from "drizzle-orm"
+import createIntlMiddleware from "next-intl/middleware"
 import { updateSession } from "@/lib/supabase/middleware"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
@@ -9,12 +10,42 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/tenant/host"
 import { isTenantExemptRoute } from "@/lib/tenant/route-scope"
+import { routing } from "@/i18n/routing"
 import {
   TENANT_AGENCY_ID_HEADER,
   TENANT_DOMAIN_HEADER,
   TENANT_BRAND_NAME_HEADER,
   TENANT_LOGO_URL_HEADER,
 } from "@/lib/tenant/current-tenant"
+
+// Header interne next-intl (`X-NEXT-INTL-LOCALE`, `shared/constants.ts`, non
+// exporté publiquement) — reproduit ici tel quel plutôt qu'importé, pour ne
+// pas dépendre d'un chemin d'import interne au package. Sert à faire
+// atteindre la locale résolue jusqu'au rendu Server Components, en
+// complément de `setRequestLocale()` posé dans `app/(public)/[locale]/layout.tsx`.
+const INTL_LOCALE_HEADER = "X-NEXT-INTL-LOCALE"
+
+/**
+ * Middleware next-intl : gère uniquement la résolution/redirection de
+ * locale (`/omra` → `/fr/omra`, `/` → `/fr`, etc.) pour le périmètre
+ * storefront public (`app/(public)/[locale]/**`).
+ */
+const handleI18nRouting = createIntlMiddleware(routing)
+
+// `isTenantExemptRoute` (lib/tenant/route-scope.ts, /admin|pro|api|mutuelle)
+// ne couvre que l'exemption de résolution TENANT — pas tout le périmètre
+// back-office : `/b2b`, `/login`, `/unauthorized`, `/error` affichent aussi
+// potentiellement le branding White Label (résolution tenant nécessaire) mais
+// ne doivent JAMAIS recevoir de préfixe de locale (ils vivent sous
+// `app/(internal)/**`, non préfixé). Complément local plutôt qu'un
+// élargissement de `TENANT_EXEMPT_ROUTES` (lecture seule, hors périmètre) —
+// combiné à `isTenantExemptRoute` ci-dessous pour scoper précisément le
+// middleware next-intl au seul périmètre storefront public.
+const INTERNAL_ONLY_ROUTES = /^\/(b2b|login|unauthorized|error)(\/|$)/
+
+function isPublicStorefrontRoute(pathname: string): boolean {
+  return !isTenantExemptRoute(pathname) && !INTERNAL_ONLY_ROUTES.test(pathname)
+}
 
 // Note : `proxy.ts` (contrairement à l'ancien `middleware.ts`) tourne
 // toujours sur le runtime Node.js — c'est ce qui permet aux deux requêtes
@@ -105,6 +136,34 @@ export async function proxy(request: NextRequest) {
       request.headers.set(TENANT_DOMAIN_HEADER, tenant.domain)
       if (tenant.brandName) request.headers.set(TENANT_BRAND_NAME_HEADER, tenant.brandName)
       if (tenant.logoUrl) request.headers.set(TENANT_LOGO_URL_HEADER, tenant.logoUrl)
+    }
+  }
+
+  // --- i18n (storefront public uniquement) : résout/redirige la locale
+  // AVANT le reste (session/RBAC/sécurité). Un `/omra` sans préfixe (ou `/`)
+  // redirige vers `/fr/omra` (ou `/en`, `/ar` selon négociation) — dans ce
+  // cas on n'a pas besoin de rafraîchir la session ni de résoudre quoi que
+  // ce soit d'autre, le navigateur relance immédiatement la requête sur
+  // l'URL préfixée, qui retraverse `proxy()` en entier.
+  if (isPublicStorefrontRoute(pathname)) {
+    const intlResponse = handleI18nRouting(request)
+    const isRedirect = intlResponse.headers.has("location")
+
+    if (isRedirect) {
+      for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+        intlResponse.headers.set(key, value)
+      }
+      return intlResponse
+    }
+
+    // Pas de redirection : le chemin porte déjà un préfixe de locale valide
+    // (`/fr`, `/en`, `/ar`) — le propage en header pour le rendu Server
+    // Components, en plus de `setRequestLocale()` (layout), avant de
+    // poursuivre exactement la même logique tenant/RBAC/sécurité
+    // qu'aujourd'hui.
+    const localeSegment = pathname.split("/")[1]
+    if ((routing.locales as readonly string[]).includes(localeSegment)) {
+      request.headers.set(INTL_LOCALE_HEADER, localeSegment)
     }
   }
 

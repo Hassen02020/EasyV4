@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { useCities } from "@/hooks/use-cities"
 import { addDays, differenceInCalendarDays, format } from "date-fns"
 import { fr } from "date-fns/locale"

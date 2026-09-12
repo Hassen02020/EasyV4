@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { Loader2 } from "lucide-react"
 import { redeemMyLoyaltyPoints } from "@/app/actions/redeem-my-loyalty-points"
 import { Button } from "@/components/ui/button"

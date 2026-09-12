@@ -6,14 +6,15 @@ import { test, expect, type Page } from "@playwright/test"
  * persistance devise, absence de lien mort dans le Header/Footer, et le
  * statut HTTP réel de chaque route commerciale référencée.
  *
- * Le switch de langue passe par une navigation complète (`/api/set-locale`
- * pose un cookie puis redirige, voir components/language-switcher.tsx) —
- * jamais une simple injection de cookie qui laisserait le SSR initial
- * incohérent avec le client.
+ * Migration next-intl (Lot 1) : le switch de langue navigue maintenant vers
+ * l'URL préfixée par la locale (`/fr`, `/en`, `/ar` — localePrefix "always",
+ * voir i18n/routing.ts) au lieu de poser un cookie via `/api/set-locale`
+ * (supprimé). Chaque `page.goto` de ce fichier cible donc directement le
+ * préfixe de locale plutôt qu'un chemin racine ambigu.
  */
 
 async function setLocale(page: Page, locale: "fr" | "en" | "ar") {
-  await page.goto(`/api/set-locale?locale=${locale}&redirectTo=%2F`)
+  await page.goto(`/${locale}`)
 }
 
 test.describe("Header — i18n + RTL (desktop)", () => {
@@ -100,7 +101,7 @@ test.describe("Currency switcher — persistance", () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
   test("TND -> EUR -> USD -> TND persiste après navigation et refresh", async ({ page }) => {
-    await page.goto("/")
+    await page.goto("/fr")
     await page.waitForLoadState("networkidle")
 
     async function readCurrency(): Promise<string | null> {
@@ -115,7 +116,7 @@ test.describe("Currency switcher — persistance", () => {
     await page.screenshot({ path: "docs/audits/screenshots/nav-audit/currency-eur.png" })
 
     // Persistance après navigation interne
-    await page.goto("/omra")
+    await page.goto("/fr/omra")
     await page.waitForLoadState("networkidle")
     expect(await readCurrency()).toBe("EUR")
 
@@ -144,7 +145,7 @@ test.describe("Header/Footer — liens internes, aucun 404/500", () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
   test("tous les liens internes du Header répondent 200/3xx", async ({ page, request }) => {
-    await page.goto("/")
+    await page.goto("/fr")
     await page.waitForLoadState("networkidle")
     const hrefs = await page.locator("header a[href]").evaluateAll((els) =>
       els.map((el) => (el as HTMLAnchorElement).getAttribute("href")).filter((h): h is string => !!h),
@@ -158,7 +159,7 @@ test.describe("Header/Footer — liens internes, aucun 404/500", () => {
   })
 
   test("tous les liens internes du Footer répondent 200/3xx", async ({ page, request }) => {
-    await page.goto("/")
+    await page.goto("/fr")
     await page.waitForLoadState("networkidle")
     const hrefs = await page.locator("footer a[href]").evaluateAll((els) =>
       els.map((el) => (el as HTMLAnchorElement).getAttribute("href")).filter((h): h is string => !!h),
@@ -172,7 +173,7 @@ test.describe("Header/Footer — liens internes, aucun 404/500", () => {
   })
 
   test("aucun lien Header/Footer ne pointe vers href=\"#\" ou href vide", async ({ page }) => {
-    await page.goto("/")
+    await page.goto("/fr")
     await page.waitForLoadState("networkidle")
     const badHrefs = await page.locator("header a[href], footer a[href]").evaluateAll((els) =>
       els

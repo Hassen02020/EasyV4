@@ -127,6 +127,7 @@ export function OmraPartnerBookingForm({
         <p className="mt-1">
           Référence <span className="font-semibold">{success.publicRef}</span> — le montant a été
           débité de votre compte de dépôt. Facture et voucher disponibles depuis{" "}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- règle nouvellement déclenchée par la restructuration en route groups (public)/(internal) de la migration i18n (fichier /pro, hors périmètre de cette migration, comportement inchangé) */}
           <a href="/pro/factures" className="underline">
             Factures
           </a>

@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/i18n/navigation"
 import { CheckCircle2, Loader2, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

@@ -1,7 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { LogOut, Loader2 } from "lucide-react"
 import { createBrowserSupabase } from "@/lib/supabase/client"
 import { clearUserRoleCookie } from "@/app/actions/validate-role"

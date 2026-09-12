@@ -16,7 +16,7 @@
  */
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { CheckCircle2, Clock, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useRealtimeBroadcast } from "@/lib/supabase/use-realtime-broadcast"

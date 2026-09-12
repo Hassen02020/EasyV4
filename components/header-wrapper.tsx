@@ -1,12 +1,11 @@
-import { cookies } from "next/headers"
-import { parseLocale, LOCALE_COOKIE } from "@/lib/locale"
+import { getLocale } from "next-intl/server"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 import { Header } from "@/components/header"
+import type { Locale } from "@/lib/locale"
 
 export async function HeaderWrapper() {
-  const jar = await cookies()
-  const locale = parseLocale(jar.get(LOCALE_COOKIE)?.value)
+  const locale = (await getLocale()) as Locale
   const supabase = await createServerSupabase()
   const {
     data: { user },

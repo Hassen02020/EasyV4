@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { ShoppingCart } from "lucide-react"
 import { useCart } from "@/lib/cart/use-cart"
 

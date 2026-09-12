@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { MapPin, Calendar, Users, ChevronDown, Search, User } from "lucide-react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { CartBadgeLink } from "@/components/cart/cart-badge-link"
 import { createBrowserSupabase } from "@/lib/supabase/client"
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 
 interface SearchHeaderProps {
   city?: string
@@ -20,7 +20,7 @@ export function SearchHeader({
   dateRange = "Sélectionner les dates",
   paxLabel = "2 Adultes",
 }: SearchHeaderProps) {
-  const t = useT()
+  const t = useTranslations("Common")
   const [loggedIn, setLoggedIn] = useState(false)
 
   useEffect(() => {

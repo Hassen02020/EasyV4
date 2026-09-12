@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import {
   HelpCircle,
   CalendarCheck,
@@ -14,7 +14,7 @@ import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { CurrencySwitcher } from "@/components/currency-switcher"
 import type { Locale } from "@/lib/locale"
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 import { createBrowserSupabase } from "@/lib/supabase/client"
 import { CartBadgeLink } from "@/components/cart/cart-badge-link"
 
@@ -31,7 +31,7 @@ interface HeaderProps {
 export function Header({ currentLocale = "fr", isLoggedIn, brandName, logoUrl }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [loggedIn, setLoggedIn] = useState(!!isLoggedIn)
-  const t = useT()
+  const t = useTranslations("Common")
 
   useEffect(() => {
     if (isLoggedIn !== undefined) return

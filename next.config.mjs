@@ -10,6 +10,10 @@
  *    Referrer-Policy, Permissions-Policy).
  */
 
+import createNextIntlPlugin from "next-intl/plugin"
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts")
+
 const SUPABASE_HOST = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host
   : ""
@@ -100,11 +104,11 @@ const nextConfig = {
 /* Sentry (optionnel) — wrap la config si @sentry/nextjs est installé          */
 /* -------------------------------------------------------------------------- */
 
-let finalConfig = nextConfig
+let finalConfig = withNextIntl(nextConfig)
 
 try {
   const { withSentryConfig } = await import("@sentry/nextjs")
-  finalConfig = withSentryConfig(nextConfig, {
+  finalConfig = withSentryConfig(finalConfig, {
     silent: true,
     org: process.env.SENTRY_ORG,
     project: process.env.SENTRY_PROJECT,

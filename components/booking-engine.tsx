@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 
 import { useState } from "react"
 
@@ -59,7 +59,7 @@ import { addDays, differenceInCalendarDays, format } from "date-fns"
 
 import type { CatalogTransferZone } from "@/lib/db/schema"
 
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 
@@ -147,7 +147,7 @@ function TabPills({
   onSelect: (id: TabId) => void
   className?: string
 }) {
-  const t = useT()
+  const t = useTranslations("Common")
 
   return (
     <div
@@ -191,7 +191,7 @@ export function BookingEngine({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("hotels-tunisie")
   const [mobileOpen, setMobileOpen] = useState(false)
-  const t = useT()
+  const t = useTranslations("Common")
 
   const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
   const ActiveIcon = activeTabConfig.icon

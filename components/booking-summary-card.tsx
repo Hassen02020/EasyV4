@@ -37,7 +37,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 import type { BookingStatus, BookingSummary } from "@/lib/booking/summary-types"
 import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
 
@@ -92,7 +92,7 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
 }
 
 function StatusBadge({ status }: { status: BookingStatus }) {
-  const t = useT()
+  const t = useTranslations("Common")
   const STATUS_CONFIG: Record<
     BookingStatus,
     { label: string; color: string; icon: React.ElementType }
@@ -151,7 +151,7 @@ function StatusBadge({ status }: { status: BookingStatus }) {
 }
 
 function Timeline({ status }: { status: BookingStatus }) {
-  const t = useT()
+  const t = useTranslations("Common")
   const STEP_MAP: Record<BookingStatus, number> = {
     pending: 1,
     on_request: 2,
@@ -239,7 +239,7 @@ interface BookingCardProps {
 }
 
 export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
-  const t = useT()
+  const t = useTranslations("Common")
   const ModuleIcon = MODULE_ICONS[booking.module] ?? Briefcase
   const moduleLabel = MODULE_LABELS[booking.module] ?? booking.module
   const [confirming, setConfirming] = useState(false)

@@ -1,10 +1,10 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 
 /**
  * Destinations d'inspiration — aucun prix/date n'est affiché ici : ces
@@ -44,7 +44,7 @@ const offers = [
 ]
 
 export function FlashOffers() {
-  const t = useT()
+  const t = useTranslations("Common")
   return (
     <section className="bg-background py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

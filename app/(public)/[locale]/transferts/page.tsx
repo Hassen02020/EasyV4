@@ -10,6 +10,7 @@ import { TransferSearch } from "@/components/transfer/transfer-search"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogTransferZones } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
 
@@ -17,6 +18,7 @@ export const metadata = {
   title: "Transferts Aéroport | Easy2Book",
   description:
     "Transferts privés et partagés depuis/vers les aéroports tunisiens. Réservation immédiate, chauffeur professionnel.",
+  alternates: { languages: buildLanguageAlternates("/transferts") },
 }
 
 async function getZones() {

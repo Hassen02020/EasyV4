@@ -512,7 +512,9 @@
     "showLabel": "Show:",
     "hotelsCountPlaceholder": "100 hotels",
     "sortLabel": "Sort:",
-    "recommendedSort": "Recommended"
+    "recommendedSort": "Recommended",
+    "searchMetaTitle": "Hotels in Tunisia | Easy2Book",
+    "searchMetaDescription": "Compare and book hotels all across Tunisia. Best price guaranteed, free cancellation on many properties."
   },
   "HotelsMonde": {
     "kicker": "World Hotels",

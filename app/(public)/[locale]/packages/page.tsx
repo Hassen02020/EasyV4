@@ -13,6 +13,7 @@ import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
 import { and, eq, gte, ilike, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
 
@@ -20,6 +21,7 @@ export const metadata = {
   title: "Voyages Organisés | Easy2Book",
   description:
     "Circuits et voyages organisés au départ de Tunisie. Istanbul, Dubaï, Paris, Rome et plus. Tout inclus.",
+  alternates: { languages: buildLanguageAlternates("/packages") },
 }
 
 interface SearchFilters {

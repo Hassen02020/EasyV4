@@ -18,6 +18,7 @@ import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { and, eq, arrayContains, gte, inArray, sql } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { MapPin, Clock, Compass, ChevronRight } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -25,6 +26,7 @@ export const dynamic = "force-dynamic"
 export const metadata = {
   title: "Attractions | Easy2Book",
   description: "Excursions, visites guidées et activités à réserver en ligne en Tunisie.",
+  alternates: { languages: buildLanguageAlternates("/attractions") },
 }
 
 async function getPublishedActivities() {

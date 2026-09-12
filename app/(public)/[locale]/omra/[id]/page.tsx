@@ -43,6 +43,7 @@ import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 const PACKAGE_TYPE_KEYS = new Set(["omra", "hajj", "ramadan", "umrah_plus"])
 
@@ -115,6 +116,7 @@ export async function generateMetadata({
   return {
     title: `${pkg.name} — Omra | Easy2Book`,
     description,
+    alternates: { languages: buildLanguageAlternates(`/omra/${pkg.id}`) },
     openGraph: {
       title: pkg.name,
       description,

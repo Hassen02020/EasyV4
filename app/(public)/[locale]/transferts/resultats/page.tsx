@@ -20,11 +20,13 @@ import { catalogTransferZones, transferVehicleType } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { calculateTransferPrice } from "@/lib/transfers/pricing"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
 
 export const metadata = {
   title: "Votre devis de transfert | Easy2Book",
+  alternates: { languages: buildLanguageAlternates("/transferts/resultats") },
 }
 
 interface SearchParams {

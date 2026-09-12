@@ -25,6 +25,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { carLocations, carCategories } from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
 
@@ -32,6 +33,7 @@ export const metadata = {
   title: "Location de Voiture | Easy2Book",
   description:
     "Louez une voiture en Tunisie au meilleur prix. Berline, SUV, minibus. Prise en charge aéroport ou agence.",
+  alternates: { languages: buildLanguageAlternates("/car") },
 }
 
 async function getCatalog() {

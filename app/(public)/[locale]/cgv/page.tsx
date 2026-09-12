@@ -4,10 +4,12 @@ import {
   LOREM,
   LOREM_2,
 } from "@/components/legal/legal-page-layout"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
   title: "Conditions Générales de Vente | Easy2Book",
   description: "Conditions générales de vente Easy2Book.",
+  alternates: { languages: buildLanguageAlternates("/cgv") },
 }
 
 export default async function CgvPage() {

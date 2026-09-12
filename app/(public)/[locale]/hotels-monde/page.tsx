@@ -6,11 +6,13 @@ import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { WorldHotelSearch } from "@/components/hotels-monde/world-hotel-search"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
   title: "Hôtels Monde | Easy2Book",
   description:
     "Réservez des hôtels partout dans le monde. Plus de 1 million d'établissements. Meilleur prix garanti.",
+  alternates: { languages: buildLanguageAlternates("/hotels-monde") },
 }
 
 interface HotelsMondeSearchParams {

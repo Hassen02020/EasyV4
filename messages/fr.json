@@ -512,7 +512,9 @@
     "showLabel": "Afficher :",
     "hotelsCountPlaceholder": "100 hôtels",
     "sortLabel": "Trier :",
-    "recommendedSort": "Recommandé"
+    "recommendedSort": "Recommandé",
+    "searchMetaTitle": "Hôtels en Tunisie | Easy2Book",
+    "searchMetaDescription": "Comparez et réservez des hôtels partout en Tunisie. Meilleur prix garanti, annulation gratuite sur de nombreux établissements."
   },
   "HotelsMonde": {
     "kicker": "Hôtels Monde",

@@ -14,6 +14,7 @@ import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
 import { and, eq, gte, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
 
@@ -21,6 +22,7 @@ export const metadata = {
   title: "Omraty — Réservez votre Omra | Easy2Book",
   description:
     "Packages Omra tout inclus au départ de Tunisie. Vols, hôtels Médine/La Mecque, visa, transport.",
+  alternates: { languages: buildLanguageAlternates("/omra") },
 }
 
 interface SearchFilters {

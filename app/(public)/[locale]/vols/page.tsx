@@ -21,11 +21,13 @@ import {
   parseFlightSearchParams,
   flightStateToResultsParams,
 } from "@/lib/vols/search-state"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
   title: "Recherche de Vols | Easy2Book",
   description:
     "Comparez et réservez vos vols au départ de Tunis et des aéroports tunisiens. Meilleurs tarifs garantis.",
+  alternates: { languages: buildLanguageAlternates("/vols") },
 }
 
 interface VolsSearchParams {

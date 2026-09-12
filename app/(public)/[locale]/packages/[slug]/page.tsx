@@ -44,6 +44,7 @@ import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 const CONTACT_PHONE = "+21698140514"
 const CONTACT_PHONE_DISPLAY = "+216 98 140 514"
@@ -137,6 +138,7 @@ export async function generateMetadata({
   return {
     title: `${pkg.title} — Voyages Organisés | Easy2Book`,
     description,
+    alternates: { languages: buildLanguageAlternates(`/packages/${pkg.slug}`) },
     openGraph: {
       title: pkg.title,
       description,

@@ -3,10 +3,12 @@ import { Link } from "@/i18n/navigation"
 import { getTranslations } from "next-intl/server"
 import { CompteLoginForm } from "@/components/compte/compte-login-form"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
   title: "Mon compte — Connexion | Easy2Book",
   description: "Connectez-vous pour retrouver l'historique de toutes vos réservations Easy2Book.",
+  alternates: { languages: buildLanguageAlternates("/compte/connexion") },
 }
 
 export default async function CompteConnexionPage() {

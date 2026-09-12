@@ -9,9 +9,11 @@ import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { CartView } from "@/components/cart/cart-view"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
   title: "Mon panier | Easy2Book",
+  alternates: { languages: buildLanguageAlternates("/panier") },
 }
 
 export default async function CartPage() {

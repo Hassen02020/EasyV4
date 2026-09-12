@@ -512,7 +512,9 @@
     "showLabel": "عرض:",
     "hotelsCountPlaceholder": "100 فندق",
     "sortLabel": "ترتيب:",
-    "recommendedSort": "موصى به"
+    "recommendedSort": "موصى به",
+    "searchMetaTitle": "فنادق في تونس | Easy2Book",
+    "searchMetaDescription": "قارن واحجز فنادق في جميع أنحاء تونس. أفضل سعر مضمون، وإلغاء مجاني للعديد من الفنادق."
   },
   "HotelsMonde": {
     "kicker": "فنادق العالم",

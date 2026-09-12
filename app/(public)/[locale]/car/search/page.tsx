@@ -24,11 +24,13 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { carLocations, carCategories } from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
 
 export const metadata = {
   title: "Votre devis de location | Easy2Book",
+  alternates: { languages: buildLanguageAlternates("/car/search") },
 }
 
 interface SearchParams {

@@ -4,10 +4,12 @@ import {
   LOREM,
   LOREM_2,
 } from "@/components/legal/legal-page-layout"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
   title: "Politique de Confidentialité | Easy2Book",
   description: "Politique de confidentialité et protection des données Easy2Book.",
+  alternates: { languages: buildLanguageAlternates("/politique-confidentialite") },
 }
 
 export default async function PolitiqueConfidentialitePage() {

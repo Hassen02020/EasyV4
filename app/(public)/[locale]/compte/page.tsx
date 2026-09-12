@@ -12,12 +12,14 @@ import { CompteFavoritesCard } from "@/components/compte/compte-favorites-card"
 import { CompteLogoutButton } from "@/components/compte/compte-logout-button"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { getIntlLocale } from "@/lib/i18n-date"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
 
 export const metadata = {
   title: "Mon compte | Easy2Book",
   description: "Historique de vos réservations Easy2Book.",
+  alternates: { languages: buildLanguageAlternates("/compte") },
 }
 
 export default async function ComptePage() {

@@ -33,6 +33,7 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 function formatDate(d: string | Date | null, intlLocale: string): string {
   if (!d) return "—"
@@ -107,6 +108,7 @@ export async function generateMetadata({
   return {
     title: `${activity.title} — Attractions | Easy2Book`,
     description,
+    alternates: { languages: buildLanguageAlternates(`/attractions/${activity.slug}`) },
     openGraph: {
       title: activity.title,
       description,

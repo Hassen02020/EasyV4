@@ -218,11 +218,11 @@ export function HotelCard({
             </div>
 
             <div className="mb-3 space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={onViewDetails}
-                  className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
+                  className="text-primary inline-flex shrink-0 items-center gap-1 text-sm whitespace-nowrap hover:underline"
                 >
                   <MapPin className="h-3.5 w-3.5 text-amber-500" />
                   {hotel.location}
@@ -233,7 +233,7 @@ export function HotelCard({
                   <button
                     type="button"
                     onClick={onLocate}
-                    className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                    className="text-muted-foreground hover:text-primary inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap hover:underline"
                   >
                     <MapPin className="h-3 w-3" />
                     {t("viewOnMapButton")}

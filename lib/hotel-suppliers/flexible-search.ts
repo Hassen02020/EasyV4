@@ -112,7 +112,7 @@ export function generateFlexibleDateCandidates(
     const candCheckoutMs = candCheckinMs + nightsMs
     const candCheckin = toIsoDate(candCheckinMs)
     const candCheckout = toIsoDate(candCheckoutMs)
-    const validation = validateSearchDateRange(candCheckin, candCheckout, opts.maxNights)
+    const validation = validateSearchDateRange(candCheckin, candCheckout, opts.maxNights, now)
     if (!validation.ok) continue
     candidates.push({ checkin: candCheckin, checkout: candCheckout, offsetDays: offset })
   }

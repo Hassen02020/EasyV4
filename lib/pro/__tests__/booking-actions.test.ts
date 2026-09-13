@@ -55,6 +55,10 @@ type MockOptions = {
   insertReturnsId?: string | null
   /** Si défini, throw cette erreur dans le callback de transaction. */
   throwInTx?: Error
+  /** Tolérance de réservation renvoyée par `lock_agency_for_debit()` —
+   * défaut "0.000" (comportement identique à avant la migration 0053, qui
+   * a ajouté cette colonne NOT NULL DEFAULT 0). */
+  reservationTolerance?: string
 }
 
 /**
@@ -151,6 +155,7 @@ function makeMockDb(opts: MockOptions): {
             {
               id: "agency-uuid-test",
               depositBalance: opts.currentBalance,
+              reservationTolerance: opts.reservationTolerance ?? "0.000",
             },
           ]
         }
@@ -291,6 +296,90 @@ test("debitPartnerCredit : refuse si solde insuffisant (rollback)", async () => 
     "TX_ROLLBACK",
     "La transaction doit être rollback",
   )
+})
+
+/* -------------------------------------------------------------------------- */
+/* Tests : tolérance de réservation (migration 0053)                          */
+/* booking_capacity = deposit_balance + reservation_tolerance                 */
+/* -------------------------------------------------------------------------- */
+
+test("debitPartnerCredit : la tolérance autorise un débit qui rendrait le solde négatif", async () => {
+  ensureDatabaseUrl()
+  const { db, journal } = makeMockDb({
+    currentBalance: "100.000",
+    reservationTolerance: "500.000",
+    agencyExists: true,
+    insertReturnsId: "movement-uuid-test",
+  })
+
+  const result = await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 300,
+    reference: "B2B-20260518-1330",
+    description: "Réservation couverte par la tolérance",
+    dbOverride: db,
+  })
+
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    // 100 - 300 = -200 : solde réellement négatif, autorisé car
+    // 100 + 500 (tolérance) = 600 >= 300 demandé.
+    assert.equal(result.balanceAfter, "-200.000")
+  }
+  assert.ok(
+    journal.find((j) => j.kind === "INSERT_MOVEMENT"),
+    "Le mouvement de débit doit être inséré quand la tolérance couvre le montant",
+  )
+  assert.equal(journal[journal.length - 1]?.kind, "TX_COMMIT")
+})
+
+test("debitPartnerCredit : refuse même avec tolérance si elle ne couvre pas le montant", async () => {
+  ensureDatabaseUrl()
+  const { db, journal } = makeMockDb({
+    currentBalance: "100.000",
+    reservationTolerance: "50.000",
+    agencyExists: true,
+  })
+
+  const result = await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 300,
+    reference: "B2B-20260518-1331",
+    description: "Réservation refusée malgré la tolérance",
+    dbOverride: db,
+  })
+
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.code, "INSUFFICIENT_FUNDS")
+    assert.equal(result.details?.availableTnd, "100.000")
+    assert.equal(result.details?.toleranceTnd, "50.000")
+    assert.equal(result.details?.requestedTnd, "300.000")
+  }
+  assert.equal(
+    journal.find((j) => j.kind === "INSERT_MOVEMENT"),
+    undefined,
+  )
+})
+
+test("debitPartnerCredit : tolérance absente du mock (défaut '0.000') — comportement identique à avant la migration 0053", async () => {
+  ensureDatabaseUrl()
+  const { db, journal } = makeMockDb({
+    currentBalance: "500.000",
+    agencyExists: true,
+  })
+
+  const result = await debitPartnerCredit({
+    agencyId: "agency-uuid-test",
+    amountTnd: 1051.566,
+    reference: "B2B-20260518-1332",
+    description: "Réservation refusée — pas de tolérance",
+    dbOverride: db,
+  })
+
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
+  assert.equal(journal.find((j) => j.kind === "INSERT_MOVEMENT"), undefined)
 })
 
 /* -------------------------------------------------------------------------- */
@@ -493,7 +582,7 @@ test("debitPartnerCredit : avec txOverride, s'exécute DANS la transaction fourn
       executeCallCount += 1
       if (executeCallCount === 1) {
         journal.push({ kind: "SELECT_FOR_UPDATE", payload: { strength: "update" } })
-        return [{ id: "agency-uuid-test", depositBalance: "5000.000" }]
+        return [{ id: "agency-uuid-test", depositBalance: "5000.000", reservationTolerance: "0.000" }]
       }
       journal.push({ kind: "UPDATE_BALANCE" })
       return undefined
@@ -544,7 +633,7 @@ test("debitPartnerCredit : txOverride propage un solde insuffisant sans muter qu
     }),
     execute: async () => {
       journal.push({ kind: "SELECT_FOR_UPDATE" })
-      return [{ id: "agency-uuid-test", depositBalance: "50.000" }]
+      return [{ id: "agency-uuid-test", depositBalance: "50.000", reservationTolerance: "0.000" }]
     },
   }
 

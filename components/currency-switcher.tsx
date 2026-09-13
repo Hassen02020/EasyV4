@@ -19,8 +19,12 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
   const { currency, setCurrency, meta } = useCurrency()
 
   if (variant === "mobile") {
-    const nextCurrencies = CURRENCIES.filter((c) => c !== currency)
-    const next = nextCurrencies[0]
+    // Cycle réel à travers les 3 devises (TND → EUR → USD → TND...) — un
+    // filtre "toutes sauf la courante" bascule seulement entre les 2
+    // premières et rend la 3e injoignable (bug confirmé : EUR ↔ TND en
+    // boucle, USD jamais atteignable).
+    const currentIndex = CURRENCIES.indexOf(currency)
+    const next = CURRENCIES[(currentIndex + 1) % CURRENCIES.length]
     return (
       <button
         type="button"

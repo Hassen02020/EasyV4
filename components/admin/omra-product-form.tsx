@@ -132,6 +132,14 @@ export function OmraProductForm({
       </Card>
 
       <Card>
+        <CardHeader><CardTitle>Médias</CardTitle></CardHeader>
+        <CardContent>
+          <Label>Image de couverture (URL)</Label>
+          <Input {...form.register("metadata.coverImage")} placeholder="https://..." className="mt-1" />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle>Vol</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div>

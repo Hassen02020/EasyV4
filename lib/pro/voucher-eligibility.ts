@@ -89,6 +89,48 @@ export function isActivityVoucherEligible(
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
 }
 
+/** Éligibilité voucher Vol — même règle, fonction dédiée. */
+export interface FlightVoucherEligibilityInput {
+  module: string
+  status: string
+  origin: string | null | undefined
+  destination: string | null | undefined
+  departAt: string | null | undefined
+}
+
+export function isFlightVoucherEligible(
+  row: FlightVoucherEligibilityInput,
+): row is FlightVoucherEligibilityInput & { origin: string; destination: string; departAt: string } {
+  if (row.module !== "flight") return false
+  if (!row.origin || !row.destination || !row.departAt) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
+/**
+ * Éligibilité voucher Hôtels Monde — même règle (Phase 11 :
+ * `confirmed`/`completed` uniquement), fonction dédiée plutôt qu'une
+ * extension de `isVoucherEligible` : les deux réutilisent la même table
+ * d'extension `reservation_hotel` (voir
+ * drizzle/manual/0051_hotel_monde_module.sql) mais restent deux modules
+ * distincts (`"hotel"` vs `"hotel_monde"`) — jamais un voucher Hôtels Monde
+ * émis pour une ligne `"hotel"` ou inversement.
+ */
+export interface WorldHotelVoucherEligibilityInput {
+  module: string
+  status: string
+  hotelName: string | null | undefined
+  checkIn: string | null | undefined
+  checkOut: string | null | undefined
+}
+
+export function isWorldHotelVoucherEligible(
+  row: WorldHotelVoucherEligibilityInput,
+): row is WorldHotelVoucherEligibilityInput & { hotelName: string; checkIn: string; checkOut: string } {
+  if (row.module !== "hotel_monde") return false
+  if (!row.hotelName || !row.checkIn || !row.checkOut) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
 /**
  * PHASE 38B (Voucher Hardening) — SEULE source de vérité pour "quelle route
  * de téléchargement voucher pour quel module ?". Avant cette extraction,
@@ -108,23 +150,45 @@ export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
   omra: "/api/omra/voucher",
   package: "/api/packages/voucher",
   activity: "/api/activities/voucher",
+  flight: "/api/vols/voucher",
+  hotel_monde: "/api/hotels-monde/voucher",
+}
+
+/**
+ * Éligibilité voucher hôtel spécifiquement — conservée telle quelle (règle
+ * déjà validée par tests, ne jamais la réécrire). N'est plus la SEULE
+ * fonction utilisée par les écrans détail Admin/Pro depuis que
+ * `/api/admin/.../voucher` et `/api/pro/.../voucher` dispatchent par module
+ * (voir `lib/booking/reservation-voucher-render.ts`) — pour ces deux
+ * écrans, préférer `isAdminReservationVoucherEligible` ci-dessous, qui
+ * couvre les 6 modules réservables.
+ */
+export function isHotelReservationVoucherEligible(module: string, status: string): boolean {
+  return module === "hotel" && VOUCHER_ELIGIBLE_STATUSES.has(status)
 }
 
 /**
  * Éligibilité voucher pour les écrans détail Admin/Pro
  * (`ReservationDetailView`, `/api/admin/.../voucher` et
- * `/api/pro/.../voucher`) — ces deux routes ne gèrent QUE le module hôtel
- * (elles réutilisent `isVoucherEligible` ci-dessus, pas les variantes
- * Omra/Package/Activity, contrairement aux routes guest publiques
- * `/api/{omra,packages,activities}/voucher`). Sert uniquement à décider
- * d'afficher ou non le lien "Télécharger" AVANT même d'appeler la route :
- * sans ce garde, le lien restait affiché (et cliquable) pour une
- * réservation `cancelled`/`pending` alors que la route le refuse déjà (404
- * `voucher_unavailable`) — un lien qui échoue toujours n'est pas "invalide
- * après annulation", c'est un lien resté affiché par erreur.
+ * `/api/pro/.../voucher`) — ces deux routes dispatchent désormais par
+ * module (voir `lib/booking/reservation-voucher-render.ts`), réutilisant
+ * exactement les mêmes renderers/éligibilités que les routes guest
+ * publiques `/api/{module}/voucher/[ref]`. Avant ce fix (trouvé en
+ * certification E2E, cycle "Final Screenshot Certification"), ces deux
+ * écrans utilisaient `isHotelReservationVoucherEligible` seule, qui ne
+ * renvoie jamais `true` pour un module autre que "hotel" — le lien
+ * "Télécharger" du bloc Voucher restait donc invisible pour Omra/Package/
+ * Activité/Vols/Hôtels Monde même confirmés.
+ *
+ * Sert uniquement à décider d'afficher ou non le lien "Télécharger" AVANT
+ * même d'appeler la route : sans ce garde, le lien resterait affiché (et
+ * cliquable) pour une réservation `cancelled`/`pending` alors que la route
+ * le refuse déjà (404 `voucher_unavailable`) — un lien qui échoue toujours
+ * n'est pas "invalide après annulation", c'est un lien resté affiché par
+ * erreur (même raisonnement Phase 11 que `isVoucherEligible`).
  */
-export function isHotelReservationVoucherEligible(module: string, status: string): boolean {
-  return module === "hotel" && VOUCHER_ELIGIBLE_STATUSES.has(status)
+export function isAdminReservationVoucherEligible(module: string, status: string): boolean {
+  return module in VOUCHER_ROUTE_BY_MODULE && VOUCHER_ELIGIBLE_STATUSES.has(status)
 }
 
 /**

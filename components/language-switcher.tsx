@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Globe, ChevronDown, Check } from "lucide-react"
 import {
   DropdownMenu,
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LOCALES, LOCALE_META, type Locale } from "@/lib/locale"
+import { usePathname, useRouter } from "@/i18n/navigation"
 
 interface LanguageSwitcherProps {
   currentLocale: Locale
@@ -20,14 +21,13 @@ export function LanguageSwitcher({
   variant = "desktop",
 }: LanguageSwitcherProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
 
   function handleSelect(locale: Locale) {
     if (locale === currentLocale) return
-    const params = searchParams.toString()
-    const redirectTo = params ? `${pathname}?${params}` : pathname
-    // eslint-disable-next-line react-hooks/immutability -- full page navigation triggered only inside this click handler, never during render
-    window.location.href = `/api/set-locale?locale=${locale}&redirectTo=${encodeURIComponent(redirectTo)}`
+    const query = Object.fromEntries(searchParams.entries())
+    router.replace({ pathname, query }, { locale })
   }
 
   const menu = (

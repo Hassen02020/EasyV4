@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { useCities } from "@/hooks/use-cities"
 import { addDays, differenceInCalendarDays, format } from "date-fns"
-import { fr } from "date-fns/locale"
+import { getDateFnsLocale } from "@/lib/i18n-date"
 import {
   MapPin,
   Calendar,
@@ -80,38 +81,68 @@ const STAR_OPTIONS = [
 // Component
 // ============================================================================
 
-export function HotelsTunisieSearch() {
+export interface HotelsTunisieSearchProps {
+  /** Préremplissage (ex. widget "Modifier" ouvert depuis la page résultats). */
+  initialCity?: City | null
+  initialCheckin?: Date
+  initialCheckout?: Date
+  initialRooms?: number
+  initialAdults?: number
+  initialChildrenAges?: number[]
+  initialOnlyAvailable?: boolean
+  initialStars?: number[]
+  /** Appelé juste avant la navigation vers /hotels/search (ex. fermer un Sheet). */
+  onSearchSubmit?: () => void
+}
+
+export function HotelsTunisieSearch({
+  initialCity = null,
+  initialCheckin,
+  initialCheckout,
+  initialRooms = 1,
+  initialAdults = 2,
+  initialChildrenAges = [],
+  initialOnlyAvailable = true,
+  initialStars = [],
+  onSearchSubmit,
+}: HotelsTunisieSearchProps = {}) {
   const router = useRouter()
+  const t = useTranslations("Hotels")
+  const tCommon = useTranslations("Common")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
 
   // City selection state
-  const [selectedCity, setSelectedCity] = useState<City | null>(null)
+  const [selectedCity, setSelectedCity] = useState<City | null>(initialCity)
   const [citySearchOpen, setCitySearchOpen] = useState(false)
 
   // Date selection state — arrivée = aujourd'hui, départ = demain (1 nuit
   // minimum) par défaut, standard OTA plutôt que des champs vides.
-  const [checkinDate, setCheckinDate] = useState<Date | undefined>(new Date())
+  const [checkinDate, setCheckinDate] = useState<Date | undefined>(
+    initialCheckin ?? new Date(),
+  )
   const [checkoutDate, setCheckoutDate] = useState<Date | undefined>(
-    addDays(new Date(), 1),
+    initialCheckout ?? addDays(new Date(), 1),
   )
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
 
   // Pax state
-  const [rooms, setRooms] = useState(1)
-  const [adults, setAdults] = useState(2)
+  const [rooms, setRooms] = useState(initialRooms)
+  const [adults, setAdults] = useState(initialAdults)
   // Bébés (0-2 ans) et Enfants (3-17 ans) sont distincts côté UX, mais
   // partagent le même tableau d'âges côté requête — c'est exactement ce que
   // le schéma MyGo (`Pax.Child: number[]`) attend déjà, donc aucune
   // modification du contrat d'API : on ajoute juste un âge par défaut selon
   // le bouton cliqué (1 an pour un bébé, 5 ans pour un enfant).
-  const [childrenAges, setChildrenAges] = useState<number[]>([])
+  const [childrenAges, setChildrenAges] = useState<number[]>(initialChildrenAges)
   const [paxPopoverOpen, setPaxPopoverOpen] = useState(false)
 
   const babiesCount = childrenAges.filter((age) => age <= 2).length
   const bigKidsCount = childrenAges.filter((age) => age > 2).length
 
   // Filters state
-  const [onlyAvailable, setOnlyAvailable] = useState(true)
-  const [selectedStars, setSelectedStars] = useState<number[]>([])
+  const [onlyAvailable, setOnlyAvailable] = useState(initialOnlyAvailable)
+  const [selectedStars, setSelectedStars] = useState<number[]>(initialStars)
   const [starsPopoverOpen, setStarsPopoverOpen] = useState(false)
 
   // Cities (TanStack Query — dedup, retries, stale-while-revalidate)
@@ -178,6 +209,7 @@ export function HotelsTunisieSearch() {
       params.set("rooms", encodeRoomsParam(splitIntoRooms(rooms, adults, childrenAges)))
     }
 
+    onSearchSubmit?.()
     router.push(`/hotels/search?${params.toString()}`)
   }
 
@@ -224,31 +256,28 @@ export function HotelsTunisieSearch() {
   // Date range display — inclut le nombre de nuitées ("3 nuits").
   const dateRangeDisplay = useMemo(() => {
     if (checkinDate && checkoutDate) {
-      const nights =
-        nightsCount > 0
-          ? ` · ${nightsCount} nuit${nightsCount > 1 ? "s" : ""}`
-          : ""
-      return `${format(checkinDate, "dd MMM", { locale: fr })} - ${format(checkoutDate, "dd MMM yyyy", { locale: fr })}${nights}`
+      const nights = nightsCount > 0 ? ` · ${t("nightsCount", { n: nightsCount })}` : ""
+      return `${format(checkinDate, "dd MMM", { locale: dateFnsLocale })} - ${format(checkoutDate, "dd MMM yyyy", { locale: dateFnsLocale })}${nights}`
     }
     if (checkinDate) {
-      return `${format(checkinDate, "dd MMM yyyy", { locale: fr })} - ...`
+      return `${format(checkinDate, "dd MMM yyyy", { locale: dateFnsLocale })} - ...`
     }
-    return "Sélectionner les dates"
-  }, [checkinDate, checkoutDate, nightsCount])
+    return t("selectDates")
+  }, [checkinDate, checkoutDate, nightsCount, t, dateFnsLocale])
 
   // Pax display
   const paxDisplay = useMemo(() => {
     const parts: string[] = []
-    parts.push(`${rooms} Chambre${rooms > 1 ? "s" : ""}`)
-    parts.push(`${adults} Adulte${adults > 1 ? "s" : ""}`)
+    parts.push(t("paxRoomsCount", { n: rooms }))
+    parts.push(t("paxAdultsCount", { n: adults }))
     if (bigKidsCount > 0) {
-      parts.push(`${bigKidsCount} Enfant${bigKidsCount > 1 ? "s" : ""}`)
+      parts.push(t("paxChildrenCount", { n: bigKidsCount }))
     }
     if (babiesCount > 0) {
-      parts.push(`${babiesCount} Bébé${babiesCount > 1 ? "s" : ""}`)
+      parts.push(t("paxBabiesCount", { n: babiesCount }))
     }
     return parts.join(", ")
-  }, [rooms, adults, bigKidsCount, babiesCount])
+  }, [rooms, adults, bigKidsCount, babiesCount, t])
 
   return (
     <div className="space-y-5">
@@ -261,12 +290,12 @@ export function HotelsTunisieSearch() {
               <button
                 type="button"
                 role="combobox"
-                aria-label="Destination"
+                aria-label={t("destination")}
                 aria-expanded={citySearchOpen}
                 aria-controls="hotel-search-city-listbox"
                 className={FIELD_SHELL}
               >
-                <FieldLabel icon={MapPin}>Destination</FieldLabel>
+                <FieldLabel icon={MapPin}>{t("destination")}</FieldLabel>
                 {selectedCity ? (
                   <span className="truncate text-sm font-semibold">
                     {selectedCity.name}
@@ -278,7 +307,7 @@ export function HotelsTunisieSearch() {
                   </span>
                 ) : (
                   <span className="text-muted-foreground truncate text-sm font-normal">
-                    Rechercher une ville...
+                    {t("searchCityPlaceholder")}
                   </span>
                 )}
               </button>
@@ -289,16 +318,16 @@ export function HotelsTunisieSearch() {
               align="start"
             >
               <Command>
-                <CommandInput placeholder="Rechercher une ville..." />
+                <CommandInput placeholder={t("searchCityPlaceholder")} />
                 <CommandList>
                   <CommandEmpty>
                     {citiesLoading
-                      ? "Chargement..."
+                      ? t("loadingCities")
                       : citiesError
-                        ? `Erreur de chargement (${citiesError})`
-                        : "Aucune ville trouvée."}
+                        ? t("citiesLoadError", { error: citiesError })
+                        : t("noCityFound")}
                   </CommandEmpty>
-                  <CommandGroup heading="Zones touristiques">
+                  <CommandGroup heading={t("touristZones")}>
                     {cities.map((city) => (
                       <CommandItem
                         key={city.id}
@@ -334,12 +363,12 @@ export function HotelsTunisieSearch() {
               <button
                 type="button"
                 role="combobox"
-                aria-label="Dates du séjour"
+                aria-label={t("stayDates")}
                 aria-expanded={datePopoverOpen}
                 aria-controls="hotel-search-dates-panel"
                 className={FIELD_SHELL}
               >
-                <FieldLabel icon={Calendar}>Dates du séjour</FieldLabel>
+                <FieldLabel icon={Calendar}>{t("stayDates")}</FieldLabel>
                 <span
                   className={cn(
                     !checkinDate && "text-muted-foreground font-normal",
@@ -354,13 +383,13 @@ export function HotelsTunisieSearch() {
               <div className="border-b p-3">
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex-1">
-                    <p className="text-muted-foreground text-xs">Check-in</p>
+                    <p className="text-muted-foreground text-xs">{tCommon("checkIn")}</p>
                     <p className="font-medium">
                       {checkinDate ? format(checkinDate, "dd/MM/yyyy") : "—"}
                     </p>
                   </div>
                   <div className="flex-1">
-                    <p className="text-muted-foreground text-xs">Check-out</p>
+                    <p className="text-muted-foreground text-xs">{tCommon("checkOut")}</p>
                     <p className="font-medium">
                       {checkoutDate ? format(checkoutDate, "dd/MM/yyyy") : "—"}
                     </p>
@@ -385,7 +414,7 @@ export function HotelsTunisieSearch() {
                 }}
                 numberOfMonths={2}
                 disabled={{ before: new Date() }}
-                locale={fr}
+                locale={dateFnsLocale}
               />
             </PopoverContent>
           </Popover>
@@ -396,7 +425,7 @@ export function HotelsTunisieSearch() {
           <Popover open={paxPopoverOpen} onOpenChange={setPaxPopoverOpen}>
             <PopoverTrigger asChild>
               <button type="button" className={FIELD_SHELL}>
-                <FieldLabel icon={Users}>Voyageurs</FieldLabel>
+                <FieldLabel icon={Users}>{tCommon("voyageurs")}</FieldLabel>
                 <span className="truncate text-sm font-semibold">{paxDisplay}</span>
               </button>
             </PopoverTrigger>
@@ -404,7 +433,7 @@ export function HotelsTunisieSearch() {
               <div className="space-y-4">
                 {/* Rooms */}
                 <div className="flex items-center justify-between">
-                  <p className="font-medium">Chambres</p>
+                  <p className="font-medium">{t("roomsFieldLabel")}</p>
                   <div className="flex items-center gap-3">
                     <Button
                       variant="outline"
@@ -412,7 +441,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setRooms(Math.max(1, rooms - 1))}
                       disabled={rooms <= 1}
-                      aria-label="Diminuer le nombre de chambres"
+                      aria-label={t("decreaseRoomsAria")}
                     >
                       <Minus className="size-3" />
                     </Button>
@@ -425,7 +454,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setRooms(Math.min(8, rooms + 1))}
                       disabled={rooms >= 8}
-                      aria-label="Augmenter le nombre de chambres"
+                      aria-label={t("increaseRoomsAria")}
                     >
                       <Plus className="size-3" />
                     </Button>
@@ -435,9 +464,9 @@ export function HotelsTunisieSearch() {
                 {/* Adults */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Adultes</p>
+                    <p className="font-medium">{t("adultsFieldLabel")}</p>
                     <p className="text-muted-foreground text-xs">
-                      18 ans et plus
+                      {t("adultsAgeHint")}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -447,7 +476,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setAdults(Math.max(1, adults - 1))}
                       disabled={adults <= 1}
-                      aria-label="Diminuer le nombre d'adultes"
+                      aria-label={t("decreaseAdultsAria")}
                     >
                       <Minus className="size-3" />
                     </Button>
@@ -460,7 +489,7 @@ export function HotelsTunisieSearch() {
                       className="size-8 rounded-full"
                       onClick={() => setAdults(Math.min(6, adults + 1))}
                       disabled={adults >= 6}
-                      aria-label="Augmenter le nombre d'adultes"
+                      aria-label={t("increaseAdultsAria")}
                     >
                       <Plus className="size-3" />
                     </Button>
@@ -470,8 +499,8 @@ export function HotelsTunisieSearch() {
                 {/* Children Header */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Enfants</p>
-                    <p className="text-muted-foreground text-xs">3-17 ans</p>
+                    <p className="font-medium">{t("childrenFieldLabel")}</p>
+                    <p className="text-muted-foreground text-xs">{t("childrenAgeHint")}</p>
                   </div>
                   <Button
                     variant="outline"
@@ -481,15 +510,15 @@ export function HotelsTunisieSearch() {
                     disabled={childrenAges.length >= 4}
                   >
                     <Plus className="mr-1 size-3" />
-                    Ajouter
+                    {t("addAction")}
                   </Button>
                 </div>
 
                 {/* Babies Header */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Bébés</p>
-                    <p className="text-muted-foreground text-xs">0-2 ans</p>
+                    <p className="font-medium">{t("babiesFieldLabel")}</p>
+                    <p className="text-muted-foreground text-xs">{t("babiesAgeHint")}</p>
                   </div>
                   <Button
                     variant="outline"
@@ -499,7 +528,7 @@ export function HotelsTunisieSearch() {
                     disabled={childrenAges.length >= 4}
                   >
                     <Plus className="mr-1 size-3" />
-                    Ajouter
+                    {t("addAction")}
                   </Button>
                 </div>
 
@@ -510,7 +539,7 @@ export function HotelsTunisieSearch() {
                     {childrenAges.map((age, index) => (
                       <div key={index} className="flex items-center gap-3">
                         <span className="text-muted-foreground w-16 text-sm">
-                          {age <= 2 ? "Bébé" : "Enfant"} {index + 1}
+                          {age <= 2 ? t("babyWord") : t("childWord")} {index + 1}
                         </span>
                         <select
                           value={age}
@@ -521,7 +550,7 @@ export function HotelsTunisieSearch() {
                         >
                           {Array.from({ length: 18 }, (_, i) => (
                             <option key={i} value={i}>
-                              {i} an{i > 1 ? "s" : ""}
+                              {t("ageYears", { n: i })}
                             </option>
                           ))}
                         </select>
@@ -530,7 +559,11 @@ export function HotelsTunisieSearch() {
                           size="icon"
                           className="text-muted-foreground hover:text-destructive size-7"
                           onClick={() => removeChild(index)}
-                          aria-label={`Supprimer ${age <= 2 ? "bébé" : "enfant"} ${index + 1}`}
+                          aria-label={
+                            age <= 2
+                              ? t("removeBabyAria", { n: index + 1 })
+                              : t("removeChildAria", { n: index + 1 })
+                          }
                         >
                           <X className="size-4" />
                         </Button>
@@ -552,7 +585,7 @@ export function HotelsTunisieSearch() {
             className="from-primary to-accent hover:shadow-primary/30 h-auto w-full gap-2 rounded-2xl bg-gradient-to-r px-8 text-base font-semibold text-white uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-lg lg:w-auto"
           >
             <Search className="size-4" />
-            Rechercher
+            {t("searchButton")}
           </Button>
         </div>
       </div>
@@ -571,7 +604,7 @@ export function HotelsTunisieSearch() {
             htmlFor="only-available"
             className="text-muted-foreground cursor-pointer text-sm select-none"
           >
-            Disponibilité réelle uniquement
+            {t("onlyAvailableFilter")}
           </label>
         </div>
 
@@ -585,9 +618,9 @@ export function HotelsTunisieSearch() {
             >
               <Star className="size-3.5 fill-amber-400 text-amber-400" />
               {selectedStars.length > 0 ? (
-                <span>{selectedStars.join(", ")} étoiles</span>
+                <span>{selectedStars.join(", ")} {t("starsUnit")}</span>
               ) : (
-                <span>Catégorie</span>
+                <span>{t("categoryFilter")}</span>
               )}
             </Button>
           </PopoverTrigger>
@@ -627,7 +660,7 @@ export function HotelsTunisieSearch() {
                 className="mt-2 w-full text-xs"
                 onClick={() => setSelectedStars([])}
               >
-                Effacer les filtres
+                {t("clearFilters")}
               </Button>
             )}
           </PopoverContent>

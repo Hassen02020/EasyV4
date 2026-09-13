@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import {
   ShieldCheck,
   Phone,
@@ -10,7 +10,7 @@ import {
   Instagram,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 
 // Icône WhatsApp personnalisée
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -64,7 +64,7 @@ interface FooterClientProps {
 }
 
 export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
-  const t = useT()
+  const t = useTranslations("Common")
   const copyrightText = brandName
     ? t("copyright").replace("Easy2Book", brandName)
     : t("copyright")

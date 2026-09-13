@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Plane, Calendar, Users, ArrowRight, ArrowLeftRight, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -16,13 +17,6 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AIRPORTS, parseAirportInput, parseCabin, type CabinClass } from "@/lib/vols/search-state"
-
-const CABIN_CLASSES = [
-  { value: "ECONOMY", label: "Économique" },
-  { value: "PREMIUM_ECONOMY", label: "Économique Premium" },
-  { value: "BUSINESS", label: "Affaires" },
-  { value: "FIRST", label: "Première" },
-]
 
 /** Le moteur rapide de la page d'accueil envoie "Tunis (TUN)" / "Istanbul (IST)" —
  * on extrait le code IATA et on vérifie qu'il existe bien dans AIRPORTS avant
@@ -44,6 +38,13 @@ export function FlightSearch({
   initialAdults?: string
 } = {}) {
   const router = useRouter()
+  const t = useTranslations("Vols")
+  const CABIN_CLASSES = [
+    { value: "ECONOMY", label: t("cabinEconomy") },
+    { value: "PREMIUM_ECONOMY", label: t("cabinPremiumEconomy") },
+    { value: "BUSINESS", label: t("cabinBusiness") },
+    { value: "FIRST", label: t("cabinFirst") },
+  ]
   const [isPending, startTransition] = useTransition()
   const [tripType, setTripType] = useState<"oneway" | "roundtrip">("roundtrip")
   const [origin, setOrigin] = useState(
@@ -68,19 +69,19 @@ export function FlightSearch({
 
   function handleSearch() {
     if (!origin || !destination) {
-      toast.error("Veuillez sélectionner les aéroports de départ et d'arrivée.")
+      toast.error(t("toastSelectAirports"))
       return
     }
     if (origin === destination) {
-      toast.error("L'aéroport de départ et d'arrivée doivent être différents.")
+      toast.error(t("toastSameAirports"))
       return
     }
     if (!departureDate) {
-      toast.error("Veuillez sélectionner une date de départ.")
+      toast.error(t("toastSelectDepartureDate"))
       return
     }
     if (tripType === "roundtrip" && !returnDate) {
-      toast.error("Veuillez sélectionner une date de retour.")
+      toast.error(t("toastSelectReturnDate"))
       return
     }
 
@@ -113,11 +114,11 @@ export function FlightSearch({
         <TabsList>
           <TabsTrigger value="roundtrip" className="gap-1.5">
             <ArrowLeftRight className="h-3.5 w-3.5" />
-            Aller-Retour
+            {t("roundTrip")}
           </TabsTrigger>
           <TabsTrigger value="oneway" className="gap-1.5">
             <ArrowRight className="h-3.5 w-3.5" />
-            Aller Simple
+            {t("oneWay")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -126,12 +127,12 @@ export function FlightSearch({
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Plane className="h-3.5 w-3.5 text-muted-foreground" />
-            Départ
+            {t("departureLabel")}
           </Label>
           <div className="relative">
             <Select value={origin} onValueChange={setOrigin}>
               <SelectTrigger>
-                <SelectValue placeholder="Aéroport de départ" />
+                <SelectValue placeholder={t("departurePlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {AIRPORTS.map((a) => (
@@ -147,12 +148,12 @@ export function FlightSearch({
         <div className="relative space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Plane className="h-3.5 w-3.5 rotate-180 text-muted-foreground" />
-            Arrivée
+            {t("arrivalLabel")}
           </Label>
           <div className="relative">
             <Select value={destination} onValueChange={setDestination}>
               <SelectTrigger>
-                <SelectValue placeholder="Aéroport d'arrivée" />
+                <SelectValue placeholder={t("arrivalPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {AIRPORTS.filter((a) => a.code !== origin).map((a) => (
@@ -166,7 +167,7 @@ export function FlightSearch({
               type="button"
               onClick={swapAirports}
               className="absolute -left-5 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-background p-1 shadow-sm transition-colors hover:bg-muted sm:block"
-              title="Inverser"
+              title={t("swapAria")}
             >
               <ArrowLeftRight className="h-3 w-3" />
             </button>
@@ -176,7 +177,7 @@ export function FlightSearch({
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            Date de départ
+            {t("departureDateLabel")}
           </Label>
           <Input
             type="date"
@@ -190,7 +191,7 @@ export function FlightSearch({
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
               <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              Date de retour
+              {t("returnDateLabel")}
             </Label>
             <Input
               type="date"
@@ -204,7 +205,7 @@ export function FlightSearch({
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            Passagers
+            {t("passengersLabel")}
           </Label>
           <div className="flex gap-2">
             <Select value={adults} onValueChange={setAdults}>
@@ -214,7 +215,7 @@ export function FlightSearch({
               <SelectContent>
                 {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
                   <SelectItem key={n} value={String(n)}>
-                    {n} adulte{n > 1 ? "s" : ""}
+                    {t("adultsCountOption", { n })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -226,7 +227,7 @@ export function FlightSearch({
               <SelectContent>
                 {Array.from({ length: 9 }, (_, i) => i).map((n) => (
                   <SelectItem key={n} value={String(n)}>
-                    {n} enfant{n > 1 ? "s" : ""}
+                    {t("childrenCountOption", { n })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -235,7 +236,7 @@ export function FlightSearch({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Classe</Label>
+          <Label className="text-sm">{t("classLabel")}</Label>
           <Select value={cabin} onValueChange={(v) => setCabin(v as CabinClass)}>
             <SelectTrigger>
               <SelectValue />
@@ -263,7 +264,7 @@ export function FlightSearch({
           ) : (
             <Plane className="h-4 w-4" />
           )}
-          Rechercher des vols
+          {t("searchButton")}
         </Button>
       </div>
     </div>

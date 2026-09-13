@@ -10,6 +10,10 @@
  *    Referrer-Policy, Permissions-Policy).
  */
 
+import createNextIntlPlugin from "next-intl/plugin"
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts")
+
 const SUPABASE_HOST = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host
   : ""
@@ -35,7 +39,11 @@ const csp = [
   `default-src 'self'`,
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com`,
   `style-src 'self' 'unsafe-inline'`,
-  `img-src 'self' data: https:`,
+  // blob: -> aperçu local instantané des photos en cours d'upload
+  // (URL.createObjectURL dans MediaManager, mission §15) avant que le
+  // Server Action ait renvoyé une URL Storage réelle — trouvé via une
+  // vraie violation CSP navigateur pendant les tests E2E du Media System.
+  `img-src 'self' data: blob: https:`,
   `font-src 'self' data:`,
   `connect-src ${cspConnectSrc}`,
   `frame-ancestors 'none'`,
@@ -73,6 +81,15 @@ const nextConfig = {
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
+  experimental: {
+    // Media System (mission §5) : upload haute résolution jusqu'à ~20MB
+    // (lib/media/optimize.ts::MAX_FILE_SIZE_BYTES) — largement au-dessus de
+    // la limite par défaut des Server Actions Next.js (1MB), qui rejetterait
+    // l'upload avant même d'atteindre la validation applicative.
+    serverActions: {
+      bodySizeLimit: "25mb",
+    },
+  },
   async headers() {
     return [
       {
@@ -87,11 +104,11 @@ const nextConfig = {
 /* Sentry (optionnel) — wrap la config si @sentry/nextjs est installé          */
 /* -------------------------------------------------------------------------- */
 
-let finalConfig = nextConfig
+let finalConfig = withNextIntl(nextConfig)
 
 try {
   const { withSentryConfig } = await import("@sentry/nextjs")
-  finalConfig = withSentryConfig(nextConfig, {
+  finalConfig = withSentryConfig(finalConfig, {
     silent: true,
     org: process.env.SENTRY_ORG,
     project: process.env.SENTRY_PROJECT,

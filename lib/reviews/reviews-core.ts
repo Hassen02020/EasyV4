@@ -15,7 +15,7 @@
  * garde de visibilité, RLS ne gérant que l'isolation tenant.
  */
 
-import { and, avg, count, desc, eq } from "drizzle-orm"
+import { and, avg, count, desc, eq, inArray } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   reviews,
@@ -257,6 +257,50 @@ export async function listApprovedReviewsForProductCore(
       reviewerDisplayName: `${r.firstName} ${r.lastName?.charAt(0) ?? ""}.`.trim(),
     })),
   }
+}
+
+export interface ReviewSummaryLite {
+  average: number
+  count: number
+}
+
+/**
+ * Variante batch de listApprovedReviewsForProductCore — un seul aller-retour
+ * DB pour toute une page de résultats (ex. SERP hôtels) plutôt qu'une requête
+ * par card. Ne renvoie que la moyenne/le nombre (pas les avis eux-mêmes) ;
+ * les productRef absents du résultat n'ont simplement aucun avis approuvé.
+ */
+export async function listReviewSummariesForProductsCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; module: ReviewModule; productRefs: string[] },
+): Promise<Record<string, ReviewSummaryLite>> {
+  if (params.productRefs.length === 0) return {}
+
+  const rows = await tx
+    .select({
+      productRef: reviews.productRef,
+      average: avg(reviews.rating),
+      count: count(reviews.id),
+    })
+    .from(reviews)
+    .where(
+      and(
+        eq(reviews.agencyId, params.agencyId),
+        eq(reviews.module, params.module),
+        eq(reviews.status, "approved"),
+        inArray(reviews.productRef, params.productRefs),
+      ),
+    )
+    .groupBy(reviews.productRef)
+
+  const result: Record<string, ReviewSummaryLite> = {}
+  for (const r of rows) {
+    result[r.productRef] = {
+      average: r.average ? Math.round(Number(r.average) * 10) / 10 : 0,
+      count: r.count,
+    }
+  }
+  return result
 }
 
 /** Lecture staff — toute file de modération, tous statuts. */

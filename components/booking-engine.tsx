@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 
 import { useState } from "react"
 
@@ -21,6 +21,7 @@ import {
   ArrowLeftRight,
   Search,
   Sparkles,
+  Compass,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -59,7 +60,7 @@ import { addDays, differenceInCalendarDays, format } from "date-fns"
 
 import type { CatalogTransferZone } from "@/lib/db/schema"
 
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 
@@ -95,19 +96,19 @@ const TOMORROW_ISO = futureDate(1)
 /**
  * Navigation commerciale (Phase 13, Partie 20) : le périmètre de lancement
  * prioritaire est Hôtels Tunisie / Hôtels Monde / Omraty / Voyages
- * Organisés — Vols/Transferts/Car restent des modules réels (code et
- * pages intacts, atteignables directement via /vols, /transferts, /car)
- * mais ne sont plus mis en avant dans l'onglet de recherche principal,
- * pour ne pas disperser l'effort commercial. Aucun onglet Attractions
- * ajouté ici : contrairement aux 4 tabs ci-dessous, Attractions n'a
- * aucun parcours public de réservation pour l'instant (voir
- * lib/admin/activities-actions.ts) — un onglet mènerait à un flux mort.
+ * Organisés / Attractions — Vols/Transferts/Car restent des modules réels
+ * (code et pages intacts, atteignables directement via /vols, /transferts,
+ * /car) mais ne sont plus mis en avant dans l'onglet de recherche
+ * principal, pour ne pas disperser l'effort commercial. Attractions a un
+ * vrai parcours public complet (/attractions, /attractions/[slug],
+ * /attractions/[slug]/book) — plus de raison de l'exclure ici.
  */
 const tabsConfig = [
   { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2 },
   { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe },
   { id: "omraty", labelKey: "tabOmraty", icon: Moon },
   { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase },
+  { id: "attractions", labelKey: "tabAttractions", icon: Compass },
 ] as const
 
 type TabId = (typeof tabsConfig)[number]["id"]
@@ -134,6 +135,8 @@ function ActiveModuleForm({
       return <OmratyForm />
     case "voyages-organises":
       return <VoyagesOrganisesForm />
+    case "attractions":
+      return <AttractionsForm />
   }
 }
 
@@ -147,7 +150,7 @@ function TabPills({
   onSelect: (id: TabId) => void
   className?: string
 }) {
-  const t = useT()
+  const t = useTranslations("Common")
 
   return (
     <div
@@ -191,7 +194,8 @@ export function BookingEngine({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("hotels-tunisie")
   const [mobileOpen, setMobileOpen] = useState(false)
-  const t = useT()
+  const t = useTranslations("Common")
+  const tHome = useTranslations("Home")
 
   const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
   const ActiveIcon = activeTabConfig.icon
@@ -213,18 +217,17 @@ export function BookingEngine({
         <div className="e2b-fade-in-up mb-8 max-w-2xl sm:mb-10">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
             <Sparkles className="text-accent size-3.5" />
-            Réservation instantanée · 100% Tunisie
+            {tHome("heroKicker")}
           </span>
 
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl lg:text-[3.25rem] lg:leading-[1.05]">
-            Votre prochain voyage
+            {tHome("heroTitleLine1")}
             <br />
-            <span className="text-accent">commence ici</span>
+            <span className="text-accent">{tHome("heroTitleAccent")}</span>
           </h1>
 
           <p className="mt-3 max-w-md text-base text-white/85 sm:text-lg">
-            Vols, hôtels, Omra, transferts et location — comparez et réservez
-            en toute confiance.
+            {tHome("heroSubtitle")}
           </p>
         </div>
 
@@ -262,7 +265,7 @@ export function BookingEngine({
                     {t(activeTabConfig.labelKey)}
                   </span>
                   <span className="text-muted-foreground block truncate text-xs">
-                    Destination, dates, voyageurs…
+                    {tHome("mobileTriggerSubtitle")}
                   </span>
                 </span>
 
@@ -274,7 +277,7 @@ export function BookingEngine({
 
             <DrawerContent className="max-h-[92vh] rounded-t-[1.75rem]">
               <DrawerTitle className="sr-only">
-                Recherche — {t(activeTabConfig.labelKey)}
+                {tHome("searchDrawerTitle", { tab: t(activeTabConfig.labelKey) })}
               </DrawerTitle>
 
               <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 pt-1 pb-3">
@@ -290,7 +293,7 @@ export function BookingEngine({
                     size="sm"
                     className="text-muted-foreground shrink-0 rounded-full"
                   >
-                    Fermer
+                    {tHome("closeButton")}
                   </Button>
                 </DrawerClose>
               </div>
@@ -385,12 +388,11 @@ function CounterRow({
   )
 }
 
-/** "3 nuits" / "1 nuit" à partir de deux dates ISO (yyyy-MM-dd). */
-function nightsLabel(checkIn: string, checkOut: string): string | null {
+/** Nombre de nuits entre deux dates ISO (yyyy-MM-dd), ou `null` si non calculable — formaté (pluriel ICU) au point d'appel via `Home.nightsCount`. */
+function nightsCount(checkIn: string, checkOut: string): number | null {
   if (!checkIn || !checkOut) return null
   const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn))
-  if (nights <= 0) return null
-  return `${nights} nuit${nights > 1 ? "s" : ""}`
+  return nights > 0 ? nights : null
 }
 
 /** Ajoute `days` jours à une date ISO (yyyy-MM-dd) et retourne une date ISO. */
@@ -401,10 +403,11 @@ function addDaysIso(dateIso: string, days: number): string {
 const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`)
 
 function SearchSubmit({
-  children = "Rechercher",
+  children,
 }: {
   children?: React.ReactNode
 }) {
+  const t = useTranslations("Common")
   return (
     <Button
       type="submit"
@@ -412,14 +415,15 @@ function SearchSubmit({
       className="from-primary to-accent hover:shadow-primary/30 w-full gap-2 rounded-2xl bg-gradient-to-r px-8 text-base font-semibold text-white uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 sm:w-auto"
     >
       <Search className="size-4" />
-      {children}
+      {children ?? t("rechercher")}
     </Button>
   )
 }
 
 // ----------------------------------------------------------------------------
 
-// Per-module forms (visual only — RECHERCHER triggers a toast)
+// Per-module forms — RECHERCHER navigue vers la page de résultats réelle du
+// module (router.push), un toast n'apparaît qu'en cas de saisie invalide.
 
 // ----------------------------------------------------------------------------
 
@@ -657,6 +661,7 @@ function VolsForm() {
 
 function HotelsMondeForm() {
   const router = useRouter()
+  const t = useTranslations("Home")
   const [checkIn, setCheckIn] = useState(TODAY_ISO)
   const [checkOut, setCheckOut] = useState(TOMORROW_ISO)
   const [rooms, setRooms] = useState(1)
@@ -665,12 +670,12 @@ function HotelsMondeForm() {
   const [babies, setBabies] = useState(0)
   const [occupancyOpen, setOccupancyOpen] = useState(false)
 
-  const nights = nightsLabel(checkIn, checkOut)
+  const nights = nightsCount(checkIn, checkOut)
   const occupancySummary = [
-    `${rooms} chambre${rooms > 1 ? "s" : ""}`,
-    `${adults} adulte${adults > 1 ? "s" : ""}`,
-    children > 0 ? `${children} enfant${children > 1 ? "s" : ""}` : null,
-    babies > 0 ? `${babies} bébé${babies > 1 ? "s" : ""}` : null,
+    t("roomsCount", { count: rooms }),
+    t("adultsCount", { count: adults }),
+    children > 0 ? t("childrenCount", { count: children }) : null,
+    babies > 0 ? t("babiesCount", { count: babies }) : null,
   ]
     .filter(Boolean)
     .join(", ")
@@ -683,9 +688,7 @@ function HotelsMondeForm() {
         const destination = (fd.get("destination") as string)?.trim()
 
         if (checkOut <= checkIn) {
-          toast.error(
-            "La date de départ doit être après la date d'arrivée (1 nuit minimum).",
-          )
+          toast.error(t("hotelsMondeDateError"))
           return
         }
 
@@ -703,16 +706,16 @@ function HotelsMondeForm() {
     >
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <div className={cn(FIELD_SHELL, "lg:col-span-2")}>
-          <FieldLabel icon={MapPin}>Destination mondiale</FieldLabel>
+          <FieldLabel icon={MapPin}>{t("destinationWorldLabel")}</FieldLabel>
           <Input
             name="destination"
-            placeholder="Ville, hôtel ou aéroport"
+            placeholder={t("destinationWorldPlaceholder")}
             className={FIELD_INPUT_RESET}
           />
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Arrivée</FieldLabel>
+          <FieldLabel icon={CalendarDays}>{t("arrivalLabel")}</FieldLabel>
           <Input
             type="date"
             value={checkIn}
@@ -729,7 +732,10 @@ function HotelsMondeForm() {
 
         <div className={FIELD_SHELL}>
           <FieldLabel icon={CalendarDays}>
-            Départ{nights ? <span className="text-primary normal-case"> · {nights}</span> : null}
+            {t("departureLabel")}
+            {nights ? (
+              <span className="text-primary normal-case"> · {t("nightsCount", { count: nights })}</span>
+            ) : null}
           </FieldLabel>
           <Input
             type="date"
@@ -745,7 +751,7 @@ function HotelsMondeForm() {
         <Popover open={occupancyOpen} onOpenChange={setOccupancyOpen}>
           <PopoverTrigger asChild>
             <button type="button" className={FIELD_SHELL}>
-              <FieldLabel icon={Users}>Chambres et voyageurs</FieldLabel>
+              <FieldLabel icon={Users}>{t("occupancyLabel")}</FieldLabel>
               <span className="truncate text-sm font-semibold">
                 {occupancySummary}
               </span>
@@ -756,31 +762,31 @@ function HotelsMondeForm() {
             align="start"
           >
             <CounterRow
-              label="Chambres"
+              label={t("roomsFieldLabel")}
               min={1}
               max={8}
               value={rooms}
               onChange={setRooms}
             />
             <CounterRow
-              label="Adultes"
-              sublabel="18 ans et plus"
+              label={t("adultsFieldLabel")}
+              sublabel={t("adultsFieldSublabel18")}
               min={1}
               max={16}
               value={adults}
               onChange={setAdults}
             />
             <CounterRow
-              label="Enfants"
-              sublabel="3-11 ans"
+              label={t("childrenFieldLabel")}
+              sublabel={t("childrenFieldSublabel311")}
               min={0}
               max={8}
               value={children}
               onChange={setChildren}
             />
             <CounterRow
-              label="Bébés"
-              sublabel="0-2 ans"
+              label={t("babiesFieldLabel")}
+              sublabel={t("babiesFieldSublabel02")}
               min={0}
               max={8}
               value={babies}
@@ -798,31 +804,18 @@ function HotelsMondeForm() {
 }
 
 // Doit correspondre à l'enum omra_package_type réel (lib/db/schema/omra.ts)
-// pour que le filtre passé à /omra matche de vrais packages.
-const OMRA_PROGRAMMES = [
-  { value: "omra", label: "Omra" },
-  { value: "ramadan", label: "Omra Ramadan" },
-  { value: "umrah_plus", label: "Omra + Ziarat étendu" },
-  { value: "hajj", label: "Hajj" },
-]
+// pour que le filtre passé à /omra matche de vrais packages — libellés
+// traduits au rendu via `Omra.filterProgrammes.{value}` (mêmes clés que
+// components/omra/omra-search.tsx, Lot 2 de la migration i18n).
+const OMRA_PROGRAMME_VALUES = ["omra", "ramadan", "umrah_plus", "hajj"] as const
 
-const OMRA_MONTHS = [
-  { value: "1", label: "Janvier" },
-  { value: "2", label: "Février" },
-  { value: "3", label: "Mars" },
-  { value: "4", label: "Avril" },
-  { value: "5", label: "Mai" },
-  { value: "6", label: "Juin" },
-  { value: "7", label: "Juillet" },
-  { value: "8", label: "Août" },
-  { value: "9", label: "Septembre" },
-  { value: "10", label: "Octobre" },
-  { value: "11", label: "Novembre" },
-  { value: "12", label: "Décembre" },
-]
+// Idem, `Omra.months.{value}` (mêmes clés que omra-search.tsx).
+const OMRA_MONTH_VALUES = Array.from({ length: 12 }, (_, i) => String(i + 1))
 
 function OmratyForm() {
   const router = useRouter()
+  const t = useTranslations("Home")
+  const tOmra = useTranslations("Omra")
   const [programme, setProgramme] = useState("")
   const [month, setMonth] = useState("")
 
@@ -839,16 +832,16 @@ function OmratyForm() {
     >
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={Moon}>Programme</FieldLabel>
+          <FieldLabel icon={Moon}>{t("programmeLabel")}</FieldLabel>
           <Select value={programme} onValueChange={setProgramme}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Tous programmes" />
+              <SelectValue placeholder={tOmra("allProgrammes")} />
             </SelectTrigger>
 
             <SelectContent>
-              {OMRA_PROGRAMMES.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
+              {OMRA_PROGRAMME_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {tOmra(`filterProgrammes.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -856,16 +849,16 @@ function OmratyForm() {
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Mois de départ</FieldLabel>
+          <FieldLabel icon={CalendarDays}>{t("departureMonthLabel")}</FieldLabel>
           <Select value={month} onValueChange={setMonth}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Tous les mois" />
+              <SelectValue placeholder={tOmra("allMonths")} />
             </SelectTrigger>
 
             <SelectContent>
-              {OMRA_MONTHS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
+              {OMRA_MONTH_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {tOmra(`months.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -882,28 +875,27 @@ function OmratyForm() {
 
 // Doit correspondre aux clés DESTINATION_SEARCH_TERMS de app/packages/page.tsx
 // (recherche par ILIKE sur le titre — pas de colonne destination dédiée).
-const PACKAGE_DESTINATIONS = [
-  { value: "istanbul", label: "Istanbul" },
-  { value: "dubai", label: "Dubaï" },
-  { value: "paris", label: "Paris" },
-  { value: "rome", label: "Rome" },
-  { value: "barcelona", label: "Barcelone" },
-  { value: "london", label: "Londres" },
-  { value: "cairo", label: "Le Caire" },
-  { value: "casablanca", label: "Casablanca" },
-]
+// Libellés traduits au rendu via `Packages.destinations.{value}` (mêmes
+// clés que app/(public)/[locale]/packages/page.tsx, Lot 2 de la migration i18n).
+const PACKAGE_DESTINATION_VALUES = [
+  "istanbul",
+  "dubai",
+  "paris",
+  "rome",
+  "barcelona",
+  "london",
+  "cairo",
+  "casablanca",
+] as const
 
 // Doit correspondre aux plages lues par parseDurationRange() dans
-// app/packages/page.tsx.
-const PACKAGE_DURATIONS = [
-  { value: "3-5", label: "3 à 5 jours" },
-  { value: "6-8", label: "6 à 8 jours" },
-  { value: "9-12", label: "9 à 12 jours" },
-  { value: "13+", label: "13 jours et plus" },
-]
+// app/packages/page.tsx — libellés via `Packages.durations.{value}`.
+const PACKAGE_DURATION_VALUES = ["3-5", "6-8", "9-12", "13+"] as const
 
 function VoyagesOrganisesForm() {
   const router = useRouter()
+  const t = useTranslations("Home")
+  const tPackages = useTranslations("Packages")
   const [destination, setDestination] = useState("")
   const [duration, setDuration] = useState("")
   const [travelers, setTravelers] = useState("2")
@@ -922,16 +914,16 @@ function VoyagesOrganisesForm() {
     >
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={MapPin}>Destination</FieldLabel>
+          <FieldLabel icon={MapPin}>{t("destinationLabel")}</FieldLabel>
           <Select value={destination} onValueChange={setDestination}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Toutes destinations" />
+              <SelectValue placeholder={tPackages("allDestinations")} />
             </SelectTrigger>
 
             <SelectContent>
-              {PACKAGE_DESTINATIONS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
+              {PACKAGE_DESTINATION_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {tPackages(`destinations.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -939,16 +931,16 @@ function VoyagesOrganisesForm() {
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={Clock}>Durée</FieldLabel>
+          <FieldLabel icon={Clock}>{t("durationLabel")}</FieldLabel>
           <Select value={duration} onValueChange={setDuration}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Toutes durées" />
+              <SelectValue placeholder={tPackages("allDurations")} />
             </SelectTrigger>
 
             <SelectContent>
-              {PACKAGE_DURATIONS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
+              {PACKAGE_DURATION_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {tPackages(`durations.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -956,16 +948,16 @@ function VoyagesOrganisesForm() {
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={Users}>Voyageurs</FieldLabel>
+          <FieldLabel icon={Users}>{t("travelersLabel")}</FieldLabel>
           <Select value={travelers} onValueChange={setTravelers}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Voyageurs" />
+              <SelectValue placeholder={t("travelersLabel")} />
             </SelectTrigger>
 
             <SelectContent>
               {[1, 2, 3, 4, 5].map((n) => (
                 <SelectItem key={n} value={String(n)}>
-                  {n} Voyageur{n > 1 ? "s" : ""}
+                  {t("travelersOption", { count: n })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -975,6 +967,40 @@ function VoyagesOrganisesForm() {
 
       <div className="flex justify-end pt-1">
         <SearchSubmit />
+      </div>
+    </form>
+  )
+}
+
+function AttractionsForm() {
+  const router = useRouter()
+  const tAttractions = useTranslations("Attractions")
+  const [q, setQ] = useState("")
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        const params = new URLSearchParams()
+        if (q.trim()) params.set("q", q.trim())
+        const qs = params.toString()
+        router.push(`/attractions${qs ? `?${qs}` : ""}`)
+      }}
+      className="space-y-5"
+    >
+      <div className={FIELD_SHELL}>
+        <FieldLabel icon={MapPin}>{tAttractions("kicker")}</FieldLabel>
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={tAttractions("searchPlaceholder")}
+          className={FIELD_INPUT_RESET}
+        />
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <SearchSubmit>{tAttractions("searchButton")}</SearchSubmit>
       </div>
     </form>
   )

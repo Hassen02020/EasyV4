@@ -6,6 +6,8 @@ import {
   isOmraVoucherEligible,
   isPackageVoucherEligible,
   isHotelReservationVoucherEligible,
+  isAdminReservationVoucherEligible,
+  isWorldHotelVoucherEligible,
   voucherHrefForModule,
 } from "../voucher-eligibility"
 
@@ -183,9 +185,71 @@ test("voucherHrefForModule : construit le bon lien pour activity (gap Phase 38A 
 })
 
 test("voucherHrefForModule : null pour un module sans route voucher (jamais un lien fabriqué vers une route inexistante)", () => {
-  assert.equal(voucherHrefForModule("flight", "FL-2026-000001", "tok"), null)
   assert.equal(voucherHrefForModule("transfer", "TR-2026-000001", "tok"), null)
   assert.equal(voucherHrefForModule("car", "CR-2026-000001", "tok"), null)
+})
+
+test("voucherHrefForModule : route réelle pour vol (Virtual Flight Supplier — booking réel de bout en bout)", () => {
+  assert.equal(
+    voucherHrefForModule("flight", "FL-2026-000001", "tok"),
+    "/api/vols/voucher/FL-2026-000001?token=tok",
+  )
+})
+
+test("voucherHrefForModule : route réelle pour hotel_monde (Virtual World Hotel Supplier — booking réel de bout en bout)", () => {
+  assert.equal(
+    voucherHrefForModule("hotel_monde", "WH-2026-000001", "tok"),
+    "/api/hotels-monde/voucher/WH-2026-000001?token=tok",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* isWorldHotelVoucherEligible (Hôtels Monde — Virtual World Hotel Supplier)   */
+/*                                                                            */
+/* Même règle qu'isVoucherEligible (réutilise la table reservation_hotel)    */
+/* mais scopée à module="hotel_monde", jamais "hotel" (Hôtels Tunisie/myGo)  */
+/* — voir drizzle/manual/0051_hotel_monde_module.sql.                       */
+/* -------------------------------------------------------------------------- */
+
+const baseWorldHotelRow = {
+  module: "hotel_monde",
+  hotelName: "Istanbul Grand Palace",
+  checkIn: "2027-03-15",
+  checkOut: "2027-03-18",
+}
+
+test("isWorldHotelVoucherEligible : true pour une réservation Hôtel Monde confirmée", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "confirmed" }), true)
+})
+
+test("isWorldHotelVoucherEligible : true pour un séjour Hôtel Monde terminé (completed)", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "completed" }), true)
+})
+
+test("isWorldHotelVoucherEligible : false pour une réservation encore pending (pas de faux voucher)", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "pending" }), false)
+})
+
+test("isWorldHotelVoucherEligible : false pour une réservation annulée", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "cancelled" }), false)
+})
+
+test("isWorldHotelVoucherEligible : false pour une réservation remboursée", () => {
+  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "refunded" }), false)
+})
+
+test("isWorldHotelVoucherEligible : false pour le module hotel (Hôtels Tunisie) même confirmé — jamais confondu malgré la table partagée", () => {
+  assert.equal(
+    isWorldHotelVoucherEligible({ module: "hotel", status: "confirmed", hotelName: "X", checkIn: "2027-01-01", checkOut: "2027-01-02" }),
+    false,
+  )
+})
+
+test("isWorldHotelVoucherEligible : false si les données de séjour sont incomplètes", () => {
+  assert.equal(
+    isWorldHotelVoucherEligible({ module: "hotel_monde", status: "confirmed", hotelName: null, checkIn: "2027-03-15", checkOut: "2027-03-18" }),
+    false,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -214,8 +278,43 @@ test("isHotelReservationVoucherEligible : false pour hôtel encore pending (pas 
   assert.equal(isHotelReservationVoucherEligible("hotel", "pending"), false)
 })
 
-test("isHotelReservationVoucherEligible : false pour un module non-hôtel même confirmé (routes admin/pro n'ont pas de rendu Omra/Package/Activity)", () => {
+test("isHotelReservationVoucherEligible : false pour un module non-hôtel même confirmé (scopée au seul module hôtel par design)", () => {
   assert.equal(isHotelReservationVoucherEligible("omra", "confirmed"), false)
   assert.equal(isHotelReservationVoucherEligible("package", "confirmed"), false)
   assert.equal(isHotelReservationVoucherEligible("activity", "confirmed"), false)
+})
+
+/* -------------------------------------------------------------------------- */
+/* isAdminReservationVoucherEligible (fix Final Screenshot Certification —    */
+/* /api/admin/.../voucher et /api/pro/.../voucher dispatchent désormais par   */
+/* module via lib/booking/reservation-voucher-render.ts, réutilisant les     */
+/* mêmes renderers/éligibilités que les routes guest publiques par module)   */
+/* -------------------------------------------------------------------------- */
+
+test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, confirmé", () => {
+  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
+    assert.equal(isAdminReservationVoucherEligible(mod, "confirmed"), true, `module=${mod}`)
+  }
+})
+
+test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, completed", () => {
+  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
+    assert.equal(isAdminReservationVoucherEligible(mod, "completed"), true, `module=${mod}`)
+  }
+})
+
+test("isAdminReservationVoucherEligible : false pour un statut pending, quel que soit le module", () => {
+  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
+    assert.equal(isAdminReservationVoucherEligible(mod, "pending"), false, `module=${mod}`)
+  }
+})
+
+test("isAdminReservationVoucherEligible : false pour cancelled/refunded (voucher invalidé après annulation)", () => {
+  assert.equal(isAdminReservationVoucherEligible("hotel", "cancelled"), false)
+  assert.equal(isAdminReservationVoucherEligible("omra", "refunded"), false)
+})
+
+test("isAdminReservationVoucherEligible : false pour un module sans route voucher (transfert/voiture)", () => {
+  assert.equal(isAdminReservationVoucherEligible("transfer", "confirmed"), false)
+  assert.equal(isAdminReservationVoucherEligible("car", "confirmed"), false)
 })

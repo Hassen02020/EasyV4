@@ -45,7 +45,14 @@ export interface MyGoConfig {
 export const VIRTUAL_MYGO_PATH = "/api/virtual-mygo"
 
 function resolveMyGoMode(): MyGoMode {
-  return process.env.MYGO_MODE === "virtual" ? "virtual" : "live"
+  const mode = process.env.MYGO_MODE === "virtual" ? "virtual" : "live"
+  if (mode === "virtual" && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "MYGO_MODE=virtual est interdit en production (NODE_ENV=production) — " +
+        "retirez cette variable de l'environnement de production.",
+    )
+  }
+  return mode
 }
 
 export function siteOrigin(): string {

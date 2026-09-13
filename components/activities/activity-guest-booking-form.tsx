@@ -10,7 +10,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -30,6 +31,7 @@ import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
 import { useCart } from "@/lib/cart/use-cart"
+import { getIntlLocale } from "@/lib/i18n-date"
 
 interface SessionOption {
   id: string
@@ -48,22 +50,6 @@ interface ActivityGuestBookingFormProps {
   defaultSessionId?: string
 }
 
-const METHODS: { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
-  { key: "card", label: "Carte bancaire", desc: "Paiement en ligne immédiat", icon: CreditCard },
-  {
-    key: "transfer",
-    label: "Virement bancaire",
-    desc: "Coordonnées de virement envoyées par email — voucher émis après confirmation du règlement",
-    icon: Banknote,
-  },
-  {
-    key: "cash",
-    label: "Espèces en agence",
-    desc: "Réservation maintenue en attente de paiement — voucher émis après confirmation du règlement",
-    icon: Wallet,
-  },
-]
-
 export function ActivityGuestBookingForm({
   activityId,
   activityTitle,
@@ -72,7 +58,16 @@ export function ActivityGuestBookingForm({
 }: ActivityGuestBookingFormProps) {
   const router = useRouter()
   const cart = useCart()
+  const t = useTranslations("Attractions")
+  const locale = useLocale()
+  const intlLocale = getIntlLocale(locale)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const METHODS: { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
+    { key: "card", label: t("methodCard"), desc: t("methodCardDesc"), icon: CreditCard },
+    { key: "transfer", label: t("methodTransfer"), desc: t("methodTransferDesc"), icon: Banknote },
+    { key: "cash", label: t("methodCash"), desc: t("methodCashDesc"), icon: Wallet },
+  ]
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
@@ -131,11 +126,11 @@ export function ActivityGuestBookingForm({
 
   async function onSubmit(data: ActivityGuestBookingInput) {
     if (!acceptCgv) {
-      setSubmitError("Vous devez accepter les conditions générales de vente.")
+      setSubmitError(t("mustAcceptCgv"))
       return
     }
     if (policyAcceptanceRequired) {
-      setSubmitError("Vous devez accepter la politique d'annulation.")
+      setSubmitError(t("mustAcceptPolicy"))
       return
     }
     setIsSubmitting(true)
@@ -149,14 +144,14 @@ export function ActivityGuestBookingForm({
       }
       router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
+      setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
     }
   }
 
   function onAddToCart(data: ActivityGuestBookingInput) {
     if (policyAcceptanceRequired) {
-      setSubmitError("Vous devez accepter la politique d'annulation.")
+      setSubmitError(t("mustAcceptPolicy"))
       return
     }
     cart.add({
@@ -165,7 +160,7 @@ export function ActivityGuestBookingForm({
       priceTnd: totalPrice,
       booking: { ...data, policyAccepted },
     })
-    toast.success("Ajouté au panier.")
+    toast.success(t("addedToCartToast"))
     router.push("/panier")
   }
 
@@ -182,24 +177,24 @@ export function ActivityGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="size-5" />
-              Session
+              {t("sessionTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">{activityTitle}</p>
             <Select value={watchedSessionId} onValueChange={(v) => form.setValue("sessionId", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Choisir une date" />
+                <SelectValue placeholder={t("chooseDatePlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {sessions.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     <div className="flex items-center justify-between gap-4">
                       <span>
-                        {new Date(s.sessionDate).toLocaleDateString("fr-FR")} · {s.sessionStart}–{s.sessionEnd}
+                        {new Date(s.sessionDate).toLocaleDateString(intlLocale)} · {s.sessionStart}–{s.sessionEnd}
                       </span>
                       <Badge variant={s.capacityLeft > 5 ? "default" : "destructive"}>
-                        {s.capacityLeft} places
+                        {t("placesLeft", { count: s.capacityLeft })}
                       </Badge>
                     </div>
                   </SelectItem>
@@ -216,13 +211,13 @@ export function ActivityGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="size-5" />
-              Participants
+              {t("participantsTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Adultes *</Label>
+                <Label>{t("adultsLabel")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -234,7 +229,7 @@ export function ActivityGuestBookingForm({
                 ) : null}
               </div>
               <div className="space-y-2">
-                <Label>Enfants</Label>
+                <Label>{t("childrenLabel")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -248,7 +243,7 @@ export function ActivityGuestBookingForm({
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {Array.from({ length: watchedChildren }).map((_, i) => (
                   <div key={i} className="space-y-2">
-                    <Label>Âge enfant {i + 1}</Label>
+                    <Label>{t("childAgeLabel", { n: i + 1 })}</Label>
                     <Input
                       type="number"
                       min={0}
@@ -269,12 +264,12 @@ export function ActivityGuestBookingForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Contact principal</CardTitle>
+            <CardTitle>{t("mainContactTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label>Civilité</Label>
+                <Label>{t("civilityLabel")}</Label>
                 <Select
                   value={watchedCivility}
                   onValueChange={(v) => form.setValue("traveler.civility", v as "M" | "Mme" | "Mlle")}
@@ -283,21 +278,21 @@ export function ActivityGuestBookingForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="M">M.</SelectItem>
-                    <SelectItem value="Mme">Mme</SelectItem>
-                    <SelectItem value="Mlle">Mlle</SelectItem>
+                    <SelectItem value="M">{t("civilityM")}</SelectItem>
+                    <SelectItem value="Mme">{t("civilityMme")}</SelectItem>
+                    <SelectItem value="Mlle">{t("civilityMlle")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Prénom *</Label>
+                <Label>{t("firstNameLabel")}</Label>
                 <Input {...form.register("traveler.firstName")} className="mt-1" placeholder="Hassen" />
                 {form.formState.errors.traveler?.firstName ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.firstName.message}</p>
                 ) : null}
               </div>
               <div>
-                <Label>Nom *</Label>
+                <Label>{t("lastNameLabel")}</Label>
                 <Input {...form.register("traveler.lastName")} className="mt-1" placeholder="Tarhouni" />
                 {form.formState.errors.traveler?.lastName ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.lastName.message}</p>
@@ -306,14 +301,14 @@ export function ActivityGuestBookingForm({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label>Email *</Label>
+                <Label>{t("emailLabel")}</Label>
                 <Input type="email" {...form.register("traveler.email")} className="mt-1" placeholder="vous@email.tn" />
                 {form.formState.errors.traveler?.email ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.email.message}</p>
                 ) : null}
               </div>
               <div>
-                <Label>Téléphone *</Label>
+                <Label>{t("phoneLabel")}</Label>
                 <Input type="tel" {...form.register("traveler.phone")} className="mt-1" placeholder="+216 98 140 514" />
                 {form.formState.errors.traveler?.phone ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.phone.message}</p>
@@ -322,7 +317,7 @@ export function ActivityGuestBookingForm({
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label>Pièce d&apos;identité</Label>
+                <Label>{t("idTypeLabel")}</Label>
                 <Select
                   value={watchedCivicIdType}
                   onValueChange={(v) => form.setValue("traveler.civicIdType", v as "cin" | "passport")}
@@ -331,13 +326,17 @@ export function ActivityGuestBookingForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cin">CIN tunisienne</SelectItem>
-                    <SelectItem value="passport">Passeport</SelectItem>
+                    <SelectItem value="cin">{t("idTypeCin")}</SelectItem>
+                    <SelectItem value="passport">{t("idTypePassport")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="sm:col-span-2">
-                <Label>Numéro {watchedCivicIdType === "cin" ? "CIN" : "passeport"} *</Label>
+                <Label>
+                  {t("idNumberLabel", {
+                    type: watchedCivicIdType === "cin" ? t("idTypeCinShort") : t("idTypePassportShort"),
+                  })}
+                </Label>
                 <Input {...form.register("traveler.civicId")} className="mt-1" placeholder="12345678" />
                 {form.formState.errors.traveler?.civicId ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.civicId.message}</p>
@@ -358,7 +357,7 @@ export function ActivityGuestBookingForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Mode de paiement</CardTitle>
+            <CardTitle>{t("paymentMethodTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {METHODS.map((m) => {
@@ -392,7 +391,7 @@ export function ActivityGuestBookingForm({
             <div className="flex items-start gap-2 pt-2">
               <Checkbox id="cgv-activity" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
               <Label htmlFor="cgv-activity" className="text-muted-foreground text-sm leading-snug">
-                J&apos;accepte les conditions générales de vente d&apos;Easy2Book.
+                {t("acceptCgv")}
               </Label>
             </div>
           </CardContent>
@@ -402,23 +401,23 @@ export function ActivityGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="size-5" />
-              Récapitulatif
+              {t("summaryTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm">Adultes × {watchedAdults}</span>
+              <span className="text-sm">{t("adultsSummary", { n: watchedAdults })}</span>
               <span className="font-medium">{(adultPrice * watchedAdults).toFixed(3)} DT</span>
             </div>
             {watchedChildren > 0 ? (
               <div className="flex items-center justify-between">
-                <span className="text-sm">Enfants × {watchedChildren}</span>
+                <span className="text-sm">{t("childrenSummary", { n: watchedChildren })}</span>
                 <span className="font-medium">{(childPrice * watchedChildren).toFixed(3)} DT</span>
               </div>
             ) : null}
             <Separator />
             <div className="flex items-center justify-between text-lg">
-              <span className="font-semibold">Total TTC</span>
+              <span className="font-semibold">{t("totalTtc")}</span>
               <span className="font-bold text-teal-700">{totalPrice.toFixed(3)} DT</span>
             </div>
           </CardContent>
@@ -434,7 +433,7 @@ export function ActivityGuestBookingForm({
             onClick={form.handleSubmit(onAddToCart)}
           >
             <ShoppingCart className="mr-2 size-4" />
-            Ajouter au panier
+            {t("addToCart")}
           </Button>
           <Button
             type="submit"
@@ -445,10 +444,10 @@ export function ActivityGuestBookingForm({
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                Traitement en cours…
+                {t("processing")}
               </>
             ) : (
-              "Confirmer & payer"
+              t("confirmAndPay")
             )}
           </Button>
         </div>

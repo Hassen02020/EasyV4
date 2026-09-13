@@ -18,6 +18,8 @@
 
 import { z } from "zod"
 import { memoize } from "@/lib/cache/redis"
+import { search as virtualSearch } from "@/lib/vols/virtual-supplier/engine"
+import { minutesToIso } from "@/lib/vols/virtual-supplier/catalog"
 
 // ---------------------------------------------------------------------------
 // Schemas Zod
@@ -45,6 +47,8 @@ export const FlightOfferSchema = z.object({
   refundable: z.boolean(),
   baggageKg: z.number().nullable(),
   source: z.string().default("amadeus"),
+  /** Jeton signé serveur (Virtual Flight Supplier) à revalider pour réserver — voir lib/vols/booking-actions.ts. Absent en mode API réelle tant qu'aucun adaptateur de réservation n'y est branché. */
+  offerToken: z.string().optional(),
 })
 
 export type FlightOffer = z.infer<typeof FlightOfferSchema>
@@ -64,82 +68,53 @@ export type FlightSearchResult =
   | { ok: false; error: string; code: string }
 
 // ---------------------------------------------------------------------------
-// Fixtures démo
+// Mode démo — Virtual Flight Supplier
 // ---------------------------------------------------------------------------
+//
+// Contrairement à l'ancien mode démo (3 offres statiques indépendantes de la
+// route/date demandée), le mode démo appelle désormais un vrai moteur de
+// fournisseur virtuel (lib/vols/virtual-supplier/engine.ts) : offres
+// déterministes par route/date/cabine, disponibilité réelle suivie en
+// mémoire, jeton signé à revalider pour réserver (voir
+// lib/vols/guest-booking-actions.ts). Aucune réservation n'est possible sans
+// repasser par ce moteur — le "demo mode" ne fabrique plus de données
+// déconnectées du reste du parcours.
 
-function buildDemoOffers(input: FlightSearchInput): FlightOffer[] {
-  const base = input.adults * 450
-  return [
-    {
-      id: "demo-1",
-      segments: [
-        {
-          origin: input.originCode,
-          destination: input.destinationCode,
-          departureAt: `${input.departureDate}T06:30:00`,
-          arrivalAt: `${input.departureDate}T09:45:00`,
-          carrier: "TU",
-          flightNumber: "TU756",
-          duration: "PT3H15M",
-          cabin: input.cabin ?? "ECONOMY",
-        },
-      ],
-      stops: 0,
-      totalDurationMinutes: 195,
-      priceTnd: Math.round(base * 1.05),
-      currency: "TND",
-      availableSeats: 12,
-      refundable: false,
-      baggageKg: 23,
-      source: "demo",
-    },
-    {
-      id: "demo-2",
-      segments: [
-        {
-          origin: input.originCode,
-          destination: input.destinationCode,
-          departureAt: `${input.departureDate}T14:00:00`,
-          arrivalAt: `${input.departureDate}T18:30:00`,
-          carrier: "BJ",
-          flightNumber: "BJ106",
-          duration: "PT4H30M",
-          cabin: input.cabin ?? "ECONOMY",
-        },
-      ],
-      stops: 1,
-      totalDurationMinutes: 270,
-      priceTnd: Math.round(base * 0.88),
-      currency: "TND",
-      availableSeats: 5,
-      refundable: true,
-      baggageKg: 20,
-      source: "demo",
-    },
-    {
-      id: "demo-3",
-      segments: [
-        {
-          origin: input.originCode,
-          destination: input.destinationCode,
-          departureAt: `${input.departureDate}T20:15:00`,
-          arrivalAt: `${input.departureDate}T23:50:00`,
-          carrier: "TU",
-          flightNumber: "TU814",
-          duration: "PT3H35M",
-          cabin: "BUSINESS",
-        },
-      ],
-      stops: 0,
-      totalDurationMinutes: 215,
-      priceTnd: Math.round(base * 2.8),
-      currency: "TND",
-      availableSeats: 3,
-      refundable: true,
-      baggageKg: 32,
-      source: "demo",
-    },
-  ]
+function buildVirtualOffers(input: FlightSearchInput): { offers: FlightOffer[]; searchId: string } {
+  const { searchId, offers } = virtualSearch({
+    origin: input.originCode,
+    destination: input.destinationCode,
+    departureDate: input.departureDate,
+    returnDate: input.returnDate,
+    adults: input.adults,
+    children: input.children ?? 0,
+    cabin: input.cabin ?? "ECONOMY",
+  })
+
+  const mapped: FlightOffer[] = offers.map((offer) => ({
+    id: offer.offerId,
+    segments: offer.segments.map((seg) => ({
+      origin: seg.origin,
+      destination: seg.destination,
+      departureAt: seg.departureAt,
+      arrivalAt: seg.arrivalAt,
+      carrier: seg.carrier,
+      flightNumber: seg.flightNumber,
+      duration: minutesToIso(seg.durationMinutes),
+      cabin: seg.cabin,
+    })),
+    stops: offer.stops,
+    totalDurationMinutes: offer.totalDurationMinutes,
+    priceTnd: offer.priceTnd,
+    currency: offer.currency,
+    availableSeats: offer.availableSeats,
+    refundable: offer.refundable,
+    baggageKg: offer.baggageKg,
+    source: "virtual",
+    offerToken: offer.token,
+  }))
+
+  return { offers: mapped, searchId }
 }
 
 // ---------------------------------------------------------------------------
@@ -153,8 +128,8 @@ export async function searchFlights(
     !process.env.FLIGHTS_API_KEY || process.env.FLIGHTS_DEMO_MODE === "true"
 
   if (isDemoMode) {
-    const offers = buildDemoOffers(input)
-    return { ok: true, offers, searchId: `demo-${Date.now()}` }
+    const { offers, searchId } = buildVirtualOffers(input)
+    return { ok: true, offers, searchId }
   }
 
   const cacheKey = `e2b:vols:${input.originCode}-${input.destinationCode}-${input.departureDate}-${input.adults}`

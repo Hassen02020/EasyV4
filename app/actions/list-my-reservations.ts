@@ -43,6 +43,7 @@ import {
   reservationPackage,
   reservationActivity,
   reservationOmra,
+  reservationFlight,
   catalogPackages,
   catalogActivities,
   omraPackages,
@@ -70,6 +71,27 @@ export async function getProductDetails(
 ): Promise<BookingSummary["product"]> {
   switch (module) {
     case "hotel": {
+      const [row] = await tx
+        .select({
+          hotelName: reservationHotel.hotelName,
+          cityName: reservationHotel.cityName,
+          checkIn: reservationHotel.checkIn,
+          checkOut: reservationHotel.checkOut,
+          adults: reservationHotel.adults,
+          childrenAges: reservationHotel.childrenAges,
+        })
+        .from(reservationHotel)
+        .where(eq(reservationHotel.reservationId, reservationId))
+        .limit(1)
+      if (!row) return null
+      return {
+        label: row.cityName ? `${row.hotelName} — ${row.cityName}` : row.hotelName,
+        startDate: row.checkIn,
+        endDate: row.checkOut,
+        travelers: row.adults + (row.childrenAges?.length ?? 0),
+      }
+    }
+    case "hotel_monde": {
       const [row] = await tx
         .select({
           hotelName: reservationHotel.hotelName,
@@ -150,6 +172,29 @@ export async function getProductDetails(
         startDate: row.departureDate,
         endDate: row.returnDate,
         travelers: row.pilgrims,
+      }
+    }
+    case "flight": {
+      const [row] = await tx
+        .select({
+          origin: reservationFlight.origin,
+          destination: reservationFlight.destination,
+          departAt: reservationFlight.departAt,
+          arriveAt: reservationFlight.arriveAt,
+          adults: reservationFlight.adults,
+          children: reservationFlight.children,
+          pnr: reservationFlight.pnr,
+        })
+        .from(reservationFlight)
+        .where(eq(reservationFlight.reservationId, reservationId))
+        .limit(1)
+      if (!row) return null
+      const departDate = row.departAt.toISOString().slice(0, 10)
+      return {
+        label: `Vol ${row.origin} → ${row.destination}${row.pnr ? ` (PNR ${row.pnr})` : ""}`,
+        startDate: departDate,
+        endDate: row.arriveAt ? row.arriveAt.toISOString().slice(0, 10) : departDate,
+        travelers: row.adults + row.children,
       }
     }
     default:

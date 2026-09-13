@@ -7,20 +7,24 @@
  * que lib/vols/client.ts (lui-même aligné sur lib/mygo/client.ts) :
  *  - Zod validation des réponses
  *  - Cache Redis (memoize) une fois un vrai fournisseur branché
- *  - En attendant les credentials API, `searchWorldHotels` retourne des
- *    fixtures réalistes (mode démo) si WORLD_HOTELS_API_KEY est absent —
- *    toujours marquées `source: "demo"`, jamais présentées comme un vrai
- *    inventaire.
+ *  - En attendant les credentials API, `searchWorldHotels` appelle un vrai
+ *    moteur de fournisseur virtuel (Virtual World Hotel Supplier, voir
+ *    lib/hotels-monde/virtual-supplier/engine.ts) — offres déterministes
+ *    par destination/dates, disponibilité réelle suivie en mémoire, jeton
+ *    signé à revalider pour réserver (voir
+ *    lib/hotels-monde/guest-booking-actions.ts). Toujours marquées
+ *    `source: "virtual"`, jamais présentées comme un vrai inventaire.
  *
  * Variables d'environnement :
  *  - WORLD_HOTELS_API_KEY       : clé API du fournisseur choisi
  *  - WORLD_HOTELS_API_BASE_URL  : ex. https://api.ean.com/v3
- *  - WORLD_HOTELS_DEMO_MODE     : "true" pour forcer les fixtures
+ *  - WORLD_HOTELS_DEMO_MODE     : "true" pour forcer le mode virtuel
  */
 
 import { z } from "zod"
 import { memoize } from "@/lib/cache/redis"
 import { destinationByValue } from "./search-state"
+import { search as virtualSearch } from "@/lib/hotels-monde/virtual-supplier/engine"
 
 // ---------------------------------------------------------------------------
 // Schemas Zod
@@ -44,6 +48,8 @@ export const WorldHotelOfferSchema = z.object({
   breakfastIncluded: z.boolean(),
   distanceFromCenterKm: z.number().nullable(),
   source: z.string().default("demo"),
+  /** Jeton signé serveur (Virtual World Hotel Supplier) à revalider pour réserver — voir lib/hotels-monde/guest-booking-actions.ts. Absent en mode API réelle tant qu'aucun adaptateur de réservation n'y est branché. */
+  offerToken: z.string().optional(),
 })
 
 export type WorldHotelOffer = z.infer<typeof WorldHotelOfferSchema>
@@ -63,81 +69,55 @@ export type WorldHotelSearchResult =
   | { ok: false; error: string; code: string }
 
 // ---------------------------------------------------------------------------
-// Fixtures démo
+// Mode démo — Virtual World Hotel Supplier
 // ---------------------------------------------------------------------------
+//
+// Contrairement à l'ancien mode démo (3 fixtures statiques indépendantes de
+// la destination/dates demandées), le mode démo appelle désormais un vrai
+// moteur de fournisseur virtuel (lib/hotels-monde/virtual-supplier/engine.ts) :
+// offres déterministes par destination/dates/étoiles, disponibilité réelle
+// suivie en mémoire, jeton signé à revalider pour réserver (voir
+// lib/hotels-monde/guest-booking-actions.ts). Aucune réservation n'est
+// possible sans repasser par ce moteur — le "demo mode" ne fabrique plus de
+// données déconnectées du reste du parcours.
 
-interface DemoTemplate {
-  suffix: string
-  starsBase: number
-  rating: number
-  reviewCount: number
-  nightlyBaseTnd: number
-  breakfastIncluded: boolean
-  refundable: boolean
-  distanceKm: number
-}
-
-const DEMO_TEMPLATES: DemoTemplate[] = [
-  {
-    suffix: "Grand Palace",
-    starsBase: 5,
-    rating: 9.1,
-    reviewCount: 2840,
-    nightlyBaseTnd: 620,
-    breakfastIncluded: true,
-    refundable: true,
-    distanceKm: 0.8,
-  },
-  {
-    suffix: "City Center Hotel",
-    starsBase: 4,
-    rating: 8.3,
-    reviewCount: 1560,
-    nightlyBaseTnd: 340,
-    breakfastIncluded: true,
-    refundable: true,
-    distanceKm: 1.5,
-  },
-  {
-    suffix: "Comfort Inn",
-    starsBase: 3,
-    rating: 7.6,
-    reviewCount: 890,
-    nightlyBaseTnd: 210,
-    breakfastIncluded: false,
-    refundable: false,
-    distanceKm: 3.2,
-  },
-]
-
-function buildDemoOffers(input: WorldHotelSearchInput): WorldHotelOffer[] {
+function buildVirtualOffers(input: WorldHotelSearchInput): { offers: WorldHotelOffer[]; searchId: string } {
   const destination = destinationByValue(input.destination)
   const city = destination?.city ?? input.destination
   const country = destination?.country ?? "—"
 
-  return DEMO_TEMPLATES.filter(
-    (t) => !input.stars || t.starsBase === input.stars,
-  ).map((t, i) => {
-    const pricePerNightTnd = Math.round(t.nightlyBaseTnd * (0.9 + input.rooms * 0.1))
-    return {
-      id: `demo-${input.destination}-${i}`,
-      name: `${city} ${t.suffix}`,
-      city,
-      country,
-      stars: t.starsBase,
-      rating: t.rating,
-      reviewCount: t.reviewCount,
-      thumbnailUrl: null,
-      pricePerNightTnd,
-      totalPriceTnd: Math.round(pricePerNightTnd * input.nights * input.rooms),
-      nights: input.nights,
-      currency: "TND",
-      refundable: t.refundable,
-      breakfastIncluded: t.breakfastIncluded,
-      distanceFromCenterKm: t.distanceKm,
-      source: "demo",
-    }
+  const { searchId, offers } = virtualSearch({
+    destination: input.destination,
+    city,
+    checkIn: input.checkIn,
+    checkOut: input.checkOut,
+    nights: input.nights,
+    adults: input.adults,
+    rooms: input.rooms,
+    stars: input.stars,
   })
+
+  const mapped: WorldHotelOffer[] = offers.map((offer) => ({
+    id: offer.offerId,
+    name: offer.name,
+    city,
+    country,
+    stars: offer.stars,
+    rating: offer.rating,
+    reviewCount: offer.reviewCount,
+    thumbnailUrl: null,
+    pricePerNightTnd: offer.pricePerNightTnd,
+    totalPriceTnd: offer.totalPriceTnd,
+    nights: offer.nights,
+    currency: offer.currency,
+    refundable: offer.refundable,
+    breakfastIncluded: offer.breakfastIncluded,
+    distanceFromCenterKm: offer.distanceFromCenterKm,
+    source: "virtual",
+    offerToken: offer.token,
+  }))
+
+  return { offers: mapped, searchId }
 }
 
 // ---------------------------------------------------------------------------
@@ -151,8 +131,8 @@ export async function searchWorldHotels(
     !process.env.WORLD_HOTELS_API_KEY || process.env.WORLD_HOTELS_DEMO_MODE === "true"
 
   if (isDemoMode) {
-    const offers = buildDemoOffers(input)
-    return { ok: true, offers, searchId: `demo-${Date.now()}` }
+    const { offers, searchId } = buildVirtualOffers(input)
+    return { ok: true, offers, searchId }
   }
 
   const cacheKey = `e2b:hotels-monde:${input.destination}-${input.checkIn}-${input.checkOut}-${input.adults}-${input.rooms}`

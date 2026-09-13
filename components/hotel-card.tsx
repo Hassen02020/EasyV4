@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,10 +19,12 @@ import {
   Award,
   Lightbulb,
   CheckCircle2,
+  Info,
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
 import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"
+import { StarRow } from "@/components/reviews/star-row"
 
 export type { RoomOption }
 
@@ -47,6 +50,11 @@ interface HotelCardProps {
     whyChoose?: string | null
     /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
     pricePerNight?: number
+    /** Avis clients approuvés agrégés — absents tant qu'aucun avis n'existe. */
+    reviewAverage?: number
+    reviewCount?: number
+    /** Mentions importantes réelles myGo (ex. taxe de séjour) — texte déjà nettoyé. */
+    importantNote?: string
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
@@ -56,6 +64,10 @@ interface HotelCardProps {
   /** Absent tant que l'appelant n'a pas câblé la bascule réelle (toggleFavorite) — le bouton reste alors désactivé plutôt que de simuler un succès local. */
   onToggleFavorite?: () => void
   favoritePending?: boolean
+  /** Carte interactive — vrai quand ce marqueur est la sélection courante (voir hotel-listings.tsx). */
+  highlighted?: boolean
+  /** Absent si l'hôtel n'a pas de coordonnées réelles myGo — bouton "Voir sur la carte" masqué dans ce cas. */
+  onLocate?: () => void
 }
 
 // Les libellés d'équipement viennent tels quels du fournisseur myGo
@@ -87,8 +99,12 @@ export function HotelCard({
   isFavorited,
   onToggleFavorite,
   favoritePending,
+  highlighted,
+  onLocate,
 }: HotelCardProps) {
   const { format } = useCurrency()
+  const t = useTranslations("Hotels")
+  const tCommon = useTranslations("Common")
   const [currentImage, setCurrentImage] = useState(0)
   const [selectedMealPlan, setSelectedMealPlan] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -111,7 +127,11 @@ export function HotelCard({
   }
 
   return (
-    <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
+    <div
+      className={`bg-card overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md ${
+        highlighted ? "border-primary ring-primary ring-2" : "border-border"
+      }`}
+    >
       {/* Main Card Content */}
       <div className="flex flex-col md:flex-row">
         {/* Image Gallery */}
@@ -122,7 +142,7 @@ export function HotelCard({
               backgroundImage: `url(${hotel.images[currentImage]})`,
             }}
             role="img"
-            aria-label={`Photo de ${hotel.name}`}
+            aria-label={t("photoOf", { name: hotel.name })}
           />
 
           {/* PHASE 30 — visibles par défaut sur mobile (aucun hover tactile) ;
@@ -134,7 +154,7 @@ export function HotelCard({
             type="button"
             onClick={prevImage}
             className="bg-card/90 hover:bg-card absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Photo précédente"
+            aria-label={t("prevPhoto")}
           >
             <ChevronLeft className="text-foreground h-4 w-4" />
           </button>
@@ -142,7 +162,7 @@ export function HotelCard({
             type="button"
             onClick={nextImage}
             className="bg-card/90 hover:bg-card absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Photo suivante"
+            aria-label={t("nextPhoto")}
           >
             <ChevronRight className="text-foreground h-4 w-4" />
           </button>
@@ -157,7 +177,7 @@ export function HotelCard({
                 className={`h-2 w-2 rounded-full transition-colors ${
                   i === currentImage ? "bg-card" : "bg-card/50"
                 }`}
-                aria-label={`Voir la photo ${i + 1}`}
+                aria-label={t("viewPhotoAria", { n: i + 1 })}
               />
             ))}
           </div>
@@ -168,7 +188,7 @@ export function HotelCard({
             onClick={onToggleFavorite}
             disabled={!onToggleFavorite || favoritePending}
             className="bg-card/90 hover:bg-card absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label={isFavorited ? "Retirer des favoris" : "Ajouter aux favoris"}
+            aria-label={isFavorited ? t("removeFavorite") : t("addFavorite")}
             aria-pressed={isFavorited ?? false}
           >
             <Heart
@@ -197,14 +217,45 @@ export function HotelCard({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onViewDetails}
-              className="text-primary mb-3 inline-flex items-center gap-1 text-sm hover:underline"
-            >
-              <MapPin className="h-3.5 w-3.5 text-amber-500" />
-              {hotel.location}
-            </button>
+            <div className="mb-3 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onViewDetails}
+                  className="text-primary inline-flex shrink-0 items-center gap-1 text-sm whitespace-nowrap hover:underline"
+                >
+                  <MapPin className="h-3.5 w-3.5 text-amber-500" />
+                  {hotel.location}
+                </button>
+                {/* Carte interactive — absent si l'hôtel n'a pas de coordonnées
+                    myGo réelles (voir toCardShape/onLocate dans hotel-listings.tsx). */}
+                {onLocate && (
+                  <button
+                    type="button"
+                    onClick={onLocate}
+                    className="text-muted-foreground hover:text-primary inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap hover:underline"
+                  >
+                    <MapPin className="h-3 w-3" />
+                    {t("viewOnMapButton")}
+                  </button>
+                )}
+              </div>
+
+              {/* Avis clients réels agrégés — absent tant qu'aucun avis
+                  approuvé n'existe pour cet hôtel, jamais une note fabriquée
+                  (voir toCardShape/reviewSummaries dans hotel-listings.tsx). */}
+              {hotel.reviewCount != null && hotel.reviewCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <StarRow rating={hotel.reviewAverage ?? 0} size="size-3.5" />
+                  <span className="text-foreground text-sm font-semibold">
+                    {(hotel.reviewAverage ?? 0).toFixed(1)}/5
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {tCommon("reviewsCount", { count: hotel.reviewCount })}
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* Tags — PHASE 30.3 : chaque badge communique un signal
                 DIFFÉRENT, jamais un style générique unique :
@@ -222,7 +273,7 @@ export function HotelCard({
                     key={tag}
                     className="rounded-full border-transparent bg-red-500 px-2 py-0.5 text-xs font-semibold text-white hover:bg-red-500"
                   >
-                    🔥 Promo
+                    🔥 {t("promoBadge")}
                   </Badge>
                 ) : tag === "Recommandé" ? (
                   <Badge
@@ -230,7 +281,7 @@ export function HotelCard({
                     className="bg-primary text-primary-foreground hover:bg-primary flex items-center gap-1 rounded-full border-transparent px-2 py-0.5 text-xs font-semibold"
                   >
                     <Award className="h-3 w-3" />
-                    Recommandé
+                    {t("recommendedBadge")}
                   </Badge>
                 ) : (
                   <Badge
@@ -256,6 +307,18 @@ export function HotelCard({
                 </div>
               ))}
             </div>
+
+            {/* Mentions importantes réelles myGo (ex. taxe de séjour) — texte
+                réel du fournisseur, jamais une phrase générique fabriquée. */}
+            {hotel.importantNote && (
+              <div
+                className="text-muted-foreground mt-2 flex items-start gap-1.5 text-xs"
+                title={hotel.importantNote}
+              >
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="line-clamp-2">{hotel.importantNote}</span>
+              </div>
+            )}
           </div>
 
           {/* Pricing Section */}
@@ -269,7 +332,7 @@ export function HotelCard({
             )}
 
             <div className="text-right">
-              <p className="text-muted-foreground mb-1 text-xs">À partir de</p>
+              <p className="text-muted-foreground mb-1 text-xs">{t("startingFrom")}</p>
               <div className="flex items-baseline justify-end gap-1.5">
                 {hotel.discountPercent > 0 && (
                   <span className="text-muted-foreground text-sm line-through">
@@ -282,7 +345,7 @@ export function HotelCard({
               </div>
               {hotel.pricePerNight != null && (
                 <p className="text-muted-foreground text-xs">
-                  soit {format(hotel.pricePerNight)} / nuit
+                  {t("perNight", { price: format(hotel.pricePerNight) })}
                 </p>
               )}
               <p className="text-muted-foreground mt-1 text-xs">
@@ -293,7 +356,7 @@ export function HotelCard({
                 {mealOptions.length > 1 && (
                   <span className="text-muted-foreground/70">
                     {" "}
-                    · {mealOptions.length} formules disponibles
+                    · {t("mealPlansAvailable", { count: mealOptions.length })}
                   </span>
                 )}
               </p>
@@ -304,7 +367,7 @@ export function HotelCard({
               {hotel.hasFreeCancellation && (
                 <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Annulation gratuite
+                  {t("freeCancellation")}
                 </p>
               )}
               {/* PHASE 33 — "Pourquoi ce choix ?" : une seule raison réelle,
@@ -325,14 +388,14 @@ export function HotelCard({
                   className="w-full"
                   onClick={onViewDetails}
                 >
-                  Voir détails
+                  {t("viewDetails")}
                 </Button>
               )}
               <Button
                 className="w-full gap-1"
                 onClick={() => setIsExpanded(!isExpanded)}
               >
-                Tarifs & chambres
+                {t("ratesAndRooms")}
                 {isExpanded ? (
                   <ChevronUp className="h-4 w-4" />
                 ) : (

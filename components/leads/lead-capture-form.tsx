@@ -8,7 +8,8 @@
  */
 
 import { useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { CheckCircle2, Loader2, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,8 +29,9 @@ export function LeadCaptureForm({
   productType,
   productRef,
   productLabel,
-  title = "Demander un devis",
+  title,
 }: LeadCaptureFormProps) {
+  const t = useTranslations("Common")
   const pathname = usePathname()
   const [firstName, setFirstName] = useState("")
   const [email, setEmail] = useState("")
@@ -66,7 +68,7 @@ export function LeadCaptureForm({
         }
         setSent(true)
       })
-      .catch(() => setError("Erreur technique. Veuillez réessayer."))
+      .catch(() => setError(t("leadFormErrorFallback")))
       .finally(() => setPending(false))
   }
 
@@ -74,9 +76,7 @@ export function LeadCaptureForm({
     return (
       <div className="border-border bg-emerald-50 flex items-start gap-2 rounded-xl border p-4 text-sm">
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-        <p className="text-emerald-800">
-          Votre demande a bien été envoyée — un conseiller vous recontactera rapidement.
-        </p>
+        <p className="text-emerald-800">{t("leadFormSuccessMessage")}</p>
       </div>
     )
   }
@@ -85,13 +85,15 @@ export function LeadCaptureForm({
     <form onSubmit={handleSubmit} className="border-border rounded-xl border p-4">
       <div className="mb-3 flex items-center gap-2">
         <Mail className="text-muted-foreground h-4 w-4" />
-        <span className="text-foreground text-sm font-semibold">{title}</span>
+        <span className="text-foreground text-sm font-semibold">
+          {title ?? t("leadFormDefaultTitle")}
+        </span>
       </div>
 
       <div className="space-y-2.5">
         <div>
           <Label htmlFor="lead-firstName" className="text-xs">
-            Nom
+            {t("leadFormNameLabel")}
           </Label>
           <Input
             id="lead-firstName"
@@ -104,7 +106,7 @@ export function LeadCaptureForm({
         <div className="grid grid-cols-2 gap-2.5">
           <div>
             <Label htmlFor="lead-email" className="text-xs">
-              Email
+              {t("leadFormEmailLabel")}
             </Label>
             <Input
               id="lead-email"
@@ -116,7 +118,7 @@ export function LeadCaptureForm({
           </div>
           <div>
             <Label htmlFor="lead-phone" className="text-xs">
-              Téléphone
+              {t("leadFormPhoneLabel")}
             </Label>
             <Input
               id="lead-phone"
@@ -129,7 +131,7 @@ export function LeadCaptureForm({
         </div>
         <div>
           <Label htmlFor="lead-message" className="text-xs">
-            Message (facultatif)
+            {t("leadFormMessageLabel")}
           </Label>
           <Textarea
             id="lead-message"
@@ -155,7 +157,7 @@ export function LeadCaptureForm({
         {error && <p className="text-destructive text-xs">{error}</p>}
 
         <Button type="submit" disabled={pending || !firstName} className="w-full">
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Envoyer ma demande"}
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("leadFormSubmitButton")}
         </Button>
       </div>
     </form>

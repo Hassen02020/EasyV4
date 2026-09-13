@@ -23,9 +23,26 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
+    // Le client Supabase tourne côté navigateur et appelle directement le
+    // mock GoTrue local (NEXT_PUBLIC_SUPABASE_URL=https://localhost:54331,
+    // certificat auto-signé, voir .tmp-mock-gotrue/) — jamais un souci en
+    // prod (vrai certificat Supabase), uniquement en environnement de test
+    // local avec ce mock.
+    ignoreHTTPSErrors: true,
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // Environnement d'exécution : navigateur pré-installé à un chemin
+        // fixe, distinct de la version que @playwright/test téléchargerait
+        // normalement — jamais lancer `playwright install` ici.
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
+          : undefined,
+      },
+    },
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],

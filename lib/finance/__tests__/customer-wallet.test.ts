@@ -14,11 +14,13 @@ import assert from "node:assert/strict"
 import {
   debitCustomerWallet,
   creditCustomerWallet,
+  recordTargetedWalletSettlement,
   getCustomerWalletBalance,
   formatTnd,
   parseTnd,
   isValidWalletAmount,
   type DrizzleLikeDb,
+  type DrizzleLikeTx,
 } from "../customer-wallet"
 
 type OpKind = "TX_BEGIN" | "SET_RLS_BYPASS" | "SELECT_FOR_UPDATE" | "INSERT_WALLET" | "INSERT_LEDGER" | "UPDATE_BALANCE" | "TX_COMMIT" | "TX_ROLLBACK"
@@ -310,3 +312,114 @@ test("getCustomerWalletBalance : renvoie 0 sans DATABASE_URL (jamais de solde in
     if (saved !== undefined) process.env.DATABASE_URL = saved
   }
 })
+
+/* -------------------------------------------------------------------------- */
+/* recordTargetedWalletSettlement — crédit+débit ciblé (unification wallet)  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Contrairement à `makeMockDb` (solde figé par appel), ce mock maintient un
+ * solde MUTABLE pendant toute la durée de la transaction — indispensable ici
+ * car `recordTargetedWalletSettlement` enchaîne DEUX opérations (crédit puis
+ * débit) qui doivent voir l'état laissé par la précédente, exactement comme
+ * une vraie transaction Postgres.
+ */
+function makeStatefulMockTx(initialBalance: string): { tx: DrizzleLikeTx; journal: OpEvent[]; getBalance: () => string } {
+  let balance = initialBalance
+  const journal: OpEvent[] = []
+
+  const tx: DrizzleLikeTx = {
+    execute: async () => {
+      journal.push({ kind: "SET_RLS_BYPASS" })
+      return []
+    },
+    select: () =>
+      ({
+        from: () =>
+          ({
+            where: () =>
+              ({
+                for: async () => {
+                  journal.push({ kind: "SELECT_FOR_UPDATE" })
+                  return [{ id: "wallet-account-uuid-test", currentBalance: balance }]
+                },
+              }) as unknown as ReturnType<DrizzleLikeTx["select"]>,
+          }) as unknown as ReturnType<DrizzleLikeTx["select"]>,
+      }) as unknown as ReturnType<DrizzleLikeTx["select"]>,
+    insert: () =>
+      ({
+        values: (...args: unknown[]) => ({
+          returning: async () => {
+            const row = (args[0] ?? {}) as Record<string, unknown>
+            journal.push({
+              kind: row.type === "credit" ? "INSERT_LEDGER" : "INSERT_LEDGER",
+              payload: row,
+            })
+            return [{ id: `ledger-uuid-${journal.length}` }]
+          },
+        }),
+      }) as unknown as ReturnType<DrizzleLikeTx["insert"]>,
+    update: () =>
+      ({
+        set: (...args: unknown[]) => ({
+          where: async () => {
+            const row = (args[0] ?? {}) as Record<string, unknown>
+            balance = row.currentBalance as string
+            journal.push({ kind: "UPDATE_BALANCE", payload: row })
+            return []
+          },
+        }),
+      }) as unknown as ReturnType<DrizzleLikeTx["update"]>,
+  }
+
+  return { tx, journal, getBalance: () => balance }
+}
+
+test("recordTargetedWalletSettlement : crédit puis débit du même montant — solde net inchangé, ledger crédit+débit tracés", async () => {
+  ensureDatabaseUrl()
+  const { tx, journal, getBalance } = makeStatefulMockTx("0.00")
+
+  const result = await recordTargetedWalletSettlement({
+    customerId: "customer-uuid-test",
+    amountTnd: 150,
+    reservationId: "reservation-uuid-test",
+    paymentId: "payment-uuid-test",
+    method: "online_card",
+    reference: "TG-2026-000123",
+    txOverride: tx,
+  })
+
+  assert.equal(result.ok, true)
+  // Recharge ciblée immédiatement consommée par la même réservation : le
+  // solde final = solde initial (contrairement à un crédit "libre" comme un
+  // remboursement, qui laisse un solde réellement disponible).
+  assert.equal(getBalance(), "0.00")
+
+  const ledgerOps = journal.filter((j) => j.kind === "INSERT_LEDGER")
+  assert.equal(ledgerOps.length, 2, "un mouvement crédit + un mouvement débit")
+  assert.equal(ledgerOps[0]?.payload?.type, "credit")
+  assert.equal(ledgerOps[0]?.payload?.category, "recharge")
+  assert.deepEqual(ledgerOps[0]?.payload?.metadata, { paymentMethod: "online_card" })
+  assert.equal(ledgerOps[1]?.payload?.type, "debit")
+  assert.equal(ledgerOps[1]?.payload?.category, "booking")
+})
+
+for (const method of ["online_card", "cash", "bank_transfer", "bank_deposit"] as const) {
+  test(`recordTargetedWalletSettlement : tague correctement la méthode "${method}" dans le ledger`, async () => {
+    ensureDatabaseUrl()
+    const { tx, journal } = makeStatefulMockTx("0.00")
+
+    const result = await recordTargetedWalletSettlement({
+      customerId: "customer-uuid-test",
+      amountTnd: 50,
+      reservationId: "reservation-uuid-test",
+      method,
+      reference: "TG-2026-000124",
+      txOverride: tx,
+    })
+
+    assert.equal(result.ok, true)
+    const creditOp = journal.find((j) => j.kind === "INSERT_LEDGER" && j.payload?.type === "credit")
+    assert.deepEqual(creditOp?.payload?.metadata, { paymentMethod: method })
+  })
+}

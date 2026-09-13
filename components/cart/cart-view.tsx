@@ -19,8 +19,9 @@
  */
 
 import { useState } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 import {
   Loader2,
   ShoppingCart,
@@ -46,32 +47,6 @@ import { createGuestActivityBooking } from "@/lib/activities/guest-booking-actio
 import { computeIdempotencyKey } from "@/lib/cart/idempotency"
 
 const MODULE_ICON = { hotel: BedDouble, package: MapPin, activity: Ticket } as const
-const MODULE_LABEL = { hotel: "Hôtel", package: "Voyage organisé", activity: "Attraction" } as const
-
-const METHODS: { key: CartCheckoutMethod; label: string; desc: string; icon: typeof Banknote }[] = [
-  {
-    key: "transfer",
-    label: "Virement bancaire",
-    desc: "Coordonnées de virement envoyées par email — voucher émis après confirmation du règlement",
-    icon: Banknote,
-  },
-  {
-    key: "cash",
-    label: "Espèces en agence",
-    desc: "Réservations maintenues en attente de paiement — voucher émis après confirmation du règlement",
-    icon: Wallet,
-  },
-]
-
-function lineDetail(line: CartLine): string {
-  if (line.module === "hotel") {
-    return `${line.draft.startDate}${line.draft.endDate ? ` → ${line.draft.endDate}` : ""} · ${line.draft.adults} adulte(s)`
-  }
-  if (line.module === "package") {
-    return `${line.booking.adults} adulte(s)${line.booking.children ? ` · ${line.booking.children} enfant(s)` : ""}`
-  }
-  return `${line.booking.adults} adulte(s)${line.booking.children ? ` · ${line.booking.children} enfant(s)` : ""}`
-}
 
 interface ConfirmedBooking {
   lineId: string
@@ -81,12 +56,45 @@ interface ConfirmedBooking {
 }
 
 export function CartView() {
+  const t = useTranslations("Panier")
   const cart = useCart()
   const [acceptCgv, setAcceptCgv] = useState(false)
   const [method, setMethod] = useState<CartCheckoutMethod>("transfer")
   const [processing, setProcessing] = useState(false)
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({})
   const [confirmed, setConfirmed] = useState<ConfirmedBooking[]>([])
+
+  const MODULE_LABEL = {
+    hotel: t("moduleLabelHotel"),
+    package: t("moduleLabelPackage"),
+    activity: t("moduleLabelActivity"),
+  } as const
+
+  const METHODS: { key: CartCheckoutMethod; label: string; desc: string; icon: typeof Banknote }[] = [
+    {
+      key: "transfer",
+      label: t("methodTransferLabel"),
+      desc: t("methodTransferDesc"),
+      icon: Banknote,
+    },
+    {
+      key: "cash",
+      label: t("methodCashLabel"),
+      desc: t("methodCashDesc"),
+      icon: Wallet,
+    },
+  ]
+
+  function lineDetail(line: CartLine): string {
+    if (line.module === "hotel") {
+      const dates = `${line.draft.startDate}${line.draft.endDate ? ` → ${line.draft.endDate}` : ""}`
+      return `${dates} · ${t("adultsCount", { n: line.draft.adults })}`
+    }
+    if (line.module === "package") {
+      return `${t("adultsCount", { n: line.booking.adults })}${line.booking.children ? ` · ${t("childrenCount", { n: line.booking.children })}` : ""}`
+    }
+    return `${t("adultsCount", { n: line.booking.adults })}${line.booking.children ? ` · ${t("childrenCount", { n: line.booking.children })}` : ""}`
+  }
 
   const total = cart.lines.reduce((sum, l) => sum + l.priceTnd, 0)
 
@@ -133,7 +141,7 @@ export function CartView() {
           }
         }
       } catch (err) {
-        errors[line.id] = err instanceof Error ? err.message : "Erreur technique."
+        errors[line.id] = err instanceof Error ? err.message : t("genericError")
       }
     }
 
@@ -142,11 +150,11 @@ export function CartView() {
     setProcessing(false)
 
     if (newlyConfirmed.length > 0 && Object.keys(errors).length === 0) {
-      toast.success(`${newlyConfirmed.length} réservation(s) enregistrée(s).`)
+      toast.success(t("successToast", { n: newlyConfirmed.length }))
     } else if (newlyConfirmed.length > 0) {
-      toast.warning("Certaines lignes n'ont pas pu être réservées — voir le détail ci-dessous.")
+      toast.warning(t("partialErrorToast"))
     } else {
-      toast.error("Aucune réservation n'a pu être enregistrée.")
+      toast.error(t("allFailedToast"))
     }
   }
 
@@ -155,9 +163,9 @@ export function CartView() {
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <ShoppingCart className="text-muted-foreground size-10" />
-          <p className="text-muted-foreground">Votre panier est vide.</p>
+          <p className="text-muted-foreground">{t("emptyCartMessage")}</p>
           <Button asChild variant="outline">
-            <Link href="/">Explorer nos offres</Link>
+            <Link href="/">{t("exploreOffers")}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -171,7 +179,7 @@ export function CartView() {
           <CardContent className="space-y-2 py-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
               <CheckCircle2 className="size-4" />
-              Réservations confirmées
+              {t("confirmedReservationsTitle")}
             </p>
             <ul className="space-y-1">
               {confirmed.map((c) => (
@@ -181,7 +189,7 @@ export function CartView() {
                     href={`/booking/confirmation/${c.publicRef}?token=${c.guestAccessToken}`}
                     className="text-primary underline"
                   >
-                    voir la confirmation ({c.publicRef})
+                    {t("viewConfirmation", { ref: c.publicRef })}
                   </Link>
                 </li>
               ))}
@@ -238,18 +246,17 @@ export function CartView() {
           <Card className="bg-sidebar/5">
             <CardContent className="space-y-4 py-4">
               <div className="flex items-center justify-between text-lg">
-                <span className="font-semibold">Total estimé TTC</span>
+                <span className="font-semibold">{t("totalEstimated")}</span>
                 <span className="font-bold text-sidebar">{total.toFixed(3)} DT</span>
               </div>
               <p className="text-muted-foreground text-xs">
-                Estimation — le montant définitif de chaque réservation est vérifié par le
-                serveur au moment de la confirmation (disponibilité et prix réels).
+                {t("estimateNotice")}
               </p>
 
               <Separator />
 
               <div>
-                <h3 className="mb-3 text-sm font-semibold tracking-wide uppercase">Mode de paiement</h3>
+                <h3 className="mb-3 text-sm font-semibold tracking-wide uppercase">{t("paymentMethodTitle")}</h3>
                 <div className="grid gap-3">
                   {METHODS.map((m) => {
                     const active = method === m.key
@@ -285,11 +292,13 @@ export function CartView() {
               <div className="flex items-start gap-2 pt-1">
                 <Checkbox id="cgv-cart" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
                 <Label htmlFor="cgv-cart" className="text-muted-foreground text-sm leading-snug">
-                  J&apos;accepte les{" "}
-                  <Link href="/cgv" target="_blank" className="text-foreground underline">
-                    conditions générales de vente
-                  </Link>{" "}
-                  d&apos;Easy2Book pour l&apos;ensemble des réservations de ce panier.
+                  {t.rich("acceptCgvLabel", {
+                    cgvLink: (chunks) => (
+                      <Link href="/cgv" target="_blank" className="text-foreground underline">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
                 </Label>
               </div>
 
@@ -303,10 +312,10 @@ export function CartView() {
                 {processing ? (
                   <>
                     <Loader2 className="mr-2 size-4 animate-spin" />
-                    Traitement en cours…
+                    {t("processingLabel")}
                   </>
                 ) : (
-                  `Confirmer le panier (${cart.lines.length})`
+                  t("confirmCartButton", { count: cart.lines.length })
                 )}
               </Button>
             </CardContent>

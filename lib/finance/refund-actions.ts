@@ -38,6 +38,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isTransitionAllowed } from "@/lib/admin/reservation-status"
 import { applyReservationRefund, REFUND_ALLOWED_ROLES } from "./refund-logic"
+import { releaseStock, CANCELLABLE_MODULES, type CancellableModule } from "@/lib/booking/policy-cancel-core"
 
 const ALLOWED_ROLES = REFUND_ALLOWED_ROLES
 
@@ -102,6 +103,7 @@ export async function refundReservation(
           publicRef: reservations.publicRef,
           customerId: reservations.customerId,
           agencyId: reservations.agencyId,
+          module: reservations.module,
         })
         .from(reservations)
         .where(
@@ -141,6 +143,17 @@ export async function refundReservation(
           .update(reservations)
           .set({ status: "refunded", updatedAt: new Date() })
           .where(eq(reservations.id, reservation.id))
+
+        // Certification E2E — un remboursement TOTAL libère la capacité
+        // retenue (allotment Omra / départ Package / session Activity),
+        // exactement comme le fait déjà l'annulation self-service B2C
+        // (cancelMyPolicyReservation) — sinon la place reste "réservée"
+        // indéfiniment alors que la résa est terminée et remboursée. Hôtel
+        // exclu : sa disponibilité vit chez myGo (fournisseur externe), pas
+        // dans une table locale que cette action pourrait libérer.
+        if ((CANCELLABLE_MODULES as readonly string[]).includes(reservation.module)) {
+          await releaseStock(tx, reservation.module as CancellableModule, reservation.id)
+        }
       }
 
       return {

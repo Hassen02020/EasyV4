@@ -70,17 +70,22 @@ public/                     # Icônes et placeholders
 
 Le moteur de réservation expose 7 onglets, chacun avec son propre formulaire :
 
-| Onglet                | Champs                                       | Comportement                          |
-| --------------------- | -------------------------------------------- | ------------------------------------- |
-| **Vols**              | Départ, Destination, Dates, Classe           | Toast (à câbler à l'API)              |
-| **Hôtels Tunisie**    | Ville, Dates, Pax, Étoiles, Disponibilité    | Redirection vers `/hotels/search?...` |
-| **Hôtels Monde**      | Destination, Check-in, Check-out             | Toast (à câbler à l'API)              |
-| **Omraty**            | Programme, Mois, Distance Haram, Type de vol | Toast (à câbler à l'API)              |
-| **Voyages Organisés** | Destination, Période, Durée, Voyageurs       | Toast (à câbler à l'API)              |
-| **Transferts**        | Lieu de prise / dépose, Date, Passagers      | Toast (à câbler à l'API)              |
-| **Car**               | Lieu, Date prise / retour, Catégorie         | Toast (à câbler à l'API)              |
+| Onglet                | Champs                                       | Comportement                              |
+| --------------------- | -------------------------------------------- | ------------------------------------------ |
+| **Vols**              | Départ, Destination, Dates, Classe           | Redirection vers `/vols/search?...`, réservation réelle (Virtual Flight Supplier) |
+| **Hôtels Tunisie**    | Ville, Dates, Pax, Étoiles, Disponibilité    | Redirection vers `/hotels/search?...`, réservation réelle (myGo) |
+| **Hôtels Monde**      | Destination, Check-in, Check-out             | Redirection vers `/hotels-monde/search?...`, réservation réelle (Virtual World Hotel Supplier) |
+| **Omraty**            | Programme, Mois, Distance Haram, Type de vol | Redirection vers `/omra?...`, réservation réelle |
+| **Voyages Organisés** | Destination, Période, Durée, Voyageurs       | Redirection vers `/packages?...`, réservation réelle |
+| **Transferts**        | Lieu de prise / dépose, Date, Passagers      | Redirection vers `/transferts/resultats?...`, réservation réelle |
+| **Car**               | Lieu, Date prise / retour, Catégorie         | Redirection vers `/car?...` (recherche uniquement — module non commercialisé, voir `EASYV4_CAR_DECISION.md`) |
 
-Seul **Hôtels Tunisie** est entièrement fonctionnel : il construit un `HotelSearchRequest` typé (compatible API MyGo) et redirige vers la page de résultats. Les autres modules affichent un toast « bientôt disponible » et seront connectés à leurs APIs respectives.
+Les 6 modules commercialisés (Vols, Hôtels Tunisie, Hôtels Monde, Omraty, Voyages Organisés,
+Transferts) disposent tous d'une réservation réelle de bout en bout (fournisseur réel ou fournisseur
+virtuel réaliste — inventaire/prix/scénarios de panne — jamais un `return fake data`), certifiée
+navigateur réel avec preuve DB à chaque étape (voir `docs/audits/e2e-certification-report.md`,
+section 11 pour l'état à jour). Seul **Car** reste recherche uniquement, par décision produit assumée
+(feature flag désactivé, aucun catalogue véhicule).
 
 ## Flux utilisateur
 

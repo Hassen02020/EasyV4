@@ -1,0 +1,84 @@
+{
+  "checkin": "2026-10-10",
+  "checkout": "2026-10-15",
+  "HOTEL_ID": "500001",
+  "log": [
+    {
+      "step": "1",
+      "label": "Home (header/langue/devise/moteur/footer)",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/01-home.png",
+      "ts": "2026-09-12T20:07:03.739Z"
+    },
+    {
+      "step": "2-3",
+      "label": "Recherche Hôtel Tunisie + résultats/filtres/prix",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/02-search-results.png",
+      "ts": "2026-09-12T20:07:07.265Z"
+    },
+    {
+      "step": "4",
+      "label": "Fiche hôtel (photos/description/chambres/prix/conditions)",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/03-hotel-detail.png",
+      "ts": "2026-09-12T20:07:11.767Z"
+    },
+    {
+      "step": "5",
+      "label": "Chambre sélectionnée -> offre (module/dates/voyageurs/montant)",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/04-room-selected-offer.png :: http://localhost:3000/fr/booking?d=eyJkcmFmdCI6eyJtb2R1bGUiOiJob3RlbCIsIm9mZmVySWQiOiI1MDAwMDEiLCJvZmZlckxhYmVsIjoiVmlydHVhbCBIb3RlbCAwMDEg4oCUIFN1aXRlIOKAoiBEZW1pIFBlbnNpb24iLCJzdGFydERhdGUiOiIyMDI2LTEwLTEwIiwiZW5kRGF0ZSI6IjIwMjYtMTAtMTUiLCJhZHVsdHMiOjIsImNoaWxkcmVuIjowLCJ1bml0UHJpY2VUbmQiOjE1MzIuNSwiY3VycmVuY3kiOiJUTkQiLCJtZXRhZGF0YSI6eyJob3RlbEltYWdlIjoiaHR0cHM6Ly9pbWFnZXMudW5zcGxhc2guY29tL3Bob3RvLTE1NjYwNzM3NzEyNTktNmE4NTA2MDk5OTQ1P3c9ODAwJmg9NTAwJmZpdD1jcm9wIiwibWVhbFBsYW4iOiJEZW1pIFBlbnNpb24iLCJuaWdodHMiOjUsImxvY2F0aW9uIjoiSGFtbWFtZXQsIENhcCBCb24iLCJteUdvVG9rZW4iOiJleUp6WldGeVkyaEpaQ0k2SWpFd1lUQmxOR0l3TFRkaU5qa3RORGd3TWkwNU9HSTNMVGsxTm1SaVlUTTNPVGN3WVNJc0ltaHZkR1ZzU1dRaU9qVXdNREF3TVN3aVkybDBlVWxrSWpveE1Dd2lZMmhsWTJ0SmJpSTZJakl3TWpZdE1UQXRNVEFpTENKamFHVmphMDkxZENJNklqSXdNall0TVRBdE1UVWlMQ0pwYzNOMVpXUkJkQ0k2TVRjNE9USTBNell5T1RZeU9Td2laWGh3YVhKbGMwRjBJam94TnpnNU1qUTBOVEk1TmpJNWZRLmRaTUpLYm1VOUt5RS1zcWZPblhKV21jVlBQR3BpeUFLaHUxbk04Wi02czQiLCJjaXR5SWQiOjEwLCJob3RlbElkIjo1MDAwMDEsImJvYXJkaW5nSWQiOjUsImJvYXJkaW5nQ29kZSI6IkRQIiwicm9vbUlkIjo1OTAwMDExLCJjaGlsZHJlbkFnZXMiOltdLCJwcmljZVRva2VuIjoiZXlKb2IzUmxiRWxrSWpvMU1EQXdNREVzSW5KdmIyMUpaQ0k2TlRrd01EQXhNU3dpWW05aGNtUnBibWRKWkNJNk5Td2lZMmhsWTJ0cGJpSTZJakl3TWpZdE1UQXRNVEFpTENKamFHVmphMjkxZENJNklqSXdNall0TVRBdE1UVWlMQ0poWkhWc2RITWlPaklzSW1OMWNuSmxibU41SWpvaVZFNUVJaXdpZFc1cGRGQnlhV05sVkc1a0lqb3hOVE15TGpJMUxDSnBjM04xWldSQmRDSTZNVGM0T1RJME16WXlPVFkwTlgwLlJFRkNUajc1WkhGUkpzaDk5dmFvb3oxWHloSlNVWkFhWFA5Q2tEOEFpQTgifX19",
+      "ts": "2026-09-12T20:07:13.395Z"
+    },
+    {
+      "step": "6",
+      "label": "Checkout (récapitulatif/montant/devise/CGV/méthode carte)",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/05-checkout-card-selected.png",
+      "ts": "2026-09-12T20:07:16.194Z"
+    },
+    {
+      "step": "7",
+      "label": "Tentative Paymee — résultat réel (voir capture)",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/06-paymee-attempt-result.png :: url=http://localhost:3000/fr/booking/checkout?d=eyJkcmFmdCI6eyJtb2R1bGUiOiJob3RlbCIsIm9mZmVySWQiOiI1MDAwMDEiLCJvZmZlckxhYmVsIjoiVmlydHVhbCBIb3RlbCAwMDEg4oCUIFN1aXRlIOKAoiBEZW1pIFBlbnNpb24iLCJzdGFydERhdGUiOiIyMDI2LTEwLTEwIiwiZW5kRGF0ZSI6IjIwMjYtMTAtMTUiLCJhZHVsdHMiOjIsImNoaWxkcmVuIjowLCJ1bml0UHJpY2VUbmQiOjE1MzIuNSwiY3VycmVuY3kiOiJUTkQiLCJtZXRhZGF0YSI6eyJob3RlbEltYWdlIjoiaHR0cHM6Ly9pbWFnZXMudW5zcGxhc2guY29tL3Bob3RvLTE1NjYwNzM3NzEyNTktNmE4NTA2MDk5OTQ1P3c9ODAwJmg9NTAwJmZpdD1jcm9wIiwibWVhbFBsYW4iOiJEZW1pIFBlbnNpb24iLCJuaWdodHMiOjUsImxvY2F0aW9uIjoiSGFtbWFtZXQsIENhcCBCb24iLCJteUdvVG9rZW4iOiJleUp6WldGeVkyaEpaQ0k2SWpFd1lUQmxOR0l3TFRkaU5qa3RORGd3TWkwNU9HSTNMVGsxTm1SaVlUTTNPVGN3WVNJc0ltaHZkR1ZzU1dRaU9qVXdNREF3TVN3aVkybDBlVWxrSWpveE1Dd2lZMmhsWTJ0SmJpSTZJakl3TWpZdE1UQXRNVEFpTENKamFHVmphMDkxZENJNklqSXdNall0TVRBdE1UVWlMQ0pwYzNOMVpXUkJkQ0k2TVRjNE9USTBNell5T1RZeU9Td2laWGh3YVhKbGMwRjBJam94TnpnNU1qUTBOVEk1TmpJNWZRLmRaTUpLYm1VOUt5RS1zcWZPblhKV21jVlBQR3BpeUFLaHUxbk04Wi02czQiLCJjaXR5SWQiOjEwLCJob3RlbElkIjo1MDAwMDEsImJvYXJkaW5nSWQiOjUsImJvYXJkaW5nQ29kZSI6IkRQIiwicm9vbUlkIjo1OTAwMDExLCJjaGlsZHJlbkFnZXMiOltdLCJwcmljZVRva2VuIjoiZXlKb2IzUmxiRWxrSWpvMU1EQXdNREVzSW5KdmIyMUpaQ0k2TlRrd01EQXhNU3dpWW05aGNtUnBibWRKWkNJNk5Td2lZMmhsWTJ0cGJpSTZJakl3TWpZdE1UQXRNVEFpTENKamFHVmphMjkxZENJNklqSXdNall0TVRBdE1UVWlMQ0poWkhWc2RITWlPaklzSW1OMWNuSmxibU41SWpvaVZFNUVJaXdpZFc1cGRGQnlhV05sVkc1a0lqb3hOVE15TGpJMUxDSnBjM04xWldSQmRDSTZNVGM0T1RJME16WXlPVFkwTlgwLlJFRkNUajc1WkhGUkpzaDk5dmFvb3oxWHloSlNVWkFhWFA5Q2tEOEFpQTgifX0sInRyYXZlbGVyIjp7ImNpdmlsaXR5IjoiTSIsImZpcnN0TmFtZSI6IkNlcnRpZiIsImxhc3ROYW1lIjoiUGF5bWVlLTYzNDEwMiIsImVtYWlsIjoiY2VydGlmLXBheW1lZS02MzQxMDJAZXhhbXBsZS5jb20iLCJwaG9uZSI6IisyMTY5ODE0MDUxNCIsImNpdmljSWRUeXBlIjoiY2luIiwiY2l2aWNJZCI6Ijg3NjU0MzIxIiwiYmlydGhEYXRlIjoiIiwibmF0aW9uYWxpdHkiOiIifX0 :: body_snippet=\"Easy2Book FR Devise TND Aide Mes réservations Panier Connexion Modifier les voyageurs Récapitulatif & paiement Vérifiez votre commande puis choisissez votre mode de règlement. Offre Voyageurs 3 Paiement Hôtel Virtual Hotel 001 — Suite • Demi Pension Départ 10 octobre 2026 Retour 15 octobre 2026 Vo\"",
+      "ts": "2026-09-12T20:07:25.456Z"
+    },
+    {
+      "step": "A-pré-req",
+      "label": "Réservation PENDING créée (paiement Espèces, PAS Paymee) pour tester la suite du pipeline",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/07-reservation-created-pending-cash.png :: ref=TG-2026-001256",
+      "ts": "2026-09-12T20:07:31.206Z"
+    },
+    {
+      "step": "Admin-login",
+      "label": "Connexion admin réelle (mock GoTrue local, mécanisme identique à la prod)",
+      "ok": true,
+      "detail": "http://localhost:3000/admin",
+      "ts": "2026-09-12T20:07:35.156Z"
+    },
+    {
+      "step": "9-10",
+      "label": "Paiement vérifié -> payment=captured + reservation=confirmed (admin réel)",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/08-admin-payment-verified-confirmed.png :: ref=TG-2026-001256",
+      "ts": "2026-09-12T20:07:43.134Z"
+    },
+    {
+      "step": "11",
+      "label": "Voucher — lien présent + endpoint testé",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/09-admin-detail-with-voucher-link.png :: href=/api/admin/reservations/36ade6fd-20a1-4dd3-8ee2-1c7051c86ed5/voucher :: HTTP 200",
+      "ts": "2026-09-12T20:07:45.766Z"
+    },
+    {
+      "step": "12",
+      "label": "Détail admin complet (client/réservation/fournisseur/montant/paiement/statut/historique)",
+      "ok": true,
+      "detail": "/home/user/EasyV4/docs/audits/screenshots/paymee-real-e2e/10-admin-reservation-full-detail.png",
+      "ts": "2026-09-12T20:07:47.352Z"
+    }
+  ]
+}

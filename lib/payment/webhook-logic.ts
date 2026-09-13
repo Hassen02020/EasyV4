@@ -134,6 +134,20 @@ export function normalizeSpsEvent(
  * qu'en TND (devise unique de la plateforme, information publique établie —
  * jamais une supposition liée au contrat non vérifié ci-dessus) : `currency`
  * est donc toujours "TND" ici, jamais lue depuis un champ absent du payload.
+ *
+ * `amount` vs `received_amount` : Paymee envoie les deux (`cost` en plus,
+ * probablement ses frais). Aucun des deux n'a pu être vérifié contre la doc
+ * primaire (voir avertissement de fichier de paymee-provider.ts) et
+ * `payments`/`reservation-payment-logic.ts` n'a pas de colonne
+ * "montant net reçu" distincte — l'architecture existante compare toujours
+ * le montant du webhook au montant TOTAL attendu (`payments.originalAmount`,
+ * posé à la création). Choix assumé, le plus défensif possible dans le
+ * doute : préférer `received_amount` quand il est présent (ce que Paymee
+ * confirme avoir réellement reçu) et ne retomber sur `amount` que s'il est
+ * absent — si jamais `received_amount` s'avère être un montant net de frais
+ * inférieur à `amount`, la corrélation stricte échoue proprement
+ * (AMOUNT_MISMATCH, jamais une confirmation en trop) plutôt que de risquer
+ * de confirmer une réservation pour plus que ce qui a été réellement encaissé.
  */
 export function normalizePaymeeEvent(
   body: Record<string, unknown>,
@@ -142,7 +156,10 @@ export function normalizePaymeeEvent(
   const token = typeof body["token"] === "string" ? body["token"] : null
   const orderId = typeof body["order_id"] === "string" ? body["order_id"] : null
   const paymentId = body["payment_id"]
-  const amountRaw = body["amount"]
+  const amountRaw =
+    body["received_amount"] !== undefined && body["received_amount"] !== null
+      ? body["received_amount"]
+      : body["amount"]
 
   if (!token || !orderId) return null
 

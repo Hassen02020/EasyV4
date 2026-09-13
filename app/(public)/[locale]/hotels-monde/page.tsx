@@ -17,8 +17,8 @@ export const metadata = {
 
 interface HotelsMondeSearchParams {
   destination?: string
-  checkin?: string
-  checkout?: string
+  checkIn?: string
+  checkOut?: string
 }
 
 export default async function HotelsMondeePage({
@@ -26,7 +26,7 @@ export default async function HotelsMondeePage({
 }: {
   searchParams: Promise<HotelsMondeSearchParams>
 }) {
-  const { destination, checkin, checkout } = await searchParams
+  const { destination, checkIn, checkOut } = await searchParams
   const t = await getTranslations("HotelsMonde")
 
   return (
@@ -49,8 +49,8 @@ export default async function HotelsMondeePage({
         <div className="mx-auto max-w-4xl px-4 py-10">
           <WorldHotelSearch
             initialDestination={destination}
-            initialCheckIn={checkin}
-            initialCheckOut={checkout}
+            initialCheckIn={checkIn}
+            initialCheckOut={checkOut}
           />
         </div>
       </main>

@@ -2,7 +2,9 @@
 
 import { Link } from "@/i18n/navigation"
 import Image from "next/image"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
+import { getIntlLocale } from "@/lib/i18n-date"
+import { useCurrency } from "@/components/currency-context"
 import { Star, Plane, Hotel, Users, Clock, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,9 +19,9 @@ interface Props {
 
 const PACKAGE_TYPE_KEYS = new Set(["omra", "hajj", "ramadan", "umrah_plus"])
 
-function formatDate(d: string | Date | null): string {
+function formatDate(d: string | Date | null, locale: string): string {
   if (!d) return "—"
-  return new Date(d).toLocaleDateString("fr-FR", {
+  return new Date(d).toLocaleDateString(getIntlLocale(locale), {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -28,6 +30,8 @@ function formatDate(d: string | Date | null): string {
 
 function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
   const t = useTranslations("Omra")
+  const locale = useLocale()
+  const { format: formatPrice } = useCurrency()
   const label = PACKAGE_TYPE_KEYS.has(pkg.type) ? t(`packageTypes.${pkg.type}`) : pkg.type
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
   // Fallback mission §23 : Media System (couverture uploadée par l'admin) en
@@ -86,14 +90,14 @@ function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
 
         <div className="rounded-lg bg-muted/50 px-4 py-3">
           <p className="text-xs text-muted-foreground">{t("departureFrom")}</p>
-          <p className="font-medium">{formatDate(pkg.validFrom)}</p>
+          <p className="font-medium">{formatDate(pkg.validFrom, locale)}</p>
         </div>
 
         {priceTnd && (
           <div className="mt-auto">
             <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
             <p className="text-2xl font-bold text-emerald-700">
-              {priceTnd.toLocaleString("fr-FR")}
+              {formatPrice(priceTnd)}
               <span className="ml-1 text-sm font-normal">{t("priceUnitPerPilgrim")}</span>
             </p>
           </div>

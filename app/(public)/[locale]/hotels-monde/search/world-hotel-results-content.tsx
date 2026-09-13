@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { format, parseISO } from "date-fns"
 import type { Locale as DateFnsLocale } from "date-fns"
-import { getDateFnsLocale, getIntlLocale } from "@/lib/i18n-date"
+import { getDateFnsLocale } from "@/lib/i18n-date"
+import { useCurrency } from "@/components/currency-context"
 import { Coffee, Info, MapPin, RefreshCw, ShieldCheck, Star, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -79,7 +80,7 @@ function bookingHref(offer: WorldHotelOffer, state: WorldHotelSearchState): stri
 
 function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotelSearchState }) {
   const t = useTranslations("HotelsMonde")
-  const locale = useLocale()
+  const { format: formatPrice } = useCurrency()
   const href = bookingHref(offer, state)
   return (
     <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
@@ -132,7 +133,7 @@ function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotel
               {t("nightsFromPrice", { n: offer.nights })}
             </p>
             <p className="text-primary text-2xl font-bold tabular-nums">
-              {offer.totalPriceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
+              {formatPrice(offer.totalPriceTnd)}
             </p>
           </div>
           {/* Virtual World Hotel Supplier

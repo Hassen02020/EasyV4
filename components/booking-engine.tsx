@@ -60,6 +60,8 @@ import { addDays, differenceInCalendarDays, format } from "date-fns"
 
 import type { CatalogTransferZone } from "@/lib/db/schema"
 
+import { matchDestination } from "@/lib/hotels-monde/search-state"
+
 import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
@@ -666,41 +668,43 @@ function HotelsMondeForm() {
   const [checkOut, setCheckOut] = useState(TOMORROW_ISO)
   const [rooms, setRooms] = useState(1)
   const [adults, setAdults] = useState(2)
-  const [children, setChildren] = useState(0)
-  const [babies, setBabies] = useState(0)
   const [occupancyOpen, setOccupancyOpen] = useState(false)
 
   const nights = nightsCount(checkIn, checkOut)
   const occupancySummary = [
     t("roomsCount", { count: rooms }),
     t("adultsCount", { count: adults }),
-    children > 0 ? t("childrenCount", { count: children }) : null,
-    babies > 0 ? t("babiesCount", { count: babies }) : null,
-  ]
-    .filter(Boolean)
-    .join(", ")
+  ].join(", ")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
         const fd = new FormData(e.currentTarget)
-        const destination = (fd.get("destination") as string)?.trim()
+        const destinationInput = (fd.get("destination") as string)?.trim()
+        const destination = matchDestination(destinationInput)
+
+        if (!destination) {
+          toast.error(t("hotelsMondeDestinationError"))
+          return
+        }
 
         if (checkOut <= checkIn) {
           toast.error(t("hotelsMondeDateError"))
           return
         }
 
+        // Mêmes noms de params que /hotels-monde/search
+        // (lib/hotels-monde/search-state.ts) — on va directement aux
+        // résultats, jamais à la page formulaire /hotels-monde, pour ne pas
+        // perdre la saisie de l'utilisateur en cours de route.
         const params = new URLSearchParams()
-        if (destination) params.set("destination", destination)
-        params.set("checkin", checkIn)
-        params.set("checkout", checkOut)
+        params.set("destination", destination)
+        params.set("checkIn", checkIn)
+        params.set("checkOut", checkOut)
         params.set("rooms", String(rooms))
         params.set("adults", String(adults))
-        if (children > 0) params.set("children", String(children))
-        if (babies > 0) params.set("babies", String(babies))
-        router.push(`/hotels-monde?${params.toString()}`)
+        router.push(`/hotels-monde/search?${params.toString()}`)
       }}
       className="space-y-5"
     >
@@ -764,7 +768,7 @@ function HotelsMondeForm() {
             <CounterRow
               label={t("roomsFieldLabel")}
               min={1}
-              max={8}
+              max={5}
               value={rooms}
               onChange={setRooms}
             />
@@ -775,22 +779,6 @@ function HotelsMondeForm() {
               max={16}
               value={adults}
               onChange={setAdults}
-            />
-            <CounterRow
-              label={t("childrenFieldLabel")}
-              sublabel={t("childrenFieldSublabel311")}
-              min={0}
-              max={8}
-              value={children}
-              onChange={setChildren}
-            />
-            <CounterRow
-              label={t("babiesFieldLabel")}
-              sublabel={t("babiesFieldSublabel02")}
-              min={0}
-              max={8}
-              value={babies}
-              onChange={setBabies}
             />
           </PopoverContent>
         </Popover>

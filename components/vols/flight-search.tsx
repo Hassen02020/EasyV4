@@ -166,10 +166,10 @@ export function FlightSearch({
             <button
               type="button"
               onClick={swapAirports}
-              className="absolute -left-5 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-background p-1 shadow-sm transition-colors hover:bg-muted sm:block"
+              className="absolute -left-5 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-background p-1 shadow-sm transition-colors hover:bg-muted rtl:-right-5 rtl:left-auto sm:block"
               title={t("swapAria")}
             >
-              <ArrowLeftRight className="h-3 w-3" />
+              <ArrowLeftRight className="h-3 w-3 rtl:rotate-180" />
             </button>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { Link } from "@/i18n/navigation"
 import Image from "next/image"
 import { useTranslations } from "next-intl"
+import { useCurrency } from "@/components/currency-context"
 import { Globe, Clock, ChevronRight, Plane } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +18,7 @@ interface Props {
 
 function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
   const t = useTranslations("Packages")
+  const { format: formatPrice } = useCurrency()
   // Fallback mission §23 : Media System en priorité, sinon coverImage
   // (legacy), sinon dégradé de marque (jamais de fausse photo, mission §33).
   const coverImage = pkg.coverMediaUrl || pkg.coverImage
@@ -75,7 +77,7 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
           <div className="mt-auto">
             <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
             <p className="text-2xl font-bold text-violet-700">
-              {pkg.priceFromTnd.toLocaleString("fr-FR")}
+              {formatPrice(pkg.priceFromTnd)}
               <span className="ml-1 text-sm font-normal">{t("priceUnitPerPerson")}</span>
             </p>
           </div>

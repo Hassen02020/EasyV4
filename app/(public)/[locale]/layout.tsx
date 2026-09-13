@@ -9,6 +9,8 @@ import { RootShell } from "@/components/root-shell"
 
 import { CurrencyProvider } from "@/components/currency-context"
 
+import { RtlDirectionProvider } from "@/components/rtl-direction-provider"
+
 import { routing } from "@/i18n/routing"
 
 import { LOCALE_META, type Locale } from "@/lib/locale"
@@ -44,13 +46,17 @@ export default async function LocaleLayout({
   // Components de cette arborescence sans avoir à repasser `locale` partout.
   setRequestLocale(locale)
 
+  const dir = LOCALE_META[locale as Locale].dir
+
   return (
     <NextIntlClientProvider locale={locale}>
-      <CurrencyProvider>
-        <RootShell lang={locale} dir={LOCALE_META[locale as Locale].dir}>
-          {children}
-        </RootShell>
-      </CurrencyProvider>
+      <RtlDirectionProvider dir={dir}>
+        <CurrencyProvider>
+          <RootShell lang={locale} dir={dir}>
+            {children}
+          </RootShell>
+        </CurrencyProvider>
+      </RtlDirectionProvider>
     </NextIntlClientProvider>
   )
 }

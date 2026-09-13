@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { format, parseISO } from "date-fns"
 import type { Locale as DateFnsLocale } from "date-fns"
-import { getDateFnsLocale, getIntlLocale } from "@/lib/i18n-date"
+import { getDateFnsLocale } from "@/lib/i18n-date"
+import { useCurrency } from "@/components/currency-context"
 import { ArrowRight, Info, Luggage, Plane, RefreshCw, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -96,7 +97,7 @@ function bookingHref(offer: FlightOffer, state: FlightSearchState): string | nul
 
 function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchState }) {
   const t = useTranslations("Vols")
-  const locale = useLocale()
+  const { format: formatPrice } = useCurrency()
   const segment = offer.segments[0]
   const href = bookingHref(offer, state)
   return (
@@ -142,7 +143,7 @@ function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchS
           <div className="text-right">
             <p className="text-muted-foreground text-xs">{t("startingFrom")}</p>
             <p className="text-primary text-2xl font-bold tabular-nums">
-              {offer.priceTnd.toLocaleString(getIntlLocale(locale))} {offer.currency}
+              {formatPrice(offer.priceTnd)}
             </p>
           </div>
           {/* Virtual Flight Supplier (lib/vols/virtual-supplier/) : offre,

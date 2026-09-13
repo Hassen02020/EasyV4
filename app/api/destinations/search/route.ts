@@ -16,6 +16,11 @@
  * Lecture publique (catalogue géo sans secret) — même mécanisme que le
  * reste du catalogue public (withSystemContext()), cohérent avec la RLS
  * posée au chantier 2 (0054_destinations.sql).
+ *
+ * Chantier 4 (Pages Destination + SEO) : réponse enrichie de `slug` — le
+ * slug PUBLIC de `destinations` (utilisé par les URLs `/destinations/[slug]`),
+ * jamais l'UUID interne — pour que le front puisse relier une sélection
+ * d'autocomplete à sa fiche destination sans requête supplémentaire.
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -48,6 +53,7 @@ export async function GET(req: NextRequest) {
     tx
       .select({
         externalId: destinationExternalRefs.externalId,
+        slug: destinations.slug,
         name: destinations.name,
         nameEn: destinations.nameEn,
         nameAr: destinations.nameAr,

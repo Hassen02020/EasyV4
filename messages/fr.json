@@ -10,6 +10,7 @@
     "tabOmraty": "Omraty",
     "tabVoyages": "Voyages Organisés",
     "tabAttractions": "Attractions",
+    "tabDestinations": "Destinations",
     "tabTransferts": "Transferts",
     "tabCar": "Car",
     "departDe": "Départ de",
@@ -1115,5 +1116,21 @@
     "loading": "Chargement...",
     "loadError": "Erreur de chargement",
     "noResults": "Aucune destination trouvée."
+  },
+  "Destinations": {
+    "indexTitle": "Destinations",
+    "indexDescription": "Explorez nos destinations et réservez hôtels, voyages organisés et vols vers chaque ville.",
+    "breadcrumbHome": "Accueil",
+    "breadcrumbDestinations": "Destinations",
+    "citiesInCountry": "Villes",
+    "bookTitle": "Réserver",
+    "hotelsMondeCta": "Voir les hôtels à {city}",
+    "packagesCta": "Voir les voyages organisés vers {city}",
+    "volsCta": "Voir les vols vers {city}",
+    "genericDescriptionCity": "Découvrez {city} ({country}) et réservez vos vols, hôtels et voyages organisés avec Easy2Book.",
+    "genericDescriptionCountry": "Découvrez {country} et réservez vos vols, hôtels et voyages organisés avec Easy2Book.",
+    "noCover": "Photo à venir",
+    "backToDestinations": "Toutes les destinations",
+    "learnMoreAbout": "En savoir plus sur {city}"
   }
 }

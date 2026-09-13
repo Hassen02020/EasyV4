@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
+import { siteOrigin } from "@/lib/mygo/config"
 
 const DEFAULT_TITLE = "Easy2Book — Centrale de Réservation : Vols, Hôtels, Omra & Voyages"
 const DEFAULT_DESCRIPTION =
@@ -36,6 +37,7 @@ export async function buildSiteMetadata(): Promise<Metadata> {
   return {
     title,
     description,
+    metadataBase: new URL(siteOrigin()),
     manifest: "/manifest.json",
     icons: ICONS,
     appleWebApp: {

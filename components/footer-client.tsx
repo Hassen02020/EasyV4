@@ -173,6 +173,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                     { key: "tabOmraty", href: "/omra" },
                     { key: "tabVoyages", href: "/packages" },
                     { key: "tabAttractions", href: "/attractions" },
+                    { key: "tabDestinations", href: "/destinations" },
                   ] as const
                 ).map(({ key, href }) => (
                   <li key={key}>

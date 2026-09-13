@@ -14,6 +14,8 @@ export type DestinationModule = "hotels_monde_slug" | "packages_slug" | "iata"
 
 export interface DestinationOption {
   externalId: string
+  /** Slug public `destinations.slug` (chantier 4) — jamais l'UUID interne. */
+  slug: string
   name: string
   nameEn: string | null
   nameAr: string | null

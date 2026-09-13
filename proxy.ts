@@ -207,8 +207,10 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico / icons / images
      * - manifest.json (PWA manifest)
+     * - robots.txt / sitemap.xml (chantier 4 — routes globales, jamais
+     *   préfixées par une locale ni tenant-résolues)
      * - public assets (any path with a file extension)
      */
-    "/((?!_next/static|_next/image|favicon.ico|icon\\.svg|icon-.*\\.png|apple-icon\\.png|manifest\\.json|placeholder.*\\.(?:png|jpg|svg)).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon\\.svg|icon-.*\\.png|apple-icon\\.png|manifest\\.json|robots\\.txt|sitemap\\.xml|placeholder.*\\.(?:png|jpg|svg)).*)",
   ],
 }

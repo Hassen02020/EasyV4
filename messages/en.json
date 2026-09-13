@@ -10,6 +10,7 @@
     "tabOmraty": "Omraty",
     "tabVoyages": "Packages",
     "tabAttractions": "Attractions",
+    "tabDestinations": "Destinations",
     "tabTransferts": "Transfers",
     "tabCar": "Car",
     "departDe": "Departing from",
@@ -1115,5 +1116,21 @@
     "loading": "Loading...",
     "loadError": "Loading error",
     "noResults": "No destination found."
+  },
+  "Destinations": {
+    "indexTitle": "Destinations",
+    "indexDescription": "Explore our destinations and book hotels, package tours and flights to every city.",
+    "breadcrumbHome": "Home",
+    "breadcrumbDestinations": "Destinations",
+    "citiesInCountry": "Cities",
+    "bookTitle": "Book",
+    "hotelsMondeCta": "See hotels in {city}",
+    "packagesCta": "See package tours to {city}",
+    "volsCta": "See flights to {city}",
+    "genericDescriptionCity": "Discover {city} ({country}) and book your flights, hotels and package tours with Easy2Book.",
+    "genericDescriptionCountry": "Discover {country} and book your flights, hotels and package tours with Easy2Book.",
+    "noCover": "Photo coming soon",
+    "backToDestinations": "All destinations",
+    "learnMoreAbout": "Learn more about {city}"
   }
 }

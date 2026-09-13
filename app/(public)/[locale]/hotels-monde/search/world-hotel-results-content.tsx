@@ -8,6 +8,7 @@ import { format, parseISO } from "date-fns"
 import type { Locale as DateFnsLocale } from "date-fns"
 import { getDateFnsLocale } from "@/lib/i18n-date"
 import { useCurrency } from "@/components/currency-context"
+import { useDestinations } from "@/hooks/use-destinations"
 import { Coffee, Info, MapPin, RefreshCw, ShieldCheck, Star, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -168,9 +169,12 @@ function WorldHotelSearchSummary({
   isDemo: boolean
 }) {
   const t = useTranslations("HotelsMonde")
+  const tDest = useTranslations("Destinations")
   const locale = useLocale()
   const dateFnsLocale = getDateFnsLocale(locale)
   const paxLabel = t("paxSummary", { adults: state.adults, rooms: state.rooms })
+  const { destinations } = useDestinations("hotels_monde_slug")
+  const matchedDestination = destinations.find((d) => d.externalId === state.destination)
   return (
     <div className="mb-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -188,6 +192,14 @@ function WorldHotelSearchSummary({
             {" · "}
             {t("hotelsFoundCount", { count })}
           </p>
+          {matchedDestination && (
+            <Link
+              href={`/destinations/${matchedDestination.slug}`}
+              className="text-xs text-violet-700 underline-offset-2 hover:underline"
+            >
+              {tDest("learnMoreAbout", { city: state.city })}
+            </Link>
+          )}
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link href={`/hotels-monde?destination=${state.destination}`}>

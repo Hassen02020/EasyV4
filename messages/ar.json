@@ -10,6 +10,7 @@
     "tabOmraty": "عمرتي",
     "tabVoyages": "رحلات منظمة",
     "tabAttractions": "الأنشطة",
+    "tabDestinations": "الوجهات",
     "tabTransferts": "نقل",
     "tabCar": "سيارة",
     "departDe": "المغادرة من",
@@ -1115,5 +1116,21 @@
     "loading": "جارٍ التحميل...",
     "loadError": "خطأ في التحميل",
     "noResults": "لم يتم العثور على أي وجهة."
+  },
+  "Destinations": {
+    "indexTitle": "الوجهات",
+    "indexDescription": "اكتشف وجهاتنا واحجز الفنادق والرحلات المنظمة والطيران نحو كل مدينة.",
+    "breadcrumbHome": "الرئيسية",
+    "breadcrumbDestinations": "الوجهات",
+    "citiesInCountry": "المدن",
+    "bookTitle": "الحجز",
+    "hotelsMondeCta": "مشاهدة الفنادق في {city}",
+    "packagesCta": "مشاهدة الرحلات المنظمة إلى {city}",
+    "volsCta": "مشاهدة رحلات الطيران إلى {city}",
+    "genericDescriptionCity": "اكتشف {city} ({country}) واحجز رحلات الطيران والفنادق والرحلات المنظمة مع Easy2Book.",
+    "genericDescriptionCountry": "اكتشف {country} واحجز رحلات الطيران والفنادق والرحلات المنظمة مع Easy2Book.",
+    "noCover": "الصورة قريبًا",
+    "backToDestinations": "كل الوجهات",
+    "learnMoreAbout": "اعرف المزيد عن {city}"
   }
 }

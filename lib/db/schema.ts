@@ -2561,3 +2561,17 @@ export {
   type ReservationCar,
   type NewReservationCar,
 } from "./schema/cars"
+
+/* -------------------------------------------------------------------------- */
+/* Canonical Destination Model — imported from schema/destinations.ts          */
+/* -------------------------------------------------------------------------- */
+
+export {
+  destinations,
+  destinationExternalRefs,
+  destinationType,
+  type Destination,
+  type NewDestination,
+  type DestinationExternalRef,
+  type NewDestinationExternalRef,
+} from "./schema/destinations"

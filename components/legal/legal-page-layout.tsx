@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { AlertTriangle } from "lucide-react"
@@ -23,6 +24,7 @@ export function LegalPageLayout({
   intro: string
   sections: LegalSection[]
 }) {
+  const t = useTranslations("Legal")
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -32,16 +34,15 @@ export function LegalPageLayout({
             {title}
           </h1>
           <p className="text-muted-foreground mt-3 text-sm">
-            Dernière mise à jour : à définir
+            {t("lastUpdated")}
           </p>
 
           <div className="border-warning/40 bg-warning/10 mt-6 flex items-start gap-3 rounded-2xl border p-4">
             <AlertTriangle className="text-warning-foreground mt-0.5 size-5 shrink-0" />
             <p className="text-warning-foreground text-sm leading-relaxed">
-              <strong>Texte juridique à insérer ici.</strong> Cette page
-              utilise un contenu générique de structure en attendant la
-              version définitive rédigée et validée par Easy2Book. Ne pas
-              considérer ce texte comme un engagement contractuel.
+              {t.rich("legalNotice", {
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
           </div>
 

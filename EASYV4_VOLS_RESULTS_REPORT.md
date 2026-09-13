@@ -1,5 +1,10 @@
 # EASY2BOOK — Phase 2 / Phase 1 : Reconstruction du Search Journey Vols
 
+> **⚠️ Document historique, dépassé.** Ce rapport documente l'état du module Vols à une phase
+> antérieure (recherche seule, aucune réservation). Depuis, Vols dispose d'une réservation réelle de
+> bout en bout (Virtual Flight Supplier), certifiée navigateur réel — voir
+> `docs/audits/e2e-certification-report.md` (section 9 et section 11 pour l'état à jour).
+
 ## Problème initial
 
 `EASYV4_SEARCH_ENGINES_AUDIT_REPORT.md` classait le module Vols **BROKEN** :

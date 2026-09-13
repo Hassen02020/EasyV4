@@ -1,5 +1,11 @@
 # EASY2BOOK — Hôtels Monde : besoins pour un futur développement
 
+> **⚠️ Document historique, dépassé.** Ce document listait les besoins pour un futur développement du
+> module Hôtels Monde (à l'époque : recherche seule, aucune réservation, aucun schéma DB dédié). Depuis,
+> Hôtels Monde dispose d'une réservation réelle de bout en bout (Virtual World Hotel Supplier),
+> certifiée navigateur réel — voir `docs/audits/e2e-certification-report.md` (section 10 et section 11
+> pour l'état à jour).
+
 Phase 4 de la reconstruction des search journeys (`EASYV4_SEARCH_ENGINES_AUDIT_REPORT.md`,
 finding CRITICAL #2). **Document uniquement — aucun code modifié dans cette
 phase.** Conforme à l'instruction : "NE PAS développer maintenant. Documenter

@@ -15,7 +15,7 @@
  * inversement) — voir chaque fichier d'action pour le détail.
  */
 
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { BookingCard } from "@/components/booking-summary-card"
 import { cancelMyHotelReservation } from "@/lib/booking/customer-cancel-actions"
 import { cancelMyPolicyReservation } from "@/lib/booking/policy-cancel-actions"

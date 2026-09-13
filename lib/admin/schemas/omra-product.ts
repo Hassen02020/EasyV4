@@ -45,6 +45,16 @@ export const omraProductMetadataSchema = z.object({
   transfers: z.array(z.string().trim().min(1)).max(10).default([]),
   accompanyingPerson: omraAccompanyingPersonSchema.default({}),
   otherServices: z.array(z.string().trim().min(1)).max(20).default([]),
+  /**
+   * Image de couverture — même rationale que les autres champs de ce
+   * schéma : `omra_packages` n'a pas de colonne `cover_image` dédiée
+   * (contrairement à `catalog_packages`/`catalog_activities`), portée par
+   * le `metadata` jsonb existant plutôt qu'une nouvelle colonne (voir
+   * commentaire en tête de fichier). Trouvé lors de l'audit visuel/
+   * commercial : les cartes Omraty n'affichaient aucune photo, faute de
+   * champ pour en stocker une.
+   */
+  coverImage: z.string().trim().max(500).optional().or(z.literal("")),
 })
 
 export type OmraProductMetadata = z.infer<typeof omraProductMetadataSchema>

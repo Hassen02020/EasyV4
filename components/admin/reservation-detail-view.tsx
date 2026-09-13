@@ -48,6 +48,7 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
 
 const MODULE_LABEL: Record<string, string> = {
   hotel: "Hôtel",
+  hotel_monde: "Hôtel Monde",
   flight: "Vol",
   omra: "Omra",
   package: "Voyage organisé",

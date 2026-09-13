@@ -25,10 +25,14 @@
  * "PARTIALLY_PAID"` — comportement additif, préserve le comportement
  * existant "paiement intégral requis pour confirmer".
  *
- * `wallet` route vers le VRAI moteur `debitCustomerWallet` (jamais un
- * aller-retour artificiel — voir la garde en tête de
- * lib/finance/customer-wallet.ts) ; les autres méthodes restent un
- * enregistrement `payments` + `auditEvents` direct, comme avant.
+ * `wallet` route vers le débit direct `debitCustomerWallet` (solde déjà
+ * disponible, pas une recharge) ; les 3 autres méthodes financières
+ * (cash/virement/dépôt bancaire — `mandate` mappé sur virement) rechargent
+ * le wallet client puis le règlent aussitôt via
+ * `recordTargetedWalletSettlement` — même mécanisme unifié que le webhook
+ * carte/Paymee (lib/payment/reservation-webhook-core.ts). `at_hotel` reste
+ * hors wallet (réglé directement à l'hôtel). Voir lib/finance/customer-wallet.ts
+ * pour le modèle complet.
  */
 
 import { eq, and } from "drizzle-orm"
@@ -46,12 +50,13 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isTransitionAllowed } from "@/lib/admin/reservation-status"
 import { generateInvoiceForReservation } from "./invoice-actions"
 import { sendEvent } from "@/lib/inngest/client"
-import { debitCustomerWallet } from "./customer-wallet"
+import { debitCustomerWallet, recordTargetedWalletSettlement } from "./customer-wallet"
 import { getReservationPaymentSummary, TND_EPSILON, type PaymentState } from "./payment-summary"
 import { pgErrorCode } from "@/lib/db/pg-error"
 import {
   MANUAL_PAYMENT_ALLOWED_ROLES,
   toPaymentMethod,
+  toWalletRechargeMethod,
   computeCaptureKind,
   isPastPaymentDeadline,
   type ManualPaymentMethod,
@@ -224,26 +229,31 @@ export async function verifyManualPayment(
         // (même réservation + même clé) — double-clic / double
         // vérification concurrente — tout en acceptant un versement
         // légitimement différent (autre méthode/référence/montant).
+        let capturedPaymentId: string | undefined
         try {
           // Savepoint : sans lui, un conflit ici laisserait `tx` "aborted"
           // et ferait échouer le COMMIT final avec l'erreur brute, même en
           // capturant l'exception (le débit wallet qui suit réutilise `tx`).
-          await tx.transaction((tx2) =>
-            tx2.insert(payments).values({
-              agencyId,
-              reservationId: row.id,
-              psp: "manual",
-              method: toPaymentMethod(input.method as ManualPaymentMethod),
-              pspTransactionId: input.reference,
-              idempotencyKey,
-              originalCurrency: "TND",
-              originalAmount: input.amountTnd.toFixed(2),
-              tndAmount: input.amountTnd.toFixed(2),
-              kind: computeCaptureKind(remainingAfter, TND_EPSILON),
-              status: "captured",
-              capturedAt: new Date(),
-            }),
+          const [capturedPayment] = await tx.transaction((tx2) =>
+            tx2
+              .insert(payments)
+              .values({
+                agencyId,
+                reservationId: row.id,
+                psp: "manual",
+                method: toPaymentMethod(input.method as ManualPaymentMethod),
+                pspTransactionId: input.reference,
+                idempotencyKey,
+                originalCurrency: "TND",
+                originalAmount: input.amountTnd.toFixed(2),
+                tndAmount: input.amountTnd.toFixed(2),
+                kind: computeCaptureKind(remainingAfter, TND_EPSILON),
+                status: "captured",
+                capturedAt: new Date(),
+              })
+              .returning({ id: payments.id }),
           )
+          capturedPaymentId = capturedPayment?.id
         } catch (err) {
           if (pgErrorCode(err) === "23505") {
             return {
@@ -255,10 +265,10 @@ export async function verifyManualPayment(
           throw err
         }
 
-        // --- Méthode "wallet" : vrai débit via le moteur existant. Un
-        // échec ici doit annuler l'INSERT payments ci-dessus (throw →
-        // ROLLBACK complet), jamais une ligne "captured" orpheline sans
-        // débit réel derrière. ---
+        // --- Méthode "wallet" : vrai débit via le moteur existant (solde
+        // déjà disponible, pas une recharge). Un échec ici doit annuler
+        // l'INSERT payments ci-dessus (throw → ROLLBACK complet), jamais une
+        // ligne "captured" orpheline sans débit réel derrière. ---
         if (input.method === "wallet") {
           const debit = await debitCustomerWallet({
             customerId: row.customerId,
@@ -269,6 +279,28 @@ export async function verifyManualPayment(
           })
           if (!debit.ok) {
             throw new ManualWalletDebitFailedError(debit.code, debit.message)
+          }
+        } else {
+          // Les autres méthodes (cash/virement/dépôt bancaire/mandat)
+          // rechargent le wallet client puis le règlent aussitôt pour ce
+          // montant précis — même mécanisme unique que le webhook carte/
+          // Paymee (lib/payment/reservation-webhook-core.ts). `at_hotel`
+          // n'a pas de mapping (retourne `null`) : réglé directement à
+          // l'hôtel, jamais un flux financier Easy2Book.
+          const rechargeMethod = toWalletRechargeMethod(input.method as ManualPaymentMethod)
+          if (rechargeMethod) {
+            const settlement = await recordTargetedWalletSettlement({
+              customerId: row.customerId,
+              amountTnd: input.amountTnd,
+              reservationId: row.id,
+              paymentId: capturedPaymentId,
+              method: rechargeMethod,
+              reference: row.publicRef,
+              txOverride: tx as Parameters<typeof recordTargetedWalletSettlement>[0]["txOverride"],
+            })
+            if (!settlement.ok) {
+              throw new ManualWalletDebitFailedError(settlement.code, settlement.message)
+            }
           }
         }
 

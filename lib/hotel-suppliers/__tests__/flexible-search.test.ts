@@ -20,6 +20,19 @@ import {
 
 const FIXED_NOW = Date.parse("2026-06-01T00:00:00Z")
 
+/**
+ * `runFlexibleHotelSearch` n'accepte pas d'override `nowMs` (contrairement à
+ * `generateFlexibleDateCandidates` ci-dessus, appelé directement avec
+ * `FIXED_NOW` dans les tests purs) — il utilise toujours `Date.now()` réel
+ * en interne. Des dates de checkin figées finissent donc par tomber dans le
+ * passé réel et se faire filtrer par la génération de candidats. On calcule
+ * ici des dates toujours dans le futur, avec une marge large (candidat le
+ * plus tôt à J+30) pour rester valide longtemps.
+ */
+function futureDateStr(daysFromNow: number): string {
+  return new Date(Date.now() + daysFromNow * 86_400_000).toISOString().slice(0, 10)
+}
+
 test("generateFlexibleDateCandidates : flexDays=0 renvoie uniquement la date demandée", () => {
   const candidates = generateFlexibleDateCandidates("2026-09-01", "2026-09-05", 0, {
     nowMs: FIXED_NOW,
@@ -85,8 +98,8 @@ test("generateFlexibleDateCandidates : dates invalides (checkout <= checkin) →
 test("runFlexibleHotelSearch (démo) : flexDays=0 se comporte comme une recherche classique", async () => {
   const q = HotelSearchQuerySchema.parse({
     cityId: "10",
-    checkin: "2026-09-01",
-    checkout: "2026-09-05",
+    checkin: futureDateStr(30),
+    checkout: futureDateStr(34),
     adults: "2",
   })
   const result = await runFlexibleHotelSearch(q, 0)
@@ -102,8 +115,8 @@ test("runFlexibleHotelSearch (démo) : flexDays=0 se comporte comme une recherch
 test("runFlexibleHotelSearch (démo) : flexDays=2 exécute 5 recherches réelles à travers le Hub", async () => {
   const q = HotelSearchQuerySchema.parse({
     cityId: "10",
-    checkin: "2026-09-10",
-    checkout: "2026-09-14",
+    checkin: futureDateStr(30),
+    checkout: futureDateStr(34),
     adults: "2",
   })
   const result = await runFlexibleHotelSearch(q, 2)
@@ -125,11 +138,12 @@ test("runFlexibleHotelSearch (démo) : flexDays=2 exécute 5 recherches réelles
 test("runFlexibleHotelSearch (démo) : ville sans offre reste ok:true avec offersCount 0 — jamais fabriqué", async () => {
   const q = HotelSearchQuerySchema.parse({
     cityId: "999999",
-    checkin: "2026-09-01",
-    checkout: "2026-09-05",
+    checkin: futureDateStr(30),
+    checkout: futureDateStr(34),
     adults: "2",
   })
   const result = await runFlexibleHotelSearch(q, 1)
+  assert.ok(result.candidates.length > 0, "au moins un candidat pour ne pas tester une boucle vide")
   for (const c of result.candidates) {
     assert.equal(c.ok, true)
     assert.equal(c.offersCount, 0)

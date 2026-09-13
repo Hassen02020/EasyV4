@@ -1,10 +1,12 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { ShoppingCart } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { useCart } from "@/lib/cart/use-cart"
 
 export function CartBadgeLink({ variant }: { variant: "desktop" | "mobile" }) {
+  const t = useTranslations("Panier")
   const cart = useCart()
   const count = cart.lines.length
 
@@ -22,7 +24,7 @@ export function CartBadgeLink({ variant }: { variant: "desktop" | "mobile" }) {
             </span>
           ) : null}
         </span>
-        <span>Mon panier</span>
+        <span>{t("pageTitle")}</span>
       </Link>
     )
   }
@@ -31,7 +33,7 @@ export function CartBadgeLink({ variant }: { variant: "desktop" | "mobile" }) {
     <Link
       href="/panier"
       className="relative inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-      aria-label="Mon panier"
+      aria-label={t("pageTitle")}
     >
       <span className="relative">
         <ShoppingCart className="size-4" />
@@ -41,7 +43,7 @@ export function CartBadgeLink({ variant }: { variant: "desktop" | "mobile" }) {
           </span>
         ) : null}
       </span>
-      Panier
+      {t("cartLabelShort")}
     </Link>
   )
 }

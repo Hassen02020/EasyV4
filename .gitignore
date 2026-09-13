@@ -46,6 +46,12 @@ Thumbs.db
 # du code applicatif, jamais à committer.
 .tmp-mock-gotrue/
 
+# Backend Storage local du Media System (lib/media/storage.ts,
+# MEDIA_STORAGE_BACKEND=local) — fichiers uploadés en LOCAL TEST uniquement,
+# jamais du contenu produit réel à committer (voir mission §33 : pas de
+# fausses photos commerciales dans le repo).
+.media-local/
+
 # Rapports de test ad-hoc générés à la racine (les archives versionnées vivent
 # dans docs/tests/)
 /test-plan*.md

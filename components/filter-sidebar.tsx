@@ -24,6 +24,65 @@ import type { HotelFacets, HotelFilterState } from "@/lib/mygo/facets"
 import { countActiveFilters, EMPTY_FILTER_STATE } from "@/lib/mygo/facets"
 import { SORT_OPTIONS, type HotelSortMode } from "@/lib/mygo/sort"
 
+/**
+ * Ce composant est partagé entre `/hotels/search` (storefront public,
+ * traduit fr/en/ar) et `components/pro/pro-hotel-results.tsx` (back-office
+ * `/pro`, reste français, pas de `NextIntlClientProvider` dans son layout —
+ * voir `app/(internal)/layout.tsx`). Appeler `useTranslations()` ici
+ * ferait donc planter `/pro`. À la place, un objet `labels` optionnel est
+ * injecté par l'appelant ; `DEFAULT_FILTER_LABELS` (français, valeurs
+ * identiques à l'ancien texte en dur) est le défaut implicite pour tout
+ * appelant qui ne le passe pas (`pro-hotel-results.tsx`, inchangé), tandis
+ * que `/hotels/search` construit le sien via `useTranslations("Hotels")`.
+ */
+export interface FilterLabels {
+  sectionAvailability: string
+  recommended: string
+  availableOnly: string
+  freeCancellation: string
+  sectionCategory: string
+  sectionTheme: string
+  sectionPrice: (currency: string) => string
+  sectionBoarding: string
+  sectionFacilities: string
+  resetFilters: string
+  asideTitle: string
+  starsLabel: (stars: number) => string
+  removeFilterAria: (label: string) => string
+  clearAllFilters: string
+  filtersButton: string
+  seeResults: string
+  sortByTitle: string
+  sortOptionLabel: (mode: HotelSortMode) => string
+  sortResultsAria: string
+}
+
+const DEFAULT_SORT_LABELS: Record<HotelSortMode, string> = Object.fromEntries(
+  SORT_OPTIONS.map((opt) => [opt.value, opt.label]),
+) as Record<HotelSortMode, string>
+
+export const DEFAULT_FILTER_LABELS: FilterLabels = {
+  sectionAvailability: "Tarifs et disponibilités",
+  recommended: "Hôtel recommandé",
+  availableOnly: "Disponible seulement",
+  freeCancellation: "Annulation gratuite",
+  sectionCategory: "Catégorie",
+  sectionTheme: "Thème du séjour",
+  sectionPrice: (currency) => `Prix (${currency})`,
+  sectionBoarding: "Type de pension",
+  sectionFacilities: "Équipements",
+  resetFilters: "Réinitialiser les filtres",
+  asideTitle: "Affinez vos résultats",
+  starsLabel: (stars) => `${stars} étoiles`,
+  removeFilterAria: (label) => `Retirer le filtre ${label}`,
+  clearAllFilters: "Effacer tous les filtres",
+  filtersButton: "Filtres",
+  seeResults: "Voir les résultats",
+  sortByTitle: "Trier par",
+  sortOptionLabel: (mode) => DEFAULT_SORT_LABELS[mode],
+  sortResultsAria: "Trier les résultats",
+}
+
 interface FilterSectionProps {
   title: string
   defaultOpen?: boolean
@@ -111,6 +170,8 @@ interface FilterControlsProps {
   currency?: string
   /** Désactive l'interaction si true (ex. pendant le loading). */
   disabled?: boolean
+  /** Voir le commentaire sur `FilterLabels` plus haut. */
+  labels?: FilterLabels
 }
 
 /**
@@ -125,6 +186,7 @@ export function FilterControls({
   onChange,
   currency = "TND",
   disabled = false,
+  labels = DEFAULT_FILTER_LABELS,
 }: FilterControlsProps) {
   const priceMin = facets?.priceMin ?? 0
   const priceMax = facets?.priceMax ?? 1000
@@ -161,24 +223,24 @@ export function FilterControls({
     <>
       <div className="space-y-4">
         {/* Tarifs et disponibilités */}
-        <FilterSection title="Tarifs et disponibilités">
+        <FilterSection title={labels.sectionAvailability}>
           <CheckboxItem
             id="recommended"
-            label="Hôtel recommandé"
+            label={labels.recommended}
             count={facets?.recommendedCount ?? 0}
             checked={state.recommendedOnly}
             onCheckedChange={(v) => onChange({ ...state, recommendedOnly: v })}
           />
           <CheckboxItem
             id="available"
-            label="Disponible seulement"
+            label={labels.availableOnly}
             count={facets?.availableCount ?? 0}
             checked={state.availableOnly}
             onCheckedChange={(v) => onChange({ ...state, availableOnly: v })}
           />
           <CheckboxItem
             id="free-cancel"
-            label="Annulation gratuite"
+            label={labels.freeCancellation}
             count={facets?.freeCancellationCount ?? 0}
             checked={state.freeCancellationOnly}
             onCheckedChange={(v) =>
@@ -189,7 +251,7 @@ export function FilterControls({
 
         {/* Catégorie (Star Rating) */}
         {(facets?.stars.length ?? 0) > 0 && (
-          <FilterSection title="Catégorie">
+          <FilterSection title={labels.sectionCategory}>
             <div className="space-y-3">
               {facets!.stars.map(({ value, count }) => (
                 <div key={value} className="flex items-center justify-between">
@@ -223,7 +285,7 @@ export function FilterControls({
             jamais toutes les cases à la fois, une seule offre n'ayant en
             pratique qu'un ou deux thèmes réels). */}
         {(facets?.themes.length ?? 0) > 0 && (
-          <FilterSection title="Thème du séjour">
+          <FilterSection title={labels.sectionTheme}>
             {facets!.themes.map(({ title, count }) => (
               <CheckboxItem
                 key={title}
@@ -239,7 +301,7 @@ export function FilterControls({
 
         {/* Prix par nuit */}
         {priceMax > priceMin && (
-          <FilterSection title={`Prix (${currency})`}>
+          <FilterSection title={labels.sectionPrice(currency)}>
             <div className="px-1">
               <Slider
                 value={[currentRange[0], currentRange[1]]}
@@ -267,7 +329,7 @@ export function FilterControls({
 
         {/* Type de pension */}
         {(facets?.boardings.length ?? 0) > 0 && (
-          <FilterSection title="Type de pension">
+          <FilterSection title={labels.sectionBoarding}>
             {facets!.boardings.map(({ name, count }) => (
               <CheckboxItem
                 key={name}
@@ -283,7 +345,7 @@ export function FilterControls({
 
         {/* Équipements */}
         {(facets?.facilities.length ?? 0) > 0 && (
-          <FilterSection title="Équipements" defaultOpen={false}>
+          <FilterSection title={labels.sectionFacilities} defaultOpen={false}>
             {facets!.facilities.map(({ title, count }) => (
               <CheckboxItem
                 key={title}
@@ -305,7 +367,7 @@ export function FilterControls({
         className="text-primary border-primary hover:bg-primary/5 mt-5 w-full rounded-lg border py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
         disabled={disabled}
       >
-        Réinitialiser les filtres
+        {labels.resetFilters}
       </button>
     </>
   )
@@ -354,6 +416,8 @@ interface FilterSidebarProps {
    * afficherait un squelette de chargement indéfiniment — un mensonge d'UI.
    */
   loading?: boolean
+  /** Voir le commentaire sur `FilterLabels` plus haut. */
+  labels?: FilterLabels
 }
 
 /** Sidebar desktop — cadre `<aside>` + squelette de chargement + `FilterControls`. */
@@ -364,6 +428,7 @@ export function FilterSidebar({
   currency = "TND",
   disabled = false,
   loading = false,
+  labels = DEFAULT_FILTER_LABELS,
 }: FilterSidebarProps) {
   return (
     <aside
@@ -371,7 +436,7 @@ export function FilterSidebar({
       aria-busy={disabled}
     >
       <h2 className="text-primary mb-5 text-lg font-bold">
-        Affinez vos résultats
+        {labels.asideTitle}
       </h2>
       {loading ? (
         <FilterControlsSkeleton />
@@ -382,6 +447,7 @@ export function FilterSidebar({
           onChange={onChange}
           currency={currency}
           disabled={disabled}
+          labels={labels}
         />
       )}
     </aside>
@@ -398,6 +464,8 @@ interface FilterChipsProps {
   facets: HotelFacets | null
   currency?: string
   onChange: (next: HotelFilterState) => void
+  /** Voir le commentaire sur `FilterLabels` plus haut. */
+  labels?: FilterLabels
 }
 
 export function FilterChips({
@@ -405,13 +473,14 @@ export function FilterChips({
   facets,
   currency = "TND",
   onChange,
+  labels = DEFAULT_FILTER_LABELS,
 }: FilterChipsProps) {
   const chips: { key: string; label: string; onRemove: () => void }[] = []
 
   for (const s of state.stars) {
     chips.push({
       key: `star-${s}`,
-      label: `${s} étoiles`,
+      label: labels.starsLabel(s),
       onRemove: () => onChange({ ...state, stars: state.stars.filter((x) => x !== s) }),
     })
   }
@@ -452,21 +521,21 @@ export function FilterChips({
   if (state.recommendedOnly) {
     chips.push({
       key: "rec",
-      label: "Hôtel recommandé",
+      label: labels.recommended,
       onRemove: () => onChange({ ...state, recommendedOnly: false }),
     })
   }
   if (state.freeCancellationOnly) {
     chips.push({
       key: "cancel",
-      label: "Annulation gratuite",
+      label: labels.freeCancellation,
       onRemove: () => onChange({ ...state, freeCancellationOnly: false }),
     })
   }
   if (state.availableOnly) {
     chips.push({
       key: "avail",
-      label: "Disponible seulement",
+      label: labels.availableOnly,
       onRemove: () => onChange({ ...state, availableOnly: false }),
     })
   }
@@ -485,7 +554,7 @@ export function FilterChips({
             type="button"
             onClick={chip.onRemove}
             className="hover:bg-muted-foreground/20 rounded-full p-0.5"
-            aria-label={`Retirer le filtre ${chip.label}`}
+            aria-label={labels.removeFilterAria(chip.label)}
           >
             <X className="h-3 w-3" />
           </button>
@@ -496,7 +565,7 @@ export function FilterChips({
         onClick={() => onChange(EMPTY_FILTER_STATE)}
         className="text-primary text-xs font-medium hover:underline"
       >
-        Effacer tous les filtres
+        {labels.clearAllFilters}
       </button>
     </div>
   )
@@ -529,6 +598,8 @@ interface MobileFilterSortBarProps {
    * `SortSelect` desktop (`status === "success" && sortedOffers.length > 0`).
    */
   hasResults?: boolean
+  /** Voir le commentaire sur `FilterLabels` plus haut. */
+  labels?: FilterLabels
 }
 
 export function MobileFilterSortBar({
@@ -541,11 +612,11 @@ export function MobileFilterSortBar({
   disabled = false,
   loading = false,
   hasResults = true,
+  labels = DEFAULT_FILTER_LABELS,
 }: MobileFilterSortBarProps) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const activeCount = countActiveFilters(filterState, facets)
-  const currentSortLabel =
-    SORT_OPTIONS.find((opt) => opt.value === sortMode)?.label ?? SORT_OPTIONS[0]!.label
+  const currentSortLabel = labels.sortOptionLabel(sortMode)
 
   return (
     <div className="mb-4 flex gap-2 lg:hidden">
@@ -553,7 +624,7 @@ export function MobileFilterSortBar({
         <DrawerTrigger asChild>
           <Button variant="outline" size="sm" className="flex-1 gap-2" disabled={disabled}>
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filtres
+            {labels.filtersButton}
             {activeCount > 0 && (
               <span className="bg-primary text-primary-foreground ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold">
                 {activeCount}
@@ -563,7 +634,7 @@ export function MobileFilterSortBar({
         </DrawerTrigger>
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader>
-            <DrawerTitle>Filtres</DrawerTitle>
+            <DrawerTitle>{labels.filtersButton}</DrawerTitle>
           </DrawerHeader>
           <div className="flex-1 overflow-y-auto px-4">
             {loading ? (
@@ -575,12 +646,13 @@ export function MobileFilterSortBar({
                 onChange={onFilterChange}
                 currency={currency}
                 disabled={disabled}
+                labels={labels}
               />
             )}
           </div>
           <DrawerFooter>
             <DrawerClose asChild>
-              <Button className="w-full">Voir les résultats</Button>
+              <Button className="w-full">{labels.seeResults}</Button>
             </DrawerClose>
           </DrawerFooter>
         </DrawerContent>
@@ -600,7 +672,7 @@ export function MobileFilterSortBar({
         </DrawerTrigger>
         <DrawerContent>
           <DrawerHeader>
-            <DrawerTitle>Trier par</DrawerTitle>
+            <DrawerTitle>{labels.sortByTitle}</DrawerTitle>
           </DrawerHeader>
           <div className="flex flex-col px-2 pb-4">
             {SORT_OPTIONS.map((opt) => (
@@ -610,7 +682,7 @@ export function MobileFilterSortBar({
                   onClick={() => onSortChange(opt.value)}
                   className="hover:bg-muted flex items-center justify-between rounded-lg px-3 py-3 text-left text-sm"
                 >
-                  {opt.label}
+                  {labels.sortOptionLabel(opt.value)}
                   {opt.value === sortMode && (
                     <Check className="text-primary h-4 w-4" />
                   )}

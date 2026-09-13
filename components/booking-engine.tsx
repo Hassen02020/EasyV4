@@ -1,33 +1,28 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 
 import { useState } from "react"
 
 import {
-  Plane,
   Building2,
   Globe,
   Moon,
   Briefcase,
-  Bus,
-  Car,
   MapPin,
   CalendarDays,
   Users,
   Plus,
   Minus,
   Clock,
-  ArrowLeftRight,
   Search,
   Sparkles,
+  Compass,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
 import { Input } from "@/components/ui/input"
-
-import { Checkbox } from "@/components/ui/checkbox"
 
 import {
   Select,
@@ -57,13 +52,13 @@ import { toast } from "sonner"
 
 import { addDays, differenceInCalendarDays, format } from "date-fns"
 
-import type { CatalogTransferZone } from "@/lib/db/schema"
-
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 
 import { FIELD_SHELL, FIELD_INPUT_RESET, FieldLabel } from "@/components/search-field"
+
+import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 
 const HotelsTunisieSearch = dynamic(
   () =>
@@ -95,19 +90,19 @@ const TOMORROW_ISO = futureDate(1)
 /**
  * Navigation commerciale (Phase 13, Partie 20) : le périmètre de lancement
  * prioritaire est Hôtels Tunisie / Hôtels Monde / Omraty / Voyages
- * Organisés — Vols/Transferts/Car restent des modules réels (code et
- * pages intacts, atteignables directement via /vols, /transferts, /car)
- * mais ne sont plus mis en avant dans l'onglet de recherche principal,
- * pour ne pas disperser l'effort commercial. Aucun onglet Attractions
- * ajouté ici : contrairement aux 4 tabs ci-dessous, Attractions n'a
- * aucun parcours public de réservation pour l'instant (voir
- * lib/admin/activities-actions.ts) — un onglet mènerait à un flux mort.
+ * Organisés / Attractions — Vols/Transferts/Car restent des modules réels
+ * (code et pages intacts, atteignables directement via /vols, /transferts,
+ * /car) mais ne sont plus mis en avant dans l'onglet de recherche
+ * principal, pour ne pas disperser l'effort commercial. Attractions a un
+ * vrai parcours public complet (/attractions, /attractions/[slug],
+ * /attractions/[slug]/book) — plus de raison de l'exclure ici.
  */
 const tabsConfig = [
   { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2 },
   { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe },
   { id: "omraty", labelKey: "tabOmraty", icon: Moon },
   { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase },
+  { id: "attractions", labelKey: "tabAttractions", icon: Compass },
 ] as const
 
 type TabId = (typeof tabsConfig)[number]["id"]
@@ -118,13 +113,7 @@ const HERO_BG_URL =
   "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
 
 /** Rend le formulaire du module actif — partagé par la carte flottante desktop et le bottom-sheet mobile. */
-function ActiveModuleForm({
-  activeTab,
-  transferZones,
-}: {
-  activeTab: TabId
-  transferZones: CatalogTransferZone[]
-}) {
+function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
   switch (activeTab) {
     case "hotels-tunisie":
       return <HotelsTunisieSearch />
@@ -134,6 +123,8 @@ function ActiveModuleForm({
       return <OmratyForm />
     case "voyages-organises":
       return <VoyagesOrganisesForm />
+    case "attractions":
+      return <AttractionsForm />
   }
 }
 
@@ -147,7 +138,7 @@ function TabPills({
   onSelect: (id: TabId) => void
   className?: string
 }) {
-  const t = useT()
+  const t = useTranslations("Common")
 
   return (
     <div
@@ -184,14 +175,11 @@ function TabPills({
   )
 }
 
-export function BookingEngine({
-  transferZones = [],
-}: {
-  transferZones?: CatalogTransferZone[]
-}) {
+export function BookingEngine() {
   const [activeTab, setActiveTab] = useState<TabId>("hotels-tunisie")
   const [mobileOpen, setMobileOpen] = useState(false)
-  const t = useT()
+  const t = useTranslations("Common")
+  const tHome = useTranslations("Home")
 
   const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
   const ActiveIcon = activeTabConfig.icon
@@ -213,18 +201,17 @@ export function BookingEngine({
         <div className="e2b-fade-in-up mb-8 max-w-2xl sm:mb-10">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
             <Sparkles className="text-accent size-3.5" />
-            Réservation instantanée · 100% Tunisie
+            {tHome("heroKicker")}
           </span>
 
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl lg:text-[3.25rem] lg:leading-[1.05]">
-            Votre prochain voyage
+            {tHome("heroTitleLine1")}
             <br />
-            <span className="text-accent">commence ici</span>
+            <span className="text-accent">{tHome("heroTitleAccent")}</span>
           </h1>
 
           <p className="mt-3 max-w-md text-base text-white/85 sm:text-lg">
-            Vols, hôtels, Omra, transferts et location — comparez et réservez
-            en toute confiance.
+            {tHome("heroSubtitle")}
           </p>
         </div>
 
@@ -238,10 +225,7 @@ export function BookingEngine({
           </div>
 
           <div className="rounded-[1.4rem] bg-white/60 p-5 sm:p-6">
-            <ActiveModuleForm
-              activeTab={activeTab}
-              transferZones={transferZones}
-            />
+            <ActiveModuleForm activeTab={activeTab} />
           </div>
         </div>
 
@@ -262,7 +246,7 @@ export function BookingEngine({
                     {t(activeTabConfig.labelKey)}
                   </span>
                   <span className="text-muted-foreground block truncate text-xs">
-                    Destination, dates, voyageurs…
+                    {tHome("mobileTriggerSubtitle")}
                   </span>
                 </span>
 
@@ -274,7 +258,7 @@ export function BookingEngine({
 
             <DrawerContent className="max-h-[92vh] rounded-t-[1.75rem]">
               <DrawerTitle className="sr-only">
-                Recherche — {t(activeTabConfig.labelKey)}
+                {tHome("searchDrawerTitle", { tab: t(activeTabConfig.labelKey) })}
               </DrawerTitle>
 
               <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 pt-1 pb-3">
@@ -290,7 +274,7 @@ export function BookingEngine({
                     size="sm"
                     className="text-muted-foreground shrink-0 rounded-full"
                   >
-                    Fermer
+                    {tHome("closeButton")}
                   </Button>
                 </DrawerClose>
               </div>
@@ -307,10 +291,7 @@ export function BookingEngine({
                   }
                 }}
               >
-                <ActiveModuleForm
-                  activeTab={activeTab}
-                  transferZones={transferZones}
-                />
+                <ActiveModuleForm activeTab={activeTab} />
               </div>
             </DrawerContent>
           </Drawer>
@@ -385,12 +366,11 @@ function CounterRow({
   )
 }
 
-/** "3 nuits" / "1 nuit" à partir de deux dates ISO (yyyy-MM-dd). */
-function nightsLabel(checkIn: string, checkOut: string): string | null {
+/** Nombre de nuits entre deux dates ISO (yyyy-MM-dd), ou `null` si non calculable — formaté (pluriel ICU) au point d'appel via `Home.nightsCount`. */
+function nightsCount(checkIn: string, checkOut: string): number | null {
   if (!checkIn || !checkOut) return null
   const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn))
-  if (nights <= 0) return null
-  return `${nights} nuit${nights > 1 ? "s" : ""}`
+  return nights > 0 ? nights : null
 }
 
 /** Ajoute `days` jours à une date ISO (yyyy-MM-dd) et retourne une date ISO. */
@@ -398,13 +378,12 @@ function addDaysIso(dateIso: string, days: number): string {
   return format(addDays(new Date(dateIso), days), "yyyy-MM-dd")
 }
 
-const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`)
-
 function SearchSubmit({
-  children = "Rechercher",
+  children,
 }: {
   children?: React.ReactNode
 }) {
+  const t = useTranslations("Common")
   return (
     <Button
       type="submit"
@@ -412,307 +391,75 @@ function SearchSubmit({
       className="from-primary to-accent hover:shadow-primary/30 w-full gap-2 rounded-2xl bg-gradient-to-r px-8 text-base font-semibold text-white uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 sm:w-auto"
     >
       <Search className="size-4" />
-      {children}
+      {children ?? t("rechercher")}
     </Button>
   )
 }
 
 // ----------------------------------------------------------------------------
 
-// Per-module forms (visual only — RECHERCHER triggers a toast)
+// Per-module forms — RECHERCHER navigue vers la page de résultats réelle du
+// module (router.push), un toast n'apparaît qu'en cas de saisie invalide.
 
 // ----------------------------------------------------------------------------
 
-function VolsForm() {
-  const router = useRouter()
-  const [tripType, setTripType] = useState<"roundtrip" | "oneway">("roundtrip")
-  const [travelClass, setTravelClass] = useState("economique")
-  const [flexible, setFlexible] = useState(false)
-  const [departureDate, setDepartureDate] = useState(TODAY_ISO)
-  const [returnDate, setReturnDate] = useState(TOMORROW_ISO)
-  const [adults, setAdults] = useState(1)
-  const [children, setChildren] = useState(0)
-  const [babies, setBabies] = useState(0)
-  const [paxOpen, setPaxOpen] = useState(false)
-
-  const paxSummary = [
-    `${adults} adulte${adults > 1 ? "s" : ""}`,
-    children > 0 ? `${children} enfant${children > 1 ? "s" : ""}` : null,
-    babies > 0 ? `${babies} bébé${babies > 1 ? "s" : ""}` : null,
-  ]
-    .filter(Boolean)
-    .join(", ")
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        const fd = new FormData(e.currentTarget)
-        const origin = ((fd.get("origin") as string) || "Tunis (TUN)").trim()
-        const destination = (
-          (fd.get("destination") as string) || "Istanbul (IST)"
-        ).trim()
-
-        if (origin.toLowerCase() === destination.toLowerCase()) {
-          toast.error(
-            "L'aéroport de départ et d'arrivée doivent être différents.",
-          )
-          return
-        }
-        if (tripType === "roundtrip" && returnDate < departureDate) {
-          toast.error("La date de retour doit être après la date de départ.")
-          return
-        }
-
-        const params = new URLSearchParams()
-        params.set("origin", origin)
-        params.set("destination", destination)
-        params.set("tripType", tripType)
-        params.set("departureDate", departureDate)
-        if (tripType === "roundtrip") params.set("returnDate", returnDate)
-        params.set("class", travelClass)
-        params.set("adults", String(adults))
-        if (children > 0) params.set("children", String(children))
-        if (babies > 0) params.set("babies", String(babies))
-        if (flexible) params.set("flexible", "1")
-        router.push(`/vols?${params.toString()}`)
-      }}
-      className="space-y-5"
-    >
-      {/* Pilules aller-retour/aller simple — pas de panneau de contenu Radix
-          associé (le contenu réel est piloté par le state `tripType`
-          ci-dessus, pas par des `TabsContent`) : boutons role="tab" simples
-          plutôt que le primitive `Tabs` de Radix, qui générait sinon un
-          `aria-controls` pointant vers un `TabsContent` jamais monté
-          (violation axe-core "aria-valid-attr-value"). */}
-      <div role="tablist" className="bg-muted/70 inline-flex h-10 gap-1 rounded-full p-1">
-        {(
-          [
-            { value: "roundtrip" as const, label: "Aller-retour", icon: ArrowLeftRight },
-            { value: "oneway" as const, label: "Aller simple", icon: null },
-          ]
-        ).map(({ value, label, icon: Icon }) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            aria-selected={tripType === value}
-            onClick={() => {
-              setTripType(value)
-              if (value === "roundtrip" && returnDate < departureDate) {
-                setReturnDate(departureDate)
-              }
-            }}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors",
-              tripType === value
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {Icon && <Icon className="size-3.5" />}
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={MapPin}>Départ de</FieldLabel>
-          <Input
-            name="origin"
-            aria-label="Départ de"
-            defaultValue="Tunis (TUN)"
-            className={FIELD_INPUT_RESET}
-          />
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={MapPin}>Destination</FieldLabel>
-          <Input
-            name="destination"
-            aria-label="Destination"
-            defaultValue="Istanbul (IST)"
-            className={FIELD_INPUT_RESET}
-          />
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Date de départ</FieldLabel>
-          <Input
-            type="date"
-            aria-label="Date de départ"
-            value={departureDate}
-            min={TODAY_ISO}
-            onChange={(e) => {
-              setDepartureDate(e.target.value)
-              if (tripType === "roundtrip" && returnDate < e.target.value) {
-                setReturnDate(e.target.value)
-              }
-            }}
-            className={FIELD_INPUT_RESET}
-          />
-        </div>
-
-        <div
-          className={cn(
-            FIELD_SHELL,
-            tripType === "oneway" && "opacity-50",
-          )}
-        >
-          <FieldLabel icon={CalendarDays}>Date de retour</FieldLabel>
-          <Input
-            type="date"
-            aria-label="Date de retour"
-            value={returnDate}
-            min={departureDate}
-            disabled={tripType === "oneway"}
-            onChange={(e) => setReturnDate(e.target.value)}
-            className={FIELD_INPUT_RESET}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        <Popover open={paxOpen} onOpenChange={setPaxOpen}>
-          <PopoverTrigger asChild>
-            <button type="button" className={FIELD_SHELL}>
-              <FieldLabel icon={Users}>Passagers</FieldLabel>
-              <span className="truncate text-sm font-semibold">
-                {paxSummary}
-              </span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-72 space-y-4 rounded-2xl p-5 shadow-e2b-elevated"
-            align="start"
-          >
-            <CounterRow
-              label="Adultes"
-              sublabel="12 ans et plus"
-              min={1}
-              max={9}
-              value={adults}
-              onChange={(n) => {
-                setAdults(n)
-                if (babies > n) setBabies(n)
-              }}
-            />
-            <CounterRow
-              label="Enfants"
-              sublabel="2-11 ans, siège occupé"
-              min={0}
-              max={8}
-              value={children}
-              onChange={setChildren}
-            />
-            <CounterRow
-              label="Bébés"
-              sublabel="0-2 ans, sur les genoux"
-              min={0}
-              max={adults}
-              value={babies}
-              onChange={setBabies}
-            />
-          </PopoverContent>
-        </Popover>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={Briefcase}>Classe</FieldLabel>
-          <Select value={travelClass} onValueChange={setTravelClass}>
-            <SelectTrigger aria-label="Classe" className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Classe" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="economique">Économique</SelectItem>
-              <SelectItem value="premium">Premium</SelectItem>
-              <SelectItem value="business">Business</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex flex-col items-start justify-between gap-4 pt-1 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="vols-flexible"
-            checked={flexible}
-            onCheckedChange={(v) => setFlexible(v === true)}
-          />
-
-          <label
-            htmlFor="vols-flexible"
-            className="text-muted-foreground cursor-pointer text-sm"
-          >
-            Comparer avec les prix flexibles
-          </label>
-        </div>
-
-        <SearchSubmit />
-      </div>
-    </form>
-  )
-}
-
 function HotelsMondeForm() {
   const router = useRouter()
+  const t = useTranslations("Home")
+  const [destination, setDestination] = useState("")
   const [checkIn, setCheckIn] = useState(TODAY_ISO)
   const [checkOut, setCheckOut] = useState(TOMORROW_ISO)
   const [rooms, setRooms] = useState(1)
   const [adults, setAdults] = useState(2)
-  const [children, setChildren] = useState(0)
-  const [babies, setBabies] = useState(0)
   const [occupancyOpen, setOccupancyOpen] = useState(false)
 
-  const nights = nightsLabel(checkIn, checkOut)
+  const nights = nightsCount(checkIn, checkOut)
   const occupancySummary = [
-    `${rooms} chambre${rooms > 1 ? "s" : ""}`,
-    `${adults} adulte${adults > 1 ? "s" : ""}`,
-    children > 0 ? `${children} enfant${children > 1 ? "s" : ""}` : null,
-    babies > 0 ? `${babies} bébé${babies > 1 ? "s" : ""}` : null,
-  ]
-    .filter(Boolean)
-    .join(", ")
+    t("roomsCount", { count: rooms }),
+    t("adultsCount", { count: adults }),
+  ].join(", ")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        const fd = new FormData(e.currentTarget)
-        const destination = (fd.get("destination") as string)?.trim()
 
-        if (checkOut <= checkIn) {
-          toast.error(
-            "La date de départ doit être après la date d'arrivée (1 nuit minimum).",
-          )
+        if (!destination) {
+          toast.error(t("hotelsMondeDestinationError"))
           return
         }
 
+        if (checkOut <= checkIn) {
+          toast.error(t("hotelsMondeDateError"))
+          return
+        }
+
+        // Mêmes noms de params que /hotels-monde/search
+        // (lib/hotels-monde/search-state.ts) — on va directement aux
+        // résultats, jamais à la page formulaire /hotels-monde, pour ne pas
+        // perdre la saisie de l'utilisateur en cours de route.
         const params = new URLSearchParams()
-        if (destination) params.set("destination", destination)
-        params.set("checkin", checkIn)
-        params.set("checkout", checkOut)
+        params.set("destination", destination)
+        params.set("checkIn", checkIn)
+        params.set("checkOut", checkOut)
         params.set("rooms", String(rooms))
         params.set("adults", String(adults))
-        if (children > 0) params.set("children", String(children))
-        if (babies > 0) params.set("babies", String(babies))
-        router.push(`/hotels-monde?${params.toString()}`)
+        router.push(`/hotels-monde/search?${params.toString()}`)
       }}
       className="space-y-5"
     >
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={cn(FIELD_SHELL, "lg:col-span-2")}>
-          <FieldLabel icon={MapPin}>Destination mondiale</FieldLabel>
-          <Input
-            name="destination"
-            placeholder="Ville, hôtel ou aéroport"
-            className={FIELD_INPUT_RESET}
+        <div className="lg:col-span-2">
+          <DestinationAutocomplete
+            module="hotels_monde_slug"
+            value={destination}
+            onChange={setDestination}
+            label={t("destinationWorldLabel")}
           />
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Arrivée</FieldLabel>
+          <FieldLabel icon={CalendarDays}>{t("arrivalLabel")}</FieldLabel>
           <Input
             type="date"
             value={checkIn}
@@ -729,7 +476,10 @@ function HotelsMondeForm() {
 
         <div className={FIELD_SHELL}>
           <FieldLabel icon={CalendarDays}>
-            Départ{nights ? <span className="text-primary normal-case"> · {nights}</span> : null}
+            {t("departureLabel")}
+            {nights ? (
+              <span className="text-primary normal-case"> · {t("nightsCount", { count: nights })}</span>
+            ) : null}
           </FieldLabel>
           <Input
             type="date"
@@ -745,7 +495,7 @@ function HotelsMondeForm() {
         <Popover open={occupancyOpen} onOpenChange={setOccupancyOpen}>
           <PopoverTrigger asChild>
             <button type="button" className={FIELD_SHELL}>
-              <FieldLabel icon={Users}>Chambres et voyageurs</FieldLabel>
+              <FieldLabel icon={Users}>{t("occupancyLabel")}</FieldLabel>
               <span className="truncate text-sm font-semibold">
                 {occupancySummary}
               </span>
@@ -756,35 +506,19 @@ function HotelsMondeForm() {
             align="start"
           >
             <CounterRow
-              label="Chambres"
+              label={t("roomsFieldLabel")}
               min={1}
-              max={8}
+              max={5}
               value={rooms}
               onChange={setRooms}
             />
             <CounterRow
-              label="Adultes"
-              sublabel="18 ans et plus"
+              label={t("adultsFieldLabel")}
+              sublabel={t("adultsFieldSublabel18")}
               min={1}
               max={16}
               value={adults}
               onChange={setAdults}
-            />
-            <CounterRow
-              label="Enfants"
-              sublabel="3-11 ans"
-              min={0}
-              max={8}
-              value={children}
-              onChange={setChildren}
-            />
-            <CounterRow
-              label="Bébés"
-              sublabel="0-2 ans"
-              min={0}
-              max={8}
-              value={babies}
-              onChange={setBabies}
             />
           </PopoverContent>
         </Popover>
@@ -798,31 +532,18 @@ function HotelsMondeForm() {
 }
 
 // Doit correspondre à l'enum omra_package_type réel (lib/db/schema/omra.ts)
-// pour que le filtre passé à /omra matche de vrais packages.
-const OMRA_PROGRAMMES = [
-  { value: "omra", label: "Omra" },
-  { value: "ramadan", label: "Omra Ramadan" },
-  { value: "umrah_plus", label: "Omra + Ziarat étendu" },
-  { value: "hajj", label: "Hajj" },
-]
+// pour que le filtre passé à /omra matche de vrais packages — libellés
+// traduits au rendu via `Omra.filterProgrammes.{value}` (mêmes clés que
+// components/omra/omra-search.tsx, Lot 2 de la migration i18n).
+const OMRA_PROGRAMME_VALUES = ["omra", "ramadan", "umrah_plus", "hajj"] as const
 
-const OMRA_MONTHS = [
-  { value: "1", label: "Janvier" },
-  { value: "2", label: "Février" },
-  { value: "3", label: "Mars" },
-  { value: "4", label: "Avril" },
-  { value: "5", label: "Mai" },
-  { value: "6", label: "Juin" },
-  { value: "7", label: "Juillet" },
-  { value: "8", label: "Août" },
-  { value: "9", label: "Septembre" },
-  { value: "10", label: "Octobre" },
-  { value: "11", label: "Novembre" },
-  { value: "12", label: "Décembre" },
-]
+// Idem, `Omra.months.{value}` (mêmes clés que omra-search.tsx).
+const OMRA_MONTH_VALUES = Array.from({ length: 12 }, (_, i) => String(i + 1))
 
 function OmratyForm() {
   const router = useRouter()
+  const t = useTranslations("Home")
+  const tOmra = useTranslations("Omra")
   const [programme, setProgramme] = useState("")
   const [month, setMonth] = useState("")
 
@@ -839,16 +560,16 @@ function OmratyForm() {
     >
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={Moon}>Programme</FieldLabel>
+          <FieldLabel icon={Moon}>{t("programmeLabel")}</FieldLabel>
           <Select value={programme} onValueChange={setProgramme}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Tous programmes" />
+              <SelectValue placeholder={tOmra("allProgrammes")} />
             </SelectTrigger>
 
             <SelectContent>
-              {OMRA_PROGRAMMES.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
+              {OMRA_PROGRAMME_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {tOmra(`filterProgrammes.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -856,16 +577,16 @@ function OmratyForm() {
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Mois de départ</FieldLabel>
+          <FieldLabel icon={CalendarDays}>{t("departureMonthLabel")}</FieldLabel>
           <Select value={month} onValueChange={setMonth}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Tous les mois" />
+              <SelectValue placeholder={tOmra("allMonths")} />
             </SelectTrigger>
 
             <SelectContent>
-              {OMRA_MONTHS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
+              {OMRA_MONTH_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {tOmra(`months.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -880,30 +601,14 @@ function OmratyForm() {
   )
 }
 
-// Doit correspondre aux clés DESTINATION_SEARCH_TERMS de app/packages/page.tsx
-// (recherche par ILIKE sur le titre — pas de colonne destination dédiée).
-const PACKAGE_DESTINATIONS = [
-  { value: "istanbul", label: "Istanbul" },
-  { value: "dubai", label: "Dubaï" },
-  { value: "paris", label: "Paris" },
-  { value: "rome", label: "Rome" },
-  { value: "barcelona", label: "Barcelone" },
-  { value: "london", label: "Londres" },
-  { value: "cairo", label: "Le Caire" },
-  { value: "casablanca", label: "Casablanca" },
-]
-
 // Doit correspondre aux plages lues par parseDurationRange() dans
-// app/packages/page.tsx.
-const PACKAGE_DURATIONS = [
-  { value: "3-5", label: "3 à 5 jours" },
-  { value: "6-8", label: "6 à 8 jours" },
-  { value: "9-12", label: "9 à 12 jours" },
-  { value: "13+", label: "13 jours et plus" },
-]
+// app/packages/page.tsx — libellés via `Packages.durations.{value}`.
+const PACKAGE_DURATION_VALUES = ["3-5", "6-8", "9-12", "13+"] as const
 
 function VoyagesOrganisesForm() {
   const router = useRouter()
+  const t = useTranslations("Home")
+  const tPackages = useTranslations("Packages")
   const [destination, setDestination] = useState("")
   const [duration, setDuration] = useState("")
   const [travelers, setTravelers] = useState("2")
@@ -921,34 +626,24 @@ function VoyagesOrganisesForm() {
       className="space-y-5"
     >
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={MapPin}>Destination</FieldLabel>
-          <Select value={destination} onValueChange={setDestination}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Toutes destinations" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {PACKAGE_DESTINATIONS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <DestinationAutocomplete
+          module="packages_slug"
+          value={destination}
+          onChange={setDestination}
+          label={t("destinationLabel")}
+        />
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={Clock}>Durée</FieldLabel>
+          <FieldLabel icon={Clock}>{t("durationLabel")}</FieldLabel>
           <Select value={duration} onValueChange={setDuration}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Toutes durées" />
+              <SelectValue placeholder={tPackages("allDurations")} />
             </SelectTrigger>
 
             <SelectContent>
-              {PACKAGE_DURATIONS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
+              {PACKAGE_DURATION_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {tPackages(`durations.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -956,16 +651,16 @@ function VoyagesOrganisesForm() {
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={Users}>Voyageurs</FieldLabel>
+          <FieldLabel icon={Users}>{t("travelersLabel")}</FieldLabel>
           <Select value={travelers} onValueChange={setTravelers}>
             <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Voyageurs" />
+              <SelectValue placeholder={t("travelersLabel")} />
             </SelectTrigger>
 
             <SelectContent>
               {[1, 2, 3, 4, 5].map((n) => (
                 <SelectItem key={n} value={String(n)}>
-                  {n} Voyageur{n > 1 ? "s" : ""}
+                  {t("travelersOption", { count: n })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -980,342 +675,35 @@ function VoyagesOrganisesForm() {
   )
 }
 
-/** Heure de prise en charge par défaut pour la recherche rapide (affinable sur /transferts/resultats). */
-const TRANSFER_DEFAULT_TIME = "10:00"
-const TRANSFER_DEFAULT_VEHICLE = "sedan"
-
-function TransfertsForm({ zones }: { zones: CatalogTransferZone[] }) {
+function AttractionsForm() {
   const router = useRouter()
-  const [fromZone, setFromZone] = useState("")
-  const [toZone, setToZone] = useState("")
-  const [date, setDate] = useState("")
-  const [pax, setPax] = useState("2")
+  const tAttractions = useTranslations("Attractions")
+  const [q, setQ] = useState("")
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        if (!fromZone || !toZone) {
-          toast.error("Veuillez sélectionner le lieu de prise en charge et de dépose.")
-          return
-        }
-        if (!date) {
-          toast.error("Veuillez sélectionner une date.")
-          return
-        }
-        if (fromZone === toZone) {
-          toast.error("Le lieu de départ et d'arrivée doivent être différents.")
-          return
-        }
-        const params = new URLSearchParams({
-          from: fromZone,
-          to: toZone,
-          vehicle: TRANSFER_DEFAULT_VEHICLE,
-          date,
-          time: TRANSFER_DEFAULT_TIME,
-          pax,
-        })
-        router.push(`/transferts/resultats?${params.toString()}`)
-      }}
-      className="space-y-5"
-    >
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={MapPin}>Lieu de prise en charge</FieldLabel>
-          <Select value={fromZone} onValueChange={setFromZone}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Choisir une zone" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {zones.length === 0 ? (
-                <SelectItem value="_" disabled>
-                  Aucune zone disponible
-                </SelectItem>
-              ) : (
-                zones.map((z) => (
-                  <SelectItem key={z.id} value={z.id}>
-                    {z.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={MapPin}>Lieu de dépose</FieldLabel>
-          <Select value={toZone} onValueChange={setToZone}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Choisir une zone" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {zones
-                .filter((z) => z.id !== fromZone)
-                .map((z) => (
-                  <SelectItem key={z.id} value={z.id}>
-                    {z.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Date</FieldLabel>
-          <Input
-            type="date"
-            value={date}
-            min={new Date().toISOString().split("T")[0]}
-            onChange={(e) => setDate(e.target.value)}
-            className={FIELD_INPUT_RESET}
-          />
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={Users}>Passagers</FieldLabel>
-          <Select value={pax} onValueChange={setPax}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Passagers" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} Passager{n > 1 ? "s" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex justify-end pt-1">
-        <SearchSubmit />
-      </div>
-    </form>
-  )
-}
-
-const CAR_LOCATIONS = [
-  { value: "tunis-airport", label: "Aéroport Tunis-Carthage" },
-  { value: "enfidha", label: "Aéroport Enfidha" },
-  { value: "djerba-airport", label: "Aéroport Djerba" },
-  { value: "hammamet", label: "Hammamet centre" },
-  { value: "sousse", label: "Sousse centre" },
-]
-
-const CAR_CATEGORIES = [
-  { value: "economique", label: "Économique" },
-  { value: "compacte", label: "Compacte" },
-  { value: "berline", label: "Berline" },
-  { value: "suv", label: "SUV" },
-  { value: "luxe", label: "Luxe" },
-]
-
-function CarForm() {
-  const router = useRouter()
-  const [location, setLocation] = useState("")
-  const [pickupDate, setPickupDate] = useState(TODAY_ISO)
-  const [pickupTime, setPickupTime] = useState("10:00")
-  const [returnDate, setReturnDate] = useState(TOMORROW_ISO)
-  const [returnTime, setReturnTime] = useState("10:00")
-  const [category, setCategory] = useState("economique")
-  const [withDriver, setWithDriver] = useState(false)
-  const [differentReturn, setDifferentReturn] = useState(false)
-  const [returnLocation, setReturnLocation] = useState("")
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-
-        if (!location) {
-          toast.error("Veuillez sélectionner un lieu de prise en charge.")
-          return
-        }
-        if (differentReturn && !returnLocation) {
-          toast.error("Veuillez sélectionner un lieu de restitution.")
-          return
-        }
-        const pickupAt = new Date(`${pickupDate}T${pickupTime}`)
-        const returnAt = new Date(`${returnDate}T${returnTime}`)
-        if (returnAt <= pickupAt) {
-          toast.error(
-            "La restitution doit avoir lieu après la prise en charge (24h minimum recommandées).",
-          )
-          return
-        }
-
         const params = new URLSearchParams()
-        params.set("location", location)
-        params.set("pickupDate", pickupDate)
-        params.set("pickupTime", pickupTime)
-        params.set("returnDate", returnDate)
-        params.set("returnTime", returnTime)
-        params.set("category", category)
-        if (withDriver) params.set("driver", "1")
-        if (differentReturn && returnLocation) {
-          params.set("differentReturn", "1")
-          params.set("returnLocation", returnLocation)
-        }
-        router.push(`/car?${params.toString()}`)
+        if (q.trim()) params.set("q", q.trim())
+        const qs = params.toString()
+        router.push(`/attractions${qs ? `?${qs}` : ""}`)
       }}
       className="space-y-5"
     >
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={MapPin}>Lieu de prise en charge</FieldLabel>
-          <Select value={location} onValueChange={setLocation}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Aéroport ou ville" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {CAR_LOCATIONS.map((l) => (
-                <SelectItem key={l.value} value={l.value}>
-                  {l.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {differentReturn && (
-          <div className={FIELD_SHELL}>
-            <FieldLabel icon={MapPin}>Lieu de restitution</FieldLabel>
-            <Select value={returnLocation} onValueChange={setReturnLocation}>
-              <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-                <SelectValue placeholder="Aéroport ou ville" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {CAR_LOCATIONS.map((l) => (
-                  <SelectItem key={l.value} value={l.value}>
-                    {l.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Prise en charge</FieldLabel>
-          <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              value={pickupDate}
-              min={TODAY_ISO}
-              onChange={(e) => {
-                setPickupDate(e.target.value)
-                if (returnDate < e.target.value) {
-                  setReturnDate(e.target.value)
-                }
-              }}
-              className={cn(FIELD_INPUT_RESET, "min-w-0 flex-1")}
-            />
-
-            <Select value={pickupTime} onValueChange={setPickupTime}>
-              <SelectTrigger className="border-border/60 h-auto w-24 shrink-0 gap-1 rounded-lg border bg-white px-2 py-1 text-xs shadow-none">
-                <Clock className="text-muted-foreground size-3 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {HOURS.map((h) => (
-                  <SelectItem key={h} value={h}>
-                    {h}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>Restitution</FieldLabel>
-          <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              value={returnDate}
-              min={pickupDate || TODAY_ISO}
-              onChange={(e) => setReturnDate(e.target.value)}
-              className={cn(FIELD_INPUT_RESET, "min-w-0 flex-1")}
-            />
-
-            <Select value={returnTime} onValueChange={setReturnTime}>
-              <SelectTrigger className="border-border/60 h-auto w-24 shrink-0 gap-1 rounded-lg border bg-white px-2 py-1 text-xs shadow-none">
-                <Clock className="text-muted-foreground size-3 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {HOURS.map((h) => (
-                  <SelectItem key={h} value={h}>
-                    {h}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={Car}>Catégorie</FieldLabel>
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
-              <SelectValue placeholder="Catégorie" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {CAR_CATEGORIES.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className={FIELD_SHELL}>
+        <FieldLabel icon={MapPin}>{tAttractions("kicker")}</FieldLabel>
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={tAttractions("searchPlaceholder")}
+          className={FIELD_INPUT_RESET}
+        />
       </div>
 
-      <div className="flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="car-different-return"
-              checked={differentReturn}
-              onCheckedChange={(v) => {
-                const next = v === true
-                setDifferentReturn(next)
-                if (!next) setReturnLocation("")
-              }}
-            />
-
-            <label
-              htmlFor="car-different-return"
-              className="text-muted-foreground cursor-pointer text-sm"
-            >
-              Restituer à une agence différente
-            </label>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="car-driver"
-              checked={withDriver}
-              onCheckedChange={(v) => setWithDriver(v === true)}
-            />
-
-            <label
-              htmlFor="car-driver"
-              className="text-muted-foreground cursor-pointer text-sm"
-            >
-              Avec chauffeur
-            </label>
-          </div>
-        </div>
-
-        <SearchSubmit />
+      <div className="flex justify-end pt-1">
+        <SearchSubmit>{tAttractions("searchButton")}</SearchSubmit>
       </div>
     </form>
   )

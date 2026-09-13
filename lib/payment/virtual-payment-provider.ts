@@ -33,7 +33,14 @@ import type { CreatePaymentInput, PaymentProvider, PaymentResult, PaymentStatusR
  * "virtual", exactement comme `MYGO_MODE=virtual`.
  */
 export function isVirtualPaymentModeEnabled(): boolean {
-  return process.env.PAYMENT_MODE === "virtual"
+  const enabled = process.env.PAYMENT_MODE === "virtual"
+  if (enabled && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "PAYMENT_MODE=virtual est interdit en production (NODE_ENV=production) — " +
+        "retirez cette variable de l'environnement de production.",
+    )
+  }
+  return enabled
 }
 
 export class VirtualPaymentProvider implements PaymentProvider {

@@ -1,0 +1,19 @@
+-- Hôtels Monde — réservation réelle (Virtual World Hotel Supplier).
+--
+-- Ajoute la valeur d'enum "hotel_monde" à reservation_module, distincte de
+-- "hotel" (Hôtels Tunisie / myGo) pour ne jamais confondre les deux
+-- fournisseurs dans le back-office (listes filtrées par module, dashboards,
+-- reporting marge). Réutilise la table d'extension `reservation_hotel`
+-- existante (déjà structurellement générique — hotelId/hotelName/cityName/
+-- checkIn/checkOut/nights/adults/rooms/providerBookingId — malgré des
+-- commentaires de colonnes historiquement orientés myGo) plutôt que de
+-- créer une nouvelle table d'extension dupliquée : `providerBookingId`
+-- porte la référence Virtual World Hotel Supplier, `cityId` reste NULL
+-- (référentiel `cities` scopé Tunisie, non pertinent pour un hôtel
+-- international).
+--
+-- ALTER TYPE ... ADD VALUE ne peut pas être utilisé dans la même
+-- transaction qu'une requête qui référence la nouvelle valeur (limitation
+-- Postgres) — ce fichier ne fait que l'ajout, jamais combiné avec un INSERT/
+-- UPDATE l'utilisant.
+ALTER TYPE reservation_module ADD VALUE IF NOT EXISTS 'hotel_monde';

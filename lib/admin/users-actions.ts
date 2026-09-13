@@ -260,3 +260,89 @@ export async function setUserRole(
   if (outcome.ok) revalidatePath("/admin/staff")
   return outcome
 }
+
+/* ---------------------------------------------------------------------- */
+/* Statut — vue plateforme cross-agence (Administration Système)          */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * `setUserStatus` ci-dessus reste scopé à l'agence de l'acteur (RLS
+ * `users_manager_*`), correct pour `/admin/staff` (personnel de SA PROPRE
+ * agence). `app/admin/users/page.tsx` ("Administration Système", nav
+ * super_admin) liste au contraire TOUS les utilisateurs de TOUTES les
+ * agences (B2B compris) — `components/admin/user-row-actions.tsx` n'avait
+ * jusqu'ici aucune Server Action réelle (toast explicite "non encore
+ * reliée"). Réservé strictement à `super_admin` (pas `manager`, qui n'a pas
+ * de vue cross-agence légitime), avec un garde-fou propre à cette portée
+ * élargie : jamais suspendre le dernier `super_admin` actif de la
+ * plateforme, sinon plus personne ne pourrait réactiver aucun compte.
+ */
+const platformStatusInputSchema = z.object({
+  userId: z.string().uuid(),
+  status: z.enum(["active", "suspended"]),
+})
+
+export type SetPlatformUserStatusResult = { ok: true } | { ok: false; error: string }
+
+export async function setPlatformUserStatus(
+  raw: z.infer<typeof platformStatusInputSchema>,
+): Promise<SetPlatformUserStatusResult> {
+  const parsed = platformStatusInputSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, error: "Entrée invalide" }
+  const input = parsed.data
+
+  if (!process.env.DATABASE_URL) {
+    return { ok: false, error: "Base de données non configurée" }
+  }
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: "Session expirée" }
+
+  const profile = await getCurrentAdminProfile(user.id)
+  if (profile?.role !== "super_admin") {
+    return { ok: false, error: "Seul un super_admin a une vue plateforme cross-agence." }
+  }
+
+  const selfCheck = checkNotSelfTarget({ actorUserId: user.id, targetUserId: input.userId })
+  if (!selfCheck.ok) return { ok: false, error: selfCheck.error }
+
+  const outcome = await withTenantContext(
+    { agencyId: null, userId: user.id, isSuperAdmin: true },
+    async (tx) => {
+      const [target] = await tx
+        .select({ id: users.id, email: users.email, role: users.role, status: users.status, agencyId: users.agencyId })
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .limit(1)
+      if (!target) return { ok: false as const, error: "Utilisateur introuvable." }
+
+      if (input.status === "suspended" && target.role === "super_admin") {
+        const otherActiveSuperAdmins = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.role, "super_admin"), eq(users.status, "active")))
+        if (otherActiveSuperAdmins.filter((a) => a.id !== target.id).length === 0) {
+          return { ok: false as const, error: "Impossible de suspendre le dernier super_admin actif de la plateforme." }
+        }
+      }
+
+      await tx.update(users).set({ status: input.status }).where(eq(users.id, input.userId))
+
+      await tx.insert(auditEvents).values({
+        agencyId: target.agencyId,
+        actorUserId: user.id,
+        entityType: "user",
+        entityId: input.userId,
+        action: "user.status_changed",
+        diff: { email: target.email, from: target.status, to: input.status },
+      })
+
+      return { ok: true as const }
+    },
+  )
+
+  if (outcome.ok) revalidatePath("/admin/users")
+  return outcome
+}

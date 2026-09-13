@@ -89,6 +89,7 @@ export const reservationModule = pgEnum("reservation_module", [
   "transfer",
   "omra",
   "car",
+  "hotel_monde",
 ])
 
 export const reservationSource = pgEnum("reservation_source", [
@@ -195,6 +196,23 @@ export const agencies = pgTable(
     })
       .notNull()
       .default("100.000"),
+    /**
+     * B2B : tolérance de réservation — l'agence peut confirmer une
+     * réservation même si `deposit_balance` devient temporairement négatif,
+     * dans cette limite (`booking_capacity = deposit_balance +
+     * reservation_tolerance`, voir `lib/pro/booking-actions.ts::debitPartnerCredit`).
+     * Configurée par le Master Admin (`setAgencyReservationTolerance`,
+     * `lib/admin/agencies-actions.ts`) — jamais par l'agence elle-même.
+     * Le plancher `deposit_balance >= -reservation_tolerance` reste imposé
+     * au niveau DB (voir migration 0050) : défense en profondeur, même
+     * garantie que `agencies_deposit_balance_nonnegative` avant elle.
+     */
+    reservationTolerance: decimal("reservation_tolerance", {
+      precision: 12,
+      scale: 3,
+    })
+      .notNull()
+      .default("0"),
     /** Devises affichées au client (front). La 1ʳᵉ est la devise par défaut. */
     displayCurrencies: text("display_currencies")
       .array()
@@ -2391,6 +2409,17 @@ export {
 } from "./schema/omra"
 
 /* -------------------------------------------------------------------------- */
+/* Media Module (Mission Media) — imported from schema/media.ts               */
+/* -------------------------------------------------------------------------- */
+
+export {
+  productMedia,
+  type ProductMedia,
+  type NewProductMedia,
+  type ProductMediaVariants,
+} from "./schema/media"
+
+/* -------------------------------------------------------------------------- */
 /* Suppliers Module (API XML Integration) — imported from schema/suppliers.ts  */
 /* -------------------------------------------------------------------------- */
 
@@ -2532,3 +2561,17 @@ export {
   type ReservationCar,
   type NewReservationCar,
 } from "./schema/cars"
+
+/* -------------------------------------------------------------------------- */
+/* Canonical Destination Model — imported from schema/destinations.ts          */
+/* -------------------------------------------------------------------------- */
+
+export {
+  destinations,
+  destinationExternalRefs,
+  destinationType,
+  type Destination,
+  type NewDestination,
+  type DestinationExternalRef,
+  type NewDestinationExternalRef,
+} from "./schema/destinations"

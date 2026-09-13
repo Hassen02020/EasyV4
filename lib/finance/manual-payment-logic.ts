@@ -44,6 +44,23 @@ export function toPaymentMethod(method: ManualPaymentMethod): "cash" | "transfer
 }
 
 /**
+ * Mappe une méthode de règlement manuel staff vers la taxonomie wallet
+ * unifiée (`WalletRechargeMethod`, lib/finance/customer-wallet.ts) — `null`
+ * pour les deux méthodes qui NE rechargent PAS le wallet : `wallet`
+ * (débit direct d'un solde déjà disponible, pas une recharge) et
+ * `at_hotel` (réglé directement à l'hôtel, jamais un flux financier
+ * Easy2Book — hors périmètre de l'unification wallet).
+ */
+export function toWalletRechargeMethod(
+  method: ManualPaymentMethod,
+): "cash" | "bank_transfer" | "bank_deposit" | null {
+  if (method === "cash") return "cash"
+  if (method === "deposit") return "bank_deposit"
+  if (method === "transfer" || method === "mandate") return "bank_transfer"
+  return null // wallet | at_hotel
+}
+
+/**
  * `payments.kind` ("deposit" = acompte / "balance" = solde) dérivé
  * server-side du solde restant APRÈS cette capture — jamais choisi par le
  * staff : une capture qui n'épuise pas encore le solde restant est un

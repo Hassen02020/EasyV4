@@ -23,6 +23,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Info, ShieldCheck, ShieldX } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,6 +49,7 @@ export function CancellationPolicyDisplay({
   onAcceptedChange,
   onPolicyResolved,
 }: CancellationPolicyDisplayProps) {
+  const t = useTranslations("Booking")
   // `result` reste `null` tant que la résolution pour CE `productId` n'est
   // pas revenue — évite un `setState` synchrone dans le corps de l'effet
   // (dérivé via la comparaison `result?.productId !== productId` plutôt
@@ -93,11 +95,9 @@ export function CancellationPolicyDisplay({
         <CardContent className="flex items-start gap-3 p-4">
           <Info className="text-muted-foreground mt-0.5 size-5 shrink-0" />
           <div>
-            <p className="text-sm font-medium">Politique d&apos;annulation non définie</p>
+            <p className="text-sm font-medium">{t("policyUndefinedTitle")}</p>
             <p className="text-muted-foreground mt-1 text-xs">
-              Aucune politique d&apos;annulation n&apos;a encore été publiée pour ce produit.
-              Contactez le support pour toute demande d&apos;annulation ou de modification
-              après réservation.
+              {t("policyUndefinedDesc")}
             </p>
           </div>
         </CardContent>
@@ -106,30 +106,30 @@ export function CancellationPolicyDisplay({
   }
 
   const rules: { label: string; value: string }[] = [
-    { label: "Annulable", value: policy.cancellable ? "Oui" : "Non" },
-    { label: "Modifiable", value: policy.modifiable ? "Oui" : "Non" },
+    { label: t("cancellableLabel"), value: policy.cancellable ? t("yes") : t("no") },
+    { label: t("modifiableLabel"), value: policy.modifiable ? t("yes") : t("no") },
   ]
   if (policy.deadlineHours != null) {
-    rules.push({ label: "Échéance", value: `${policy.deadlineHours} h avant le départ/la session` })
+    rules.push({ label: t("deadlineLabel"), value: t("deadlineValue", { hours: policy.deadlineHours }) })
   }
   if (policy.nonRefundable) {
-    rules.push({ label: "Remboursement", value: "Non remboursable" })
+    rules.push({ label: t("refundLabel"), value: t("nonRefundable") })
   } else {
     rules.push({
-      label: "Frais d'annulation",
-      value: policy.cancellationFeePercent != null ? `${policy.cancellationFeePercent}%` : "Aucun frais configuré",
+      label: t("cancellationFeeLabel"),
+      value: policy.cancellationFeePercent != null ? `${policy.cancellationFeePercent}%` : t("noFeeConfigured"),
     })
     rules.push({
-      label: "Modalité",
+      label: t("modalityLabel"),
       value: policy.creditAllowed
-        ? "Crédit Easy2Book (portefeuille client)"
+        ? t("creditWallet")
         : policy.refundAllowed
-          ? "Remboursement"
-          : "Aucun remboursement ni crédit",
+          ? t("modalityRefundValue")
+          : t("noRefundNoCredit"),
     })
   }
   if (policy.requiresValidatedDocument) {
-    rules.push({ label: "Justificatif", value: "Document requis pour toute annulation" })
+    rules.push({ label: t("proofLabel"), value: t("documentRequired") })
   }
 
   return (
@@ -141,7 +141,7 @@ export function CancellationPolicyDisplay({
           ) : (
             <ShieldX className="size-5 text-amber-600" />
           )}
-          <p className="text-sm font-semibold">Politique d&apos;annulation</p>
+          <p className="text-sm font-semibold">{t("policyTitle")}</p>
         </div>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
           {rules.map((r) => (
@@ -164,7 +164,7 @@ export function CancellationPolicyDisplay({
             htmlFor={`policy-accept-${productType}-${productId}`}
             className="text-muted-foreground text-sm leading-snug"
           >
-            J&apos;ai lu et j&apos;accepte cette politique d&apos;annulation.
+            {t("acceptPolicyLabel")}
           </Label>
         </div>
       </CardContent>

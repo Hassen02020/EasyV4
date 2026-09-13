@@ -12,6 +12,7 @@
 
 import { useState, useTransition } from "react"
 import { useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Loader2, Mail, AlertCircle } from "lucide-react"
 
 import { createBrowserSupabase } from "@/lib/supabase/client"
@@ -21,6 +22,8 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export function CompteLoginForm() {
+  const t = useTranslations("Compte")
+  const tc = useTranslations("Common")
   const params = useSearchParams()
   const nextPath = params.get("next") ?? "/compte"
 
@@ -31,7 +34,7 @@ export function CompteLoginForm() {
 
   function readableAuthError(message: string): string {
     if (/Email rate limit/i.test(message))
-      return "Trop de tentatives. Réessayez dans quelques minutes."
+      return t("rateLimitError")
     return message
   }
 
@@ -39,7 +42,7 @@ export function CompteLoginForm() {
     event.preventDefault()
     setError(null)
     if (!email) {
-      setError("Renseignez votre adresse email.")
+      setError(t("emailRequired"))
       return
     }
     startTransition(async () => {
@@ -63,10 +66,9 @@ export function CompteLoginForm() {
     return (
       <Alert>
         <Mail className="h-4 w-4" />
-        <AlertTitle>Lien envoyé</AlertTitle>
+        <AlertTitle>{t("linkSentTitle")}</AlertTitle>
         <AlertDescription>
-          Un lien de connexion a été envoyé à {email}. Ouvrez-le depuis votre boîte mail pour
-          accéder à votre compte.
+          {t("linkSentDesc", { email })}
         </AlertDescription>
       </Alert>
     )
@@ -79,7 +81,7 @@ export function CompteLoginForm() {
       noValidate
     >
       <div className="space-y-2">
-        <Label htmlFor="email">Adresse email</Label>
+        <Label htmlFor="email">{tc("adresseEmail")}</Label>
         <div className="relative">
           <Mail className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
@@ -95,15 +97,14 @@ export function CompteLoginForm() {
           />
         </div>
         <p className="text-muted-foreground text-xs">
-          Utilisez l&apos;email de vos réservations — nous vous envoyons un lien de connexion,
-          aucun mot de passe à retenir.
+          {t("emailHint")}
         </p>
       </div>
 
       {error ? (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Envoi impossible</AlertTitle>
+          <AlertTitle>{t("sendFailedTitle")}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
@@ -112,12 +113,12 @@ export function CompteLoginForm() {
         {pending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Envoi…
+            {t("sendingLabel")}
           </>
         ) : (
           <>
             <Mail className="h-4 w-4" />
-            Recevoir mon lien de connexion
+            {t("receiveLoginLink")}
           </>
         )}
       </Button>

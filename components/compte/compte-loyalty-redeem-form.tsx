@@ -11,7 +11,8 @@
  */
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Loader2 } from "lucide-react"
 import { redeemMyLoyaltyPoints } from "@/app/actions/redeem-my-loyalty-points"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,8 @@ export function CompteLoyaltyRedeemForm({
   availablePoints: number
   reservations: { id: string; publicRef: string; module: string }[]
 }) {
+  const t = useTranslations("Compte")
+  const tc = useTranslations("Common")
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [reservationId, setReservationId] = useState(reservations[0]?.id ?? "")
@@ -44,11 +47,11 @@ export function CompteLoyaltyRedeemForm({
     setSuccess(null)
     const parsedPoints = Number.parseInt(points, 10)
     if (!Number.isFinite(parsedPoints) || parsedPoints <= 0) {
-      setError("Nombre de points invalide.")
+      setError(t("invalidPointsError"))
       return
     }
     if (!reservationId) {
-      setError("Sélectionnez une réservation.")
+      setError(t("selectReservationError"))
       return
     }
     setPending(true)
@@ -62,10 +65,10 @@ export function CompteLoyaltyRedeemForm({
         setError(result.error)
         return
       }
-      setSuccess(`${result.points} points utilisés (≈ ${result.tndEquivalent.toFixed(2)} DT).`)
+      setSuccess(t("redeemSuccess", { points: result.points, tnd: result.tndEquivalent.toFixed(2) }))
       router.refresh()
     } catch {
-      setError("Erreur technique. Veuillez réessayer.")
+      setError(t("genericError"))
     } finally {
       setPending(false)
     }
@@ -78,7 +81,7 @@ export function CompteLoyaltyRedeemForm({
         onClick={() => setOpen(true)}
         className="text-primary mt-2 text-xs font-medium hover:underline"
       >
-        Utiliser mes points
+        {t("useMyPointsButton")}
       </button>
     )
   }
@@ -108,7 +111,7 @@ export function CompteLoyaltyRedeemForm({
           className="h-8 w-28 text-xs"
         />
         <Button type="submit" size="sm" disabled={pending} className="h-8 text-xs">
-          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirmer"}
+          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("confirmButton")}
         </Button>
         <button
           type="button"
@@ -116,11 +119,11 @@ export function CompteLoyaltyRedeemForm({
           disabled={pending}
           className="text-muted-foreground text-xs hover:underline"
         >
-          Annuler
+          {tc("annuler")}
         </button>
       </div>
       <p className="text-muted-foreground text-[11px]">
-        Minimum {MIN_REDEMPTION_POINTS} points — plafond réel recalculé par le serveur (10% du montant éligible de la réservation choisie).
+        {t("minimumPointsNotice", { min: MIN_REDEMPTION_POINTS })}
       </p>
       {error && <p className="text-destructive text-xs">{error}</p>}
       {success && <p className="text-xs text-emerald-600">{success}</p>}

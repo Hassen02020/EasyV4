@@ -28,6 +28,7 @@ import { TND_EPSILON } from "@/lib/finance/payment-summary"
 import { isTransitionAllowed } from "@/lib/admin/reservation-status"
 import { matchesPendingPayment } from "@/lib/payment/reservation-payment-logic"
 import { classifyEventType, type NormalizedChargeEvent } from "@/lib/payment/webhook-logic"
+import { creditCustomerWallet, recordTargetedWalletSettlement } from "@/lib/finance/customer-wallet"
 
 export type WebhookOutcome =
   | { status: "duplicate" }
@@ -251,7 +252,26 @@ export async function processReservationWebhookCore(
     // Paiement reçu mais réservation non confirmable (expirée par le cron
     // entre-temps, déjà annulée...) — jamais une confirmation forcée, jamais
     // une perte de trace du paiement réel. Signalé pour réconciliation
-    // manuelle staff.
+    // manuelle staff. L'argent reçu recharge quand même le wallet client
+    // (quand `reservation` est résolue, donc `customerId` connu) : sans
+    // débit correspondant (aucune réservation à régler), ce solde reste
+    // réellement disponible pour un remboursement/une prochaine réservation
+    // plutôt que de rester invisible côté client — amélioration par rapport
+    // au comportement précédent (paiement capturé, aucune trace client).
+    if (reservation) {
+      const credit = await creditCustomerWallet({
+        customerId: reservation.customerId,
+        amountTnd: Number.parseFloat(payment.tndAmount),
+        paymentId: payment.id,
+        description: `Paiement en ligne capturé — réservation ${reservation.publicRef} non confirmable (réconciliation manuelle requise)`,
+        source: "online_card",
+        txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
+      })
+      if (!credit.ok) {
+        throw new Error(`Échec crédit wallet (réconciliation) : ${credit.message}`)
+      }
+    }
+
     await tx.insert(auditEvents).values({
       agencyId: payment.agencyId,
       actorUserId: null,
@@ -266,6 +286,22 @@ export async function processReservationWebhookCore(
       },
     })
     return { status: "captured_not_confirmable", reservationId: payment.reservationId }
+  }
+
+  // L'argent reçu recharge le wallet client puis le règle aussitôt pour
+  // CETTE réservation — un seul mécanisme de règlement pour toutes les
+  // méthodes B2C (voir lib/finance/customer-wallet.ts, note de fichier).
+  const settlement = await recordTargetedWalletSettlement({
+    customerId: reservation.customerId,
+    amountTnd: Number.parseFloat(payment.tndAmount),
+    reservationId: reservation.id,
+    paymentId: payment.id,
+    method: "online_card",
+    reference: reservation.publicRef,
+    txOverride: tx as Parameters<typeof recordTargetedWalletSettlement>[0]["txOverride"],
+  })
+  if (!settlement.ok) {
+    throw new Error(`Échec règlement wallet (carte/Paymee) : ${settlement.message}`)
   }
 
   await tx

@@ -1,10 +1,10 @@
 "use client"
 
 import Image from "next/image"
-import { useT } from "@/components/locale-context"
+import { useTranslations } from "next-intl"
 
 function OmratySectionContent() {
-  const t = useT()
+  const t = useTranslations("Common")
   return (
     <>
       <h2 className="mb-3 text-2xl font-bold text-sidebar sm:text-3xl">

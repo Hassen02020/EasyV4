@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
-import { and, eq, arrayContains, gte, inArray, sql } from "drizzle-orm"
+import { and, eq, arrayContains, gte, inArray, or, ilike, sql } from "drizzle-orm"
+import { Input } from "@/components/ui/input"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
@@ -29,11 +30,12 @@ export const metadata = {
   alternates: { languages: buildLanguageAlternates("/attractions") },
 }
 
-async function getPublishedActivities() {
+async function getPublishedActivities(q?: string) {
   try {
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
     return await withSystemContext(async (db) => {
+      const trimmedQ = q?.trim()
       const rows = await db
         .select()
         .from(catalogActivities)
@@ -42,6 +44,12 @@ async function getPublishedActivities() {
             eq(catalogActivities.status, "published"),
             eq(catalogActivities.agencyId, agencyId),
             arrayContains(catalogActivities.channels, ["b2c"]),
+            trimmedQ
+              ? or(
+                  ilike(catalogActivities.title, `%${trimmedQ}%`),
+                  ilike(catalogActivities.location, `%${trimmedQ}%`),
+                )
+              : undefined,
           ),
         )
         .orderBy(catalogActivities.title)
@@ -84,8 +92,13 @@ async function getPublishedActivities() {
   }
 }
 
-export default async function AttractionsPage() {
-  const activities = await getPublishedActivities()
+export default async function AttractionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const { q } = await searchParams
+  const activities = await getPublishedActivities(q)
   const t = await getTranslations("Attractions")
   const locale = await getLocale()
 
@@ -101,9 +114,21 @@ export default async function AttractionsPage() {
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
               {t("heroTitle")}
             </h1>
-            <p className="mx-auto max-w-2xl text-teal-100">
+            <p className="mx-auto mb-6 max-w-2xl text-teal-100">
               {t("heroSubtitle")}
             </p>
+            <form className="mx-auto flex max-w-lg gap-2" action="/attractions">
+              <Input
+                type="text"
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder={t("searchPlaceholder")}
+                className="bg-white/95 text-foreground"
+              />
+              <Button type="submit" className="bg-teal-600 hover:bg-teal-500">
+                {t("searchButton")}
+              </Button>
+            </form>
           </div>
         </div>
 
@@ -111,7 +136,7 @@ export default async function AttractionsPage() {
           {activities.length === 0 ? (
             <div className="rounded-xl border bg-card p-10 text-center text-muted-foreground">
               <Compass className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-              {t("emptyState")}
+              {q?.trim() ? t("noResultsForQuery", { query: q }) : t("emptyState")}
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

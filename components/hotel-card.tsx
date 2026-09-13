@@ -19,10 +19,12 @@ import {
   Award,
   Lightbulb,
   CheckCircle2,
+  Info,
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
 import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"
+import { StarRow } from "@/components/reviews/star-row"
 
 export type { RoomOption }
 
@@ -48,6 +50,11 @@ interface HotelCardProps {
     whyChoose?: string | null
     /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
     pricePerNight?: number
+    /** Avis clients approuvés agrégés — absents tant qu'aucun avis n'existe. */
+    reviewAverage?: number
+    reviewCount?: number
+    /** Mentions importantes réelles myGo (ex. taxe de séjour) — texte déjà nettoyé. */
+    importantNote?: string
   }
   onBook?: (mealPlan: string, room?: RoomOption) => void
   onViewDetails?: () => void
@@ -91,6 +98,7 @@ export function HotelCard({
 }: HotelCardProps) {
   const { format } = useCurrency()
   const t = useTranslations("Hotels")
+  const tCommon = useTranslations("Common")
   const [currentImage, setCurrentImage] = useState(0)
   const [selectedMealPlan, setSelectedMealPlan] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -199,14 +207,31 @@ export function HotelCard({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onViewDetails}
-              className="text-primary mb-3 inline-flex items-center gap-1 text-sm hover:underline"
-            >
-              <MapPin className="h-3.5 w-3.5 text-amber-500" />
-              {hotel.location}
-            </button>
+            <div className="mb-3 space-y-1">
+              <button
+                type="button"
+                onClick={onViewDetails}
+                className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
+              >
+                <MapPin className="h-3.5 w-3.5 text-amber-500" />
+                {hotel.location}
+              </button>
+
+              {/* Avis clients réels agrégés — absent tant qu'aucun avis
+                  approuvé n'existe pour cet hôtel, jamais une note fabriquée
+                  (voir toCardShape/reviewSummaries dans hotel-listings.tsx). */}
+              {hotel.reviewCount != null && hotel.reviewCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <StarRow rating={hotel.reviewAverage ?? 0} size="size-3.5" />
+                  <span className="text-foreground text-sm font-semibold">
+                    {(hotel.reviewAverage ?? 0).toFixed(1)}/5
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {tCommon("reviewsCount", { count: hotel.reviewCount })}
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* Tags — PHASE 30.3 : chaque badge communique un signal
                 DIFFÉRENT, jamais un style générique unique :
@@ -258,6 +283,18 @@ export function HotelCard({
                 </div>
               ))}
             </div>
+
+            {/* Mentions importantes réelles myGo (ex. taxe de séjour) — texte
+                réel du fournisseur, jamais une phrase générique fabriquée. */}
+            {hotel.importantNote && (
+              <div
+                className="text-muted-foreground mt-2 flex items-start gap-1.5 text-xs"
+                title={hotel.importantNote}
+              >
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="line-clamp-2">{hotel.importantNote}</span>
+              </div>
+            )}
           </div>
 
           {/* Pricing Section */}

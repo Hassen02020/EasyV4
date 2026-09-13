@@ -43,6 +43,7 @@ import { toCardShape } from "@/components/hotel-listings"
 import { encodeDraft } from "@/lib/booking/draft-store"
 import { useCurrency } from "@/components/currency-context"
 import { ProductReviewsSectionClient } from "@/components/reviews/product-reviews-section-client"
+import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 
 const PLACEHOLDER_IMG =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=600&fit=crop"
@@ -898,6 +899,15 @@ function HotelDetailContent({ id }: { id: string }) {
                   </a>
                 </div>
               )}
+
+              <div className="border-border border-t pt-4">
+                <LeadCaptureForm
+                  productType="hotel"
+                  productRef={String(hotel.id)}
+                  productLabel={hotel.name}
+                  title={t("leadCaptureTitle")}
+                />
+              </div>
             </div>
           </aside>
         </div>

@@ -21,6 +21,7 @@ import {
   ArrowLeftRight,
   Search,
   Sparkles,
+  Compass,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -95,19 +96,19 @@ const TOMORROW_ISO = futureDate(1)
 /**
  * Navigation commerciale (Phase 13, Partie 20) : le périmètre de lancement
  * prioritaire est Hôtels Tunisie / Hôtels Monde / Omraty / Voyages
- * Organisés — Vols/Transferts/Car restent des modules réels (code et
- * pages intacts, atteignables directement via /vols, /transferts, /car)
- * mais ne sont plus mis en avant dans l'onglet de recherche principal,
- * pour ne pas disperser l'effort commercial. Aucun onglet Attractions
- * ajouté ici : contrairement aux 4 tabs ci-dessous, Attractions n'a
- * aucun parcours public de réservation pour l'instant (voir
- * lib/admin/activities-actions.ts) — un onglet mènerait à un flux mort.
+ * Organisés / Attractions — Vols/Transferts/Car restent des modules réels
+ * (code et pages intacts, atteignables directement via /vols, /transferts,
+ * /car) mais ne sont plus mis en avant dans l'onglet de recherche
+ * principal, pour ne pas disperser l'effort commercial. Attractions a un
+ * vrai parcours public complet (/attractions, /attractions/[slug],
+ * /attractions/[slug]/book) — plus de raison de l'exclure ici.
  */
 const tabsConfig = [
   { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2 },
   { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe },
   { id: "omraty", labelKey: "tabOmraty", icon: Moon },
   { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase },
+  { id: "attractions", labelKey: "tabAttractions", icon: Compass },
 ] as const
 
 type TabId = (typeof tabsConfig)[number]["id"]
@@ -134,6 +135,8 @@ function ActiveModuleForm({
       return <OmratyForm />
     case "voyages-organises":
       return <VoyagesOrganisesForm />
+    case "attractions":
+      return <AttractionsForm />
   }
 }
 
@@ -964,6 +967,40 @@ function VoyagesOrganisesForm() {
 
       <div className="flex justify-end pt-1">
         <SearchSubmit />
+      </div>
+    </form>
+  )
+}
+
+function AttractionsForm() {
+  const router = useRouter()
+  const tAttractions = useTranslations("Attractions")
+  const [q, setQ] = useState("")
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        const params = new URLSearchParams()
+        if (q.trim()) params.set("q", q.trim())
+        const qs = params.toString()
+        router.push(`/attractions${qs ? `?${qs}` : ""}`)
+      }}
+      className="space-y-5"
+    >
+      <div className={FIELD_SHELL}>
+        <FieldLabel icon={MapPin}>{tAttractions("kicker")}</FieldLabel>
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={tAttractions("searchPlaceholder")}
+          className={FIELD_INPUT_RESET}
+        />
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <SearchSubmit>{tAttractions("searchButton")}</SearchSubmit>
       </div>
     </form>
   )

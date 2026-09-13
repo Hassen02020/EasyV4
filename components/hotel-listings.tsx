@@ -78,6 +78,14 @@ export interface CardHotelShape {
   /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
   myGoToken: string
   cityId?: number
+  /** Coordonnées réelles myGo (HotelSummaryDTO) — absentes si le fournisseur ne les a pas renvoyées. */
+  latitude?: number
+  longitude?: number
+  /** Avis clients approuvés agrégés (voir /api/reviews/summaries) — absent tant que non chargé ou si aucun avis. */
+  reviewAverage?: number
+  reviewCount?: number
+  /** Mentions importantes réelles myGo (ex. taxe de séjour) — déjà nettoyées en texte brut par le mapper. */
+  importantNote?: string
 }
 
 const PLACEHOLDER_IMG =
@@ -168,6 +176,13 @@ export function toCardShape(
   const images = h.image ? [h.image] : [PLACEHOLDER_IMG]
   const stars = h.stars ?? 0
 
+  // Coordonnées réelles myGo (chaînes côté DTO) — `undefined` si absentes ou
+  // non numériques, jamais une valeur par défaut fabriquée (ex. 0,0).
+  const latitude = h.latitude !== undefined ? Number(h.latitude) : undefined
+  const longitude = h.longitude !== undefined ? Number(h.longitude) : undefined
+  const hasValidCoords =
+    latitude !== undefined && longitude !== undefined && Number.isFinite(latitude) && Number.isFinite(longitude)
+
   // Prix affiché = celui du "meilleur tarif" retenu ci-dessus (déjà
   // conscient du filtre de pension actif), pas systématiquement le prix
   // brut le plus bas de l'offre — voir le commentaire Best Rate Engine.
@@ -241,6 +256,9 @@ export function toCardShape(
       nights && nights > 0 ? Math.round(displayPrice / nights) : undefined,
     myGoToken: offer.token,
     cityId: h.cityId,
+    latitude: hasValidCoords ? latitude : undefined,
+    longitude: hasValidCoords ? longitude : undefined,
+    importantNote: h.note,
   }
 }
 
@@ -311,6 +329,28 @@ export function HotelListings({
   // favori" avant que la requête réponde.
   const [favoriteHotelIds, setFavoriteHotelIds] = useState<Set<string> | undefined>(undefined)
   const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(new Set())
+
+  // Avis clients agrégés (note + nombre) pour les hôtels actuellement
+  // affichés — un seul appel batch pour toute la page plutôt qu'un par card
+  // (voir /api/reviews/summaries). Absent du résultat = aucun avis approuvé.
+  const [reviewSummaries, setReviewSummaries] = useState<
+    Record<string, { average: number; count: number }>
+  >({})
+
+  useEffect(() => {
+    const ids = Array.from(new Set(offers.map((o) => String(o.hotel.id))))
+    if (ids.length === 0) return
+    let cancelled = false
+    fetch(`/api/reviews/summaries?module=hotel&productRefs=${ids.join(",")}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { summaries?: Record<string, { average: number; count: number }> } | null) => {
+        if (!cancelled && data?.summaries) setReviewSummaries(data.summaries)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [offers])
 
   useEffect(() => {
     let cancelled = false
@@ -454,8 +494,15 @@ export function HotelListings({
   }, [checkin, checkout, adults, childrenAges, t, dateFnsLocale])
 
   const cardHotels = useMemo(
-    () => offers.map((offer) => toCardShape(offer, activeBoardFilters, nightsCount)),
-    [offers, activeBoardFilters, nightsCount],
+    () =>
+      offers.map((offer) => {
+        const card = toCardShape(offer, activeBoardFilters, nightsCount)
+        const summary = reviewSummaries[String(card.id)]
+        return summary
+          ? { ...card, reviewAverage: summary.average, reviewCount: summary.count }
+          : card
+      }),
+    [offers, activeBoardFilters, nightsCount, reviewSummaries],
   )
 
   if (status === "loading") {

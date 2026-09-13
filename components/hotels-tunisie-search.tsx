@@ -81,7 +81,31 @@ const STAR_OPTIONS = [
 // Component
 // ============================================================================
 
-export function HotelsTunisieSearch() {
+export interface HotelsTunisieSearchProps {
+  /** Préremplissage (ex. widget "Modifier" ouvert depuis la page résultats). */
+  initialCity?: City | null
+  initialCheckin?: Date
+  initialCheckout?: Date
+  initialRooms?: number
+  initialAdults?: number
+  initialChildrenAges?: number[]
+  initialOnlyAvailable?: boolean
+  initialStars?: number[]
+  /** Appelé juste avant la navigation vers /hotels/search (ex. fermer un Sheet). */
+  onSearchSubmit?: () => void
+}
+
+export function HotelsTunisieSearch({
+  initialCity = null,
+  initialCheckin,
+  initialCheckout,
+  initialRooms = 1,
+  initialAdults = 2,
+  initialChildrenAges = [],
+  initialOnlyAvailable = true,
+  initialStars = [],
+  onSearchSubmit,
+}: HotelsTunisieSearchProps = {}) {
   const router = useRouter()
   const t = useTranslations("Hotels")
   const tCommon = useTranslations("Common")
@@ -89,34 +113,36 @@ export function HotelsTunisieSearch() {
   const dateFnsLocale = getDateFnsLocale(locale)
 
   // City selection state
-  const [selectedCity, setSelectedCity] = useState<City | null>(null)
+  const [selectedCity, setSelectedCity] = useState<City | null>(initialCity)
   const [citySearchOpen, setCitySearchOpen] = useState(false)
 
   // Date selection state — arrivée = aujourd'hui, départ = demain (1 nuit
   // minimum) par défaut, standard OTA plutôt que des champs vides.
-  const [checkinDate, setCheckinDate] = useState<Date | undefined>(new Date())
+  const [checkinDate, setCheckinDate] = useState<Date | undefined>(
+    initialCheckin ?? new Date(),
+  )
   const [checkoutDate, setCheckoutDate] = useState<Date | undefined>(
-    addDays(new Date(), 1),
+    initialCheckout ?? addDays(new Date(), 1),
   )
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
 
   // Pax state
-  const [rooms, setRooms] = useState(1)
-  const [adults, setAdults] = useState(2)
+  const [rooms, setRooms] = useState(initialRooms)
+  const [adults, setAdults] = useState(initialAdults)
   // Bébés (0-2 ans) et Enfants (3-17 ans) sont distincts côté UX, mais
   // partagent le même tableau d'âges côté requête — c'est exactement ce que
   // le schéma MyGo (`Pax.Child: number[]`) attend déjà, donc aucune
   // modification du contrat d'API : on ajoute juste un âge par défaut selon
   // le bouton cliqué (1 an pour un bébé, 5 ans pour un enfant).
-  const [childrenAges, setChildrenAges] = useState<number[]>([])
+  const [childrenAges, setChildrenAges] = useState<number[]>(initialChildrenAges)
   const [paxPopoverOpen, setPaxPopoverOpen] = useState(false)
 
   const babiesCount = childrenAges.filter((age) => age <= 2).length
   const bigKidsCount = childrenAges.filter((age) => age > 2).length
 
   // Filters state
-  const [onlyAvailable, setOnlyAvailable] = useState(true)
-  const [selectedStars, setSelectedStars] = useState<number[]>([])
+  const [onlyAvailable, setOnlyAvailable] = useState(initialOnlyAvailable)
+  const [selectedStars, setSelectedStars] = useState<number[]>(initialStars)
   const [starsPopoverOpen, setStarsPopoverOpen] = useState(false)
 
   // Cities (TanStack Query — dedup, retries, stale-while-revalidate)
@@ -183,6 +209,7 @@ export function HotelsTunisieSearch() {
       params.set("rooms", encodeRoomsParam(splitIntoRooms(rooms, adults, childrenAges)))
     }
 
+    onSearchSubmit?.()
     router.push(`/hotels/search?${params.toString()}`)
   }
 

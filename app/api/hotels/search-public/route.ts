@@ -32,6 +32,9 @@ import { rateLimit } from "@/lib/rate-limit"
 import { resolveMyGoAccessForTenant, guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
 import { signHotelSearchOffersInPlace } from "@/lib/booking/price-token"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
+import type { HotelOfferDTO } from "@/lib/mygo/types"
 
 export const revalidate = 300 // 5 min — les prix changent vite
 
@@ -100,6 +103,19 @@ export async function GET(req: NextRequest) {
     return resp
   }
   if (body && typeof body === "object" && Array.isArray((body as { offers?: unknown }).offers)) {
+    // P1 "SERP Commercial Truth" — le prix affiché doit être le prix
+    // réellement facturé : la marge OTA est appliquée ICI, avant signature,
+    // avec exactement la même résolution d'agence/marge
+    // (getMarginsForAgency(agencyId, "")) que lib/booking/guest-actions.ts
+    // utilise au moment du paiement — jamais une seconde formule qui
+    // pourrait diverger. Le prix net fournisseur n'est plus jamais montré
+    // au client B2C ; la confirmation réelle (montant débité) reste
+    // calculée indépendamment à partir du prix myGo frais au moment de la
+    // réservation (myGoBooking.totalPrice), donc aucune perte de la
+    // vérification anti-fraude existante.
+    const typedBody = body as { offers: HotelOfferDTO[] }
+    const margins = await getMarginsForAgency(tenantContext?.agencyId ?? null)
+    typedBody.offers = typedBody.offers.map((offer) => applyMarginToHotelOffer(offer, margins))
     signHotelSearchOffersInPlace(body as Parameters<typeof signHotelSearchOffersInPlace>[0], q)
   }
   return NextResponse.json(body, { status: resp.status, headers: resp.headers })

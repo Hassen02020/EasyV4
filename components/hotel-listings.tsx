@@ -1,11 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 import { getDateFnsLocale } from "@/lib/i18n-date"
 import { toast } from "sonner"
+import { Map as MapIcon, List as ListIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { HotelCard } from "@/components/hotel-card"
 import type { RoomOption } from "@/components/hotel-room-rates"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,6 +17,16 @@ import { selectBestRate } from "@/lib/mygo/best-rate"
 import { hasFreeCancellation } from "@/lib/mygo/facets"
 import { listMyFavorites } from "@/app/actions/list-my-favorites"
 import { toggleFavorite } from "@/app/actions/toggle-favorite"
+import { useCurrency } from "@/components/currency-context"
+import type { HotelMapPoint } from "@/components/hotel-map"
+
+// Carte interactive — chargée uniquement quand affichée (jamais dans le
+// bundle initial de la recherche), et jamais côté serveur (Leaflet a besoin
+// de `window`).
+const HotelMap = dynamic(
+  () => import("@/components/hotel-map").then((m) => m.HotelMap),
+  { ssr: false, loading: () => <div className="bg-muted h-full w-full animate-pulse rounded-xl" /> },
+)
 
 interface BookingData {
   id: number
@@ -322,6 +335,13 @@ export function HotelListings({
   const t = useTranslations("Hotels")
   const locale = useLocale()
   const dateFnsLocale = getDateFnsLocale(locale)
+  const { format: formatCurrency } = useCurrency()
+
+  // Carte interactive — état de synchronisation avec la liste (voir
+  // components/hotel-map.tsx pour le détail du comportement de chaque champ).
+  const [showMap, setShowMap] = useState(false)
+  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null)
+  const [hoveredHotelId, setHoveredHotelId] = useState<number | null>(null)
 
   // Favoris — état réel chargé une fois (pas par card, pour éviter N appels
   // pour N résultats) ; `undefined` tant que non chargé (le cœur reste
@@ -505,6 +525,32 @@ export function HotelListings({
     [offers, activeBoardFilters, nightsCount, reviewSummaries],
   )
 
+  // Uniquement les hôtels avec des coordonnées réelles myGo (voir toCardShape)
+  // — jamais un point fabriqué pour un hôtel sans latitude/longitude.
+  const mapPoints: HotelMapPoint[] = useMemo(
+    () =>
+      cardHotels
+        .filter((h): h is typeof h & { latitude: number; longitude: number } => h.latitude != null && h.longitude != null)
+        .map((h) => ({
+          id: h.id,
+          name: h.name,
+          latitude: h.latitude,
+          longitude: h.longitude,
+          priceLabel: formatCurrency(h.discountedPrice),
+        })),
+    [cardHotels, formatCurrency],
+  )
+
+  const handleLocateOnMap = (hotelId: number) => {
+    setShowMap(true)
+    setSelectedHotelId(hotelId)
+  }
+
+  const handleMarkerSelect = (hotelId: number) => {
+    setSelectedHotelId(hotelId)
+    document.getElementById(`hotel-card-${hotelId}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }
+
   if (status === "loading") {
     return (
       <div className="space-y-4">
@@ -559,7 +605,7 @@ export function HotelListings({
           {t("staleCacheNotice")}
         </div>
       )}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-foreground text-xl font-bold">
             {t("hotelsCountInCity", { count: totalCount, city: cityName })}
@@ -573,9 +619,23 @@ export function HotelListings({
             <p className="text-muted-foreground text-sm">{headerSubtitle}</p>
           )}
         </div>
+        {/* N'apparaît que si au moins un hôtel a de vraies coordonnées —
+            jamais un bouton menant à une carte vide. */}
+        {mapPoints.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1.5"
+            onClick={() => setShowMap((v) => !v)}
+          >
+            {showMap ? <ListIcon className="size-4" /> : <MapIcon className="size-4" />}
+            {showMap ? t("hideMapButton") : t("showMapButton")}
+          </Button>
+        )}
       </div>
 
-      <div className="space-y-4">
+      <div className={showMap ? "flex flex-col gap-4 lg:flex-row" : ""}>
+      <div className={showMap ? "min-w-0 space-y-4 lg:max-w-xl lg:flex-1" : "space-y-4"}>
         {cardHotels.length === 0 &&
           (totalCount === 0 ? (
             // Zéro hôtel renvoyé par myGo lui-même (pas un effet des filtres
@@ -618,17 +678,50 @@ export function HotelListings({
             </div>
           ))}
         {cardHotels.map((hotel) => (
-          <HotelCard
+          <div
             key={hotel.id}
-            hotel={hotel}
-            currency={currency}
-            onBook={(mealPlan, room) => handleBookHotel(hotel, mealPlan, room)}
-            onViewDetails={() => handleViewDetails(hotel.id)}
-            isFavorited={favoriteHotelIds?.has(String(hotel.id))}
-            onToggleFavorite={() => handleToggleFavorite(hotel)}
-            favoritePending={pendingFavoriteIds.has(String(hotel.id))}
-          />
+            id={`hotel-card-${hotel.id}`}
+            onMouseEnter={() => setHoveredHotelId(hotel.id)}
+            onMouseLeave={() => setHoveredHotelId((id) => (id === hotel.id ? null : id))}
+          >
+            <HotelCard
+              hotel={hotel}
+              currency={currency}
+              onBook={(mealPlan, room) => handleBookHotel(hotel, mealPlan, room)}
+              onViewDetails={() => handleViewDetails(hotel.id)}
+              isFavorited={favoriteHotelIds?.has(String(hotel.id))}
+              onToggleFavorite={() => handleToggleFavorite(hotel)}
+              favoritePending={pendingFavoriteIds.has(String(hotel.id))}
+              highlighted={hotel.id === selectedHotelId}
+              onLocate={
+                hotel.latitude != null && hotel.longitude != null
+                  ? () => handleLocateOnMap(hotel.id)
+                  : undefined
+              }
+            />
+          </div>
         ))}
+      </div>
+
+      {showMap && (
+        <div className="fixed inset-0 z-[60] lg:sticky lg:top-20 lg:z-auto lg:h-[calc(100vh-6rem)] lg:flex-1">
+          <button
+            type="button"
+            onClick={() => setShowMap(false)}
+            className="bg-card absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium shadow-lg lg:hidden"
+          >
+            <ListIcon className="size-4" />
+            {t("backToListButton")}
+          </button>
+          <HotelMap
+            points={mapPoints}
+            selectedId={selectedHotelId}
+            hoveredId={hoveredHotelId}
+            onMarkerSelect={handleMarkerSelect}
+            className="h-full w-full"
+          />
+        </div>
+      )}
       </div>
     </div>
   )

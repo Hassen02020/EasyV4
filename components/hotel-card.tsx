@@ -64,6 +64,10 @@ interface HotelCardProps {
   /** Absent tant que l'appelant n'a pas câblé la bascule réelle (toggleFavorite) — le bouton reste alors désactivé plutôt que de simuler un succès local. */
   onToggleFavorite?: () => void
   favoritePending?: boolean
+  /** Carte interactive — vrai quand ce marqueur est la sélection courante (voir hotel-listings.tsx). */
+  highlighted?: boolean
+  /** Absent si l'hôtel n'a pas de coordonnées réelles myGo — bouton "Voir sur la carte" masqué dans ce cas. */
+  onLocate?: () => void
 }
 
 // Les libellés d'équipement viennent tels quels du fournisseur myGo
@@ -95,6 +99,8 @@ export function HotelCard({
   isFavorited,
   onToggleFavorite,
   favoritePending,
+  highlighted,
+  onLocate,
 }: HotelCardProps) {
   const { format } = useCurrency()
   const t = useTranslations("Hotels")
@@ -121,7 +127,11 @@ export function HotelCard({
   }
 
   return (
-    <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
+    <div
+      className={`bg-card overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md ${
+        highlighted ? "border-primary ring-primary ring-2" : "border-border"
+      }`}
+    >
       {/* Main Card Content */}
       <div className="flex flex-col md:flex-row">
         {/* Image Gallery */}
@@ -208,14 +218,28 @@ export function HotelCard({
             </div>
 
             <div className="mb-3 space-y-1">
-              <button
-                type="button"
-                onClick={onViewDetails}
-                className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
-              >
-                <MapPin className="h-3.5 w-3.5 text-amber-500" />
-                {hotel.location}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onViewDetails}
+                  className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
+                >
+                  <MapPin className="h-3.5 w-3.5 text-amber-500" />
+                  {hotel.location}
+                </button>
+                {/* Carte interactive — absent si l'hôtel n'a pas de coordonnées
+                    myGo réelles (voir toCardShape/onLocate dans hotel-listings.tsx). */}
+                {onLocate && (
+                  <button
+                    type="button"
+                    onClick={onLocate}
+                    className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                  >
+                    <MapPin className="h-3 w-3" />
+                    {t("viewOnMapButton")}
+                  </button>
+                )}
+              </div>
 
               {/* Avis clients réels agrégés — absent tant qu'aucun avis
                   approuvé n'existe pour cet hôtel, jamais une note fabriquée

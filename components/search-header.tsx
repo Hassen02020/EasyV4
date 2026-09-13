@@ -130,7 +130,7 @@ export function SearchHeader({
 
               <Button size="sm" className="shrink-0" onClick={() => setEditOpen(true)}>
                 <Search className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">{tHotels("modifyButton")}</span>
+                <span className="ms-1 hidden sm:inline">{tHotels("modifyButton")}</span>
               </Button>
             </div>
           </div>

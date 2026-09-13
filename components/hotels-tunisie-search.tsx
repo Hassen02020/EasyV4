@@ -300,7 +300,7 @@ export function HotelsTunisieSearch({
                   <span className="truncate text-sm font-semibold">
                     {selectedCity.name}
                     {selectedCity.region && (
-                      <span className="text-muted-foreground ml-1 font-normal">
+                      <span className="text-muted-foreground ms-1 font-normal">
                         ({selectedCity.region})
                       </span>
                     )}
@@ -337,15 +337,15 @@ export function HotelsTunisieSearch({
                           setCitySearchOpen(false)
                         }}
                       >
-                        <MapPin className="text-muted-foreground mr-2 size-4" />
+                        <MapPin className="text-muted-foreground me-2 size-4" />
                         <span>{city.name}</span>
                         {city.region && (
-                          <span className="text-muted-foreground ml-auto text-xs">
+                          <span className="text-muted-foreground ms-auto text-xs">
                             {city.region}
                           </span>
                         )}
                         {selectedCity?.id === city.id && (
-                          <Check className="text-primary ml-2 size-4" />
+                          <Check className="text-primary ms-2 size-4" />
                         )}
                       </CommandItem>
                     ))}
@@ -509,7 +509,7 @@ export function HotelsTunisieSearch({
                     onClick={addChild}
                     disabled={childrenAges.length >= 4}
                   >
-                    <Plus className="mr-1 size-3" />
+                    <Plus className="me-1 size-3" />
                     {t("addAction")}
                   </Button>
                 </div>
@@ -527,7 +527,7 @@ export function HotelsTunisieSearch({
                     onClick={addBaby}
                     disabled={childrenAges.length >= 4}
                   >
-                    <Plus className="mr-1 size-3" />
+                    <Plus className="me-1 size-3" />
                     {t("addAction")}
                   </Button>
                 </div>
@@ -535,7 +535,7 @@ export function HotelsTunisieSearch({
                 {/* Children/Babies Age Selectors — un seul tableau d'âges
                     partagé (voir commentaire du state childrenAges) */}
                 {childrenAges.length > 0 && (
-                  <div className="border-muted space-y-2 border-l-2 pl-2">
+                  <div className="border-muted space-y-2 border-s-2 ps-2">
                     {childrenAges.map((age, index) => (
                       <div key={index} className="flex items-center gap-3">
                         <span className="text-muted-foreground w-16 text-sm">
@@ -645,7 +645,7 @@ export function HotelsTunisieSearch({
                       />
                     ))}
                   </div>
-                  <span className="ml-auto">
+                  <span className="ms-auto">
                     {selectedStars.includes(option.value) && (
                       <Check className="text-primary size-4" />
                     )}
@@ -673,13 +673,13 @@ export function HotelsTunisieSearch({
               <Badge
                 key={star}
                 variant="secondary"
-                className="gap-1 rounded-full pr-1"
+                className="gap-1 rounded-full pe-1"
               >
                 {star}
                 <Star className="size-2.5 fill-amber-400 text-amber-400" />
                 <button
                   onClick={() => toggleStar(star)}
-                  className="hover:bg-muted-foreground/20 ml-0.5 rounded-full p-0.5"
+                  className="hover:bg-muted-foreground/20 ms-0.5 rounded-full p-0.5"
                 >
                   <X className="size-3" />
                 </button>

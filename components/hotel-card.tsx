@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useCurrency } from "@/components/currency-context"
+import type { WhyChooseReason } from "@/components/hotel-listings"
 import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"
 import { StarRow } from "@/components/reviews/star-row"
 
@@ -47,7 +48,7 @@ interface HotelCardProps {
     /** PHASE 30.2 — permet d'afficher "Annulation gratuite" sans devoir déplier "Tarifs & chambres". */
     hasFreeCancellation?: boolean
     /** PHASE 33 — "Pourquoi ce choix ?", une seule raison réelle la plus pertinente (voir toCardShape). `null`/absent si aucun constat ne s'applique. */
-    whyChoose?: string | null
+    whyChoose?: WhyChooseReason | null
     /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
     pricePerNight?: number
     /** Avis clients approuvés agrégés — absents tant qu'aucun avis n'existe. */
@@ -90,6 +91,24 @@ function resolveAmenityIcon(amenity: string): React.ReactNode {
   const normalized = amenity.toLowerCase()
   const rule = AMENITY_ICON_RULES.find((r) => r.keywords.some((k) => normalized.includes(k)))
   return rule?.icon ?? <CheckCircle2 className="h-4 w-4" />
+}
+
+function whyChooseText(
+  reason: WhyChooseReason,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  switch (reason.key) {
+    case "recommended":
+      return t("whyChooseRecommended")
+    case "promo":
+      return t("whyChoosePromo")
+    case "allInclusive":
+      return t("whyChooseAllInclusive")
+    case "mealPlansAvailable":
+      return t("mealPlansAvailable", { count: reason.count })
+    case "stars":
+      return t("whyChooseStars", { stars: reason.count })
+  }
 }
 
 export function HotelCard({
@@ -376,7 +395,7 @@ export function HotelCard({
               {hotel.whyChoose && (
                 <p className="text-muted-foreground mt-1.5 inline-flex items-center gap-1 text-xs">
                   <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                  {hotel.whyChoose}
+                  {whyChooseText(hotel.whyChoose, t)}
                 </p>
               )}
             </div>

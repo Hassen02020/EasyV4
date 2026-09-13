@@ -55,6 +55,17 @@ interface BookingData {
 // voir ce fichier pour la doc des 3 états `cancellation` (bug corrigé Phase
 // 30 : plus jamais réduit à une seule date/badge "gratuite" inconditionnel).
 
+/**
+ * Raison structurée (pas une chaîne déjà traduite) pour que le composant
+ * consommateur (hotel-card.tsx, qui a accès à `useTranslations`) affiche le
+ * bon texte par langue — `toCardShape` est une fonction pure sans accès à
+ * `t()`, donc ne doit jamais renvoyer de texte final.
+ */
+export type WhyChooseReason =
+  | { key: "recommended" | "promo" | "allInclusive" }
+  | { key: "mealPlansAvailable"; count: number }
+  | { key: "stars"; count: number }
+
 export interface CardHotelShape {
   id: number
   name: string
@@ -85,7 +96,7 @@ export interface CardHotelShape {
    * la card ne permet qu'une phrase). `null` si aucun constat réel ne
    * s'applique — jamais une phrase générique de remplissage.
    */
-  whyChoose: string | null
+  whyChoose: WhyChooseReason | null
   /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
   pricePerNight?: number
   /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
@@ -233,16 +244,16 @@ export function toCardShape(
   // n'est volontairement PAS candidate ici : elle a déjà sa propre ligne
   // dédiée sur la card (hotel.hasFreeCancellation) — l'y répéter serait
   // redondant, pas une seconde information.
-  const whyChoose: string | null = offer.recommended
-    ? "Recommandé selon le classement"
+  const whyChoose: WhyChooseReason | null = offer.recommended
+    ? { key: "recommended" }
     : hasRealDiscount
-      ? "Offre promotionnelle"
+      ? { key: "promo" }
       : mealOptions.some((m) => /all inclusive/i.test(m))
-        ? "All Inclusive disponible"
+        ? { key: "allInclusive" }
         : mealOptions.length > 1
-          ? `${mealOptions.length} formules disponibles`
+          ? { key: "mealPlansAvailable", count: mealOptions.length }
           : stars >= 4
-            ? `Hôtel ${stars} étoiles`
+            ? { key: "stars", count: stars }
             : null
 
   return {

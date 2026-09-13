@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
-import { Search, Globe, Calendar, Users } from "lucide-react"
+import { Search, Calendar, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,8 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-const DESTINATIONS = ["istanbul", "dubai", "paris", "rome", "barcelona", "london", "cairo", "casablanca"]
+import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 
 const DURATIONS = ["3-5", "6-8", "9-12", "13+"]
 
@@ -42,22 +41,12 @@ export function PackageSearch() {
       <h2 className="mb-6 text-lg font-semibold">{t("refineSearch")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-            {tCommon("destination")}
-          </Label>
-          <Select value={destination} onValueChange={setDestination}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("allDestinations")} />
-            </SelectTrigger>
-            <SelectContent>
-              {DESTINATIONS.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {t(`destinations.${d}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <DestinationAutocomplete
+            module="packages_slug"
+            value={destination}
+            onChange={setDestination}
+            label={tCommon("destination")}
+          />
         </div>
 
         <div className="space-y-2">

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
-import { Hotel, Calendar, Users, Search, Loader2 } from "lucide-react"
+import { Calendar, Users, Search, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { POPULAR_DESTINATIONS, matchDestination } from "@/lib/hotels-monde/search-state"
+import { DestinationAutocomplete } from "@/components/destination-autocomplete"
+import { matchDestination } from "@/lib/hotels-monde/search-state"
 
 export function WorldHotelSearch({
   initialDestination,
@@ -72,22 +73,12 @@ export function WorldHotelSearch({
       <h2 className="mb-6 text-xl font-semibold">{t("findHotelTitle")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Hotel className="h-3.5 w-3.5 text-muted-foreground" />
-            {t("destinationLabel")}
-          </Label>
-          <Select value={destination} onValueChange={setDestination}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("destinationPlaceholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {POPULAR_DESTINATIONS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <DestinationAutocomplete
+            module="hotels_monde_slug"
+            value={destination}
+            onChange={setDestination}
+            label={t("destinationLabel")}
+          />
         </div>
 
         <div className="space-y-2">

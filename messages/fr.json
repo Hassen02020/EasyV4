@@ -1109,5 +1109,11 @@
     "cgvResponsabilites": "4. Responsabilités",
     "cgvReclamations": "5. Réclamations et litiges",
     "cgvDroit": "6. Droit applicable"
+  },
+  "DestinationAutocomplete": {
+    "searchPlaceholder": "Rechercher une destination...",
+    "loading": "Chargement...",
+    "loadError": "Erreur de chargement",
+    "noResults": "Aucune destination trouvée."
   }
 }

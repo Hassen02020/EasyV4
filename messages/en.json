@@ -1109,5 +1109,11 @@
     "cgvResponsabilites": "4. Liability",
     "cgvReclamations": "5. Complaints and disputes",
     "cgvDroit": "6. Governing law"
+  },
+  "DestinationAutocomplete": {
+    "searchPlaceholder": "Search for a destination...",
+    "loading": "Loading...",
+    "loadError": "Loading error",
+    "noResults": "No destination found."
   }
 }

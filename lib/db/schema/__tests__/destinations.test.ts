@@ -36,6 +36,11 @@ const skipReason = () =>
 // interrompu (aucun cleanup global entre runs de cette suite).
 const RUN = randomUUID().slice(0, 8)
 const slug = (s: string) => `d54-${RUN}-${s}`
+// Code pays factice, jamais "TN"/"FR"/etc. — depuis le chantier 3
+// (0055_destinations_seed.sql), ces codes ISO réels occupent déjà
+// destinations_country_code_uniq de façon permanente. Aucun des 11 pays
+// réels du seed ne commence par "Z".
+const FAKE_COUNTRY_CODE = `Z${RUN[0]!.toUpperCase()}`
 
 const nonAdminCtx = (): TenantContext => ({
   agencyId: null,
@@ -85,7 +90,7 @@ test("3. Un pays sans parent et une ville avec parent sont acceptés (mise en pl
   const [country] = await withSystemContext((tx) =>
     tx
       .insert(destinations)
-      .values({ type: "country", slug: slug("tunisie"), name: "Tunisie", countryCode: "TN" })
+      .values({ type: "country", slug: slug("tunisie"), name: "Tunisie", countryCode: FAKE_COUNTRY_CODE })
       .returning({ id: destinations.id }),
   )
   countryId = country!.id
@@ -112,7 +117,7 @@ test("5. destinations_country_code_uniq rejette un country_code dupliqué (type=
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx.insert(destinations).values({ type: "country", slug: slug("tunisie2"), name: "Tunisie 2", countryCode: "TN" }),
+      tx.insert(destinations).values({ type: "country", slug: slug("tunisie2"), name: "Tunisie 2", countryCode: FAKE_COUNTRY_CODE }),
     ),
   )
 })

@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 import { AIRPORTS, parseAirportInput, parseCabin, type CabinClass } from "@/lib/vols/search-state"
 
 /** Le moteur rapide de la page d'accueil envoie "Tunis (TUN)" / "Istanbul (IST)" —
@@ -125,53 +126,30 @@ export function FlightSearch({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Plane className="h-3.5 w-3.5 text-muted-foreground" />
-            {t("departureLabel")}
-          </Label>
-          <div className="relative">
-            <Select value={origin} onValueChange={setOrigin}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("departurePlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {AIRPORTS.map((a) => (
-                  <SelectItem key={a.code} value={a.code}>
-                    {a.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <DestinationAutocomplete
+            module="iata"
+            value={origin}
+            onChange={setOrigin}
+            label={t("departureLabel")}
+          />
         </div>
 
         <div className="relative space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Plane className="h-3.5 w-3.5 rotate-180 text-muted-foreground" />
-            {t("arrivalLabel")}
-          </Label>
-          <div className="relative">
-            <Select value={destination} onValueChange={setDestination}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("arrivalPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {AIRPORTS.filter((a) => a.code !== origin).map((a) => (
-                  <SelectItem key={a.code} value={a.code}>
-                    {a.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <button
-              type="button"
-              onClick={swapAirports}
-              className="absolute -left-5 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-background p-1 shadow-sm transition-colors hover:bg-muted rtl:-right-5 rtl:left-auto sm:block"
-              title={t("swapAria")}
-            >
-              <ArrowLeftRight className="h-3 w-3 rtl:rotate-180" />
-            </button>
-          </div>
+          <DestinationAutocomplete
+            module="iata"
+            value={destination}
+            onChange={setDestination}
+            label={t("arrivalLabel")}
+            excludeExternalId={origin}
+          />
+          <button
+            type="button"
+            onClick={swapAirports}
+            className="absolute -left-5 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-background p-1 shadow-sm transition-colors hover:bg-muted rtl:-right-5 rtl:left-auto sm:block"
+            title={t("swapAria")}
+          >
+            <ArrowLeftRight className="h-3 w-3 rtl:rotate-180" />
+          </button>
         </div>
 
         <div className="space-y-2">

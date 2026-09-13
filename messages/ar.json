@@ -1109,5 +1109,11 @@
     "cgvResponsabilites": "4. المسؤوليات",
     "cgvReclamations": "5. الشكاوى والنزاعات",
     "cgvDroit": "6. القانون المعمول به"
+  },
+  "DestinationAutocomplete": {
+    "searchPlaceholder": "ابحث عن وجهة...",
+    "loading": "جارٍ التحميل...",
+    "loadError": "خطأ في التحميل",
+    "noResults": "لم يتم العثور على أي وجهة."
   }
 }

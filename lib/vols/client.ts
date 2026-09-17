@@ -17,9 +17,11 @@
  */
 
 import { z } from "zod"
-import { memoize } from "@/lib/cache/redis"
-import { search as virtualSearch } from "@/lib/vols/virtual-supplier/engine"
-import { minutesToIso } from "@/lib/vols/virtual-supplier/catalog"
+import {
+  createVirtualFlightDriver,
+  createFlightApiDriver,
+  searchAcrossFlightDrivers,
+} from "./supplier-drivers"
 
 // ---------------------------------------------------------------------------
 // Schemas Zod
@@ -68,111 +70,24 @@ export type FlightSearchResult =
   | { ok: false; error: string; code: string }
 
 // ---------------------------------------------------------------------------
-// Mode démo — Virtual Flight Supplier
-// ---------------------------------------------------------------------------
-//
-// Contrairement à l'ancien mode démo (3 offres statiques indépendantes de la
-// route/date demandée), le mode démo appelle désormais un vrai moteur de
-// fournisseur virtuel (lib/vols/virtual-supplier/engine.ts) : offres
-// déterministes par route/date/cabine, disponibilité réelle suivie en
-// mémoire, jeton signé à revalider pour réserver (voir
-// lib/vols/guest-booking-actions.ts). Aucune réservation n'est possible sans
-// repasser par ce moteur — le "demo mode" ne fabrique plus de données
-// déconnectées du reste du parcours.
-
-function buildVirtualOffers(input: FlightSearchInput): { offers: FlightOffer[]; searchId: string } {
-  const { searchId, offers } = virtualSearch({
-    origin: input.originCode,
-    destination: input.destinationCode,
-    departureDate: input.departureDate,
-    returnDate: input.returnDate,
-    adults: input.adults,
-    children: input.children ?? 0,
-    cabin: input.cabin ?? "ECONOMY",
-  })
-
-  const mapped: FlightOffer[] = offers.map((offer) => ({
-    id: offer.offerId,
-    segments: offer.segments.map((seg) => ({
-      origin: seg.origin,
-      destination: seg.destination,
-      departureAt: seg.departureAt,
-      arrivalAt: seg.arrivalAt,
-      carrier: seg.carrier,
-      flightNumber: seg.flightNumber,
-      duration: minutesToIso(seg.durationMinutes),
-      cabin: seg.cabin,
-    })),
-    stops: offer.stops,
-    totalDurationMinutes: offer.totalDurationMinutes,
-    priceTnd: offer.priceTnd,
-    currency: offer.currency,
-    availableSeats: offer.availableSeats,
-    refundable: offer.refundable,
-    baggageKg: offer.baggageKg,
-    source: "virtual",
-    offerToken: offer.token,
-  }))
-
-  return { offers: mapped, searchId }
-}
-
-// ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
+//
+// Chantier 7 (Multi-supplier Hub, fondation minimale) : les deux chemins
+// qui existaient ici (fournisseur virtuel déterministe / appel API réel)
+// sont désormais deux `FlightSupplierDriver` orchestrés par
+// `searchAcrossFlightDrivers()` (lib/vols/supplier-drivers.ts) au lieu
+// d'un `if/else` figé — un futur second fournisseur réel s'ajoute à la
+// liste de drivers, sans réécrire cette fonction. Comportement inchangé
+// aujourd'hui : les deux drivers restent mutuellement exclusifs (voir
+// isDemoMode() dans supplier-drivers.ts), donc toujours exactement un seul
+// CONFIGURED.
 
 export async function searchFlights(
   input: FlightSearchInput,
 ): Promise<FlightSearchResult> {
-  const isDemoMode =
-    !process.env.FLIGHTS_API_KEY || process.env.FLIGHTS_DEMO_MODE === "true"
-
-  if (isDemoMode) {
-    const { offers, searchId } = buildVirtualOffers(input)
-    return { ok: true, offers, searchId }
-  }
-
-  const cacheKey = `e2b:vols:${input.originCode}-${input.destinationCode}-${input.departureDate}-${input.adults}`
-
-  try {
-    return await memoize(cacheKey, 300, async () => {
-      const url = new URL(`${process.env.FLIGHTS_API_BASE_URL}/shopping/flight-offers`)
-      url.searchParams.set("originLocationCode", input.originCode)
-      url.searchParams.set("destinationLocationCode", input.destinationCode)
-      url.searchParams.set("departureDate", input.departureDate)
-      url.searchParams.set("adults", String(input.adults))
-      if (input.children) url.searchParams.set("children", String(input.children))
-      if (input.cabin) url.searchParams.set("travelClass", input.cabin)
-
-      const res = await fetch(url.toString(), {
-        headers: {
-          Authorization: `Bearer ${process.env.FLIGHTS_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(12_000),
-      })
-
-      if (!res.ok) {
-        throw new Error(`Flights API ${res.status}: ${res.statusText}`)
-      }
-
-      const json = await res.json()
-      const offers = (json.data ?? []).map((o: unknown, i: number) => ({
-        id: `offer-${i}`,
-        ...(o as Record<string, unknown>),
-      }))
-
-      return {
-        ok: true as const,
-        offers,
-        searchId: json.meta?.searchId ?? `s-${Date.now()}`,
-      }
-    })
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Erreur inconnue",
-      code: "FLIGHTS_API_ERROR",
-    }
-  }
+  return searchAcrossFlightDrivers(
+    [createVirtualFlightDriver(), createFlightApiDriver()],
+    input,
+  )
 }

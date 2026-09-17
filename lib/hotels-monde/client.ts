@@ -22,9 +22,11 @@
  */
 
 import { z } from "zod"
-import { memoize } from "@/lib/cache/redis"
-import { destinationByValue } from "./search-state"
-import { search as virtualSearch } from "@/lib/hotels-monde/virtual-supplier/engine"
+import {
+  createVirtualWorldHotelDriver,
+  createWorldHotelApiDriver,
+  searchAcrossWorldHotelDrivers,
+} from "./supplier-drivers"
 
 // ---------------------------------------------------------------------------
 // Schemas Zod
@@ -69,113 +71,24 @@ export type WorldHotelSearchResult =
   | { ok: false; error: string; code: string }
 
 // ---------------------------------------------------------------------------
-// Mode démo — Virtual World Hotel Supplier
-// ---------------------------------------------------------------------------
-//
-// Contrairement à l'ancien mode démo (3 fixtures statiques indépendantes de
-// la destination/dates demandées), le mode démo appelle désormais un vrai
-// moteur de fournisseur virtuel (lib/hotels-monde/virtual-supplier/engine.ts) :
-// offres déterministes par destination/dates/étoiles, disponibilité réelle
-// suivie en mémoire, jeton signé à revalider pour réserver (voir
-// lib/hotels-monde/guest-booking-actions.ts). Aucune réservation n'est
-// possible sans repasser par ce moteur — le "demo mode" ne fabrique plus de
-// données déconnectées du reste du parcours.
-
-function buildVirtualOffers(input: WorldHotelSearchInput): { offers: WorldHotelOffer[]; searchId: string } {
-  const destination = destinationByValue(input.destination)
-  const city = destination?.city ?? input.destination
-  const country = destination?.country ?? "—"
-
-  const { searchId, offers } = virtualSearch({
-    destination: input.destination,
-    city,
-    checkIn: input.checkIn,
-    checkOut: input.checkOut,
-    nights: input.nights,
-    adults: input.adults,
-    rooms: input.rooms,
-    stars: input.stars,
-  })
-
-  const mapped: WorldHotelOffer[] = offers.map((offer) => ({
-    id: offer.offerId,
-    name: offer.name,
-    city,
-    country,
-    stars: offer.stars,
-    rating: offer.rating,
-    reviewCount: offer.reviewCount,
-    thumbnailUrl: null,
-    pricePerNightTnd: offer.pricePerNightTnd,
-    totalPriceTnd: offer.totalPriceTnd,
-    nights: offer.nights,
-    currency: offer.currency,
-    refundable: offer.refundable,
-    breakfastIncluded: offer.breakfastIncluded,
-    distanceFromCenterKm: offer.distanceFromCenterKm,
-    source: "virtual",
-    offerToken: offer.token,
-  }))
-
-  return { offers: mapped, searchId }
-}
-
-// ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
+//
+// Chantier 7 (Multi-supplier Hub, fondation minimale) : les deux chemins
+// qui existaient ici (fournisseur virtuel déterministe / appel API réel)
+// sont désormais deux `WorldHotelSupplierDriver` orchestrés par
+// `searchAcrossWorldHotelDrivers()` (lib/hotels-monde/supplier-drivers.ts)
+// au lieu d'un `if/else` figé — un futur second fournisseur réel s'ajoute
+// à la liste de drivers, sans réécrire cette fonction. Comportement
+// inchangé aujourd'hui : les deux drivers restent mutuellement exclusifs
+// (voir isDemoMode() dans supplier-drivers.ts), donc toujours exactement
+// un seul CONFIGURED.
 
 export async function searchWorldHotels(
   input: WorldHotelSearchInput,
 ): Promise<WorldHotelSearchResult> {
-  const isDemoMode =
-    !process.env.WORLD_HOTELS_API_KEY || process.env.WORLD_HOTELS_DEMO_MODE === "true"
-
-  if (isDemoMode) {
-    const { offers, searchId } = buildVirtualOffers(input)
-    return { ok: true, offers, searchId }
-  }
-
-  const cacheKey = `e2b:hotels-monde:${input.destination}-${input.checkIn}-${input.checkOut}-${input.adults}-${input.rooms}`
-
-  try {
-    return await memoize(cacheKey, 300, async () => {
-      const url = new URL(`${process.env.WORLD_HOTELS_API_BASE_URL}/shop/hotels`)
-      url.searchParams.set("destination", input.destination)
-      url.searchParams.set("checkin", input.checkIn)
-      url.searchParams.set("checkout", input.checkOut)
-      url.searchParams.set("adults", String(input.adults))
-      url.searchParams.set("rooms", String(input.rooms))
-      if (input.stars) url.searchParams.set("stars", String(input.stars))
-
-      const res = await fetch(url.toString(), {
-        headers: {
-          Authorization: `Bearer ${process.env.WORLD_HOTELS_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(12_000),
-      })
-
-      if (!res.ok) {
-        throw new Error(`World Hotels API ${res.status}: ${res.statusText}`)
-      }
-
-      const json = await res.json()
-      const offers = (json.data ?? []).map((o: unknown, i: number) => ({
-        id: `offer-${i}`,
-        ...(o as Record<string, unknown>),
-      }))
-
-      return {
-        ok: true as const,
-        offers,
-        searchId: json.meta?.searchId ?? `s-${Date.now()}`,
-      }
-    })
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Erreur inconnue",
-      code: "WORLD_HOTELS_API_ERROR",
-    }
-  }
+  return searchAcrossWorldHotelDrivers(
+    [createVirtualWorldHotelDriver(), createWorldHotelApiDriver()],
+    input,
+  )
 }

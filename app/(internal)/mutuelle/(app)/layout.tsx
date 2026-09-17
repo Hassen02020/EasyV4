@@ -1,8 +1,31 @@
 import { redirect } from "next/navigation"
+import { eq } from "drizzle-orm"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getUserRoleFromCookie } from "@/app/actions/validate-role"
+import { withTenantContext } from "@/lib/db/tenant-context"
+import { agencies } from "@/lib/db/schema"
 import { MutuelleShell } from "@/components/mutuelle-shell"
+
+/**
+ * Couleur d'accent du portail Mutuelle — mêmes colonne/mécanisme que le
+ * branding White Label du storefront public (agencies.primary_color,
+ * chantier docs/audits/architecture-vision-audit.md piste A), réutilisés
+ * ici pour l'agence propre de l'agent Mutuelle (pas de concept de tenant
+ * séparé pour /mutuelle — voir l'audit : rôle staff fixe, aucune agence
+ * "mutuelle" distincte n'existe). `null` = violet par défaut inchangé
+ * (voir components/mutuelle-shell.tsx).
+ */
+async function getMutuelleAccentColor(agencyId: string, userId: string): Promise<string | null> {
+  try {
+    const rows = await withTenantContext({ agencyId, userId, isSuperAdmin: false }, (tx) =>
+      tx.select({ primaryColor: agencies.primaryColor }).from(agencies).where(eq(agencies.id, agencyId)).limit(1),
+    )
+    return rows[0]?.primaryColor ?? null
+  } catch {
+    return null
+  }
+}
 
 export const dynamic = "force-dynamic"
 
@@ -42,10 +65,15 @@ export default async function MutuelleLayout({
     redirect("/login/select")
   }
 
+  const accentColor = profile?.agencyId
+    ? await getMutuelleAccentColor(profile.agencyId, user.id)
+    : null
+
   return (
     <MutuelleShell
       displayName={profile?.name ?? user.email ?? "Agent Mutuelle"}
       email={user.email ?? ""}
+      accentColor={accentColor}
     >
       {children}
     </MutuelleShell>

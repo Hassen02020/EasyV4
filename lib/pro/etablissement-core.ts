@@ -26,6 +26,7 @@ export interface UpdateAgencyProfileParams {
   registreCommerce: string
   address: string
   logoUrl: string
+  primaryColor: string
   defaultLanguage: string
   defaultCurrency: string
   maskCredit: boolean
@@ -46,6 +47,7 @@ export async function updateAgencyProfileCore(
       registreCommerce: params.registreCommerce || null,
       address: params.address || null,
       logoUrl: params.logoUrl || null,
+      primaryColor: params.primaryColor || null,
       defaultLanguage: params.defaultLanguage,
       defaultCurrency: params.defaultCurrency,
       maskCredit: params.maskCredit,

@@ -7,6 +7,8 @@ import { setRequestLocale } from "next-intl/server"
 
 import { RootShell } from "@/components/root-shell"
 
+import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
+
 import { CurrencyProvider } from "@/components/currency-context"
 
 import { RtlDirectionProvider } from "@/components/rtl-direction-provider"
@@ -48,11 +50,15 @@ export default async function LocaleLayout({
 
   const dir = LOCALE_META[locale as Locale].dir
 
+  // White Label (voir lib/tenant/current-tenant.ts) : déjà résolu par
+  // proxy.ts pour cette requête, jamais une nouvelle résolution ici.
+  const tenant = await getRequestTenantInfo()
+
   return (
     <NextIntlClientProvider locale={locale}>
       <RtlDirectionProvider dir={dir}>
         <CurrencyProvider locale={locale}>
-          <RootShell lang={locale} dir={dir}>
+          <RootShell lang={locale} dir={dir} primaryColor={tenant?.primaryColor}>
             {children}
           </RootShell>
         </CurrencyProvider>

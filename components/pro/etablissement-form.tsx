@@ -39,6 +39,7 @@ export type EtablissementInitial = {
   registreCommerce: string
   address: string
   logoUrl: string
+  primaryColor: string
   defaultLanguage: string
   defaultCurrency: string
   maskCredit: boolean
@@ -46,6 +47,8 @@ export type EtablissementInitial = {
 
 /** Format Tunisien attendu : XXXXXXXX/X/X/XXX */
 const MATRICULE_REGEX = /^\d{7}[A-Z]\/[A-Z]\/[A-Z]\/\d{3}$/
+/** Même format que lib/pro/etablissement-actions.ts::HEX_COLOR_REGEX. */
+const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
 
 interface EtablissementFormProps {
   initial: EtablissementInitial
@@ -81,6 +84,8 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
       !MATRICULE_REGEX.test(state.matriculeFiscale.trim())
     )
       next.matriculeFiscale = "Format attendu : 1399210Z/A/M/002"
+    if (state.primaryColor && !HEX_COLOR_REGEX.test(state.primaryColor.trim()))
+      next.primaryColor = "Format attendu : #RRGGBB"
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -168,6 +173,35 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
           onChange={(v) => update("logoUrl", v)}
           placeholder="https://…"
         />
+        <div>
+          <Label className="text-xs" htmlFor="primary-color">
+            Couleur d&apos;accent (White Label)
+          </Label>
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              type="color"
+              id="primary-color"
+              value={HEX_COLOR_REGEX.test(state.primaryColor) ? state.primaryColor : "#c2410c"}
+              onChange={(e) => update("primaryColor", e.target.value)}
+              className="border-border h-9 w-11 shrink-0 rounded-md border p-0.5"
+              aria-label="Sélectionner la couleur d'accent"
+            />
+            <Input
+              value={state.primaryColor}
+              onChange={(e) => update("primaryColor", e.target.value)}
+              placeholder="#c2410c"
+              maxLength={7}
+              aria-invalid={Boolean(errors.primaryColor)}
+            />
+          </div>
+          {errors.primaryColor ? (
+            <p className="text-destructive mt-1 text-xs">{errors.primaryColor}</p>
+          ) : (
+            <p className="text-muted-foreground mt-1 text-xs">
+              Remplace la couleur des boutons/liens sur votre storefront public. Vide = teinte Easy2Book par défaut.
+            </p>
+          )}
+        </div>
         <div>
           <Label className="text-xs">Langue par défaut</Label>
           <Select

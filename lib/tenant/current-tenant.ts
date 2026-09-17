@@ -28,6 +28,7 @@ export const TENANT_AGENCY_ID_HEADER = "x-tenant-agency-id"
 export const TENANT_DOMAIN_HEADER = "x-tenant-domain"
 export const TENANT_BRAND_NAME_HEADER = "x-tenant-brand-name"
 export const TENANT_LOGO_URL_HEADER = "x-tenant-logo-url"
+export const TENANT_PRIMARY_COLOR_HEADER = "x-tenant-primary-color"
 
 /** Agence tenant résolue pour la requête courante par `proxy.ts`, ou `null` (domaine par défaut). */
 export async function getRequestTenantAgencyId(): Promise<string | null> {
@@ -45,9 +46,11 @@ export interface RequestTenantInfo {
   domain: string
   brandName: string | null
   logoUrl: string | null
+  /** `#RRGGBB` ou `null` — voir components/root-shell.tsx pour son application (`--primary`). */
+  primaryColor: string | null
 }
 
-/** Infos tenant complètes (agencyId + domain + brandName + logoUrl) pour la requête courante, ou `null`. */
+/** Infos tenant complètes (agencyId + domain + brandName + logoUrl + primaryColor) pour la requête courante, ou `null`. */
 export async function getRequestTenantInfo(): Promise<RequestTenantInfo | null> {
   try {
     const h = await headers()
@@ -58,6 +61,7 @@ export async function getRequestTenantInfo(): Promise<RequestTenantInfo | null> 
       domain: h.get(TENANT_DOMAIN_HEADER) ?? "",
       brandName: h.get(TENANT_BRAND_NAME_HEADER) || null,
       logoUrl: h.get(TENANT_LOGO_URL_HEADER) || null,
+      primaryColor: h.get(TENANT_PRIMARY_COLOR_HEADER) || null,
     }
   } catch {
     return null

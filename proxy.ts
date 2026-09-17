@@ -16,6 +16,7 @@ import {
   TENANT_DOMAIN_HEADER,
   TENANT_BRAND_NAME_HEADER,
   TENANT_LOGO_URL_HEADER,
+  TENANT_PRIMARY_COLOR_HEADER,
 } from "@/lib/tenant/current-tenant"
 
 // Header interne next-intl (`X-NEXT-INTL-LOCALE`, `shared/constants.ts`, non
@@ -84,7 +85,7 @@ const ADMIN_ROUTES = /^\/admin(\/|$)/
  */
 async function resolveTenantForHost(
   host: string | null,
-): Promise<{ agencyId: string; domain: string; brandName: string | null; logoUrl: string | null } | null> {
+): Promise<{ agencyId: string; domain: string; brandName: string | null; logoUrl: string | null; primaryColor: string | null } | null> {
   if (!host) return null
   const normalized = normalizeHost(host)
   if (!normalized) return null
@@ -98,6 +99,7 @@ async function resolveTenantForHost(
           domain: agencies.domain,
           status: agencies.status,
           logoUrl: agencies.logoUrl,
+          primaryColor: agencies.primaryColor,
         })
         .from(agencies)
         .where(and(eq(agencies.domain, normalized), eq(agencies.status, "active")))
@@ -106,7 +108,7 @@ async function resolveTenantForHost(
     )
 
     if (!data || !data.domain) return null
-    return { agencyId: data.id, domain: data.domain, brandName: data.brandName, logoUrl: data.logoUrl }
+    return { agencyId: data.id, domain: data.domain, brandName: data.brandName, logoUrl: data.logoUrl, primaryColor: data.primaryColor }
   } catch {
     // Panne BDD/config manquante : on ne bloque jamais le storefront par
     // défaut pour une erreur de résolution tenant — retombe simplement sur
@@ -128,6 +130,7 @@ export async function proxy(request: NextRequest) {
   request.headers.delete(TENANT_DOMAIN_HEADER)
   request.headers.delete(TENANT_BRAND_NAME_HEADER)
   request.headers.delete(TENANT_LOGO_URL_HEADER)
+  request.headers.delete(TENANT_PRIMARY_COLOR_HEADER)
 
   if (!isTenantExemptRoute(pathname)) {
     const tenant = await resolveTenantForHost(request.headers.get("host"))
@@ -136,6 +139,7 @@ export async function proxy(request: NextRequest) {
       request.headers.set(TENANT_DOMAIN_HEADER, tenant.domain)
       if (tenant.brandName) request.headers.set(TENANT_BRAND_NAME_HEADER, tenant.brandName)
       if (tenant.logoUrl) request.headers.set(TENANT_LOGO_URL_HEADER, tenant.logoUrl)
+      if (tenant.primaryColor) request.headers.set(TENANT_PRIMARY_COLOR_HEADER, tenant.primaryColor)
     }
   }
 

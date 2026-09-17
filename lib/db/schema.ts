@@ -170,6 +170,8 @@ export const agencies = pgTable(
     fax: varchar("fax", { length: 32 }),
     /** URL du logo de l'agence (CDN/Supabase Storage). */
     logoUrl: text("logo_url"),
+    /** Couleur d'accent White Label (`#RRGGBB`) — surcharge `--primary` sur le storefront public de cette agence, sinon la teinte corail par défaut. */
+    primaryColor: varchar("primary_color", { length: 7 }),
     /** Langue par défaut (fr/en/ar/tr). */
     defaultLanguage: varchar("default_language", { length: 4 })
       .notNull()

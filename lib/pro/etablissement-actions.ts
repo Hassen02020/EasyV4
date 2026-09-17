@@ -22,6 +22,14 @@ import { updateAgencyProfileCore } from "./etablissement-core"
 /** Même format que components/pro/etablissement-form.tsx::MATRICULE_REGEX. */
 const MATRICULE_REGEX = /^\d{7}[A-Z]\/[A-Z]\/[A-Z]\/\d{3}$/
 
+/**
+ * `#RRGGBB` uniquement — jamais une fonction CSS libre (oklch()/rgb()/
+ * calc()) : cette valeur est injectée dans un attribut `style` par
+ * components/root-shell.tsx, donc la forme acceptée doit rester non
+ * ambiguë et sans caractères de syntaxe CSS (`;`, `:`, parenthèses).
+ */
+const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
+
 const schema = z.object({
   name: z.string().trim().min(1).max(200),
   contactEmail: z.string().trim().email().max(320),
@@ -37,6 +45,13 @@ const schema = z.object({
   registreCommerce: z.string().trim().max(64).optional().default(""),
   address: z.string().trim().max(2000).optional().default(""),
   logoUrl: z.string().trim().max(2048).optional().default(""),
+  primaryColor: z
+    .string()
+    .trim()
+    .max(7)
+    .optional()
+    .default("")
+    .refine((v) => !v || HEX_COLOR_REGEX.test(v), { message: "Couleur invalide — format attendu : #RRGGBB" }),
   defaultLanguage: z.enum(["fr", "ar", "en", "tr"]),
   defaultCurrency: z.enum(["TND", "EUR", "USD", "DZD"]),
   maskCredit: z.boolean(),
@@ -77,6 +92,7 @@ export async function updateMyAgencyProfile(input: UpdateEtablissementInput): Pr
         registreCommerce: parsed.data.registreCommerce,
         address: parsed.data.address,
         logoUrl: parsed.data.logoUrl,
+        primaryColor: parsed.data.primaryColor,
         defaultLanguage: parsed.data.defaultLanguage,
         defaultCurrency: parsed.data.defaultCurrency,
         maskCredit: parsed.data.maskCredit,

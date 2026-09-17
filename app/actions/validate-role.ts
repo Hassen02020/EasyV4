@@ -101,7 +101,7 @@ export async function validateRoleAccess(
       super_admin: ["super_admin"],
       admin: ["manager", "agent_resa", "agent_compta", "agent_excursions"],
       partner: ["partner_owner", "partner_agent"],
-      mutuelle: ["mutuelle"],
+      mutuelle: ["mutuelle_director", "mutuelle_member"],
     }
 
     const allowedRoles = roleMapping[role] || [role]

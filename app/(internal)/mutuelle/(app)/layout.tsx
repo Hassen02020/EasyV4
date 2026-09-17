@@ -9,11 +9,12 @@ import { MutuelleShell } from "@/components/mutuelle-shell"
 
 /**
  * Couleur d'accent du portail Mutuelle — mêmes colonne/mécanisme que le
- * branding White Label du storefront public (agencies.primary_color,
- * chantier docs/audits/architecture-vision-audit.md piste A), réutilisés
- * ici pour l'agence propre de l'agent Mutuelle (pas de concept de tenant
- * séparé pour /mutuelle — voir l'audit : rôle staff fixe, aucune agence
- * "mutuelle" distincte n'existe). `null` = violet par défaut inchangé
+ * branding White Label du storefront public (agencies.primary_color).
+ * Un groupe Mutuelle (mutuelle_groups, voir schema.ts) n'a pas encore sa
+ * propre couleur — le repli reste l'agence sous-jacente du compte
+ * (`users.agency_id`, l'OTA directe par défaut pour un directeur/membre,
+ * voir drizzle/manual/0058_mutuelle_groups.sql) tant qu'aucun chantier ne
+ * demande un branding par groupe. `null` = violet par défaut inchangé
  * (voir components/mutuelle-shell.tsx).
  */
 async function getMutuelleAccentColor(agencyId: string, userId: string): Promise<string | null> {
@@ -47,11 +48,13 @@ export default async function MutuelleLayout({
   const cookieRole = await getUserRoleFromCookie()
   const profile = await getCurrentAdminProfile(user.id)
 
-  // Vérifier que l'utilisateur a le bon rôle
-  const allowedRoles = ["mutuelle"]
+  // Vérifier que l'utilisateur a le bon rôle — directeur ou membre d'un
+  // groupe Mutuelle réel (mutuelle_groups), jamais le rôle 'mutuelle' unique
+  // qui n'a jamais existé dans aucune migration Postgres (voir l'audit).
+  const allowedRoles = ["mutuelle_director", "mutuelle_member"]
   const effectiveRole = cookieRole || profile?.role
 
-  if (!effectiveRole || !allowedRoles.includes(effectiveRole)) {
+  if (!effectiveRole || !allowedRoles.includes(effectiveRole) || !profile?.mutuelleGroupId) {
     // Si mauvais rôle, rediriger vers le bon espace
     if (profile?.role === "super_admin" || profile?.role === "manager") {
       redirect("/admin")

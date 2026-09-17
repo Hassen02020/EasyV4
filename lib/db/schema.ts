@@ -51,6 +51,8 @@ export const userRole = pgEnum("user_role", [
   "agent_excursions", // agent terrain (scan QR activités)
   "partner_owner", // propriétaire d'une agence partenaire B2B
   "partner_agent", // sous-compte agent au sein d'une agence B2B
+  "mutuelle_director", // responsable d'un groupe Mutuelle — valide les demandes des membres
+  "mutuelle_member", // membre d'un groupe Mutuelle — soumet des demandes de réservation
 ])
 
 export const agencyType = pgEnum("agency_type", [
@@ -253,6 +255,45 @@ export const agencies = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* Mutuelles — distributeurs privés B2B2C (chantier "Mutuelle", voir           */
+/* docs/audits/architecture-vision-audit.md). PAS une agence : un groupe      */
+/* Mutuelle négocie une convention avec Easy2Book, valide les demandes de ses */
+/* membres puis les transmet à une agence d'exécution réelle qui gère la      */
+/* réservation — jamais de logique de réservation ici, uniquement l'identité  */
+/* du groupe et ses conditions commerciales (chantier 1 : fondation données   */
+/* seule ; catalogue autorisé/markup appliqué/workflow de validation =        */
+/* chantiers suivants).                                                       */
+/* -------------------------------------------------------------------------- */
+
+export const mutuelleGroups = pgTable(
+  "mutuelle_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: varchar("slug", { length: 64 }).notNull(),
+    /** Identité / raison sociale du groupe (ex. "Mutuelle Générale de Tunisie"). */
+    name: varchar("name", { length: 200 }).notNull(),
+    /** Agence Easy2Book chargée d'exécuter les réservations validées de ce groupe. */
+    executionAgencyId: uuid("execution_agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    /** Taux de markup unique de la convention (%), appliqué au prix agence. */
+    markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+    /** Convention Easy2Book : bornes de validité (NULL = durée indéterminée). */
+    conventionStartDate: date("convention_start_date"),
+    conventionEndDate: date("convention_end_date"),
+    contactEmail: varchar("contact_email", { length: 320 }),
+    contactPhone: varchar("contact_phone", { length: 32 }),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("mutuelle_groups_slug_uniq").on(t.slug),
+    index("mutuelle_groups_execution_agency_idx").on(t.executionAgencyId),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* Users (admin/staff). Mappés sur Supabase auth.users via id (uuid).         */
 /* -------------------------------------------------------------------------- */
 
@@ -273,10 +314,13 @@ export const users = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** Renseigné uniquement pour role IN ('mutuelle_director','mutuelle_member') — NULL pour tout le reste. */
+    mutuelleGroupId: uuid("mutuelle_group_id").references(() => mutuelleGroups.id, { onDelete: "restrict" }),
   },
   (t) => [
     index("users_agency_idx").on(t.agencyId),
     uniqueIndex("users_email_uniq").on(t.email),
+    index("users_mutuelle_group_idx").on(t.mutuelleGroupId),
   ],
 )
 

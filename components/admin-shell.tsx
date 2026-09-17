@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   XCircle,
   Star,
+  HeartHandshake,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -219,6 +220,7 @@ const superAdminNavItems: NavItem[] = [
     subItems: [
       { title: "Utilisateurs", href: "/admin/users", icon: Users },
       { title: "Agences", href: "/admin/agencies", icon: Building },
+      { title: "Mutuelles", href: "/admin/mutuelle", icon: HeartHandshake },
       { title: "Logs Système", href: "/admin/logs", icon: Activity },
     ],
   },

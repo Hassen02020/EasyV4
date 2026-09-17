@@ -4,19 +4,23 @@
  */
 
 import { Suspense } from "react"
-import { getTranslations } from "next-intl/server"
+import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { OmraSearch } from "@/components/omra/omra-search"
 import { OmraPackageList } from "@/components/omra/omra-package-list"
+import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
 import { and, eq, gte, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { paginateOffset } from "@/lib/admin/pagination"
 
 export const dynamic = "force-dynamic"
+
+const PAGE_SIZE = 12
 
 export const metadata = {
   title: "Omraty — Réservez votre Omra | Easy2Book",
@@ -29,16 +33,27 @@ interface SearchFilters {
   programme?: string
   month?: string
   pilgrims?: string
+  page?: string
 }
 
-async function getActivePackages(filters: SearchFilters) {
+interface OmraPageResult {
+  packages: Array<typeof omraPackages.$inferSelect & { coverMediaUrl: string | null }>
+  totalCount: number
+  currentPage: number
+  totalPages: number
+}
+
+const EMPTY_RESULT: OmraPageResult = { packages: [], totalCount: 0, currentPage: 1, totalPages: 1 }
+
+async function getActivePackages(filters: SearchFilters): Promise<OmraPageResult> {
+  const page = Math.max(1, Number.parseInt(filters.page ?? "1", 10) || 1)
   try {
     // Catalogue public (trafic anonyme, pas de session storefront) — scopé à
     // l'agence OTA directe, même modèle que Car/Hôtels/Transferts
     // (getDefaultAgencyId) : on n'affiche jamais un package qu'un visiteur
     // anonyme ne pourrait ensuite pas réserver via le guest checkout.
     const agencyId = await getDefaultAgencyId()
-    if (!agencyId) return []
+    if (!agencyId) return EMPTY_RESULT
     return await withSystemContext(async (db) => {
     const conditions = [eq(omraPackages.status, "published"), eq(omraPackages.agencyId, agencyId), arrayContains(omraPackages.channels, ["b2c"])]
 
@@ -72,24 +87,49 @@ async function getActivePackages(filters: SearchFilters) {
         .where(and(...allotmentConditions))
 
       const packageIds = matchingAllotments.map((a) => a.packageId)
-      if (packageIds.length === 0) return []
+      if (packageIds.length === 0) return EMPTY_RESULT
       conditions.push(inArray(omraPackages.id, packageIds))
     }
 
-    const rows = await db
-      .select()
-      .from(omraPackages)
-      .where(and(...conditions))
-      .orderBy(omraPackages.validFrom)
+    // Pagination SERP (chantier 6) — vraie pagination DB (.limit/.offset via
+    // paginateOffset), jamais tout le catalogue chargé d'un coup.
+    const { data: rows, meta } = await paginateOffset<typeof omraPackages.$inferSelect>({
+      query: db.select().from(omraPackages).where(and(...conditions)),
+      page,
+      limit: PAGE_SIZE,
+      orderBy: omraPackages.validFrom,
+      countQuery: async () => {
+        const [{ count }] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(omraPackages)
+          .where(and(...conditions))
+        return count
+      },
+    })
 
     // Media System (mission §24) : couverture prioritaire sur le fallback
-    // legacy metadata.coverImage, en une seule requête pour toute la liste.
+    // legacy metadata.coverImage, en une seule requête pour toute la page.
     const coverByPackage = await getCoverMediaForProducts(db, agencyId, "omra", rows.map((p) => p.id))
-    return rows.map((pkg) => ({ ...pkg, coverMediaUrl: coverByPackage.get(pkg.id)?.cardUrl ?? null }))
+    return {
+      packages: rows.map((pkg) => ({ ...pkg, coverMediaUrl: coverByPackage.get(pkg.id)?.cardUrl ?? null })),
+      totalCount: meta.totalCount ?? 0,
+      currentPage: meta.currentPage,
+      totalPages: meta.totalPages ?? 1,
+    }
     })
   } catch {
-    return []
+    return EMPTY_RESULT
   }
+}
+
+function buildOmraHref(locale: string, filters: SearchFilters, page: number): string {
+  const params = new URLSearchParams()
+  if (filters.programme) params.set("programme", filters.programme)
+  if (filters.month) params.set("month", filters.month)
+  if (filters.pilgrims) params.set("pilgrims", filters.pilgrims)
+  if (page > 1) params.set("page", String(page))
+  const qs = params.toString()
+  return `/${locale}/omra${qs ? `?${qs}` : ""}`
 }
 
 export default async function OmraPage({
@@ -98,8 +138,10 @@ export default async function OmraPage({
   searchParams: Promise<SearchFilters>
 }) {
   const filters = await searchParams
-  const packages = await getActivePackages(filters)
+  const { packages, totalCount, currentPage, totalPages } = await getActivePackages(filters)
   const t = await getTranslations("Omra")
+  const tCommon = await getTranslations("Common")
+  const locale = await getLocale()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -134,8 +176,20 @@ export default async function OmraPage({
               </div>
             }
           >
-            <OmraPackageList packages={packages} />
+            <OmraPackageList packages={packages} totalCount={totalCount} />
           </Suspense>
+          <CatalogPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            buildHref={(page) => buildOmraHref(locale, filters, page)}
+            labels={{
+              previous: tCommon("paginationPrevious"),
+              next: tCommon("paginationNext"),
+              previousAria: tCommon("paginationPreviousAria"),
+              nextAria: tCommon("paginationNextAria"),
+              goToPage: (page) => tCommon("paginationGoToPage", { page }),
+            }}
+          />
         </div>
       </main>
       <Footer />

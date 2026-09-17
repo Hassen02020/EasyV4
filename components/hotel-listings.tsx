@@ -287,10 +287,15 @@ export function toCardShape(
 }
 
 interface HotelListingsProps {
-  /** Offres déjà filtrées prêtes à afficher. */
+  /** Offres à afficher — déjà filtrées, triées ET découpées à la page
+   * courante (chantier 6, pagination SERP) : peut être un sous-ensemble de
+   * `filteredCount`. */
   offers: HotelOfferDTO[]
   /** Total brut (avant filtrage) — pour le header "X hôtels à Y". */
   totalCount: number
+  /** Total après filtrage, AVANT pagination — distinct de `offers.length`
+   * depuis le chantier 6 (`offers` ne porte plus que la page courante). */
+  filteredCount: number
   /** Devise affichée (passée par la page parente, par défaut TND). */
   currency?: string
   status: "loading" | "success" | "error"
@@ -325,6 +330,7 @@ interface HotelListingsProps {
 export function HotelListings({
   offers,
   totalCount,
+  filteredCount,
   currency = "TND",
   status,
   error,
@@ -620,9 +626,9 @@ export function HotelListings({
         <div>
           <h1 className="text-foreground text-xl font-bold">
             {t("hotelsCountInCity", { count: totalCount, city: cityName })}
-            {offers.length !== totalCount && (
+            {filteredCount !== totalCount && (
               <span className="text-muted-foreground ml-2 text-sm font-normal">
-                {t("afterFilterCount", { count: offers.length })}
+                {t("afterFilterCount", { count: filteredCount })}
               </span>
             )}
           </h1>

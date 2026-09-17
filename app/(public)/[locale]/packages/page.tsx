@@ -3,11 +3,12 @@
  * Server Component : charge les packages depuis la table catalog_packages.
  */
 
-import { getTranslations } from "next-intl/server"
+import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { PackageSearch } from "@/components/packages/package-search"
 import { PackageList } from "@/components/packages/package-list"
+import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
 import { and, eq, gte, ilike, inArray, sql, arrayContains } from "drizzle-orm"
@@ -15,8 +16,11 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { PACKAGE_DESTINATION_SEARCH_TERMS } from "@/lib/destinations/package-search-terms"
+import { paginateOffset } from "@/lib/admin/pagination"
 
 export const dynamic = "force-dynamic"
+
+const PAGE_SIZE = 12
 
 export const metadata = {
   title: "Voyages Organisés | Easy2Book",
@@ -30,6 +34,7 @@ interface SearchFilters {
   duration?: string
   month?: string
   travelers?: string
+  page?: string
 }
 
 /** "3-5" -> [3, 5], "13+" -> [13, undefined] */
@@ -41,14 +46,26 @@ function parseDurationRange(duration: string): [number, number | undefined] | nu
   return null
 }
 
-async function getActivePackages(filters: SearchFilters) {
+interface PackagesPageResult {
+  packages: Array<
+    typeof catalogPackages.$inferSelect & { priceFromTnd: number | null; coverMediaUrl: string | null }
+  >
+  totalCount: number
+  currentPage: number
+  totalPages: number
+}
+
+const EMPTY_RESULT: PackagesPageResult = { packages: [], totalCount: 0, currentPage: 1, totalPages: 1 }
+
+async function getActivePackages(filters: SearchFilters): Promise<PackagesPageResult> {
+  const page = Math.max(1, Number.parseInt(filters.page ?? "1", 10) || 1)
   try {
     // Catalogue public (trafic anonyme, pas de session storefront) — scopé à
     // l'agence OTA directe, même modèle que Car/Hôtels/Transferts/Omra
     // (getDefaultAgencyId) : on n'affiche jamais un package qu'un visiteur
     // anonyme ne pourrait ensuite pas réserver via le guest checkout.
     const agencyId = await getDefaultAgencyId()
-    if (!agencyId) return []
+    if (!agencyId) return EMPTY_RESULT
     return await withSystemContext(async (db) => {
     const conditions = [eq(catalogPackages.status, "published"), eq(catalogPackages.agencyId, agencyId), arrayContains(catalogPackages.channels, ["b2c"])]
 
@@ -99,19 +116,30 @@ async function getActivePackages(filters: SearchFilters) {
         .where(and(...departureConditions))
 
       const packageIds = matchingDepartures.map((d) => d.packageId)
-      if (packageIds.length === 0) return []
+      if (packageIds.length === 0) return EMPTY_RESULT
       conditions.push(inArray(catalogPackages.id, packageIds))
     }
 
-    const rows = await db
-      .select()
-      .from(catalogPackages)
-      .where(and(...conditions))
-      .orderBy(catalogPackages.title)
+    // Pagination SERP (chantier 6) — vraie pagination DB (.limit/.offset via
+    // paginateOffset), jamais tout le catalogue chargé d'un coup.
+    const { data: rows, meta } = await paginateOffset<typeof catalogPackages.$inferSelect>({
+      query: db.select().from(catalogPackages).where(and(...conditions)),
+      page,
+      limit: PAGE_SIZE,
+      orderBy: catalogPackages.title,
+      countQuery: async () => {
+        const [{ count }] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(catalogPackages)
+          .where(and(...conditions))
+        return count
+      },
+    })
 
     // Prix affiché sur les cartes liste ("À partir de X DT") — agrégé depuis
     // les départs programmés réels (jamais un prix inventé/statique sur le
-    // package lui-même, qui n'a pas de colonne prix).
+    // package lui-même, qui n'a pas de colonne prix). Uniquement pour la
+    // page courante — pas tout le catalogue.
     const priceRows =
       rows.length === 0
         ? []
@@ -133,18 +161,34 @@ async function getActivePackages(filters: SearchFilters) {
     const priceByPackage = new Map(priceRows.map((r) => [r.packageId, parseFloat(r.minPrice)]))
 
     // Media System (mission §24) : couverture prioritaire sur pkg.coverImage
-    // (legacy), en une seule requête pour toute la liste.
+    // (legacy), en une seule requête pour toute la page.
     const coverByPackage = await getCoverMediaForProducts(db, agencyId, "package", rows.map((p) => p.id))
 
-    return rows.map((pkg) => ({
-      ...pkg,
-      priceFromTnd: priceByPackage.get(pkg.id) ?? null,
-      coverMediaUrl: coverByPackage.get(pkg.id)?.cardUrl ?? null,
-    }))
+    return {
+      packages: rows.map((pkg) => ({
+        ...pkg,
+        priceFromTnd: priceByPackage.get(pkg.id) ?? null,
+        coverMediaUrl: coverByPackage.get(pkg.id)?.cardUrl ?? null,
+      })),
+      totalCount: meta.totalCount ?? 0,
+      currentPage: meta.currentPage,
+      totalPages: meta.totalPages ?? 1,
+    }
     })
   } catch {
-    return []
+    return EMPTY_RESULT
   }
+}
+
+function buildPackagesHref(locale: string, filters: SearchFilters, page: number): string {
+  const params = new URLSearchParams()
+  if (filters.destination) params.set("destination", filters.destination)
+  if (filters.duration) params.set("duration", filters.duration)
+  if (filters.month) params.set("month", filters.month)
+  if (filters.travelers) params.set("travelers", filters.travelers)
+  if (page > 1) params.set("page", String(page))
+  const qs = params.toString()
+  return `/${locale}/packages${qs ? `?${qs}` : ""}`
 }
 
 export default async function PackagesPage({
@@ -153,8 +197,10 @@ export default async function PackagesPage({
   searchParams: Promise<SearchFilters>
 }) {
   const filters = await searchParams
-  const packages = await getActivePackages(filters)
+  const { packages, totalCount, currentPage, totalPages } = await getActivePackages(filters)
   const t = await getTranslations("Packages")
+  const tCommon = await getTranslations("Common")
+  const locale = await getLocale()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -176,7 +222,19 @@ export default async function PackagesPage({
 
         <div className="mx-auto max-w-6xl px-4 py-8">
           <PackageSearch />
-          <PackageList packages={packages} />
+          <PackageList packages={packages} totalCount={totalCount} />
+          <CatalogPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            buildHref={(page) => buildPackagesHref(locale, filters, page)}
+            labels={{
+              previous: tCommon("paginationPrevious"),
+              next: tCommon("paginationNext"),
+              previousAria: tCommon("paginationPreviousAria"),
+              nextAria: tCommon("paginationNextAria"),
+              goToPage: (page) => tCommon("paginationGoToPage", { page }),
+            }}
+          />
         </div>
       </main>
       <Footer />

@@ -15,6 +15,9 @@ type OmraPackageWithMedia = OmraPackage & { coverMediaUrl?: string | null }
 
 interface Props {
   packages: OmraPackageWithMedia[]
+  /** Total réel (avant pagination, chantier 6) — distinct de packages.length,
+   * qui ne porte que la page courante. */
+  totalCount: number
 }
 
 const PACKAGE_TYPE_KEYS = new Set(["omra", "hajj", "ramadan", "umrah_plus"])
@@ -116,7 +119,7 @@ function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
   )
 }
 
-export function OmraPackageList({ packages }: Props) {
+export function OmraPackageList({ packages, totalCount }: Props) {
   const t = useTranslations("Omra")
   if (packages.length === 0) {
     return (
@@ -142,7 +145,7 @@ export function OmraPackageList({ packages }: Props) {
   return (
     <div className="mt-4">
       <p className="mb-4 text-sm text-muted-foreground">
-        {t("packagesAvailableCount", { count: packages.length })}
+        {t("packagesAvailableCount", { count: totalCount })}
       </p>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {packages.map((pkg) => (

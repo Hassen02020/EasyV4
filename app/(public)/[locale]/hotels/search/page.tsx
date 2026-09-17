@@ -28,6 +28,8 @@ import {
 } from "@/lib/mygo/sort"
 import { SortSelect, type SortSelectLabels } from "@/components/sort-select"
 import type { FilterLabels } from "@/components/filter-sidebar"
+import { usePaginatedResults } from "@/hooks/use-paginated-results"
+import { SearchPagination } from "@/components/search-pagination"
 import { encodeDraft } from "@/lib/booking/draft-store"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FlexibleDateSearch } from "@/components/flexible-date-search"
@@ -212,6 +214,12 @@ function HotelSearchContent() {
     [filteredOffers, sortMode, filters.boardings],
   )
 
+  // Pagination SERP (chantier 6) — découpage côté client, page pilotée par
+  // ?page=N dans l'URL ; filtres/tri sont déjà dans l'URL (updateFilters/
+  // updateSort), donc la remise à la page 1 est automatique sans clé
+  // supplémentaire (voir hooks/use-paginated-results.ts).
+  const { pageItems: pagedOffers, currentPage, totalPages, setPage } = usePaginatedResults(sortedOffers)
+
   // Chaîne de requête complète actuelle — transmise telle quelle à la fiche
   // hôtel (destination, dates, occupation, filtres, tri…) pour que "Voir
   // détails" puis "Retour aux résultats" ne perde aucun état.
@@ -316,8 +324,9 @@ function HotelSearchContent() {
               )}
             </div>
             <HotelListings
-              offers={sortedOffers}
+              offers={pagedOffers}
               totalCount={data?.count ?? 0}
+              filteredCount={sortedOffers.length}
               currency={currency}
               status={status}
               error={error}
@@ -335,6 +344,13 @@ function HotelSearchContent() {
               onBookHotel={handleBookHotel}
               onClearFilters={() => updateFilters(EMPTY_FILTER_STATE)}
             />
+            {status === "success" && (
+              <SearchPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            )}
           </div>
         </div>
       </main>

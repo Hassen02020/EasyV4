@@ -114,17 +114,30 @@ export function createTimestampCursor(timestamp: Date, id: string): string {
 // PAGINATION OFFSET-BASED (simple)
 // ============================================================================
 
-interface OffsetPaginationOptions<T> {
-  /** Query Drizzle de base */
-  query: DrizzleChainableQuery
+interface OffsetPaginationOptions {
+  /** Query Drizzle de base (SELECT...WHERE déjà appliqué, sans limit/offset/
+   * orderBy) — typé `any` en interne : le type dynamique renvoyé par le
+   * query builder Drizzle change de forme à chaque méthode chaînée
+   * (where/limit/offset/orderBy renvoient chacun un type distinct, ex. le
+   * type perd sa méthode `.where()` après un premier appel), ce qui rend
+   * une interface structurelle statique (`DrizzleChainableQuery`, utilisée
+   * ci-dessous par `paginateCursor`) incompatible dès qu'un vrai `.where()`
+   * a déjà été appliqué en amont — cas réel de tous les appelants
+   * (`app/(public)/[locale]/{packages,attractions,omra}/page.tsx`,
+   * chantier 6). Le contrat externe reste typé via `T`/`PaginationResult`
+   * (voir `paginateOffset<T>` ci-dessous). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any
   /** Page demandée (1-based) */
   page?: number
   /** Items par page */
   limit?: number
   /** Fonction de count total (optionnel) */
   countQuery?: () => Promise<number>
-  /** Ordre de tri par défaut */
-  orderBy?: SQL | SQL[]
+  /** Ordre de tri par défaut — colonne Drizzle ou `SQL`, typé `any` pour la
+   * même raison que `query` ci-dessus. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  orderBy?: any
 }
 
 /**
@@ -141,7 +154,7 @@ export async function paginateOffset<T>({
   limit = 20,
   countQuery,
   orderBy,
-}: OffsetPaginationOptions<T>): Promise<PaginationResult<T>> {
+}: OffsetPaginationOptions): Promise<PaginationResult<T>> {
   const validPage = Math.max(1, page)
   const validLimit = Math.min(100, Math.max(1, limit)) // Max 100 items par page
   const offset = (validPage - 1) * validLimit

@@ -14,6 +14,9 @@ type PackageWithPrice = CatalogPackage & { priceFromTnd: number | null; coverMed
 
 interface Props {
   packages: PackageWithPrice[]
+  /** Total réel (avant pagination, chantier 6) — distinct de packages.length,
+   * qui ne porte que la page courante. */
+  totalCount: number
 }
 
 function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
@@ -96,7 +99,7 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
   )
 }
 
-export function PackageList({ packages }: Props) {
+export function PackageList({ packages, totalCount }: Props) {
   const t = useTranslations("Packages")
   if (packages.length === 0) {
     return (
@@ -117,7 +120,7 @@ export function PackageList({ packages }: Props) {
   return (
     <div>
       <p className="mb-4 text-sm text-muted-foreground">
-        {t("circuitsAvailableCount", { count: packages.length })}
+        {t("circuitsAvailableCount", { count: totalCount })}
       </p>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {packages.map((pkg) => (

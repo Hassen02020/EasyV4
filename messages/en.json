@@ -176,7 +176,12 @@
     "leadFormSubmitButton": "Send my request",
     "leadFormSuccessMessage": "Your request has been sent — an advisor will contact you shortly.",
     "leadFormErrorFallback": "Technical error. Please try again.",
-    "leadFormDefaultTitle": "Request a quote"
+    "leadFormDefaultTitle": "Request a quote",
+    "paginationPrevious": "Previous",
+    "paginationNext": "Next",
+    "paginationPreviousAria": "Go to previous page",
+    "paginationNextAria": "Go to next page",
+    "paginationGoToPage": "Go to page {page}"
   },
   "Home": {
     "heroKicker": "Instant booking · 100% Tunisia",

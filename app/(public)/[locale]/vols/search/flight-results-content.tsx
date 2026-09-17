@@ -8,6 +8,8 @@ import { format, parseISO } from "date-fns"
 import type { Locale as DateFnsLocale } from "date-fns"
 import { getDateFnsLocale } from "@/lib/i18n-date"
 import { useCurrency } from "@/components/currency-context"
+import { usePaginatedResults } from "@/hooks/use-paginated-results"
+import { SearchPagination } from "@/components/search-pagination"
 import { ArrowRight, Info, Luggage, Plane, RefreshCw, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -289,6 +291,14 @@ export function FlightResultsContent() {
     return sortOffers(result, sortMode)
   }, [offers, directOnly, refundableOnly, sortMode])
 
+  // Pagination SERP (chantier 6) — directOnly/refundableOnly/sortMode ne
+  // vivent qu'en state local (pas dans l'URL) : passés comme clé de remise
+  // à la page 1 (voir hooks/use-paginated-results.ts).
+  const { pageItems: pagedOffers, currentPage, totalPages, setPage } = usePaginatedResults(
+    filteredSorted,
+    `${directOnly}|${refundableOnly}|${sortMode}`,
+  )
+
   if (!parsed.ok) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
@@ -379,7 +389,10 @@ export function FlightResultsContent() {
                 {t("noFlightsMatchFilters")}
               </div>
             ) : (
-              filteredSorted.map((offer) => <FlightCard key={offer.id} offer={offer} state={parsed.state} />)
+              <>
+                {pagedOffers.map((offer) => <FlightCard key={offer.id} offer={offer} state={parsed.state} />)}
+                <SearchPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
+              </>
             )}
           </div>
         </div>

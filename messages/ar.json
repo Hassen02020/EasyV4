@@ -176,7 +176,12 @@
     "leadFormSubmitButton": "إرسال طلبي",
     "leadFormSuccessMessage": "تم إرسال طلبك بنجاح — سيتصل بك أحد مستشارينا قريبًا.",
     "leadFormErrorFallback": "خطأ تقني. يرجى المحاولة مرة أخرى.",
-    "leadFormDefaultTitle": "طلب عرض سعر"
+    "leadFormDefaultTitle": "طلب عرض سعر",
+    "paginationPrevious": "السابق",
+    "paginationNext": "التالي",
+    "paginationPreviousAria": "الصفحة السابقة",
+    "paginationNextAria": "الصفحة التالية",
+    "paginationGoToPage": "الانتقال إلى الصفحة {page}"
   },
   "Home": {
     "heroKicker": "حجز فوري · 100% تونس",

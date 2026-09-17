@@ -13,6 +13,7 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { and, eq, arrayContains, gte, inArray, or, ilike, sql } from "drizzle-orm"
@@ -20,9 +21,12 @@ import { Input } from "@/components/ui/input"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { paginateOffset } from "@/lib/admin/pagination"
 import { MapPin, Clock, Compass, ChevronRight } from "lucide-react"
 
 export const dynamic = "force-dynamic"
+
+const PAGE_SIZE = 12
 
 export const metadata = {
   title: "Attractions | Easy2Book",
@@ -30,33 +34,55 @@ export const metadata = {
   alternates: { languages: buildLanguageAlternates("/attractions") },
 }
 
-async function getPublishedActivities(q?: string) {
+interface AttractionsPageResult {
+  activities: Array<
+    typeof catalogActivities.$inferSelect & { priceFromTnd: number | null; coverMediaUrl: string | null }
+  >
+  totalCount: number
+  currentPage: number
+  totalPages: number
+}
+
+const EMPTY_RESULT: AttractionsPageResult = { activities: [], totalCount: 0, currentPage: 1, totalPages: 1 }
+
+async function getPublishedActivities(q: string | undefined, page: number): Promise<AttractionsPageResult> {
   try {
     const agencyId = await getDefaultAgencyId()
-    if (!agencyId) return []
+    if (!agencyId) return EMPTY_RESULT
     return await withSystemContext(async (db) => {
       const trimmedQ = q?.trim()
-      const rows = await db
-        .select()
-        .from(catalogActivities)
-        .where(
-          and(
-            eq(catalogActivities.status, "published"),
-            eq(catalogActivities.agencyId, agencyId),
-            arrayContains(catalogActivities.channels, ["b2c"]),
-            trimmedQ
-              ? or(
-                  ilike(catalogActivities.title, `%${trimmedQ}%`),
-                  ilike(catalogActivities.location, `%${trimmedQ}%`),
-                )
-              : undefined,
-          ),
-        )
-        .orderBy(catalogActivities.title)
+      const conditions = [
+        eq(catalogActivities.status, "published"),
+        eq(catalogActivities.agencyId, agencyId),
+        arrayContains(catalogActivities.channels, ["b2c"]),
+        trimmedQ
+          ? or(
+              ilike(catalogActivities.title, `%${trimmedQ}%`),
+              ilike(catalogActivities.location, `%${trimmedQ}%`),
+            )
+          : undefined,
+      ]
+
+      // Pagination SERP (chantier 6) — vraie pagination DB (.limit/.offset
+      // via paginateOffset), jamais tout le catalogue chargé d'un coup.
+      const { data: rows, meta } = await paginateOffset<typeof catalogActivities.$inferSelect>({
+        query: db.select().from(catalogActivities).where(and(...conditions)),
+        page,
+        limit: PAGE_SIZE,
+        orderBy: catalogActivities.title,
+        countQuery: async () => {
+          const [{ count }] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(catalogActivities)
+            .where(and(...conditions))
+          return count
+        },
+      })
 
       // Prix affiché sur les cartes ("À partir de X DT") — agrégé depuis les
       // sessions programmées réelles (jamais un prix inventé/statique sur
-      // l'activité elle-même, qui n'a pas de colonne prix).
+      // l'activité elle-même, qui n'a pas de colonne prix). Uniquement pour
+      // la page courante.
       const priceRows =
         rows.length === 0
           ? []
@@ -78,28 +104,43 @@ async function getPublishedActivities(q?: string) {
       const priceByActivity = new Map(priceRows.map((r) => [r.activityId, parseFloat(r.minPrice)]))
 
       // Media System (mission §24) : couverture prioritaire sur a.coverImage
-      // (legacy), en une seule requête pour toute la liste.
+      // (legacy), en une seule requête pour toute la page.
       const coverByActivity = await getCoverMediaForProducts(db, agencyId, "activity", rows.map((r) => r.id))
 
-      return rows.map((a) => ({
-        ...a,
-        priceFromTnd: priceByActivity.get(a.id) ?? null,
-        coverMediaUrl: coverByActivity.get(a.id)?.cardUrl ?? null,
-      }))
+      return {
+        activities: rows.map((a) => ({
+          ...a,
+          priceFromTnd: priceByActivity.get(a.id) ?? null,
+          coverMediaUrl: coverByActivity.get(a.id)?.cardUrl ?? null,
+        })),
+        totalCount: meta.totalCount ?? 0,
+        currentPage: meta.currentPage,
+        totalPages: meta.totalPages ?? 1,
+      }
     })
   } catch {
-    return []
+    return EMPTY_RESULT
   }
+}
+
+function buildAttractionsHref(locale: string, q: string | undefined, page: number): string {
+  const params = new URLSearchParams()
+  if (q) params.set("q", q)
+  if (page > 1) params.set("page", String(page))
+  const qs = params.toString()
+  return `/${locale}/attractions${qs ? `?${qs}` : ""}`
 }
 
 export default async function AttractionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
-  const { q } = await searchParams
-  const activities = await getPublishedActivities(q)
+  const { q, page: pageParam } = await searchParams
+  const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1)
+  const { activities, currentPage, totalPages } = await getPublishedActivities(q, page)
   const t = await getTranslations("Attractions")
+  const tCommon = await getTranslations("Common")
   const locale = await getLocale()
 
   return (
@@ -203,6 +244,18 @@ export default async function AttractionsPage({
               })}
             </div>
           )}
+          <CatalogPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            buildHref={(p) => buildAttractionsHref(locale, q, p)}
+            labels={{
+              previous: tCommon("paginationPrevious"),
+              next: tCommon("paginationNext"),
+              previousAria: tCommon("paginationPreviousAria"),
+              nextAria: tCommon("paginationNextAria"),
+              goToPage: (p) => tCommon("paginationGoToPage", { page: p }),
+            }}
+          />
         </div>
       </main>
       <Footer />

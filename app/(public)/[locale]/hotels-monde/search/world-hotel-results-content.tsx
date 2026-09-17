@@ -9,6 +9,8 @@ import type { Locale as DateFnsLocale } from "date-fns"
 import { getDateFnsLocale } from "@/lib/i18n-date"
 import { useCurrency } from "@/components/currency-context"
 import { useDestinations } from "@/hooks/use-destinations"
+import { usePaginatedResults } from "@/hooks/use-paginated-results"
+import { SearchPagination } from "@/components/search-pagination"
 import { Coffee, Info, MapPin, RefreshCw, ShieldCheck, Star, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -286,6 +288,14 @@ export function WorldHotelResultsContent() {
     return sortOffers(result, sortMode)
   }, [offers, breakfastOnly, refundableOnly, sortMode])
 
+  // Pagination SERP (chantier 6) — breakfastOnly/refundableOnly/sortMode ne
+  // vivent qu'en state local (pas dans l'URL) : passés comme clé de remise
+  // à la page 1 (voir hooks/use-paginated-results.ts).
+  const { pageItems: pagedOffers, currentPage, totalPages, setPage } = usePaginatedResults(
+    filteredSorted,
+    `${breakfastOnly}|${refundableOnly}|${sortMode}`,
+  )
+
   if (!parsed.ok) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
@@ -376,7 +386,10 @@ export function WorldHotelResultsContent() {
                 {t("noHotelsMatchFilters")}
               </div>
             ) : (
-              filteredSorted.map((offer) => <HotelCard key={offer.id} offer={offer} state={parsed.state} />)
+              <>
+                {pagedOffers.map((offer) => <HotelCard key={offer.id} offer={offer} state={parsed.state} />)}
+                <SearchPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
+              </>
             )}
           </div>
         </div>

@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
+import { catalogActivities, catalogActivitySessions, reviews } from "@/lib/db/schema"
 import { and, eq, arrayContains, gte, inArray, or, ilike, sql } from "drizzle-orm"
 import { Input } from "@/components/ui/input"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
@@ -63,13 +63,19 @@ async function getPublishedActivities(q: string | undefined, page: number): Prom
           : undefined,
       ]
 
+      // Chantier 8 (Ranking/Recommandation) : classées par note réelle
+      // décroissante (avis approuvés) — repli sur l'ordre alphabétique
+      // tant qu'aucun avis n'existe. Voir le commentaire équivalent dans
+      // app/(public)/[locale]/packages/page.tsx.
+      const ratingOrderBy = sql`(SELECT COALESCE(AVG(${reviews.rating}), 0) FROM ${reviews} WHERE ${reviews.productRef} = ${catalogActivities.id}::text AND ${reviews.module} = 'activity' AND ${reviews.status} = 'approved' AND ${reviews.agencyId} = ${agencyId}) DESC, ${catalogActivities.title} ASC`
+
       // Pagination SERP (chantier 6) — vraie pagination DB (.limit/.offset
       // via paginateOffset), jamais tout le catalogue chargé d'un coup.
       const { data: rows, meta } = await paginateOffset<typeof catalogActivities.$inferSelect>({
         query: db.select().from(catalogActivities).where(and(...conditions)),
         page,
         limit: PAGE_SIZE,
-        orderBy: catalogActivities.title,
+        orderBy: ratingOrderBy,
         countQuery: async () => {
           const [{ count }] = await db
             .select({ count: sql<number>`count(*)::int` })

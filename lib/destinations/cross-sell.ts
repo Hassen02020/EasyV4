@@ -27,6 +27,7 @@ import {
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { PACKAGE_DESTINATION_SEARCH_TERMS } from "@/lib/destinations/package-search-terms"
+import { listReviewSummariesForProductsCore } from "@/lib/reviews/reviews-core"
 
 export { PACKAGE_DESTINATION_SEARCH_TERMS }
 
@@ -81,7 +82,17 @@ export async function getCrossSellPackages(destinationSlug: string): Promise<Cro
 
       const coverByPackage = await getCoverMediaForProducts(db, agencyId, "package", rows.map((p) => p.id))
 
-      return rows.map((pkg) => ({
+      // Chantier 8 (Ranking/Recommandation) : classées par note réelle
+      // décroissante (avis approuvés, lib/reviews/reviews-core.ts) — repli
+      // sur l'ordre alphabétique déjà en place (ci-dessus) tant qu'aucun
+      // avis n'existe, jamais une popularité inventée.
+      const reviewByPackage = await listReviewSummariesForProductsCore(db, {
+        agencyId,
+        module: "package",
+        productRefs: rows.map((p) => p.id),
+      })
+
+      const mapped = rows.map((pkg) => ({
         id: pkg.id,
         slug: pkg.slug,
         title: pkg.title,
@@ -89,6 +100,10 @@ export async function getCrossSellPackages(destinationSlug: string): Promise<Cro
         durationDays: pkg.durationDays,
         priceFromTnd: priceByPackage.get(pkg.id) ?? null,
       }))
+      mapped.sort(
+        (a, b) => (reviewByPackage[b.id]?.average ?? 0) - (reviewByPackage[a.id]?.average ?? 0),
+      )
+      return mapped
     })
   } catch {
     return []
@@ -143,7 +158,15 @@ export async function getCrossSellActivities(destinationName: string): Promise<C
 
       const coverByActivity = await getCoverMediaForProducts(db, agencyId, "activity", rows.map((a) => a.id))
 
-      return rows.map((act) => ({
+      // Chantier 8 (Ranking/Recommandation) — voir le commentaire équivalent
+      // dans getCrossSellPackages ci-dessus.
+      const reviewByActivity = await listReviewSummariesForProductsCore(db, {
+        agencyId,
+        module: "activity",
+        productRefs: rows.map((a) => a.id),
+      })
+
+      const mapped = rows.map((act) => ({
         id: act.id,
         slug: act.slug,
         title: act.title,
@@ -151,6 +174,10 @@ export async function getCrossSellActivities(destinationName: string): Promise<C
         durationMinutes: act.durationMinutes,
         priceFromTnd: priceByActivity.get(act.id) ?? null,
       }))
+      mapped.sort(
+        (a, b) => (reviewByActivity[b.id]?.average ?? 0) - (reviewByActivity[a.id]?.average ?? 0),
+      )
+      return mapped
     })
   } catch {
     return []

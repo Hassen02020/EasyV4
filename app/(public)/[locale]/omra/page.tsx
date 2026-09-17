@@ -11,7 +11,7 @@ import { OmraSearch } from "@/components/omra/omra-search"
 import { OmraPackageList } from "@/components/omra/omra-package-list"
 import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { omraAllotments, omraPackages, omraPackageType } from "@/lib/db/schema"
+import { omraAllotments, omraPackages, omraPackageType, reviews } from "@/lib/db/schema"
 import { and, eq, gte, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
@@ -91,13 +91,20 @@ async function getActivePackages(filters: SearchFilters): Promise<OmraPageResult
       conditions.push(inArray(omraPackages.id, packageIds))
     }
 
+    // Chantier 8 (Ranking/Recommandation) : classés par note réelle
+    // décroissante (avis approuvés) — repli sur l'ordre par date de départ
+    // déjà en place tant qu'aucun avis n'existe (comportement inchangé
+    // aujourd'hui). Voir le commentaire équivalent dans
+    // app/(public)/[locale]/packages/page.tsx.
+    const ratingOrderBy = sql`(SELECT COALESCE(AVG(${reviews.rating}), 0) FROM ${reviews} WHERE ${reviews.productRef} = ${omraPackages.id}::text AND ${reviews.module} = 'omra' AND ${reviews.status} = 'approved' AND ${reviews.agencyId} = ${agencyId}) DESC, ${omraPackages.validFrom} ASC`
+
     // Pagination SERP (chantier 6) — vraie pagination DB (.limit/.offset via
     // paginateOffset), jamais tout le catalogue chargé d'un coup.
     const { data: rows, meta } = await paginateOffset<typeof omraPackages.$inferSelect>({
       query: db.select().from(omraPackages).where(and(...conditions)),
       page,
       limit: PAGE_SIZE,
-      orderBy: omraPackages.validFrom,
+      orderBy: ratingOrderBy,
       countQuery: async () => {
         const [{ count }] = await db
           .select({ count: sql<number>`count(*)::int` })

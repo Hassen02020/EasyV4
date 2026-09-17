@@ -10,7 +10,7 @@ import { PackageSearch } from "@/components/packages/package-search"
 import { PackageList } from "@/components/packages/package-list"
 import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
+import { catalogPackageDepartures, catalogPackages, reviews } from "@/lib/db/schema"
 import { and, eq, gte, ilike, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
@@ -120,13 +120,21 @@ async function getActivePackages(filters: SearchFilters): Promise<PackagesPageRe
       conditions.push(inArray(catalogPackages.id, packageIds))
     }
 
+    // Chantier 8 (Ranking/Recommandation) : classés par note réelle
+    // décroissante (avis approuvés, lib/reviews/reviews-core.ts) — sous-
+    // requête corrélée (pas de JOIN, catalogue trop petit pour en avoir
+    // besoin) ; repli sur l'ordre alphabétique tant qu'aucun avis n'existe
+    // (comportement inchangé aujourd'hui). Calculée au niveau SQL (pas en
+    // mémoire après coup) pour rester correcte même paginée.
+    const ratingOrderBy = sql`(SELECT COALESCE(AVG(${reviews.rating}), 0) FROM ${reviews} WHERE ${reviews.productRef} = ${catalogPackages.id}::text AND ${reviews.module} = 'package' AND ${reviews.status} = 'approved' AND ${reviews.agencyId} = ${agencyId}) DESC, ${catalogPackages.title} ASC`
+
     // Pagination SERP (chantier 6) — vraie pagination DB (.limit/.offset via
     // paginateOffset), jamais tout le catalogue chargé d'un coup.
     const { data: rows, meta } = await paginateOffset<typeof catalogPackages.$inferSelect>({
       query: db.select().from(catalogPackages).where(and(...conditions)),
       page,
       limit: PAGE_SIZE,
-      orderBy: catalogPackages.title,
+      orderBy: ratingOrderBy,
       countQuery: async () => {
         const [{ count }] = await db
           .select({ count: sql<number>`count(*)::int` })

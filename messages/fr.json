@@ -1131,6 +1131,11 @@
     "genericDescriptionCountry": "Découvrez {country} et réservez vos vols, hôtels et voyages organisés avec Easy2Book.",
     "noCover": "Photo à venir",
     "backToDestinations": "Toutes les destinations",
-    "learnMoreAbout": "En savoir plus sur {city}"
+    "learnMoreAbout": "En savoir plus sur {city}",
+    "crossSellTitle": "À découvrir à {city}",
+    "crossSellPackagesHeading": "Voyages organisés",
+    "crossSellActivitiesHeading": "Activités & excursions",
+    "crossSellDurationDays": "{days, plural, one {# jour} other {# jours}}",
+    "crossSellDurationMinutes": "{minutes} min"
   }
 }

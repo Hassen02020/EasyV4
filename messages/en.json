@@ -1131,6 +1131,11 @@
     "genericDescriptionCountry": "Discover {country} and book your flights, hotels and package tours with Easy2Book.",
     "noCover": "Photo coming soon",
     "backToDestinations": "All destinations",
-    "learnMoreAbout": "Learn more about {city}"
+    "learnMoreAbout": "Learn more about {city}",
+    "crossSellTitle": "Discover {city}",
+    "crossSellPackagesHeading": "Package tours",
+    "crossSellActivitiesHeading": "Activities & excursions",
+    "crossSellDurationDays": "{days, plural, one {# day} other {# days}}",
+    "crossSellDurationMinutes": "{minutes} min"
   }
 }

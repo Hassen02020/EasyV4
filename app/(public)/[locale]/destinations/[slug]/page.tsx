@@ -32,6 +32,8 @@ import {
   localizedDestinationName,
   type DestinationModule,
 } from "@/lib/destinations/queries"
+import { getCrossSellPackages, getCrossSellActivities } from "@/lib/destinations/cross-sell"
+import { DestinationCrossSell } from "@/components/destinations/destination-cross-sell"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import type { Locale } from "@/lib/locale"
 
@@ -100,6 +102,13 @@ export default async function DestinationDetailPage({
   const t = await getTranslations("Destinations")
   const name = localizedDestinationName(destination, locale)
   const countryName = parent ? localizedDestinationName(parent, locale) : null
+
+  // Cross-sell (chantier 5) : fiches ville uniquement — les deux relations
+  // sont réelles (voir lib/destinations/cross-sell.ts), jamais fabriquées.
+  const [crossSellPackages, crossSellActivities] =
+    destination.type === "city"
+      ? await Promise.all([getCrossSellPackages(destination.slug), getCrossSellActivities(destination.name)])
+      : [[], []]
 
   const description =
     locale === "fr" && destination.seoDescription
@@ -175,6 +184,14 @@ export default async function DestinationDetailPage({
                 })}
               </div>
             </section>
+          )}
+
+          {destination.type === "city" && (
+            <DestinationCrossSell
+              cityName={name}
+              packages={crossSellPackages}
+              activities={crossSellActivities}
+            />
           )}
 
           {destination.type === "country" && children.length > 0 && (

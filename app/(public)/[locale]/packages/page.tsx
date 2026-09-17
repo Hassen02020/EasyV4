@@ -14,6 +14,7 @@ import { and, eq, gte, ilike, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { PACKAGE_DESTINATION_SEARCH_TERMS } from "@/lib/destinations/package-search-terms"
 
 export const dynamic = "force-dynamic"
 
@@ -29,20 +30,6 @@ interface SearchFilters {
   duration?: string
   month?: string
   travelers?: string
-}
-
-// catalog_packages n'a pas de colonne "destination" dédiée — on cherche dans
-// le titre. Formes ASCII pour éviter les ratés dus aux accents (ILIKE ne
-// replie pas les diacritiques).
-const DESTINATION_SEARCH_TERMS: Record<string, string> = {
-  istanbul: "Istanbul",
-  dubai: "Dubai",
-  paris: "Paris",
-  rome: "Rome",
-  barcelona: "Barcelone",
-  london: "Londres",
-  cairo: "Caire",
-  casablanca: "Casablanca",
 }
 
 /** "3-5" -> [3, 5], "13+" -> [13, undefined] */
@@ -66,7 +53,7 @@ async function getActivePackages(filters: SearchFilters) {
     const conditions = [eq(catalogPackages.status, "published"), eq(catalogPackages.agencyId, agencyId), arrayContains(catalogPackages.channels, ["b2c"])]
 
     const searchTerm = filters.destination
-      ? DESTINATION_SEARCH_TERMS[filters.destination]
+      ? PACKAGE_DESTINATION_SEARCH_TERMS[filters.destination]
       : undefined
     if (searchTerm) {
       conditions.push(ilike(catalogPackages.title, `%${searchTerm}%`))

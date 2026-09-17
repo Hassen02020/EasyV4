@@ -1131,6 +1131,11 @@
     "genericDescriptionCountry": "اكتشف {country} واحجز رحلات الطيران والفنادق والرحلات المنظمة مع Easy2Book.",
     "noCover": "الصورة قريبًا",
     "backToDestinations": "كل الوجهات",
-    "learnMoreAbout": "اعرف المزيد عن {city}"
+    "learnMoreAbout": "اعرف المزيد عن {city}",
+    "crossSellTitle": "اكتشف {city}",
+    "crossSellPackagesHeading": "رحلات منظمة",
+    "crossSellActivitiesHeading": "أنشطة ورحلات",
+    "crossSellDurationDays": "{days, plural, one {# يوم} other {# أيام}}",
+    "crossSellDurationMinutes": "{minutes} د"
   }
 }

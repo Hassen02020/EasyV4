@@ -36,8 +36,18 @@ import { decodeRoomsParam } from "./room-split"
 import { instrument } from "../observability/instrument"
 import { searchWithFallback } from "./degraded-mode"
 
+// MYGO_MODE=virtual fournit déjà un moteur complet et cohérent (recherche +
+// détail + booking, même espace d'IDs — voir lib/mygo/virtual-supplier/ et
+// lib/mygo/config.ts::getMyGoConfig, qui injecte un login factice pour ce
+// mode). Sans cette exclusion, l'absence de MYGO_LOGIN faisait passer la
+// recherche par le fixture statique `hotelsearch.json` (IDs/noms sans
+// rapport avec le catalogue du Virtual Supplier) alors que le détail
+// (`/api/hotels/details-public/[id]`) appelait déjà `getMyGoClient()` et
+// atteignait correctement le Virtual Supplier — d'où un détail hôtel en 404
+// systématique pour tout résultat de recherche en mode virtuel.
 export const isDemoMode = () =>
-  !process.env.MYGO_LOGIN || process.env.MYGO_LOGIN.length === 0
+  process.env.MYGO_MODE !== "virtual" &&
+  (!process.env.MYGO_LOGIN || process.env.MYGO_LOGIN.length === 0)
 
 /**
  * Nombre maximal de nuits accepté — garde-fou anti-abus (une requête avec

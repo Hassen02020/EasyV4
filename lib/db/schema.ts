@@ -51,6 +51,8 @@ export const userRole = pgEnum("user_role", [
   "agent_excursions", // agent terrain (scan QR activités)
   "partner_owner", // propriétaire d'une agence partenaire B2B
   "partner_agent", // sous-compte agent au sein d'une agence B2B
+  "mutuelle_director", // responsable d'un groupe Mutuelle — valide les demandes des membres
+  "mutuelle_member", // membre d'un groupe Mutuelle — soumet des demandes de réservation
 ])
 
 export const agencyType = pgEnum("agency_type", [
@@ -89,6 +91,7 @@ export const reservationModule = pgEnum("reservation_module", [
   "transfer",
   "omra",
   "car",
+  "hotel_monde",
 ])
 
 export const reservationSource = pgEnum("reservation_source", [
@@ -169,6 +172,8 @@ export const agencies = pgTable(
     fax: varchar("fax", { length: 32 }),
     /** URL du logo de l'agence (CDN/Supabase Storage). */
     logoUrl: text("logo_url"),
+    /** Couleur d'accent White Label (`#RRGGBB`) — surcharge `--primary` sur le storefront public de cette agence, sinon la teinte corail par défaut. */
+    primaryColor: varchar("primary_color", { length: 7 }),
     /** Langue par défaut (fr/en/ar/tr). */
     defaultLanguage: varchar("default_language", { length: 4 })
       .notNull()
@@ -195,6 +200,23 @@ export const agencies = pgTable(
     })
       .notNull()
       .default("100.000"),
+    /**
+     * B2B : tolérance de réservation — l'agence peut confirmer une
+     * réservation même si `deposit_balance` devient temporairement négatif,
+     * dans cette limite (`booking_capacity = deposit_balance +
+     * reservation_tolerance`, voir `lib/pro/booking-actions.ts::debitPartnerCredit`).
+     * Configurée par le Master Admin (`setAgencyReservationTolerance`,
+     * `lib/admin/agencies-actions.ts`) — jamais par l'agence elle-même.
+     * Le plancher `deposit_balance >= -reservation_tolerance` reste imposé
+     * au niveau DB (voir migration 0050) : défense en profondeur, même
+     * garantie que `agencies_deposit_balance_nonnegative` avant elle.
+     */
+    reservationTolerance: decimal("reservation_tolerance", {
+      precision: 12,
+      scale: 3,
+    })
+      .notNull()
+      .default("0"),
     /** Devises affichées au client (front). La 1ʳᵉ est la devise par défaut. */
     displayCurrencies: text("display_currencies")
       .array()
@@ -233,6 +255,45 @@ export const agencies = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* Mutuelles — distributeurs privés B2B2C (chantier "Mutuelle", voir           */
+/* docs/audits/architecture-vision-audit.md). PAS une agence : un groupe      */
+/* Mutuelle négocie une convention avec Easy2Book, valide les demandes de ses */
+/* membres puis les transmet à une agence d'exécution réelle qui gère la      */
+/* réservation — jamais de logique de réservation ici, uniquement l'identité  */
+/* du groupe et ses conditions commerciales (chantier 1 : fondation données   */
+/* seule ; catalogue autorisé/markup appliqué/workflow de validation =        */
+/* chantiers suivants).                                                       */
+/* -------------------------------------------------------------------------- */
+
+export const mutuelleGroups = pgTable(
+  "mutuelle_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: varchar("slug", { length: 64 }).notNull(),
+    /** Identité / raison sociale du groupe (ex. "Mutuelle Générale de Tunisie"). */
+    name: varchar("name", { length: 200 }).notNull(),
+    /** Agence Easy2Book chargée d'exécuter les réservations validées de ce groupe. */
+    executionAgencyId: uuid("execution_agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    /** Taux de markup unique de la convention (%), appliqué au prix agence. */
+    markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+    /** Convention Easy2Book : bornes de validité (NULL = durée indéterminée). */
+    conventionStartDate: date("convention_start_date"),
+    conventionEndDate: date("convention_end_date"),
+    contactEmail: varchar("contact_email", { length: 320 }),
+    contactPhone: varchar("contact_phone", { length: 32 }),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("mutuelle_groups_slug_uniq").on(t.slug),
+    index("mutuelle_groups_execution_agency_idx").on(t.executionAgencyId),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* Users (admin/staff). Mappés sur Supabase auth.users via id (uuid).         */
 /* -------------------------------------------------------------------------- */
 
@@ -253,10 +314,13 @@ export const users = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** Renseigné uniquement pour role IN ('mutuelle_director','mutuelle_member') — NULL pour tout le reste. */
+    mutuelleGroupId: uuid("mutuelle_group_id").references(() => mutuelleGroups.id, { onDelete: "restrict" }),
   },
   (t) => [
     index("users_agency_idx").on(t.agencyId),
     uniqueIndex("users_email_uniq").on(t.email),
+    index("users_mutuelle_group_idx").on(t.mutuelleGroupId),
   ],
 )
 
@@ -2391,6 +2455,17 @@ export {
 } from "./schema/omra"
 
 /* -------------------------------------------------------------------------- */
+/* Media Module (Mission Media) — imported from schema/media.ts               */
+/* -------------------------------------------------------------------------- */
+
+export {
+  productMedia,
+  type ProductMedia,
+  type NewProductMedia,
+  type ProductMediaVariants,
+} from "./schema/media"
+
+/* -------------------------------------------------------------------------- */
 /* Suppliers Module (API XML Integration) — imported from schema/suppliers.ts  */
 /* -------------------------------------------------------------------------- */
 
@@ -2532,3 +2607,17 @@ export {
   type ReservationCar,
   type NewReservationCar,
 } from "./schema/cars"
+
+/* -------------------------------------------------------------------------- */
+/* Canonical Destination Model — imported from schema/destinations.ts          */
+/* -------------------------------------------------------------------------- */
+
+export {
+  destinations,
+  destinationExternalRefs,
+  destinationType,
+  type Destination,
+  type NewDestination,
+  type DestinationExternalRef,
+  type NewDestinationExternalRef,
+} from "./schema/destinations"

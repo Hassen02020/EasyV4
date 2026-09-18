@@ -51,7 +51,14 @@ function setStoredCurrency(c: Currency) {
   listeners.forEach((listener) => listener())
 }
 
-export function CurrencyProvider({ children }: { children: ReactNode }) {
+export function CurrencyProvider({
+  children,
+  locale = "fr",
+}: {
+  children: ReactNode
+  /** Locale next-intl (fr/en/ar) pour le formatage numérique — indépendante de la devise elle-même. */
+  locale?: string
+}) {
   const currency = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
   return (
@@ -60,7 +67,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         currency,
         setCurrency: setStoredCurrency,
         meta: CURRENCY_META[currency],
-        format: (amountTND: number) => formatCurrency(amountTND, currency),
+        format: (amountTND: number) => formatCurrency(amountTND, currency, locale),
       }}
     >
       {children}

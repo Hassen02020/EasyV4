@@ -31,6 +31,10 @@ import {
 import { rateLimit } from "@/lib/rate-limit"
 import { resolveMyGoAccessForTenant, guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
+import { signHotelSearchOffersInPlace } from "@/lib/booking/price-token"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
+import type { HotelOfferDTO } from "@/lib/mygo/types"
 
 export const revalidate = 300 // 5 min — les prix changent vite
 
@@ -83,5 +87,36 @@ export async function GET(req: NextRequest) {
   const access = tenantContext ? await resolveMyGoAccessForTenant(tenantContext) : undefined
   // PHASE 28 — recherche orchestrée par le Hub — contrat de réponse
   // inchangé, voir lib/hotel-suppliers/search-hub.ts.
-  return executeHotelSearchThroughHub(q, access, { agencyId: tenantContext?.agencyId ?? null })
+  const resp = await executeHotelSearchThroughHub(q, access, { agencyId: tenantContext?.agencyId ?? null })
+
+  // Certification E2E — ajoute un `priceToken` signé par chambre (prix
+  // exact que CE serveur vient de calculer), pour que le tunnel B2C
+  // (/booking/checkout) puisse revérifier le total avant affichage plutôt
+  // que de faire confiance au brouillon non signé côté client — voir
+  // lib/booking/price-token.ts. Uniquement sur une réponse 200 avec un
+  // vrai corps `offers` (jamais sur une erreur/rate-limit/redirect).
+  if (resp.status !== 200) return resp
+  let body: Awaited<ReturnType<typeof resp.json>>
+  try {
+    body = await resp.json()
+  } catch {
+    return resp
+  }
+  if (body && typeof body === "object" && Array.isArray((body as { offers?: unknown }).offers)) {
+    // P1 "SERP Commercial Truth" — le prix affiché doit être le prix
+    // réellement facturé : la marge OTA est appliquée ICI, avant signature,
+    // avec exactement la même résolution d'agence/marge
+    // (getMarginsForAgency(agencyId, "")) que lib/booking/guest-actions.ts
+    // utilise au moment du paiement — jamais une seconde formule qui
+    // pourrait diverger. Le prix net fournisseur n'est plus jamais montré
+    // au client B2C ; la confirmation réelle (montant débité) reste
+    // calculée indépendamment à partir du prix myGo frais au moment de la
+    // réservation (myGoBooking.totalPrice), donc aucune perte de la
+    // vérification anti-fraude existante.
+    const typedBody = body as { offers: HotelOfferDTO[] }
+    const margins = await getMarginsForAgency(tenantContext?.agencyId ?? null)
+    typedBody.offers = typedBody.offers.map((offer) => applyMarginToHotelOffer(offer, margins))
+    signHotelSearchOffersInPlace(body as Parameters<typeof signHotelSearchOffersInPlace>[0], q)
+  }
+  return NextResponse.json(body, { status: resp.status, headers: resp.headers })
 }

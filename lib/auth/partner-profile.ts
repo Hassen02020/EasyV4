@@ -51,6 +51,7 @@ export type PartnerProfile = {
     contactPhone: string | null
     fax: string | null
     logoUrl: string | null
+    primaryColor: string | null
     defaultLanguage: string
     defaultCurrency: string
     maskCredit: boolean
@@ -127,6 +128,7 @@ export async function getCurrentPartnerProfile(
           contactPhone: agency.contactPhone,
           fax: agency.fax,
           logoUrl: agency.logoUrl,
+          primaryColor: agency.primaryColor,
           defaultLanguage: agency.defaultLanguage ?? "fr",
           defaultCurrency: agency.defaultCurrency ?? "TND",
           maskCredit: agency.maskCredit ?? false,
@@ -176,6 +178,7 @@ export async function getCurrentPartnerProfile(
         contactPhone: partnerAgency.contactPhone,
         fax: partnerAgency.fax,
         logoUrl: partnerAgency.logoUrl,
+        primaryColor: partnerAgency.primaryColor,
         defaultLanguage: partnerAgency.defaultLanguage,
         defaultCurrency: partnerAgency.defaultCurrency,
         maskCredit: partnerAgency.maskCredit,

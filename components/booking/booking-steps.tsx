@@ -1,13 +1,15 @@
 import { Check } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { cn } from "@/lib/utils"
 
-const STEPS = [
-  { num: 1, label: "Offre" },
-  { num: 2, label: "Voyageurs" },
-  { num: 3, label: "Paiement" },
-]
-
 export function BookingSteps({ current }: { current: 1 | 2 | 3 | 4 }) {
+  const t = useTranslations("Booking")
+  const tc = useTranslations("Common")
+  const STEPS = [
+    { num: 1, label: t("stepOffer") },
+    { num: 2, label: tc("voyageurs") },
+    { num: 3, label: t("stepPayment") },
+  ]
   return (
     <ol className="flex items-center gap-2 sm:gap-4">
       {STEPS.map((step, i) => {

@@ -17,3 +17,15 @@ export function isValidProductStatus(value: string): value is ProductStatus {
 
 export const PRODUCT_CHANNELS = ["b2c", "b2b", "white_label"] as const
 export type ProductChannel = (typeof PRODUCT_CHANNELS)[number]
+
+/**
+ * Modules produit couverts par le Media System (Mission Media).
+ * Chaque valeur correspond à une table catalogue distincte sans parent
+ * commun (omra_packages / catalog_packages / catalog_activities) — voir
+ * lib/db/schema/media.ts pour le rationale de la référence polymorphique
+ * (même pattern que customerFavorites.itemType).
+ * Hôtels/Vols ne sont volontairement pas listés ici (hors périmètre de
+ * cette mission — voir §1 de la mission Media).
+ */
+export const PRODUCT_MEDIA_MODULES = ["omra", "package", "activity"] as const
+export type ProductMediaModule = (typeof PRODUCT_MEDIA_MODULES)[number]

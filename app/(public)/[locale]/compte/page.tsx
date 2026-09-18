@@ -1,0 +1,205 @@
+import { Link, redirect } from "@/i18n/navigation"
+import { getLocale, getTranslations } from "next-intl/server"
+import { ArrowLeft, CalendarDays, Mail, MapPin, Phone, User as UserIcon } from "lucide-react"
+import { createServerSupabase } from "@/lib/supabase/server"
+import { listMyReservations } from "@/app/actions/list-my-reservations"
+import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
+import { getMyLoyaltyHistory } from "@/app/actions/get-my-loyalty-history"
+import { listMyFavorites } from "@/app/actions/list-my-favorites"
+import { CompteReservationList } from "@/components/compte/compte-reservation-list"
+import { CompteLoyaltyCard } from "@/components/compte/compte-loyalty-card"
+import { CompteFavoritesCard } from "@/components/compte/compte-favorites-card"
+import { CompteLogoutButton } from "@/components/compte/compte-logout-button"
+import { Easy2BookLogo } from "@/components/easy2book-logo"
+import { getIntlLocale } from "@/lib/i18n-date"
+import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+
+export const dynamic = "force-dynamic"
+
+export const metadata = {
+  title: "Mon compte | Easy2Book",
+  description: "Historique de vos réservations Easy2Book.",
+  alternates: { languages: buildLanguageAlternates("/compte") },
+}
+
+export default async function ComptePage() {
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const locale = await getLocale()
+
+  if (!user) {
+    redirect({
+      href: { pathname: "/compte/connexion", query: { next: "/compte" } },
+      locale,
+    })
+    return null
+  }
+
+  const t = await getTranslations("Compte")
+  const tc = await getTranslations("Common")
+
+  const [result, loyalty, loyaltyHistory, favorites] = await Promise.all([
+    listMyReservations(),
+    getMyLoyaltySummary(),
+    getMyLoyaltyHistory(),
+    listMyFavorites(),
+  ])
+
+  const NON_REDEEMABLE_STATUSES = new Set(["cancelled", "refunded", "expired"])
+  const eligibleReservations = result.ok
+    ? result.bookings
+        .filter((b) => !NON_REDEEMABLE_STATUSES.has(b.status))
+        .map((b) => ({ id: b.id, publicRef: b.publicRef, module: b.module }))
+    : []
+
+  // La plus récente réservation sert de source pour l'aperçu profil
+  // (nom/téléphone) — `customers` n'a pas de ligne canonique unique par
+  // client connecté dans cette implémentation minimale (voir la doc de
+  // list-my-reservations.ts) : édition du profil hors périmètre pour
+  // l'instant, affichage seul.
+  const profile = result.ok ? result.bookings[0]?.customer : undefined
+
+  // "Prochaine réservation" (ticket E2B-004, section UX) — le prochain
+  // départ à venir parmi les réservations encore actives, jamais une
+  // réservation déjà annulée/remboursée/expirée/terminée. Utilise
+  // `product.startDate` (lu depuis la table d'extension du module — voir
+  // list-my-reservations.ts) : les modules sans extension connue (flight,
+  // transfer, car) n'ont pas de `product` et ne peuvent donc pas être
+  // candidats ici, ce qui est le comportement honnête voulu (pas de date
+  // devinée).
+  const UPCOMING_STATUSES = new Set(["pending", "on_request", "confirmed"])
+  const today = new Date().toISOString().slice(0, 10)
+  const nextReservation = result.ok
+    ? result.bookings
+        .filter(
+          (b) =>
+            UPCOMING_STATUSES.has(b.status) && b.product && b.product.startDate >= today,
+        )
+        .sort((a, b) => a.product!.startDate.localeCompare(b.product!.startDate))[0]
+    : undefined
+
+  return (
+    <div className="from-background via-background to-accent/5 min-h-screen bg-gradient-to-br">
+      {/* Top bar — même convention que /bookings (page "compte", pas le site marchand complet). */}
+      <div className="border-border border-b bg-white/70 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+          <Link href="/" className="flex items-center gap-2">
+            <Easy2BookLogo withWordmark={false} className="size-9 bg-gray-100" priority />
+            <span className="text-base font-bold">
+              <span className="text-sidebar">Easy</span>
+              <span className="text-accent">2</span>
+              <span className="text-sidebar">Book</span>
+            </span>
+          </Link>
+          <Link
+            href="/"
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {tc("accueil")}
+          </Link>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-foreground text-3xl font-bold">
+              {profile?.firstName ? t("greetingWithName", { name: profile.firstName }) : t("accountTitleFallback")}
+            </h1>
+            <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-sm">
+              <Mail className="h-3.5 w-3.5" />
+              {user.email}
+            </p>
+          </div>
+          <CompteLogoutButton />
+        </div>
+
+        {nextReservation && nextReservation.product && (
+          <Link
+            href={`#reservation-${nextReservation.id}`}
+            className="border-sidebar/20 bg-sidebar/5 hover:bg-sidebar/10 mb-6 flex flex-col gap-2 rounded-2xl border p-4 text-sm transition-colors sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div>
+              <p className="text-sidebar text-xs font-semibold tracking-wide uppercase">
+                {t("nextReservationLabel")}
+              </p>
+              <p className="text-foreground mt-1 flex items-center gap-1.5 font-medium">
+                <MapPin className="text-muted-foreground h-4 w-4 shrink-0" />
+                {nextReservation.product.label}
+              </p>
+            </div>
+            <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              {new Date(nextReservation.product.startDate).toLocaleDateString(getIntlLocale(locale), {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+            </div>
+          </Link>
+        )}
+
+        {profile && (profile.firstName || profile.phone) && (
+          <div className="bg-card border-border mb-6 flex flex-wrap items-center gap-4 rounded-2xl border p-4 text-sm">
+            {profile.firstName && (
+              <span className="flex items-center gap-1.5">
+                <UserIcon className="text-muted-foreground h-4 w-4" />
+                {profile.firstName} {profile.lastName}
+              </span>
+            )}
+            {profile.phone && (
+              <span className="flex items-center gap-1.5">
+                <Phone className="text-muted-foreground h-4 w-4" />
+                {profile.phone}
+              </span>
+            )}
+          </div>
+        )}
+
+        {favorites.ok && <CompteFavoritesCard favorites={favorites.favorites} />}
+
+        {loyalty.ok ? (
+          <CompteLoyaltyCard
+            pendingPoints={loyalty.pendingPoints}
+            availablePoints={loyalty.availablePoints}
+            history={loyaltyHistory.ok ? loyaltyHistory.entries : []}
+            eligibleReservations={eligibleReservations}
+          />
+        ) : loyalty.error !== "NOT_AUTHENTICATED" ? (
+          <div className="border-destructive/40 bg-destructive/5 text-destructive mb-6 rounded-2xl border p-4 text-sm">
+            {t("loyaltyLoadError", { error: loyalty.error })}
+          </div>
+        ) : null}
+
+        {!result.ok ? (
+          <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-2xl border p-6 text-sm">
+            {result.error === "NOT_AUTHENTICATED"
+              ? t("sessionExpired")
+              : result.error}
+          </div>
+        ) : result.bookings.length === 0 ? (
+          <div className="bg-card border-border rounded-2xl border p-10 text-center">
+            <p className="text-foreground text-base font-semibold">
+              {t("noReservationsFound", { email: result.email })}
+            </p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t("noReservationsHint")}
+            </p>
+            <Link
+              href="/"
+              className="text-primary mt-4 inline-block text-sm font-medium hover:underline"
+            >
+              {t("searchHotelLink")}
+            </Link>
+          </div>
+        ) : (
+          <CompteReservationList bookings={result.bookings} />
+        )}
+      </div>
+    </div>
+  )
+}

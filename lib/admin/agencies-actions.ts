@@ -90,6 +90,65 @@ export async function setAgencyStatus(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Tolérance de réservation (booking_capacity = deposit_balance + tolérance)   */
+/* -------------------------------------------------------------------------- */
+
+export async function setAgencyReservationTolerance(
+  agencyId: string,
+  toleranceTnd: number,
+): Promise<AgencyActionResult> {
+  let actorId: string
+  try {
+    actorId = await assertSuperAdmin()
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
+  }
+
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
+
+  if (toleranceTnd < 0 || toleranceTnd > 999_999)
+    return { ok: false, error: "Tolérance invalide (0 – 999 999 TND)" }
+
+  try {
+    await withTenantContext(
+      { agencyId: null, userId: actorId, isSuperAdmin: true },
+      async (tx) => {
+        // Seul canal autorisé — voir set_agency_reservation_tolerance()
+        // (drizzle/manual/0053_wallet_settlement_unification.sql), même
+        // convention que set_agency_deposit_balance() (migration 0020).
+        await tx.execute(
+          sql`SELECT set_agency_reservation_tolerance(${agencyId}::uuid, ${toleranceTnd.toFixed(3)}::numeric)`,
+        )
+
+        await tx.insert(auditEvents).values({
+          agencyId,
+          actorUserId: actorId,
+          entityType: "agency",
+          entityId: agencyId,
+          action: "agency.reservation_tolerance_set",
+          diff: { toleranceTnd },
+        })
+      },
+    )
+
+    revalidatePath("/admin/agencies")
+    logger.info("[agencies-actions] reservation tolerance set", { agencyId, toleranceTnd, actorId })
+    return { ok: true }
+  } catch (e) {
+    logger.error("[agencies-actions] setAgencyReservationTolerance failed", {
+      agencyId,
+      toleranceTnd,
+      err: e instanceof Error ? e.message : String(e),
+    })
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur inconnue",
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Recharge manuelle du solde wallet                                            */
 /* -------------------------------------------------------------------------- */
 

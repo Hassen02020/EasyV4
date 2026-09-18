@@ -126,6 +126,28 @@ async function loadModuleDetail(
         providerBookingId: row.providerBookingId,
       }
     }
+    case "hotel_monde": {
+      const rows = await tx
+        .select({
+          hotelName: reservationHotel.hotelName,
+          cityName: reservationHotel.cityName,
+          checkIn: reservationHotel.checkIn,
+          checkOut: reservationHotel.checkOut,
+          providerBookingId: reservationHotel.providerBookingId,
+        })
+        .from(reservationHotel)
+        .where(eq(reservationHotel.reservationId, reservationId))
+      const row = rows[0] as
+        | { hotelName: string; cityName: string | null; checkIn: string; checkOut: string; providerBookingId: string | null }
+        | undefined
+      if (!row) return null
+      return {
+        supplierLabel: `${row.hotelName}${row.cityName ? ` — ${row.cityName}` : ""} (Hôtel Monde)`,
+        startDate: row.checkIn,
+        endDate: row.checkOut,
+        providerBookingId: row.providerBookingId,
+      }
+    }
     case "omra": {
       const rows = await tx
         .select({ departureDate: reservationOmra.departureDate, returnDate: reservationOmra.returnDate })

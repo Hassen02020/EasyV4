@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Car, Calendar, MapPin, Search, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -82,6 +83,7 @@ export function CarSearch({
   initialCategory,
 }: CarSearchProps) {
   const router = useRouter()
+  const t = useTranslations("Car")
   const [isPending, startTransition] = useTransition()
 
   const [pickupLocation, setPickupLocation] = useState(() =>
@@ -103,19 +105,19 @@ export function CarSearch({
 
   function handleSearch() {
     if (locations.length === 0) {
-      toast.error("Aucun lieu de prise en charge disponible pour le moment.")
+      toast.error(t("toastNoLocations"))
       return
     }
     if (!pickupLocation) {
-      toast.error("Veuillez sélectionner un lieu de prise en charge.")
+      toast.error(t("toastSelectPickup"))
       return
     }
     if (!pickupDate || !returnDate) {
-      toast.error("Veuillez sélectionner les dates de location.")
+      toast.error(t("toastSelectDates"))
       return
     }
     if (new Date(returnDate) < new Date(pickupDate)) {
-      toast.error("La date de retour doit être après la date de prise en charge.")
+      toast.error(t("toastReturnAfterPickup"))
       return
     }
 
@@ -138,22 +140,22 @@ export function CarSearch({
 
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="mb-6 text-xl font-semibold">Réserver une voiture</h2>
+      <h2 className="mb-6 text-xl font-semibold">{t("title")}</h2>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-            Lieu de prise en charge
+            {t("pickupLocationLabel")}
           </Label>
           <Select value={pickupLocation} onValueChange={setPickupLocation}>
             <SelectTrigger>
-              <SelectValue placeholder="Sélectionner…" />
+              <SelectValue placeholder={t("selectPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {locations.length === 0 ? (
                 <SelectItem value="_" disabled>
-                  Aucun lieu disponible
+                  {t("noLocationAvailable")}
                 </SelectItem>
               ) : (
                 locations.map((l) => (
@@ -170,7 +172,7 @@ export function CarSearch({
           <div className="flex items-center justify-between">
             <Label className="flex items-center gap-1.5 text-sm">
               <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-              Lieu de retour
+              {t("dropoffLocationLabel")}
             </Label>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <input
@@ -180,19 +182,19 @@ export function CarSearch({
                 id="same-dropoff"
                 className="h-4 w-4 cursor-pointer rounded border-gray-300"
               />
-              <label htmlFor="same-dropoff">Même lieu</label>
+              <label htmlFor="same-dropoff">{t("sameLocationCheckbox")}</label>
             </div>
           </div>
           {sameDropoff ? (
             <div className="flex h-10 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
               {pickupLocation
                 ? locations.find((l) => l.id === pickupLocation)?.name
-                : "Identique à la prise en charge"}
+                : t("sameAsPickup")}
             </div>
           ) : (
             <Select value={dropoffLocation} onValueChange={setDropoffLocation}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner…" />
+                <SelectValue placeholder={t("selectPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {locations.map((l) => (
@@ -209,7 +211,7 @@ export function CarSearch({
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
               <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              Prise en charge
+              {t("pickupDateLabel")}
             </Label>
             <Input
               type="date"
@@ -219,7 +221,7 @@ export function CarSearch({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-sm">Heure</Label>
+            <Label className="text-sm">{t("timeLabel")}</Label>
             <Input
               type="time"
               value={pickupTime}
@@ -232,7 +234,7 @@ export function CarSearch({
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
               <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              Retour
+              {t("returnDateLabel")}
             </Label>
             <Input
               type="date"
@@ -242,7 +244,7 @@ export function CarSearch({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-sm">Heure</Label>
+            <Label className="text-sm">{t("timeLabel")}</Label>
             <Input
               type="time"
               value={returnTime}
@@ -254,11 +256,11 @@ export function CarSearch({
         <div className="space-y-2 sm:col-span-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Car className="h-3.5 w-3.5 text-muted-foreground" />
-            Catégorie de véhicule
+            {t("vehicleCategoryLabel")}
           </Label>
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger>
-              <SelectValue placeholder="Toutes catégories" />
+              <SelectValue placeholder={t("allCategories")} />
             </SelectTrigger>
             <SelectContent>
               {categories.map((c) => (
@@ -283,7 +285,7 @@ export function CarSearch({
           ) : (
             <Search className="h-4 w-4" />
           )}
-          Rechercher une voiture
+          {t("searchButton")}
         </Button>
       </div>
     </div>

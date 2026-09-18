@@ -110,18 +110,25 @@ export type HotelSearchQuery = z.infer<typeof HotelSearchQuerySchema>
 
 export interface DateRangeValidation {
   ok: boolean
-  error?: "invalid_dates" | "date_range_too_long"
+  error?: "invalid_dates" | "date_range_too_long" | "checkin_in_past"
   message?: string
 }
 
 /**
- * Valide checkout > checkin et un nombre de nuits raisonnable. Fonction pure
- * — testable indépendamment de tout contexte HTTP.
+ * Valide checkin >= aujourd'hui, checkout > checkin, et un nombre de nuits
+ * raisonnable. Fonction pure — testable indépendamment de tout contexte
+ * HTTP. Le blocage des dates passées n'existait auparavant que côté UI
+ * (Calendar `disabled`) — une requête forgée contournant le formulaire
+ * pouvait donc chercher/réserver sur une date déjà passée ; ce garde-fou
+ * serveur ferme cette faille pour tous les appelants (B2C, B2B, dates
+ * flexibles) puisqu'ils passent tous par cette même fonction.
  */
 export function validateSearchDateRange(
   checkin: string,
   checkout: string,
   maxNights: number = MAX_SEARCH_NIGHTS,
+  /** Injectable pour les tests (ex. generateFlexibleDateCandidates) — sinon l'horloge réelle. */
+  nowMs: number = Date.now(),
 ): DateRangeValidation {
   const inMs = Date.parse(`${checkin}T00:00:00Z`)
   const outMs = Date.parse(`${checkout}T00:00:00Z`)
@@ -130,6 +137,14 @@ export function validateSearchDateRange(
       ok: false,
       error: "invalid_dates",
       message: "checkout must be after checkin",
+    }
+  }
+  const todayMs = Math.floor(nowMs / 86_400_000) * 86_400_000
+  if (inMs < todayMs) {
+    return {
+      ok: false,
+      error: "checkin_in_past",
+      message: "checkin must not be in the past",
     }
   }
   const nights = Math.round((outMs - inMs) / 86_400_000)

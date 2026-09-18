@@ -1,6 +1,8 @@
 import { Gift } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
 import { pointsToTndEquivalent, MIN_REDEMPTION_POINTS } from "@/lib/loyalty/rewards-core"
 import { CompteLoyaltyRedeemForm } from "@/components/compte/compte-loyalty-redeem-form"
+import { getIntlLocale } from "@/lib/i18n-date"
 import type { LoyaltyHistoryEntryDTO } from "@/app/actions/get-my-loyalty-history"
 
 /**
@@ -15,20 +17,6 @@ import type { LoyaltyHistoryEntryDTO } from "@/app/actions/get-my-loyalty-histor
  * branché au montant réellement encaissé au checkout (hors périmètre V1).
  */
 
-const HISTORY_LABELS: Record<LoyaltyHistoryEntryDTO["type"], string> = {
-  earn_pending: "Points gagnés (en attente)",
-  convert_available_in: "Points disponibles (séjour terminé)",
-  redeem: "Points utilisés",
-  reverse_pending: "Points repris (annulation)",
-  reverse_available: "Points repris (annulation)",
-  reinstate: "Points restitués (annulation)",
-  expire: "Points expirés (inactivité)",
-}
-
-function formatHistoryDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-TN", { day: "numeric", month: "short", year: "numeric" })
-}
-
 export function CompteLoyaltyCard({
   pendingPoints,
   availablePoints,
@@ -40,19 +28,35 @@ export function CompteLoyaltyCard({
   history: LoyaltyHistoryEntryDTO[]
   eligibleReservations: { id: string; publicRef: string; module: string }[]
 }) {
+  const t = useTranslations("Compte")
+  const locale = useLocale()
+
+  const HISTORY_LABELS: Record<LoyaltyHistoryEntryDTO["type"], string> = {
+    earn_pending: t("historyEarnPending"),
+    convert_available_in: t("historyConvertAvailable"),
+    redeem: t("historyRedeem"),
+    reverse_pending: t("historyReversePending"),
+    reverse_available: t("historyReverseAvailable"),
+    reinstate: t("historyReinstate"),
+    expire: t("historyExpire"),
+  }
+
+  function formatHistoryDate(iso: string): string {
+    return new Date(iso).toLocaleDateString(getIntlLocale(locale), { day: "numeric", month: "short", year: "numeric" })
+  }
+
   const hasPoints = pendingPoints > 0 || availablePoints > 0
 
   return (
     <div className="bg-card border-border mb-6 rounded-2xl border p-4">
       <div className="mb-2 flex items-center gap-2">
         <Gift className="text-accent h-4 w-4" />
-        <span className="text-foreground text-sm font-semibold">Easy2Book Rewards</span>
+        <span className="text-foreground text-sm font-semibold">{t("rewardsTitle")}</span>
       </div>
 
       {!hasPoints ? (
         <p className="text-muted-foreground text-sm">
-          Vous n&apos;avez pas encore de points. Réservez un hôtel, un voyage organisé ou une activité pour
-          commencer à en gagner — 1 DT dépensé = 1 point.
+          {t("noPointsYet")}
         </p>
       ) : (
         <>
@@ -60,20 +64,20 @@ export function CompteLoyaltyCard({
             <div>
               <span className="text-foreground text-2xl font-bold">{availablePoints}</span>
               <span className="text-muted-foreground ml-1.5 text-sm">
-                points disponibles (≈ {pointsToTndEquivalent(availablePoints).toFixed(2)} DT)
+                {t("pointsAvailableSuffix", { n: availablePoints, tnd: pointsToTndEquivalent(availablePoints).toFixed(2) })}
               </span>
             </div>
             {pendingPoints > 0 && (
               <div>
                 <span className="text-muted-foreground text-sm">
-                  + {pendingPoints} points en attente (dès la fin de votre séjour)
+                  {t("pendingPointsNotice", { n: pendingPoints })}
                 </span>
               </div>
             )}
           </div>
           {availablePoints < MIN_REDEMPTION_POINTS && (
             <p className="text-muted-foreground mt-2 text-xs">
-              Rédemption possible à partir de {MIN_REDEMPTION_POINTS} points disponibles.
+              {t("redemptionThreshold", { min: MIN_REDEMPTION_POINTS })}
             </p>
           )}
           <CompteLoyaltyRedeemForm availablePoints={availablePoints} reservations={eligibleReservations} />
@@ -83,7 +87,7 @@ export function CompteLoyaltyCard({
       {history.length > 0 && (
         <div className="mt-4 border-t pt-3">
           <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
-            Activité récente
+            {t("recentActivityTitle")}
           </p>
           <ul className="space-y-1.5">
             {history.map((entry, i) => (

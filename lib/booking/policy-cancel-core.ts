@@ -68,7 +68,8 @@ import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
 const CANCELLABLE_MODULES = ["omra", "package", "activity"] as const
-type CancellableModule = (typeof CANCELLABLE_MODULES)[number]
+export type CancellableModule = (typeof CANCELLABLE_MODULES)[number]
+export { CANCELLABLE_MODULES }
 
 export type CancelPolicyReservationResult =
   | {
@@ -290,7 +291,19 @@ export async function cancelPolicyReservationCore(
   }
 }
 
-async function releaseStock(
+/**
+ * Réintègre la capacité tenue par une réservation Omra/Package/Activity
+ * dans l'allotment/départ/session d'origine — réutilisée par
+ * `lib/finance/refund-actions.ts::refundReservation` (Certification E2E) :
+ * un remboursement TOTAL déclenché par le staff (`/admin/reservations/[id]`)
+ * passait `reservations.status` à `refunded` SANS jamais appeler cette
+ * fonction, contrairement à l'annulation self-service B2C
+ * (`cancelMyPolicyReservation` ci-dessous) qui l'appelle déjà. Preuve live
+ * (Dashboard Operations, cycle Omra) : `omra_allotments.available_count`
+ * restait bloqué à 29/30 après remboursement intégral d'une réservation
+ * d'1 pèlerin — capacité perdue en silence, jamais restituée.
+ */
+export async function releaseStock(
   tx: DrizzleTransaction,
   module: CancellableModule,
   reservationId: string,

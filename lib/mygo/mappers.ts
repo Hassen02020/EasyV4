@@ -115,7 +115,10 @@ export function mapHotelSummary(raw: ListHotelItemT): HotelSummaryDTO {
       .filter((f) => f.Title)
       .map((f) => ({ title: f.Title!, category: f.Category ?? undefined })),
     themes: (raw.Theme ?? []) as string[],
-    note: raw.Note ?? undefined,
+    // Contient de vraies mentions importantes (ex. taxe de séjour, politique
+    // d'admission) en HTML brut côté myGo — jamais affiché tel quel (XSS),
+    // toujours réduit à du texte lisible comme shortDescription/longDescription.
+    note: sanitizeHtmlToText(raw.Note) || undefined,
   }
 }
 

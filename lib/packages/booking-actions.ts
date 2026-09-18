@@ -269,7 +269,8 @@ async function runCreateGuestPackageBooking(
           agencyId,
           reservationId,
           psp: "manual",
-          method: paymentMethod,
+          // "bank_deposit" n'a pas de valeur d'enum payment_method dédiée — mappé sur "transfer" (même convention que lib/booking/guest-actions.ts).
+          method: paymentMethod === "bank_deposit" ? "transfer" : paymentMethod,
           originalCurrency: "TND",
           originalAmount: totalTnd.toFixed(2),
           tndAmount: totalTnd.toFixed(2),

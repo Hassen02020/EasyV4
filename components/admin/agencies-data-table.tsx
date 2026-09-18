@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label"
 import {
   setAgencyStatus,
   adminRechargeWallet,
+  setAgencyReservationTolerance,
 } from "@/lib/admin/agencies-actions"
 
 /* -------------------------------------------------------------------------- */
@@ -54,6 +55,7 @@ export interface AgencyRow {
   contactPhone: string | null
   depositBalance: number
   creditLowThreshold: number
+  reservationTolerance: number
   status: string
   userCount: number
   createdAt: Date | string
@@ -94,6 +96,9 @@ function RechargeDialog({
   const [note, setNote] = React.useState("")
   const [loading, setLoading] = React.useState(false)
 
+  const [tolerance, setTolerance] = React.useState(String(agency.reservationTolerance))
+  const [toleranceLoading, setToleranceLoading] = React.useState(false)
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const parsed = parseFloat(amount)
@@ -118,6 +123,28 @@ function RechargeDialog({
       toast.error("Erreur réseau — réessayez")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleToleranceSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const parsed = parseFloat(tolerance)
+    if (Number.isNaN(parsed) || parsed < 0) {
+      toast.error("Tolérance invalide")
+      return
+    }
+    setToleranceLoading(true)
+    try {
+      const res = await setAgencyReservationTolerance(agency.id, parsed)
+      if (res.ok) {
+        toast.success(`Tolérance de réservation mise à jour : ${parsed.toLocaleString("fr-FR")} DT`)
+      } else {
+        toast.error(res.error)
+      }
+    } catch {
+      toast.error("Erreur réseau — réessayez")
+    } finally {
+      setToleranceLoading(false)
     }
   }
 
@@ -175,6 +202,33 @@ function RechargeDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        <div className="mt-2 border-t pt-4">
+          <form onSubmit={handleToleranceSubmit} className="space-y-1.5">
+            <Label htmlFor="reservation-tolerance">
+              Tolérance de réservation (DT)
+            </Label>
+            <p className="text-muted-foreground text-xs">
+              L&apos;agence peut confirmer une réservation même si son solde
+              devient temporairement négatif, dans cette limite (0 = comportement
+              actuel, solde jamais négatif).
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                id="reservation-tolerance"
+                type="number"
+                min="0"
+                max="999999"
+                step="0.001"
+                value={tolerance}
+                onChange={(e) => setTolerance(e.target.value)}
+              />
+              <Button type="submit" variant="outline" disabled={toleranceLoading}>
+                {toleranceLoading ? "…" : "Enregistrer"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

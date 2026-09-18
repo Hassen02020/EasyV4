@@ -40,6 +40,22 @@ test("isVirtualPaymentModeEnabled : jamais vrai sans PAYMENT_MODE=virtual explic
   }
 })
 
+test("isVirtualPaymentModeEnabled : PAYMENT_MODE=virtual + NODE_ENV=production => throw (garde-fou production)", () => {
+  const env = process.env as Record<string, string | undefined>
+  const originalMode = env.PAYMENT_MODE
+  const originalEnv = env.NODE_ENV
+  try {
+    env.PAYMENT_MODE = "virtual"
+    env.NODE_ENV = "production"
+    assert.throws(() => isVirtualPaymentModeEnabled(), /interdit en production/)
+  } finally {
+    if (originalMode === undefined) delete env.PAYMENT_MODE
+    else env.PAYMENT_MODE = originalMode
+    if (originalEnv === undefined) delete env.NODE_ENV
+    else env.NODE_ENV = originalEnv
+  }
+})
+
 test("getPaymentProvider : sélectionne VirtualPaymentProvider seulement quand PAYMENT_MODE=virtual, jamais par défaut", () => {
   const original = process.env.PAYMENT_MODE
   try {

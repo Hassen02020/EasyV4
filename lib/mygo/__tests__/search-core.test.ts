@@ -12,39 +12,52 @@ import {
   runHotelSearch,
 } from "../search-core"
 
+/** Date future (jamais passée, donc jamais rejetée par le garde-fou checkin_in_past) au format YYYY-MM-DD. */
+function futureDate(daysFromNow: number): string {
+  const d = new Date()
+  d.setUTCDate(d.getUTCDate() + daysFromNow)
+  return d.toISOString().slice(0, 10)
+}
+
 test("validateSearchDateRange : accepte un séjour valide", () => {
-  const result = validateSearchDateRange("2026-07-15", "2026-07-20")
+  const result = validateSearchDateRange(futureDate(30), futureDate(35))
   assert.deepEqual(result, { ok: true })
 })
 
 test("validateSearchDateRange : refuse checkout == checkin", () => {
-  const result = validateSearchDateRange("2026-07-15", "2026-07-15")
+  const result = validateSearchDateRange(futureDate(30), futureDate(30))
   assert.equal(result.ok, false)
   assert.equal(result.error, "invalid_dates")
 })
 
 test("validateSearchDateRange : refuse checkout avant checkin", () => {
-  const result = validateSearchDateRange("2026-07-20", "2026-07-15")
+  const result = validateSearchDateRange(futureDate(35), futureDate(30))
   assert.equal(result.ok, false)
   assert.equal(result.error, "invalid_dates")
 })
 
+test("validateSearchDateRange : refuse un checkin dans le passé", () => {
+  const result = validateSearchDateRange("2020-01-01", "2020-01-05")
+  assert.equal(result.ok, false)
+  assert.equal(result.error, "checkin_in_past")
+})
+
 test("validateSearchDateRange : refuse un séjour au-delà du maximum", () => {
-  const result = validateSearchDateRange("2026-01-01", "2027-01-01")
+  const result = validateSearchDateRange(futureDate(30), futureDate(30 + MAX_SEARCH_NIGHTS + 1))
   assert.equal(result.ok, false)
   assert.equal(result.error, "date_range_too_long")
 })
 
 test("validateSearchDateRange : accepte exactement la borne maximale", () => {
   const result = validateSearchDateRange(
-    "2026-01-01",
-    "2026-03-02", // 60 nuits
+    futureDate(30),
+    futureDate(30 + 60), // 60 nuits
   )
   assert.equal(result.ok, true)
 })
 
 test("validateSearchDateRange : respecte un maxNights personnalisé", () => {
-  const result = validateSearchDateRange("2026-07-15", "2026-07-20", 3)
+  const result = validateSearchDateRange(futureDate(30), futureDate(35), 3)
   assert.equal(result.ok, false)
   assert.equal(result.error, "date_range_too_long")
 })

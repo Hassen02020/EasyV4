@@ -21,25 +21,24 @@
 
 import { useMemo } from "react"
 import { format, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
+import type { Locale as DateFnsLocale } from "date-fns"
 import { Sparkles } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
+import { getDateFnsLocale } from "@/lib/i18n-date"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCurrency } from "@/components/currency-context"
 import { useFlexibleHotelSearch } from "@/lib/mygo/use-flexible-hotel-search"
 
-const FLEX_OPTIONS: { value: number; label: string }[] = [
-  { value: 0, label: "Exactes" },
-  { value: 1, label: "±1 jour" },
-  { value: 2, label: "±2 jours" },
-  { value: 3, label: "±3 jours" },
-]
-
-function formatShortRange(checkin: string, checkout: string): string {
+function formatShortRange(
+  checkin: string,
+  checkout: string,
+  dateFnsLocale: DateFnsLocale,
+): string {
   try {
     const from = parseISO(checkin)
     const to = parseISO(checkout)
-    return `${format(from, "d MMM", { locale: fr })} → ${format(to, "d MMM", { locale: fr })}`
+    return `${format(from, "d MMM", { locale: dateFnsLocale })} → ${format(to, "d MMM", { locale: dateFnsLocale })}`
   } catch {
     return `${checkin} → ${checkout}`
   }
@@ -63,6 +62,15 @@ export function FlexibleDateSearch({
 }: FlexibleDateSearchProps) {
   const { format: formatPrice } = useCurrency()
   const { status, data, error } = useFlexibleHotelSearch(flexDays)
+  const t = useTranslations("Hotels")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
+  const FLEX_OPTIONS: { value: number; label: string }[] = [
+    { value: 0, label: t("flexExact") },
+    { value: 1, label: t("flexPlusMinus1") },
+    { value: 2, label: t("flexPlusMinus2") },
+    { value: 3, label: t("flexPlusMinus3") },
+  ]
 
   // Meilleur prix RÉEL parmi les candidats ayant effectivement des offres —
   // jamais un badge "meilleur prix" sur un candidat sans résultat confirmé.
@@ -79,14 +87,14 @@ export function FlexibleDateSearch({
     <div className="border-border bg-card mb-4 rounded-lg border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-muted-foreground text-xs">Dates demandées</p>
+          <p className="text-muted-foreground text-xs">{t("requestedDatesLabel")}</p>
           <p className="text-foreground text-sm font-medium">
-            {formatShortRange(requestedCheckin, requestedCheckout)}
+            {formatShortRange(requestedCheckin, requestedCheckout, dateFnsLocale)}
           </p>
         </div>
         <div
           role="group"
-          aria-label="Dates flexibles"
+          aria-label={t("flexDatesAria")}
           className="flex flex-wrap gap-1.5"
         >
           {FLEX_OPTIONS.map((opt) => (
@@ -116,7 +124,7 @@ export function FlexibleDateSearch({
 
           {status === "error" && (
             <p className="text-destructive text-xs">
-              Impossible de charger les dates flexibles : {error}. Les dates exactes restent disponibles ci-dessous.
+              {t("flexLoadError", { error: error ?? "" })}
             </p>
           )}
 
@@ -124,7 +132,7 @@ export function FlexibleDateSearch({
             <>
               <p className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-medium">
                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                Disponibilités autour de vos dates
+                {t("flexAvailabilityTitle")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {data.candidates.map((c) => {
@@ -144,22 +152,22 @@ export function FlexibleDateSearch({
                       } ${!c.ok || c.offersCount === 0 ? "cursor-not-allowed opacity-50" : ""}`}
                     >
                       <span className="text-foreground font-medium">
-                        {formatShortRange(c.checkin, c.checkout)}
-                        {isRequested && " (demandé)"}
+                        {formatShortRange(c.checkin, c.checkout, dateFnsLocale)}
+                        {isRequested && t("requestedSuffix")}
                       </span>
                       {c.ok && c.fromPrice != null ? (
                         <span className="text-primary mt-0.5 font-semibold">
-                          dès {formatPrice(c.fromPrice)}
+                          {t("flexFromPrice", { price: formatPrice(c.fromPrice) })}
                           {isBest && (
-                            <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                              Meilleur prix
+                            <span className="ms-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                              {t("bestPriceBadge")}
                             </span>
                           )}
                         </span>
                       ) : c.ok ? (
-                        <span className="text-muted-foreground mt-0.5">Aucune offre</span>
+                        <span className="text-muted-foreground mt-0.5">{t("noOfferLabel")}</span>
                       ) : (
-                        <span className="text-muted-foreground mt-0.5">Indisponible</span>
+                        <span className="text-muted-foreground mt-0.5">{t("unavailableLabel")}</span>
                       )}
                     </button>
                   )

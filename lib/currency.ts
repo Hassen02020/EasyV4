@@ -1,3 +1,5 @@
+import { getIntlLocale } from "@/lib/i18n-date"
+
 export const CURRENCIES = ["TND", "EUR", "USD"] as const
 export type Currency = (typeof CURRENCIES)[number]
 
@@ -23,11 +25,15 @@ export function convertFromTND(amountTND: number, target: Currency): number {
   return amountTND * CURRENCY_META[target].rateFromTND
 }
 
-/** Formats a converted amount with symbol */
-export function formatCurrency(amountTND: number, currency: Currency): string {
+/** Formats a converted amount with symbol, locale-aware (next-intl locale: fr/en/ar). */
+export function formatCurrency(
+  amountTND: number,
+  currency: Currency,
+  locale = "fr",
+): string {
   const converted = convertFromTND(amountTND, currency)
   const meta = CURRENCY_META[currency]
-  const formatted = converted.toLocaleString("fr-FR", {
+  const formatted = converted.toLocaleString(getIntlLocale(locale), {
     minimumFractionDigits: currency === "TND" ? 0 : 2,
     maximumFractionDigits: currency === "TND" ? 0 : 2,
   })

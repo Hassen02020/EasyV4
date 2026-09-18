@@ -27,6 +27,8 @@ export interface TenantContext {
   agencyId: string | null
   userId: string
   isSuperAdmin: boolean
+  /** Groupe Mutuelle de l'utilisateur (directeur/membre) — `null`/absent pour tout le reste. Jamais confondu avec agencyId : une Mutuelle n'est pas une agence. */
+  mutuelleGroupId?: string | null
 }
 
 export type SessionContextResult =
@@ -62,6 +64,7 @@ export async function resolveSessionContext(): Promise<SessionContextResult> {
     agency_id: string | null
     role: string | null
     status: string | null
+    mutuelle_group_id: string | null
   }>
 
   const row = rows[0]
@@ -74,6 +77,7 @@ export async function resolveSessionContext(): Promise<SessionContextResult> {
     agencyId: row.agency_id,
     userId: user.id,
     isSuperAdmin: row.role === "super_admin",
+    mutuelleGroupId: row.mutuelle_group_id,
   }
 }
 
@@ -93,7 +97,8 @@ export async function withTenantContext<T>(
       select
         set_config('app.current_agency_id', ${ctx.agencyId ?? ""}, true),
         set_config('app.current_user_id', ${ctx.userId}, true),
-        set_config('app.is_super_admin', ${ctx.isSuperAdmin ? "true" : "false"}, true)
+        set_config('app.is_super_admin', ${ctx.isSuperAdmin ? "true" : "false"}, true),
+        set_config('app.current_mutuelle_group_id', ${ctx.mutuelleGroupId ?? ""}, true)
     `)
     return fn(tx)
   })
@@ -140,6 +145,7 @@ export async function runInTenantContext<T>(
     agencyId: session.agencyId,
     userId: session.userId,
     isSuperAdmin: session.isSuperAdmin,
+    mutuelleGroupId: session.mutuelleGroupId,
   }
   const result = await withTenantContext(ctx, (tx) => fn(tx, ctx))
   return { ok: true, result }

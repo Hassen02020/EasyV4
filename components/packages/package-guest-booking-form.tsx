@@ -14,7 +14,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -51,21 +52,15 @@ interface PackageGuestBookingFormProps {
   defaultDepartureId?: string
 }
 
-const METHODS: { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
-  { key: "card", label: "Carte bancaire", desc: "Paiement en ligne immédiat", icon: CreditCard },
-  {
-    key: "transfer",
-    label: "Virement bancaire",
-    desc: "Coordonnées de virement envoyées par email — voucher émis après confirmation du règlement",
-    icon: Banknote,
-  },
-  {
-    key: "cash",
-    label: "Espèces en agence",
-    desc: "Réservation maintenue en attente de paiement — voucher émis après confirmation du règlement",
-    icon: Wallet,
-  },
-]
+function getMethods(
+  t: ReturnType<typeof useTranslations>,
+): { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] {
+  return [
+    { key: "card", label: t("paymentCardLabel"), desc: t("paymentCardDesc"), icon: CreditCard },
+    { key: "transfer", label: t("paymentTransferLabel"), desc: t("paymentTransferDesc"), icon: Banknote },
+    { key: "cash", label: t("paymentCashLabel"), desc: t("paymentCashDesc"), icon: Wallet },
+  ]
+}
 
 export function PackageGuestBookingForm({
   packageId,
@@ -75,6 +70,9 @@ export function PackageGuestBookingForm({
 }: PackageGuestBookingFormProps) {
   const router = useRouter()
   const cart = useCart()
+  const t = useTranslations("Packages")
+  const tCommon = useTranslations("Common")
+  const METHODS = getMethods(t)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
@@ -134,11 +132,11 @@ export function PackageGuestBookingForm({
 
   async function onSubmit(data: PackageGuestBookingInput) {
     if (!acceptCgv) {
-      setSubmitError("Vous devez accepter les conditions générales de vente.")
+      setSubmitError(t("mustAcceptCgv"))
       return
     }
     if (policyAcceptanceRequired) {
-      setSubmitError("Vous devez accepter la politique d'annulation.")
+      setSubmitError(t("mustAcceptPolicy"))
       return
     }
     setIsSubmitting(true)
@@ -152,14 +150,14 @@ export function PackageGuestBookingForm({
       }
       router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
+      setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
     }
   }
 
   function onAddToCart(data: PackageGuestBookingInput) {
     if (policyAcceptanceRequired) {
-      setSubmitError("Vous devez accepter la politique d'annulation.")
+      setSubmitError(t("mustAcceptPolicy"))
       return
     }
     cart.add({
@@ -168,7 +166,7 @@ export function PackageGuestBookingForm({
       priceTnd: totalPrice,
       booking: { ...data, policyAccepted },
     })
-    toast.success("Ajouté au panier.")
+    toast.success(t("addedToCartToast"))
     router.push("/panier")
   }
 
@@ -185,21 +183,21 @@ export function PackageGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="size-5" />
-              Date de départ
+              {t("departureDateTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">{packageTitle}</p>
             <Select value={watchedDepartureId} onValueChange={(v) => form.setValue("departureId", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Choisir une date" />
+                <SelectValue placeholder={t("chooseDate")} />
               </SelectTrigger>
               <SelectContent>
                 {departures.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     <div className="flex items-center justify-between gap-4">
                       <span>{new Date(d.departureDate).toLocaleDateString("fr-FR")}</span>
-                      <Badge variant={d.seatsLeft > 5 ? "default" : "destructive"}>{d.seatsLeft} places</Badge>
+                      <Badge variant={d.seatsLeft > 5 ? "default" : "destructive"}>{t("seatsAvailable", { count: d.seatsLeft })}</Badge>
                     </div>
                   </SelectItem>
                 ))}
@@ -215,13 +213,13 @@ export function PackageGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="size-5" />
-              Voyageurs
+              {tCommon("voyageurs")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Adultes *</Label>
+                <Label>{t("adultsLabel")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -233,7 +231,7 @@ export function PackageGuestBookingForm({
                 ) : null}
               </div>
               <div className="space-y-2">
-                <Label>Enfants</Label>
+                <Label>{t("childrenLabel")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -247,7 +245,7 @@ export function PackageGuestBookingForm({
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {Array.from({ length: watchedChildren }).map((_, i) => (
                   <div key={i} className="space-y-2">
-                    <Label>Âge enfant {i + 1}</Label>
+                    <Label>{t("childAgeLabel", { n: i + 1 })}</Label>
                     <Input
                       type="number"
                       min={0}
@@ -268,12 +266,12 @@ export function PackageGuestBookingForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Contact principal</CardTitle>
+            <CardTitle>{t("contactTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label>Civilité</Label>
+                <Label>{t("civilityLabel")}</Label>
                 <Select
                   value={watchedCivility}
                   onValueChange={(v) => form.setValue("traveler.civility", v as "M" | "Mme" | "Mlle")}
@@ -282,21 +280,21 @@ export function PackageGuestBookingForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="M">M.</SelectItem>
-                    <SelectItem value="Mme">Mme</SelectItem>
-                    <SelectItem value="Mlle">Mlle</SelectItem>
+                    <SelectItem value="M">{t("civility.m")}</SelectItem>
+                    <SelectItem value="Mme">{t("civility.mme")}</SelectItem>
+                    <SelectItem value="Mlle">{t("civility.mlle")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Prénom *</Label>
+                <Label>{t("firstNameLabel")}</Label>
                 <Input {...form.register("traveler.firstName")} className="mt-1" placeholder="Hassen" />
                 {form.formState.errors.traveler?.firstName ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.firstName.message}</p>
                 ) : null}
               </div>
               <div>
-                <Label>Nom *</Label>
+                <Label>{t("lastNameLabel")}</Label>
                 <Input {...form.register("traveler.lastName")} className="mt-1" placeholder="Tarhouni" />
                 {form.formState.errors.traveler?.lastName ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.lastName.message}</p>
@@ -305,14 +303,14 @@ export function PackageGuestBookingForm({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label>Email *</Label>
+                <Label>{t("emailLabel")}</Label>
                 <Input type="email" {...form.register("traveler.email")} className="mt-1" placeholder="vous@email.tn" />
                 {form.formState.errors.traveler?.email ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.email.message}</p>
                 ) : null}
               </div>
               <div>
-                <Label>Téléphone *</Label>
+                <Label>{t("phoneLabel")}</Label>
                 <Input type="tel" {...form.register("traveler.phone")} className="mt-1" placeholder="+216 98 140 514" />
                 {form.formState.errors.traveler?.phone ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.phone.message}</p>
@@ -321,7 +319,7 @@ export function PackageGuestBookingForm({
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label>Pièce d&apos;identité</Label>
+                <Label>{t("idTypeLabel")}</Label>
                 <Select
                   value={watchedCivicIdType}
                   onValueChange={(v) => form.setValue("traveler.civicIdType", v as "cin" | "passport")}
@@ -330,13 +328,13 @@ export function PackageGuestBookingForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cin">CIN tunisienne</SelectItem>
-                    <SelectItem value="passport">Passeport</SelectItem>
+                    <SelectItem value="cin">{t("idType.cin")}</SelectItem>
+                    <SelectItem value="passport">{t("idType.passport")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="sm:col-span-2">
-                <Label>Numéro {watchedCivicIdType === "cin" ? "CIN" : "passeport"} *</Label>
+                <Label>{t("idNumberLabel", { type: watchedCivicIdType === "cin" ? t("idTypeShort.cin") : t("idTypeShort.passport") })}</Label>
                 <Input {...form.register("traveler.civicId")} className="mt-1" placeholder="12345678" />
                 {form.formState.errors.traveler?.civicId ? (
                   <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.civicId.message}</p>
@@ -357,7 +355,7 @@ export function PackageGuestBookingForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Mode de paiement</CardTitle>
+            <CardTitle>{t("paymentMethodTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {METHODS.map((m) => {
@@ -391,7 +389,7 @@ export function PackageGuestBookingForm({
             <div className="flex items-start gap-2 pt-2">
               <Checkbox id="cgv-package" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
               <Label htmlFor="cgv-package" className="text-muted-foreground text-sm leading-snug">
-                J&apos;accepte les conditions générales de vente d&apos;Easy2Book.
+                {t("acceptCgv")}
               </Label>
             </div>
           </CardContent>
@@ -401,23 +399,23 @@ export function PackageGuestBookingForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="size-5" />
-              Récapitulatif
+              {t("summaryTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm">Adultes × {watchedAdults}</span>
+              <span className="text-sm">{t("adultsSummary", { n: watchedAdults })}</span>
               <span className="font-medium">{(adultPrice * watchedAdults).toFixed(3)} DT</span>
             </div>
             {watchedChildren > 0 ? (
               <div className="flex items-center justify-between">
-                <span className="text-sm">Enfants × {watchedChildren}</span>
+                <span className="text-sm">{t("childrenSummary", { n: watchedChildren })}</span>
                 <span className="font-medium">{(childPrice * watchedChildren).toFixed(3)} DT</span>
               </div>
             ) : null}
             <Separator />
             <div className="flex items-center justify-between text-lg">
-              <span className="font-semibold">Total TTC</span>
+              <span className="font-semibold">{t("totalTtc")}</span>
               <span className="font-bold text-violet-700">{totalPrice.toFixed(3)} DT</span>
             </div>
           </CardContent>
@@ -433,7 +431,7 @@ export function PackageGuestBookingForm({
             onClick={form.handleSubmit(onAddToCart)}
           >
             <ShoppingCart className="mr-2 size-4" />
-            Ajouter au panier
+            {t("addToCart")}
           </Button>
           <Button
             type="submit"
@@ -444,10 +442,10 @@ export function PackageGuestBookingForm({
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                Traitement en cours…
+                {t("processing")}
               </>
             ) : (
-              "Confirmer & payer"
+              t("confirmAndPay")
             )}
           </Button>
         </div>

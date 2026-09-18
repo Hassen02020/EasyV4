@@ -38,7 +38,11 @@ export type AdminProfile = {
     | "agent_excursions"
     | "partner_owner"
     | "partner_agent"
+    | "mutuelle_director"
+    | "mutuelle_member"
   status: "active" | "suspended"
+  /** Groupe Mutuelle de l'utilisateur — `null` pour tout rôle non-Mutuelle. */
+  mutuelleGroupId: string | null
 }
 
 export async function getCurrentAdminProfile(
@@ -58,6 +62,7 @@ export async function getCurrentAdminProfile(
       email: string | null
       name: string | null
       agency_type: AdminProfile["agencyType"] | null
+      mutuelle_group_id: string | null
     }>
 
     const profile = rows[0]
@@ -87,6 +92,7 @@ export async function getCurrentAdminProfile(
       name: profile.name,
       role: profile.role,
       status: profile.status,
+      mutuelleGroupId: profile.mutuelle_group_id,
     }
   } catch (error) {
     const { logger } = await import("@/lib/logger")

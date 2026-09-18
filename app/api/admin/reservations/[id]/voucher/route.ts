@@ -1,23 +1,28 @@
 /**
  * GET /api/admin/reservations/[id]/voucher
  *
- * Équivalent admin (Master Admin/back-office OTA) de
- * `/api/pro/reservations/[id]/voucher` — même rendu (`renderVoucherPdf`,
- * `isVoucherEligible`), mais scopé par `getCurrentAdminProfile` : un
+ * Équivalent admin (Master Admin/back-office OTA) des routes guest
+ * `/api/{module}/voucher/[ref]` — scopé par `getCurrentAdminProfile` : un
  * super_admin peut télécharger le voucher de N'IMPORTE QUELLE agence
  * (cross-tenant, `isSuperAdmin: true`) ; les autres rôles admin restent
- * scopés à leur propre agencyId, comme partout ailleurs dans `/admin`.
+ * scopés à leur propre agencyId (via RLS, `withTenantContext`), comme
+ * partout ailleurs dans `/admin`.
+ *
+ * Dispatch par module via `renderReservationVoucher`
+ * (lib/booking/reservation-voucher-render.ts) — avant ce fix, cette route
+ * ne rendait QUE le module "hotel" (voir git blame), ce qui faisait
+ * afficher "Non disponible pour ce module/statut" dans le bloc Voucher de
+ * la page admin pour Omra/Package/Activité/Vols/Hôtels Monde même
+ * confirmés (trouvé en certification E2E, cycle "Final Screenshot
+ * Certification").
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { and, eq } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { reservations, reservationHotel, customers } from "@/lib/db/schema"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 import { createServerSupabase } from "@/lib/supabase/server"
-import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
-import { isVoucherEligible } from "@/lib/pro/voucher-eligibility"
+import { renderReservationVoucher } from "@/lib/booking/reservation-voucher-render"
 
 export async function GET(
   req: NextRequest,
@@ -44,71 +49,25 @@ export async function GET(
 
   const isSuperAdmin = profile.role === "super_admin"
 
-  const row = await withTenantContext(
+  const result = await withTenantContext(
     { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
-    async (tx) => {
-      const whereClause = isSuperAdmin
-        ? eq(reservations.id, reservationId)
-        : and(eq(reservations.id, reservationId), eq(reservations.agencyId, profile.agencyId))
-      const [r] = await tx
-        .select({
-          publicRef: reservations.publicRef,
-          module: reservations.module,
-          status: reservations.status,
-          tndAmount: reservations.tndAmount,
-          agencyId: reservations.agencyId,
-          customerFirstName: customers.firstName,
-          customerLastName: customers.lastName,
-          hotelName: reservationHotel.hotelName,
-          checkIn: reservationHotel.checkIn,
-          checkOut: reservationHotel.checkOut,
-          nights: reservationHotel.nights,
-          adults: reservationHotel.adults,
-          childrenAges: reservationHotel.childrenAges,
-        })
-        .from(reservations)
-        .innerJoin(customers, eq(customers.id, reservations.customerId))
-        .leftJoin(reservationHotel, eq(reservationHotel.reservationId, reservations.id))
-        .where(whereClause)
-        .limit(1)
-      return r ?? null
-    },
+    (tx) => renderReservationVoucher(tx, reservationId),
   )
 
-  if (!row) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 })
-  }
-  if (!isVoucherEligible(row)) {
+  if (!result.ok) {
     return NextResponse.json(
-      {
-        error: "voucher_unavailable",
-        message:
-          row.module === "hotel"
-            ? "Le voucher n'est disponible qu'une fois la réservation confirmée."
-            : "Aucun voucher hôtel pour cette réservation.",
-      },
-      { status: 404 },
+      result.error === "not_found"
+        ? { error: "not_found" }
+        : { error: result.error, message: result.message },
+      { status: result.status },
     )
   }
 
-  const pdf = await renderVoucherPdf({
-    publicRef: row.publicRef,
-    customerName: `${row.customerFirstName} ${row.customerLastName}`.trim(),
-    hotelName: row.hotelName,
-    checkIn: row.checkIn,
-    checkOut: row.checkOut,
-    nights: row.nights ?? 1,
-    adults: row.adults ?? 1,
-    children: row.childrenAges?.length ?? 0,
-    totalTnd: parseFloat(row.tndAmount),
-    agencyName: "Easy2Book",
-  })
-
-  return new NextResponse(Buffer.from(pdf), {
+  return new NextResponse(Buffer.from(result.pdf), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="voucher-${row.publicRef}.pdf"`,
+      "Content-Disposition": `attachment; filename="${result.filename}"`,
       "Cache-Control": "private, no-store",
     },
   })

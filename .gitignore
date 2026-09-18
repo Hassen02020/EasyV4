@@ -46,6 +46,9 @@ Thumbs.db
 # du code applicatif, jamais à committer.
 .tmp-mock-gotrue/
 
+# Même chose pour le mock Redis local (rate-limit/lock en dev isolé).
+.tmp-mock-redis/
+
 # Backend Storage local du Media System (lib/media/storage.ts,
 # MEDIA_STORAGE_BACKEND=local) — fichiers uploadés en LOCAL TEST uniquement,
 # jamais du contenu produit réel à committer (voir mission §33 : pas de

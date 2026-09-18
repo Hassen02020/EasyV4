@@ -73,6 +73,7 @@ import { pgErrorCode } from "@/lib/db/pg-error"
 import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./customer-identity"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
+import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
 export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "bank_deposit" | "cash" | "at_hotel"
 
@@ -220,17 +221,58 @@ async function runCreateGuestReservation(
   const existingByKey = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
   if (existingByKey) return existingByKey
 
+  // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
+  // Empêche deux requêtes concurrentes pour LA MÊME offre (même draft.offerId)
+  // d'appeler toutes les deux confirmHotelWithProvider — le backstop DB
+  // ci-dessus ne protège que contre un RETRY de la MÊME idempotencyKey, pas
+  // contre deux soumissions concurrentes (double-clic, deux onglets, ou même
+  // un vrai retry réseau avec la MÊME idempotencyKey lancé en parallèle —
+  // voir le commentaire "Double-submit vraiment simultané" plus bas) sur la
+  // même offre, qui atteindraient sinon toutes les deux myGo avant que
+  // reservations_guest_idempotency_uniq ne tranche la course ; ce verrou vise
+  // à éviter d'en arriver là plutôt que de nettoyer après coup.
+  // `sessionId` = un identifiant FRAIS par invocation (jamais idempotencyKey :
+  // deux requêtes qui partagent la même idempotencyKey — le cas exact décrit
+  // ci-dessous — doivent quand même être traitées comme deux détenteurs
+  // distincts, sinon le ré-acquire idempotent du verrou laisserait passer
+  // les deux vers myGo).
+  const lockSessionId = crypto.randomUUID()
+  const lockResult = await acquireLock({
+    agencyId,
+    sessionId: lockSessionId,
+    module: "hotel",
+    itemId: draft.offerId,
+  })
+  if (!lockResult.ok) {
+    return { ok: false, error: lockResult.message, code: lockResult.reason }
+  }
+  // Libéré sur CHAQUE sortie de fonction ci-dessous (échec fournisseur, échec
+  // paiement, conflit DB, succès, erreur générique) — même discipline que les
+  // compensations `cancelBooking()` déjà explicites à chacun de ces points,
+  // jamais un try/finally global qui aurait forcé une ré-indentation massive
+  // d'une fonction déjà longue et testée.
+  const releaseInventoryLock = (reservationId?: string) =>
+    releaseLock({
+      agencyId,
+      sessionId: lockSessionId,
+      module: "hotel",
+      itemId: draft.offerId,
+      reservationId,
+    })
+
   // --- Revalidation fournisseur RÉELLE (myGo) — jamais de prix client-fourni ---
   // Même garde que le correctif P0 Phase 11 (lib/booking/actions.ts) : sans
   // confirmation fournisseur valide, aucun prix n'est jamais calculé ni
   // débité, quel que soit le module ou le mode de paiement.
   const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
+    await releaseInventoryLock()
     return { ok: false, error: providerConfirmation.error }
   }
   const myGoBooking = providerConfirmation.attempted ? providerConfirmation.booking : null
   const providerMeta = providerConfirmation.attempted ? providerConfirmation.providerMeta : null
   if (!myGoBooking) {
+    await releaseInventoryLock()
     return {
       ok: false,
       error:
@@ -295,6 +337,9 @@ async function runCreateGuestReservation(
       () => (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId }),
     )
     if (!paymentResult.ok) {
+      // Compensation fournisseur déjà déclenchée par attemptCardPayment
+      // (callback ci-dessus) — ne reste plus qu'à libérer NOTRE verrou.
+      await releaseInventoryLock()
       return {
         ok: false,
         error: paymentResult.message ?? "Le paiement n'a pas pu être traité.",
@@ -593,6 +638,11 @@ async function runCreateGuestReservation(
         /* best effort — un hold myGo redondant sans réservation locale associée
          * n'a aucun impact financier/paiement côté Easy2Book. */
       }
+      // Cette tentative n'a créé aucune réservation (l'autre a gagné) —
+      // libère notre verrou sans reservationId (statut "released", pas
+      // "confirmed" — la réservation confirmée appartient à l'autre requête,
+      // qui aura elle-même libéré/confirmé son propre verrou).
+      await releaseInventoryLock()
       const winner = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
       if (winner) return winner
       return {
@@ -648,6 +698,9 @@ async function runCreateGuestReservation(
       }
     }
 
+    // Réservation réellement créée (et confirmée fournisseur) — le verrou
+    // passe en "confirmed" plutôt que "released", tracé jusqu'à la résa finale.
+    await releaseInventoryLock(result.reservationId)
     return {
       ok: true,
       reservationId: result.reservationId,
@@ -663,6 +716,9 @@ async function runCreateGuestReservation(
     } catch {
       compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
     }
+    // Transaction annulée (ROLLBACK) — aucune réservation locale créée par
+    // CETTE tentative, quel que soit le chemin d'erreur ci-dessous.
+    await releaseInventoryLock()
     // Solde wallet insuffisant : transaction annulée (ROLLBACK, aucune
     // réservation créée), résa fournisseur compensée ci-dessus — message
     // clair plutôt que l'erreur interne générique, même distinction que

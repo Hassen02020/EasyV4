@@ -46,6 +46,11 @@ Thumbs.db
 # du code applicatif, jamais à committer.
 .tmp-mock-gotrue/
 
+# Serveur Upstash Redis REST local factice (POST /pipeline), utilisé
+# uniquement pour tester acquireLock()/inventory.ts en environnement de dev
+# isolé sans dépendance réseau réelle — jamais du code applicatif.
+.tmp-mock-redis/
+
 # Backend Storage local du Media System (lib/media/storage.ts,
 # MEDIA_STORAGE_BACKEND=local) — fichiers uploadés en LOCAL TEST uniquement,
 # jamais du contenu produit réel à committer (voir mission §33 : pas de

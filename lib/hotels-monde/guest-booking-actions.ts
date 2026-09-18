@@ -39,7 +39,9 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { reservations, reservationHotel, payments, auditEvents } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -140,11 +142,16 @@ async function runCreateGuestWorldHotelBooking(
 
   const guest = booking.guest
 
+  // Marge agence — même règle que search (app/api/hotels-monde/search/
+  // route.ts), jamais recalculée différemment : book() compare le prix agence
+  // (net + marge), pas le prix net brut, à `expectedPriceTnd`.
+  const margins = await getMarginsForAgency(agencyId)
+
   // --- Revalidation fournisseur RÉELLE (Virtual World Hotel Supplier) ---
   // Jamais de prix ni de disponibilité fournis par le client — book()
   // régénère l'offre déterministe et compare au prix attendu, décrémente
   // l'inventaire réel et n'émet un numéro de confirmation qu'en cas de succès.
-  const bookResult: BookResult = await bookWorldHotel(booking.offerToken, booking.expectedPriceTnd)
+  const bookResult: BookResult = await bookWorldHotel(booking.offerToken, booking.expectedPriceTnd, margins.hotel)
   if (!bookResult.ok) {
     return {
       ok: false,
@@ -238,6 +245,16 @@ async function runCreateGuestWorldHotelBooking(
         kind: "deposit",
         status: isImmediatelyPaid ? "captured" : "pending",
         capturedAt: isImmediatelyPaid ? new Date() : undefined,
+      })
+
+      // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges (voir
+      // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
+      // déjà calculés par bookWorldHotel()/applyMargin(), jamais un recalcul.
+      await recordReservationFinancials({
+        tx,
+        reservationId,
+        supplierPriceTnd: bookResult.supplierPriceTnd,
+        salePriceTnd: bookResult.totalPriceTnd,
       })
 
       await tx.insert(reservationHotel).values({

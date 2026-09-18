@@ -9,11 +9,17 @@ import { search, book, cancel } from "../engine"
 import { resetInventory } from "../inventory-store"
 import { setScenario, resetScenario } from "../scenarios"
 import { validateOfferToken } from "../tokens"
+import type { MarginRule } from "@/lib/pro/pricing"
 
 function reset() {
   resetScenario()
   resetInventory()
 }
+
+// Marge inactive — la plupart des tests ci-dessous vérifient le comportement
+// de revalidation/inventaire de book(), indépendant de la marge (déjà testée
+// séparément ci-dessous) : prix net === prix agence avec cette règle.
+const NO_MARGIN: MarginRule = { marginType: "percent", marginValue: 0, isActive: false }
 
 const BASE_INPUT = {
   destination: "istanbul",
@@ -81,7 +87,7 @@ test("book: succès (NORMAL) — numéro de confirmation émis, prix cohérent a
   reset()
   const { offers } = search(BASE_INPUT)
   const offer = offers.find((o) => o.availableRooms >= 1)!
-  const result = await book(offer.token, offer.totalPriceTnd)
+  const result = await book(offer.token, offer.totalPriceTnd, NO_MARGIN)
   assert.equal(result.ok, true)
   if (result.ok) {
     assert.ok(result.confirmationNumber.startsWith("WH-"))
@@ -98,7 +104,7 @@ test("book: décrémente réellement l'inventaire (disponibilité baisse après 
   const offer = offers.find((o) => o.availableRooms >= 1)!
   const before = offer.availableRooms
 
-  await book(offer.token, offer.totalPriceTnd)
+  await book(offer.token, offer.totalPriceTnd, NO_MARGIN)
 
   const after = search(BASE_INPUT).offers.find((o) => o.offerId === offer.offerId)!
   assert.equal(after.availableRooms, before - 1, "1 chambre (rooms) décrémentée")
@@ -110,7 +116,7 @@ test("cancel: restitue l'inventaire réservé par book()", async () => {
   const offer = offers.find((o) => o.availableRooms >= 1)!
   const before = offer.availableRooms
 
-  const booked = await book(offer.token, offer.totalPriceTnd)
+  const booked = await book(offer.token, offer.totalPriceTnd, NO_MARGIN)
   assert.ok(booked.ok)
   if (!booked.ok) return
 
@@ -125,14 +131,14 @@ test("SÉCURITÉ — book: jeton altéré (signature invalide) => TOKEN_INVALID"
   const { offers } = search(BASE_INPUT)
   const offer = offers[0]!
   const tampered = offer.token.slice(0, -3) + "xyz"
-  const result = await book(tampered, offer.totalPriceTnd)
+  const result = await book(tampered, offer.totalPriceTnd, NO_MARGIN)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "TOKEN_INVALID")
 })
 
 test("SÉCURITÉ — book: jeton malformé (pas 2 segments) => TOKEN_INVALID", async () => {
   reset()
-  const result = await book("not-a-real-token", 100)
+  const result = await book("not-a-real-token", 100, NO_MARGIN)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "TOKEN_INVALID")
 })
@@ -141,9 +147,28 @@ test("SÉCURITÉ — book: prix client != prix serveur recalculé => rejeté (ja
   reset()
   const { offers } = search(BASE_INPUT)
   const offer = offers[0]!
-  const result = await book(offer.token, offer.totalPriceTnd - 1)
+  const result = await book(offer.token, offer.totalPriceTnd - 1, NO_MARGIN)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "PRICE_CHANGED")
+})
+
+test("book: marge agence appliquée avant comparaison — prix marginé accepté, prix net rejeté", async () => {
+  reset()
+  const { offers } = search(BASE_INPUT)
+  const offer = offers.find((o) => o.availableRooms >= 1)!
+  const margin: MarginRule = { marginType: "percent", marginValue: 10, isActive: true }
+  const agencyPriceTnd = Math.round(offer.totalPriceTnd * 1.1 * 1000) / 1000
+
+  const rejected = await book(offer.token, offer.totalPriceTnd, margin)
+  assert.equal(rejected.ok, false, "le prix net brut (sans marge) ne doit jamais être accepté quand une marge est active")
+  if (!rejected.ok) assert.equal(rejected.kind, "PRICE_CHANGED")
+
+  const accepted = await book(offer.token, agencyPriceTnd, margin)
+  assert.equal(accepted.ok, true)
+  if (accepted.ok) {
+    assert.equal(accepted.totalPriceTnd, agencyPriceTnd, "prix facturé = prix net + marge")
+    assert.equal(accepted.supplierPriceTnd, offer.totalPriceTnd, "prix fournisseur enregistré = prix net, jamais le prix marginé")
+  }
 })
 
 test("scénario SOLD_OUT: book échoue proprement, aucune décrémentation appliquée", async () => {
@@ -151,7 +176,7 @@ test("scénario SOLD_OUT: book échoue proprement, aucune décrémentation appli
   const { offers } = search(BASE_INPUT)
   const offer = offers[0]!
   setScenario("SOLD_OUT")
-  const result = await book(offer.token, offer.totalPriceTnd)
+  const result = await book(offer.token, offer.totalPriceTnd, NO_MARGIN)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "SOLD_OUT")
   resetScenario()
@@ -164,7 +189,7 @@ test("scénario PRICE_CHANGED: prix serveur recalculé +12%, currentPriceTnd ren
   const { offers } = search(BASE_INPUT)
   const offer = offers[0]!
   setScenario("PRICE_CHANGED")
-  const result = await book(offer.token, offer.totalPriceTnd)
+  const result = await book(offer.token, offer.totalPriceTnd, NO_MARGIN)
   assert.equal(result.ok, false)
   if (!result.ok) {
     assert.equal(result.kind, "PRICE_CHANGED")
@@ -178,7 +203,7 @@ test("scénario BOOKING_REJECTED: fournisseur refuse explicitement, aucune confi
   const { offers } = search(BASE_INPUT)
   const offer = offers[0]!
   setScenario("BOOKING_REJECTED")
-  const result = await book(offer.token, offer.totalPriceTnd)
+  const result = await book(offer.token, offer.totalPriceTnd, NO_MARGIN)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "BOOKING_REJECTED")
   resetScenario()
@@ -190,7 +215,7 @@ test("scénario TIMEOUT: le fournisseur ne répond pas — kind TIMEOUT après l
   const offer = offers[0]!
   setScenario("TIMEOUT")
   const start = Date.now()
-  const result = await book(offer.token, offer.totalPriceTnd)
+  const result = await book(offer.token, offer.totalPriceTnd, NO_MARGIN)
   const elapsed = Date.now() - start
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "TIMEOUT")

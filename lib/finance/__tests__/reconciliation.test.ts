@@ -8,7 +8,7 @@
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   agencies,
@@ -19,7 +19,7 @@ import {
   partnerCreditMovements,
   auditEvents,
 } from "@/lib/db/schema"
-import { runPaymentReconciliation } from "../reconciliation"
+import { runPaymentReconciliation, RECONCILIATION_LOCK_KEY } from "../reconciliation"
 
 async function isDbAvailable(): Promise<boolean> {
   try {
@@ -252,4 +252,161 @@ test("runPaymentReconciliation : journalise chaque écart dans audit_events", as
       .where(eq(auditEvents.agencyId, agencyId)),
   )
   assert.ok(rows.some((r) => r.entityType === "reconciliation" && r.action === "orphaned_webhook"))
+})
+
+test("runPaymentReconciliation : IDEMPOTENCE — le même écart détecté deux fois ne journalise jamais deux lignes", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+
+  const [webhook] = await withSystemContext((tx) =>
+    tx
+      .insert(pspWebhooks)
+      .values({
+        agencyId,
+        psp: "paymee",
+        eventType: "payment.succeeded",
+        payload: { test: true },
+        signatureOk: true,
+        error: "IDEMPOTENCE_TEST_MARKER",
+      })
+      .returning({ id: pspWebhooks.id }),
+  )
+
+  // Deux passages séquentiels détectent tous les deux ce même webhook
+  // (jamais supprimé entre les deux appels) — le deuxième insert doit être
+  // absorbé par ON CONFLICT ... DO NOTHING, pas créer une deuxième ligne.
+  await runPaymentReconciliation()
+  await runPaymentReconciliation()
+
+  const rows = await withSystemContext((tx) =>
+    tx
+      .select({ id: auditEvents.id })
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.entityType, "reconciliation"),
+          eq(auditEvents.entityId, webhook!.id),
+          eq(auditEvents.action, "orphaned_webhook"),
+        ),
+      ),
+  )
+  assert.equal(rows.length, 1, "une seule ligne audit_events pour ce webhook, malgré deux détections")
+})
+
+test("runPaymentReconciliation : CONCURRENCE — le verrou déjà tenu par une autre transaction fait céder l'exécution immédiatement", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+
+  // Deux appels réels en Promise.all seraient trop rapides (~15ms chacun)
+  // pour garantir un chevauchement fiable — plutôt que de dépendre du
+  // timing, on tient nous-mêmes le MÊME verrou depuis une transaction
+  // séparée, maintenue ouverte jusqu'à ce qu'on la libère explicitement,
+  // et on vérifie qu'un appel réel pendant ce temps cède bien (skipped=true).
+  let releaseHeldLock: () => void = () => {}
+  let onLockAcquired: () => void = () => {}
+  const lockAcquired = new Promise<void>((resolve) => {
+    onLockAcquired = resolve
+  })
+
+  const holderPromise = withSystemContext(async (tx) => {
+    const [{ locked }] = (await tx.execute(
+      sql`select pg_try_advisory_xact_lock(${RECONCILIATION_LOCK_KEY}) as locked`,
+    )) as Array<{ locked: boolean }>
+    assert.equal(locked, true, "setup : doit pouvoir acquérir le verrou en premier")
+    onLockAcquired()
+    await new Promise<void>((resolve) => {
+      releaseHeldLock = resolve
+    })
+  })
+
+  try {
+    await lockAcquired
+    const result = await runPaymentReconciliation()
+    assert.equal(
+      result.skipped,
+      true,
+      "une exécution qui trouve le verrou déjà tenu doit céder immédiatement, jamais attendre ni vérifier en double",
+    )
+    assert.deepEqual(result.findings, [], "aucun contrôle exécuté quand le verrou est cédé")
+  } finally {
+    releaseHeldLock()
+    await holderPromise
+  }
+})
+
+test("runPaymentReconciliation : DÉTERMINISME — wallet_ledger_drift stable entre deux passages sur les mêmes données", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+
+  const sameTimestamp = new Date("2026-01-01T00:00:00.000Z")
+  await withSystemContext(async (tx) => {
+    // Deux mouvements au MÊME created_at exact (égalité forcée) — sans
+    // tiebreaker déterministe, le choix du "dernier" mouvement pourrait
+    // flapper entre deux exécutions sur des données identiques.
+    await tx.insert(partnerCreditMovements).values([
+      {
+        agencyId,
+        movementType: "credit",
+        amount: "700.000",
+        balanceAfter: "700.000",
+        description: "Determinism test A",
+        createdAt: sameTimestamp,
+      },
+      {
+        agencyId,
+        movementType: "adjustment",
+        amount: "-1.000",
+        balanceAfter: "699.000",
+        description: "Determinism test B",
+        createdAt: sameTimestamp,
+      },
+    ])
+  })
+
+  const first = await runPaymentReconciliation()
+  const second = await runPaymentReconciliation()
+  const pick = (r: typeof first) =>
+    r.findings.find((f) => f.check === "wallet_ledger_drift" && f.agencyId === agencyId)?.details.lastLedgerBalance
+
+  assert.equal(pick(first), pick(second), "le même mouvement doit être choisi comme \"dernier\" à chaque passage")
+})
+
+test("runPaymentReconciliation : webhook orphelin sans agence explicite (agency_id=null) se rattache à l'agence OTA par défaut, jamais silencieusement perdu", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+
+  const [webhook] = await withSystemContext((tx) =>
+    tx
+      .insert(pspWebhooks)
+      .values({
+        agencyId: null,
+        psp: "paymee",
+        eventType: "payment.succeeded",
+        payload: { test: true },
+        signatureOk: true,
+        error: "NO_MATCHING_PAYMENT",
+      })
+      .returning({ id: pspWebhooks.id }),
+  )
+
+  try {
+    const { findings, unresolvedAgencyWarnings } = await runPaymentReconciliation()
+    const found = findings.find((f) => f.check === "orphaned_webhook" && f.entityId === webhook!.id)
+    // Une agence OTA par défaut existe dans cet environnement de test —
+    // le webhook doit lui être rattaché, jamais disparaître silencieusement.
+    assert.ok(found, "le webhook agency_id=null doit être rattaché à l'agence OTA par défaut, pas disparaître")
+    assert.equal(unresolvedAgencyWarnings, 0)
+  } finally {
+    // agency_id=null (webhook) + son audit_events (rattaché à l'agence OTA
+    // par défaut, pas au fixture) ne sont pas couverts par le after() du
+    // fichier (filtré sur agencyId du fixture) — nettoyage direct des deux.
+    await withSystemContext(async (tx) => {
+      await tx
+        .delete(auditEvents)
+        .where(
+          and(
+            eq(auditEvents.entityType, "reconciliation"),
+            eq(auditEvents.entityId, webhook!.id),
+            eq(auditEvents.action, "orphaned_webhook"),
+          ),
+        )
+      await tx.delete(pspWebhooks).where(eq(pspWebhooks.id, webhook!.id))
+    })
+  }
 })

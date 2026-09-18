@@ -29,12 +29,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Base de données non configurée" }, { status: 500 })
   }
 
-  const { counts, findings } = await runPaymentReconciliation()
+  const { counts, findings, skipped, unresolvedAgencyWarnings } = await runPaymentReconciliation()
 
   return NextResponse.json({
     ok: true,
+    skipped,
     counts,
     total: findings.length,
+    unresolvedAgencyWarnings,
     timestamp: new Date().toISOString(),
   })
 }

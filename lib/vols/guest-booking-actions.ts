@@ -40,6 +40,7 @@ import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "@/lib/booking/customer-identity"
 import { flightGuestBookingSchema, type FlightGuestBookingInput } from "./schemas"
 import { book as bookFlight, cancel as cancelFlight, type BookResult } from "./virtual-supplier/engine"
+import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
 export type FlightGuestPaymentMethod = "card" | "transfer" | "cash"
 
@@ -126,12 +127,39 @@ async function runCreateGuestFlightBooking(
 
   const firstTraveler = booking.travelers[0]!
 
+  // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
+  // Empêche deux requêtes concurrentes sur LE MÊME offerToken d'appeler
+  // toutes les deux bookFlight() — même raisonnement que
+  // lib/hotels-monde/guest-booking-actions.ts (pas de backstop DB
+  // `guestIdempotencyKey` sur cette table non plus). `sessionId` frais par
+  // invocation, jamais l'idempotencyKey déterministe (voir commentaire
+  // équivalent côté Hôtels Monde).
+  const lockSessionId = crypto.randomUUID()
+  const lockResult = await acquireLock({
+    agencyId,
+    sessionId: lockSessionId,
+    module: "flight",
+    itemId: booking.offerToken,
+  })
+  if (!lockResult.ok) {
+    return { ok: false, error: lockResult.message, code: lockResult.reason }
+  }
+  const releaseInventoryLock = (reservationId?: string) =>
+    releaseLock({
+      agencyId,
+      sessionId: lockSessionId,
+      module: "flight",
+      itemId: booking.offerToken,
+      reservationId,
+    })
+
   // --- Revalidation fournisseur RÉELLE (Virtual Flight Supplier) ---
   // Jamais de prix ni de disponibilité fournis par le client — book()
   // régénère l'offre déterministe et compare au prix attendu, décrémente
   // l'inventaire réel et n'émet un PNR qu'en cas de succès.
   const bookResult: BookResult = await bookFlight(booking.offerToken, booking.expectedPriceTnd)
   if (!bookResult.ok) {
+    await releaseInventoryLock()
     return {
       ok: false,
       error: BOOK_ERROR_MESSAGES[bookResult.kind] ?? bookResult.message,
@@ -150,6 +178,7 @@ async function runCreateGuestFlightBooking(
       adults: bookResult.adults,
       children: bookResult.children,
     })
+    await releaseInventoryLock()
     return {
       ok: false,
       error: "Le nombre de voyageurs ne correspond pas au nombre de passagers de cette offre.",
@@ -324,6 +353,7 @@ async function runCreateGuestFlightBooking(
       }
     }
 
+    await releaseInventoryLock(result.reservationId)
     return {
       ok: true,
       reservationId: result.reservationId,
@@ -335,7 +365,8 @@ async function runCreateGuestFlightBooking(
   } catch (err) {
     // Tout échec après bookFlight() (paiement refusé, conflit DB) doit
     // restituer l'inventaire déjà réservé — même principe de compensation
-    // que confirmHotelWithProvider()/cancelBooking() côté myGo.
+    // que confirmHotelWithProvider()/cancelBooking() côté myGo. Aucune
+    // réservation locale créée par CETTE tentative (transaction annulée).
     let compensationNote = ""
     try {
       await cancelFlight({
@@ -347,6 +378,7 @@ async function runCreateGuestFlightBooking(
     } catch {
       compensationNote = ` Réservation fournisseur ${bookResult.pnr} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
     }
+    await releaseInventoryLock()
     if (err instanceof BookingRejected) {
       return { ok: false, error: `${err.message}${compensationNote}`, code: err.code }
     }

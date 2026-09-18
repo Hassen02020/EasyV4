@@ -2351,11 +2351,18 @@ export const inventoryLocks = pgTable(
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "cascade" }),
-    /** Clé unique côté Redis : `e2b:lock:<module>:<itemId>:<sessionId>`. */
-    redisKey: varchar("redis_key", { length: 256 }).notNull(),
+    /**
+     * Clé unique côté Redis : `e2b:lock:<agencyId>:<module>:<itemId>:<sessionId>`.
+     * `text` (pas varchar(256)) : un itemId réel (token myGo/Hôtels Monde/
+     * Vols signé) mesure ~330-410 caractères en pratique — un varchar(256)
+     * ferait échouer cet INSERT sur toute offre réelle, jamais détecté avant
+     * que `lib/booking/inventory.ts::acquireLock()` n'ait un appelant réel
+     * (chantier "Inventory Hold Integration").
+     */
+    redisKey: text("redis_key").notNull(),
     module: varchar("module", { length: 32 }).notNull(),
-    /** Identifiant de l'offre verrouillée (token myGo, UUID package, etc.). */
-    itemId: varchar("item_id", { length: 256 }).notNull(),
+    /** Identifiant de l'offre verrouillée (token myGo, UUID package, etc.) — voir redisKey. */
+    itemId: text("item_id").notNull(),
     /** Session ou userId qui détient le verrou. */
     sessionId: varchar("session_id", { length: 128 }).notNull(),
     /** Montant TND figé au moment du verrou. */
@@ -2370,7 +2377,13 @@ export const inventoryLocks = pgTable(
   },
   (t) => [
     index("inv_locks_agency_idx").on(t.agencyId),
-    index("inv_locks_redis_key_idx").on(t.redisKey),
+    // uniqueIndex (pas index) : lib/booking/inventory.ts::acquireLock() fait
+    // .onConflictDoUpdate({ target: [inventoryLocks.redisKey] }), qui exige
+    // une vraie contrainte unique — un index simple ne satisfait pas
+    // ON CONFLICT (reproduit directement : "no unique or exclusion
+    // constraint matching the ON CONFLICT specification"). Jamais détecté
+    // avant parce qu'aucun appelant réel n'existait avant ce chantier.
+    uniqueIndex("inv_locks_redis_key_uniq").on(t.redisKey),
     index("inv_locks_expires_idx").on(t.status, t.expiresAt),
   ],
 )

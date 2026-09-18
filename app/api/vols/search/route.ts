@@ -18,6 +18,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { searchFlights } from "@/lib/vols/client"
 import { rateLimit } from "@/lib/rate-limit"
+import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMargin } from "@/lib/pro/pricing"
 
 export const runtime = "nodejs"
 export const revalidate = 0
@@ -61,6 +64,17 @@ export async function GET(req: NextRequest) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 502 })
   }
+
+  // Marge agence — même mécanisme que app/api/hotels/search-public/route.ts
+  // (getMarginsForAgency + applyMargin), jamais une deuxième formule.
+  // priceTnd est déjà le prix TOTAL de l'offre (tous passagers confondus) —
+  // marge "par offre" appliquée une seule fois ici, jamais par passager.
+  const agencyId = await getDefaultAgencyId()
+  const margins = await getMarginsForAgency(agencyId)
+  result.offers = result.offers.map((offer) => ({
+    ...offer,
+    priceTnd: applyMargin(offer.priceTnd, margins.flight),
+  }))
 
   return NextResponse.json(result)
 }

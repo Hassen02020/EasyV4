@@ -130,6 +130,56 @@ export async function withSystemContext<T>(
 }
 
 /**
+ * UUID nul, réservé comme valeur sentinelle pour `app.current_user_id` dans
+ * `withPublicAgencyContext()` — jamais un vrai id de ligne `users`.
+ */
+const PUBLIC_CONTEXT_USER_ID_SENTINEL = "00000000-0000-0000-0000-000000000000"
+
+/**
+ * Contexte pour les lectures catalogue/tarification PUBLIQUES (aucune
+ * session Supabase à résoudre, aucun appelant humain identifié) — jamais
+ * `app.is_super_admin = true`. Différent de `withSystemContext()` : celui-ci
+ * reste réservé aux appelants déjà authentifiés par un secret partagé (cron,
+ * webhook signé) ; `withPublicAgencyContext()` est pour du trafic réellement
+ * anonyme qui n'a besoin que d'un accès en lecture scopé à une agence (ou à
+ * aucune, pour un catalogue plateforme non tenant-scoped comme
+ * `destinations`/`hotel_suppliers`).
+ *
+ * `agencyId` peut être `null` pour ces tables plateforme : leurs policies
+ * n'exigent qu'une "session réelle" au sens RLS, pas une agence précise (ex.
+ * `destinations_select`/`hotel_suppliers_select`,
+ * `0054_destinations.sql`/`0035_hotel_supplier_control_plane.sql`) — d'où le
+ * GUC `app.current_user_id` posé à une valeur sentinelle non vide plutôt que
+ * laissé vide : ces policies testent `current_setting(...) is not null and
+ * <> ''`. Ce sentinel doit rester un UUID syntaxiquement valide (pas une
+ * chaîne arbitraire) : `current_user_id()` (`0029_fix_users_manager_write_authuid.sql`)
+ * le caste en `uuid` pour d'autres policies (`users`/`permission_grants`) —
+ * une valeur non-UUID y lèverait une erreur si jamais évaluée sur une requête
+ * qui joint une de ces tables, pas seulement 0 ligne.
+ *
+ * Ne JAMAIS utiliser pour résoudre une agence/réservation sans la connaître
+ * à l'avance (recherche par domaine, par référence+email...) — ces cas
+ * restent sur `withSystemContext()`, l'agence n'étant pas encore connue au
+ * moment de la requête.
+ */
+export async function withPublicAgencyContext<T>(
+  agencyId: string | null,
+  fn: (tx: DrizzleTransaction) => Promise<T>,
+): Promise<T> {
+  const db = getDb()
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`
+      select
+        set_config('app.current_agency_id', ${agencyId ?? ""}, true),
+        set_config('app.current_user_id', ${PUBLIC_CONTEXT_USER_ID_SENTINEL}, true),
+        set_config('app.is_super_admin', 'false', true),
+        set_config('app.current_mutuelle_group_id', '', true)
+    `)
+    return fn(tx)
+  })
+}
+
+/**
  * Raccourci le plus courant : résout la session Supabase courante puis
  * exécute `fn` dans son contexte tenant. Renvoie `{ ok: false }` sans jamais
  * toucher aux données métier si l'utilisateur n'est pas authentifié ou que

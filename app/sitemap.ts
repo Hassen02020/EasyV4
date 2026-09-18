@@ -18,7 +18,7 @@ import type { MetadataRoute } from "next"
 import { and, arrayContains, eq } from "drizzle-orm"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { listActiveDestinationSlugs } from "@/lib/destinations/queries"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import { catalogPackages, catalogActivities, omraPackages } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { siteOrigin } from "@/lib/mygo/config"
@@ -69,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [...staticEntries, ...destinationEntries]
   }
 
-  const [packages, activities, omra] = await withSystemContext(async (tx) => {
+  const [packages, activities, omra] = await withPublicAgencyContext(agencyId, async (tx) => {
     const pkgRows = await tx
       .select({ slug: catalogPackages.slug, updatedAt: catalogPackages.updatedAt })
       .from(catalogPackages)

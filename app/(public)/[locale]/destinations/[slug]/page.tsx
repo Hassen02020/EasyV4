@@ -40,8 +40,19 @@ import type { Locale } from "@/lib/locale"
 const getDestination = cache(getDestinationBySlug)
 
 export async function generateStaticParams() {
-  const slugs = await listActiveDestinationSlugs()
-  return slugs.map((slug) => ({ slug }))
+  // DB injoignable pendant le build (ex. build sans accès réseau au pooler
+  // Supabase) : ne doit jamais faire échouer `next build` entier. En
+  // renvoyant [] ici, aucune fiche destination n'est pré-générée au build,
+  // mais `dynamicParams` reste à son défaut Next.js (true, non modifié
+  // ailleurs dans ce fichier) — chaque /destinations/[slug] est alors
+  // simplement rendue à la demande au premier accès, comportement runtime
+  // utilisateur final inchangé une fois la DB accessible.
+  try {
+    const slugs = await listActiveDestinationSlugs()
+    return slugs.map((slug) => ({ slug }))
+  } catch {
+    return []
+  }
 }
 
 const MODULE_ICON: Record<DestinationModule, typeof Hotel> = {

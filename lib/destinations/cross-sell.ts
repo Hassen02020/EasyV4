@@ -17,7 +17,7 @@
  */
 
 import { and, eq, gte, ilike, inArray, arrayContains, sql } from "drizzle-orm"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import {
   catalogPackages,
   catalogPackageDepartures,
@@ -49,7 +49,7 @@ export async function getCrossSellPackages(destinationSlug: string): Promise<Cro
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
 
-    return await withSystemContext(async (db) => {
+    return await withPublicAgencyContext(agencyId, async (db) => {
       const rows = await db
         .select()
         .from(catalogPackages)
@@ -125,7 +125,7 @@ export async function getCrossSellActivities(destinationName: string): Promise<C
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
 
-    return await withSystemContext(async (db) => {
+    return await withPublicAgencyContext(agencyId, async (db) => {
       const rows = await db
         .select()
         .from(catalogActivities)

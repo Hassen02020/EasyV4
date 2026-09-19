@@ -8,7 +8,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { REVIEW_MODULES, listApprovedReviewsForProductCore, type ReviewModule } from "@/lib/reviews/reviews-core"
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ average: 0, count: 0, reviews: [] })
   }
 
-  const summary = await withSystemContext((db) =>
+  const summary = await withPublicAgencyContext(agencyId, (db) =>
     listApprovedReviewsForProductCore(db, { agencyId, module: moduleParam as ReviewModule, productRef }),
   )
 

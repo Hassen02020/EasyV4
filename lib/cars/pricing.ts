@@ -13,7 +13,7 @@
 "use server"
 
 import { and, eq, isNull, lte, or, gte } from "drizzle-orm"
-import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext, withTenantContext } from "@/lib/db/tenant-context"
 import { carPricingRates, pricingMargins } from "@/lib/db/schema"
 import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
 
@@ -72,7 +72,7 @@ export async function calculateCarPrice(
   // ou la session partenaire, jamais une entrée utilisateur brute).
   // Le tarif le plus spécifique gagne : d'abord une ligne dédiée à ce lieu
   // (locationId non NULL), sinon la ligne "tous lieux" (locationId NULL).
-  const rates = await withSystemContext((db) =>
+  const rates = await withPublicAgencyContext(input.agencyId, (db) =>
     db
       .select()
       .from(carPricingRates)

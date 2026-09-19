@@ -17,7 +17,7 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
-import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext, withTenantContext } from "@/lib/db/tenant-context"
 import {
   catalogTransferPricing,
   pricingMargins,
@@ -100,7 +100,7 @@ export async function calculateTransferPrice(
 ): Promise<TransferPricingResult | null> {
   // Tarif catalogue public (aucune session storefront à résoudre) — filtre
   // fixé côté serveur, jamais influencé par une entrée utilisateur brute.
-  const [rate] = await withSystemContext((db) =>
+  const [rate] = await withPublicAgencyContext(input.agencyId, (db) =>
     db
       .select()
       .from(catalogTransferPricing)

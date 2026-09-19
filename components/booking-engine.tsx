@@ -16,7 +16,6 @@ import {
   Minus,
   Clock,
   Search,
-  Sparkles,
   Compass,
 } from "lucide-react"
 
@@ -198,15 +197,9 @@ export function BookingEngine() {
       {/* Content */}
       <div className="relative mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 sm:pt-24 sm:pb-10 lg:pt-28 lg:pb-14">
         {/* Headline */}
-        <div className="e2b-fade-in-up mb-8 max-w-2xl sm:mb-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
-            <Sparkles className="text-accent size-3.5" />
-            {tHome("heroKicker")}
-          </span>
-
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl lg:text-[3.25rem] lg:leading-[1.05]">
-            {tHome("heroTitleLine1")}
-            <br />
+        <div className="e2b-fade-in-up mb-8 max-w-3xl sm:mb-10">
+          <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl lg:text-[2.75rem] lg:leading-[1.05]">
+            {tHome("heroTitleLine1")}{" "}
             <span className="text-accent">{tHome("heroTitleAccent")}</span>
           </h1>
 

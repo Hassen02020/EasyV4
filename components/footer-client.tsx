@@ -128,14 +128,28 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                   <img
                     src={logoUrl}
                     alt={brandName ?? "Logo agence"}
-                    className="h-14 w-auto rounded-xl bg-white object-contain p-1.5"
+                    className="size-12 shrink-0 rounded-xl bg-white object-contain p-1.5"
                   />
                 ) : (
-                  <Easy2BookLogo className="h-14 w-auto rounded-xl bg-white p-1.5" />
+                  // Variante icône seule (comme le header) : le logo complet
+                  // (avion + "Easy2Book" + baseline, voir easy2book-logo.tsx)
+                  // devenait illisible réduit à 56px de haut — le wordmark
+                  // ci-dessous est rendu séparément, en texte, pour rester
+                  // net à n'importe quelle taille.
+                  <Easy2BookLogo
+                    withWordmark={false}
+                    className="size-12 rounded-xl bg-white p-1.5"
+                  />
                 )}
                 {brandName ? (
                   <span className="text-lg font-bold text-white">{brandName}</span>
-                ) : null}
+                ) : (
+                  <span className="text-lg font-bold">
+                    <span className="text-white">Easy</span>
+                    <span className="text-accent">2</span>
+                    <span className="text-white">Book</span>
+                  </span>
+                )}
               </div>
               <p className="max-w-xs text-sm text-white/70">
                 {t("footerTagline")}

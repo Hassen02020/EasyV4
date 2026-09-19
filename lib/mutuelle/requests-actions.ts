@@ -24,7 +24,7 @@ import { revalidatePath } from "next/cache"
 import { and, desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { mutuelleRequests, mutuelleGroups, auditEvents, reservationModule, users } from "@/lib/db/schema"
+import { mutuelleRequests, auditEvents, reservationModule, users } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile, type AdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
@@ -90,16 +90,15 @@ export async function submitMutuelleRequest(
   const groupId = profile.mutuelleGroupId!
 
   try {
+    // agencyId = l'agence OTA "domicile" du membre (toujours renseignée,
+    // voir inviteMutuelleUser) — jamais `null` : audit_events est RLS-scopée
+    // par agence (`agency_id = current_agency_id()`) et un GUC vide y ferait
+    // systématiquement échouer l'insert d'audit (donc toute la transaction).
+    // `mutuelle_requests` lui-même n'est jamais scopé par cette agence — sa
+    // propre RLS utilise exclusivement `current_mutuelle_group_id()`.
     const requestId = await withTenantContext(
-      { agencyId: null, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+      { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
       async (tx) => {
-        const [group] = await tx
-          .select({ executionAgencyId: mutuelleGroups.executionAgencyId })
-          .from(mutuelleGroups)
-          .where(eq(mutuelleGroups.id, groupId))
-          .limit(1)
-        if (!group) throw new Error("Groupe Mutuelle introuvable")
-
         const [created] = await tx
           .insert(mutuelleRequests)
           .values({
@@ -114,7 +113,7 @@ export async function submitMutuelleRequest(
           .returning({ id: mutuelleRequests.id })
 
         await tx.insert(auditEvents).values({
-          agencyId: group.executionAgencyId,
+          agencyId: profile.agencyId,
           actorUserId: userId,
           entityType: "mutuelle_request",
           entityId: created.id,
@@ -164,7 +163,7 @@ export async function listMyMutuelleRequests(): Promise<MutuelleRequestRow[]> {
   const groupId = profile.mutuelleGroupId!
 
   return withTenantContext(
-    { agencyId: null, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+    { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
     async (tx) => {
       const rows = await tx
         .select({
@@ -199,7 +198,7 @@ export async function listGroupMutuelleRequests(): Promise<MutuelleRequestRow[]>
   const groupId = profile.mutuelleGroupId!
 
   return withTenantContext(
-    { agencyId: null, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+    { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
     async (tx) => {
       const rows = await tx
         .select({
@@ -255,15 +254,8 @@ export async function reviewMutuelleRequest(
 
   try {
     return await withTenantContext(
-      { agencyId: null, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+      { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
       async (tx) => {
-        const [group] = await tx
-          .select({ executionAgencyId: mutuelleGroups.executionAgencyId })
-          .from(mutuelleGroups)
-          .where(eq(mutuelleGroups.id, groupId))
-          .limit(1)
-        if (!group) throw new Error("Groupe Mutuelle introuvable")
-
         // Verrou + re-vérification du statut DANS la transaction — anti
         // double-validation concurrente (même garde que
         // validateRechargeRequest/refundReservation ailleurs dans ce projet).
@@ -292,7 +284,7 @@ export async function reviewMutuelleRequest(
           .where(eq(mutuelleRequests.id, input.requestId))
 
         await tx.insert(auditEvents).values({
-          agencyId: group.executionAgencyId,
+          agencyId: profile.agencyId,
           actorUserId: userId,
           entityType: "mutuelle_request",
           entityId: input.requestId,

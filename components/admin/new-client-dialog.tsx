@@ -84,9 +84,9 @@ export function NewClientDialog() {
         <div className="grid gap-4 py-2">
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label>Civilité</Label>
+              <Label htmlFor="client-civility">Civilité</Label>
               <Select value={civility} onValueChange={(v) => setCivility(v as typeof civility)}>
-                <SelectTrigger>
+                <SelectTrigger id="client-civility">
                   <SelectValue placeholder="—" />
                 </SelectTrigger>
                 <SelectContent>
@@ -97,31 +97,31 @@ export function NewClientDialog() {
               </Select>
             </div>
             <div className="col-span-2 grid gap-2">
-              <Label>Prénom</Label>
-              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required disabled={isPending} />
+              <Label htmlFor="client-firstname">Prénom</Label>
+              <Input id="client-firstname" value={firstName} onChange={(e) => setFirstName(e.target.value)} required disabled={isPending} />
             </div>
           </div>
           <div className="grid gap-2">
-            <Label>Nom</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required disabled={isPending} />
+            <Label htmlFor="client-lastname">Nom</Label>
+            <Input id="client-lastname" value={lastName} onChange={(e) => setLastName(e.target.value)} required disabled={isPending} />
           </div>
           <div className="grid gap-2">
-            <Label>Email</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isPending} />
+            <Label htmlFor="client-email">Email</Label>
+            <Input id="client-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isPending} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label>Téléphone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isPending} />
+              <Label htmlFor="client-phone">Téléphone</Label>
+              <Input id="client-phone" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isPending} />
             </div>
             <div className="grid gap-2">
-              <Label>CIN / Passeport</Label>
-              <Input value={civicId} onChange={(e) => setCivicId(e.target.value)} disabled={isPending} />
+              <Label htmlFor="client-civicid">CIN / Passeport</Label>
+              <Input id="client-civicid" value={civicId} onChange={(e) => setCivicId(e.target.value)} disabled={isPending} />
             </div>
           </div>
           <div className="grid gap-2">
-            <Label>Ville</Label>
-            <Input value={city} onChange={(e) => setCity(e.target.value)} disabled={isPending} />
+            <Label htmlFor="client-city">Ville</Label>
+            <Input id="client-city" value={city} onChange={(e) => setCity(e.target.value)} disabled={isPending} />
           </div>
           {error && <p className="text-destructive text-sm font-medium">{error}</p>}
         </div>

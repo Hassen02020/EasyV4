@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Package,
 } from "lucide-react"
 import { createBrowserSupabase } from "@/lib/supabase/client"
 import { clearUserRoleCookie } from "@/app/actions/validate-role"
@@ -21,6 +22,7 @@ import { Separator } from "@/components/ui/separator"
 const NAV_ITEMS = [
   { href: "/mutuelle", label: "Dashboard", icon: HeartHandshake, disabled: false },
   { href: "/mutuelle/dossiers", label: "Dossiers Assurés", icon: Users, disabled: false },
+  { href: "/mutuelle/catalogue", label: "Catalogue", icon: Package, disabled: false },
   { href: "/mutuelle/factures", label: "Factures", icon: FileText, disabled: true },
   { href: "/mutuelle/parametres", label: "Paramètres", icon: Settings, disabled: true },
 ]

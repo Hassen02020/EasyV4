@@ -372,6 +372,45 @@ export type MutuelleRequest = typeof mutuelleRequests.$inferSelect
 export type NewMutuelleRequest = typeof mutuelleRequests.$inferInsert
 
 /* -------------------------------------------------------------------------- */
+/* Mutuelle — catalogue privé (chantier "canal B2B2C", voir                   */
+/* drizzle/manual/0063_mutuelle_catalog.sql). Le directeur sélectionne, parmi */
+/* le catalogue réel de l'agence d'exécution du groupe, les produits visibles */
+/* par ses membres. Pas de FK typée sur product_id : il pointe vers           */
+/* catalogPackages.id / catalogActivities.id / omraPackages.id selon          */
+/* productType — validé côté Server Action, jamais en DB.                    */
+/* -------------------------------------------------------------------------- */
+
+export const mutuelleCatalogProductType = pgEnum("mutuelle_catalog_product_type", [
+  "package",
+  "activity",
+  "omra",
+])
+
+export const mutuelleCatalogItems = pgTable(
+  "mutuelle_catalog_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => mutuelleGroups.id, { onDelete: "restrict" }),
+    productType: mutuelleCatalogProductType("product_type").notNull(),
+    productId: uuid("product_id").notNull(),
+    addedByUserId: uuid("added_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("mutuelle_catalog_items_uniq").on(t.groupId, t.productType, t.productId),
+    index("mutuelle_catalog_items_group_idx").on(t.groupId),
+    index("mutuelle_catalog_items_product_idx").on(t.productType, t.productId),
+  ],
+)
+
+export type MutuelleCatalogItem = typeof mutuelleCatalogItems.$inferSelect
+export type NewMutuelleCatalogItem = typeof mutuelleCatalogItems.$inferInsert
+
+/* -------------------------------------------------------------------------- */
 /* Customers (clients finaux)                                                 */
 /* -------------------------------------------------------------------------- */
 

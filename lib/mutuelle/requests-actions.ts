@@ -29,7 +29,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile, type AdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
 
-async function requireMutuelleProfile(
+export async function requireMutuelleProfile(
   expectedRole: "mutuelle_member" | "mutuelle_director",
 ): Promise<{ ok: true; userId: string; profile: AdminProfile } | { ok: false; error: string }> {
   const supabase = await createServerSupabase()

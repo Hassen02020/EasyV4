@@ -15,6 +15,14 @@
  * suivant pose le départ (doit être strictement après l'arrivée sous peine
  * de redevenir la nouvelle arrivée) — correspond exactement au flux
  * arrivée→départ demandé.
+ *
+ * `min={1}` sur le Calendar ci-dessous n'est PAS optionnel : sans lui,
+ * `addToRange()` (react-day-picker) pose `to = from` dès le PREMIER clic sur
+ * une plage vide (voir node_modules/react-day-picker/.../addToRange.js,
+ * branche `!from && !to` — `to: min > 0 ? undefined : date`), donc `onSelect`
+ * reçoit immédiatement une plage "complète" (from===to) et le picker se
+ * refermait après un seul clic au lieu d'attendre le départ — reproduit et
+ * confirmé en E2E réel (Playwright contre la prod) avant ce correctif.
  */
 
 import { useEffect, useId, useState } from "react"
@@ -116,6 +124,7 @@ export function DateRangePicker({
         </div>
         <CalendarComponent
           mode="range"
+          min={1}
           selected={
             checkIn && checkOut
               ? { from: checkIn, to: checkOut }

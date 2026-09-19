@@ -55,7 +55,7 @@ import { FIELD_SHELL, FIELD_INPUT_RESET, FieldLabel } from "@/components/search-
 
 import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
-import { todayLocal, addDaysLocal, formatDateIso, isValidStayRange } from "@/lib/hotels/date-utils"
+import { formatDateIso, isValidStayRange } from "@/lib/hotels/date-utils"
 
 const HotelsTunisieSearch = dynamic(
   () =>
@@ -372,8 +372,12 @@ function HotelsMondeForm() {
   const t = useTranslations("Home")
   const locale = useLocale()
   const [destination, setDestination] = useState("")
-  const [checkIn, setCheckIn] = useState<Date | null>(todayLocal())
-  const [checkOut, setCheckOut] = useState<Date | null>(addDaysLocal(todayLocal(), 1))
+  // Pas de date par défaut — voir le même correctif/doc dans
+  // hotels-tunisie-search.tsx (une plage pré-remplie "complète" cassait le
+  // premier clic sur une nouvelle arrivée, react-day-picker interprétant ce
+  // clic comme un déplacement du départ plutôt qu'une nouvelle sélection).
+  const [checkIn, setCheckIn] = useState<Date | null>(null)
+  const [checkOut, setCheckOut] = useState<Date | null>(null)
   const [rooms, setRooms] = useState(1)
   const [adults, setAdults] = useState(2)
   const [occupancyOpen, setOccupancyOpen] = useState(false)

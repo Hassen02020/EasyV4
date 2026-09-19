@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { FIELD_SHELL, FieldLabel } from "@/components/search-field"
 import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
-import { calculateNights, formatDateIso, todayLocal, addDaysLocal } from "@/lib/hotels/date-utils"
+import { calculateNights, formatDateIso } from "@/lib/hotels/date-utils"
 import { splitIntoRooms, encodeRoomsParam } from "@/lib/mygo/room-split"
 
 // ============================================================================
@@ -113,14 +113,17 @@ export function HotelsTunisieSearch({
   const [selectedCity, setSelectedCity] = useState<City | null>(initialCity)
   const [citySearchOpen, setCitySearchOpen] = useState(false)
 
-  // Date selection state — arrivée = aujourd'hui, départ = demain (1 nuit
-  // minimum) par défaut, standard OTA plutôt que des champs vides.
-  const [checkinDate, setCheckinDate] = useState<Date | null>(
-    initialCheckin ?? todayLocal(),
-  )
-  const [checkoutDate, setCheckoutDate] = useState<Date | null>(
-    initialCheckout ?? addDaysLocal(todayLocal(), 1),
-  )
+  // Date selection state — aucune date par défaut (spec Hotel Search Engine
+  // V2 §3.1 "Aucun calendrier ouvert par défaut" + même comportement que
+  // WorldHotelSearch) : un champ pré-rempli "aujourd'hui → demain"
+  // constituait déjà une plage COMPLÈTE aux yeux de react-day-picker, donc
+  // cliquer une date future pour choisir une NOUVELLE arrivée était
+  // interprété comme "déplacer le départ" (addToRange, branche `isAfter`)
+  // en gardant l'arrivée bloquée sur aujourd'hui — reproduit et confirmé en
+  // E2E réel avant ce correctif. Partir d'une sélection vide élimine cette
+  // ambiguïté : le premier clic pose toujours l'arrivée.
+  const [checkinDate, setCheckinDate] = useState<Date | null>(initialCheckin ?? null)
+  const [checkoutDate, setCheckoutDate] = useState<Date | null>(initialCheckout ?? null)
 
   // Pax state
   const [rooms, setRooms] = useState(initialRooms)

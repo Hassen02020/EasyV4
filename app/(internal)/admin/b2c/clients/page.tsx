@@ -9,7 +9,6 @@ import { redirect } from "next/navigation"
 import {
   Users,
   Search,
-  Plus,
   Mail,
   Phone,
   Calendar,
@@ -23,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -35,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { B2cClientRowActions } from "@/components/admin/b2c-client-row-actions"
+import { NewClientDialog } from "@/components/admin/new-client-dialog"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -146,10 +145,7 @@ export default async function B2CClientsPage() {
             Base de données clients et historique
           </p>
         </div>
-        <Button className="bg-sidebar" disabled title="Pas encore disponible">
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau client
-        </Button>
+        <NewClientDialog />
       </div>
 
       {/* Stats */}

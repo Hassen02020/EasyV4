@@ -7,23 +7,16 @@
  * webhook signé (app/api/payment/reservation-webhook/route.ts, vérification
  * check_sum dans paymee-signing.ts) confirme réellement un paiement.
  *
- * ⚠️ CONTRAT PARTIELLEMENT NON VÉRIFIABLE DANS CET ENVIRONNEMENT ⚠️
- * `https://www.paymee.tn`, `https://sandbox.paymee.tn` et
- * `https://app.paymee.tn` sont tous les trois bloqués par la politique
- * réseau de ce build (curl direct + WebFetch confirmés rejetés,
- * `connect_rejected`/403) — la documentation officielle et le sandbox n'ont
- * donc pas pu être consultés ni appelés depuis cette session. Le contrat
- * ci-dessous (endpoint, champs de requête/réponse) reprend ce que l'énoncé
- * de la tâche a communiqué explicitement (`POST .../api/v2/payments/create`,
- * `Authorization: Token <api_key>`, réponse contenant `payment_url`) —
- * jamais inventé au-delà de ça. Voir paymee-signing.ts pour l'avertissement
- * équivalent sur la vérification `check_sum` du webhook.
- *
- * Conséquence assumée si un nom de champ de requête est légèrement
- * différent du réel : l'appel `createPayment()` échoue proprement avec
- * `PAYMENT_DECLINED`/`PROVIDER_ERROR` (jamais un faux succès — la réponse
- * est validée par schéma avant toute confirmation) — à corriger dès
- * qu'un accès sandbox réel ou la doc primaire est disponible.
+ * Contrat vérifié contre la documentation officielle Paymee (fournie
+ * directement par l'utilisateur — endpoints, headers, champs de requête et
+ * de réponse ci-dessous) : `POST /api/v2/payments/create`,
+ * `Authorization: Token <api_key>`, `sandbox.paymee.tn` / `app.paymee.tn`,
+ * champs requête (amount, note, first_name, last_name, email, phone,
+ * return_url, cancel_url, webhook_url, order_id optionnel) et réponse
+ * (`status`, `data.token`, `data.payment_url`) — tous confirmés identiques
+ * à l'implémentation déjà en place. Remboursement et vérification de statut
+ * restent non implémentés (aucun endpoint documenté fourni pour ces deux
+ * opérations) — voir refundPayment()/getPaymentStatus() ci-dessous.
  */
 
 import { siteOrigin } from "@/lib/mygo/config"

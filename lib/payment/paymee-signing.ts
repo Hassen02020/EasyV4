@@ -1,30 +1,18 @@
 /**
  * Vérification de signature (`check_sum`) des webhooks Paymee.
  *
- * ⚠️ AVERTISSEMENT — CONTRAT NON VÉRIFIÉ CONTRE LA SOURCE PRIMAIRE ⚠️
- * La documentation officielle Paymee (`https://www.paymee.tn/paymee-
- * integration-with-redirection/`, sandbox `https://sandbox.paymee.tn`,
- * production `https://app.paymee.tn`) est bloquée par la politique réseau
- * de cet environnement de build (curl, WebFetch et un accès direct ont tous
- * les trois échoué avec un rejet de connexion — confirmé, pas supposé).
- * La formule ci-dessous (`md5(token + payment_status("1"/"0") + api_key)`)
- * provient d'un résumé tiers (moteur de recherche, pas la page primaire
- * elle-même) qui cite cette formule comme "officielle" — traitée ici comme
- * un CANDIDAT PLAUSIBLE, PAS une certitude.
+ * Formule confirmée contre la documentation officielle Paymee (fournie
+ * directement par l'utilisateur) : `check_sum = md5(token +
+ * payment_status("1"/"0") + API Token)` — identique à l'implémentation
+ * ci-dessous, plus une certitude un « candidat plausible ».
  *
- * Conséquence de sécurité assumée si cette formule est fausse : le PIRE cas
- * est que de VRAIS webhooks Paymee soient rejetés (échec de disponibilité,
- * visible dans psp_webhooks.error, corrigible en une ligne) — jamais qu'un
- * webhook FORGÉ soit accepté, puisque `verifyPaymeeChecksum` ÉCHOUE fermé
- * (return false) avant toute écriture DB, exactement comme
- * verifyStripeSignature/verifySpsSignature (voir signing.ts). La
- * corrélation stricte montant/référence dans reservation-payment-logic.ts
- * reste par ailleurs une seconde ligne de défense indépendante de ce
- * fichier.
- *
- * À REVALIDER avant toute mise en production réelle : rejouer un vrai
- * webhook sandbox Paymee (ou lire la doc primaire une fois l'accès réseau
- * possible) et comparer le `check_sum` reçu à `computePaymeeChecksum()`.
+ * `verifyPaymeeChecksum` continue d'échouer fermé (return false) si
+ * `payment_status` n'est pas normalisable ou si `check_sum` est absent —
+ * jamais un statut deviné pour pouvoir "quand même" vérifier une signature,
+ * exactement comme verifyStripeSignature/verifySpsSignature (voir
+ * signing.ts). La corrélation stricte montant/référence dans
+ * reservation-payment-logic.ts reste une seconde ligne de défense
+ * indépendante de ce fichier.
  */
 
 import { createHash, timingSafeEqual } from "crypto"

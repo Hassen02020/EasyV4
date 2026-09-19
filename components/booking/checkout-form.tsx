@@ -137,7 +137,11 @@ export function CheckoutForm({ token }: { token: string }) {
     fd.set("paymentMethod", method)
     startTransition(async () => {
       try {
-        await submitCheckoutAction(fd)
+        const result = await submitCheckoutAction(fd)
+        if (result && !result.ok) {
+          setError(result.error)
+          toast.error(result.error)
+        }
       } catch (err) {
         if (err instanceof Error && err.message.includes("NEXT_REDIRECT")) {
           return

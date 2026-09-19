@@ -181,7 +181,9 @@
     "paginationNext": "التالي",
     "paginationPreviousAria": "الصفحة السابقة",
     "paginationNextAria": "الصفحة التالية",
-    "paginationGoToPage": "الانتقال إلى الصفحة {page}"
+    "paginationGoToPage": "الانتقال إلى الصفحة {page}",
+    "nightsCount": "{n, plural, one {ليلة واحدة} two {ليلتان} other {# ليالي}}",
+    "selectDates": "اختر التواريخ"
   },
   "Home": {
     "heroKicker": "حجز فوري · 100% تونس",

@@ -181,7 +181,9 @@
     "paginationNext": "Suivant",
     "paginationPreviousAria": "Page précédente",
     "paginationNextAria": "Page suivante",
-    "paginationGoToPage": "Aller à la page {page}"
+    "paginationGoToPage": "Aller à la page {page}",
+    "nightsCount": "{n, plural, one {# nuit} other {# nuits}}",
+    "selectDates": "Sélectionner les dates"
   },
   "Home": {
     "heroKicker": "Réservation instantanée · 100% Tunisie",

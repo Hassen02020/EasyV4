@@ -21,8 +21,6 @@ import {
 
 import { Button } from "@/components/ui/button"
 
-import { Input } from "@/components/ui/input"
-
 import {
   Select,
   SelectContent,
@@ -49,15 +47,15 @@ import dynamic from "next/dynamic"
 
 import { toast } from "sonner"
 
-import { addDays, differenceInCalendarDays, format } from "date-fns"
-
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 
 import { cn } from "@/lib/utils"
 
 import { FIELD_SHELL, FIELD_INPUT_RESET, FieldLabel } from "@/components/search-field"
 
 import { DestinationAutocomplete } from "@/components/destination-autocomplete"
+import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
+import { todayLocal, addDaysLocal, formatDateIso, isValidStayRange } from "@/lib/hotels/date-utils"
 
 const HotelsTunisieSearch = dynamic(
   () =>
@@ -70,21 +68,6 @@ const HotelsTunisieSearch = dynamic(
     loading: () => <div className="bg-muted h-24 animate-pulse rounded-xl" />,
   },
 )
-
-function iso(d: Date) {
-  return d.toISOString().slice(0, 10)
-}
-
-function futureDate(days: number): string {
-  const d = new Date()
-
-  d.setDate(d.getDate() + days)
-
-  return iso(d)
-}
-
-const TODAY_ISO = iso(new Date())
-const TOMORROW_ISO = futureDate(1)
 
 /**
  * Navigation commerciale (Phase 13, Partie 20) : le périmètre de lancement
@@ -359,18 +342,6 @@ function CounterRow({
   )
 }
 
-/** Nombre de nuits entre deux dates ISO (yyyy-MM-dd), ou `null` si non calculable — formaté (pluriel ICU) au point d'appel via `Home.nightsCount`. */
-function nightsCount(checkIn: string, checkOut: string): number | null {
-  if (!checkIn || !checkOut) return null
-  const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn))
-  return nights > 0 ? nights : null
-}
-
-/** Ajoute `days` jours à une date ISO (yyyy-MM-dd) et retourne une date ISO. */
-function addDaysIso(dateIso: string, days: number): string {
-  return format(addDays(new Date(dateIso), days), "yyyy-MM-dd")
-}
-
 function SearchSubmit({
   children,
 }: {
@@ -399,14 +370,14 @@ function SearchSubmit({
 function HotelsMondeForm() {
   const router = useRouter()
   const t = useTranslations("Home")
+  const locale = useLocale()
   const [destination, setDestination] = useState("")
-  const [checkIn, setCheckIn] = useState(TODAY_ISO)
-  const [checkOut, setCheckOut] = useState(TOMORROW_ISO)
+  const [checkIn, setCheckIn] = useState<Date | null>(todayLocal())
+  const [checkOut, setCheckOut] = useState<Date | null>(addDaysLocal(todayLocal(), 1))
   const [rooms, setRooms] = useState(1)
   const [adults, setAdults] = useState(2)
   const [occupancyOpen, setOccupancyOpen] = useState(false)
 
-  const nights = nightsCount(checkIn, checkOut)
   const occupancySummary = [
     t("roomsCount", { count: rooms }),
     t("adultsCount", { count: adults }),
@@ -422,7 +393,7 @@ function HotelsMondeForm() {
           return
         }
 
-        if (checkOut <= checkIn) {
+        if (!isValidStayRange({ checkIn, checkOut })) {
           toast.error(t("hotelsMondeDateError"))
           return
         }
@@ -433,16 +404,16 @@ function HotelsMondeForm() {
         // perdre la saisie de l'utilisateur en cours de route.
         const params = new URLSearchParams()
         params.set("destination", destination)
-        params.set("checkIn", checkIn)
-        params.set("checkOut", checkOut)
+        params.set("checkIn", formatDateIso(checkIn!))
+        params.set("checkOut", formatDateIso(checkOut!))
         params.set("rooms", String(rooms))
         params.set("adults", String(adults))
         router.push(`/hotels-monde/search?${params.toString()}`)
       }}
       className="space-y-5"
     >
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="sm:col-span-2 lg:col-span-1">
           <DestinationAutocomplete
             module="hotels_monde_slug"
             value={destination}
@@ -451,37 +422,17 @@ function HotelsMondeForm() {
           />
         </div>
 
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>{t("arrivalLabel")}</FieldLabel>
-          <Input
-            type="date"
-            value={checkIn}
-            min={TODAY_ISO}
-            onChange={(e) => {
-              setCheckIn(e.target.value)
-              if (checkOut <= e.target.value) {
-                setCheckOut(addDaysIso(e.target.value, 1))
-              }
-            }}
-            className={FIELD_INPUT_RESET}
-          />
-        </div>
-
-        <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>
-            {t("departureLabel")}
-            {nights ? (
-              <span className="text-primary normal-case"> · {t("nightsCount", { count: nights })}</span>
-            ) : null}
-          </FieldLabel>
-          <Input
-            type="date"
-            value={checkOut}
-            min={checkIn ? addDaysIso(checkIn, 1) : TOMORROW_ISO}
-            onChange={(e) => setCheckOut(e.target.value)}
-            className={FIELD_INPUT_RESET}
-          />
-        </div>
+        <DateRangePicker
+          checkIn={checkIn}
+          checkOut={checkOut}
+          onChange={({ checkIn: nextCheckIn, checkOut: nextCheckOut }) => {
+            setCheckIn(nextCheckIn)
+            setCheckOut(nextCheckOut)
+          }}
+          locale={locale}
+          label={t("arrivalLabel")}
+          className="sm:col-span-2 lg:col-span-1"
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:w-1/2">

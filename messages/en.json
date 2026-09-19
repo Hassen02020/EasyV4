@@ -181,7 +181,9 @@
     "paginationNext": "Next",
     "paginationPreviousAria": "Go to previous page",
     "paginationNextAria": "Go to next page",
-    "paginationGoToPage": "Go to page {page}"
+    "paginationGoToPage": "Go to page {page}",
+    "nightsCount": "{n, plural, one {# night} other {# nights}}",
+    "selectDates": "Select dates"
   },
   "Home": {
     "heroKicker": "Instant booking · 100% Tunisia",

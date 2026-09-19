@@ -4,11 +4,8 @@ import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { useCities } from "@/hooks/use-cities"
-import { addDays, differenceInCalendarDays, format } from "date-fns"
-import { getDateFnsLocale } from "@/lib/i18n-date"
 import {
   MapPin,
-  Calendar,
   Users,
   Star,
   X,
@@ -19,7 +16,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
@@ -36,6 +32,8 @@ import {
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { FIELD_SHELL, FieldLabel } from "@/components/search-field"
+import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
+import { calculateNights, formatDateIso, todayLocal, addDaysLocal } from "@/lib/hotels/date-utils"
 import { splitIntoRooms, encodeRoomsParam } from "@/lib/mygo/room-split"
 
 // ============================================================================
@@ -110,7 +108,6 @@ export function HotelsTunisieSearch({
   const t = useTranslations("Hotels")
   const tCommon = useTranslations("Common")
   const locale = useLocale()
-  const dateFnsLocale = getDateFnsLocale(locale)
 
   // City selection state
   const [selectedCity, setSelectedCity] = useState<City | null>(initialCity)
@@ -118,13 +115,12 @@ export function HotelsTunisieSearch({
 
   // Date selection state — arrivée = aujourd'hui, départ = demain (1 nuit
   // minimum) par défaut, standard OTA plutôt que des champs vides.
-  const [checkinDate, setCheckinDate] = useState<Date | undefined>(
-    initialCheckin ?? new Date(),
+  const [checkinDate, setCheckinDate] = useState<Date | null>(
+    initialCheckin ?? todayLocal(),
   )
-  const [checkoutDate, setCheckoutDate] = useState<Date | undefined>(
-    initialCheckout ?? addDays(new Date(), 1),
+  const [checkoutDate, setCheckoutDate] = useState<Date | null>(
+    initialCheckout ?? addDaysLocal(todayLocal(), 1),
   )
-  const [datePopoverOpen, setDatePopoverOpen] = useState(false)
 
   // Pax state
   const [rooms, setRooms] = useState(initialRooms)
@@ -157,8 +153,8 @@ export function HotelsTunisieSearch({
     return {
       CityId: selectedCity.id,
       BookingDetails: {
-        Checkin: format(checkinDate, "yyyy-MM-dd"),
-        Checkout: format(checkoutDate, "yyyy-MM-dd"),
+        Checkin: formatDateIso(checkinDate),
+        Checkout: formatDateIso(checkoutDate),
       },
       Pax: {
         Adult: adults,
@@ -213,10 +209,7 @@ export function HotelsTunisieSearch({
     router.push(`/hotels/search?${params.toString()}`)
   }
 
-  const nightsCount =
-    checkinDate && checkoutDate
-      ? differenceInCalendarDays(checkoutDate, checkinDate)
-      : 0
+  const nightsCount = calculateNights(checkinDate, checkoutDate)
 
   const isFormValid =
     selectedCity && checkinDate && checkoutDate && nightsCount >= 1
@@ -252,18 +245,6 @@ export function HotelsTunisieSearch({
       setSelectedStars([...selectedStars, star].sort((a, b) => b - a))
     }
   }
-
-  // Date range display — inclut le nombre de nuitées ("3 nuits").
-  const dateRangeDisplay = useMemo(() => {
-    if (checkinDate && checkoutDate) {
-      const nights = nightsCount > 0 ? ` · ${t("nightsCount", { n: nightsCount })}` : ""
-      return `${format(checkinDate, "dd MMM", { locale: dateFnsLocale })} - ${format(checkoutDate, "dd MMM yyyy", { locale: dateFnsLocale })}${nights}`
-    }
-    if (checkinDate) {
-      return `${format(checkinDate, "dd MMM yyyy", { locale: dateFnsLocale })} - ...`
-    }
-    return t("selectDates")
-  }, [checkinDate, checkoutDate, nightsCount, t, dateFnsLocale])
 
   // Pax display
   const paxDisplay = useMemo(() => {
@@ -358,66 +339,16 @@ export function HotelsTunisieSearch({
 
         {/* Date Range Picker */}
         <div className="min-w-0 flex-1">
-          <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                role="combobox"
-                aria-label={t("stayDates")}
-                aria-expanded={datePopoverOpen}
-                aria-controls="hotel-search-dates-panel"
-                className={FIELD_SHELL}
-              >
-                <FieldLabel icon={Calendar}>{t("stayDates")}</FieldLabel>
-                <span
-                  className={cn(
-                    !checkinDate && "text-muted-foreground font-normal",
-                    "truncate text-sm font-semibold",
-                  )}
-                >
-                  {dateRangeDisplay}
-                </span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent id="hotel-search-dates-panel" className="w-auto p-0" align="start">
-              <div className="border-b p-3">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex-1">
-                    <p className="text-muted-foreground text-xs">{tCommon("checkIn")}</p>
-                    <p className="font-medium">
-                      {checkinDate ? format(checkinDate, "dd/MM/yyyy") : "—"}
-                    </p>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-muted-foreground text-xs">{tCommon("checkOut")}</p>
-                    <p className="font-medium">
-                      {checkoutDate ? format(checkoutDate, "dd/MM/yyyy") : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <CalendarComponent
-                mode="range"
-                selected={
-                  checkinDate && checkoutDate
-                    ? { from: checkinDate, to: checkoutDate }
-                    : checkinDate
-                      ? { from: checkinDate, to: undefined }
-                      : undefined
-                }
-                onSelect={(range) => {
-                  setCheckinDate(range?.from)
-                  setCheckoutDate(range?.to)
-                  if (range?.from && range?.to) {
-                    setDatePopoverOpen(false)
-                  }
-                }}
-                numberOfMonths={2}
-                disabled={{ before: new Date() }}
-                locale={dateFnsLocale}
-              />
-            </PopoverContent>
-          </Popover>
+          <DateRangePicker
+            checkIn={checkinDate}
+            checkOut={checkoutDate}
+            onChange={({ checkIn, checkOut }) => {
+              setCheckinDate(checkIn)
+              setCheckoutDate(checkOut)
+            }}
+            locale={locale}
+            label={t("stayDates")}
+          />
         </div>
 
         {/* Pax Selector */}

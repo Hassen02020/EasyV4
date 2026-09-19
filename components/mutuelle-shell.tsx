@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator"
 
 const NAV_ITEMS = [
   { href: "/mutuelle", label: "Dashboard", icon: HeartHandshake, disabled: false },
-  { href: "/mutuelle/dossiers", label: "Dossiers Assurés", icon: Users, disabled: true },
+  { href: "/mutuelle/dossiers", label: "Dossiers Assurés", icon: Users, disabled: false },
   { href: "/mutuelle/factures", label: "Factures", icon: FileText, disabled: true },
   { href: "/mutuelle/parametres", label: "Paramètres", icon: Settings, disabled: true },
 ]

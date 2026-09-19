@@ -325,6 +325,53 @@ export const users = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* Mutuelle — demandes membres (chantier "fondation cycle demande→validation",*/
+/* voir drizzle/manual/0062_mutuelle_requests.sql). Portée volontairement     */
+/* minimale : pas de catalogue restreint (description libre), pas            */
+/* d'application du markup, pas de transmission automatique vers une vraie   */
+/* réservation — chantiers suivants explicites.                              */
+/* -------------------------------------------------------------------------- */
+
+export const mutuelleRequestStatus = pgEnum("mutuelle_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+])
+
+export const mutuelleRequests = pgTable(
+  "mutuelle_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => mutuelleGroups.id, { onDelete: "restrict" }),
+    memberUserId: uuid("member_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    /** Réutilise l'enum reservation_module existant — aucun catalogue restreint n'existe encore, ce champ reste une indication libre du besoin. */
+    module: reservationModule("module").notNull(),
+    description: text("description").notNull(),
+    travelStartDate: date("travel_start_date").notNull(),
+    travelEndDate: date("travel_end_date").notNull(),
+    paxCount: integer("pax_count").notNull().default(1),
+    status: mutuelleRequestStatus("status").notNull().default("pending"),
+    directorNote: text("director_note"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("mutuelle_requests_group_idx").on(t.groupId),
+    index("mutuelle_requests_member_idx").on(t.memberUserId),
+    index("mutuelle_requests_status_idx").on(t.status),
+  ],
+)
+
+export type MutuelleRequest = typeof mutuelleRequests.$inferSelect
+export type NewMutuelleRequest = typeof mutuelleRequests.$inferInsert
+
+/* -------------------------------------------------------------------------- */
 /* Customers (clients finaux)                                                 */
 /* -------------------------------------------------------------------------- */
 

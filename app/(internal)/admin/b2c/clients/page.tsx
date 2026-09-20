@@ -56,6 +56,7 @@ async function loadClients(agencyId: string) {
           db
             .select({
               id: customers.id,
+              civility: customers.civility,
               firstName: customers.firstName,
               lastName: customers.lastName,
               email: customers.email,
@@ -271,7 +272,17 @@ export default async function B2CClientsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <B2cClientRowActions
-                          displayName={`${client.firstName} ${client.lastName}`}
+                          client={{
+                            id: client.id,
+                            civility: (client.civility as "M" | "Mme" | "Mlle" | null) ?? null,
+                            firstName: client.firstName,
+                            lastName: client.lastName,
+                            email: client.email,
+                            phone: client.phone,
+                            civicId: client.civicId,
+                            city: client.city,
+                            country: client.country,
+                          }}
                         />
                       </TableCell>
                     </TableRow>

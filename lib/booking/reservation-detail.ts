@@ -18,10 +18,13 @@ import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   agencies,
   auditEvents,
+  carCategories,
+  carLocations,
   customers,
   partnerInvoices,
   payments,
   reservationActivity,
+  reservationCar,
   reservationFlight,
   reservationHotel,
   reservationOmra,
@@ -202,6 +205,32 @@ async function loadModuleDetail(
         startDate: null,
         endDate: null,
         providerBookingId: null,
+      }
+    }
+    case "car": {
+      const rows = await tx
+        .select({
+          categoryName: carCategories.name,
+          pickupLocationName: carLocations.name,
+          pickupAt: reservationCar.pickupAt,
+          dropoffAt: reservationCar.dropoffAt,
+          providerBookingId: reservationCar.providerBookingId,
+        })
+        .from(reservationCar)
+        .innerJoin(carCategories, eq(carCategories.id, reservationCar.categoryId))
+        .innerJoin(carLocations, eq(carLocations.id, reservationCar.pickupLocationId))
+        .where(eq(reservationCar.reservationId, reservationId))
+      const row = rows[0] as
+        | { categoryName: string; pickupLocationName: string; pickupAt: Date | string; dropoffAt: Date | string; providerBookingId: string | null }
+        | undefined
+      if (!row) return null
+      const pickupIso = row.pickupAt instanceof Date ? row.pickupAt.toISOString() : String(row.pickupAt)
+      const dropoffIso = row.dropoffAt instanceof Date ? row.dropoffAt.toISOString() : String(row.dropoffAt)
+      return {
+        supplierLabel: `${row.categoryName} — ${row.pickupLocationName}`,
+        startDate: pickupIso,
+        endDate: dropoffIso,
+        providerBookingId: row.providerBookingId,
       }
     }
     default:

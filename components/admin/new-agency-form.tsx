@@ -37,7 +37,6 @@ export function NewAgencyForm() {
       }
       toast.success(`Agence "${name}" créée.`)
       router.push("/admin/agencies")
-      router.refresh()
     })
   }
 

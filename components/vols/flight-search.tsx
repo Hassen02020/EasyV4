@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
-import { Plane, Calendar, Users, ArrowRight, ArrowLeftRight, Loader2 } from "lucide-react"
+import { Plane, Calendar, Users, ArrowLeftRight, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 import { AIRPORTS, parseAirportInput, parseCabin, type CabinClass } from "@/lib/vols/search-state"
 
@@ -46,8 +45,14 @@ export function FlightSearch({
     { value: "BUSINESS", label: t("cabinBusiness") },
     { value: "FIRST", label: t("cabinFirst") },
   ]
+  // Aller-retour désactivé temporairement : le fournisseur virtuel
+  // (lib/vols/virtual-supplier/catalog.ts) ne génère jamais de segment
+  // retour — reservation_flight.returnOrigin/returnDepartAt restent
+  // toujours null (voir lib/vols/guest-booking-actions.ts). Ne jamais
+  // laisser l'UI proposer un choix qu'elle ne peut pas honorer ; à
+  // réactiver une fois un vrai aller-retour implémenté (fournisseur
+  // virtuel étendu, ou intégration Amadeus/Sabre réelle).
   const [isPending, startTransition] = useTransition()
-  const [tripType, setTripType] = useState<"oneway" | "roundtrip">("roundtrip")
   const [origin, setOrigin] = useState(
     () => matchAirportCode(initialOrigin) || "TUN",
   )
@@ -55,7 +60,6 @@ export function FlightSearch({
     matchAirportCode(initialDestination),
   )
   const [departureDate, setDepartureDate] = useState("")
-  const [returnDate, setReturnDate] = useState("")
   const [adults, setAdults] = useState(() =>
     initialAdults && /^[1-9][0-9]?$/.test(initialAdults) ? initialAdults : "1",
   )
@@ -81,10 +85,6 @@ export function FlightSearch({
       toast.error(t("toastSelectDepartureDate"))
       return
     }
-    if (tripType === "roundtrip" && !returnDate) {
-      toast.error(t("toastSelectReturnDate"))
-      return
-    }
 
     const params = new URLSearchParams({
       origin,
@@ -94,9 +94,6 @@ export function FlightSearch({
       children,
       cabin,
     })
-    if (tripType === "roundtrip" && returnDate) {
-      params.set("returnDate", returnDate)
-    }
 
     startTransition(() => {
       router.push(`/vols/search?${params.toString()}`)
@@ -107,23 +104,6 @@ export function FlightSearch({
 
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-sm">
-      <Tabs
-        value={tripType}
-        onValueChange={(v) => setTripType(v as "oneway" | "roundtrip")}
-        className="mb-6"
-      >
-        <TabsList>
-          <TabsTrigger value="roundtrip" className="gap-1.5">
-            <ArrowLeftRight className="h-3.5 w-3.5" />
-            {t("roundTrip")}
-          </TabsTrigger>
-          <TabsTrigger value="oneway" className="gap-1.5">
-            <ArrowRight className="h-3.5 w-3.5" />
-            {t("oneWay")}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <DestinationAutocomplete
@@ -164,21 +144,6 @@ export function FlightSearch({
             onChange={(e) => setDepartureDate(e.target.value)}
           />
         </div>
-
-        {tripType === "roundtrip" && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-sm">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              {t("returnDateLabel")}
-            </Label>
-            <Input
-              type="date"
-              value={returnDate}
-              min={departureDate || today}
-              onChange={(e) => setReturnDate(e.target.value)}
-            />
-          </div>
-        )}
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">

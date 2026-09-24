@@ -44,6 +44,10 @@ export type FulfillResult =
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+// G12: retry config — 1 initial attempt + up to 3 retries, doubling each time.
+const AUDIT_MAX_ATTEMPTS = 4
+const AUDIT_RETRY_BASE_MS = 50
+
 async function logTransaction(
   bookingId: string | null,
   snapshotId: string | null,
@@ -54,21 +58,44 @@ async function logTransaction(
   response: unknown,
   durationMs: number,
 ): Promise<void> {
-  try {
-    await withSystemContext((tx) =>
-      tx.insert(flightSupplierTransactions).values({
-        bookingId: bookingId ?? undefined,
-        snapshotId: snapshotId ?? undefined,
-        provider,
-        transactionType,
-        status,
-        request: request as Record<string, unknown>,
-        response: response as Record<string, unknown>,
-        durationMs,
-      }),
-    )
-  } catch {
-    // Non-fatal — audit log failure must never abort the booking.
+  for (let attempt = 1; attempt <= AUDIT_MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt > 1) {
+        // Exponential backoff: 50ms, 100ms, 200ms
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, AUDIT_RETRY_BASE_MS * 2 ** (attempt - 2)),
+        )
+      }
+      await withSystemContext((tx) =>
+        tx.insert(flightSupplierTransactions).values({
+          bookingId: bookingId ?? undefined,
+          snapshotId: snapshotId ?? undefined,
+          provider,
+          transactionType,
+          status,
+          request: request as Record<string, unknown>,
+          response: response as Record<string, unknown>,
+          durationMs,
+        }),
+      )
+      return
+    } catch (err) {
+      if (attempt < AUDIT_MAX_ATTEMPTS) continue
+      // All retries exhausted — emit structured log for aggregator pickup.
+      // Never throw: audit failure must never abort the booking.
+      console.error(
+        JSON.stringify({
+          tag: "AUDIT_FAILURE",
+          bookingId,
+          provider,
+          transactionType,
+          status,
+          durationMs,
+          error: String(err),
+          ts: new Date().toISOString(),
+        }),
+      )
+    }
   }
 }
 

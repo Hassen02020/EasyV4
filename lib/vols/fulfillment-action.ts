@@ -29,7 +29,7 @@ import {
 } from "@/lib/db/schema/flights"
 import { updateFlightStatus } from "./flight-status-sync"
 import { getDefaultAdapters } from "./orchestrator"
-import { sendEvent } from "@/lib/inngest/client"
+import { inngest, type Events } from "@/lib/inngest/client"
 import type { CanonicalItinerary } from "./canonical"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
@@ -91,6 +91,58 @@ async function logTransaction(
           transactionType,
           status,
           durationMs,
+          error: String(err),
+          ts: new Date().toISOString(),
+        }),
+      )
+    }
+  }
+}
+
+// G13: reliable event dispatch — retry + idempotency key + structured fallback.
+// The idempotency key (`flight.confirmed:<bookingId>`) means Inngest deduplicates
+// duplicate sends (admin retry, concurrent calls) within its dedup window.
+const INNGEST_MAX_ATTEMPTS = 3
+const INNGEST_RETRY_BASE_MS = 100
+
+async function dispatchFlightConfirmed(
+  bookingId: string,
+  customerEmail: string,
+  payload: Events["booking/flight.confirmed"]["data"],
+): Promise<void> {
+  if (!customerEmail) {
+    console.warn(
+      JSON.stringify({
+        tag: "INNGEST_DISPATCH_SKIPPED",
+        bookingId,
+        event: "booking/flight.confirmed",
+        reason: "no customer email",
+        ts: new Date().toISOString(),
+      }),
+    )
+    return
+  }
+
+  const eventId = `flight.confirmed:${bookingId}`
+
+  for (let attempt = 1; attempt <= INNGEST_MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt > 1) {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, INNGEST_RETRY_BASE_MS * 2 ** (attempt - 2)),
+        )
+      }
+      await inngest.send({ id: eventId, name: "booking/flight.confirmed", data: payload })
+      return
+    } catch (err) {
+      if (attempt < INNGEST_MAX_ATTEMPTS) continue
+      // All retries exhausted — emit structured log with full payload for manual replay.
+      console.error(
+        JSON.stringify({
+          tag: "INNGEST_DISPATCH_FAILURE",
+          bookingId,
+          event: "booking/flight.confirmed",
+          payload,
           error: String(err),
           ts: new Date().toISOString(),
         }),
@@ -477,25 +529,21 @@ export async function fulfillFlightBooking(
   const adults = itinerary.fares?.find((f) => f.passengerType === "ADT")?.count ?? 1
   const children = itinerary.fares?.find((f) => f.passengerType === "CHD")?.count ?? 0
 
-  if (customerEmail) {
-    await sendEvent("booking/flight.confirmed", {
-      reservationId,
-      publicRef: res.publicRef,
-      agencyId: claimed.agencyId,
-      customerEmail,
-      customerName,
-      origin: firstSeg?.origin ?? firstJourney?.origin ?? "",
-      destination: firstSeg?.destination ?? firstJourney?.destination ?? "",
-      departureAt: firstSeg?.departure ?? "",
-      carrier: firstSeg?.marketingCarrier ?? "",
-      flightNumber: firstSeg?.marketingFlightNumber ?? "",
-      adults,
-      children,
-      totalTnd: Number(snapshot.sellingAmount),
-    }).catch((err) =>
-      console.error("[fulfillFlightBooking] Inngest sendEvent failed:", err),
-    )
-  }
+  await dispatchFlightConfirmed(bookingId, customerEmail, {
+    reservationId,
+    publicRef: res.publicRef,
+    agencyId: claimed.agencyId,
+    customerEmail,
+    customerName,
+    origin: firstSeg?.origin ?? firstJourney?.origin ?? "",
+    destination: firstSeg?.destination ?? firstJourney?.destination ?? "",
+    departureAt: firstSeg?.departure ?? "",
+    carrier: firstSeg?.marketingCarrier ?? "",
+    flightNumber: firstSeg?.marketingFlightNumber ?? "",
+    adults,
+    children,
+    totalTnd: Number(snapshot.sellingAmount),
+  })
 
   return { ok: true, pnr: activePnr, publicRef: res.publicRef, bookingId }
 }

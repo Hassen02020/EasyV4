@@ -1,11 +1,12 @@
 "use client"
 
 /**
- * PassengerBookingForm — Phase 7 passenger collection.
+ * PassengerBookingForm — passenger collection + ancillary selection.
  *
  * Consumes a snapshotId (opaque UUID). The selling price is fetched
  * server-side via the snapshot; the client never receives the supplier price.
- * The server action createFlightBookingRequest does all validation.
+ * G7: ancillaries are listed for selection; only ancillaryIds are sent to the
+ * server — the server resolves price from the snapshot itinerary.
  */
 
 import { useState } from "react"
@@ -16,8 +17,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, User, Plane, Clock } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Loader2, User, Plane, Clock, ShoppingBag } from "lucide-react"
 import { createFlightBookingRequest } from "@/lib/vols/booking-request-action"
+import type { Ancillary } from "@/lib/vols/canonical"
 
 export interface PassengerBookingFormProps {
   snapshotId: string
@@ -29,6 +32,8 @@ export interface PassengerBookingFormProps {
   routeDisplay: string
   departureDisplay: string
   slaMinutes?: number
+  /** G7: ancillary catalog from the offer (prices are authoritative server-side). */
+  availableAncillaries?: Ancillary[]
 }
 
 interface PassengerFields {
@@ -55,6 +60,16 @@ function emptyContact(): ContactFields {
   return { email: "", phone: "", firstName: "", lastName: "" }
 }
 
+const ANCILLARY_TYPE_LABELS: Record<string, string> = {
+  BAGGAGE: "Bagages",
+  SEAT: "Siège",
+  MEAL: "Repas",
+  LOUNGE: "Salon",
+  INSURANCE: "Assurance",
+  PRIORITY: "Prioritaire",
+  OTHER: "Autre",
+}
+
 export function PassengerBookingForm({
   snapshotId,
   passengerCount,
@@ -62,6 +77,7 @@ export function PassengerBookingForm({
   sellingCurrency,
   routeDisplay,
   departureDisplay,
+  availableAncillaries = [],
 }: PassengerBookingFormProps) {
   const router = useRouter()
   const t = useTranslations("Vols")
@@ -71,9 +87,20 @@ export function PassengerBookingForm({
     Array.from({ length: Math.max(1, passengerCount) }, emptyPassenger),
   )
   const [contact, setContact] = useState<ContactFields>(emptyContact)
+  // G7: set of selected ancillaryIds
+  const [selectedAncillaryIds, setSelectedAncillaryIds] = useState<Set<string>>(new Set())
 
   function updatePassenger(i: number, field: keyof PassengerFields, value: string) {
     setPassengers((prev) => prev.map((p, j) => (j === i ? { ...p, [field]: value } : p)))
+  }
+
+  function toggleAncillary(ancillaryId: string) {
+    setSelectedAncillaryIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(ancillaryId)) next.delete(ancillaryId)
+      else next.add(ancillaryId)
+      return next
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -98,6 +125,10 @@ export function PassengerBookingForm({
           firstName: contact.firstName,
           lastName: contact.lastName,
         },
+        // G7: only identifiers — no price from the browser
+        ancillaries: selectedAncillaryIds.size > 0
+          ? Array.from(selectedAncillaryIds).map((ancillaryId) => ({ ancillaryId }))
+          : undefined,
       })
       if (!result.ok) {
         setError(result.error)
@@ -229,6 +260,50 @@ export function PassengerBookingForm({
           </CardContent>
         </Card>
       ))}
+
+      {/* G7 — Ancillary selection */}
+      {availableAncillaries.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShoppingBag className="h-4 w-4 text-sky-700" />
+              Services supplémentaires
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {availableAncillaries.map((anc) => {
+              const checked = selectedAncillaryIds.has(anc.ancillaryId)
+              const typeLabel = ANCILLARY_TYPE_LABELS[anc.type] ?? anc.type
+              return (
+                <div
+                  key={anc.ancillaryId}
+                  className="flex items-start gap-3 rounded-md border p-3 transition-colors data-[checked=true]:border-sky-300 data-[checked=true]:bg-sky-50 dark:data-[checked=true]:border-sky-700 dark:data-[checked=true]:bg-sky-950/30"
+                  data-checked={checked}
+                >
+                  <Checkbox
+                    id={`anc-${anc.ancillaryId}`}
+                    checked={checked}
+                    onCheckedChange={() => toggleAncillary(anc.ancillaryId)}
+                    className="mt-0.5"
+                  />
+                  <label
+                    htmlFor={`anc-${anc.ancillaryId}`}
+                    className="flex flex-1 cursor-pointer items-start justify-between gap-2"
+                  >
+                    <span className="space-y-0.5">
+                      <span className="block text-sm font-medium">{anc.description}</span>
+                      <span className="text-muted-foreground block text-xs">{typeLabel}</span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold text-sky-700">
+                      +{anc.amount.toLocaleString("fr-TN", { minimumFractionDigits: 3 })} {anc.currency}
+                    </span>
+                  </label>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Alert variant="destructive">

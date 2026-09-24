@@ -15,7 +15,7 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { PassengerBookingForm } from "@/components/flights/passenger-booking-form"
 import { getPriceSnapshot } from "@/lib/vols/price-snapshot"
-import type { CanonicalItinerary } from "@/lib/vols/canonical"
+import type { CanonicalItinerary, Ancillary } from "@/lib/vols/canonical"
 
 interface Props {
   searchParams: Promise<{ snapshotId?: string }>
@@ -55,6 +55,8 @@ async function PassengersContent({ snapshotId }: { snapshotId: string }) {
 
   // Passenger count from adults + children metadata in itinerary (fallback to 1)
   const passengerCount = (itinerary as unknown as { adults?: number; children?: number }).adults ?? 1
+  // G7: available ancillaries for this offer (prices are server-side, client only sends ids)
+  const availableAncillaries: Ancillary[] = itinerary.ancillaries ?? []
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
@@ -68,6 +70,7 @@ async function PassengersContent({ snapshotId }: { snapshotId: string }) {
         sellingCurrency={snapshot.sellingCurrency}
         routeDisplay={routeDisplay}
         departureDisplay={departureDisplay}
+        availableAncillaries={availableAncillaries}
       />
     </main>
   )

@@ -167,6 +167,8 @@ export async function GET(req: NextRequest) {
           fareBrands: itinerary.fareBrands,
           availableSeats: itinerary.availableSeats,
           provider: itinerary.provider.provider,
+          // G7: ancillary catalog for this offer — client sends back only ancillaryIds
+          ancillaries: itinerary.ancillaries ?? [],
         }
       } catch (err) {
         console.error("[vols/search] Failed to create snapshot:", err)

@@ -130,7 +130,7 @@ export interface CanonicalFareRules {
 
 export interface Ancillary {
   ancillaryId: string
-  type: "BAGGAGE" | "SEAT" | "MEAL" | "LOUNGE" | "INSURANCE"
+  type: "BAGGAGE" | "SEAT" | "MEAL" | "LOUNGE" | "INSURANCE" | "PRIORITY" | "OTHER"
   description: string
   amount: number
   currency: string

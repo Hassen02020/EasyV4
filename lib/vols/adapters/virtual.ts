@@ -12,6 +12,7 @@ import type {
   CanonicalItinerary,
   CanonicalSegment,
   Journey,
+  Ancillary,
 } from "../canonical"
 import { computeLayovers } from "../canonical"
 import { search as virtualSearch } from "@/lib/vols/virtual-supplier/engine"
@@ -80,6 +81,72 @@ function buildJourney(segments: CanonicalSegment[]): Journey {
     segments,
     layovers: computeLayovers(segments),
   }
+}
+
+/**
+ * Returns a deterministic set of purchasable ancillaries for virtual offers.
+ * Prices are fixed demo values; the authoritative amount lives here (server-side),
+ * never in the browser.
+ */
+function buildVirtualAncillaries(offerId: string, includedBaggageKg: number): Ancillary[] {
+  const seed = offerId.charCodeAt(0) % 3
+  const ancillaries: Ancillary[] = []
+
+  // Extra baggage (only when included allowance < 23 kg)
+  if (includedBaggageKg < 23) {
+    ancillaries.push({
+      ancillaryId: `${offerId}-BAG23`,
+      type: "BAGGAGE",
+      description: "Bagage en soute 23 kg",
+      amount: 35,
+      currency: "TND",
+    })
+    ancillaries.push({
+      ancillaryId: `${offerId}-BAG32`,
+      type: "BAGGAGE",
+      description: "Bagage en soute 32 kg",
+      amount: 55,
+      currency: "TND",
+    })
+  }
+
+  // Seat selection (window seats at a premium)
+  ancillaries.push({
+    ancillaryId: `${offerId}-SEAT-WIN`,
+    type: "SEAT",
+    description: "Siège hublot",
+    amount: 15,
+    currency: "TND",
+  })
+  if (seed > 0) {
+    ancillaries.push({
+      ancillaryId: `${offerId}-SEAT-LEG`,
+      type: "SEAT",
+      description: "Siège avec espace jambes supplémentaire",
+      amount: 25,
+      currency: "TND",
+    })
+  }
+
+  // Meal
+  ancillaries.push({
+    ancillaryId: `${offerId}-MEAL-VEG`,
+    type: "MEAL",
+    description: "Repas végétarien",
+    amount: 12,
+    currency: "TND",
+  })
+
+  // Priority boarding
+  ancillaries.push({
+    ancillaryId: `${offerId}-PRIO`,
+    type: "PRIORITY",
+    description: "Embarquement prioritaire",
+    amount: 10,
+    currency: "TND",
+  })
+
+  return ancillaries
 }
 
 export function createVirtualGdsAdapter(): GdsAdapter {
@@ -180,6 +247,7 @@ export function createVirtualGdsAdapter(): GdsAdapter {
           supplierTotalAmount: totalPriceTnd,
           supplierCurrency: "TND",
           availableSeats: offer.availableSeats,
+          ancillaries: buildVirtualAncillaries(offer.offerId, offer.baggageKg ?? 0),
         }
       })
 

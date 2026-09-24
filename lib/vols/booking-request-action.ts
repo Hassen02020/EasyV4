@@ -49,12 +49,13 @@ const contactSchema = z.object({
   lastName: z.string().min(1),
 })
 
-const ancillarySchema = z.object({
-  ancillaryType: z.enum(["BAGGAGE", "SEAT", "MEAL", "LOUNGE", "INSURANCE"]),
-  description: z.string().max(256).optional(),
-  amount: z.number().nonnegative(),
-  currency: z.string().length(3).default("TND"),
-  segmentRefs: z.array(z.number().int().positive()).optional(),
+/**
+ * G7: client sends only the ancillaryId (opaque provider reference).
+ * Amount and currency are resolved server-side from the snapshot itinerary.
+ * The browser never controls price.
+ */
+const ancillarySelectionSchema = z.object({
+  ancillaryId: z.string().min(1).max(128),
   passengerRef: z.number().int().positive().optional(),
 })
 
@@ -64,8 +65,8 @@ const flightBookingRequestSchema = z.object({
   contact: contactSchema,
   /** G5: link to an existing FlightOrder (multi-PNR). */
   orderId: z.string().uuid().optional(),
-  /** G7: ancillary services selected during checkout. */
-  ancillaries: z.array(ancillarySchema).max(20).optional(),
+  /** G7: ancillary selections — identifiers only, price resolved server-side. */
+  ancillaries: z.array(ancillarySelectionSchema).max(20).optional(),
 })
 
 export type FlightBookingRequestInput = z.infer<typeof flightBookingRequestSchema>
@@ -250,19 +251,27 @@ export async function createFlightBookingRequest(
       }
 
       // ── 7. Insert ancillaries (G7) ────────────────────────────────────────
+      // Price is resolved from the snapshot itinerary — never from the client.
       if (ancillaries && ancillaries.length > 0) {
-        await tx.insert(flightAncillaries).values(
-          ancillaries.map((a) => ({
+        const catalog = itinerary.ancillaries ?? []
+        const resolved = ancillaries.flatMap((sel) => {
+          const canonical = catalog.find((c) => c.ancillaryId === sel.ancillaryId)
+          if (!canonical) return [] // unknown ancillaryId — silently skip
+          return [{
             bookingId,
-            ancillaryType: a.ancillaryType,
-            description: a.description ?? null,
-            amount: String(a.amount),
-            currency: a.currency,
-            segmentRefs: a.segmentRefs ?? null,
-            passengerRef: a.passengerRef ?? null,
+            ancillaryType: canonical.type,
+            description: canonical.description,
+            amount: String(canonical.amount),
+            currency: canonical.currency,
+            segmentRefs: canonical.segmentRefs ?? null,
+            passengerRef: sel.passengerRef ?? canonical.passengerRef ?? null,
             status: "PENDING",
-          })),
-        )
+            providerAncillaryId: canonical.ancillaryId,
+          }]
+        })
+        if (resolved.length > 0) {
+          await tx.insert(flightAncillaries).values(resolved)
+        }
       }
 
       return { bookingId, reservationId, publicRef, guestAccessToken }

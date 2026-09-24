@@ -599,7 +599,10 @@
     "sortPriceAsc": "Prix croissant",
     "sortPriceDesc": "Prix décroissant",
     "sortBestDeal": "Meilleur rapport qualité/prix",
-    "sortResultsAria": "Trier les résultats"
+    "sortResultsAria": "Trier les résultats",
+    "kicker": "Hôtels Tunisie",
+    "heroTitle": "Hôtels en Tunisie au meilleur prix",
+    "heroSubtitle": "Comparez les offres de centaines d'hôtels tunisiens. Réservez en quelques clics avec annulation gratuite."
   },
   "HotelsMonde": {
     "kicker": "Hôtels Monde",

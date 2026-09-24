@@ -599,7 +599,10 @@
     "sortPriceAsc": "السعر: من الأقل إلى الأعلى",
     "sortPriceDesc": "السعر: من الأعلى إلى الأقل",
     "sortBestDeal": "أفضل قيمة",
-    "sortResultsAria": "ترتيب النتائج"
+    "sortResultsAria": "ترتيب النتائج",
+    "kicker": "فنادق تونس",
+    "heroTitle": "فنادق في تونس بأفضل الأسعار",
+    "heroSubtitle": "قارن عروض مئات الفنادق التونسية. احجز بنقرات قليلة مع إلغاء مجاني."
   },
   "HotelsMonde": {
     "kicker": "فنادق العالم",

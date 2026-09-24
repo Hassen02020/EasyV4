@@ -599,7 +599,10 @@
     "sortPriceAsc": "Price: low to high",
     "sortPriceDesc": "Price: high to low",
     "sortBestDeal": "Best value",
-    "sortResultsAria": "Sort results"
+    "sortResultsAria": "Sort results",
+    "kicker": "Hotels Tunisia",
+    "heroTitle": "Hotels in Tunisia at the best price",
+    "heroSubtitle": "Compare offers from hundreds of Tunisian hotels. Book in a few clicks with free cancellation."
   },
   "HotelsMonde": {
     "kicker": "World Hotels",

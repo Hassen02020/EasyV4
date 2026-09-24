@@ -82,7 +82,7 @@ function getEnvFallbackRules(channel: DistributionChannel): CommercialRules {
 // Product scope matching
 // ---------------------------------------------------------------------------
 
-type ProductScope = {
+export type ProductScope = {
   cabin?: string
   provider?: string
   origin?: string
@@ -90,7 +90,8 @@ type ProductScope = {
   airline?: string
 } | null
 
-function matchesProductScope(scope: ProductScope, hints: ProductHints): boolean {
+/** Exported for unit testing. Pure — no I/O. */
+export function matchesProductScope(scope: ProductScope, hints: ProductHints): boolean {
   if (!scope) return true // NULL scope = matches all
   if (scope.cabin && hints.cabin && scope.cabin !== hints.cabin) return false
   if (scope.provider && hints.provider && scope.provider !== hints.provider) return false
@@ -185,6 +186,35 @@ export async function getCommercialRules(
 }
 
 /**
+ * Pure arithmetic: apply a resolved CommercialRules object to a supplier price.
+ * Exported for unit testing — no I/O, no DB.
+ */
+export function computeCommercialResult(
+  supplierAmount: number,
+  supplierCurrency: string,
+  rules: CommercialRules,
+): CommercialResult {
+  const fee = Math.round(rules.fixedFee * 1000) / 1000
+  let markup = Math.round(supplierAmount * rules.markupRate * 1000) / 1000
+
+  if (rules.minMarkup !== undefined && markup < rules.minMarkup) {
+    markup = Math.round(rules.minMarkup * 1000) / 1000
+  }
+  if (rules.maxMarkup !== undefined && markup > rules.maxMarkup) {
+    markup = Math.round(rules.maxMarkup * 1000) / 1000
+  }
+
+  return {
+    supplierAmount,
+    supplierCurrency,
+    fee,
+    markup,
+    sellingAmount: Math.round((supplierAmount + fee + markup) * 1000) / 1000,
+    sellingCurrency: rules.currency,
+  }
+}
+
+/**
  * Apply commercial rules to a supplier price.
  * All amounts are rounded to 3 decimal places (TND standard).
  */
@@ -196,26 +226,5 @@ export async function applyCommercialEngine(
   hints: ProductHints = {},
 ): Promise<CommercialResult> {
   const rules = await getCommercialRules(agencyId, channel, hints)
-
-  const fee = Math.round(rules.fixedFee * 1000) / 1000
-  let markup = Math.round(supplierAmount * rules.markupRate * 1000) / 1000
-
-  // Apply min/max markup constraints
-  if (rules.minMarkup !== undefined && markup < rules.minMarkup) {
-    markup = Math.round(rules.minMarkup * 1000) / 1000
-  }
-  if (rules.maxMarkup !== undefined && markup > rules.maxMarkup) {
-    markup = Math.round(rules.maxMarkup * 1000) / 1000
-  }
-
-  const sellingAmount = Math.round((supplierAmount + fee + markup) * 1000) / 1000
-
-  return {
-    supplierAmount,
-    supplierCurrency,
-    fee,
-    markup,
-    sellingAmount,
-    sellingCurrency: rules.currency,
-  }
+  return computeCommercialResult(supplierAmount, supplierCurrency, rules)
 }

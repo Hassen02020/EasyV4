@@ -17,11 +17,10 @@
  * publicRef, and guestAccessToken are returned.
  */
 
-import { eq, and } from "drizzle-orm"
+import { eq, and, gt } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
-import { flightBookings, flightBookingPassengers, flightBookingSegments, flightAncillaries } from "@/lib/db/schema/flights"
-import { getPriceSnapshot, markSnapshotUsed } from "./price-snapshot"
+import { flightBookings, flightBookingPassengers, flightBookingSegments, flightAncillaries, flightPriceSnapshots } from "@/lib/db/schema/flights"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
 import type { CanonicalItinerary } from "./canonical"
@@ -102,6 +101,14 @@ function providerToSource(
 
 const SLA_MINUTES = 15
 
+class SnapshotExpiredError extends Error {
+  readonly code = "SNAPSHOT_EXPIRED" as const
+  constructor() {
+    super("Snapshot expired, already used, or not found")
+    this.name = "SnapshotExpiredError"
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Action
 // ---------------------------------------------------------------------------
@@ -120,25 +127,50 @@ export async function createFlightBookingRequest(
 
   const { snapshotId, passengers, contact, orderId, ancillaries } = parsed.data
 
-  const snapshot = await getPriceSnapshot(snapshotId)
-  if (!snapshot) {
-    return {
-      ok: false,
-      error: "Cette offre a expiré — veuillez relancer une recherche.",
-      code: "SNAPSHOT_EXPIRED",
-    }
-  }
-
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
     return { ok: false, error: "Aucune agence de vente directe configurée.", code: "NO_AGENCY" }
   }
 
-  const itinerary = snapshot.itinerary as unknown as CanonicalItinerary
   const slaDeadline = new Date(Date.now() + SLA_MINUTES * 60 * 1000)
 
   try {
     const result = await withSystemContext(async (tx) => {
+      // ── 0. Atomically claim snapshot (CAS: ACTIVE → USED) ─────────────────
+      // A two-step getPriceSnapshot() + markSnapshotUsed() in separate
+      // transactions creates a TOCTOU window: two concurrent requests both
+      // see ACTIVE before either marks it USED — two bookings, two payments
+      // collected for one price snapshot. A single UPDATE WHERE status='ACTIVE'
+      // AND expiresAt > now() RETURNING * inside this transaction claims the
+      // snapshot atomically. If 0 rows come back, the snapshot is expired,
+      // already used, or does not exist — the whole transaction rolls back.
+      const snapRows = await tx
+        .update(flightPriceSnapshots)
+        .set({ status: "USED" })
+        .where(
+          and(
+            eq(flightPriceSnapshots.id, snapshotId),
+            eq(flightPriceSnapshots.status, "ACTIVE"),
+            gt(flightPriceSnapshots.expiresAt, new Date()),
+          ),
+        )
+        .returning({
+          provider: flightPriceSnapshots.provider,
+          itinerary: flightPriceSnapshots.itinerary,
+          sellingAmount: flightPriceSnapshots.sellingAmount,
+          sellingCurrency: flightPriceSnapshots.sellingCurrency,
+        })
+
+      if (snapRows.length === 0) throw new SnapshotExpiredError()
+
+      const snap = (snapRows as Array<{
+        provider: string
+        itinerary: Record<string, unknown>
+        sellingAmount: string
+        sellingCurrency: string | null
+      }>)[0]!
+      const itinerary = snap.itinerary as unknown as CanonicalItinerary
+
       // ── 1. Find or create customer ─────────────────────────────────────────
       let customerId: string
 
@@ -180,11 +212,11 @@ export async function createFlightBookingRequest(
           customerId,
           publicRef,
           module: "flight",
-          source: providerToSource(snapshot.provider),
+          source: providerToSource(snap.provider),
           status: "pending",
-          originalCurrency: snapshot.sellingCurrency ?? "TND",
-          originalAmount: snapshot.sellingAmount,
-          tndAmount: snapshot.sellingAmount,
+          originalCurrency: snap.sellingCurrency ?? "TND",
+          originalAmount: snap.sellingAmount,
+          tndAmount: snap.sellingAmount,
         })
         .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
 
@@ -205,7 +237,7 @@ export async function createFlightBookingRequest(
           itinerary: itinerary as unknown as Record<string, unknown>,
           contact: contact as unknown as Record<string, unknown>,
           status: "PENDING",
-          provider: snapshot.provider,
+          provider: snap.provider,
           slaDeadline,
         })
         .returning({ id: flightBookings.id })
@@ -277,9 +309,6 @@ export async function createFlightBookingRequest(
       return { bookingId, reservationId, publicRef, guestAccessToken }
     })
 
-    // Mark snapshot as used outside the main tx (idempotent)
-    await markSnapshotUsed(snapshotId)
-
     return {
       ok: true,
       bookingId: result.bookingId,
@@ -290,6 +319,13 @@ export async function createFlightBookingRequest(
       slaMinutes: SLA_MINUTES,
     }
   } catch (err) {
+    if (err instanceof SnapshotExpiredError) {
+      return {
+        ok: false,
+        error: "Cette offre a expiré — veuillez relancer une recherche.",
+        code: "SNAPSHOT_EXPIRED",
+      }
+    }
     console.error("[flight-booking-request] Failed:", err)
     return {
       ok: false,

@@ -404,12 +404,41 @@ describe("G9 — Stress & Resilience", () => {
   })
 
   test("S13 — Snapshot USED guard: second booking attempt with same snapshot", () => {
-    // Simulates the scenario where markSnapshotUsed() has already run.
-    // The getPriceSnapshot() server action checks status = 'ACTIVE' — a USED
-    // snapshot fails the check before any booking rows are created.
+    // The CAS UPDATE WHERE status='ACTIVE' returns 0 rows when snapshot is USED.
+    // This mirrors the fix in booking-request-action.ts: the claim and booking
+    // creation are in one transaction, so a snapshot can only be claimed once.
     const snap = makeSnapshot({ status: "USED" })
     const isEligible = snap.status === "ACTIVE"
     assert.equal(isEligible, false, "USED snapshot must not be accepted for a new booking")
+  })
+
+  test("S13b — Snapshot CAS: 50 concurrent booking requests → exactly 1 booking created", async () => {
+    // Simulates the snapshot CAS fix in booking-request-action.ts.
+    // Only the request that wins the UPDATE WHERE status='ACTIVE' proceeds;
+    // all others receive 0 rows back and throw SnapshotExpiredError.
+    let snapshotStatus: "ACTIVE" | "USED" | "EXPIRED" = "ACTIVE"
+    let bookingsCreated = 0
+
+    async function requestBookingWithSnapshotCAS(): Promise<{ ok: boolean; code?: string }> {
+      // Atomic CAS: only one caller can flip ACTIVE → USED
+      if (snapshotStatus !== "ACTIVE") return { ok: false, code: "SNAPSHOT_EXPIRED" }
+      snapshotStatus = "USED"
+      // Booking creation (always succeeds for this test)
+      bookingsCreated++
+      return { ok: true }
+    }
+
+    const results = await Promise.all(
+      Array.from({ length: 50 }, () => requestBookingWithSnapshotCAS()),
+    )
+
+    const wins = results.filter((r) => r.ok)
+    const expired = results.filter((r) => !r.ok && r.code === "SNAPSHOT_EXPIRED")
+
+    assert.equal(wins.length, 1, "Exactly 1 booking created from one snapshot")
+    assert.equal(expired.length, 49, "49 requests rejected with SNAPSHOT_EXPIRED")
+    assert.equal(bookingsCreated, 1, "bookingsCreated must be 1")
+    assert.equal(snapshotStatus, "USED", "Snapshot is USED after claim")
   })
 
   test("S14 — Ancillary amounts are server-only: client cannot inject price", () => {

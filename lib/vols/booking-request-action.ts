@@ -48,7 +48,7 @@ const contactSchema = z.object({
   lastName: z.string().min(1),
 })
 
-export const flightBookingRequestSchema = z.object({
+const flightBookingRequestSchema = z.object({
   snapshotId: z.string().uuid(),
   passengers: z.array(passengerSchema).min(1).max(9),
   contact: contactSchema,

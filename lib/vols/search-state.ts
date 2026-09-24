@@ -9,13 +9,15 @@
  *     supportés par le moteur.
  *  2. Le formulaire de la page `/vols` (`components/vols/flight-search.tsx`,
  *     `FlightSearch`) envoie vers `/vols/search` des champs déjà propres
- *     (codes IATA via `&lt;Select&gt;`, `cabin` en valeurs API).
+ *     (codes IATA via `<Select>`, `cabin` en valeurs API).
  *
- * Ce module ne touche PAS au contrat de `app/api/vols/search/route.ts`
- * (son propre `SearchSchema` reste la source de vérité du moteur) — il se
- * contente de fabriquer, à partir de N'IMPORTE LEQUEL des deux formats
- * ci-dessus, un état canonique unique et les query params exacts que
- * l'API attend déjà.
+ * Trois types de voyages :
+ *  - `oneway`    : TUN → DXB, un seul segment
+ *  - `roundtrip` : TUN ⇄ DXB, segment aller + `returnDate`
+ *  - `multicity` : N segments indépendants encodés dans `legs`
+ *
+ * Encoding multicity : `legs=TUN:DXB:2026-12-01,DXB:BKK:2026-12-05,...`
+ * (virgule entre les tronçons, deux-points entre origin/destination/date)
  *
  * `babies`/`infants` et `flexible` (dates flexibles) ne sont pas modélisés
  * ici : ni `SearchSchema` (route API) ni `FlightOfferSchema`
@@ -45,6 +47,7 @@ export const AIRPORTS: AirportOption[] = [
 ]
 
 export type CabinClass = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST"
+export type TripType = "oneway" | "roundtrip" | "multicity"
 
 const VALID_CABINS = new Set<CabinClass>([
   "ECONOMY",
@@ -86,12 +89,48 @@ export function parseCabin(cabinOrClass: string | null | undefined): CabinClass 
   return CABIN_FROM_HOME[cabinOrClass.toLowerCase()] ?? "ECONOMY"
 }
 
+// ---------------------------------------------------------------------------
+// Multi-city legs
+// ---------------------------------------------------------------------------
+
+export interface MultiCityLeg {
+  origin: string
+  destination: string
+  departureDate: string
+}
+
+/** Encode N legs as a single URL parameter value. */
+export function encodeMultiCityLegs(legs: MultiCityLeg[]): string {
+  return legs.map((l) => `${l.origin}:${l.destination}:${l.departureDate}`).join(",")
+}
+
+/** Decode legs from URL. Returns null if any leg is malformed. */
+export function parseMultiCityLegs(raw: string | null | undefined): MultiCityLeg[] | null {
+  if (!raw) return null
+  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean)
+  if (parts.length < 2 || parts.length > 5) return null
+  const legs: MultiCityLeg[] = []
+  for (const part of parts) {
+    const [rawOrigin, rawDest, date] = part.split(":")
+    const origin = parseAirportInput(rawOrigin)
+    const destination = parseAirportInput(rawDest)
+    if (!origin || !destination || !date || !DATE_RE.test(date)) return null
+    legs.push({ origin, destination, departureDate: date })
+  }
+  return legs
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
 export interface FlightSearchState {
   origin: string
   destination: string
-  tripType: "oneway" | "roundtrip"
+  tripType: TripType
   departureDate: string
   returnDate?: string
+  legs?: MultiCityLeg[]
   cabin: CabinClass
   adults: number
   children: number
@@ -111,6 +150,43 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export function parseFlightSearchParams(
   searchParams: URLSearchParams,
 ): FlightSearchParseResult {
+  const adultsRaw = searchParams.get("adults")
+  const adults =
+    adultsRaw && /^[1-9]$/.test(adultsRaw) ? Number(adultsRaw) : 1
+
+  const childrenRaw = searchParams.get("children")
+  const children =
+    childrenRaw && /^[0-8]$/.test(childrenRaw) ? Number(childrenRaw) : 0
+
+  const cabin = parseCabin(searchParams.get("cabin") ?? searchParams.get("class"))
+
+  const tripTypeParam = searchParams.get("tripType")
+
+  // ── Multi-city ──────────────────────────────────────────────────────────
+  if (tripTypeParam === "multicity") {
+    const legs = parseMultiCityLegs(searchParams.get("legs"))
+    if (!legs || legs.length < 2) {
+      return {
+        ok: false,
+        error: "Multi-destinations : au moins 2 trajets valides requis.",
+      }
+    }
+    return {
+      ok: true,
+      state: {
+        origin: legs[0].origin,
+        destination: legs[legs.length - 1].destination,
+        tripType: "multicity",
+        departureDate: legs[0].departureDate,
+        legs,
+        cabin,
+        adults,
+        children,
+      },
+    }
+  }
+
+  // ── One-way / Round-trip ─────────────────────────────────────────────────
   const origin = parseAirportInput(searchParams.get("origin"))
   const destination = parseAirportInput(searchParams.get("destination"))
 
@@ -133,8 +209,7 @@ export function parseFlightSearchParams(
   }
 
   const returnDateRaw = searchParams.get("returnDate")
-  const tripTypeParam = searchParams.get("tripType")
-  const tripType: "oneway" | "roundtrip" =
+  const tripType: TripType =
     tripTypeParam === "roundtrip" || (!tripTypeParam && !!returnDateRaw)
       ? "roundtrip"
       : "oneway"
@@ -156,16 +231,6 @@ export function parseFlightSearchParams(
     returnDate = returnDateRaw
   }
 
-  const adultsRaw = searchParams.get("adults")
-  const adults =
-    adultsRaw && /^[1-9]$/.test(adultsRaw) ? Number(adultsRaw) : 1
-
-  const childrenRaw = searchParams.get("children")
-  const children =
-    childrenRaw && /^[0-8]$/.test(childrenRaw) ? Number(childrenRaw) : 0
-
-  const cabin = parseCabin(searchParams.get("cabin") ?? searchParams.get("class"))
-
   return {
     ok: true,
     state: { origin, destination, tripType, departureDate, returnDate, cabin, adults, children },
@@ -186,8 +251,22 @@ export function flightStateToApiParams(state: FlightSearchState): URLSearchParam
   return params
 }
 
-/** Query params canoniques pour l'URL `/vols/search` elle-même (inclut tripType). */
+/** Query params canoniques pour l'URL `/vols/search` elle-même. */
 export function flightStateToResultsParams(state: FlightSearchState): URLSearchParams {
+  if (state.tripType === "multicity" && state.legs) {
+    const params = new URLSearchParams({
+      tripType: "multicity",
+      legs: encodeMultiCityLegs(state.legs),
+      adults: String(state.adults),
+      children: state.children > 0 ? String(state.children) : "0",
+      cabin: state.cabin,
+      // origin/destination/departureDate from first leg (for breadcrumb compat)
+      origin: state.legs[0].origin,
+      destination: state.legs[state.legs.length - 1].destination,
+      departureDate: state.legs[0].departureDate,
+    })
+    return params
+  }
   const params = flightStateToApiParams(state)
   params.set("tripType", state.tripType)
   return params

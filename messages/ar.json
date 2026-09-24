@@ -778,6 +778,7 @@
     "refundableBadge": "قابل للاسترجاع",
     "startingFrom": "ابتداءً من",
     "bookButton": "احجز",
+    "requestTicketButton": "طلب التذكرة",
     "offerUnavailable": "العرض غير متاح",
     "directFlight": "رحلة مباشرة",
     "stopsCount": "{count, plural, one {توقف واحد} two {توقفان} other {# توقفات}}",
@@ -825,7 +826,19 @@
     "confirmAndPay": "تأكيد والدفع",
     "processing": "جارٍ المعالجة…",
     "mustAcceptCgv": "يجب عليك الموافقة على الشروط والأحكام العامة للبيع.",
-    "unknownError": "خطأ غير معروف"
+    "unknownError": "خطأ غير معروف",
+    "tripOneWay": "ذهاب فقط",
+    "tripRoundTrip": "ذهاب وإياب",
+    "tripMultiCity": "متعدد الوجهات",
+    "toastReturnBeforeDeparture": "يجب أن يكون تاريخ العودة بعد تاريخ المغادرة.",
+    "multiCity": "متعدد الوجهات",
+    "addLeg": "إضافة رحلة",
+    "removeLeg": "حذف",
+    "legLabel": "رحلة {n}",
+    "toastMinLegs": "يرجى إكمال رحلتين على الأقل.",
+    "toastLegSameAirports": "الرحلة {n}: يجب أن يكون المطار المغادر والوافد مختلفَين.",
+    "toastLegDate": "يرجى اختيار تاريخ للرحلة {n}.",
+    "multiCityLegTitle": "رحلة {n}"
   },
   "Car": {
     "kicker": "تأجير السيارات",

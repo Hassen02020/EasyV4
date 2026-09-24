@@ -43,13 +43,20 @@ export const FlightOfferSchema = z.object({
   segments: z.array(FlightSegmentSchema),
   stops: z.number(),
   totalDurationMinutes: z.number(),
-  priceTnd: z.number(),
+  /** @deprecated use sellingAmount — kept for virtual-supplier backward compat */
+  priceTnd: z.number().optional(),
+  /** Selling price shown to client (includes fees + markup). */
+  sellingAmount: z.number().optional(),
+  sellingCurrency: z.string().optional(),
   currency: z.string().default("TND"),
   availableSeats: z.number().nullable(),
   refundable: z.boolean(),
   baggageKg: z.number().nullable(),
   source: z.string().default("amadeus"),
-  /** Jeton signé serveur (Virtual Flight Supplier) à revalider pour réserver — voir lib/vols/booking-actions.ts. Absent en mode API réelle tant qu'aucun adaptateur de réservation n'y est branché. */
+  /** Immutable price snapshot ID — use this to request a ticket, not the price. */
+  snapshotId: z.string().optional(),
+  expiresAt: z.string().optional(),
+  /** @deprecated legacy token — replaced by snapshotId */
   offerToken: z.string().optional(),
 })
 

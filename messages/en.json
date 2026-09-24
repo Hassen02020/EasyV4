@@ -778,6 +778,7 @@
     "refundableBadge": "Refundable",
     "startingFrom": "From",
     "bookButton": "Book",
+    "requestTicketButton": "Request ticket",
     "offerUnavailable": "Offer unavailable",
     "directFlight": "Direct flight",
     "stopsCount": "{count, plural, one {# stop} other {# stops}}",
@@ -825,7 +826,19 @@
     "confirmAndPay": "Confirm & pay",
     "processing": "Processing…",
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "tripOneWay": "One Way",
+    "tripRoundTrip": "Round Trip",
+    "tripMultiCity": "Multi-City",
+    "toastReturnBeforeDeparture": "The return date must be after the departure date.",
+    "multiCity": "Multi-city",
+    "addLeg": "Add a leg",
+    "removeLeg": "Remove",
+    "legLabel": "Leg {n}",
+    "toastMinLegs": "Please complete at least 2 legs.",
+    "toastLegSameAirports": "Leg {n}: departure and arrival must be different.",
+    "toastLegDate": "Please select a date for leg {n}.",
+    "multiCityLegTitle": "Leg {n}"
   },
   "Car": {
     "kicker": "Car Rental",

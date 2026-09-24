@@ -32,21 +32,24 @@ import type { FlightOffer } from "@/lib/vols/client"
 
 type SortMode = "recommended" | "price_asc" | "price_desc" | "duration_asc"
 
+function offerPrice(o: FlightOffer): number {
+  return o.sellingAmount ?? o.priceTnd ?? 0
+}
+
 function sortOffers(offers: FlightOffer[], mode: SortMode): FlightOffer[] {
   const copy = [...offers]
   switch (mode) {
     case "price_asc":
-      return copy.sort((a, b) => a.priceTnd - b.priceTnd)
+      return copy.sort((a, b) => offerPrice(a) - offerPrice(b))
     case "price_desc":
-      return copy.sort((a, b) => b.priceTnd - a.priceTnd)
+      return copy.sort((a, b) => offerPrice(b) - offerPrice(a))
     case "duration_asc":
       return copy.sort((a, b) => a.totalDurationMinutes - b.totalDurationMinutes)
     case "recommended":
     default:
-      // Documenté, non opaque : direct d'abord, puis prix croissant.
       return copy.sort((a, b) => {
         if (a.stops !== b.stops) return a.stops - b.stops
-        return a.priceTnd - b.priceTnd
+        return offerPrice(a) - offerPrice(b)
       })
   }
 }
@@ -73,35 +76,39 @@ function formatDateHeader(dateStr: string, dateFnsLocale: DateFnsLocale): string
   }
 }
 
-function bookingHref(offer: FlightOffer, state: FlightSearchState): string | null {
-  if (!offer.offerToken) return null
-  const firstSegment = offer.segments[0]
-  const lastSegment = offer.segments[offer.segments.length - 1]
-  const params = new URLSearchParams({
-    token: offer.offerToken,
-    price: String(offer.priceTnd),
-    currency: offer.currency,
-    origin: firstSegment.origin,
-    destination: lastSegment.destination,
-    departureAt: firstSegment.departureAt,
-    arrivalAt: lastSegment.arrivalAt,
-    carrier: firstSegment.carrier,
-    flightNumber: firstSegment.flightNumber,
-    stops: String(offer.stops),
-    cabin: firstSegment.cabin,
-    adults: String(state.adults),
-    children: String(state.children),
-    refundable: String(offer.refundable),
-  })
-  if (offer.baggageKg != null) params.set("baggageKg", String(offer.baggageKg))
-  return `/vols/book?${params.toString()}`
+function bookingHref(offer: FlightOffer): string | null {
+  if (offer.snapshotId) {
+    return `/vols/passengers?snapshotId=${offer.snapshotId}`
+  }
+  // Legacy fallback for virtual-supplier offers without snapshot
+  if (offer.offerToken) {
+    const firstSegment = offer.segments[0]
+    const lastSegment = offer.segments[offer.segments.length - 1]
+    const params = new URLSearchParams({
+      token: offer.offerToken,
+      price: String(offer.priceTnd ?? 0),
+      currency: offer.currency,
+      origin: firstSegment?.origin ?? "",
+      destination: lastSegment?.destination ?? "",
+      departureAt: firstSegment?.departureAt ?? "",
+      arrivalAt: lastSegment?.arrivalAt ?? "",
+      carrier: firstSegment?.carrier ?? "",
+      flightNumber: firstSegment?.flightNumber ?? "",
+      stops: String(offer.stops),
+      cabin: firstSegment?.cabin ?? "ECONOMY",
+    })
+    if (offer.baggageKg != null) params.set("baggageKg", String(offer.baggageKg))
+    return `/vols/book?${params.toString()}`
+  }
+  return null
 }
 
-function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchState }) {
+function FlightCard({ offer }: { offer: FlightOffer }) {
   const t = useTranslations("Vols")
   const { format: formatPrice } = useCurrency()
   const segment = offer.segments[0]
-  const href = bookingHref(offer, state)
+  const href = bookingHref(offer)
+  const price = offerPrice(offer)
   return (
     <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
@@ -145,18 +152,12 @@ function FlightCard({ offer, state }: { offer: FlightOffer; state: FlightSearchS
           <div className="text-right">
             <p className="text-muted-foreground text-xs">{t("startingFrom")}</p>
             <p className="text-primary text-2xl font-bold tabular-nums">
-              {formatPrice(offer.priceTnd)}
+              {formatPrice(price)}
             </p>
           </div>
-          {/* Virtual Flight Supplier (lib/vols/virtual-supplier/) : offre,
-              disponibilité, prix et jeton signé sont réels côté serveur —
-              la réservation décrémente un inventaire réel et émet un PNR
-              (voir lib/vols/guest-booking-actions.ts). Seul le fournisseur
-              lui-même est simulé (pas de GDS Amadeus/Sabre réel en amont),
-              pas la réservation. */}
           {href ? (
-            <Button size="sm" asChild>
-              <Link href={href}>{t("bookButton")}</Link>
+            <Button size="sm" className="bg-sky-700 hover:bg-sky-800" asChild>
+              <Link href={href}>{t("requestTicketButton")}</Link>
             </Button>
           ) : (
             <Button size="sm" disabled>
@@ -390,7 +391,7 @@ export function FlightResultsContent() {
               </div>
             ) : (
               <>
-                {pagedOffers.map((offer) => <FlightCard key={offer.id} offer={offer} state={parsed.state} />)}
+                {pagedOffers.map((offer) => <FlightCard key={offer.id} offer={offer} />)}
                 <SearchPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
               </>
             )}

@@ -2707,3 +2707,32 @@ export {
   type DestinationExternalRef,
   type NewDestinationExternalRef,
 } from "./schema/destinations"
+
+/* -------------------------------------------------------------------------- */
+/* Flight Puzzle — imported from schema/flights.ts                            */
+/* -------------------------------------------------------------------------- */
+
+export {
+  flightTripType,
+  flightBookingStatus,
+  flightTicketStatus,
+  flightSnapshotStatus,
+  flightRecheckStatus,
+  flightSearches,
+  flightPriceSnapshots,
+  flightBookings,
+  flightBookingPassengers,
+  flightBookingSegments,
+  flightTickets,
+  flightSupplierTransactions,
+  type FlightSearch,
+  type NewFlightSearch,
+  type FlightPriceSnapshot,
+  type NewFlightPriceSnapshot,
+  type FlightBooking,
+  type NewFlightBooking,
+  type FlightBookingPassenger,
+  type NewFlightBookingPassenger,
+  type FlightTicket,
+  type FlightSupplierTransaction,
+} from "./schema/flights"

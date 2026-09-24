@@ -2737,3 +2737,19 @@ export {
   type FlightTicket,
   type FlightSupplierTransaction,
 } from "./schema/flights"
+
+/* -------------------------------------------------------------------------- */
+/* Flight Supplier Control Plane — imported from schema/flight-suppliers.ts   */
+/* -------------------------------------------------------------------------- */
+
+export {
+  flightDisplayMode,
+  flightBookingMode,
+  flightSupplierName,
+  flightSupplierConfigs,
+  flightSupplierCredentials,
+  type FlightSupplierConfig,
+  type NewFlightSupplierConfig,
+  type FlightSupplierCredential,
+  type NewFlightSupplierCredential,
+} from "./schema/flight-suppliers"

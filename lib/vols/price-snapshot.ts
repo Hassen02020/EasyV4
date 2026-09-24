@@ -38,7 +38,7 @@ export interface SnapshotResult {
 export async function createPriceSnapshot(
   input: CreateSnapshotInput,
 ): Promise<SnapshotResult> {
-  const commercial = applyCommercialEngine(
+  const commercial = await applyCommercialEngine(
     input.itinerary.supplierTotalAmount,
     input.itinerary.supplierCurrency,
     input.agencyId,

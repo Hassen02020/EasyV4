@@ -28,8 +28,10 @@ async function PassengersContent({ snapshotId }: { snapshotId: string }) {
   if (!snapshot) notFound()
 
   const itinerary = snapshot.itinerary as unknown as CanonicalItinerary
-  const firstSeg = itinerary.segments?.[0]
-  const lastSeg = itinerary.segments?.[itinerary.segments.length - 1] ?? firstSeg
+  const firstJourney = itinerary.journeys?.[0]
+  const lastJourney = itinerary.journeys?.[itinerary.journeys.length - 1] ?? firstJourney
+  const firstSeg = firstJourney?.segments[0]
+  const lastSeg = lastJourney?.segments[lastJourney.segments.length - 1] ?? firstSeg
 
   const origin = firstSeg?.origin ?? "—"
   const destination = lastSeg?.destination ?? "—"

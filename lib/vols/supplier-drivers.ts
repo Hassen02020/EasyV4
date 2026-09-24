@@ -10,9 +10,55 @@
  * exclusifs, donc aucun changement de comportement observable aujourd'hui.
  */
 import { search as virtualSearch } from "@/lib/vols/virtual-supplier/engine"
-import { minutesToIso } from "@/lib/vols/virtual-supplier/catalog"
+import type { VirtualFlightSegment } from "@/lib/vols/virtual-supplier/catalog"
 import { memoize } from "@/lib/cache/redis"
 import type { FlightOffer, FlightSearchInput, FlightSearchResult } from "@/lib/vols/client"
+import type { z } from "zod"
+import { FlightJourneySchema } from "@/lib/vols/client"
+
+type FlightJourney = z.infer<typeof FlightJourneySchema>
+
+function buildJourneyFromLegacySegs(
+  segs: VirtualFlightSegment[],
+  departureDate: string,
+): FlightJourney {
+  const segments = segs.map((seg) => {
+    const carrier = seg.carrier.slice(0, 2).toUpperCase()
+    const flightNum = seg.flightNumber.replace(/^[A-Z]{2}/, "")
+    return {
+      origin: seg.origin,
+      destination: seg.destination,
+      departure: seg.departureAt,
+      arrival: seg.arrivalAt,
+      marketingCarrier: carrier,
+      operatingCarrier: carrier,
+      marketingFlightNumber: flightNum,
+      durationMinutes: seg.durationMinutes,
+      stops: 0,
+      cabin: seg.cabin,
+    }
+  })
+
+  const layovers = segments.slice(0, -1).map((seg, i) => {
+    const nextSeg = segments[i + 1]!
+    const arrivalMs = new Date(seg.arrival).getTime()
+    const depMs = new Date(nextSeg.departure).getTime()
+    const durationMinutes = Math.max(0, Math.round((depMs - arrivalMs) / 60000))
+    return {
+      airport: seg.destination,
+      durationMinutes,
+      isOvernightLayover: durationMinutes > 600,
+    }
+  })
+
+  return {
+    origin: segments[0]?.origin ?? "",
+    destination: segments[segments.length - 1]?.destination ?? "",
+    departureDate,
+    segments,
+    layovers,
+  }
+}
 
 export interface FlightSupplierDriver {
   readonly name: string
@@ -43,16 +89,7 @@ export function createVirtualFlightDriver(): FlightSupplierDriver {
 
       const mapped: FlightOffer[] = offers.map((offer) => ({
         id: offer.offerId,
-        segments: offer.segments.map((seg) => ({
-          origin: seg.origin,
-          destination: seg.destination,
-          departureAt: seg.departureAt,
-          arrivalAt: seg.arrivalAt,
-          carrier: seg.carrier,
-          flightNumber: seg.flightNumber,
-          duration: minutesToIso(seg.durationMinutes),
-          cabin: seg.cabin,
-        })),
+        journeys: [buildJourneyFromLegacySegs(offer.segments, input.departureDate)],
         stops: offer.stops,
         totalDurationMinutes: offer.totalDurationMinutes,
         priceTnd: offer.priceTnd,
@@ -61,7 +98,6 @@ export function createVirtualFlightDriver(): FlightSupplierDriver {
         refundable: offer.refundable,
         baggageKg: offer.baggageKg,
         source: "virtual",
-        offerToken: offer.token,
       }))
 
       return { offers: mapped, searchId }

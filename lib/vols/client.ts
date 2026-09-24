@@ -30,20 +30,42 @@ import {
 export const FlightSegmentSchema = z.object({
   origin: z.string(),
   destination: z.string(),
-  departureAt: z.string(),
-  arrivalAt: z.string(),
-  carrier: z.string(),
-  flightNumber: z.string(),
-  duration: z.string(),
+  departure: z.string(),
+  arrival: z.string(),
+  marketingCarrier: z.string(),
+  operatingCarrier: z.string(),
+  marketingFlightNumber: z.string(),
+  operatingFlightNumber: z.string().optional(),
+  durationMinutes: z.number(),
+  stops: z.number(),
+  equipment: z.string().optional(),
   cabin: z.enum(["ECONOMY", "PREMIUM_ECONOMY", "BUSINESS", "FIRST"]),
+  bookingClass: z.string().optional(),
+  fareBrandId: z.string().optional(),
+})
+
+const LayoverSchema = z.object({
+  airport: z.string(),
+  durationMinutes: z.number(),
+  isOvernightLayover: z.boolean(),
+  terminalChange: z.boolean().optional(),
+})
+
+export const FlightJourneySchema = z.object({
+  origin: z.string(),
+  destination: z.string(),
+  departureDate: z.string(),
+  segments: z.array(FlightSegmentSchema),
+  layovers: z.array(LayoverSchema),
 })
 
 export const FlightOfferSchema = z.object({
   id: z.string(),
-  segments: z.array(FlightSegmentSchema),
+  /** Structured journeys (legs) — preferred over flat segments. */
+  journeys: z.array(FlightJourneySchema),
   stops: z.number(),
   totalDurationMinutes: z.number(),
-  /** @deprecated use sellingAmount — kept for virtual-supplier backward compat */
+  /** @deprecated use sellingAmount — kept for backward compat */
   priceTnd: z.number().optional(),
   /** Selling price shown to client (includes fees + markup). */
   sellingAmount: z.number().optional(),
@@ -52,12 +74,10 @@ export const FlightOfferSchema = z.object({
   availableSeats: z.number().nullable(),
   refundable: z.boolean(),
   baggageKg: z.number().nullable(),
-  source: z.string().default("amadeus"),
+  source: z.string().default("virtual"),
   /** Immutable price snapshot ID — use this to request a ticket, not the price. */
   snapshotId: z.string().optional(),
   expiresAt: z.string().optional(),
-  /** @deprecated legacy token — replaced by snapshotId */
-  offerToken: z.string().optional(),
 })
 
 export type FlightOffer = z.infer<typeof FlightOfferSchema>

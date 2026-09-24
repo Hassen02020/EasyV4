@@ -24,16 +24,26 @@ const INPUT: FlightSearchInput = {
 function fakeOffer(id: string): FlightOffer {
   return {
     id,
-    segments: [
+    journeys: [
       {
         origin: "TUN",
         destination: "IST",
-        departureAt: "2026-11-10T08:00:00Z",
-        arrivalAt: "2026-11-10T11:00:00Z",
-        carrier: "TU",
-        flightNumber: "TU123",
-        duration: "PT3H",
-        cabin: "ECONOMY",
+        departureDate: "2026-11-10",
+        segments: [
+          {
+            origin: "TUN",
+            destination: "IST",
+            departure: "2026-11-10T08:00:00Z",
+            arrival: "2026-11-10T11:00:00Z",
+            marketingCarrier: "TU",
+            operatingCarrier: "TU",
+            marketingFlightNumber: "123",
+            durationMinutes: 180,
+            stops: 0,
+            cabin: "ECONOMY",
+          },
+        ],
+        layovers: [],
       },
     ],
     stops: 0,

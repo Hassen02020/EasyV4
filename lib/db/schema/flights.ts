@@ -23,6 +23,7 @@
  */
 
 import {
+  boolean,
   date,
   decimal,
   index,
@@ -88,6 +89,34 @@ export const flightRecheckStatus = pgEnum("flight_recheck_status", [
 // Tables
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// G6 — Commercial Rules (per-agency, per-channel DB-backed pricing rules)
+// ---------------------------------------------------------------------------
+
+export const flightCommercialRules = pgTable(
+  "flight_commercial_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    channel: varchar("channel", { length: 16 }).notNull().default("B2C"),
+    fixedFee: decimal("fixed_fee", { precision: 12, scale: 3 }).notNull().default("0"),
+    markupRate: decimal("markup_rate", { precision: 8, scale: 5 }).notNull().default("0"),
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+    isActive: boolean("is_active").notNull().default(true),
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("flight_commercial_rules_agency_channel_idx").on(t.agencyId, t.channel),
+    index("flight_commercial_rules_active_idx").on(t.isActive),
+  ],
+)
+
 export const flightSearches = pgTable(
   "flight_searches",
   {
@@ -146,6 +175,33 @@ export const flightPriceSnapshots = pgTable(
   ],
 )
 
+// ---------------------------------------------------------------------------
+// G5 — Flight Order (groups one or more PNRs for a single customer trip)
+// ---------------------------------------------------------------------------
+
+export const flightOrders = pgTable(
+  "flight_orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "restrict" }),
+    reservationId: uuid("reservation_id").references(() => reservations.id, { onDelete: "set null" }),
+    customerId: uuid("customer_id"),
+    tripType: flightTripType("trip_type").notNull(),
+    status: varchar("status", { length: 32 }).notNull().default("PENDING"),
+    /** NDC/GDS order ID when the provider supports Order Management. */
+    providerOrderId: varchar("provider_order_id", { length: 128 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("flight_orders_agency_idx").on(t.agencyId),
+    index("flight_orders_reservation_idx").on(t.reservationId),
+    index("flight_orders_status_idx").on(t.status),
+  ],
+)
+
 export const flightBookings = pgTable(
   "flight_bookings",
   {
@@ -162,6 +218,8 @@ export const flightBookings = pgTable(
       onDelete: "set null",
     }),
     customerId: uuid("customer_id"),
+    /** Links this booking to a FlightOrder when multi-PNR grouping is used. */
+    orderId: uuid("order_id").references(() => flightOrders.id, { onDelete: "set null" }),
     tripType: flightTripType("trip_type").notNull(),
     itinerary: jsonb("itinerary").notNull(),
     contact: jsonb("contact").notNull(),
@@ -239,6 +297,11 @@ export const flightTickets = pgTable(
     }),
     ticketNumber: varchar("ticket_number", { length: 32 }),
     status: flightTicketStatus("status").notNull().default("NOT_ISSUED"),
+    /**
+     * G9 — Per-coupon GDS status tracking.
+     * Stored as JSONB array: [{segment, couponStatus: "OPEN"|"USED"|"EXCH"|"RFND"}]
+     */
+    couponStatus: jsonb("coupon_status"),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     eticketUrl: text("eticket_url"),
@@ -270,9 +333,42 @@ export const flightSupplierTransactions = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// G7 — Flight Ancillaries (upsell services: baggage, seat, meal, lounge…)
+// ---------------------------------------------------------------------------
+
+export const flightAncillaries = pgTable(
+  "flight_ancillaries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => flightBookings.id, { onDelete: "cascade" }),
+    ancillaryType: varchar("ancillary_type", { length: 16 }).notNull(),
+    description: text("description"),
+    amount: decimal("amount", { precision: 12, scale: 3 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+    /** Sequence numbers of segments this ancillary applies to (null = all segments). */
+    segmentRefs: jsonb("segment_refs"),
+    /** Sequence number of the passenger this ancillary is for (null = all passengers). */
+    passengerRef: integer("passenger_ref"),
+    status: varchar("status", { length: 16 }).notNull().default("PENDING"),
+    providerAncillaryId: varchar("provider_ancillary_id", { length: 64 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("flight_ancillaries_booking_idx").on(t.bookingId),
+    index("flight_ancillaries_type_idx").on(t.ancillaryType),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
 
+export type FlightCommercialRule = typeof flightCommercialRules.$inferSelect
+export type NewFlightCommercialRule = typeof flightCommercialRules.$inferInsert
+export type FlightOrder = typeof flightOrders.$inferSelect
+export type NewFlightOrder = typeof flightOrders.$inferInsert
 export type FlightSearch = typeof flightSearches.$inferSelect
 export type NewFlightSearch = typeof flightSearches.$inferInsert
 export type FlightPriceSnapshot = typeof flightPriceSnapshots.$inferSelect
@@ -282,4 +378,6 @@ export type NewFlightBooking = typeof flightBookings.$inferInsert
 export type FlightBookingPassenger = typeof flightBookingPassengers.$inferSelect
 export type NewFlightBookingPassenger = typeof flightBookingPassengers.$inferInsert
 export type FlightTicket = typeof flightTickets.$inferSelect
+export type FlightAncillary = typeof flightAncillaries.$inferSelect
+export type NewFlightAncillary = typeof flightAncillaries.$inferInsert
 export type FlightSupplierTransaction = typeof flightSupplierTransactions.$inferSelect

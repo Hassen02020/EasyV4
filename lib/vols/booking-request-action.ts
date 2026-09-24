@@ -20,11 +20,12 @@
 import { eq, and } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
-import { flightBookings, flightBookingPassengers, flightBookingSegments } from "@/lib/db/schema/flights"
+import { flightBookings, flightBookingPassengers, flightBookingSegments, flightAncillaries } from "@/lib/db/schema/flights"
 import { getPriceSnapshot, markSnapshotUsed } from "./price-snapshot"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
 import type { CanonicalItinerary } from "./canonical"
+import { flattenSegments } from "./canonical"
 import { z } from "zod"
 
 // ---------------------------------------------------------------------------
@@ -48,10 +49,23 @@ const contactSchema = z.object({
   lastName: z.string().min(1),
 })
 
+const ancillarySchema = z.object({
+  ancillaryType: z.enum(["BAGGAGE", "SEAT", "MEAL", "LOUNGE", "INSURANCE"]),
+  description: z.string().max(256).optional(),
+  amount: z.number().nonnegative(),
+  currency: z.string().length(3).default("TND"),
+  segmentRefs: z.array(z.number().int().positive()).optional(),
+  passengerRef: z.number().int().positive().optional(),
+})
+
 const flightBookingRequestSchema = z.object({
   snapshotId: z.string().uuid(),
   passengers: z.array(passengerSchema).min(1).max(9),
   contact: contactSchema,
+  /** G5: link to an existing FlightOrder (multi-PNR). */
+  orderId: z.string().uuid().optional(),
+  /** G7: ancillary services selected during checkout. */
+  ancillaries: z.array(ancillarySchema).max(20).optional(),
 })
 
 export type FlightBookingRequestInput = z.infer<typeof flightBookingRequestSchema>
@@ -103,7 +117,7 @@ export async function createFlightBookingRequest(
     }
   }
 
-  const { snapshotId, passengers, contact } = parsed.data
+  const { snapshotId, passengers, contact, orderId, ancillaries } = parsed.data
 
   const snapshot = await getPriceSnapshot(snapshotId)
   if (!snapshot) {
@@ -185,6 +199,7 @@ export async function createFlightBookingRequest(
           reservationId,
           customerId,
           priceSnapshotId: snapshotId,
+          orderId: orderId ?? null,
           tripType: itinerary.tripType,
           itinerary: itinerary as unknown as Record<string, unknown>,
           contact: contact as unknown as Record<string, unknown>,
@@ -213,22 +228,39 @@ export async function createFlightBookingRequest(
         )
       }
 
-      // ── 6. Insert segments ─────────────────────────────────────────────────
-      if (itinerary.segments && itinerary.segments.length > 0) {
+      // ── 6. Insert segments (flattened across all journeys) ─────────────────
+      const allSegments = flattenSegments(itinerary)
+      if (allSegments.length > 0) {
         await tx.insert(flightBookingSegments).values(
-          itinerary.segments.map((seg, i) => ({
+          allSegments.map((seg, i) => ({
             bookingId,
             sequence: i + 1,
             origin: seg.origin,
             destination: seg.destination,
             departure: new Date(seg.departure),
             arrival: new Date(seg.arrival),
-            airline: seg.airline,
-            flightNumber: seg.flightNumber,
+            airline: seg.marketingCarrier,
+            flightNumber: `${seg.marketingCarrier}${seg.marketingFlightNumber}`,
             durationMin: seg.durationMinutes,
             stops: seg.stops,
             equipment: seg.equipment,
             cabin: seg.cabin,
+          })),
+        )
+      }
+
+      // ── 7. Insert ancillaries (G7) ────────────────────────────────────────
+      if (ancillaries && ancillaries.length > 0) {
+        await tx.insert(flightAncillaries).values(
+          ancillaries.map((a) => ({
+            bookingId,
+            ancillaryType: a.ancillaryType,
+            description: a.description ?? null,
+            amount: String(a.amount),
+            currency: a.currency,
+            segmentRefs: a.segmentRefs ?? null,
+            passengerRef: a.passengerRef ?? null,
+            status: "PENDING",
           })),
         )
       }

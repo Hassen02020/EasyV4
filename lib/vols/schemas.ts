@@ -50,3 +50,18 @@ export const flightGuestBookingSchema = z
   })
 
 export type FlightGuestBookingInput = z.infer<typeof flightGuestBookingSchema>
+
+// ---------------------------------------------------------------------------
+// G10 — New B2C booking schema (snapshotId replaces offerToken/expectedPrice)
+// Used by /vols/passengers → booking-request-action.ts
+// ---------------------------------------------------------------------------
+
+export const flightPassengerBookingSchema = z.object({
+  snapshotId: z.string().uuid(),
+  travelers: z
+    .array(flightTravelerSchema)
+    .min(1, "Au moins un voyageur requis")
+    .max(9, "Maximum 9 voyageurs par réservation"),
+})
+
+export type FlightPassengerBookingInput = z.infer<typeof flightPassengerBookingSchema>

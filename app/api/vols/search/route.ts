@@ -16,7 +16,7 @@ import { createPriceSnapshot } from "@/lib/vols/price-snapshot"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { flightSearches } from "@/lib/db/schema/flights"
-import type { CanonicalSearchRequest, TripType } from "@/lib/vols/canonical"
+import type { CanonicalSearchRequest, TripType, SearchPreferences } from "@/lib/vols/canonical"
 
 export const runtime = "nodejs"
 export const revalidate = 0
@@ -33,6 +33,8 @@ const SearchSchema = z.object({
   cabin: z.enum(["ECONOMY", "PREMIUM_ECONOMY", "BUSINESS", "FIRST"]).default("ECONOMY"),
   currency: z.string().length(3).default("TND"),
   segments: z.string().optional(), // JSON-encoded CanonicalSearchSegment[] for MULTI_CITY
+  // Search preferences (JSON-encoded SearchPreferences)
+  preferences: z.string().optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -79,6 +81,16 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Parse search preferences if provided
+  let preferences: SearchPreferences | undefined
+  if (p.preferences) {
+    try {
+      preferences = JSON.parse(p.preferences) as SearchPreferences
+    } catch {
+      // Non-fatal — ignore malformed preferences
+    }
+  }
+
   const request: CanonicalSearchRequest = {
     tripType: p.tripType as TripType,
     origin: p.origin,
@@ -91,6 +103,7 @@ export async function GET(req: NextRequest) {
     infants: p.infants,
     cabin: p.cabin,
     currency: p.currency,
+    preferences,
   }
 
   // Persist search record
@@ -144,13 +157,14 @@ export async function GET(req: NextRequest) {
           expiresAt: snapshot.expiresAt.toISOString(),
           // Canonical itinerary fields (no supplier price)
           tripType: itinerary.tripType,
-          segments: itinerary.segments,
+          journeys: itinerary.journeys,
           fares: itinerary.fares.map((f) => ({
             passengerType: f.passengerType,
             count: f.count,
           })),
           baggage: itinerary.baggage,
           fareRules: itinerary.fareRules,
+          fareBrands: itinerary.fareBrands,
           availableSeats: itinerary.availableSeats,
           provider: itinerary.provider.provider,
         }

@@ -21,19 +21,71 @@ export interface CanonicalSegment {
   destination: string     // IATA 3-letter code
   departure: string       // ISO-8601 datetime with offset
   arrival: string         // ISO-8601 datetime with offset
-  airline: string         // 2-letter IATA carrier code
-  flightNumber: string    // e.g. "TU 745"
+  /** Marketing carrier IATA 2-letter code (e.g. "AF" for AF1234). */
+  marketingCarrier: string
+  /** Operating carrier IATA 2-letter code — differs on codeshares (e.g. "KL" flying AF metal). */
+  operatingCarrier: string
+  /** Marketing flight number (numeric part only, e.g. "1234"). */
+  marketingFlightNumber: string
+  /** Operating flight number — present when it differs from marketingFlightNumber. */
+  operatingFlightNumber?: string
   durationMinutes: number
   stops: number           // 0 = direct
   equipment?: string      // aircraft type, e.g. "B737"
   cabin: CabinClass
   bookingClass?: string   // fare basis class letter
+  fareBrandId?: string    // links to FareBrand in CanonicalItinerary.fareBrands
 }
 
 export type CabinClass = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST"
 
 // ---------------------------------------------------------------------------
-// Fare
+// Layover (connection between two segments within a journey)
+// ---------------------------------------------------------------------------
+
+export interface Layover {
+  /** IATA code of the connection airport. */
+  airport: string
+  durationMinutes: number
+  isOvernightLayover: boolean
+  terminalChange?: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Journey (one logical leg: outbound TUN→CDG, or return CDG→TUN)
+// ---------------------------------------------------------------------------
+
+export interface Journey {
+  origin: string           // first segment's origin
+  destination: string      // last segment's destination
+  departureDate: string    // YYYY-MM-DD
+  segments: CanonicalSegment[]
+  /** Computed layovers between consecutive segments. Empty for direct flights. */
+  layovers: Layover[]
+}
+
+// ---------------------------------------------------------------------------
+// Fare Brand / Fare Family
+// ---------------------------------------------------------------------------
+
+export interface FareBrand {
+  brandId: string
+  name: string             // e.g. "Economy Light", "Economy Flex", "Business"
+  cabinClass: CabinClass
+  refundable: boolean
+  changeable: boolean
+  changePenaltyAmount?: number
+  changePenaltyCurrency?: string
+  includedBaggageKg?: number
+  seatSelectionIncluded: boolean
+  /** Upgrade to next cabin available at booking. */
+  upgradeable?: boolean
+  /** Human-readable conditions (from provider). */
+  conditions?: string
+}
+
+// ---------------------------------------------------------------------------
+// Fare (financial — amounts per passenger type)
 // ---------------------------------------------------------------------------
 
 export interface CanonicalFare {
@@ -43,6 +95,8 @@ export interface CanonicalFare {
   totalAmount: number      // baseAmount + taxAmount, per-pax
   passengerType: "ADT" | "CHD" | "INF"
   count: number            // number of passengers at this fare
+  /** Links to FareBrand.brandId when fare families are available. */
+  fareBrandId?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +125,22 @@ export interface CanonicalFareRules {
 }
 
 // ---------------------------------------------------------------------------
+// Ancillary services (upsell at booking)
+// ---------------------------------------------------------------------------
+
+export interface Ancillary {
+  ancillaryId: string
+  type: "BAGGAGE" | "SEAT" | "MEAL" | "LOUNGE" | "INSURANCE"
+  description: string
+  amount: number
+  currency: string
+  /** Segment sequence numbers this ancillary applies to. Null = all segments. */
+  segmentRefs?: number[]
+  /** Passenger sequence number. Null = all passengers. */
+  passengerRef?: number
+}
+
+// ---------------------------------------------------------------------------
 // Provider reference (opaque — never inspected outside adapters)
 // ---------------------------------------------------------------------------
 
@@ -90,21 +160,44 @@ export interface CanonicalProviderReference {
 export interface CanonicalItinerary {
   tripType: TripType
   /**
-   * Ordered segments across all legs.
-   * ONE_WAY  : segments for TUN → CDG
-   * ROUND_TRIP: segments for TUN → CDG, then CDG → TUN
-   * MULTI_CITY: segments for each city pair in order
+   * Ordered journeys (legs).
+   * ONE_WAY   : one Journey (e.g. TUN→CDG)
+   * ROUND_TRIP: two Journeys (outbound + return)
+   * MULTI_CITY: N Journeys, one per requested city-pair
+   *
+   * Each Journey groups its segments and computed layovers.
    */
-  segments: CanonicalSegment[]
+  journeys: Journey[]
   fares: CanonicalFare[]
+  /** Fare brands available for this offer — present when provider supports NDC/branded fares. */
+  fareBrands?: FareBrand[]
   baggage: CanonicalBaggage
   fareRules: CanonicalFareRules
+  /** Optional ancillary services available for upsell. */
+  ancillaries?: Ancillary[]
   provider: CanonicalProviderReference
   /** Total supplier price (all fares summed, all pax). */
   supplierTotalAmount: number
   supplierCurrency: string
   /** Number of available seats (null = unknown). */
   availableSeats: number | null
+}
+
+// ---------------------------------------------------------------------------
+// Search request preferences
+// ---------------------------------------------------------------------------
+
+export interface SearchPreferences {
+  /** 0 = direct flights only, 1 = max one stop, etc. */
+  maxStops?: number
+  preferredAirlines?: string[]    // IATA 2-letter codes
+  excludedAirlines?: string[]
+  /** Departure time window (local HH:MM). */
+  departureTimeRange?: { from: string; to: string }
+  /** Arrival time window (local HH:MM). */
+  arrivalTimeRange?: { from: string; to: string }
+  maxDurationMinutes?: number
+  preferredAirports?: string[]    // IATA 3-letter codes
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +223,8 @@ export interface CanonicalSearchRequest {
   infants: number
   cabin: CabinClass
   currency: string
+  /** Optional search preferences passed to GDS adapters where supported. */
+  preferences?: SearchPreferences
 }
 
 // ---------------------------------------------------------------------------
@@ -139,3 +234,35 @@ export interface CanonicalSearchRequest {
 export type CanonicalSearchResult =
   | { ok: true; itineraries: CanonicalItinerary[]; searchId: string }
   | { ok: false; error: string; code: string }
+
+// ---------------------------------------------------------------------------
+// Utility: compute layovers from an ordered segment array
+// ---------------------------------------------------------------------------
+
+export function computeLayovers(segments: CanonicalSegment[]): Layover[] {
+  const layovers: Layover[] = []
+  for (let i = 0; i < segments.length - 1; i++) {
+    const arrivalMs = new Date(segments[i].arrival).getTime()
+    const departureMs = new Date(segments[i + 1].departure).getTime()
+    const durationMinutes = Math.max(0, Math.round((departureMs - arrivalMs) / 60_000))
+    const arrivalDate = new Date(segments[i].arrival)
+    const nextDepartureDate = new Date(segments[i + 1].departure)
+    const isOvernightLayover =
+      nextDepartureDate.getUTCDate() !== arrivalDate.getUTCDate() ||
+      nextDepartureDate.getUTCFullYear() !== arrivalDate.getUTCFullYear()
+    layovers.push({
+      airport: segments[i].destination,
+      durationMinutes,
+      isOvernightLayover,
+    })
+  }
+  return layovers
+}
+
+// ---------------------------------------------------------------------------
+// Utility: flatten all segments from all journeys
+// ---------------------------------------------------------------------------
+
+export function flattenSegments(itinerary: CanonicalItinerary): CanonicalSegment[] {
+  return itinerary.journeys.flatMap((j) => j.segments)
+}

@@ -29,30 +29,7 @@ import {
   type FlightSearchState,
 } from "@/lib/vols/search-state"
 import type { FlightOffer } from "@/lib/vols/client"
-
-type SortMode = "recommended" | "price_asc" | "price_desc" | "duration_asc"
-
-function offerPrice(o: FlightOffer): number {
-  return o.sellingAmount ?? o.priceTnd ?? 0
-}
-
-function sortOffers(offers: FlightOffer[], mode: SortMode): FlightOffer[] {
-  const copy = [...offers]
-  switch (mode) {
-    case "price_asc":
-      return copy.sort((a, b) => offerPrice(a) - offerPrice(b))
-    case "price_desc":
-      return copy.sort((a, b) => offerPrice(b) - offerPrice(a))
-    case "duration_asc":
-      return copy.sort((a, b) => a.totalDurationMinutes - b.totalDurationMinutes)
-    case "recommended":
-    default:
-      return copy.sort((a, b) => {
-        if (a.stops !== b.stops) return a.stops - b.stops
-        return offerPrice(a) - offerPrice(b)
-      })
-  }
-}
+import { applyFilters, sortOffers, type SortMode, type FlightFilters } from "@/lib/vols/filter-engine"
 
 function formatMinutes(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60)
@@ -80,35 +57,28 @@ function bookingHref(offer: FlightOffer): string | null {
   if (offer.snapshotId) {
     return `/vols/passengers?snapshotId=${offer.snapshotId}`
   }
-  // Legacy fallback for virtual-supplier offers without snapshot
-  if (offer.offerToken) {
-    const firstSegment = offer.segments[0]
-    const lastSegment = offer.segments[offer.segments.length - 1]
-    const params = new URLSearchParams({
-      token: offer.offerToken,
-      price: String(offer.priceTnd ?? 0),
-      currency: offer.currency,
-      origin: firstSegment?.origin ?? "",
-      destination: lastSegment?.destination ?? "",
-      departureAt: firstSegment?.departureAt ?? "",
-      arrivalAt: lastSegment?.arrivalAt ?? "",
-      carrier: firstSegment?.carrier ?? "",
-      flightNumber: firstSegment?.flightNumber ?? "",
-      stops: String(offer.stops),
-      cabin: firstSegment?.cabin ?? "ECONOMY",
-    })
-    if (offer.baggageKg != null) params.set("baggageKg", String(offer.baggageKg))
-    return `/vols/book?${params.toString()}`
-  }
   return null
+}
+
+function offerStops(offer: FlightOffer): number {
+  return offer.journeys.reduce((sum, j) => sum + j.layovers.length, 0)
 }
 
 function FlightCard({ offer }: { offer: FlightOffer }) {
   const t = useTranslations("Vols")
   const { format: formatPrice } = useCurrency()
-  const segment = offer.segments[0]
+
+  const firstJourney = offer.journeys[0]
+  const firstSegment = firstJourney?.segments[0]
+  const lastJourney = offer.journeys[offer.journeys.length - 1]
+  const lastSegment = lastJourney?.segments[lastJourney.segments.length - 1]
   const href = bookingHref(offer)
-  const price = offerPrice(offer)
+  const price = offer.sellingAmount ?? offer.priceTnd ?? 0
+  const stops = offerStops(offer)
+  const isRoundTrip = offer.journeys.length > 1
+
+  if (!firstSegment || !lastSegment) return null
+
   return (
     <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
@@ -117,22 +87,40 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
             <Plane className="text-primary h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
+            {/* Outbound leg */}
             <div className="flex items-center gap-2">
               <span className="text-foreground text-lg font-bold tabular-nums">
-                {formatTime(segment.departureAt)}
+                {formatTime(firstSegment.departure)}
               </span>
               <ArrowRight className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
               <span className="text-foreground text-lg font-bold tabular-nums">
-                {formatTime(segment.arrivalAt)}
+                {isRoundTrip
+                  ? formatTime(firstJourney!.segments[firstJourney!.segments.length - 1].arrival)
+                  : formatTime(lastSegment.arrival)}
               </span>
               <span className="text-muted-foreground text-sm">
-                {offer.segments[0].origin} → {offer.segments[offer.segments.length - 1].destination}
+                {firstSegment.origin} → {isRoundTrip ? firstJourney!.destination : lastSegment.destination}
               </span>
             </div>
+            {/* Return leg */}
+            {isRoundTrip && lastJourney && (
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-foreground/80 text-sm font-semibold tabular-nums">
+                  {formatTime(lastJourney.segments[0].departure)}
+                </span>
+                <ArrowRight className="text-muted-foreground h-3 w-3 shrink-0" />
+                <span className="text-foreground/80 text-sm font-semibold tabular-nums">
+                  {formatTime(lastSegment.arrival)}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {lastJourney.origin} → {lastJourney.destination}
+                </span>
+              </div>
+            )}
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span>{segment.carrier} {segment.flightNumber}</span>
+              <span>{firstSegment.marketingCarrier} {firstSegment.marketingCarrier}{firstSegment.marketingFlightNumber}</span>
               <span>{formatMinutes(offer.totalDurationMinutes)}</span>
-              <span>{offer.stops === 0 ? t("directFlight") : t("stopsCount", { count: offer.stops })}</span>
+              <span>{stops === 0 ? t("directFlight") : t("stopsCount", { count: stops })}</span>
               {offer.baggageKg != null && (
                 <span className="inline-flex items-center gap-1">
                   <Luggage className="h-3 w-3" />
@@ -231,16 +219,13 @@ export function FlightResultsContent() {
   const parsed = useMemo(() => parseFlightSearchParams(searchParams), [searchParams])
   const requestKey = parsed.ok ? JSON.stringify(parsed.state) : null
 
-  // Pas de setState synchrone dans l'effet (règle react-hooks/set-state-in-effect,
-  // même pattern que lib/mygo/use-hotel-search.ts) : on stocke la clé de requête
-  // qui a produit la donnée et on dérive le statut au rendu plutôt que de mettre
-  // "loading" avant le fetch.
   const [fetchState, setFetchState] = useState<{
     requestKey: string | null
     status: "idle" | "success" | "error"
     offers: FlightOffer[]
     error: string | null
   }>({ requestKey: null, status: "idle", offers: [], error: null })
+
   const [sortMode, setSortMode] = useState<SortMode>("recommended")
   const [directOnly, setDirectOnly] = useState(false)
   const [refundableOnly, setRefundableOnly] = useState(false)
@@ -279,22 +264,23 @@ export function FlightResultsContent() {
       : fetchState.status === "idle"
         ? "loading"
         : fetchState.status
+
   const offers = useMemo(
     () => (fetchState.requestKey === requestKey ? fetchState.offers : []),
     [fetchState, requestKey],
   )
   const error = fetchState.requestKey === requestKey ? fetchState.error : null
 
-  const filteredSorted = useMemo(() => {
-    let result = offers
-    if (directOnly) result = result.filter((o) => o.stops === 0)
-    if (refundableOnly) result = result.filter((o) => o.refundable)
-    return sortOffers(result, sortMode)
-  }, [offers, directOnly, refundableOnly, sortMode])
+  const filters: FlightFilters = useMemo(
+    () => ({ directOnly, refundableOnly }),
+    [directOnly, refundableOnly],
+  )
 
-  // Pagination SERP (chantier 6) — directOnly/refundableOnly/sortMode ne
-  // vivent qu'en state local (pas dans l'URL) : passés comme clé de remise
-  // à la page 1 (voir hooks/use-paginated-results.ts).
+  const filteredSorted = useMemo(() => {
+    const filtered = applyFilters(offers, filters)
+    return sortOffers(filtered, sortMode)
+  }, [offers, filters, sortMode])
+
   const { pageItems: pagedOffers, currentPage, totalPages, setPage } = usePaginatedResults(
     filteredSorted,
     `${directOnly}|${refundableOnly}|${sortMode}`,

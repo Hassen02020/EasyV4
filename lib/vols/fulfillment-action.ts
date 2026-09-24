@@ -283,10 +283,39 @@ export async function fulfillFlightBooking(
   } catch (err) {
     issueMs = Date.now() - issueMs
     await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "ISSUE", "FAILURE", {}, { error: String(err) }, issueMs)
-    // Booking is created at the GDS level; ticketing failure goes to FAILED
-    // so ops can retry manually or void the PNR.
+
+    // PNR was created by book() — attempt auto-cancel to avoid an orphaned GDS booking.
+    // A TOCTOU window exists between book() success and issue() failure; the PNR
+    // is live at the GDS level and will consume seat inventory until voided.
+    let pnrOrphaned = false
+    const cancelMs0 = Date.now()
+    try {
+      await adapter.cancel(bookResult.pnr, itinerary)
+      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "SUCCESS", { pnr: bookResult.pnr }, {}, Date.now() - cancelMs0)
+    } catch (cancelErr) {
+      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "FAILURE", { pnr: bookResult.pnr }, { error: String(cancelErr) }, Date.now() - cancelMs0)
+      pnrOrphaned = true
+    }
+
+    if (pnrOrphaned) {
+      // Flag in DB so the Ticketing Desk can manually void the PNR.
+      await withSystemContext((tx) =>
+        tx
+          .update(flightBookings)
+          .set({
+            opsNotes: `PNR orphan: cancel failed after issue() failure — manual void required. PNR: ${bookResult.pnr}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(flightBookings.id, bookingId)),
+      )
+    }
+
     await updateFlightStatus(bookingId, "FAILED")
-    return { ok: false, error: "L'émission du billet a échoué.", code: "ISSUE_FAILED" }
+    return {
+      ok: false,
+      error: "L'émission du billet a échoué.",
+      code: pnrOrphaned ? "PNR_ORPHANED" : "ISSUE_FAILED",
+    }
   }
 
   await logTransaction(

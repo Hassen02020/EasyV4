@@ -32,6 +32,13 @@
  * P13 — Arm B recovery at scale: 100 FAILED+pnr → 100 Arm B wins, 100 CONFIRMED
  * P14 — Throughput saturation: 1ms synthetic delay × 100 concurrent → wall < 30ms
  * P15 — Realistic production mix: 1 000 bookings (70% ok, 15% reissue, 10% price-changed, 5% unavailable)
+ *
+ * Capacity measurement (P16–P19) — explicit throughput, concurrency efficiency,
+ * GDS-latency ceiling, and sustained capacity without degradation:
+ * P16 — Explicit throughput baseline: 2 000 concurrent → bps ≥ 50 000
+ * P17 — GDS-latency throughput: 100 concurrent × 5ms → bps ≥ 5 000
+ * P18 — Concurrency efficiency curve: bps(500 concurrent) ≥ bps(50 concurrent) × 3
+ * P19 — Sustained capacity: 20 successive 100-booking batches, no throughput degradation
  */
 
 import assert from "node:assert/strict"
@@ -632,5 +639,117 @@ describe("G15 — Production Load", () => {
     const issueEntries = auditLog.filter((e) => e.type === "ISSUE" && e.status === "SUCCESS")
     assert.equal(bookEntries.length, 700, "700 BOOK:SUCCESS entries (Arm A only — Arm B skips book)")
     assert.equal(issueEntries.length, 850, "850 ISSUE:SUCCESS entries (all confirmed bookings)")
+  })
+
+  // ── Capacity measurement ────────────────────────────────────────────────────
+
+  test("P16 — Explicit throughput baseline: 2 000 concurrent → bps ≥ 50 000", async () => {
+    // In-memory with no synthetic delay: 2 000 concurrent pipelines,
+    // all independent. Measures raw pipeline throughput before any GDS I/O.
+    const bookings = Array.from({ length: 2000 }, () => makeBooking())
+    const t0 = performance.now()
+
+    const results = await Promise.all(
+      bookings.map((b) => runFulfillmentFull(b, {}, [])),
+    )
+
+    const wallMs = performance.now() - t0
+    const wins = results.filter((r) => r.ok).length
+    const bps = Math.round((wins / wallMs) * 1000)
+
+    assert.equal(wins, 2000, "all 2 000 bookings must succeed")
+    assert.ok(bps >= 50_000, `throughput ${bps} bps < 50 000 bps — pipeline has unexpected bottleneck`)
+
+    ;(globalThis as Record<string, unknown>)["__g15_baseline"] = { bps, wallMs, n: 2000 }
+  })
+
+  test("P17 — GDS-latency throughput: 100 concurrent × 5ms → bps ≥ 5 000", async () => {
+    // With 5ms synthetic GDS book delay and 100 concurrent pipelines:
+    //   Theoretical max = 100 / 0.005s = 20 000 bps
+    //   25% efficiency floor → ≥ 5 000 bps
+    // Sequential equivalent would be 100 × 5ms = 500ms → 200 bps — an order of magnitude worse.
+    const bookings = Array.from({ length: 100 }, () => makeBooking())
+    const t0 = performance.now()
+
+    const results = await Promise.all(
+      bookings.map((b) => runFulfillmentFull(b, { bookDelayMs: 5 }, [])),
+    )
+
+    const wallMs = performance.now() - t0
+    const wins = results.filter((r) => r.ok).length
+    const bps = Math.round((wins / wallMs) * 1000)
+
+    assert.equal(wins, 100, "all 100 bookings must succeed")
+    assert.ok(bps >= 5_000, `GDS-latency throughput ${bps} bps < 5 000 bps (sequential fallback?)`)
+
+    ;(globalThis as Record<string, unknown>)["__g15_gds"] = { bps, wallMs, delayMs: 5, n: 100 }
+  })
+
+  test("P18 — Concurrency efficiency curve: bps(500 concurrent) ≥ bps(50 concurrent) × 3", async () => {
+    // Verifies true concurrency: more concurrent bookings → proportionally higher throughput.
+    // The ratio requirement is intentionally conservative (3×) to tolerate
+    // scheduler and Promise overhead at extreme concurrency.
+
+    // Warm-up (exclude from measurement)
+    await Promise.all(Array.from({ length: 10 }, () =>
+      runFulfillmentFull(makeBooking(), { bookDelayMs: 2 }, []),
+    ))
+
+    // Low concurrency
+    const low = Array.from({ length: 50 }, () => makeBooking())
+    const t0Low = performance.now()
+    await Promise.all(low.map((b) => runFulfillmentFull(b, { bookDelayMs: 2 }, [])))
+    const wallLow = performance.now() - t0Low
+    const bpsLow = Math.round((50 / wallLow) * 1000)
+
+    // High concurrency
+    const high = Array.from({ length: 500 }, () => makeBooking())
+    const t0High = performance.now()
+    await Promise.all(high.map((b) => runFulfillmentFull(b, { bookDelayMs: 2 }, [])))
+    const wallHigh = performance.now() - t0High
+    const bpsHigh = Math.round((500 / wallHigh) * 1000)
+
+    assert.ok(
+      bpsHigh >= bpsLow * 3,
+      `concurrency efficiency too low: bps(500)=${bpsHigh} not ≥ bps(50)×3=${bpsLow * 3}`,
+    )
+
+    ;(globalThis as Record<string, unknown>)["__g15_curve"] = { bpsLow, bpsHigh, ratio: (bpsHigh / bpsLow).toFixed(1) }
+  })
+
+  test("P19 — Sustained capacity: 20 successive 100-booking batches, no throughput degradation", async () => {
+    // Simulates a sustained production stream: 20 consecutive waves of 100
+    // independent concurrent bookings. Each wave must complete within a
+    // stable ceiling — no warm-up effect or memory pressure slowing later batches.
+    const WAVES = 20
+    const PER_WAVE = 100
+    const wallTimes: number[] = []
+
+    for (let w = 0; w < WAVES; w++) {
+      const bookings = Array.from({ length: PER_WAVE }, () => makeBooking())
+      const t0 = performance.now()
+      const results = await Promise.all(
+        bookings.map((b) => runFulfillmentFull(b, {}, [])),
+      )
+      wallTimes.push(performance.now() - t0)
+      const wins = results.filter((r) => r.ok).length
+      assert.equal(wins, PER_WAVE, `wave ${w + 1}: all ${PER_WAVE} bookings must succeed`)
+    }
+
+    // No degradation: last wave ≤ 3× the first wave (absorbs JIT/GC variance)
+    const first = wallTimes[0]!
+    const last = wallTimes[WAVES - 1]!
+    assert.ok(
+      last <= first * 3,
+      `throughput degradation detected: wave 1=${first.toFixed(1)}ms → wave 20=${last.toFixed(1)}ms (3× ceiling)`,
+    )
+
+    // Median wave time must be well-bounded
+    const sorted = [...wallTimes].sort((a, b) => a - b)
+    const medianMs = sorted[Math.floor(WAVES / 2)]!
+    assert.ok(medianMs < 100, `median wave time ${medianMs.toFixed(1)}ms ≥ 100ms — capacity ceiling too low`)
+
+    const bps = Math.round(((WAVES * PER_WAVE) / wallTimes.reduce((s, t) => s + t, 0)) * 1000)
+    ;(globalThis as Record<string, unknown>)["__g15_sustained"] = { waves: WAVES, perWave: PER_WAVE, medianMs, bps }
   })
 })

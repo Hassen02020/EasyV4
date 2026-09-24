@@ -9,14 +9,18 @@
 
 import Link from "next/link"
 import {
+  AlertTriangle,
   Building2,
   Calendar,
   CreditCard,
   Download,
   FileText,
   History,
+  Plane,
+  Ticket,
   User,
 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -191,6 +195,63 @@ export function ReservationDetailView({
             )}
           </CardContent>
         </Card>
+
+        {detail.flightDetail ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Plane className="h-4 w-4" /> Statut GDS / Billet
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground">Statut GDS :</span>
+                <Badge variant="outline" className="font-mono">{detail.flightDetail.bookingStatus}</Badge>
+                {detail.flightDetail.pnr ? (
+                  <span className="font-mono text-xs">PNR : <strong>{detail.flightDetail.pnr}</strong></span>
+                ) : null}
+              </div>
+              {detail.flightDetail.slaDeadline ? (
+                <p className="text-muted-foreground">
+                  Délai d&apos;émission : <span className="font-medium text-foreground">{formatDate(detail.flightDetail.slaDeadline)}</span>
+                </p>
+              ) : null}
+              {detail.flightDetail.opsNotes ? (
+                <Alert variant="destructive" className="py-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">{detail.flightDetail.opsNotes}</AlertDescription>
+                </Alert>
+              ) : null}
+              {detail.flightDetail.tickets.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="flex items-center gap-1 font-medium">
+                    <Ticket className="h-3.5 w-3.5" /> Billets émis
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Numéro de billet</TableHead>
+                          <TableHead>Statut</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.flightDetail.tickets.map((tk) => (
+                          <TableRow key={tk.ticketNumber}>
+                            <TableCell className="font-mono text-xs">{tk.ticketNumber}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{tk.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>

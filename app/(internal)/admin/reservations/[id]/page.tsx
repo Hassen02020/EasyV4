@@ -61,10 +61,19 @@ export default async function AdminReservationDetailPage({
   // systématiquement en échec, sans jamais pouvoir revenir dans le seul état
   // qui l'accepte. On aligne l'affichage sur la précondition réelle du
   // serveur plutôt que de laisser un bouton présent mais non câblé.
+  const isFlightRoleAllowed = (["super_admin", "manager", "agent_resa"] as readonly string[]).includes(profile.role)
+  // Arm A: normal path — reservation still PENDING (flight_bookings.status PENDING).
+  // Arm B: re-issue path — flight_bookings.status FAILED with a live PNR at the GDS.
   const canFulfillFlight =
     detail.module === "flight" &&
-    detail.status === "pending" &&
-    (["super_admin", "manager", "agent_resa"] as readonly string[]).includes(profile.role)
+    isFlightRoleAllowed &&
+    (
+      detail.status === "pending" ||
+      (
+        detail.flightDetail?.bookingStatus === "FAILED" &&
+        detail.flightDetail.pnr != null
+      )
+    )
 
   const canVerifyPayment =
     detail.status === "pending" &&

@@ -11,10 +11,11 @@
  *   - flight_supplier_transactions : log toutes transactions GDS
  *
  * Décisions d'architecture :
- *   - flight_bookings est un objet métier autonome (≠ reservation_flight qui
- *     est une extension de la table `reservations` polymorphique).
- *     Les deux coexistent : `reservation_flight` sert au legacy/rapport wallet,
- *     `flight_bookings` sert au nouveau workflow Ticketing Desk.
+ *   - flight_bookings.reservation_id → reservations (module="flight") :
+ *     bridge vers le Booking Core partagé. CRM / Finance / Customer 360 /
+ *     Admin historique lisent `reservations`; le Flight Puzzle lit
+ *     `flight_bookings` pour la machine d'état granulaire (8 statuts GDS).
+ *     Pattern identique à reservation_hotel pour les hôtels.
  *   - Le prix fournisseur ne remonte jamais au frontend : seul le snapshotId
  *     transite dans l'URL/session.
  *   - La colonne `itinerary` (jsonb) contient un CanonicalItinerary complet —
@@ -34,7 +35,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core"
-import { agencies } from "../schema"
+import { agencies, reservations } from "../schema"
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -156,6 +157,10 @@ export const flightBookings = pgTable(
       () => flightPriceSnapshots.id,
       { onDelete: "restrict" },
     ),
+    /** Bridge to shared Booking Core — visible in CRM, Finance, Customer 360. */
+    reservationId: uuid("reservation_id").references(() => reservations.id, {
+      onDelete: "set null",
+    }),
     customerId: uuid("customer_id"),
     tripType: flightTripType("trip_type").notNull(),
     itinerary: jsonb("itinerary").notNull(),
@@ -175,6 +180,7 @@ export const flightBookings = pgTable(
     index("flight_bookings_agency_idx").on(t.agencyId),
     index("flight_bookings_status_idx").on(t.status),
     index("flight_bookings_snapshot_idx").on(t.priceSnapshotId),
+    index("flight_bookings_reservation_idx").on(t.reservationId),
     index("flight_bookings_created_idx").on(t.createdAt),
   ],
 )

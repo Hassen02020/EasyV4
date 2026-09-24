@@ -99,6 +99,7 @@ export const reservationSource = pgEnum("reservation_source", [
   "internal",
   "amadeus",
   "sabre",
+  "travelport",
   "expedia",
   "manual",
 ])

@@ -1,22 +1,35 @@
 "use server"
 
 /**
- * Flight Booking Request — Phase 7
+ * Flight Booking Request — Phase 7 (Bridge revision)
  *
- * Creates a FlightBooking record (status=PENDING) referencing a price
- * snapshot. Does NOT call any GDS adapter immediately — the Ticketing Desk
- * picks up PENDING requests, rechecks, books, and issues.
+ * Creates two records atomically:
+ *   1. reservations (module="flight", status="pending")  ← Booking Core bridge
+ *   2. flight_bookings (status=PENDING, reservation_id FK) ← Flight state machine
  *
- * The supplier price is never returned to the client. Only the bookingId
- * and confirmation details are returned.
+ * The Booking Core row makes flights visible to CRM, Finance, Customer 360,
+ * and the admin history without any changes to those modules.
+ *
+ * Does NOT call any GDS adapter — the Ticketing Desk picks up PENDING requests,
+ * rechecks, books, and issues.
+ *
+ * The supplier price is never returned to the client. Only bookingId,
+ * publicRef, and guestAccessToken are returned.
  */
 
+import { eq, and } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { reservations, customers } from "@/lib/db/schema"
 import { flightBookings, flightBookingPassengers, flightBookingSegments } from "@/lib/db/schema/flights"
 import { getPriceSnapshot, markSnapshotUsed } from "./price-snapshot"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { nextPublicRef } from "@/lib/booking/actions"
 import type { CanonicalItinerary } from "./canonical"
 import { z } from "zod"
+
+// ---------------------------------------------------------------------------
+// Input schemas
+// ---------------------------------------------------------------------------
 
 const passengerSchema = z.object({
   passengerType: z.enum(["ADT", "CHD", "INF"]).default("ADT"),
@@ -47,13 +60,36 @@ export type FlightBookingRequestResult =
   | {
       ok: true
       bookingId: string
+      reservationId: string
+      /** Public human-readable reference (e.g. TG-2026-000042). */
+      publicRef: string
+      /** Private token for guest confirmation/voucher URL without session. */
+      guestAccessToken: string
       status: "PENDING"
-      /** Estimated processing time (SLA ~15 min). */
       slaMinutes: number
     }
   | { ok: false; error: string; code?: string }
 
+// ---------------------------------------------------------------------------
+// Maps provider name → reservation_source enum value
+// ---------------------------------------------------------------------------
+
+function providerToSource(
+  provider: string,
+): "internal" | "amadeus" | "sabre" | "travelport" | "manual" {
+  switch (provider) {
+    case "amadeus":   return "amadeus"
+    case "sabre":     return "sabre"
+    case "travelport": return "travelport"
+    default:          return "internal" // virtual, demo, unknown
+  }
+}
+
 const SLA_MINUTES = 15
+
+// ---------------------------------------------------------------------------
+// Action
+// ---------------------------------------------------------------------------
 
 export async function createFlightBookingRequest(
   input: FlightBookingRequestInput,
@@ -69,7 +105,6 @@ export async function createFlightBookingRequest(
 
   const { snapshotId, passengers, contact } = parsed.data
 
-  // Load and validate snapshot
   const snapshot = await getPriceSnapshot(snapshotId)
   if (!snapshot) {
     return {
@@ -88,12 +123,67 @@ export async function createFlightBookingRequest(
   const slaDeadline = new Date(Date.now() + SLA_MINUTES * 60 * 1000)
 
   try {
-    // Create booking + passengers + segments in one system transaction
-    const bookingRows = await withSystemContext(async (tx) => {
-      const bookingResult = await tx
+    const result = await withSystemContext(async (tx) => {
+      // ── 1. Find or create customer ─────────────────────────────────────────
+      let customerId: string
+
+      const existing = await tx
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.agencyId, agencyId),
+            eq(customers.email, contact.email),
+          ),
+        )
+        .limit(1)
+
+      if (existing[0]) {
+        customerId = existing[0].id
+      } else {
+        const inserted = await tx
+          .insert(customers)
+          .values({
+            agencyId,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            email: contact.email,
+            phone: contact.phone ?? null,
+          })
+          .returning({ id: customers.id })
+        customerId = (inserted as Array<{ id: string }>)[0]!.id
+      }
+
+      // ── 2. Generate public reference ───────────────────────────────────────
+      const publicRef = await nextPublicRef(tx, agencyId)
+
+      // ── 3. Insert reservations row (Booking Core bridge) ───────────────────
+      const reservationRows = await tx
+        .insert(reservations)
+        .values({
+          agencyId,
+          customerId,
+          publicRef,
+          module: "flight",
+          source: providerToSource(snapshot.provider),
+          status: "pending",
+          originalCurrency: snapshot.sellingCurrency ?? "TND",
+          originalAmount: snapshot.sellingAmount,
+          tndAmount: snapshot.sellingAmount,
+        })
+        .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
+
+      const { id: reservationId, guestAccessToken } = (
+        reservationRows as Array<{ id: string; guestAccessToken: string }>
+      )[0]!
+
+      // ── 4. Insert flight_bookings row (state machine) ──────────────────────
+      const bookingRows = await tx
         .insert(flightBookings)
         .values({
           agencyId,
+          reservationId,
+          customerId,
           priceSnapshotId: snapshotId,
           tripType: itinerary.tripType,
           itinerary: itinerary as unknown as Record<string, unknown>,
@@ -104,9 +194,9 @@ export async function createFlightBookingRequest(
         })
         .returning({ id: flightBookings.id })
 
-      const bookingId = (bookingResult as Array<{ id: string }>)[0]!.id
+      const bookingId = (bookingRows as Array<{ id: string }>)[0]!.id
 
-      // Insert passengers
+      // ── 5. Insert passengers ───────────────────────────────────────────────
       if (passengers.length > 0) {
         await tx.insert(flightBookingPassengers).values(
           passengers.map((p, i) => ({
@@ -123,7 +213,7 @@ export async function createFlightBookingRequest(
         )
       }
 
-      // Insert segments from canonical itinerary
+      // ── 6. Insert segments ─────────────────────────────────────────────────
       if (itinerary.segments && itinerary.segments.length > 0) {
         await tx.insert(flightBookingSegments).values(
           itinerary.segments.map((seg, i) => ({
@@ -143,15 +233,18 @@ export async function createFlightBookingRequest(
         )
       }
 
-      return bookingId
+      return { bookingId, reservationId, publicRef, guestAccessToken }
     })
 
-    // Mark snapshot as used (idempotent for ACTIVE → USED)
+    // Mark snapshot as used outside the main tx (idempotent)
     await markSnapshotUsed(snapshotId)
 
     return {
       ok: true,
-      bookingId: bookingRows as unknown as string,
+      bookingId: result.bookingId,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      guestAccessToken: result.guestAccessToken,
       status: "PENDING",
       slaMinutes: SLA_MINUTES,
     }

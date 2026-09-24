@@ -4,25 +4,35 @@
  * Transforms a supplier price into the B2C selling price:
  *   supplierAmount + fee + markup = sellingAmount
  *
- * Rules are per-channel (B2C / B2B / Partner / WhiteLabel) and per-agency.
- * G6: Rules are now loaded from the DB (flight_commercial_rules table),
- * with automatic fallback to env vars when no active DB rule is found.
+ * Priority cascade:
+ *   1. DB: query rules where (agency_id IS NULL OR agency_id = X) AND
+ *          (channel IS NULL OR channel = Y), ORDER BY priority DESC
+ *   2. TypeScript: filter by product_scope (cabin, provider, origin, destination, airline)
+ *   3. Take highest-priority matching rule; apply min/max markup constraints
+ *   4. Fallback: env-var defaults when no DB rule matches
  *
- * The supplier price is NEVER directly exposed to the frontend — only the
- * selling price and the snapshot ID are returned to the client.
+ * The supplier price is NEVER directly exposed to the frontend.
  */
 
-import { eq, and, or, isNull, lte, gte, desc } from "drizzle-orm"
+import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { flightCommercialRules } from "@/lib/db/schema/flights"
 
 export type DistributionChannel = "B2C" | "B2B" | "PARTNER" | "WHITE_LABEL"
 
+export interface ProductHints {
+  cabin?: string
+  provider?: string
+  origin?: string
+  destination?: string
+  airline?: string
+}
+
 export interface CommercialRules {
-  /** Fixed fee per booking in selling currency. */
   fixedFee: number
-  /** Markup as a decimal fraction, e.g. 0.05 = 5 %. */
   markupRate: number
+  minMarkup?: number
+  maxMarkup?: number
   currency: string
 }
 
@@ -36,7 +46,7 @@ export interface CommercialResult {
 }
 
 // ---------------------------------------------------------------------------
-// Env-var fallback rules (safe defaults when DB has no active rule)
+// Env-var fallback rules
 // ---------------------------------------------------------------------------
 
 function getEnvFallbackRules(channel: DistributionChannel): CommercialRules {
@@ -69,12 +79,35 @@ function getEnvFallbackRules(channel: DistributionChannel): CommercialRules {
 }
 
 // ---------------------------------------------------------------------------
-// DB lookup (G6)
+// Product scope matching
 // ---------------------------------------------------------------------------
 
-async function getDBCommercialRules(
+type ProductScope = {
+  cabin?: string
+  provider?: string
+  origin?: string
+  destination?: string
+  airline?: string
+} | null
+
+function matchesProductScope(scope: ProductScope, hints: ProductHints): boolean {
+  if (!scope) return true // NULL scope = matches all
+  if (scope.cabin && hints.cabin && scope.cabin !== hints.cabin) return false
+  if (scope.provider && hints.provider && scope.provider !== hints.provider) return false
+  if (scope.origin && hints.origin && scope.origin !== hints.origin) return false
+  if (scope.destination && hints.destination && scope.destination !== hints.destination) return false
+  if (scope.airline && hints.airline && scope.airline !== hints.airline) return false
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// DB lookup — priority cascade
+// ---------------------------------------------------------------------------
+
+async function findBestCommercialRule(
   agencyId: string,
   channel: DistributionChannel,
+  hints: ProductHints,
 ): Promise<CommercialRules | null> {
   try {
     const now = new Date()
@@ -83,13 +116,19 @@ async function getDBCommercialRules(
         .select({
           fixedFee: flightCommercialRules.fixedFee,
           markupRate: flightCommercialRules.markupRate,
+          minMarkup: flightCommercialRules.minMarkup,
+          maxMarkup: flightCommercialRules.maxMarkup,
           currency: flightCommercialRules.currency,
+          productScope: flightCommercialRules.productScope,
+          priority: flightCommercialRules.priority,
         })
         .from(flightCommercialRules)
         .where(
           and(
-            eq(flightCommercialRules.agencyId, agencyId),
-            eq(flightCommercialRules.channel, channel),
+            // NULL agency_id = global rule (matches any partner)
+            or(isNull(flightCommercialRules.agencyId), eq(flightCommercialRules.agencyId, agencyId)),
+            // NULL channel = global rule (matches any channel)
+            or(isNull(flightCommercialRules.channel), eq(flightCommercialRules.channel, channel)),
             eq(flightCommercialRules.isActive, true),
             or(
               isNull(flightCommercialRules.validFrom),
@@ -101,20 +140,33 @@ async function getDBCommercialRules(
             ),
           ),
         )
-        .orderBy(desc(flightCommercialRules.createdAt))
-        .limit(1),
+        .orderBy(desc(flightCommercialRules.priority)),
     )
 
-    const list = rows as Array<{ fixedFee: string; markupRate: string; currency: string }>
-    if (list.length === 0) return null
+    const list = rows as Array<{
+      fixedFee: string
+      markupRate: string
+      minMarkup: string | null
+      maxMarkup: string | null
+      currency: string
+      productScope: ProductScope
+      priority: number
+    }>
 
-    return {
-      fixedFee: Number(list[0].fixedFee),
-      markupRate: Number(list[0].markupRate),
-      currency: list[0].currency,
+    // Apply product scope filter in TypeScript (highest-priority first)
+    for (const row of list) {
+      if (matchesProductScope(row.productScope, hints)) {
+        return {
+          fixedFee: Number(row.fixedFee),
+          markupRate: Number(row.markupRate),
+          minMarkup: row.minMarkup != null ? Number(row.minMarkup) : undefined,
+          maxMarkup: row.maxMarkup != null ? Number(row.maxMarkup) : undefined,
+          currency: row.currency,
+        }
+      }
     }
+    return null
   } catch {
-    // DB unavailable — fall through to env-var fallback
     return null
   }
 }
@@ -123,16 +175,13 @@ async function getDBCommercialRules(
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * Load commercial rules for a given agency + channel.
- * DB row takes precedence; falls back to env vars.
- */
 export async function getCommercialRules(
   agencyId: string,
   channel: DistributionChannel = "B2C",
+  hints: ProductHints = {},
 ): Promise<CommercialRules> {
-  const dbRules = await getDBCommercialRules(agencyId, channel)
-  return dbRules ?? getEnvFallbackRules(channel)
+  const dbRule = await findBestCommercialRule(agencyId, channel, hints)
+  return dbRule ?? getEnvFallbackRules(channel)
 }
 
 /**
@@ -144,10 +193,21 @@ export async function applyCommercialEngine(
   supplierCurrency: string,
   agencyId: string,
   channel: DistributionChannel = "B2C",
+  hints: ProductHints = {},
 ): Promise<CommercialResult> {
-  const rules = await getCommercialRules(agencyId, channel)
-  const markup = Math.round(supplierAmount * rules.markupRate * 1000) / 1000
+  const rules = await getCommercialRules(agencyId, channel, hints)
+
   const fee = Math.round(rules.fixedFee * 1000) / 1000
+  let markup = Math.round(supplierAmount * rules.markupRate * 1000) / 1000
+
+  // Apply min/max markup constraints
+  if (rules.minMarkup !== undefined && markup < rules.minMarkup) {
+    markup = Math.round(rules.minMarkup * 1000) / 1000
+  }
+  if (rules.maxMarkup !== undefined && markup > rules.maxMarkup) {
+    markup = Math.round(rules.maxMarkup * 1000) / 1000
+  }
+
   const sellingAmount = Math.round((supplierAmount + fee + markup) * 1000) / 1000
 
   return {

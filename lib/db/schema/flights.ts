@@ -93,16 +93,30 @@ export const flightRecheckStatus = pgEnum("flight_recheck_status", [
 // G6 — Commercial Rules (per-agency, per-channel DB-backed pricing rules)
 // ---------------------------------------------------------------------------
 
+/**
+ * product_scope shape:
+ *   { cabin?: string, provider?: string, origin?: string, destination?: string, airline?: string }
+ * NULL in any scope field means "matches all values for that dimension".
+ * NULL agency_id  = applies to ALL partners.
+ * NULL channel    = applies to ALL channels.
+ * Higher priority integer wins when multiple rules match.
+ */
 export const flightCommercialRules = pgTable(
   "flight_commercial_rules",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    agencyId: uuid("agency_id")
-      .notNull()
-      .references(() => agencies.id, { onDelete: "cascade" }),
-    channel: varchar("channel", { length: 16 }).notNull().default("B2C"),
+    // NULL = applies to all agencies (global rule)
+    agencyId: uuid("agency_id").references(() => agencies.id, { onDelete: "cascade" }),
+    // NULL = applies to all channels
+    channel: varchar("channel", { length: 16 }),
+    priority: integer("priority").notNull().default(50),
+    // JSONB product scope: { cabin?, provider?, origin?, destination?, airline? }
+    productScope: jsonb("product_scope"),
     fixedFee: decimal("fixed_fee", { precision: 12, scale: 3 }).notNull().default("0"),
     markupRate: decimal("markup_rate", { precision: 8, scale: 5 }).notNull().default("0"),
+    // Optional floor/ceiling on computed markup amount
+    minMarkup: decimal("min_markup", { precision: 12, scale: 3 }),
+    maxMarkup: decimal("max_markup", { precision: 12, scale: 3 }),
     currency: varchar("currency", { length: 3 }).notNull().default("TND"),
     isActive: boolean("is_active").notNull().default(true),
     validFrom: timestamp("valid_from", { withTimezone: true }),
@@ -112,6 +126,7 @@ export const flightCommercialRules = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("flight_commercial_rules_priority_idx").on(t.priority),
     index("flight_commercial_rules_agency_channel_idx").on(t.agencyId, t.channel),
     index("flight_commercial_rules_active_idx").on(t.isActive),
   ],

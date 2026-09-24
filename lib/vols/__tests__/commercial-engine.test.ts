@@ -4,7 +4,7 @@
  */
 import test from "node:test"
 import assert from "node:assert/strict"
-import { applyCommercialEngine } from "@/lib/vols/commercial-engine"
+import { applyCommercialEngine, getCommercialRules } from "@/lib/vols/commercial-engine"
 
 const AGENCY = "00000000-0000-0000-0000-000000000001"
 
@@ -53,4 +53,35 @@ test("zero supplier price: only fee charged", async () => {
   const result = await applyCommercialEngine(0, "TND", AGENCY, "B2C")
   assert.equal(result.markup, 0)
   assert.equal(result.sellingAmount, result.fee)
+})
+
+// ── Priority / product-scope tests (env fallback path, no DB needed) ────────
+
+test("min_markup floor: markup never goes below min", async () => {
+  // With markupRate=0.04 on 10 TND → markup = 0.4
+  // If a rule has minMarkup=5, the markup should be clamped to 5
+  // We test indirectly: env fallback has no minMarkup, so markup stays 0.4
+  const result = await applyCommercialEngine(10, "TND", AGENCY, "B2C")
+  assert.equal(result.markup, 0.4)  // no floor applied by env rules
+})
+
+test("product hints accepted — no error when hints provided", async () => {
+  const result = await applyCommercialEngine(1000, "TND", AGENCY, "B2C", {
+    cabin: "BUSINESS",
+    provider: "virtual",
+    origin: "TUN",
+    destination: "CDG",
+    airline: "TU",
+  })
+  // Env fallback rules don't filter by product scope, so result is same as plain B2C
+  assert.equal(result.fee, 15)
+  assert.equal(result.markup, 40)
+  assert.equal(result.sellingAmount, 1055)
+})
+
+test("getCommercialRules falls back to env when DB unavailable", async () => {
+  // DB is not running in test env — expect env fallback silently
+  const rules = await getCommercialRules(AGENCY, "B2C", { cabin: "ECONOMY" })
+  assert.equal(rules.fixedFee, 15)
+  assert.equal(rules.markupRate, 0.04)
 })

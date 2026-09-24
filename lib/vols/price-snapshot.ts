@@ -38,11 +38,23 @@ export interface SnapshotResult {
 export async function createPriceSnapshot(
   input: CreateSnapshotInput,
 ): Promise<SnapshotResult> {
+  // Derive product hints from itinerary for priority rule matching
+  const firstJourney = input.itinerary.journeys?.[0]
+  const firstSeg = firstJourney?.segments[0]
+  const productHints = {
+    cabin: firstSeg?.cabin,
+    provider: input.itinerary.provider?.provider,
+    origin: firstJourney?.origin,
+    destination: firstJourney?.destination,
+    airline: firstSeg?.marketingCarrier,
+  }
+
   const commercial = await applyCommercialEngine(
     input.itinerary.supplierTotalAmount,
     input.itinerary.supplierCurrency,
     input.agencyId,
     input.channel ?? "B2C",
+    productHints,
   )
 
   const expiresAt = new Date(Date.now() + SNAPSHOT_TTL_MINUTES * 60 * 1000)

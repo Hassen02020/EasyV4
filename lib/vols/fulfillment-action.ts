@@ -17,7 +17,7 @@
  * Logs every GDS call (recheck / book / issue) to flight_supplier_transactions.
  */
 
-import { eq, and } from "drizzle-orm"
+import { eq, and, isNotNull } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
 import {
@@ -91,13 +91,18 @@ export async function fulfillFlightBooking(
     return { ok: false, error: "Permission insuffisante.", code: "FORBIDDEN" }
   }
 
-  // ── 1. Atomically claim booking (CAS: PENDING → BOOKING_IN_PROGRESS) ─────────
-  // A two-step SELECT + UPDATE creates a TOCTOU window: 100 concurrent callers
-  // all see PENDING before any update → all proceed → multiple GDS PNRs on one
-  // reservation. This single UPDATE WHERE status='PENDING' RETURNING * lets only
-  // one caller win atomically.
+  // ── 1. Atomically claim booking — two-arm CAS inside one transaction ──────────
+  //
+  // Arm A (normal):   PENDING → BOOKING_IN_PROGRESS
+  // Arm B (re-issue): FAILED + pnr IS NOT NULL → TICKETING_IN_PROGRESS
+  //
+  // Arm B handles the PNR_ORPHANED scenario: issue() previously failed after
+  // book() succeeded, cancel() also failed, so the PNR is still live at the GDS.
+  // Re-issuing is safe because the PNR already exists — book() is NEVER called
+  // again in the re-issue path, making the retry idempotent.
   const claimedRows = await withSystemContext(async (tx) => {
-    const rows = await tx
+    // Try Arm A: normal full path
+    const pendingRows = await tx
       .update(flightBookings)
       .set({ status: "BOOKING_IN_PROGRESS", updatedAt: new Date() })
       .where(
@@ -111,20 +116,46 @@ export async function fulfillFlightBooking(
         priceSnapshotId: flightBookings.priceSnapshotId,
         agencyId: flightBookings.agencyId,
         contact: flightBookings.contact,
+        pnr: flightBookings.pnr,
+        supplierBookingRef: flightBookings.supplierBookingRef,
       })
-    if (rows.length > 0) {
+
+    if (pendingRows.length > 0) {
       await tx
         .update(reservations)
         .set({ status: "on_request", updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
+      return pendingRows.map((r) => ({ ...r, reissueOnly: false as const }))
     }
-    return rows
+
+    // Try Arm B: PNR_ORPHANED re-issue — only a booking that already has a PNR
+    // is eligible; a FAILED booking without a PNR cannot be re-issued.
+    const reissueRows = await tx
+      .update(flightBookings)
+      .set({ status: "TICKETING_IN_PROGRESS", updatedAt: new Date() })
+      .where(
+        and(
+          eq(flightBookings.reservationId, reservationId),
+          eq(flightBookings.status, "FAILED"),
+          isNotNull(flightBookings.pnr),
+        ),
+      )
+      .returning({
+        id: flightBookings.id,
+        priceSnapshotId: flightBookings.priceSnapshotId,
+        agencyId: flightBookings.agencyId,
+        contact: flightBookings.contact,
+        pnr: flightBookings.pnr,
+        supplierBookingRef: flightBookings.supplierBookingRef,
+      })
+
+    return reissueRows.map((r) => ({ ...r, reissueOnly: true as const }))
   })
 
   if (claimedRows.length === 0) {
     const existingRows = await withSystemContext((tx) =>
       tx
-        .select({ status: flightBookings.status })
+        .select({ status: flightBookings.status, pnr: flightBookings.pnr })
         .from(flightBookings)
         .where(eq(flightBookings.reservationId, reservationId))
         .limit(1),
@@ -132,9 +163,14 @@ export async function fulfillFlightBooking(
     if (!existingRows.length) {
       return { ok: false, error: "Réservation de vol introuvable.", code: "NOT_FOUND" }
     }
+    const existing = (existingRows[0] as { status: string; pnr: string | null })
+    // FAILED without a PNR: no GDS booking exists, nothing to re-issue.
+    const hint = existing.status === "FAILED" && !existing.pnr
+      ? " (aucun PNR — le dossier doit être réinitialisé manuellement)"
+      : ""
     return {
       ok: false,
-      error: `Ce dossier est déjà en statut ${(existingRows[0] as { status: string }).status}.`,
+      error: `Ce dossier est déjà en statut ${existing.status}.${hint}`,
       code: "WRONG_STATUS",
     }
   }
@@ -142,6 +178,7 @@ export async function fulfillFlightBooking(
   const claimed = claimedRows[0]!
   const bookingId = claimed.id
   const snapshotId = claimed.priceSnapshotId
+  const { reissueOnly } = claimed
 
   // ── 2. Load snapshot (authoritative price) ───────────────────────────────────
   const snapRows = await withSystemContext((tx) =>
@@ -182,128 +219,136 @@ export async function fulfillFlightBooking(
     }
   }
 
-  // ── 6. Recheck price + availability ──────────────────────────────────────────
-  let recheckMs = Date.now()
-  let recheckResult: Awaited<ReturnType<typeof adapter.recheck>>
-  try {
-    recheckResult = await adapter.recheck(itinerary)
-    recheckMs = Date.now() - recheckMs
-  } catch (err) {
-    recheckMs = Date.now() - recheckMs
-    await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "RECHECK", "FAILURE", {}, { error: String(err) }, recheckMs)
-    await updateFlightStatus(bookingId, "FAILED")
-    return { ok: false, error: "Erreur lors de la revalidation fournisseur.", code: "RECHECK_ERROR" }
-  }
+  // ── activePnr: set from book() on normal path, or claimed.pnr on re-issue ─────
+  let activePnr: string
 
-  await logTransaction(
-    bookingId,
-    snapshotId ?? null,
-    snapshot.provider,
-    "RECHECK",
-    recheckResult.status === "AVAILABLE" ? "SUCCESS" : "FAILURE",
-    { provider: snapshot.provider, providerOfferId: snapshot.providerOfferId },
-    recheckResult,
-    recheckMs,
-  )
-
-  // Store recheck status
-  await withSystemContext((tx) =>
-    tx
-      .update(flightBookings)
-      .set({
-        lastRecheckStatus: recheckResult.status as "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR",
-        lastRecheckAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(flightBookings.id, bookingId)),
-  )
-
-  if (recheckResult.status === "PRICE_CHANGED") {
-    await updateFlightStatus(bookingId, "PRICE_CHANGED")
-    return {
-      ok: false,
-      error: `Le prix a changé depuis la réservation (nouveau prix fournisseur : ${recheckResult.currentSupplierAmount} ${recheckResult.currentSupplierCurrency ?? "TND"}).`,
-      code: "PRICE_CHANGED",
+  if (reissueOnly) {
+    // Re-issue path: PNR already committed at GDS — skip recheck and book entirely.
+    // Calling book() again here would create a duplicate GDS booking.
+    // Status is already TICKETING_IN_PROGRESS from the Arm B CAS above.
+    activePnr = claimed.pnr! // guaranteed non-null by isNotNull() in the WHERE clause
+  } else {
+    // ── 6. Recheck price + availability ──────────────────────────────────────────
+    let recheckMs = Date.now()
+    let recheckResult: Awaited<ReturnType<typeof adapter.recheck>>
+    try {
+      recheckResult = await adapter.recheck(itinerary)
+      recheckMs = Date.now() - recheckMs
+    } catch (err) {
+      recheckMs = Date.now() - recheckMs
+      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "RECHECK", "FAILURE", {}, { error: String(err) }, recheckMs)
+      await updateFlightStatus(bookingId, "FAILED")
+      return { ok: false, error: "Erreur lors de la revalidation fournisseur.", code: "RECHECK_ERROR" }
     }
-  }
-  if (recheckResult.status !== "AVAILABLE") {
-    await updateFlightStatus(bookingId, "FAILED")
-    return {
-      ok: false,
-      error: "Cette offre n'est plus disponible.",
-      code: recheckResult.status,
+
+    await logTransaction(
+      bookingId,
+      snapshotId ?? null,
+      snapshot.provider,
+      "RECHECK",
+      recheckResult.status === "AVAILABLE" ? "SUCCESS" : "FAILURE",
+      { provider: snapshot.provider, providerOfferId: snapshot.providerOfferId },
+      recheckResult,
+      recheckMs,
+    )
+
+    // Store recheck status
+    await withSystemContext((tx) =>
+      tx
+        .update(flightBookings)
+        .set({
+          lastRecheckStatus: recheckResult.status as "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR",
+          lastRecheckAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(flightBookings.id, bookingId)),
+    )
+
+    if (recheckResult.status === "PRICE_CHANGED") {
+      await updateFlightStatus(bookingId, "PRICE_CHANGED")
+      return {
+        ok: false,
+        error: `Le prix a changé depuis la réservation (nouveau prix fournisseur : ${recheckResult.currentSupplierAmount} ${recheckResult.currentSupplierCurrency ?? "TND"}).`,
+        code: "PRICE_CHANGED",
+      }
     }
+    if (recheckResult.status !== "AVAILABLE") {
+      await updateFlightStatus(bookingId, "FAILED")
+      return {
+        ok: false,
+        error: "Cette offre n'est plus disponible.",
+        code: recheckResult.status,
+      }
+    }
+
+    // ── 8. Book (create PNR) ────────────────────────────────────────────────────
+    let bookMs = Date.now()
+    let bookResult: Awaited<ReturnType<typeof adapter.book>>
+    try {
+      bookResult = await adapter.book(itinerary, passengers, contact)
+      bookMs = Date.now() - bookMs
+    } catch (err) {
+      bookMs = Date.now() - bookMs
+      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "BOOK", "FAILURE", {}, { error: String(err) }, bookMs)
+      await updateFlightStatus(bookingId, "FAILED")
+      return { ok: false, error: "La réservation fournisseur a échoué.", code: "BOOK_FAILED" }
+    }
+
+    await logTransaction(
+      bookingId,
+      snapshotId ?? null,
+      snapshot.provider,
+      "BOOK",
+      "SUCCESS",
+      { provider: snapshot.provider, providerOfferId: snapshot.providerOfferId },
+      { pnr: bookResult.pnr, supplierBookingReference: bookResult.supplierBookingReference },
+      bookMs,
+    )
+
+    // Store PNR + supplier ref
+    await withSystemContext((tx) =>
+      tx
+        .update(flightBookings)
+        .set({
+          pnr: bookResult.pnr,
+          supplierBookingRef: bookResult.supplierBookingReference,
+          updatedAt: new Date(),
+        })
+        .where(eq(flightBookings.id, bookingId)),
+    )
+
+    await updateFlightStatus(bookingId, "BOOKED")
+    await updateFlightStatus(bookingId, "TICKETING_IN_PROGRESS")
+    activePnr = bookResult.pnr
   }
-
-  // ── 8. Book (create PNR) ──────────────────────────────────────────────────────
-  let bookMs = Date.now()
-  let bookResult: Awaited<ReturnType<typeof adapter.book>>
-  try {
-    bookResult = await adapter.book(itinerary, passengers, contact)
-    bookMs = Date.now() - bookMs
-  } catch (err) {
-    bookMs = Date.now() - bookMs
-    await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "BOOK", "FAILURE", {}, { error: String(err) }, bookMs)
-    await updateFlightStatus(bookingId, "FAILED")
-    return { ok: false, error: "La réservation fournisseur a échoué.", code: "BOOK_FAILED" }
-  }
-
-  await logTransaction(
-    bookingId,
-    snapshotId ?? null,
-    snapshot.provider,
-    "BOOK",
-    "SUCCESS",
-    { provider: snapshot.provider, providerOfferId: snapshot.providerOfferId },
-    { pnr: bookResult.pnr, supplierBookingReference: bookResult.supplierBookingReference },
-    bookMs,
-  )
-
-  // Store PNR + supplier ref
-  await withSystemContext((tx) =>
-    tx
-      .update(flightBookings)
-      .set({
-        pnr: bookResult.pnr,
-        supplierBookingRef: bookResult.supplierBookingReference,
-        updatedAt: new Date(),
-      })
-      .where(eq(flightBookings.id, bookingId)),
-  )
-
-  await updateFlightStatus(bookingId, "BOOKED")
-  await updateFlightStatus(bookingId, "TICKETING_IN_PROGRESS")
 
   // ── 9. Issue tickets ──────────────────────────────────────────────────────────
   let issueMs = Date.now()
   let issueResult: Awaited<ReturnType<typeof adapter.issue>>
   try {
-    issueResult = await adapter.issue(bookResult.pnr, itinerary)
+    issueResult = await adapter.issue(activePnr, itinerary)
     issueMs = Date.now() - issueMs
   } catch (err) {
     issueMs = Date.now() - issueMs
     await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "ISSUE", "FAILURE", {}, { error: String(err) }, issueMs)
 
-    // PNR was created by book() — attempt auto-cancel to avoid an orphaned GDS booking.
-    // A TOCTOU window exists between book() success and issue() failure; the PNR
-    // is live at the GDS level and will consume seat inventory until voided.
+    // PNR is live at GDS — attempt auto-cancel to avoid an orphaned booking.
     let pnrOrphaned = false
     const cancelMs0 = Date.now()
     try {
-      await adapter.cancel(bookResult.pnr, itinerary)
-      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "SUCCESS", { pnr: bookResult.pnr }, {}, Date.now() - cancelMs0)
+      await adapter.cancel(activePnr, itinerary)
+      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "SUCCESS", { pnr: activePnr }, {}, Date.now() - cancelMs0)
     } catch (cancelErr) {
-      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "FAILURE", { pnr: bookResult.pnr }, { error: String(cancelErr) }, Date.now() - cancelMs0)
+      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "FAILURE", { pnr: activePnr }, { error: String(cancelErr) }, Date.now() - cancelMs0)
       pnrOrphaned = true
     }
 
     if (pnrOrphaned) {
-      // Flag in DB so the Ticketing Desk can manually void the PNR.
       await withSystemContext((tx) =>
         tx
           .update(flightBookings)
           .set({
-            opsNotes: `PNR orphan: cancel failed after issue() failure — manual void required. PNR: ${bookResult.pnr}`,
+            opsNotes: `PNR orphan: cancel failed after issue() failure — manual void required. PNR: ${activePnr}`,
             updatedAt: new Date(),
           })
           .where(eq(flightBookings.id, bookingId)),
@@ -324,7 +369,7 @@ export async function fulfillFlightBooking(
     snapshot.provider,
     "ISSUE",
     "SUCCESS",
-    { pnr: bookResult.pnr },
+    { pnr: activePnr },
     { tickets: issueResult.tickets },
     issueMs,
   )
@@ -352,6 +397,16 @@ export async function fulfillFlightBooking(
   // ── 10. Confirm ───────────────────────────────────────────────────────────────
   await updateFlightStatus(bookingId, "CONFIRMED")
 
+  // On successful re-issue, clear the orphan flag that was set previously.
+  if (reissueOnly) {
+    await withSystemContext((tx) =>
+      tx
+        .update(flightBookings)
+        .set({ opsNotes: null, updatedAt: new Date() })
+        .where(eq(flightBookings.id, bookingId)),
+    )
+  }
+
   // ── 11. Load reservation data for Inngest event ──────────────────────────────
   const resRows = await withSystemContext((tx) =>
     tx
@@ -367,7 +422,7 @@ export async function fulfillFlightBooking(
   const res = (resRows as Array<{ publicRef: string; originalAmount: string; customerId: string | null }>)[0]
   if (!res) {
     // Non-fatal — reservation already updated; Inngest event is best-effort.
-    return { ok: true, pnr: bookResult.pnr, publicRef: "", bookingId }
+    return { ok: true, pnr: activePnr, publicRef: "", bookingId }
   }
 
   // Load customer email
@@ -415,5 +470,5 @@ export async function fulfillFlightBooking(
     )
   }
 
-  return { ok: true, pnr: bookResult.pnr, publicRef: res.publicRef, bookingId }
+  return { ok: true, pnr: activePnr, publicRef: res.publicRef, bookingId }
 }

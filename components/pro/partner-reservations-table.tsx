@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils"
 import { formatTND } from "@/lib/pro/format"
 import type { PartnerReservationRow } from "@/lib/pro/reservations-data"
 import { cancelHotelReservation } from "@/lib/booking/cancel-actions"
+import { isAdminReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
 const CANCELLABLE_STATUSES = new Set(["confirmed", "pending", "on_request"])
 
@@ -177,7 +178,7 @@ function ReservationActionsCell({
             <FileText className="mr-1.5 h-3.5 w-3.5" />
             Facture proforma
           </DropdownMenuItem>
-          {reservation.module === "hotel" && (
+          {isAdminReservationVoucherEligible(reservation.module, reservation.status) && (
             <DropdownMenuItem asChild>
               <a
                 href={`/api/pro/reservations/${reservation.id}/voucher`}

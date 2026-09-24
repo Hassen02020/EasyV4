@@ -17,7 +17,7 @@
  * Logs every GDS call (recheck / book / issue) to flight_supplier_transactions.
  */
 
-import { eq } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
 import {
@@ -91,28 +91,57 @@ export async function fulfillFlightBooking(
     return { ok: false, error: "Permission insuffisante.", code: "FORBIDDEN" }
   }
 
-  // ── 1. Load flight_bookings row ──────────────────────────────────────────────
-  const bookingRows = await withSystemContext((tx) =>
-    tx
-      .select()
-      .from(flightBookings)
-      .where(eq(flightBookings.reservationId, reservationId))
-      .limit(1),
-  )
-  const booking = (bookingRows as typeof flightBookings.$inferSelect[])[0]
-  if (!booking) {
-    return { ok: false, error: "Réservation de vol introuvable.", code: "NOT_FOUND" }
-  }
-  if (booking.status !== "PENDING") {
+  // ── 1. Atomically claim booking (CAS: PENDING → BOOKING_IN_PROGRESS) ─────────
+  // A two-step SELECT + UPDATE creates a TOCTOU window: 100 concurrent callers
+  // all see PENDING before any update → all proceed → multiple GDS PNRs on one
+  // reservation. This single UPDATE WHERE status='PENDING' RETURNING * lets only
+  // one caller win atomically.
+  const claimedRows = await withSystemContext(async (tx) => {
+    const rows = await tx
+      .update(flightBookings)
+      .set({ status: "BOOKING_IN_PROGRESS", updatedAt: new Date() })
+      .where(
+        and(
+          eq(flightBookings.reservationId, reservationId),
+          eq(flightBookings.status, "PENDING"),
+        ),
+      )
+      .returning({
+        id: flightBookings.id,
+        priceSnapshotId: flightBookings.priceSnapshotId,
+        agencyId: flightBookings.agencyId,
+        contact: flightBookings.contact,
+      })
+    if (rows.length > 0) {
+      await tx
+        .update(reservations)
+        .set({ status: "on_request", updatedAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+    }
+    return rows
+  })
+
+  if (claimedRows.length === 0) {
+    const existingRows = await withSystemContext((tx) =>
+      tx
+        .select({ status: flightBookings.status })
+        .from(flightBookings)
+        .where(eq(flightBookings.reservationId, reservationId))
+        .limit(1),
+    )
+    if (!existingRows.length) {
+      return { ok: false, error: "Réservation de vol introuvable.", code: "NOT_FOUND" }
+    }
     return {
       ok: false,
-      error: `Ce dossier est déjà en statut ${booking.status}.`,
+      error: `Ce dossier est déjà en statut ${(existingRows[0] as { status: string }).status}.`,
       code: "WRONG_STATUS",
     }
   }
 
-  const bookingId = booking.id
-  const snapshotId = booking.priceSnapshotId
+  const claimed = claimedRows[0]!
+  const bookingId = claimed.id
+  const snapshotId = claimed.priceSnapshotId
 
   // ── 2. Load snapshot (authoritative price) ───────────────────────────────────
   const snapRows = await withSystemContext((tx) =>
@@ -140,7 +169,7 @@ export async function fulfillFlightBooking(
   const passengers = passengersRows as typeof flightBookingPassengers.$inferSelect[]
 
   // ── 4. Load contact (stored in flight_bookings.contact JSONB) ───────────────
-  const contact = booking.contact as { email?: string; firstName?: string; lastName?: string }
+  const contact = claimed.contact as { email?: string; firstName?: string; lastName?: string }
 
   // ── 5. Get the right GDS adapter ────────────────────────────────────────────
   const adapters = getDefaultAdapters()
@@ -153,10 +182,7 @@ export async function fulfillFlightBooking(
     }
   }
 
-  // ── 6. Transition to BOOKING_IN_PROGRESS ─────────────────────────────────────
-  await updateFlightStatus(bookingId, "BOOKING_IN_PROGRESS")
-
-  // ── 7. Recheck price + availability ──────────────────────────────────────────
+  // ── 6. Recheck price + availability ──────────────────────────────────────────
   let recheckMs = Date.now()
   let recheckResult: Awaited<ReturnType<typeof adapter.recheck>>
   try {
@@ -344,7 +370,7 @@ export async function fulfillFlightBooking(
     await sendEvent("booking/flight.confirmed", {
       reservationId,
       publicRef: res.publicRef,
-      agencyId: booking.agencyId,
+      agencyId: claimed.agencyId,
       customerEmail,
       customerName,
       origin: firstSeg?.origin ?? firstJourney?.origin ?? "",

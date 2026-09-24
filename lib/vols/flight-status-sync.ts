@@ -1,16 +1,8 @@
 "use server"
 
 /**
- * Maps the granular 8-state flight machine to the shared reservation_status.
- * Called whenever flight_bookings.status changes so the Booking Core stays
- * current for CRM, Finance, and Customer 360.
- *
- * Mapping rationale:
- *   PENDING / PRICE_RECHECK / PRICE_CHANGED → "pending"   (ops not yet confirmed)
- *   APPROVED / BOOKING_IN_PROGRESS / BOOKED /
- *   TICKETING_IN_PROGRESS                  → "on_request" (provider engaged)
- *   CONFIRMED                              → "confirmed"
- *   FAILED / CANCELLED                     → "cancelled"
+ * Updates flight_bookings.status and keeps reservations.status in sync.
+ * Pure mapping logic lives in flight-status-utils.ts (no server directive).
  */
 
 import { eq } from "drizzle-orm"
@@ -18,39 +10,8 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations } from "@/lib/db/schema"
 import { flightBookings } from "@/lib/db/schema/flights"
 import type { DrizzleTransaction } from "@/lib/db/client"
-
-type FlightStatus =
-  | "PENDING"
-  | "PRICE_RECHECK"
-  | "PRICE_CHANGED"
-  | "APPROVED"
-  | "BOOKING_IN_PROGRESS"
-  | "BOOKED"
-  | "TICKETING_IN_PROGRESS"
-  | "CONFIRMED"
-  | "FAILED"
-  | "CANCELLED"
-
-type ReservationStatus = "pending" | "on_request" | "confirmed" | "cancelled"
-
-export function mapFlightStatusToReservation(status: FlightStatus): ReservationStatus {
-  switch (status) {
-    case "PENDING":
-    case "PRICE_RECHECK":
-    case "PRICE_CHANGED":
-      return "pending"
-    case "APPROVED":
-    case "BOOKING_IN_PROGRESS":
-    case "BOOKED":
-    case "TICKETING_IN_PROGRESS":
-      return "on_request"
-    case "CONFIRMED":
-      return "confirmed"
-    case "FAILED":
-    case "CANCELLED":
-      return "cancelled"
-  }
-}
+import { mapFlightStatusToReservation } from "./flight-status-utils"
+import type { FlightStatus } from "./flight-status-utils"
 
 /**
  * Updates flight_bookings.status and keeps reservations.status in sync.

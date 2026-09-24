@@ -4,7 +4,7 @@
  */
 import test from "node:test"
 import assert from "node:assert/strict"
-import { mapFlightStatusToReservation } from "@/lib/vols/flight-status-sync"
+import { mapFlightStatusToReservation } from "@/lib/vols/flight-status-utils"
 
 test("PENDING maps to pending", () => {
   assert.equal(mapFlightStatusToReservation("PENDING"), "pending")

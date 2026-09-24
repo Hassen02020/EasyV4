@@ -838,7 +838,14 @@
     "toastMinLegs": "يرجى إكمال رحلتين على الأقل.",
     "toastLegSameAirports": "الرحلة {n}: يجب أن يكون المطار المغادر والوافد مختلفَين.",
     "toastLegDate": "يرجى اختيار تاريخ للرحلة {n}.",
-    "multiCityLegTitle": "رحلة {n}"
+    "multiCityLegTitle": "رحلة {n}",
+    "confirmationTitle": "تم تسجيل الطلب",
+    "confirmationSubtitle": "تم تسجيل طلب التذكرة بنجاح.",
+    "confirmationRefLabel": "المرجع",
+    "confirmationStatusLabel": "الحالة",
+    "confirmationDateLabel": "تاريخ الطلب",
+    "confirmationSlaNotice": "سيقوم فريق التذاكر لدينا بمعالجة طلبك خلال {minutes} دقيقة. ستصلك التذكرة الإلكترونية عبر البريد الإلكتروني عند التأكيد.",
+    "confirmationSlaMinutes": "15"
   },
   "Car": {
     "kicker": "تأجير السيارات",

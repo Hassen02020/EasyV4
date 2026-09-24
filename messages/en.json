@@ -838,7 +838,14 @@
     "toastMinLegs": "Please complete at least 2 legs.",
     "toastLegSameAirports": "Leg {n}: departure and arrival must be different.",
     "toastLegDate": "Please select a date for leg {n}.",
-    "multiCityLegTitle": "Leg {n}"
+    "multiCityLegTitle": "Leg {n}",
+    "confirmationTitle": "Request submitted",
+    "confirmationSubtitle": "Your ticket request has been successfully recorded.",
+    "confirmationRefLabel": "Reference",
+    "confirmationStatusLabel": "Status",
+    "confirmationDateLabel": "Request submitted on",
+    "confirmationSlaNotice": "Our ticketing team will process your request within {minutes} minutes. You will receive your e-ticket by email upon confirmation.",
+    "confirmationSlaMinutes": "15"
   },
   "Car": {
     "kicker": "Car Rental",

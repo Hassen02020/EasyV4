@@ -839,7 +839,14 @@
     "toastMinLegs": "Veuillez compléter au moins 2 trajets.",
     "toastLegSameAirports": "Le trajet {n} : départ et arrivée doivent être différents.",
     "toastLegDate": "Veuillez sélectionner une date pour le trajet {n}.",
-    "multiCityLegTitle": "Trajet {n}"
+    "multiCityLegTitle": "Trajet {n}",
+    "confirmationTitle": "Demande enregistrée",
+    "confirmationSubtitle": "Votre demande de billet a bien été enregistrée.",
+    "confirmationRefLabel": "Référence",
+    "confirmationStatusLabel": "Statut",
+    "confirmationDateLabel": "Demande enregistrée le",
+    "confirmationSlaNotice": "Notre équipe billetterie va traiter votre demande dans les {minutes} minutes. Vous recevrez votre e-ticket par email dès confirmation.",
+    "confirmationSlaMinutes": "15"
   },
   "Car": {
     "kicker": "Location de Voiture",

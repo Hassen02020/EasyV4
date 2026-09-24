@@ -63,10 +63,8 @@ export default async function ConfirmationPage({ params }: Props) {
       <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center justify-center gap-6 px-4 py-16">
         <div className="flex flex-col items-center gap-3 text-center">
           <CheckCircle className="h-14 w-14 text-sky-600" />
-          <h1 className="text-2xl font-bold">{t("finalizeBookingTitle")}</h1>
-          <p className="text-muted-foreground text-sm">
-            Votre demande de billet a bien été enregistrée.
-          </p>
+          <h1 className="text-2xl font-bold">{t("confirmationTitle")}</h1>
+          <p className="text-muted-foreground text-sm">{t("confirmationSubtitle")}</p>
         </div>
 
         <Card className="w-full">
@@ -78,17 +76,17 @@ export default async function ConfirmationPage({ params }: Props) {
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Référence</span>
+              <span className="text-muted-foreground">{t("confirmationRefLabel")}</span>
               <span className="font-mono font-semibold text-sky-700">{reservation.publicRef}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Statut</span>
+              <span className="text-muted-foreground">{t("confirmationStatusLabel")}</span>
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 capitalize">
                 {reservation.status}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Demande enregistrée le</span>
+              <span className="text-muted-foreground">{t("confirmationDateLabel")}</span>
               <span>{createdAtDisplay}</span>
             </div>
           </CardContent>
@@ -97,8 +95,10 @@ export default async function ConfirmationPage({ params }: Props) {
         <div className="bg-sky-50 border-sky-200 flex items-start gap-3 rounded-lg border p-4 text-sm">
           <Clock className="text-sky-600 mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-sky-900">
-            Notre équipe billetterie va traiter votre demande dans les <strong>15 minutes</strong>.
-            Vous recevrez votre e-ticket par email dès confirmation.
+            {t.rich("confirmationSlaNotice", {
+              minutes: t("confirmationSlaMinutes"),
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
           </p>
         </div>
 

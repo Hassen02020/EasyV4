@@ -37,6 +37,7 @@ import {
   getReservationPaymentSummary,
   type ReservationPaymentSummary,
 } from "@/lib/finance/payment-summary"
+import { flightBookings, flightBookingSegments } from "@/lib/db/schema/flights"
 
 export interface ReservationDetailPaymentRow {
   id: string
@@ -170,6 +171,44 @@ async function loadModuleDetail(
       return { supplierLabel: "Voyage organisé", startDate: row.departureDate, endDate: row.returnDate, providerBookingId: null }
     }
     case "flight": {
+      // New pipeline: flight_bookings (booking-request-action + fulfillment-action).
+      // Read origin/destination/departure from the first segment; fallback to the
+      // legacy reservation_flight table for bookings created by guest-booking-actions.
+      const fbRows = await tx
+        .select({
+          id: flightBookings.id,
+          pnr: flightBookings.pnr,
+          status: flightBookings.status,
+        })
+        .from(flightBookings)
+        .where(eq(flightBookings.reservationId, reservationId))
+        .limit(1)
+      const fb = (fbRows as Array<{ id: string; pnr: string | null; status: string }>)[0]
+      if (fb) {
+        const segRows = await tx
+          .select({
+            origin: flightBookingSegments.origin,
+            destination: flightBookingSegments.destination,
+            departure: flightBookingSegments.departure,
+          })
+          .from(flightBookingSegments)
+          .where(eq(flightBookingSegments.bookingId, fb.id))
+          .orderBy(flightBookingSegments.sequence)
+          .limit(1)
+        const seg = (segRows as Array<{ origin: string; destination: string; departure: Date | string }>)[0]
+        const origin = seg?.origin ?? "—"
+        const destination = seg?.destination ?? "—"
+        const departIso = seg?.departure instanceof Date
+          ? seg.departure.toISOString()
+          : seg?.departure ? String(seg.departure) : null
+        return {
+          supplierLabel: `Vol ${origin} → ${destination}${fb.pnr ? ` (PNR ${fb.pnr})` : ""}`,
+          startDate: departIso,
+          endDate: null,
+          providerBookingId: fb.pnr,
+        }
+      }
+      // Legacy guest-booking-actions path.
       const rows = await tx
         .select({ origin: reservationFlight.origin, destination: reservationFlight.destination, departAt: reservationFlight.departAt, pnr: reservationFlight.pnr })
         .from(reservationFlight)

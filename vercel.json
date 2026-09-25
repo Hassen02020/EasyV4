@@ -1,7 +1,4 @@
 {
-  "healthcheck": {
-    "path": "/api/health"
-  },
   "crons": [
     {
       "path": "/api/cron/purge-audit",

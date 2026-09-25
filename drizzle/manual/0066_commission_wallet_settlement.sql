@@ -112,10 +112,14 @@ BEGIN
 END;
 $$;
 
--- authenticated exclut volontairement : tout utilisateur connecté pourrait
--- appeler cette SECURITY DEFINER function via supabase.rpc() avec un montant
--- arbitraire et corrompre le solde platform. Seul le backend (service_role /
--- app_runtime) peut la déclencher — via le pipeline de réservation uniquement.
+-- Supabase accorde EXECUTE à PUBLIC par défaut sur les fonctions du schéma
+-- public — REVOKE explicite requis avant le GRANT ciblé.
+-- authenticated / anon exclus volontairement : tout utilisateur connecté
+-- pourrait appeler supabase.rpc() avec un montant arbitraire et corrompre
+-- le solde platform. Seul le backend (service_role / app_runtime) peut la
+-- déclencher — via le pipeline de réservation uniquement.
+REVOKE ALL ON FUNCTION credit_platform_commission(uuid, uuid, numeric, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION credit_platform_commission(uuid, uuid, numeric, text) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION credit_platform_commission(uuid, uuid, numeric, text)
   TO service_role, app_runtime;
 

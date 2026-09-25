@@ -442,7 +442,8 @@
     "mustAcceptCgv": "يجب عليك الموافقة على الشروط والأحكام العامة للبيع.",
     "mustAcceptPolicy": "يجب عليك الموافقة على سياسة الإلغاء.",
     "unknownError": "خطأ غير معروف",
-    "durationBadge": "{days} يوم / {nights} ليالي"
+    "durationBadge": "{days} يوم / {nights} ليالي",
+    "allMonths": "جميع الأشهر"
   },
   "Hotels": {
     "destination": "الوجهة",

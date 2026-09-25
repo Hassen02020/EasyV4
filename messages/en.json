@@ -442,7 +442,8 @@
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
     "mustAcceptPolicy": "You must accept the cancellation policy.",
     "unknownError": "Unknown error",
-    "durationBadge": "{days}D / {nights}N"
+    "durationBadge": "{days}D / {nights}N",
+    "allMonths": "All months"
   },
   "Hotels": {
     "destination": "Destination",

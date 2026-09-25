@@ -18,6 +18,7 @@
     "stress:test": "node scripts/stress-test.mjs",
     "stress:test:pro": "node scripts/stress-test.mjs --target http://localhost:3000/pro/login --duration 60",
     "audit:financial": "npx tsx scripts/financial-audit.ts",
+    "cert:mygo": "npx tsx scripts/mygo-hotel-certification.ts",
     "wallet:race": "npx tsx scripts/wallet-race-test.ts",
     "error:simulate": "node scripts/error-simulation.mjs",
     "db:generate": "drizzle-kit generate",

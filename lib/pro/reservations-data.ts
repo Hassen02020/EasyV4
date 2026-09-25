@@ -8,6 +8,7 @@
 import { and, desc, eq, lt, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, customers, reservationHotel } from "@/lib/db/schema"
+import { flightBookings } from "@/lib/db/schema/flights"
 import { logger } from "@/lib/logger"
 
 /* -------------------------------------------------------------------------- */
@@ -25,6 +26,9 @@ export type PartnerReservationRow = {
   serviceName: string | null
   checkin: string | null
   checkout: string | null
+  /** Route vol (premier tronçon) — non-null uniquement pour module === "flight". */
+  flightOrigin: string | null
+  flightDestination: string | null
   tndAmount: number
   createdAt: Date
 }
@@ -82,12 +86,30 @@ export async function loadPartnerReservations(
           hotelName: reservationHotel.hotelName,
           checkIn: reservationHotel.checkIn,
           checkOut: reservationHotel.checkOut,
+          flightOrigin: sql<string | null>`(
+            SELECT origin
+            FROM flight_booking_segments
+            WHERE booking_id = ${flightBookings.id}
+            ORDER BY sequence ASC
+            LIMIT 1
+          )`,
+          flightDestination: sql<string | null>`(
+            SELECT destination
+            FROM flight_booking_segments
+            WHERE booking_id = ${flightBookings.id}
+            ORDER BY sequence ASC
+            LIMIT 1
+          )`,
         })
         .from(reservations)
         .leftJoin(customers, eq(reservations.customerId, customers.id))
         .leftJoin(
           reservationHotel,
           eq(reservationHotel.reservationId, reservations.id),
+        )
+        .leftJoin(
+          flightBookings,
+          eq(flightBookings.reservationId, reservations.id),
         )
         .where(where)
         .orderBy(desc(reservations.createdAt))
@@ -128,6 +150,8 @@ export async function loadPartnerReservations(
       serviceName: r.hotelName ?? null,
       checkin: r.checkIn ?? null,
       checkout: r.checkOut ?? null,
+      flightOrigin: r.flightOrigin ?? null,
+      flightDestination: r.flightDestination ?? null,
       tndAmount: parseFloat(r.tndAmount as string) || 0,
       createdAt: r.createdAt,
     }))

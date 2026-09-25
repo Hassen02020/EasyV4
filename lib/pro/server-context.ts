@@ -85,6 +85,7 @@ export async function getMarginsForAgency(
         (db) =>
           db
             .select({
+              id: marginRules.id,
               productType: marginRules.productType,
               type: marginRules.type,
               percentValue: marginRules.percentValue,
@@ -132,6 +133,7 @@ export async function getMarginsForAgency(
           marginValue: Number.parseFloat((isFixed ? row.fixedValue : row.percentValue) ?? "0"),
           isActive: true,
           commissionPercent: row.commissionPercent ? Number.parseFloat(row.commissionPercent) : undefined,
+          ruleId: row.id,
         }
       }
 

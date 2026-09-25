@@ -458,6 +458,7 @@ async function runCreateGuestReservation(
             supplierPriceTnd: myGoBooking.totalPrice,
             salePriceTnd: agencyPrice,
             commissionPercent: hotelMarginRule.commissionPercent,
+            marginRuleId: hotelMarginRule.ruleId,
           })
           await creditPlatformCommission(tx, {
             reservationId,

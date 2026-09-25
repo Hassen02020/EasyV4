@@ -38,6 +38,8 @@ export interface RecordReservationFinancialsInput {
    * Enregistré tel quel pour permettre le settlement ultérieur (Chantier 37B/C).
    */
   commissionPercent?: number
+  /** ID de la règle `margin_rules` (System B) appliquée — `MarginRule.ruleId`. */
+  marginRuleId?: string
 }
 
 export async function recordReservationFinancials(
@@ -62,6 +64,7 @@ export async function recordReservationFinancials(
     marginPercent: marginPercent.toFixed(2),
     commissionAmount: commissionAmount.toFixed(2),
     commissionPercent: commissionRate.toFixed(2),
+    ...(input.marginRuleId ? { marginRuleId: input.marginRuleId } : {}),
   })
 
   return { commissionAmount }

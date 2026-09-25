@@ -605,6 +605,7 @@ export async function createReservationFromDraft(input: {
           supplierPriceTnd: myGoBooking.totalPrice,
           salePriceTnd: agencyHotelPrice,
           commissionPercent: hotelMarginRule.commissionPercent,
+          marginRuleId: hotelMarginRule.ruleId,
         })
         await creditPlatformCommission(tx, {
           reservationId,

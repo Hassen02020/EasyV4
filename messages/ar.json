@@ -1027,7 +1027,11 @@
     "confirmAndPay": "أكّد وخلّص",
     "invalidFieldsError": "حقول ماهيش صحيحة",
     "paymentError": "خطأ في الخلاص",
-    "cartModuleNotSupportedToast": "لا يمكن إضافة هذا النوع من المنتجات إلى السلة من هذه الصفحة."
+    "cartModuleNotSupportedToast": "لا يمكن إضافة هذا النوع من المنتجات إلى السلة من هذه الصفحة.",
+    "paymentTransferTitle": "الدفع بالتحويل البنكي",
+    "paymentTransferNotice": "سيتم إرسال بياناتنا البنكية إليك عبر البريد الإلكتروني. سيتم إصدار تذكرتك فور استلام التحويل.",
+    "paymentCashTitle": "الدفع نقداً في الوكالة",
+    "paymentCashNotice": "قم بزيارتنا مع رقم الحجز. سيتم إصدار تذكرتك فوراً بعد الدفع."
   },
   "Paiement": {
     "simulationEnvTitle": "محيط تجريبي",

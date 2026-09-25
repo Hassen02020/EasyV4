@@ -207,6 +207,12 @@ export async function createFlightBookingRequest(
       const publicRef = await nextPublicRef(tx, agencyId)
 
       // ── 3. Insert reservations row (Booking Core bridge) ───────────────────
+      const firstItinSeg = itinerary.journeys?.[0]?.segments?.[0]
+      const lastJourney = itinerary.journeys?.[itinerary.journeys.length - 1]
+      const lastItinSeg = lastJourney?.segments?.[lastJourney.segments.length - 1]
+      const origin = firstItinSeg?.origin ?? ""
+      const destination = lastItinSeg?.destination ?? firstItinSeg?.destination ?? ""
+
       const reservationRows = await tx
         .insert(reservations)
         .values({
@@ -219,6 +225,12 @@ export async function createFlightBookingRequest(
           originalCurrency: snap.sellingCurrency ?? "TND",
           originalAmount: snap.sellingAmount,
           tndAmount: snap.sellingAmount,
+          providerPayload: {
+            offerLabel: origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
+            startDate: firstItinSeg?.departure ?? null,
+            channel: "b2c_guest",
+            paymentMethod: paymentMethod ?? null,
+          },
         })
         .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
 

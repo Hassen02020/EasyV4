@@ -136,7 +136,7 @@ export function PassengerBookingForm({
         setError(result.error)
         return
       }
-      router.push(`/vols/confirmation/${result.publicRef}`)
+      router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
     } catch {
       setError(t("unknownError"))
     } finally {

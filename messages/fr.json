@@ -1028,7 +1028,11 @@
     "confirmAndPay": "Confirmer & payer",
     "invalidFieldsError": "Champs invalides",
     "paymentError": "Erreur paiement",
-    "cartModuleNotSupportedToast": "Ce type de produit ne peut pas être ajouté au panier depuis cette page."
+    "cartModuleNotSupportedToast": "Ce type de produit ne peut pas être ajouté au panier depuis cette page.",
+    "paymentTransferTitle": "Réglez par virement bancaire",
+    "paymentTransferNotice": "Nos coordonnées bancaires vous seront envoyées par email. Votre billet sera émis dès réception du virement.",
+    "paymentCashTitle": "Réglez en espèces en agence",
+    "paymentCashNotice": "Présentez-vous dans nos locaux avec cette référence de réservation. Votre billet sera émis immédiatement après paiement."
   },
   "Paiement": {
     "simulationEnvTitle": "Environnement de simulation",

@@ -1027,7 +1027,11 @@
     "confirmAndPay": "Confirm & pay",
     "invalidFieldsError": "Invalid fields",
     "paymentError": "Payment error",
-    "cartModuleNotSupportedToast": "This product type cannot be added to the cart from this page."
+    "cartModuleNotSupportedToast": "This product type cannot be added to the cart from this page.",
+    "paymentTransferTitle": "Pay by bank transfer",
+    "paymentTransferNotice": "Our bank details will be sent to you by email. Your ticket will be issued once the transfer is received.",
+    "paymentCashTitle": "Pay in cash at our agency",
+    "paymentCashNotice": "Visit our office with this booking reference. Your ticket will be issued immediately after payment."
   },
   "Paiement": {
     "simulationEnvTitle": "Simulation environment",

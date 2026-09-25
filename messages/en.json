@@ -771,6 +771,7 @@
     "toastSameAirports": "The departure and arrival airports must be different.",
     "toastSelectDepartureDate": "Please select a departure date.",
     "toastSelectReturnDate": "Please select a return date.",
+    "toastSelectReturnDateNew": "Please select a return date.",
     "sortRecommended": "Recommended",
     "sortPriceAsc": "Price: low to high",
     "sortPriceDesc": "Price: high to low",

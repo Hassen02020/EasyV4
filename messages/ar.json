@@ -771,6 +771,7 @@
     "toastSameAirports": "يجب أن يكون مطار المغادرة والوصول مختلفين.",
     "toastSelectDepartureDate": "يرجى اختيار تاريخ المغادرة.",
     "toastSelectReturnDate": "يرجى اختيار تاريخ العودة.",
+    "toastSelectReturnDateNew": "يرجى اختيار تاريخ العودة.",
     "sortRecommended": "موصى بها",
     "sortPriceAsc": "السعر تصاعديًا",
     "sortPriceDesc": "السعر تنازليًا",

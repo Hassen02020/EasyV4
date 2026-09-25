@@ -26,8 +26,19 @@
 
 import { createHmac, timingSafeEqual } from "crypto"
 
-const SECRET =
-  process.env.PRICE_TOKEN_SECRET ?? "price-token-dev-secret-not-for-prod"
+const _DEFAULT_SECRET = "price-token-dev-secret-not-for-prod"
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!process.env.PRICE_TOKEN_SECRET || process.env.PRICE_TOKEN_SECRET === _DEFAULT_SECRET)
+) {
+  throw new Error(
+    "PRICE_TOKEN_SECRET manquant ou valeur dev par défaut détectée en production. " +
+      "Générer avec: openssl rand -hex 32",
+  )
+}
+
+const SECRET = process.env.PRICE_TOKEN_SECRET ?? _DEFAULT_SECRET
 
 /** Fenêtre de validité — alignée sur une session de recherche/réservation réaliste. */
 export const HOTEL_PRICE_TOKEN_TTL_MS = 45 * 60 * 1000

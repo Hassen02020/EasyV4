@@ -20,12 +20,11 @@
  */
 
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { eq, and, sql, gte, lte, desc, inArray } from "drizzle-orm"
+import { eq, and, sql, gte, lte, desc } from "drizzle-orm"
 import {
   reservationFinancials,
   marginRules,
-  walletAccounts,
-  walletLedger,
+  partnerCreditMovements,
   reservations,
 } from "@/lib/db/schema"
 
@@ -57,6 +56,11 @@ export interface MarginKPIs {
   // Volume
   totalReservations: number
   confirmedReservations: number
+
+  // Annulations (39) — depuis reservation_financials.cancellation_fee
+  cancelledCount: number
+  totalCancellationFees: number
+  totalRefunded: number
 
   // Performance
   marginTrend: "up" | "down" | "stable"
@@ -107,27 +111,67 @@ export async function getMarginKPIsCore(
   startDate: Date,
   endDate: Date
 ): Promise<MarginKPIs> {
-  const results = await withTenantContext(
+  const [results, cancellationResults, previousResults] = await withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },
-    (db) =>
-      db
-        .select({
-          totalRevenue: sql<number>`SUM(sale_price_tnd)`,
-          totalCost: sql<number>`SUM(supplier_price_tnd)`,
-          totalMargin: sql<number>`SUM(margin_amount)`,
-          totalCommission: sql<number>`SUM(commission_amount)`,
-          totalReservations: sql<number>`COUNT(*)`,
-        })
-        .from(reservationFinancials)
-        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            gte(reservations.createdAt, startDate),
-            lte(reservations.createdAt, endDate),
-            eq(reservations.status, "confirmed")
-          )
-        ),
+    (db) => {
+      const previousPeriodStart = new Date(
+        startDate.getTime() - (endDate.getTime() - startDate.getTime())
+      )
+      return Promise.all([
+        // KPIs réservations confirmées (non annulées)
+        db
+          .select({
+            totalRevenue: sql<number>`SUM(sale_price_tnd)`,
+            totalCost: sql<number>`SUM(supplier_price_tnd)`,
+            totalMargin: sql<number>`SUM(margin_amount)`,
+            totalCommission: sql<number>`SUM(commission_amount)`,
+            totalReservations: sql<number>`COUNT(*)`,
+          })
+          .from(reservationFinancials)
+          .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+          .where(
+            and(
+              eq(reservations.agencyId, agencyId),
+              gte(reservations.createdAt, startDate),
+              lte(reservations.createdAt, endDate),
+              eq(reservations.status, "confirmed"),
+            ),
+          ),
+
+        // KPIs annulations (39) — frais retenus + remboursements effectifs
+        db
+          .select({
+            cancelledCount: sql<number>`COUNT(*)`,
+            totalCancellationFees: sql<number>`COALESCE(SUM(${reservationFinancials.cancellationFee}), 0)`,
+            totalRefunded: sql<number>`COALESCE(SUM(${reservationFinancials.refundAmount}), 0)`,
+          })
+          .from(reservationFinancials)
+          .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+          .where(
+            and(
+              eq(reservations.agencyId, agencyId),
+              gte(reservations.createdAt, startDate),
+              lte(reservations.createdAt, endDate),
+              eq(reservations.status, "cancelled"),
+              sql`${reservationFinancials.cancelledAt} IS NOT NULL`,
+            ),
+          ),
+
+        // Marge période précédente (tendance)
+        db
+          .select({ totalMargin: sql<number>`SUM(margin_amount)` })
+          .from(reservationFinancials)
+          .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+          .where(
+            and(
+              eq(reservations.agencyId, agencyId),
+              gte(reservations.createdAt, previousPeriodStart),
+              lte(reservations.createdAt, startDate),
+              eq(reservations.status, "confirmed"),
+            ),
+          ),
+      ])
+    },
   )
 
   const data = results[0] || {
@@ -143,46 +187,20 @@ export async function getMarginKPIsCore(
   const totalMargin = Number(data.totalMargin) || 0
   const totalCommission = Number(data.totalCommission) || 0
   const totalReservations = Number(data.totalReservations) || 0
+  const cancelledCount = Number(cancellationResults[0]?.cancelledCount) || 0
+  const totalCancellationFees = Number(cancellationResults[0]?.totalCancellationFees) || 0
+  const totalRefunded = Number(cancellationResults[0]?.totalRefunded) || 0
 
   const averageMarginPercent = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0
-
-  // Calculer la tendance par rapport à la période précédente
-  const previousPeriodStart = new Date(
-    startDate.getTime() - (endDate.getTime() - startDate.getTime())
-  )
-  const previousPeriodEnd = startDate
-
-  const previousResults = await withTenantContext(
-    { agencyId, userId: "", isSuperAdmin: false },
-    (db) =>
-      db
-        .select({
-          totalMargin: sql<number>`SUM(margin_amount)`,
-        })
-        .from(reservationFinancials)
-        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            gte(reservations.createdAt, previousPeriodStart),
-            lte(reservations.createdAt, previousPeriodEnd),
-            eq(reservations.status, "confirmed")
-          )
-        ),
-  )
 
   const previousMargin = Number(previousResults[0]?.totalMargin) || 0
   const marginTrendPercent =
     previousMargin > 0 ? ((totalMargin - previousMargin) / previousMargin) * 100 : 0
-
   const marginTrend =
     marginTrendPercent > 5 ? "up" : marginTrendPercent < -5 ? "down" : "stable"
 
   return {
-    period: {
-      start: startDate,
-      end: endDate,
-    },
+    period: { start: startDate, end: endDate },
     totalRevenue,
     totalRevenueTnd: totalRevenue,
     totalCost,
@@ -193,6 +211,9 @@ export async function getMarginKPIsCore(
     totalCommission,
     totalReservations,
     confirmedReservations: totalReservations,
+    cancelledCount,
+    totalCancellationFees,
+    totalRefunded,
     marginTrend,
     marginTrendPercent,
   }
@@ -400,7 +421,13 @@ export async function getActiveMarginRulesCore(agencyId: string) {
 }
 
 /**
- * Récupère les transactions wallet récentes
+ * Récupère les transactions wallet partenaire récentes.
+ *
+ * Gap 40 : l'ancienne implémentation lisait `wallet_ledger` (table B2C)
+ * qui n'est JAMAIS écrite par les flux partenaire (booking, recharge,
+ * remboursement) — elle retournait donc toujours un tableau vide pour les
+ * agences. Le vrai grand-livre partenaire est `partner_credit_movements`,
+ * déjà utilisé correctement par `loadPartnerLedger()`.
  */
 export async function getRecentWalletTransactionsCore(
   agencyId: string,
@@ -408,18 +435,12 @@ export async function getRecentWalletTransactionsCore(
 ) {
   return withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },
-    (db) => {
-      const agencyAccountIds = db
-        .select({ id: walletAccounts.id })
-        .from(walletAccounts)
-        .where(eq(walletAccounts.agencyId, agencyId))
-
-      return db
+    (db) =>
+      db
         .select()
-        .from(walletLedger)
-        .where(inArray(walletLedger.walletAccountId, agencyAccountIds))
-        .orderBy(desc(walletLedger.createdAt))
-        .limit(limit)
-    },
+        .from(partnerCreditMovements)
+        .where(eq(partnerCreditMovements.agencyId, agencyId))
+        .orderBy(desc(partnerCreditMovements.createdAt))
+        .limit(limit),
   )
 }

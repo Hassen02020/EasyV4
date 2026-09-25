@@ -20,10 +20,11 @@
  */
 
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { eq, and, sql, gte, lte, desc } from "drizzle-orm"
+import { eq, and, sql, gte, lte, desc, inArray } from "drizzle-orm"
 import {
   reservationFinancials,
   marginRules,
+  walletAccounts,
   walletLedger,
   reservations,
 } from "@/lib/db/schema"
@@ -198,7 +199,13 @@ export async function getMarginKPIsCore(
 }
 
 /**
- * Récupère les marges par fournisseur
+ * Récupère les marges par fournisseur.
+ *
+ * Note 38A : `reservation_financials.margin_rule_id` n'est pas encore
+ * renseigné par le pipeline booking (getMarginsForAgency ne retourne pas
+ * les IDs de règles — voir gap 38B). En attendant, on groupe par
+ * `reservations.module` (même granularité que getMarginByProductTypeCore)
+ * pour retourner des données exploitables plutôt que "Non défini".
  */
 export async function getMarginBySupplierCore(
   agencyId: string,
@@ -210,9 +217,9 @@ export async function getMarginBySupplierCore(
     (db) =>
       db
         .select({
-          supplierId: reservationFinancials.marginRuleId,
-          totalRevenue: sql<number>`SUM(sale_price_tnd)`,
-          totalMargin: sql<number>`SUM(margin_amount)`,
+          supplierId: reservations.module,
+          totalRevenue: sql<number>`SUM(${reservationFinancials.salePriceTnd})`,
+          totalMargin: sql<number>`SUM(${reservationFinancials.marginAmount})`,
           reservationCount: sql<number>`COUNT(*)`,
         })
         .from(reservationFinancials)
@@ -225,8 +232,8 @@ export async function getMarginBySupplierCore(
             eq(reservations.status, "confirmed")
           )
         )
-        .groupBy(reservationFinancials.marginRuleId)
-        .orderBy(desc(sql`SUM(margin_amount)`)),
+        .groupBy(reservations.module)
+        .orderBy(desc(sql`SUM(${reservationFinancials.marginAmount})`)),
   )
 
   return results.map((row) => ({
@@ -401,11 +408,18 @@ export async function getRecentWalletTransactionsCore(
 ) {
   return withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },
-    (db) =>
-      db.query.walletLedger.findMany({
-        where: eq(walletLedger.walletAccountId, agencyId),
-        orderBy: (walletLedger, { desc }) => [desc(walletLedger.createdAt)],
-        limit,
-      }),
+    (db) => {
+      const agencyAccountIds = db
+        .select({ id: walletAccounts.id })
+        .from(walletAccounts)
+        .where(eq(walletAccounts.agencyId, agencyId))
+
+      return db
+        .select()
+        .from(walletLedger)
+        .where(inArray(walletLedger.walletAccountId, agencyAccountIds))
+        .orderBy(desc(walletLedger.createdAt))
+        .limit(limit)
+    },
   )
 }

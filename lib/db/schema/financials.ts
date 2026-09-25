@@ -298,6 +298,12 @@ export const reservationFinancials = pgTable(
     // Grand Livre
     journalEntryId: uuid("journal_entry_id"),
 
+    // Annulation (39) — NULL tant que la réservation n'est pas annulée
+    cancellationFee: decimal("cancellation_fee", { precision: 14, scale: 2 }),
+    refundAmount: decimal("refund_amount", { precision: 14, scale: 2 }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancellationReason: text("cancellation_reason"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

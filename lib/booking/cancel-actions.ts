@@ -39,6 +39,7 @@ import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getMyGoClient } from "@/lib/mygo"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
+import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -208,9 +209,20 @@ export async function cancelHotelReservation(
           )
         }
 
+        const cancelledAt = new Date()
+
+        await recordCancellationFinancials({
+          tx,
+          reservationId,
+          cancellationFeeTnd: feeTnd,
+          refundAmountTnd: refundTnd,
+          reason: `Annulation partenaire — frais fournisseur ${formatTnd(feeTnd)} DT`,
+          cancelledAt,
+        })
+
         await tx
           .update(reservations)
-          .set({ status: "cancelled", cancelledAt: new Date() })
+          .set({ status: "cancelled", cancelledAt })
           .where(eq(reservations.id, reservationId))
 
         await tx.insert(auditEvents).values({

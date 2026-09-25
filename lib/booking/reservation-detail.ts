@@ -37,7 +37,7 @@ import {
   getReservationPaymentSummary,
   type ReservationPaymentSummary,
 } from "@/lib/finance/payment-summary"
-import { flightBookings, flightBookingSegments, flightTickets } from "@/lib/db/schema/flights"
+import { flightBookings, flightBookingPassengers, flightBookingSegments, flightTickets } from "@/lib/db/schema/flights"
 
 export interface ReservationDetailPaymentRow {
   id: string
@@ -71,6 +71,17 @@ export interface ReservationModuleDetail {
   providerBookingId: string | null
 }
 
+export interface FlightPassengerDetail {
+  sequence: number
+  passengerType: string
+  firstName: string
+  lastName: string
+  birthDate: string | null
+  nationality: string | null
+  passportNumber: string | null
+  passportExpiry: string | null
+}
+
 export interface FlightSegmentDetail {
   sequence: number
   origin: string
@@ -91,6 +102,7 @@ export interface FlightBookingDetail {
   pnr: string | null
   slaDeadline: string | null
   opsNotes: string | null
+  passengers: FlightPassengerDetail[]
   segments: FlightSegmentDetail[]
   tickets: Array<{ ticketNumber: string; status: string }>
 }
@@ -146,7 +158,7 @@ async function loadFlightDetail(
   const fb = (fbRows as Array<{ id: string; status: string; pnr: string | null; slaDeadline: Date | null; opsNotes: string | null }>)[0]
   if (!fb) return null
 
-  const [ticketRows, segmentRows] = await Promise.all([
+  const [ticketRows, segmentRows, passengerRows] = await Promise.all([
     tx
       .select({ ticketNumber: flightTickets.ticketNumber, status: flightTickets.status })
       .from(flightTickets)
@@ -167,6 +179,20 @@ async function loadFlightDetail(
       .from(flightBookingSegments)
       .where(eq(flightBookingSegments.bookingId, fb.id))
       .orderBy(flightBookingSegments.sequence),
+    tx
+      .select({
+        sequence: flightBookingPassengers.sequence,
+        passengerType: flightBookingPassengers.passengerType,
+        firstName: flightBookingPassengers.firstName,
+        lastName: flightBookingPassengers.lastName,
+        birthDate: flightBookingPassengers.birthDate,
+        nationality: flightBookingPassengers.nationality,
+        passportNumber: flightBookingPassengers.passportNumber,
+        passportExpiry: flightBookingPassengers.passportExpiry,
+      })
+      .from(flightBookingPassengers)
+      .where(eq(flightBookingPassengers.bookingId, fb.id))
+      .orderBy(flightBookingPassengers.sequence),
   ])
 
   const toIso = (v: Date | string) => (v instanceof Date ? v.toISOString() : String(v))
@@ -177,6 +203,20 @@ async function loadFlightDetail(
     pnr: fb.pnr,
     slaDeadline: fb.slaDeadline ? fb.slaDeadline.toISOString() : null,
     opsNotes: fb.opsNotes,
+    passengers: (passengerRows as Array<{
+      sequence: number; passengerType: string; firstName: string; lastName: string;
+      birthDate: string | null; nationality: string | null;
+      passportNumber: string | null; passportExpiry: string | null
+    }>).map((p) => ({
+      sequence: p.sequence,
+      passengerType: p.passengerType,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      birthDate: p.birthDate,
+      nationality: p.nationality,
+      passportNumber: p.passportNumber,
+      passportExpiry: p.passportExpiry,
+    })),
     segments: (segmentRows as Array<{
       sequence: number; origin: string; destination: string;
       departure: Date | string; arrival: Date | string;

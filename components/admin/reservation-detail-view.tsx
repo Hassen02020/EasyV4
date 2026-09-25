@@ -20,6 +20,7 @@ import {
   Plane,
   Ticket,
   User,
+  Users,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -222,6 +223,41 @@ export function ReservationDetailView({
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">{detail.flightDetail.opsNotes}</AlertDescription>
                 </Alert>
+              ) : null}
+              {detail.flightDetail.passengers.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="flex items-center gap-1 font-medium">
+                    <Users className="h-3.5 w-3.5" /> Voyageurs
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Nom</TableHead>
+                          <TableHead>Prénom</TableHead>
+                          <TableHead>Nationalité</TableHead>
+                          <TableHead>Passeport</TableHead>
+                          <TableHead>Expiration</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.flightDetail.passengers.map((pax) => (
+                          <TableRow key={pax.sequence}>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px]">{pax.passengerType}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium uppercase">{pax.lastName}</TableCell>
+                            <TableCell>{pax.firstName}</TableCell>
+                            <TableCell className="font-mono text-xs">{pax.nationality ?? "—"}</TableCell>
+                            <TableCell className="font-mono text-xs">{pax.passportNumber ?? "—"}</TableCell>
+                            <TableCell className="tabular-nums text-xs">{pax.passportExpiry ?? "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               ) : null}
               {detail.flightDetail.segments.length > 0 ? (
                 <div className="space-y-1">

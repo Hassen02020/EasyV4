@@ -19,7 +19,7 @@
 
 import { eq, and, gt } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, customers } from "@/lib/db/schema"
+import { reservations, customers, payments } from "@/lib/db/schema"
 import { flightBookings, flightBookingPassengers, flightBookingSegments, flightAncillaries, flightPriceSnapshots } from "@/lib/db/schema/flights"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
@@ -66,6 +66,8 @@ const flightBookingRequestSchema = z.object({
   orderId: z.string().uuid().optional(),
   /** G7: ancillary selections — identifiers only, price resolved server-side. */
   ancillaries: z.array(ancillarySelectionSchema).max(20).optional(),
+  /** B2C: how the customer intends to pay (card not available yet — GDS ticketing desk flow). */
+  paymentMethod: z.enum(["transfer", "cash"]).optional(),
 })
 
 export type FlightBookingRequestInput = z.infer<typeof flightBookingRequestSchema>
@@ -125,7 +127,7 @@ export async function createFlightBookingRequest(
     }
   }
 
-  const { snapshotId, passengers, contact, orderId, ancillaries } = parsed.data
+  const { snapshotId, passengers, contact, orderId, ancillaries, paymentMethod } = parsed.data
 
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -223,6 +225,23 @@ export async function createFlightBookingRequest(
       const { id: reservationId, guestAccessToken } = (
         reservationRows as Array<{ id: string; guestAccessToken: string }>
       )[0]!
+
+      // ── 3b. Insert payments row when customer indicated a payment method ───
+      // Finance and CRM can track the pending payment; the agency marks it
+      // captured once the transfer arrives or cash is collected in-person.
+      if (paymentMethod) {
+        await tx.insert(payments).values({
+          agencyId,
+          reservationId,
+          psp: "manual",
+          method: paymentMethod,
+          originalCurrency: snap.sellingCurrency ?? "TND",
+          originalAmount: snap.sellingAmount,
+          tndAmount: snap.sellingAmount,
+          kind: "deposit",
+          status: "pending",
+        })
+      }
 
       // ── 4. Insert flight_bookings row (state machine) ──────────────────────
       const bookingRows = await tx

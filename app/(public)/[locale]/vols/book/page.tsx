@@ -1,33 +1,15 @@
 /**
- * Page Vols — /vols/book — Réservation
+ * /vols/book — redirected.
  *
- * Même séparation Server/Client que app/vols/search/page.tsx : HeaderWrapper
- * lit les cookies via next/headers, incompatible avec le composant client
- * (useSearchParams) qui affiche le formulaire.
+ * This route was the original B2C booking page (offerToken approach).
+ * The funnel now goes directly from search results to /vols/passengers
+ * (snapshotId approach). Redirect to /vols so stale links don't 404.
  */
 
-import { Suspense } from "react"
-import { Loader2 } from "lucide-react"
-import { HeaderWrapper as Header } from "@/components/header-wrapper"
-import { Footer } from "@/components/footer"
-import { FlightBookingContent } from "./flight-booking-content"
+import { redirect } from "@/i18n/navigation"
+import { getLocale } from "next-intl/server"
 
-export default function VolsBookPage() {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <div className="flex-1 bg-muted/30">
-        <Suspense
-          fallback={
-            <main className="mx-auto flex max-w-3xl items-center justify-center px-4 py-24">
-              <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-            </main>
-          }
-        >
-          <FlightBookingContent />
-        </Suspense>
-      </div>
-      <Footer />
-    </div>
-  )
+export default async function VolsBookPage() {
+  const locale = await getLocale()
+  redirect({ href: "/vols", locale })
 }

@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, User, Plane, Clock, ShoppingBag } from "lucide-react"
+import { Loader2, User, Plane, Clock, ShoppingBag, CreditCard, Banknote, Building2 } from "lucide-react"
 import { createFlightBookingRequest } from "@/lib/vols/booking-request-action"
 import type { Ancillary } from "@/lib/vols/canonical"
 
@@ -87,6 +87,7 @@ export function PassengerBookingForm({
     Array.from({ length: Math.max(1, passengerCount) }, emptyPassenger),
   )
   const [contact, setContact] = useState<ContactFields>(emptyContact)
+  const [paymentMethod, setPaymentMethod] = useState<"transfer" | "cash">("transfer")
   // G7: set of selected ancillaryIds
   const [selectedAncillaryIds, setSelectedAncillaryIds] = useState<Set<string>>(new Set())
 
@@ -125,6 +126,7 @@ export function PassengerBookingForm({
           firstName: contact.firstName,
           lastName: contact.lastName,
         },
+        paymentMethod,
         // G7: only identifiers — no price from the browser
         ancillaries: selectedAncillaryIds.size > 0
           ? Array.from(selectedAncillaryIds).map((ancillaryId) => ({ ancillaryId }))
@@ -305,6 +307,56 @@ export function PassengerBookingForm({
         </Card>
       )}
 
+      {/* Payment method */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-sky-700" />
+            {t("paymentMethodTitle")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${paymentMethod === "transfer" ? "border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-950/30" : "hover:bg-muted/50"}`}
+          >
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="transfer"
+              checked={paymentMethod === "transfer"}
+              onChange={() => setPaymentMethod("transfer")}
+              className="mt-0.5 accent-sky-700"
+            />
+            <span className="space-y-0.5">
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <Building2 className="h-3.5 w-3.5 text-sky-700" />
+                {t("methodTransfer")}
+              </span>
+              <span className="text-muted-foreground block text-xs">{t("methodTransferDesc")}</span>
+            </span>
+          </label>
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${paymentMethod === "cash" ? "border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-950/30" : "hover:bg-muted/50"}`}
+          >
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="cash"
+              checked={paymentMethod === "cash"}
+              onChange={() => setPaymentMethod("cash")}
+              className="mt-0.5 accent-sky-700"
+            />
+            <span className="space-y-0.5">
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <Banknote className="h-3.5 w-3.5 text-sky-700" />
+                {t("methodCash")}
+              </span>
+              <span className="text-muted-foreground block text-xs">{t("methodCashDesc")}</span>
+            </span>
+          </label>
+        </CardContent>
+      </Card>
+
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -314,7 +366,10 @@ export function PassengerBookingForm({
       {/* SLA notice */}
       <p className="text-muted-foreground flex items-center gap-2 text-xs">
         <Clock className="h-3 w-3 shrink-0" />
-        {t("methodCashDesc")}
+        {t.rich("confirmationSlaNotice", {
+          minutes: t("confirmationSlaMinutes"),
+          strong: (chunks) => <strong>{chunks}</strong>,
+        })}
       </p>
 
       <Button

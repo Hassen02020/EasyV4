@@ -10,6 +10,7 @@
 import { and, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, customers, reservations } from "@/lib/db/schema"
+import { flightBookings } from "@/lib/db/schema/flights"
 import { logger } from "@/lib/logger"
 
 /* -------------------------------------------------------------------------- */
@@ -59,6 +60,9 @@ export type AdminReservationRow = {
   depositAmount: number | null
   createdAt: string
   cancelledAt: string | null
+  /** Route vol (premier tronçon) — non-null uniquement pour module === "flight". */
+  flightOrigin: string | null
+  flightDestination: string | null
 }
 
 export type CursorPageResult = {
@@ -147,10 +151,25 @@ export async function loadAdminReservationsPage(
         depositAmount: reservations.depositAmount,
         createdAt: reservations.createdAt,
         cancelledAt: reservations.cancelledAt,
+        flightOrigin: sql<string | null>`(
+          SELECT origin
+          FROM flight_booking_segments
+          WHERE booking_id = ${flightBookings.id}
+          ORDER BY sequence ASC
+          LIMIT 1
+        )`,
+        flightDestination: sql<string | null>`(
+          SELECT destination
+          FROM flight_booking_segments
+          WHERE booking_id = ${flightBookings.id}
+          ORDER BY sequence ASC
+          LIMIT 1
+        )`,
       })
       .from(reservations)
       .leftJoin(customers, eq(customers.id, reservations.customerId))
       .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
+      .leftJoin(flightBookings, eq(flightBookings.reservationId, reservations.id))
       .where(where!)
       .orderBy(desc(reservations.createdAt))
       .limit(limit + 1),
@@ -202,6 +221,8 @@ function mapRow(row: {
   depositAmount: string | null
   createdAt: Date
   cancelledAt: Date | null
+  flightOrigin?: string | null
+  flightDestination?: string | null
 }): AdminReservationRow {
   return {
     id: row.id,
@@ -221,6 +242,8 @@ function mapRow(row: {
       row.depositAmount === null ? null : Number(row.depositAmount),
     createdAt: row.createdAt.toISOString(),
     cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
+    flightOrigin: row.flightOrigin ?? null,
+    flightDestination: row.flightDestination ?? null,
   }
 }
 
@@ -288,10 +311,25 @@ export async function loadAllReservations(
         depositAmount: reservations.depositAmount,
         createdAt: reservations.createdAt,
         cancelledAt: reservations.cancelledAt,
+        flightOrigin: sql<string | null>`(
+          SELECT origin
+          FROM flight_booking_segments
+          WHERE booking_id = ${flightBookings.id}
+          ORDER BY sequence ASC
+          LIMIT 1
+        )`,
+        flightDestination: sql<string | null>`(
+          SELECT destination
+          FROM flight_booking_segments
+          WHERE booking_id = ${flightBookings.id}
+          ORDER BY sequence ASC
+          LIMIT 1
+        )`,
       })
       .from(reservations)
       .leftJoin(customers, eq(customers.id, reservations.customerId))
       .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
+      .leftJoin(flightBookings, eq(flightBookings.reservationId, reservations.id))
       .where(where)
       .orderBy(desc(reservations.createdAt))
       .limit(limit + 1),

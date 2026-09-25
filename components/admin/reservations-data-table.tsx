@@ -544,6 +544,11 @@ export function ReservationsDataTable({
                   </TableCell>
                   <TableCell>
                     <ModuleBadge module={row.module} />
+                    {row.module === "flight" && row.flightOrigin && row.flightDestination ? (
+                      <p className="text-muted-foreground mt-0.5 font-mono text-[10px]">
+                        {row.flightOrigin} → {row.flightDestination}
+                      </p>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-right font-semibold">
                     {TND_FORMAT.format(row.tndAmount)} TND

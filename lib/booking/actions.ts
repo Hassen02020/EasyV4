@@ -414,10 +414,8 @@ export async function createReservationFromDraft(input: {
   // agences au prix net myGo, sans aucune marge, pour toute réservation
   // hôtel réellement confirmée. Marge existante réutilisée telle quelle
   // (`applyMargin`, `getMarginsForAgency`) — pas une deuxième formule.
-  const agencyHotelPrice = applyMargin(
-    myGoBooking.totalPrice,
-    (await getMarginsForAgency(agencyId, authUserId)).hotel,
-  )
+  const hotelMarginRule = (await getMarginsForAgency(agencyId, authUserId)).hotel
+  const agencyHotelPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
 
   const breakdown = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyHotelPrice, draft.adults),
@@ -605,6 +603,7 @@ export async function createReservationFromDraft(input: {
           reservationId,
           supplierPriceTnd: myGoBooking.totalPrice,
           salePriceTnd: agencyHotelPrice,
+          commissionPercent: hotelMarginRule.commissionPercent,
         })
       }
 

@@ -89,6 +89,7 @@ export async function getMarginsForAgency(
               type: marginRules.type,
               percentValue: marginRules.percentValue,
               fixedValue: marginRules.fixedValue,
+              commissionPercent: marginRules.commissionPercent,
             })
             .from(marginRules)
             .where(
@@ -130,6 +131,7 @@ export async function getMarginsForAgency(
           marginType: isFixed ? "fixed" : "percent",
           marginValue: Number.parseFloat((isFixed ? row.fixedValue : row.percentValue) ?? "0"),
           isActive: true,
+          commissionPercent: row.commissionPercent ? Number.parseFloat(row.commissionPercent) : undefined,
         }
       }
 

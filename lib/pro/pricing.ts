@@ -52,6 +52,9 @@ export type MarginRule = {
   marginValue: number
 
   isActive: boolean
+
+  /** Taux de commission Easy2Book prélevé sur la marge nette (0 ou absent = pas de commission). */
+  commissionPercent?: number
 }
 
 export type MarginMap = Record<MarginModule, MarginRule>

@@ -32,6 +32,12 @@ export interface RecordReservationFinancialsInput {
   supplierPriceTnd: number
   /** Prix agence après marge (HT) — sortie de `applyMargin()`, jamais recalculé ici. */
   salePriceTnd: number
+  /**
+   * Taux de commission Easy2Book à prélever sur la marge nette
+   * (de `MarginRule.commissionPercent`). Absent ou 0 = pas de commission.
+   * Enregistré tel quel pour permettre le settlement ultérieur (Chantier 37B/C).
+   */
+  commissionPercent?: number
 }
 
 export async function recordReservationFinancials(
@@ -40,6 +46,9 @@ export async function recordReservationFinancials(
   const { tx, reservationId, supplierPriceTnd, salePriceTnd } = input
   const marginAmount = salePriceTnd - supplierPriceTnd
   const marginPercent = supplierPriceTnd > 0 ? (marginAmount / supplierPriceTnd) * 100 : 0
+
+  const commissionRate = input.commissionPercent ?? 0
+  const commissionAmount = Math.round(marginAmount * (commissionRate / 100) * 100) / 100
 
   await tx.insert(reservationFinancials).values({
     reservationId,
@@ -51,5 +60,7 @@ export async function recordReservationFinancials(
     salePriceTnd: salePriceTnd.toFixed(2),
     marginAmount: marginAmount.toFixed(2),
     marginPercent: marginPercent.toFixed(2),
+    commissionAmount: commissionAmount.toFixed(2),
+    commissionPercent: commissionRate.toFixed(2),
   })
 }

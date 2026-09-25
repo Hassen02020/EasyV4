@@ -53,15 +53,15 @@ export default async function TransfertsPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 bg-muted/30">
-        <div className="bg-gradient-to-br from-blue-900 to-blue-700 px-4 py-12 text-white">
+        <div className="bg-gradient-to-br from-slate-900 to-slate-700 px-4 py-12 text-white">
           <div className="mx-auto max-w-4xl text-center">
-            <p className="mb-2 text-sm font-medium tracking-widest text-blue-300 uppercase">
+            <p className="mb-2 text-sm font-medium tracking-widest text-slate-300 uppercase">
               {t("kicker")}
             </p>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
               {t("heroTitle")}
             </h1>
-            <p className="mx-auto max-w-2xl text-blue-100">
+            <p className="mx-auto max-w-2xl text-slate-100">
               {t("heroSubtitle")}
             </p>
           </div>

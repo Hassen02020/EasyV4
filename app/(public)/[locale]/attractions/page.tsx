@@ -153,15 +153,15 @@ export default async function AttractionsPage({
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 bg-muted/30">
-        <div className="bg-gradient-to-br from-teal-900 to-teal-700 px-4 py-12 text-white">
+        <div className="bg-gradient-to-br from-amber-900 to-amber-700 px-4 py-12 text-white">
           <div className="mx-auto max-w-4xl text-center">
-            <p className="mb-2 text-sm font-medium tracking-widest text-teal-300 uppercase">
+            <p className="mb-2 text-sm font-medium tracking-widest text-amber-300 uppercase">
               {t("kicker")}
             </p>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
               {t("heroTitle")}
             </h1>
-            <p className="mx-auto mb-6 max-w-2xl text-teal-100">
+            <p className="mx-auto mb-6 max-w-2xl text-amber-100">
               {t("heroSubtitle")}
             </p>
             <form className="mx-auto flex max-w-lg gap-2" action="/attractions">
@@ -172,7 +172,7 @@ export default async function AttractionsPage({
                 placeholder={t("searchPlaceholder")}
                 className="bg-white/95 text-foreground"
               />
-              <Button type="submit" className="bg-teal-600 hover:bg-teal-500">
+              <Button type="submit" className="bg-amber-600 hover:bg-amber-500">
                 {t("searchButton")}
               </Button>
             </form>
@@ -207,7 +207,7 @@ export default async function AttractionsPage({
                         sizes="(max-width: 768px) 100vw, 33vw"
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-teal-800 to-teal-600">
+                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-amber-800 to-amber-600">
                         <Compass className="h-10 w-10 text-white/30" />
                       </div>
                     )}
@@ -219,7 +219,7 @@ export default async function AttractionsPage({
                         {a.location}
                       </Badge>
                     )}
-                    <h3 className="mb-1 font-semibold group-hover:text-teal-700">{a.title}</h3>
+                    <h3 className="mb-1 font-semibold group-hover:text-amber-700">{a.title}</h3>
                     {a.shortDescription && (
                       <p className="mb-2 line-clamp-2 text-sm text-muted-foreground">
                         {a.shortDescription}
@@ -234,13 +234,13 @@ export default async function AttractionsPage({
                     {a.priceFromTnd != null && (
                       <div className="mb-3">
                         <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
-                        <p className="text-2xl font-bold text-teal-700">
+                        <p className="text-2xl font-bold text-amber-700">
                           {a.priceFromTnd.toLocaleString(getIntlLocale(locale))}
                           <span className="ml-1 text-sm font-normal">{t("perPerson")}</span>
                         </p>
                       </div>
                     )}
-                    <Button className="w-full gap-2 bg-teal-700 hover:bg-teal-800" tabIndex={-1}>
+                    <Button className="w-full gap-2 bg-amber-700 hover:bg-amber-800" tabIndex={-1}>
                       {t("viewAvailability")}
                       <ChevronRight className="h-4 w-4" />
                     </Button>

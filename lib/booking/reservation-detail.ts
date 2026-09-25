@@ -71,6 +71,18 @@ export interface ReservationModuleDetail {
   providerBookingId: string | null
 }
 
+export interface FlightSegmentDetail {
+  sequence: number
+  origin: string
+  destination: string
+  departure: string
+  arrival: string
+  airline: string
+  flightNumber: string
+  cabin: string
+  durationMin: number | null
+}
+
 /** GDS-level state for flight_bookings rows (new two-stage pipeline only). */
 export interface FlightBookingDetail {
   bookingId: string
@@ -79,6 +91,7 @@ export interface FlightBookingDetail {
   pnr: string | null
   slaDeadline: string | null
   opsNotes: string | null
+  segments: FlightSegmentDetail[]
   tickets: Array<{ ticketNumber: string; status: string }>
 }
 
@@ -133,12 +146,30 @@ async function loadFlightDetail(
   const fb = (fbRows as Array<{ id: string; status: string; pnr: string | null; slaDeadline: Date | null; opsNotes: string | null }>)[0]
   if (!fb) return null
 
-  const ticketRows = await tx
-    .select({ ticketNumber: flightTickets.ticketNumber, status: flightTickets.status })
-    .from(flightTickets)
-    .where(eq(flightTickets.bookingId, fb.id))
-    .orderBy(flightTickets.issuedAt)
-  const tickets = (ticketRows as Array<{ ticketNumber: string; status: string }>)
+  const [ticketRows, segmentRows] = await Promise.all([
+    tx
+      .select({ ticketNumber: flightTickets.ticketNumber, status: flightTickets.status })
+      .from(flightTickets)
+      .where(eq(flightTickets.bookingId, fb.id))
+      .orderBy(flightTickets.issuedAt),
+    tx
+      .select({
+        sequence: flightBookingSegments.sequence,
+        origin: flightBookingSegments.origin,
+        destination: flightBookingSegments.destination,
+        departure: flightBookingSegments.departure,
+        arrival: flightBookingSegments.arrival,
+        airline: flightBookingSegments.airline,
+        flightNumber: flightBookingSegments.flightNumber,
+        cabin: flightBookingSegments.cabin,
+        durationMin: flightBookingSegments.durationMin,
+      })
+      .from(flightBookingSegments)
+      .where(eq(flightBookingSegments.bookingId, fb.id))
+      .orderBy(flightBookingSegments.sequence),
+  ])
+
+  const toIso = (v: Date | string) => (v instanceof Date ? v.toISOString() : String(v))
 
   return {
     bookingId: fb.id,
@@ -146,7 +177,22 @@ async function loadFlightDetail(
     pnr: fb.pnr,
     slaDeadline: fb.slaDeadline ? fb.slaDeadline.toISOString() : null,
     opsNotes: fb.opsNotes,
-    tickets,
+    segments: (segmentRows as Array<{
+      sequence: number; origin: string; destination: string;
+      departure: Date | string; arrival: Date | string;
+      airline: string; flightNumber: string; cabin: string; durationMin: number | null
+    }>).map((s) => ({
+      sequence: s.sequence,
+      origin: s.origin,
+      destination: s.destination,
+      departure: toIso(s.departure),
+      arrival: toIso(s.arrival),
+      airline: s.airline,
+      flightNumber: s.flightNumber,
+      cabin: s.cabin,
+      durationMin: s.durationMin,
+    })),
+    tickets: (ticketRows as Array<{ ticketNumber: string; status: string }>),
   }
 }
 

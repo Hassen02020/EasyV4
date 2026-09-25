@@ -16,6 +16,7 @@ import {
   Download,
   FileText,
   History,
+  MoveRight,
   Plane,
   Ticket,
   User,
@@ -221,6 +222,44 @@ export function ReservationDetailView({
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">{detail.flightDetail.opsNotes}</AlertDescription>
                 </Alert>
+              ) : null}
+              {detail.flightDetail.segments.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="flex items-center gap-1 font-medium">
+                    <MoveRight className="h-3.5 w-3.5" /> Itinéraire
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>#</TableHead>
+                          <TableHead>Tronçon</TableHead>
+                          <TableHead>Départ</TableHead>
+                          <TableHead>Arrivée</TableHead>
+                          <TableHead>Vol</TableHead>
+                          <TableHead>Cabine</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.flightDetail.segments.map((seg) => (
+                          <TableRow key={seg.sequence}>
+                            <TableCell className="tabular-nums">{seg.sequence}</TableCell>
+                            <TableCell className="font-mono text-xs font-semibold">
+                              {seg.origin} → {seg.destination}
+                            </TableCell>
+                            <TableCell className="tabular-nums text-xs">{formatDate(seg.departure)}</TableCell>
+                            <TableCell className="tabular-nums text-xs">{formatDate(seg.arrival)}</TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {seg.airline}{seg.flightNumber}
+                              {seg.durationMin ? <span className="text-muted-foreground ml-1">({Math.floor(seg.durationMin / 60)}h{String(seg.durationMin % 60).padStart(2, "0")})</span> : null}
+                            </TableCell>
+                            <TableCell className="text-xs">{seg.cabin}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               ) : null}
               {detail.flightDetail.tickets.length > 0 ? (
                 <div className="space-y-1">

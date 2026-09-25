@@ -22,6 +22,7 @@ import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
@@ -598,12 +599,17 @@ export async function createReservationFromDraft(input: {
       // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
       // déjà calculés plus haut par `applyMargin()`, jamais un recalcul.
       if (draft.module === "hotel" && myGoBooking) {
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: myGoBooking.totalPrice,
           salePriceTnd: agencyHotelPrice,
           commissionPercent: hotelMarginRule.commissionPercent,
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission hôtel — réservation ${publicRef}`,
         })
       }
 

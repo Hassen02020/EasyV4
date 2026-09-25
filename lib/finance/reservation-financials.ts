@@ -42,7 +42,7 @@ export interface RecordReservationFinancialsInput {
 
 export async function recordReservationFinancials(
   input: RecordReservationFinancialsInput,
-): Promise<void> {
+): Promise<{ commissionAmount: number }> {
   const { tx, reservationId, supplierPriceTnd, salePriceTnd } = input
   const marginAmount = salePriceTnd - supplierPriceTnd
   const marginPercent = supplierPriceTnd > 0 ? (marginAmount / supplierPriceTnd) * 100 : 0
@@ -63,4 +63,6 @@ export async function recordReservationFinancials(
     commissionAmount: commissionAmount.toFixed(2),
     commissionPercent: commissionRate.toFixed(2),
   })
+
+  return { commissionAmount }
 }

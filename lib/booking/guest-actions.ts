@@ -62,6 +62,7 @@ import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { getMyGoClient } from "@/lib/mygo"
 import { resolveMyGoAccessForTenant, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { sendEvent } from "@/lib/inngest/client"
@@ -451,12 +452,17 @@ async function runCreateGuestReservation(
         // montants déjà calculés plus haut par `applyMargin()`, jamais un
         // recalcul.
         if (draft.module === "hotel") {
-          await recordReservationFinancials({
+          const { commissionAmount } = await recordReservationFinancials({
             tx,
             reservationId,
             supplierPriceTnd: myGoBooking.totalPrice,
             salePriceTnd: agencyPrice,
             commissionPercent: hotelMarginRule.commissionPercent,
+          })
+          await creditPlatformCommission(tx, {
+            reservationId,
+            commissionAmount,
+            description: `Commission hôtel — réservation ${publicRef}`,
           })
         }
 

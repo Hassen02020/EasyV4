@@ -202,6 +202,10 @@ export const walletLedger = pgTable(
     createdBy: uuid("created_by"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+
+    // Settlement commission (37C) — renseigné quand cette entrée est incluse dans un commission_settlement
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    settlementId: uuid("settlement_id"),
   },
   (t) => [
     { name: "wallet_ledger_account_idx", on: t.walletAccountId },
@@ -404,6 +408,33 @@ export const reservationStatusHistory = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* Commission Settlements (37C — Easy2Book net revenue settlement)             */
+/* -------------------------------------------------------------------------- */
+
+export const commissionSettlements = pgTable(
+  "commission_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    totalAmount: decimal("total_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+    ledgerEntryCount: integer("ledger_entry_count").notNull().default(0),
+    /** 'pending' → calculé mais non encore versé ; 'paid' → versement effectué. */
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    notes: text("notes"),
+    settledBy: uuid("settled_by"),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    { name: "commission_settlements_period_idx", on: [t.periodStart, t.periodEnd] },
+    { name: "commission_settlements_status_idx", on: t.status },
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* Type Exports                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -415,6 +446,8 @@ export type MarginRule = typeof marginRules.$inferSelect
 export type NewMarginRule = typeof marginRules.$inferInsert
 export type ReservationFinancial = typeof reservationFinancials.$inferSelect
 export type NewReservationFinancial = typeof reservationFinancials.$inferInsert
+export type CommissionSettlement = typeof commissionSettlements.$inferSelect
+export type NewCommissionSettlement = typeof commissionSettlements.$inferInsert
 export type JournalEntry = typeof journalEntries.$inferSelect
 export type NewJournalEntry = typeof journalEntries.$inferInsert
 export type JournalLine = typeof journalLines.$inferSelect

@@ -112,8 +112,12 @@ BEGIN
 END;
 $$;
 
+-- authenticated exclut volontairement : tout utilisateur connecté pourrait
+-- appeler cette SECURITY DEFINER function via supabase.rpc() avec un montant
+-- arbitraire et corrompre le solde platform. Seul le backend (service_role /
+-- app_runtime) peut la déclencher — via le pipeline de réservation uniquement.
 GRANT EXECUTE ON FUNCTION credit_platform_commission(uuid, uuid, numeric, text)
-  TO authenticated, service_role, app_runtime;
+  TO service_role, app_runtime;
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- 4. commission_settlements (37C)
@@ -136,7 +140,9 @@ CREATE TABLE IF NOT EXISTS commission_settlements (
     CHECK (total_amount >= 0 AND ledger_entry_count >= 0)
 );
 
-CREATE INDEX IF NOT EXISTS commission_settlements_period_idx
+-- Unicité période : empêche deux settlements pour la même plage de dates
+-- (protection contre appels concurrents à settleCommissions).
+CREATE UNIQUE INDEX IF NOT EXISTS commission_settlements_period_uniq
   ON commission_settlements (period_start, period_end);
 CREATE INDEX IF NOT EXISTS commission_settlements_status_idx
   ON commission_settlements (status);

@@ -165,7 +165,7 @@ export const walletAccounts = pgTable(
       .where(sql`${t.customerId} IS NOT NULL`),
     check(
       "wallet_accounts_owner_check",
-      sql`(${t.agencyId} is not null and ${t.customerId} is null) or (${t.agencyId} is null and ${t.customerId} is not null)`,
+      sql`(${t.agencyId} is not null and ${t.customerId} is null) or (${t.agencyId} is null and ${t.customerId} is not null) or (${t.type} = 'commission' and ${t.agencyId} is null and ${t.customerId} is null)`,
     ),
   ],
 )
@@ -429,7 +429,7 @@ export const commissionSettlements = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    { name: "commission_settlements_period_idx", on: [t.periodStart, t.periodEnd] },
+    uniqueIndex("commission_settlements_period_uniq").on(t.periodStart, t.periodEnd),
     { name: "commission_settlements_status_idx", on: t.status },
   ],
 )

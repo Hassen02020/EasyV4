@@ -2757,3 +2757,21 @@ export {
   type FlightSupplierCredential,
   type NewFlightSupplierCredential,
 } from "./schema/flight-suppliers"
+
+/* -------------------------------------------------------------------------- */
+/* Supplier Portal Foundation (Phase 35) — L0/L1 self-service                 */
+/* imported from schema/supplier-portal.ts                                    */
+/* -------------------------------------------------------------------------- */
+
+export {
+  supplierOnboardingStatus,
+  supplierPortalUserRole,
+  supplierNodes,
+  supplierPortalUsers,
+  type SupplierNode,
+  type NewSupplierNode,
+  type SupplierPortalUser,
+  type NewSupplierPortalUser,
+  type SupplierOnboardingStatus,
+  type SupplierPortalUserRole,
+} from "./schema/supplier-portal"

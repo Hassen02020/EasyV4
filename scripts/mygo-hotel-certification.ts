@@ -47,7 +47,6 @@ import {
   payments,
 } from "@/lib/db/schema"
 import { computePriceBreakdown } from "@/lib/booking/pricing"
-import { nextPublicRef } from "@/lib/booking/actions"
 import { applyMargin } from "@/lib/pro/pricing"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -79,6 +78,30 @@ import {
   handleListBoarding,
 } from "@/lib/mygo/virtual-supplier/engine"
 import { setScenario, resetScenario } from "@/lib/mygo/virtual-supplier/scenarios"
+
+/* -------------------------------------------------------------------------- */
+/* nextPublicRef — répliqué depuis lib/booking/actions.ts pour éviter la       */
+/* dépendance transitive vers server-only (via lib/pro/server-context.ts).     */
+/* -------------------------------------------------------------------------- */
+
+function _pad(n: number, w = 6) {
+  return String(n).padStart(w, "0")
+}
+
+async function nextPublicRef(
+  db: ReturnType<typeof import("@/lib/db/client").getDb> | Parameters<Parameters<ReturnType<typeof import("@/lib/db/client").getDb>["transaction"]>[0]>[0],
+  agencyId: string,
+): Promise<string> {
+  const year = new Date().getFullYear()
+  const prefix = `TG-${year}-`
+  const [row] = await (db as ReturnType<typeof import("@/lib/db/client").getDb>)
+    .select({ maxRef: sql<string | null>`MAX(${reservations.publicRef})` })
+    .from(reservations)
+    .where(and(eq(reservations.agencyId, agencyId), sql`${reservations.publicRef} LIKE ${prefix + "%"}`))
+  const maxRef = row?.maxRef
+  const max = maxRef ? Number(maxRef.slice(prefix.length)) : 0
+  return `${prefix}${_pad(Number.isFinite(max) ? max + 1 : 1)}`
+}
 
 /* -------------------------------------------------------------------------- */
 /* Harness                                                                      */

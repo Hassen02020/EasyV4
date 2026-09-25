@@ -23,6 +23,7 @@ import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { paginateOffset } from "@/lib/admin/pagination"
 import { MapPin, Clock, Compass, ChevronRight } from "lucide-react"
+import { ModuleHero } from "@/components/module-hero"
 
 export const dynamic = "force-dynamic"
 
@@ -153,31 +154,26 @@ export default async function AttractionsPage({
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 bg-muted/30">
-        <div className="bg-gradient-to-br from-amber-900 to-amber-700 px-4 py-12 text-white">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="mb-2 text-sm font-medium tracking-widest text-amber-300 uppercase">
-              {t("kicker")}
-            </p>
-            <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              {t("heroTitle")}
-            </h1>
-            <p className="mx-auto mb-6 max-w-2xl text-amber-100">
-              {t("heroSubtitle")}
-            </p>
-            <form className="mx-auto flex max-w-lg gap-2" action="/attractions">
-              <Input
-                type="text"
-                name="q"
-                defaultValue={q ?? ""}
-                placeholder={t("searchPlaceholder")}
-                className="bg-white/95 text-foreground"
-              />
-              <Button type="submit" className="bg-amber-600 hover:bg-amber-500">
-                {t("searchButton")}
-              </Button>
-            </form>
-          </div>
-        </div>
+        <ModuleHero
+          Icon={Compass}
+          gradient="from-amber-900 to-amber-700"
+          kicker={t("kicker")}
+          title={t("heroTitle")}
+          subtitle={t("heroSubtitle")}
+        >
+          <form className="mx-auto flex max-w-lg gap-2" action="/attractions">
+            <Input
+              type="text"
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder={t("searchPlaceholder")}
+              className="bg-white/95 text-foreground"
+            />
+            <Button type="submit" className="bg-amber-600 hover:bg-amber-500">
+              {t("searchButton")}
+            </Button>
+          </form>
+        </ModuleHero>
 
         <div className="mx-auto max-w-6xl px-4 py-8">
           {activities.length === 0 ? (

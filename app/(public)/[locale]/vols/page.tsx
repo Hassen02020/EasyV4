@@ -12,10 +12,12 @@
  * qui n'existait pas encore).
  */
 
+import { Plane } from "lucide-react"
 import { redirect } from "@/i18n/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
+import { ModuleHero } from "@/components/module-hero"
 import { FlightSearch } from "@/components/vols/flight-search"
 import {
   parseFlightSearchParams,
@@ -78,19 +80,13 @@ export default async function VolsPage({
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 bg-muted/30">
-        <div className="bg-gradient-to-br from-sky-900 to-sky-700 px-4 py-12 text-white">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="mb-2 text-sm font-medium tracking-widest text-sky-300 uppercase">
-              {t("kicker")}
-            </p>
-            <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              {t("heroTitle")}
-            </h1>
-            <p className="mx-auto max-w-2xl text-sky-100">
-              {t("heroSubtitle")}
-            </p>
-          </div>
-        </div>
+        <ModuleHero
+          Icon={Plane}
+          gradient="from-sky-900 to-sky-700"
+          kicker={t("kicker")}
+          title={t("heroTitle")}
+          subtitle={t("heroSubtitle")}
+        />
 
         <div className="mx-auto max-w-4xl px-4 py-10">
           <FlightSearch

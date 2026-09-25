@@ -3,9 +3,11 @@
  * Server Component : charge les packages depuis la table catalog_packages.
  */
 
+import { Briefcase } from "lucide-react"
 import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
+import { ModuleHero } from "@/components/module-hero"
 import { PackageSearch } from "@/components/packages/package-search"
 import { PackageList } from "@/components/packages/package-list"
 import { CatalogPagination } from "@/components/catalog-pagination"
@@ -214,19 +216,13 @@ export default async function PackagesPage({
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 bg-muted/30">
-        <div className="bg-gradient-to-br from-violet-900 to-violet-700 px-4 py-12 text-white">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="mb-2 text-sm font-medium tracking-widest text-violet-300 uppercase">
-              {t("kicker")}
-            </p>
-            <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              {t("heroTitle")}
-            </h1>
-            <p className="mx-auto max-w-2xl text-violet-100">
-              {t("heroSubtitle")}
-            </p>
-          </div>
-        </div>
+        <ModuleHero
+          Icon={Briefcase}
+          gradient="from-violet-900 to-violet-700"
+          kicker={t("kicker")}
+          title={t("heroTitle")}
+          subtitle={t("heroSubtitle")}
+        />
 
         <div className="mx-auto max-w-6xl px-4 py-8">
           <PackageSearch />

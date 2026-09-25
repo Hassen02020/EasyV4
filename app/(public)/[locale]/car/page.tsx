@@ -17,9 +17,11 @@
  * jamais remarqué. Corrigé en même temps que l'ajout de la results layer.
  */
 
+import { Car } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
+import { ModuleHero } from "@/components/module-hero"
 import { CarSearch } from "@/components/car/car-search"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { carLocations, carCategories } from "@/lib/db/schema"
@@ -84,19 +86,13 @@ export default async function CarPage({
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 bg-muted/30">
-        <div className="bg-gradient-to-br from-red-900 to-red-700 px-4 py-12 text-white">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="mb-2 text-sm font-medium tracking-widest text-red-300 uppercase">
-              {t("kicker")}
-            </p>
-            <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              {t("heroTitle")}
-            </h1>
-            <p className="mx-auto max-w-2xl text-red-100">
-              {t("heroSubtitle")}
-            </p>
-          </div>
-        </div>
+        <ModuleHero
+          Icon={Car}
+          gradient="from-red-900 to-red-700"
+          kicker={t("kicker")}
+          title={t("heroTitle")}
+          subtitle={t("heroSubtitle")}
+        />
         <div className="mx-auto max-w-4xl px-4 py-10">
           <CarSearch
             locations={locations}

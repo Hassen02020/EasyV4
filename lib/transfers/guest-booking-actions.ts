@@ -222,6 +222,7 @@ async function runCreateGuestTransferBooking(
               offerLabel,
               startDate: input.pickupDate,
               channel: "b2c_guest",
+              paymentMethod: "transfer",
             },
           })
           .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })

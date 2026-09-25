@@ -278,6 +278,7 @@ async function runCreateGuestCarBooking(
               startDate: input.pickupAt.slice(0, 10),
               endDate: input.dropoffAt.slice(0, 10),
               channel: "b2c_guest",
+              paymentMethod: "transfer",
             },
           })
           .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })

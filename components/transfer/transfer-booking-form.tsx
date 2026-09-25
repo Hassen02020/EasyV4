@@ -13,6 +13,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -24,8 +25,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, MapPin, Car, Calendar, Clock, CreditCard, CheckCircle } from "lucide-react"
-import { createTransferBooking } from "@/lib/transfers/actions"
+import { Loader2, MapPin, Car, Calendar, Clock, CreditCard } from "lucide-react"
+import { createGuestTransferBooking } from "@/lib/transfers/guest-booking-actions"
 import { calculateTransferPrice, type TransferPricingResult } from "@/lib/transfers/pricing"
 import type { CatalogTransferZone } from "@/lib/db/schema"
 
@@ -87,9 +88,9 @@ const VEHICLE_TYPES = [
 /* -------------------------------------------------------------------------- */
 
 export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookingFormProps) {
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submitSuccess, setSubmitSuccess] = useState<{ reservationId: string; publicRef: string; totalTnd: number } | null>(null)
   const [pricing, setPricing] = useState<TransferPricingResult | null>(null)
   const [pricingError, setPricingError] = useState<string | null>(null)
 
@@ -155,10 +156,9 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
   const onSubmit = async (data: TransferBookingFormData) => {
     setIsSubmitting(true)
     setSubmitError(null)
-    setSubmitSuccess(null)
 
     try {
-      const result = await createTransferBooking({
+      const result = await createGuestTransferBooking({
         fromZoneId: data.fromZoneId,
         toZoneId: data.toZoneId,
         vehicleType: data.vehicleType,
@@ -174,46 +174,13 @@ export function TransferBookingForm({ zones, agencyId, prefill }: TransferBookin
       if (!result.ok) {
         setSubmitError(result.error)
       } else {
-        setSubmitSuccess({
-          reservationId: result.reservationId,
-          publicRef: result.publicRef,
-          totalTnd: result.totalTnd,
-        })
+        router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
       }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  if (submitSuccess) {
-    return (
-      <Card className="max-w-2xl mx-auto rounded-lg border-2 border-green-500/20">
-        <CardHeader className="bg-green-50 rounded-t-lg">
-          <CardTitle className="text-green-700 flex items-center gap-2">
-            <CheckCircle className="w-6 h-6" />
-            Réservation Confirmée
-          </CardTitle>
-          <CardDescription className="text-green-600">
-            Votre réservation de transfert a été enregistrée avec succès.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-6">
-          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-green-700">N° Réservation</p>
-            <p className="text-2xl font-bold text-green-700">{submitSuccess.publicRef}</p>
-          </div>
-          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-green-700">Montant débité</p>
-            <p className="text-2xl font-bold text-green-700">{submitSuccess.totalTnd.toFixed(3)} DT</p>
-          </div>
-          <Button onClick={() => window.location.reload()} className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg">
-            Nouvelle Réservation
-          </Button>
-        </CardContent>
-      </Card>
-    )
   }
 
   return (

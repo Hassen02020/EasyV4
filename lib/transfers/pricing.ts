@@ -7,7 +7,8 @@
  *   - Prix de base depuis catalog_transfer_pricing (par paire de zones × véhicule)
  *   - Majoration nuit (21h-6h) au taux configuré sur la ligne de tarif
  *     (nightSurchargePercent), pas un taux générique
- *   - Application de la marge agence réelle (pricingMargins, module='transfer')
+ *   - Application de la marge agence via getMarginsForAgency() (fusion
+ *     pricing_margins + margin_rules module-level, cache Redis 5 min)
  *
  * "use server" : ce module interroge Drizzle/postgres et est importé depuis
  * des Client Components (TransferBookingForm) — sans cette directive le code
@@ -17,13 +18,10 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
-import { withPublicAgencyContext, withTenantContext } from "@/lib/db/tenant-context"
-import {
-  catalogTransferPricing,
-  pricingMargins,
-  transferVehicleType,
-} from "@/lib/db/schema"
-import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
+import { catalogTransferPricing, transferVehicleType } from "@/lib/db/schema"
+import { applyMargin } from "@/lib/pro/pricing"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
 
 /** Type union des valeurs possibles pour un véhicule de transfert. */
 export type TransferVehicleType = (typeof transferVehicleType.enumValues)[number]
@@ -125,32 +123,13 @@ export async function calculateTransferPrice(
   )
   const preMargin = basePriceTnd + nightSurchargeAmount
 
-  const [marginRow] = await withTenantContext(
-    { agencyId: input.agencyId, userId: "", isSuperAdmin: false },
-    (db) =>
-      db
-        .select()
-        .from(pricingMargins)
-        .where(
-          and(
-            eq(pricingMargins.agencyId, input.agencyId),
-            eq(pricingMargins.module, "transfer"),
-            eq(pricingMargins.isActive, true),
-          ),
-        )
-        .limit(1),
-  )
+  const rule = (await getMarginsForAgency(input.agencyId)).transfer
 
   let marginPercent: number | undefined
   let marginAmount = 0
   let totalTnd = preMargin
 
-  if (marginRow) {
-    const rule: MarginRule = {
-      marginType: marginRow.marginType === "percent" ? "percent" : "fixed",
-      marginValue: Number(marginRow.marginValue),
-      isActive: marginRow.isActive,
-    }
+  if (rule.isActive) {
     totalTnd = roundTnd(applyMargin(preMargin, rule))
     marginAmount = roundTnd(totalTnd - preMargin)
     marginPercent = rule.marginType === "percent" ? rule.marginValue : undefined

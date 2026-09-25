@@ -183,7 +183,7 @@ function HotelSearchContent() {
   const adultsStr = searchParams.get("adults") ?? "2"
   const adults = Number(adultsStr)
   const childrenStr = searchParams.get("children")
-  const children = childrenStr?.split(",").filter(Boolean).length ?? 0
+  const children = childrenStr?.split(",").map(s => parseInt(s, 10)).filter(n => n > 0).length ?? 0
 
   const dateRange = formatDateRange(checkin, checkout, dateFnsLocale, t("selectDates"))
   const paxLabel =

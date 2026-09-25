@@ -419,7 +419,7 @@ function HotelDetailContent({ id }: { id: string }) {
     const childrenAgesArr = (children ?? "")
       .split(",")
       .map((a) => parseInt(a, 10))
-      .filter((n) => Number.isFinite(n))
+      .filter((n) => Number.isFinite(n) && n > 0)
     // Même contrat de brouillon que app/hotels/search/page.tsx::handleBookHotel
     // (même pipeline CheckRate/BookingCreation, jamais un second tunnel).
     const token = encodeDraft({

@@ -161,7 +161,7 @@ export default async function AttractionsPage({
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}
         >
-          <form className="mx-auto flex max-w-lg gap-2" action="/attractions">
+          <form className="mx-auto flex max-w-lg gap-2" action={`/${locale}/attractions`}>
             <Input
               type="text"
               name="q"

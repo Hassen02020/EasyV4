@@ -2562,12 +2562,16 @@ export {
   supplierLogs,
   supplierType,
   supplierStatus,
+  supplierConnectivityLevel,
+  supplierCertificationStatus,
   type Supplier,
   type NewSupplier,
   type SupplierModule,
   type NewSupplierModule,
   type SupplierLog,
   type NewSupplierLog,
+  type SupplierConnectivityLevel,
+  type SupplierCertificationStatus,
 } from "./schema/suppliers"
 
 /* -------------------------------------------------------------------------- */

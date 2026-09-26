@@ -262,7 +262,7 @@ async function runCreateGuestTransferBooking(
         // 7. Audit
         await tx.insert(auditEvents).values({
           agencyId,
-          actorUserId: "",
+          actorUserId: null,
           entityType: "reservation",
           entityId: reservationId,
           action: "transfer_booking.created",

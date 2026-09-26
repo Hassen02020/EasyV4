@@ -320,7 +320,7 @@ async function runCreateGuestCarBooking(
         // 8. Audit
         await tx.insert(auditEvents).values({
           agencyId,
-          actorUserId: "",
+          actorUserId: null,
           entityType: "reservation",
           entityId: reservationId,
           action: "car_booking.created",

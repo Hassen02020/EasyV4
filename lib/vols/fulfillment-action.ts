@@ -19,7 +19,7 @@
 
 import { eq, and, isNotNull } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, customers } from "@/lib/db/schema"
+import { reservations, customers, payments, reservationFinancials } from "@/lib/db/schema"
 import {
   flightBookings,
   flightBookingPassengers,
@@ -34,6 +34,9 @@ import type { CanonicalItinerary } from "./canonical"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 
 // ─── roles allowed to trigger fulfillment ────────────────────────────────────
 const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
@@ -484,6 +487,86 @@ export async function fulfillFlightBooking(
         .set({ opsNotes: null, updatedAt: new Date() })
         .where(eq(flightBookings.id, bookingId)),
     )
+  }
+
+  // ── 10b. Financial Core — identique à MyGo Hotel ─────────────────────────────
+  // Idempotent : on vérifie reservationFinancials avant d'entrer en transaction.
+  // GDS déjà CONFIRMED → on loggue mais on ne bloque pas le résultat si ça échoue.
+  {
+    const supplierPriceTnd = Number(snapshot.supplierAmount)
+    const salePriceTnd = Number(snapshot.sellingAmount)
+    try {
+      await withSystemContext(async (tx) => {
+        const [existingFin] = (await tx
+          .select({ id: reservationFinancials.id })
+          .from(reservationFinancials)
+          .where(eq(reservationFinancials.reservationId, reservationId))
+          .limit(1)) as Array<{ id: string } | undefined>
+        if (existingFin) return
+
+        const { commissionAmount } = await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd,
+          salePriceTnd,
+        })
+
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission vol — réservation ${reservationId}`,
+        })
+
+        const debitResult = await debitPartnerCredit({
+          agencyId: claimed.agencyId,
+          amountTnd: salePriceTnd,
+          reference: reservationId,
+          description: `Réservation vol`,
+          reservationId,
+          idempotencyKey: `flight-debit:${reservationId}`,
+          txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+        })
+        if (!debitResult.ok) {
+          throw new Error(`WALLET_ERROR:${debitResult.message}`)
+        }
+
+        const [existingPayment] = (await tx
+          .select({ id: payments.id })
+          .from(payments)
+          .where(eq(payments.reservationId, reservationId))
+          .limit(1)) as Array<{ id: string } | undefined>
+
+        if (existingPayment) {
+          await tx
+            .update(payments)
+            .set({ status: "captured", capturedAt: new Date(), updatedAt: new Date() })
+            .where(eq(payments.reservationId, reservationId))
+        } else {
+          await tx.insert(payments).values({
+            agencyId: claimed.agencyId,
+            reservationId,
+            psp: "manual",
+            method: "wallet",
+            originalCurrency: snapshot.sellingCurrency ?? "TND",
+            originalAmount: snapshot.sellingAmount,
+            tndAmount: snapshot.sellingAmount,
+            kind: "deposit",
+            status: "captured",
+            capturedAt: new Date(),
+          })
+        }
+      })
+    } catch (financialErr) {
+      console.error(
+        JSON.stringify({
+          tag: "FINANCIAL_WRITE_FAILURE",
+          reservationId,
+          bookingId,
+          error: String(financialErr),
+          ts: new Date().toISOString(),
+        }),
+      )
+    }
   }
 
   // ── 11. Load reservation data for Inngest event ──────────────────────────────

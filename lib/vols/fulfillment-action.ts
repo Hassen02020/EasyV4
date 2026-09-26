@@ -539,7 +539,12 @@ export async function fulfillFlightBooking(
         if (existingPayment) {
           await tx
             .update(payments)
-            .set({ status: "captured", capturedAt: new Date(), updatedAt: new Date() })
+            .set({
+              status: "captured",
+              capturedAt: new Date(),
+              updatedAt: new Date(),
+              idempotencyKey: `flight-captured:${reservationId}`,
+            })
             .where(eq(payments.reservationId, reservationId))
         } else {
           await tx.insert(payments).values({
@@ -553,6 +558,7 @@ export async function fulfillFlightBooking(
             kind: "deposit",
             status: "captured",
             capturedAt: new Date(),
+            idempotencyKey: `flight-captured:${reservationId}`,
           })
         }
       })

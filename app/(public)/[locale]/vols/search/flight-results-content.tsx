@@ -144,7 +144,7 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
             </p>
           </div>
           {href ? (
-            <Button size="sm" className="bg-sky-700 hover:bg-sky-800" asChild>
+            <Button size="sm" asChild>
               <Link href={href}>{t("requestTicketButton")}</Link>
             </Button>
           ) : (

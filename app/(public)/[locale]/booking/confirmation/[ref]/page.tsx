@@ -87,10 +87,10 @@ export default async function ConfirmationPage({
       <Header />
       <main className="bg-muted/30 flex-1 py-10">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <BookingSteps current={4} />
+          <BookingSteps current={4} module={row.module} />
           <Card className="mt-8 overflow-hidden">
-            <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent p-8 text-center">
-              <CheckCircle2 className="mx-auto size-14 text-emerald-600" />
+            <div className="bg-gradient-to-br from-success/15 via-success/5 to-transparent p-8 text-center">
+              <CheckCircle2 className="mx-auto size-14 text-success" />
               <h1 className="mt-3 text-2xl font-bold sm:text-3xl">
                 {t("confirmedTitle")}
               </h1>
@@ -159,8 +159,8 @@ export default async function ConfirmationPage({
 
               {/* Payment method instructions for pending bookings */}
               {row.status === "pending" && pl?.paymentMethod === "transfer" && (
-                <div className="border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/30 rounded-lg border p-4 text-sm">
-                  <p className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-200">
+                <div className="rounded-lg border border-info/25 bg-info/5 p-4 text-sm">
+                  <p className="text-info flex items-center gap-2 font-medium">
                     <Building2 className="h-4 w-4 shrink-0" />
                     {t("paymentTransferTitle")}
                   </p>
@@ -170,8 +170,8 @@ export default async function ConfirmationPage({
                 </div>
               )}
               {row.status === "pending" && pl?.paymentMethod === "cash" && (
-                <div className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 rounded-lg border p-4 text-sm">
-                  <p className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-200">
+                <div className="rounded-lg border border-warning/25 bg-warning/5 p-4 text-sm">
+                  <p className="text-warning-foreground flex items-center gap-2 font-medium">
                     <Banknote className="h-4 w-4 shrink-0" />
                     {t("paymentCashTitle")}
                   </p>

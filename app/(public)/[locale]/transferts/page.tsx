@@ -58,6 +58,7 @@ export default async function TransfertsPage() {
         <ModuleHero
           Icon={Navigation}
           gradient="from-slate-900 to-slate-700"
+          imageUrl="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1800&q=85&auto=format&fit=crop"
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

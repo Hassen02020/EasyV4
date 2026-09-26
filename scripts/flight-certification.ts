@@ -25,7 +25,7 @@
  */
 
 import "dotenv/config"
-import { eq, and, gt, sql, asc, isNull, gte, lte } from "drizzle-orm"
+import { eq, and, gt, sql, asc, isNull, gte, lte, inArray, isNotNull, lt } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   reservations,
@@ -977,10 +977,78 @@ async function main(): Promise<void> {
     console.log(`        idempotence guard: ok=false code=${(second as { code?: string }).code}`)
   })
 
+  // ── S7: SLA expiry cron ──────────────────────────────────────────────────────
+  await scenario("S7 SLA_EXPIRY — PENDING booking past slaDeadline → CANCELLED + reservation expired", async () => {
+    resetScenario()
+    const { snapshot } = await searchAndSnapshot(agencyId)
+    const { bookingId, reservationId, publicRef } = await createBookingRequest(agencyId, snapshot.snapshotId)
+
+    // Back-date slaDeadline to 1 second ago to simulate an expired SLA window
+    const expiredDeadline = new Date(Date.now() - 1000)
+    await withSystemContext(async (tx) => {
+      await tx
+        .update(flightBookings)
+        .set({ slaDeadline: expiredDeadline, updatedAt: new Date() })
+        .where(eq(flightBookings.id, bookingId))
+    })
+
+    // Run the SLA enforcement logic (same SQL as /api/cron/expire-flight-sla)
+    const { cancelledCount, expiredCount } = await withSystemContext(async (tx) => {
+      const cancelledRows = await tx
+        .update(flightBookings)
+        .set({ status: "CANCELLED", updatedAt: new Date() })
+        .where(
+          and(
+            eq(flightBookings.status, "PENDING"),
+            isNotNull(flightBookings.slaDeadline),
+            lt(flightBookings.slaDeadline, new Date()),
+          ),
+        )
+        .returning({ id: flightBookings.id, reservationId: flightBookings.reservationId })
+
+      const resIds = cancelledRows
+        .map((b) => b.reservationId)
+        .filter((id): id is string => id !== null)
+
+      const expiredRows =
+        resIds.length > 0
+          ? await tx
+              .update(reservations)
+              .set({ status: "expired", updatedAt: new Date() })
+              .where(
+                and(
+                  inArray(reservations.id, resIds),
+                  eq(reservations.status, "pending"),
+                ),
+              )
+              .returning({ id: reservations.id })
+          : []
+
+      return { cancelledCount: cancelledRows.length, expiredCount: expiredRows.length }
+    })
+
+    assert(cancelledCount >= 1, `Expected at least 1 CANCELLED booking, got ${cancelledCount}`)
+    assert(expiredCount >= 1, `Expected at least 1 expired reservation, got ${expiredCount}`)
+
+    // Verify DB state for our specific booking/reservation
+    const [fbRow] = await withSystemContext(async (tx) =>
+      tx.select({ status: flightBookings.status }).from(flightBookings).where(eq(flightBookings.id, bookingId)),
+    )
+    assert(fbRow?.status === "CANCELLED", `Expected flight_booking CANCELLED, got ${fbRow?.status}`)
+
+    const [resRow] = await withSystemContext(async (tx) =>
+      tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+    )
+    assert(resRow?.status === "expired", `Expected reservation expired, got ${resRow?.status}`)
+
+    console.log(`        bookingId=${bookingId}  publicRef=${publicRef}`)
+    console.log(`        flight_booking.status=CANCELLED  reservation.status=expired ✓`)
+  })
+
   // ── Summary ──────────────────────────────────────────────────────────────────
   console.log("\n──────────────────────────────────────────────────────────────")
   results.forEach((r) => console.log(`  ${r}`))
-  console.log(`\n  ${passed} passed, ${failed} failed out of 6 scenarios\n`)
+  console.log(`\n  ${passed} passed, ${failed} failed out of 7 scenarios\n`)
 
   // Cert agency left in DB for inspection (never delete financial transactions)
   console.log(`  [teardown] Cert agency ${agencyId} conservée pour inspection (slug=${certSlug})`)

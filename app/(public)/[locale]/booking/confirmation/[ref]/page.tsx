@@ -79,7 +79,7 @@ export default async function ConfirmationPage({
 
   const voucherHref =
     row.status === "confirmed" || row.status === "completed"
-      ? voucherHrefForModule(row.module, row.publicRef, token)
+      ? voucherHrefForModule(row.module, row.publicRef, token, locale)
       : null
 
   return (

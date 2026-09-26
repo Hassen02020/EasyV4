@@ -29,7 +29,11 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+// Page 100% client (1019 lignes, hooks React partout) — impossible d'importer
+// HeaderWrapper (async server component, next/headers). Refactor = extraire
+// tout le contenu interactif dans un client child component, hors scope 54B.
 import { Header } from "@/components/header"
+// Footer : même raison — utilise FooterClient (voir commentaire ci-dessous)
 // Page 100% client ("use client" en tête de fichier) : ne peut pas importer
 // le wrapper serveur components/footer.tsx (next/headers, server-only) —
 // utilise directement le client component, repli Easy2Book identique au

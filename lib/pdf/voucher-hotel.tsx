@@ -1,12 +1,6 @@
 /**
  * PDF Voucher Hôtel — @react-pdf/renderer
- *
- * Génère un buffer PDF propre et professionnel pour le voucher
- * d'une réservation d'hôtel confirmée.
- *
- * Usage :
- *   const buffer = await renderVoucherPdf({ ... })
- *   // → Uint8Array prêt pour envoi par email ou stockage
+ * Supporte FR / EN / AR (RTL).
  */
 
 import React from "react"
@@ -19,11 +13,17 @@ import {
   VoucherStamp,
   VoucherFooter,
   VoucherAgencyContact,
+  getSectionTitleStyle,
+  getCellLabelStyle,
+  getCellValueStyle,
+  getRowStyle,
+  ARABIC_FONT_FAMILY,
 } from "./voucher-base"
-
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
+import {
+  getVoucherLabels,
+  isRTL,
+  formatDateForLocale,
+} from "./voucher-i18n"
 
 export interface VoucherData {
   publicRef: string
@@ -45,128 +45,127 @@ export interface VoucherData {
   agencyWhatsapp?: string
 }
 
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })
-}
-
-function statusLabel(s?: string): string {
-  if (!s || s === "confirmed" || s === "completed") return "CONFIRMÉ"
-  if (s === "pending") return "EN ATTENTE"
-  if (s === "cancelled") return "ANNULÉ"
+function statusLabel(s: string | undefined, labels: ReturnType<typeof getVoucherLabels>): string {
+  if (!s || s === "confirmed" || s === "completed") return labels.statusConfirmed
+  if (s === "pending") return labels.statusPending
+  if (s === "cancelled") return labels.statusCancelled
   return s.toUpperCase()
 }
 
-/* -------------------------------------------------------------------------- */
-/* Component                                                                  */
-/* -------------------------------------------------------------------------- */
+function HotelVoucherDocument({ data, locale }: { data: VoucherData; locale?: string }) {
+  const lb = getVoucherLabels(locale)
+  const rtl = isRTL(locale)
+  const fontFamily = rtl ? ARABIC_FONT_FAMILY : undefined
 
-function HotelVoucherDocument({ data }: { data: VoucherData }) {
   return (
     <Document>
-      <Page size="A4" style={baseStyles.page}>
-        <VoucherHeader title="Voucher de Confirmation Hôtel" publicRef={data.publicRef} />
+      <Page size="A4" style={rtl ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY } : baseStyles.page}>
+        <VoucherHeader
+          title={lb.hotelTitle}
+          publicRef={data.publicRef}
+          bookingRefLabel={lb.bookingRef}
+          rtl={rtl}
+        />
 
-        <Text style={baseStyles.sectionTitle}>Client</Text>
+        <Text style={getSectionTitleStyle(rtl)}>{lb.clientSection}</Text>
         <View style={baseStyles.table}>
-          <View style={baseStyles.row}>
-            <Text style={baseStyles.cellLabel}>Nom complet</Text>
-            <Text style={baseStyles.cellValue}>{data.customerName}</Text>
+          <View style={getRowStyle(rtl)}>
+            <Text style={getCellLabelStyle(rtl)}>{lb.fullName}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.customerName}</Text>
           </View>
-          <View style={baseStyles.rowLast}>
-            <Text style={baseStyles.cellLabel}>Statut</Text>
+          <View style={getRowStyle(rtl, true)}>
+            <Text style={getCellLabelStyle(rtl)}>{lb.status}</Text>
             <Text
-              style={[
-                baseStyles.cellValue,
-                { color: BRAND.accent, fontFamily: "Helvetica-Bold" },
-              ]}
+              style={{
+                ...getCellValueStyle(rtl),
+                color: BRAND.accent,
+                fontFamily: fontFamily ?? "Helvetica-Bold",
+              }}
             >
-              {statusLabel(data.paymentStatus)}
+              {statusLabel(data.paymentStatus, lb)}
             </Text>
           </View>
         </View>
 
-        <Text style={baseStyles.sectionTitle}>Hébergement</Text>
+        <Text style={getSectionTitleStyle(rtl)}>{lb.accommodationSection}</Text>
         <View style={baseStyles.table}>
-          <View style={baseStyles.row}>
-            <Text style={baseStyles.cellLabel}>Hôtel</Text>
-            <Text style={[baseStyles.cellValue, { fontFamily: "Helvetica-Bold" }]}>
+          <View style={getRowStyle(rtl)}>
+            <Text style={getCellLabelStyle(rtl)}>{lb.hotel}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily: fontFamily ?? "Helvetica-Bold" }}>
               {data.hotelName}
             </Text>
           </View>
           {data.roomType ? (
-            <View style={baseStyles.row}>
-              <Text style={baseStyles.cellLabel}>Chambre</Text>
-              <Text style={baseStyles.cellValue}>{data.roomType}</Text>
+            <View style={getRowStyle(rtl)}>
+              <Text style={getCellLabelStyle(rtl)}>{lb.room}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.roomType}</Text>
             </View>
           ) : null}
           {data.boardType ? (
-            <View style={baseStyles.row}>
-              <Text style={baseStyles.cellLabel}>Pension</Text>
-              <Text style={baseStyles.cellValue}>{data.boardType}</Text>
+            <View style={getRowStyle(rtl)}>
+              <Text style={getCellLabelStyle(rtl)}>{lb.board}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.boardType}</Text>
             </View>
           ) : null}
-          <View style={baseStyles.row}>
-            <Text style={baseStyles.cellLabel}>Check-in</Text>
-            <Text style={baseStyles.cellValue}>{formatDate(data.checkIn)}</Text>
-          </View>
-          <View style={baseStyles.row}>
-            <Text style={baseStyles.cellLabel}>Check-out</Text>
-            <Text style={baseStyles.cellValue}>{formatDate(data.checkOut)}</Text>
-          </View>
-          <View style={baseStyles.row}>
-            <Text style={baseStyles.cellLabel}>Nuitées</Text>
-            <Text style={baseStyles.cellValue}>
-              {data.nights} nuit{data.nights > 1 ? "s" : ""}
+          <View style={getRowStyle(rtl)}>
+            <Text style={getCellLabelStyle(rtl)}>{lb.checkIn}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {formatDateForLocale(data.checkIn, locale)}
             </Text>
           </View>
-          <View style={baseStyles.row}>
-            <Text style={baseStyles.cellLabel}>Adultes</Text>
-            <Text style={baseStyles.cellValue}>{data.adults}</Text>
+          <View style={getRowStyle(rtl)}>
+            <Text style={getCellLabelStyle(rtl)}>{lb.checkOut}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {formatDateForLocale(data.checkOut, locale)}
+            </Text>
+          </View>
+          <View style={getRowStyle(rtl)}>
+            <Text style={getCellLabelStyle(rtl)}>{lb.nightsLabel}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {lb.nightsText(data.nights)}
+            </Text>
+          </View>
+          <View style={getRowStyle(rtl)}>
+            <Text style={getCellLabelStyle(rtl)}>{lb.adults}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.adults}</Text>
           </View>
           {data.children > 0 ? (
-            <View style={baseStyles.rowLast}>
-              <Text style={baseStyles.cellLabel}>Enfants</Text>
-              <Text style={baseStyles.cellValue}>{data.children}</Text>
+            <View style={getRowStyle(rtl, true)}>
+              <Text style={getCellLabelStyle(rtl)}>{lb.children}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.children}</Text>
             </View>
           ) : (
-            <View style={baseStyles.rowLast}>
-              <Text style={baseStyles.cellLabel}> </Text>
-              <Text style={baseStyles.cellValue}> </Text>
+            <View style={getRowStyle(rtl, true)}>
+              <Text style={getCellLabelStyle(rtl)}> </Text>
+              <Text style={getCellValueStyle(rtl)}> </Text>
             </View>
           )}
         </View>
 
-        <VoucherTotal amount={data.totalTnd} />
-        <VoucherStamp />
+        <VoucherTotal amount={data.totalTnd} label={lb.totalAmount} rtl={rtl} />
+        <VoucherStamp label={lb.confirmedStamp} rtl={rtl} />
         <VoucherAgencyContact
           email={data.agencyEmail}
           website={data.agencyWebsite}
           whatsapp={data.agencyWhatsapp}
+          title={lb.agencyContactTitle}
+          emailLabel={lb.emailLabel}
+          whatsappLabel={lb.whatsappLabel}
+          websiteLabel={lb.websiteLabel}
+          rtl={rtl}
         />
-        <VoucherFooter agencyName={data.agencyName} agencyPhone={data.agencyPhone} />
+        <VoucherFooter
+          agencyName={data.agencyName}
+          agencyPhone={data.agencyPhone}
+          generatedOnLabel={lb.generatedOn}
+          rtl={rtl}
+        />
       </Page>
     </Document>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Render function                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Rend le document PDF en buffer (Uint8Array).
- * Peut être appelé depuis un Server Action ou une fonction Inngest.
- */
-export async function renderVoucherPdf(data: VoucherData): Promise<Uint8Array> {
-  const buffer = await renderToBuffer(<HotelVoucherDocument data={data} />)
+export async function renderVoucherPdf(data: VoucherData, locale?: string): Promise<Uint8Array> {
+  const buffer = await renderToBuffer(<HotelVoucherDocument data={data} locale={locale} />)
   return new Uint8Array(buffer)
 }

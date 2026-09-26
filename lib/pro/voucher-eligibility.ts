@@ -200,8 +200,10 @@ export function voucherHrefForModule(
   module: string,
   publicRef: string,
   token: string,
+  locale?: string,
 ): string | null {
   const base = VOUCHER_ROUTE_BY_MODULE[module]
   if (!base) return null
-  return `${base}/${publicRef}?token=${token}`
+  const localeParam = locale && locale !== "fr" ? `&locale=${locale}` : ""
+  return `${base}/${publicRef}?token=${token}${localeParam}`
 }

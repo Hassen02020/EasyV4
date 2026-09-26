@@ -5,10 +5,13 @@
  *   primary : #D62828 — Corail Tunisie (oklch 0.55 0.21 25)
  *   sidebar  : #1D3557 — Bleu Méditerranée (oklch 0.3 0.08 250)
  *   accent   : #059669 — Vert confirmation (emerald-600)
+ *
+ * Police arabe : FreeSerif (local Linux) ou Amiri (CDN).
+ * Variable d'environnement ARABIC_FONT_URL pour surcharger en production.
  */
 
 import React from "react"
-import { Text, View, StyleSheet } from "@react-pdf/renderer"
+import { Text, View, StyleSheet, Font } from "@react-pdf/renderer"
 
 export const BRAND = {
   primary: "#D62828",
@@ -18,6 +21,32 @@ export const BRAND = {
   border: "#e5e7eb",
   bg: "#f9fafb",
 }
+
+/* -------------------------------------------------------------------------- */
+/* Arabic font registration                                                   */
+/* -------------------------------------------------------------------------- */
+
+const ARABIC_FONT_FAMILY = "FreeSerif"
+
+function registerArabicFont() {
+  // In production, set ARABIC_FONT_URL to a CDN TTF URL (e.g. Amiri from jsDelivr)
+  const src =
+    process.env.ARABIC_FONT_URL ??
+    "/usr/share/fonts/truetype/freefont/FreeSerif.ttf"
+  try {
+    Font.register({ family: ARABIC_FONT_FAMILY, src })
+  } catch {
+    // Non-fatal: fall back to Helvetica for non-Arabic scripts
+  }
+}
+
+registerArabicFont()
+
+export { ARABIC_FONT_FAMILY }
+
+/* -------------------------------------------------------------------------- */
+/* Base styles (LTR)                                                          */
+/* -------------------------------------------------------------------------- */
 
 export const baseStyles = StyleSheet.create({
   page: { padding: 40, fontFamily: "Helvetica", fontSize: 10, color: "#1f2937" },
@@ -105,38 +134,108 @@ export const baseStyles = StyleSheet.create({
   agencyBoxText: { fontSize: 9, color: "#1f2937", marginTop: 2 },
 })
 
+/* -------------------------------------------------------------------------- */
+/* RTL-aware style helpers                                                    */
+/* -------------------------------------------------------------------------- */
+
+export function getPageStyle(rtl: boolean) {
+  return rtl
+    ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY }
+    : baseStyles.page
+}
+
+export function getSectionTitleStyle(rtl: boolean) {
+  return rtl
+    ? { ...baseStyles.sectionTitle, fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const }
+    : baseStyles.sectionTitle
+}
+
+export function getCellLabelStyle(rtl: boolean) {
+  return rtl
+    ? { ...baseStyles.cellLabel, fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const }
+    : baseStyles.cellLabel
+}
+
+export function getCellValueStyle(rtl: boolean) {
+  return rtl
+    ? { ...baseStyles.cellValue, fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const }
+    : baseStyles.cellValue
+}
+
+export function getRowStyle(rtl: boolean, isLast = false) {
+  const base = isLast ? baseStyles.rowLast : baseStyles.row
+  return rtl ? { ...base, flexDirection: "row-reverse" as const } : base
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
 export function formatTnd(v: number): string {
   return v.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 }
 
-export function VoucherHeader({ title, publicRef }: { title: string; publicRef: string }) {
+/* -------------------------------------------------------------------------- */
+/* Shared components — accept translated labels                               */
+/* -------------------------------------------------------------------------- */
+
+export function VoucherHeader({
+  title,
+  publicRef,
+  bookingRefLabel = "N° Réservation",
+  rtl = false,
+}: {
+  title: string
+  publicRef: string
+  bookingRefLabel?: string
+  rtl?: boolean
+}) {
+  const textStyle = rtl ? { fontFamily: ARABIC_FONT_FAMILY } : {}
   return (
-    <View style={baseStyles.header}>
+    <View style={rtl ? { ...baseStyles.header, flexDirection: "row-reverse" } : baseStyles.header}>
       <View>
-        <Text style={baseStyles.brand}>Easy2Book</Text>
-        <Text style={baseStyles.subtitle}>{title}</Text>
+        <Text style={{ ...baseStyles.brand, ...textStyle }}>Easy2Book</Text>
+        <Text style={{ ...baseStyles.subtitle, ...textStyle }}>{title}</Text>
       </View>
-      <View style={baseStyles.refBox}>
-        <Text style={baseStyles.refLabel}>N° Réservation</Text>
-        <Text style={baseStyles.refValue}>{publicRef}</Text>
+      <View style={[baseStyles.refBox, rtl ? { alignItems: "flex-start" } : {}]}>
+        <Text style={{ ...baseStyles.refLabel, ...textStyle }}>{bookingRefLabel}</Text>
+        <Text style={{ ...baseStyles.refValue, ...textStyle }}>{publicRef}</Text>
       </View>
     </View>
   )
 }
 
-export function VoucherTotal({ amount }: { amount: number }) {
+export function VoucherTotal({
+  amount,
+  label = "Montant Total TTC",
+  rtl = false,
+}: {
+  amount: number
+  label?: string
+  rtl?: boolean
+}) {
+  const textStyle = rtl ? { fontFamily: ARABIC_FONT_FAMILY } : {}
   return (
-    <View style={baseStyles.totalRow}>
-      <Text style={baseStyles.totalLabel}>Montant Total TTC</Text>
-      <Text style={baseStyles.totalValue}>{formatTnd(amount)} DT</Text>
+    <View style={rtl ? { ...baseStyles.totalRow, flexDirection: "row-reverse" } : baseStyles.totalRow}>
+      <Text style={{ ...baseStyles.totalLabel, ...textStyle }}>{label}</Text>
+      <Text style={{ ...baseStyles.totalValue, ...textStyle }}>{formatTnd(amount)} DT</Text>
     </View>
   )
 }
 
-export function VoucherStamp({ label = "✓ Réservation Confirmée" }: { label?: string }) {
+export function VoucherStamp({
+  label = "✓ Réservation Confirmée",
+  rtl = false,
+}: {
+  label?: string
+  rtl?: boolean
+}) {
+  const textStyle = rtl
+    ? { ...baseStyles.stampText, fontFamily: ARABIC_FONT_FAMILY }
+    : baseStyles.stampText
   return (
     <View style={baseStyles.stamp}>
-      <Text style={baseStyles.stampText}>{label}</Text>
+      <Text style={textStyle}>{label}</Text>
     </View>
   )
 }
@@ -144,17 +243,22 @@ export function VoucherStamp({ label = "✓ Réservation Confirmée" }: { label?
 export function VoucherFooter({
   agencyName,
   agencyPhone,
+  generatedOnLabel = "Généré le",
+  rtl = false,
 }: {
   agencyName?: string
   agencyPhone?: string
+  generatedOnLabel?: string
+  rtl?: boolean
 }) {
+  const textStyle = rtl ? { ...baseStyles.footerText, fontFamily: ARABIC_FONT_FAMILY } : baseStyles.footerText
   return (
-    <View style={baseStyles.footer}>
-      <Text style={baseStyles.footerText}>
+    <View style={rtl ? { ...baseStyles.footer, flexDirection: "row-reverse" } : baseStyles.footer}>
+      <Text style={textStyle}>
         {agencyName ?? "Easy2Book"} — {agencyPhone ?? "+216 70 000 000"}
       </Text>
-      <Text style={baseStyles.footerText}>
-        Généré le {new Date().toLocaleDateString("fr-FR")}
+      <Text style={textStyle}>
+        {generatedOnLabel} {new Date().toLocaleDateString(rtl ? "ar-TN" : "fr-FR")}
       </Text>
     </View>
   )
@@ -164,18 +268,35 @@ export function VoucherAgencyContact({
   email,
   website,
   whatsapp,
+  title = "Contact Agence",
+  emailLabel = "Email",
+  whatsappLabel = "WhatsApp",
+  websiteLabel = "Web",
+  rtl = false,
 }: {
   email?: string | null
   website?: string | null
   whatsapp?: string | null
+  title?: string
+  emailLabel?: string
+  whatsappLabel?: string
+  websiteLabel?: string
+  rtl?: boolean
 }) {
   if (!email && !website && !whatsapp) return null
+  const textStyle = rtl ? { fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const } : {}
   return (
     <View style={baseStyles.agencyBox}>
-      <Text style={baseStyles.agencyBoxTitle}>Contact Agence</Text>
-      {email ? <Text style={baseStyles.agencyBoxText}>Email : {email}</Text> : null}
-      {whatsapp ? <Text style={baseStyles.agencyBoxText}>WhatsApp : {whatsapp}</Text> : null}
-      {website ? <Text style={baseStyles.agencyBoxText}>Web : {website}</Text> : null}
+      <Text style={{ ...baseStyles.agencyBoxTitle, ...textStyle }}>{title}</Text>
+      {email ? (
+        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>{emailLabel} : {email}</Text>
+      ) : null}
+      {whatsapp ? (
+        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>{whatsappLabel} : {whatsapp}</Text>
+      ) : null}
+      {website ? (
+        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>{websiteLabel} : {website}</Text>
+      ) : null}
     </View>
   )
 }

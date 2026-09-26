@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
+import { BookingSteps } from "@/components/booking/booking-steps"
 import { PassengerBookingForm } from "@/components/flights/passenger-booking-form"
 import { getPriceSnapshot } from "@/lib/vols/price-snapshot"
 import type { CanonicalItinerary, Ancillary } from "@/lib/vols/canonical"
@@ -60,7 +61,8 @@ async function PassengersContent({ snapshotId }: { snapshotId: string }) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-foreground mb-6 text-xl font-bold">
+      <BookingSteps current={2} module="flight" />
+      <h1 className="text-foreground mb-6 mt-6 text-xl font-bold">
         {t("finalizeBookingTitle")}
       </h1>
       <PassengerBookingForm

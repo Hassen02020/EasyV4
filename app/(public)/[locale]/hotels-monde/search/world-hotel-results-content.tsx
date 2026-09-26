@@ -109,7 +109,7 @@ function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotel
                 <span>{t("distanceFromCenter", { km: offer.distanceFromCenterKm })}</span>
               )}
               {offer.rating != null && (
-                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
+                <Badge variant="outline" className="border-success/30 bg-success/10 text-success">
                   {offer.rating.toFixed(1)}/10
                   {offer.reviewCount != null ? ` · ${t("reviewCount", { count: offer.reviewCount })}` : ""}
                 </Badge>

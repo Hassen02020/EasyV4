@@ -128,7 +128,7 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
                 </span>
               )}
               {offer.refundable && (
-                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
+                <Badge variant="outline" className="border-success/30 bg-success/10 text-success">
                   {t("refundableBadge")}
                 </Badge>
               )}

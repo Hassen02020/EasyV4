@@ -24,6 +24,7 @@ export function BookingSteps({ current, module }: BookingStepsProps) {
         { num: 1, label: t("stepOffer") },
         { num: 2, label: tc("voyageurs") },
         { num: 3, label: t("stepPayment") },
+        { num: 4, label: t("stepConfirmation") },
       ]
 
   return (

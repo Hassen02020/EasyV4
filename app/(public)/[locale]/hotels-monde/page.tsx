@@ -38,6 +38,7 @@ export default async function HotelsMondeePage({
         <ModuleHero
           Icon={Globe}
           gradient="from-indigo-900 to-indigo-700"
+          imageUrl="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1800&q=85&auto=format&fit=crop"
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

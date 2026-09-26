@@ -31,6 +31,7 @@ import { calculateTransferPrice } from "./pricing"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -201,9 +202,9 @@ async function runCreateGuestTransferBooking(
             source: "internal",
             status: "pending",
             originalCurrency: "TND",
-            originalAmount: String(totalTnd),
-            tndAmount: String(totalTnd),
-            depositAmount: String(totalTnd),
+            originalAmount: totalTnd.toFixed(2),
+            tndAmount: totalTnd.toFixed(2),
+            depositAmount: totalTnd.toFixed(2),
             depositPaid: "0",
             providerPayload: {
               fromZoneId: input.fromZoneId,
@@ -230,7 +231,11 @@ async function runCreateGuestTransferBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
-        // 5. Paiement en attente — règlement différé (virement / espèces)
+        // 5. Données financières (Break 4 — Chantier 62 : tous les modules)
+        // Transfer : prix catalogue = prix de vente (pas de coût fournisseur séparé)
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
+
+        // 6. Paiement en attente — règlement différé (virement / espèces)
         await tx.insert(payments).values({
           agencyId,
           reservationId,
@@ -243,7 +248,7 @@ async function runCreateGuestTransferBooking(
           status: "pending",
         })
 
-        // 6. Extension Transfer
+        // 7. Extension Transfer
         await tx.insert(reservationTransfer).values({
           reservationId,
           agencyId,

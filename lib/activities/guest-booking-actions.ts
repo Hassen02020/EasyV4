@@ -47,6 +47,7 @@ import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 export type CreateGuestActivityBookingResult =
   | {
@@ -265,6 +266,10 @@ async function runCreateGuestActivityBooking(
           .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
+
+        // Données financières (Break 4 — Chantier 62)
+        // Activité : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
 
         if (isImmediatelyPaid) {
           await tx

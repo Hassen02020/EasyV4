@@ -40,6 +40,7 @@ import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "@/lib/booking/customer-identity"
 import { flightGuestBookingSchema, type FlightGuestBookingInput } from "./schemas"
 import { book as bookFlight, cancel as cancelFlight, type BookResult } from "./virtual-supplier/engine"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 export type FlightGuestPaymentMethod = "card" | "transfer" | "cash"
 
@@ -224,6 +225,10 @@ async function runCreateGuestFlightBooking(
         .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
       const reservationId = reservation.id
       const guestAccessToken = reservation.guestAccessToken
+
+      // Données financières (Break 4 — Chantier 62)
+      // Flight B2C : prix GDS = prix de vente (marge B2C non appliquée — Break 6, à traiter séparément)
+      await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: bookResult.totalPriceTnd, salePriceTnd: bookResult.totalPriceTnd })
 
       if (isImmediatelyPaid) {
         await tx

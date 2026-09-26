@@ -32,6 +32,7 @@ import { calculateCarPrice } from "./pricing"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -258,9 +259,9 @@ async function runCreateGuestCarBooking(
             source: "internal",
             status: "pending",
             originalCurrency: "TND",
-            originalAmount: String(totalTnd),
-            tndAmount: String(totalTnd),
-            depositAmount: String(totalTnd),
+            originalAmount: totalTnd.toFixed(2),
+            tndAmount: totalTnd.toFixed(2),
+            depositAmount: totalTnd.toFixed(2),
             depositPaid: "0",
             providerPayload: {
               categoryId: input.categoryId,
@@ -286,7 +287,11 @@ async function runCreateGuestCarBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
-        // 6. Paiement en attente
+        // 6. Données financières (Break 4 — Chantier 62)
+        // Car : prix catalogue = prix de vente (pas de coût fournisseur séparé)
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
+
+        // 7. Paiement en attente
         await tx.insert(payments).values({
           agencyId,
           reservationId,
@@ -299,7 +304,7 @@ async function runCreateGuestCarBooking(
           status: "pending",
         })
 
-        // 7. Extension Car
+        // 8. Extension Car
         await tx.insert(reservationCar).values({
           reservationId,
           agencyId,

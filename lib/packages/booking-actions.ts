@@ -55,6 +55,7 @@ import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 export type CreateGuestPackageBookingResult =
   | {
@@ -257,6 +258,10 @@ async function runCreateGuestPackageBooking(
           .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
+
+        // Données financières (Break 4 — Chantier 62)
+        // Package : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
 
         if (isImmediatelyPaid) {
           await tx
@@ -506,6 +511,9 @@ export async function createPackageBooking(
           })
           .returning({ id: reservations.id })
         const reservationId = reservation.id
+
+        // Données financières (Break 4 — Chantier 62) — voie B2B agent
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
 
         const debitResult = await debitPartnerCredit({
           agencyId,

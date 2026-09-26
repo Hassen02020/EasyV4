@@ -38,8 +38,8 @@ function parsePricingToken(token: string): {
   priceTnd: number
 } | null {
   try {
-    const [, payload] = token.split(".")
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString())
+    const [encoded] = token.split(".")
+    const decoded = JSON.parse(Buffer.from(encoded!, "base64url").toString())
     return decoded as ReturnType<typeof parsePricingToken>
   } catch {
     return null

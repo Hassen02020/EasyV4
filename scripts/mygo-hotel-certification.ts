@@ -318,15 +318,21 @@ async function bookReservation(input: BookReservationInput): Promise<BookReserva
       // Try reconciliation
       try {
         const bookings = await client.listBookings({ hotel: providerMeta.hotelId, currency: "TND" })
-        const mapped = bookings.map(mapBookingListItemToConfirmation)
         const reconciled = reconcileAmbiguousBooking(
-          mapped.map(b => ({ bookingId: b.bookingId, hotelId: b.hotelId, checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate, state: b.state ?? undefined, createdAt: undefined })),
+          bookings.map(b => ({
+            bookingId: b.Id,
+            hotelId: b.Hotel?.Id,
+            checkIn: b.CheckIn ?? draft.startDate,
+            checkOut: b.CheckOut ?? (draft.endDate ?? draft.startDate),
+            state: b.State ?? undefined,
+            createdAt: b.Created ?? undefined,
+          })),
           { hotelId: providerMeta.hotelId ?? Number(draft.offerId), checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate },
           Date.now(),
         )
         if (reconciled) {
-          const matched = mapped.find(b => b.bookingId === (reconciled as unknown as { bookingId: number }).bookingId)
-          if (matched) { myGoBooking = matched }
+          const rawMatch = bookings.find(b => b.Id === reconciled.bookingId)
+          if (rawMatch) { myGoBooking = mapBookingListItemToConfirmation(rawMatch) }
         }
       } catch { /* reconciliation failed */ }
     }
@@ -657,7 +663,7 @@ async function getWalletLedgerEntry(reservationId: string) {
 
 async function doSearch(client: MyGoClient): Promise<{ token: string; hotelId: number; cityId: number; roomId: number; boardingId: number; price: number } | null> {
   const raw = await client.searchHotels({
-    cityId: 1,
+    cityId: 10, // Hammamet — premier TOURISTIC_CITY_ID du catalogue virtuel
     checkIn: "2026-10-15",
     checkOut: "2026-10-18",
     rooms: [{ adults: 2 }],
@@ -674,7 +680,7 @@ async function doSearch(client: MyGoClient): Promise<{ token: string; hotelId: n
   return {
     token: first.token,
     hotelId: first.hotel.id,
-    cityId: 1,
+    cityId: first.hotel.cityId ?? 10,
     roomId: room.id,
     boardingId: boarding.id,
     price: room.price,
@@ -971,6 +977,15 @@ async function main() {
           ledgerEntryCount: entryCount,
           status: "pending",
           settledBy: CERT_USER_ID,
+        })
+        .onConflictDoUpdate({
+          target: [commissionSettlements.periodStart, commissionSettlements.periodEnd],
+          set: {
+            totalAmount: totalAmount.toFixed(2),
+            ledgerEntryCount: entryCount,
+            settledBy: CERT_USER_ID,
+            updatedAt: new Date(),
+          },
         })
         .returning({ id: commissionSettlements.id })
 

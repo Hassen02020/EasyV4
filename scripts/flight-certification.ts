@@ -922,6 +922,15 @@ async function main(): Promise<void> {
           status: "pending",
           settledBy,
         })
+        .onConflictDoUpdate({
+          target: [commissionSettlements.periodStart, commissionSettlements.periodEnd],
+          set: {
+            totalAmount: totalAmount.toFixed(2),
+            ledgerEntryCount: entryCount,
+            settledBy,
+            updatedAt: new Date(),
+          },
+        })
         .returning({ id: commissionSettlements.id })
 
       if (entryCount > 0) {

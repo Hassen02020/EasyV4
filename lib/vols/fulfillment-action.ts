@@ -37,6 +37,7 @@ import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
 
 // ─── roles allowed to trigger fulfillment ────────────────────────────────────
 const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
@@ -495,6 +496,7 @@ export async function fulfillFlightBooking(
   {
     const supplierPriceTnd = Number(snapshot.supplierAmount)
     const salePriceTnd = Number(snapshot.sellingAmount)
+    const flightMarginRule = (await getMarginsForAgency(claimed.agencyId, user.id)).flight
     try {
       await withSystemContext(async (tx) => {
         const [existingFin] = (await tx
@@ -509,6 +511,8 @@ export async function fulfillFlightBooking(
           reservationId,
           supplierPriceTnd,
           salePriceTnd,
+          commissionPercent: flightMarginRule.commissionPercent,
+          marginRuleId: flightMarginRule.ruleId,
         })
 
         await creditPlatformCommission(tx, {

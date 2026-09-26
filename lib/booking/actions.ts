@@ -664,6 +664,7 @@ export async function createReservationFromDraft(input: {
         kind: "deposit",
         status: "captured",
         capturedAt: new Date(),
+        idempotencyKey: `booking-captured:${reservationId}`,
       })
 
       await tx.insert(auditEvents).values({

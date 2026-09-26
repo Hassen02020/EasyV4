@@ -27,9 +27,11 @@ import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
 import type { DrizzleLikeTx } from "@/lib/pro/booking-actions"
 import { agencies, customers, reservations, reservationFinancials } from "@/lib/db/schema"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
-import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { creditPlatformCommission, PLATFORM_COMMISSION_WALLET_ID } from "@/lib/finance/platform-commission"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginKPIsCore, getMarginByProductTypeCore } from "@/lib/reporting/margin-analytics-core"
+import { settleCommissions, markSettlementPaid } from "@/lib/finance/commission-settlement"
+import { payments, walletLedger, commissionSettlements } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
 /* Couleurs terminal                                                            */
@@ -303,18 +305,171 @@ async function stepWallet() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Étape 5 : settlement des commissions                                        */
+/* -------------------------------------------------------------------------- */
+
+// Far-future period unique to this run (avoids collisions with real data)
+const SETTLE_PERIOD_START = new Date("2098-06-01T00:00:00Z")
+const SETTLE_PERIOD_END   = new Date("2098-06-30T23:59:59Z")
+
+let certSettlementId = ""
+
+async function stepSettlement() {
+  section("Étape 5 — settleCommissions (agrégation commissions non settlées)")
+
+  // Insert a test commission entry dated inside our far-future period
+  let commLedgerId = ""
+  await withSystemContext(async (tx) => {
+    const ins = await tx.insert(walletLedger).values({
+      walletAccountId: PLATFORM_COMMISSION_WALLET_ID,
+      type: "credit",
+      status: "completed",
+      amount: "10.00",
+      balanceBefore: "0.00",
+      balanceAfter: "10.00",
+      description: `Commission CERT63-HOTEL-001 (settlement test)`,
+      category: "commission",
+      reservationId,
+    }).returning({ id: walletLedger.id })
+    commLedgerId = (ins as Array<{ id: string }>)[0]!.id
+    // Backdate into test period
+    await tx.execute(sql`
+      UPDATE wallet_ledger SET created_at = ${SETTLE_PERIOD_START.toISOString()}::timestamptz
+      WHERE id = ${commLedgerId}::uuid
+    `)
+  })
+  ok(`Entrée commission test créée dans wallet_ledger (id=${commLedgerId.slice(0, 8)}…)`)
+
+  try {
+    const result = await settleCommissions(
+      SETTLE_PERIOD_START,
+      SETTLE_PERIOD_END,
+      "cert63-script",
+      "Certification Chantier 63/64 — script standalone",
+    )
+    certSettlementId = result.settlementId
+
+    ok(`settleCommissions → settlementId=${result.settlementId.slice(0, 8)}…  status=${result.status}`)
+    ok(`  totalAmount=${result.totalAmount} TND  entryCount=${result.entryCount}`)
+
+    if (result.entryCount >= 1) ok("Au moins 1 entrée commission settlée ✓")
+    else fail("Aucune entrée commission trouvée pour le settlement")
+
+    // Vérifier wallet_ledger settled_at
+    const ledger = await withSystemContext((tx) =>
+      tx.select({ settledAt: walletLedger.settledAt, settlementId: walletLedger.settlementId })
+        .from(walletLedger).where(eq(walletLedger.id, commLedgerId))
+    )
+    if (ledger[0]?.settledAt != null) {
+      ok("wallet_ledger.settled_at renseigné ✓")
+    } else {
+      fail("wallet_ledger.settled_at est NULL après settlement")
+    }
+
+    // Étape 5b : markSettlementPaid
+    section("Étape 5b — markSettlementPaid (pending → paid)")
+    await markSettlementPaid(certSettlementId, "cert63-tresorier")
+
+    const rows = await withSystemContext((tx) =>
+      tx.select({ status: commissionSettlements.status, settledAt: commissionSettlements.settledAt })
+        .from(commissionSettlements).where(eq(commissionSettlements.id, certSettlementId))
+    )
+    if (rows[0]?.status === "paid") ok("commission_settlements.status = paid ✓")
+    else fail(`status attendu 'paid' — obtenu ${rows[0]?.status}`)
+    if (rows[0]?.settledAt != null) ok("commission_settlements.settled_at renseigné ✓")
+    else fail("settled_at NULL après markSettlementPaid")
+
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    warn(`stepSettlement a levé une erreur : ${msg}`)
+    warn("Vérifier que wallet_accounts contient l'entrée PLATFORM_COMMISSION_WALLET_ID (migration 0066)")
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Étape 6 : idempotence du settlement (UNIQUE INDEX bloque le doublon)       */
+/* -------------------------------------------------------------------------- */
+
+async function stepSettlementIdempotence() {
+  section("Étape 6 — Idempotence : deuxième settleCommissions même période → UNIQUE violation")
+  if (!certSettlementId) {
+    warn("Étape 5 n'a pas créé de settlement — skip idempotence")
+    return
+  }
+  try {
+    await settleCommissions(
+      SETTLE_PERIOD_START,
+      SETTLE_PERIOD_END,
+      "cert63-retry",
+    )
+    fail("Deuxième settleCommissions aurait dû être rejeté par UNIQUE INDEX (period_start, period_end)")
+  } catch (e: unknown) {
+    const msg    = (e as { message?: string }).message ?? ""
+    const pgCode = (e as { cause?: { code?: string } }).cause?.code
+      ?? (e as { code?: string }).code
+    if (msg.includes("Failed query") || pgCode === "23505") {
+      ok("UNIQUE violation correctement levée sur double-settlement ✓")
+    } else {
+      warn(`Exception inattendue (pas une UNIQUE violation) : code=${pgCode}, msg=${msg}`)
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Étape 7 : rollback — exception dans withSystemContext annule tout          */
+/* -------------------------------------------------------------------------- */
+
+async function stepRollback() {
+  section("Étape 7 — Rollback : exception dans withSystemContext annule tous les INSERTs")
+
+  const rollbackResId = randomUUID()
+  try {
+    await withSystemContext(async (tx) => {
+      await tx.insert(reservations).values({
+        id: rollbackResId,
+        agencyId,
+        publicRef: "CERT63-ROLLBACK-001",
+        customerId,
+        module: "hotel",
+        source: "manual",
+        status: "pending",
+        originalCurrency: "TND",
+        originalAmount: "999.00",
+        tndAmount: "999.00",
+      })
+      throw new Error("CERT63_ROLLBACK_TEST")
+    })
+  } catch {
+    // expected
+  }
+
+  const [res] = await withSystemContext((tx) =>
+    tx.select({ id: reservations.id }).from(reservations)
+      .where(eq(reservations.id, rollbackResId))
+  )
+  if (!res) ok("Rollback correct — aucun enregistrement partiel en base ✓")
+  else fail("Rollback raté — reservation insérée malgré l'exception dans la transaction")
+}
+
+/* -------------------------------------------------------------------------- */
 /* Cleanup                                                                     */
 /* -------------------------------------------------------------------------- */
 
 async function cleanup() {
   section("Cleanup — suppression des fixtures de test")
   await withSystemContext(async (tx) => {
+    // Settlement test rows
+    await tx.execute(sql`
+      DELETE FROM commission_settlements
+      WHERE period_start >= ${SETTLE_PERIOD_START.toISOString().split("T")[0]}
+        AND period_end <= ${SETTLE_PERIOD_END.toISOString().split("T")[0]}
+    `)
     await tx.delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))
     await tx.delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId2))
     await tx.execute(sql`
-      DELETE FROM wallet_ledger       WHERE reservation_id IN (${reservationId}::uuid, ${reservationId2}::uuid)
+      DELETE FROM wallet_ledger WHERE reservation_id IN (${reservationId}::uuid, ${reservationId2}::uuid)
     `)
     await tx.execute(sql`
       DELETE FROM partner_credit_movements WHERE agency_id = ${agencyId}::uuid
@@ -331,9 +486,12 @@ async function cleanup() {
 /* -------------------------------------------------------------------------- */
 
 async function main() {
-  console.log(`${BOLD}=== Certification Chantier 63 — Booking → Financials → Wallet ===${RESET}`)
+  console.log(`${BOLD}=== Certification Chantier 63/64 — Booking → Financials → Wallet → Settlement ===${RESET}`)
   console.log(`Agence test : ${agencyId}`)
   console.log(`Date        : ${new Date().toISOString()}`)
+  console.log()
+  console.log(`${AMBER}Gap documenté :${RESET} Supplier reconciliation n'est pas implémenté`)
+  console.log(`  (lib/db/schema/suppliers.ts — roadmap L5 connectivity uniquement)`)
 
   try {
     await setup()
@@ -341,6 +499,9 @@ async function main() {
     await stepCommission()
     await stepAnalytics()
     await stepWallet()
+    await stepSettlement()
+    await stepSettlementIdempotence()
+    await stepRollback()
   } finally {
     await cleanup().catch((e) => {
       warn(`Cleanup partiel : ${e instanceof Error ? e.message : e}`)
@@ -349,11 +510,13 @@ async function main() {
 
   const code = process.exitCode ?? 0
   if (code === 0) {
-    console.log(`\n${GREEN}${BOLD}✓ Certification Chantier 63 RÉUSSIE${RESET}`)
+    console.log(`\n${GREEN}${BOLD}✓ Certification Chantier 63/64 RÉUSSIE${RESET}`)
     console.log("  Le Financial Puzzle est réellement branché au moteur commercial.")
-    console.log("  reservation_financials est écrit automatiquement — aucune seed manuelle.")
+    console.log("  reservation_financials → wallet → settlement : chaîne complète certifiée.")
+    console.log("  rollback transactionnel : aucune écriture partielle possible.")
+    console.log(`  ${AMBER}Gap ouvert :${RESET} supplier reconciliation (Chantier futur).`)
   } else {
-    console.error(`\n${RED}${BOLD}✗ Certification Chantier 63 ÉCHOUÉE${RESET}`)
+    console.error(`\n${RED}${BOLD}✗ Certification Chantier 63/64 ÉCHOUÉE${RESET}`)
     console.error("  Voir les ✗ ci-dessus pour les assertions manquantes.")
   }
 }

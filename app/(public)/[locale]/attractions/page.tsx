@@ -157,6 +157,7 @@ export default async function AttractionsPage({
         <ModuleHero
           Icon={Compass}
           gradient="from-amber-900 to-amber-700"
+          imageUrl="https://images.unsplash.com/photo-1531761535209-180857e963b9?w=1800&q=85&auto=format&fit=crop"
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

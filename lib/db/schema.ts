@@ -2240,8 +2240,11 @@ export const walletTxStatus = pgEnum("wallet_tx_status", [
 ])
 
 /**
- * Un wallet par agence. La colonne `balance` est modifiée uniquement
- * via des transactions SQL atomiques (voir lib/wallet/actions.ts).
+ * Un wallet par agence — DÉPRÉCIÉ (chantier-49, nettoyage) : aucun flux de
+ * rechargement en production ne crédite plus ce solde. Le solde réellement
+ * crédité est `agencies.deposit_balance` (`partner_credit_movements`) —
+ * voir lib/pro/booking-actions.ts::debitPartnerCredit. Conservé pour
+ * `getWalletBalance()` (lib/wallet/balance.ts, sandbox `/pro` uniquement).
  *
  * `numeric(14,3)` : millimes TND, plage ±99 999 999 999.999 DT.
  */

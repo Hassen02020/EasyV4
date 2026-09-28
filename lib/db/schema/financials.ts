@@ -201,6 +201,14 @@ export const walletLedger = pgTable(
     metadata: jsonb("metadata").$type<WalletLedgerMetadata>(),
     createdBy: uuid("created_by"),
 
+    /**
+     * Backstop DB indépendant de Redis (chantier-49, sous-chantier B) — même
+     * pattern que `reservations.guest_idempotency_key` / `payments.idempotency_key`.
+     * `debitCustomerWallet`/`creditCustomerWallet` (lib/finance/customer-wallet.ts)
+     * n'avaient jusqu'ici qu'un cache Redis (dégradation silencieuse si absent).
+     */
+    idempotencyKey: text("idempotency_key"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 
     // Settlement commission (37C) — renseigné quand cette entrée est incluse dans un commission_settlement
@@ -211,6 +219,9 @@ export const walletLedger = pgTable(
     { name: "wallet_ledger_account_idx", on: t.walletAccountId },
     { name: "wallet_ledger_reservation_idx", on: t.reservationId },
     { name: "wallet_ledger_created_idx", on: t.createdAt },
+    uniqueIndex("wallet_ledger_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
   ],
 )
 

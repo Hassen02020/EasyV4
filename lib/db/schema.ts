@@ -1849,6 +1849,15 @@ export const partnerCreditMovements = pgTable(
     invoiceId: uuid("invoice_id"),
     description: text("description"),
     createdByUserId: uuid("created_by_user_id"),
+    /**
+     * Backstop DB indépendant de Redis (chantier-49, sous-chantier B) — même
+     * pattern que `reservations.guest_idempotency_key` (0030) et
+     * `payments.idempotency_key` (index unique partiel) : un retry après
+     * timeout (Redis up ou down) retrouve le mouvement déjà créé au lieu
+     * d'en créer un second ; un double-appel vraiment simultané se résout
+     * via la contrainte unique elle-même.
+     */
+    idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1856,6 +1865,9 @@ export const partnerCreditMovements = pgTable(
   (t) => [
     index("partner_credit_agency_idx").on(t.agencyId),
     index("partner_credit_created_idx").on(t.agencyId, t.createdAt),
+    uniqueIndex("partner_credit_movements_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
   ],
 )
 

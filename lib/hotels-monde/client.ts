@@ -1,14 +1,15 @@
 /**
  * Client Hôtels Monde — Easy2Book
  *
- * Stub d'intégration API hôtels monde (Expedia Rapid API / Booking.com
- * Demand API — le choix exact du fournisseur est une décision commerciale
- * non tranchée, voir feature-flags/index.ts:"hotels_monde"). Même pattern
- * que lib/vols/client.ts (lui-même aligné sur lib/mygo/client.ts) :
+ * Intégration RateHawk (Emerging Travel Group, pAPI v3 — décision
+ * fournisseur validée, voir en-tête de `createRateHawkDriver` dans
+ * ./supplier-drivers.ts). Même pattern que lib/vols/client.ts (lui-même
+ * aligné sur lib/mygo/client.ts) :
  *  - Zod validation des réponses
- *  - Cache Redis (memoize) une fois un vrai fournisseur branché
- *  - En attendant les credentials API, `searchWorldHotels` appelle un vrai
- *    moteur de fournisseur virtuel (Virtual World Hotel Supplier, voir
+ *  - Cache Redis (memoize) pour la résolution région (24h) et le SERP (5min)
+ *  - En l'absence de credentials RateHawk (ou en environnement de démo),
+ *    `searchWorldHotels` appelle un vrai moteur de fournisseur virtuel
+ *    (Virtual World Hotel Supplier, voir
  *    lib/hotels-monde/virtual-supplier/engine.ts) — offres déterministes
  *    par destination/dates, disponibilité réelle suivie en mémoire, jeton
  *    signé à revalider pour réserver (voir
@@ -16,15 +17,16 @@
  *    `source: "virtual"`, jamais présentées comme un vrai inventaire.
  *
  * Variables d'environnement :
- *  - WORLD_HOTELS_API_KEY       : clé API du fournisseur choisi
- *  - WORLD_HOTELS_API_BASE_URL  : ex. https://api.ean.com/v3
- *  - WORLD_HOTELS_DEMO_MODE     : "true" pour forcer le mode virtuel
+ *  - RATEHAWK_KEY_ID / RATEHAWK_API_KEY : credentials partenaire RateHawk
+ *  - RATEHAWK_API_BASE_URL              : surcharge explicite (sinon sandbox
+ *                                         par défaut, prod via RATEHAWK_ENV=production)
+ *  - WORLD_HOTELS_DEMO_MODE             : "true" pour forcer le mode virtuel
  */
 
 import { z } from "zod"
 import {
   createVirtualWorldHotelDriver,
-  createWorldHotelApiDriver,
+  createRateHawkDriver,
   searchAcrossWorldHotelDrivers,
 } from "./supplier-drivers"
 
@@ -76,19 +78,20 @@ export type WorldHotelSearchResult =
 //
 // Chantier 7 (Multi-supplier Hub, fondation minimale) : les deux chemins
 // qui existaient ici (fournisseur virtuel déterministe / appel API réel)
-// sont désormais deux `WorldHotelSupplierDriver` orchestrés par
+// sont deux `WorldHotelSupplierDriver` orchestrés par
 // `searchAcrossWorldHotelDrivers()` (lib/hotels-monde/supplier-drivers.ts)
-// au lieu d'un `if/else` figé — un futur second fournisseur réel s'ajoute
-// à la liste de drivers, sans réécrire cette fonction. Comportement
-// inchangé aujourd'hui : les deux drivers restent mutuellement exclusifs
-// (voir isDemoMode() dans supplier-drivers.ts), donc toujours exactement
-// un seul CONFIGURED.
+// au lieu d'un `if/else` figé — RateHawk s'ajoute ici comme second driver,
+// sans réécrire cette fonction ; un futur troisième fournisseur ferait de
+// même. Comportement inchangé aujourd'hui : les deux drivers restent
+// mutuellement exclusifs (voir isDemoMode() dans supplier-drivers.ts), donc
+// toujours exactement un seul CONFIGURED tant qu'aucune credential RateHawk
+// réelle n'existe dans cet environnement.
 
 export async function searchWorldHotels(
   input: WorldHotelSearchInput,
 ): Promise<WorldHotelSearchResult> {
   return searchAcrossWorldHotelDrivers(
-    [createVirtualWorldHotelDriver(), createWorldHotelApiDriver()],
+    [createVirtualWorldHotelDriver(), createRateHawkDriver()],
     input,
   )
 }

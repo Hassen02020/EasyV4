@@ -99,6 +99,7 @@ export const reservationSource = pgEnum("reservation_source", [
   "internal",
   "amadeus",
   "sabre",
+  "travelport",
   "expedia",
   "manual",
 ])
@@ -323,6 +324,92 @@ export const users = pgTable(
     index("users_mutuelle_group_idx").on(t.mutuelleGroupId),
   ],
 )
+
+/* -------------------------------------------------------------------------- */
+/* Mutuelle — demandes membres (chantier "fondation cycle demande→validation",*/
+/* voir drizzle/manual/0062_mutuelle_requests.sql). Portée volontairement     */
+/* minimale : pas de catalogue restreint (description libre), pas            */
+/* d'application du markup, pas de transmission automatique vers une vraie   */
+/* réservation — chantiers suivants explicites.                              */
+/* -------------------------------------------------------------------------- */
+
+export const mutuelleRequestStatus = pgEnum("mutuelle_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+])
+
+export const mutuelleRequests = pgTable(
+  "mutuelle_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => mutuelleGroups.id, { onDelete: "restrict" }),
+    memberUserId: uuid("member_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    /** Réutilise l'enum reservation_module existant — aucun catalogue restreint n'existe encore, ce champ reste une indication libre du besoin. */
+    module: reservationModule("module").notNull(),
+    description: text("description").notNull(),
+    travelStartDate: date("travel_start_date").notNull(),
+    travelEndDate: date("travel_end_date").notNull(),
+    paxCount: integer("pax_count").notNull().default(1),
+    status: mutuelleRequestStatus("status").notNull().default("pending"),
+    directorNote: text("director_note"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("mutuelle_requests_group_idx").on(t.groupId),
+    index("mutuelle_requests_member_idx").on(t.memberUserId),
+    index("mutuelle_requests_status_idx").on(t.status),
+  ],
+)
+
+export type MutuelleRequest = typeof mutuelleRequests.$inferSelect
+export type NewMutuelleRequest = typeof mutuelleRequests.$inferInsert
+
+/* -------------------------------------------------------------------------- */
+/* Mutuelle — catalogue privé (chantier "canal B2B2C", voir                   */
+/* drizzle/manual/0063_mutuelle_catalog.sql). Le directeur sélectionne, parmi */
+/* le catalogue réel de l'agence d'exécution du groupe, les produits visibles */
+/* par ses membres. Pas de FK typée sur product_id : il pointe vers           */
+/* catalogPackages.id / catalogActivities.id / omraPackages.id selon          */
+/* productType — validé côté Server Action, jamais en DB.                    */
+/* -------------------------------------------------------------------------- */
+
+export const mutuelleCatalogProductType = pgEnum("mutuelle_catalog_product_type", [
+  "package",
+  "activity",
+  "omra",
+])
+
+export const mutuelleCatalogItems = pgTable(
+  "mutuelle_catalog_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => mutuelleGroups.id, { onDelete: "restrict" }),
+    productType: mutuelleCatalogProductType("product_type").notNull(),
+    productId: uuid("product_id").notNull(),
+    addedByUserId: uuid("added_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("mutuelle_catalog_items_uniq").on(t.groupId, t.productType, t.productId),
+    index("mutuelle_catalog_items_group_idx").on(t.groupId),
+    index("mutuelle_catalog_items_product_idx").on(t.productType, t.productId),
+  ],
+)
+
+export type MutuelleCatalogItem = typeof mutuelleCatalogItems.$inferSelect
+export type NewMutuelleCatalogItem = typeof mutuelleCatalogItems.$inferInsert
 
 /* -------------------------------------------------------------------------- */
 /* Customers (clients finaux)                                                 */
@@ -2475,12 +2562,16 @@ export {
   supplierLogs,
   supplierType,
   supplierStatus,
+  supplierConnectivityLevel,
+  supplierCertificationStatus,
   type Supplier,
   type NewSupplier,
   type SupplierModule,
   type NewSupplierModule,
   type SupplierLog,
   type NewSupplierLog,
+  type SupplierConnectivityLevel,
+  type SupplierCertificationStatus,
 } from "./schema/suppliers"
 
 /* -------------------------------------------------------------------------- */
@@ -2535,6 +2626,7 @@ export {
   journalEntries,
   journalLines,
   reservationStatusHistory,
+  commissionSettlements,
   walletAccountType,
   walletTxType,
   walletTxStatusV6,
@@ -2555,6 +2647,8 @@ export {
   type NewJournalLine,
   type ReservationStatusHistory,
   type NewReservationStatusHistory,
+  type CommissionSettlement,
+  type NewCommissionSettlement,
 } from "./schema/financials"
 
 /* -------------------------------------------------------------------------- */
@@ -2621,3 +2715,66 @@ export {
   type DestinationExternalRef,
   type NewDestinationExternalRef,
 } from "./schema/destinations"
+
+/* -------------------------------------------------------------------------- */
+/* Flight Puzzle — imported from schema/flights.ts                            */
+/* -------------------------------------------------------------------------- */
+
+export {
+  flightTripType,
+  flightBookingStatus,
+  flightTicketStatus,
+  flightSnapshotStatus,
+  flightRecheckStatus,
+  flightSearches,
+  flightPriceSnapshots,
+  flightBookings,
+  flightBookingPassengers,
+  flightBookingSegments,
+  flightTickets,
+  flightSupplierTransactions,
+  type FlightSearch,
+  type NewFlightSearch,
+  type FlightPriceSnapshot,
+  type NewFlightPriceSnapshot,
+  type FlightBooking,
+  type NewFlightBooking,
+  type FlightBookingPassenger,
+  type NewFlightBookingPassenger,
+  type FlightTicket,
+  type FlightSupplierTransaction,
+} from "./schema/flights"
+
+/* -------------------------------------------------------------------------- */
+/* Flight Supplier Control Plane — imported from schema/flight-suppliers.ts   */
+/* -------------------------------------------------------------------------- */
+
+export {
+  flightDisplayMode,
+  flightBookingMode,
+  flightSupplierName,
+  flightSupplierConfigs,
+  flightSupplierCredentials,
+  type FlightSupplierConfig,
+  type NewFlightSupplierConfig,
+  type FlightSupplierCredential,
+  type NewFlightSupplierCredential,
+} from "./schema/flight-suppliers"
+
+/* -------------------------------------------------------------------------- */
+/* Supplier Portal Foundation (Phase 35) — L0/L1 self-service                 */
+/* imported from schema/supplier-portal.ts                                    */
+/* -------------------------------------------------------------------------- */
+
+export {
+  supplierOnboardingStatus,
+  supplierPortalUserRole,
+  supplierNodes,
+  supplierPortalUsers,
+  type SupplierNode,
+  type NewSupplierNode,
+  type SupplierPortalUser,
+  type NewSupplierPortalUser,
+  type SupplierOnboardingStatus,
+  type SupplierPortalUserRole,
+} from "./schema/supplier-portal"

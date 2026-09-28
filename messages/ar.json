@@ -181,7 +181,9 @@
     "paginationNext": "التالي",
     "paginationPreviousAria": "الصفحة السابقة",
     "paginationNextAria": "الصفحة التالية",
-    "paginationGoToPage": "الانتقال إلى الصفحة {page}"
+    "paginationGoToPage": "الانتقال إلى الصفحة {page}",
+    "nightsCount": "{n, plural, one {ليلة واحدة} two {ليلتان} other {# ليالي}}",
+    "selectDates": "اختر التواريخ"
   },
   "Home": {
     "heroKicker": "حجز فوري · 100% تونس",
@@ -440,7 +442,8 @@
     "mustAcceptCgv": "يجب عليك الموافقة على الشروط والأحكام العامة للبيع.",
     "mustAcceptPolicy": "يجب عليك الموافقة على سياسة الإلغاء.",
     "unknownError": "خطأ غير معروف",
-    "durationBadge": "{days} يوم / {nights} ليالي"
+    "durationBadge": "{days} يوم / {nights} ليالي",
+    "allMonths": "جميع الأشهر"
   },
   "Hotels": {
     "destination": "الوجهة",
@@ -597,7 +600,10 @@
     "sortPriceAsc": "السعر: من الأقل إلى الأعلى",
     "sortPriceDesc": "السعر: من الأعلى إلى الأقل",
     "sortBestDeal": "أفضل قيمة",
-    "sortResultsAria": "ترتيب النتائج"
+    "sortResultsAria": "ترتيب النتائج",
+    "kicker": "فنادق تونس",
+    "heroTitle": "فنادق في تونس بأفضل الأسعار",
+    "heroSubtitle": "قارن عروض مئات الفنادق التونسية. احجز بنقرات قليلة مع إلغاء مجاني."
   },
   "HotelsMonde": {
     "kicker": "فنادق العالم",
@@ -766,6 +772,7 @@
     "toastSameAirports": "يجب أن يكون مطار المغادرة والوصول مختلفين.",
     "toastSelectDepartureDate": "يرجى اختيار تاريخ المغادرة.",
     "toastSelectReturnDate": "يرجى اختيار تاريخ العودة.",
+    "toastSelectReturnDateNew": "يرجى اختيار تاريخ العودة.",
     "sortRecommended": "موصى بها",
     "sortPriceAsc": "السعر تصاعديًا",
     "sortPriceDesc": "السعر تنازليًا",
@@ -773,6 +780,7 @@
     "refundableBadge": "قابل للاسترجاع",
     "startingFrom": "ابتداءً من",
     "bookButton": "احجز",
+    "requestTicketButton": "طلب التذكرة",
     "offerUnavailable": "العرض غير متاح",
     "directFlight": "رحلة مباشرة",
     "stopsCount": "{count, plural, one {توقف واحد} two {توقفان} other {# توقفات}}",
@@ -820,7 +828,26 @@
     "confirmAndPay": "تأكيد والدفع",
     "processing": "جارٍ المعالجة…",
     "mustAcceptCgv": "يجب عليك الموافقة على الشروط والأحكام العامة للبيع.",
-    "unknownError": "خطأ غير معروف"
+    "unknownError": "خطأ غير معروف",
+    "tripOneWay": "ذهاب فقط",
+    "tripRoundTrip": "ذهاب وإياب",
+    "tripMultiCity": "متعدد الوجهات",
+    "toastReturnBeforeDeparture": "يجب أن يكون تاريخ العودة بعد تاريخ المغادرة.",
+    "multiCity": "متعدد الوجهات",
+    "addLeg": "إضافة رحلة",
+    "removeLeg": "حذف",
+    "legLabel": "رحلة {n}",
+    "toastMinLegs": "يرجى إكمال رحلتين على الأقل.",
+    "toastLegSameAirports": "الرحلة {n}: يجب أن يكون المطار المغادر والوافد مختلفَين.",
+    "toastLegDate": "يرجى اختيار تاريخ للرحلة {n}.",
+    "multiCityLegTitle": "رحلة {n}",
+    "confirmationTitle": "تم تسجيل الطلب",
+    "confirmationSubtitle": "تم تسجيل طلب التذكرة بنجاح.",
+    "confirmationRefLabel": "المرجع",
+    "confirmationStatusLabel": "الحالة",
+    "confirmationDateLabel": "تاريخ الطلب",
+    "confirmationSlaNotice": "سيقوم فريق التذاكر لدينا بمعالجة طلبك خلال {minutes} دقيقة. ستصلك التذكرة الإلكترونية عبر البريد الإلكتروني عند التأكيد.",
+    "confirmationSlaMinutes": "15"
   },
   "Car": {
     "kicker": "تأجير السيارات",
@@ -1002,7 +1029,11 @@
     "confirmAndPay": "أكّد وخلّص",
     "invalidFieldsError": "حقول ماهيش صحيحة",
     "paymentError": "خطأ في الخلاص",
-    "cartModuleNotSupportedToast": "لا يمكن إضافة هذا النوع من المنتجات إلى السلة من هذه الصفحة."
+    "cartModuleNotSupportedToast": "لا يمكن إضافة هذا النوع من المنتجات إلى السلة من هذه الصفحة.",
+    "paymentTransferTitle": "الدفع بالتحويل البنكي",
+    "paymentTransferNotice": "سيتم إرسال بياناتنا البنكية إليك عبر البريد الإلكتروني. سيتم إصدار تذكرتك فور استلام التحويل.",
+    "paymentCashTitle": "الدفع نقداً في الوكالة",
+    "paymentCashNotice": "قم بزيارتنا مع رقم الحجز. سيتم إصدار تذكرتك فوراً بعد الدفع."
   },
   "Paiement": {
     "simulationEnvTitle": "محيط تجريبي",

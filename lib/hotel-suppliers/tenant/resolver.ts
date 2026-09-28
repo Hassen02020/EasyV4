@@ -32,7 +32,7 @@ import {
   hotelSupplierCredentials,
   type HotelSupplierAccountRow,
 } from "@/lib/db/schema"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
+import { withTenantContext, withSystemContext, withPublicAgencyContext, type TenantContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { decryptSecret } from "@/lib/security/secret-crypto"
 import type {
@@ -43,7 +43,13 @@ import type {
 import type { SupplierName } from "../core/types"
 
 async function findSupplierRow(supplierCode: SupplierName) {
-  return withSystemContext(async (tx: DrizzleTransaction) => {
+  // Catalogue plateforme public (hotel_suppliers, aucun secret) — jamais
+  // is_super_admin, voir withPublicAgencyContext(). Les 2 autres usages de
+  // withSystemContext dans ce fichier (déchiffrement de credentials pour un
+  // compte MASTER partagé) restent inchangés : RLS refuse délibérément tout
+  // accès via autorisation partagée sur hotel_supplier_credentials (0035),
+  // ce cas nécessite structurellement le contexte système privilégié.
+  return withPublicAgencyContext(null, async (tx: DrizzleTransaction) => {
     const [row] = await tx.select().from(hotelSuppliers).where(eq(hotelSuppliers.code, supplierCode))
     return row ?? null
   })

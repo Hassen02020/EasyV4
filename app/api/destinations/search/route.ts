@@ -14,8 +14,8 @@
  * docs/audits/destination-search-autocomplete-audit.md.
  *
  * Lecture publique (catalogue géo sans secret) — même mécanisme que le
- * reste du catalogue public (withSystemContext()), cohérent avec la RLS
- * posée au chantier 2 (0054_destinations.sql).
+ * reste du catalogue public (withPublicAgencyContext(null, ...)), cohérent
+ * avec la RLS posée au chantier 2 (0054_destinations.sql).
  *
  * Chantier 4 (Pages Destination + SEO) : réponse enrichie de `slug` — le
  * slug PUBLIC de `destinations` (utilisé par les URLs `/destinations/[slug]`),
@@ -27,7 +27,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { eq, and } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { destinations, destinationExternalRefs } from "@/lib/db/schema"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 
 export const revalidate = 86400 // 24h — les destinations ne changent quasiment jamais
 
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
   const country = alias(destinations, "country")
 
-  const rows = await withSystemContext((tx) =>
+  const rows = await withPublicAgencyContext(null, (tx) =>
     tx
       .select({
         externalId: destinationExternalRefs.externalId,

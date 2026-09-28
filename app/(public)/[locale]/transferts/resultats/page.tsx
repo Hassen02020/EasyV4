@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { TransferBookingForm } from "@/components/transfer/transfer-booking-form"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogTransferZones, transferVehicleType } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { calculateTransferPrice } from "@/lib/transfers/pricing"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
@@ -91,12 +91,14 @@ export default async function TransferResultsPage({
     )
   }
 
-  // Catalogue public de zones (trafic anonyme, pas de session storefront).
+  // Catalogue public de zones (trafic anonyme, pas de session storefront) —
+  // scopé à l'agence OTA directe (voir app/(public)/[locale]/transferts/page.tsx
+  // pour le détail du correctif de scoping).
   const zones = await withSystemContext((db) =>
     db
       .select()
       .from(catalogTransferZones)
-      .where(eq(catalogTransferZones.status, "active"))
+      .where(and(eq(catalogTransferZones.agencyId, agencyId), eq(catalogTransferZones.status, "active")))
       .orderBy(catalogTransferZones.name),
   )
 

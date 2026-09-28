@@ -19,6 +19,7 @@ import { RefundButton } from "@/components/admin/refund-button"
 import { MANUAL_PAYMENT_ALLOWED_ROLES } from "@/lib/finance/manual-payment-logic"
 import { REFUND_ALLOWED_ROLES } from "@/lib/finance/refund-logic"
 import { isAdminReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
+import { FulfillFlightButton } from "@/components/admin/fulfill-flight-button"
 
 export const dynamic = "force-dynamic"
 
@@ -60,6 +61,20 @@ export default async function AdminReservationDetailPage({
   // systématiquement en échec, sans jamais pouvoir revenir dans le seul état
   // qui l'accepte. On aligne l'affichage sur la précondition réelle du
   // serveur plutôt que de laisser un bouton présent mais non câblé.
+  const isFlightRoleAllowed = (["super_admin", "manager", "agent_resa"] as readonly string[]).includes(profile.role)
+  // Arm A: normal path — reservation still PENDING (flight_bookings.status PENDING).
+  // Arm B: re-issue path — flight_bookings.status FAILED with a live PNR at the GDS.
+  const canFulfillFlight =
+    detail.module === "flight" &&
+    isFlightRoleAllowed &&
+    (
+      detail.status === "pending" ||
+      (
+        detail.flightDetail?.bookingStatus === "FAILED" &&
+        detail.flightDetail.pnr != null
+      )
+    )
+
   const canVerifyPayment =
     detail.status === "pending" &&
     (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)
@@ -77,6 +92,9 @@ export default async function AdminReservationDetailPage({
       invoiceHref={`/api/admin/reservations/${detail.id}/invoice`}
       actions={
         <>
+          {canFulfillFlight ? (
+            <FulfillFlightButton reservationId={detail.id} />
+          ) : null}
           {canVerifyPayment && detail.paymentSummary.remainingTnd > 0 ? (
             <VerifyPaymentButton
               reservationId={detail.id}

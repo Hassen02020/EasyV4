@@ -181,7 +181,9 @@
     "paginationNext": "Suivant",
     "paginationPreviousAria": "Page précédente",
     "paginationNextAria": "Page suivante",
-    "paginationGoToPage": "Aller à la page {page}"
+    "paginationGoToPage": "Aller à la page {page}",
+    "nightsCount": "{n, plural, one {# nuit} other {# nuits}}",
+    "selectDates": "Sélectionner les dates"
   },
   "Home": {
     "heroKicker": "Réservation instantanée · 100% Tunisie",
@@ -440,7 +442,8 @@
     "mustAcceptCgv": "Vous devez accepter les conditions générales de vente.",
     "mustAcceptPolicy": "Vous devez accepter la politique d'annulation.",
     "unknownError": "Erreur inconnue",
-    "durationBadge": "{days}J / {nights}N"
+    "durationBadge": "{days}J / {nights}N",
+    "allMonths": "Tous les mois"
   },
   "Hotels": {
     "destination": "Destination",
@@ -597,7 +600,10 @@
     "sortPriceAsc": "Prix croissant",
     "sortPriceDesc": "Prix décroissant",
     "sortBestDeal": "Meilleur rapport qualité/prix",
-    "sortResultsAria": "Trier les résultats"
+    "sortResultsAria": "Trier les résultats",
+    "kicker": "Hôtels Tunisie",
+    "heroTitle": "Hôtels en Tunisie au meilleur prix",
+    "heroSubtitle": "Comparez les offres de centaines d'hôtels tunisiens. Réservez en quelques clics avec annulation gratuite."
   },
   "HotelsMonde": {
     "kicker": "Hôtels Monde",
@@ -773,6 +779,7 @@
     "refundableBadge": "Remboursable",
     "startingFrom": "À partir de",
     "bookButton": "Réserver",
+    "requestTicketButton": "Demander le billet",
     "offerUnavailable": "Offre indisponible",
     "directFlight": "Vol direct",
     "stopsCount": "{count, plural, one {# escale} other {# escales}}",
@@ -820,7 +827,27 @@
     "confirmAndPay": "Confirmer & payer",
     "processing": "Traitement en cours…",
     "mustAcceptCgv": "Vous devez accepter les conditions générales de vente.",
-    "unknownError": "Erreur inconnue"
+    "unknownError": "Erreur inconnue",
+    "tripOneWay": "Aller simple",
+    "tripRoundTrip": "Aller-retour",
+    "tripMultiCity": "Multi-destinations",
+    "toastSelectReturnDateNew": "Veuillez sélectionner une date de retour.",
+    "toastReturnBeforeDeparture": "La date de retour doit être après la date de départ.",
+    "multiCity": "Multi-destinations",
+    "addLeg": "Ajouter un trajet",
+    "removeLeg": "Supprimer",
+    "legLabel": "Trajet {n}",
+    "toastMinLegs": "Veuillez compléter au moins 2 trajets.",
+    "toastLegSameAirports": "Le trajet {n} : départ et arrivée doivent être différents.",
+    "toastLegDate": "Veuillez sélectionner une date pour le trajet {n}.",
+    "multiCityLegTitle": "Trajet {n}",
+    "confirmationTitle": "Demande enregistrée",
+    "confirmationSubtitle": "Votre demande de billet a bien été enregistrée.",
+    "confirmationRefLabel": "Référence",
+    "confirmationStatusLabel": "Statut",
+    "confirmationDateLabel": "Demande enregistrée le",
+    "confirmationSlaNotice": "Notre équipe billetterie va traiter votre demande dans les {minutes} minutes. Vous recevrez votre e-ticket par email dès confirmation.",
+    "confirmationSlaMinutes": "15"
   },
   "Car": {
     "kicker": "Location de Voiture",
@@ -1002,7 +1029,11 @@
     "confirmAndPay": "Confirmer & payer",
     "invalidFieldsError": "Champs invalides",
     "paymentError": "Erreur paiement",
-    "cartModuleNotSupportedToast": "Ce type de produit ne peut pas être ajouté au panier depuis cette page."
+    "cartModuleNotSupportedToast": "Ce type de produit ne peut pas être ajouté au panier depuis cette page.",
+    "paymentTransferTitle": "Réglez par virement bancaire",
+    "paymentTransferNotice": "Nos coordonnées bancaires vous seront envoyées par email. Votre billet sera émis dès réception du virement.",
+    "paymentCashTitle": "Réglez en espèces en agence",
+    "paymentCashNotice": "Présentez-vous dans nos locaux avec cette référence de réservation. Votre billet sera émis immédiatement après paiement."
   },
   "Paiement": {
     "simulationEnvTitle": "Environnement de simulation",

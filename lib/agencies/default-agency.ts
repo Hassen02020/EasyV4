@@ -22,7 +22,7 @@
 
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, asc, eq, isNull } from "drizzle-orm"
 import { getRequestTenantAgencyId, resolveEffectiveAgencyId } from "@/lib/tenant/current-tenant"
 
 /**
@@ -55,6 +55,7 @@ export async function getDefaultAgencyId(): Promise<string | null> {
         .select({ id: agencies.id })
         .from(agencies)
         .where(and(eq(agencies.agencyType, "ota"), isNull(agencies.domain)))
+        .orderBy(asc(agencies.createdAt))
         .limit(1),
     )
     return resolveEffectiveAgencyId(null, agency?.id ?? null)

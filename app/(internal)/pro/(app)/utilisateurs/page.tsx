@@ -50,6 +50,16 @@ export default async function ProUsersPage() {
       role: "partner_owner",
       permission: "staff.edit",
     }))
+  // R2-05 : grant distinct de "staff.edit" — un partner_owner peut inviter
+  // sans pouvoir suspendre/déléguer, ou l'inverse.
+  const canCreate =
+    isOwner &&
+    (await getEffectivePermission({
+      agencyId: profile.agency.id,
+      userId: profile.userId,
+      role: "partner_owner",
+      permission: "staff.create",
+    }))
 
   const agentIds = initial.filter((u) => u.role === "partner_agent").map((u) => u.id)
   const grantsByUser = canManage
@@ -70,6 +80,7 @@ export default async function ProUsersPage() {
       <UsersManager
         initial={initial}
         canManage={canManage}
+        canCreate={canCreate}
         currentUserId={profile.userId}
         delegatablePermissions={PARTNER_DELEGATABLE_PERMISSIONS}
         agentBaseline={getBaselinePermissions("partner_agent")}

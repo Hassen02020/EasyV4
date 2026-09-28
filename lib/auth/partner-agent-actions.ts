@@ -11,9 +11,10 @@
  * NÉCESSAIRE mais pas SUFFISANTE : le vrai gate est la vérification du
  * grant ci-dessous, RLS n'est que la frontière tenant+rôle large.
  *
- * Volontairement limité au statut (activer/suspendre) — la création de
- * compte (invitation Supabase Auth réelle) reste hors périmètre Phase 22,
- * voir le rapport final ("remaining gaps").
+ * Étendu (R2-05, audit Phase 0) : `createPartnerAgent` ci-dessous couvre la
+ * création de compte (invitation Supabase Auth réelle), gérée par le grant
+ * "staff.create" distinct de "staff.edit" — un partner_owner peut avoir
+ * l'un sans l'autre.
  */
 
 import { revalidatePath } from "next/cache"
@@ -21,7 +22,7 @@ import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { auditEvents, users } from "@/lib/db/schema"
-import { createServerSupabase } from "@/lib/supabase/server"
+import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "./partner-profile"
 import { getEffectivePermission } from "./permissions"
 
@@ -98,4 +99,101 @@ export async function setPartnerAgentStatus(
 
   if (outcome.ok) revalidatePath("/pro/utilisateurs")
   return outcome
+}
+
+/* ---------------------------------------------------------------------- */
+/* Création (invitation)                                                   */
+/* ---------------------------------------------------------------------- */
+
+const createAgentInputSchema = z.object({
+  email: z.string().trim().email().max(320),
+  name: z.string().trim().min(1).max(200),
+})
+
+export type CreatePartnerAgentResult = { ok: true; userId: string } | { ok: false; error: string }
+
+/**
+ * Invite un nouveau partner_agent dans l'agence du partner_owner appelant —
+ * même pattern que createStaffUser/createPartnerOwner (invitation Supabase
+ * Auth réelle + ligne users + auditEvents dans la même transaction +
+ * rollback si le profil échoue). Gate : grant explicite "staff.create",
+ * jamais un droit automatique du seul rôle partner_owner (même principe que
+ * setPartnerAgentStatus ci-dessus, avec "staff.edit").
+ */
+export async function createPartnerAgent(
+  raw: z.infer<typeof createAgentInputSchema>,
+): Promise<CreatePartnerAgentResult> {
+  const parsed = createAgentInputSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+  }
+  const input = parsed.data
+
+  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: "Session expirée" }
+
+  const profile = await getCurrentPartnerProfile(user.id)
+  if (!profile || profile.role !== "partner_owner") {
+    return { ok: false, error: "Réservé au propriétaire de l'agence." }
+  }
+
+  const authorized = await getEffectivePermission({
+    agencyId: profile.agency.id,
+    userId: user.id,
+    role: "partner_owner",
+    permission: "staff.create",
+  })
+  if (!authorized) {
+    return {
+      ok: false,
+      error: "Vous n'êtes pas autorisé à inviter des agents pour votre agence — contactez Easy2Book.",
+    }
+  }
+
+  const admin = createServiceRoleSupabase()
+  const invited = await admin.auth.admin.inviteUserByEmail(input.email, {
+    data: { name: input.name },
+  })
+  if (invited.error || !invited.data.user) {
+    return { ok: false, error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}` }
+  }
+  const newUserId = invited.data.user.id
+
+  try {
+    await withTenantContext(
+      { agencyId: profile.agency.id, userId: user.id, isSuperAdmin: false },
+      async (tx) => {
+        await tx.insert(users).values({
+          id: newUserId,
+          agencyId: profile.agency.id,
+          email: input.email,
+          name: input.name,
+          role: "partner_agent",
+          status: "active",
+        })
+        await tx.insert(auditEvents).values({
+          agencyId: profile.agency.id,
+          actorUserId: user.id,
+          entityType: "user",
+          entityId: newUserId,
+          action: "user.created",
+          diff: { email: input.email, name: input.name, role: "partner_agent", via: "partner_owner_delegation" },
+        })
+      },
+    )
+  } catch (err) {
+    // Compte Auth orphelin : jamais utilisable — supprimé plutôt que
+    // laissé comme identité fantôme (même motif que createStaffUser).
+    await admin.auth.admin.deleteUser(newUserId).catch(() => {})
+    const message = err instanceof Error ? err.message : "Erreur inconnue"
+    return { ok: false, error: `Compte invité mais profil non créé (annulé) : ${message}` }
+  }
+
+  revalidatePath("/pro/utilisateurs")
+  return { ok: true, userId: newUserId }
 }

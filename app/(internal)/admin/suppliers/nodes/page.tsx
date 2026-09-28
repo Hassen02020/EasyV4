@@ -136,8 +136,8 @@ export default async function SupplierNodesPage() {
                 {nodes.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                      Aucun nœud fournisseur enregistré. Les nœuds sont créés via l'invitation
-                      d'un fournisseur dans le réseau.
+                      Aucun nœud fournisseur enregistré. Les nœuds sont créés via l&apos;invitation
+                      d&apos;un fournisseur dans le réseau.
                     </TableCell>
                   </TableRow>
                 ) : (

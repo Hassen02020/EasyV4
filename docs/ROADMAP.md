@@ -38,7 +38,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ```text
 ID: (aucun — en attente de proposition du prochain chantier)
-Statut: R1-10 et R1-07 CLÔTURÉS (voir ci-dessous). Prochain chantier à proposer un par un, un GO à la fois.
+Statut: R1-10, R1-07 et R6-02 CLÔTURÉS (voir ci-dessous). Prochain chantier à proposer un par un, un GO à la fois.
 Branche: (aucune)
 ```
 
@@ -51,6 +51,10 @@ Branche: (aucune)
 ### R1-07 — CLÔTURÉ (2026-09-28)
 
 Aucune CI n'existait (`.github/workflows` absent). Ajout de `.github/workflows/ci.yml` (5 jobs sur push/PR vers `main` : `typecheck`, `lint`, `format` non bloquant, `test`, `build`). Correction au passage de 12 erreurs lint réelles (2 fichiers `app/(internal)/admin/suppliers/{network,nodes}/page.tsx`, cosmétique) pour que `lint` soit un vrai gate. Premier run réel confirmé : `typecheck`/`lint`/`test`/`build` verts, `format` en échec attendu et documenté (744 fichiers pré-existants jamais formatés, hors périmètre — chantier séparé à proposer si souhaité). PR : https://github.com/Hassen02020/EasyV4/pull/51 (mergée, run https://github.com/Hassen02020/EasyV4/actions/runs/36489283550).
+
+### R6-02 — CLÔTURÉ (2026-09-28)
+
+`margin-analytics-core.ts` part d'un `INNER JOIN` sur `reservation_financials` — toute réservation sans ligne y était invisible (marge ET chiffre d'affaires). `recordReservationFinancials()` câblé sur les 6 points d'insertion omra/packages/activités (`supplierPriceTnd = salePriceTnd`, ces modules n'ayant pas de coût net séparé — décision documentée dans le code, `lib/pro/pricing.ts:36-45`). Module "cars" volontairement laissé hors périmètre (incohérence pré-existante entre `lib/pro/pricing.ts` et `lib/cars/pricing.ts`, `FEATURE_CAR=false` — décision produit à clarifier séparément). `typecheck`/`lint`/`test` (1068/1068) verts en local et en CI. PR : https://github.com/Hassen02020/EasyV4/pull/52 (mergée, run https://github.com/Hassen02020/EasyV4/actions/runs/36490140730).
 
 ---
 
@@ -115,7 +119,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R1-08 | **README et nom de marque** alignés sur le code réel | **FIX (trivial)** — VERIFIED. Marque réelle = Easy2Book (package.json, SEO, logo, 0 occurrence "TunisiaGo" dans app/lib/components). README.md ligne 1/3 dit encore "TunisiaGo" et ligne 99 dit `/admin` public (faux, voir R1-01). | `README.md` | Correction des 2 passages obsolètes |
 | R1-09 | **Consolider les rapports d'audit** existants dans `docs/audits/` (archivés, marqués « historique ») | **NOT VERIFIED** — `docs/audits/` existe (confirmé en tout début de session), contenu non ré-audité pour doublons/statut "historique" explicite pendant cette Phase 0. | `docs/audits/**`, `*AUDIT*.md`, `*REPORT*.md` | Un seul index ; anciens rapports non autoritaires |
 
-**Ordre recommandé (mis à jour) :** R1-01 fait → R1-10 fait → R1-07 fait → **prochain : R1-04/05/06 (cleanup config) ou R1-08 (README) ou R6-02 (gap financier P1)** → R1-02/R1-03/R1-09 (à planifier).
+**Ordre recommandé (mis à jour) :** R1-01 fait → R1-10 fait → R1-07 fait → **prochain : R1-04/05/06 (cleanup config) ou R1-08 (README)** → R1-02/R1-03/R1-09 (à planifier). R6-02 fait (voir Phase 6).
 
 ---
 
@@ -180,7 +184,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | ID | Chantier | État audit | Critère de sortie |
 |---|---|---|---|
 | R6-01 | Machine à états transitions validées serveur | **EXTEND (nuance)** — VERIFIED : `recordReservationTransition()` + `isTransitionAllowed()` appelés sur les 22 sites réels d'écriture de `reservations.status` (grep croisé exhaustif dans `lib/**`). **Mais** : c'est une validation applicative + une table d'audit (`reservation_status_history`), PAS une contrainte DB (aucun trigger/CHECK empêchant une transition invalide côté Postgres) — à ne pas présenter comme un garde-fou DB. | Atteint côté application ; contrainte DB en option (EXTEND futur) |
-| R6-02 | Décomposition prix stockée par booking | **EXTEND — gap P1** — VERIFIED table `reservation_financials` (supplierPrice/salePrice/marginAmount/commissionAmount) correctement peuplée pour hôtels (Tunisie+Monde), vols, transferts. **GAP confirmé** : AUCUNE trace d'insertion pour omra/packages/activities/cars — ces réservations existent (confirmées par A4) mais sans ventilation marge/commission tracée, ce qui fausse potentiellement le reporting de marge agrégé (`lib/reporting/margin-analytics-core.ts` en dépend). | Étendre `recordReservationFinancials` aux 4 modules manquants |
+| R6-02 | Décomposition prix stockée par booking | **N/A (fait, 2026-09-28)** — `recordReservationFinancials` câblé sur omra/packages/activités (6 points, `supplierPriceTnd=salePriceTnd`, marge=0 assumée par design). "cars" hors périmètre (décision produit à clarifier). PR #52 mergée. | Atteint (cars excepté) |
 | R6-03 | Séquence autoriser→réserver→capturer, échec→libérer/rembourser | **REUSE (partiel)** — VERIFIED pattern présent sur hôtels/B2B (verrou FOR UPDATE, rollback total si échec fournisseur) ; pas vérifié en détail sur tous les modules. | À confirmer par module |
 | R6-04 | Annulation/remboursement | **REUSE** — VERIFIED `cancel-actions.ts`/`refund-logic.ts` avec écriture ledger tracée (millimes inclus). | Atteint |
 | R6-05 | Settlement / rapprochement | **REUSE (avec gap P2)** — `commission-settlement.ts` existe et fonctionne, mais viole l'append-only du ledger (voir R4-03). | Corriger le pattern d'écriture (R4-03) |

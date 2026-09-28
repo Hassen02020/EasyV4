@@ -22,6 +22,7 @@ import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -652,6 +653,14 @@ export async function createReservationFromDraft(input: {
         .update(reservations)
         .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
+
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "confirmed",
+        triggeredBy: authUserId,
+        reason: "Règlement wallet B2B immédiat à la création",
+      })
 
       await tx.insert(payments).values({
         agencyId,

@@ -74,6 +74,7 @@ import { pgErrorCode } from "@/lib/db/pg-error"
 import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./customer-identity"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "bank_deposit" | "cash" | "at_hotel"
 
@@ -496,6 +497,14 @@ async function runCreateGuestReservation(
             .update(reservations)
             .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
             .where(eq(reservations.id, reservationId))
+
+          await recordReservationTransition(tx, {
+            reservationId,
+            from: "pending",
+            to: "confirmed",
+            automated: true,
+            reason: "Règlement wallet client immédiat à la création (guest)",
+          })
 
           await tx.insert(payments).values({
             agencyId,

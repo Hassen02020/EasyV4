@@ -34,6 +34,7 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -302,6 +303,14 @@ export async function createOmraBooking(
         .update(reservations)
         .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
+
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "confirmed",
+        triggeredBy: createdByUserId,
+        reason: "Règlement wallet B2B immédiat à la création",
+      })
 
       await tx.insert(payments).values({
         agencyId,

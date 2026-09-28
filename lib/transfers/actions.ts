@@ -31,6 +31,7 @@ import { calculateTransferPrice } from "./pricing"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -245,6 +246,14 @@ export async function createTransferBooking(
         .update(reservations)
         .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
+
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "confirmed",
+        triggeredBy: createdByUserId,
+        reason: "Règlement wallet B2B immédiat à la création",
+      })
 
       await tx.insert(payments).values({
         agencyId,

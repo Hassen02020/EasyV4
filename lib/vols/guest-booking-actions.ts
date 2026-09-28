@@ -38,6 +38,7 @@ import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "@/lib/booking/customer-identity"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { flightGuestBookingSchema, type FlightGuestBookingInput } from "./schemas"
 import { book as bookFlight, cancel as cancelFlight, type BookResult } from "./virtual-supplier/engine"
 
@@ -230,6 +231,14 @@ async function runCreateGuestFlightBooking(
           .update(reservations)
           .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
           .where(eq(reservations.id, reservationId))
+
+        await recordReservationTransition(tx, {
+          reservationId,
+          from: "pending",
+          to: "confirmed",
+          automated: true,
+          reason: "Règlement wallet client immédiat à la création (guest)",
+        })
       }
 
       await tx.insert(payments).values({

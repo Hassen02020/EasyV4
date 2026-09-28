@@ -38,6 +38,7 @@ import {
   isTransitionAllowed,
   type ReservationStatus,
 } from "./reservation-status"
+import { recordReservationTransition } from "./reservation-status-history"
 
 const inputSchema = z.object({
   reservationId: z.string().uuid(),
@@ -234,6 +235,14 @@ export async function updateReservationStatus(
             eq(reservations.agencyId, agencyId),
           ),
         )
+
+      await recordReservationTransition(db, {
+        reservationId,
+        from: previousStatus,
+        to: nextStatus,
+        triggeredBy: user.id,
+        reason: `Changement de statut manuel (back-office) : ${previousStatus} → ${nextStatus}`,
+      })
 
       // --- Easy2Book Rewards (Phase 38D) — mêmes contrats que
       // lib/loyalty/rewards-core.ts (voir doc de tête du fichier) : earn

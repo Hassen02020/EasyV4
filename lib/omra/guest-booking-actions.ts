@@ -55,6 +55,7 @@ import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 export type CreateGuestOmraBookingResult =
   | {
@@ -262,6 +263,14 @@ async function runCreateGuestOmraBooking(
             .update(reservations)
             .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
             .where(eq(reservations.id, reservationId))
+
+          await recordReservationTransition(tx, {
+            reservationId,
+            from: "pending",
+            to: "confirmed",
+            automated: true,
+            reason: "Règlement wallet client immédiat à la création (guest)",
+          })
         }
 
         await tx.insert(payments).values({

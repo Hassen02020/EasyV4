@@ -48,6 +48,7 @@ import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
 import { reverseEarnedPoints, reinstateRedeemedPoints } from "@/lib/loyalty/rewards-core"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -188,6 +189,14 @@ export async function cancelMyHotelReservation(
         .update(reservations)
         .set({ status: "cancelled", cancelledAt: new Date() })
         .where(eq(reservations.id, reservationId))
+
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: locked.status as (typeof CANCELLABLE_STATUSES)[number],
+        to: "cancelled",
+        triggeredBy: user.id,
+        reason: "Annulation self-service client",
+      })
 
       // Easy2Book Rewards (Phase 38D) — reprise des points gagnés (pending
       // ou déjà available) sur cette réservation, même transaction que

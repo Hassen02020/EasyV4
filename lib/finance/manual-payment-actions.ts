@@ -53,6 +53,7 @@ import { sendEvent } from "@/lib/inngest/client"
 import { debitCustomerWallet, recordTargetedWalletSettlement } from "./customer-wallet"
 import { getReservationPaymentSummary, TND_EPSILON, type PaymentState } from "./payment-summary"
 import { pgErrorCode } from "@/lib/db/pg-error"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import {
   MANUAL_PAYMENT_ALLOWED_ROLES,
   toPaymentMethod,
@@ -192,6 +193,14 @@ export async function verifyManualPayment(
             .update(reservations)
             .set({ status: "expired", updatedAt: new Date() })
             .where(eq(reservations.id, row.id))
+          await recordReservationTransition(tx, {
+            reservationId: row.id,
+            from: "pending",
+            to: "expired",
+            triggeredBy: user.id,
+            automated: true,
+            reason: "Délai de paiement (24h) dépassé — détecté à la validation manuelle",
+          })
           return {
             ok: false as const,
             code: "EXPIRED" as const,
@@ -309,6 +318,13 @@ export async function verifyManualPayment(
             .update(reservations)
             .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
             .where(eq(reservations.id, row.id))
+          await recordReservationTransition(tx, {
+            reservationId: row.id,
+            from: "pending",
+            to: "confirmed",
+            triggeredBy: user.id,
+            reason: `Règlement manuel vérifié (${input.method})`,
+          })
         }
 
         await tx.insert(auditEvents).values({

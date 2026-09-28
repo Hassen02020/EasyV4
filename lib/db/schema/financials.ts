@@ -113,6 +113,11 @@ export const reservationTransition = pgEnum("reservation_transition", [
   "cancel",
   "complete",
   "refund",
+  // chantier-49A : statuts réellement écrits par le code (grep) mais sans
+  // libellé de transition existant — "expired" (délai de paiement dépassé)
+  // et "on_request" (en attente de confirmation fournisseur, ex. vols).
+  "expire",
+  "await_provider",
 ])
 
 /* -------------------------------------------------------------------------- */

@@ -40,6 +40,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getMyGoClient } from "@/lib/mygo"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -224,6 +225,14 @@ export async function cancelHotelReservation(
           .update(reservations)
           .set({ status: "cancelled", cancelledAt })
           .where(eq(reservations.id, reservationId))
+
+        await recordReservationTransition(tx, {
+          reservationId,
+          from: locked.status as (typeof CANCELLABLE_STATUSES)[number],
+          to: "cancelled",
+          triggeredBy: user.id,
+          reason: "Annulation partenaire",
+        })
 
         await tx.insert(auditEvents).values({
           agencyId: profile.agency.id,

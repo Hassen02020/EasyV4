@@ -6,7 +6,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { REVIEW_MODULES, listReviewSummariesForProductsCore, type ReviewModule } from "@/lib/reviews/reviews-core"
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ summaries: {} })
   }
 
-  const summaries = await withSystemContext((db) =>
+  const summaries = await withPublicAgencyContext(agencyId, (db) =>
     listReviewSummariesForProductsCore(db, { agencyId, module: moduleParam as ReviewModule, productRefs }),
   )
 

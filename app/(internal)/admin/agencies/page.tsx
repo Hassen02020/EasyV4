@@ -7,6 +7,7 @@
 import { Suspense } from "react"
 import { Metadata } from "next"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { Building, Plus, Building2, CheckCircle2, DollarSign } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -115,9 +116,11 @@ export default async function AgenciesManagementPage() {
             {allAgencies.length} agence{allAgencies.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90" disabled title="Pas encore disponible">
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle Agence
+        <Button asChild className="bg-primary hover:bg-primary/90">
+          <Link href="/admin/agencies/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle Agence
+          </Link>
         </Button>
       </div>
 

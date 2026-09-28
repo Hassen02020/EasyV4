@@ -22,6 +22,7 @@ import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
@@ -414,10 +415,8 @@ export async function createReservationFromDraft(input: {
   // agences au prix net myGo, sans aucune marge, pour toute réservation
   // hôtel réellement confirmée. Marge existante réutilisée telle quelle
   // (`applyMargin`, `getMarginsForAgency`) — pas une deuxième formule.
-  const agencyHotelPrice = applyMargin(
-    myGoBooking.totalPrice,
-    (await getMarginsForAgency(agencyId, authUserId)).hotel,
-  )
+  const hotelMarginRule = (await getMarginsForAgency(agencyId, authUserId)).hotel
+  const agencyHotelPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
 
   const breakdown = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyHotelPrice, draft.adults),
@@ -600,11 +599,18 @@ export async function createReservationFromDraft(input: {
       // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
       // déjà calculés plus haut par `applyMargin()`, jamais un recalcul.
       if (draft.module === "hotel" && myGoBooking) {
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: myGoBooking.totalPrice,
           salePriceTnd: agencyHotelPrice,
+          commissionPercent: hotelMarginRule.commissionPercent,
+          marginRuleId: hotelMarginRule.ruleId,
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission hôtel — réservation ${publicRef}`,
         })
       }
 
@@ -805,15 +811,31 @@ export async function createReservationFromDraft(input: {
  * d'avant Phase 12 est conservé sans aucune modification —
  * `createReservationFromDraft` (et son correctif P0 Phase 11) reste
  * intact et inchangé.
+ *
+ * Retourne `{ ok: false, error }` (jamais `throw`) pour tout échec métier —
+ * bug réel trouvé en certification E2E live (offre revendue entre la
+ * recherche et la confirmation, `confirmHotelWithProvider` renvoyant
+ * `ok: false`) : un `throw new Error(result.error)` ici est masqué par
+ * Next.js en build de production (`err.message` devient le message
+ * générique "An error occurred in the Server Components render...",
+ * jamais le message métier réel) dès que l'appelant le capture dans un
+ * `catch` côté client — observé en direct, pas supposé. `redirect()`
+ * continue de fonctionner normalement (signal framework NEXT_REDIRECT,
+ * jamais masqué, voir `catch` dans `checkout-form.tsx`). Package/Omra/
+ * Activité n'ont jamais eu ce défaut : `createGuestPackageBooking`/
+ * `createGuestActivityBooking` retournent déjà `{ok,error}` sans jamais
+ * passer par un `throw` intermédiaire.
  */
-export async function submitCheckoutAction(formData: FormData): Promise<void> {
+export async function submitCheckoutAction(
+  formData: FormData,
+): Promise<{ ok: false; error: string } | void> {
   const token = String(formData.get("draft") ?? "")
   if (!token) {
-    throw new Error("Brouillon manquant")
+    return { ok: false, error: "Brouillon manquant" }
   }
   const payload = decodeDraft(token)
   if (!payload || !payload.traveler) {
-    throw new Error("Brouillon invalide ou incomplet")
+    return { ok: false, error: "Brouillon invalide ou incomplet" }
   }
   const paymentMethod = String(formData.get("paymentMethod") ?? "card")
 
@@ -836,7 +858,7 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
       idempotencyKey: createHash("sha256").update(`${token}:b2b`).digest("hex"),
     })
     if (!result.ok) {
-      throw new Error(result.error)
+      return { ok: false, error: result.error }
     }
     redirect(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
   }
@@ -858,7 +880,7 @@ export async function submitCheckoutAction(formData: FormData): Promise<void> {
     idempotencyKey: createHash("sha256").update(`${token}:${paymentMethod}`).digest("hex"),
   })
   if (!result.ok) {
-    throw new Error(result.error)
+    return { ok: false, error: result.error }
   }
   // Paiement en ligne redirect-based (SPS/Paymee/Stripe Checkout) : le
   // navigateur part sur la page hébergée par le PSP — la réservation reste

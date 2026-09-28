@@ -338,7 +338,45 @@ function isErrorResponse(errorMessage: unknown): boolean {
   )
 }
 
-export const BookingCreationResponse = z
+/**
+ * myGo enveloppe le résultat de `BookingCreation`/`BookingCancellation` dans
+ * une clé du même nom que la méthode appelée — exactement comme `HotelSearch`
+ * (`{"HotelSearch":[...], "ErrorMessage":...}`, déjà géré correctement
+ * ci-dessus) — mais nos schémas `BookingCreationResponse`/
+ * `BookingCancellationResponse` attendaient ces champs À PLAT, sans jamais
+ * l'avoir vérifié sur une vraie réponse de succès (seul le cas erreur —
+ * `"BookingCreation": []` — passait, car il ne porte aucun champ requis).
+ *
+ * Bug confirmé en direct : une vraie réservation créée avec succès
+ * (`"BookingCreation": {"Id":499864, "State":"Validated", ...}`) faisait
+ * échouer la validation Zod (Id/TotalPrice/State/Currency "manquants" alors
+ * qu'ils étaient bien là, juste imbriqués) → `MyGoSchemaError` →
+ * réconciliation "ambiguë" côté `confirmHotelWithProvider` → l'utilisateur
+ * voyait "réservation non confirmée" pour une résa pourtant bien créée chez
+ * myGo. Ce préprocesseur aplatit `{[key]: {...}, ErrorMessage}` → `{...,
+ * ErrorMessage}` avant validation ; si la clé n'est pas là (ancien format
+ * plat, fixtures existantes), l'entrée passe inchangée.
+ */
+function unwrapMethodEnvelope(key: string) {
+  return (raw: unknown): unknown => {
+    if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+      return raw
+    }
+    const r = raw as Record<string, unknown>
+    if (!(key in r)) return raw
+    const detail = r[key]
+    if (detail == null || typeof detail !== "object" || Array.isArray(detail)) {
+      // "[]" (ou vide) = pas de résultat — cas erreur, le détail utile est
+      // dans ErrorMessage, laissé tel quel.
+      const { [key]: _omit, ...rest } = r
+      return rest
+    }
+    const { [key]: _omit, ...rest } = r
+    return { ...(detail as Record<string, unknown>), ...rest }
+  }
+}
+
+const BookingCreationSuccessShape = z
   .object({
     Id: FlexibleInt.optional(),
     Hotel: ListHotelItem.optional(),
@@ -372,7 +410,12 @@ export const BookingCreationResponse = z
     }
   })
 
-export const BookingCancellationResponse = z
+export const BookingCreationResponse = z.preprocess(
+  unwrapMethodEnvelope("BookingCreation"),
+  BookingCreationSuccessShape,
+)
+
+const BookingCancellationShape = z
   .object({
     Booking: FlexibleInt.optional(),
     Fee: NumericString.nullish(),
@@ -383,6 +426,11 @@ export const BookingCancellationResponse = z
     ErrorMessage,
   })
   .passthrough()
+
+export const BookingCancellationResponse = z.preprocess(
+  unwrapMethodEnvelope("BookingCancellation"),
+  BookingCancellationShape,
+)
 
 export const BookingListDetailItem = z
   .object({
@@ -402,10 +450,29 @@ export const BookingListDetailItem = z
   })
   .passthrough()
 
-export const BookingListResponse = z.object({
+/**
+ * Même divergence que `BookingCreation`/`BookingCancellation` (voir
+ * `unwrapMethodEnvelope`) mais avec un nom différent : myGo renvoie la
+ * liste sous la clé `"BookingList"`, jamais `"BookingDetail"` — confirmé en
+ * rejouant l'appel en direct (8 réservations réelles retrouvées via
+ * `raw.BookingList`, alors que `client.ts::listBookings()` lit
+ * `raw.BookingDetail`, toujours `undefined`). Conséquence concrète : la
+ * réconciliation d'une réservation "ambiguë" (`tryReconcileAmbiguousBooking`
+ * dans `lib/booking/actions.ts`) ne retrouvait jamais rien via
+ * `BookingList`, même quand la résa existait bien côté myGo.
+ */
+export const BookingListResponse = z.preprocess((raw) => {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return raw
+  const r = raw as Record<string, unknown>
+  if ("BookingList" in r && !("BookingDetail" in r)) {
+    const { BookingList, ...rest } = r
+    return { ...rest, BookingDetail: BookingList }
+  }
+  return raw
+}, z.object({
   BookingDetail: z.array(BookingListDetailItem).nullable().optional(),
   ErrorMessage,
-})
+}))
 
 // ---------------------------------------------------------------------------
 // Type exports

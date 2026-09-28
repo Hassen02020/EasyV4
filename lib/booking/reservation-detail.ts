@@ -18,10 +18,13 @@ import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   agencies,
   auditEvents,
+  carCategories,
+  carLocations,
   customers,
   partnerInvoices,
   payments,
   reservationActivity,
+  reservationCar,
   reservationFlight,
   reservationHotel,
   reservationOmra,
@@ -34,6 +37,7 @@ import {
   getReservationPaymentSummary,
   type ReservationPaymentSummary,
 } from "@/lib/finance/payment-summary"
+import { flightBookings, flightBookingPassengers, flightBookingSegments, flightTickets } from "@/lib/db/schema/flights"
 
 export interface ReservationDetailPaymentRow {
   id: string
@@ -67,6 +71,42 @@ export interface ReservationModuleDetail {
   providerBookingId: string | null
 }
 
+export interface FlightPassengerDetail {
+  sequence: number
+  passengerType: string
+  firstName: string
+  lastName: string
+  birthDate: string | null
+  nationality: string | null
+  passportNumber: string | null
+  passportExpiry: string | null
+}
+
+export interface FlightSegmentDetail {
+  sequence: number
+  origin: string
+  destination: string
+  departure: string
+  arrival: string
+  airline: string
+  flightNumber: string
+  cabin: string
+  durationMin: number | null
+}
+
+/** GDS-level state for flight_bookings rows (new two-stage pipeline only). */
+export interface FlightBookingDetail {
+  bookingId: string
+  /** Current flight_bookings.status (10-state machine). */
+  bookingStatus: string
+  pnr: string | null
+  slaDeadline: string | null
+  opsNotes: string | null
+  passengers: FlightPassengerDetail[]
+  segments: FlightSegmentDetail[]
+  tickets: Array<{ ticketNumber: string; status: string }>
+}
+
 export interface ReservationDetail {
   id: string
   publicRef: string
@@ -85,6 +125,8 @@ export interface ReservationDetail {
   customer: { id: string; name: string; email: string | null; phone: string | null }
   agency: { id: string; name: string; agencyType: string }
   moduleDetail: ReservationModuleDetail | null
+  /** Present only when module === "flight" and booking was created via booking-request-action. */
+  flightDetail: FlightBookingDetail | null
   paymentSummary: ReservationPaymentSummary
   payments: ReservationDetailPaymentRow[]
   auditTimeline: ReservationAuditEntry[]
@@ -96,6 +138,102 @@ export interface LoadReservationDetailInput {
   /** `null` uniquement pour un super_admin (RLS autorise alors tout agencyId). */
   agencyId: string | null
   isSuperAdmin: boolean
+}
+
+async function loadFlightDetail(
+  tx: DrizzleTransaction,
+  reservationId: string,
+): Promise<FlightBookingDetail | null> {
+  const fbRows = await tx
+    .select({
+      id: flightBookings.id,
+      status: flightBookings.status,
+      pnr: flightBookings.pnr,
+      slaDeadline: flightBookings.slaDeadline,
+      opsNotes: flightBookings.opsNotes,
+    })
+    .from(flightBookings)
+    .where(eq(flightBookings.reservationId, reservationId))
+    .limit(1)
+  const fb = (fbRows as Array<{ id: string; status: string; pnr: string | null; slaDeadline: Date | null; opsNotes: string | null }>)[0]
+  if (!fb) return null
+
+  const [ticketRows, segmentRows, passengerRows] = await Promise.all([
+    tx
+      .select({ ticketNumber: flightTickets.ticketNumber, status: flightTickets.status })
+      .from(flightTickets)
+      .where(eq(flightTickets.bookingId, fb.id))
+      .orderBy(flightTickets.issuedAt),
+    tx
+      .select({
+        sequence: flightBookingSegments.sequence,
+        origin: flightBookingSegments.origin,
+        destination: flightBookingSegments.destination,
+        departure: flightBookingSegments.departure,
+        arrival: flightBookingSegments.arrival,
+        airline: flightBookingSegments.airline,
+        flightNumber: flightBookingSegments.flightNumber,
+        cabin: flightBookingSegments.cabin,
+        durationMin: flightBookingSegments.durationMin,
+      })
+      .from(flightBookingSegments)
+      .where(eq(flightBookingSegments.bookingId, fb.id))
+      .orderBy(flightBookingSegments.sequence),
+    tx
+      .select({
+        sequence: flightBookingPassengers.sequence,
+        passengerType: flightBookingPassengers.passengerType,
+        firstName: flightBookingPassengers.firstName,
+        lastName: flightBookingPassengers.lastName,
+        birthDate: flightBookingPassengers.birthDate,
+        nationality: flightBookingPassengers.nationality,
+        passportNumber: flightBookingPassengers.passportNumber,
+        passportExpiry: flightBookingPassengers.passportExpiry,
+      })
+      .from(flightBookingPassengers)
+      .where(eq(flightBookingPassengers.bookingId, fb.id))
+      .orderBy(flightBookingPassengers.sequence),
+  ])
+
+  const toIso = (v: Date | string) => (v instanceof Date ? v.toISOString() : String(v))
+
+  return {
+    bookingId: fb.id,
+    bookingStatus: fb.status,
+    pnr: fb.pnr,
+    slaDeadline: fb.slaDeadline ? fb.slaDeadline.toISOString() : null,
+    opsNotes: fb.opsNotes,
+    passengers: (passengerRows as Array<{
+      sequence: number; passengerType: string; firstName: string; lastName: string;
+      birthDate: string | null; nationality: string | null;
+      passportNumber: string | null; passportExpiry: string | null
+    }>).map((p) => ({
+      sequence: p.sequence,
+      passengerType: p.passengerType,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      birthDate: p.birthDate,
+      nationality: p.nationality,
+      passportNumber: p.passportNumber,
+      passportExpiry: p.passportExpiry,
+    })),
+    segments: (segmentRows as Array<{
+      sequence: number; origin: string; destination: string;
+      departure: Date | string; arrival: Date | string;
+      airline: string; flightNumber: string; cabin: string; durationMin: number | null
+    }>).map((s) => ({
+      sequence: s.sequence,
+      origin: s.origin,
+      destination: s.destination,
+      departure: toIso(s.departure),
+      arrival: toIso(s.arrival),
+      airline: s.airline,
+      flightNumber: s.flightNumber,
+      cabin: s.cabin,
+      durationMin: s.durationMin,
+    })),
+    tickets: (ticketRows as Array<{ ticketNumber: string; status: string }>),
+  }
 }
 
 async function loadModuleDetail(
@@ -167,6 +305,44 @@ async function loadModuleDetail(
       return { supplierLabel: "Voyage organisé", startDate: row.departureDate, endDate: row.returnDate, providerBookingId: null }
     }
     case "flight": {
+      // New pipeline: flight_bookings (booking-request-action + fulfillment-action).
+      // Read origin/destination/departure from the first segment; fallback to the
+      // legacy reservation_flight table for bookings created by guest-booking-actions.
+      const fbRows = await tx
+        .select({
+          id: flightBookings.id,
+          pnr: flightBookings.pnr,
+          status: flightBookings.status,
+        })
+        .from(flightBookings)
+        .where(eq(flightBookings.reservationId, reservationId))
+        .limit(1)
+      const fb = (fbRows as Array<{ id: string; pnr: string | null; status: string }>)[0]
+      if (fb) {
+        const segRows = await tx
+          .select({
+            origin: flightBookingSegments.origin,
+            destination: flightBookingSegments.destination,
+            departure: flightBookingSegments.departure,
+          })
+          .from(flightBookingSegments)
+          .where(eq(flightBookingSegments.bookingId, fb.id))
+          .orderBy(flightBookingSegments.sequence)
+          .limit(1)
+        const seg = (segRows as Array<{ origin: string; destination: string; departure: Date | string }>)[0]
+        const origin = seg?.origin ?? "—"
+        const destination = seg?.destination ?? "—"
+        const departIso = seg?.departure instanceof Date
+          ? seg.departure.toISOString()
+          : seg?.departure ? String(seg.departure) : null
+        return {
+          supplierLabel: `Vol ${origin} → ${destination}${fb.pnr ? ` (PNR ${fb.pnr})` : ""}`,
+          startDate: departIso,
+          endDate: null,
+          providerBookingId: fb.pnr,
+        }
+      }
+      // Legacy guest-booking-actions path.
       const rows = await tx
         .select({ origin: reservationFlight.origin, destination: reservationFlight.destination, departAt: reservationFlight.departAt, pnr: reservationFlight.pnr })
         .from(reservationFlight)
@@ -202,6 +378,32 @@ async function loadModuleDetail(
         startDate: null,
         endDate: null,
         providerBookingId: null,
+      }
+    }
+    case "car": {
+      const rows = await tx
+        .select({
+          categoryName: carCategories.name,
+          pickupLocationName: carLocations.name,
+          pickupAt: reservationCar.pickupAt,
+          dropoffAt: reservationCar.dropoffAt,
+          providerBookingId: reservationCar.providerBookingId,
+        })
+        .from(reservationCar)
+        .innerJoin(carCategories, eq(carCategories.id, reservationCar.categoryId))
+        .innerJoin(carLocations, eq(carLocations.id, reservationCar.pickupLocationId))
+        .where(eq(reservationCar.reservationId, reservationId))
+      const row = rows[0] as
+        | { categoryName: string; pickupLocationName: string; pickupAt: Date | string; dropoffAt: Date | string; providerBookingId: string | null }
+        | undefined
+      if (!row) return null
+      const pickupIso = row.pickupAt instanceof Date ? row.pickupAt.toISOString() : String(row.pickupAt)
+      const dropoffIso = row.dropoffAt instanceof Date ? row.dropoffAt.toISOString() : String(row.dropoffAt)
+      return {
+        supplierLabel: `${row.categoryName} — ${row.pickupLocationName}`,
+        startDate: pickupIso,
+        endDate: dropoffIso,
+        providerBookingId: row.providerBookingId,
       }
     }
     default:
@@ -255,12 +457,13 @@ export async function loadReservationDetail(
       const row = rows[0]
       if (!row) return null
 
-      const [paymentSummary, moduleDetail, paymentRows, auditRows, invoiceRows] = await Promise.all([
+      const [paymentSummary, moduleDetail, flightDetail, paymentRows, auditRows, invoiceRows] = await Promise.all([
         getReservationPaymentSummary({
           reservationId: row.id,
           txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
         }),
         loadModuleDetail(tx, row.id, row.module),
+        row.module === "flight" ? loadFlightDetail(tx, row.id) : Promise.resolve(null),
         tx
           .select({
             id: payments.id,
@@ -323,6 +526,7 @@ export async function loadReservationDetail(
         },
         agency: { id: row.agencyId, name: row.agencyName ?? "—", agencyType: row.agencyType ?? "ota" },
         moduleDetail,
+        flightDetail: flightDetail as FlightBookingDetail | null,
         paymentSummary,
         payments: (paymentRows as Array<{ id: string; method: string; status: string; tndAmount: string; refundedAmount: string; capturedAt: Date | null; createdAt: Date }>).map((p) => ({
           id: p.id,

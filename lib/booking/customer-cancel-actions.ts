@@ -47,6 +47,7 @@ import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
 import { reverseEarnedPoints, reinstateRedeemedPoints } from "@/lib/loyalty/rewards-core"
+import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -213,6 +214,18 @@ export async function cancelMyHotelReservation(
         actorUserId: user.id,
       })
 
+      const cancelledAt = new Date()
+      const effectiveRefundTnd = refundResult.ok ? refundResult.refundedTnd : 0
+
+      await recordCancellationFinancials({
+        tx,
+        reservationId,
+        cancellationFeeTnd: feeTnd,
+        refundAmountTnd: effectiveRefundTnd,
+        reason: `Annulation client — frais fournisseur ${formatTnd(feeTnd)} DT`,
+        cancelledAt,
+      })
+
       await tx.insert(auditEvents).values({
         agencyId: tenant.agencyId ?? "",
         actorUserId: user.id,
@@ -230,7 +243,7 @@ export async function cancelMyHotelReservation(
 
       return {
         ok: true,
-        refundedTnd: refundResult.ok ? refundResult.refundedTnd : 0,
+        refundedTnd: effectiveRefundTnd,
         feeTnd,
       } as CancelMyReservationResult
     })

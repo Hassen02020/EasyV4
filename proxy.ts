@@ -209,12 +209,15 @@ export const config = {
      * Match all request paths except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico / icons / images
-     * - manifest.json (PWA manifest)
-     * - robots.txt / sitemap.xml (chantier 4 — routes globales, jamais
-     *   préfixées par une locale ni tenant-résolues)
-     * - public assets (any path with a file extension)
+     * - public assets (any path with a file extension, e.g. .png/.svg/.ico/
+     *   .json/.xml/.txt) — un fichier statique dans `public/` n'est jamais
+     *   servi sous un préfixe de locale, donc ne doit jamais traverser le
+     *   middleware i18n (voir bug réel corrigé : la liste de noms codés en
+     *   dur précédente — favicon.ico/icon.svg/placeholder*.png/... —
+     *   oubliait tout fichier non explicitement listé, ex.
+     *   `easy2book-logo.png` redirigé à tort vers `/fr/easy2book-logo.png`
+     *   → 404, reproduit sur tous les déploiements Vercel de ce dépôt).
      */
-    "/((?!_next/static|_next/image|favicon.ico|icon\\.svg|icon-.*\\.png|apple-icon\\.png|manifest\\.json|robots\\.txt|sitemap\\.xml|placeholder.*\\.(?:png|jpg|svg)).*)",
+    "/((?!_next/static|_next/image|.*\\..*).*)",
   ],
 }

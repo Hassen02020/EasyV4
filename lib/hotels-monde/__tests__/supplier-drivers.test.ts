@@ -3,18 +3,34 @@
  * `searchAcrossWorldHotelDrivers()` est une fonction pure (pas de DB, pas
  * de `server-only`) — testée ici avec des drivers factices, indépendamment
  * du fournisseur virtuel réel ou de l'appel réseau réel. `getConfigStatus`
- * des deux vrais drivers (mutuellement exclusifs via WORLD_HOTELS_API_KEY)
- * est aussi vérifié, avec restauration systématique des env vars.
+ * des deux vrais drivers (mutuellement exclusifs via RATEHAWK_KEY_ID/
+ * RATEHAWK_API_KEY) est aussi vérifié, avec restauration systématique des
+ * env vars.
  */
 import test from "node:test"
 import assert from "node:assert/strict"
 import {
   searchAcrossWorldHotelDrivers,
   createVirtualWorldHotelDriver,
-  createWorldHotelApiDriver,
+  createRateHawkDriver,
+  convertRateHawkAmountToTnd,
   type WorldHotelSupplierDriver,
 } from "@/lib/hotels-monde/supplier-drivers"
+import { CURRENCY_META } from "@/lib/currency"
 import type { WorldHotelOffer, WorldHotelSearchInput } from "@/lib/hotels-monde/client"
+
+test("convertRateHawkAmountToTnd — convertit un montant USD (devise RateHawk) en TND", () => {
+  // RateHawk est toujours interrogé en currency:"USD" (voir createRateHawkDriver) —
+  // un bug réel a laissé passer un montant USD brut dans pricePerNightTnd/
+  // totalPriceTnd sans conversion ; ce test protège contre une régression.
+  const amountUsd = 32
+  assert.equal(convertRateHawkAmountToTnd(amountUsd, "USD"), amountUsd / CURRENCY_META.USD.rateFromTND)
+  assert.equal(convertRateHawkAmountToTnd(32, "USD"), 100)
+})
+
+test("convertRateHawkAmountToTnd — passthrough si déjà en TND", () => {
+  assert.equal(convertRateHawkAmountToTnd(150, "TND"), 150)
+})
 
 const INPUT: WorldHotelSearchInput = {
   destination: "istanbul",
@@ -128,25 +144,30 @@ test("searchAcrossWorldHotelDrivers — aucun driver CONFIGURED → NO_SUPPLIER_
   assert.deepEqual(calls, [])
 })
 
-test("virtual/api drivers réels — mutuellement exclusifs via WORLD_HOTELS_API_KEY (comportement historique préservé)", () => {
-  const prevKey = process.env.WORLD_HOTELS_API_KEY
+test("virtual/ratehawk drivers réels — mutuellement exclusifs via RATEHAWK_KEY_ID/RATEHAWK_API_KEY (comportement historique préservé)", () => {
+  const prevKeyId = process.env.RATEHAWK_KEY_ID
+  const prevApiKey = process.env.RATEHAWK_API_KEY
   const prevDemo = process.env.WORLD_HOTELS_DEMO_MODE
   try {
-    delete process.env.WORLD_HOTELS_API_KEY
+    delete process.env.RATEHAWK_KEY_ID
+    delete process.env.RATEHAWK_API_KEY
     delete process.env.WORLD_HOTELS_DEMO_MODE
     assert.equal(createVirtualWorldHotelDriver().getConfigStatus(), "CONFIGURED")
-    assert.equal(createWorldHotelApiDriver().getConfigStatus(), "NOT_CONFIGURED")
+    assert.equal(createRateHawkDriver().getConfigStatus(), "NOT_CONFIGURED")
 
-    process.env.WORLD_HOTELS_API_KEY = "fake-key"
+    process.env.RATEHAWK_KEY_ID = "fake-key-id"
+    process.env.RATEHAWK_API_KEY = "fake-api-key"
     assert.equal(createVirtualWorldHotelDriver().getConfigStatus(), "NOT_CONFIGURED")
-    assert.equal(createWorldHotelApiDriver().getConfigStatus(), "CONFIGURED")
+    assert.equal(createRateHawkDriver().getConfigStatus(), "CONFIGURED")
 
     process.env.WORLD_HOTELS_DEMO_MODE = "true"
     assert.equal(createVirtualWorldHotelDriver().getConfigStatus(), "CONFIGURED")
-    assert.equal(createWorldHotelApiDriver().getConfigStatus(), "NOT_CONFIGURED")
+    assert.equal(createRateHawkDriver().getConfigStatus(), "NOT_CONFIGURED")
   } finally {
-    if (prevKey === undefined) delete process.env.WORLD_HOTELS_API_KEY
-    else process.env.WORLD_HOTELS_API_KEY = prevKey
+    if (prevKeyId === undefined) delete process.env.RATEHAWK_KEY_ID
+    else process.env.RATEHAWK_KEY_ID = prevKeyId
+    if (prevApiKey === undefined) delete process.env.RATEHAWK_API_KEY
+    else process.env.RATEHAWK_API_KEY = prevApiKey
     if (prevDemo === undefined) delete process.env.WORLD_HOTELS_DEMO_MODE
     else process.env.WORLD_HOTELS_DEMO_MODE = prevDemo
   }

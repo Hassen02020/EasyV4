@@ -9,14 +9,20 @@
 
 import Link from "next/link"
 import {
+  AlertTriangle,
   Building2,
   Calendar,
   CreditCard,
   Download,
   FileText,
   History,
+  MoveRight,
+  Plane,
+  Ticket,
   User,
+  Users,
 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -191,6 +197,136 @@ export function ReservationDetailView({
             )}
           </CardContent>
         </Card>
+
+        {detail.flightDetail ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Plane className="h-4 w-4" /> Statut GDS / Billet
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground">Statut GDS :</span>
+                <Badge variant="outline" className="font-mono">{detail.flightDetail.bookingStatus}</Badge>
+                {detail.flightDetail.pnr ? (
+                  <span className="font-mono text-xs">PNR : <strong>{detail.flightDetail.pnr}</strong></span>
+                ) : null}
+              </div>
+              {detail.flightDetail.slaDeadline ? (
+                <p className="text-muted-foreground">
+                  Délai d&apos;émission : <span className="font-medium text-foreground">{formatDate(detail.flightDetail.slaDeadline)}</span>
+                </p>
+              ) : null}
+              {detail.flightDetail.opsNotes ? (
+                <Alert variant="destructive" className="py-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">{detail.flightDetail.opsNotes}</AlertDescription>
+                </Alert>
+              ) : null}
+              {detail.flightDetail.passengers.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="flex items-center gap-1 font-medium">
+                    <Users className="h-3.5 w-3.5" /> Voyageurs
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Nom</TableHead>
+                          <TableHead>Prénom</TableHead>
+                          <TableHead>Nationalité</TableHead>
+                          <TableHead>Passeport</TableHead>
+                          <TableHead>Expiration</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.flightDetail.passengers.map((pax) => (
+                          <TableRow key={pax.sequence}>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px]">{pax.passengerType}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium uppercase">{pax.lastName}</TableCell>
+                            <TableCell>{pax.firstName}</TableCell>
+                            <TableCell className="font-mono text-xs">{pax.nationality ?? "—"}</TableCell>
+                            <TableCell className="font-mono text-xs">{pax.passportNumber ?? "—"}</TableCell>
+                            <TableCell className="tabular-nums text-xs">{pax.passportExpiry ?? "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : null}
+              {detail.flightDetail.segments.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="flex items-center gap-1 font-medium">
+                    <MoveRight className="h-3.5 w-3.5" /> Itinéraire
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>#</TableHead>
+                          <TableHead>Tronçon</TableHead>
+                          <TableHead>Départ</TableHead>
+                          <TableHead>Arrivée</TableHead>
+                          <TableHead>Vol</TableHead>
+                          <TableHead>Cabine</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.flightDetail.segments.map((seg) => (
+                          <TableRow key={seg.sequence}>
+                            <TableCell className="tabular-nums">{seg.sequence}</TableCell>
+                            <TableCell className="font-mono text-xs font-semibold">
+                              {seg.origin} → {seg.destination}
+                            </TableCell>
+                            <TableCell className="tabular-nums text-xs">{formatDate(seg.departure)}</TableCell>
+                            <TableCell className="tabular-nums text-xs">{formatDate(seg.arrival)}</TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {seg.airline}{seg.flightNumber}
+                              {seg.durationMin ? <span className="text-muted-foreground ml-1">({Math.floor(seg.durationMin / 60)}h{String(seg.durationMin % 60).padStart(2, "0")})</span> : null}
+                            </TableCell>
+                            <TableCell className="text-xs">{seg.cabin}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : null}
+              {detail.flightDetail.tickets.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="flex items-center gap-1 font-medium">
+                    <Ticket className="h-3.5 w-3.5" /> Billets émis
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Numéro de billet</TableHead>
+                          <TableHead>Statut</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.flightDetail.tickets.map((tk) => (
+                          <TableRow key={tk.ticketNumber}>
+                            <TableCell className="font-mono text-xs">{tk.ticketNumber}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{tk.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>

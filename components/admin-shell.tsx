@@ -28,6 +28,9 @@ import {
   XCircle,
   Star,
   HeartHandshake,
+  Car,
+  Bus,
+  BadgeDollarSign,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -157,6 +160,8 @@ const managerNavItems: NavItem[] = [
         href: "/admin/products",
         icon: Activity,
       },
+      { title: "Transferts", href: "/admin/transferts", icon: Bus },
+      { title: "Voitures", href: "/admin/car", icon: Car },
     ],
   },
   {
@@ -176,6 +181,11 @@ const managerNavItems: NavItem[] = [
       },
       { title: "Factures", href: "/admin/accounting/invoices", icon: FileText },
       { title: "Rapports", href: "/admin/accounting/reports", icon: Activity },
+      {
+        title: "Settlements",
+        href: "/admin/accounting/settlements",
+        icon: BadgeDollarSign,
+      },
     ],
   },
   {

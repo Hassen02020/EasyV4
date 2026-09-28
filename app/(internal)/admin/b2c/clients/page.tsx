@@ -9,7 +9,6 @@ import { redirect } from "next/navigation"
 import {
   Users,
   Search,
-  Plus,
   Mail,
   Phone,
   Calendar,
@@ -23,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -35,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { B2cClientRowActions } from "@/components/admin/b2c-client-row-actions"
+import { NewClientDialog } from "@/components/admin/new-client-dialog"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -57,6 +56,7 @@ async function loadClients(agencyId: string) {
           db
             .select({
               id: customers.id,
+              civility: customers.civility,
               firstName: customers.firstName,
               lastName: customers.lastName,
               email: customers.email,
@@ -146,10 +146,7 @@ export default async function B2CClientsPage() {
             Base de données clients et historique
           </p>
         </div>
-        <Button className="bg-sidebar" disabled title="Pas encore disponible">
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau client
-        </Button>
+        <NewClientDialog />
       </div>
 
       {/* Stats */}
@@ -275,7 +272,17 @@ export default async function B2CClientsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <B2cClientRowActions
-                          displayName={`${client.firstName} ${client.lastName}`}
+                          client={{
+                            id: client.id,
+                            civility: (client.civility as "M" | "Mme" | "Mlle" | null) ?? null,
+                            firstName: client.firstName,
+                            lastName: client.lastName,
+                            email: client.email,
+                            phone: client.phone,
+                            civicId: client.civicId,
+                            city: client.city,
+                            country: client.country,
+                          }}
                         />
                       </TableCell>
                     </TableRow>

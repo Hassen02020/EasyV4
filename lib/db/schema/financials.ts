@@ -14,6 +14,7 @@
 
 import { sql } from "drizzle-orm"
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -191,6 +192,18 @@ export const walletLedger = pgTable(
     amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
     balanceBefore: decimal("balance_before", { precision: 14, scale: 2 }).notNull(),
     balanceAfter: decimal("balance_after", { precision: 14, scale: 2 }).notNull(),
+
+    /**
+     * chantier-49C, étape 1 (expand/contract) — colonnes entiers de
+     * millimes EN PARALLÈLE des colonnes decimal ci-dessus, double-écrites
+     * par le code applicatif (lib/finance/millimes.ts). Nullable : aucune
+     * lecture n'en dépend encore, une valeur NULL signale une ligne écrite
+     * avant ce chantier (backfillée séparément) ou un chemin de code pas
+     * encore migré vers la double-écriture — jamais confondu avec un 0 réel.
+     */
+    amountMillimes: bigint("amount_millimes", { mode: "number" }),
+    balanceBeforeMillimes: bigint("balance_before_millimes", { mode: "number" }),
+    balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
 
     // Corrélation métier
     reservationId: uuid("reservation_id"),

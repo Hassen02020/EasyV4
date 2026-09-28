@@ -20,6 +20,7 @@
 import { eq, sql } from "drizzle-orm"
 
 import { getDb } from "@/lib/db/client"
+import { toMillimes } from "@/lib/finance/millimes"
 import { getRedis } from "@/lib/cache/redis"
 import { metrics } from "@/lib/observability/metrics"
 import {
@@ -374,6 +375,9 @@ export async function debitPartnerCredit(
         reservationId: input.reservationId,
         createdByUserId: input.createdByUserId,
         idempotencyKey: input.idempotencyKey ?? null,
+        // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+        amountMillimes: toMillimes(-input.amountTnd),
+        balanceAfterMillimes: toMillimes(newBalance),
       }
 
       // SAVEPOINT : un INSERT qui échoue (violation de contrainte unique)

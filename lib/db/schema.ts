@@ -24,6 +24,7 @@
 import { sql } from "drizzle-orm"
 import { marginType, walletTxType } from "./schema/financials"
 import {
+  bigint,
   boolean,
   date,
   decimal,
@@ -1841,6 +1842,13 @@ export const partnerCreditMovements = pgTable(
       precision: 12,
       scale: 3,
     }).notNull(),
+    /**
+     * chantier-49C, étape 1 (expand/contract) — voir commentaire équivalent
+     * sur wallet_ledger (lib/db/schema/financials.ts). Nullable, double-
+     * écrites par lib/finance/millimes.ts, aucune lecture n'en dépend encore.
+     */
+    amountMillimes: bigint("amount_millimes", { mode: "number" }),
+    balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
     /** Référence externe (n° réservation, n° facture, etc.). */
     reference: varchar("reference", { length: 64 }),
     /** Lien optionnel à une réservation. */

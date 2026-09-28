@@ -10,6 +10,7 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
 import { sendEvent } from "@/lib/inngest/client"
 import { pgErrorCode } from "@/lib/db/pg-error"
+import { toMillimes } from "@/lib/finance/millimes"
 
 /* -------------------------------------------------------------------------- */
 /* Guard super_admin                                                            */
@@ -327,6 +328,9 @@ export async function adminRechargeWallet(
             reference: `ADMIN-RECHARGE-${Date.now().toString(36).toUpperCase()}`,
             description: `Recharge directe admin${note ? ` — ${note}` : ""}`,
             createdByUserId: actorId,
+            // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+            amountMillimes: toMillimes(amountTnd),
+            balanceAfterMillimes: toMillimes(newBalance),
           })
           .returning({ id: partnerCreditMovements.id })
 

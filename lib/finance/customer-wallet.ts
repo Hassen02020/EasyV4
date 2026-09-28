@@ -59,6 +59,7 @@
 
 import { eq, and, isNull, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
+import { toMillimes } from "@/lib/finance/millimes"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { getRedis } from "@/lib/cache/redis"
 import { walletAccounts, walletLedger, type NewWalletLedger } from "@/lib/db/schema"
@@ -297,6 +298,10 @@ export async function debitCustomerWallet(
       reservationId: input.reservationId,
       category: "booking",
       idempotencyKey: input.idempotencyKey ?? null,
+      // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+      amountMillimes: toMillimes(input.amountTnd),
+      balanceBeforeMillimes: toMillimes(balanceBefore),
+      balanceAfterMillimes: toMillimes(balanceAfter),
     }
 
     // SAVEPOINT : voir commentaire équivalent dans
@@ -437,6 +442,10 @@ export async function creditCustomerWallet(
       paymentId: input.paymentId,
       category: input.source === "refund" ? "refund" : input.source === "adjustment" ? "adjustment" : "recharge",
       metadata: { paymentMethod: input.source },
+      // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+      amountMillimes: toMillimes(input.amountTnd),
+      balanceBeforeMillimes: toMillimes(balanceBefore),
+      balanceAfterMillimes: toMillimes(balanceAfter),
     }
     const inserted = (await tx
       .insert(walletLedger)

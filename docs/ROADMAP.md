@@ -37,12 +37,16 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: R1-10 (nouveau — inséré en tête par l'audit Phase 0, P0)
-Statut: EN ATTENTE DE GO — voir fiche chantier en fin d'audit (rapport 16.1, 2026-09-28)
-Branche: (aucune — lecture seule tant que le GO n'est pas donné)
+ID: (aucun — en attente de proposition du prochain chantier)
+Statut: R1-10 CLÔTURÉ (voir ci-dessous). Prochain chantier à proposer un par un, un GO à la fois.
+Branche: (aucune)
 ```
 
 **Phase 0 exécutée le 2026-09-28** (agents A1-A8, lecture seule). Rapport complet livré en session. Résumé exécutif et détails par phase ci-dessous (colonne "État audit").
+
+### R1-10 — CLÔTURÉ (2026-09-28)
+
+`resolve_session_context(uuid)` (`SECURITY DEFINER`) était encore exécutable par `anon`/`authenticated` via REST malgré `0068` (qui avait fermé 5 autres fonctions du même type). `REVOKE EXECUTE` appliqué en production (`crygnaichvlxavvbifqi`) et versionné dans `drizzle/manual/0073_revoke_public_execute_resolve_session_context.sql`. Vérifié : `anon_can_exec=false`, `authenticated_can_exec=false`, `app_runtime_can_exec=true` ; advisory de sécurité correspondant disparu. PR : https://github.com/Hassen02020/EasyV4/pull/50 (en attente de merge, GO séparé requis).
 
 ---
 

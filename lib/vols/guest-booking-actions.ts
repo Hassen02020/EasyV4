@@ -33,7 +33,9 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { reservations, reservationFlight, payments, auditEvents } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -41,6 +43,7 @@ import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "@/lib/bo
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { flightGuestBookingSchema, type FlightGuestBookingInput } from "./schemas"
 import { book as bookFlight, cancel as cancelFlight, type BookResult } from "./virtual-supplier/engine"
+import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
 export type FlightGuestPaymentMethod = "card" | "transfer" | "cash"
 
@@ -127,12 +130,44 @@ async function runCreateGuestFlightBooking(
 
   const firstTraveler = booking.travelers[0]!
 
+  // Marge agence — même règle que search (app/api/vols/search/route.ts),
+  // jamais recalculée différemment : book() compare le prix agence (net +
+  // marge), pas le prix net brut, à `expectedPriceTnd`.
+  const margins = await getMarginsForAgency(agencyId)
+
+  // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
+  // Empêche deux requêtes concurrentes sur LE MÊME offerToken d'appeler
+  // toutes les deux bookFlight() — même raisonnement que
+  // lib/hotels-monde/guest-booking-actions.ts (pas de backstop DB
+  // `guestIdempotencyKey` sur cette table non plus). `sessionId` frais par
+  // invocation, jamais l'idempotencyKey déterministe (voir commentaire
+  // équivalent côté Hôtels Monde).
+  const lockSessionId = crypto.randomUUID()
+  const lockResult = await acquireLock({
+    agencyId,
+    sessionId: lockSessionId,
+    module: "flight",
+    itemId: booking.offerToken,
+  })
+  if (!lockResult.ok) {
+    return { ok: false, error: lockResult.message, code: lockResult.reason }
+  }
+  const releaseInventoryLock = (reservationId?: string) =>
+    releaseLock({
+      agencyId,
+      sessionId: lockSessionId,
+      module: "flight",
+      itemId: booking.offerToken,
+      reservationId,
+    })
+
   // --- Revalidation fournisseur RÉELLE (Virtual Flight Supplier) ---
   // Jamais de prix ni de disponibilité fournis par le client — book()
   // régénère l'offre déterministe et compare au prix attendu, décrémente
   // l'inventaire réel et n'émet un PNR qu'en cas de succès.
-  const bookResult: BookResult = await bookFlight(booking.offerToken, booking.expectedPriceTnd)
+  const bookResult: BookResult = await bookFlight(booking.offerToken, booking.expectedPriceTnd, margins.flight)
   if (!bookResult.ok) {
+    await releaseInventoryLock()
     return {
       ok: false,
       error: BOOK_ERROR_MESSAGES[bookResult.kind] ?? bookResult.message,
@@ -151,6 +186,7 @@ async function runCreateGuestFlightBooking(
       adults: bookResult.adults,
       children: bookResult.children,
     })
+    await releaseInventoryLock()
     return {
       ok: false,
       error: "Le nombre de voyageurs ne correspond pas au nombre de passagers de cette offre.",
@@ -254,6 +290,16 @@ async function runCreateGuestFlightBooking(
         capturedAt: isImmediatelyPaid ? new Date() : undefined,
       })
 
+      // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges (voir
+      // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
+      // déjà calculés par bookFlight()/applyMargin(), jamais un recalcul.
+      await recordReservationFinancials({
+        tx,
+        reservationId,
+        supplierPriceTnd: bookResult.supplierPriceTnd,
+        salePriceTnd: bookResult.totalPriceTnd,
+      })
+
       const firstSegment = bookResult.segments[0]!
       const lastSegment = bookResult.segments[bookResult.segments.length - 1]!
       await tx.insert(reservationFlight).values({
@@ -333,6 +379,7 @@ async function runCreateGuestFlightBooking(
       }
     }
 
+    await releaseInventoryLock(result.reservationId)
     return {
       ok: true,
       reservationId: result.reservationId,
@@ -344,7 +391,8 @@ async function runCreateGuestFlightBooking(
   } catch (err) {
     // Tout échec après bookFlight() (paiement refusé, conflit DB) doit
     // restituer l'inventaire déjà réservé — même principe de compensation
-    // que confirmHotelWithProvider()/cancelBooking() côté myGo.
+    // que confirmHotelWithProvider()/cancelBooking() côté myGo. Aucune
+    // réservation locale créée par CETTE tentative (transaction annulée).
     let compensationNote = ""
     try {
       await cancelFlight({
@@ -356,6 +404,7 @@ async function runCreateGuestFlightBooking(
     } catch {
       compensationNote = ` Réservation fournisseur ${bookResult.pnr} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
     }
+    await releaseInventoryLock()
     if (err instanceof BookingRejected) {
       return { ok: false, error: `${err.message}${compensationNote}`, code: err.code }
     }

@@ -39,7 +39,9 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { reservations, reservationHotel, payments, auditEvents } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -48,6 +50,7 @@ import { hashSeed } from "@/lib/hotels-monde/virtual-supplier/rng"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { worldHotelGuestBookingSchema, type WorldHotelGuestBookingInput } from "./schemas"
 import { book as bookWorldHotel, cancel as cancelWorldHotel, type BookResult } from "./virtual-supplier/engine"
+import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
 export type WorldHotelGuestPaymentMethod = "card" | "transfer" | "cash"
 
@@ -141,12 +144,48 @@ async function runCreateGuestWorldHotelBooking(
 
   const guest = booking.guest
 
+  // Marge agence — même règle que search (app/api/hotels-monde/search/
+  // route.ts), jamais recalculée différemment : book() compare le prix agence
+  // (net + marge), pas le prix net brut, à `expectedPriceTnd`.
+  const margins = await getMarginsForAgency(agencyId)
+
+  // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
+  // Empêche deux requêtes concurrentes sur LE MÊME offerToken d'appeler
+  // toutes les deux bookWorldHotel() — cette réservation n'a PAS de backstop
+  // DB équivalent à `reservations_guest_idempotency_uniq` (aucun
+  // `guestIdempotencyKey` n'est posé sur l'INSERT ci-dessous), donc ce
+  // verrou est ici la seule protection réelle contre un double appel
+  // fournisseur concurrent, pas une couche redondante. `sessionId` frais par
+  // invocation (jamais l'idempotencyKey, dérivée de façon déterministe du
+  // contenu — deux soumissions identiques concurrentes partageraient donc la
+  // même clé et se ré-acquerraient idempotemment le même verrou sans jamais
+  // se bloquer l'une l'autre).
+  const lockSessionId = crypto.randomUUID()
+  const lockResult = await acquireLock({
+    agencyId,
+    sessionId: lockSessionId,
+    module: "hotel_monde",
+    itemId: booking.offerToken,
+  })
+  if (!lockResult.ok) {
+    return { ok: false, error: lockResult.message, code: lockResult.reason }
+  }
+  const releaseInventoryLock = (reservationId?: string) =>
+    releaseLock({
+      agencyId,
+      sessionId: lockSessionId,
+      module: "hotel_monde",
+      itemId: booking.offerToken,
+      reservationId,
+    })
+
   // --- Revalidation fournisseur RÉELLE (Virtual World Hotel Supplier) ---
   // Jamais de prix ni de disponibilité fournis par le client — book()
   // régénère l'offre déterministe et compare au prix attendu, décrémente
   // l'inventaire réel et n'émet un numéro de confirmation qu'en cas de succès.
-  const bookResult: BookResult = await bookWorldHotel(booking.offerToken, booking.expectedPriceTnd)
+  const bookResult: BookResult = await bookWorldHotel(booking.offerToken, booking.expectedPriceTnd, margins.hotel)
   if (!bookResult.ok) {
+    await releaseInventoryLock()
     return {
       ok: false,
       error: BOOK_ERROR_MESSAGES[bookResult.kind] ?? bookResult.message,
@@ -249,6 +288,16 @@ async function runCreateGuestWorldHotelBooking(
         capturedAt: isImmediatelyPaid ? new Date() : undefined,
       })
 
+      // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges (voir
+      // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
+      // déjà calculés par bookWorldHotel()/applyMargin(), jamais un recalcul.
+      await recordReservationFinancials({
+        tx,
+        reservationId,
+        supplierPriceTnd: bookResult.supplierPriceTnd,
+        salePriceTnd: bookResult.totalPriceTnd,
+      })
+
       await tx.insert(reservationHotel).values({
         reservationId,
         agencyId,
@@ -334,6 +383,7 @@ async function runCreateGuestWorldHotelBooking(
       }
     }
 
+    await releaseInventoryLock(result.reservationId)
     return {
       ok: true,
       reservationId: result.reservationId,
@@ -345,7 +395,9 @@ async function runCreateGuestWorldHotelBooking(
   } catch (err) {
     // Tout échec après bookWorldHotel() (paiement refusé, conflit DB) doit
     // restituer l'inventaire déjà réservé — même principe de compensation
-    // que lib/vols/guest-booking-actions.ts.
+    // que lib/vols/guest-booking-actions.ts. Aucune réservation locale n'a
+    // pu être créée par CETTE tentative (transaction annulée) : le verrou
+    // se libère toujours sans reservationId ici.
     let compensationNote = ""
     try {
       await cancelWorldHotel({
@@ -356,6 +408,7 @@ async function runCreateGuestWorldHotelBooking(
     } catch {
       compensationNote = ` Réservation fournisseur ${bookResult.confirmationNumber} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
     }
+    await releaseInventoryLock()
     if (err instanceof BookingRejected) {
       return { ok: false, error: `${err.message}${compensationNote}`, code: err.code }
     }

@@ -17,6 +17,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/cron/reconcile-payments",
+      "schedule": "30 2 * * *"
+    },
+    {
       "path": "/api/cron/expire-loyalty-points",
       "schedule": "0 5 * * *"
     }

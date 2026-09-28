@@ -37,10 +37,12 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: R0-AUDIT
-Statut: À LANCER
-Branche: (aucune — lecture seule)
+ID: R1-10 (nouveau — inséré en tête par l'audit Phase 0, P0)
+Statut: EN ATTENTE DE GO — voir fiche chantier en fin d'audit (rapport 16.1, 2026-09-28)
+Branche: (aucune — lecture seule tant que le GO n'est pas donné)
 ```
+
+**Phase 0 exécutée le 2026-09-28** (agents A1-A8, lecture seule). Rapport complet livré en session. Résumé exécutif et détails par phase ci-dessous (colonne "État audit").
 
 ---
 
@@ -95,18 +97,17 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 | ID | Chantier | État audit | Fichiers / domaines probables | Critère de sortie |
 |---|---|---|---|---|
-| R1-01 | **Protéger `/admin` et les API d'administration** (auth + rôle serveur, pas seulement côté UI) | ? | `middleware.ts`, `app/admin/**`, routes API admin | Test E2E : anonyme → 401/redirect ; non-admin → 403 ; admin → 200 |
-| R1-02 | **Scan des secrets** (historique git inclus), rotation si fuite | ? | `.env*`, config, historique | Aucun secret dans l'arbre ni l'historique récent ; `.env.example` à jour |
-| R1-03 | **Tri des 13 PR** : fusionner / rebaser / fermer avec justification | ? | PR ouvertes | Chaque PR a une décision écrite ; aucune PR orpheline touchant un domaine P0 |
-| R1-04 | **Un seul gestionnaire de paquets** | ? | lockfiles, CI | Un lockfile, CI l'utilise, install propre reproductible |
-| R1-05 | **Une seule cible de déploiement** | ? | `vercel.json`, `netlify.toml` | Cible unique documentée ; l'autre supprimée avec preuve qu'elle n'est pas utilisée |
-| R1-06 | **Config build cohérente** (`vite.config.js` : utilisé ou mort ?) | ? | configs racine | Suppression prouvée ou rôle documenté |
-| R1-07 | **Baseline CI verte** : typecheck, lint, unit, build, E2E smoke | ? | `.github/workflows/**`, `e2e/` | CI bloquante sur PR ; `main` vert |
-| R1-08 | **README et nom de marque** alignés sur le code réel | ? | `README.md` | README décrit CURRENT, pas une vision passée |
-| R1-09 | **Consolider les rapports d'audit** existants dans `docs/audits/` (archivés, marqués « historique ») | ? | `*AUDIT*.md`, `*REPORT*.md` | Un seul index ; anciens rapports non autoritaires |
+| R1-01 | **Protéger `/admin` et les API d'administration** (auth + rôle serveur, pas seulement côté UI) | **N/A (déjà fait)** — VERIFIED. `middleware.ts` n'existe plus, remplacé par `proxy.ts` (garde RBAC réelle lignes 176-198) + double vérification indépendante dans `app/(internal)/admin/layout.tsx:35-51` + chaque route API admin revérifie session+rôle. Le claim README ("/admin public") est faux/obsolète. | `proxy.ts`, `app/(internal)/admin/layout.tsx`, `app/api/admin/**` | Atteint |
+| R1-02 | **Scan des secrets** (historique git inclus), rotation si fuite | **NOT VERIFIED** — aucun agent n'a fait de scan d'historique git dédié (gitleaks/trufflehog). Gestion des secrets fournisseurs en code jugée saine (AES-256-GCM, jamais loggés) par A6, mais ce n'est pas un scan d'historique. | historique git complet | À faire en chantier dédié si jugé prioritaire |
+| R1-03 | **Tri des 13 PR** : fusionner / rebaser / fermer avec justification | **FIX (baseline erronée)** — VERIFIED via GitHub : 8 PR ouvertes réelles (#6,7,9,10,11,12,13,16), pas 13. Toutes issues de sessions "Devin" datant de mai-juillet 2026, aucune ne recoupe les PR #44/#45/#46/#49 déjà fusionnées cette session. 30 branches au total, dont ~15 mortes/orphelines sans PR. | GitHub PR #6,7,9,10,11,12,13,16 | Chaque PR triée avec décision écrite (hors périmètre Phase 0, lecture seule) |
+| R1-04 | **Un seul gestionnaire de paquets** | **FIX** — VERIFIED. pnpm est le gestionnaire réel (lockfile à jour, 2026-09-26 ; README le documente). `package-lock.json` obsolète (dernier commit 2026-06-12, ~3.5 mois de retard) — résidu à supprimer. Aucune CI dans le repo pour trancher côté CI (voir R1-07). | `package-lock.json`, `pnpm-lock.yaml` | Suppression de `package-lock.json` |
+| R1-05 | **Une seule cible de déploiement** | **FIX** — VERIFIED. Vercel est la cible active et maintenue (6 cron jobs, fixes récents jusqu'au 2026-09-18, déploiements confirmés en prod cette session). `netlify.toml` mort/jamais opérationnel (dernier commit 2026-06-12, config minimale jamais suivie). | `vercel.json`, `netlify.toml` | Suppression de `netlify.toml` |
+| R1-06 | **Config build cohérente** (`vite.config.js` : utilisé ou mort ?) | **FIX** — VERIFIED mort et cassé : `vite`/`@vitejs/plugin-react` ne sont pas des dépendances directes (seulement transitif via vitest), aucun script ne le référence. | `vite.config.js` | Suppression |
+| R1-07 | **Baseline CI verte** : typecheck, lint, unit, build, E2E smoke | **CREATE — gap majeur (P1)** — VERIFIED : `.github/workflows/` **n'existe pas**. Aucun typecheck/lint/test/build/E2E automatique sur PR. `pnpm typecheck` (0 erreur) et `pnpm test` (1068/1068 pass, 203 skipped DB-mode) exécutés manuellement dans l'audit, mais rien n'est automatisé. Config Lighthouse (`lighthouserc.js`) et suite a11y (`e2e/a11y.spec.ts`, 5 pages seulement) existent mais sont dormantes, sans CI pour les exécuter. | `.github/workflows/**` (à créer) | CI bloquante sur PR ; `main` vert |
+| R1-08 | **README et nom de marque** alignés sur le code réel | **FIX (trivial)** — VERIFIED. Marque réelle = Easy2Book (package.json, SEO, logo, 0 occurrence "TunisiaGo" dans app/lib/components). README.md ligne 1/3 dit encore "TunisiaGo" et ligne 99 dit `/admin` public (faux, voir R1-01). | `README.md` | Correction des 2 passages obsolètes |
+| R1-09 | **Consolider les rapports d'audit** existants dans `docs/audits/` (archivés, marqués « historique ») | **NOT VERIFIED** — `docs/audits/` existe (confirmé en tout début de session), contenu non ré-audité pour doublons/statut "historique" explicite pendant cette Phase 0. | `docs/audits/**`, `*AUDIT*.md`, `*REPORT*.md` | Un seul index ; anciens rapports non autoritaires |
 
-**Ordre recommandé :** R1-01 → R1-02 → R1-03 → R1-07 → R1-04/05/06 → R1-08 → R1-09.
-R1-01 et R1-02 passent avant tout s'ils sont confirmés.
+**Ordre recommandé (mis à jour) :** R1-01 déjà fait → **nouveau P0 R1-10 (ci-dessous, hors table Phase 1 d'origine)** → R1-07 (CI) → R1-04/05/06 (cleanup config) → R1-08 (README) → R1-02/R1-03/R1-09 (à planifier).
 
 ---
 
@@ -114,14 +115,14 @@ R1-01 et R1-02 passent avant tout s'ils sont confirmés.
 
 **Cible :** `Platform → Tenant/Agency → User → Role → Permissions`. Un seul système utilisateur.
 
-| ID | Chantier | Critère de sortie |
-|---|---|---|
-| R2-01 | Cartographier tous les systèmes d'identité existants (auth provider, tables `users`/`profiles`, sessions) → décision **CONSOLIDATE** | Un seul modèle documenté, doublons listés avec plan de migration |
-| R2-02 | Modèle `tenant` (plateforme, agence, partenaire, fournisseur) et rattachement de chaque utilisateur | Chaque utilisateur a exactement un tenant principal ; contrainte en base |
-| R2-03 | RBAC : rôles (`platform_admin`, `agency_admin`, `agent`, `supplier`, `customer`…) et permissions vérifiées **côté serveur** | Matrice rôle × action testée |
-| R2-04 | RLS sur toutes les tables porteuses d'un `tenant_id` | Tests RLS : tenant A ne lit/n'écrit jamais les données de B |
-| R2-05 | Profil, invitation, désactivation, audit log des accès | E2E invitation → activation → accès limité au tenant |
-| R2-06 | Migration des comptes existants sans perte | Script de migration réversible, testé sur copie |
+| ID | Chantier | État audit | Critère de sortie |
+|---|---|---|---|
+| R2-01 | Cartographier tous les systèmes d'identité existants → décision **CONSOLIDATE** | **REUSE** — VERIFIED un seul système : Supabase Auth + table `users` (enum `user_role` unique : super_admin/manager/agent_resa/agent_compta/agent_excursions/partner_owner/partner_agent/mutuelle_director/mutuelle_member), pas de doublon trouvé. | Atteint |
+| R2-02 | Modèle `tenant` et rattachement de chaque utilisateur | **REUSE** — VERIFIED `agencyType` (ota/partner) + `agencyId` sur `users`, distinction staff Easy2Book vs agence B2B documentée et vérifiée serveur (`admin-gate.ts`). | Atteint (à confirmer : contrainte DB "exactement un tenant" non vérifiée explicitement) |
+| R2-03 | RBAC vérifié côté serveur | **REUSE** — VERIFIED defense-in-depth 4 couches (proxy → layout → route handler → Server Action), échantillon de 4+ fichiers de mutation sensible tous protégés par `assertSuperAdmin()`/`resolveSessionContext()`. ~46 fichiers `lib/admin|finance|pro/**` non échantillonnés individuellement (NOT VERIFIED exhaustif, pattern homogène observé). | Atteint sur échantillon ; grep exhaustif recommandé pour garantie totale |
+| R2-04 | RLS sur toutes les tables tenant | **EXTEND** — VERIFIED 60/67 tables avec `agencyId` ont RLS. **GAP** : 7 tables `flight_*` (`flight_commercial_rules`, `flight_orders`, `flight_bookings`, `flight_price_snapshots`, `flight_searches`, `flight_supplier_configs`, `flight_supplier_credentials`) ont `agencyId NOT NULL` en schéma/migrations mais AUCUNE policy RLS trouvée. **Vérifié en production (crygnaichvlxavvbifqi) : ces 7 tables n'existent pas du tout en base** — gap de migration jamais appliquée, pas un risque actif, mais RLS à écrire AVANT toute application future de ces migrations. | Ajouter RLS aux migrations `0064/0065` (ou équivalent) avant activation du module "Flight Puzzle" |
+| R2-05 | Profil, invitation, désactivation, audit log | **NOT VERIFIED** — non couvert explicitement par les 8 agents. | À auditer spécifiquement |
+| R2-06 | Migration des comptes existants sans perte | **N/A** — pas de migration de système identité en cours, un seul système déjà en place. | — |
 
 **Tests obligatoires :** RLS, Auth/RBAC, E2E login par rôle, régression des parcours publics.
 
@@ -131,12 +132,12 @@ R1-01 et R1-02 passent avant tout s'ils sont confirmés.
 
 **Flux cible :** `Agency → B2B User → Customer → Search → Quote → Booking → Payment → Wallet`.
 
-| ID | Chantier | Critère de sortie |
-|---|---|---|
-| R3-01 | Espace agence : utilisateurs B2B, clients de l'agence (ownership par tenant) | CRUD client isolé par tenant, testé |
-| R3-02 | Conditions commerciales par agence : markup, commission, devise, plafonds | Modèle `CommercialTerms` séparé du produit |
-| R3-03 | Devis (`Quote`) : figer prix fournisseur, prix commercial, prix client, validité | Devis reproductible, expiration gérée |
-| R3-04 | Conversion devis → réservation (branchée sur la Phase 6) | E2E devis → booking en statut `pending` |
+| ID | Chantier | État audit | Critère de sortie |
+|---|---|---|---|
+| R3-01 | Espace agence : utilisateurs B2B, clients de l'agence | **REUSE (probable)** — INFERRED : `lib/pro/**`, réservations B2B, débit crédit partenaire confirmés fonctionnels et RLS-scopés par A3/A5. Pas d'agent dédié CRUD clients agence — NOT VERIFIED en détail. | À confirmer |
+| R3-02 | Conditions commerciales par agence : markup, commission, devise | **REUSE** — VERIFIED `pricing_margins`/`margin_rules` avec RLS, `applyMargin`/`getMarginsForAgency` réellement utilisés (hôtels, vols, transferts, cars). Incohérence mineure notée (P6) : "car" appliqué hors du `MarginModule` type central. | Atteint, nettoyer l'incohérence "car" |
+| R3-03 | Devis (`Quote`) | **NOT VERIFIED** — aucun agent n'a trouvé de modèle `Quote` explicite ; à vérifier si le flux actuel (recherche → book direct) inclut une étape devis figé. | À auditer spécifiquement |
+| R3-04 | Conversion devis → réservation | **N/A si pas de Quote** — le flux actuel va directement recherche → booking → confirmation (VERIFIED par A4 sur tous les modules), sans étape devis intermédiaire identifiée. | À clarifier avec le produit |
 
 ---
 
@@ -144,50 +145,50 @@ R1-01 et R1-02 passent avant tout s'ils sont confirmés.
 
 **Invariants non négociables** (Master Prompt §13) : solde dérivé du ledger · append-only · montants entiers en unités mineures (TND = millimes, 3 décimales) · devise sur chaque montant · RLS par tenant.
 
-| ID | Chantier | Critère de sortie |
-|---|---|---|
-| R4-01 | Schéma `wallet_account` (par tenant et devise) et `ledger_entry` (double entrée, `amount_minor BIGINT`, `currency`, `reference_type`, `reference_id`, `idempotency_key UNIQUE`) | Migration + contraintes en base ; aucun `float`/`numeric` libre pour un montant |
-| R4-02 | Solde = vue ou agrégat du ledger (pas de colonne `balance` modifiable, ou colonne maintenue uniquement par trigger vérifié) | Test : somme des entrées = solde, toujours |
-| R4-03 | Interdiction UPDATE/DELETE sur `ledger_entry` (policy + trigger) ; corrections par écriture inverse | Test : UPDATE/DELETE refusés |
-| R4-04 | Service wallet côté serveur : `credit`, `debit`, `hold`, `release`, idempotents et transactionnels | Tests concurrence : deux débits simultanés ne passent pas sous zéro |
-| R4-05 | Écran wallet (solde, historique, export) pour l'agence | UI = données réelles, montants localisés |
+| ID | Chantier | État audit | Critère de sortie |
+|---|---|---|---|
+| R4-01 | Schéma wallet/ledger, montants entiers, idempotence | **REUSE (largement)** — VERIFIED : `wallet_ledger`/`partner_credit_movements` avec `idempotencyKey` + index unique partiel (SAVEPOINT/ROLLBACK pour les courses concurrentes) ; colonnes `*_millimes` (bigint) ajoutées en double-écriture (étape "expand" du chantier-49C), colonnes `decimal` restent seules sources de vérité pour l'instant. Aucun `float`/`double` dans tout le schéma (grep négatif, 100 usages `decimal`). | Étape "expand" atteinte ; bascule lecture différée (observation en cours) |
+| R4-02 | Solde dérivé du ledger, jamais modifié isolément | **REUSE** — VERIFIED : `agencies.deposit_balance` modifiable UNIQUEMENT via `set_agency_deposit_balance()` (SECURITY DEFINER), RLS ne permet pas d'UPDATE direct pour une session tenant normale ; les 7 sites d'appel sont tous accompagnés d'un insert `partnerCreditMovements` dans la même transaction. | Atteint |
+| R4-03 | Interdiction UPDATE/DELETE sur ledger | **FIX (gap P2)** — VERIFIED : `lib/finance/commission-settlement.ts:80-92` fait un `UPDATE wallet_ledger SET settled_at=…, settlement_id=…` en code applicatif — viole l'append-only au sens strict (montants non touchés, seulement métadonnées de rapprochement). Aucune autre violation trouvée (les `.delete()` trouvés sont dans des fixtures de test). | À corriger : remplacer par une table de rapprochement séparée ou un événement supplémentaire, jamais un UPDATE du ledger |
+| R4-04 | Service wallet serveur idempotent/transactionnel | **REUSE** — VERIFIED pattern à 3 couches (cache Redis best-effort + backstop DB par relecture + SAVEPOINT/ROLLBACK sur contrainte unique concurrente) sur `debitPartnerCredit`/`debitCustomerWallet`/`creditCustomerWallet`. Risque P3 documenté dans le code lui-même : dégradation silencieuse si Redis/Upstash absent (le backstop DB reste sûr). | Atteint |
+| R4-05 | Écran wallet agence | **REUSE (probable)** — non audité en détail par un agent dédié UI wallet. | À confirmer visuellement |
 
 ---
 
 ## Phase 5 — Recharge wallet
 
-| ID | Chantier | Critère de sortie |
-|---|---|---|
-| R5-01 | Identifier le(s) prestataire(s) de paiement déjà présents dans le code ; sinon proposer 2–3 options avec compromis (**décision utilisateur**) | Choix validé par GO |
-| R5-02 | Intention de recharge (`payment_intent`) avec clé d'idempotence, statut `pending → succeeded | failed` | Machine à états testée |
-| R5-03 | Webhook signé et vérifié, rejouable sans double crédit | Test : même webhook ×3 → un seul crédit ledger |
-| R5-04 | Crédit ledger uniquement sur confirmation serveur (jamais sur retour navigateur) | E2E recharge sandbox → solde à jour |
-| R5-05 | Recharge manuelle par admin (virement) avec justificatif et audit log | Trace complète, double validation si montant élevé |
+| ID | Chantier | État audit | Critère de sortie |
+|---|---|---|---|
+| R5-01 | Identifier le(s) prestataire(s) de paiement | **REUSE** — VERIFIED Stripe (HMAC-SHA256) + SPS/Paymee (SHA-512) déjà intégrés (`app/api/payment/webhook`), `SPS_ENVIRONMENT=sandbox` actuellement. | Atteint |
+| R5-02 | `payment_intent` idempotent, machine à états | **REUSE** — VERIFIED `walletRechargeRequests.status` (pending→validated/rejected), idempotence par `payment_events` (`ON CONFLICT DO NOTHING` sur event_id) + vérif business-level (statut déjà != pending → `already_processed`). | Atteint |
+| R5-03 | Webhook signé, rejouable sans double crédit | **REUSE** — VERIFIED signature vérifiée AVANT toute logique (400 si invalide), montant/devise re-vérifiés contre la demande pending (`matchesPendingRecharge`), verrou `FOR UPDATE`. Remboursement PSP géré (`reverseRechargeCredit`, mouvement tracé). Aucun gap trouvé sur ce chemin. | Atteint |
+| R5-04 | Crédit ledger uniquement sur confirmation serveur | **REUSE** — VERIFIED, jamais sur retour navigateur (webhook uniquement). | Atteint |
+| R5-05 | Recharge manuelle admin avec audit log | **REUSE** — VERIFIED `adminRechargeWallet()` (`lib/admin/agencies-actions.ts`), `assertSuperAdmin()`, insert `partnerCreditMovements` + `auditEvents`. | Atteint |
 
 ---
 
 ## Phase 6 — Financial & Booking
 
-| ID | Chantier | Critère de sortie |
-|---|---|---|
-| R6-01 | Machine à états booking et payment (`pending → confirmed | failed | cancelled | refunded`), transitions validées serveur | Transitions invalides rejetées, testées |
-| R6-02 | Décomposition prix : `supplier_price · commercial_price · customer_price · markup · commission · margin` stockée sur chaque booking | Recalcul impossible à modifier après confirmation |
-| R6-03 | Séquence : autoriser / bloquer wallet → réserver fournisseur → capturer ; échec → libérer / rembourser avec trace | Tests des 3 chemins d'échec |
-| R6-04 | Annulation et remboursement selon politique affichée | E2E annulation → écriture inverse ledger |
-| R6-05 | Settlement : dû fournisseur, commissions agences, rapprochement | Rapport de rapprochement = ledger |
-| R6-06 | Vouchers / confirmations générés depuis le booking réel | Voucher cohérent avec booking et paiement |
+| ID | Chantier | État audit | Critère de sortie |
+|---|---|---|---|
+| R6-01 | Machine à états transitions validées serveur | **EXTEND (nuance)** — VERIFIED : `recordReservationTransition()` + `isTransitionAllowed()` appelés sur les 22 sites réels d'écriture de `reservations.status` (grep croisé exhaustif dans `lib/**`). **Mais** : c'est une validation applicative + une table d'audit (`reservation_status_history`), PAS une contrainte DB (aucun trigger/CHECK empêchant une transition invalide côté Postgres) — à ne pas présenter comme un garde-fou DB. | Atteint côté application ; contrainte DB en option (EXTEND futur) |
+| R6-02 | Décomposition prix stockée par booking | **EXTEND — gap P1** — VERIFIED table `reservation_financials` (supplierPrice/salePrice/marginAmount/commissionAmount) correctement peuplée pour hôtels (Tunisie+Monde), vols, transferts. **GAP confirmé** : AUCUNE trace d'insertion pour omra/packages/activities/cars — ces réservations existent (confirmées par A4) mais sans ventilation marge/commission tracée, ce qui fausse potentiellement le reporting de marge agrégé (`lib/reporting/margin-analytics-core.ts` en dépend). | Étendre `recordReservationFinancials` aux 4 modules manquants |
+| R6-03 | Séquence autoriser→réserver→capturer, échec→libérer/rembourser | **REUSE (partiel)** — VERIFIED pattern présent sur hôtels/B2B (verrou FOR UPDATE, rollback total si échec fournisseur) ; pas vérifié en détail sur tous les modules. | À confirmer par module |
+| R6-04 | Annulation/remboursement | **REUSE** — VERIFIED `cancel-actions.ts`/`refund-logic.ts` avec écriture ledger tracée (millimes inclus). | Atteint |
+| R6-05 | Settlement / rapprochement | **REUSE (avec gap P2)** — `commission-settlement.ts` existe et fonctionne, mais viole l'append-only du ledger (voir R4-03). | Corriger le pattern d'écriture (R4-03) |
+| R6-06 | Vouchers depuis le booking réel | **REUSE** — VERIFIED `app/api/admin/reservations/[id]/voucher`, `app/api/pro/reservations/[id]/voucher` génèrent depuis les données réelles, protégés RBAC. | Atteint |
 
 ---
 
 ## Phase 7 — Honnêteté Commerce & Supply
 
-| ID | Chantier | Critère de sortie |
-|---|---|---|
-| R7-01 | Registre de capacités : chaque module expose `IMPLEMENTED · CERTIFIED · PARTIAL · SCAFFOLDED · NOT_WIRED` | Source unique utilisée par l'UI |
-| R7-02 | Tout module/onglet non câblé affiché « Bientôt » (non réservable) | Aucun bouton « Réserver » sur un mock |
-| R7-03 | Données mockées isolées derrière un `MockProvider` explicite, désactivé en production | Flag vérifié en build prod |
-| R7-04 | Couche `Supplier → Connector → Adapter → Canonical` : interface commune, premier adapter réel ou virtuel déclaré | Aucun fournisseur hardcodé dans le cœur |
-| R7-05 | Retirer toute logique « Tunisia only » du cœur (passer par Location/Coverage) | Recherche indépendante du pays dans le code métier |
+| ID | Chantier | État audit | Critère de sortie |
+|---|---|---|---|
+| R7-01 | Registre de capacités par module | **CREATE — gap confirmé** — VERIFIED : aucune constante `IMPLEMENTED/CERTIFIED/PARTIAL/SCAFFOLDED/NOT_WIRED` trouvée nulle part dans `lib/**`. Seule doc humaine (`EASYV4_CAR_DECISION.md`, `docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md`) porte cette information, rien de programmatique. | À créer |
+| R7-02 | Modules non câblés affichés « Bientôt », non réservables | **REUSE (partiel)** — VERIFIED sur `components/pro/pro-module-tabs.tsx` (label "Bientôt disponible" + `disabled: true` réel, pas cosmétique). **Mais** : Vols et Hôtels Monde exposent un flux de réservation complet (PNR/confirmation) adossé à un fournisseur 100% virtuel, étiqueté `isDemo` côté UI (VERIFIED props transmises) — badge visible à l'écran NOT VERIFIED (revue visuelle requise). | Confirmer visuellement le badge démo ; étendre le pattern "Bientôt" si besoin |
+| R7-03 | Mocks isolés, désactivés en prod | **FIX — gap de gouvernance P3/P4** — VERIFIED : les 7 `FEATURE_HOTELS_TUNISIE/HOTELS_MONDE/VOLS/OMRA/PACKAGES/TRANSFERTS/CAR` sont documentés dans `.env.example` mais **0 occurrence `process.env.FEATURE_` dans le code applicatif** — aucun flag n'est techniquement lu. Les routes vols/hôtels-monde restent pleinement accessibles même quand `FEATURE_VOLS=false` est documenté par défaut. Le garde-fou réel est le mode virtuel bloqué en prod pour myGo (`NODE_ENV=production` throw), pas ces flags. | Câbler les flags ou les supprimer s'ils ne servent à rien |
+| R7-04 | Couche Connector/Adapter générique | **FIX — gap P2 confirmé** — VERIFIED `lib/booking/hotel-provider-booking.ts` et `lib/booking/actions.ts` sont 100% spécifiques myGo (`MyGoClient`, `MyGoBookingErrorKind` en dur), n'utilisent PAS le Hub générique existant (`lib/hotel-suppliers/core/orchestration.ts`) qui ne couvre que la recherche, pas le booking. Migration vers un 2e fournisseur hôtel réel nécessiterait une réécriture, pas une extension. | Différé — pas de second fournisseur réel à brancher aujourd'hui (déjà tranché par l'utilisateur en session précédente) |
+| R7-05 | Pas de logique "Tunisia only" hardcodée | **FIX (nuance) — gap P3** — NOT VERIFIED de `if(country==="Tunisia")` littéral dans le cœur métier partagé (aucun trouvé). Le gap est structurel : le module booking hôtel n'a qu'un seul provider possible (myGo=Tunisie), sans abstraction Location/Coverage — même racine que R7-04. | Différé, même raison que R7-04 |
 
 ---
 

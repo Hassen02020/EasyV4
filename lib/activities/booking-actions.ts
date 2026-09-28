@@ -38,6 +38,7 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { computePriceBreakdown } from "@/lib/booking/pricing"
 import {
   activityPartnerBookingSchema,
@@ -225,6 +226,15 @@ export async function createActivityBooking(
           kind: "deposit",
           status: "captured",
           capturedAt: new Date(),
+        })
+
+        // R6-02 : voir lib/omra/booking-actions.ts pour la justification
+        // (pas de coût net séparé pour activités, supplierPriceTnd=salePriceTnd).
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
         })
 
         // --- 7. Extension Activity ---

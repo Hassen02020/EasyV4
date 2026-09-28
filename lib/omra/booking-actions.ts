@@ -35,6 +35,7 @@ import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-contex
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -323,6 +324,20 @@ export async function createOmraBooking(
         kind: "deposit",
         status: "captured",
         capturedAt: new Date(),
+      })
+
+      // R6-02 (audit Phase 0) : omra n'a pas de coût net fournisseur séparé
+      // du prix de vente — l'agence fixe directement totalTnd au niveau du
+      // catalogue (lib/pro/pricing.ts:36-45, module volontairement exclu du
+      // hub de marge central). supplierPriceTnd = salePriceTnd (marge=0) :
+      // jamais un chiffre inventé, seulement pour que cette réservation
+      // compte dans le chiffre d'affaires du Dashboard Marges (auparavant
+      // invisible, la requête part d'un INNER JOIN sur reservation_financials).
+      await recordReservationFinancials({
+        tx,
+        reservationId,
+        supplierPriceTnd: totalTnd,
+        salePriceTnd: totalTnd,
       })
 
       /* ------------------------------------------------------------------

@@ -56,6 +56,7 @@ import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 export type CreateGuestOmraBookingResult =
   | {
@@ -285,6 +286,15 @@ async function runCreateGuestOmraBooking(
           kind: "deposit",
           status: isImmediatelyPaid ? "captured" : "pending",
           capturedAt: isImmediatelyPaid ? new Date() : undefined,
+        })
+
+        // R6-02 : voir lib/omra/booking-actions.ts pour la justification
+        // (pas de coût net séparé pour omra, supplierPriceTnd=salePriceTnd).
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
         })
 
         // --- 5. Extension Omra + fiches pèlerins ---

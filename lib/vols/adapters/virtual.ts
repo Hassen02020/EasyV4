@@ -301,7 +301,17 @@ export function createVirtualGdsAdapter(): GdsAdapter {
       const p = parsePricingToken(token)
       if (!p) throw new Error("Invalid pricing token")
 
-      const result = await virtualBook(token, p.priceTnd)
+      // Adaptateur GDS de l'orchestrateur : ne renvoie que le prix
+      // fournisseur brut — la marge agence est appliquée une seule fois,
+      // en aval, par le Commercial Engine (lib/vols/commercial-engine.ts,
+      // voir createPriceSnapshot). `isActive: false` fait de book() un
+      // pur pass-through prix (pas de marge appliquée ici, jamais une
+      // double marge avec le Commercial Engine).
+      const result = await virtualBook(token, p.priceTnd, {
+        marginType: "percent",
+        marginValue: 0,
+        isActive: false,
+      })
       if (!result.ok) throw new Error(result.message)
 
       return {

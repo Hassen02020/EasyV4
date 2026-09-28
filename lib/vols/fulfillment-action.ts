@@ -34,6 +34,7 @@ import type { CanonicalItinerary } from "./canonical"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 // ─── roles allowed to trigger fulfillment ────────────────────────────────────
 const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
@@ -204,6 +205,15 @@ export async function fulfillFlightBooking(
         .update(reservations)
         .set({ status: "on_request", updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
+      // La CAS ci-dessus (flightBookings.status = PENDING) garantit que la
+      // réservation associée est encore "pending" (voir mapFlightStatusToReservation).
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "on_request",
+        triggeredBy: user.id,
+        reason: "Prise en charge fulfillment vol (claim booking)",
+      })
       return pendingRows.map((r) => ({ ...r, reissueOnly: false as const }))
     }
 

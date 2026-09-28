@@ -55,6 +55,7 @@ import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 export type CreateGuestPackageBookingResult =
   | {
@@ -263,6 +264,14 @@ async function runCreateGuestPackageBooking(
             .update(reservations)
             .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
             .where(eq(reservations.id, reservationId))
+
+          await recordReservationTransition(tx, {
+            reservationId,
+            from: "pending",
+            to: "confirmed",
+            automated: true,
+            reason: "Règlement wallet client immédiat à la création (guest)",
+          })
         }
 
         await tx.insert(payments).values({
@@ -525,6 +534,14 @@ export async function createPackageBooking(
           .update(reservations)
           .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
           .where(eq(reservations.id, reservationId))
+
+        await recordReservationTransition(tx, {
+          reservationId,
+          from: "pending",
+          to: "confirmed",
+          triggeredBy: createdByUserId,
+          reason: "Règlement wallet B2B immédiat à la création",
+        })
 
         await tx.insert(payments).values({
           agencyId,

@@ -24,6 +24,7 @@
 import { sql } from "drizzle-orm"
 import { marginType, walletTxType } from "./schema/financials"
 import {
+  bigint,
   boolean,
   date,
   decimal,
@@ -1841,6 +1842,13 @@ export const partnerCreditMovements = pgTable(
       precision: 12,
       scale: 3,
     }).notNull(),
+    /**
+     * chantier-49C, étape 1 (expand/contract) — voir commentaire équivalent
+     * sur wallet_ledger (lib/db/schema/financials.ts). Nullable, double-
+     * écrites par lib/finance/millimes.ts, aucune lecture n'en dépend encore.
+     */
+    amountMillimes: bigint("amount_millimes", { mode: "number" }),
+    balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
     /** Référence externe (n° réservation, n° facture, etc.). */
     reference: varchar("reference", { length: 64 }),
     /** Lien optionnel à une réservation. */
@@ -1849,6 +1857,15 @@ export const partnerCreditMovements = pgTable(
     invoiceId: uuid("invoice_id"),
     description: text("description"),
     createdByUserId: uuid("created_by_user_id"),
+    /**
+     * Backstop DB indépendant de Redis (chantier-49, sous-chantier B) — même
+     * pattern que `reservations.guest_idempotency_key` (0030) et
+     * `payments.idempotency_key` (index unique partiel) : un retry après
+     * timeout (Redis up ou down) retrouve le mouvement déjà créé au lieu
+     * d'en créer un second ; un double-appel vraiment simultané se résout
+     * via la contrainte unique elle-même.
+     */
+    idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1856,6 +1873,9 @@ export const partnerCreditMovements = pgTable(
   (t) => [
     index("partner_credit_agency_idx").on(t.agencyId),
     index("partner_credit_created_idx").on(t.agencyId, t.createdAt),
+    uniqueIndex("partner_credit_movements_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
   ],
 )
 
@@ -2220,8 +2240,11 @@ export const walletTxStatus = pgEnum("wallet_tx_status", [
 ])
 
 /**
- * Un wallet par agence. La colonne `balance` est modifiée uniquement
- * via des transactions SQL atomiques (voir lib/wallet/actions.ts).
+ * Un wallet par agence — DÉPRÉCIÉ (chantier-49, nettoyage) : aucun flux de
+ * rechargement en production ne crédite plus ce solde. Le solde réellement
+ * crédité est `agencies.deposit_balance` (`partner_credit_movements`) —
+ * voir lib/pro/booking-actions.ts::debitPartnerCredit. Conservé pour
+ * `getWalletBalance()` (lib/wallet/balance.ts, sandbox `/pro` uniquement).
  *
  * `numeric(14,3)` : millimes TND, plage ±99 999 999 999.999 DT.
  */

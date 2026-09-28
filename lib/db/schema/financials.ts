@@ -14,6 +14,7 @@
 
 import { sql } from "drizzle-orm"
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -113,6 +114,11 @@ export const reservationTransition = pgEnum("reservation_transition", [
   "cancel",
   "complete",
   "refund",
+  // chantier-49A : statuts réellement écrits par le code (grep) mais sans
+  // libellé de transition existant — "expired" (délai de paiement dépassé)
+  // et "on_request" (en attente de confirmation fournisseur, ex. vols).
+  "expire",
+  "await_provider",
 ])
 
 /* -------------------------------------------------------------------------- */
@@ -187,6 +193,18 @@ export const walletLedger = pgTable(
     balanceBefore: decimal("balance_before", { precision: 14, scale: 2 }).notNull(),
     balanceAfter: decimal("balance_after", { precision: 14, scale: 2 }).notNull(),
 
+    /**
+     * chantier-49C, étape 1 (expand/contract) — colonnes entiers de
+     * millimes EN PARALLÈLE des colonnes decimal ci-dessus, double-écrites
+     * par le code applicatif (lib/finance/millimes.ts). Nullable : aucune
+     * lecture n'en dépend encore, une valeur NULL signale une ligne écrite
+     * avant ce chantier (backfillée séparément) ou un chemin de code pas
+     * encore migré vers la double-écriture — jamais confondu avec un 0 réel.
+     */
+    amountMillimes: bigint("amount_millimes", { mode: "number" }),
+    balanceBeforeMillimes: bigint("balance_before_millimes", { mode: "number" }),
+    balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
+
     // Corrélation métier
     reservationId: uuid("reservation_id"),
     paymentId: uuid("payment_id"),
@@ -201,6 +219,14 @@ export const walletLedger = pgTable(
     metadata: jsonb("metadata").$type<WalletLedgerMetadata>(),
     createdBy: uuid("created_by"),
 
+    /**
+     * Backstop DB indépendant de Redis (chantier-49, sous-chantier B) — même
+     * pattern que `reservations.guest_idempotency_key` / `payments.idempotency_key`.
+     * `debitCustomerWallet`/`creditCustomerWallet` (lib/finance/customer-wallet.ts)
+     * n'avaient jusqu'ici qu'un cache Redis (dégradation silencieuse si absent).
+     */
+    idempotencyKey: text("idempotency_key"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 
     // Settlement commission (37C) — renseigné quand cette entrée est incluse dans un commission_settlement
@@ -211,6 +237,9 @@ export const walletLedger = pgTable(
     { name: "wallet_ledger_account_idx", on: t.walletAccountId },
     { name: "wallet_ledger_reservation_idx", on: t.reservationId },
     { name: "wallet_ledger_created_idx", on: t.createdAt },
+    uniqueIndex("wallet_ledger_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
   ],
 )
 

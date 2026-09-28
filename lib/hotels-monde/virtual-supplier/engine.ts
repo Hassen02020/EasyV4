@@ -12,6 +12,7 @@ import { issueOfferToken, newSearchId, validateOfferToken } from "./tokens"
 import { currentAvailability, reserve, release } from "./inventory-store"
 import { getScenario, SIMULATED_TIMEOUT_DELAY_MS } from "./scenarios"
 import { destinationByValue } from "@/lib/hotels-monde/search-state"
+import { DEFAULT_CURRENCY, type Currency } from "@/lib/currency"
 import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
 
 export interface SearchInput {
@@ -35,7 +36,16 @@ export interface SearchOfferResult {
   pricePerNightTnd: number
   totalPriceTnd: number // prix TOTAL pour `rooms` chambres x `nights` nuits
   nights: number
-  currency: "TND"
+  /**
+   * chantier-49 (Supplier Connectivity D) : n'était typé qu'en littéral
+   * `"TND"` — chantier-49 supplier-connectivity : le catalogue virtuel ne
+   * génère aujourd'hui que du TND (`nightlyBaseTnd`), mais un futur
+   * fournisseur réel (RateHawk, voir lib/hotels-monde/supplier-drivers.ts)
+   * peut renvoyer une autre devise. Type aligné sur `WorldHotelOffer`
+   * (lib/hotels-monde/client.ts, déjà `z.string()`) et `Currency`
+   * (lib/currency.ts) plutôt qu'un littéral figé.
+   */
+  currency: Currency
   availableRooms: number
   refundable: boolean
   breakfastIncluded: boolean
@@ -84,7 +94,7 @@ export function search(input: SearchInput): { searchId: string; offers: SearchOf
         pricePerNightTnd,
         totalPriceTnd,
         nights: input.nights,
-        currency: "TND" as const,
+        currency: DEFAULT_CURRENCY,
         availableRooms: available,
         refundable: offer.refundable,
         breakfastIncluded: offer.breakfastIncluded,

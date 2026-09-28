@@ -59,6 +59,7 @@
 
 import { eq, and, isNull, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
+import { toMillimes } from "@/lib/finance/millimes"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { getRedis } from "@/lib/cache/redis"
 import { walletAccounts, walletLedger, type NewWalletLedger } from "@/lib/db/schema"
@@ -241,6 +242,38 @@ export async function debitCustomerWallet(
   }
 
   const run = async (tx: DrizzleLikeTx): Promise<WalletMovementResult> => {
+    // Backstop d'idempotence DB (chantier-49B) — indépendant du cache Redis
+    // ci-dessous (absent en prod si Upstash n'est pas configuré, ou juste
+    // expiré après 24h). Avant de verrouiller/créer le wallet.
+    if (input.idempotencyKey) {
+      const existingRows = (await tx
+        .select({
+          id: walletLedger.id,
+          walletAccountId: walletLedger.walletAccountId,
+          balanceBefore: walletLedger.balanceBefore,
+          balanceAfter: walletLedger.balanceAfter,
+        })
+        .from?.(walletLedger)
+        .where?.(eq(walletLedger.idempotencyKey, input.idempotencyKey))) as
+        | Array<{
+            id: string
+            walletAccountId: string
+            balanceBefore: string
+            balanceAfter: string
+          }>
+        | undefined
+      const existing = existingRows?.[0]
+      if (existing) {
+        return {
+          ok: true,
+          walletAccountId: existing.walletAccountId,
+          ledgerId: existing.id,
+          balanceBefore: existing.balanceBefore,
+          balanceAfter: existing.balanceAfter,
+        }
+      }
+    }
+
     const wallet = await lockOrCreateCustomerWallet(tx, input.customerId)
     const balanceBefore = parseTnd(wallet.currentBalance)
 
@@ -264,11 +297,61 @@ export async function debitCustomerWallet(
       description: input.description,
       reservationId: input.reservationId,
       category: "booking",
+      idempotencyKey: input.idempotencyKey ?? null,
+      // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+      amountMillimes: toMillimes(input.amountTnd),
+      balanceBeforeMillimes: toMillimes(balanceBefore),
+      balanceAfterMillimes: toMillimes(balanceAfter),
     }
-    const inserted = (await tx
-      .insert(walletLedger)
-      .values?.(ledgerInsert)
-      .returning?.({ id: walletLedger.id })) as Array<{ id: string }> | undefined
+
+    // SAVEPOINT : voir commentaire équivalent dans
+    // lib/pro/booking-actions.ts::debitPartnerCredit — un INSERT qui viole
+    // la contrainte unique partielle met toute la transaction parente dans
+    // un état "aborted" sans ce point de reprise.
+    if (input.idempotencyKey) {
+      await tx.execute(sql`SAVEPOINT idem_insert`)
+    }
+
+    let inserted: Array<{ id: string }> | undefined
+    try {
+      inserted = (await tx
+        .insert(walletLedger)
+        .values?.(ledgerInsert)
+        .returning?.({ id: walletLedger.id })) as Array<{ id: string }> | undefined
+    } catch (insertErr) {
+      const isUniqueViolation =
+        insertErr instanceof Error &&
+        /idempotency_uniq|duplicate key value/.test(insertErr.message)
+      if (!isUniqueViolation || !input.idempotencyKey) throw insertErr
+
+      await tx.execute(sql`ROLLBACK TO SAVEPOINT idem_insert`)
+
+      const raceRows = (await tx
+        .select({
+          id: walletLedger.id,
+          walletAccountId: walletLedger.walletAccountId,
+          balanceBefore: walletLedger.balanceBefore,
+          balanceAfter: walletLedger.balanceAfter,
+        })
+        .from?.(walletLedger)
+        .where?.(eq(walletLedger.idempotencyKey, input.idempotencyKey))) as
+        | Array<{
+            id: string
+            walletAccountId: string
+            balanceBefore: string
+            balanceAfter: string
+          }>
+        | undefined
+      const race = raceRows?.[0]
+      if (!race) throw insertErr
+      return {
+        ok: true,
+        walletAccountId: race.walletAccountId,
+        ledgerId: race.id,
+        balanceBefore: race.balanceBefore,
+        balanceAfter: race.balanceAfter,
+      }
+    }
     const ledgerId = inserted?.[0]?.id
     if (!ledgerId) throw new Error("L'insertion du mouvement de débit n'a pas retourné d'id.")
 
@@ -359,6 +442,10 @@ export async function creditCustomerWallet(
       paymentId: input.paymentId,
       category: input.source === "refund" ? "refund" : input.source === "adjustment" ? "adjustment" : "recharge",
       metadata: { paymentMethod: input.source },
+      // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+      amountMillimes: toMillimes(input.amountTnd),
+      balanceBeforeMillimes: toMillimes(balanceBefore),
+      balanceAfterMillimes: toMillimes(balanceAfter),
     }
     const inserted = (await tx
       .insert(walletLedger)

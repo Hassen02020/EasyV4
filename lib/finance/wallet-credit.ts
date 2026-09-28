@@ -20,6 +20,7 @@
 import { eq, sql } from "drizzle-orm"
 import { agencies, walletRechargeRequests, partnerCreditMovements } from "@/lib/db/schema"
 import type { DrizzleTransaction } from "@/lib/db/client"
+import { toMillimes } from "@/lib/finance/millimes"
 
 export interface RechargeRequestForCredit {
   id: string
@@ -84,6 +85,9 @@ export async function reverseRechargeCredit(
       reference: `REFUND-${request.id.slice(0, 8).toUpperCase()}`,
       description: opts.description,
       createdByUserId: null,
+      // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+      amountMillimes: toMillimes(-amount),
+      balanceAfterMillimes: toMillimes(newBalance),
     })
     .returning({ id: partnerCreditMovements.id })
 
@@ -144,6 +148,9 @@ export async function creditRechargeRequest(
       reference: `RECHARGE-${request.id.slice(0, 8).toUpperCase()}`,
       description: opts.description,
       createdByUserId: opts.reviewedByUserId,
+      // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+      amountMillimes: toMillimes(amount),
+      balanceAfterMillimes: toMillimes(newBalance),
     })
     .returning({ id: partnerCreditMovements.id })
 

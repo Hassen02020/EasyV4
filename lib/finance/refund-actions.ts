@@ -36,8 +36,9 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { isTransitionAllowed } from "@/lib/admin/reservation-status"
+import { isTransitionAllowed, type ReservationStatus } from "@/lib/admin/reservation-status"
 import { applyReservationRefund, REFUND_ALLOWED_ROLES } from "./refund-logic"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { releaseStock, CANCELLABLE_MODULES, type CancellableModule } from "@/lib/booking/policy-cancel-core"
 
 const ALLOWED_ROLES = REFUND_ALLOWED_ROLES
@@ -143,6 +144,14 @@ export async function refundReservation(
           .update(reservations)
           .set({ status: "refunded", updatedAt: new Date() })
           .where(eq(reservations.id, reservation.id))
+
+        await recordReservationTransition(tx, {
+          reservationId: reservation.id,
+          from: reservation.status as ReservationStatus,
+          to: "refunded",
+          triggeredBy: user.id,
+          reason: input.reason,
+        })
 
         // Certification E2E — un remboursement TOTAL libère la capacité
         // retenue (allotment Omra / départ Package / session Activity),

@@ -19,12 +19,18 @@ import {
 } from "@/components/ui/table"
 
 import type { PartnerClient } from "@/lib/pro/mock-tables"
+import { NewClientDialog } from "@/components/pro/new-client-dialog"
+import { EditClientDialog } from "@/components/pro/edit-client-dialog"
 
 interface ClientsTableProps {
   rows: PartnerClient[]
+  /** true pour un partner_owner/partner_agent détenant le grant "clients.create" (baseline owner, délégable). */
+  canCreate: boolean
+  /** true pour un partner_owner/partner_agent détenant le grant "clients.edit". */
+  canEdit: boolean
 }
 
-export function ClientsTable({ rows }: ClientsTableProps) {
+export function ClientsTable({ rows, canCreate, canEdit }: ClientsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [q, setQ] = useState(() => searchParams.get("q") ?? "")
@@ -51,6 +57,11 @@ export function ClientsTable({ rows }: ClientsTableProps) {
 
   return (
     <div className="space-y-4">
+      {canCreate ? (
+        <div className="flex justify-end">
+          <NewClientDialog />
+        </div>
+      ) : null}
       <section
         aria-label="Recherche clients"
         className="bg-card border-border/60 shadow-e2b-soft rounded-2xl border p-4"
@@ -86,6 +97,8 @@ export function ClientsTable({ rows }: ClientsTableProps) {
               </TableHead>
 
               <TableHead className="font-semibold">Premier dossier</TableHead>
+
+              {canEdit ? <TableHead className="text-center font-semibold">Actions</TableHead> : null}
             </TableRow>
           </TableHeader>
 
@@ -93,7 +106,7 @@ export function ClientsTable({ rows }: ClientsTableProps) {
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={canEdit ? 6 : 5}
                   className="text-muted-foreground py-12 text-center"
                 >
                   Aucun client trouvé.
@@ -143,6 +156,14 @@ export function ClientsTable({ rows }: ClientsTableProps) {
                   <TableCell className="text-muted-foreground text-xs">
                     {c.createdAt}
                   </TableCell>
+
+                  {canEdit ? (
+                    <TableCell>
+                      <div className="flex justify-center">
+                        <EditClientDialog client={c} />
+                      </div>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))
             )}

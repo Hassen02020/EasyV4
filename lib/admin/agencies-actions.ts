@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache"
 import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { agencies, auditEvents, partnerCreditMovements } from "@/lib/db/schema"
-import { createServerSupabase } from "@/lib/supabase/server"
+import { agencies, auditEvents, partnerCreditMovements, users } from "@/lib/db/schema"
+import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
 import { sendEvent } from "@/lib/inngest/client"
@@ -144,6 +144,107 @@ export async function createAgency(
     logger.error("[agencies-actions] createAgency failed", { err: e instanceof Error ? e.message : String(e) })
     return { ok: false, error: e instanceof Error ? e.message : "Erreur inconnue" }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Premier utilisateur (partner_owner)                                         */
+/* -------------------------------------------------------------------------- */
+
+const createPartnerOwnerInputSchema = z.object({
+  agencyId: z.string().uuid(),
+  email: z.string().trim().email().max(320),
+  name: z.string().trim().min(1).max(200),
+})
+
+export type CreatePartnerOwnerResult =
+  | { ok: true; userId: string }
+  | { ok: false; error: string }
+
+/**
+ * R2-05 (audit Phase 0) : `createAgency` ne crée que la ligne `agencies` —
+ * jusqu'ici aucune action applicative ne pouvait ensuite provisionner son
+ * premier utilisateur. `createStaffUser` (lib/admin/users-actions.ts) est
+ * strictement réservé à `ADMIN_ROLES` (personnel Easy2Book), qui n'inclut
+ * PAS `partner_owner` — donc inutilisable ici malgré un pattern identique.
+ * Même logique néanmoins : invitation Supabase Auth réelle, ligne `users`
+ * + `auditEvents` dans la même transaction, rollback du compte Auth si
+ * l'insertion du profil échoue (identité fantôme sinon).
+ */
+export async function createPartnerOwner(
+  raw: z.infer<typeof createPartnerOwnerInputSchema>,
+): Promise<CreatePartnerOwnerResult> {
+  const parsed = createPartnerOwnerInputSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+  }
+  const input = parsed.data
+
+  let actorId: string
+  try {
+    actorId = await assertSuperAdmin()
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
+  }
+
+  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+
+  const [agency] = await withTenantContext(
+    { agencyId: null, userId: actorId, isSuperAdmin: true },
+    (tx) =>
+      tx
+        .select({ id: agencies.id, agencyType: agencies.agencyType, name: agencies.name })
+        .from(agencies)
+        .where(eq(agencies.id, input.agencyId))
+        .limit(1),
+  )
+  if (!agency) return { ok: false, error: "Agence introuvable." }
+  if (agency.agencyType !== "partner") {
+    return { ok: false, error: "Cette agence n'est pas de type partenaire (agencyType=partner)." }
+  }
+
+  const admin = createServiceRoleSupabase()
+  const invited = await admin.auth.admin.inviteUserByEmail(input.email, {
+    data: { name: input.name },
+  })
+  if (invited.error || !invited.data.user) {
+    return { ok: false, error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}` }
+  }
+  const newUserId = invited.data.user.id
+
+  try {
+    await withTenantContext(
+      { agencyId: input.agencyId, userId: actorId, isSuperAdmin: true },
+      async (tx) => {
+        await tx.insert(users).values({
+          id: newUserId,
+          agencyId: input.agencyId,
+          email: input.email,
+          name: input.name,
+          role: "partner_owner",
+          status: "active",
+        })
+        await tx.insert(auditEvents).values({
+          agencyId: input.agencyId,
+          actorUserId: actorId,
+          entityType: "user",
+          entityId: newUserId,
+          action: "user.created",
+          diff: { email: input.email, name: input.name, role: "partner_owner", via: "super_admin" },
+        })
+      },
+    )
+  } catch (err) {
+    // Compte Auth orphelin (aucune ligne `users`) : jamais utilisable — on
+    // le supprime plutôt que de laisser une identité fantôme (même motif
+    // que createStaffUser).
+    await admin.auth.admin.deleteUser(newUserId).catch(() => {})
+    const message = err instanceof Error ? err.message : "Erreur inconnue"
+    return { ok: false, error: `Compte invité mais profil non créé (annulé) : ${message}` }
+  }
+
+  revalidatePath("/admin/agencies")
+  logger.info("[agencies-actions] partner owner created", { agencyId: input.agencyId, userId: newUserId, actorId })
+  return { ok: true, userId: newUserId }
 }
 
 /* -------------------------------------------------------------------------- */

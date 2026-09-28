@@ -42,8 +42,9 @@ export default async function NewAgencyPage() {
         <CardHeader>
           <CardTitle>Nouvelle agence</CardTitle>
           <CardDescription>
-            Crée une agence OTA ou partenaire B2B. Les utilisateurs (staff / partner_owner)
-            se créent ensuite séparément via les invitations habituelles.
+            Crée une agence OTA ou partenaire B2B. Pour une agence partenaire, l&apos;étape suivante
+            invite immédiatement son premier propriétaire (partner_owner) ; le personnel OTA se crée
+            séparément via /admin/staff.
           </CardDescription>
         </CardHeader>
         <CardContent>

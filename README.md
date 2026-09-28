@@ -1,6 +1,6 @@
-# TunisiaGo
+# Easy2Book
 
-Site **TunisiaGo** : agence de voyage en ligne Tunisienne — moteur de réservation 7 modules (vols, hôtels Tunisie/Monde, Omra, voyages organisés, transferts, location de voiture), page de résultats de recherche d'hôtels et back-office d'administration.
+Site **Easy2Book** : agence de voyage en ligne Tunisienne — moteur de réservation 7 modules (vols, hôtels Tunisie/Monde, Omra, voyages organisés, transferts, location de voiture), page de résultats de recherche d'hôtels et back-office d'administration.
 
 ## Stack
 
@@ -96,7 +96,7 @@ section 11 pour l'état à jour). Seul **Car** reste recherche uniquement, par d
 
 ## Back-office
 
-L'espace `/admin` est public en l'état (à protéger avec une authentification réelle avant mise en production). Il expose :
+L'espace `/admin` est protégé (session Supabase + rôle serveur vérifié à 4 niveaux : `proxy.ts`, layout, route handler, Server Action — voir `lib/auth/admin-gate.ts`). Il expose :
 
 - `/admin` — tableau de bord (CA, réservations, erreurs API MyGo, clients actifs)
 - `/admin/reservations` — table de toutes les réservations

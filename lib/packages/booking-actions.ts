@@ -56,6 +56,7 @@ import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/po
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 export type CreateGuestPackageBookingResult =
   | {
@@ -286,6 +287,15 @@ async function runCreateGuestPackageBooking(
           kind: "deposit",
           status: isImmediatelyPaid ? "captured" : "pending",
           capturedAt: isImmediatelyPaid ? new Date() : undefined,
+        })
+
+        // R6-02 : voir lib/omra/booking-actions.ts pour la justification
+        // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
         })
 
         // Easy2Book Rewards (Phase 38D) — B2C uniquement (voir doc de tête
@@ -554,6 +564,15 @@ export async function createPackageBooking(
           kind: "deposit",
           status: "captured",
           capturedAt: new Date(),
+        })
+
+        // R6-02 : voir lib/omra/booking-actions.ts pour la justification
+        // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
         })
 
         await tx.insert(reservationPackage).values({

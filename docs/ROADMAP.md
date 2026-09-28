@@ -38,7 +38,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ```text
 ID: (aucun — en attente de proposition du prochain chantier)
-Statut: R1-10 CLÔTURÉ (voir ci-dessous). Prochain chantier à proposer un par un, un GO à la fois.
+Statut: R1-10 et R1-07 CLÔTURÉS (voir ci-dessous). Prochain chantier à proposer un par un, un GO à la fois.
 Branche: (aucune)
 ```
 
@@ -46,7 +46,11 @@ Branche: (aucune)
 
 ### R1-10 — CLÔTURÉ (2026-09-28)
 
-`resolve_session_context(uuid)` (`SECURITY DEFINER`) était encore exécutable par `anon`/`authenticated` via REST malgré `0068` (qui avait fermé 5 autres fonctions du même type). `REVOKE EXECUTE` appliqué en production (`crygnaichvlxavvbifqi`) et versionné dans `drizzle/manual/0073_revoke_public_execute_resolve_session_context.sql`. Vérifié : `anon_can_exec=false`, `authenticated_can_exec=false`, `app_runtime_can_exec=true` ; advisory de sécurité correspondant disparu. PR : https://github.com/Hassen02020/EasyV4/pull/50 (en attente de merge, GO séparé requis).
+`resolve_session_context(uuid)` (`SECURITY DEFINER`) était encore exécutable par `anon`/`authenticated` via REST malgré `0068` (qui avait fermé 5 autres fonctions du même type). `REVOKE EXECUTE` appliqué en production (`crygnaichvlxavvbifqi`) et versionné dans `drizzle/manual/0073_revoke_public_execute_resolve_session_context.sql`. Vérifié : `anon_can_exec=false`, `authenticated_can_exec=false`, `app_runtime_can_exec=true` ; advisory de sécurité correspondant disparu. PR : https://github.com/Hassen02020/EasyV4/pull/50 (mergée).
+
+### R1-07 — CLÔTURÉ (2026-09-28)
+
+Aucune CI n'existait (`.github/workflows` absent). Ajout de `.github/workflows/ci.yml` (5 jobs sur push/PR vers `main` : `typecheck`, `lint`, `format` non bloquant, `test`, `build`). Correction au passage de 12 erreurs lint réelles (2 fichiers `app/(internal)/admin/suppliers/{network,nodes}/page.tsx`, cosmétique) pour que `lint` soit un vrai gate. Premier run réel confirmé : `typecheck`/`lint`/`test`/`build` verts, `format` en échec attendu et documenté (744 fichiers pré-existants jamais formatés, hors périmètre — chantier séparé à proposer si souhaité). PR : https://github.com/Hassen02020/EasyV4/pull/51 (mergée, run https://github.com/Hassen02020/EasyV4/actions/runs/36489283550).
 
 ---
 
@@ -107,11 +111,11 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R1-04 | **Un seul gestionnaire de paquets** | **FIX** — VERIFIED. pnpm est le gestionnaire réel (lockfile à jour, 2026-09-26 ; README le documente). `package-lock.json` obsolète (dernier commit 2026-06-12, ~3.5 mois de retard) — résidu à supprimer. Aucune CI dans le repo pour trancher côté CI (voir R1-07). | `package-lock.json`, `pnpm-lock.yaml` | Suppression de `package-lock.json` |
 | R1-05 | **Une seule cible de déploiement** | **FIX** — VERIFIED. Vercel est la cible active et maintenue (6 cron jobs, fixes récents jusqu'au 2026-09-18, déploiements confirmés en prod cette session). `netlify.toml` mort/jamais opérationnel (dernier commit 2026-06-12, config minimale jamais suivie). | `vercel.json`, `netlify.toml` | Suppression de `netlify.toml` |
 | R1-06 | **Config build cohérente** (`vite.config.js` : utilisé ou mort ?) | **FIX** — VERIFIED mort et cassé : `vite`/`@vitejs/plugin-react` ne sont pas des dépendances directes (seulement transitif via vitest), aucun script ne le référence. | `vite.config.js` | Suppression |
-| R1-07 | **Baseline CI verte** : typecheck, lint, unit, build, E2E smoke | **CREATE — gap majeur (P1)** — VERIFIED : `.github/workflows/` **n'existe pas**. Aucun typecheck/lint/test/build/E2E automatique sur PR. `pnpm typecheck` (0 erreur) et `pnpm test` (1068/1068 pass, 203 skipped DB-mode) exécutés manuellement dans l'audit, mais rien n'est automatisé. Config Lighthouse (`lighthouserc.js`) et suite a11y (`e2e/a11y.spec.ts`, 5 pages seulement) existent mais sont dormantes, sans CI pour les exécuter. | `.github/workflows/**` (à créer) | CI bloquante sur PR ; `main` vert |
+| R1-07 | **Baseline CI verte** : typecheck, lint, unit, build, E2E smoke | **N/A (fait, 2026-09-28)** — `.github/workflows/ci.yml` créé, 4 jobs bloquants verts sur le premier run réel (PR #51 mergée, run https://github.com/Hassen02020/EasyV4/actions/runs/36489283550). `format` non bloquant (744 fichiers pré-existants, chantier séparé). E2E Playwright et tests DB-mode volontairement hors périmètre. Lighthouse/a11y CI restent dormants. | `.github/workflows/ci.yml` | Atteint (périmètre réduit assumé) |
 | R1-08 | **README et nom de marque** alignés sur le code réel | **FIX (trivial)** — VERIFIED. Marque réelle = Easy2Book (package.json, SEO, logo, 0 occurrence "TunisiaGo" dans app/lib/components). README.md ligne 1/3 dit encore "TunisiaGo" et ligne 99 dit `/admin` public (faux, voir R1-01). | `README.md` | Correction des 2 passages obsolètes |
 | R1-09 | **Consolider les rapports d'audit** existants dans `docs/audits/` (archivés, marqués « historique ») | **NOT VERIFIED** — `docs/audits/` existe (confirmé en tout début de session), contenu non ré-audité pour doublons/statut "historique" explicite pendant cette Phase 0. | `docs/audits/**`, `*AUDIT*.md`, `*REPORT*.md` | Un seul index ; anciens rapports non autoritaires |
 
-**Ordre recommandé (mis à jour) :** R1-01 déjà fait → **nouveau P0 R1-10 (ci-dessous, hors table Phase 1 d'origine)** → R1-07 (CI) → R1-04/05/06 (cleanup config) → R1-08 (README) → R1-02/R1-03/R1-09 (à planifier).
+**Ordre recommandé (mis à jour) :** R1-01 fait → R1-10 fait → R1-07 fait → **prochain : R1-04/05/06 (cleanup config) ou R1-08 (README) ou R6-02 (gap financier P1)** → R1-02/R1-03/R1-09 (à planifier).
 
 ---
 

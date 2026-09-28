@@ -9,6 +9,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -19,8 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Car, ShieldCheck, CreditCard, CheckCircle, IdCard } from "lucide-react"
-import { createCarBooking } from "@/lib/cars/actions"
+import { Loader2, Car, ShieldCheck, CreditCard, IdCard } from "lucide-react"
+import { createGuestCarBooking } from "@/lib/cars/guest-booking-actions"
 import { calculateCarPrice, type CarPricingResult } from "@/lib/cars/pricing"
 import type { CarLocation, CarCategory } from "@/lib/db/schema"
 
@@ -71,9 +72,9 @@ interface CarBookingFormProps {
 }
 
 export function CarBookingForm({ agencyId, locations, categories, prefill }: CarBookingFormProps) {
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submitSuccess, setSubmitSuccess] = useState<{ publicRef: string; totalTnd: number } | null>(null)
   const [pricing, setPricing] = useState<CarPricingResult | null>(null)
   const [pricingError, setPricingError] = useState<string | null>(null)
 
@@ -146,10 +147,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
   const onSubmit = async (data: CarBookingFormData) => {
     setIsSubmitting(true)
     setSubmitError(null)
-    setSubmitSuccess(null)
 
     try {
-      const result = await createCarBooking({
+      const result = await createGuestCarBooking({
         categoryId: data.categoryId,
         pickupLocationId: data.pickupLocationId,
         dropoffLocationId: data.dropoffLocationId,
@@ -162,42 +162,13 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
       if (!result.ok) {
         setSubmitError(result.error)
       } else {
-        setSubmitSuccess({ publicRef: result.publicRef, totalTnd: result.totalTnd })
+        router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
       }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  if (submitSuccess) {
-    return (
-      <Card className="mx-auto max-w-2xl rounded-lg border-2 border-green-500/20">
-        <CardHeader className="rounded-t-lg bg-green-50">
-          <CardTitle className="flex items-center gap-2 text-green-700">
-            <CheckCircle className="h-6 w-6" />
-            Réservation Confirmée
-          </CardTitle>
-          <CardDescription className="text-green-600">
-            Votre location de voiture a été enregistrée avec succès.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-6">
-          <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-medium text-green-700">N° Réservation</p>
-            <p className="text-2xl font-bold text-green-700">{submitSuccess.publicRef}</p>
-          </div>
-          <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-medium text-green-700">Montant débité</p>
-            <p className="text-2xl font-bold text-green-700">{submitSuccess.totalTnd.toFixed(3)} DT</p>
-          </div>
-          <Button onClick={() => window.location.reload()} className="w-full rounded-lg bg-green-600 text-white hover:bg-green-700">
-            Nouvelle Réservation
-          </Button>
-        </CardContent>
-      </Card>
-    )
   }
 
   return (

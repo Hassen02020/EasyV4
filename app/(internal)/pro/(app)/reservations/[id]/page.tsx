@@ -16,6 +16,9 @@ import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { loadReservationDetail } from "@/lib/booking/reservation-detail"
 import { ReservationDetailView } from "@/components/admin/reservation-detail-view"
 import { isAdminReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
+import { CancelReservationButton } from "@/components/pro/cancel-reservation-button"
+
+const CANCELLABLE_STATUSES = new Set(["confirmed", "pending", "on_request"])
 
 export const dynamic = "force-dynamic"
 
@@ -48,5 +51,17 @@ export default async function PartnerReservationDetailPage({
     : null
   const invoiceHref = `/api/pro/reservations/${detail.id}/invoice`
 
-  return <ReservationDetailView detail={detail} voucherHref={voucherHref} invoiceHref={invoiceHref} />
+  const actions =
+    detail.module === "hotel" && CANCELLABLE_STATUSES.has(detail.status) ? (
+      <CancelReservationButton reservationId={detail.id} publicRef={detail.publicRef} />
+    ) : null
+
+  return (
+    <ReservationDetailView
+      detail={detail}
+      voucherHref={voucherHref}
+      invoiceHref={invoiceHref}
+      actions={actions}
+    />
+  )
 }

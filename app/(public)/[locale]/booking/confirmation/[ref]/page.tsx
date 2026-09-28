@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation"
 import { notFound } from "next/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
-import { CheckCircle2, Mail, Calendar, User, Download } from "lucide-react"
+import { CheckCircle2, Mail, Calendar, User, Download, Banknote, Building2 } from "lucide-react"
 import { and, eq } from "drizzle-orm"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -74,6 +74,7 @@ export default async function ConfirmationPage({
     endDate?: string
     adults?: number
     children?: number
+    paymentMethod?: string | null
   } | null
 
   const voucherHref =
@@ -155,6 +156,31 @@ export default async function ConfirmationPage({
                   ),
                 })}
               </p>
+
+              {/* Payment method instructions for pending bookings */}
+              {row.status === "pending" && pl?.paymentMethod === "transfer" && (
+                <div className="border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/30 rounded-lg border p-4 text-sm">
+                  <p className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-200">
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    {t("paymentTransferTitle")}
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    {t("paymentTransferNotice")}
+                  </p>
+                </div>
+              )}
+              {row.status === "pending" && pl?.paymentMethod === "cash" && (
+                <div className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 rounded-lg border p-4 text-sm">
+                  <p className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-200">
+                    <Banknote className="h-4 w-4 shrink-0" />
+                    {t("paymentCashTitle")}
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    {t("paymentCashNotice")}
+                  </p>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button asChild variant="outline" className="flex-1">
                   <Link href="/">{t("backHome")}</Link>

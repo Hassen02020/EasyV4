@@ -121,6 +121,7 @@ async function loadReservations(
   agencyId: string,
   search?: string,
   status?: string,
+  customerId?: string,
 ) {
   try {
     const { allReservations, customersData } = await withTenantContext(
@@ -130,6 +131,12 @@ async function loadReservations(
         // cross-tenant — la requête d'origine n'avait AUCUN filtre agencyId
         // (même bug de fuite cross-tenant préexistant que loadClients()
         // dans app/admin/b2c/clients/page.tsx, corrigé ici de la même façon).
+        const conditions = [eq(reservations.agencyId, agencyId)]
+        // Cible de "Voir réservations" dans B2cClientRowActions — filtre
+        // strict par id (jamais par email/nom, pour ne pas mélanger deux
+        // clients homonymes).
+        if (customerId) conditions.push(eq(reservations.customerId, customerId))
+
         const allReservations = await db
           .select({
             id: reservations.id,
@@ -143,7 +150,7 @@ async function loadReservations(
             customerId: reservations.customerId,
           })
           .from(reservations)
-          .where(eq(reservations.agencyId, agencyId))
+          .where(and(...conditions))
           .orderBy(desc(reservations.createdAt))
           .limit(100)
 
@@ -188,9 +195,9 @@ async function loadReservations(
 export default async function B2CReservationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; search?: string }>
+  searchParams: Promise<{ status?: string; search?: string; customerId?: string }>
 }) {
-  const { status, search } = await searchParams
+  const { status, search, customerId } = await searchParams
 
   const supabase = await createServerSupabase()
   const {
@@ -209,7 +216,21 @@ export default async function B2CReservationsPage({
     redirect("/admin")
   }
 
-  const allReservations = await loadReservations(profile.agencyId, search, status)
+  const allReservations = await loadReservations(profile.agencyId, search, status, customerId)
+
+  // Nom du client filtré (bandeau) — requête séparée : la liste peut être
+  // vide (client sans réservation) et scopée à l'agence pour ne jamais
+  // révéler le nom d'un client d'une autre agence via un id arbitraire.
+  const filterClient = customerId
+    ? await withTenantContext({ agencyId: profile.agencyId, userId: "", isSuperAdmin: false }, (db) =>
+        db
+          .select({ firstName: customers.firstName, lastName: customers.lastName })
+          .from(customers)
+          .where(and(eq(customers.id, customerId), eq(customers.agencyId, profile.agencyId)))
+          .limit(1)
+          .then((rows) => rows[0] ?? null),
+      )
+    : null
 
   // Filtrer par status si spécifié
   const filteredReservations = status
@@ -252,6 +273,17 @@ export default async function B2CReservationsPage({
           </Button>
         </div>
       </div>
+
+      {customerId && (
+        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm">
+          <span>
+            Filtré pour <strong>{filterClient ? `${filterClient.firstName} ${filterClient.lastName}` : "ce client"}</strong>
+          </span>
+          <Link href="/admin/b2c/reservations" className="text-primary hover:underline">
+            Retirer le filtre
+          </Link>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -333,20 +365,22 @@ export default async function B2CReservationsPage({
           <Tabs defaultValue={status || "all"} className="space-y-4">
             <TabsList>
               <TabsTrigger value="all" asChild>
-                <Link href="/admin/b2c/reservations">Toutes</Link>
+                <Link href={customerId ? `/admin/b2c/reservations?customerId=${customerId}` : "/admin/b2c/reservations"}>
+                  Toutes
+                </Link>
               </TabsTrigger>
               <TabsTrigger value="pending" asChild>
-                <Link href="/admin/b2c/reservations?status=pending">
+                <Link href={`/admin/b2c/reservations?status=pending${customerId ? `&customerId=${customerId}` : ""}`}>
                   En attente
                 </Link>
               </TabsTrigger>
               <TabsTrigger value="confirmed" asChild>
-                <Link href="/admin/b2c/reservations?status=confirmed">
+                <Link href={`/admin/b2c/reservations?status=confirmed${customerId ? `&customerId=${customerId}` : ""}`}>
                   Confirmées
                 </Link>
               </TabsTrigger>
               <TabsTrigger value="cancelled" asChild>
-                <Link href="/admin/b2c/reservations?status=cancelled">
+                <Link href={`/admin/b2c/reservations?status=cancelled${customerId ? `&customerId=${customerId}` : ""}`}>
                   Annulées
                 </Link>
               </TabsTrigger>

@@ -181,7 +181,9 @@
     "paginationNext": "Next",
     "paginationPreviousAria": "Go to previous page",
     "paginationNextAria": "Go to next page",
-    "paginationGoToPage": "Go to page {page}"
+    "paginationGoToPage": "Go to page {page}",
+    "nightsCount": "{n, plural, one {# night} other {# nights}}",
+    "selectDates": "Select dates"
   },
   "Home": {
     "heroKicker": "Instant booking · 100% Tunisia",
@@ -440,7 +442,8 @@
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
     "mustAcceptPolicy": "You must accept the cancellation policy.",
     "unknownError": "Unknown error",
-    "durationBadge": "{days}D / {nights}N"
+    "durationBadge": "{days}D / {nights}N",
+    "allMonths": "All months"
   },
   "Hotels": {
     "destination": "Destination",
@@ -597,7 +600,10 @@
     "sortPriceAsc": "Price: low to high",
     "sortPriceDesc": "Price: high to low",
     "sortBestDeal": "Best value",
-    "sortResultsAria": "Sort results"
+    "sortResultsAria": "Sort results",
+    "kicker": "Hotels Tunisia",
+    "heroTitle": "Hotels in Tunisia at the best price",
+    "heroSubtitle": "Compare offers from hundreds of Tunisian hotels. Book in a few clicks with free cancellation."
   },
   "HotelsMonde": {
     "kicker": "World Hotels",
@@ -766,6 +772,7 @@
     "toastSameAirports": "The departure and arrival airports must be different.",
     "toastSelectDepartureDate": "Please select a departure date.",
     "toastSelectReturnDate": "Please select a return date.",
+    "toastSelectReturnDateNew": "Please select a return date.",
     "sortRecommended": "Recommended",
     "sortPriceAsc": "Price: low to high",
     "sortPriceDesc": "Price: high to low",
@@ -773,6 +780,7 @@
     "refundableBadge": "Refundable",
     "startingFrom": "From",
     "bookButton": "Book",
+    "requestTicketButton": "Request ticket",
     "offerUnavailable": "Offer unavailable",
     "directFlight": "Direct flight",
     "stopsCount": "{count, plural, one {# stop} other {# stops}}",
@@ -820,7 +828,26 @@
     "confirmAndPay": "Confirm & pay",
     "processing": "Processing…",
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "tripOneWay": "One Way",
+    "tripRoundTrip": "Round Trip",
+    "tripMultiCity": "Multi-City",
+    "toastReturnBeforeDeparture": "The return date must be after the departure date.",
+    "multiCity": "Multi-city",
+    "addLeg": "Add a leg",
+    "removeLeg": "Remove",
+    "legLabel": "Leg {n}",
+    "toastMinLegs": "Please complete at least 2 legs.",
+    "toastLegSameAirports": "Leg {n}: departure and arrival must be different.",
+    "toastLegDate": "Please select a date for leg {n}.",
+    "multiCityLegTitle": "Leg {n}",
+    "confirmationTitle": "Request submitted",
+    "confirmationSubtitle": "Your ticket request has been successfully recorded.",
+    "confirmationRefLabel": "Reference",
+    "confirmationStatusLabel": "Status",
+    "confirmationDateLabel": "Request submitted on",
+    "confirmationSlaNotice": "Our ticketing team will process your request within {minutes} minutes. You will receive your e-ticket by email upon confirmation.",
+    "confirmationSlaMinutes": "15"
   },
   "Car": {
     "kicker": "Car Rental",
@@ -1002,7 +1029,11 @@
     "confirmAndPay": "Confirm & pay",
     "invalidFieldsError": "Invalid fields",
     "paymentError": "Payment error",
-    "cartModuleNotSupportedToast": "This product type cannot be added to the cart from this page."
+    "cartModuleNotSupportedToast": "This product type cannot be added to the cart from this page.",
+    "paymentTransferTitle": "Pay by bank transfer",
+    "paymentTransferNotice": "Our bank details will be sent to you by email. Your ticket will be issued once the transfer is received.",
+    "paymentCashTitle": "Pay in cash at our agency",
+    "paymentCashNotice": "Visit our office with this booking reference. Your ticket will be issued immediately after payment."
   },
   "Paiement": {
     "simulationEnvTitle": "Simulation environment",

@@ -1,16 +1,17 @@
 /**
  * Helpers de lecture — Phase Premium 2, Chantier 4 (Pages Destination + SEO).
  *
- * Toutes les fonctions lisent via `withSystemContext()` (catalogue géo public,
- * même mécanisme que `app/api/destinations/search/route.ts`, chantier 3) et
- * filtrent systématiquement `isActive`. Aucune de ces fonctions ne touche au
- * moteur Wallet/Settlement ni à aucune table réservation.
+ * Toutes les fonctions lisent via `withPublicAgencyContext(null, ...)`
+ * (catalogue géo public, même mécanisme que
+ * `app/api/destinations/search/route.ts`, chantier 3) et filtrent
+ * systématiquement `isActive`. Aucune de ces fonctions ne touche au moteur
+ * Wallet/Settlement ni à aucune table réservation.
  */
 
 import { and, eq, isNull } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { destinations, destinationExternalRefs, type Destination } from "@/lib/db/schema"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import type { Locale } from "@/lib/locale"
 
 export type DestinationModule = "hotels_monde_slug" | "packages_slug" | "iata"
@@ -38,7 +39,7 @@ export function localizedDestinationName(
 
 /** Tous les slugs actifs (pays + villes) — pour `generateStaticParams()`. */
 export async function listActiveDestinationSlugs(): Promise<string[]> {
-  const rows = await withSystemContext((tx) =>
+  const rows = await withPublicAgencyContext(null, (tx) =>
     tx.select({ slug: destinations.slug }).from(destinations).where(eq(destinations.isActive, true)),
   )
   return rows.map((r) => r.slug)
@@ -50,7 +51,7 @@ export interface CountryWithCities extends Destination {
 
 /** Pays actifs avec leurs villes actives — pour l'index `/destinations`. */
 export async function listActiveCountriesWithCities(): Promise<CountryWithCities[]> {
-  const countries = await withSystemContext((tx) =>
+  const countries = await withPublicAgencyContext(null, (tx) =>
     tx
       .select()
       .from(destinations)
@@ -58,7 +59,7 @@ export async function listActiveCountriesWithCities(): Promise<CountryWithCities
       .orderBy(destinations.name),
   )
 
-  const cities = await withSystemContext((tx) =>
+  const cities = await withPublicAgencyContext(null, (tx) =>
     tx
       .select()
       .from(destinations)
@@ -88,7 +89,7 @@ const KNOWN_MODULES = new Set<string>(["hotels_monde_slug", "packages_slug", "ia
 export async function getDestinationBySlug(slug: string): Promise<DestinationDetail | null> {
   const parentAlias = alias(destinations, "parent")
 
-  const [row] = await withSystemContext((tx) =>
+  const [row] = await withPublicAgencyContext(null, (tx) =>
     tx
       .select({ destination: destinations, parent: parentAlias })
       .from(destinations)
@@ -103,7 +104,7 @@ export async function getDestinationBySlug(slug: string): Promise<DestinationDet
 
   const children =
     destination.type === "country"
-      ? await withSystemContext((tx) =>
+      ? await withPublicAgencyContext(null, (tx) =>
           tx
             .select()
             .from(destinations)
@@ -120,7 +121,7 @@ export async function getDestinationBySlug(slug: string): Promise<DestinationDet
 
   const externalRefsRaw =
     destination.type === "city"
-      ? await withSystemContext((tx) =>
+      ? await withPublicAgencyContext(null, (tx) =>
           tx
             .select({
               module: destinationExternalRefs.module,

@@ -2,11 +2,10 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
-import { useTranslations } from "next-intl"
-import { Calendar, Users, Search, Loader2 } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
+import { Users, Search, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -16,6 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DestinationAutocomplete } from "@/components/destination-autocomplete"
+import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
+import {
+  parseIsoDateLocal,
+  formatDateIso,
+  isValidStayRange,
+} from "@/lib/hotels/date-utils"
 import { matchDestination } from "@/lib/hotels-monde/search-state"
 
 export function WorldHotelSearch({
@@ -29,16 +34,19 @@ export function WorldHotelSearch({
 } = {}) {
   const router = useRouter()
   const t = useTranslations("HotelsMonde")
+  const locale = useLocale()
   const [isPending, startTransition] = useTransition()
 
   const [destination, setDestination] = useState(() =>
     matchDestination(initialDestination),
   )
-  const [checkIn, setCheckIn] = useState(initialCheckIn ?? "")
-  const [checkOut, setCheckOut] = useState(() =>
-    initialCheckIn && initialCheckOut && initialCheckOut <= initialCheckIn
-      ? ""
-      : (initialCheckOut ?? ""),
+  const initialCheckInDate = parseIsoDateLocal(initialCheckIn)
+  const initialCheckOutDate = parseIsoDateLocal(initialCheckOut)
+  const [checkIn, setCheckIn] = useState<Date | null>(initialCheckInDate)
+  const [checkOut, setCheckOut] = useState<Date | null>(
+    initialCheckInDate && initialCheckOutDate && initialCheckOutDate <= initialCheckInDate
+      ? null
+      : initialCheckOutDate,
   )
   const [adults, setAdults] = useState("2")
   const [rooms, setRooms] = useState("1")
@@ -49,24 +57,24 @@ export function WorldHotelSearch({
       toast.error(t("toastSelectDestination"))
       return
     }
-    if (!checkIn || !checkOut) {
+    if (!isValidStayRange({ checkIn, checkOut })) {
       toast.error(t("toastSelectDates"))
       return
     }
-    if (new Date(checkOut) <= new Date(checkIn)) {
-      toast.error(t("toastReturnAfterArrival"))
-      return
-    }
 
-    const params = new URLSearchParams({ destination, checkIn, checkOut, adults, rooms })
+    const params = new URLSearchParams({
+      destination,
+      checkIn: formatDateIso(checkIn!),
+      checkOut: formatDateIso(checkOut!),
+      adults,
+      rooms,
+    })
     if (stars) params.set("stars", stars)
 
     startTransition(() => {
       router.push(`/hotels-monde/search?${params.toString()}`)
     })
   }
-
-  const today = new Date().toISOString().split("T")[0]!
 
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-sm">
@@ -81,32 +89,16 @@ export function WorldHotelSearch({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            {t("arrivalLabel")}
-          </Label>
-          <Input
-            type="date"
-            value={checkIn}
-            min={today}
-            onChange={(e) => {
-              setCheckIn(e.target.value)
-              if (checkOut && e.target.value >= checkOut) setCheckOut("")
+        <div className="sm:col-span-2 lg:col-span-1">
+          <DateRangePicker
+            checkIn={checkIn}
+            checkOut={checkOut}
+            onChange={({ checkIn: nextCheckIn, checkOut: nextCheckOut }) => {
+              setCheckIn(nextCheckIn)
+              setCheckOut(nextCheckOut)
             }}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            {t("departureLabel")}
-          </Label>
-          <Input
-            type="date"
-            value={checkOut}
-            min={checkIn || today}
-            onChange={(e) => setCheckOut(e.target.value)}
+            locale={locale}
+            label={t("arrivalLabel")}
           />
         </div>
 

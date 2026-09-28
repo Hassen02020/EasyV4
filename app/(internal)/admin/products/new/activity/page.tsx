@@ -27,9 +27,9 @@ export default async function NewActivityProductPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Nouvelle attraction</h1>
         <p className="text-muted-foreground mt-1">
-          Le produit est créé en brouillon. Aucun moteur de réservation public n&apos;existe
-          encore pour les Attractions — ce catalogue prépare le terrain, la réservation
-          reste un travail à venir.
+          Le produit est créé en brouillon. Une fois publié avec au moins une session
+          disponible, il devient réservable en ligne sur /attractions/[slug]/book
+          (lib/activities/guest-booking-actions.ts).
         </p>
       </div>
       <ActivityProductForm />

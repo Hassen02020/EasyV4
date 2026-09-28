@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "@/i18n/navigation"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { Search, Calendar, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -18,6 +17,20 @@ import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 
 const DURATIONS = ["3-5", "6-8", "9-12", "13+"]
 
+/** Generates upcoming months as { value: "YYYY-MM", label: "Mois YYYY" } */
+function useUpcomingMonths(count = 18) {
+  const locale = useLocale()
+  return useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" })
+    const now = new Date()
+    return Array.from({ length: count }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+      return { value, label: formatter.format(d) }
+    })
+  }, [locale, count])
+}
+
 export function PackageSearch() {
   const router = useRouter()
   const t = useTranslations("Packages")
@@ -26,6 +39,7 @@ export function PackageSearch() {
   const [duration, setDuration] = useState("")
   const [month, setMonth] = useState("")
   const [travelers, setTravelers] = useState("2")
+  const months = useUpcomingMonths()
 
   function handleSearch() {
     const params = new URLSearchParams()
@@ -73,12 +87,18 @@ export function PackageSearch() {
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             {tCommon("moisDepart")}
           </Label>
-          <Input
-            type="month"
-            value={month}
-            min={new Date().toISOString().slice(0, 7)}
-            onChange={(e) => setMonth(e.target.value)}
-          />
+          <Select value={month} onValueChange={setMonth}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("allMonths")} />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

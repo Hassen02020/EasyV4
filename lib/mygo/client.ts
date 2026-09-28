@@ -472,11 +472,20 @@ export class MyGoClient {
       ...body,
     }
     let lastError: unknown = null
+    // Dernière réponse brute reçue — uniquement pour enrichir le log en cas
+    // de MyGoSchemaError ci-dessous (voir plus bas) : sans elle, un échec de
+    // validation Zod en production ne loggait jusqu'ici QUE le message
+    // générique "response failed schema validation", sans le détail des
+    // champs en cause ni le JSON reçu — impossible à diagnostiquer après
+    // coup à partir des seuls logs Vercel (vécu en direct sur
+    // BookingCreation : cause introuvable sans rejouer l'appel).
+    let rawJson: unknown
 
     for (let attempt = 0; attempt <= cfg.maxRetries; attempt++) {
       const timer = trackLatency("mygo", method)
       try {
         const json = await this.httpJson(url, fullBody, cfg.timeoutMs)
+        rawJson = json
 
         const parse = schema.safeParse(json)
         if (!parse.success) {
@@ -514,11 +523,23 @@ export class MyGoClient {
         lastError = err
         const isCircuitErr = err instanceof MyGoCircuitOpenError
 
+        // Schéma Zod invalide → log enrichi (issues + réponse brute tronquée/
+        // masquée) pour pouvoir diagnostiquer un futur cas réel sans avoir à
+        // le rejouer manuellement contre l'API myGo.
+        if (err instanceof MyGoSchemaError) {
+          timer.end({
+            attempt,
+            error: redactPii(err.message),
+            zodIssues: err.issues,
+            rawResponse: redactPii(JSON.stringify(rawJson) ?? "undefined").slice(0, 4000),
+          })
+          throw err
+        }
+
         // Erreurs métier non-retryables → log + stop immédiat
         if (
           err instanceof MyGoAuthError ||
           err instanceof MyGoApiError ||
-          err instanceof MyGoSchemaError ||
           isCircuitErr
         ) {
           timer.end({ attempt, error: redactPii(err instanceof Error ? err.message : String(err)) })

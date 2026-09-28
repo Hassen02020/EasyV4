@@ -13,6 +13,9 @@ import { z } from "zod"
 import { searchWorldHotels } from "@/lib/hotels-monde/client"
 import { destinationByValue } from "@/lib/hotels-monde/search-state"
 import { rateLimit } from "@/lib/rate-limit"
+import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMargin } from "@/lib/pro/pricing"
 
 export const runtime = "nodejs"
 export const revalidate = 0
@@ -71,6 +74,22 @@ export async function GET(req: NextRequest) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 502 })
   }
+
+  // Marge agence — même mécanisme que app/api/hotels/search-public/route.ts
+  // (getMarginsForAgency + applyMargin), jamais une deuxième formule.
+  // Le prix net (totalPriceTnd) est l'unité de marge atomique — l'offre
+  // Hôtels Monde n'a pas de granularité par chambre exposée (contrairement
+  // à myGo), pricePerNightTnd n'est qu'une valeur d'affichage dérivée.
+  const agencyId = await getDefaultAgencyId()
+  const margins = await getMarginsForAgency(agencyId)
+  result.offers = result.offers.map((offer) => {
+    const totalPriceTnd = applyMargin(offer.totalPriceTnd, margins.hotel)
+    return {
+      ...offer,
+      totalPriceTnd,
+      pricePerNightTnd: totalPriceTnd / offer.nights,
+    }
+  })
 
   return NextResponse.json(result)
 }

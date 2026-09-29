@@ -1304,6 +1304,102 @@ export const productAuthorizations = pgTable(
 )
 
 /**
+ * JOURNEY-BUILDER-01 — composition B2B multi-produits (Flight/Hotel/
+ * Transfer/Activity/Car/Package/Omra/Network) au-dessus des moteurs de
+ * réservation EXISTANTS, jamais un nouveau booking/pricing/financial
+ * engine. Une agence (ou le staff, agence explicite comme
+ * `upsertAgencyPricingMargin`) compose un `journey` = plusieurs
+ * `journey_lines`, chacune ciblant un module réel (`reservationModule`,
+ * réutilisé tel quel — jamais un second enum de modules). Le prix
+ * agrégé (`priceTnd` par ligne) est un SNAPSHOT commercial, jamais
+ * une nouvelle formule : au moment de la confirmation, c'est TOUJOURS
+ * le moteur réel du module (lib/activities/booking-actions.ts,
+ * lib/packages/booking-actions.ts, etc.) qui recalcule et débite le
+ * prix réel — voir lib/journeys/journey-actions.ts.
+ *
+ * Décision produit actée (pas d'atomicité multi-moteurs — chaque moteur
+ * a SA PROPRE transaction/débit/idempotence indépendante) :
+ * `journey_lines.status` : pending → processing → confirmed | failed.
+ * `journeys.status` (dérivé, jamais écrit directement) :
+ * draft → ready → processing → confirmed | partially_confirmed | failed.
+ * Une ligne `confirmed` n'est JAMAIS supprimée/écrasée pour simuler un
+ * rollback (RULE FINANCIÈRE) — seule une annulation via les mécanismes
+ * existants (lib/booking/cancel-actions.ts etc.) peut la défaire, hors
+ * périmètre de ce chantier.
+ */
+export const journeyStatus = pgEnum("journey_status", [
+  "draft",
+  "ready",
+  "processing",
+  "confirmed",
+  "partially_confirmed",
+  "failed",
+])
+
+export const journeyLineStatus = pgEnum("journey_line_status", [
+  "pending",
+  "processing",
+  "confirmed",
+  "failed",
+])
+
+export const journeys = pgTable(
+  "journeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** Client final de l'agence (optionnel — composition possible avant identification du client). */
+    customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    createdByUserId: uuid("created_by_user_id").notNull(),
+    title: text("title"),
+    /** Dérivé de journey_lines.status par recomputeJourneyStatus() (lib/journeys/journeys-core.ts) — jamais écrit à la main ailleurs. */
+    status: journeyStatus("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("journeys_agency_idx").on(t.agencyId),
+    index("journeys_customer_idx").on(t.customerId),
+  ],
+)
+
+export const journeyLines = pgTable(
+  "journey_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    journeyId: uuid("journey_id")
+      .notNull()
+      .references(() => journeys.id, { onDelete: "cascade" }),
+    module: reservationModule("module").notNull(),
+    status: journeyLineStatus("status").notNull().default("pending"),
+    /** Payload exact attendu par le moteur réel du module (ex. ActivityPartnerBookingInput) — jamais réinterprété ici, transmis tel quel à la confirmation. */
+    payload: jsonb("payload").notNull(),
+    /** Snapshot commercial non-authoritatif — le moteur réel recalcule à la confirmation. */
+    priceTnd: decimal("price_tnd", { precision: 14, scale: 2 }),
+    reservationId: uuid("reservation_id").references(() => reservations.id, { onDelete: "set null" }),
+    errorMessage: text("error_message"),
+    /** Posée par la CAS pending/failed → processing (lib/journeys/journeys-core.ts) — garantit qu'un double-clic/retry n'appelle jamais deux fois le moteur réel. */
+    confirmationIdempotencyKey: varchar("confirmation_idempotency_key", { length: 100 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("journey_lines_journey_idx").on(t.journeyId),
+    index("journey_lines_reservation_idx").on(t.reservationId),
+    uniqueIndex("journey_lines_idempotency_uniq")
+      .on(t.confirmationIdempotencyKey)
+      .where(sql`${t.confirmationIdempotencyKey} is not null`),
+  ],
+)
+
+export type Journey = typeof journeys.$inferSelect
+export type NewJourney = typeof journeys.$inferInsert
+export type JourneyLine = typeof journeyLines.$inferSelect
+export type NewJourneyLine = typeof journeyLines.$inferInsert
+
+/**
  * Policy Engine — politiques d'annulation/modification, Omra/Package/
  * Activity UNIQUEMENT (jamais Hôtel : `cancellationPolicies` fournisseur
  * myGo, normalisées par le Universal Hub, restent la seule autorité —

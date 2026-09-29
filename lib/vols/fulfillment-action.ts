@@ -35,9 +35,13 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { finalizeFlightBookingFinancials } from "./flight-financials"
 
 // ─── roles allowed to trigger fulfillment ────────────────────────────────────
-const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
+// PROVIDER-CONNECTIVITY-BRIDGE (P3) : exportée pour être réutilisée telle
+// quelle par confirmManualFlightBooking (manual-confirmation-action.ts) —
+// même garde d'autorisation pour les deux canaux, jamais dupliquée.
+export const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
 
 export type FulfillResult =
   | { ok: true; pnr: string; publicRef: string; bookingId: string }
@@ -485,6 +489,19 @@ export async function fulfillFlightBooking(
 
   // ── 10. Confirm ───────────────────────────────────────────────────────────────
   await updateFlightStatus(bookingId, "CONFIRMED")
+
+  // PROVIDER-CONNECTIVITY-BRIDGE (P2/P3) : marque le canal réellement
+  // emprunté (jamais réécrit ensuite) et alimente le Dashboard Marges — voir
+  // le commentaire de tête de flight-financials.ts pour le gap corrigé ici.
+  await withSystemContext((tx) =>
+    tx
+      .update(flightBookings)
+      .set({ fulfillmentMode: "api_direct", updatedAt: new Date() })
+      .where(eq(flightBookings.id, bookingId)),
+  )
+  await withSystemContext((tx) =>
+    finalizeFlightBookingFinancials(tx, { reservationId, snapshotId }),
+  )
 
   // On successful re-issue, clear the orphan flag that was set previously.
   if (reissueOnly) {

@@ -102,6 +102,10 @@ export interface FlightBookingDetail {
   pnr: string | null
   slaDeadline: string | null
   opsNotes: string | null
+  /** PROVIDER-CONNECTIVITY-BRIDGE (P4) — traçabilité fournisseur/canal. */
+  provider: string | null
+  fulfillmentMode: string | null
+  supplierBookingRef: string | null
   passengers: FlightPassengerDetail[]
   segments: FlightSegmentDetail[]
   tickets: Array<{ ticketNumber: string; status: string }>
@@ -151,11 +155,17 @@ async function loadFlightDetail(
       pnr: flightBookings.pnr,
       slaDeadline: flightBookings.slaDeadline,
       opsNotes: flightBookings.opsNotes,
+      provider: flightBookings.provider,
+      fulfillmentMode: flightBookings.fulfillmentMode,
+      supplierBookingRef: flightBookings.supplierBookingRef,
     })
     .from(flightBookings)
     .where(eq(flightBookings.reservationId, reservationId))
     .limit(1)
-  const fb = (fbRows as Array<{ id: string; status: string; pnr: string | null; slaDeadline: Date | null; opsNotes: string | null }>)[0]
+  const fb = (fbRows as Array<{
+    id: string; status: string; pnr: string | null; slaDeadline: Date | null; opsNotes: string | null
+    provider: string | null; fulfillmentMode: string | null; supplierBookingRef: string | null
+  }>)[0]
   if (!fb) return null
 
   const [ticketRows, segmentRows, passengerRows] = await Promise.all([
@@ -203,6 +213,9 @@ async function loadFlightDetail(
     pnr: fb.pnr,
     slaDeadline: fb.slaDeadline ? fb.slaDeadline.toISOString() : null,
     opsNotes: fb.opsNotes,
+    provider: fb.provider,
+    fulfillmentMode: fb.fulfillmentMode,
+    supplierBookingRef: fb.supplierBookingRef,
     passengers: (passengerRows as Array<{
       sequence: number; passengerType: string; firstName: string; lastName: string;
       birthDate: string | null; nationality: string | null;

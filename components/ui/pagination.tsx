@@ -70,7 +70,10 @@ function PaginationPrevious({
   label = "Previous",
   ariaLabel = "Go to previous page",
   ...props
-}: React.ComponentProps<typeof PaginationLink> & { label?: string; ariaLabel?: string }) {
+}: React.ComponentProps<typeof PaginationLink> & {
+  label?: string
+  ariaLabel?: string
+}) {
   return (
     <PaginationLink
       aria-label={ariaLabel}
@@ -89,7 +92,10 @@ function PaginationNext({
   label = "Next",
   ariaLabel = "Go to next page",
   ...props
-}: React.ComponentProps<typeof PaginationLink> & { label?: string; ariaLabel?: string }) {
+}: React.ComponentProps<typeof PaginationLink> & {
+  label?: string
+  ariaLabel?: string
+}) {
   return (
     <PaginationLink
       aria-label={ariaLabel}

@@ -26,7 +26,9 @@ export const ADMIN_ROLES = [
 
 export type AdminRole = (typeof ADMIN_ROLES)[number]
 
-export function isAdminRole(role: string | null | undefined): role is AdminRole {
+export function isAdminRole(
+  role: string | null | undefined,
+): role is AdminRole {
   return !!role && (ADMIN_ROLES as readonly string[]).includes(role)
 }
 

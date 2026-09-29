@@ -7,7 +7,12 @@
 
 import test from "node:test"
 import assert from "node:assert/strict"
-import { reserve, release, currentAvailability, resetInventory } from "../inventory-store"
+import {
+  reserve,
+  release,
+  currentAvailability,
+  resetInventory,
+} from "../inventory-store"
 
 const KEY = "TUN-CDG-2026-12-01-TU-TU100-ECONOMY:2026-12-01"
 
@@ -55,7 +60,9 @@ test("SÉCURITÉ — CONCURRENCE : 10 tentatives simultanées sur 1 siège => ex
     avail = currentAvailability(KEY)
   }
 
-  const attempts = await Promise.all(Array.from({ length: 10 }, () => reserve(KEY, 1)))
+  const attempts = await Promise.all(
+    Array.from({ length: 10 }, () => reserve(KEY, 1)),
+  )
   const successes = attempts.filter(Boolean).length
   const failures = attempts.filter((r) => !r).length
   assert.equal(successes, 1)
@@ -65,7 +72,11 @@ test("SÉCURITÉ — CONCURRENCE : 10 tentatives simultanées sur 1 siège => ex
 
 test("disponibilité déterministe: même clé => même valeur de base entre deux appels", () => {
   resetInventory()
-  const a = currentAvailability("TUN-IST-2027-01-15-TK-TK200-ECONOMY:2027-01-15")
-  const b = currentAvailability("TUN-IST-2027-01-15-TK-TK200-ECONOMY:2027-01-15")
+  const a = currentAvailability(
+    "TUN-IST-2027-01-15-TK-TK200-ECONOMY:2027-01-15",
+  )
+  const b = currentAvailability(
+    "TUN-IST-2027-01-15-TK-TK200-ECONOMY:2027-01-15",
+  )
   assert.equal(a, b)
 })

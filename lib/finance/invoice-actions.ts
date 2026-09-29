@@ -42,14 +42,22 @@ export interface GenerateInvoiceInput {
 }
 
 export type GenerateInvoiceResult =
-  | { ok: true; invoiceId: string; invoiceNumber: string; alreadyExisted: boolean }
+  | {
+      ok: true
+      invoiceId: string
+      invoiceNumber: string
+      alreadyExisted: boolean
+    }
   | { ok: false; error: string }
 
 function pad(n: number, w = 5) {
   return String(n).padStart(w, "0")
 }
 
-async function nextInvoiceNumber(tx: DrizzleTransaction, agencyId: string): Promise<string> {
+async function nextInvoiceNumber(
+  tx: DrizzleTransaction,
+  agencyId: string,
+): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `FA-${year}-`
   const existing = await tx
@@ -82,7 +90,11 @@ export async function generateInvoiceForReservation(
 
   try {
     return await withTenantContext(
-      { agencyId: input.agencyId, userId: input.actorUserId, isSuperAdmin: false },
+      {
+        agencyId: input.agencyId,
+        userId: input.actorUserId,
+        isSuperAdmin: false,
+      },
       async (tx) => {
         const [reservation] = await tx
           .select()
@@ -120,7 +132,11 @@ export async function generateInvoiceForReservation(
                 validationDate: new Date().toISOString().slice(0, 10),
                 reservationId: input.reservationId,
                 lineItems: [
-                  { reservationId: input.reservationId, label, amount: totalTtc },
+                  {
+                    reservationId: input.reservationId,
+                    label,
+                    amount: totalTtc,
+                  },
                 ],
                 totalHt: totalTtc.toFixed(2),
                 totalTva: "0.00",
@@ -278,27 +294,29 @@ export async function listAdminInvoices(
 ): Promise<AdminInvoiceRow[]> {
   if (!process.env.DATABASE_URL) return []
 
-  const rows = await withTenantContext({ agencyId, userId: actorUserId, isSuperAdmin }, (tx) =>
-    tx
-      .select({
-        id: partnerInvoices.id,
-        invoiceNumber: partnerInvoices.invoiceNumber,
-        invoiceType: partnerInvoices.invoiceType,
-        validationDate: partnerInvoices.validationDate,
-        totalHt: partnerInvoices.totalHt,
-        totalTva: partnerInvoices.totalTva,
-        totalTtc: partnerInvoices.totalTtc,
-        amountPaid: partnerInvoices.amountPaid,
-        status: partnerInvoices.status,
-        reservationId: partnerInvoices.reservationId,
-        agencyId: partnerInvoices.agencyId,
-        agencyName: agencies.name,
-      })
-      .from(partnerInvoices)
-      .leftJoin(agencies, eq(agencies.id, partnerInvoices.agencyId))
-      .where(agencyId ? eq(partnerInvoices.agencyId, agencyId) : undefined)
-      .orderBy(desc(partnerInvoices.createdAt))
-      .limit(200),
+  const rows = await withTenantContext(
+    { agencyId, userId: actorUserId, isSuperAdmin },
+    (tx) =>
+      tx
+        .select({
+          id: partnerInvoices.id,
+          invoiceNumber: partnerInvoices.invoiceNumber,
+          invoiceType: partnerInvoices.invoiceType,
+          validationDate: partnerInvoices.validationDate,
+          totalHt: partnerInvoices.totalHt,
+          totalTva: partnerInvoices.totalTva,
+          totalTtc: partnerInvoices.totalTtc,
+          amountPaid: partnerInvoices.amountPaid,
+          status: partnerInvoices.status,
+          reservationId: partnerInvoices.reservationId,
+          agencyId: partnerInvoices.agencyId,
+          agencyName: agencies.name,
+        })
+        .from(partnerInvoices)
+        .leftJoin(agencies, eq(agencies.id, partnerInvoices.agencyId))
+        .where(agencyId ? eq(partnerInvoices.agencyId, agencyId) : undefined)
+        .orderBy(desc(partnerInvoices.createdAt))
+        .limit(200),
   )
 
   return rows

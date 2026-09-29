@@ -37,7 +37,10 @@ export async function lookupBooking(
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
   const limit = await rateLimit(`booking:lookup:${ip}`)
   if (!limit.ok) {
-    return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." }
+    return {
+      ok: false,
+      error: "Trop de tentatives. Réessayez dans quelques minutes.",
+    }
   }
 
   try {
@@ -100,7 +103,11 @@ export async function lookupBooking(
       findInvoiceForReservation(db, row.id),
     )
     const [existingReview] = await withSystemContext((db) =>
-      db.select({ id: reviews.id }).from(reviews).where(eq(reviews.reservationId, row.id)).limit(1),
+      db
+        .select({ id: reviews.id })
+        .from(reviews)
+        .where(eq(reviews.reservationId, row.id))
+        .limit(1),
     )
 
     return {
@@ -117,7 +124,9 @@ export async function lookupBooking(
         confirmedAt: row.confirmedAt?.toISOString() ?? null,
         cancelledAt: row.cancelledAt?.toISOString() ?? null,
         paymentExpiresAt: row.paymentExpiresAt?.toISOString() ?? null,
-        payment: lastPayment ? { method: lastPayment.method, status: lastPayment.status } : null,
+        payment: lastPayment
+          ? { method: lastPayment.method, status: lastPayment.status }
+          : null,
         onlinePaymentAvailable: hasConfiguredPaymentProvider(),
         guestAccessToken: row.guestAccessToken,
         hasInvoice: invoice != null,

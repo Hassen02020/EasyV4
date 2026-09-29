@@ -65,6 +65,7 @@ logique myGo dupliquée.
 ## 4. Pourquoi une route publique séparée (et non la suppression du guard)
 
 Retirer `requirePartnerSession` de `/api/hotels/search` aurait :
+
 - rendu la route B2B indistincte de la route publique (aucune frontière
   claire pour appliquer plus tard une logique spécifique B2B — historique
   de recherche, tarification négociée, quotas dédiés...) ;
@@ -78,6 +79,7 @@ doit rester différente selon le contexte" (règle finale de la mission).
 ## 5. Fichiers modifiés
 
 **Nouveau** :
+
 - `lib/mygo/search-core.ts` — moteur partagé : `HotelSearchQuerySchema` (Zod,
   identique à l'ancien schéma de `/api/hotels/search`), `validateSearchDateRange()`
   (checkout > checkin + plafond de nuits, nouveau), `executeHotelSearch()`
@@ -90,6 +92,7 @@ doit rester différente selon le contexte" (règle finale de la mission).
 - `EASYV4_B2C_PUBLIC_SEARCH_REPORT.md` (ce document).
 
 **Modifié** :
+
 - `app/api/hotels/search/route.ts` — comportement B2B **strictement
   inchangé** (`requirePartnerSession` toujours en premier, même rate-limit
   bucket `hotels:search:*`), refactorée pour appeler le moteur partagé au
@@ -113,6 +116,7 @@ s'ils sont présents dans la query string (testé explicitement, voir §7).
 Réutilisation intégrale du schéma Zod existant (bornes déjà en place :
 adults 1-8, children 0-17 ans, stars 1-5, rooms max 8 chambres via
 `decodeRoomsParam`). Ajout dans cette mission :
+
 - `validateSearchDateRange()` — plafond de **60 nuits maximum**
   (`MAX_SEARCH_NIGHTS`), nouveau garde-fou anti-abus absent avant (seul
   `checkout > checkin` était vérifié).
@@ -165,13 +169,13 @@ dans cette passe (documenté en risque, §18).
 
 ## 11. Sécurité — tests effectués
 
-| Scénario | Route | Résultat attendu | Vérifié |
-|---|---|---|---|
-| Anonyme | `/api/hotels/search-public` | 200, résultats réels/démo | ✅ (curl + Playwright, voir §14) |
-| Anonyme | `/api/hotels/search` | Refusé (session requise) | ✅ (comportement de garde inchangé, s'exécute avant toute logique de recherche) |
-| Query avec `price`/`markup`/`agencyId`/`walletId`/`partnerId` injectés | les deux | Champs ignorés, aucun impact | ✅ (test unitaire dédié) |
-| Séjour > 60 nuits | les deux | 400 `date_range_too_long` | ✅ (curl + tests unitaires) |
-| Credentials myGo dans la réponse | les deux | Jamais présentes (DTO normalisé uniquement) | ✅ (inchangé — `HotelOfferDTO` ne contient aucun champ credentials, structure identique à avant) |
+| Scénario                                                               | Route                       | Résultat attendu                            | Vérifié                                                                                          |
+| ---------------------------------------------------------------------- | --------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Anonyme                                                                | `/api/hotels/search-public` | 200, résultats réels/démo                   | ✅ (curl + Playwright, voir §14)                                                                 |
+| Anonyme                                                                | `/api/hotels/search`        | Refusé (session requise)                    | ✅ (comportement de garde inchangé, s'exécute avant toute logique de recherche)                  |
+| Query avec `price`/`markup`/`agencyId`/`walletId`/`partnerId` injectés | les deux                    | Champs ignorés, aucun impact                | ✅ (test unitaire dédié)                                                                         |
+| Séjour > 60 nuits                                                      | les deux                    | 400 `date_range_too_long`                   | ✅ (curl + tests unitaires)                                                                      |
+| Credentials myGo dans la réponse                                       | les deux                    | Jamais présentes (DTO normalisé uniquement) | ✅ (inchangé — `HotelOfferDTO` ne contient aucun champ credentials, structure identique à avant) |
 
 **Non testé dans ce sandbox** (nécessite un environnement authentifié) :
 isolation Agence A vs Agence B sur la route B2B — hors périmètre de cette

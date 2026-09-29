@@ -45,11 +45,17 @@ export async function createPartnerClient(
 ): Promise<CreatePartnerClientResult> {
   const parsed = clientInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const supabase = await createServerSupabase()
   const {
@@ -67,7 +73,10 @@ export async function createPartnerClient(
     permission: "clients.create",
   })
   if (!authorized) {
-    return { ok: false, error: "Vous n'êtes pas autorisé à créer un client pour votre agence." }
+    return {
+      ok: false,
+      error: "Vous n'êtes pas autorisé à créer un client pour votre agence.",
+    }
   }
 
   try {
@@ -78,7 +87,12 @@ export async function createPartnerClient(
           const [existing] = await tx
             .select({ id: customers.id })
             .from(customers)
-            .where(and(eq(customers.agencyId, profile.agency.id), eq(customers.email, input.email)))
+            .where(
+              and(
+                eq(customers.agencyId, profile.agency.id),
+                eq(customers.email, input.email),
+              ),
+            )
             .limit(1)
           if (existing) throw new Error("DUPLICATE_EMAIL")
         }
@@ -104,7 +118,12 @@ export async function createPartnerClient(
           entityType: "customer",
           entityId: created.id,
           action: "customer.created",
-          diff: { firstName: input.firstName, lastName: input.lastName, email: input.email || null, via: "partner" },
+          diff: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            email: input.email || null,
+            via: "partner",
+          },
         })
 
         return created.id
@@ -115,26 +134,42 @@ export async function createPartnerClient(
     return { ok: true, customerId }
   } catch (err) {
     if (err instanceof Error && err.message === "DUPLICATE_EMAIL") {
-      return { ok: false, error: "Un client avec cet email existe déjà dans votre agence." }
+      return {
+        ok: false,
+        error: "Un client avec cet email existe déjà dans votre agence.",
+      }
     }
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-const updateInputSchema = clientInputSchema.extend({ customerId: z.string().uuid() })
+const updateInputSchema = clientInputSchema.extend({
+  customerId: z.string().uuid(),
+})
 
-export type UpdatePartnerClientResult = { ok: true } | { ok: false; error: string }
+export type UpdatePartnerClientResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function updatePartnerClient(
   raw: z.infer<typeof updateInputSchema>,
 ): Promise<UpdatePartnerClientResult> {
   const parsed = updateInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const supabase = await createServerSupabase()
   const {
@@ -152,7 +187,10 @@ export async function updatePartnerClient(
     permission: "clients.edit",
   })
   if (!authorized) {
-    return { ok: false, error: "Vous n'êtes pas autorisé à modifier un client de votre agence." }
+    return {
+      ok: false,
+      error: "Vous n'êtes pas autorisé à modifier un client de votre agence.",
+    }
   }
 
   try {
@@ -162,7 +200,12 @@ export async function updatePartnerClient(
         const [existing] = await tx
           .select({ id: customers.id })
           .from(customers)
-          .where(and(eq(customers.id, input.customerId), eq(customers.agencyId, profile.agency.id)))
+          .where(
+            and(
+              eq(customers.id, input.customerId),
+              eq(customers.agencyId, profile.agency.id),
+            ),
+          )
           .limit(1)
         if (!existing) throw new Error("NOT_FOUND")
 
@@ -170,9 +213,15 @@ export async function updatePartnerClient(
           const [duplicate] = await tx
             .select({ id: customers.id })
             .from(customers)
-            .where(and(eq(customers.agencyId, profile.agency.id), eq(customers.email, input.email)))
+            .where(
+              and(
+                eq(customers.agencyId, profile.agency.id),
+                eq(customers.email, input.email),
+              ),
+            )
             .limit(1)
-          if (duplicate && duplicate.id !== input.customerId) throw new Error("DUPLICATE_EMAIL")
+          if (duplicate && duplicate.id !== input.customerId)
+            throw new Error("DUPLICATE_EMAIL")
         }
 
         await tx
@@ -195,7 +244,12 @@ export async function updatePartnerClient(
           entityType: "customer",
           entityId: input.customerId,
           action: "customer.updated",
-          diff: { firstName: input.firstName, lastName: input.lastName, email: input.email || null, via: "partner" },
+          diff: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            email: input.email || null,
+            via: "partner",
+          },
         })
       },
     )
@@ -207,8 +261,14 @@ export async function updatePartnerClient(
       return { ok: false, error: "Client introuvable dans votre agence." }
     }
     if (err instanceof Error && err.message === "DUPLICATE_EMAIL") {
-      return { ok: false, error: "Un autre client avec cet email existe déjà dans votre agence." }
+      return {
+        ok: false,
+        error: "Un autre client avec cet email existe déjà dans votre agence.",
+      }
     }
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }

@@ -104,9 +104,10 @@ async function fulfillWithTwoArmCAS(
     booking.status = "TICKETING_IN_PROGRESS"
     reissueOnly = true
   } else {
-    const hint = booking.status === "FAILED" && !booking.pnr
-      ? " (aucun PNR — le dossier doit être réinitialisé manuellement)"
-      : ""
+    const hint =
+      booking.status === "FAILED" && !booking.pnr
+        ? " (aucun PNR — le dossier doit être réinitialisé manuellement)"
+        : ""
     return {
       ok: false,
       error: `Ce dossier est déjà en statut ${booking.status}.${hint}`,
@@ -156,10 +157,18 @@ async function fulfillWithTwoArmCAS(
     if (adapter.cancelCallCount) adapter.cancelCallCount.n++
     let pnrOrphaned = false
     if (adapter.cancelThrows) {
-      audit.push({ transactionType: "CANCEL", status: "FAILURE", pnr: activePnr })
+      audit.push({
+        transactionType: "CANCEL",
+        status: "FAILURE",
+        pnr: activePnr,
+      })
       pnrOrphaned = true
     } else {
-      audit.push({ transactionType: "CANCEL", status: "SUCCESS", pnr: activePnr })
+      audit.push({
+        transactionType: "CANCEL",
+        status: "SUCCESS",
+        pnr: activePnr,
+      })
     }
 
     if (pnrOrphaned) {
@@ -191,12 +200,31 @@ async function fulfillWithTwoArmCAS(
 
 let bookingSeq = 0
 
-function makeDB(initialStatus: BookingStatus = "PENDING", pnr: string | null = null, opsNotes: string | null = null) {
+function makeDB(
+  initialStatus: BookingStatus = "PENDING",
+  pnr: string | null = null,
+  opsNotes: string | null = null,
+) {
   const id = `booking-${++bookingSeq}`
   const reservationId = `res-${bookingSeq}`
-  const booking: BookingRecord = { id, reservationId, status: initialStatus, pnr, supplierBookingRef: null, opsNotes }
-  const reservation: ReservationRecord = { id: reservationId, status: "pending" }
-  return { bookings: [booking], reservations: [reservation], reservationId, booking }
+  const booking: BookingRecord = {
+    id,
+    reservationId,
+    status: initialStatus,
+    pnr,
+    supplierBookingRef: null,
+    opsNotes,
+  }
+  const reservation: ReservationRecord = {
+    id: reservationId,
+    status: "pending",
+  }
+  return {
+    bookings: [booking],
+    reservations: [reservation],
+    reservationId,
+    booking,
+  }
 }
 
 // ===========================================================================
@@ -204,17 +232,30 @@ function makeDB(initialStatus: BookingStatus = "PENDING", pnr: string | null = n
 // ===========================================================================
 
 describe("G11b — Secure Retry: PNR_ORPHANED", () => {
-
   test("Q01 — PNR_ORPHANED booking (FAILED + pnr set) is eligible for Arm B re-issue", async () => {
-    const { bookings, reservations, reservationId, booking } = makeDB("FAILED", "PNR-ABCD", "PNR orphan: ...")
-    const result = await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, [])
+    const { bookings, reservations, reservationId, booking } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+      "PNR orphan: ...",
+    )
+    const result = await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      [],
+    )
     assert.equal(result.ok, true)
     assert.equal(booking.status, "CONFIRMED")
   })
 
   test("Q02 — FAILED booking WITHOUT pnr is NOT eligible for re-issue (WRONG_STATUS)", async () => {
     const { bookings, reservations, reservationId } = makeDB("FAILED", null)
-    const result = await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, [])
+    const result = await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      [],
+    )
     assert.equal(result.ok, false)
     assert.equal((result as { code: string }).code, "WRONG_STATUS")
     assert.ok(
@@ -224,49 +265,114 @@ describe("G11b — Secure Retry: PNR_ORPHANED", () => {
   })
 
   test("Q03 — Re-issue path never calls book()", async () => {
-    const { bookings, reservations, reservationId } = makeDB("FAILED", "PNR-ABCD")
+    const { bookings, reservations, reservationId } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+    )
     const bookCount = { n: 0 }
-    await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, { bookCallCount: bookCount }, [])
-    assert.equal(bookCount.n, 0, "book() must never be called in the re-issue path")
+    await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      { bookCallCount: bookCount },
+      [],
+    )
+    assert.equal(
+      bookCount.n,
+      0,
+      "book() must never be called in the re-issue path",
+    )
   })
 
   test("Q04 — Re-issue path never calls recheck()", async () => {
-    const { bookings, reservations, reservationId } = makeDB("FAILED", "PNR-ABCD")
+    const { bookings, reservations, reservationId } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+    )
     const recheckCount = { n: 0 }
-    await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, { recheckCallCount: recheckCount }, [])
-    assert.equal(recheckCount.n, 0, "recheck() must never be called in the re-issue path")
+    await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      { recheckCallCount: recheckCount },
+      [],
+    )
+    assert.equal(
+      recheckCount.n,
+      0,
+      "recheck() must never be called in the re-issue path",
+    )
   })
 
   test("Q05 — Re-issue path calls issue() with the existing PNR", async () => {
     const existingPnr = "PNR-EXISTING"
-    const { bookings, reservations, reservationId } = makeDB("FAILED", existingPnr)
+    const { bookings, reservations, reservationId } = makeDB(
+      "FAILED",
+      existingPnr,
+    )
     const audit: AuditEntry[] = []
-    await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, audit)
+    await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      audit,
+    )
 
     const issueEntry = audit.find((e) => e.transactionType === "ISSUE")
     assert.ok(issueEntry, "ISSUE entry must exist in audit")
-    assert.equal(issueEntry!.pnr, existingPnr, `issue() must use existing PNR "${existingPnr}"`)
+    assert.equal(
+      issueEntry!.pnr,
+      existingPnr,
+      `issue() must use existing PNR "${existingPnr}"`,
+    )
   })
 
   test("Q06 — Re-issue succeeds → status = CONFIRMED, opsNotes cleared", async () => {
-    const { bookings, reservations, reservationId, booking } = makeDB("FAILED", "PNR-ABCD", "PNR orphan: ...")
-    await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, [])
+    const { bookings, reservations, reservationId, booking } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+      "PNR orphan: ...",
+    )
+    await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      [],
+    )
 
     assert.equal(booking.status, "CONFIRMED")
-    assert.equal(booking.opsNotes, null, "opsNotes must be cleared on successful re-issue")
+    assert.equal(
+      booking.opsNotes,
+      null,
+      "opsNotes must be cleared on successful re-issue",
+    )
   })
 
   test("Q07 — Re-issue succeeds → returns the existing PNR (not a new one)", async () => {
     const existingPnr = "PNR-EXISTING"
-    const { bookings, reservations, reservationId } = makeDB("FAILED", existingPnr)
-    const result = await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, [])
+    const { bookings, reservations, reservationId } = makeDB(
+      "FAILED",
+      existingPnr,
+    )
+    const result = await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      [],
+    )
 
     assert.equal(result.ok, true)
-    assert.equal((result as { pnr: string }).pnr, existingPnr, "Returned PNR must be the existing one")
+    assert.equal(
+      (result as { pnr: string }).pnr,
+      existingPnr,
+      "Returned PNR must be the existing one",
+    )
   })
 
   test("Q08 — Re-issue issue() fails + cancel() fails → code = PNR_ORPHANED again", async () => {
-    const { bookings, reservations, reservationId, booking } = makeDB("FAILED", "PNR-ABCD", "PNR orphan: ...")
+    const { bookings, reservations, reservationId, booking } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+      "PNR orphan: ...",
+    )
     const result = await fulfillWithTwoArmCAS(
       { bookings, reservations },
       reservationId,
@@ -280,7 +386,10 @@ describe("G11b — Secure Retry: PNR_ORPHANED", () => {
   })
 
   test("Q09 — Re-issue issue() fails + cancel() succeeds → code = ISSUE_FAILED", async () => {
-    const { bookings, reservations, reservationId } = makeDB("FAILED", "PNR-ABCD")
+    const { bookings, reservations, reservationId } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+    )
     const result = await fulfillWithTwoArmCAS(
       { bookings, reservations },
       reservationId,
@@ -292,7 +401,10 @@ describe("G11b — Secure Retry: PNR_ORPHANED", () => {
   })
 
   test("Q10 — Two concurrent re-issue calls on same booking → exactly 1 wins (Arm B CAS)", async () => {
-    const { bookings, reservations, reservationId } = makeDB("FAILED", "PNR-ABCD")
+    const { bookings, reservations, reservationId } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+    )
 
     const results = await Promise.all([
       fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, []),
@@ -300,9 +412,15 @@ describe("G11b — Secure Retry: PNR_ORPHANED", () => {
     ])
 
     const wins = results.filter((r) => r.ok)
-    const rejections = results.filter((r) => !r.ok && (r as { code: string }).code === "WRONG_STATUS")
+    const rejections = results.filter(
+      (r) => !r.ok && (r as { code: string }).code === "WRONG_STATUS",
+    )
     assert.equal(wins.length, 1, "Exactly 1 re-issue must succeed")
-    assert.equal(rejections.length, 1, "The second concurrent call must get WRONG_STATUS")
+    assert.equal(
+      rejections.length,
+      1,
+      "The second concurrent call must get WRONG_STATUS",
+    )
   })
 
   test("Q11 — Normal PENDING booking: Arm A still works (no regression)", async () => {
@@ -320,28 +438,53 @@ describe("G11b — Secure Retry: PNR_ORPHANED", () => {
   })
 
   test("Q12 — CONFIRMED booking is not eligible for re-issue (WRONG_STATUS)", async () => {
-    const { bookings, reservations, reservationId } = makeDB("CONFIRMED", "PNR-DONE")
-    const result = await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, [])
+    const { bookings, reservations, reservationId } = makeDB(
+      "CONFIRMED",
+      "PNR-DONE",
+    )
+    const result = await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      [],
+    )
     assert.equal(result.ok, false)
     assert.equal((result as { code: string }).code, "WRONG_STATUS")
   })
 
   test("Q13 — Arm B CAS: FAILED + null pnr → 0 rows, returns WRONG_STATUS", async () => {
     const { bookings, reservations, reservationId } = makeDB("FAILED", null)
-    const result = await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, [])
+    const result = await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      [],
+    )
     assert.equal(result.ok, false)
     assert.equal((result as { code: string }).code, "WRONG_STATUS")
   })
 
   test("Q14 — Re-issue audit log: ISSUE:SUCCESS present, no BOOK entry", async () => {
-    const { bookings, reservations, reservationId } = makeDB("FAILED", "PNR-ABCD")
+    const { bookings, reservations, reservationId } = makeDB(
+      "FAILED",
+      "PNR-ABCD",
+    )
     const audit: AuditEntry[] = []
-    await fulfillWithTwoArmCAS({ bookings, reservations }, reservationId, {}, audit)
+    await fulfillWithTwoArmCAS(
+      { bookings, reservations },
+      reservationId,
+      {},
+      audit,
+    )
 
     const bookEntry = audit.find((e) => e.transactionType === "BOOK")
     const issueEntry = audit.find((e) => e.transactionType === "ISSUE")
 
-    assert.equal(bookEntry, undefined, "BOOK must not appear in re-issue audit log")
+    assert.equal(
+      bookEntry,
+      undefined,
+      "BOOK must not appear in re-issue audit log",
+    )
     assert.ok(issueEntry, "ISSUE must appear in re-issue audit log")
     assert.equal(issueEntry!.status, "SUCCESS")
   })
@@ -373,10 +516,18 @@ describe("G11b — Secure Retry: PNR_ORPHANED", () => {
       [],
     )
     assert.equal(result2.ok, true)
-    assert.equal((result2 as { pnr: string }).pnr, orphanedPnr, "Re-issue must use the same PNR")
+    assert.equal(
+      (result2 as { pnr: string }).pnr,
+      orphanedPnr,
+      "Re-issue must use the same PNR",
+    )
     assert.equal(booking.status, "CONFIRMED")
     assert.equal(booking.opsNotes, null, "opsNotes must be cleared")
-    assert.equal(bookCallCount.n, 1, "book() called exactly once across both calls")
+    assert.equal(
+      bookCallCount.n,
+      1,
+      "book() called exactly once across both calls",
+    )
     assert.equal(issueCallCount.n, 2, "issue() called once per attempt")
   })
 })

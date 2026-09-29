@@ -21,7 +21,10 @@ import { and, eq, gte } from "drizzle-orm"
 import { ProPageShell } from "@/components/pro/pro-page-shell"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
-import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  resolveSessionContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
 import { omraPackages, omraAllotments } from "@/lib/db/schema"
 import { OmraPartnerBookingForm } from "@/components/omra/omra-partner-booking-form"
 
@@ -34,12 +37,18 @@ async function getAuthorizedOmraPackage(id: string) {
   if (!session.ok || !session.agencyId) return null
 
   return withTenantContext(
-    { agencyId: session.agencyId, userId: session.userId, isSuperAdmin: session.isSuperAdmin },
+    {
+      agencyId: session.agencyId,
+      userId: session.userId,
+      isSuperAdmin: session.isSuperAdmin,
+    },
     async (tx) => {
       const [pkg] = await tx
         .select()
         .from(omraPackages)
-        .where(and(eq(omraPackages.id, id), eq(omraPackages.status, "published")))
+        .where(
+          and(eq(omraPackages.id, id), eq(omraPackages.status, "published")),
+        )
         .limit(1)
       if (!pkg) return null
       if (!pkg.channels?.includes("b2b")) return null
@@ -96,8 +105,9 @@ export default async function ProOmraDetailPage({
       }
     >
       {allotments.length === 0 ? (
-        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          Aucun départ n&apos;est ouvert à la réservation pour ce programme actuellement.
+        <div className="bg-card text-muted-foreground rounded-xl border p-8 text-center text-sm">
+          Aucun départ n&apos;est ouvert à la réservation pour ce programme
+          actuellement.
         </div>
       ) : (
         <OmraPartnerBookingForm
@@ -108,7 +118,9 @@ export default async function ProOmraDetailPage({
           departures={allotments.map((a) => ({
             departureDate: a.departureDate,
             availableCount: a.availableCount,
-            price: a.overridePrice ? parseFloat(a.overridePrice) : parseFloat(pkg.basePrice),
+            price: a.overridePrice
+              ? parseFloat(a.overridePrice)
+              : parseFloat(pkg.basePrice),
           }))}
         />
       )}

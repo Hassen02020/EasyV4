@@ -280,7 +280,10 @@ export function getProHotelById(id: string): ProHotel | undefined {
 }
 
 export function minBoardingPrice(hotel: ProHotel): number
-export function minBoardingPrice(hotel: ProHotel, boarding: HotelBoarding): number | null
+export function minBoardingPrice(
+  hotel: ProHotel,
+  boarding: HotelBoarding,
+): number | null
 export function minBoardingPrice(
   hotel: ProHotel,
   boarding?: HotelBoarding,
@@ -292,7 +295,9 @@ export function minBoardingPrice(
   }
   // Sans boarding : retourne le prix minimum toutes pensions confondues (jamais null)
   const allPrices = hotel.rooms.flatMap((r) =>
-    Object.values(r.prices).filter((p): p is number => typeof p === "number" && p > 0),
+    Object.values(r.prices).filter(
+      (p): p is number => typeof p === "number" && p > 0,
+    ),
   )
   return allPrices.length > 0 ? Math.min(...allPrices) : 0
 }

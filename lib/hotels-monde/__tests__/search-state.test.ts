@@ -13,7 +13,13 @@ function params(obj: Record<string, string>): URLSearchParams {
 
 test("parseWorldHotelSearchParams : cas nominal, calcule les nuits", () => {
   const result = parseWorldHotelSearchParams(
-    params({ destination: "paris", checkIn: "2026-09-10", checkOut: "2026-09-13", adults: "2", rooms: "1" }),
+    params({
+      destination: "paris",
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-13",
+      adults: "2",
+      rooms: "1",
+    }),
   )
   assert.ok(result.ok)
   if (!result.ok) return
@@ -26,28 +32,44 @@ test("parseWorldHotelSearchParams : cas nominal, calcule les nuits", () => {
 
 test("parseWorldHotelSearchParams : rejette une destination inconnue", () => {
   const result = parseWorldHotelSearchParams(
-    params({ destination: "atlantide", checkIn: "2026-09-10", checkOut: "2026-09-13" }),
+    params({
+      destination: "atlantide",
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-13",
+    }),
   )
   assert.equal(result.ok, false)
 })
 
 test("parseWorldHotelSearchParams : rejette checkOut <= checkIn", () => {
   const result = parseWorldHotelSearchParams(
-    params({ destination: "paris", checkIn: "2026-09-10", checkOut: "2026-09-10" }),
+    params({
+      destination: "paris",
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-10",
+    }),
   )
   assert.equal(result.ok, false)
 })
 
 test("parseWorldHotelSearchParams : rejette une date malformée", () => {
   const result = parseWorldHotelSearchParams(
-    params({ destination: "paris", checkIn: "10-09-2026", checkOut: "2026-09-13" }),
+    params({
+      destination: "paris",
+      checkIn: "10-09-2026",
+      checkOut: "2026-09-13",
+    }),
   )
   assert.equal(result.ok, false)
 })
 
 test("parseWorldHotelSearchParams : applique les défauts adults/rooms si absents", () => {
   const result = parseWorldHotelSearchParams(
-    params({ destination: "rome", checkIn: "2026-09-10", checkOut: "2026-09-11" }),
+    params({
+      destination: "rome",
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-11",
+    }),
   )
   assert.ok(result.ok)
   if (!result.ok) return
@@ -58,7 +80,12 @@ test("parseWorldHotelSearchParams : applique les défauts adults/rooms si absent
 
 test("parseWorldHotelSearchParams : accepte et propage le filtre stars", () => {
   const result = parseWorldHotelSearchParams(
-    params({ destination: "rome", checkIn: "2026-09-10", checkOut: "2026-09-11", stars: "5" }),
+    params({
+      destination: "rome",
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-11",
+      stars: "5",
+    }),
   )
   assert.ok(result.ok)
   if (!result.ok) return
@@ -79,7 +106,14 @@ test("matchDestination : retourne '' si aucune correspondance (pas de valeur inv
 
 test("worldHotelStateToApiParams : construit les query params canoniques", () => {
   const result = parseWorldHotelSearchParams(
-    params({ destination: "istanbul", checkIn: "2026-10-01", checkOut: "2026-10-04", adults: "3", rooms: "2", stars: "4" }),
+    params({
+      destination: "istanbul",
+      checkIn: "2026-10-01",
+      checkOut: "2026-10-04",
+      adults: "3",
+      rooms: "2",
+      stars: "4",
+    }),
   )
   assert.ok(result.ok)
   if (!result.ok) return

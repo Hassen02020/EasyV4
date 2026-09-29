@@ -13,7 +13,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { computePaymeeChecksum, verifyPaymeeChecksum, normalizePaymeeStatus } from "../paymee-signing"
+import {
+  computePaymeeChecksum,
+  verifyPaymeeChecksum,
+  normalizePaymeeStatus,
+} from "../paymee-signing"
 
 test("normalizePaymeeStatus : booléen natif", () => {
   assert.equal(normalizePaymeeStatus(true), true)
@@ -52,9 +56,18 @@ test("verifyPaymeeChecksum : check_sum correctement calculé -> true", () => {
 
 test("verifyPaymeeChecksum : mauvaise clé API -> false", () => {
   const token = "tok_abc123"
-  const checkSum = computePaymeeChecksum({ token, paymentStatus: true, apiKey: "real_key" })
+  const checkSum = computePaymeeChecksum({
+    token,
+    paymentStatus: true,
+    apiKey: "real_key",
+  })
   assert.equal(
-    verifyPaymeeChecksum({ token, paymentStatusRaw: true, checkSum, apiKey: "wrong_key" }),
+    verifyPaymeeChecksum({
+      token,
+      paymentStatusRaw: true,
+      checkSum,
+      apiKey: "wrong_key",
+    }),
     false,
   )
 })
@@ -73,20 +86,39 @@ test("verifyPaymeeChecksum : payload modifié après signature (payment_status c
 
 test("verifyPaymeeChecksum : token modifié après signature -> false", () => {
   const apiKey = "secret_key_1"
-  const checkSum = computePaymeeChecksum({ token: "tok_original", paymentStatus: true, apiKey })
+  const checkSum = computePaymeeChecksum({
+    token: "tok_original",
+    paymentStatus: true,
+    apiKey,
+  })
   assert.equal(
-    verifyPaymeeChecksum({ token: "tok_different", paymentStatusRaw: true, checkSum, apiKey }),
+    verifyPaymeeChecksum({
+      token: "tok_different",
+      paymentStatusRaw: true,
+      checkSum,
+      apiKey,
+    }),
     false,
   )
 })
 
 test("verifyPaymeeChecksum : check_sum absent -> false, jamais une exception", () => {
   assert.equal(
-    verifyPaymeeChecksum({ token: "tok_abc", paymentStatusRaw: true, checkSum: null, apiKey: "k" }),
+    verifyPaymeeChecksum({
+      token: "tok_abc",
+      paymentStatusRaw: true,
+      checkSum: null,
+      apiKey: "k",
+    }),
     false,
   )
   assert.equal(
-    verifyPaymeeChecksum({ token: "tok_abc", paymentStatusRaw: true, checkSum: undefined, apiKey: "k" }),
+    verifyPaymeeChecksum({
+      token: "tok_abc",
+      paymentStatusRaw: true,
+      checkSum: undefined,
+      apiKey: "k",
+    }),
     false,
   )
 })
@@ -118,9 +150,18 @@ test("verifyPaymeeChecksum : check_sum manifestement mal formé (longueur diffé
 test("verifyPaymeeChecksum : insensible à la casse hexadécimale du check_sum reçu", () => {
   const token = "tok_case"
   const apiKey = "k"
-  const checkSum = computePaymeeChecksum({ token, paymentStatus: false, apiKey })
+  const checkSum = computePaymeeChecksum({
+    token,
+    paymentStatus: false,
+    apiKey,
+  })
   assert.equal(
-    verifyPaymeeChecksum({ token, paymentStatusRaw: false, checkSum: checkSum.toUpperCase(), apiKey }),
+    verifyPaymeeChecksum({
+      token,
+      paymentStatusRaw: false,
+      checkSum: checkSum.toUpperCase(),
+      apiKey,
+    }),
     true,
   )
 })

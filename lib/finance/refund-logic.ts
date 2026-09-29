@@ -6,7 +6,11 @@
  * déclencher d'erreur de build. Même motif que
  * `lib/finance/manual-payment-logic.ts::MANUAL_PAYMENT_ALLOWED_ROLES`.
  */
-export const REFUND_ALLOWED_ROLES = ["super_admin", "manager", "agent_compta"] as const
+export const REFUND_ALLOWED_ROLES = [
+  "super_admin",
+  "manager",
+  "agent_compta",
+] as const
 
 /**
  * Application (mutation DB) d'un remboursement — extraite de
@@ -36,7 +40,12 @@ export const REFUND_ALLOWED_ROLES = ["super_admin", "manager", "agent_compta"] a
 
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { agencies, auditEvents, partnerCreditMovements, payments } from "@/lib/db/schema"
+import {
+  agencies,
+  auditEvents,
+  partnerCreditMovements,
+  payments,
+} from "@/lib/db/schema"
 import { creditCustomerWallet } from "./customer-wallet"
 import { TND_EPSILON } from "./payment-summary"
 import { allocateRefund } from "./refund-allocation"
@@ -108,7 +117,9 @@ async function creditAgencyForRefund(
     .for("update")
 
   if (!agency) {
-    throw new Error(`Agence introuvable pour le remboursement (agencyId=${params.agencyId})`)
+    throw new Error(
+      `Agence introuvable pour le remboursement (agencyId=${params.agencyId})`,
+    )
   }
 
   const currentBalance = Number.parseFloat(agency.depositBalance)
@@ -157,15 +168,33 @@ export interface ApplyReservationRefundInput {
 
 export type ApplyReservationRefundResult =
   | { ok: true; refundedTnd: number; fullyRefunded: boolean }
-  | { ok: false; code: "NO_CAPTURED_PAYMENT" | "AMOUNT_EXCEEDS_CAPTURED" | "NOT_REFUNDABLE"; error: string }
+  | {
+      ok: false
+      code: "NO_CAPTURED_PAYMENT" | "AMOUNT_EXCEEDS_CAPTURED" | "NOT_REFUNDABLE"
+      error: string
+    }
 
 export async function applyReservationRefund(
   input: ApplyReservationRefundInput,
 ): Promise<ApplyReservationRefundResult> {
-  const { tx, agencyId, reservationId, customerId, publicRef, reason, actorUserId, amountTnd, checkFullRefundAllowed } = input
+  const {
+    tx,
+    agencyId,
+    reservationId,
+    customerId,
+    publicRef,
+    reason,
+    actorUserId,
+    amountTnd,
+    checkFullRefundAllowed,
+  } = input
 
   const refundableRows = await tx
-    .select({ id: payments.id, tndAmount: payments.tndAmount, refundedAmount: payments.refundedAmount })
+    .select({
+      id: payments.id,
+      tndAmount: payments.tndAmount,
+      refundedAmount: payments.refundedAmount,
+    })
     .from(payments)
     .where(
       and(
@@ -221,7 +250,9 @@ export async function applyReservationRefund(
       reservationId,
       description: `Remboursement réservation ${publicRef} — ${reason}`,
       source: "refund",
-      txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
+      txOverride: tx as Parameters<
+        typeof creditCustomerWallet
+      >[0]["txOverride"],
     })
     if (!credit.ok) {
       throw new Error(`Échec du crédit wallet client : ${credit.message}`)
@@ -234,7 +265,12 @@ export async function applyReservationRefund(
     entityType: "reservation",
     entityId: reservationId,
     action: "payment.refunded",
-    diff: { publicRef, amountTnd: requestedTnd.toFixed(2), fullyRefunded, reason },
+    diff: {
+      publicRef,
+      amountTnd: requestedTnd.toFixed(2),
+      fullyRefunded,
+      reason,
+    },
   })
 
   return { ok: true, refundedTnd: requestedTnd, fullyRefunded }

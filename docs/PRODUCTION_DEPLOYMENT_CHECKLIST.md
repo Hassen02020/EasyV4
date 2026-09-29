@@ -33,7 +33,7 @@ l'application de `drizzle/manual/*.sql`, uniquement `drizzle/*.sql` versionnées
    contexte de session `app.current_agency_id`/`app.is_super_admin`, etc.) —
    **sans elles l'app tourne sans RLS effective**, faille critique.
 3. **Vérification post-migration obligatoire** : `SELECT tablename, rowsecurity
-   FROM pg_tables WHERE schemaname='public'` → confirmer `rowsecurity = true`
+FROM pg_tables WHERE schemaname='public'` → confirmer `rowsecurity = true`
    sur TOUTES les tables sensibles (`reservations`, `payments`, `agencies`,
    `partner_credit_movements`, `wallet_accounts`, `wallet_ledger`, `customers`,
    `audit_events`, etc.). Une table avec RLS désactivée après migration =
@@ -67,26 +67,26 @@ Toutes les variables ci-dessous existent déjà dans `.env.example` (201 lignes,
 état actuel du repo). Statut = obligatoire/optionnel tel qu'implémenté dans le
 code (pas une supposition) :
 
-| Variable | Obligatoire ? | Génération / source |
-|---|---|---|
-| `DATABASE_URL`, `DATABASE_DIRECT_URL` | **Oui** | Supabase → Project Settings → Database |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | **Oui** | Supabase → Project Settings → API |
-| `MYGO_MODE` | **Oui — doit être `live` ou absent** en prod (`virtual` route tout vers le simulateur local, jamais acceptable en prod) | — |
-| `MYGO_LOGIN`, `MYGO_PASSWORD`, `MYGO_API_BASE_URL` | **Oui** si `MYGO_MODE≠virtual` | Fournies par myGo (contrat fournisseur) |
-| `SUPPLIER_CREDENTIALS_ENCRYPTION_KEY` | **Oui** (chiffrement AES-256-GCM des identifiants fournisseur en DB) | `openssl rand -hex 32` — **jamais réutiliser la valeur `.env.example`** |
-| `CRON_SECRET` | **Oui** (protège `/api/cron/*`, référencé par `vercel.json`) | `openssl rand -hex 32`, > 32 caractères |
-| `HEALTH_SECRET` | Recommandé (déverrouille le détail SLO de `/api/health`) | `openssl rand -hex 32` |
-| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Fortement recommandé — sans Redis, rate limiting et circuit breaker myGo retombent en mode in-memory **par instance serverless** (inefficace en multi-pod) | console.upstash.com |
-| `RESEND_API_KEY` | Nécessaire pour l'email transactionnel (confirmation, voucher, facture) | resend.com |
-| `SPS_*` (Monétique Tunisie) | Nécessaire si paiement carte activé | Fournies par SPS, `SPS_ENVIRONMENT=production` |
-| `STRIPE_*` / `ZITOUNA_PAY_*` | Optionnel — dépend des moyens de paiement activés en prod | — |
-| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Optionnel — sans elles, le provider WhatsApp reste un stub honnête (aucune notification envoyée, pas d'erreur) | Meta Business Manager |
-| `TWILIO_*` | Optionnel — idem, SMS chauffeur ignoré sans clés | console.twilio.com |
-| `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY` | **Oui** si les jobs background (emails, notifications, retry engine) doivent tourner en prod (pas seulement en dev via `inngest dev`) | app.inngest.com |
-| `SENTRY_DSN` | Optionnel (package non installé actuellement — `npm install @sentry/nextjs` requis avant utilisation, voir §4) | sentry.io |
-| `VIRTUAL_MYGO_TOKEN_SECRET` | **À ne PAS configurer en prod réel** (n'a de sens qu'en `MYGO_MODE=virtual`, jamais actif en prod) | — |
-| `NEXT_PUBLIC_APP_URL` | **Oui** | URL de prod réelle (`https://...`) |
-| `FEATURE_*` | Optionnel — désactivées par défaut pour les modules non prêts (`FEATURE_VOLS=false`, `FEATURE_CAR=false`) ; garder cohérent avec ce qui est réellement livrable | — |
+| Variable                                                                                 | Obligatoire ?                                                                                                                                                   | Génération / source                                                     |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `DATABASE_URL`, `DATABASE_DIRECT_URL`                                                    | **Oui**                                                                                                                                                         | Supabase → Project Settings → Database                                  |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | **Oui**                                                                                                                                                         | Supabase → Project Settings → API                                       |
+| `MYGO_MODE`                                                                              | **Oui — doit être `live` ou absent** en prod (`virtual` route tout vers le simulateur local, jamais acceptable en prod)                                         | —                                                                       |
+| `MYGO_LOGIN`, `MYGO_PASSWORD`, `MYGO_API_BASE_URL`                                       | **Oui** si `MYGO_MODE≠virtual`                                                                                                                                  | Fournies par myGo (contrat fournisseur)                                 |
+| `SUPPLIER_CREDENTIALS_ENCRYPTION_KEY`                                                    | **Oui** (chiffrement AES-256-GCM des identifiants fournisseur en DB)                                                                                            | `openssl rand -hex 32` — **jamais réutiliser la valeur `.env.example`** |
+| `CRON_SECRET`                                                                            | **Oui** (protège `/api/cron/*`, référencé par `vercel.json`)                                                                                                    | `openssl rand -hex 32`, > 32 caractères                                 |
+| `HEALTH_SECRET`                                                                          | Recommandé (déverrouille le détail SLO de `/api/health`)                                                                                                        | `openssl rand -hex 32`                                                  |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`                                     | Fortement recommandé — sans Redis, rate limiting et circuit breaker myGo retombent en mode in-memory **par instance serverless** (inefficace en multi-pod)      | console.upstash.com                                                     |
+| `RESEND_API_KEY`                                                                         | Nécessaire pour l'email transactionnel (confirmation, voucher, facture)                                                                                         | resend.com                                                              |
+| `SPS_*` (Monétique Tunisie)                                                              | Nécessaire si paiement carte activé                                                                                                                             | Fournies par SPS, `SPS_ENVIRONMENT=production`                          |
+| `STRIPE_*` / `ZITOUNA_PAY_*`                                                             | Optionnel — dépend des moyens de paiement activés en prod                                                                                                       | —                                                                       |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`                                      | Optionnel — sans elles, le provider WhatsApp reste un stub honnête (aucune notification envoyée, pas d'erreur)                                                  | Meta Business Manager                                                   |
+| `TWILIO_*`                                                                               | Optionnel — idem, SMS chauffeur ignoré sans clés                                                                                                                | console.twilio.com                                                      |
+| `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`                                               | **Oui** si les jobs background (emails, notifications, retry engine) doivent tourner en prod (pas seulement en dev via `inngest dev`)                           | app.inngest.com                                                         |
+| `SENTRY_DSN`                                                                             | Optionnel (package non installé actuellement — `npm install @sentry/nextjs` requis avant utilisation, voir §4)                                                  | sentry.io                                                               |
+| `VIRTUAL_MYGO_TOKEN_SECRET`                                                              | **À ne PAS configurer en prod réel** (n'a de sens qu'en `MYGO_MODE=virtual`, jamais actif en prod)                                                              | —                                                                       |
+| `NEXT_PUBLIC_APP_URL`                                                                    | **Oui**                                                                                                                                                         | URL de prod réelle (`https://...`)                                      |
+| `FEATURE_*`                                                                              | Optionnel — désactivées par défaut pour les modules non prêts (`FEATURE_VOLS=false`, `FEATURE_CAR=false`) ; garder cohérent avec ce qui est réellement livrable | —                                                                       |
 
 **Règle générale confirmée en code** : aucune valeur par défaut de dev (`changeme-*`,
 `virtual-mygo-dev-secret-not-for-prod`) ne doit survivre en production — grep

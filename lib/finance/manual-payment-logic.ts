@@ -27,7 +27,13 @@ export const MANUAL_PAYMENT_ALLOWED_ROLES = [
  * `payments.kind` existant, "deposit"/"balance", encode exactement cette
  * distinction, dérivé du solde restant plutôt que choisi par le staff).
  */
-export type ManualPaymentMethod = "cash" | "transfer" | "deposit" | "mandate" | "wallet" | "at_hotel"
+export type ManualPaymentMethod =
+  | "cash"
+  | "transfer"
+  | "deposit"
+  | "mandate"
+  | "wallet"
+  | "at_hotel"
 
 /** `deposit` (dépôt bancaire) et `mandate` (mandat) n'ont pas de valeur
  * d'enum `payment_method` dédiée — mappés sur `transfer` (canal
@@ -36,7 +42,9 @@ export type ManualPaymentMethod = "cash" | "transfer" | "deposit" | "mandate" | 
  * exact. `wallet`/`at_hotel`/`cash` ont leur propre valeur d'enum déjà
  * existante. Additif : pas de nouvel enum DB (réutilise `payment_method`
  * tel quel). */
-export function toPaymentMethod(method: ManualPaymentMethod): "cash" | "transfer" | "wallet" | "at_hotel" {
+export function toPaymentMethod(
+  method: ManualPaymentMethod,
+): "cash" | "transfer" | "wallet" | "at_hotel" {
   if (method === "cash") return "cash"
   if (method === "wallet") return "wallet"
   if (method === "at_hotel") return "at_hotel"
@@ -66,7 +74,10 @@ export function toWalletRechargeMethod(
  * staff : une capture qui n'épuise pas encore le solde restant est un
  * acompte (ADVANCE), celle qui l'épuise est le règlement du solde.
  */
-export function computeCaptureKind(remainingAfterCaptureTnd: number, epsilon: number): "deposit" | "balance" {
+export function computeCaptureKind(
+  remainingAfterCaptureTnd: number,
+  epsilon: number,
+): "deposit" | "balance" {
   return remainingAfterCaptureTnd > epsilon ? "deposit" : "balance"
 }
 
@@ -76,7 +87,10 @@ export function computeCaptureKind(remainingAfterCaptureTnd: number, epsilon: nu
  * (/api/cron/expire-pending-payments) et en garde défensive dans
  * `verifyManualPayment` (au cas où le cron n'est pas encore passé).
  */
-export function isPastPaymentDeadline(paymentExpiresAt: Date | null, now: Date = new Date()): boolean {
+export function isPastPaymentDeadline(
+  paymentExpiresAt: Date | null,
+  now: Date = new Date(),
+): boolean {
   if (!paymentExpiresAt) return false
   return paymentExpiresAt.getTime() < now.getTime()
 }

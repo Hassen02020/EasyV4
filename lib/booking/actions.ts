@@ -27,9 +27,17 @@ import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
-import { getMyGoClient, mapBookingListItemToConfirmation, type BookingConfirmationDTO } from "@/lib/mygo"
+import {
+  getMyGoClient,
+  mapBookingListItemToConfirmation,
+  type BookingConfirmationDTO,
+} from "@/lib/mygo"
 import type { MyGoClient } from "@/lib/mygo/client"
-import { resolveMyGoAccessForTenant, partnerTenantContext, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import {
+  resolveMyGoAccessForTenant,
+  partnerTenantContext,
+  type ResolvedMyGoAccess,
+} from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   authoritativeUnitPrice,
   bookingConfirmationMatchesExpectedHotel,
@@ -139,7 +147,11 @@ export async function confirmHotelWithProvider(
       }
     }
 
-    const reconciled = await tryReconcileAmbiguousBooking(providerMeta, draft, client)
+    const reconciled = await tryReconcileAmbiguousBooking(
+      providerMeta,
+      draft,
+      client,
+    )
     if (reconciled) {
       return { attempted: true, ok: true, booking: reconciled, providerMeta }
     }
@@ -185,7 +197,11 @@ async function tryReconcileAmbiguousBooking(
         state: b.State,
         createdAt: b.Created,
       })),
-      { hotelId, checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate },
+      {
+        hotelId,
+        checkIn: draft.startDate,
+        checkOut: draft.endDate ?? draft.startDate,
+      },
       Date.now(),
     )
     if (!match) return null
@@ -201,7 +217,9 @@ function pad(n: number, w = 6) {
 }
 
 export async function nextPublicRef(
-  db: ReturnType<typeof getDb> | Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0],
+  db:
+    | ReturnType<typeof getDb>
+    | Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0],
   agencyId: string,
 ): Promise<string> {
   const year = new Date().getFullYear()
@@ -226,7 +244,12 @@ export async function nextPublicRef(
 }
 
 export type CreateReservationResult =
-  | { ok: true; reservationId: string; publicRef: string; guestAccessToken: string }
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      guestAccessToken: string
+    }
   | { ok: false; error: string }
 
 /**
@@ -246,20 +269,32 @@ async function findReservationByCheckoutIdempotencyKey(
   agencyId: string,
   idempotencyKey: string,
 ): Promise<CreateReservationResult | null> {
-  const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    tx
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        guestAccessToken: reservations.guestAccessToken,
-      })
-      .from(reservations)
-      .where(and(eq(reservations.agencyId, agencyId), eq(reservations.guestIdempotencyKey, idempotencyKey)))
-      .limit(1),
+  const rows = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) =>
+      tx
+        .select({
+          id: reservations.id,
+          publicRef: reservations.publicRef,
+          guestAccessToken: reservations.guestAccessToken,
+        })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            eq(reservations.guestIdempotencyKey, idempotencyKey),
+          ),
+        )
+        .limit(1),
   )
   const row = rows[0]
   if (!row) return null
-  return { ok: true, reservationId: row.id, publicRef: row.publicRef, guestAccessToken: row.guestAccessToken }
+  return {
+    ok: true,
+    reservationId: row.id,
+    publicRef: row.publicRef,
+    guestAccessToken: row.guestAccessToken,
+  }
 }
 
 export async function createReservationFromDraft(input: {
@@ -287,7 +322,9 @@ export async function createReservationFromDraft(input: {
   let myGoAccess: ResolvedMyGoAccess
   try {
     const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { ok: false, error: "Non authentifié" }
     const profile = await getCurrentPartnerProfile(user.id)
     if (!profile) return { ok: false, error: "Profil partenaire introuvable" }
@@ -299,7 +336,11 @@ export async function createReservationFromDraft(input: {
     // ici et réutilisé pour BOOK, la réconciliation ambiguë ET la
     // compensation (annulation) plus bas — continuité de compte obligatoire.
     myGoAccess = await resolveMyGoAccessForTenant(
-      partnerTenantContext(agencyId, authUserId, profile.role === "super_admin"),
+      partnerTenantContext(
+        agencyId,
+        authUserId,
+        profile.role === "super_admin",
+      ),
     )
   } catch {
     return { ok: false, error: "Erreur d'authentification" }
@@ -332,7 +373,9 @@ export async function createReservationFromDraft(input: {
   // fournit pas une explicitement — voir doc du paramètre plus haut.
   const idempotencyKey =
     input.idempotencyKey ??
-    createHash("sha256").update(JSON.stringify({ draft, traveler })).digest("hex")
+    createHash("sha256")
+      .update(JSON.stringify({ draft, traveler }))
+      .digest("hex")
 
   // Calculé une seule fois, réutilisé pour l'insert reservationHotel ET pour
   // le payload de l'événement Inngest booking/confirmed après la transaction.
@@ -341,7 +384,8 @@ export async function createReservationFromDraft(input: {
   const hotelNights = Math.max(
     1,
     Math.round(
-      (hotelEndDate.getTime() - hotelStartDate.getTime()) / (1000 * 60 * 60 * 24),
+      (hotelEndDate.getTime() - hotelStartDate.getTime()) /
+        (1000 * 60 * 60 * 24),
     ),
   )
 
@@ -349,7 +393,10 @@ export async function createReservationFromDraft(input: {
   // Un retry après timeout (ou un double-clic) retrouve directement la
   // réservation déjà créée, AVANT tout appel fournisseur (myGo) ou débit —
   // jamais un second hold myGo ni un second débit pour la même soumission.
-  const existingByKey = await findReservationByCheckoutIdempotencyKey(agencyId, idempotencyKey)
+  const existingByKey = await findReservationByCheckoutIdempotencyKey(
+    agencyId,
+    idempotencyKey,
+  )
   if (existingByKey) return existingByKey
 
   // --- Confirmation fournisseur (myGo) AVANT toute écriture DB / débit wallet ---
@@ -357,7 +404,11 @@ export async function createReservationFromDraft(input: {
   // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
   // aucune réservation ni débit wallet ne doit être créé pour une chambre
   // qu'on n'a pas réellement confirmée auprès de l'hôtel.
-  const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
+  const providerConfirmation = await confirmHotelWithProvider(
+    draft,
+    traveler,
+    myGoAccess,
+  )
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
     return { ok: false, error: providerConfirmation.error }
   }
@@ -416,7 +467,8 @@ export async function createReservationFromDraft(input: {
   // agences au prix net myGo, sans aucune marge, pour toute réservation
   // hôtel réellement confirmée. Marge existante réutilisée telle quelle
   // (`applyMargin`, `getMarginsForAgency`) — pas une deuxième formule.
-  const hotelMarginRule = (await getMarginsForAgency(agencyId, authUserId)).hotel
+  const hotelMarginRule = (await getMarginsForAgency(agencyId, authUserId))
+    .hotel
   const agencyHotelPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
 
   const breakdown = computePriceBreakdown({
@@ -441,21 +493,39 @@ export async function createReservationFromDraft(input: {
     const result = await withTenantContext(
       { agencyId, userId: authUserId, isSuperAdmin: false },
       async (tx) => {
-      // --- Résoudre ou créer le client ---
-      let customerId: string
-      if (traveler.email) {
-        const existing = await tx
-          .select({ id: customers.id })
-          .from(customers)
-          .where(
-            and(
-              eq(customers.agencyId, agencyId),
-              eq(customers.email, traveler.email),
-            ),
-          )
-          .limit(1)
-        if (existing[0]) {
-          customerId = existing[0].id
+        // --- Résoudre ou créer le client ---
+        let customerId: string
+        if (traveler.email) {
+          const existing = await tx
+            .select({ id: customers.id })
+            .from(customers)
+            .where(
+              and(
+                eq(customers.agencyId, agencyId),
+                eq(customers.email, traveler.email),
+              ),
+            )
+            .limit(1)
+          if (existing[0]) {
+            customerId = existing[0].id
+          } else {
+            const inserted = await tx
+              .insert(customers)
+              .values({
+                agencyId,
+                civility: traveler.civility,
+                firstName: traveler.firstName,
+                lastName: traveler.lastName,
+                email: traveler.email,
+                phone: traveler.phone,
+                civicId: traveler.civicId,
+                civicIdType: traveler.civicIdType,
+                birthDate: traveler.birthDate || null,
+                nationality: traveler.nationality || null,
+              })
+              .returning({ id: customers.id })
+            customerId = inserted[0].id
+          }
         } else {
           const inserted = await tx
             .insert(customers)
@@ -464,232 +534,232 @@ export async function createReservationFromDraft(input: {
               civility: traveler.civility,
               firstName: traveler.firstName,
               lastName: traveler.lastName,
-              email: traveler.email,
               phone: traveler.phone,
               civicId: traveler.civicId,
               civicIdType: traveler.civicIdType,
-              birthDate: traveler.birthDate || null,
-              nationality: traveler.nationality || null,
             })
             .returning({ id: customers.id })
           customerId = inserted[0].id
         }
-      } else {
-        const inserted = await tx
-          .insert(customers)
-          .values({
-            agencyId,
-            civility: traveler.civility,
-            firstName: traveler.firstName,
-            lastName: traveler.lastName,
-            phone: traveler.phone,
-            civicId: traveler.civicId,
-            civicIdType: traveler.civicIdType,
-          })
-          .returning({ id: customers.id })
-        customerId = inserted[0].id
-      }
 
-      const publicRef = await nextPublicRef(tx, agencyId)
+        const publicRef = await nextPublicRef(tx, agencyId)
 
-      let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
-      try {
-        // Sous-transaction : une violation de reservations_guest_idempotency_uniq
-        // (double-submit vraiment simultané) ne doit annuler QUE cet insert,
-        // jamais toute la transaction englobante — rien d'autre n'a encore
-        // été écrit pour cette tentative (pas de wallet debit, pas de
-        // reservation_hotel) à ce stade.
-        inserted = await tx.transaction((tx2) =>
-          tx2
-            .insert(reservations)
-            .values({
-              agencyId,
-              publicRef,
-              customerId,
-              module: draft.module,
-              source: "internal",
-              status: "pending",
-              originalCurrency: draft.currency,
-              originalAmount: String(breakdown.totalTnd),
-              tndAmount: String(breakdown.totalTnd),
-              depositAmount: String(breakdown.depositTnd),
-              depositPaid: "0",
-              guestIdempotencyKey: idempotencyKey,
-              providerPayload: {
-                offerId: draft.offerId,
-                offerLabel: draft.offerLabel,
-                startDate: draft.startDate,
-                endDate: draft.endDate,
-                adults: draft.adults,
-                children: draft.children,
-                breakdown,
-                metadata: draft.metadata ?? null,
-                ...(myGoBooking
-                  ? {
-                      myGoBookingId: myGoBooking.bookingId,
-                      myGoState: myGoBooking.state ?? null,
-                    }
-                  : {}),
-              },
-            })
-            .returning({
-              id: reservations.id,
-              publicRef: reservations.publicRef,
-              guestAccessToken: reservations.guestAccessToken,
-            }),
-        )
-      } catch (err) {
-        if (pgErrorCode(err) === "23505") {
-          return { conflict: true as const }
+        let inserted: {
+          id: string
+          publicRef: string
+          guestAccessToken: string
+        }[]
+        try {
+          // Sous-transaction : une violation de reservations_guest_idempotency_uniq
+          // (double-submit vraiment simultané) ne doit annuler QUE cet insert,
+          // jamais toute la transaction englobante — rien d'autre n'a encore
+          // été écrit pour cette tentative (pas de wallet debit, pas de
+          // reservation_hotel) à ce stade.
+          inserted = await tx.transaction((tx2) =>
+            tx2
+              .insert(reservations)
+              .values({
+                agencyId,
+                publicRef,
+                customerId,
+                module: draft.module,
+                source: "internal",
+                status: "pending",
+                originalCurrency: draft.currency,
+                originalAmount: String(breakdown.totalTnd),
+                tndAmount: String(breakdown.totalTnd),
+                depositAmount: String(breakdown.depositTnd),
+                depositPaid: "0",
+                guestIdempotencyKey: idempotencyKey,
+                providerPayload: {
+                  offerId: draft.offerId,
+                  offerLabel: draft.offerLabel,
+                  startDate: draft.startDate,
+                  endDate: draft.endDate,
+                  adults: draft.adults,
+                  children: draft.children,
+                  breakdown,
+                  metadata: draft.metadata ?? null,
+                  ...(myGoBooking
+                    ? {
+                        myGoBookingId: myGoBooking.bookingId,
+                        myGoState: myGoBooking.state ?? null,
+                      }
+                    : {}),
+                },
+              })
+              .returning({
+                id: reservations.id,
+                publicRef: reservations.publicRef,
+                guestAccessToken: reservations.guestAccessToken,
+              }),
+          )
+        } catch (err) {
+          if (pgErrorCode(err) === "23505") {
+            return { conflict: true as const }
+          }
+          throw err
         }
-        throw err
-      }
-      const reservationId = inserted[0].id
-      const guestAccessToken = inserted[0].guestAccessToken
+        const reservationId = inserted[0].id
+        const guestAccessToken = inserted[0].guestAccessToken
 
-      if (draft.module === "hotel") {
-        const confirmedRoom = myGoBooking?.rooms[0]
-        await tx.insert(reservationHotel).values({
-          reservationId,
-          agencyId,
-          providerBookingId: myGoBooking
-            ? String(myGoBooking.bookingId)
-            : undefined,
-          providerToken: providerMeta?.myGoToken,
-          hotelId:
-            myGoBooking?.hotelId ??
-            providerMeta?.hotelId ??
-            (Number(draft.offerId) || 0),
-          hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
-          cityId: providerMeta?.cityId,
-          checkIn: draft.startDate,
-          checkOut: draft.endDate ?? draft.startDate,
-          nights: hotelNights,
-          adults: draft.adults,
-          childrenAges: providerMeta?.childrenAges ?? [],
-          boardCode: confirmedRoom?.boardingCode ?? providerMeta?.boardingCode,
-          boardName: confirmedRoom?.boardingName,
-          rooms: myGoBooking?.rooms ?? undefined,
-          // 10 = solde à régler à l'hôtel (myGo AtHotel > 0) — reflète la
-          // réponse fournisseur, pas une option choisie côté app (le wallet
-          // couvre déjà la totalité `breakdown.totalTnd` par défaut).
-          methodPayment: myGoBooking?.atHotel ? 10 : undefined,
-          atHotelAmount:
-            myGoBooking?.atHotel != null
-              ? String(myGoBooking.atHotel)
+        if (draft.module === "hotel") {
+          const confirmedRoom = myGoBooking?.rooms[0]
+          await tx.insert(reservationHotel).values({
+            reservationId,
+            agencyId,
+            providerBookingId: myGoBooking
+              ? String(myGoBooking.bookingId)
               : undefined,
-          cancellationPolicies: confirmedRoom?.cancellationPolicies ?? undefined,
-        })
-      }
+            providerToken: providerMeta?.myGoToken,
+            hotelId:
+              myGoBooking?.hotelId ??
+              providerMeta?.hotelId ??
+              (Number(draft.offerId) || 0),
+            hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
+            cityId: providerMeta?.cityId,
+            checkIn: draft.startDate,
+            checkOut: draft.endDate ?? draft.startDate,
+            nights: hotelNights,
+            adults: draft.adults,
+            childrenAges: providerMeta?.childrenAges ?? [],
+            boardCode:
+              confirmedRoom?.boardingCode ?? providerMeta?.boardingCode,
+            boardName: confirmedRoom?.boardingName,
+            rooms: myGoBooking?.rooms ?? undefined,
+            // 10 = solde à régler à l'hôtel (myGo AtHotel > 0) — reflète la
+            // réponse fournisseur, pas une option choisie côté app (le wallet
+            // couvre déjà la totalité `breakdown.totalTnd` par défaut).
+            methodPayment: myGoBooking?.atHotel ? 10 : undefined,
+            atHotelAmount:
+              myGoBooking?.atHotel != null
+                ? String(myGoBooking.atHotel)
+                : undefined,
+            cancellationPolicies:
+              confirmedRoom?.cancellationPolicies ?? undefined,
+          })
+        }
 
-      await tx.insert(auditEvents).values({
-        agencyId,
-        action: "reservation.created",
-        entityType: "reservation",
-        entityId: reservationId,
-        diff: {
-          module: draft.module,
+        await tx.insert(auditEvents).values({
+          agencyId,
+          action: "reservation.created",
+          entityType: "reservation",
+          entityId: reservationId,
+          diff: {
+            module: draft.module,
+            publicRef,
+            total: breakdown.totalTnd,
+            via: "front-office",
+          },
+        })
+
+        // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges
+        // (`/admin/analytics/margins`), jusqu'ici jamais renseigné (voir
+        // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
+        // déjà calculés plus haut par `applyMargin()`, jamais un recalcul.
+        if (draft.module === "hotel" && myGoBooking) {
+          const { commissionAmount } = await recordReservationFinancials({
+            tx,
+            reservationId,
+            supplierPriceTnd: myGoBooking.totalPrice,
+            salePriceTnd: agencyHotelPrice,
+            commissionPercent: hotelMarginRule.commissionPercent,
+            marginRuleId: hotelMarginRule.ruleId,
+          })
+          await creditPlatformCommission(tx, {
+            reservationId,
+            commissionAmount,
+            description: `Commission hôtel — réservation ${publicRef}`,
+          })
+        }
+
+        // --- Débit crédit agence — dans la MÊME transaction (txOverride) : sans ça,
+        // le débit committerait indépendamment de l'insertion de la réservation
+        // (perte d'atomicité — trouvé pendant l'audit RLS, corrigé pour ce
+        // chemin). Débite `agencies.deposit_balance` via `partner_credit_movements`
+        // — le SEUL solde que les flux de rechargement réels (recharge B2B,
+        // recharge admin direct) créditent. L'ancien `walletDebitReservation`
+        // débitait `wallets.balance`, une colonne que plus aucun flux de
+        // rechargement en production ne peut créditer : trouvé pendant l'audit
+        // wallet/paiement — corrigé en unifiant sur `agencies.deposit_balance`.
+        const debitResult = await debitPartnerCredit({
+          agencyId,
+          amountTnd: breakdown.totalTnd,
+          reference: publicRef,
+          description: `Réservation ${draft.module} — ${draft.offerLabel}`,
+          createdByUserId: authUserId,
+          reservationId,
+          // Idempotence : un double-submit sur le même brouillon (double-clic,
+          // deux onglets) ne doit débiter qu'une fois.
+          idempotencyKey: `booking-debit:${reservationId}`,
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
+        })
+
+        if (!debitResult.ok) {
+          throw new Error(
+            debitResult.code === "INSUFFICIENT_FUNDS"
+              ? `INSUFFICIENT_BALANCE:${breakdown.totalTnd.toFixed(3)}`
+              : `WALLET_ERROR:${debitResult.message}`,
+          )
+        }
+
+        // Marquer la réservation confirmée + enregistrer le paiement — fait
+        // auparavant à l'intérieur de walletDebitReservation ; explicite ici
+        // pour que debitPartnerCredit reste une fonction ledger pure et
+        // réutilisable (elle ne connaît pas le concept de "réservation").
+        await tx
+          .update(reservations)
+          .set({
+            status: "confirmed",
+            confirmedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(reservations.id, reservationId))
+
+        await recordReservationTransition(tx, {
+          reservationId,
+          from: "pending",
+          to: "confirmed",
+          triggeredBy: authUserId,
+          reason: "Règlement wallet B2B immédiat à la création",
+        })
+
+        await tx.insert(payments).values({
+          agencyId,
+          reservationId,
+          psp: "manual",
+          method: "wallet",
+          originalCurrency: "TND",
+          originalAmount: breakdown.totalTnd.toFixed(2),
+          tndAmount: breakdown.totalTnd.toFixed(2),
+          kind: "deposit",
+          status: "captured",
+          capturedAt: new Date(),
+        })
+
+        await tx.insert(auditEvents).values({
+          agencyId,
+          actorUserId: authUserId,
+          entityType: "wallet",
+          entityId: debitResult.movementId,
+          action: "wallet.debit",
+          diff: {
+            reservationId,
+            amount: breakdown.totalTnd,
+            balanceBefore: debitResult.balanceBefore,
+            balanceAfter: debitResult.balanceAfter,
+          },
+        })
+
+        return {
+          reservationId,
           publicRef,
-          total: breakdown.totalTnd,
-          via: "front-office",
-        },
-      })
-
-      // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges
-      // (`/admin/analytics/margins`), jusqu'ici jamais renseigné (voir
-      // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
-      // déjà calculés plus haut par `applyMargin()`, jamais un recalcul.
-      if (draft.module === "hotel" && myGoBooking) {
-        const { commissionAmount } = await recordReservationFinancials({
-          tx,
-          reservationId,
-          supplierPriceTnd: myGoBooking.totalPrice,
-          salePriceTnd: agencyHotelPrice,
-          commissionPercent: hotelMarginRule.commissionPercent,
-          marginRuleId: hotelMarginRule.ruleId,
-        })
-        await creditPlatformCommission(tx, {
-          reservationId,
-          commissionAmount,
-          description: `Commission hôtel — réservation ${publicRef}`,
-        })
-      }
-
-      // --- Débit crédit agence — dans la MÊME transaction (txOverride) : sans ça,
-      // le débit committerait indépendamment de l'insertion de la réservation
-      // (perte d'atomicité — trouvé pendant l'audit RLS, corrigé pour ce
-      // chemin). Débite `agencies.deposit_balance` via `partner_credit_movements`
-      // — le SEUL solde que les flux de rechargement réels (recharge B2B,
-      // recharge admin direct) créditent. L'ancien `walletDebitReservation`
-      // débitait `wallets.balance`, une colonne que plus aucun flux de
-      // rechargement en production ne peut créditer : trouvé pendant l'audit
-      // wallet/paiement — corrigé en unifiant sur `agencies.deposit_balance`.
-      const debitResult = await debitPartnerCredit({
-        agencyId,
-        amountTnd: breakdown.totalTnd,
-        reference: publicRef,
-        description: `Réservation ${draft.module} — ${draft.offerLabel}`,
-        createdByUserId: authUserId,
-        reservationId,
-        // Idempotence : un double-submit sur le même brouillon (double-clic,
-        // deux onglets) ne doit débiter qu'une fois.
-        idempotencyKey: `booking-debit:${reservationId}`,
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
-      })
-
-      if (!debitResult.ok) {
-        throw new Error(
-          debitResult.code === "INSUFFICIENT_FUNDS"
-            ? `INSUFFICIENT_BALANCE:${breakdown.totalTnd.toFixed(3)}`
-            : `WALLET_ERROR:${debitResult.message}`,
-        )
-      }
-
-      // Marquer la réservation confirmée + enregistrer le paiement — fait
-      // auparavant à l'intérieur de walletDebitReservation ; explicite ici
-      // pour que debitPartnerCredit reste une fonction ledger pure et
-      // réutilisable (elle ne connaît pas le concept de "réservation").
-      await tx
-        .update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
-        .where(eq(reservations.id, reservationId))
-
-      await recordReservationTransition(tx, {
-        reservationId,
-        from: "pending",
-        to: "confirmed",
-        triggeredBy: authUserId,
-        reason: "Règlement wallet B2B immédiat à la création",
-      })
-
-      await tx.insert(payments).values({
-        agencyId,
-        reservationId,
-        psp: "manual",
-        method: "wallet",
-        originalCurrency: "TND",
-        originalAmount: breakdown.totalTnd.toFixed(2),
-        tndAmount: breakdown.totalTnd.toFixed(2),
-        kind: "deposit",
-        status: "captured",
-        capturedAt: new Date(),
-      })
-
-      await tx.insert(auditEvents).values({
-        agencyId,
-        actorUserId: authUserId,
-        entityType: "wallet",
-        entityId: debitResult.movementId,
-        action: "wallet.debit",
-        diff: {
-          reservationId,
-          amount: breakdown.totalTnd,
-          balanceBefore: debitResult.balanceBefore,
-          balanceAfter: debitResult.balanceAfter,
-        },
-      })
-
-      return { reservationId, publicRef, agencyId, guestAccessToken, conflict: false as const }
+          agencyId,
+          guestAccessToken,
+          conflict: false as const,
+        }
       },
     )
 
@@ -702,17 +772,23 @@ export async function createReservationFromDraft(input: {
       // erreur générique.
       if (myGoBooking) {
         try {
-          await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+          await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+            bookingId: myGoBooking.bookingId,
+          })
         } catch {
           /* best effort — un hold myGo redondant sans réservation locale associée
            * n'a aucun impact financier/paiement côté Easy2Book. */
         }
       }
-      const winner = await findReservationByCheckoutIdempotencyKey(agencyId, idempotencyKey)
+      const winner = await findReservationByCheckoutIdempotencyKey(
+        agencyId,
+        idempotencyKey,
+      )
       if (winner) return winner
       return {
         ok: false,
-        error: "Cette réservation est en cours de traitement par une autre requête — réessayez dans quelques secondes.",
+        error:
+          "Cette réservation est en cours de traitement par une autre requête — réessayez dans quelques secondes.",
       }
     }
 
@@ -742,7 +818,9 @@ export async function createReservationFromDraft(input: {
         adults: draft.adults,
         children: draft.children,
         totalTnd: breakdown.totalTnd,
-      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+      }).catch(() => {
+        /* fire-and-forget — le retry Inngest suffira */
+      })
     }
 
     // --- Facture (hors transaction) --- La réservation et le débit sont déjà
@@ -755,10 +833,16 @@ export async function createReservationFromDraft(input: {
         actorUserId: authUserId,
       })
       if (!invoiceResult.ok) {
-        console.error("[booking] génération facture échouée", invoiceResult.error)
+        console.error(
+          "[booking] génération facture échouée",
+          invoiceResult.error,
+        )
       }
     } catch (err) {
-      console.error("[booking] génération facture échouée", err instanceof Error ? err.message : String(err))
+      console.error(
+        "[booking] génération facture échouée",
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
     return {
@@ -781,10 +865,11 @@ export async function createReservationFromDraft(input: {
         // PHASE 27.2 — MÊME client tenant-résolu que celui qui a créé la
         // réservation (myGoAccess.client, résolu une seule fois plus haut) —
         // jamais un repli vers un client différent lors de la compensation.
-        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+          bookingId: myGoBooking.bookingId,
+        })
       } catch {
-        compensationNote =
-          ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
+        compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
       }
     }
 
@@ -797,11 +882,16 @@ export async function createReservationFromDraft(input: {
       }
     }
     if (msg.startsWith("WALLET_ERROR:")) {
-      return { ok: false, error: (msg.split(":")[1] ?? "Erreur wallet") + compensationNote }
+      return {
+        ok: false,
+        error: (msg.split(":")[1] ?? "Erreur wallet") + compensationNote,
+      }
     }
     return {
       ok: false,
-      error: "Erreur interne lors de la création de la réservation." + compensationNote,
+      error:
+        "Erreur interne lors de la création de la réservation." +
+        compensationNote,
     }
   }
 }
@@ -854,7 +944,6 @@ export async function submitCheckoutAction(
   } = await supabase.auth.getUser()
   const partnerProfile = user ? await getCurrentPartnerProfile(user.id) : null
 
-
   if (partnerProfile) {
     const result = await createReservationFromDraft({
       draft: payload.draft,
@@ -869,7 +958,9 @@ export async function submitCheckoutAction(
     if (!result.ok) {
       return { ok: false, error: result.error }
     }
-    redirect(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+    redirect(
+      `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
+    )
   }
 
   const { createGuestReservationFromDraft } = await import("./guest-actions")
@@ -886,7 +977,9 @@ export async function submitCheckoutAction(
     // Stable pour une soumission identique (même brouillon, même mode de
     // paiement) — un double-clic/retry réseau reproduit la même clé et ne
     // recrée pas une deuxième réservation (voir withGuestIdempotency).
-    idempotencyKey: createHash("sha256").update(`${token}:${paymentMethod}`).digest("hex"),
+    idempotencyKey: createHash("sha256")
+      .update(`${token}:${paymentMethod}`)
+      .digest("hex"),
   })
   if (!result.ok) {
     return { ok: false, error: result.error }
@@ -896,5 +989,8 @@ export async function submitCheckoutAction(
   // `pending` tant que le webhook signé ne l'a pas confirmée (voir
   // lib/booking/guest-actions.ts). Sinon (règlement immédiat/différé),
   // comportement historique inchangé.
-  redirect(result.redirectUrl ?? `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+  redirect(
+    result.redirectUrl ??
+      `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
+  )
 }

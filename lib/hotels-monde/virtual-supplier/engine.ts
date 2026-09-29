@@ -56,7 +56,10 @@ function offerKey(offer: VirtualWorldHotelOffer, checkIn: string): string {
   return `${offer.offerId}:${checkIn}`
 }
 
-export function search(input: SearchInput): { searchId: string; offers: SearchOfferResult[] } {
+export function search(input: SearchInput): {
+  searchId: string
+  offers: SearchOfferResult[]
+} {
   const searchId = newSearchId()
   const rawOffers = generateOffers({
     destination: input.destination,
@@ -137,12 +140,18 @@ export type BookResult =
       refundable: boolean
       breakfastIncluded: boolean
     }
-  | { ok: false; kind: BookErrorKind; message: string; currentPriceTnd?: number }
+  | {
+      ok: false
+      kind: BookErrorKind
+      message: string
+      currentPriceTnd?: number
+    }
 
 function generateConfirmationNumber(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // sans 0/O/1/I ambigus
   let out = "WH-"
-  for (let i = 0; i < 8; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)]
+  for (let i = 0; i < 8; i++)
+    out += alphabet[Math.floor(Math.random() * alphabet.length)]
   return out
 }
 
@@ -163,19 +172,35 @@ export async function book(
 
   if (scenario === "TIMEOUT") {
     await new Promise((r) => setTimeout(r, SIMULATED_TIMEOUT_DELAY_MS))
-    return { ok: false, kind: "TIMEOUT", message: "Le fournisseur n'a pas répondu à temps." }
+    return {
+      ok: false,
+      kind: "TIMEOUT",
+      message: "Le fournisseur n'a pas répondu à temps.",
+    }
   }
 
   const validated = validateOfferToken(token)
   if (!validated.ok) {
     return validated.reason === "EXPIRED"
-      ? { ok: false, kind: "TOKEN_EXPIRED", message: "Cette offre a expiré — relancez une recherche." }
-      : { ok: false, kind: "TOKEN_INVALID", message: "Offre invalide ou altérée." }
+      ? {
+          ok: false,
+          kind: "TOKEN_EXPIRED",
+          message: "Cette offre a expiré — relancez une recherche.",
+        }
+      : {
+          ok: false,
+          kind: "TOKEN_INVALID",
+          message: "Offre invalide ou altérée.",
+        }
   }
   const p = validated.payload
 
   if (scenario === "BOOKING_REJECTED") {
-    return { ok: false, kind: "BOOKING_REJECTED", message: "Le fournisseur a refusé cette réservation." }
+    return {
+      ok: false,
+      kind: "BOOKING_REJECTED",
+      message: "Le fournisseur a refusé cette réservation.",
+    }
   }
 
   // Revalidation prix — régénère l'offre déterministe pour cette
@@ -196,7 +221,11 @@ export async function book(
   })
   const matched = rawOffers.find((o) => o.offerId === p.offerId)
   if (!matched) {
-    return { ok: false, kind: "TOKEN_INVALID", message: "Offre introuvable pour cette destination/dates." }
+    return {
+      ok: false,
+      kind: "TOKEN_INVALID",
+      message: "Offre introuvable pour cette destination/dates.",
+    }
   }
   const livePriceTnd =
     scenario === "PRICE_CHANGED"
@@ -222,7 +251,11 @@ export async function book(
   const forcedSoldOut = scenario === "SOLD_OUT"
   const reserved = forcedSoldOut ? false : await reserve(key, p.rooms)
   if (!reserved) {
-    return { ok: false, kind: "SOLD_OUT", message: "Cet hôtel n'a plus de chambres disponibles pour ces dates." }
+    return {
+      ok: false,
+      kind: "SOLD_OUT",
+      message: "Cet hôtel n'a plus de chambres disponibles pour ces dates.",
+    }
   }
 
   return {
@@ -244,7 +277,11 @@ export async function book(
 }
 
 /** Annule une réservation — restitue l'inventaire réservé. Best-effort, ne lève jamais. */
-export async function cancel(input: { offerId: string; checkIn: string; rooms: number }): Promise<void> {
+export async function cancel(input: {
+  offerId: string
+  checkIn: string
+  rooms: number
+}): Promise<void> {
   const key = `${input.offerId}:${input.checkIn}`
   await release(key, input.rooms)
 }

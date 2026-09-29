@@ -9,10 +9,21 @@ export const packageProductSchema = z.object({
   shortDescription: z.string().trim().max(500).optional().or(z.literal("")),
   longDescription: z.string().trim().max(5000).optional().or(z.literal("")),
   itinerary: z
-    .array(z.object({ day: z.number().int().min(1), title: z.string().trim().min(1), description: z.string().trim().optional() }))
+    .array(
+      z.object({
+        day: z.number().int().min(1),
+        title: z.string().trim().min(1),
+        description: z.string().trim().optional(),
+      }),
+    )
     .max(60)
     .optional(),
-  coverImage: z.string().trim().url("URL image invalide").optional().or(z.literal("")),
+  coverImage: z
+    .string()
+    .trim()
+    .url("URL image invalide")
+    .optional()
+    .or(z.literal("")),
   galleryUrls: z.array(z.string().trim().url()).max(30).default([]),
   departureLocations: z.array(z.string().trim().min(1)).max(20).default([]),
   transportMode: z.string().trim().max(32).optional().or(z.literal("")),
@@ -20,7 +31,10 @@ export const packageProductSchema = z.object({
   durationNights: z.coerce.number().int().min(0).max(90),
   inclusions: z.array(z.string().trim().min(1)).max(40).default([]),
   exclusions: z.array(z.string().trim().min(1)).max(40).default([]),
-  channels: z.array(z.enum(PRODUCT_CHANNELS)).min(1, "Au moins un canal de vente requis").default(["b2c"]),
+  channels: z
+    .array(z.enum(PRODUCT_CHANNELS))
+    .min(1, "Au moins un canal de vente requis")
+    .default(["b2c"]),
 })
 
 export type PackageProductInput = z.infer<typeof packageProductSchema>
@@ -36,7 +50,11 @@ export const packageDepartureSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.returnDate < data.departureDate) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["returnDate"], message: "La date de retour doit suivre le départ" })
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["returnDate"],
+        message: "La date de retour doit suivre le départ",
+      })
     }
   })
 

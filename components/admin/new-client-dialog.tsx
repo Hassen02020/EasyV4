@@ -53,7 +53,15 @@ export function NewClientDialog() {
   function handleSubmit() {
     setError(null)
     startTransition(async () => {
-      const result = await createCustomer({ civility, firstName, lastName, email, phone, civicId, city })
+      const result = await createCustomer({
+        civility,
+        firstName,
+        lastName,
+        email,
+        phone,
+        civicId,
+        city,
+      })
       if (!result.ok) {
         setError(result.error)
         return
@@ -66,7 +74,13 @@ export function NewClientDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setError(null)
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="bg-sidebar">
           <Plus className="mr-2 h-4 w-4" />
@@ -77,7 +91,8 @@ export function NewClientDialog() {
         <DialogHeader>
           <DialogTitle>Nouveau client</DialogTitle>
           <DialogDescription>
-            Crée une fiche client dans votre agence (ex. client connu par téléphone, sans réservation encore).
+            Crée une fiche client dans votre agence (ex. client connu par
+            téléphone, sans réservation encore).
           </DialogDescription>
         </DialogHeader>
 
@@ -85,7 +100,10 @@ export function NewClientDialog() {
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="client-civility">Civilité</Label>
-              <Select value={civility} onValueChange={(v) => setCivility(v as typeof civility)}>
+              <Select
+                value={civility}
+                onValueChange={(v) => setCivility(v as typeof civility)}
+              >
                 <SelectTrigger id="client-civility">
                   <SelectValue placeholder="—" />
                 </SelectTrigger>
@@ -98,37 +116,79 @@ export function NewClientDialog() {
             </div>
             <div className="col-span-2 grid gap-2">
               <Label htmlFor="client-firstname">Prénom</Label>
-              <Input id="client-firstname" value={firstName} onChange={(e) => setFirstName(e.target.value)} required disabled={isPending} />
+              <Input
+                id="client-firstname"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                disabled={isPending}
+              />
             </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="client-lastname">Nom</Label>
-            <Input id="client-lastname" value={lastName} onChange={(e) => setLastName(e.target.value)} required disabled={isPending} />
+            <Input
+              id="client-lastname"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+              disabled={isPending}
+            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="client-email">Email</Label>
-            <Input id="client-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isPending} />
+            <Input
+              id="client-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isPending}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="client-phone">Téléphone</Label>
-              <Input id="client-phone" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isPending} />
+              <Input
+                id="client-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={isPending}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="client-civicid">CIN / Passeport</Label>
-              <Input id="client-civicid" value={civicId} onChange={(e) => setCivicId(e.target.value)} disabled={isPending} />
+              <Input
+                id="client-civicid"
+                value={civicId}
+                onChange={(e) => setCivicId(e.target.value)}
+                disabled={isPending}
+              />
             </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="client-city">Ville</Label>
-            <Input id="client-city" value={city} onChange={(e) => setCity(e.target.value)} disabled={isPending} />
+            <Input
+              id="client-city"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              disabled={isPending}
+            />
           </div>
-          {error && <p className="text-destructive text-sm font-medium">{error}</p>}
+          {error && (
+            <p className="text-destructive text-sm font-medium">{error}</p>
+          )}
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isPending || !firstName.trim() || !lastName.trim()}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer le client"}
+          <Button
+            onClick={handleSubmit}
+            disabled={isPending || !firstName.trim() || !lastName.trim()}
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Créer le client"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -51,8 +51,12 @@ export default async function SupportPage() {
     getLeadScoreRules(),
     getLeadRelanceSettings(),
   ])
-  const scoreRules = scoreRulesResult.ok ? scoreRulesResult.rules : defaultLeadScoreRuleMap()
-  const relanceSettings = relanceSettingsResult.ok ? relanceSettingsResult.settings : defaultLeadRelanceSettings()
+  const scoreRules = scoreRulesResult.ok
+    ? scoreRulesResult.rules
+    : defaultLeadScoreRuleMap()
+  const relanceSettings = relanceSettingsResult.ok
+    ? relanceSettingsResult.settings
+    : defaultLeadRelanceSettings()
   const canConfigure = ["super_admin", "manager"].includes(profile.role)
 
   return (
@@ -63,7 +67,8 @@ export default async function SupportPage() {
           Support & Clients
         </h1>
         <p className="text-muted-foreground text-sm">
-          Demandes de contact (&laquo;&nbsp;Être rappelé&nbsp;&raquo; / &laquo;&nbsp;Demander un devis&nbsp;&raquo;) déposées depuis le site.
+          Demandes de contact (&laquo;&nbsp;Être rappelé&nbsp;&raquo; /
+          &laquo;&nbsp;Demander un devis&nbsp;&raquo;) déposées depuis le site.
         </p>
       </div>
 
@@ -77,7 +82,9 @@ export default async function SupportPage() {
           <CardHeader>
             <CardTitle className="text-destructive text-base">Erreur</CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-sm">{result.error}</CardContent>
+          <CardContent className="text-muted-foreground text-sm">
+            {result.error}
+          </CardContent>
         </Card>
       ) : result.leads.length === 0 ? (
         <Card>
@@ -86,7 +93,11 @@ export default async function SupportPage() {
           </CardContent>
         </Card>
       ) : (
-        <LeadsTable leads={result.leads} scoreRules={scoreRules} relanceSettings={relanceSettings} />
+        <LeadsTable
+          leads={result.leads}
+          scoreRules={scoreRules}
+          relanceSettings={relanceSettings}
+        />
       )}
     </div>
   )

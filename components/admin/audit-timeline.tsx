@@ -31,7 +31,10 @@ function formatDiff(diff: unknown): string | null {
   try {
     const entries = Object.entries(diff as Record<string, unknown>)
       .filter(([, v]) => v !== null && v !== undefined)
-      .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+      .map(
+        ([k, v]) =>
+          `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`,
+      )
     return entries.length > 0 ? entries.join(" · ") : null
   } catch {
     return null
@@ -53,7 +56,10 @@ export function AuditTimeline({ entries }: { entries: AuditTimelineEntry[] }) {
       {entries.map((entry) => {
         const diffLabel = formatDiff(entry.diff)
         return (
-          <li key={entry.id} className="border-border flex gap-3 border-l-2 pl-3">
+          <li
+            key={entry.id}
+            className="border-border flex gap-3 border-l-2 pl-3"
+          >
             <div className="flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                 <span className="text-sm font-medium">

@@ -34,7 +34,9 @@ export function VirtualCheckoutPanel({
         setError(result.error)
         return
       }
-      router.push(`/booking/confirmation/${publicRef}?token=${guestAccessToken}`)
+      router.push(
+        `/booking/confirmation/${publicRef}?token=${guestAccessToken}`,
+      )
     })
   }
 
@@ -44,7 +46,9 @@ export function VirtualCheckoutPanel({
         <CreditCard className="text-muted-foreground mb-2 h-8 w-8" />
         <p className="text-muted-foreground text-sm">{offerLabel}</p>
         <p className="text-3xl font-bold">{amountTnd.toFixed(2)} DT</p>
-        <p className="text-muted-foreground text-xs">{t("reservationRefLabel", { ref: publicRef })}</p>
+        <p className="text-muted-foreground text-xs">
+          {t("reservationRefLabel", { ref: publicRef })}
+        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         {error ? (
@@ -58,7 +62,11 @@ export function VirtualCheckoutPanel({
           disabled={pending}
           onClick={() => simulate("success")}
         >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          {pending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4" />
+          )}
           {t("simulateSuccess")}
         </Button>
         <Button
@@ -68,7 +76,11 @@ export function VirtualCheckoutPanel({
           disabled={pending}
           onClick={() => simulate("failure")}
         >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+          {pending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <XCircle className="h-4 w-4" />
+          )}
           {t("simulateFailure")}
         </Button>
       </CardContent>

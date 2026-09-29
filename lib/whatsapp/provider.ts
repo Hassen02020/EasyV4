@@ -66,8 +66,12 @@ export interface WhatsAppMessageResult {
 export interface WhatsAppProvider {
   readonly name: string
   readonly configured: boolean
-  sendTemplateMessage(input: SendTemplateMessageInput): Promise<WhatsAppMessageResult>
-  sendSessionMessage(input: SendSessionMessageInput): Promise<WhatsAppMessageResult>
+  sendTemplateMessage(
+    input: SendTemplateMessageInput,
+  ): Promise<WhatsAppMessageResult>
+  sendSessionMessage(
+    input: SendSessionMessageInput,
+  ): Promise<WhatsAppMessageResult>
 }
 
 /**
@@ -125,7 +129,9 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
     private readonly apiVersion: string,
   ) {}
 
-  async sendTemplateMessage(input: SendTemplateMessageInput): Promise<WhatsAppMessageResult> {
+  async sendTemplateMessage(
+    input: SendTemplateMessageInput,
+  ): Promise<WhatsAppMessageResult> {
     const to = normalizeWhatsAppPhone(input.to)
     if (!to) {
       return {
@@ -147,7 +153,10 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
               components: [
                 {
                   type: "body",
-                  parameters: input.bodyParams.map((text) => ({ type: "text", text })),
+                  parameters: input.bodyParams.map((text) => ({
+                    type: "text",
+                    text,
+                  })),
                 },
               ],
             }
@@ -156,7 +165,9 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
     })
   }
 
-  async sendSessionMessage(input: SendSessionMessageInput): Promise<WhatsAppMessageResult> {
+  async sendSessionMessage(
+    input: SendSessionMessageInput,
+  ): Promise<WhatsAppMessageResult> {
     const to = normalizeWhatsAppPhone(input.to)
     if (!to) {
       return {
@@ -174,7 +185,9 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
     })
   }
 
-  private async postMessage(body: Record<string, unknown>): Promise<WhatsAppMessageResult> {
+  private async postMessage(
+    body: Record<string, unknown>,
+  ): Promise<WhatsAppMessageResult> {
     const url = `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`
 
     let response: Response
@@ -191,19 +204,25 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
       return {
         ok: false,
         code: "WHATSAPP_SEND_FAILED",
-        message: err instanceof Error ? `Erreur réseau : ${err.message}` : "Erreur réseau inconnue.",
+        message:
+          err instanceof Error
+            ? `Erreur réseau : ${err.message}`
+            : "Erreur réseau inconnue.",
       }
     }
 
-    const json = (await response.json().catch(() => null)) as
-      | { messages?: Array<{ id: string }>; error?: { message?: string; code?: number } }
-      | null
+    const json = (await response.json().catch(() => null)) as {
+      messages?: Array<{ id: string }>
+      error?: { message?: string; code?: number }
+    } | null
 
     if (!response.ok || !json?.messages?.[0]?.id) {
       return {
         ok: false,
         code: "WHATSAPP_SEND_FAILED",
-        message: json?.error?.message ?? `Échec de l'envoi WhatsApp (HTTP ${response.status}).`,
+        message:
+          json?.error?.message ??
+          `Échec de l'envoi WhatsApp (HTTP ${response.status}).`,
       }
     }
 
@@ -218,7 +237,10 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
  * jamais.
  */
 export function hasConfiguredWhatsAppProvider(): boolean {
-  return Boolean(process.env.WHATSAPP_ACCESS_TOKEN) && Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID)
+  return (
+    Boolean(process.env.WHATSAPP_ACCESS_TOKEN) &&
+    Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID)
+  )
 }
 
 /**

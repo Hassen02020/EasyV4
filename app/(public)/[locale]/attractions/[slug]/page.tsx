@@ -71,7 +71,10 @@ const getActivityWithSessions = cache(async (slug: string) => {
           and(
             eq(catalogActivitySessions.activityId, activity.id),
             eq(catalogActivitySessions.status, "open"),
-            gte(catalogActivitySessions.sessionDate, new Date().toISOString().split("T")[0]!),
+            gte(
+              catalogActivitySessions.sessionDate,
+              new Date().toISOString().split("T")[0]!,
+            ),
           ),
         )
         .orderBy(catalogActivitySessions.sessionDate)
@@ -81,7 +84,9 @@ const getActivityWithSessions = cache(async (slug: string) => {
         .map((s) => ({ ...s, capacityLeft: s.capacity - s.booked }))
         .filter((s) => {
           if (s.capacityLeft <= 0) return false
-          const deadline = s.bookingDeadline ?? new Date(`${s.sessionDate}T${s.sessionStart}:00`)
+          const deadline =
+            s.bookingDeadline ??
+            new Date(`${s.sessionDate}T${s.sessionStart}:00`)
           return now < deadline
         })
 
@@ -104,11 +109,15 @@ export async function generateMetadata({
   if (!result) return {}
   const { activity } = result
   const description =
-    activity.shortDescription ?? activity.longDescription ?? `${activity.title} — Easy2Book Attractions.`
+    activity.shortDescription ??
+    activity.longDescription ??
+    `${activity.title} — Easy2Book Attractions.`
   return {
     title: `${activity.title} — Attractions | Easy2Book`,
     description,
-    alternates: { languages: buildLanguageAlternates(`/attractions/${activity.slug}`) },
+    alternates: {
+      languages: buildLanguageAlternates(`/attractions/${activity.slug}`),
+    },
     openGraph: {
       title: activity.title,
       description,
@@ -146,7 +155,7 @@ export default async function ActivityDetailPage({
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <div className="bg-gradient-to-br from-teal-900 to-teal-700 px-4 py-10 text-white">
           <div className="mx-auto max-w-4xl">
             <Link
@@ -157,14 +166,21 @@ export default async function ActivityDetailPage({
               {t("backToAttractions")}
             </Link>
             {activity.location && (
-              <Badge variant="secondary" className="mb-3 bg-white/20 text-white">
+              <Badge
+                variant="secondary"
+                className="mb-3 bg-white/20 text-white"
+              >
                 <MapPin className="mr-1 h-3 w-3" />
                 {activity.location}
               </Badge>
             )}
-            <h1 className="mb-2 text-2xl font-bold md:text-3xl">{activity.title}</h1>
+            <h1 className="mb-2 text-2xl font-bold md:text-3xl">
+              {activity.title}
+            </h1>
             {activity.shortDescription && (
-              <p className="max-w-2xl text-teal-100">{activity.shortDescription}</p>
+              <p className="max-w-2xl text-teal-100">
+                {activity.shortDescription}
+              </p>
             )}
           </div>
         </div>
@@ -174,22 +190,31 @@ export default async function ActivityDetailPage({
             {media.length > 0 ? (
               <ProductMediaGallery
                 productName={activity.title}
-                items={media.map((m) => ({ id: m.id, largeUrl: m.largeUrl, thumbnailUrl: m.thumbnailUrl, altText: m.altText }))}
+                items={media.map((m) => ({
+                  id: m.id,
+                  largeUrl: m.largeUrl,
+                  thumbnailUrl: m.thumbnailUrl,
+                  altText: m.altText,
+                }))}
               />
             ) : null}
 
             {activity.longDescription && (
-              <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-3 text-lg font-semibold">{t("descriptionTitle")}</h2>
-                <p className="whitespace-pre-line text-sm text-muted-foreground">
+              <section className="bg-card rounded-xl border p-5">
+                <h2 className="mb-3 text-lg font-semibold">
+                  {t("descriptionTitle")}
+                </h2>
+                <p className="text-muted-foreground text-sm whitespace-pre-line">
                   {activity.longDescription}
                 </p>
               </section>
             )}
 
             {(inclusions.length > 0 || exclusions.length > 0) && (
-              <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-4 text-lg font-semibold">{t("inclusionsTitle")}</h2>
+              <section className="bg-card rounded-xl border p-5">
+                <h2 className="mb-4 text-lg font-semibold">
+                  {t("inclusionsTitle")}
+                </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {inclusions.length > 0 && (
                     <ul className="space-y-1.5 text-sm">
@@ -202,10 +227,10 @@ export default async function ActivityDetailPage({
                     </ul>
                   )}
                   {exclusions.length > 0 && (
-                    <ul className="space-y-1.5 text-sm text-muted-foreground">
+                    <ul className="text-muted-foreground space-y-1.5 text-sm">
                       {exclusions.map((item) => (
                         <li key={item} className="flex items-start gap-2">
-                          <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                          <XCircle className="text-muted-foreground/60 mt-0.5 h-3.5 w-3.5 shrink-0" />
                           {item}
                         </li>
                       ))}
@@ -213,7 +238,7 @@ export default async function ActivityDetailPage({
                   )}
                 </div>
                 {activity.durationMinutes && (
-                  <div className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-muted-foreground">
+                  <div className="text-muted-foreground mt-4 flex items-center gap-1.5 border-t pt-4 text-sm">
                     <Clock className="h-3.5 w-3.5" />
                     {t("durationLabel", { minutes: activity.durationMinutes })}
                   </div>
@@ -221,13 +246,13 @@ export default async function ActivityDetailPage({
               </section>
             )}
 
-            <section className="rounded-xl border bg-card p-5">
+            <section className="bg-card rounded-xl border p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <Calendar className="h-4.5 w-4.5" />
                 {t("availableSessionsTitle")}
               </h2>
               {sessions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   {t("noSessionsOpen")}
                 </p>
               ) : (
@@ -238,7 +263,9 @@ export default async function ActivityDetailPage({
                       className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
                     >
                       <div>
-                        <span className="font-medium capitalize">{formatDate(s.sessionDate, intlLocale)}</span>
+                        <span className="font-medium capitalize">
+                          {formatDate(s.sessionDate, intlLocale)}
+                        </span>
                         <span className="text-muted-foreground">
                           {" "}
                           · {s.sessionStart}–{s.sessionEnd}
@@ -256,7 +283,10 @@ export default async function ActivityDetailPage({
                           {t("placesLeft", { count: s.capacityLeft })}
                         </Badge>
                         <span className="font-semibold text-teal-700">
-                          {parseFloat(s.adultPriceTnd).toLocaleString(intlLocale)} DT
+                          {parseFloat(s.adultPriceTnd).toLocaleString(
+                            intlLocale,
+                          )}{" "}
+                          DT
                         </span>
                       </div>
                     </li>
@@ -267,21 +297,28 @@ export default async function ActivityDetailPage({
           </div>
 
           <aside className="lg:col-span-1">
-            <div className="sticky top-4 rounded-xl border bg-card p-5">
+            <div className="bg-card sticky top-4 rounded-xl border p-5">
               {priceTnd && (
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("startingFrom")}
+                  </p>
                   <p className="text-3xl font-bold text-teal-700">
                     {priceTnd.toLocaleString(intlLocale)}
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">
+                    <span className="text-muted-foreground ml-1 text-sm font-normal">
                       {t("perAdult")}
                     </span>
                   </p>
                 </div>
               )}
               {sessions.length > 0 ? (
-                <Button asChild className="w-full gap-2 bg-teal-700 hover:bg-teal-800">
-                  <Link href={`/attractions/${activity.slug}/book`}>{t("bookOnline")}</Link>
+                <Button
+                  asChild
+                  className="w-full gap-2 bg-teal-700 hover:bg-teal-800"
+                >
+                  <Link href={`/attractions/${activity.slug}/book`}>
+                    {t("bookOnline")}
+                  </Link>
                 </Button>
               ) : (
                 <Button disabled className="w-full">
@@ -297,7 +334,11 @@ export default async function ActivityDetailPage({
         </div>
 
         <div className="mx-auto max-w-4xl px-4 pb-8">
-          <ProductReviewsSection agencyId={activity.agencyId} module="activity" productRef={activity.id} />
+          <ProductReviewsSection
+            agencyId={activity.agencyId}
+            module="activity"
+            productRef={activity.id}
+          />
         </div>
       </main>
       <Footer />

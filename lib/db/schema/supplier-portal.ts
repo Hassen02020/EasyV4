@@ -38,18 +38,18 @@ import {
 import { suppliers } from "./suppliers"
 
 export const supplierOnboardingStatus = pgEnum("supplier_onboarding_status", [
-  "invited",        // Invitation envoyée, pas encore acceptée
-  "onboarding",     // En cours d'onboarding (formulaire, documents)
+  "invited", // Invitation envoyée, pas encore acceptée
+  "onboarding", // En cours d'onboarding (formulaire, documents)
   "pending_review", // Soumis, en attente de validation Easy2Book
-  "active",         // Validé et actif dans le réseau
-  "suspended",      // Suspendu (violation, non-paiement, …)
-  "offboarded",     // Quitte le réseau
+  "active", // Validé et actif dans le réseau
+  "suspended", // Suspendu (violation, non-paiement, …)
+  "offboarded", // Quitte le réseau
 ])
 
 export const supplierPortalUserRole = pgEnum("supplier_portal_user_role", [
-  "owner",   // Accès complet + paramètres compte + transfert de nœud
+  "owner", // Accès complet + paramètres compte + transfert de nœud
   "manager", // Produits + disponibilités + bookings ; pas les paramètres
-  "staff",   // Lecture + confirmation de présence ; pas d'édition
+  "staff", // Lecture + confirmation de présence ; pas d'édition
 ])
 
 /**
@@ -104,8 +104,12 @@ export const supplierNodes = pgTable(
     /** Date à laquelle le nœud a été validé et rendu actif. */
     activatedAt: timestamp("activated_at", { withTimezone: true }),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("supplier_nodes_slug_uniq").on(t.slug),
@@ -138,16 +142,27 @@ export const supplierPortalUsers = pgTable(
 
     /** Token d'invitation (HMAC signé, TTL 7 jours) — nul après acceptation. */
     invitationToken: varchar("invitation_token", { length: 128 }),
-    invitationTokenExpiresAt: timestamp("invitation_token_expires_at", { withTimezone: true }),
+    invitationTokenExpiresAt: timestamp("invitation_token_expires_at", {
+      withTimezone: true,
+    }),
 
-    invitedAt: timestamp("invited_at", { withTimezone: true }).notNull().defaultNow(),
+    invitedAt: timestamp("invited_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
-    uniqueIndex("supplier_portal_users_node_user_uniq").on(t.supplierNodeId, t.userId),
+    uniqueIndex("supplier_portal_users_node_user_uniq").on(
+      t.supplierNodeId,
+      t.userId,
+    ),
     index("supplier_portal_users_user_idx").on(t.userId),
     index("supplier_portal_users_node_idx").on(t.supplierNodeId),
     index("supplier_portal_users_role_idx").on(t.role),
@@ -159,5 +174,7 @@ export type SupplierNode = typeof supplierNodes.$inferSelect
 export type NewSupplierNode = typeof supplierNodes.$inferInsert
 export type SupplierPortalUser = typeof supplierPortalUsers.$inferSelect
 export type NewSupplierPortalUser = typeof supplierPortalUsers.$inferInsert
-export type SupplierOnboardingStatus = (typeof supplierOnboardingStatus.enumValues)[number]
-export type SupplierPortalUserRole = (typeof supplierPortalUserRole.enumValues)[number]
+export type SupplierOnboardingStatus =
+  (typeof supplierOnboardingStatus.enumValues)[number]
+export type SupplierPortalUserRole =
+  (typeof supplierPortalUserRole.enumValues)[number]

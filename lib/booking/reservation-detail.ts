@@ -37,7 +37,12 @@ import {
   getReservationPaymentSummary,
   type ReservationPaymentSummary,
 } from "@/lib/finance/payment-summary"
-import { flightBookings, flightBookingPassengers, flightBookingSegments, flightTickets } from "@/lib/db/schema/flights"
+import {
+  flightBookings,
+  flightBookingPassengers,
+  flightBookingSegments,
+  flightTickets,
+} from "@/lib/db/schema/flights"
 
 export interface ReservationDetailPaymentRow {
   id: string
@@ -126,7 +131,12 @@ export interface ReservationDetail {
   paymentExpiresAt: string | null
   notes: string | null
   voucherUrl: string | null
-  customer: { id: string; name: string; email: string | null; phone: string | null }
+  customer: {
+    id: string
+    name: string
+    email: string | null
+    phone: string | null
+  }
   agency: { id: string; name: string; agencyType: string }
   moduleDetail: ReservationModuleDetail | null
   /** Present only when module === "flight" and booking was created via booking-request-action. */
@@ -162,15 +172,26 @@ async function loadFlightDetail(
     .from(flightBookings)
     .where(eq(flightBookings.reservationId, reservationId))
     .limit(1)
-  const fb = (fbRows as Array<{
-    id: string; status: string; pnr: string | null; slaDeadline: Date | null; opsNotes: string | null
-    provider: string | null; fulfillmentMode: string | null; supplierBookingRef: string | null
-  }>)[0]
+  const fb = (
+    fbRows as Array<{
+      id: string
+      status: string
+      pnr: string | null
+      slaDeadline: Date | null
+      opsNotes: string | null
+      provider: string | null
+      fulfillmentMode: string | null
+      supplierBookingRef: string | null
+    }>
+  )[0]
   if (!fb) return null
 
   const [ticketRows, segmentRows, passengerRows] = await Promise.all([
     tx
-      .select({ ticketNumber: flightTickets.ticketNumber, status: flightTickets.status })
+      .select({
+        ticketNumber: flightTickets.ticketNumber,
+        status: flightTickets.status,
+      })
       .from(flightTickets)
       .where(eq(flightTickets.bookingId, fb.id))
       .orderBy(flightTickets.issuedAt),
@@ -205,7 +226,8 @@ async function loadFlightDetail(
       .orderBy(flightBookingPassengers.sequence),
   ])
 
-  const toIso = (v: Date | string) => (v instanceof Date ? v.toISOString() : String(v))
+  const toIso = (v: Date | string) =>
+    v instanceof Date ? v.toISOString() : String(v)
 
   return {
     bookingId: fb.id,
@@ -216,11 +238,18 @@ async function loadFlightDetail(
     provider: fb.provider,
     fulfillmentMode: fb.fulfillmentMode,
     supplierBookingRef: fb.supplierBookingRef,
-    passengers: (passengerRows as Array<{
-      sequence: number; passengerType: string; firstName: string; lastName: string;
-      birthDate: string | null; nationality: string | null;
-      passportNumber: string | null; passportExpiry: string | null
-    }>).map((p) => ({
+    passengers: (
+      passengerRows as Array<{
+        sequence: number
+        passengerType: string
+        firstName: string
+        lastName: string
+        birthDate: string | null
+        nationality: string | null
+        passportNumber: string | null
+        passportExpiry: string | null
+      }>
+    ).map((p) => ({
       sequence: p.sequence,
       passengerType: p.passengerType,
       firstName: p.firstName,
@@ -230,11 +259,19 @@ async function loadFlightDetail(
       passportNumber: p.passportNumber,
       passportExpiry: p.passportExpiry,
     })),
-    segments: (segmentRows as Array<{
-      sequence: number; origin: string; destination: string;
-      departure: Date | string; arrival: Date | string;
-      airline: string; flightNumber: string; cabin: string; durationMin: number | null
-    }>).map((s) => ({
+    segments: (
+      segmentRows as Array<{
+        sequence: number
+        origin: string
+        destination: string
+        departure: Date | string
+        arrival: Date | string
+        airline: string
+        flightNumber: string
+        cabin: string
+        durationMin: number | null
+      }>
+    ).map((s) => ({
       sequence: s.sequence,
       origin: s.origin,
       destination: s.destination,
@@ -245,7 +282,7 @@ async function loadFlightDetail(
       cabin: s.cabin,
       durationMin: s.durationMin,
     })),
-    tickets: (ticketRows as Array<{ ticketNumber: string; status: string }>),
+    tickets: ticketRows as Array<{ ticketNumber: string; status: string }>,
   }
 }
 
@@ -267,11 +304,19 @@ async function loadModuleDetail(
         .from(reservationHotel)
         .where(eq(reservationHotel.reservationId, reservationId))
       const row = rows[0] as
-        | { hotelName: string; cityName: string | null; checkIn: string; checkOut: string; providerBookingId: string | null }
+        | {
+            hotelName: string
+            cityName: string | null
+            checkIn: string
+            checkOut: string
+            providerBookingId: string | null
+          }
         | undefined
       if (!row) return null
       return {
-        supplierLabel: row.cityName ? `${row.hotelName} — ${row.cityName}` : row.hotelName,
+        supplierLabel: row.cityName
+          ? `${row.hotelName} — ${row.cityName}`
+          : row.hotelName,
         startDate: row.checkIn,
         endDate: row.checkOut,
         providerBookingId: row.providerBookingId,
@@ -289,7 +334,13 @@ async function loadModuleDetail(
         .from(reservationHotel)
         .where(eq(reservationHotel.reservationId, reservationId))
       const row = rows[0] as
-        | { hotelName: string; cityName: string | null; checkIn: string; checkOut: string; providerBookingId: string | null }
+        | {
+            hotelName: string
+            cityName: string | null
+            checkIn: string
+            checkOut: string
+            providerBookingId: string | null
+          }
         | undefined
       if (!row) return null
       return {
@@ -301,21 +352,41 @@ async function loadModuleDetail(
     }
     case "omra": {
       const rows = await tx
-        .select({ departureDate: reservationOmra.departureDate, returnDate: reservationOmra.returnDate })
+        .select({
+          departureDate: reservationOmra.departureDate,
+          returnDate: reservationOmra.returnDate,
+        })
         .from(reservationOmra)
         .where(eq(reservationOmra.reservationId, reservationId))
-      const row = rows[0] as { departureDate: string; returnDate: string } | undefined
+      const row = rows[0] as
+        | { departureDate: string; returnDate: string }
+        | undefined
       if (!row) return null
-      return { supplierLabel: "Omra", startDate: row.departureDate, endDate: row.returnDate, providerBookingId: null }
+      return {
+        supplierLabel: "Omra",
+        startDate: row.departureDate,
+        endDate: row.returnDate,
+        providerBookingId: null,
+      }
     }
     case "package": {
       const rows = await tx
-        .select({ departureDate: reservationPackage.departureDate, returnDate: reservationPackage.returnDate })
+        .select({
+          departureDate: reservationPackage.departureDate,
+          returnDate: reservationPackage.returnDate,
+        })
         .from(reservationPackage)
         .where(eq(reservationPackage.reservationId, reservationId))
-      const row = rows[0] as { departureDate: string; returnDate: string } | undefined
+      const row = rows[0] as
+        | { departureDate: string; returnDate: string }
+        | undefined
       if (!row) return null
-      return { supplierLabel: "Voyage organisé", startDate: row.departureDate, endDate: row.returnDate, providerBookingId: null }
+      return {
+        supplierLabel: "Voyage organisé",
+        startDate: row.departureDate,
+        endDate: row.returnDate,
+        providerBookingId: null,
+      }
     }
     case "flight": {
       // New pipeline: flight_bookings (booking-request-action + fulfillment-action).
@@ -330,7 +401,9 @@ async function loadModuleDetail(
         .from(flightBookings)
         .where(eq(flightBookings.reservationId, reservationId))
         .limit(1)
-      const fb = (fbRows as Array<{ id: string; pnr: string | null; status: string }>)[0]
+      const fb = (
+        fbRows as Array<{ id: string; pnr: string | null; status: string }>
+      )[0]
       if (fb) {
         const segRows = await tx
           .select({
@@ -342,12 +415,21 @@ async function loadModuleDetail(
           .where(eq(flightBookingSegments.bookingId, fb.id))
           .orderBy(flightBookingSegments.sequence)
           .limit(1)
-        const seg = (segRows as Array<{ origin: string; destination: string; departure: Date | string }>)[0]
+        const seg = (
+          segRows as Array<{
+            origin: string
+            destination: string
+            departure: Date | string
+          }>
+        )[0]
         const origin = seg?.origin ?? "—"
         const destination = seg?.destination ?? "—"
-        const departIso = seg?.departure instanceof Date
-          ? seg.departure.toISOString()
-          : seg?.departure ? String(seg.departure) : null
+        const departIso =
+          seg?.departure instanceof Date
+            ? seg.departure.toISOString()
+            : seg?.departure
+              ? String(seg.departure)
+              : null
         return {
           supplierLabel: `Vol ${origin} → ${destination}${fb.pnr ? ` (PNR ${fb.pnr})` : ""}`,
           startDate: departIso,
@@ -357,12 +439,27 @@ async function loadModuleDetail(
       }
       // Legacy guest-booking-actions path.
       const rows = await tx
-        .select({ origin: reservationFlight.origin, destination: reservationFlight.destination, departAt: reservationFlight.departAt, pnr: reservationFlight.pnr })
+        .select({
+          origin: reservationFlight.origin,
+          destination: reservationFlight.destination,
+          departAt: reservationFlight.departAt,
+          pnr: reservationFlight.pnr,
+        })
         .from(reservationFlight)
         .where(eq(reservationFlight.reservationId, reservationId))
-      const row = rows[0] as { origin: string; destination: string; departAt: Date | string; pnr: string | null } | undefined
+      const row = rows[0] as
+        | {
+            origin: string
+            destination: string
+            departAt: Date | string
+            pnr: string | null
+          }
+        | undefined
       if (!row) return null
-      const departIso = row.departAt instanceof Date ? row.departAt.toISOString() : String(row.departAt)
+      const departIso =
+        row.departAt instanceof Date
+          ? row.departAt.toISOString()
+          : String(row.departAt)
       return {
         supplierLabel: `Vol ${row.origin} → ${row.destination}${row.pnr ? ` (PNR ${row.pnr})` : ""}`,
         startDate: departIso,
@@ -377,17 +474,29 @@ async function loadModuleDetail(
         .where(eq(reservationActivity.reservationId, reservationId))
       const row = rows[0] as { sessionDate: string } | undefined
       if (!row) return null
-      return { supplierLabel: "Activité", startDate: row.sessionDate, endDate: null, providerBookingId: null }
+      return {
+        supplierLabel: "Activité",
+        startDate: row.sessionDate,
+        endDate: null,
+        providerBookingId: null,
+      }
     }
     case "transfer": {
       const rows = await tx
-        .select({ pickupAddress: reservationTransfer.pickupAddress, dropoffAddress: reservationTransfer.dropoffAddress })
+        .select({
+          pickupAddress: reservationTransfer.pickupAddress,
+          dropoffAddress: reservationTransfer.dropoffAddress,
+        })
         .from(reservationTransfer)
         .where(eq(reservationTransfer.reservationId, reservationId))
-      const row = rows[0] as { pickupAddress: string | null; dropoffAddress: string | null } | undefined
+      const row = rows[0] as
+        | { pickupAddress: string | null; dropoffAddress: string | null }
+        | undefined
       if (!row) return null
       return {
-        supplierLabel: [row.pickupAddress, row.dropoffAddress].filter(Boolean).join(" → ") || "Transfert",
+        supplierLabel:
+          [row.pickupAddress, row.dropoffAddress].filter(Boolean).join(" → ") ||
+          "Transfert",
         startDate: null,
         endDate: null,
         providerBookingId: null,
@@ -403,15 +512,33 @@ async function loadModuleDetail(
           providerBookingId: reservationCar.providerBookingId,
         })
         .from(reservationCar)
-        .innerJoin(carCategories, eq(carCategories.id, reservationCar.categoryId))
-        .innerJoin(carLocations, eq(carLocations.id, reservationCar.pickupLocationId))
+        .innerJoin(
+          carCategories,
+          eq(carCategories.id, reservationCar.categoryId),
+        )
+        .innerJoin(
+          carLocations,
+          eq(carLocations.id, reservationCar.pickupLocationId),
+        )
         .where(eq(reservationCar.reservationId, reservationId))
       const row = rows[0] as
-        | { categoryName: string; pickupLocationName: string; pickupAt: Date | string; dropoffAt: Date | string; providerBookingId: string | null }
+        | {
+            categoryName: string
+            pickupLocationName: string
+            pickupAt: Date | string
+            dropoffAt: Date | string
+            providerBookingId: string | null
+          }
         | undefined
       if (!row) return null
-      const pickupIso = row.pickupAt instanceof Date ? row.pickupAt.toISOString() : String(row.pickupAt)
-      const dropoffIso = row.dropoffAt instanceof Date ? row.dropoffAt.toISOString() : String(row.dropoffAt)
+      const pickupIso =
+        row.pickupAt instanceof Date
+          ? row.pickupAt.toISOString()
+          : String(row.pickupAt)
+      const dropoffIso =
+        row.dropoffAt instanceof Date
+          ? row.dropoffAt.toISOString()
+          : String(row.dropoffAt)
       return {
         supplierLabel: `${row.categoryName} — ${row.pickupLocationName}`,
         startDate: pickupIso,
@@ -434,7 +561,10 @@ export async function loadReservationDetail(
     async (tx) => {
       const whereClause = input.isSuperAdmin
         ? eq(reservations.id, input.reservationId)
-        : and(eq(reservations.id, input.reservationId), eq(reservations.agencyId, input.agencyId as string))
+        : and(
+            eq(reservations.id, input.reservationId),
+            eq(reservations.agencyId, input.agencyId as string),
+          )
 
       const rows = await tx
         .select({
@@ -470,13 +600,24 @@ export async function loadReservationDetail(
       const row = rows[0]
       if (!row) return null
 
-      const [paymentSummary, moduleDetail, flightDetail, paymentRows, auditRows, invoiceRows] = await Promise.all([
+      const [
+        paymentSummary,
+        moduleDetail,
+        flightDetail,
+        paymentRows,
+        auditRows,
+        invoiceRows,
+      ] = await Promise.all([
         getReservationPaymentSummary({
           reservationId: row.id,
-          txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+          txOverride: tx as Parameters<
+            typeof getReservationPaymentSummary
+          >[0]["txOverride"],
         }),
         loadModuleDetail(tx, row.id, row.module),
-        row.module === "flight" ? loadFlightDetail(tx, row.id) : Promise.resolve(null),
+        row.module === "flight"
+          ? loadFlightDetail(tx, row.id)
+          : Promise.resolve(null),
         tx
           .select({
             id: payments.id,
@@ -502,7 +643,12 @@ export async function loadReservationDetail(
           })
           .from(auditEvents)
           .leftJoin(users, eq(users.id, auditEvents.actorUserId))
-          .where(and(eq(auditEvents.entityType, "reservation"), eq(auditEvents.entityId, row.id)))
+          .where(
+            and(
+              eq(auditEvents.entityType, "reservation"),
+              eq(auditEvents.entityId, row.id),
+            ),
+          )
           .orderBy(desc(auditEvents.createdAt))
           .limit(50),
         tx
@@ -528,20 +674,40 @@ export async function loadReservationDetail(
         createdAt: row.createdAt.toISOString(),
         confirmedAt: row.confirmedAt ? row.confirmedAt.toISOString() : null,
         cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
-        paymentExpiresAt: row.paymentExpiresAt ? row.paymentExpiresAt.toISOString() : null,
+        paymentExpiresAt: row.paymentExpiresAt
+          ? row.paymentExpiresAt.toISOString()
+          : null,
         notes: row.notes,
         voucherUrl: row.voucherUrl,
         customer: {
           id: row.customerId ?? "",
-          name: [row.customerFirstName, row.customerLastName].filter(Boolean).join(" ").trim() || "—",
+          name:
+            [row.customerFirstName, row.customerLastName]
+              .filter(Boolean)
+              .join(" ")
+              .trim() || "—",
           email: row.customerEmail,
           phone: row.customerPhone,
         },
-        agency: { id: row.agencyId, name: row.agencyName ?? "—", agencyType: row.agencyType ?? "ota" },
+        agency: {
+          id: row.agencyId,
+          name: row.agencyName ?? "—",
+          agencyType: row.agencyType ?? "ota",
+        },
         moduleDetail,
         flightDetail: flightDetail as FlightBookingDetail | null,
         paymentSummary,
-        payments: (paymentRows as Array<{ id: string; method: string; status: string; tndAmount: string; refundedAmount: string; capturedAt: Date | null; createdAt: Date }>).map((p) => ({
+        payments: (
+          paymentRows as Array<{
+            id: string
+            method: string
+            status: string
+            tndAmount: string
+            refundedAmount: string
+            capturedAt: Date | null
+            createdAt: Date
+          }>
+        ).map((p) => ({
           id: p.id,
           method: p.method,
           status: p.status,
@@ -550,7 +716,16 @@ export async function loadReservationDetail(
           capturedAt: p.capturedAt ? p.capturedAt.toISOString() : null,
           createdAt: p.createdAt.toISOString(),
         })),
-        auditTimeline: (auditRows as Array<{ id: string; action: string; actorName: string | null; actorEmail: string | null; diff: unknown; createdAt: Date }>).map((a) => ({
+        auditTimeline: (
+          auditRows as Array<{
+            id: string
+            action: string
+            actorName: string | null
+            actorEmail: string | null
+            diff: unknown
+            createdAt: Date
+          }>
+        ).map((a) => ({
           id: a.id,
           action: a.action,
           actorName: a.actorName ?? a.actorEmail ?? null,
@@ -558,8 +733,20 @@ export async function loadReservationDetail(
           createdAt: a.createdAt.toISOString(),
         })),
         invoice: (() => {
-          const inv = (invoiceRows as Array<{ invoiceNumber: string; status: string; totalTtc: string }>)[0]
-          return inv ? { invoiceNumber: inv.invoiceNumber, status: inv.status, totalTtc: Number.parseFloat(inv.totalTtc) } : null
+          const inv = (
+            invoiceRows as Array<{
+              invoiceNumber: string
+              status: string
+              totalTtc: string
+            }>
+          )[0]
+          return inv
+            ? {
+                invoiceNumber: inv.invoiceNumber,
+                status: inv.status,
+                totalTtc: Number.parseFloat(inv.totalTtc),
+              }
+            : null
         })(),
       }
     },

@@ -65,7 +65,9 @@ export default async function VolsPage({
   const params = {
     origin: typeof rawParams.origin === "string" ? rawParams.origin : undefined,
     destination:
-      typeof rawParams.destination === "string" ? rawParams.destination : undefined,
+      typeof rawParams.destination === "string"
+        ? rawParams.destination
+        : undefined,
     class:
       typeof rawParams.cabin === "string"
         ? rawParams.cabin
@@ -79,7 +81,7 @@ export default async function VolsPage({
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <ModuleHero
           Icon={Plane}
           gradient="from-sky-900 to-sky-700"

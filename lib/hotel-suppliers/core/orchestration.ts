@@ -49,16 +49,26 @@ async function runDriver(
   timeoutMs: number,
 ): Promise<DriverRunOutcome> {
   if (driver.getConfigStatus() === "NOT_CONFIGURED") {
-    return { supplier: driver.supplier, status: "NOT_CONFIGURED", elapsedMs: 0, hotels: [], rates: [] }
+    return {
+      supplier: driver.supplier,
+      status: "NOT_CONFIGURED",
+      elapsedMs: 0,
+      hotels: [],
+      rates: [],
+    }
   }
 
   const start = Date.now()
-  const raced = await Promise.race<RaceResult<{ hotels: NormalizedHotel[]; rates: NormalizedRate[] }>>([
+  const raced = await Promise.race<
+    RaceResult<{ hotels: NormalizedHotel[]; rates: NormalizedRate[] }>
+  >([
     driver
       .search(request)
       .then((v) => ({ kind: "ok" as const, value: v }))
       .catch((error: unknown) => ({ kind: "err" as const, error })),
-    new Promise((resolve) => setTimeout(() => resolve({ kind: "timeout" }), timeoutMs)),
+    new Promise((resolve) =>
+      setTimeout(() => resolve({ kind: "timeout" }), timeoutMs),
+    ),
   ])
   const elapsedMs = Date.now() - start
 
@@ -78,10 +88,24 @@ async function runDriver(
     const err = raced.error
     const code = (err as { code?: string } | null)?.code ?? "SUPPLIER_ERROR"
     const message = err instanceof Error ? err.message : String(err)
-    return { supplier: driver.supplier, status: "ERROR", elapsedMs, errorCode: code, errorMessage: message, hotels: [], rates: [] }
+    return {
+      supplier: driver.supplier,
+      status: "ERROR",
+      elapsedMs,
+      errorCode: code,
+      errorMessage: message,
+      hotels: [],
+      rates: [],
+    }
   }
 
-  return { supplier: driver.supplier, status: "SUCCESS", elapsedMs, hotels: raced.value.hotels, rates: raced.value.rates }
+  return {
+    supplier: driver.supplier,
+    status: "SUCCESS",
+    elapsedMs,
+    hotels: raced.value.hotels,
+    rates: raced.value.rates,
+  }
 }
 
 export async function searchAcrossSuppliers(
@@ -93,7 +117,9 @@ export async function searchAcrossSuppliers(
   const correlationId = options.correlationId ?? crypto.randomUUID()
   const start = Date.now()
 
-  const outcomes = await Promise.allSettled(drivers.map((d) => runDriver(d, request, timeoutMs)))
+  const outcomes = await Promise.allSettled(
+    drivers.map((d) => runDriver(d, request, timeoutMs)),
+  )
 
   const supplierStatus: Record<string, SupplierRunStatus> = {}
   const supplierDetails: Record<string, SupplierRunDetail> = {}

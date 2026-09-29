@@ -20,7 +20,8 @@ function makeMockRedis() {
   const store = new Map<string, string>()
   return {
     redis: {
-      get: async <T>(key: string) => (store.has(key) ? (store.get(key) as T) : null),
+      get: async <T>(key: string) =>
+        store.has(key) ? (store.get(key) as T) : null,
       set: async (key: string, value: string) => {
         store.set(key, value)
       },
@@ -47,14 +48,23 @@ test("withGuestIdempotency : un deuxième appel avec la même clé renvoie le r�
   let calls = 0
   const run = async () => {
     calls += 1
-    return { ok: true, reservationId: `res-${calls}`, publicRef: "EZB-0001", status: "confirmed" as const }
+    return {
+      ok: true,
+      reservationId: `res-${calls}`,
+      publicRef: "EZB-0001",
+      status: "confirmed" as const,
+    }
   }
 
   const first = await withGuestIdempotency("guest-key-1", run, redis)
   const second = await withGuestIdempotency("guest-key-1", run, redis)
 
   assert.deepEqual(second, first)
-  assert.equal(calls, 1, "run() ne doit être exécuté qu'une seule fois pour la même idempotencyKey")
+  assert.equal(
+    calls,
+    1,
+    "run() ne doit être exécuté qu'une seule fois pour la même idempotencyKey",
+  )
 })
 
 test("withGuestIdempotency : deux clés différentes exécutent run() deux fois", async () => {
@@ -78,7 +88,11 @@ test("withGuestIdempotency : met aussi en cache les résultats d'échec (ok:fals
   let calls = 0
   const run = async () => {
     calls += 1
-    return { ok: false as const, error: "paiement refusé", code: "PAYMENT_DECLINED" }
+    return {
+      ok: false as const,
+      error: "paiement refusé",
+      code: "PAYMENT_DECLINED",
+    }
   }
 
   const first = await withGuestIdempotency("guest-key-fail", run, redis)

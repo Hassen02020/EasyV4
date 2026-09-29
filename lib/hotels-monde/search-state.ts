@@ -17,19 +17,61 @@ export interface WorldDestinationOption {
 }
 
 export const POPULAR_DESTINATIONS: WorldDestinationOption[] = [
-  { value: "istanbul", city: "Istanbul", country: "Turquie", label: "Istanbul, Turquie" },
-  { value: "dubai", city: "Dubaï", country: "Émirats Arabes Unis", label: "Dubaï, Émirats" },
+  {
+    value: "istanbul",
+    city: "Istanbul",
+    country: "Turquie",
+    label: "Istanbul, Turquie",
+  },
+  {
+    value: "dubai",
+    city: "Dubaï",
+    country: "Émirats Arabes Unis",
+    label: "Dubaï, Émirats",
+  },
   { value: "paris", city: "Paris", country: "France", label: "Paris, France" },
   { value: "rome", city: "Rome", country: "Italie", label: "Rome, Italie" },
-  { value: "barcelona", city: "Barcelone", country: "Espagne", label: "Barcelone, Espagne" },
-  { value: "london", city: "Londres", country: "Royaume-Uni", label: "Londres, Royaume-Uni" },
-  { value: "cairo", city: "Le Caire", country: "Égypte", label: "Le Caire, Égypte" },
-  { value: "marrakech", city: "Marrakech", country: "Maroc", label: "Marrakech, Maroc" },
-  { value: "amsterdam", city: "Amsterdam", country: "Pays-Bas", label: "Amsterdam, Pays-Bas" },
-  { value: "new_york", city: "New York", country: "États-Unis", label: "New York, États-Unis" },
+  {
+    value: "barcelona",
+    city: "Barcelone",
+    country: "Espagne",
+    label: "Barcelone, Espagne",
+  },
+  {
+    value: "london",
+    city: "Londres",
+    country: "Royaume-Uni",
+    label: "Londres, Royaume-Uni",
+  },
+  {
+    value: "cairo",
+    city: "Le Caire",
+    country: "Égypte",
+    label: "Le Caire, Égypte",
+  },
+  {
+    value: "marrakech",
+    city: "Marrakech",
+    country: "Maroc",
+    label: "Marrakech, Maroc",
+  },
+  {
+    value: "amsterdam",
+    city: "Amsterdam",
+    country: "Pays-Bas",
+    label: "Amsterdam, Pays-Bas",
+  },
+  {
+    value: "new_york",
+    city: "New York",
+    country: "États-Unis",
+    label: "New York, États-Unis",
+  },
 ]
 
-export function destinationByValue(value: string): WorldDestinationOption | undefined {
+export function destinationByValue(
+  value: string,
+): WorldDestinationOption | undefined {
   return POPULAR_DESTINATIONS.find((d) => d.value === value)
 }
 
@@ -90,7 +132,10 @@ export function parseWorldHotelSearchParams(
     return { ok: false, error: "Date de départ manquante ou invalide." }
   }
   if (checkOut <= checkIn) {
-    return { ok: false, error: "La date de départ doit être après la date d'arrivée." }
+    return {
+      ok: false,
+      error: "La date de départ doit être après la date d'arrivée.",
+    }
   }
 
   const nights = Math.round(
@@ -98,13 +143,15 @@ export function parseWorldHotelSearchParams(
   )
 
   const adultsRaw = searchParams.get("adults")
-  const adults = adultsRaw && /^[1-9][0-9]?$/.test(adultsRaw) ? Number(adultsRaw) : 2
+  const adults =
+    adultsRaw && /^[1-9][0-9]?$/.test(adultsRaw) ? Number(adultsRaw) : 2
 
   const roomsRaw = searchParams.get("rooms")
   const rooms = roomsRaw && /^[1-5]$/.test(roomsRaw) ? Number(roomsRaw) : 1
 
   const starsRaw = searchParams.get("stars")
-  const stars = starsRaw && /^[1-5]$/.test(starsRaw) ? Number(starsRaw) : undefined
+  const stars =
+    starsRaw && /^[1-5]$/.test(starsRaw) ? Number(starsRaw) : undefined
 
   return {
     ok: true,
@@ -123,7 +170,9 @@ export function parseWorldHotelSearchParams(
 }
 
 /** Query params canoniques attendus par `app/api/hotels-monde/search/route.ts`. */
-export function worldHotelStateToApiParams(state: WorldHotelSearchState): URLSearchParams {
+export function worldHotelStateToApiParams(
+  state: WorldHotelSearchState,
+): URLSearchParams {
   const params = new URLSearchParams({
     destination: state.destination,
     checkIn: state.checkIn,

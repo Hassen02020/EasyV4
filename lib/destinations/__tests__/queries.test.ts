@@ -63,7 +63,9 @@ test("3. getDestinationBySlug('istanbul') — fiche ville : parent Turquie + ref
   assert.equal(detail!.parent?.slug, "turquie")
   assert.equal(detail!.children.length, 0)
   assert.ok(detail!.externalRefs.some((r) => r.module === "hotels_monde_slug"))
-  assert.ok(!detail!.externalRefs.some((r) => (r.module as string) === "mygo_city"))
+  assert.ok(
+    !detail!.externalRefs.some((r) => (r.module as string) === "mygo_city"),
+  )
 })
 
 test("4. getDestinationBySlug('turquie') — fiche pays : pas de parent, Istanbul en enfant, aucune ref externe", async (t) => {
@@ -90,7 +92,13 @@ test("6. localizedDestinationName replie sur le français si name_en/name_ar abs
 })
 
 test("7. destinationLinkHref construit le lien de recherche pré-rempli par module", () => {
-  assert.equal(destinationLinkHref("hotels_monde_slug", "istanbul"), "/hotels-monde?destination=istanbul")
-  assert.equal(destinationLinkHref("packages_slug", "casablanca"), "/packages?destination=casablanca")
+  assert.equal(
+    destinationLinkHref("hotels_monde_slug", "istanbul"),
+    "/hotels-monde?destination=istanbul",
+  )
+  assert.equal(
+    destinationLinkHref("packages_slug", "casablanca"),
+    "/packages?destination=casablanca",
+  )
   assert.equal(destinationLinkHref("iata", "CDG"), "/vols?destination=CDG")
 })

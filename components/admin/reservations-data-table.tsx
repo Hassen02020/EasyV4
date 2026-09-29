@@ -215,7 +215,9 @@ export function ReservationsDataTable({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [search, setSearch] = React.useState(() => searchParams.get("search") ?? "")
+  const [search, setSearch] = React.useState(
+    () => searchParams.get("search") ?? "",
+  )
   const [statusFilter, setStatusFilter] = React.useState<string>(
     () => searchParams.get("status") ?? "all",
   )
@@ -544,7 +546,9 @@ export function ReservationsDataTable({
                   </TableCell>
                   <TableCell>
                     <ModuleBadge module={row.module} />
-                    {row.module === "flight" && row.flightOrigin && row.flightDestination ? (
+                    {row.module === "flight" &&
+                    row.flightOrigin &&
+                    row.flightDestination ? (
                       <p className="text-muted-foreground mt-0.5 font-mono text-[10px]">
                         {row.flightOrigin} → {row.flightDestination}
                       </p>
@@ -664,8 +668,11 @@ export function ReservationsDataTable({
           confirmChange ? (
             <>
               La réservation <strong>{confirmChange.row.publicRef}</strong>{" "}
-              passera de « {STATUS_LABEL[confirmChange.row.status]?.label ?? confirmChange.row.status} »
-              à « {STATUS_LABEL[confirmChange.next]?.label ?? confirmChange.next} ».
+              passera de «{" "}
+              {STATUS_LABEL[confirmChange.row.status]?.label ??
+                confirmChange.row.status}{" "}
+              » à «{" "}
+              {STATUS_LABEL[confirmChange.next]?.label ?? confirmChange.next} ».
               Cette action est difficile à annuler.
             </>
           ) : (

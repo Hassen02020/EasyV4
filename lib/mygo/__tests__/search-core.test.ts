@@ -43,7 +43,10 @@ test("validateSearchDateRange : refuse un checkin dans le passé", () => {
 })
 
 test("validateSearchDateRange : refuse un séjour au-delà du maximum", () => {
-  const result = validateSearchDateRange(futureDate(30), futureDate(30 + MAX_SEARCH_NIGHTS + 1))
+  const result = validateSearchDateRange(
+    futureDate(30),
+    futureDate(30 + MAX_SEARCH_NIGHTS + 1),
+  )
   assert.equal(result.ok, false)
   assert.equal(result.error, "date_range_too_long")
 })

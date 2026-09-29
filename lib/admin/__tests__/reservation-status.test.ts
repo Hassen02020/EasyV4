@@ -21,14 +21,43 @@ test("isTransitionAllowed : rejette les statuts terminaux et l'identité", () =>
 })
 
 test("getAllowedTransitions : reflète exactement la state machine", () => {
-  assert.deepEqual([...getAllowedTransitions("pending")].sort(), ["cancelled", "confirmed", "expired", "on_request"])
+  assert.deepEqual([...getAllowedTransitions("pending")].sort(), [
+    "cancelled",
+    "confirmed",
+    "expired",
+    "on_request",
+  ])
   assert.deepEqual(getAllowedTransitions("refunded"), [])
 })
 
 test("RESERVATION_STATUS_ALLOWED_ROLES (Phase 21.2, P1) : exclut agent_compta/agent_excursions et tout rôle partenaire B2B", () => {
-  assert.deepEqual([...RESERVATION_STATUS_ALLOWED_ROLES].sort(), ["agent_resa", "manager", "super_admin"])
-  assert.equal((RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes("agent_compta"), false)
-  assert.equal((RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes("agent_excursions"), false)
-  assert.equal((RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes("partner_owner"), false)
-  assert.equal((RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes("partner_agent"), false)
+  assert.deepEqual([...RESERVATION_STATUS_ALLOWED_ROLES].sort(), [
+    "agent_resa",
+    "manager",
+    "super_admin",
+  ])
+  assert.equal(
+    (RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(
+      "agent_compta",
+    ),
+    false,
+  )
+  assert.equal(
+    (RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(
+      "agent_excursions",
+    ),
+    false,
+  )
+  assert.equal(
+    (RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(
+      "partner_owner",
+    ),
+    false,
+  )
+  assert.equal(
+    (RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(
+      "partner_agent",
+    ),
+    false,
+  )
 })

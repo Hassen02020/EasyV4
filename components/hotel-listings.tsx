@@ -25,7 +25,12 @@ import type { HotelMapPoint } from "@/components/hotel-map"
 // de `window`).
 const HotelMap = dynamic(
   () => import("@/components/hotel-map").then((m) => m.HotelMap),
-  { ssr: false, loading: () => <div className="bg-muted h-full w-full animate-pulse rounded-xl" /> },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-muted h-full w-full animate-pulse rounded-xl" />
+    ),
+  },
 )
 
 interface BookingData {
@@ -205,7 +210,10 @@ export function toCardShape(
   const latitude = h.latitude !== undefined ? Number(h.latitude) : undefined
   const longitude = h.longitude !== undefined ? Number(h.longitude) : undefined
   const hasValidCoords =
-    latitude !== undefined && longitude !== undefined && Number.isFinite(latitude) && Number.isFinite(longitude)
+    latitude !== undefined &&
+    longitude !== undefined &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude)
 
   // Prix affiché = celui du "meilleur tarif" retenu ci-dessus (déjà
   // conscient du filtre de pension actif), pas systématiquement le prix
@@ -364,8 +372,12 @@ export function HotelListings({
   // pour N résultats) ; `undefined` tant que non chargé (le cœur reste
   // neutre, voir hotel-card.tsx) plutôt que de démarrer sur un faux "non
   // favori" avant que la requête réponde.
-  const [favoriteHotelIds, setFavoriteHotelIds] = useState<Set<string> | undefined>(undefined)
-  const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(new Set())
+  const [favoriteHotelIds, setFavoriteHotelIds] = useState<
+    Set<string> | undefined
+  >(undefined)
+  const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(
+    new Set(),
+  )
 
   // Avis clients agrégés (note + nombre) pour les hôtels actuellement
   // affichés — un seul appel batch pour toute la page plutôt qu'un par card
@@ -380,9 +392,15 @@ export function HotelListings({
     let cancelled = false
     fetch(`/api/reviews/summaries?module=hotel&productRefs=${ids.join(",")}`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { summaries?: Record<string, { average: number; count: number }> } | null) => {
-        if (!cancelled && data?.summaries) setReviewSummaries(data.summaries)
-      })
+      .then(
+        (
+          data: {
+            summaries?: Record<string, { average: number; count: number }>
+          } | null,
+        ) => {
+          if (!cancelled && data?.summaries) setReviewSummaries(data.summaries)
+        },
+      )
       .catch(() => {})
     return () => {
       cancelled = true
@@ -394,7 +412,11 @@ export function HotelListings({
     listMyFavorites().then((result) => {
       if (cancelled || !result.ok) return
       setFavoriteHotelIds(
-        new Set(result.favorites.filter((f) => f.itemType === "hotel").map((f) => f.itemRef)),
+        new Set(
+          result.favorites
+            .filter((f) => f.itemType === "hotel")
+            .map((f) => f.itemRef),
+        ),
       )
     })
     return () => {
@@ -451,7 +473,10 @@ export function HotelListings({
   const nightsCount = useMemo(() => {
     if (!checkin || !checkout) return undefined
     try {
-      return Math.max(1, differenceInCalendarDays(parseISO(checkout), parseISO(checkin)))
+      return Math.max(
+        1,
+        differenceInCalendarDays(parseISO(checkout), parseISO(checkin)),
+      )
     } catch {
       return undefined
     }
@@ -522,7 +547,10 @@ export function HotelListings({
       const childCount = childrenAges?.split(",").filter(Boolean).length ?? 0
       const paxLabel =
         childCount > 0
-          ? t("paxAdultsChildren", { adults: Number(adults), children: childCount })
+          ? t("paxAdultsChildren", {
+              adults: Number(adults),
+              children: childCount,
+            })
           : t("paxAdultsOnly", { n: Number(adults) })
       return `${format(from, "d MMM", { locale: dateFnsLocale })} - ${format(to, "d MMM yyyy", { locale: dateFnsLocale })} · ${t("nightsCount", { n: nights })} · ${paxLabel}`
     } catch {
@@ -536,7 +564,11 @@ export function HotelListings({
         const card = toCardShape(offer, activeBoardFilters, nightsCount)
         const summary = reviewSummaries[String(card.id)]
         return summary
-          ? { ...card, reviewAverage: summary.average, reviewCount: summary.count }
+          ? {
+              ...card,
+              reviewAverage: summary.average,
+              reviewCount: summary.count,
+            }
           : card
       }),
     [offers, activeBoardFilters, nightsCount, reviewSummaries],
@@ -547,7 +579,10 @@ export function HotelListings({
   const mapPoints: HotelMapPoint[] = useMemo(
     () =>
       cardHotels
-        .filter((h): h is typeof h & { latitude: number; longitude: number } => h.latitude != null && h.longitude != null)
+        .filter(
+          (h): h is typeof h & { latitude: number; longitude: number } =>
+            h.latitude != null && h.longitude != null,
+        )
         .map((h) => ({
           id: h.id,
           name: h.name,
@@ -565,7 +600,9 @@ export function HotelListings({
 
   const handleMarkerSelect = (hotelId: number) => {
     setSelectedHotelId(hotelId)
-    document.getElementById(`hotel-card-${hotelId}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+    document
+      .getElementById(`hotel-card-${hotelId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" })
   }
 
   if (status === "loading") {
@@ -645,100 +682,110 @@ export function HotelListings({
             className="shrink-0 gap-1.5"
             onClick={() => setShowMap((v) => !v)}
           >
-            {showMap ? <ListIcon className="size-4" /> : <MapIcon className="size-4" />}
+            {showMap ? (
+              <ListIcon className="size-4" />
+            ) : (
+              <MapIcon className="size-4" />
+            )}
             {showMap ? t("hideMapButton") : t("showMapButton")}
           </Button>
         )}
       </div>
 
       <div className={showMap ? "flex flex-col gap-4 lg:flex-row" : ""}>
-      <div className={showMap ? "min-w-0 space-y-4 lg:max-w-xl lg:flex-1" : "space-y-4"}>
-        {cardHotels.length === 0 &&
-          (totalCount === 0 ? (
-            // Zéro hôtel renvoyé par myGo lui-même (pas un effet des filtres
-            // client) — proposer de changer la recherche, pas d'effacer des
-            // filtres qui n'y sont pour rien.
-            <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
-              <p className="font-medium text-foreground">
-                {t("noHotelsAvailableTitle")}
-              </p>
-              <p className="mt-1">
-                {t("noHotelsAvailableHint")}
-              </p>
-              <Link
-                href="/"
-                className="text-primary mt-3 inline-block text-sm font-medium hover:underline"
-              >
-                {t("modifySearch")}
-              </Link>
-            </div>
-          ) : (
-            // Des hôtels existent (totalCount > 0) mais les filtres actifs
-            // les excluent tous — l'action réelle est d'effacer les filtres,
-            // pas de changer la recherche elle-même.
-            <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
-              <p className="font-medium text-foreground">
-                {t("noHotelsMatchFiltersTitle")}
-              </p>
-              <p className="mt-1">
-                {t("hotelsFoundForSearch", { count: totalCount })}
-              </p>
-              {onClearFilters && (
-                <button
-                  type="button"
-                  onClick={onClearFilters}
-                  className="text-primary mt-3 text-sm font-medium hover:underline"
+        <div
+          className={
+            showMap ? "min-w-0 space-y-4 lg:max-w-xl lg:flex-1" : "space-y-4"
+          }
+        >
+          {cardHotels.length === 0 &&
+            (totalCount === 0 ? (
+              // Zéro hôtel renvoyé par myGo lui-même (pas un effet des filtres
+              // client) — proposer de changer la recherche, pas d'effacer des
+              // filtres qui n'y sont pour rien.
+              <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
+                <p className="text-foreground font-medium">
+                  {t("noHotelsAvailableTitle")}
+                </p>
+                <p className="mt-1">{t("noHotelsAvailableHint")}</p>
+                <Link
+                  href="/"
+                  className="text-primary mt-3 inline-block text-sm font-medium hover:underline"
                 >
-                  {t("clearAllFilters")}
-                </button>
-              )}
+                  {t("modifySearch")}
+                </Link>
+              </div>
+            ) : (
+              // Des hôtels existent (totalCount > 0) mais les filtres actifs
+              // les excluent tous — l'action réelle est d'effacer les filtres,
+              // pas de changer la recherche elle-même.
+              <div className="border-border text-muted-foreground rounded-lg border p-6 text-center text-sm">
+                <p className="text-foreground font-medium">
+                  {t("noHotelsMatchFiltersTitle")}
+                </p>
+                <p className="mt-1">
+                  {t("hotelsFoundForSearch", { count: totalCount })}
+                </p>
+                {onClearFilters && (
+                  <button
+                    type="button"
+                    onClick={onClearFilters}
+                    className="text-primary mt-3 text-sm font-medium hover:underline"
+                  >
+                    {t("clearAllFilters")}
+                  </button>
+                )}
+              </div>
+            ))}
+          {cardHotels.map((hotel) => (
+            <div
+              key={hotel.id}
+              id={`hotel-card-${hotel.id}`}
+              onMouseEnter={() => setHoveredHotelId(hotel.id)}
+              onMouseLeave={() =>
+                setHoveredHotelId((id) => (id === hotel.id ? null : id))
+              }
+            >
+              <HotelCard
+                hotel={hotel}
+                currency={currency}
+                onBook={(mealPlan, room) =>
+                  handleBookHotel(hotel, mealPlan, room)
+                }
+                onViewDetails={() => handleViewDetails(hotel.id)}
+                isFavorited={favoriteHotelIds?.has(String(hotel.id))}
+                onToggleFavorite={() => handleToggleFavorite(hotel)}
+                favoritePending={pendingFavoriteIds.has(String(hotel.id))}
+                highlighted={hotel.id === selectedHotelId}
+                onLocate={
+                  hotel.latitude != null && hotel.longitude != null
+                    ? () => handleLocateOnMap(hotel.id)
+                    : undefined
+                }
+              />
             </div>
           ))}
-        {cardHotels.map((hotel) => (
-          <div
-            key={hotel.id}
-            id={`hotel-card-${hotel.id}`}
-            onMouseEnter={() => setHoveredHotelId(hotel.id)}
-            onMouseLeave={() => setHoveredHotelId((id) => (id === hotel.id ? null : id))}
-          >
-            <HotelCard
-              hotel={hotel}
-              currency={currency}
-              onBook={(mealPlan, room) => handleBookHotel(hotel, mealPlan, room)}
-              onViewDetails={() => handleViewDetails(hotel.id)}
-              isFavorited={favoriteHotelIds?.has(String(hotel.id))}
-              onToggleFavorite={() => handleToggleFavorite(hotel)}
-              favoritePending={pendingFavoriteIds.has(String(hotel.id))}
-              highlighted={hotel.id === selectedHotelId}
-              onLocate={
-                hotel.latitude != null && hotel.longitude != null
-                  ? () => handleLocateOnMap(hotel.id)
-                  : undefined
-              }
+        </div>
+
+        {showMap && (
+          <div className="fixed inset-0 z-[60] lg:sticky lg:top-20 lg:z-auto lg:h-[calc(100vh-6rem)] lg:flex-1">
+            <button
+              type="button"
+              onClick={() => setShowMap(false)}
+              className="bg-card absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium shadow-lg lg:hidden"
+            >
+              <ListIcon className="size-4" />
+              {t("backToListButton")}
+            </button>
+            <HotelMap
+              points={mapPoints}
+              selectedId={selectedHotelId}
+              hoveredId={hoveredHotelId}
+              onMarkerSelect={handleMarkerSelect}
+              className="h-full w-full"
             />
           </div>
-        ))}
-      </div>
-
-      {showMap && (
-        <div className="fixed inset-0 z-[60] lg:sticky lg:top-20 lg:z-auto lg:h-[calc(100vh-6rem)] lg:flex-1">
-          <button
-            type="button"
-            onClick={() => setShowMap(false)}
-            className="bg-card absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium shadow-lg lg:hidden"
-          >
-            <ListIcon className="size-4" />
-            {t("backToListButton")}
-          </button>
-          <HotelMap
-            points={mapPoints}
-            selectedId={selectedHotelId}
-            hoveredId={hoveredHotelId}
-            onMarkerSelect={handleMarkerSelect}
-            className="h-full w-full"
-          />
-        </div>
-      )}
+        )}
       </div>
     </div>
   )

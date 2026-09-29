@@ -7,7 +7,11 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  withSystemContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { agencies, inventoryLocks } from "@/lib/db/schema"
 import { listInventoryLocksCore } from "../inventory-locks-core"
 
@@ -38,8 +42,18 @@ before(async () => {
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, name: "LOCKS Agency A", agencyType: "ota", slug: `locks-a-${agencyA.slice(0, 8)}` },
-      { id: agencyB, name: "LOCKS Agency B", agencyType: "ota", slug: `locks-b-${agencyB.slice(0, 8)}` },
+      {
+        id: agencyA,
+        name: "LOCKS Agency A",
+        agencyType: "ota",
+        slug: `locks-a-${agencyA.slice(0, 8)}`,
+      },
+      {
+        id: agencyB,
+        name: "LOCKS Agency B",
+        agencyType: "ota",
+        slug: `locks-b-${agencyB.slice(0, 8)}`,
+      },
     ])
     await tx.insert(inventoryLocks).values([
       {
@@ -85,11 +99,23 @@ after(async () => {
 
 test("listInventoryLocksCore : isolation par agence", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctxA: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
-  const ctxB: TenantContext = { agencyId: agencyB, userId: "", isSuperAdmin: true }
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+  const ctxB: TenantContext = {
+    agencyId: agencyB,
+    userId: "",
+    isSuperAdmin: true,
+  }
 
-  const listedA = await withTenantContext(ctxA, (tx) => listInventoryLocksCore(tx, { agencyId: agencyA }))
-  const listedB = await withTenantContext(ctxB, (tx) => listInventoryLocksCore(tx, { agencyId: agencyB }))
+  const listedA = await withTenantContext(ctxA, (tx) =>
+    listInventoryLocksCore(tx, { agencyId: agencyA }),
+  )
+  const listedB = await withTenantContext(ctxB, (tx) =>
+    listInventoryLocksCore(tx, { agencyId: agencyB }),
+  )
 
   assert.equal(listedA.length, 2)
   assert.equal(listedB.length, 1)
@@ -98,7 +124,11 @@ test("listInventoryLocksCore : isolation par agence", async (t) => {
 
 test("listInventoryLocksCore : filtre par statut", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctxA: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
 
   const activeOnly = await withTenantContext(ctxA, (tx) =>
     listInventoryLocksCore(tx, { agencyId: agencyA, status: "active" }),

@@ -27,43 +27,100 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const actionsSrc = readFileSync(join(process.cwd(), "lib/booking/actions.ts"), "utf8")
-const guestActionsSrc = readFileSync(join(process.cwd(), "lib/booking/guest-actions.ts"), "utf8")
+const actionsSrc = readFileSync(
+  join(process.cwd(), "lib/booking/actions.ts"),
+  "utf8",
+)
+const guestActionsSrc = readFileSync(
+  join(process.cwd(), "lib/booking/guest-actions.ts"),
+  "utf8",
+)
 
 function countOccurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
 }
 
+/**
+ * Compte les occurrences d'un motif tolérant aux retours à la ligne/espaces
+ * insérés par Prettier entre les tokens (ex. un appel multi-arguments
+ * reformaté sur plusieurs lignes) — chaque élément de `tokens` est cherché
+ * dans l'ordre, séparé par `\s*`, jamais un simple `.replace(/\s+/g, " ")`
+ * qui masquerait un vrai changement de code entre les tokens.
+ */
+function countTokenSequence(haystack: string, tokens: string[]): number {
+  const pattern = tokens
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("\\s*")
+  const matches = haystack.match(new RegExp(pattern, "g"))
+  return matches ? matches.length : 0
+}
+
 test("lib/booking/actions.ts : confirmHotelWithProvider() est appelée avec le compte tenant résolu (myGoAccess), jamais sans 3e argument", () => {
-  assert.equal(countOccurrences(actionsSrc, "confirmHotelWithProvider(draft, traveler, myGoAccess)"), 1)
+  assert.equal(
+    countTokenSequence(actionsSrc, [
+      "confirmHotelWithProvider(",
+      "draft,",
+      "traveler,",
+      "myGoAccess,",
+    ]),
+    1,
+  )
 })
 
 test("lib/booking/actions.ts : resolveMyGoAccessForTenant() n'est appelée qu'UNE SEULE FOIS dans createReservationFromDraft", () => {
-  assert.equal(countOccurrences(actionsSrc, "await resolveMyGoAccessForTenant("), 1)
+  assert.equal(
+    countOccurrences(actionsSrc, "await resolveMyGoAccessForTenant("),
+    1,
+  )
 })
 
 test("lib/booking/actions.ts : confirmHotelWithProvider() utilise le client tenant résolu (access.client), avec repli explicite global uniquement si non configuré", () => {
-  assert.equal(countOccurrences(actionsSrc, "const client = access.client ?? getMyGoClient()"), 1)
+  assert.equal(
+    countOccurrences(
+      actionsSrc,
+      "const client = access.client ?? getMyGoClient()",
+    ),
+    1,
+  )
 })
 
 test("lib/booking/actions.ts : les 2 sites de compensation (conflit idempotence B2B, catch général) annulent via myGoAccess.client — MÊME compte que la création, jamais un client re-résolu", () => {
   assert.equal(
-    countOccurrences(actionsSrc, "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })"),
+    countTokenSequence(actionsSrc, [
+      "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({",
+      "bookingId: myGoBooking.bookingId,",
+      "})",
+    ]),
     2,
   )
 })
 
 test("lib/booking/guest-actions.ts : confirmHotelWithProvider() est appelée avec le compte tenant résolu (myGoAccess), jamais sans 3e argument", () => {
-  assert.equal(countOccurrences(guestActionsSrc, "confirmHotelWithProvider(draft, traveler, myGoAccess)"), 1)
+  assert.equal(
+    countTokenSequence(guestActionsSrc, [
+      "confirmHotelWithProvider(",
+      "draft,",
+      "traveler,",
+      "myGoAccess,",
+    ]),
+    1,
+  )
 })
 
 test("lib/booking/guest-actions.ts : resolveMyGoAccessForTenant() n'est appelée qu'UNE SEULE FOIS dans runCreateGuestReservation", () => {
-  assert.equal(countOccurrences(guestActionsSrc, "resolveMyGoAccessForTenant("), 1)
+  assert.equal(
+    countOccurrences(guestActionsSrc, "resolveMyGoAccessForTenant("),
+    1,
+  )
 })
 
 test("lib/booking/guest-actions.ts : les 3 sites de compensation (hold carte, conflit idempotence, catch général) annulent tous via myGoAccess.client — MÊME compte que la création", () => {
   assert.equal(
-    countOccurrences(guestActionsSrc, "(myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })"),
+    countTokenSequence(guestActionsSrc, [
+      "(myGoAccess.client ?? getMyGoClient()).cancelBooking({",
+      "bookingId: myGoBooking.bookingId,",
+      "})",
+    ]),
     3,
   )
 })

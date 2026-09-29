@@ -10,7 +10,13 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { NewAgencyForm } from "@/components/admin/new-agency-form"
@@ -42,9 +48,10 @@ export default async function NewAgencyPage() {
         <CardHeader>
           <CardTitle>Nouvelle agence</CardTitle>
           <CardDescription>
-            Crée une agence OTA ou partenaire B2B. Pour une agence partenaire, l&apos;étape suivante
-            invite immédiatement son premier propriétaire (partner_owner) ; le personnel OTA se crée
-            séparément via /admin/staff.
+            Crée une agence OTA ou partenaire B2B. Pour une agence partenaire,
+            l&apos;étape suivante invite immédiatement son premier propriétaire
+            (partner_owner) ; le personnel OTA se crée séparément via
+            /admin/staff.
           </CardDescription>
         </CardHeader>
         <CardContent>

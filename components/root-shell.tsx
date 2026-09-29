@@ -44,14 +44,19 @@ export function RootShell({
   primaryColor?: string | null
   children: ReactNode
 }) {
-  const validPrimaryColor = primaryColor && HEX_COLOR_REGEX.test(primaryColor) ? primaryColor : null
+  const validPrimaryColor =
+    primaryColor && HEX_COLOR_REGEX.test(primaryColor) ? primaryColor : null
 
   return (
     <html
       lang={lang}
       dir={dir}
       className={`${geistSans.variable} ${geistMono.variable} bg-background`}
-      style={validPrimaryColor ? ({ "--primary": validPrimaryColor } as CSSProperties) : undefined}
+      style={
+        validPrimaryColor
+          ? ({ "--primary": validPrimaryColor } as CSSProperties)
+          : undefined
+      }
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">

@@ -26,15 +26,15 @@ deviné.
 
 ## B. Module Matrix
 
-| Module | Homepage→Form | Search State | URL | Route résultats | API/service | Results | Filters | Sort | Detail | Booking boundary |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Vol | PASS | PASS | PASS | PASS | PASS (demo honnête) | PASS | PASS (direct/remboursable) | PASS | N/A (pas de détail séparé) | PARTIAL — désactivé volontairement |
-| Hôtels Monde | PASS | PASS | PASS | PASS | PASS (demo honnête) | PASS | PASS (petit-déj/annulation) | PASS | N/A | PARTIAL — désactivé volontairement |
-| Car | PASS | PASS | PASS | PASS | PASS (vraie DB) | PASS (ou état honnête "aucun tarif/véhicule") | N/A (une seule requête = un devis) | N/A | N/A | PARTIAL — nécessite session (hérité de Transfert) |
-| Hôtels Tunisie | PASS | PASS | PASS | PASS | PASS (myGo réel) | PASS | PASS | PASS | PASS | PASS (B2B) / PARTIAL (B2C, gap déjà documenté) |
-| Transfert | PASS | PASS | PASS | PASS | PASS (vraie DB) | PASS (devis) | N/A | N/A | N/A | PARTIAL — nécessite session |
-| Omra | PASS | N/A (liste statique) | PASS | PASS (`/omra/[id]`) | PASS | PASS | N/A | N/A | PASS | Hors périmètre de cette phase |
-| Packages | PASS | N/A (liste statique) | PASS | PASS (`/packages/[slug]`) | PASS | PASS | N/A | N/A | PASS | Hors périmètre de cette phase |
+| Module         | Homepage→Form | Search State         | URL  | Route résultats           | API/service         | Results                                       | Filters                            | Sort | Detail                     | Booking boundary                                  |
+| -------------- | ------------- | -------------------- | ---- | ------------------------- | ------------------- | --------------------------------------------- | ---------------------------------- | ---- | -------------------------- | ------------------------------------------------- |
+| Vol            | PASS          | PASS                 | PASS | PASS                      | PASS (demo honnête) | PASS                                          | PASS (direct/remboursable)         | PASS | N/A (pas de détail séparé) | PARTIAL — désactivé volontairement                |
+| Hôtels Monde   | PASS          | PASS                 | PASS | PASS                      | PASS (demo honnête) | PASS                                          | PASS (petit-déj/annulation)        | PASS | N/A                        | PARTIAL — désactivé volontairement                |
+| Car            | PASS          | PASS                 | PASS | PASS                      | PASS (vraie DB)     | PASS (ou état honnête "aucun tarif/véhicule") | N/A (une seule requête = un devis) | N/A  | N/A                        | PARTIAL — nécessite session (hérité de Transfert) |
+| Hôtels Tunisie | PASS          | PASS                 | PASS | PASS                      | PASS (myGo réel)    | PASS                                          | PASS                               | PASS | PASS                       | PASS (B2B) / PARTIAL (B2C, gap déjà documenté)    |
+| Transfert      | PASS          | PASS                 | PASS | PASS                      | PASS (vraie DB)     | PASS (devis)                                  | N/A                                | N/A  | N/A                        | PARTIAL — nécessite session                       |
+| Omra           | PASS          | N/A (liste statique) | PASS | PASS (`/omra/[id]`)       | PASS                | PASS                                          | N/A                                | N/A  | PASS                       | Hors périmètre de cette phase                     |
+| Packages       | PASS          | N/A (liste statique) | PASS | PASS (`/packages/[slug]`) | PASS                | PASS                                          | N/A                                | N/A  | PASS                       | Hors périmètre de cette phase                     |
 
 Aucune fonctionnalité volontairement désactivée (booking Vol/Hôtels Monde,
 booking anonyme B2C) n'est comptée comme BUG — conforme à la consigne de
@@ -97,7 +97,7 @@ manipulées manuellement) :
 - **Avec une clé configurée mais un fournisseur inatteignable** (clé
   factice + URL invalide) : testé en direct — `GET /api/vols/search` →
   `502 {"error":"fetch failed"}` ; `GET /api/hotels-monde/search` → `502
-  {"error":"fetch failed"}`. **Aucun repli silencieux vers les fixtures
+{"error":"fetch failed"}`. **Aucun repli silencieux vers les fixtures
   démo** — conforme à l'exigence explicite de la mission. Le code ne
   contient d'ailleurs aucun chemin qui le permettrait : le bloc `catch`
   retourne toujours `{ok:false, error}`, jamais `buildDemoOffers()`.
@@ -278,4 +278,4 @@ supposition n'a été faite, aucune action à l'aveugle n'a été tentée.
 - Peupler un vrai catalogue Car (lieux/catégories/tarifs) pour une agence
   OTA réelle et valider le parcours de bout en bout avec de vraies
   données, actuellement seulement vérifiable en `l'état honnête "aucune
-  agence configurée"` faute de DB en sandbox.
+agence configurée"` faute de DB en sandbox.

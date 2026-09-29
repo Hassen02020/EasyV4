@@ -18,12 +18,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -124,7 +119,7 @@ export default async function AdminFinancePage() {
         {rechargesPending.length > 0 ? (
           <Badge
             variant="outline"
-            className="border-amber-300 bg-amber-100 text-amber-800 text-xs"
+            className="border-amber-300 bg-amber-100 text-xs text-amber-800"
           >
             <Clock className="mr-1 h-3 w-3" />
             {rechargesPending.length} recharge
@@ -151,13 +146,11 @@ export default async function AdminFinancePage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Débits (30 j)
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Débits (30 j)</CardTitle>
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold tabular-nums text-red-600">
+            <p className="text-2xl font-bold text-red-600 tabular-nums">
               {fmt3.format(kpis.totalDebitsMonth)} DT
             </p>
           </CardContent>
@@ -185,7 +178,7 @@ export default async function AdminFinancePage() {
             <CardTitle className="text-sm font-medium">
               Solde total actif
             </CardTitle>
-            <Wallet className="h-4 w-4 text-primary" />
+            <Wallet className="text-primary h-4 w-4" />
           </CardHeader>
           <CardContent>
             <p className="text-primary text-2xl font-bold tabular-nums">

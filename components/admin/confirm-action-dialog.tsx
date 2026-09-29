@@ -59,7 +59,9 @@ export function ConfirmActionDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      {trigger ? <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger> : null}
+      {trigger ? (
+        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      ) : null}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -69,7 +71,11 @@ export function ConfirmActionDialog({
           <AlertDialogCancel disabled={isPending}>
             {cancelLabel}
           </AlertDialogCancel>
-          <Button variant={variant} onClick={handleConfirm} disabled={isPending}>
+          <Button
+            variant={variant}
+            onClick={handleConfirm}
+            disabled={isPending}
+          >
             {isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}

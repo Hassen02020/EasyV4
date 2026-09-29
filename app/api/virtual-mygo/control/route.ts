@@ -16,7 +16,10 @@ import {
   resetScenario,
 } from "@/lib/mygo/virtual-supplier/scenarios"
 import { resetInventory } from "@/lib/mygo/virtual-supplier/inventory-store"
-import { resetLedger, listBookingRecords } from "@/lib/mygo/virtual-supplier/booking-ledger"
+import {
+  resetLedger,
+  listBookingRecords,
+} from "@/lib/mygo/virtual-supplier/booking-ledger"
 import { resetCatalog, getCatalog } from "@/lib/mygo/virtual-supplier/catalog"
 
 function guard() {

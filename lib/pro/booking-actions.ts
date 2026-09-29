@@ -230,7 +230,11 @@ export async function debitPartnerCredit(
       const idemCacheKey = `e2b:idem:debit:${input.idempotencyKey}`
       const cached = await redis.get<string>(idemCacheKey)
       if (cached) {
-        try { return JSON.parse(cached) as DebitPartnerCreditResult } catch { /* ignore */ }
+        try {
+          return JSON.parse(cached) as DebitPartnerCreditResult
+        } catch {
+          /* ignore */
+        }
       }
     }
   }

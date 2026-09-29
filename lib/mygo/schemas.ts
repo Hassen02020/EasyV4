@@ -461,18 +461,21 @@ export const BookingListDetailItem = z
  * dans `lib/booking/actions.ts`) ne retrouvait jamais rien via
  * `BookingList`, même quand la résa existait bien côté myGo.
  */
-export const BookingListResponse = z.preprocess((raw) => {
-  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return raw
-  const r = raw as Record<string, unknown>
-  if ("BookingList" in r && !("BookingDetail" in r)) {
-    const { BookingList, ...rest } = r
-    return { ...rest, BookingDetail: BookingList }
-  }
-  return raw
-}, z.object({
-  BookingDetail: z.array(BookingListDetailItem).nullable().optional(),
-  ErrorMessage,
-}))
+export const BookingListResponse = z.preprocess(
+  (raw) => {
+    if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return raw
+    const r = raw as Record<string, unknown>
+    if ("BookingList" in r && !("BookingDetail" in r)) {
+      const { BookingList, ...rest } = r
+      return { ...rest, BookingDetail: BookingList }
+    }
+    return raw
+  },
+  z.object({
+    BookingDetail: z.array(BookingListDetailItem).nullable().optional(),
+    ErrorMessage,
+  }),
+)
 
 // ---------------------------------------------------------------------------
 // Type exports

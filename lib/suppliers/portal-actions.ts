@@ -3,7 +3,11 @@
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { supplierNodes, supplierPortalUsers } from "@/lib/db/schema"
 import { eq, desc, asc } from "drizzle-orm"
-import type { SupplierNode, NewSupplierNode, SupplierOnboardingStatus } from "@/lib/db/schema"
+import type {
+  SupplierNode,
+  NewSupplierNode,
+  SupplierOnboardingStatus,
+} from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
 /* Read                                                                        */
@@ -51,16 +55,28 @@ export async function listSupplierNodes(): Promise<SupplierNodeRow[]> {
   )
 }
 
-export async function getSupplierNodeBySlug(slug: string): Promise<SupplierNode | null> {
+export async function getSupplierNodeBySlug(
+  slug: string,
+): Promise<SupplierNode | null> {
   const rows = await withSystemContext((db) =>
-    db.select().from(supplierNodes).where(eq(supplierNodes.slug, slug)).limit(1),
+    db
+      .select()
+      .from(supplierNodes)
+      .where(eq(supplierNodes.slug, slug))
+      .limit(1),
   )
   return rows[0] ?? null
 }
 
-export async function getSupplierNodeBySupplierId(supplierId: string): Promise<SupplierNode | null> {
+export async function getSupplierNodeBySupplierId(
+  supplierId: string,
+): Promise<SupplierNode | null> {
   const rows = await withSystemContext((db) =>
-    db.select().from(supplierNodes).where(eq(supplierNodes.supplierId, supplierId)).limit(1),
+    db
+      .select()
+      .from(supplierNodes)
+      .where(eq(supplierNodes.supplierId, supplierId))
+      .limit(1),
   )
   return rows[0] ?? null
 }
@@ -110,6 +126,9 @@ export async function listPortalUsersForNode(nodeId: string) {
       .select()
       .from(supplierPortalUsers)
       .where(eq(supplierPortalUsers.supplierNodeId, nodeId))
-      .orderBy(asc(supplierPortalUsers.role), desc(supplierPortalUsers.invitedAt)),
+      .orderBy(
+        asc(supplierPortalUsers.role),
+        desc(supplierPortalUsers.invitedAt),
+      ),
   )
 }

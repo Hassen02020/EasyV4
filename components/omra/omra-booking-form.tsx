@@ -18,13 +18,36 @@ import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Plus, Trash2, User, MapPin, Calendar, CreditCard } from "lucide-react"
-import { createOmraBooking, type OmraPilgrimInput } from "@/lib/omra/booking-actions"
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  User,
+  MapPin,
+  Calendar,
+  CreditCard,
+} from "lucide-react"
+import {
+  createOmraBooking,
+  type OmraPilgrimInput,
+} from "@/lib/omra/booking-actions"
 
 /* -------------------------------------------------------------------------- */
 /* Zod Schema                                                                 */
@@ -35,7 +58,9 @@ const pilgrimSchema = z.object({
   lastName: z.string().min(2, "Nom requis (min 2 caractères)"),
   firstNameAr: z.string().optional(),
   lastNameAr: z.string().optional(),
-  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide (YYYY-MM-DD)"),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide (YYYY-MM-DD)"),
   birthPlace: z.string().optional(),
   nationality: z.string().length(2, "Code pays requis (ex: TN)"),
   gender: z.enum(["male", "female"]),
@@ -47,8 +72,12 @@ const pilgrimSchema = z.object({
   postalCode: z.string().optional(),
   country: z.string().length(2, "Code pays de résidence requis (ex: TN)"),
   passportNumber: z.string().min(6, "Numéro passeport requis"),
-  passportIssueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
-  passportExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
+  passportIssueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
+  passportExpiryDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
   passportIssuingCountry: z.string().length(2, "Code pays émetteur requis"),
   bloodType: z.string().optional(),
   hasMedicalConditions: z.boolean().default(false),
@@ -65,8 +94,13 @@ const pilgrimSchema = z.object({
 
 const omraBookingSchema = z.object({
   packageId: z.string().uuid("Package invalide"),
-  departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
-  pilgrims: z.array(pilgrimSchema).min(1, "Au moins un pèlerin requis").max(100, "Maximum 100 pèlerins"),
+  departureDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
+  pilgrims: z
+    .array(pilgrimSchema)
+    .min(1, "Au moins un pèlerin requis")
+    .max(100, "Maximum 100 pèlerins"),
 })
 
 type OmraBookingFormData = z.infer<typeof omraBookingSchema>
@@ -76,17 +110,57 @@ type OmraBookingFormData = z.infer<typeof omraBookingSchema>
 /* -------------------------------------------------------------------------- */
 
 const MOCK_PACKAGES = [
-  { id: "pkg-001", name: "Omra Ramadan 2026 - 10 jours", basePrice: 2500, durationDays: 10 },
-  { id: "pkg-002", name: "Omra Économique - 7 jours", basePrice: 1800, durationDays: 7 },
-  { id: "pkg-003", name: "Omra Confort - 12 jours", basePrice: 3200, durationDays: 12 },
+  {
+    id: "pkg-001",
+    name: "Omra Ramadan 2026 - 10 jours",
+    basePrice: 2500,
+    durationDays: 10,
+  },
+  {
+    id: "pkg-002",
+    name: "Omra Économique - 7 jours",
+    basePrice: 1800,
+    durationDays: 7,
+  },
+  {
+    id: "pkg-003",
+    name: "Omra Confort - 12 jours",
+    basePrice: 3200,
+    durationDays: 12,
+  },
 ]
 
 const MOCK_ALLOTMENTS = [
-  { packageId: "pkg-001", departureDate: "2026-03-01", availableCount: 25, price: 2500 },
-  { packageId: "pkg-001", departureDate: "2026-03-08", availableCount: 18, price: 2500 },
-  { packageId: "pkg-001", departureDate: "2026-03-15", availableCount: 42, price: 2500 },
-  { packageId: "pkg-002", departureDate: "2026-04-01", availableCount: 30, price: 1800 },
-  { packageId: "pkg-003", departureDate: "2026-05-01", availableCount: 15, price: 3200 },
+  {
+    packageId: "pkg-001",
+    departureDate: "2026-03-01",
+    availableCount: 25,
+    price: 2500,
+  },
+  {
+    packageId: "pkg-001",
+    departureDate: "2026-03-08",
+    availableCount: 18,
+    price: 2500,
+  },
+  {
+    packageId: "pkg-001",
+    departureDate: "2026-03-15",
+    availableCount: 42,
+    price: 2500,
+  },
+  {
+    packageId: "pkg-002",
+    departureDate: "2026-04-01",
+    availableCount: 30,
+    price: 1800,
+  },
+  {
+    packageId: "pkg-003",
+    departureDate: "2026-05-01",
+    availableCount: 15,
+    price: 3200,
+  },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -96,7 +170,10 @@ const MOCK_ALLOTMENTS = [
 export function OmraBookingForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submitSuccess, setSubmitSuccess] = useState<{ reservationId: string; publicRef: string } | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState<{
+    reservationId: string
+    publicRef: string
+  } | null>(null)
 
   const form = useForm<OmraBookingFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,16 +207,25 @@ export function OmraBookingForm() {
     name: "pilgrims",
   })
 
-  const watchedPackageId = useWatch({ control: form.control, name: "packageId" })
-  const watchedDepartureDate = useWatch({ control: form.control, name: "departureDate" })
+  const watchedPackageId = useWatch({
+    control: form.control,
+    name: "packageId",
+  })
+  const watchedDepartureDate = useWatch({
+    control: form.control,
+    name: "departureDate",
+  })
   const watchedPilgrims = useWatch({ control: form.control, name: "pilgrims" })
 
   // Calcul du prix total
   const selectedPackage = MOCK_PACKAGES.find((p) => p.id === watchedPackageId)
   const selectedAllotment = MOCK_ALLOTMENTS.find(
-    (a) => a.packageId === watchedPackageId && a.departureDate === watchedDepartureDate,
+    (a) =>
+      a.packageId === watchedPackageId &&
+      a.departureDate === watchedDepartureDate,
   )
-  const pricePerPilgrim = selectedAllotment?.price ?? selectedPackage?.basePrice ?? 0
+  const pricePerPilgrim =
+    selectedAllotment?.price ?? selectedPackage?.basePrice ?? 0
   const totalPrice = pricePerPilgrim * watchedPilgrims.length
 
   const onSubmit = async (data: OmraBookingFormData) => {
@@ -157,7 +243,10 @@ export function OmraBookingForm() {
       if (!result.ok) {
         setSubmitError(result.error)
       } else {
-        setSubmitSuccess({ reservationId: result.reservationId, publicRef: result.publicRef })
+        setSubmitSuccess({
+          reservationId: result.reservationId,
+          publicRef: result.publicRef,
+        })
       }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
@@ -168,10 +257,10 @@ export function OmraBookingForm() {
 
   if (submitSuccess) {
     return (
-      <Card className="max-w-2xl mx-auto rounded-lg border-2 border-green-500/20">
-        <CardHeader className="bg-green-50 rounded-t-lg">
-          <CardTitle className="text-green-700 flex items-center gap-2">
-            <User className="w-6 h-6" />
+      <Card className="mx-auto max-w-2xl rounded-lg border-2 border-green-500/20">
+        <CardHeader className="rounded-t-lg bg-green-50">
+          <CardTitle className="flex items-center gap-2 text-green-700">
+            <User className="h-6 w-6" />
             Réservation Confirmée
           </CardTitle>
           <CardDescription className="text-green-600">
@@ -179,11 +268,16 @@ export function OmraBookingForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
-          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+          <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
             <p className="text-sm font-medium text-green-700">N° Réservation</p>
-            <p className="text-2xl font-bold text-green-700">{submitSuccess.publicRef}</p>
+            <p className="text-2xl font-bold text-green-700">
+              {submitSuccess.publicRef}
+            </p>
           </div>
-          <Button onClick={() => window.location.reload()} className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg">
+          <Button
+            onClick={() => window.location.reload()}
+            className="w-full rounded-lg bg-green-600 text-white hover:bg-green-700"
+          >
             Nouvelle Réservation
           </Button>
         </CardContent>
@@ -192,11 +286,14 @@ export function OmraBookingForm() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
       <div className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-sidebar">Réservation Omra de Groupe</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Sélectionnez un package, une date de départ et saisissez les fiches pèlerins.
+        <h1 className="text-sidebar text-2xl font-bold sm:text-3xl">
+          Réservation Omra de Groupe
+        </h1>
+        <p className="text-muted-foreground text-sm sm:text-base">
+          Sélectionnez un package, une date de départ et saisissez les fiches
+          pèlerins.
         </p>
       </div>
 
@@ -208,15 +305,15 @@ export function OmraBookingForm() {
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Package Selection */}
-        <Card className="rounded-lg border-2 border-sidebar/10">
+        <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-sidebar">
-              <MapPin className="w-5 h-5" />
+            <CardTitle className="text-sidebar flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
               Sélection du Package
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="packageId">Package Omra</Label>
                 <Select
@@ -247,29 +344,52 @@ export function OmraBookingForm() {
                     <SelectValue placeholder="Choisir une date" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MOCK_ALLOTMENTS
-                      .filter((a) => a.packageId === watchedPackageId)
-                      .map((allotment) => (
-                        <SelectItem key={allotment.departureDate} value={allotment.departureDate}>
-                          <div className="flex items-center justify-between gap-4">
-                            <span>{new Date(allotment.departureDate).toLocaleDateString("fr-FR")}</span>
-                            <Badge variant={allotment.availableCount > 10 ? "default" : "destructive"}>
-                              {allotment.availableCount} places
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
+                    {MOCK_ALLOTMENTS.filter(
+                      (a) => a.packageId === watchedPackageId,
+                    ).map((allotment) => (
+                      <SelectItem
+                        key={allotment.departureDate}
+                        value={allotment.departureDate}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <span>
+                            {new Date(
+                              allotment.departureDate,
+                            ).toLocaleDateString("fr-FR")}
+                          </span>
+                          <Badge
+                            variant={
+                              allotment.availableCount > 10
+                                ? "default"
+                                : "destructive"
+                            }
+                          >
+                            {allotment.availableCount} places
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             {selectedPackage && (
-              <div className="bg-sidebar/5 border border-sidebar/20 rounded-lg p-4 text-sm">
-                <p className="text-sidebar font-semibold">Durée : {selectedPackage.durationDays} jours</p>
-                <p className="text-sidebar font-semibold">Prix de base : {selectedPackage.basePrice} DT/pèlerin</p>
+              <div className="bg-sidebar/5 border-sidebar/20 rounded-lg border p-4 text-sm">
+                <p className="text-sidebar font-semibold">
+                  Durée : {selectedPackage.durationDays} jours
+                </p>
+                <p className="text-sidebar font-semibold">
+                  Prix de base : {selectedPackage.basePrice} DT/pèlerin
+                </p>
                 {selectedAllotment && (
-                  <p className={selectedAllotment.availableCount > 10 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                  <p
+                    className={
+                      selectedAllotment.availableCount > 10
+                        ? "font-semibold text-green-600"
+                        : "font-semibold text-red-600"
+                    }
+                  >
                     Disponibilité : {selectedAllotment.availableCount} places
                   </p>
                 )}
@@ -279,18 +399,20 @@ export function OmraBookingForm() {
         </Card>
 
         {/* Pilgrims List */}
-        <Card className="rounded-lg border-2 border-sidebar/10">
+        <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="flex items-center justify-between text-sidebar">
+            <CardTitle className="text-sidebar flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                <span className="text-lg sm:text-xl">Fiches Pèlerins ({watchedPilgrims.length})</span>
+                <User className="h-5 w-5" />
+                <span className="text-lg sm:text-xl">
+                  Fiches Pèlerins ({watchedPilgrims.length})
+                </span>
               </div>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="border-accent text-accent hover:bg-accent hover:text-white rounded-lg"
+                className="border-accent text-accent hover:bg-accent rounded-lg hover:text-white"
                 onClick={() =>
                   append({
                     firstName: "",
@@ -311,7 +433,7 @@ export function OmraBookingForm() {
                 }
                 disabled={watchedPilgrims.length >= 100}
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Ajouter un pèlerin</span>
                 <span className="sm:hidden">Ajouter</span>
               </Button>
@@ -322,61 +444,93 @@ export function OmraBookingForm() {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
             {fields.map((field, index) => (
-              <div key={field.id} className="space-y-4 p-4 sm:p-6 border-2 border-sidebar/10 rounded-lg relative bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-sidebar text-lg">Pèlerin #{index + 1}</h3>
+              <div
+                key={field.id}
+                className="border-sidebar/10 relative space-y-4 rounded-lg border-2 bg-white p-4 sm:p-6"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-sidebar text-lg font-semibold">
+                    Pèlerin #{index + 1}
+                  </h3>
                   {fields.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                      className="rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700"
                       onClick={() => remove(index)}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Prénom *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Prénom *
+                    </Label>
                     <Input
                       {...form.register(`pilgrims.${index}.firstName`)}
                       placeholder="Ahmed"
-                      className={form.formState.errors.pilgrims?.[index]?.firstName ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                      className={
+                        form.formState.errors.pilgrims?.[index]?.firstName
+                          ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                          : "rounded-lg"
+                      }
                     />
                     {form.formState.errors.pilgrims?.[index]?.firstName && (
-                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                        {form.formState.errors.pilgrims[index]?.firstName?.message}
+                      <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                        {
+                          form.formState.errors.pilgrims[index]?.firstName
+                            ?.message
+                        }
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Nom *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Nom *
+                    </Label>
                     <Input
                       {...form.register(`pilgrims.${index}.lastName`)}
                       placeholder="Ben Ali"
-                      className={form.formState.errors.pilgrims?.[index]?.lastName ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                      className={
+                        form.formState.errors.pilgrims?.[index]?.lastName
+                          ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                          : "rounded-lg"
+                      }
                     />
                     {form.formState.errors.pilgrims?.[index]?.lastName && (
-                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                        {form.formState.errors.pilgrims[index]?.lastName?.message}
+                      <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                        {
+                          form.formState.errors.pilgrims[index]?.lastName
+                            ?.message
+                        }
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Date de naissance *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Date de naissance *
+                    </Label>
                     <Input
                       type="date"
                       {...form.register(`pilgrims.${index}.birthDate`)}
-                      className={form.formState.errors.pilgrims?.[index]?.birthDate ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                      className={
+                        form.formState.errors.pilgrims?.[index]?.birthDate
+                          ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                          : "rounded-lg"
+                      }
                     />
                     {form.formState.errors.pilgrims?.[index]?.birthDate && (
-                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                        {form.formState.errors.pilgrims[index]?.birthDate?.message}
+                      <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                        {
+                          form.formState.errors.pilgrims[index]?.birthDate
+                            ?.message
+                        }
                       </p>
                     )}
                   </div>
@@ -384,27 +538,43 @@ export function OmraBookingForm() {
 
                 <Separator />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Nationalité *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Nationalité *
+                    </Label>
                     <Input
                       {...form.register(`pilgrims.${index}.nationality`)}
                       placeholder="TN"
                       maxLength={2}
-                      className={form.formState.errors.pilgrims?.[index]?.nationality ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                      className={
+                        form.formState.errors.pilgrims?.[index]?.nationality
+                          ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                          : "rounded-lg"
+                      }
                     />
                     {form.formState.errors.pilgrims?.[index]?.nationality && (
-                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                        {form.formState.errors.pilgrims[index]?.nationality?.message}
+                      <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                        {
+                          form.formState.errors.pilgrims[index]?.nationality
+                            ?.message
+                        }
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Genre *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Genre *
+                    </Label>
                     <Select
                       value={watchedPilgrims[index]?.gender}
-                      onValueChange={(v) => form.setValue(`pilgrims.${index}.gender`, v as "male" | "female")}
+                      onValueChange={(v) =>
+                        form.setValue(
+                          `pilgrims.${index}.gender`,
+                          v as "male" | "female",
+                        )
+                      }
                     >
                       <SelectTrigger className="rounded-lg">
                         <SelectValue />
@@ -417,13 +587,15 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Situation matrimoniale *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Situation matrimoniale *
+                    </Label>
                     <Select
                       value={watchedPilgrims[index]?.maritalStatus}
                       onValueChange={(v) =>
                         form.setValue(
                           `pilgrims.${index}.maritalStatus`,
-                          v as "single" | "married" | "widowed" | "divorced"
+                          v as "single" | "married" | "widowed" | "divorced",
                         )
                       }
                     >
@@ -442,31 +614,43 @@ export function OmraBookingForm() {
 
                 <Separator />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Téléphone *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Téléphone *
+                    </Label>
                     <Input
                       {...form.register(`pilgrims.${index}.phone`)}
                       placeholder="+216 98 123 456"
-                      className={form.formState.errors.pilgrims?.[index]?.phone ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                      className={
+                        form.formState.errors.pilgrims?.[index]?.phone
+                          ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                          : "rounded-lg"
+                      }
                     />
                     {form.formState.errors.pilgrims?.[index]?.phone && (
-                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                      <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
                         {form.formState.errors.pilgrims[index]?.phone?.message}
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Email</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Email
+                    </Label>
                     <Input
                       type="email"
                       {...form.register(`pilgrims.${index}.email`)}
                       placeholder="email@example.com"
-                      className={form.formState.errors.pilgrims?.[index]?.email ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                      className={
+                        form.formState.errors.pilgrims?.[index]?.email
+                          ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                          : "rounded-lg"
+                      }
                     />
                     {form.formState.errors.pilgrims?.[index]?.email && (
-                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                      <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
                         {form.formState.errors.pilgrims[index]?.email?.message}
                       </p>
                     )}
@@ -476,7 +660,9 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-sidebar">Adresse</Label>
+                  <Label className="text-sidebar text-sm font-medium">
+                    Adresse
+                  </Label>
                   <Input
                     {...form.register(`pilgrims.${index}.address`)}
                     placeholder="123 Rue de la République, Tunis"
@@ -484,9 +670,11 @@ export function OmraBookingForm() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Ville</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Ville
+                    </Label>
                     <Input
                       {...form.register(`pilgrims.${index}.city`)}
                       placeholder="Tunis"
@@ -495,7 +683,9 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Code postal</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Code postal
+                    </Label>
                     <Input
                       {...form.register(`pilgrims.${index}.postalCode`)}
                       placeholder="1001"
@@ -504,16 +694,25 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-sidebar">Pays de résidence *</Label>
+                    <Label className="text-sidebar text-sm font-medium">
+                      Pays de résidence *
+                    </Label>
                     <Input
                       {...form.register(`pilgrims.${index}.country`)}
                       placeholder="TN"
                       maxLength={2}
-                      className={form.formState.errors.pilgrims?.[index]?.country ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                      className={
+                        form.formState.errors.pilgrims?.[index]?.country
+                          ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                          : "rounded-lg"
+                      }
                     />
                     {form.formState.errors.pilgrims?.[index]?.country && (
-                      <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                        {form.formState.errors.pilgrims[index]?.country?.message}
+                      <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                        {
+                          form.formState.errors.pilgrims[index]?.country
+                            ?.message
+                        }
                       </p>
                     )}
                   </div>
@@ -522,61 +721,113 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="font-semibold text-sidebar">Passeport</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Label className="text-sidebar font-semibold">
+                    Passeport
+                  </Label>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-sidebar">Numéro de passeport *</Label>
+                      <Label className="text-sidebar text-sm font-medium">
+                        Numéro de passeport *
+                      </Label>
                       <Input
                         {...form.register(`pilgrims.${index}.passportNumber`)}
                         placeholder="A12345678"
-                        className={form.formState.errors.pilgrims?.[index]?.passportNumber ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                        className={
+                          form.formState.errors.pilgrims?.[index]
+                            ?.passportNumber
+                            ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                            : "rounded-lg"
+                        }
                       />
-                      {form.formState.errors.pilgrims?.[index]?.passportNumber && (
-                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                          {form.formState.errors.pilgrims[index]?.passportNumber?.message}
+                      {form.formState.errors.pilgrims?.[index]
+                        ?.passportNumber && (
+                        <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                          {
+                            form.formState.errors.pilgrims[index]
+                              ?.passportNumber?.message
+                          }
                         </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-sidebar">Pays émetteur *</Label>
+                      <Label className="text-sidebar text-sm font-medium">
+                        Pays émetteur *
+                      </Label>
                       <Input
-                        {...form.register(`pilgrims.${index}.passportIssuingCountry`)}
+                        {...form.register(
+                          `pilgrims.${index}.passportIssuingCountry`,
+                        )}
                         placeholder="TN"
                         maxLength={2}
-                        className={form.formState.errors.pilgrims?.[index]?.passportIssuingCountry ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                        className={
+                          form.formState.errors.pilgrims?.[index]
+                            ?.passportIssuingCountry
+                            ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                            : "rounded-lg"
+                        }
                       />
-                      {form.formState.errors.pilgrims?.[index]?.passportIssuingCountry && (
-                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                          {form.formState.errors.pilgrims[index]?.passportIssuingCountry?.message}
+                      {form.formState.errors.pilgrims?.[index]
+                        ?.passportIssuingCountry && (
+                        <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                          {
+                            form.formState.errors.pilgrims[index]
+                              ?.passportIssuingCountry?.message
+                          }
                         </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-sidebar">Date d&apos;émission *</Label>
+                      <Label className="text-sidebar text-sm font-medium">
+                        Date d&apos;émission *
+                      </Label>
                       <Input
                         type="date"
-                        {...form.register(`pilgrims.${index}.passportIssueDate`)}
-                        className={form.formState.errors.pilgrims?.[index]?.passportIssueDate ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                        {...form.register(
+                          `pilgrims.${index}.passportIssueDate`,
+                        )}
+                        className={
+                          form.formState.errors.pilgrims?.[index]
+                            ?.passportIssueDate
+                            ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                            : "rounded-lg"
+                        }
                       />
-                      {form.formState.errors.pilgrims?.[index]?.passportIssueDate && (
-                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                          {form.formState.errors.pilgrims[index]?.passportIssueDate?.message}
+                      {form.formState.errors.pilgrims?.[index]
+                        ?.passportIssueDate && (
+                        <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                          {
+                            form.formState.errors.pilgrims[index]
+                              ?.passportIssueDate?.message
+                          }
                         </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-sidebar">Date d&apos;expiration *</Label>
+                      <Label className="text-sidebar text-sm font-medium">
+                        Date d&apos;expiration *
+                      </Label>
                       <Input
                         type="date"
-                        {...form.register(`pilgrims.${index}.passportExpiryDate`)}
-                        className={form.formState.errors.pilgrims?.[index]?.passportExpiryDate ? "border-red-500 focus-visible:ring-red-500 rounded-lg" : "rounded-lg"}
+                        {...form.register(
+                          `pilgrims.${index}.passportExpiryDate`,
+                        )}
+                        className={
+                          form.formState.errors.pilgrims?.[index]
+                            ?.passportExpiryDate
+                            ? "rounded-lg border-red-500 focus-visible:ring-red-500"
+                            : "rounded-lg"
+                        }
                       />
-                      {form.formState.errors.pilgrims?.[index]?.passportExpiryDate && (
-                        <p className="text-sm text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                          {form.formState.errors.pilgrims[index]?.passportExpiryDate?.message}
+                      {form.formState.errors.pilgrims?.[index]
+                        ?.passportExpiryDate && (
+                        <p className="animate-in fade-in slide-in-from-top-1 text-sm font-medium text-red-500 duration-200">
+                          {
+                            form.formState.errors.pilgrims[index]
+                              ?.passportExpiryDate?.message
+                          }
                         </p>
                       )}
                     </div>
@@ -586,13 +837,15 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-sidebar">Type de chambre</Label>
+                  <Label className="text-sidebar text-sm font-medium">
+                    Type de chambre
+                  </Label>
                   <Select
                     value={watchedPilgrims[index]?.roomType}
                     onValueChange={(v) =>
                       form.setValue(
                         `pilgrims.${index}.roomType`,
-                        v as "single" | "double" | "triple" | "quad" | "suite"
+                        v as "single" | "double" | "triple" | "quad" | "suite",
                       )
                     }
                   >
@@ -614,28 +867,37 @@ export function OmraBookingForm() {
         </Card>
 
         {/* Summary */}
-        <Card className="rounded-lg border-2 border-sidebar/10 bg-sidebar/5">
+        <Card className="border-sidebar/10 bg-sidebar/5 rounded-lg border-2">
           <CardHeader className="bg-sidebar/10 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-sidebar">
-              <CreditCard className="w-5 h-5" />
+            <CardTitle className="text-sidebar flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
               Récapitulatif
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm sm:text-base">Nombre de pèlerins</span>
-              <Badge variant="secondary" className="bg-accent text-white rounded-lg">{watchedPilgrims.length}</Badge>
+              <Badge
+                variant="secondary"
+                className="bg-accent rounded-lg text-white"
+              >
+                {watchedPilgrims.length}
+              </Badge>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm sm:text-base">Prix par pèlerin</span>
-              <span className="font-semibold text-sidebar">{pricePerPilgrim.toFixed(3)} DT</span>
+              <span className="text-sidebar font-semibold">
+                {pricePerPilgrim.toFixed(3)} DT
+              </span>
             </div>
             <Separator className="bg-sidebar/20" />
-            <div className="flex justify-between items-center text-lg sm:text-xl">
-              <span className="font-semibold text-sidebar">Total TTC</span>
-              <span className="font-bold text-accent">{totalPrice.toFixed(3)} DT</span>
+            <div className="flex items-center justify-between text-lg sm:text-xl">
+              <span className="text-sidebar font-semibold">Total TTC</span>
+              <span className="text-accent font-bold">
+                {totalPrice.toFixed(3)} DT
+              </span>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Le montant sera débité de votre wallet Easy2Book.
             </p>
           </CardContent>
@@ -644,12 +906,12 @@ export function OmraBookingForm() {
         <Button
           type="submit"
           size="lg"
-          className="w-full bg-sidebar hover:bg-sidebar/90 text-white rounded-lg"
+          className="bg-sidebar hover:bg-sidebar/90 w-full rounded-lg text-white"
           disabled={isSubmitting || !watchedPackageId || !watchedDepartureDate}
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               <span className="hidden sm:inline">Traitement en cours...</span>
               <span className="sm:hidden">Traitement...</span>
             </>

@@ -28,7 +28,7 @@ export function LegalPageLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16">
           <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
             {title}

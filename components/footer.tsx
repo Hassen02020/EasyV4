@@ -9,5 +9,10 @@ import { FooterClient } from "@/components/footer-client"
  */
 export async function Footer() {
   const tenant = await getRequestTenantInfo()
-  return <FooterClient brandName={tenant?.brandName ?? null} logoUrl={tenant?.logoUrl ?? null} />
+  return (
+    <FooterClient
+      brandName={tenant?.brandName ?? null}
+      logoUrl={tenant?.logoUrl ?? null}
+    />
+  )
 }

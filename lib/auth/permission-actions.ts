@@ -37,7 +37,10 @@ import { auditEvents, permissionGrants, users } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "./profile"
 import { getCurrentPartnerProfile } from "./partner-profile"
-import { getEffectivePermission, PARTNER_DELEGATABLE_PERMISSIONS } from "./permissions"
+import {
+  getEffectivePermission,
+  PARTNER_DELEGATABLE_PERMISSIONS,
+} from "./permissions"
 import { checkDelegationAllowed } from "./permission-grants-logic"
 import { RBAC_PERMISSIONS } from "./rbac-permission-list"
 
@@ -51,7 +54,9 @@ const grantInputSchema = targetPermissionSchema.extend({
 })
 
 export type SetDelegatedPermissionInput = z.infer<typeof grantInputSchema>
-export type SetDelegatedPermissionResult = { ok: true } | { ok: false; error: string }
+export type SetDelegatedPermissionResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 type ResolvedActor =
   | { ok: true; agencyId: string; actorUserId: string; isSuperAdmin: boolean }
@@ -90,7 +95,12 @@ async function resolveDelegationActor(input: {
       delegatablePermissions: RBAC_PERMISSIONS,
     })
     if (!check.ok) return check
-    return { ok: true, agencyId: targetRow!.agencyId, actorUserId: input.actorUserId, isSuperAdmin: true }
+    return {
+      ok: true,
+      agencyId: targetRow!.agencyId,
+      actorUserId: input.actorUserId,
+      isSuperAdmin: true,
+    }
   }
 
   const partnerProfile = await getCurrentPartnerProfile(input.actorUserId)
@@ -103,12 +113,21 @@ async function resolveDelegationActor(input: {
     })
 
     const target = await withTenantContext(
-      { agencyId: partnerProfile.agency.id, userId: input.actorUserId, isSuperAdmin: false },
+      {
+        agencyId: partnerProfile.agency.id,
+        userId: input.actorUserId,
+        isSuperAdmin: false,
+      },
       (tx) =>
         tx
           .select({ id: users.id, role: users.role })
           .from(users)
-          .where(and(eq(users.id, input.targetUserId), eq(users.agencyId, partnerProfile.agency.id)))
+          .where(
+            and(
+              eq(users.id, input.targetUserId),
+              eq(users.agencyId, partnerProfile.agency.id),
+            ),
+          )
           .limit(1),
     )
     const targetRow = target[0]
@@ -123,10 +142,18 @@ async function resolveDelegationActor(input: {
       delegatablePermissions: PARTNER_DELEGATABLE_PERMISSIONS,
     })
     if (!check.ok) return check
-    return { ok: true, agencyId: partnerProfile.agency.id, actorUserId: input.actorUserId, isSuperAdmin: false }
+    return {
+      ok: true,
+      agencyId: partnerProfile.agency.id,
+      actorUserId: input.actorUserId,
+      isSuperAdmin: false,
+    }
   }
 
-  return { ok: false, error: "Votre rôle n'est pas autorisé à déléguer des permissions." }
+  return {
+    ok: false,
+    error: "Votre rôle n'est pas autorisé à déléguer des permissions.",
+  }
 }
 
 async function resolveActorForRequest(
@@ -152,9 +179,13 @@ export async function setDelegatedPermission(
   const parsed = grantInputSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, error: "Entrée invalide" }
   const input = parsed.data
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
-  const resolved = await resolveActorForRequest(input.targetUserId, input.permission)
+  const resolved = await resolveActorForRequest(
+    input.targetUserId,
+    input.permission,
+  )
   if (!resolved.ok) return resolved
 
   return applyGrant({
@@ -173,9 +204,13 @@ export async function removeDelegatedPermission(
   const parsed = targetPermissionSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, error: "Entrée invalide" }
   const input = parsed.data
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
-  const resolved = await resolveActorForRequest(input.targetUserId, input.permission)
+  const resolved = await resolveActorForRequest(
+    input.targetUserId,
+    input.permission,
+  )
   if (!resolved.ok) return resolved
 
   return applyRemoval({
@@ -196,7 +231,11 @@ async function applyGrant(input: {
   granted: boolean
 }): Promise<SetDelegatedPermissionResult> {
   await withTenantContext(
-    { agencyId: input.isSuperAdmin ? null : input.agencyId, userId: input.actorUserId, isSuperAdmin: input.isSuperAdmin },
+    {
+      agencyId: input.isSuperAdmin ? null : input.agencyId,
+      userId: input.actorUserId,
+      isSuperAdmin: input.isSuperAdmin,
+    },
     async (tx) => {
       const [existing] = await tx
         .select({ granted: permissionGrants.granted })
@@ -220,8 +259,16 @@ async function applyGrant(input: {
           grantedByUserId: input.actorUserId,
         })
         .onConflictDoUpdate({
-          target: [permissionGrants.agencyId, permissionGrants.userId, permissionGrants.permission],
-          set: { granted: input.granted, grantedByUserId: input.actorUserId, updatedAt: new Date() },
+          target: [
+            permissionGrants.agencyId,
+            permissionGrants.userId,
+            permissionGrants.permission,
+          ],
+          set: {
+            granted: input.granted,
+            grantedByUserId: input.actorUserId,
+            updatedAt: new Date(),
+          },
         })
 
       await tx.insert(auditEvents).values({
@@ -252,7 +299,11 @@ async function applyRemoval(input: {
   permission: string
 }): Promise<SetDelegatedPermissionResult> {
   await withTenantContext(
-    { agencyId: input.isSuperAdmin ? null : input.agencyId, userId: input.actorUserId, isSuperAdmin: input.isSuperAdmin },
+    {
+      agencyId: input.isSuperAdmin ? null : input.agencyId,
+      userId: input.actorUserId,
+      isSuperAdmin: input.isSuperAdmin,
+    },
     async (tx) => {
       const [existing] = await tx
         .select({ granted: permissionGrants.granted })

@@ -16,7 +16,10 @@
  * ```
  */
 
-import { captureError, type ErrorContext } from "@/lib/observability/capture-error"
+import {
+  captureError,
+  type ErrorContext,
+} from "@/lib/observability/capture-error"
 
 type LogLevel = "debug" | "info" | "warn" | "error"
 
@@ -70,7 +73,9 @@ function log(
   ctx?: Record<string, unknown>,
 ): void {
   if (!shouldLog(level)) return
-  const line = IS_PROD ? formatJson(level, msg, ctx) : formatPretty(level, msg, ctx)
+  const line = IS_PROD
+    ? formatJson(level, msg, ctx)
+    : formatPretty(level, msg, ctx)
   if (level === "error") {
     console.error(line)
     // Beaucoup d'appelants passent déjà l'erreur sous forme de string dans
@@ -110,7 +115,10 @@ export function trackLatency(module: string, label: string) {
       return ms
     },
     /** Enveloppe une fn async : logue succès ou erreur avec duration. */
-    async wrap<T>(fn: () => Promise<T>, ctx?: Record<string, unknown>): Promise<T> {
+    async wrap<T>(
+      fn: () => Promise<T>,
+      ctx?: Record<string, unknown>,
+    ): Promise<T> {
       try {
         const result = await fn()
         const ms = Date.now() - start
@@ -134,8 +142,8 @@ export function trackLatency(module: string, label: string) {
 
 export const logger = {
   debug: (msg: string, ctx?: Record<string, unknown>) => log("debug", msg, ctx),
-  info:  (msg: string, ctx?: Record<string, unknown>) => log("info",  msg, ctx),
-  warn:  (msg: string, ctx?: Record<string, unknown>) => log("warn",  msg, ctx),
+  info: (msg: string, ctx?: Record<string, unknown>) => log("info", msg, ctx),
+  warn: (msg: string, ctx?: Record<string, unknown>) => log("warn", msg, ctx),
   error: (msg: string, ctx?: Record<string, unknown>) => log("error", msg, ctx),
 
   /** Crée un logger enfant avec contexte persistant (ex: module, agencyId). */
@@ -143,10 +151,10 @@ export const logger = {
     return {
       debug: (msg: string, ctx?: Record<string, unknown>) =>
         log("debug", msg, { ...defaults, ...ctx }),
-      info:  (msg: string, ctx?: Record<string, unknown>) =>
-        log("info",  msg, { ...defaults, ...ctx }),
-      warn:  (msg: string, ctx?: Record<string, unknown>) =>
-        log("warn",  msg, { ...defaults, ...ctx }),
+      info: (msg: string, ctx?: Record<string, unknown>) =>
+        log("info", msg, { ...defaults, ...ctx }),
+      warn: (msg: string, ctx?: Record<string, unknown>) =>
+        log("warn", msg, { ...defaults, ...ctx }),
       error: (msg: string, ctx?: Record<string, unknown>) =>
         log("error", msg, { ...defaults, ...ctx }),
     }

@@ -23,9 +23,15 @@ const BASE_INPUT = {
   totalTnd: 1200,
 }
 
-type AuditEvent = { reservationId: string; action: string; diff: Record<string, unknown> }
+type AuditEvent = {
+  reservationId: string
+  action: string
+  diff: Record<string, unknown>
+}
 
-function makeFakeAuditStore(opts: { alreadySucceededActions?: string[] } = {}): {
+function makeFakeAuditStore(
+  opts: { alreadySucceededActions?: string[] } = {},
+): {
   store: NotificationAuditStore
   events: AuditEvent[]
 } {
@@ -44,7 +50,10 @@ function makeFakeAuditStore(opts: { alreadySucceededActions?: string[] } = {}): 
   }
 }
 
-function makeFakeProvider(result: CrmSyncResult): { provider: CrmProvider; calls: SyncBookingInput[] } {
+function makeFakeProvider(result: CrmSyncResult): {
+  provider: CrmProvider
+  calls: SyncBookingInput[]
+} {
   const calls: SyncBookingInput[] = []
   return {
     calls,
@@ -61,9 +70,16 @@ function makeFakeProvider(result: CrmSyncResult): { provider: CrmProvider; calls
 
 test("syncBookingToCrm : non configuré (comportement par défaut du projet) — jamais de fausse synchronisation", async () => {
   const { store, events } = makeFakeAuditStore()
-  const { provider, calls } = makeFakeProvider({ ok: true, providerRecordId: "should-not-be-called" })
+  const { provider, calls } = makeFakeProvider({
+    ok: true,
+    providerRecordId: "should-not-be-called",
+  })
 
-  const outcome = await syncBookingToCrm(BASE_INPUT, { auditStore: store, provider, configured: false })
+  const outcome = await syncBookingToCrm(BASE_INPUT, {
+    auditStore: store,
+    provider,
+    configured: false,
+  })
 
   assert.deepEqual(outcome, { outcome: "skipped", reason: "NOT_CONFIGURED" })
   assert.equal(calls.length, 0)
@@ -71,10 +87,19 @@ test("syncBookingToCrm : non configuré (comportement par défaut du projet) —
 })
 
 test("syncBookingToCrm : idempotence — une synchronisation déjà réussie n'est jamais rejouée", async () => {
-  const { store, events } = makeFakeAuditStore({ alreadySucceededActions: [CRM_AUDIT_ACTIONS.synced] })
-  const { provider, calls } = makeFakeProvider({ ok: true, providerRecordId: "should-not-sync-twice" })
+  const { store, events } = makeFakeAuditStore({
+    alreadySucceededActions: [CRM_AUDIT_ACTIONS.synced],
+  })
+  const { provider, calls } = makeFakeProvider({
+    ok: true,
+    providerRecordId: "should-not-sync-twice",
+  })
 
-  const outcome = await syncBookingToCrm(BASE_INPUT, { auditStore: store, provider, configured: true })
+  const outcome = await syncBookingToCrm(BASE_INPUT, {
+    auditStore: store,
+    provider,
+    configured: true,
+  })
 
   assert.deepEqual(outcome, { outcome: "already_synced" })
   assert.equal(calls.length, 0)
@@ -83,20 +108,38 @@ test("syncBookingToCrm : idempotence — une synchronisation déjà réussie n'e
 
 test("syncBookingToCrm : succès (adaptateur futur hypothétique) — audit 'synced' enregistré", async () => {
   const { store, events } = makeFakeAuditStore()
-  const { provider, calls } = makeFakeProvider({ ok: true, providerRecordId: "crm-record-123" })
+  const { provider, calls } = makeFakeProvider({
+    ok: true,
+    providerRecordId: "crm-record-123",
+  })
 
-  const outcome = await syncBookingToCrm(BASE_INPUT, { auditStore: store, provider, configured: true })
+  const outcome = await syncBookingToCrm(BASE_INPUT, {
+    auditStore: store,
+    provider,
+    configured: true,
+  })
 
-  assert.deepEqual(outcome, { outcome: "synced", providerRecordId: "crm-record-123" })
+  assert.deepEqual(outcome, {
+    outcome: "synced",
+    providerRecordId: "crm-record-123",
+  })
   assert.equal(calls.length, 1)
   assert.equal(events[0].action, CRM_AUDIT_ACTIONS.synced)
 })
 
 test("syncBookingToCrm : échec provider → code explicite, audit 'failed'", async () => {
   const { store, events } = makeFakeAuditStore()
-  const { provider } = makeFakeProvider({ ok: false, code: "CRM_SYNC_FAILED", message: "Timeout" })
+  const { provider } = makeFakeProvider({
+    ok: false,
+    code: "CRM_SYNC_FAILED",
+    message: "Timeout",
+  })
 
-  const outcome = await syncBookingToCrm(BASE_INPUT, { auditStore: store, provider, configured: true })
+  const outcome = await syncBookingToCrm(BASE_INPUT, {
+    auditStore: store,
+    provider,
+    configured: true,
+  })
 
   assert.equal(outcome.outcome, "failed")
   assert.equal(events[0].action, CRM_AUDIT_ACTIONS.failed)
@@ -113,10 +156,21 @@ test("booking-success-when-notification-fails : un échec CRM ne touche QUE le j
       touchedSurfaces.add("audit_events:insert")
     },
   }
-  const { provider } = makeFakeProvider({ ok: false, code: "CRM_SYNC_FAILED", message: "Erreur simulée" })
+  const { provider } = makeFakeProvider({
+    ok: false,
+    code: "CRM_SYNC_FAILED",
+    message: "Erreur simulée",
+  })
 
-  const outcome = await syncBookingToCrm(BASE_INPUT, { auditStore: spyStore, provider, configured: true })
+  const outcome = await syncBookingToCrm(BASE_INPUT, {
+    auditStore: spyStore,
+    provider,
+    configured: true,
+  })
 
   assert.equal(outcome.outcome, "failed")
-  assert.deepEqual([...touchedSurfaces].sort(), ["audit_events:insert", "audit_events:select"])
+  assert.deepEqual([...touchedSurfaces].sort(), [
+    "audit_events:insert",
+    "audit_events:select",
+  ])
 })

@@ -226,7 +226,6 @@ async function runRealHotelSearch(
   q: HotelSearchQuery,
   overrides?: RunHotelSearchOverrides,
 ): Promise<HotelSearchRunResult> {
-
   const searchInput = {
     cityId: q.cityId,
     checkIn: q.checkin,
@@ -308,7 +307,9 @@ async function runRealHotelSearch(
  * cette mise en forme ou de déclencher un second appel réseau myGo.
  * Comportement byte-for-byte identique à l'ancien corps d'`executeHotelSearch`.
  */
-export function formatHotelSearchResponse(result: HotelSearchRunResult): NextResponse {
+export function formatHotelSearchResponse(
+  result: HotelSearchRunResult,
+): NextResponse {
   if (!result.ok) {
     const headers: Record<string, string> = {}
     if (result.retryAfterSeconds != null) {
@@ -402,4 +403,3 @@ function mapErrorToRunResult(err: unknown): HotelSearchRunResult {
     message: err instanceof Error ? err.message : "unknown",
   }
 }
-

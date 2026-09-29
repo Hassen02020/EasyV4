@@ -185,7 +185,11 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
               Réinitialiser
             </Button>
 
-            <Button className="rounded-xl" disabled title="Pas encore disponible">
+            <Button
+              className="rounded-xl"
+              disabled
+              title="Pas encore disponible"
+            >
               <Download className="mr-1.5 h-3.5 w-3.5" />
               Générer un rapport
             </Button>
@@ -245,13 +249,13 @@ export function LedgerReport({ rows, currentBalance }: LedgerReportProps) {
                   </TableCell>
 
                   <TableCell
-                    className={`text-right text-sm tabular-nums ${ (r.debit ?? 0) > 0 ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                    className={`text-right text-sm tabular-nums ${(r.debit ?? 0) > 0 ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                   >
                     {(r.debit ?? 0) > 0 ? formatTND(r.debit ?? 0) : "—"}
                   </TableCell>
 
                   <TableCell
-                    className={`text-right text-sm tabular-nums ${ (r.credit ?? 0) > 0 ? "font-semibold text-emerald-600" : "text-muted-foreground"}`}
+                    className={`text-right text-sm tabular-nums ${(r.credit ?? 0) > 0 ? "font-semibold text-emerald-600" : "text-muted-foreground"}`}
                   >
                     {(r.credit ?? 0) > 0 ? formatTND(r.credit ?? 0) : "—"}
                   </TableCell>

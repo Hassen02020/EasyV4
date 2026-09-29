@@ -10,7 +10,11 @@
 
 import { and, eq, isNull } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
-import { destinations, destinationExternalRefs, type Destination } from "@/lib/db/schema"
+import {
+  destinations,
+  destinationExternalRefs,
+  type Destination,
+} from "@/lib/db/schema"
 import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import type { Locale } from "@/lib/locale"
 
@@ -23,7 +27,10 @@ const MODULE_SEARCH_PATH: Record<DestinationModule, string> = {
 }
 
 /** Construit le lien de recherche pré-rempli d'un module (`?destination=<external_id>`). */
-export function destinationLinkHref(module: DestinationModule, externalId: string): string {
+export function destinationLinkHref(
+  module: DestinationModule,
+  externalId: string,
+): string {
   return `${MODULE_SEARCH_PATH[module]}?destination=${encodeURIComponent(externalId)}`
 }
 
@@ -40,7 +47,10 @@ export function localizedDestinationName(
 /** Tous les slugs actifs (pays + villes) — pour `generateStaticParams()`. */
 export async function listActiveDestinationSlugs(): Promise<string[]> {
   const rows = await withPublicAgencyContext(null, (tx) =>
-    tx.select({ slug: destinations.slug }).from(destinations).where(eq(destinations.isActive, true)),
+    tx
+      .select({ slug: destinations.slug })
+      .from(destinations)
+      .where(eq(destinations.isActive, true)),
   )
   return rows.map((r) => r.slug)
 }
@@ -50,12 +60,20 @@ export interface CountryWithCities extends Destination {
 }
 
 /** Pays actifs avec leurs villes actives — pour l'index `/destinations`. */
-export async function listActiveCountriesWithCities(): Promise<CountryWithCities[]> {
+export async function listActiveCountriesWithCities(): Promise<
+  CountryWithCities[]
+> {
   const countries = await withPublicAgencyContext(null, (tx) =>
     tx
       .select()
       .from(destinations)
-      .where(and(eq(destinations.type, "country"), eq(destinations.isActive, true), isNull(destinations.parentId)))
+      .where(
+        and(
+          eq(destinations.type, "country"),
+          eq(destinations.isActive, true),
+          isNull(destinations.parentId),
+        ),
+      )
       .orderBy(destinations.name),
   )
 
@@ -63,7 +81,9 @@ export async function listActiveCountriesWithCities(): Promise<CountryWithCities
     tx
       .select()
       .from(destinations)
-      .where(and(eq(destinations.type, "city"), eq(destinations.isActive, true)))
+      .where(
+        and(eq(destinations.type, "city"), eq(destinations.isActive, true)),
+      )
       .orderBy(destinations.name),
   )
 
@@ -83,10 +103,16 @@ export interface DestinationDetail {
   externalRefs: { module: DestinationModule; externalId: string }[]
 }
 
-const KNOWN_MODULES = new Set<string>(["hotels_monde_slug", "packages_slug", "iata"])
+const KNOWN_MODULES = new Set<string>([
+  "hotels_monde_slug",
+  "packages_slug",
+  "iata",
+])
 
 /** Fiche destination complète (pays ou ville) par slug — `null` si absente/inactive. */
-export async function getDestinationBySlug(slug: string): Promise<DestinationDetail | null> {
+export async function getDestinationBySlug(
+  slug: string,
+): Promise<DestinationDetail | null> {
   const parentAlias = alias(destinations, "parent")
 
   const [row] = await withPublicAgencyContext(null, (tx) =>
@@ -138,7 +164,8 @@ export async function getDestinationBySlug(slug: string): Promise<DestinationDet
       : []
 
   const externalRefs = externalRefsRaw.filter(
-    (ref): ref is { module: DestinationModule; externalId: string } => KNOWN_MODULES.has(ref.module),
+    (ref): ref is { module: DestinationModule; externalId: string } =>
+      KNOWN_MODULES.has(ref.module),
   )
 
   return { destination, parent, children, externalRefs }

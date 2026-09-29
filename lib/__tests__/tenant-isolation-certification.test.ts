@@ -52,8 +52,18 @@ before(async () => {
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, slug: `tic-a-${agencyA}`, name: "TIC Test Agency A", agencyType: "ota" },
-      { id: agencyB, slug: `tic-b-${agencyB}`, name: "TIC Test Agency B", agencyType: "ota" },
+      {
+        id: agencyA,
+        slug: `tic-a-${agencyA}`,
+        name: "TIC Test Agency A",
+        agencyType: "ota",
+      },
+      {
+        id: agencyB,
+        slug: `tic-b-${agencyB}`,
+        name: "TIC Test Agency B",
+        agencyType: "ota",
+      },
     ])
 
     await tx.insert(yieldRules).values({
@@ -106,12 +116,20 @@ test("yield_rules : agence B ne voit JAMAIS les règles de marge de l'agence A (
   const rowsAsOwner = await withTenantContext(asAgency(agencyA), (tx) =>
     tx.select().from(yieldRules).where(eq(yieldRules.agencyId, agencyA)),
   )
-  assert.equal(rowsAsOwner.length, 1, "l'agence propriétaire voit bien sa propre règle")
+  assert.equal(
+    rowsAsOwner.length,
+    1,
+    "l'agence propriétaire voit bien sa propre règle",
+  )
 
   const rowsAsOther = await withTenantContext(asAgency(agencyB), (tx) =>
     tx.select().from(yieldRules).where(eq(yieldRules.agencyId, agencyA)),
   )
-  assert.equal(rowsAsOther.length, 0, "l'agence B ne doit voir AUCUNE règle de l'agence A")
+  assert.equal(
+    rowsAsOther.length,
+    0,
+    "l'agence B ne doit voir AUCUNE règle de l'agence A",
+  )
 })
 
 test("yield_rules : agence B ne peut pas modifier une règle de l'agence A (UPDATE bloqué par RLS)", async (t) => {
@@ -123,12 +141,23 @@ test("yield_rules : agence B ne peut pas modifier une règle de l'agence A (UPDA
       .where(eq(yieldRules.agencyId, agencyA))
       .returning({ id: yieldRules.id }),
   )
-  assert.equal(updated.length, 0, "aucune ligne affectée — RLS empêche même de CIBLER la ligne de A")
+  assert.equal(
+    updated.length,
+    0,
+    "aucune ligne affectée — RLS empêche même de CIBLER la ligne de A",
+  )
 
   const [stillOriginal] = await withSystemContext((tx) =>
-    tx.select({ percentValue: yieldRules.percentValue }).from(yieldRules).where(eq(yieldRules.agencyId, agencyA)),
+    tx
+      .select({ percentValue: yieldRules.percentValue })
+      .from(yieldRules)
+      .where(eq(yieldRules.agencyId, agencyA)),
   )
-  assert.equal(stillOriginal!.percentValue, "12.0000", "la valeur de A n'a pas bougé")
+  assert.equal(
+    stillOriginal!.percentValue,
+    "12.0000",
+    "la valeur de A n'a pas bougé",
+  )
 })
 
 test("audit_logs : agence B ne peut jamais lire le journal d'audit de l'agence A", async (t) => {
@@ -152,9 +181,16 @@ test("products : agence B ne peut jamais lire ni modifier le catalogue de l'agen
   assert.equal(rowsAsOther.length, 0)
 
   const deleted = await withTenantContext(asAgency(agencyB), (tx) =>
-    tx.delete(products).where(eq(products.agencyId, agencyA)).returning({ id: products.id }),
+    tx
+      .delete(products)
+      .where(eq(products.agencyId, agencyA))
+      .returning({ id: products.id }),
   )
-  assert.equal(deleted.length, 0, "agence B ne peut pas supprimer un produit de l'agence A")
+  assert.equal(
+    deleted.length,
+    0,
+    "agence B ne peut pas supprimer un produit de l'agence A",
+  )
 })
 
 test("wallets : agence B ne peut jamais lire le solde wallet de l'agence A (backstop DB derrière le correctif IDOR getWalletBalance)", async (t) => {
@@ -168,7 +204,11 @@ test("wallets : agence B ne peut jamais lire le solde wallet de l'agence A (back
   const rowsAsOther = await withTenantContext(asAgency(agencyB), (tx) =>
     tx.select().from(wallets).where(eq(wallets.agencyId, agencyA)),
   )
-  assert.equal(rowsAsOther.length, 0, "agence B ne doit jamais voir le solde de l'agence A")
+  assert.equal(
+    rowsAsOther.length,
+    0,
+    "agence B ne doit jamais voir le solde de l'agence A",
+  )
 })
 
 test("system context (cron/webhook de confiance) : accès cross-agence toujours disponible, jamais bloqué par RLS", async (t) => {

@@ -12,7 +12,11 @@ import type { FlightOffer } from "./client"
 // Types
 // ---------------------------------------------------------------------------
 
-export type SortMode = "recommended" | "price_asc" | "price_desc" | "duration_asc"
+export type SortMode =
+  | "recommended"
+  | "price_asc"
+  | "price_desc"
+  | "duration_asc"
 
 export interface FlightFilters {
   directOnly?: boolean
@@ -66,9 +70,7 @@ function offerStops(o: FlightOffer): number {
 function offerCarriers(o: FlightOffer): string[] {
   return [
     ...new Set(
-      o.journeys.flatMap((j) =>
-        j.segments.map((s) => s.marketingCarrier),
-      ),
+      o.journeys.flatMap((j) => j.segments.map((s) => s.marketingCarrier)),
     ),
   ]
 }
@@ -77,16 +79,28 @@ function offerCarriers(o: FlightOffer): string[] {
 // Filter
 // ---------------------------------------------------------------------------
 
-export function applyFilters(offers: FlightOffer[], filters: FlightFilters): FlightOffer[] {
+export function applyFilters(
+  offers: FlightOffer[],
+  filters: FlightFilters,
+): FlightOffer[] {
   return offers.filter((o) => {
     if (filters.directOnly && offerStops(o) > 0) return false
     if (filters.refundableOnly && !o.refundable) return false
-    if (filters.maxPriceTnd != null && offerSellingPrice(o) > filters.maxPriceTnd) return false
-    if (filters.maxDurationMinutes != null && offerTotalDuration(o) > filters.maxDurationMinutes) return false
+    if (
+      filters.maxPriceTnd != null &&
+      offerSellingPrice(o) > filters.maxPriceTnd
+    )
+      return false
+    if (
+      filters.maxDurationMinutes != null &&
+      offerTotalDuration(o) > filters.maxDurationMinutes
+    )
+      return false
 
     if (filters.preferredAirlines && filters.preferredAirlines.length > 0) {
       const carriers = offerCarriers(o)
-      if (!carriers.some((c) => filters.preferredAirlines!.includes(c))) return false
+      if (!carriers.some((c) => filters.preferredAirlines!.includes(c)))
+        return false
     }
 
     if (filters.departureTimeRange) {
@@ -111,7 +125,10 @@ export function applyFilters(offers: FlightOffer[], filters: FlightFilters): Fli
 // Sort
 // ---------------------------------------------------------------------------
 
-export function sortOffers(offers: FlightOffer[], mode: SortMode): FlightOffer[] {
+export function sortOffers(
+  offers: FlightOffer[],
+  mode: SortMode,
+): FlightOffer[] {
   const copy = [...offers]
   switch (mode) {
     case "price_asc":

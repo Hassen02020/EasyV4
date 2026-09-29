@@ -124,11 +124,7 @@ export default async function ProHomePage() {
         <div className="grid gap-3 md:grid-cols-4 md:gap-4">
           <ActivityCard
             label="Réservations (30 j)"
-            value={
-              stats
-                ? String(stats.reservationsLast30)
-                : "—"
-            }
+            value={stats ? String(stats.reservationsLast30) : "—"}
             hint="Dossiers créés"
           />
           <ActivityCard

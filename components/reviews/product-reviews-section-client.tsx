@@ -9,7 +9,10 @@
 
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
-import { ReviewsDisplay, type ReviewsDisplaySummary } from "@/components/reviews/reviews-display"
+import {
+  ReviewsDisplay,
+  type ReviewsDisplaySummary,
+} from "@/components/reviews/reviews-display"
 
 export function ProductReviewsSectionClient({
   module,
@@ -22,8 +25,12 @@ export function ProductReviewsSectionClient({
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/reviews/product?module=${module}&productRef=${encodeURIComponent(productRef)}`)
-      .then((res) => (res.ok ? res.json() : { average: 0, count: 0, reviews: [] }))
+    fetch(
+      `/api/reviews/product?module=${module}&productRef=${encodeURIComponent(productRef)}`,
+    )
+      .then((res) =>
+        res.ok ? res.json() : { average: 0, count: 0, reviews: [] },
+      )
       .then((data) => {
         if (!cancelled) setSummary(data)
       })

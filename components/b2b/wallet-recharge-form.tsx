@@ -23,7 +23,11 @@ interface WalletRechargeFormProps {
   userId: string
 }
 
-const METHODS: { value: RechargeMethodType; label: string; description: string }[] = [
+const METHODS: {
+  value: RechargeMethodType
+  label: string
+  description: string
+}[] = [
   {
     value: "cash",
     label: "Espèces à l'agence",
@@ -51,7 +55,10 @@ const METHODS: { value: RechargeMethodType; label: string; description: string }
   },
 ]
 
-export function WalletRechargeForm({ agencyId, userId }: WalletRechargeFormProps) {
+export function WalletRechargeForm({
+  agencyId,
+  userId,
+}: WalletRechargeFormProps) {
   const [isPending, startTransition] = useTransition()
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -141,7 +148,7 @@ export function WalletRechargeForm({ agencyId, userId }: WalletRechargeFormProps
             onChange={(e) => setAmount(e.target.value)}
             className="pr-12"
           />
-          <span className="text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 text-sm">
+          <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
             TND
           </span>
         </div>
@@ -176,15 +183,14 @@ export function WalletRechargeForm({ agencyId, userId }: WalletRechargeFormProps
       </div>
 
       {/* Erreur */}
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {/* Succès */}
       {success && (
         <div className="flex items-center gap-2 text-sm text-green-600">
           <CheckCircle2 className="h-4 w-4" />
-          Demande de recharge soumise avec succès. Elle sera validée par un administrateur.
+          Demande de recharge soumise avec succès. Elle sera validée par un
+          administrateur.
         </div>
       )}
 
@@ -202,7 +208,8 @@ export function WalletRechargeForm({ agencyId, userId }: WalletRechargeFormProps
 
       <p className="text-muted-foreground text-xs">
         Votre demande sera traitée par un administrateur sous 24h ouvrées.
-        Joignez un justificatif (photo du reçu, bordereau) pour accélérer la validation.
+        Joignez un justificatif (photo du reçu, bordereau) pour accélérer la
+        validation.
       </p>
     </form>
   )

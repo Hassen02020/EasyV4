@@ -6,7 +6,11 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  withSystemContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { agencies, crmConversations, crmMessages, leads } from "@/lib/db/schema"
 import {
   canSendSessionMessage,
@@ -20,7 +24,10 @@ import {
 test("canSendSessionMessage : dernier message entrant < 24h → true", () => {
   const now = new Date("2026-01-10T12:00:00Z")
   assert.equal(
-    canSendSessionMessage({ lastInboundAt: new Date("2026-01-10T00:00:01Z") }, now),
+    canSendSessionMessage(
+      { lastInboundAt: new Date("2026-01-10T00:00:01Z") },
+      now,
+    ),
     true,
   )
 })
@@ -28,7 +35,10 @@ test("canSendSessionMessage : dernier message entrant < 24h → true", () => {
 test("canSendSessionMessage : dernier message entrant > 24h → false", () => {
   const now = new Date("2026-01-10T12:00:00Z")
   assert.equal(
-    canSendSessionMessage({ lastInboundAt: new Date("2026-01-08T00:00:00Z") }, now),
+    canSendSessionMessage(
+      { lastInboundAt: new Date("2026-01-08T00:00:00Z") },
+      now,
+    ),
     false,
   )
 })
@@ -74,8 +84,18 @@ before(async () => {
   agencyB = randomUUID()
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, name: "INBOX Agency A", agencyType: "ota", slug: `inbox-a-${agencyA.slice(0, 8)}` },
-      { id: agencyB, name: "INBOX Agency B", agencyType: "ota", slug: `inbox-b-${agencyB.slice(0, 8)}` },
+      {
+        id: agencyA,
+        name: "INBOX Agency A",
+        agencyType: "ota",
+        slug: `inbox-a-${agencyA.slice(0, 8)}`,
+      },
+      {
+        id: agencyB,
+        name: "INBOX Agency B",
+        agencyType: "ota",
+        slug: `inbox-b-${agencyB.slice(0, 8)}`,
+      },
     ])
   })
 })
@@ -84,10 +104,14 @@ after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
     await tx.delete(crmMessages).where(eq(crmMessages.agencyId, agencyA))
-    await tx.delete(crmConversations).where(eq(crmConversations.agencyId, agencyA))
+    await tx
+      .delete(crmConversations)
+      .where(eq(crmConversations.agencyId, agencyA))
     await tx.delete(leads).where(eq(leads.agencyId, agencyA))
     await tx.delete(crmMessages).where(eq(crmMessages.agencyId, agencyB))
-    await tx.delete(crmConversations).where(eq(crmConversations.agencyId, agencyB))
+    await tx
+      .delete(crmConversations)
+      .where(eq(crmConversations.agencyId, agencyB))
     await tx.delete(leads).where(eq(leads.agencyId, agencyB))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyB))
@@ -116,7 +140,10 @@ test("upsertConversationForInboundCore : premier message → crée conversation 
   assert.equal(result.messageInserted, true)
 
   const thread = await withTenantContext(ctxFor(agencyA), (tx) =>
-    getConversationWithMessagesCore(tx, { agencyId: agencyA, conversationId: result.conversationId }),
+    getConversationWithMessagesCore(tx, {
+      agencyId: agencyA,
+      conversationId: result.conversationId,
+    }),
   )
   assert.ok(thread)
   assert.equal(thread!.conversation.contactPhone, phone)
@@ -159,7 +186,10 @@ test("upsertConversationForInboundCore : second message du même contact → mê
   assert.equal(second.conversationId, first.conversationId)
 
   const thread = await withTenantContext(ctxFor(agencyA), (tx) =>
-    getConversationWithMessagesCore(tx, { agencyId: agencyA, conversationId: first.conversationId }),
+    getConversationWithMessagesCore(tx, {
+      agencyId: agencyA,
+      conversationId: first.conversationId,
+    }),
   )
   assert.equal(thread!.messages.length, 2)
 
@@ -200,7 +230,10 @@ test("upsertConversationForInboundCore : redélivrance webhook (même externalMe
   assert.equal(redelivered.messageInserted, false)
 
   const thread = await withTenantContext(ctxFor(agencyA), (tx) =>
-    getConversationWithMessagesCore(tx, { agencyId: agencyA, conversationId: first.conversationId }),
+    getConversationWithMessagesCore(tx, {
+      agencyId: agencyA,
+      conversationId: first.conversationId,
+    }),
   )
   assert.equal(thread!.messages.length, 1)
 })
@@ -234,7 +267,10 @@ test("upsertConversationForInboundCore : un lead existant (même téléphone) es
   )
 
   const thread = await withTenantContext(ctxFor(agencyA), (tx) =>
-    getConversationWithMessagesCore(tx, { agencyId: agencyA, conversationId: result.conversationId }),
+    getConversationWithMessagesCore(tx, {
+      agencyId: agencyA,
+      conversationId: result.conversationId,
+    }),
   )
   assert.equal(thread!.conversation.leadId, existingLead!.id)
 
@@ -308,8 +344,12 @@ test("listConversationsCore : isolation stricte par agence", async (t) => {
     }),
   )
 
-  const listA = await withTenantContext(ctxFor(agencyA), (tx) => listConversationsCore(tx, { agencyId: agencyA }))
-  const listB = await withTenantContext(ctxFor(agencyB), (tx) => listConversationsCore(tx, { agencyId: agencyB }))
+  const listA = await withTenantContext(ctxFor(agencyA), (tx) =>
+    listConversationsCore(tx, { agencyId: agencyA }),
+  )
+  const listB = await withTenantContext(ctxFor(agencyB), (tx) =>
+    listConversationsCore(tx, { agencyId: agencyB }),
+  )
 
   assert.ok(listA.every((c) => !listB.some((b) => b.id === c.id)))
   assert.ok(listA.some((c) => c.contactPhone === "21620000010"))

@@ -129,7 +129,9 @@ async function checkCarAvailability(
     .limit(1)
 
   if (availRow) {
-    return availRow.status === "open" && availRow.bookedUnits < availRow.totalUnits
+    return (
+      availRow.status === "open" && availRow.bookedUnits < availRow.totalUnits
+    )
   }
 
   const [fleetCount] = await tx
@@ -158,8 +160,13 @@ export async function createCarBooking(
     return { ok: false, error: "Base de données non configurée" }
   }
 
-  if (new Date(input.dropoffAt).getTime() <= new Date(input.pickupAt).getTime()) {
-    return { ok: false, error: "La date de retour doit être après la date de prise en charge" }
+  if (
+    new Date(input.dropoffAt).getTime() <= new Date(input.pickupAt).getTime()
+  ) {
+    return {
+      ok: false,
+      error: "La date de retour doit être après la date de prise en charge",
+    }
   }
 
   try {
@@ -266,7 +273,9 @@ export async function createCarBooking(
         createdByUserId,
         reservationId,
         idempotencyKey: `booking-debit:${reservationId}`,
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+        txOverride: tx as Parameters<
+          typeof debitPartnerCredit
+        >[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
@@ -279,7 +288,11 @@ export async function createCarBooking(
 
       await tx
         .update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .set({
+          status: "confirmed",
+          confirmedAt: new Date(),
+          updatedAt: new Date(),
+        })
         .where(eq(reservations.id, reservationId))
 
       await recordReservationTransition(tx, {
@@ -356,7 +369,10 @@ export async function createCarBooking(
         console.error("[cars] génération facture échouée", invoiceResult.error)
       }
     } catch (err) {
-      console.error("[cars] génération facture échouée", err instanceof Error ? err.message : String(err))
+      console.error(
+        "[cars] génération facture échouée",
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
     return {

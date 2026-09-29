@@ -25,21 +25,36 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const actionsSrc       = readFileSync(join(ROOT, "lib/booking/actions.ts"), "utf8")
-const guestActionsSrc  = readFileSync(join(ROOT, "lib/booking/guest-actions.ts"), "utf8")
-const migrationSrc     = readFileSync(join(ROOT, "drizzle/manual/0066_commission_wallet_settlement.sql"), "utf8")
-const settlementSrc    = readFileSync(join(ROOT, "lib/finance/commission-settlement.ts"), "utf8")
+const actionsSrc = readFileSync(join(ROOT, "lib/booking/actions.ts"), "utf8")
+const guestActionsSrc = readFileSync(
+  join(ROOT, "lib/booking/guest-actions.ts"),
+  "utf8",
+)
+const migrationSrc = readFileSync(
+  join(ROOT, "drizzle/manual/0066_commission_wallet_settlement.sql"),
+  "utf8",
+)
+const settlementSrc = readFileSync(
+  join(ROOT, "lib/finance/commission-settlement.ts"),
+  "utf8",
+)
 
 /* -------------------------------------------------------------------------- */
 /* Import wiring                                                                */
 /* -------------------------------------------------------------------------- */
 
 test("actions.ts : importe creditPlatformCommission depuis lib/finance/platform-commission", () => {
-  assert.match(actionsSrc, /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/)
+  assert.match(
+    actionsSrc,
+    /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+  )
 })
 
 test("guest-actions.ts : importe creditPlatformCommission depuis lib/finance/platform-commission", () => {
-  assert.match(guestActionsSrc, /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/)
+  assert.match(
+    guestActionsSrc,
+    /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -47,11 +62,17 @@ test("guest-actions.ts : importe creditPlatformCommission depuis lib/finance/pla
 /* -------------------------------------------------------------------------- */
 
 test("actions.ts : destructure { commissionAmount } depuis recordReservationFinancials", () => {
-  assert.match(actionsSrc, /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/)
+  assert.match(
+    actionsSrc,
+    /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/,
+  )
 })
 
 test("guest-actions.ts : destructure { commissionAmount } depuis recordReservationFinancials", () => {
-  assert.match(guestActionsSrc, /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/)
+  assert.match(
+    guestActionsSrc,
+    /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -72,7 +93,9 @@ test("guest-actions.ts : creditPlatformCommission description inclut publicRef",
 
 test("migration 0066 : GRANT EXECUTE sur credit_platform_commission n'inclut PAS authenticated", () => {
   // Extrait la ligne GRANT pour cette fonction
-  const grantMatch = migrationSrc.match(/GRANT EXECUTE ON FUNCTION credit_platform_commission[^\n;]+(?:TO[^\n;]+)?/i)
+  const grantMatch = migrationSrc.match(
+    /GRANT EXECUTE ON FUNCTION credit_platform_commission[^\n;]+(?:TO[^\n;]+)?/i,
+  )
   assert.ok(grantMatch, "La ligne GRANT doit exister")
   assert.equal(
     grantMatch[0].toLowerCase().includes("authenticated"),

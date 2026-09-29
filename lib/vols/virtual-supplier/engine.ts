@@ -40,7 +40,10 @@ function offerKey(offer: VirtualFlightOffer, departureDate: string): string {
   return `${offer.offerId}:${departureDate}`
 }
 
-export function search(input: SearchInput): { searchId: string; offers: SearchOfferResult[] } {
+export function search(input: SearchInput): {
+  searchId: string
+  offers: SearchOfferResult[]
+} {
   const searchId = newSearchId()
   const rawOffers = generateOffers({
     origin: input.origin,
@@ -116,12 +119,18 @@ export type BookResult =
       departureDate: string
       returnDate?: string
     }
-  | { ok: false; kind: BookErrorKind; message: string; currentPriceTnd?: number }
+  | {
+      ok: false
+      kind: BookErrorKind
+      message: string
+      currentPriceTnd?: number
+    }
 
 function generatePnr(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // sans 0/O/1/I ambigus
   let out = ""
-  for (let i = 0; i < 6; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)]
+  for (let i = 0; i < 6; i++)
+    out += alphabet[Math.floor(Math.random() * alphabet.length)]
   return out
 }
 
@@ -141,19 +150,35 @@ export async function book(
 
   if (scenario === "TIMEOUT") {
     await new Promise((r) => setTimeout(r, SIMULATED_TIMEOUT_DELAY_MS))
-    return { ok: false, kind: "TIMEOUT", message: "Le fournisseur n'a pas répondu à temps." }
+    return {
+      ok: false,
+      kind: "TIMEOUT",
+      message: "Le fournisseur n'a pas répondu à temps.",
+    }
   }
 
   const validated = validateOfferToken(token)
   if (!validated.ok) {
     return validated.reason === "EXPIRED"
-      ? { ok: false, kind: "TOKEN_EXPIRED", message: "Cette offre a expiré — relancez une recherche." }
-      : { ok: false, kind: "TOKEN_INVALID", message: "Offre invalide ou altérée." }
+      ? {
+          ok: false,
+          kind: "TOKEN_EXPIRED",
+          message: "Cette offre a expiré — relancez une recherche.",
+        }
+      : {
+          ok: false,
+          kind: "TOKEN_INVALID",
+          message: "Offre invalide ou altérée.",
+        }
   }
   const p = validated.payload
 
   if (scenario === "BOOKING_REJECTED") {
-    return { ok: false, kind: "BOOKING_REJECTED", message: "Le fournisseur a refusé cette réservation." }
+    return {
+      ok: false,
+      kind: "BOOKING_REJECTED",
+      message: "Le fournisseur a refusé cette réservation.",
+    }
   }
 
   // Revalidation prix — régénère l'offre déterministe pour cette route/date/
@@ -171,7 +196,11 @@ export async function book(
   })
   const matched = rawOffers.find((o) => o.offerId === p.offerId)
   if (!matched) {
-    return { ok: false, kind: "TOKEN_INVALID", message: "Offre introuvable pour cette route/date." }
+    return {
+      ok: false,
+      kind: "TOKEN_INVALID",
+      message: "Offre introuvable pour cette route/date.",
+    }
   }
   const paxCount = p.adults + p.children
   const livePriceTnd =
@@ -198,7 +227,11 @@ export async function book(
   const forcedSoldOut = scenario === "SOLD_OUT"
   const reserved = forcedSoldOut ? false : await reserve(key, paxCount)
   if (!reserved) {
-    return { ok: false, kind: "SOLD_OUT", message: "Cette offre n'est plus disponible." }
+    return {
+      ok: false,
+      kind: "SOLD_OUT",
+      message: "Cette offre n'est plus disponible.",
+    }
   }
 
   return {

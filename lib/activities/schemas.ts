@@ -19,9 +19,16 @@ import { travelerSchemaWithIdRule } from "@/lib/booking/schemas"
 const baseActivityBookingFields = {
   activityId: z.string().uuid("Attraction invalide"),
   sessionId: z.string().uuid("Session invalide"),
-  adults: z.coerce.number().int().min(1, "Au moins un adulte requis").max(50, "Maximum 50 adultes"),
+  adults: z.coerce
+    .number()
+    .int()
+    .min(1, "Au moins un adulte requis")
+    .max(50, "Maximum 50 adultes"),
   children: z.coerce.number().int().min(0).max(50).default(0),
-  childrenAges: z.array(z.coerce.number().int().min(0).max(17)).max(50).default([]),
+  childrenAges: z
+    .array(z.coerce.number().int().min(0).max(17))
+    .max(50)
+    .default([]),
 }
 
 export const activityGuestBookingSchema = z
@@ -45,7 +52,9 @@ export const activityGuestBookingSchema = z
     }
   })
 
-export type ActivityGuestBookingInput = z.infer<typeof activityGuestBookingSchema>
+export type ActivityGuestBookingInput = z.infer<
+  typeof activityGuestBookingSchema
+>
 
 /**
  * B2B : contact client simple (nom/téléphone/email) au lieu du contact
@@ -60,7 +69,12 @@ export const activityPartnerBookingSchema = z
     customerFirstName: z.string().trim().min(1, "Prénom requis").max(100),
     customerLastName: z.string().trim().min(1, "Nom requis").max(100),
     customerPhone: z.string().trim().min(6, "Téléphone requis").max(32),
-    customerEmail: z.string().trim().email("Email invalide").optional().or(z.literal("")),
+    customerEmail: z
+      .string()
+      .trim()
+      .email("Email invalide")
+      .optional()
+      .or(z.literal("")),
   })
   .superRefine((data, ctx) => {
     if (data.childrenAges.length !== data.children) {
@@ -72,7 +86,9 @@ export const activityPartnerBookingSchema = z
     }
   })
 
-export type ActivityPartnerBookingInput = z.infer<typeof activityPartnerBookingSchema>
+export type ActivityPartnerBookingInput = z.infer<
+  typeof activityPartnerBookingSchema
+>
 
 /**
  * Règle d'âge enfant "si déjà prévue" (mandat Phase 13.1) : lit

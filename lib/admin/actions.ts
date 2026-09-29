@@ -31,7 +31,10 @@ import {
 } from "@/lib/loyalty/rewards-core"
 import { logger } from "@/lib/logger"
 import { describeSupplierCancellationErrorForUser } from "@/lib/booking/hotel-provider-booking"
-import { resolveMyGoAccessForTenant, partnerTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import {
+  resolveMyGoAccessForTenant,
+  partnerTenantContext,
+} from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   RESERVATION_STATUSES,
   RESERVATION_STATUS_ALLOWED_ROLES,
@@ -79,15 +82,26 @@ export async function updateReservationStatus(
 
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile?.agencyId) {
-    return { ok: false, error: "Profil administrateur introuvable ou non lié à une agence" }
+    return {
+      ok: false,
+      error: "Profil administrateur introuvable ou non lié à une agence",
+    }
   }
   // Phase 21.2 (P1) — même frontière que la page /admin/reservations
   // (jusqu'ici imposée seulement côté UI) : un changement de statut, y
   // compris une annulation qui déclenche un remboursement, exige un rôle
   // avec responsabilité réservation, jamais agent_compta/agent_excursions
   // ni un profil partenaire B2B en appelant directement cette action.
-  if (!(RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
-    return { ok: false, error: "Votre rôle n'est pas autorisé à changer le statut d'une réservation." }
+  if (
+    !(RESERVATION_STATUS_ALLOWED_ROLES as readonly string[]).includes(
+      profile.role,
+    )
+  ) {
+    return {
+      ok: false,
+      error:
+        "Votre rôle n'est pas autorisé à changer le statut d'une réservation.",
+    }
   }
   const isSuperAdmin = profile.role === "super_admin"
 
@@ -100,7 +114,11 @@ export async function updateReservationStatus(
   // silencieusement `profile.agencyId` — un super_admin obtenait "Réservation
   // introuvable" pour toute réservation d'une autre agence.
   const agencyLookup = await withTenantContext(
-    { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
+    {
+      agencyId: isSuperAdmin ? null : profile.agencyId,
+      userId: user.id,
+      isSuperAdmin,
+    },
     (db) =>
       db
         .select({ agencyId: reservations.agencyId })
@@ -108,7 +126,10 @@ export async function updateReservationStatus(
         .where(
           isSuperAdmin
             ? eq(reservations.id, reservationId)
-            : and(eq(reservations.id, reservationId), eq(reservations.agencyId, profile.agencyId)),
+            : and(
+                eq(reservations.id, reservationId),
+                eq(reservations.agencyId, profile.agencyId),
+              ),
         )
         .limit(1),
   )
@@ -165,11 +186,15 @@ export async function updateReservationStatus(
       // générique (dropdown /admin/reservations) n'avait jusqu'ici AUCUNE
       // vérification de paiement — contrairement à verifyManualPayment, qui
       // confirme déjà correctement sous cette même condition.
-      let confirmedSummary: Awaited<ReturnType<typeof getReservationPaymentSummary>> | undefined
+      let confirmedSummary:
+        | Awaited<ReturnType<typeof getReservationPaymentSummary>>
+        | undefined
       if (nextStatus === "confirmed") {
         const summary = await getReservationPaymentSummary({
           reservationId,
-          txOverride: db as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+          txOverride: db as Parameters<
+            typeof getReservationPaymentSummary
+          >[0]["txOverride"],
         })
         if (summary.paymentState !== "FULLY_PAID") {
           return {
@@ -215,7 +240,9 @@ export async function updateReservationStatus(
             // sans danger (no-op si déjà annulée côté myGo).
             return {
               ok: false as const,
-              error: describeSupplierCancellationErrorForUser(cancellation.code),
+              error: describeSupplierCancellationErrorForUser(
+                cancellation.code,
+              ),
             }
           }
           providerCancellationFee = cancellation.penaltyAmount
@@ -268,7 +295,8 @@ export async function updateReservationStatus(
           idempotencyKey: `earn-pending:${reservationId}`,
           actorUserId: user.id,
         })
-        if (earnResult.ok && earnResult.awarded) loyaltyPointsEarned = earnResult.points
+        if (earnResult.ok && earnResult.awarded)
+          loyaltyPointsEarned = earnResult.points
       }
       if (nextStatus === "completed") {
         const convertResult = await convertPendingToAvailable(db, {
@@ -278,7 +306,8 @@ export async function updateReservationStatus(
           idempotencyKey: `convert-available:${reservationId}`,
           actorUserId: user.id,
         })
-        if (convertResult.ok && convertResult.converted) loyaltyPointsConverted = convertResult.points
+        if (convertResult.ok && convertResult.converted)
+          loyaltyPointsConverted = convertResult.points
       }
       if (nextStatus === "cancelled" || nextStatus === "refunded") {
         const reverseResult = await reverseEarnedPoints(db, {
@@ -289,7 +318,9 @@ export async function updateReservationStatus(
           actorUserId: user.id,
         })
         if (reverseResult.reversed) {
-          loyaltyPointsReversed = reverseResult.pointsReversedFromPending + reverseResult.pointsReversedFromAvailable
+          loyaltyPointsReversed =
+            reverseResult.pointsReversedFromPending +
+            reverseResult.pointsReversedFromAvailable
         }
 
         // Symétrique de reverseEarnedPoints ci-dessus, mais pour les points
@@ -303,7 +334,8 @@ export async function updateReservationStatus(
           idempotencyKey: `reinstate:${reservationId}`,
           actorUserId: user.id,
         })
-        if (reinstateResult.reinstated) loyaltyPointsReinstated = reinstateResult.points
+        if (reinstateResult.reinstated)
+          loyaltyPointsReinstated = reinstateResult.points
       }
 
       // --- Intégrité paiement/ledger : une annulation ne doit jamais
@@ -351,11 +383,17 @@ export async function updateReservationStatus(
             ...(providerCancellationFee != null
               ? { providerCancellationFeeTnd: providerCancellationFee }
               : {}),
-            ...(refundedTnd != null ? { refundedTnd: refundedTnd.toFixed(2) } : {}),
+            ...(refundedTnd != null
+              ? { refundedTnd: refundedTnd.toFixed(2) }
+              : {}),
             ...(loyaltyPointsEarned != null ? { loyaltyPointsEarned } : {}),
-            ...(loyaltyPointsConverted != null ? { loyaltyPointsConverted } : {}),
+            ...(loyaltyPointsConverted != null
+              ? { loyaltyPointsConverted }
+              : {}),
             ...(loyaltyPointsReversed != null ? { loyaltyPointsReversed } : {}),
-            ...(loyaltyPointsReinstated != null ? { loyaltyPointsReinstated } : {}),
+            ...(loyaltyPointsReinstated != null
+              ? { loyaltyPointsReinstated }
+              : {}),
           },
         })
       } catch {
@@ -366,7 +404,10 @@ export async function updateReservationStatus(
     },
   ).catch((err: unknown) => {
     logger.error("[updateReservationStatus] transaction failed", { err })
-    return { ok: false as const, error: "Échec de l'opération — aucune modification appliquée." }
+    return {
+      ok: false as const,
+      error: "Échec de l'opération — aucune modification appliquée.",
+    }
   })
 
   if (!outcome.ok) {

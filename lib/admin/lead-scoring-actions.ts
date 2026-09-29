@@ -29,7 +29,9 @@ interface SupportStaffContext {
   agencyId: string
 }
 
-async function assertSupportStaff(allowed: readonly string[]): Promise<SupportStaffContext> {
+async function assertSupportStaff(
+  allowed: readonly string[],
+): Promise<SupportStaffContext> {
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -44,7 +46,9 @@ async function assertSupportStaff(allowed: readonly string[]): Promise<SupportSt
   return { userId: user.id, agencyId: profile.agencyId }
 }
 
-export type GetLeadScoreRulesResult = { ok: true; rules: LeadScoreRuleMap } | { ok: false; error: string }
+export type GetLeadScoreRulesResult =
+  | { ok: true; rules: LeadScoreRuleMap }
+  | { ok: false; error: string }
 
 export async function getLeadScoreRules(): Promise<GetLeadScoreRulesResult> {
   let ctx: SupportStaffContext
@@ -53,11 +57,13 @@ export async function getLeadScoreRules(): Promise<GetLeadScoreRulesResult> {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
-    const rules = await withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, (tx) =>
-      getLeadScoreRuleMapCore(tx, { agencyId: ctx.agencyId }),
+    const rules = await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) => getLeadScoreRuleMapCore(tx, { agencyId: ctx.agencyId }),
     )
     return { ok: true, rules }
   } catch (err) {
@@ -66,7 +72,9 @@ export async function getLeadScoreRules(): Promise<GetLeadScoreRulesResult> {
   }
 }
 
-export type UpdateLeadScoreRuleResult = { ok: true } | { ok: false; error: string }
+export type UpdateLeadScoreRuleResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function updateLeadScoreRule(input: {
   signal: LeadScoreSignal
@@ -79,23 +87,30 @@ export async function updateLeadScoreRule(input: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   if (!(LEAD_SCORE_SIGNALS as readonly string[]).includes(input.signal)) {
     return { ok: false, error: "Signal invalide." }
   }
-  if (!Number.isFinite(input.points) || input.points < 0 || input.points > 1000) {
+  if (
+    !Number.isFinite(input.points) ||
+    input.points < 0 ||
+    input.points > 1000
+  ) {
     return { ok: false, error: "Points invalides (0 à 1000)." }
   }
 
   try {
-    await withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, (tx) =>
-      upsertLeadScoreRuleCore(tx, {
-        agencyId: ctx.agencyId,
-        signal: input.signal,
-        points: Math.round(input.points),
-        isActive: input.isActive,
-      }),
+    await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) =>
+        upsertLeadScoreRuleCore(tx, {
+          agencyId: ctx.agencyId,
+          signal: input.signal,
+          points: Math.round(input.points),
+          isActive: input.isActive,
+        }),
     )
     revalidatePath("/admin/support")
     return { ok: true }

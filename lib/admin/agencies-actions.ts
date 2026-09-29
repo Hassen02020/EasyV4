@@ -4,8 +4,16 @@ import { revalidatePath } from "next/cache"
 import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { agencies, auditEvents, partnerCreditMovements, users } from "@/lib/db/schema"
-import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
+import {
+  agencies,
+  auditEvents,
+  partnerCreditMovements,
+  users,
+} from "@/lib/db/schema"
+import {
+  createServerSupabase,
+  createServiceRoleSupabase,
+} from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
 import { sendEvent } from "@/lib/inngest/client"
@@ -32,9 +40,7 @@ async function assertSuperAdmin(): Promise<string> {
 /* Types                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export type AgencyActionResult =
-  | { ok: true }
-  | { ok: false; error: string }
+export type AgencyActionResult = { ok: true } | { ok: false; error: string }
 
 /* -------------------------------------------------------------------------- */
 /* Création                                                                     */
@@ -78,7 +84,12 @@ export async function createAgency(
 ): Promise<CreateAgencyResult> {
   const parsed = createAgencyInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -93,7 +104,11 @@ export async function createAgency(
     return { ok: false, error: "Base de données non configurée" }
 
   const baseSlug = slugify(input.name)
-  if (!baseSlug) return { ok: false, error: "Nom invalide (aucun caractère alphanumérique)." }
+  if (!baseSlug)
+    return {
+      ok: false,
+      error: "Nom invalide (aucun caractère alphanumérique).",
+    }
 
   try {
     const newAgencyId = await withTenantContext(
@@ -105,7 +120,10 @@ export async function createAgency(
         // d'échouer platement (une agence nommée deux fois n'est pas un cas
         // limite, ex. "Agence Tunis" créée dans deux villes différentes).
         for (let attempt = 0; attempt < 5; attempt++) {
-          const slug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`
+          const slug =
+            attempt === 0
+              ? baseSlug
+              : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`
           try {
             const [created] = await tx
               .insert(agencies)
@@ -138,11 +156,19 @@ export async function createAgency(
     )
 
     revalidatePath("/admin/agencies")
-    logger.info("[agencies-actions] agency created", { agencyId: newAgencyId, actorId })
+    logger.info("[agencies-actions] agency created", {
+      agencyId: newAgencyId,
+      actorId,
+    })
     return { ok: true, agencyId: newAgencyId }
   } catch (e) {
-    logger.error("[agencies-actions] createAgency failed", { err: e instanceof Error ? e.message : String(e) })
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur inconnue" }
+    logger.error("[agencies-actions] createAgency failed", {
+      err: e instanceof Error ? e.message : String(e),
+    })
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -175,7 +201,12 @@ export async function createPartnerOwner(
 ): Promise<CreatePartnerOwnerResult> {
   const parsed = createPartnerOwnerInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -186,20 +217,28 @@ export async function createPartnerOwner(
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
 
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const [agency] = await withTenantContext(
     { agencyId: null, userId: actorId, isSuperAdmin: true },
     (tx) =>
       tx
-        .select({ id: agencies.id, agencyType: agencies.agencyType, name: agencies.name })
+        .select({
+          id: agencies.id,
+          agencyType: agencies.agencyType,
+          name: agencies.name,
+        })
         .from(agencies)
         .where(eq(agencies.id, input.agencyId))
         .limit(1),
   )
   if (!agency) return { ok: false, error: "Agence introuvable." }
   if (agency.agencyType !== "partner") {
-    return { ok: false, error: "Cette agence n'est pas de type partenaire (agencyType=partner)." }
+    return {
+      ok: false,
+      error: "Cette agence n'est pas de type partenaire (agencyType=partner).",
+    }
   }
 
   const admin = createServiceRoleSupabase()
@@ -207,7 +246,10 @@ export async function createPartnerOwner(
     data: { name: input.name },
   })
   if (invited.error || !invited.data.user) {
-    return { ok: false, error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}` }
+    return {
+      ok: false,
+      error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}`,
+    }
   }
   const newUserId = invited.data.user.id
 
@@ -229,7 +271,12 @@ export async function createPartnerOwner(
           entityType: "user",
           entityId: newUserId,
           action: "user.created",
-          diff: { email: input.email, name: input.name, role: "partner_owner", via: "super_admin" },
+          diff: {
+            email: input.email,
+            name: input.name,
+            role: "partner_owner",
+            via: "super_admin",
+          },
         })
       },
     )
@@ -239,11 +286,18 @@ export async function createPartnerOwner(
     // que createStaffUser).
     await admin.auth.admin.deleteUser(newUserId).catch(() => {})
     const message = err instanceof Error ? err.message : "Erreur inconnue"
-    return { ok: false, error: `Compte invité mais profil non créé (annulé) : ${message}` }
+    return {
+      ok: false,
+      error: `Compte invité mais profil non créé (annulé) : ${message}`,
+    }
   }
 
   revalidatePath("/admin/agencies")
-  logger.info("[agencies-actions] partner owner created", { agencyId: input.agencyId, userId: newUserId, actorId })
+  logger.info("[agencies-actions] partner owner created", {
+    agencyId: input.agencyId,
+    userId: newUserId,
+    actorId,
+  })
   return { ok: true, userId: newUserId }
 }
 
@@ -292,10 +346,18 @@ export async function setAgencyStatus(
     )
 
     revalidatePath("/admin/agencies")
-    logger.info("[agencies-actions] status updated", { agencyId, status, actorId })
+    logger.info("[agencies-actions] status updated", {
+      agencyId,
+      status,
+      actorId,
+    })
     return { ok: true }
   } catch (e) {
-    logger.error("[agencies-actions] setAgencyStatus failed", { agencyId, status, err: e instanceof Error ? e.message : String(e) })
+    logger.error("[agencies-actions] setAgencyStatus failed", {
+      agencyId,
+      status,
+      err: e instanceof Error ? e.message : String(e),
+    })
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Erreur inconnue",
@@ -347,7 +409,11 @@ export async function setAgencyReservationTolerance(
     )
 
     revalidatePath("/admin/agencies")
-    logger.info("[agencies-actions] reservation tolerance set", { agencyId, toleranceTnd, actorId })
+    logger.info("[agencies-actions] reservation tolerance set", {
+      agencyId,
+      toleranceTnd,
+      actorId,
+    })
     return { ok: true }
   } catch (e) {
     logger.error("[agencies-actions] setAgencyReservationTolerance failed", {
@@ -458,14 +524,24 @@ export async function adminRechargeWallet(
         newBalance: newBalanceForNotify,
         method: "ADMIN_DIRECT",
         adminUserId: actorId,
-      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+      }).catch(() => {
+        /* fire-and-forget — le retry Inngest suffira */
+      })
     }
 
     revalidatePath("/admin/agencies")
-    logger.info("[agencies-actions] wallet recharged", { agencyId, amountTnd, actorId })
+    logger.info("[agencies-actions] wallet recharged", {
+      agencyId,
+      amountTnd,
+      actorId,
+    })
     return { ok: true }
   } catch (e) {
-    logger.error("[agencies-actions] adminRechargeWallet failed", { agencyId, amountTnd, err: e instanceof Error ? e.message : String(e) })
+    logger.error("[agencies-actions] adminRechargeWallet failed", {
+      agencyId,
+      amountTnd,
+      err: e instanceof Error ? e.message : String(e),
+    })
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Erreur inconnue",

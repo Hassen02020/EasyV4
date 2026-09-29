@@ -75,14 +75,18 @@ export function airportLabel(code: string): string {
  * code à 3 lettres bien formé est accepté, cohérent avec la validation
  * `SearchSchema` de la route API elle-même.
  */
-export function parseAirportInput(input: string | null | undefined): string | null {
+export function parseAirportInput(
+  input: string | null | undefined,
+): string | null {
   if (!input) return null
   const fromParens = input.match(/\(([A-Za-z]{3})\)\s*$/)
   const candidate = (fromParens?.[1] ?? input).trim().toUpperCase()
   return /^[A-Z]{3}$/.test(candidate) ? candidate : null
 }
 
-export function parseCabin(cabinOrClass: string | null | undefined): CabinClass {
+export function parseCabin(
+  cabinOrClass: string | null | undefined,
+): CabinClass {
   if (!cabinOrClass) return "ECONOMY"
   const upper = cabinOrClass.toUpperCase()
   if (VALID_CABINS.has(upper as CabinClass)) return upper as CabinClass
@@ -101,13 +105,20 @@ export interface MultiCityLeg {
 
 /** Encode N legs as a single URL parameter value. */
 export function encodeMultiCityLegs(legs: MultiCityLeg[]): string {
-  return legs.map((l) => `${l.origin}:${l.destination}:${l.departureDate}`).join(",")
+  return legs
+    .map((l) => `${l.origin}:${l.destination}:${l.departureDate}`)
+    .join(",")
 }
 
 /** Decode legs from URL. Returns null if any leg is malformed. */
-export function parseMultiCityLegs(raw: string | null | undefined): MultiCityLeg[] | null {
+export function parseMultiCityLegs(
+  raw: string | null | undefined,
+): MultiCityLeg[] | null {
   if (!raw) return null
-  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean)
+  const parts = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
   if (parts.length < 2 || parts.length > 5) return null
   const legs: MultiCityLeg[] = []
   for (const part of parts) {
@@ -151,14 +162,15 @@ export function parseFlightSearchParams(
   searchParams: URLSearchParams,
 ): FlightSearchParseResult {
   const adultsRaw = searchParams.get("adults")
-  const adults =
-    adultsRaw && /^[1-9]$/.test(adultsRaw) ? Number(adultsRaw) : 1
+  const adults = adultsRaw && /^[1-9]$/.test(adultsRaw) ? Number(adultsRaw) : 1
 
   const childrenRaw = searchParams.get("children")
   const children =
     childrenRaw && /^[0-8]$/.test(childrenRaw) ? Number(childrenRaw) : 0
 
-  const cabin = parseCabin(searchParams.get("cabin") ?? searchParams.get("class"))
+  const cabin = parseCabin(
+    searchParams.get("cabin") ?? searchParams.get("class"),
+  )
 
   const tripTypeParam = searchParams.get("tripType")
 
@@ -233,12 +245,23 @@ export function parseFlightSearchParams(
 
   return {
     ok: true,
-    state: { origin, destination, tripType, departureDate, returnDate, cabin, adults, children },
+    state: {
+      origin,
+      destination,
+      tripType,
+      departureDate,
+      returnDate,
+      cabin,
+      adults,
+      children,
+    },
   }
 }
 
 /** Query params canoniques attendus par `app/api/vols/search/route.ts`. */
-export function flightStateToApiParams(state: FlightSearchState): URLSearchParams {
+export function flightStateToApiParams(
+  state: FlightSearchState,
+): URLSearchParams {
   const params = new URLSearchParams({
     origin: state.origin,
     destination: state.destination,
@@ -252,7 +275,9 @@ export function flightStateToApiParams(state: FlightSearchState): URLSearchParam
 }
 
 /** Query params canoniques pour l'URL `/vols/search` elle-même. */
-export function flightStateToResultsParams(state: FlightSearchState): URLSearchParams {
+export function flightStateToResultsParams(
+  state: FlightSearchState,
+): URLSearchParams {
   if (state.tripType === "multicity" && state.legs) {
     const params = new URLSearchParams({
       tripType: "multicity",

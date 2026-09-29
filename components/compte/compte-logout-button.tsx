@@ -27,8 +27,18 @@ export function CompteLogoutButton() {
   }
 
   return (
-    <Button variant="ghost" size="sm" className="gap-1.5" onClick={onLogout} disabled={pending}>
-      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={onLogout}
+      disabled={pending}
+    >
+      {pending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <LogOut className="h-4 w-4" />
+      )}
       {t("logoutButton")}
     </Button>
   )

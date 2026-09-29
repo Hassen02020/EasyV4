@@ -26,7 +26,14 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, Shield, ShieldCheck, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import {
+  Mail,
+  Shield,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -39,7 +46,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { PermissionGrantEditor, type PermissionOverrideRow } from "@/components/permissions/permission-grant-editor"
+import {
+  PermissionGrantEditor,
+  type PermissionOverrideRow,
+} from "@/components/permissions/permission-grant-editor"
 import { InviteAgentDialog } from "@/components/pro/invite-agent-dialog"
 import { setPartnerAgentStatus } from "@/lib/auth/partner-agent-actions"
 import type { Permission } from "@/lib/auth/permissions"
@@ -92,9 +102,15 @@ export function UsersManager({
         return
       }
       setRows((prev) =>
-        prev.map((r) => (r.id === row.id ? { ...r, isActive: !r.isActive } : r)),
+        prev.map((r) =>
+          r.id === row.id ? { ...r, isActive: !r.isActive } : r,
+        ),
       )
-      toast.success(row.isActive ? `${row.fullName} suspendu.` : `${row.fullName} réactivé.`)
+      toast.success(
+        row.isActive
+          ? `${row.fullName} suspendu.`
+          : `${row.fullName} réactivé.`,
+      )
       router.refresh()
     })
   }
@@ -114,9 +130,13 @@ export function UsersManager({
               <TableHead className="font-semibold">Email</TableHead>
               <TableHead className="font-semibold">Rôle</TableHead>
               <TableHead className="font-semibold">Statut</TableHead>
-              <TableHead className="font-semibold">Dernière connexion</TableHead>
+              <TableHead className="font-semibold">
+                Dernière connexion
+              </TableHead>
               {canManage ? (
-                <TableHead className="text-center font-semibold">Actions</TableHead>
+                <TableHead className="text-center font-semibold">
+                  Actions
+                </TableHead>
               ) : null}
             </TableRow>
           </TableHeader>
@@ -133,13 +153,18 @@ export function UsersManager({
             ) : (
               rows.map((u) => {
                 const isSelf = u.id === currentUserId
-                const canManageThisRow = canManage && u.role === "partner_agent" && !isSelf
+                const canManageThisRow =
+                  canManage && u.role === "partner_agent" && !isSelf
 
                 return (
                   <TableRow key={u.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium">
                       {u.fullName}
-                      {isSelf ? <span className="text-muted-foreground ml-1 text-xs">(vous)</span> : null}
+                      {isSelf ? (
+                        <span className="text-muted-foreground ml-1 text-xs">
+                          (vous)
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <a
@@ -217,7 +242,9 @@ export function UsersManager({
                               />
                             </>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">
+                              —
+                            </span>
                           )}
                         </div>
                       </TableCell>
@@ -231,8 +258,9 @@ export function UsersManager({
       </section>
       {!canManage ? (
         <p className="text-muted-foreground text-xs">
-          Lecture seule — la gestion des agents (statut, permissions) est réservée au propriétaire de l&apos;agence,
-          une fois autorisé par Easy2Book.
+          Lecture seule — la gestion des agents (statut, permissions) est
+          réservée au propriétaire de l&apos;agence, une fois autorisé par
+          Easy2Book.
         </p>
       ) : null}
     </div>

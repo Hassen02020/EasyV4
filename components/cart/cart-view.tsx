@@ -46,7 +46,11 @@ import { createGuestPackageBooking } from "@/lib/packages/booking-actions"
 import { createGuestActivityBooking } from "@/lib/activities/guest-booking-actions"
 import { computeIdempotencyKey } from "@/lib/cart/idempotency"
 
-const MODULE_ICON = { hotel: BedDouble, package: MapPin, activity: Ticket } as const
+const MODULE_ICON = {
+  hotel: BedDouble,
+  package: MapPin,
+  activity: Ticket,
+} as const
 
 interface ConfirmedBooking {
   lineId: string
@@ -70,7 +74,12 @@ export function CartView() {
     activity: t("moduleLabelActivity"),
   } as const
 
-  const METHODS: { key: CartCheckoutMethod; label: string; desc: string; icon: typeof Banknote }[] = [
+  const METHODS: {
+    key: CartCheckoutMethod
+    label: string
+    desc: string
+    icon: typeof Banknote
+  }[] = [
     {
       key: "transfer",
       label: t("methodTransferLabel"),
@@ -109,7 +118,11 @@ export function CartView() {
       try {
         if (line.module === "hotel") {
           const idempotencyKey = await computeIdempotencyKey(
-            JSON.stringify({ draft: line.draft, traveler: line.traveler, method }),
+            JSON.stringify({
+              draft: line.draft,
+              traveler: line.traveler,
+              method,
+            }),
           )
           const result = await createGuestReservationFromDraft({
             draft: line.draft,
@@ -118,23 +131,44 @@ export function CartView() {
             idempotencyKey,
           })
           if (result.ok) {
-            newlyConfirmed.push({ lineId: line.id, title: line.title, publicRef: result.publicRef, guestAccessToken: result.guestAccessToken })
+            newlyConfirmed.push({
+              lineId: line.id,
+              title: line.title,
+              publicRef: result.publicRef,
+              guestAccessToken: result.guestAccessToken,
+            })
             cart.remove(line.id)
           } else {
             errors[line.id] = result.error
           }
         } else if (line.module === "package") {
-          const result = await createGuestPackageBooking({ booking: line.booking, paymentMethod: method })
+          const result = await createGuestPackageBooking({
+            booking: line.booking,
+            paymentMethod: method,
+          })
           if (result.ok) {
-            newlyConfirmed.push({ lineId: line.id, title: line.title, publicRef: result.publicRef, guestAccessToken: result.guestAccessToken })
+            newlyConfirmed.push({
+              lineId: line.id,
+              title: line.title,
+              publicRef: result.publicRef,
+              guestAccessToken: result.guestAccessToken,
+            })
             cart.remove(line.id)
           } else {
             errors[line.id] = result.error
           }
         } else {
-          const result = await createGuestActivityBooking({ booking: line.booking, paymentMethod: method })
+          const result = await createGuestActivityBooking({
+            booking: line.booking,
+            paymentMethod: method,
+          })
           if (result.ok) {
-            newlyConfirmed.push({ lineId: line.id, title: line.title, publicRef: result.publicRef, guestAccessToken: result.guestAccessToken })
+            newlyConfirmed.push({
+              lineId: line.id,
+              title: line.title,
+              publicRef: result.publicRef,
+              guestAccessToken: result.guestAccessToken,
+            })
             cart.remove(line.id)
           } else {
             errors[line.id] = result.error
@@ -205,18 +239,23 @@ export function CartView() {
               const Icon = MODULE_ICON[line.module]
               const error = lineErrors[line.id]
               return (
-                <Card key={line.id} className={error ? "border-destructive" : undefined}>
+                <Card
+                  key={line.id}
+                  className={error ? "border-destructive" : undefined}
+                >
                   <CardContent className="flex items-start justify-between gap-3 py-4">
                     <div className="flex items-start gap-3">
                       <span className="bg-sidebar/10 text-sidebar mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md">
                         <Icon className="size-4" />
                       </span>
                       <div>
-                        <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+                        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           {MODULE_LABEL[line.module]}
                         </p>
                         <p className="font-semibold">{line.title}</p>
-                        <p className="text-muted-foreground text-sm">{lineDetail(line)}</p>
+                        <p className="text-muted-foreground text-sm">
+                          {lineDetail(line)}
+                        </p>
                         {error ? (
                           <p className="text-destructive mt-1 flex items-center gap-1 text-xs">
                             <AlertCircle className="size-3.5" />
@@ -226,7 +265,9 @@ export function CartView() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <span className="font-bold">{line.priceTnd.toFixed(3)} DT</span>
+                      <span className="font-bold">
+                        {line.priceTnd.toFixed(3)} DT
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
@@ -247,7 +288,9 @@ export function CartView() {
             <CardContent className="space-y-4 py-4">
               <div className="flex items-center justify-between text-lg">
                 <span className="font-semibold">{t("totalEstimated")}</span>
-                <span className="font-bold text-sidebar">{total.toFixed(3)} DT</span>
+                <span className="text-sidebar font-bold">
+                  {total.toFixed(3)} DT
+                </span>
               </div>
               <p className="text-muted-foreground text-xs">
                 {t("estimateNotice")}
@@ -256,7 +299,9 @@ export function CartView() {
               <Separator />
 
               <div>
-                <h3 className="mb-3 text-sm font-semibold tracking-wide uppercase">{t("paymentMethodTitle")}</h3>
+                <h3 className="mb-3 text-sm font-semibold tracking-wide uppercase">
+                  {t("paymentMethodTitle")}
+                </h3>
                 <div className="grid gap-3">
                   {METHODS.map((m) => {
                     const active = method === m.key
@@ -268,20 +313,28 @@ export function CartView() {
                         onClick={() => setMethod(m.key)}
                         className={
                           "flex items-start gap-3 rounded-lg border p-4 text-left transition-all " +
-                          (active ? "border-sidebar bg-sidebar/5 shadow-sm" : "border-border hover:border-foreground/30")
+                          (active
+                            ? "border-sidebar bg-sidebar/5 shadow-sm"
+                            : "border-border hover:border-foreground/30")
                         }
                       >
                         <span
                           className={
                             "mt-0.5 inline-flex size-9 items-center justify-center rounded-md " +
-                            (active ? "bg-sidebar text-white" : "bg-muted text-muted-foreground")
+                            (active
+                              ? "bg-sidebar text-white"
+                              : "bg-muted text-muted-foreground")
                           }
                         >
                           <Icon className="size-5" />
                         </span>
                         <span className="flex-1">
-                          <span className="block text-sm font-semibold">{m.label}</span>
-                          <span className="text-muted-foreground text-xs">{m.desc}</span>
+                          <span className="block text-sm font-semibold">
+                            {m.label}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {m.desc}
+                          </span>
                         </span>
                       </button>
                     )
@@ -290,11 +343,22 @@ export function CartView() {
               </div>
 
               <div className="flex items-start gap-2 pt-1">
-                <Checkbox id="cgv-cart" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
-                <Label htmlFor="cgv-cart" className="text-muted-foreground text-sm leading-snug">
+                <Checkbox
+                  id="cgv-cart"
+                  checked={acceptCgv}
+                  onCheckedChange={(v) => setAcceptCgv(Boolean(v))}
+                />
+                <Label
+                  htmlFor="cgv-cart"
+                  className="text-muted-foreground text-sm leading-snug"
+                >
                   {t.rich("acceptCgvLabel", {
                     cgvLink: (chunks) => (
-                      <Link href="/cgv" target="_blank" className="text-foreground underline">
+                      <Link
+                        href="/cgv"
+                        target="_blank"
+                        className="text-foreground underline"
+                      >
                         {chunks}
                       </Link>
                     ),

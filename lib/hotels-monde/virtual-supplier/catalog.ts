@@ -30,12 +30,37 @@ interface HotelTemplate {
 }
 
 const TEMPLATES: HotelTemplate[] = [
-  { suffix: "Grand Palace", starsBase: 5, ratingBase: 9.1, nightlyBaseTnd: 620 },
-  { suffix: "Royal Resort & Spa", starsBase: 5, ratingBase: 8.9, nightlyBaseTnd: 580 },
-  { suffix: "City Center Hotel", starsBase: 4, ratingBase: 8.3, nightlyBaseTnd: 340 },
-  { suffix: "Boutique Suites", starsBase: 4, ratingBase: 8.1, nightlyBaseTnd: 310 },
+  {
+    suffix: "Grand Palace",
+    starsBase: 5,
+    ratingBase: 9.1,
+    nightlyBaseTnd: 620,
+  },
+  {
+    suffix: "Royal Resort & Spa",
+    starsBase: 5,
+    ratingBase: 8.9,
+    nightlyBaseTnd: 580,
+  },
+  {
+    suffix: "City Center Hotel",
+    starsBase: 4,
+    ratingBase: 8.3,
+    nightlyBaseTnd: 340,
+  },
+  {
+    suffix: "Boutique Suites",
+    starsBase: 4,
+    ratingBase: 8.1,
+    nightlyBaseTnd: 310,
+  },
   { suffix: "Comfort Inn", starsBase: 3, ratingBase: 7.6, nightlyBaseTnd: 210 },
-  { suffix: "Budget Lodge", starsBase: 2, ratingBase: 6.8, nightlyBaseTnd: 130 },
+  {
+    suffix: "Budget Lodge",
+    starsBase: 2,
+    ratingBase: 6.8,
+    nightlyBaseTnd: 130,
+  },
 ]
 
 /** Génère 3 à 6 offres d'hôtels déterministes pour cette destination/dates, filtrées sur `stars` si fourni. */
@@ -46,7 +71,9 @@ export function generateOffers(input: {
   checkOut: string
   stars?: number
 }): VirtualWorldHotelOffer[] {
-  const seed = hashSeed(`${input.destination}:${input.checkIn}:${input.checkOut}`)
+  const seed = hashSeed(
+    `${input.destination}:${input.checkIn}:${input.checkOut}`,
+  )
   const rng = mulberry32Like(seed)
   const offerCount = 4 + Math.floor(rng() * 3) // 4..6
 
@@ -63,7 +90,10 @@ export function generateOffers(input: {
       offerId: `${input.destination}-${input.checkIn}-${t.suffix.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       name: `${input.city} ${t.suffix}`,
       stars: t.starsBase,
-      rating: Math.round(Math.min(10, Math.max(0, t.ratingBase + ratingVariance)) * 10) / 10,
+      rating:
+        Math.round(
+          Math.min(10, Math.max(0, t.ratingBase + ratingVariance)) * 10,
+        ) / 10,
       reviewCount: 300 + Math.floor(rng() * 3200),
       nightlyBaseTnd: Math.round(t.nightlyBaseTnd * priceVariance),
       refundable: rng() < 0.55,

@@ -102,7 +102,10 @@ const getPackageWithDepartures = cache(async (slug: string) => {
           and(
             eq(catalogPackageDepartures.packageId, pkg.id),
             eq(catalogPackageDepartures.status, "open"),
-            gte(catalogPackageDepartures.departureDate, new Date().toISOString().split("T")[0]!),
+            gte(
+              catalogPackageDepartures.departureDate,
+              new Date().toISOString().split("T")[0]!,
+            ),
           ),
         )
         .orderBy(catalogPackageDepartures.departureDate)
@@ -172,13 +175,16 @@ export default async function PackageDetailPage({
   )
   // Fallback mission §23 : Media System (couverture) en priorité sur
   // pkg.coverImage (legacy) pour le bandeau hero.
-  const heroCover = media.find((m) => m.isCover)?.largeUrl || media[0]?.largeUrl || pkg.coverImage
+  const heroCover =
+    media.find((m) => m.isCover)?.largeUrl ||
+    media[0]?.largeUrl ||
+    pkg.coverImage
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
-        <div className="relative h-64 w-full bg-muted md:h-80">
+      <main className="bg-muted/30 flex-1">
+        <div className="bg-muted relative h-64 w-full md:h-80">
           {heroCover ? (
             <Image
               src={heroCover}
@@ -206,7 +212,9 @@ export default async function PackageDetailPage({
               <p className="mb-1 text-xs font-medium tracking-widest text-violet-300 uppercase">
                 {pkg.code}
               </p>
-              <h1 className="text-2xl font-bold text-white md:text-3xl">{pkg.title}</h1>
+              <h1 className="text-2xl font-bold text-white md:text-3xl">
+                {pkg.title}
+              </h1>
             </div>
           </div>
         </div>
@@ -216,22 +224,31 @@ export default async function PackageDetailPage({
             {media.length > 0 ? (
               <ProductMediaGallery
                 productName={pkg.title}
-                items={media.map((m) => ({ id: m.id, largeUrl: m.largeUrl, thumbnailUrl: m.thumbnailUrl, altText: m.altText }))}
+                items={media.map((m) => ({
+                  id: m.id,
+                  largeUrl: m.largeUrl,
+                  thumbnailUrl: m.thumbnailUrl,
+                  altText: m.altText,
+                }))}
               />
             ) : null}
 
             {pkg.longDescription && (
-              <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-3 text-lg font-semibold">{t("descriptionTitle")}</h2>
-                <p className="whitespace-pre-line text-sm text-muted-foreground">
+              <section className="bg-card rounded-xl border p-5">
+                <h2 className="mb-3 text-lg font-semibold">
+                  {t("descriptionTitle")}
+                </h2>
+                <p className="text-muted-foreground text-sm whitespace-pre-line">
                   {pkg.longDescription}
                 </p>
               </section>
             )}
 
             {(pkg.inclusions?.length || pkg.exclusions?.length) && (
-              <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-4 text-lg font-semibold">{t("inclusionsTitle")}</h2>
+              <section className="bg-card rounded-xl border p-5">
+                <h2 className="mb-4 text-lg font-semibold">
+                  {t("inclusionsTitle")}
+                </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {pkg.inclusions && pkg.inclusions.length > 0 && (
                     <ul className="space-y-1.5 text-sm">
@@ -244,10 +261,10 @@ export default async function PackageDetailPage({
                     </ul>
                   )}
                   {pkg.exclusions && pkg.exclusions.length > 0 && (
-                    <ul className="space-y-1.5 text-sm text-muted-foreground">
+                    <ul className="text-muted-foreground space-y-1.5 text-sm">
                       {pkg.exclusions.map((item) => (
                         <li key={item} className="flex items-start gap-2">
-                          <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                          <X className="text-muted-foreground/60 mt-0.5 h-3.5 w-3.5 shrink-0" />
                           {item}
                         </li>
                       ))}
@@ -258,8 +275,10 @@ export default async function PackageDetailPage({
             )}
 
             {itinerary.length > 0 && (
-              <section className="rounded-xl border bg-card p-5">
-                <h2 className="mb-4 text-lg font-semibold">{t("itineraryTitle")}</h2>
+              <section className="bg-card rounded-xl border p-5">
+                <h2 className="mb-4 text-lg font-semibold">
+                  {t("itineraryTitle")}
+                </h2>
                 <ol className="space-y-4">
                   {itinerary.map((day) => (
                     <li key={day.day} className="flex gap-3">
@@ -269,7 +288,7 @@ export default async function PackageDetailPage({
                       <div>
                         <p className="text-sm font-medium">{day.title}</p>
                         {day.description && (
-                          <p className="mt-0.5 text-sm text-muted-foreground">
+                          <p className="text-muted-foreground mt-0.5 text-sm">
                             {day.description}
                           </p>
                         )}
@@ -280,13 +299,13 @@ export default async function PackageDetailPage({
               </section>
             )}
 
-            <section className="rounded-xl border bg-card p-5">
+            <section className="bg-card rounded-xl border p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <Calendar className="h-4.5 w-4.5" />
                 {t("departuresTitle")}
               </h2>
               {departures.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   {t("noDeparturesAvailable")}
                 </p>
               ) : (
@@ -300,7 +319,10 @@ export default async function PackageDetailPage({
                         <span className="font-medium capitalize">
                           {formatDate(d.departureDate)}
                         </span>
-                        <span className="text-muted-foreground"> → {formatDate(d.returnDate)}</span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          → {formatDate(d.returnDate)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <Badge
@@ -314,7 +336,8 @@ export default async function PackageDetailPage({
                           {t("seatsAvailable", { count: d.seatsLeft })}
                         </Badge>
                         <span className="font-semibold text-violet-700">
-                          {parseFloat(d.adultPriceTnd).toLocaleString("fr-FR")} DT
+                          {parseFloat(d.adultPriceTnd).toLocaleString("fr-FR")}{" "}
+                          DT
                         </span>
                       </div>
                     </li>
@@ -325,12 +348,15 @@ export default async function PackageDetailPage({
           </div>
 
           <aside className="lg:col-span-1">
-            <div className="sticky top-4 rounded-xl border bg-card p-5">
-              <div className="mb-4 grid grid-cols-2 gap-3 text-sm text-muted-foreground">
+            <div className="bg-card sticky top-4 rounded-xl border p-5">
+              <div className="text-muted-foreground mb-4 grid grid-cols-2 gap-3 text-sm">
                 {pkg.durationDays && (
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
-                    {t("durationBadge", { days: pkg.durationDays, nights: pkg.durationNights ?? pkg.durationDays - 1 })}
+                    {t("durationBadge", {
+                      days: pkg.durationDays,
+                      nights: pkg.durationNights ?? pkg.durationDays - 1,
+                    })}
                   </div>
                 )}
                 {pkg.transportMode && (
@@ -339,27 +365,36 @@ export default async function PackageDetailPage({
                     {pkg.transportMode}
                   </div>
                 )}
-                {pkg.departureLocations && pkg.departureLocations.length > 0 && (
-                  <div className="col-span-2 flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {t("departureLocationsLabel")} {pkg.departureLocations.join(", ")}
-                  </div>
-                )}
+                {pkg.departureLocations &&
+                  pkg.departureLocations.length > 0 && (
+                    <div className="col-span-2 flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {t("departureLocationsLabel")}{" "}
+                      {pkg.departureLocations.join(", ")}
+                    </div>
+                  )}
               </div>
 
               {departures[0] && (
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("startingFrom")}
+                  </p>
                   <p className="text-3xl font-bold text-violet-700">
-                    {parseFloat(departures[0].adultPriceTnd).toLocaleString("fr-FR")}
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">
+                    {parseFloat(departures[0].adultPriceTnd).toLocaleString(
+                      "fr-FR",
+                    )}
+                    <span className="text-muted-foreground ml-1 text-sm font-normal">
                       {t("priceUnitPerAdult")}
                     </span>
                   </p>
                   {departures[0].childPriceTnd && (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
                       <Users className="h-3 w-3" />
-                      {parseFloat(departures[0].childPriceTnd).toLocaleString("fr-FR")} {t("priceUnitPerChild")}
+                      {parseFloat(departures[0].childPriceTnd).toLocaleString(
+                        "fr-FR",
+                      )}{" "}
+                      {t("priceUnitPerChild")}
                     </p>
                   )}
                 </div>
@@ -367,27 +402,43 @@ export default async function PackageDetailPage({
 
               {departures.length > 0 ? (
                 <>
-                  <Button asChild className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
-                    <Link href={`/packages/${pkg.slug}/book`}>{t("bookOnline")}</Link>
+                  <Button
+                    asChild
+                    className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
+                  >
+                    <Link href={`/packages/${pkg.slug}/book`}>
+                      {t("bookOnline")}
+                    </Link>
                   </Button>
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                  <p className="text-muted-foreground mt-2 text-center text-xs">
                     {t("contactAdvisorPrefix")}{" "}
-                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-violet-700">
+                    <a
+                      href={`tel:${CONTACT_PHONE}`}
+                      className="font-medium text-violet-700"
+                    >
                       {CONTACT_PHONE_DISPLAY}
                     </a>
                   </p>
                 </>
               ) : (
                 <>
-                  <Button asChild className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
-                    <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
+                  <Button
+                    asChild
+                    className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
+                  >
+                    <a
+                      href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}
+                    >
                       <Phone className="h-4 w-4" />
                       {t("contactAdvisor")}
                     </a>
                   </Button>
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                  <p className="text-muted-foreground mt-2 text-center text-xs">
                     {t("orCallUs")}{" "}
-                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-violet-700">
+                    <a
+                      href={`tel:${CONTACT_PHONE}`}
+                      className="font-medium text-violet-700"
+                    >
                       {CONTACT_PHONE_DISPLAY}
                     </a>
                   </p>
@@ -407,7 +458,11 @@ export default async function PackageDetailPage({
         </div>
 
         <div className="mx-auto max-w-4xl px-4 pb-8">
-          <ProductReviewsSection agencyId={pkg.agencyId} module="package" productRef={pkg.id} />
+          <ProductReviewsSection
+            agencyId={pkg.agencyId}
+            module="package"
+            productRef={pkg.id}
+          />
         </div>
       </main>
       <Footer />

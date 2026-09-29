@@ -26,7 +26,11 @@ const ROLE_LABEL: Record<AdminRole, string> = {
   agent_excursions: "Agent Excursions",
 }
 
-export function NewStaffForm({ canGrantSuperAdmin }: { canGrantSuperAdmin: boolean }) {
+export function NewStaffForm({
+  canGrantSuperAdmin,
+}: {
+  canGrantSuperAdmin: boolean
+}) {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
@@ -34,7 +38,9 @@ export function NewStaffForm({ canGrantSuperAdmin }: { canGrantSuperAdmin: boole
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const assignableRoles = ADMIN_ROLES.filter((r) => r !== "super_admin" || canGrantSuperAdmin)
+  const assignableRoles = ADMIN_ROLES.filter(
+    (r) => r !== "super_admin" || canGrantSuperAdmin,
+  )
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -55,7 +61,13 @@ export function NewStaffForm({ canGrantSuperAdmin }: { canGrantSuperAdmin: boole
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="staff-name">Nom complet</Label>
-        <Input id="staff-name" value={name} onChange={(e) => setName(e.target.value)} required disabled={isPending} />
+        <Input
+          id="staff-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          disabled={isPending}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="staff-email">Email</Label>
@@ -68,7 +80,8 @@ export function NewStaffForm({ canGrantSuperAdmin }: { canGrantSuperAdmin: boole
           disabled={isPending}
         />
         <p className="text-muted-foreground text-xs">
-          Un email d&apos;invitation Supabase sera envoyé pour la création du mot de passe.
+          Un email d&apos;invitation Supabase sera envoyé pour la création du
+          mot de passe.
         </p>
       </div>
       <div className="space-y-2">
@@ -92,7 +105,11 @@ export function NewStaffForm({ canGrantSuperAdmin }: { canGrantSuperAdmin: boole
         </Alert>
       )}
       <Button type="submit" disabled={isPending} className="gap-2">
-        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+        {isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <UserPlus className="h-4 w-4" />
+        )}
         Envoyer l&apos;invitation
       </Button>
     </form>

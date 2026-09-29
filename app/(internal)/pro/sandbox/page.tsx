@@ -63,40 +63,47 @@ export default async function SandboxPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Faux Header avec WalletStatus */}
-      <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-sidebar rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">E2B</span>
+              <div className="bg-sidebar flex h-8 w-8 items-center justify-center rounded-lg">
+                <span className="text-sm font-bold text-white">E2B</span>
               </div>
-              <span className="font-semibold text-sidebar">Easy2Book Sandbox</span>
+              <span className="text-sidebar font-semibold">
+                Easy2Book Sandbox
+              </span>
             </div>
             <WalletStatus agencyId={MOCK_AGENCY_ID} compact />
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+      <main className="mx-auto max-w-7xl space-y-12 px-4 py-8 sm:px-6 lg:px-8">
         {/* Section Info */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm text-amber-800">
-            <strong>Page de test publique</strong> — Cette page ne nécessite pas d&apos;authentification.
-            Les formulaires utilisent des données simulées (mock data) pour validation UI/UX uniquement.
+            <strong>Page de test publique</strong> — Cette page ne nécessite pas
+            d&apos;authentification. Les formulaires utilisent des données
+            simulées (mock data) pour validation UI/UX uniquement.
           </p>
         </div>
 
         {/* Section Omra */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <User className="w-6 h-6 text-sidebar" />
-            <h2 className="text-2xl font-bold text-sidebar">Module Omra</h2>
+            <User className="text-sidebar h-6 w-6" />
+            <h2 className="text-sidebar text-2xl font-bold">Module Omra</h2>
           </div>
           <p className="text-muted-foreground">
-            Formulaire de réservation Omra de groupe avec ajout dynamique de pèlerins.
+            Formulaire de réservation Omra de groupe avec ajout dynamique de
+            pèlerins.
             <br />
-            <span className="text-xs text-muted-foreground">
-              Tarifs simulés : Single {MOCK_OMRA_PACKAGE.roomPricing.single} DT | Double {MOCK_OMRA_PACKAGE.roomPricing.double} DT | Triple {MOCK_OMRA_PACKAGE.roomPricing.triple} DT | Quad {MOCK_OMRA_PACKAGE.roomPricing.quad} DT
+            <span className="text-muted-foreground text-xs">
+              Tarifs simulés : Single {MOCK_OMRA_PACKAGE.roomPricing.single} DT
+              | Double {MOCK_OMRA_PACKAGE.roomPricing.double} DT | Triple{" "}
+              {MOCK_OMRA_PACKAGE.roomPricing.triple} DT | Quad{" "}
+              {MOCK_OMRA_PACKAGE.roomPricing.quad} DT
             </span>
           </p>
           <OmraBookingForm />
@@ -107,11 +114,14 @@ export default async function SandboxPage() {
         {/* Section Transferts */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <Car className="w-6 h-6 text-sidebar" />
-            <h2 className="text-2xl font-bold text-sidebar">Module Transferts</h2>
+            <Car className="text-sidebar h-6 w-6" />
+            <h2 className="text-sidebar text-2xl font-bold">
+              Module Transferts
+            </h2>
           </div>
           <p className="text-muted-foreground">
-            Formulaire de réservation de transfert avec calcul de devis en temps réel.
+            Formulaire de réservation de transfert avec calcul de devis en temps
+            réel.
           </p>
           <TransferBookingForm zones={zones} agencyId={MOCK_AGENCY_ID} />
         </section>
@@ -121,11 +131,14 @@ export default async function SandboxPage() {
         {/* Section Wallet Status (Full) */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <Wallet className="w-6 h-6 text-sidebar" />
-            <h2 className="text-2xl font-bold text-sidebar">Wallet Status (Full)</h2>
+            <Wallet className="text-sidebar h-6 w-6" />
+            <h2 className="text-sidebar text-2xl font-bold">
+              Wallet Status (Full)
+            </h2>
           </div>
           <p className="text-muted-foreground">
-            Composant WalletStatus en mode complet (non compact) pour vérifier l&apos;alignement du solde.
+            Composant WalletStatus en mode complet (non compact) pour vérifier
+            l&apos;alignement du solde.
           </p>
           <div className="max-w-md">
             <WalletStatus agencyId={MOCK_AGENCY_ID} />
@@ -134,8 +147,8 @@ export default async function SandboxPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t mt-12 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-muted-foreground">
+      <footer className="mt-12 border-t bg-white py-6">
+        <div className="text-muted-foreground mx-auto max-w-7xl px-4 text-center text-sm sm:px-6 lg:px-8">
           <p>Easy2Book Sandbox — Page de test UI/UX</p>
           <p className="mt-1">Non accessible en production</p>
         </div>

@@ -16,7 +16,10 @@ import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { createServerSupabase } from "@/lib/supabase/server"
-import { FAVORITE_ITEM_TYPES, toggleFavoriteCore } from "@/lib/favorites/favorites-core"
+import {
+  FAVORITE_ITEM_TYPES,
+  toggleFavoriteCore,
+} from "@/lib/favorites/favorites-core"
 
 const inputSchema = z.object({
   itemType: z.enum(FAVORITE_ITEM_TYPES),
@@ -35,7 +38,9 @@ export type ToggleFavoriteResult =
   | { ok: true; favorited: boolean }
   | { ok: false; error: string; code?: string }
 
-export async function toggleFavorite(raw: ToggleFavoriteInput): Promise<ToggleFavoriteResult> {
+export async function toggleFavorite(
+  raw: ToggleFavoriteInput,
+): Promise<ToggleFavoriteResult> {
   const parsed = inputSchema.safeParse(raw)
   if (!parsed.success) {
     return { ok: false, error: "Entrée invalide." }
@@ -50,7 +55,11 @@ export async function toggleFavorite(raw: ToggleFavoriteInput): Promise<ToggleFa
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { ok: false, error: "Connectez-vous pour ajouter des favoris.", code: "NOT_AUTHENTICATED" }
+    return {
+      ok: false,
+      error: "Connectez-vous pour ajouter des favoris.",
+      code: "NOT_AUTHENTICATED",
+    }
   }
 
   const tenant = await guestTenantContext()

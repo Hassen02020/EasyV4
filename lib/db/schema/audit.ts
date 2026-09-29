@@ -98,7 +98,9 @@ export const auditLogs = pgTable(
     metadata: jsonb("metadata").$type<AuditMetadata>(),
 
     // Timestamp
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "audit_logs_user_idx", on: t.userId },

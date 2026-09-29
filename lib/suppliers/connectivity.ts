@@ -40,15 +40,18 @@ export const CONNECTIVITY_LEVELS: ConnectivityLevel[] = [
 ]
 
 export const CONNECTIVITY_LEVEL_LABELS: Record<ConnectivityLevel, string> = {
-  l0_manual:   "L0 · Manuel",
-  l1_portal:   "L1 · Portail",
-  l2_file:     "L2 · Fichier / CSV",
-  l3_api:      "L3 · API",
-  l4_xml_gds:  "L4 · XML / GDS / NDC",
-  l5_native:   "L5 · Natif temps réel",
+  l0_manual: "L0 · Manuel",
+  l1_portal: "L1 · Portail",
+  l2_file: "L2 · Fichier / CSV",
+  l3_api: "L3 · API",
+  l4_xml_gds: "L4 · XML / GDS / NDC",
+  l5_native: "L5 · Natif temps réel",
 }
 
-export const CONNECTIVITY_LEVEL_DESCRIPTIONS: Record<ConnectivityLevel, string> = {
+export const CONNECTIVITY_LEVEL_DESCRIPTIONS: Record<
+  ConnectivityLevel,
+  string
+> = {
   l0_manual:
     "Aucun logiciel — le fournisseur gère ses produits, disponibilités et prix directement dans le portail Easy2Book.",
   l1_portal:
@@ -64,13 +67,47 @@ export const CONNECTIVITY_LEVEL_DESCRIPTIONS: Record<ConnectivityLevel, string> 
 }
 
 /** Capabilities qu'on peut attendre à chaque niveau de connectivité. */
-export const CONNECTIVITY_LEVEL_CAPABILITIES: Record<ConnectivityLevel, string[]> = {
-  l0_manual:  ["product_catalog", "availability_manual", "booking_manual"],
-  l1_portal:  ["product_catalog", "availability_managed", "booking_managed", "cancellation_managed"],
-  l2_file:    ["product_catalog", "availability_import", "pricing_import"],
-  l3_api:     ["search", "availability", "pricing", "booking", "cancellation", "retrieve"],
-  l4_xml_gds: ["search", "availability", "pricing", "booking", "cancellation", "retrieve", "modify"],
-  l5_native:  ["search", "availability", "pricing", "booking", "cancellation", "retrieve", "modify", "webhook", "reconciliation", "health_monitoring"],
+export const CONNECTIVITY_LEVEL_CAPABILITIES: Record<
+  ConnectivityLevel,
+  string[]
+> = {
+  l0_manual: ["product_catalog", "availability_manual", "booking_manual"],
+  l1_portal: [
+    "product_catalog",
+    "availability_managed",
+    "booking_managed",
+    "cancellation_managed",
+  ],
+  l2_file: ["product_catalog", "availability_import", "pricing_import"],
+  l3_api: [
+    "search",
+    "availability",
+    "pricing",
+    "booking",
+    "cancellation",
+    "retrieve",
+  ],
+  l4_xml_gds: [
+    "search",
+    "availability",
+    "pricing",
+    "booking",
+    "cancellation",
+    "retrieve",
+    "modify",
+  ],
+  l5_native: [
+    "search",
+    "availability",
+    "pricing",
+    "booking",
+    "cancellation",
+    "retrieve",
+    "modify",
+    "webhook",
+    "reconciliation",
+    "health_monitoring",
+  ],
 }
 
 // ---------------------------------------------------------------------------
@@ -92,13 +129,14 @@ export const CERTIFICATION_STATUSES: CertificationStatus[] = [
   "premium_partner",
 ]
 
-export const CERTIFICATION_STATUS_LABELS: Record<CertificationStatus, string> = {
-  registered:      "Enregistré",
-  verified:        "Vérifié",
-  connected:       "Connecté",
-  certified:       "Certifié",
-  premium_partner: "Partenaire Premium",
-}
+export const CERTIFICATION_STATUS_LABELS: Record<CertificationStatus, string> =
+  {
+    registered: "Enregistré",
+    verified: "Vérifié",
+    connected: "Connecté",
+    certified: "Certifié",
+    premium_partner: "Partenaire Premium",
+  }
 
 // ---------------------------------------------------------------------------
 // Connection Profile — décrit comment se connecter à un fournisseur donné
@@ -150,7 +188,10 @@ export type SupplierModule =
 // ---------------------------------------------------------------------------
 
 /** Retourne true si le niveau `a` est supérieur ou égal à `b`. */
-export function connectivityAtLeast(a: ConnectivityLevel, b: ConnectivityLevel): boolean {
+export function connectivityAtLeast(
+  a: ConnectivityLevel,
+  b: ConnectivityLevel,
+): boolean {
   return CONNECTIVITY_LEVELS.indexOf(a) >= CONNECTIVITY_LEVELS.indexOf(b)
 }
 
@@ -163,6 +204,9 @@ export function connectivityLevelIndex(level: ConnectivityLevel): number {
  * Vérifie si un fournisseur au niveau `level` supporte les capacités listées.
  * Utilisé pour filtrer les fournisseurs par capacité dans l'orchestration.
  */
-export function supportsCapability(level: ConnectivityLevel, capability: string): boolean {
+export function supportsCapability(
+  level: ConnectivityLevel,
+  capability: string,
+): boolean {
   return CONNECTIVITY_LEVEL_CAPABILITIES[level].includes(capability)
 }

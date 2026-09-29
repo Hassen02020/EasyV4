@@ -29,7 +29,13 @@ import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { NextRequest } from "next/server"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, reservationHotel, partnerInvoices } from "@/lib/db/schema"
+import {
+  agencies,
+  customers,
+  reservations,
+  reservationHotel,
+  partnerInvoices,
+} from "@/lib/db/schema"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { GET as invoiceGet } from "@/app/api/booking/invoice/[ref]/route"
 import { GET as voucherGet } from "@/app/api/booking/voucher/[ref]/route"
@@ -82,11 +88,21 @@ before(async () => {
 
     const [customerOwner] = await tx
       .insert(customers)
-      .values({ agencyId, firstName: "Owner", lastName: "Test", email: `owner-${suffix}@example.com` })
+      .values({
+        agencyId,
+        firstName: "Owner",
+        lastName: "Test",
+        email: `owner-${suffix}@example.com`,
+      })
       .returning({ id: customers.id })
     const [customerOther] = await tx
       .insert(customers)
-      .values({ agencyId, firstName: "Other", lastName: "Client", email: `other-${suffix}@example.com` })
+      .values({
+        agencyId,
+        firstName: "Other",
+        lastName: "Client",
+        email: `other-${suffix}@example.com`,
+      })
       .returning({ id: customers.id })
 
     const [owned] = await tx
@@ -102,7 +118,11 @@ before(async () => {
         originalAmount: "400.00",
         tndAmount: "400.00",
       })
-      .returning({ id: reservations.id, publicRef: reservations.publicRef, guestAccessToken: reservations.guestAccessToken })
+      .returning({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+      })
     ownedReservationId = owned!.id
     ownedRef = owned!.publicRef
     ownedToken = owned!.guestAccessToken
@@ -146,7 +166,10 @@ before(async () => {
         originalAmount: "200.00",
         tndAmount: "200.00",
       })
-      .returning({ publicRef: reservations.publicRef, guestAccessToken: reservations.guestAccessToken })
+      .returning({
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+      })
     unpaidRef = unpaid!.publicRef
     unpaidToken = unpaid!.guestAccessToken
 
@@ -163,7 +186,11 @@ before(async () => {
         originalAmount: "150.00",
         tndAmount: "150.00",
       })
-      .returning({ id: reservations.id, publicRef: reservations.publicRef, guestAccessToken: reservations.guestAccessToken })
+      .returning({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+      })
     pendingRef = pending!.publicRef
     pendingToken = pending!.guestAccessToken
     await tx.insert(reservationHotel).values({
@@ -185,13 +212,19 @@ before(async () => {
     reservationId: ownedReservationId,
     actorUserId: randomUUID(),
   })
-  assert.equal(invoiceResult.ok, true, "précondition test : la facture doit avoir été générée")
+  assert.equal(
+    invoiceResult.ok,
+    true,
+    "précondition test : la facture doit avoir été générée",
+  )
 })
 
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
-    await tx.delete(partnerInvoices).where(eq(partnerInvoices.agencyId, agencyId))
+    await tx
+      .delete(partnerInvoices)
+      .where(eq(partnerInvoices.agencyId, agencyId))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
     await tx.delete(customers).where(eq(customers.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))

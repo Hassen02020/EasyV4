@@ -15,7 +15,10 @@ export async function register() {
   if (!process.env.SENTRY_DSN) return
 
   try {
-    if (process.env.NEXT_RUNTIME === "nodejs" || process.env.NEXT_RUNTIME === "edge") {
+    if (
+      process.env.NEXT_RUNTIME === "nodejs" ||
+      process.env.NEXT_RUNTIME === "edge"
+    ) {
       const Sentry = await import("@sentry/nextjs").catch(() => null)
       if (Sentry) {
         Sentry.init({
@@ -23,7 +26,9 @@ export async function register() {
           environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
           tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
           // profilesSampleRate n'est disponible que côté Node (pas Edge).
-          ...(process.env.NEXT_RUNTIME === "nodejs" ? { profilesSampleRate: 0.1 } : {}),
+          ...(process.env.NEXT_RUNTIME === "nodejs"
+            ? { profilesSampleRate: 0.1 }
+            : {}),
         })
       }
     }

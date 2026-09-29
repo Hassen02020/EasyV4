@@ -142,7 +142,7 @@ Autocomplete" lignes 286-357.
 **Page** : `app/(public)/[locale]/attractions/page.tsx`.
 
 - Pattern UI : **texte libre**, pas d'autocomplete — `<Input type="text"
-  name="q">` dans un `<form action="/attractions">` classique (soumission
+name="q">` dans un `<form action="/attractions">` classique (soumission
   serveur GET, pas de JavaScript côté client), `page.tsx:120-131`.
 - Pas de suggestions, pas de liste déroulante, pas de debounce (le champ
   ne déclenche rien avant soumission du formulaire).
@@ -206,7 +206,7 @@ fixtures statiques), scopées par `agencyId` (confirmant le chantier 1).
   (`fromZone`/`toZone`) itérant la prop `zones: CatalogTransferZone[]`.
 - Alimentation réelle : `app/(public)/[locale]/transferts/page.tsx` —
   requête `db.select().from(catalogTransferZones).where(eq(status,
-  "active")).orderBy(name)` (lignes ~28-32), sans filtre `agencyId`
+"active")).orderBy(name)` (lignes ~28-32), sans filtre `agencyId`
   explicite visible dans cet extrait (à vérifier au chantier
   architecture si pertinent).
 - État "aucune zone disponible" : géré (`t("noZoneAvailable")`,
@@ -309,22 +309,22 @@ fixtures statiques), scopées par `agencyId` (confirmant le chantier 1).
 
 ### 9.1 Composants distincts implémentant une logique de sélection de destination
 
-| Composant | Fichier | Pattern | Données |
-|---|---|---|---|
-| `HotelsTunisieSearch` (ville) | `components/hotels-tunisie-search.tsx:286-357` | Popover + cmdk Command (combobox filtrable) | API `/api/hotels/cities`, cache 24h |
-| `WorldHotelSearch` (destination monde) | `components/hotels-monde/world-hotel-search.tsx:79-90` | `<Select>` | `POPULAR_DESTINATIONS` statique (10) |
-| `PackageSearch` (destination) | `components/packages/package-search.tsx:49-60` | `<Select>` | `DESTINATIONS` statique (8) |
-| `FlightSearch` (origine + destination) | `components/vols/flight-search.tsx:133-164` | 2× `<Select>` | `AIRPORTS` statique (11) |
-| `TransferSearch` (from/to zone) | `components/transfer/transfer-search.tsx:81-119` | 2× `<Select>` | `catalog_transfer_zones` (DB réelle) |
-| `CarSearch` (pickup/dropoff) | `components/car/car-search.tsx:151-207` | 2× `<Select>` | `car_locations` (DB réelle) |
-| Attractions (recherche texte) | `app/(public)/[locale]/attractions/page.tsx:120-131` | `<Input type="text">` + submit serveur | `catalog_activities` (ILIKE) |
-| `VolsForm` (widget accueil, **mort**) | `components/booking-engine.tsx:526-544` | 2× `<Input>` texte libre | aucune (texte brut) |
-| `HotelsMondeForm` (widget accueil) | `components/booking-engine.tsx:713-719` | `<Input>` texte libre + `matchDestination()` | `POPULAR_DESTINATIONS` (fuzzy match) |
-| `OmratyForm` (widget accueil) | `components/booking-engine.tsx:803-862` | aucun champ destination | — |
-| `VoyagesOrganisesForm` (widget accueil) | `components/booking-engine.tsx:883-961` | `<Select>` | `PACKAGE_DESTINATION_VALUES` (dupliqué) |
-| `AttractionsForm` (widget accueil) | `components/booking-engine.tsx:963-995` | `<Input type="text">` | aucune |
-| `TransfertsForm` (widget accueil, **mort**) | `components/booking-engine.tsx:1039-1076` | 2× `<Select>` | prop `zones` (jamais alimentée en pratique, code inatteignable) |
-| `CarForm` (widget accueil, **mort**) | `components/booking-engine.tsx:1184-1216` | `<Select>` | `CAR_LOCATIONS` statique fossile (5) |
+| Composant                                   | Fichier                                                | Pattern                                      | Données                                                         |
+| ------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------- |
+| `HotelsTunisieSearch` (ville)               | `components/hotels-tunisie-search.tsx:286-357`         | Popover + cmdk Command (combobox filtrable)  | API `/api/hotels/cities`, cache 24h                             |
+| `WorldHotelSearch` (destination monde)      | `components/hotels-monde/world-hotel-search.tsx:79-90` | `<Select>`                                   | `POPULAR_DESTINATIONS` statique (10)                            |
+| `PackageSearch` (destination)               | `components/packages/package-search.tsx:49-60`         | `<Select>`                                   | `DESTINATIONS` statique (8)                                     |
+| `FlightSearch` (origine + destination)      | `components/vols/flight-search.tsx:133-164`            | 2× `<Select>`                                | `AIRPORTS` statique (11)                                        |
+| `TransferSearch` (from/to zone)             | `components/transfer/transfer-search.tsx:81-119`       | 2× `<Select>`                                | `catalog_transfer_zones` (DB réelle)                            |
+| `CarSearch` (pickup/dropoff)                | `components/car/car-search.tsx:151-207`                | 2× `<Select>`                                | `car_locations` (DB réelle)                                     |
+| Attractions (recherche texte)               | `app/(public)/[locale]/attractions/page.tsx:120-131`   | `<Input type="text">` + submit serveur       | `catalog_activities` (ILIKE)                                    |
+| `VolsForm` (widget accueil, **mort**)       | `components/booking-engine.tsx:526-544`                | 2× `<Input>` texte libre                     | aucune (texte brut)                                             |
+| `HotelsMondeForm` (widget accueil)          | `components/booking-engine.tsx:713-719`                | `<Input>` texte libre + `matchDestination()` | `POPULAR_DESTINATIONS` (fuzzy match)                            |
+| `OmratyForm` (widget accueil)               | `components/booking-engine.tsx:803-862`                | aucun champ destination                      | —                                                               |
+| `VoyagesOrganisesForm` (widget accueil)     | `components/booking-engine.tsx:883-961`                | `<Select>`                                   | `PACKAGE_DESTINATION_VALUES` (dupliqué)                         |
+| `AttractionsForm` (widget accueil)          | `components/booking-engine.tsx:963-995`                | `<Input type="text">`                        | aucune                                                          |
+| `TransfertsForm` (widget accueil, **mort**) | `components/booking-engine.tsx:1039-1076`              | 2× `<Select>`                                | prop `zones` (jamais alimentée en pratique, code inatteignable) |
+| `CarForm` (widget accueil, **mort**)        | `components/booking-engine.tsx:1184-1216`              | `<Select>`                                   | `CAR_LOCATIONS` statique fossile (5)                            |
 
 **Total : 14 implémentations distinctes** (11 réellement atteignables par
 un utilisateur + 3 mortes) réparties sur 9 fichiers. **Aucun composant
@@ -403,14 +403,14 @@ combobox** — ce sont de simples `<input>`/`<Input>` sans `role`,
 
 ### 9.6 i18n des libellés de destination
 
-| Source | Traduit FR/EN/AR ? | Preuve |
-|---|---|---|
-| Villes Hôtels Tunisie (myGo) | Non déterminable avec certitude — noms retournés tels quels par `/api/hotels/cities`, pas de clé `next-intl` visible dans `hotels-tunisie-search.tsx` pour `city.name`/`city.region` | `hotels-tunisie-search.tsx:341,343` (affiche `city.name`/`city.region` bruts) |
-| Destinations Hôtels Monde | **Non** — chaînes françaises en dur | `lib/hotels-monde/search-state.ts:19-30`, aucun `useTranslations` dans ce fichier |
-| Destinations Packages | **Oui** — clés `Packages.destinations.*` | `messages/{fr,en,ar}.json`, `package-search.tsx:56` |
-| Aéroports Vols | Non — labels français en dur | `lib/vols/search-state.ts:33-45` |
-| Zones Transferts / Lieux Car | Non — colonne `name` unique en base, pas de `name_en`/`name_ar` | `lib/db/schema.ts:941` (`catalogTransferZones.name`), `lib/db/schema/cars.ts:99` (`carLocations.name`) |
-| Libellés de champs (labels/placeholders, hors noms de destination) | Oui, partout — via `next-intl` (`useTranslations`) | présent dans tous les composants revus |
+| Source                                                             | Traduit FR/EN/AR ?                                                                                                                                                                   | Preuve                                                                                                 |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Villes Hôtels Tunisie (myGo)                                       | Non déterminable avec certitude — noms retournés tels quels par `/api/hotels/cities`, pas de clé `next-intl` visible dans `hotels-tunisie-search.tsx` pour `city.name`/`city.region` | `hotels-tunisie-search.tsx:341,343` (affiche `city.name`/`city.region` bruts)                          |
+| Destinations Hôtels Monde                                          | **Non** — chaînes françaises en dur                                                                                                                                                  | `lib/hotels-monde/search-state.ts:19-30`, aucun `useTranslations` dans ce fichier                      |
+| Destinations Packages                                              | **Oui** — clés `Packages.destinations.*`                                                                                                                                             | `messages/{fr,en,ar}.json`, `package-search.tsx:56`                                                    |
+| Aéroports Vols                                                     | Non — labels français en dur                                                                                                                                                         | `lib/vols/search-state.ts:33-45`                                                                       |
+| Zones Transferts / Lieux Car                                       | Non — colonne `name` unique en base, pas de `name_en`/`name_ar`                                                                                                                      | `lib/db/schema.ts:941` (`catalogTransferZones.name`), `lib/db/schema/cars.ts:99` (`carLocations.name`) |
+| Libellés de champs (labels/placeholders, hors noms de destination) | Oui, partout — via `next-intl` (`useTranslations`)                                                                                                                                   | présent dans tous les composants revus                                                                 |
 
 Seul le module Packages traduit réellement les **noms de destination**
 eux-mêmes dans les 3 langues ; tous les autres modules traduisent les
@@ -436,16 +436,16 @@ accueil) utilise le même `Popover` ancré, sans variante responsive
 
 ## 10. Tableau de correspondance vers le Canonical Destination Model
 
-| Module | Champ(s) actuel(s) (param URL/state) | Module `destination_external_refs` cible | Mappable aujourd'hui ? |
-|---|---|---|---|
-| Hôtels Tunisie | `cityId` (numérique myGo) | `mygo_city` | **Oui** — correspondance directe, c'est la clé pivot déjà retenue au chantier 2 |
-| Hôtels Monde | `destination` (slug, ex. `istanbul`) | `hotels_monde_slug` | **Oui** — la table `destination_external_refs` a déjà ce module prévu ; nécessite un mapping manuel des 10 slugs vers des lignes `destinations` (peuvent ne pas exister encore si la ville n'est pas tunisienne) |
-| Packages / Voyages Organisés | `destination` (slug, ex. `casablanca`) | `packages_slug` | **Oui** — module déjà prévu ; les 8 slugs sont différents de ceux d'Hôtels Monde malgré des noms proches (constat chantier 1), mapping à faire séparément |
-| Vols | `origin`/`destination` (code IATA) | `iata` | **Oui** — module déjà prévu ; 11 codes, dont plusieurs correspondent à des villes déjà couvertes par myGo (ex. `TUN`) et d'autres non (ex. `CDG`, `FCO`) |
-| Omra | *(aucun champ destination)* | — | **Non applicable** — pas de recherche géographique dans ce module ; seule donnée géo est `omraHotels.city` (`mecca`/`medina`), non exposée comme filtre |
-| Attractions | `q` (texte libre, titre + lieu confondus) | — | **Non mappable en l'état** — `catalog_activities.location` est un champ texte libre non structuré (constat chantier 1), aucune colonne dédiée à normaliser avant tout mapping |
-| Car | `pickup`/`dropoff` (`uuid` de `car_locations.id`) | *(aucun module prévu dans le schéma actuel)* | **Non mappable en l'état** — `car_locations` n'a aucune colonne ville/pays structurée reliable à une ligne `destinations` (confirmé chantier 1) ; nécessiterait un nouveau module dans le CHECK de `destination_external_refs` **et** un enrichissement du schéma `car_locations` |
-| Transferts | `from`/`to` (`uuid` de `catalog_transfer_zones.id`) | *(aucun module prévu dans le schéma actuel)* | **Non mappable en l'état** — même situation que Car : `catalog_transfer_zones` n'a aucun rattachement ville (confirmé chantier 1) |
+| Module                       | Champ(s) actuel(s) (param URL/state)                | Module `destination_external_refs` cible     | Mappable aujourd'hui ?                                                                                                                                                                                                                                                            |
+| ---------------------------- | --------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hôtels Tunisie               | `cityId` (numérique myGo)                           | `mygo_city`                                  | **Oui** — correspondance directe, c'est la clé pivot déjà retenue au chantier 2                                                                                                                                                                                                   |
+| Hôtels Monde                 | `destination` (slug, ex. `istanbul`)                | `hotels_monde_slug`                          | **Oui** — la table `destination_external_refs` a déjà ce module prévu ; nécessite un mapping manuel des 10 slugs vers des lignes `destinations` (peuvent ne pas exister encore si la ville n'est pas tunisienne)                                                                  |
+| Packages / Voyages Organisés | `destination` (slug, ex. `casablanca`)              | `packages_slug`                              | **Oui** — module déjà prévu ; les 8 slugs sont différents de ceux d'Hôtels Monde malgré des noms proches (constat chantier 1), mapping à faire séparément                                                                                                                         |
+| Vols                         | `origin`/`destination` (code IATA)                  | `iata`                                       | **Oui** — module déjà prévu ; 11 codes, dont plusieurs correspondent à des villes déjà couvertes par myGo (ex. `TUN`) et d'autres non (ex. `CDG`, `FCO`)                                                                                                                          |
+| Omra                         | _(aucun champ destination)_                         | —                                            | **Non applicable** — pas de recherche géographique dans ce module ; seule donnée géo est `omraHotels.city` (`mecca`/`medina`), non exposée comme filtre                                                                                                                           |
+| Attractions                  | `q` (texte libre, titre + lieu confondus)           | —                                            | **Non mappable en l'état** — `catalog_activities.location` est un champ texte libre non structuré (constat chantier 1), aucune colonne dédiée à normaliser avant tout mapping                                                                                                     |
+| Car                          | `pickup`/`dropoff` (`uuid` de `car_locations.id`)   | _(aucun module prévu dans le schéma actuel)_ | **Non mappable en l'état** — `car_locations` n'a aucune colonne ville/pays structurée reliable à une ligne `destinations` (confirmé chantier 1) ; nécessiterait un nouveau module dans le CHECK de `destination_external_refs` **et** un enrichissement du schéma `car_locations` |
+| Transferts                   | `from`/`to` (`uuid` de `catalog_transfer_zones.id`) | _(aucun module prévu dans le schéma actuel)_ | **Non mappable en l'état** — même situation que Car : `catalog_transfer_zones` n'a aucun rattachement ville (confirmé chantier 1)                                                                                                                                                 |
 
 ---
 
@@ -501,7 +501,7 @@ accueil) utilise le même `Popover` ancré, sans variante responsive
 
 ---
 
-*Prochaine étape (chantier 3, suite — architecture, distincte et pas
+_Prochaine étape (chantier 3, suite — architecture, distincte et pas
 commencée) : conception de l'unification de la recherche/autocomplete de
 destination à partir de ces constats, avec validation utilisateur séparée
-avant tout code.*
+avant tout code._

@@ -31,7 +31,10 @@ export interface LogSupplierAuditParams {
   diff?: Record<string, unknown>
 }
 
-export async function logSupplierAudit(tx: DrizzleTransaction, params: LogSupplierAuditParams): Promise<void> {
+export async function logSupplierAudit(
+  tx: DrizzleTransaction,
+  params: LogSupplierAuditParams,
+): Promise<void> {
   await tx.insert(auditEvents).values({
     agencyId: params.agencyId,
     actorUserId: params.actorUserId,
@@ -43,12 +46,23 @@ export async function logSupplierAudit(tx: DrizzleTransaction, params: LogSuppli
 }
 
 /** Utilitaire de non-régression — vérifie qu'un objet `diff` ne contient jamais de champ secret par erreur d'appel. */
-export function assertNoSecretLeak(diff: Record<string, unknown> | undefined): void {
+export function assertNoSecretLeak(
+  diff: Record<string, unknown> | undefined,
+): void {
   if (!diff) return
-  const forbidden = ["ciphertext", "password", "login", "apiKey", "apiSecret", "token"]
+  const forbidden = [
+    "ciphertext",
+    "password",
+    "login",
+    "apiKey",
+    "apiSecret",
+    "token",
+  ]
   for (const key of Object.keys(diff)) {
     if (forbidden.some((f) => key.toLowerCase().includes(f.toLowerCase()))) {
-      throw new Error(`Fuite de secret potentielle dans un audit_events.diff — clé suspecte: "${key}"`)
+      throw new Error(
+        `Fuite de secret potentielle dans un audit_events.diff — clé suspecte: "${key}"`,
+      )
     }
   }
 }

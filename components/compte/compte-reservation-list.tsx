@@ -24,7 +24,11 @@ import type { BookingSummary } from "@/lib/booking/summary-types"
 
 const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
 
-export function CompteReservationList({ bookings }: { bookings: BookingSummary[] }) {
+export function CompteReservationList({
+  bookings,
+}: {
+  bookings: BookingSummary[]
+}) {
   const router = useRouter()
 
   async function handleCancel(bookingId: string, module: string) {
@@ -44,8 +48,16 @@ export function CompteReservationList({ bookings }: { bookings: BookingSummary[]
     return { ok: false, error: result.error }
   }
 
-  async function handleReview(bookingId: string, rating: number, comment: string) {
-    const result = await submitReview({ reservationId: bookingId, rating, comment: comment || undefined })
+  async function handleReview(
+    bookingId: string,
+    rating: number,
+    comment: string,
+  ) {
+    const result = await submitReview({
+      reservationId: bookingId,
+      rating,
+      comment: comment || undefined,
+    })
     if (!result.ok) return { ok: false, error: result.error }
     router.refresh()
     return { ok: true }
@@ -54,7 +66,11 @@ export function CompteReservationList({ bookings }: { bookings: BookingSummary[]
   return (
     <div className="space-y-4">
       {bookings.map((booking) => (
-        <div key={booking.id} id={`reservation-${booking.id}`} className="scroll-mt-4">
+        <div
+          key={booking.id}
+          id={`reservation-${booking.id}`}
+          className="scroll-mt-4"
+        >
           <BookingCard
             booking={booking}
             onCancel={(id) => handleCancel(id, booking.module)}

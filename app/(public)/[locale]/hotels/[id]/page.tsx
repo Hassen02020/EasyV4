@@ -36,7 +36,11 @@ import { Header } from "@/components/header"
 // comportement précédent (pas de régression, juste pas encore White Label
 // sur cette page précise).
 import { FooterClient as Footer } from "@/components/footer-client"
-import type { HotelDetailsDTO, HotelOfferDTO, HotelSearchResultDTO } from "@/lib/mygo/types"
+import type {
+  HotelDetailsDTO,
+  HotelOfferDTO,
+  HotelSearchResultDTO,
+} from "@/lib/mygo/types"
 import { use } from "react"
 import { HotelRoomRates, type RoomOption } from "@/components/hotel-room-rates"
 import { toCardShape } from "@/components/hotel-listings"
@@ -180,13 +184,23 @@ function HotelDetailContent({ id }: { id: string }) {
   useEffect(() => {
     if (!roomsRequestKey || !checkin || !checkout) return
     const ctrl = new AbortController()
-    const params = new URLSearchParams({ hotelId: id, checkin, checkout, adults })
+    const params = new URLSearchParams({
+      hotelId: id,
+      checkin,
+      checkout,
+      adults,
+    })
     if (children) params.set("children", children)
     if (state.data?.cityId) params.set("cityId", String(state.data.cityId))
-    fetch(`/api/hotels/search-public?${params.toString()}`, { signal: ctrl.signal })
+    fetch(`/api/hotels/search-public?${params.toString()}`, {
+      signal: ctrl.signal,
+    })
       .then(async (r) => {
         if (!r.ok) {
-          const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string }
+          const body = (await r.json().catch(() => ({}))) as {
+            message?: string
+            error?: string
+          }
           throw new Error(body.message ?? body.error ?? `HTTP ${r.status}`)
         }
         return r.json() as Promise<HotelSearchResultDTO>
@@ -209,7 +223,16 @@ function HotelDetailContent({ id }: { id: string }) {
         })
       })
     return () => ctrl.abort()
-  }, [roomsRequestKey, id, checkin, checkout, adults, children, state.data?.cityId, t])
+  }, [
+    roomsRequestKey,
+    id,
+    checkin,
+    checkout,
+    adults,
+    children,
+    state.data?.cityId,
+    t,
+  ])
 
   const roomsEffectiveStatus: "idle" | "loading" | "success" | "error" =
     !roomsRequestKey
@@ -246,13 +269,20 @@ function HotelDetailContent({ id }: { id: string }) {
       adults,
     })
     if (children) params.set("children", children)
-    fetch(`/api/hotels/search-public?${params.toString()}`, { signal: ctrl.signal })
+    fetch(`/api/hotels/search-public?${params.toString()}`, {
+      signal: ctrl.signal,
+    })
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json() as Promise<HotelSearchResultDTO>
       })
       .then((data) => {
-        setAltState({ loadedKey: altRequestKey, status: "success", offers: data.offers, error: null })
+        setAltState({
+          loadedKey: altRequestKey,
+          status: "success",
+          offers: data.offers,
+          error: null,
+        })
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === "AbortError") return
@@ -264,10 +294,22 @@ function HotelDetailContent({ id }: { id: string }) {
         })
       })
     return () => ctrl.abort()
-  }, [altRequestKey, checkin, checkout, adults, children, state.data?.cityId, t])
+  }, [
+    altRequestKey,
+    checkin,
+    checkout,
+    adults,
+    children,
+    state.data?.cityId,
+    t,
+  ])
 
   const altEffectiveStatus: "idle" | "loading" | "success" | "error" =
-    !altRequestKey ? "idle" : altState.loadedKey !== altRequestKey ? "loading" : altState.status
+    !altRequestKey
+      ? "idle"
+      : altState.loadedKey !== altRequestKey
+        ? "loading"
+        : altState.status
 
   const hotel = state.data
   const images = useMemo(() => {
@@ -300,7 +342,10 @@ function HotelDetailContent({ id }: { id: string }) {
     // aucune nouvelle recherche, aucun rechargement.
     if (roomsEffectiveStatus === "success") {
       roomsHeadingRef.current?.focus()
-      roomsHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      roomsHeadingRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
       return
     }
     if (checkin && checkout && hotel.cityId) {
@@ -339,7 +384,9 @@ function HotelDetailContent({ id }: { id: string }) {
   // synchrone dans un effet dans ce fichier — même convention que
   // `effectiveStatus`/`roomsEffectiveStatus` ci-dessus).
   const effectiveSelectedRoom =
-    selectedRoom && rooms.some((r) => r.key === selectedRoom.key) ? selectedRoom : null
+    selectedRoom && rooms.some((r) => r.key === selectedRoom.key)
+      ? selectedRoom
+      : null
 
   // ALTERNATIVES — mêmes offres que le moteur de recherche a réellement
   // renvoyées pour cette ville/ces dates (déjà classées côté serveur par le
@@ -362,7 +409,10 @@ function HotelDetailContent({ id }: { id: string }) {
     if (!hotel) return []
     const reasons: { icon: LucideIcon; text: string }[] = []
     if ((hotel.stars ?? 0) >= 4) {
-      reasons.push({ icon: Star, text: t("starsCount", { stars: hotel.stars ?? 0 }) })
+      reasons.push({
+        icon: Star,
+        text: t("starsCount", { stars: hotel.stars ?? 0 }),
+      })
     }
     if (rooms.some((r) => r.cancellation === "FREE")) {
       reasons.push({
@@ -532,7 +582,8 @@ function HotelDetailContent({ id }: { id: string }) {
                       </span>
                     )}
                     <span>
-                      {hotel.categoryTitle ?? t("starsCategoryFallback", { stars: hotel.stars ?? 0 })}
+                      {hotel.categoryTitle ??
+                        t("starsCategoryFallback", { stars: hotel.stars ?? 0 })}
                     </span>
                   </div>
                 </div>
@@ -588,7 +639,9 @@ function HotelDetailContent({ id }: { id: string }) {
                 </div>
               ) : roomsEffectiveStatus === "error" ? (
                 <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-4 text-sm">
-                  {t("unableToLoadRates", { error: roomsState.error ?? t("unknownError") })}
+                  {t("unableToLoadRates", {
+                    error: roomsState.error ?? t("unknownError"),
+                  })}
                 </div>
               ) : (
                 <HotelRoomRates
@@ -729,9 +782,12 @@ function HotelDetailContent({ id }: { id: string }) {
                       // catégorie" (plus déterminant pour la décision) — une
                       // seule étiquette à la fois pour ne pas surcharger.
                       const comparisonLabel =
-                        cardShape && alt.discountedPrice < cardShape.discountedPrice
+                        cardShape &&
+                        alt.discountedPrice < cardShape.discountedPrice
                           ? t("cheaperLabel")
-                          : cardShape && alt.stars === cardShape.stars && alt.stars > 0
+                          : cardShape &&
+                              alt.stars === cardShape.stars &&
+                              alt.stars > 0
                             ? t("sameCategoryLabel")
                             : null
                       return (
@@ -816,7 +872,9 @@ function HotelDetailContent({ id }: { id: string }) {
                 </div>
               ) : cardShape ? (
                 <div>
-                  <p className="text-muted-foreground text-xs">{t("startingFrom")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("startingFrom")}
+                  </p>
                   <div className="mt-1 flex items-baseline gap-1.5">
                     {cardShape.discountPercent > 0 && (
                       <span className="text-muted-foreground text-sm line-through">
@@ -912,7 +970,10 @@ function HotelDetailContent({ id }: { id: string }) {
           </aside>
         </div>
 
-        <ProductReviewsSectionClient module="hotel" productRef={String(hotel.id)} />
+        <ProductReviewsSectionClient
+          module="hotel"
+          productRef={String(hotel.id)}
+        />
       </main>
 
       <Footer />

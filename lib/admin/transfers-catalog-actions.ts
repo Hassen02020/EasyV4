@@ -21,10 +21,17 @@ import { and, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { catalogTransferZones, catalogTransferPricing, transferVehicleType, auditEvents } from "@/lib/db/schema"
+import {
+  catalogTransferZones,
+  catalogTransferPricing,
+  transferVehicleType,
+  auditEvents,
+} from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 
-export type CatalogActionResult<T = { id: string }> = { ok: true; data: T } | { ok: false; error: string }
+export type CatalogActionResult<T = { id: string }> =
+  | { ok: true; data: T }
+  | { ok: false; error: string }
 
 const VEHICLE_TYPES = transferVehicleType.enumValues
 
@@ -43,12 +50,20 @@ export type TransferZoneInput = z.input<typeof zoneSchema>
 export async function listTransferZones() {
   const ctx = await assertProductManager().catch(() => null)
   if (!ctx) return []
-  return withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, (tx) =>
-    tx.select().from(catalogTransferZones).where(eq(catalogTransferZones.agencyId, ctx.agencyId)).orderBy(catalogTransferZones.name),
+  return withTenantContext(
+    { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+    (tx) =>
+      tx
+        .select()
+        .from(catalogTransferZones)
+        .where(eq(catalogTransferZones.agencyId, ctx.agencyId))
+        .orderBy(catalogTransferZones.name),
   )
 }
 
-export async function createTransferZone(raw: TransferZoneInput): Promise<CatalogActionResult> {
+export async function createTransferZone(
+  raw: TransferZoneInput,
+): Promise<CatalogActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
@@ -56,7 +71,11 @@ export async function createTransferZone(raw: TransferZoneInput): Promise<Catalo
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
   const parsed = zoneSchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   const data = parsed.data
 
   try {
@@ -69,8 +88,10 @@ export async function createTransferZone(raw: TransferZoneInput): Promise<Catalo
             agencyId: ctx.agencyId,
             name: data.name,
             zoneType: data.zoneType,
-            latitude: data.latitude != null ? data.latitude.toFixed(6) : undefined,
-            longitude: data.longitude != null ? data.longitude.toFixed(6) : undefined,
+            latitude:
+              data.latitude != null ? data.latitude.toFixed(6) : undefined,
+            longitude:
+              data.longitude != null ? data.longitude.toFixed(6) : undefined,
           })
           .returning({ id: catalogTransferZones.id })
 
@@ -88,11 +109,17 @@ export async function createTransferZone(raw: TransferZoneInput): Promise<Catalo
     revalidatePath("/admin/transferts")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
-export async function setTransferZoneStatus(zoneId: string, status: "active" | "inactive"): Promise<CatalogActionResult> {
+export async function setTransferZoneStatus(
+  zoneId: string,
+  status: "active" | "inactive",
+): Promise<CatalogActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
@@ -100,27 +127,38 @@ export async function setTransferZoneStatus(zoneId: string, status: "active" | "
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
   try {
-    await withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, async (tx) => {
-      const [updated] = await tx
-        .update(catalogTransferZones)
-        .set({ status })
-        .where(and(eq(catalogTransferZones.id, zoneId), eq(catalogTransferZones.agencyId, ctx.agencyId)))
-        .returning({ id: catalogTransferZones.id })
-      if (!updated) throw new Error("ZONE_NOT_FOUND")
+    await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      async (tx) => {
+        const [updated] = await tx
+          .update(catalogTransferZones)
+          .set({ status })
+          .where(
+            and(
+              eq(catalogTransferZones.id, zoneId),
+              eq(catalogTransferZones.agencyId, ctx.agencyId),
+            ),
+          )
+          .returning({ id: catalogTransferZones.id })
+        if (!updated) throw new Error("ZONE_NOT_FOUND")
 
-      await tx.insert(auditEvents).values({
-        agencyId: ctx.agencyId,
-        actorUserId: ctx.userId,
-        entityType: "catalog_transfer_zone",
-        entityId: zoneId,
-        action: `transfer_zone.${status}`,
-        diff: { status },
-      })
-    })
+        await tx.insert(auditEvents).values({
+          agencyId: ctx.agencyId,
+          actorUserId: ctx.userId,
+          entityType: "catalog_transfer_zone",
+          entityId: zoneId,
+          action: `transfer_zone.${status}`,
+          diff: { status },
+        })
+      },
+    )
     revalidatePath("/admin/transferts")
     return { ok: true, data: { id: zoneId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -153,25 +191,36 @@ export interface TransferPricingRow {
 export async function listTransferPricing(): Promise<TransferPricingRow[]> {
   const ctx = await assertProductManager().catch(() => null)
   if (!ctx) return []
-  return withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, async (tx) => {
-    const zones = await tx.select().from(catalogTransferZones).where(eq(catalogTransferZones.agencyId, ctx.agencyId))
-    const zoneNameById = new Map(zones.map((z) => [z.id, z.name]))
+  return withTenantContext(
+    { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+    async (tx) => {
+      const zones = await tx
+        .select()
+        .from(catalogTransferZones)
+        .where(eq(catalogTransferZones.agencyId, ctx.agencyId))
+      const zoneNameById = new Map(zones.map((z) => [z.id, z.name]))
 
-    const rows = await tx.select().from(catalogTransferPricing).where(eq(catalogTransferPricing.agencyId, ctx.agencyId))
-    return rows.map((r) => ({
-      id: r.id,
-      fromZoneId: r.fromZoneId,
-      fromZoneName: zoneNameById.get(r.fromZoneId) ?? "—",
-      toZoneId: r.toZoneId,
-      toZoneName: zoneNameById.get(r.toZoneId) ?? "—",
-      vehicleType: r.vehicleType,
-      basePriceTnd: Number(r.basePriceTnd),
-      nightSurchargePercent: r.nightSurchargePercent,
-    }))
-  })
+      const rows = await tx
+        .select()
+        .from(catalogTransferPricing)
+        .where(eq(catalogTransferPricing.agencyId, ctx.agencyId))
+      return rows.map((r) => ({
+        id: r.id,
+        fromZoneId: r.fromZoneId,
+        fromZoneName: zoneNameById.get(r.fromZoneId) ?? "—",
+        toZoneId: r.toZoneId,
+        toZoneName: zoneNameById.get(r.toZoneId) ?? "—",
+        vehicleType: r.vehicleType,
+        basePriceTnd: Number(r.basePriceTnd),
+        nightSurchargePercent: r.nightSurchargePercent,
+      }))
+    },
+  )
 }
 
-export async function createTransferPricing(raw: TransferPricingInputForm): Promise<CatalogActionResult> {
+export async function createTransferPricing(
+  raw: TransferPricingInputForm,
+): Promise<CatalogActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
@@ -179,9 +228,17 @@ export async function createTransferPricing(raw: TransferPricingInputForm): Prom
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
   const parsed = pricingSchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   const data = parsed.data
-  if (data.fromZoneId === data.toZoneId) return { ok: false, error: "Les zones de départ et d'arrivée doivent être différentes." }
+  if (data.fromZoneId === data.toZoneId)
+    return {
+      ok: false,
+      error: "Les zones de départ et d'arrivée doivent être différentes.",
+    }
 
   try {
     const result = await withTenantContext(
@@ -221,7 +278,11 @@ export async function createTransferPricing(raw: TransferPricingInputForm): Prom
           entityType: "catalog_transfer_pricing",
           entityId: inserted.id,
           action: "transfer_pricing.created",
-          diff: { fromZoneId: data.fromZoneId, toZoneId: data.toZoneId, vehicleType: data.vehicleType },
+          diff: {
+            fromZoneId: data.fromZoneId,
+            toZoneId: data.toZoneId,
+            vehicleType: data.vehicleType,
+          },
         })
         return inserted
       },
@@ -231,13 +292,19 @@ export async function createTransferPricing(raw: TransferPricingInputForm): Prom
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erreur interne"
     if (message.includes("catalog_tpr_pair_uniq")) {
-      return { ok: false, error: "Un tarif existe déjà pour ce trajet et ce type de véhicule — supprimez-le d'abord." }
+      return {
+        ok: false,
+        error:
+          "Un tarif existe déjà pour ce trajet et ce type de véhicule — supprimez-le d'abord.",
+      }
     }
     return { ok: false, error: message }
   }
 }
 
-export async function deleteTransferPricing(pricingId: string): Promise<CatalogActionResult> {
+export async function deleteTransferPricing(
+  pricingId: string,
+): Promise<CatalogActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
@@ -245,25 +312,36 @@ export async function deleteTransferPricing(pricingId: string): Promise<CatalogA
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
   try {
-    await withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, async (tx) => {
-      const [deleted] = await tx
-        .delete(catalogTransferPricing)
-        .where(and(eq(catalogTransferPricing.id, pricingId), eq(catalogTransferPricing.agencyId, ctx.agencyId)))
-        .returning({ id: catalogTransferPricing.id })
-      if (!deleted) throw new Error("PRICING_NOT_FOUND")
+    await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      async (tx) => {
+        const [deleted] = await tx
+          .delete(catalogTransferPricing)
+          .where(
+            and(
+              eq(catalogTransferPricing.id, pricingId),
+              eq(catalogTransferPricing.agencyId, ctx.agencyId),
+            ),
+          )
+          .returning({ id: catalogTransferPricing.id })
+        if (!deleted) throw new Error("PRICING_NOT_FOUND")
 
-      await tx.insert(auditEvents).values({
-        agencyId: ctx.agencyId,
-        actorUserId: ctx.userId,
-        entityType: "catalog_transfer_pricing",
-        entityId: pricingId,
-        action: "transfer_pricing.deleted",
-        diff: {},
-      })
-    })
+        await tx.insert(auditEvents).values({
+          agencyId: ctx.agencyId,
+          actorUserId: ctx.userId,
+          entityType: "catalog_transfer_pricing",
+          entityId: pricingId,
+          action: "transfer_pricing.deleted",
+          diff: {},
+        })
+      },
+    )
     revalidatePath("/admin/transferts")
     return { ok: true, data: { id: pricingId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }

@@ -22,7 +22,10 @@ import {
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
 import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
-import { runSearchThroughHub, logHubSearchObservability } from "@/lib/hotel-suppliers/search-hub"
+import {
+  runSearchThroughHub,
+  logHubSearchObservability,
+} from "@/lib/hotel-suppliers/search-hub"
 import {
   filtersFromSearchParams,
   type HotelFilterState,
@@ -42,7 +45,9 @@ type SerpSearchParams = Record<string, string | undefined>
 function PromptState({ message }: { message: string }) {
   return (
     <div className="bg-card shadow-e2b-soft border-border/60 mx-auto max-w-2xl rounded-2xl border p-10 text-center">
-      <p className="text-foreground text-base font-semibold">Recherche incomplète</p>
+      <p className="text-foreground text-base font-semibold">
+        Recherche incomplète
+      </p>
       <p className="text-muted-foreground mt-1 text-sm">{message}</p>
     </div>
   )
@@ -115,7 +120,9 @@ export default async function ProHotelsSerpPage({
   if (!dateCheck.ok) {
     return (
       <div className={wrapperClass}>
-        <PromptState message={dateCheck.message ?? "Dates de séjour invalides."} />
+        <PromptState
+          message={dateCheck.message ?? "Dates de séjour invalides."}
+        />
       </div>
     )
   }
@@ -145,23 +152,27 @@ export default async function ProHotelsSerpPage({
     )
   }
 
-  const offers = result.dto.offers.map((o) => applyMarginToHotelOffer(o, margins))
+  const offers = result.dto.offers.map((o) =>
+    applyMarginToHotelOffer(o, margins),
+  )
   const currency = offers[0]?.currency ?? "TND"
 
   const urlParams = new URLSearchParams(
-    Object.entries(params).filter((e): e is [string, string] => typeof e[1] === "string"),
+    Object.entries(params).filter(
+      (e): e is [string, string] => typeof e[1] === "string",
+    ),
   )
   const initialFilters: HotelFilterState = filtersFromSearchParams(urlParams)
   const sortParam = urlParams.get("sort")
-  const initialSortMode = isHotelSortMode(sortParam) ? sortParam : DEFAULT_SORT_MODE
+  const initialSortMode = isHotelSortMode(sortParam)
+    ? sortParam
+    : DEFAULT_SORT_MODE
 
   let nights: number | undefined
   try {
     nights = Math.max(
       1,
-      Math.round(
-        (Date.parse(q.checkout) - Date.parse(q.checkin)) / 86_400_000,
-      ),
+      Math.round((Date.parse(q.checkout) - Date.parse(q.checkin)) / 86_400_000),
     )
   } catch {
     nights = undefined

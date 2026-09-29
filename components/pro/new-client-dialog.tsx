@@ -48,7 +48,12 @@ export function NewClientDialog() {
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      const result = await createPartnerClient({ firstName, lastName, email, phone })
+      const result = await createPartnerClient({
+        firstName,
+        lastName,
+        email,
+        phone,
+      })
       if (!result.ok) {
         setError(result.error)
         return
@@ -61,7 +66,13 @@ export function NewClientDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setError(null)
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5">
           <UserPlus className="h-4 w-4" />
@@ -107,7 +118,12 @@ export function NewClientDialog() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="client-phone">Téléphone</Label>
-            <Input id="client-phone" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isPending} />
+            <Input
+              id="client-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              disabled={isPending}
+            />
           </div>
           {error && (
             <Alert variant="destructive">
@@ -116,7 +132,11 @@ export function NewClientDialog() {
           )}
           <DialogFooter>
             <Button type="submit" disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
               Créer le client
             </Button>
           </DialogFooter>

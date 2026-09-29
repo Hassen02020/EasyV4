@@ -20,20 +20,27 @@ import {
   type ReviewStatus,
 } from "@/lib/reviews/reviews-core"
 
-export type ListReviewsForModerationResult = { ok: true; reviews: ReviewRow[] } | { ok: false; error: string }
+export type ListReviewsForModerationResult =
+  | { ok: true; reviews: ReviewRow[] }
+  | { ok: false; error: string }
 
-export async function listReviewsForModeration(status?: ReviewStatus): Promise<ListReviewsForModerationResult> {
+export async function listReviewsForModeration(
+  status?: ReviewStatus,
+): Promise<ListReviewsForModerationResult> {
   let ctx: { userId: string; agencyId: string }
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
-    const rows = await withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, (tx) =>
-      listReviewsForModerationCore(tx, { agencyId: ctx.agencyId, status }),
+    const rows = await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) =>
+        listReviewsForModerationCore(tx, { agencyId: ctx.agencyId, status }),
     )
     return { ok: true, reviews: rows }
   } catch (err) {
@@ -54,8 +61,12 @@ export async function moderateReview(input: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
-  if (!(REVIEW_STATUSES as readonly string[]).includes(input.status) || input.status === "pending") {
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
+  if (
+    !(REVIEW_STATUSES as readonly string[]).includes(input.status) ||
+    input.status === "pending"
+  ) {
     return { ok: false, error: "Statut invalide." }
   }
   const status = input.status

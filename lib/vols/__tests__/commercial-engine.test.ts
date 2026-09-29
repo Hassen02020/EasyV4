@@ -4,7 +4,10 @@
  */
 import test from "node:test"
 import assert from "node:assert/strict"
-import { applyCommercialEngine, getCommercialRules } from "@/lib/vols/commercial-engine"
+import {
+  applyCommercialEngine,
+  getCommercialRules,
+} from "@/lib/vols/commercial-engine"
 
 const AGENCY = "00000000-0000-0000-0000-000000000001"
 
@@ -13,8 +16,8 @@ test("B2C: sellingAmount = supplierAmount + fee + markup", async () => {
   const result = await applyCommercialEngine(1000, "TND", AGENCY, "B2C")
   assert.equal(result.supplierAmount, 1000)
   assert.equal(result.fee, 15)
-  assert.equal(result.markup, 40)            // 1000 * 0.04
-  assert.equal(result.sellingAmount, 1055)   // 1000+15+40
+  assert.equal(result.markup, 40) // 1000 * 0.04
+  assert.equal(result.sellingAmount, 1055) // 1000+15+40
   assert.equal(result.sellingCurrency, "TND")
 })
 
@@ -35,7 +38,10 @@ test("B2B: lower fee and markup than B2C", async () => {
 test("PARTNER: lower fee than B2B", async () => {
   const b2b = await applyCommercialEngine(1000, "TND", AGENCY, "B2B")
   const partner = await applyCommercialEngine(1000, "TND", AGENCY, "PARTNER")
-  assert.ok(partner.sellingAmount < b2b.sellingAmount, "PARTNER selling price < B2B")
+  assert.ok(
+    partner.sellingAmount < b2b.sellingAmount,
+    "PARTNER selling price < B2B",
+  )
 })
 
 test("WHITE_LABEL: zero fixed fee", async () => {
@@ -62,7 +68,7 @@ test("min_markup floor: markup never goes below min", async () => {
   // If a rule has minMarkup=5, the markup should be clamped to 5
   // We test indirectly: env fallback has no minMarkup, so markup stays 0.4
   const result = await applyCommercialEngine(10, "TND", AGENCY, "B2C")
-  assert.equal(result.markup, 0.4)  // no floor applied by env rules
+  assert.equal(result.markup, 0.4) // no floor applied by env rules
 })
 
 test("product hints accepted — no error when hints provided", async () => {

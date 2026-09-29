@@ -15,9 +15,24 @@ test("MANUAL_PAYMENT_ALLOWED_ROLES exclut agent_excursions et les rôles partena
     "manager",
     "super_admin",
   ])
-  assert.equal((MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes("agent_excursions"), false)
-  assert.equal((MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes("partner_owner"), false)
-  assert.equal((MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes("partner_agent"), false)
+  assert.equal(
+    (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(
+      "agent_excursions",
+    ),
+    false,
+  )
+  assert.equal(
+    (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(
+      "partner_owner",
+    ),
+    false,
+  )
+  assert.equal(
+    (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(
+      "partner_agent",
+    ),
+    false,
+  )
 })
 
 test("toPaymentMethod : cash reste cash", () => {

@@ -73,7 +73,10 @@ function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
 }
 
-async function nextPublicRef(tx: DrizzleTransaction, agencyId: string): Promise<string> {
+async function nextPublicRef(
+  tx: DrizzleTransaction,
+  agencyId: string,
+): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `TR-${year}-`
   const [row] = await tx
@@ -225,7 +228,10 @@ async function runCreateGuestTransferBooking(
               paymentMethod: "transfer",
             },
           })
-          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
+          .returning({
+            id: reservations.id,
+            guestAccessToken: reservations.guestAccessToken,
+          })
 
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
@@ -252,11 +258,15 @@ async function runCreateGuestTransferBooking(
           pickupAddress: fromZone?.name,
           dropoffAddress: toZone?.name,
           flightNumber: input.flightNumber,
-          flightArrivalAt: input.flightArrivalAt ? new Date(input.flightArrivalAt) : undefined,
+          flightArrivalAt: input.flightArrivalAt
+            ? new Date(input.flightArrivalAt)
+            : undefined,
           pax: input.pax,
           luggageCount: input.luggageCount ?? 0,
           vehicleType: input.vehicleType,
-          statusTimeline: { created: { at: new Date().toISOString(), status: "created" } },
+          statusTimeline: {
+            created: { at: new Date().toISOString(), status: "created" },
+          },
         })
 
         // 7. Audit

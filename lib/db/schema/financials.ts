@@ -70,37 +70,37 @@ export interface MarginRuleMetadata {
 /* -------------------------------------------------------------------------- */
 
 export const walletAccountType = pgEnum("wallet_account_type", [
-  "credit",     // Compte de dépôt (solde positif)
-  "debit",      // Compte de débit (solde négatif autorisé)
-  "escrow",     // Compte séquestre (acomptes en attente)
+  "credit", // Compte de dépôt (solde positif)
+  "debit", // Compte de débit (solde négatif autorisé)
+  "escrow", // Compte séquestre (acomptes en attente)
   "commission", // Compte de commission Easy2Book
 ])
 
 export const walletTxType = pgEnum("wallet_tx_type", [
-  "credit",     // Entrée (recharge, remboursement reçu)
-  "debit",      // Sortie (réservation, commission)
-  "refund",     // Remboursement sortant
+  "credit", // Entrée (recharge, remboursement reçu)
+  "debit", // Sortie (réservation, commission)
+  "refund", // Remboursement sortant
   "adjustment", // Ajustement manuel admin
   "commission", // Commission Easy2Book prélevée
-  "escrow_in",  // Mise en séquestre
+  "escrow_in", // Mise en séquestre
   "escrow_out", // Libération du séquestre
 ])
 
 export const walletTxStatusV6 = pgEnum("wallet_tx_status_v6", [
-  "pending",   // En attente (séquestre)
+  "pending", // En attente (séquestre)
   "completed", // Validée
-  "reversed",  // Annulée/Inversée
+  "reversed", // Annulée/Inversée
 ])
 
 export const marginType = pgEnum("margin_type", [
   "percent", // % du prix d'achat
-  "fixed",   // Montant fixe ajouté
-  "hybrid",  // % + montant fixe
+  "fixed", // Montant fixe ajouté
+  "hybrid", // % + montant fixe
 ])
 
 export const journalEntryStatus = pgEnum("journal_entry_status", [
-  "draft",    // Brouillon
-  "posted",   // Passée
+  "draft", // Brouillon
+  "posted", // Passée
   "reversed", // Extournée
 ])
 
@@ -161,8 +161,12 @@ export const walletAccounts = pgTable(
     description: text("description"),
     isActive: boolean("is_active").notNull().default(true),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("wallet_accounts_agency_type_idx").on(t.agencyId, t.type),
@@ -190,8 +194,14 @@ export const walletLedger = pgTable(
     type: walletTxType("type").notNull(),
     status: walletTxStatusV6("status").notNull().default("completed"),
     amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
-    balanceBefore: decimal("balance_before", { precision: 14, scale: 2 }).notNull(),
-    balanceAfter: decimal("balance_after", { precision: 14, scale: 2 }).notNull(),
+    balanceBefore: decimal("balance_before", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
+    balanceAfter: decimal("balance_after", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
 
     /**
      * chantier-49C, étape 1 (expand/contract) — colonnes entiers de
@@ -202,7 +212,9 @@ export const walletLedger = pgTable(
      * encore migré vers la double-écriture — jamais confondu avec un 0 réel.
      */
     amountMillimes: bigint("amount_millimes", { mode: "number" }),
-    balanceBeforeMillimes: bigint("balance_before_millimes", { mode: "number" }),
+    balanceBeforeMillimes: bigint("balance_before_millimes", {
+      mode: "number",
+    }),
     balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
 
     // Corrélation métier
@@ -227,7 +239,9 @@ export const walletLedger = pgTable(
      */
     idempotencyKey: text("idempotency_key"),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
 
     // Settlement commission (37C) — renseigné quand cette entrée est incluse dans un commission_settlement
     settledAt: timestamp("settled_at", { withTimezone: true }),
@@ -254,7 +268,7 @@ export const marginRules = pgTable(
     agencyId: uuid("agency_id").notNull(),
 
     // Scope de la règle (du plus spécifique au plus général)
-    supplierId: uuid("supplier_id"),          // Fournisseur spécifique
+    supplierId: uuid("supplier_id"), // Fournisseur spécifique
     productType: varchar("product_type", { length: 50 }), // hotel, flight, package, transfer, omra
     destination: varchar("destination", { length: 100 }), // Code pays ISO (TN, FR, MA...)
 
@@ -265,10 +279,13 @@ export const marginRules = pgTable(
     // Valeur de la marge
     type: marginType("type").notNull().default("percent"),
     percentValue: decimal("percent_value", { precision: 5, scale: 2 }), // % sur le prix achat
-    fixedValue: decimal("fixed_value", { precision: 14, scale: 2 }),    // Montant fixe TND
+    fixedValue: decimal("fixed_value", { precision: 14, scale: 2 }), // Montant fixe TND
 
     // Commission Easy2Book (prélevée sur la marge)
-    commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }),
+    commissionPercent: decimal("commission_percent", {
+      precision: 5,
+      scale: 2,
+    }),
 
     // Priorité : règle la plus haute gagne (ex: fournisseur > produit > global)
     priority: integer("priority").notNull().default(0),
@@ -281,8 +298,12 @@ export const marginRules = pgTable(
     description: text("description"),
     isActive: boolean("is_active").notNull().default(true),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "margin_rules_agency_idx", on: t.agencyId },
@@ -302,26 +323,49 @@ export const reservationFinancials = pgTable(
     reservationId: uuid("reservation_id").notNull(),
 
     // Prix achat fournisseur (coût réel)
-    supplierPrice: decimal("supplier_price", { precision: 14, scale: 2 }).notNull(),
+    supplierPrice: decimal("supplier_price", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
     supplierCurrency: varchar("supplier_currency", { length: 3 }).notNull(),
-    supplierPriceTnd: decimal("supplier_price_tnd", { precision: 14, scale: 2 }).notNull(), // Converti en TND
+    supplierPriceTnd: decimal("supplier_price_tnd", {
+      precision: 14,
+      scale: 2,
+    }).notNull(), // Converti en TND
 
     // Prix de vente client
     salePrice: decimal("sale_price", { precision: 14, scale: 2 }).notNull(),
     saleCurrency: varchar("sale_currency", { length: 3 }).notNull(),
-    salePriceTnd: decimal("sale_price_tnd", { precision: 14, scale: 2 }).notNull(), // Converti en TND
+    salePriceTnd: decimal("sale_price_tnd", {
+      precision: 14,
+      scale: 2,
+    }).notNull(), // Converti en TND
 
     // Marge calculée automatiquement
-    marginAmount: decimal("margin_amount", { precision: 14, scale: 2 }).notNull(),
-    marginPercent: decimal("margin_percent", { precision: 5, scale: 2 }).notNull(),
+    marginAmount: decimal("margin_amount", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
+    marginPercent: decimal("margin_percent", {
+      precision: 5,
+      scale: 2,
+    }).notNull(),
     marginRuleId: uuid("margin_rule_id"), // Règle appliquée
 
     // Commission Easy2Book prélevée
-    commissionAmount: decimal("commission_amount", { precision: 14, scale: 2 }).default("0"),
-    commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0"),
+    commissionAmount: decimal("commission_amount", {
+      precision: 14,
+      scale: 2,
+    }).default("0"),
+    commissionPercent: decimal("commission_percent", {
+      precision: 5,
+      scale: 2,
+    }).default("0"),
 
     // Taux de change appliqué
-    exchangeRate: decimal("exchange_rate", { precision: 10, scale: 6 }).default("1"),
+    exchangeRate: decimal("exchange_rate", { precision: 10, scale: 6 }).default(
+      "1",
+    ),
     exchangeRateAt: timestamp("exchange_rate_at", { withTimezone: true }),
 
     // Grand Livre
@@ -333,8 +377,12 @@ export const reservationFinancials = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancellationReason: text("cancellation_reason"),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("reservation_financials_reservation_idx").on(t.reservationId),
@@ -369,10 +417,12 @@ export const journalEntries = pgTable(
 
     // Audit
     createdBy: uuid("created_by"),
-    reversedBy: uuid("reversed_by"),       // Référence à l'écriture d'extourne
+    reversedBy: uuid("reversed_by"), // Référence à l'écriture d'extourne
     reversedAt: timestamp("reversed_at", { withTimezone: true }),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "journal_entries_agency_idx", on: t.agencyId },
@@ -395,7 +445,9 @@ export const journalLines = pgTable(
 
     // Débit / Crédit
     debit: decimal("debit", { precision: 14, scale: 2 }).notNull().default("0"),
-    credit: decimal("credit", { precision: 14, scale: 2 }).notNull().default("0"),
+    credit: decimal("credit", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
 
     description: text("description"),
 
@@ -404,7 +456,9 @@ export const journalLines = pgTable(
     walletLedgerId: uuid("wallet_ledger_id"),
     invoiceId: uuid("invoice_id"),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "journal_lines_entry_idx", on: t.journalEntryId },
@@ -427,14 +481,16 @@ export const reservationStatusHistory = pgTable(
     transition: reservationTransition("transition").notNull(),
 
     // Contexte du changement
-    triggeredBy: uuid("triggered_by"),     // userId ou null si automatique
+    triggeredBy: uuid("triggered_by"), // userId ou null si automatique
     automated: boolean("automated").notNull().default(false),
     reason: text("reason"),
 
     // Payload (ex: réponse fournisseur, réf paiement...)
     metadata: jsonb("metadata").$type<JournalEntryMetadata>(),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "res_status_history_reservation_idx", on: t.reservationId },
@@ -453,18 +509,27 @@ export const commissionSettlements = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     periodStart: date("period_start").notNull(),
     periodEnd: date("period_end").notNull(),
-    totalAmount: decimal("total_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+    totalAmount: decimal("total_amount", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
     ledgerEntryCount: integer("ledger_entry_count").notNull().default(0),
     /** 'pending' → calculé mais non encore versé ; 'paid' → versement effectué. */
     status: varchar("status", { length: 20 }).notNull().default("pending"),
     notes: text("notes"),
     settledBy: uuid("settled_by"),
     settledAt: timestamp("settled_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
-    uniqueIndex("commission_settlements_period_uniq").on(t.periodStart, t.periodEnd),
+    uniqueIndex("commission_settlements_period_uniq").on(
+      t.periodStart,
+      t.periodEnd,
+    ),
     { name: "commission_settlements_status_idx", on: t.status },
   ],
 )
@@ -484,10 +549,14 @@ export const commissionSettlementEntries = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     walletLedgerId: uuid("wallet_ledger_id").notNull(),
     settlementId: uuid("settlement_id").notNull(),
-    settledAt: timestamp("settled_at", { withTimezone: true }).notNull().defaultNow(),
+    settledAt: timestamp("settled_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
-    uniqueIndex("commission_settlement_entries_ledger_uniq").on(t.walletLedgerId),
+    uniqueIndex("commission_settlement_entries_ledger_uniq").on(
+      t.walletLedgerId,
+    ),
     index("commission_settlement_entries_settlement_idx").on(t.settlementId),
   ],
 )
@@ -506,11 +575,15 @@ export type ReservationFinancial = typeof reservationFinancials.$inferSelect
 export type NewReservationFinancial = typeof reservationFinancials.$inferInsert
 export type CommissionSettlement = typeof commissionSettlements.$inferSelect
 export type NewCommissionSettlement = typeof commissionSettlements.$inferInsert
-export type CommissionSettlementEntry = typeof commissionSettlementEntries.$inferSelect
-export type NewCommissionSettlementEntry = typeof commissionSettlementEntries.$inferInsert
+export type CommissionSettlementEntry =
+  typeof commissionSettlementEntries.$inferSelect
+export type NewCommissionSettlementEntry =
+  typeof commissionSettlementEntries.$inferInsert
 export type JournalEntry = typeof journalEntries.$inferSelect
 export type NewJournalEntry = typeof journalEntries.$inferInsert
 export type JournalLine = typeof journalLines.$inferSelect
 export type NewJournalLine = typeof journalLines.$inferInsert
-export type ReservationStatusHistory = typeof reservationStatusHistory.$inferSelect
-export type NewReservationStatusHistory = typeof reservationStatusHistory.$inferInsert
+export type ReservationStatusHistory =
+  typeof reservationStatusHistory.$inferSelect
+export type NewReservationStatusHistory =
+  typeof reservationStatusHistory.$inferInsert

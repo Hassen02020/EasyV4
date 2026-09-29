@@ -223,7 +223,7 @@ B2B.
   depuis le `totalPrice` myGo revalidé + la marge de l'agence courante
   (§6). Le `BookingDraft.unitPriceTnd` envoyé par le client n'est utilisé
   que si `confirmHotelWithProvider` échoue à s'exécuter (`attempted:
-  false`) — comportement hérité inchangé, non modifié par cette phase.
+false`) — comportement hérité inchangé, non modifié par cette phase.
 - Rate d'un autre contexte : `matchSelectedRoom()` (§13) empêche toute
   substitution silencieuse — si le `boardingId`/`roomId` transmis par
   l'URL ne correspond plus exactement à une chambre disponible de la
@@ -256,6 +256,7 @@ nouveaux), `pnpm build` (succès, toutes les routes se génèrent, y compris
 Nouveaux tests unitaires (`lib/booking/__tests__/room-match.test.ts`) pour
 `matchSelectedRoom()` — la logique de sélection/revalidation de chambre
 extraite en fonction pure (§4) :
+
 - retrouve la chambre exacte par `boardingId` + `roomId` ;
 - ne confond pas deux pensions différentes partageant le même `roomId` ;
 - rejette (`null`) une chambre passée `stopReservation` depuis la

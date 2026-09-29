@@ -81,7 +81,10 @@ export function ChangePasswordForm() {
         password: next,
       })
       if (updateError) {
-        setError(updateError.message || "Erreur lors de la mise à jour du mot de passe.")
+        setError(
+          updateError.message ||
+            "Erreur lors de la mise à jour du mot de passe.",
+        )
         return
       }
       setCurrent("")

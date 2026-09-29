@@ -34,7 +34,12 @@ export function buildFlexibleSearchQueryString(params: {
   adults: string
   children: string | null
 }): string | null {
-  if (params.flexDays <= 0 || !params.cityId || !params.checkin || !params.checkout) {
+  if (
+    params.flexDays <= 0 ||
+    !params.cityId ||
+    !params.checkin ||
+    !params.checkout
+  ) {
     return null
   }
   const qs = new URLSearchParams({
@@ -97,7 +102,9 @@ export interface FlexibleHotelSearchHookState {
   error: string | null
 }
 
-export function useFlexibleHotelSearch(flexDays: number): FlexibleHotelSearchHookState {
+export function useFlexibleHotelSearch(
+  flexDays: number,
+): FlexibleHotelSearchHookState {
   const searchParams = useSearchParams()
   const [state, setState] = useState<InternalState>({
     queryString: null,
@@ -113,7 +120,15 @@ export function useFlexibleHotelSearch(flexDays: number): FlexibleHotelSearchHoo
   const children = searchParams.get("children")
 
   const queryString = useMemo(
-    () => buildFlexibleSearchQueryString({ flexDays, cityId, checkin, checkout, adults, children }),
+    () =>
+      buildFlexibleSearchQueryString({
+        flexDays,
+        cityId,
+        checkin,
+        checkout,
+        adults,
+        children,
+      }),
     [flexDays, cityId, checkin, checkout, adults, children],
   )
 
@@ -123,12 +138,17 @@ export function useFlexibleHotelSearch(flexDays: number): FlexibleHotelSearchHoo
     fetch(`/api/hotels/search-flexible?${queryString}`, { signal: ctrl.signal })
       .then(async (r) => {
         if (!r.ok) {
-          const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string }
+          const body = (await r.json().catch(() => ({}))) as {
+            message?: string
+            error?: string
+          }
           throw new Error(body.message ?? body.error ?? `HTTP ${r.status}`)
         }
         return r.json() as Promise<FlexibleSearchResult>
       })
-      .then((data) => setState({ queryString, status: "success", data, error: null }))
+      .then((data) =>
+        setState({ queryString, status: "success", data, error: null }),
+      )
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === "AbortError") return
         setState({
@@ -149,5 +169,9 @@ export function useFlexibleHotelSearch(flexDays: number): FlexibleHotelSearchHoo
   if (state.queryString !== queryString) {
     return { status: "loading", data: null, error: null }
   }
-  return { status: state.status === "idle" ? "loading" : state.status, data: state.data, error: state.error }
+  return {
+    status: state.status === "idle" ? "loading" : state.status,
+    data: state.data,
+    error: state.error,
+  }
 }

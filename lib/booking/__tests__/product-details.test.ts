@@ -45,24 +45,29 @@ const skipReason = () => "Postgres local indisponible (DATABASE_URL)."
 let agencyId = ""
 let customerId = ""
 
-async function makeReservation(module: "hotel" | "package" | "activity" | "omra" | "flight") {
-  return withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, async (tx) => {
-    const [row] = await tx
-      .insert(reservations)
-      .values({
-        agencyId,
-        publicRef: `PD-${module}-${randomUUID().slice(0, 8)}`,
-        customerId,
-        module,
-        source: "internal",
-        status: "confirmed",
-        originalCurrency: "TND",
-        originalAmount: "100.00",
-        tndAmount: "100.00",
-      })
-      .returning({ id: reservations.id })
-    return row!.id
-  })
+async function makeReservation(
+  module: "hotel" | "package" | "activity" | "omra" | "flight",
+) {
+  return withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    async (tx) => {
+      const [row] = await tx
+        .insert(reservations)
+        .values({
+          agencyId,
+          publicRef: `PD-${module}-${randomUUID().slice(0, 8)}`,
+          customerId,
+          module,
+          source: "internal",
+          status: "confirmed",
+          originalCurrency: "TND",
+          originalAmount: "100.00",
+          tndAmount: "100.00",
+        })
+        .returning({ id: reservations.id })
+      return row!.id
+    },
+  )
 }
 
 before(async () => {
@@ -78,7 +83,12 @@ before(async () => {
     })
     const [customer] = await tx
       .insert(customers)
-      .values({ agencyId, firstName: "PD", lastName: "Test", email: `pd-${agencyId.slice(0, 8)}@example.com` })
+      .values({
+        agencyId,
+        firstName: "PD",
+        lastName: "Test",
+        email: `pd-${agencyId.slice(0, 8)}@example.com`,
+      })
       .returning({ id: customers.id })
     customerId = customer!.id
   })
@@ -89,8 +99,12 @@ after(async () => {
   await withSystemContext(async (tx) => {
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
     await tx.delete(customers).where(eq(customers.agencyId, agencyId))
-    await tx.delete(catalogPackages).where(eq(catalogPackages.agencyId, agencyId))
-    await tx.delete(catalogActivities).where(eq(catalogActivities.agencyId, agencyId))
+    await tx
+      .delete(catalogPackages)
+      .where(eq(catalogPackages.agencyId, agencyId))
+    await tx
+      .delete(catalogActivities)
+      .where(eq(catalogActivities.agencyId, agencyId))
     await tx.delete(omraPackages).where(eq(omraPackages.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
@@ -113,8 +127,9 @@ test("getProductDetails : hôtel -> label = nom hôtel + ville, dates = check-in
       childrenAges: [6],
     }),
   )
-  const product = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    getProductDetails(tx, reservationId, "hotel"),
+  const product = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) => getProductDetails(tx, reservationId, "hotel"),
   )
   assert.ok(product)
   assert.equal(product!.label, "Hôtel Les Palmiers — Djerba")
@@ -149,8 +164,9 @@ test("getProductDetails : package -> label = titre catalogue, dates = départ/re
       childrenAges: [],
     }),
   )
-  const product = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    getProductDetails(tx, reservationId, "package"),
+  const product = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) => getProductDetails(tx, reservationId, "package"),
   )
   assert.ok(product)
   assert.equal(product!.label, "Circuit Sud Tunisien")
@@ -185,8 +201,9 @@ test("getProductDetails : activity -> label = titre catalogue, une seule date (s
       seniors: 1,
     }),
   )
-  const product = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    getProductDetails(tx, reservationId, "activity"),
+  const product = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) => getProductDetails(tx, reservationId, "activity"),
   )
   assert.ok(product)
   assert.equal(product!.label, "Excursion Sahara")
@@ -222,8 +239,9 @@ test("getProductDetails : omra -> label = nom package omra, dates = départ/reto
       pilgrims: 3,
     }),
   )
-  const product = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    getProductDetails(tx, reservationId, "omra"),
+  const product = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) => getProductDetails(tx, reservationId, "omra"),
   )
   assert.ok(product)
   assert.equal(product!.label, "Omra Ramadan 2027")
@@ -235,8 +253,9 @@ test("getProductDetails : omra -> label = nom package omra, dates = départ/reto
 test("getProductDetails : module sans extension connue (flight) -> null proprement, jamais une exception", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const reservationId = await makeReservation("flight")
-  const product = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    getProductDetails(tx, reservationId, "flight"),
+  const product = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) => getProductDetails(tx, reservationId, "flight"),
   )
   assert.equal(product, null)
 })
@@ -244,8 +263,9 @@ test("getProductDetails : module sans extension connue (flight) -> null propreme
 test("getProductDetails : module hôtel connu mais AUCUNE ligne reservation_hotel (ancien enregistrement) -> null proprement", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const reservationId = await makeReservation("hotel")
-  const product = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    getProductDetails(tx, reservationId, "hotel"),
+  const product = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) => getProductDetails(tx, reservationId, "hotel"),
   )
   assert.equal(product, null)
 })

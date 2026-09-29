@@ -4,7 +4,11 @@
 
 import test from "node:test"
 import assert from "node:assert/strict"
-import { splitIntoRooms, encodeRoomsParam, decodeRoomsParam } from "../room-split"
+import {
+  splitIntoRooms,
+  encodeRoomsParam,
+  decodeRoomsParam,
+} from "../room-split"
 
 test("splitIntoRooms : répartit équitablement les adultes (division exacte)", () => {
   const rooms = splitIntoRooms(2, 4, [])

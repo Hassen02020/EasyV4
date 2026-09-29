@@ -12,7 +12,11 @@ import { redirect } from "next/navigation"
 import { Car } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { listCarLocations, listCarCategories, listCarPricingRates } from "@/lib/admin/car-catalog-actions"
+import {
+  listCarLocations,
+  listCarCategories,
+  listCarPricingRates,
+} from "@/lib/admin/car-catalog-actions"
 import { CarCatalogManager } from "@/components/admin/car-catalog-manager"
 
 export const dynamic = "force-dynamic"
@@ -31,7 +35,11 @@ export default async function AdminCarPage() {
   if (!user) redirect("/login?next=/admin/car")
 
   const profile = await getCurrentAdminProfile(user.id)
-  if (!profile || profile.agencyType !== "ota" || !PRODUCT_MANAGER_ROLES.includes(profile.role ?? "")) {
+  if (
+    !profile ||
+    profile.agencyType !== "ota" ||
+    !PRODUCT_MANAGER_ROLES.includes(profile.role ?? "")
+  ) {
     redirect("/admin")
   }
 
@@ -49,11 +57,16 @@ export default async function AdminCarPage() {
           Voitures — Catalogue
         </h1>
         <p className="text-muted-foreground text-sm">
-          Lieux de prise en charge, catégories de véhicules et tarifs — le flux client les utilise déjà.
+          Lieux de prise en charge, catégories de véhicules et tarifs — le flux
+          client les utilise déjà.
         </p>
       </div>
 
-      <CarCatalogManager initialLocations={locations} initialCategories={categories} initialRates={rates} />
+      <CarCatalogManager
+        initialLocations={locations}
+        initialCategories={categories}
+        initialRates={rates}
+      />
     </div>
   )
 }

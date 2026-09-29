@@ -49,33 +49,32 @@ export async function loadPartnerClients(
     const rows = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
-    db
-      .select({
-        id: customers.id,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        phone: customers.phone,
-        civility: customers.civility,
-        civicId: customers.civicId,
-        city: customers.city,
-        country: customers.country,
-        createdAt: customers.createdAt,
-        bookings:
-          sql<number>`CAST(COUNT(DISTINCT ${reservations.id}) AS INTEGER)`,
-      })
-      .from(customers)
-      .leftJoin(
-        reservations,
-        and(
-          eq(reservations.customerId, customers.id),
-          eq(reservations.agencyId, agencyId),
-        ),
-      )
-      .where(and(...conditions))
-      .groupBy(customers.id)
-      .orderBy(desc(customers.createdAt))
-      .limit(200),
+        db
+          .select({
+            id: customers.id,
+            firstName: customers.firstName,
+            lastName: customers.lastName,
+            email: customers.email,
+            phone: customers.phone,
+            civility: customers.civility,
+            civicId: customers.civicId,
+            city: customers.city,
+            country: customers.country,
+            createdAt: customers.createdAt,
+            bookings: sql<number>`CAST(COUNT(DISTINCT ${reservations.id}) AS INTEGER)`,
+          })
+          .from(customers)
+          .leftJoin(
+            reservations,
+            and(
+              eq(reservations.customerId, customers.id),
+              eq(reservations.agencyId, agencyId),
+            ),
+          )
+          .where(and(...conditions))
+          .groupBy(customers.id)
+          .orderBy(desc(customers.createdAt))
+          .limit(200),
     )
 
     return rows.map((r) => ({
@@ -117,34 +116,33 @@ export async function loadPartnerLedger(
   agencyId: string,
   limit = 100,
 ): Promise<PartnerLedgerResult> {
-  if (!process.env.DATABASE_URL)
-    return { rows: [], currentBalance: 0 }
+  if (!process.env.DATABASE_URL) return { rows: [], currentBalance: 0 }
 
   try {
     const [movements, balanceRow] = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
         Promise.all([
-      db
-        .select({
-          id: partnerCreditMovements.id,
-          movementType: partnerCreditMovements.movementType,
-          amount: partnerCreditMovements.amount,
-          balanceAfter: partnerCreditMovements.balanceAfter,
-          description: partnerCreditMovements.description,
-          reference: partnerCreditMovements.reference,
-          createdAt: partnerCreditMovements.createdAt,
-        })
-        .from(partnerCreditMovements)
-        .where(eq(partnerCreditMovements.agencyId, agencyId))
-        .orderBy(desc(partnerCreditMovements.createdAt))
-        .limit(limit),
+          db
+            .select({
+              id: partnerCreditMovements.id,
+              movementType: partnerCreditMovements.movementType,
+              amount: partnerCreditMovements.amount,
+              balanceAfter: partnerCreditMovements.balanceAfter,
+              description: partnerCreditMovements.description,
+              reference: partnerCreditMovements.reference,
+              createdAt: partnerCreditMovements.createdAt,
+            })
+            .from(partnerCreditMovements)
+            .where(eq(partnerCreditMovements.agencyId, agencyId))
+            .orderBy(desc(partnerCreditMovements.createdAt))
+            .limit(limit),
 
-      db
-        .select({ balance: agencies.depositBalance })
-        .from(agencies)
-        .where(eq(agencies.id, agencyId))
-        .limit(1),
+          db
+            .select({ balance: agencies.depositBalance })
+            .from(agencies)
+            .where(eq(agencies.id, agencyId))
+            .limit(1),
         ]),
     )
 
@@ -153,12 +151,19 @@ export async function loadPartnerLedger(
     )
 
     const VALID_TYPES = new Set([
-      "credit", "debit", "refund", "adjustment", "facture", "avoir", "payment",
+      "credit",
+      "debit",
+      "refund",
+      "adjustment",
+      "facture",
+      "avoir",
+      "payment",
     ])
 
     const rows: PartnerLedgerEntry[] = movements.map((m) => {
       const amount = parseFloat(m.amount as string)
-      const isCredit = m.movementType === "credit" || m.movementType === "refund"
+      const isCredit =
+        m.movementType === "credit" || m.movementType === "refund"
       const safeType = VALID_TYPES.has(m.movementType)
         ? (m.movementType as PartnerLedgerRow["type"])
         : undefined
@@ -166,8 +171,7 @@ export async function loadPartnerLedger(
         id: m.id,
         date: m.createdAt.toISOString().slice(0, 10),
         description:
-          m.description ??
-          (isCredit ? "Crédit wallet" : "Débit réservation"),
+          m.description ?? (isCredit ? "Crédit wallet" : "Débit réservation"),
         type: safeType,
         debit: isCredit ? undefined : Math.abs(amount),
         credit: isCredit ? Math.abs(amount) : undefined,
@@ -201,22 +205,22 @@ export async function loadPartnerPayments(
     const rows = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
-    db
-      .select({
-        id: walletRechargeRequests.id,
-        amount: walletRechargeRequests.amount,
-        method: walletRechargeRequests.method,
-        paymentReference: walletRechargeRequests.paymentReference,
-        status: walletRechargeRequests.status,
-        note: walletRechargeRequests.note,
-        proofUrl: walletRechargeRequests.proofUrl,
-        createdAt: walletRechargeRequests.createdAt,
-        reviewedAt: walletRechargeRequests.reviewedAt,
-      })
-      .from(walletRechargeRequests)
-      .where(eq(walletRechargeRequests.agencyId, agencyId))
-      .orderBy(desc(walletRechargeRequests.createdAt))
-      .limit(100),
+        db
+          .select({
+            id: walletRechargeRequests.id,
+            amount: walletRechargeRequests.amount,
+            method: walletRechargeRequests.method,
+            paymentReference: walletRechargeRequests.paymentReference,
+            status: walletRechargeRequests.status,
+            note: walletRechargeRequests.note,
+            proofUrl: walletRechargeRequests.proofUrl,
+            createdAt: walletRechargeRequests.createdAt,
+            reviewedAt: walletRechargeRequests.reviewedAt,
+          })
+          .from(walletRechargeRequests)
+          .where(eq(walletRechargeRequests.agencyId, agencyId))
+          .orderBy(desc(walletRechargeRequests.createdAt))
+          .limit(100),
     )
 
     return rows.map((r) => ({
@@ -229,7 +233,9 @@ export async function loadPartnerPayments(
       status: r.status,
       note: r.note ?? undefined,
       proofUrl: r.proofUrl ?? undefined,
-      reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString().slice(0, 10) : undefined,
+      reviewedAt: r.reviewedAt
+        ? r.reviewedAt.toISOString().slice(0, 10)
+        : undefined,
     }))
   } catch (err) {
     logger.error("loadPartnerPayments failed", {

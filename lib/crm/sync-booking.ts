@@ -21,7 +21,11 @@
 import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { auditEvents } from "@/lib/db/schema"
-import { getCrmProvider, hasConfiguredCrmProvider, type CrmProvider } from "./provider"
+import {
+  getCrmProvider,
+  hasConfiguredCrmProvider,
+  type CrmProvider,
+} from "./provider"
 import type { NotificationAuditStore } from "@/lib/whatsapp/send-booking-confirmation"
 import { pgErrorCode } from "@/lib/db/pg-error"
 
@@ -84,20 +88,32 @@ export const defaultCrmAuditStore: NotificationAuditStore = {
 
 export async function syncBookingToCrm(
   input: SyncBookingCrmInput,
-  deps: { auditStore?: NotificationAuditStore; provider?: CrmProvider; configured?: boolean } = {},
+  deps: {
+    auditStore?: NotificationAuditStore
+    provider?: CrmProvider
+    configured?: boolean
+  } = {},
 ): Promise<SyncBookingCrmOutcome> {
   const auditStore = deps.auditStore ?? defaultCrmAuditStore
   const configured = deps.configured ?? hasConfiguredCrmProvider()
   const provider = deps.provider ?? getCrmProvider()
 
-  const auditIdentity = { agencyId: input.agencyId, reservationId: input.reservationId, publicRef: input.publicRef }
+  const auditIdentity = {
+    agencyId: input.agencyId,
+    reservationId: input.reservationId,
+    publicRef: input.publicRef,
+  }
 
-  if (await auditStore.hasAlreadySucceeded(input.reservationId, ACTION_SYNCED)) {
+  if (
+    await auditStore.hasAlreadySucceeded(input.reservationId, ACTION_SYNCED)
+  ) {
     return { outcome: "already_synced" }
   }
 
   if (!configured) {
-    await auditStore.recordAttempt(auditIdentity, ACTION_SKIPPED, { reason: "NOT_CONFIGURED" })
+    await auditStore.recordAttempt(auditIdentity, ACTION_SKIPPED, {
+      reason: "NOT_CONFIGURED",
+    })
     return { outcome: "skipped", reason: "NOT_CONFIGURED" }
   }
 
@@ -113,11 +129,20 @@ export async function syncBookingToCrm(
   })
 
   if (!result.ok) {
-    await auditStore.recordAttempt(auditIdentity, ACTION_FAILED, { code: result.code, message: result.message })
-    return { outcome: "failed", code: result.code ?? "UNKNOWN", message: result.message ?? "Échec inconnu." }
+    await auditStore.recordAttempt(auditIdentity, ACTION_FAILED, {
+      code: result.code,
+      message: result.message,
+    })
+    return {
+      outcome: "failed",
+      code: result.code ?? "UNKNOWN",
+      message: result.message ?? "Échec inconnu.",
+    }
   }
 
-  await auditStore.recordAttempt(auditIdentity, ACTION_SYNCED, { providerRecordId: result.providerRecordId })
+  await auditStore.recordAttempt(auditIdentity, ACTION_SYNCED, {
+    providerRecordId: result.providerRecordId,
+  })
   return { outcome: "synced", providerRecordId: result.providerRecordId }
 }
 

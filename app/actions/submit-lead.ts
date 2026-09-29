@@ -43,10 +43,15 @@ export type SubmitLeadInput = z.infer<typeof inputSchema>
 
 export type SubmitLeadResult = { ok: true } | { ok: false; error: string }
 
-export async function submitLead(raw: SubmitLeadInput): Promise<SubmitLeadResult> {
+export async function submitLead(
+  raw: SubmitLeadInput,
+): Promise<SubmitLeadResult> {
   const parsed = inputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors[0]?.message ?? "Entrée invalide." }
+    return {
+      ok: false,
+      error: parsed.error.errors[0]?.message ?? "Entrée invalide.",
+    }
   }
 
   // Honeypot rempli : silence complet, jamais un signal exploitable par un bot.
@@ -62,7 +67,10 @@ export async function submitLead(raw: SubmitLeadInput): Promise<SubmitLeadResult
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
   const limit = await rateLimit(`leads:submit:${ip}`)
   if (!limit.ok) {
-    return { ok: false, error: "Trop de demandes envoyées. Réessayez dans quelques minutes." }
+    return {
+      ok: false,
+      error: "Trop de demandes envoyées. Réessayez dans quelques minutes.",
+    }
   }
 
   const agencyId = await getDefaultAgencyId()
@@ -71,19 +79,21 @@ export async function submitLead(raw: SubmitLeadInput): Promise<SubmitLeadResult
   }
 
   try {
-    await withTenantContext({ agencyId, userId: "", isSuperAdmin: true }, (tx) =>
-      createLeadCore(tx, {
-        agencyId,
-        firstName: parsed.data.firstName,
-        lastName: parsed.data.lastName || null,
-        email: parsed.data.email || null,
-        phone: parsed.data.phone || null,
-        message: parsed.data.message || null,
-        productType: parsed.data.productType,
-        productRef: parsed.data.productRef || null,
-        productLabel: parsed.data.productLabel || null,
-        sourcePage: parsed.data.sourcePage,
-      }),
+    await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: true },
+      (tx) =>
+        createLeadCore(tx, {
+          agencyId,
+          firstName: parsed.data.firstName,
+          lastName: parsed.data.lastName || null,
+          email: parsed.data.email || null,
+          phone: parsed.data.phone || null,
+          message: parsed.data.message || null,
+          productType: parsed.data.productType,
+          productRef: parsed.data.productRef || null,
+          productLabel: parsed.data.productLabel || null,
+          sourcePage: parsed.data.sourcePage,
+        }),
     )
     return { ok: true }
   } catch (err) {

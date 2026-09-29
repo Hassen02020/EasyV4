@@ -8,4 +8,7 @@
  */
 import { getRolePermissions, type Permission } from "./rbac"
 
-export const RBAC_PERMISSIONS = getRolePermissions("super_admin") as [Permission, ...Permission[]]
+export const RBAC_PERMISSIONS = getRolePermissions("super_admin") as [
+  Permission,
+  ...Permission[],
+]

@@ -8,7 +8,13 @@ import { Suspense } from "react"
 import { Metadata } from "next"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Building, Plus, Building2, CheckCircle2, DollarSign } from "lucide-react"
+import {
+  Building,
+  Plus,
+  Building2,
+  CheckCircle2,
+  DollarSign,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -26,7 +32,6 @@ export const metadata: Metadata = {
 }
 
 export const dynamic = "force-dynamic"
-
 
 async function loadAgencies(userId: string) {
   try {
@@ -74,7 +79,9 @@ async function loadAgencies(userId: string) {
       reservationTolerance: parseFloat(a.reservationTolerance as string) || 0,
     }))
   } catch (error) {
-    logger.error("[loadAgencies] failed", { err: error instanceof Error ? error.message : String(error) })
+    logger.error("[loadAgencies] failed", {
+      err: error instanceof Error ? error.message : String(error),
+    })
     return []
   }
 }

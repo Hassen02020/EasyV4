@@ -25,7 +25,7 @@ import { getRedis } from "@/lib/cache/redis"
 export type MetricWindow = "1m" | "1h" | "1d"
 
 const TTL: Record<MetricWindow, number> = {
-  "1m": 120,    // garde 2 min pour être sûr
+  "1m": 120, // garde 2 min pour être sûr
   "1h": 7_200,
   "1d": 172_800,
 }
@@ -60,7 +60,9 @@ async function incr(name: string, by = 1): Promise<void> {
         await redis.expire(key, TTL[w])
       }),
     )
-  } catch { /* non-bloquant */ }
+  } catch {
+    /* non-bloquant */
+  }
 }
 
 /**
@@ -75,7 +77,9 @@ async function timing(name: string, ms: number): Promise<void> {
     await redis.rpush(key, String(Math.round(ms)))
     await redis.ltrim(key, -1000, -1)
     await redis.expire(key, 3_600) // 1h
-  } catch { /* non-bloquant */ }
+  } catch {
+    /* non-bloquant */
+  }
 }
 
 /**
@@ -90,7 +94,9 @@ async function slo(name: string, ok: boolean): Promise<void> {
     await redis.hincrby(key, "total", 1)
     if (ok) await redis.hincrby(key, "ok", 1)
     await redis.expire(key, TTL["1h"])
-  } catch { /* non-bloquant */ }
+  } catch {
+    /* non-bloquant */
+  }
 }
 
 /**
@@ -103,13 +109,18 @@ async function read(name: string, window: MetricWindow): Promise<number> {
   try {
     const val = await redis.get<string>(metricKey(window, name))
     return val ? parseInt(val, 10) : 0
-  } catch { return 0 }
+  } catch {
+    return 0
+  }
 }
 
 /**
  * Lit le percentile P50/P95/P99 d'une métrique de latence.
  */
-async function readPercentile(name: string, p: 50 | 95 | 99): Promise<number | null> {
+async function readPercentile(
+  name: string,
+  p: 50 | 95 | 99,
+): Promise<number | null> {
   const redis = getRedis()
   if (!redis) return null
   try {
@@ -118,14 +129,18 @@ async function readPercentile(name: string, p: 50 | 95 | 99): Promise<number | n
     const sorted = raw.map(Number).sort((a, b) => a - b)
     const idx = Math.floor((p / 100) * sorted.length)
     return sorted[Math.min(idx, sorted.length - 1)] ?? null
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 /**
  * Lit le taux de succès SLO pour la fenêtre 1h courante.
  * Retourne null si pas de données.
  */
-async function readSlo(name: string): Promise<{ ok: number; total: number; rate: number } | null> {
+async function readSlo(
+  name: string,
+): Promise<{ ok: number; total: number; rate: number } | null> {
   const redis = getRedis()
   if (!redis) return null
   try {
@@ -136,7 +151,9 @@ async function readSlo(name: string): Promise<{ ok: number; total: number; rate:
     const total = parseInt(hash.total ?? "0", 10)
     if (total === 0) return null
     return { ok, total, rate: ok / total }
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 export const metrics = { incr, timing, slo, read, readPercentile, readSlo }

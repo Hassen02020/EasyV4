@@ -163,7 +163,10 @@ export function ProBookingTravelersForm({
               <Select
                 value={traveler.civility}
                 onValueChange={(v) =>
-                  setTraveler((p) => ({ ...p, civility: v as "M" | "Mme" | "Mlle" }))
+                  setTraveler((p) => ({
+                    ...p,
+                    civility: v as "M" | "Mme" | "Mlle",
+                  }))
                 }
               >
                 <SelectTrigger className="mt-1 h-9">
@@ -177,42 +180,58 @@ export function ProBookingTravelersForm({
               </Select>
             </div>
             <div>
-              <Label htmlFor="pro-first" className="text-xs">Prénom *</Label>
+              <Label htmlFor="pro-first" className="text-xs">
+                Prénom *
+              </Label>
               <Input
                 id="pro-first"
                 value={traveler.firstName}
-                onChange={(e) => setTraveler((p) => ({ ...p, firstName: e.target.value }))}
+                onChange={(e) =>
+                  setTraveler((p) => ({ ...p, firstName: e.target.value }))
+                }
                 className="mt-1"
               />
             </div>
             <div>
-              <Label htmlFor="pro-last" className="text-xs">Nom *</Label>
+              <Label htmlFor="pro-last" className="text-xs">
+                Nom *
+              </Label>
               <Input
                 id="pro-last"
                 value={traveler.lastName}
-                onChange={(e) => setTraveler((p) => ({ ...p, lastName: e.target.value }))}
+                onChange={(e) =>
+                  setTraveler((p) => ({ ...p, lastName: e.target.value }))
+                }
                 className="mt-1"
               />
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <Label htmlFor="pro-email" className="text-xs">Email *</Label>
+              <Label htmlFor="pro-email" className="text-xs">
+                Email *
+              </Label>
               <Input
                 id="pro-email"
                 type="email"
                 value={traveler.email}
-                onChange={(e) => setTraveler((p) => ({ ...p, email: e.target.value }))}
+                onChange={(e) =>
+                  setTraveler((p) => ({ ...p, email: e.target.value }))
+                }
                 className="mt-1"
               />
             </div>
             <div>
-              <Label htmlFor="pro-phone" className="text-xs">Téléphone *</Label>
+              <Label htmlFor="pro-phone" className="text-xs">
+                Téléphone *
+              </Label>
               <Input
                 id="pro-phone"
                 type="tel"
                 value={traveler.phone}
-                onChange={(e) => setTraveler((p) => ({ ...p, phone: e.target.value }))}
+                onChange={(e) =>
+                  setTraveler((p) => ({ ...p, phone: e.target.value }))
+                }
                 placeholder="+216 98 000 000"
                 className="mt-1"
               />
@@ -224,7 +243,10 @@ export function ProBookingTravelersForm({
               <Select
                 value={traveler.civicIdType}
                 onValueChange={(v) =>
-                  setTraveler((p) => ({ ...p, civicIdType: v as "cin" | "passport" }))
+                  setTraveler((p) => ({
+                    ...p,
+                    civicIdType: v as "cin" | "passport",
+                  }))
                 }
               >
                 <SelectTrigger className="mt-1 h-9">
@@ -238,12 +260,16 @@ export function ProBookingTravelersForm({
             </div>
             <div>
               <Label htmlFor="pro-civic" className="text-xs">
-                {traveler.civicIdType === "cin" ? "N° CIN (8 chiffres) *" : "N° Passeport *"}
+                {traveler.civicIdType === "cin"
+                  ? "N° CIN (8 chiffres) *"
+                  : "N° Passeport *"}
               </Label>
               <Input
                 id="pro-civic"
                 value={traveler.civicId}
-                onChange={(e) => setTraveler((p) => ({ ...p, civicId: e.target.value }))}
+                onChange={(e) =>
+                  setTraveler((p) => ({ ...p, civicId: e.target.value }))
+                }
                 className="mt-1"
               />
             </div>
@@ -252,7 +278,9 @@ export function ProBookingTravelersForm({
       </section>
 
       <aside className="bg-card border-border/60 shadow-e2b-soft h-fit rounded-2xl border p-4 md:p-5">
-        <h2 className="text-foreground mb-3 text-sm font-semibold">Récapitulatif</h2>
+        <h2 className="text-foreground mb-3 text-sm font-semibold">
+          Récapitulatif
+        </h2>
         <dl className="space-y-2 text-sm">
           <div>
             <dt className="text-muted-foreground text-xs">Hôtel</dt>
@@ -260,15 +288,21 @@ export function ProBookingTravelersForm({
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">Chambre</dt>
-            <dd className="text-foreground">{roomName} — {boardingName}</dd>
+            <dd className="text-foreground">
+              {roomName} — {boardingName}
+            </dd>
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">Séjour</dt>
-            <dd className="text-foreground">{checkin} → {checkout}</dd>
+            <dd className="text-foreground">
+              {checkin} → {checkout}
+            </dd>
           </div>
         </dl>
         <div className="border-border/50 mt-4 border-t pt-3">
-          <p className="text-muted-foreground text-xs">Total TTC (TVA 19% incluse)</p>
+          <p className="text-muted-foreground text-xs">
+            Total TTC (TVA 19% incluse)
+          </p>
           <p className="text-primary text-xl font-bold tabular-nums">
             {totalTnd.toLocaleString("fr-FR")} {currency}
           </p>

@@ -54,7 +54,10 @@ import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
-import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
+import {
+  resolveCancellationPolicy,
+  buildPolicySnapshot,
+} from "@/lib/booking/policy-engine"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
@@ -84,11 +87,16 @@ export async function createGuestOmraBooking(input: {
   if (!parsed.success) {
     return {
       ok: false,
-      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Réservation invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
     }
   }
   if (!["card", "transfer", "cash"].includes(input.paymentMethod)) {
-    return { ok: false, error: "Mode de paiement invalide pour une réservation en ligne." }
+    return {
+      ok: false,
+      error: "Mode de paiement invalide pour une réservation en ligne.",
+    }
   }
 
   // Clé d'idempotence dérivée du CONTENU de la requête (package + départ +
@@ -115,10 +123,16 @@ export async function createGuestOmraBooking(input: {
   // DB) : `null` pour tout visiteur non connecté ou dont l'email de session
   // ne correspond pas exactement à l'email du premier pèlerin (voir
   // lib/booking/customer-identity.ts — jamais un rattachement ambigu).
-  const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.pilgrims[0]?.email)
+  const linkedAuthUserId = await resolveLinkedAuthUserId(
+    parsed.data.pilgrims[0]?.email,
+  )
 
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestOmraBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
+    runCreateGuestOmraBooking(
+      parsed.data,
+      input.paymentMethod,
+      linkedAuthUserId,
+    ),
   )
 }
 
@@ -129,7 +143,10 @@ async function runCreateGuestOmraBooking(
 ): Promise<CreateGuestOmraBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
-    return { ok: false, error: "Aucune agence de vente directe n'est configurée pour le moment." }
+    return {
+      ok: false,
+      error: "Aucune agence de vente directe n'est configurée pour le moment.",
+    }
   }
 
   const pilgrimCount = booking.pilgrims.length
@@ -143,11 +160,17 @@ async function runCreateGuestOmraBooking(
         const [pkg] = await tx
           .select()
           .from(omraPackages)
-          .where(and(eq(omraPackages.id, booking.packageId), eq(omraPackages.agencyId, agencyId)))
+          .where(
+            and(
+              eq(omraPackages.id, booking.packageId),
+              eq(omraPackages.agencyId, agencyId),
+            ),
+          )
           .limit(1)
         if (!pkg) throw new Error("PACKAGE_NOT_FOUND")
         if (pkg.status !== "published") throw new Error("PACKAGE_NOT_ACTIVE")
-        if (!pkg.channels?.includes("b2c")) throw new Error("PACKAGE_NOT_ACTIVE")
+        if (!pkg.channels?.includes("b2c"))
+          throw new Error("PACKAGE_NOT_ACTIVE")
 
         const [allotment] = await tx
           .select()
@@ -161,7 +184,8 @@ async function runCreateGuestOmraBooking(
           .limit(1)
           .for("update")
         if (!allotment) throw new Error("ALLOTMENT_NOT_FOUND")
-        if (allotment.status !== "active") throw new Error("ALLOTMENT_NOT_ACTIVE")
+        if (allotment.status !== "active")
+          throw new Error("ALLOTMENT_NOT_ACTIVE")
         if (allotment.availableCount < pilgrimCount) {
           throw new Error(
             `INSUFFICIENT_STOCK: ${allotment.availableCount} places disponibles, ${pilgrimCount} demandées`,
@@ -182,7 +206,10 @@ async function runCreateGuestOmraBooking(
           productType: "omra",
           productId: booking.packageId,
         })
-        const policySnapshot = buildPolicySnapshot(resolvedPolicy, booking.policyAccepted)
+        const policySnapshot = buildPolicySnapshot(
+          resolvedPolicy,
+          booking.policyAccepted,
+        )
 
         // --- 2. Règlement (card = paiement réel immédiat, jamais de faux succès) ---
         if (paymentMethod === "card") {
@@ -196,7 +223,10 @@ async function runCreateGuestOmraBooking(
           })
           if (!paymentResult.ok) {
             // Rollback complet : aucune place consommée, aucune réservation créée.
-            throw new PaymentRejected(paymentResult.message ?? "Le paiement n'a pas pu être traité.", paymentResult.code)
+            throw new PaymentRejected(
+              paymentResult.message ?? "Le paiement n'a pas pu être traité.",
+              paymentResult.code,
+            )
           }
         }
         const isImmediatelyPaid = paymentMethod === "card"
@@ -255,14 +285,21 @@ async function runCreateGuestOmraBooking(
               policySnapshot,
             },
           })
-          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
+          .returning({
+            id: reservations.id,
+            guestAccessToken: reservations.guestAccessToken,
+          })
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
-            .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+            .set({
+              status: "confirmed",
+              confirmedAt: new Date(),
+              updatedAt: new Date(),
+            })
             .where(eq(reservations.id, reservationId))
 
           await recordReservationTransition(tx, {
@@ -299,7 +336,8 @@ async function runCreateGuestOmraBooking(
 
         // --- 5. Extension Omra + fiches pèlerins ---
         const returnDate = new Date(
-          new Date(booking.departureDate).getTime() + pkg.durationDays * 86_400_000,
+          new Date(booking.departureDate).getTime() +
+            pkg.durationDays * 86_400_000,
         )
           .toISOString()
           .split("T")[0]
@@ -340,10 +378,12 @@ async function runCreateGuestOmraBooking(
             hasMedicalConditions: pilgrim.hasMedicalConditions,
             medicalConditions: pilgrim.medicalConditions || undefined,
             requiresSpecialAssistance: pilgrim.requiresSpecialAssistance,
-            specialAssistanceDetails: pilgrim.specialAssistanceDetails || undefined,
+            specialAssistanceDetails:
+              pilgrim.specialAssistanceDetails || undefined,
             emergencyContactName: pilgrim.emergencyContactName || undefined,
             emergencyContactPhone: pilgrim.emergencyContactPhone || undefined,
-            emergencyContactRelation: pilgrim.emergencyContactRelation || undefined,
+            emergencyContactRelation:
+              pilgrim.emergencyContactRelation || undefined,
             roomType: pilgrim.roomType,
           })
         }
@@ -363,18 +403,29 @@ async function runCreateGuestOmraBooking(
           entityType: "reservation",
           entityId: reservationId,
           action: "omra_booking.created",
-          diff: { packageId: booking.packageId, departureDate: booking.departureDate, pilgrimCount, totalTnd, publicRef, via: "b2c_guest", paymentMethod },
+          diff: {
+            packageId: booking.packageId,
+            departureDate: booking.departureDate,
+            pilgrimCount,
+            totalTnd,
+            publicRef,
+            via: "b2c_guest",
+            paymentMethod,
+          },
         })
 
         return {
           reservationId,
           publicRef,
           guestAccessToken,
-          status: (isImmediatelyPaid ? "confirmed" : "pending") as "confirmed" | "pending",
+          status: (isImmediatelyPaid ? "confirmed" : "pending") as
+            | "confirmed"
+            | "pending",
           packageName: pkg.name,
           totalTnd,
           contactEmail: firstPilgrim.email,
-          contactName: `${firstPilgrim.firstName} ${firstPilgrim.lastName}`.trim(),
+          contactName:
+            `${firstPilgrim.firstName} ${firstPilgrim.lastName}`.trim(),
         }
       },
     )
@@ -389,7 +440,9 @@ async function runCreateGuestOmraBooking(
         departureDate: booking.departureDate,
         totalTnd: result.totalTnd,
         contactEmail: result.contactEmail,
-      }).catch(() => { /* fire-and-forget */ })
+      }).catch(() => {
+        /* fire-and-forget */
+      })
     }
 
     if (result.status === "confirmed") {
@@ -400,10 +453,16 @@ async function runCreateGuestOmraBooking(
           actorUserId: "",
         })
         if (!invoiceResult.ok) {
-          console.error("[omra-guest] génération facture échouée", invoiceResult.error)
+          console.error(
+            "[omra-guest] génération facture échouée",
+            invoiceResult.error,
+          )
         }
       } catch (err) {
-        console.error("[omra-guest] génération facture échouée", err instanceof Error ? err.message : String(err))
+        console.error(
+          "[omra-guest] génération facture échouée",
+          err instanceof Error ? err.message : String(err),
+        )
       }
     }
 
@@ -424,10 +483,17 @@ async function runCreateGuestOmraBooking(
       PACKAGE_NOT_ACTIVE: "Ce package n'est plus actif",
       ALLOTMENT_NOT_FOUND: "Aucun départ correspondant à cette date",
       ALLOTMENT_NOT_ACTIVE: "Ce départ n'est plus ouvert à la réservation",
-      INSUFFICIENT_STOCK: msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
+      INSUFFICIENT_STOCK:
+        msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
-    return { ok: false, error: code ? codes[code] : "Erreur interne lors de la création de la réservation.", code: code ?? "INTERNAL_ERROR" }
+    return {
+      ok: false,
+      error: code
+        ? codes[code]
+        : "Erreur interne lors de la création de la réservation.",
+      code: code ?? "INTERNAL_ERROR",
+    }
   }
 }
 

@@ -27,7 +27,10 @@
 
 import { eq, and, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { withTenantContext, resolveSessionContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  resolveSessionContext,
+} from "@/lib/db/tenant-context"
 import {
   customers,
   reservations,
@@ -52,7 +55,10 @@ import {
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import type { TravelerInput } from "@/lib/booking/schemas"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
-import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
+import {
+  resolveCancellationPolicy,
+  buildPolicySnapshot,
+} from "@/lib/booking/policy-engine"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -92,11 +98,16 @@ export async function createGuestPackageBooking(input: {
   if (!parsed.success) {
     return {
       ok: false,
-      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Réservation invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
     }
   }
   if (!["card", "transfer", "cash"].includes(input.paymentMethod)) {
-    return { ok: false, error: "Mode de paiement invalide pour une réservation en ligne." }
+    return {
+      ok: false,
+      error: "Mode de paiement invalide pour une réservation en ligne.",
+    }
   }
 
   const { createHash } = await import("node:crypto")
@@ -114,10 +125,16 @@ export async function createGuestPackageBooking(input: {
     .digest("hex")
 
   // PHASE "CUSTOMER RESERVATION LINK" — voir lib/booking/customer-identity.ts.
-  const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.traveler.email)
+  const linkedAuthUserId = await resolveLinkedAuthUserId(
+    parsed.data.traveler.email,
+  )
 
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestPackageBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
+    runCreateGuestPackageBooking(
+      parsed.data,
+      input.paymentMethod,
+      linkedAuthUserId,
+    ),
   )
 }
 
@@ -128,7 +145,10 @@ async function runCreateGuestPackageBooking(
 ): Promise<CreateGuestPackageBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
-    return { ok: false, error: "Aucune agence de vente directe n'est configurée pour le moment." }
+    return {
+      ok: false,
+      error: "Aucune agence de vente directe n'est configurée pour le moment.",
+    }
   }
 
   const traveler: TravelerInput = booking.traveler
@@ -142,11 +162,17 @@ async function runCreateGuestPackageBooking(
         const [pkg] = await tx
           .select()
           .from(catalogPackages)
-          .where(and(eq(catalogPackages.id, booking.packageId), eq(catalogPackages.agencyId, agencyId)))
+          .where(
+            and(
+              eq(catalogPackages.id, booking.packageId),
+              eq(catalogPackages.agencyId, agencyId),
+            ),
+          )
           .limit(1)
         if (!pkg) throw new Error("PACKAGE_NOT_FOUND")
         if (pkg.status !== "published") throw new Error("PACKAGE_NOT_ACTIVE")
-        if (!pkg.channels?.includes("b2c")) throw new Error("PACKAGE_NOT_ACTIVE")
+        if (!pkg.channels?.includes("b2c"))
+          throw new Error("PACKAGE_NOT_ACTIVE")
 
         const [departure] = await tx
           .select()
@@ -164,11 +190,15 @@ async function runCreateGuestPackageBooking(
 
         const seatsLeft = departure.totalSeats - departure.bookedSeats
         if (seatsLeft < paxCount) {
-          throw new Error(`INSUFFICIENT_STOCK: ${seatsLeft} places disponibles, ${paxCount} demandées`)
+          throw new Error(
+            `INSUFFICIENT_STOCK: ${seatsLeft} places disponibles, ${paxCount} demandées`,
+          )
         }
 
         const unitPriceTnd = parseFloat(departure.adultPriceTnd)
-        const unitChildPriceTnd = departure.childPriceTnd ? parseFloat(departure.childPriceTnd) : undefined
+        const unitChildPriceTnd = departure.childPriceTnd
+          ? parseFloat(departure.childPriceTnd)
+          : undefined
         const breakdown = computePriceBreakdown({
           unitPriceTnd,
           adults: booking.adults,
@@ -186,7 +216,10 @@ async function runCreateGuestPackageBooking(
           productType: "package",
           productId: booking.packageId,
         })
-        const policySnapshot = buildPolicySnapshot(resolvedPolicy, booking.policyAccepted)
+        const policySnapshot = buildPolicySnapshot(
+          resolvedPolicy,
+          booking.policyAccepted,
+        )
 
         // --- 2. Règlement (card = paiement réel immédiat, jamais de faux succès) ---
         if (paymentMethod === "card") {
@@ -199,7 +232,10 @@ async function runCreateGuestPackageBooking(
             customerEmail: traveler.email,
           })
           if (!paymentResult.ok) {
-            throw new PaymentRejected(paymentResult.message ?? "Le paiement n'a pas pu être traité.", paymentResult.code)
+            throw new PaymentRejected(
+              paymentResult.message ?? "Le paiement n'a pas pu être traité.",
+              paymentResult.code,
+            )
           }
         }
         const isImmediatelyPaid = paymentMethod === "card"
@@ -256,14 +292,21 @@ async function runCreateGuestPackageBooking(
               policySnapshot,
             },
           })
-          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
+          .returning({
+            id: reservations.id,
+            guestAccessToken: reservations.guestAccessToken,
+          })
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
-            .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+            .set({
+              status: "confirmed",
+              confirmedAt: new Date(),
+              updatedAt: new Date(),
+            })
             .where(eq(reservations.id, reservationId))
 
           await recordReservationTransition(tx, {
@@ -304,7 +347,9 @@ async function runCreateGuestPackageBooking(
         if (isImmediatelyPaid) {
           const rewardsSummary = await getReservationPaymentSummary({
             reservationId,
-            txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+            txOverride: tx as Parameters<
+              typeof getReservationPaymentSummary
+            >[0]["txOverride"],
           })
           await earnPendingPoints(tx, {
             agencyId,
@@ -340,14 +385,24 @@ async function runCreateGuestPackageBooking(
           entityType: "reservation",
           entityId: reservationId,
           action: "package_booking.created",
-          diff: { packageId: booking.packageId, departureId: booking.departureId, paxCount, totalTnd, publicRef, via: "b2c_guest", paymentMethod },
+          diff: {
+            packageId: booking.packageId,
+            departureId: booking.departureId,
+            paxCount,
+            totalTnd,
+            publicRef,
+            via: "b2c_guest",
+            paymentMethod,
+          },
         })
 
         return {
           reservationId,
           publicRef,
           guestAccessToken,
-          status: (isImmediatelyPaid ? "confirmed" : "pending") as "confirmed" | "pending",
+          status: (isImmediatelyPaid ? "confirmed" : "pending") as
+            | "confirmed"
+            | "pending",
         }
       },
     )
@@ -370,10 +425,16 @@ async function runCreateGuestPackageBooking(
           actorUserId: "",
         })
         if (!invoiceResult.ok) {
-          console.error("[package-guest] génération facture échouée", invoiceResult.error)
+          console.error(
+            "[package-guest] génération facture échouée",
+            invoiceResult.error,
+          )
         }
       } catch (err) {
-        console.error("[package-guest] génération facture échouée", err instanceof Error ? err.message : String(err))
+        console.error(
+          "[package-guest] génération facture échouée",
+          err instanceof Error ? err.message : String(err),
+        )
       }
     }
 
@@ -394,10 +455,17 @@ async function runCreateGuestPackageBooking(
       PACKAGE_NOT_ACTIVE: "Ce voyage n'est plus actif",
       DEPARTURE_NOT_FOUND: "Départ introuvable pour ce voyage",
       DEPARTURE_NOT_OPEN: "Ce départ n'est plus ouvert à la réservation",
-      INSUFFICIENT_STOCK: msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
+      INSUFFICIENT_STOCK:
+        msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
-    return { ok: false, error: code ? codes[code] : "Erreur interne lors de la création de la réservation.", code: code ?? "INTERNAL_ERROR" }
+    return {
+      ok: false,
+      error: code
+        ? codes[code]
+        : "Erreur interne lors de la création de la réservation.",
+      code: code ?? "INTERNAL_ERROR",
+    }
   }
 }
 
@@ -423,7 +491,9 @@ export async function createPackageBooking(
   if (!parsed.success) {
     return {
       ok: false,
-      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Réservation invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
     }
   }
   const booking = parsed.data
@@ -451,7 +521,8 @@ export async function createPackageBooking(
           .limit(1)
         if (!pkg) throw new Error("PACKAGE_NOT_FOUND")
         if (pkg.status !== "published") throw new Error("PACKAGE_NOT_ACTIVE")
-        if (!pkg.channels?.includes("b2b")) throw new Error("PACKAGE_NOT_ACTIVE")
+        if (!pkg.channels?.includes("b2b"))
+          throw new Error("PACKAGE_NOT_ACTIVE")
 
         const [departure] = await tx
           .select()
@@ -469,11 +540,15 @@ export async function createPackageBooking(
 
         const seatsLeft = departure.totalSeats - departure.bookedSeats
         if (seatsLeft < paxCount) {
-          throw new Error(`INSUFFICIENT_STOCK: ${seatsLeft} places disponibles, ${paxCount} demandées`)
+          throw new Error(
+            `INSUFFICIENT_STOCK: ${seatsLeft} places disponibles, ${paxCount} demandées`,
+          )
         }
 
         const unitPriceTnd = parseFloat(departure.adultPriceTnd)
-        const unitChildPriceTnd = departure.childPriceTnd ? parseFloat(departure.childPriceTnd) : undefined
+        const unitChildPriceTnd = departure.childPriceTnd
+          ? parseFloat(departure.childPriceTnd)
+          : undefined
         const breakdown = computePriceBreakdown({
           unitPriceTnd,
           adults: booking.adults,
@@ -534,15 +609,25 @@ export async function createPackageBooking(
           createdByUserId,
           reservationId,
           idempotencyKey: `booking-debit:${reservationId}`,
-          txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
         })
         if (!debitResult.ok) {
-          throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
+          throw new Error(
+            debitResult.code === "INSUFFICIENT_FUNDS"
+              ? "INSUFFICIENT_BALANCE"
+              : "WALLET_DEBIT_FAILED",
+          )
         }
 
         await tx
           .update(reservations)
-          .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+          .set({
+            status: "confirmed",
+            confirmedAt: new Date(),
+            updatedAt: new Date(),
+          })
           .where(eq(reservations.id, reservationId))
 
         await recordReservationTransition(tx, {
@@ -584,13 +669,15 @@ export async function createPackageBooking(
           returnDate: departure.returnDate,
           adults: booking.adults,
           childrenAges: booking.childrenAges,
-          travelers: [{
-            firstName: booking.customerFirstName,
-            lastName: booking.customerLastName,
-            phone: booking.customerPhone,
-            email: booking.customerEmail || undefined,
-            isPrimary: true,
-          }],
+          travelers: [
+            {
+              firstName: booking.customerFirstName,
+              lastName: booking.customerLastName,
+              phone: booking.customerPhone,
+              email: booking.customerEmail || undefined,
+              isPrimary: true,
+            },
+          ],
         })
 
         await tx
@@ -604,7 +691,14 @@ export async function createPackageBooking(
           entityType: "reservation",
           entityId: reservationId,
           action: "package_booking.created",
-          diff: { packageId: booking.packageId, departureId: booking.departureId, paxCount, totalTnd, publicRef, via: "b2b" },
+          diff: {
+            packageId: booking.packageId,
+            departureId: booking.departureId,
+            paxCount,
+            totalTnd,
+            publicRef,
+            via: "b2b",
+          },
         })
 
         return { reservationId, publicRef }
@@ -618,30 +712,51 @@ export async function createPackageBooking(
         actorUserId: createdByUserId,
       })
       if (!invoiceResult.ok) {
-        console.error("[package-b2b] génération facture échouée", invoiceResult.error)
+        console.error(
+          "[package-b2b] génération facture échouée",
+          invoiceResult.error,
+        )
       }
     } catch (err) {
-      console.error("[package-b2b] génération facture échouée", err instanceof Error ? err.message : String(err))
+      console.error(
+        "[package-b2b] génération facture échouée",
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
-      PACKAGE_NOT_FOUND: "Voyage organisé introuvable ou non autorisé pour votre agence",
+      PACKAGE_NOT_FOUND:
+        "Voyage organisé introuvable ou non autorisé pour votre agence",
       PACKAGE_NOT_ACTIVE: "Ce voyage n'est plus disponible en B2B",
       DEPARTURE_NOT_FOUND: "Départ introuvable pour ce voyage",
       DEPARTURE_NOT_OPEN: "Ce départ n'est plus ouvert à la réservation",
-      INSUFFICIENT_STOCK: msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
+      INSUFFICIENT_STOCK:
+        msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
-    return { ok: false, error: code ? codes[code] : "Erreur interne lors de la création de la réservation.", code: code ?? "INTERNAL_ERROR" }
+    return {
+      ok: false,
+      error: code
+        ? codes[code]
+        : "Erreur interne lors de la création de la réservation.",
+      code: code ?? "INTERNAL_ERROR",
+    }
   }
 }
 
-async function nextPackagePublicRef(tx: DrizzleTransaction, agencyId: string): Promise<string> {
+async function nextPackagePublicRef(
+  tx: DrizzleTransaction,
+  agencyId: string,
+): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `PK-${year}-`
   const [row] = await tx

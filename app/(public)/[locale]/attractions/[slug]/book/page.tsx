@@ -45,7 +45,10 @@ async function getBookableActivity(slug: string) {
         and(
           eq(catalogActivitySessions.activityId, activity.id),
           eq(catalogActivitySessions.status, "open"),
-          gte(catalogActivitySessions.sessionDate, new Date().toISOString().split("T")[0]!),
+          gte(
+            catalogActivitySessions.sessionDate,
+            new Date().toISOString().split("T")[0]!,
+          ),
         ),
       )
       .orderBy(catalogActivitySessions.sessionDate)
@@ -55,7 +58,8 @@ async function getBookableActivity(slug: string) {
       .map((s) => ({ ...s, capacityLeft: s.capacity - s.booked }))
       .filter((s) => {
         if (s.capacityLeft <= 0) return false
-        const deadline = s.bookingDeadline ?? new Date(`${s.sessionDate}T${s.sessionStart}:00`)
+        const deadline =
+          s.bookingDeadline ?? new Date(`${s.sessionDate}T${s.sessionStart}:00`)
         return now < deadline
       })
 
@@ -93,7 +97,9 @@ export default async function ActivityBookPage({
             <ArrowLeft className="size-4" />
             {t("backToAttraction")}
           </Link>
-          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{activity.title}</h1>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
+            {activity.title}
+          </h1>
           <p className="text-muted-foreground mb-6">
             {t("chooseSessionAndContact")}
           </p>
@@ -104,7 +110,9 @@ export default async function ActivityBookPage({
               activityId={activity.id}
               activityTitle={activity.title}
               defaultSessionId={
-                session && sessions.some((s) => s.id === session) ? session : undefined
+                session && sessions.some((s) => s.id === session)
+                  ? session
+                  : undefined
               }
               sessions={sessions.map((s) => ({
                 id: s.id,
@@ -113,7 +121,9 @@ export default async function ActivityBookPage({
                 sessionEnd: s.sessionEnd,
                 capacityLeft: s.capacityLeft,
                 adultPriceTnd: parseFloat(s.adultPriceTnd),
-                childPriceTnd: s.childPriceTnd ? parseFloat(s.childPriceTnd) : undefined,
+                childPriceTnd: s.childPriceTnd
+                  ? parseFloat(s.childPriceTnd)
+                  : undefined,
               }))}
             />
           </div>

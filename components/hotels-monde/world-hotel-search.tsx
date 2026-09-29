@@ -44,7 +44,9 @@ export function WorldHotelSearch({
   const initialCheckOutDate = parseIsoDateLocal(initialCheckOut)
   const [checkIn, setCheckIn] = useState<Date | null>(initialCheckInDate)
   const [checkOut, setCheckOut] = useState<Date | null>(
-    initialCheckInDate && initialCheckOutDate && initialCheckOutDate <= initialCheckInDate
+    initialCheckInDate &&
+      initialCheckOutDate &&
+      initialCheckOutDate <= initialCheckInDate
       ? null
       : initialCheckOutDate,
   )
@@ -77,7 +79,7 @@ export function WorldHotelSearch({
   }
 
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="bg-card rounded-2xl border p-6 shadow-sm">
       <h2 className="mb-6 text-xl font-semibold">{t("findHotelTitle")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2 sm:col-span-2 lg:col-span-1">
@@ -104,7 +106,7 @@ export function WorldHotelSearch({
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <Users className="text-muted-foreground h-3.5 w-3.5" />
             {t("adultsLabel")}
           </Label>
           <Select value={adults} onValueChange={setAdults}>

@@ -30,7 +30,11 @@ import {
   loyaltyLedger,
 } from "@/lib/db/schema"
 import { getCustomerWalletBalance } from "@/lib/finance/customer-wallet"
-import { earnPendingPoints, convertPendingToAvailable, getLoyaltyAccountSummary } from "@/lib/loyalty/rewards-core"
+import {
+  earnPendingPoints,
+  convertPendingToAvailable,
+  getLoyaltyAccountSummary,
+} from "@/lib/loyalty/rewards-core"
 import { cancelPolicyReservationCore } from "../policy-cancel-core"
 import type { PolicySnapshot } from "../policy-engine"
 
@@ -56,7 +60,9 @@ let ownerCustomerId = ""
 let packageId = ""
 let departureId = ""
 
-function makeSnapshot(overrides: Partial<NonNullable<PolicySnapshot["policy"]>> = {}): PolicySnapshot {
+function makeSnapshot(
+  overrides: Partial<NonNullable<PolicySnapshot["policy"]>> = {},
+): PolicySnapshot {
   return {
     resolvedAt: new Date().toISOString(),
     acceptedByCustomer: true,
@@ -150,8 +156,18 @@ before(async () => {
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, slug: `pc-a-${agencyA}`, name: "Policy Cancel Test Agency A", agencyType: "ota" },
-      { id: agencyB, slug: `pc-b-${agencyB}`, name: "Policy Cancel Test Agency B", agencyType: "ota" },
+      {
+        id: agencyA,
+        slug: `pc-a-${agencyA}`,
+        name: "Policy Cancel Test Agency A",
+        agencyType: "ota",
+      },
+      {
+        id: agencyB,
+        slug: `pc-b-${agencyB}`,
+        name: "Policy Cancel Test Agency B",
+        agencyType: "ota",
+      },
     ])
     const [customer] = await tx
       .insert(customers)
@@ -203,17 +219,29 @@ after(async () => {
       .from(walletAccounts)
       .where(eq(walletAccounts.customerId, ownerCustomerId))
     for (const w of walletRows) {
-      await tx.delete(walletLedger).where(eq(walletLedger.walletAccountId, w.id))
+      await tx
+        .delete(walletLedger)
+        .where(eq(walletLedger.walletAccountId, w.id))
     }
-    await tx.delete(walletAccounts).where(eq(walletAccounts.customerId, ownerCustomerId))
+    await tx
+      .delete(walletAccounts)
+      .where(eq(walletAccounts.customerId, ownerCustomerId))
     await tx.delete(loyaltyLedger).where(eq(loyaltyLedger.agencyId, agencyA))
-    await tx.delete(loyaltyAccounts).where(eq(loyaltyAccounts.agencyId, agencyA))
-    await tx.delete(reservationPackage).where(eq(reservationPackage.agencyId, agencyA))
+    await tx
+      .delete(loyaltyAccounts)
+      .where(eq(loyaltyAccounts.agencyId, agencyA))
+    await tx
+      .delete(reservationPackage)
+      .where(eq(reservationPackage.agencyId, agencyA))
     await tx.delete(payments).where(eq(payments.agencyId, agencyA))
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyA))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyA))
-    await tx.delete(catalogPackageDepartures).where(eq(catalogPackageDepartures.agencyId, agencyA))
-    await tx.delete(catalogPackages).where(eq(catalogPackages.agencyId, agencyA))
+    await tx
+      .delete(catalogPackageDepartures)
+      .where(eq(catalogPackageDepartures.agencyId, agencyA))
+    await tx
+      .delete(catalogPackages)
+      .where(eq(catalogPackages.agencyId, agencyA))
     await tx.delete(customers).where(eq(customers.agencyId, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyB))
@@ -239,20 +267,40 @@ test("cancelPolicyReservationCore : politique avec frais 20% → crédit wallet 
   if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
   assert.equal(result.creditedTnd, 800)
   assert.equal(result.feePercent, 20)
-  assert.deepEqual(result.messages, ["Annulation acceptée", "Frais configurés: 20%", "Crédit Easy2Book: 800.000 DT"])
+  assert.deepEqual(result.messages, [
+    "Annulation acceptée",
+    "Frais configurés: 20%",
+    "Crédit Easy2Book: 800.000 DT",
+  ])
 
   const balanceAfter = await getCustomerWalletBalance(ownerCustomerId)
-  assert.equal(balanceAfter - balanceBefore, 800, "le wallet client est crédité du montant exact calculé par la politique")
+  assert.equal(
+    balanceAfter - balanceBefore,
+    800,
+    "le wallet client est crédité du montant exact calculé par la politique",
+  )
 
   const [row] = await withSystemContext((tx) =>
-    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId)),
   )
   assert.equal(row!.status, "cancelled")
 
   const audit = await withSystemContext((tx) =>
-    tx.select().from(auditEvents).where(eq(auditEvents.entityId, reservationId)),
+    tx
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.entityId, reservationId)),
   )
-  assert.ok(audit.some((e) => e.action === "reservation.cancelled" && (e.diff as Record<string, unknown>)?.via === "policy_engine"))
+  assert.ok(
+    audit.some(
+      (e) =>
+        e.action === "reservation.cancelled" &&
+        (e.diff as Record<string, unknown>)?.via === "policy_engine",
+    ),
+  )
 })
 
 test("cancelPolicyReservationCore : frais 100% + paiement capturé → annulation réussit quand même avec 0 DT crédité (Phase 38A, gap confirmé)", async (t) => {
@@ -276,25 +324,47 @@ test("cancelPolicyReservationCore : frais 100% + paiement capturé → annulatio
     reservationId,
   )
 
-  assert.equal(result.ok, true, "l'annulation doit réussir même avec 0 DT à créditer")
+  assert.equal(
+    result.ok,
+    true,
+    "l'annulation doit réussir même avec 0 DT à créditer",
+  )
   if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
   assert.equal(result.creditedTnd, 0)
-  assert.deepEqual(result.messages, ["Annulation acceptée", "Frais configurés: 100%", "Crédit Easy2Book: 0.000 DT"])
+  assert.deepEqual(result.messages, [
+    "Annulation acceptée",
+    "Frais configurés: 100%",
+    "Crédit Easy2Book: 0.000 DT",
+  ])
 
   const balanceAfter = await getCustomerWalletBalance(ownerCustomerId)
-  assert.equal(balanceAfter, balanceBefore, "aucun mouvement wallet quand le crédit dû est 0")
+  assert.equal(
+    balanceAfter,
+    balanceBefore,
+    "aucun mouvement wallet quand le crédit dû est 0",
+  )
 
   const [row] = await withSystemContext((tx) =>
-    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId)),
   )
-  assert.equal(row!.status, "cancelled", "la réservation doit bien passer à cancelled malgré le crédit nul")
+  assert.equal(
+    row!.status,
+    "cancelled",
+    "la réservation doit bien passer à cancelled malgré le crédit nul",
+  )
 })
 
 test("cancelPolicyReservationCore : refundAllowed=false ET creditAllowed=false + paiement capturé → annulation réussit avec 0 DT crédité", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const reservationId = await insertReservation({
     tndAmount: "500.00",
-    policySnapshot: makeSnapshot({ refundAllowed: false, creditAllowed: false }),
+    policySnapshot: makeSnapshot({
+      refundAllowed: false,
+      creditAllowed: false,
+    }),
     withCapturedPayment: true,
   })
 
@@ -309,7 +379,10 @@ test("cancelPolicyReservationCore : refundAllowed=false ET creditAllowed=false +
   assert.equal(result.creditedTnd, 0)
 
   const [row] = await withSystemContext((tx) =>
-    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId)),
   )
   assert.equal(row!.status, "cancelled")
 })
@@ -331,22 +404,39 @@ test("cancelPolicyReservationCore : cancellable=false → refusé, aucun crédit
 
   assert.equal(result.ok, true)
   if (!result.ok || result.allowed) throw new Error("expected allowed:false")
-  assert.deepEqual(result.messages, ["Annulation non autorisée selon la politique"])
+  assert.deepEqual(result.messages, [
+    "Annulation non autorisée selon la politique",
+  ])
 
   const balanceAfter = await getCustomerWalletBalance(ownerCustomerId)
-  assert.equal(balanceAfter, balanceBefore, "aucun crédit n'est appliqué quand l'annulation est refusée")
+  assert.equal(
+    balanceAfter,
+    balanceBefore,
+    "aucun crédit n'est appliqué quand l'annulation est refusée",
+  )
 
   const [row] = await withSystemContext((tx) =>
-    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId)),
   )
-  assert.equal(row!.status, "confirmed", "le statut reste inchangé quand l'annulation est refusée")
+  assert.equal(
+    row!.status,
+    "confirmed",
+    "le statut reste inchangé quand l'annulation est refusée",
+  )
 })
 
 test("cancelPolicyReservationCore : aucune politique définie au moment de la réservation → non autorisé, jamais un calcul inventé", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const reservationId = await insertReservation({
     tndAmount: "500.00",
-    policySnapshot: { resolvedAt: new Date().toISOString(), acceptedByCustomer: false, policy: null },
+    policySnapshot: {
+      resolvedAt: new Date().toISOString(),
+      acceptedByCustomer: false,
+      policy: null,
+    },
     withCapturedPayment: true,
   })
 
@@ -374,7 +464,8 @@ test("cancelPolicyReservationCore : idempotence — un second appel ne double-cr
     reservationId,
   )
   assert.equal(first.ok, true)
-  if (!first.ok || !first.allowed) throw new Error("expected first call allowed:true")
+  if (!first.ok || !first.allowed)
+    throw new Error("expected first call allowed:true")
   assert.equal(first.creditedTnd, 1000)
 
   const balanceAfterFirst = await getCustomerWalletBalance(ownerCustomerId)
@@ -385,10 +476,18 @@ test("cancelPolicyReservationCore : idempotence — un second appel ne double-cr
     { authUserId: ownerAuthUserId, verifiedEmail: ownerEmail },
     reservationId,
   )
-  assert.equal(second.ok, false, "une réservation déjà annulée ne peut pas être annulée une seconde fois")
+  assert.equal(
+    second.ok,
+    false,
+    "une réservation déjà annulée ne peut pas être annulée une seconde fois",
+  )
 
   const balanceAfterSecond = await getCustomerWalletBalance(ownerCustomerId)
-  assert.equal(balanceAfterSecond, balanceAfterFirst, "aucun crédit supplémentaire au second appel")
+  assert.equal(
+    balanceAfterSecond,
+    balanceAfterFirst,
+    "aucun crédit supplémentaire au second appel",
+  )
 })
 
 test("cancelPolicyReservationCore : appartenance — un autre client ne peut jamais annuler la réservation d'autrui", async (t) => {
@@ -401,15 +500,25 @@ test("cancelPolicyReservationCore : appartenance — un autre client ne peut jam
 
   const result = await cancelPolicyReservationCore(
     { agencyId: agencyA, userId: randomUUID(), isSuperAdmin: false },
-    { authUserId: randomUUID(), verifiedEmail: `intrus-${randomUUID()}@example.com` },
+    {
+      authUserId: randomUUID(),
+      verifiedEmail: `intrus-${randomUUID()}@example.com`,
+    },
     reservationId,
   )
   assert.equal(result.ok, false)
   if (result.ok) throw new Error("expected ok:false")
-  assert.equal(result.code, "NOT_FOUND", "une réservation d'un autre client retombe sur NOT_FOUND, jamais un FORBIDDEN qui en confirmerait l'existence")
+  assert.equal(
+    result.code,
+    "NOT_FOUND",
+    "une réservation d'un autre client retombe sur NOT_FOUND, jamais un FORBIDDEN qui en confirmerait l'existence",
+  )
 
   const [row] = await withSystemContext((tx) =>
-    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId)),
   )
   assert.equal(row!.status, "confirmed")
 })
@@ -429,7 +538,11 @@ test("cancelPolicyReservationCore : isolation tenant — même identité mais sc
   )
   assert.equal(result.ok, false)
   if (result.ok) throw new Error("expected ok:false")
-  assert.equal(result.code, "NOT_FOUND", "la réservation appartient à l'agence A, jamais visible/annulable depuis l'agence B")
+  assert.equal(
+    result.code,
+    "NOT_FOUND",
+    "la réservation appartient à l'agence A, jamais visible/annulable depuis l'agence B",
+  )
 })
 
 test("cancelPolicyReservationCore : libère le stock consommé à la réservation (inverse du décrément à la création)", async (t) => {
@@ -442,9 +555,16 @@ test("cancelPolicyReservationCore : libère le stock consommé à la réservatio
   })
 
   const [before] = await withSystemContext((tx) =>
-    tx.select({ bookedSeats: catalogPackageDepartures.bookedSeats }).from(catalogPackageDepartures).where(eq(catalogPackageDepartures.id, departureId)),
+    tx
+      .select({ bookedSeats: catalogPackageDepartures.bookedSeats })
+      .from(catalogPackageDepartures)
+      .where(eq(catalogPackageDepartures.id, departureId)),
   )
-  assert.equal(before!.bookedSeats, 2, "fixture : 2 places déjà réservées avant ce test")
+  assert.equal(
+    before!.bookedSeats,
+    2,
+    "fixture : 2 places déjà réservées avant ce test",
+  )
 
   const result = await cancelPolicyReservationCore(
     { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
@@ -455,9 +575,16 @@ test("cancelPolicyReservationCore : libère le stock consommé à la réservatio
   if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
 
   const [after1] = await withSystemContext((tx) =>
-    tx.select({ bookedSeats: catalogPackageDepartures.bookedSeats }).from(catalogPackageDepartures).where(eq(catalogPackageDepartures.id, departureId)),
+    tx
+      .select({ bookedSeats: catalogPackageDepartures.bookedSeats })
+      .from(catalogPackageDepartures)
+      .where(eq(catalogPackageDepartures.id, departureId)),
   )
-  assert.equal(after1!.bookedSeats, 0, "les 2 places consommées par cette réservation sont rendues disponibles")
+  assert.equal(
+    after1!.bookedSeats,
+    0,
+    "les 2 places consommées par cette réservation sont rendues disponibles",
+  )
 })
 
 test("cancelPolicyReservationCore : CONCURRENCE RÉELLE — deux annulations simultanées de la même réservation → un seul crédit, une seule libération de stock (Phase 38A)", async (t) => {
@@ -497,7 +624,9 @@ test("cancelPolicyReservationCore : CONCURRENCE RÉELLE — deux annulations sim
         tndAmount: "1000.00",
         depositAmount: "1000.00",
         depositPaid: "1000.00",
-        providerPayload: { policySnapshot: makeSnapshot({ cancellationFeePercent: 0 }) },
+        providerPayload: {
+          policySnapshot: makeSnapshot({ cancellationFeePercent: 0 }),
+        },
       })
       .returning({ id: reservations.id })
     const reservationId = r!.id
@@ -544,17 +673,35 @@ test("cancelPolicyReservationCore : CONCURRENCE RÉELLE — deux annulations sim
   const outcomes = [resultA, resultB]
   const succeeded = outcomes.filter((r) => r.ok && r.allowed)
   const failed = outcomes.filter((r) => !(r.ok && r.allowed))
-  assert.equal(succeeded.length, 1, "exactement une des deux requêtes concurrentes doit réussir l'annulation")
-  assert.equal(failed.length, 1, "l'autre doit échouer proprement (verrou FOR UPDATE + re-vérification du statut)")
+  assert.equal(
+    succeeded.length,
+    1,
+    "exactement une des deux requêtes concurrentes doit réussir l'annulation",
+  )
+  assert.equal(
+    failed.length,
+    1,
+    "l'autre doit échouer proprement (verrou FOR UPDATE + re-vérification du statut)",
+  )
   if (!failed[0]!.ok) {
-    assert.match(failed[0]!.error, /annulée par une autre action|impossible de l'annuler/)
+    assert.match(
+      failed[0]!.error,
+      /annulée par une autre action|impossible de l'annuler/,
+    )
   }
 
   const balanceAfter = await getCustomerWalletBalance(ownerCustomerId)
-  assert.equal(balanceAfter - balanceBefore, 1000, "le crédit wallet n'est appliqué qu'une seule fois, jamais deux")
+  assert.equal(
+    balanceAfter - balanceBefore,
+    1000,
+    "le crédit wallet n'est appliqué qu'une seule fois, jamais deux",
+  )
 
   const [row] = await withSystemContext((tx) =>
-    tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId)),
   )
   assert.equal(row!.status, "cancelled")
 
@@ -564,12 +711,28 @@ test("cancelPolicyReservationCore : CONCURRENCE RÉELLE — deux annulations sim
       .from(catalogPackageDepartures)
       .where(eq(catalogPackageDepartures.id, concurrentDepartureId)),
   )
-  assert.equal(departureAfter!.bookedSeats, 0, "le stock (2 places) n'est libéré qu'une seule fois, jamais deux (jamais négatif)")
+  assert.equal(
+    departureAfter!.bookedSeats,
+    0,
+    "le stock (2 places) n'est libéré qu'une seule fois, jamais deux (jamais négatif)",
+  )
 
   const auditRows = await withSystemContext((tx) =>
-    tx.select().from(auditEvents).where(and(eq(auditEvents.entityId, reservationId), eq(auditEvents.action, "reservation.cancelled"))),
+    tx
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.entityId, reservationId),
+          eq(auditEvents.action, "reservation.cancelled"),
+        ),
+      ),
   )
-  assert.equal(auditRows.length, 1, "une seule trace d'audit 'reservation.cancelled', jamais deux")
+  assert.equal(
+    auditRows.length,
+    1,
+    "une seule trace d'audit 'reservation.cancelled', jamais deux",
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -588,7 +751,9 @@ test("cancelPolicyReservationCore : Easy2Book Rewards — reprend les points PEN
     withCapturedPayment: true,
   })
 
-  const before = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  const before = await withSystemContext((tx) =>
+    getLoyaltyAccountSummary(tx, ownerCustomerId),
+  )
   const earn = await withSystemContext((tx) =>
     earnPendingPoints(tx, {
       agencyId: agencyA,
@@ -600,8 +765,14 @@ test("cancelPolicyReservationCore : Easy2Book Rewards — reprend les points PEN
     }),
   )
   assert.equal(earn.ok && earn.awarded, true)
-  const afterEarn = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
-  assert.equal(afterEarn!.pendingPoints - (before?.pendingPoints ?? 0), 500, "fixture : 500 points bien crédités en pending avant l'annulation")
+  const afterEarn = await withSystemContext((tx) =>
+    getLoyaltyAccountSummary(tx, ownerCustomerId),
+  )
+  assert.equal(
+    afterEarn!.pendingPoints - (before?.pendingPoints ?? 0),
+    500,
+    "fixture : 500 points bien crédités en pending avant l'annulation",
+  )
 
   const result = await cancelPolicyReservationCore(
     { agencyId: agencyA, userId: ownerAuthUserId, isSuperAdmin: false },
@@ -611,7 +782,9 @@ test("cancelPolicyReservationCore : Easy2Book Rewards — reprend les points PEN
   assert.equal(result.ok, true)
   if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
 
-  const after = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  const after = await withSystemContext((tx) =>
+    getLoyaltyAccountSummary(tx, ownerCustomerId),
+  )
   assert.equal(
     after!.pendingPoints,
     before?.pendingPoints ?? 0,
@@ -627,7 +800,9 @@ test("cancelPolicyReservationCore : Easy2Book Rewards — reprend aussi les poin
     withCapturedPayment: true,
   })
 
-  const before = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  const before = await withSystemContext((tx) =>
+    getLoyaltyAccountSummary(tx, ownerCustomerId),
+  )
   await withSystemContext((tx) =>
     earnPendingPoints(tx, {
       agencyId: agencyA,
@@ -647,7 +822,9 @@ test("cancelPolicyReservationCore : Easy2Book Rewards — reprend aussi les poin
     }),
   )
   assert.equal(convert.ok && convert.converted, true)
-  const afterConvert = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  const afterConvert = await withSystemContext((tx) =>
+    getLoyaltyAccountSummary(tx, ownerCustomerId),
+  )
   assert.equal(
     afterConvert!.availablePoints - (before?.availablePoints ?? 0),
     300,
@@ -662,7 +839,9 @@ test("cancelPolicyReservationCore : Easy2Book Rewards — reprend aussi les poin
   assert.equal(result.ok, true)
   if (!result.ok || !result.allowed) throw new Error("expected allowed:true")
 
-  const after = await withSystemContext((tx) => getLoyaltyAccountSummary(tx, ownerCustomerId))
+  const after = await withSystemContext((tx) =>
+    getLoyaltyAccountSummary(tx, ownerCustomerId),
+  )
   assert.equal(
     after!.availablePoints,
     before?.availablePoints ?? 0,

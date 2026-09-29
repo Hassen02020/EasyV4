@@ -19,17 +19,27 @@ import { destinationByValue } from "./search-state"
 import { search as virtualSearch } from "@/lib/hotels-monde/virtual-supplier/engine"
 import { memoize } from "@/lib/cache/redis"
 import { CURRENCY_META } from "@/lib/currency"
-import type { WorldHotelOffer, WorldHotelSearchInput, WorldHotelSearchResult } from "@/lib/hotels-monde/client"
+import type {
+  WorldHotelOffer,
+  WorldHotelSearchInput,
+  WorldHotelSearchResult,
+} from "@/lib/hotels-monde/client"
 
 export interface WorldHotelSupplierDriver {
   readonly name: string
   getConfigStatus(): "CONFIGURED" | "NOT_CONFIGURED"
   /** Rejette en cas d'échec — jamais un résultat vide silencieux (voir searchAcrossWorldHotelDrivers, qui isole chaque driver). */
-  search(input: WorldHotelSearchInput): Promise<{ offers: WorldHotelOffer[]; searchId: string }>
+  search(
+    input: WorldHotelSearchInput,
+  ): Promise<{ offers: WorldHotelOffer[]; searchId: string }>
 }
 
 function isDemoMode(): boolean {
-  return !process.env.RATEHAWK_KEY_ID || !process.env.RATEHAWK_API_KEY || process.env.WORLD_HOTELS_DEMO_MODE === "true"
+  return (
+    !process.env.RATEHAWK_KEY_ID ||
+    !process.env.RATEHAWK_API_KEY ||
+    process.env.WORLD_HOTELS_DEMO_MODE === "true"
+  )
 }
 
 /** Fournisseur virtuel déterministe (voir virtual-supplier/engine.ts) — inchangé, juste enveloppé dans le contrat driver. */
@@ -108,7 +118,9 @@ export function createVirtualWorldHotelDriver(): WorldHotelSupplierDriver {
  */
 
 function rateHawkAuthHeader(): string {
-  const basic = Buffer.from(`${process.env.RATEHAWK_KEY_ID}:${process.env.RATEHAWK_API_KEY}`).toString("base64")
+  const basic = Buffer.from(
+    `${process.env.RATEHAWK_KEY_ID}:${process.env.RATEHAWK_API_KEY}`,
+  ).toString("base64")
   return `Basic ${basic}`
 }
 
@@ -121,14 +133,18 @@ function rateHawkAuthHeader(): string {
  * pendant la phase de certification sandbox.
  */
 function rateHawkBaseUrl(): string {
-  if (process.env.RATEHAWK_API_BASE_URL) return process.env.RATEHAWK_API_BASE_URL
+  if (process.env.RATEHAWK_API_BASE_URL)
+    return process.env.RATEHAWK_API_BASE_URL
   return process.env.RATEHAWK_ENV === "production"
     ? "https://api.worldota.net/api/b2b/v3"
     : "https://api-sandbox.ratehawk.com/api/b2b/v3"
 }
 
 /** Répartit les adultes sur les chambres le plus uniformément possible — WorldHotelSearchInput n'a pas encore d'occupation par chambre/enfants. */
-function buildRateHawkGuests(adults: number, rooms: number): Array<{ adults: number; children: number[] }> {
+function buildRateHawkGuests(
+  adults: number,
+  rooms: number,
+): Array<{ adults: number; children: number[] }> {
   const perRoom = Math.max(1, Math.floor(adults / Math.max(1, rooms)))
   const remainder = adults - perRoom * rooms
   return Array.from({ length: Math.max(1, rooms) }, (_, i) => ({
@@ -137,19 +153,31 @@ function buildRateHawkGuests(adults: number, rooms: number): Array<{ adults: num
   }))
 }
 
-async function resolveRateHawkRegionId(cityQuery: string): Promise<number | null> {
-  return memoize(`e2b:ratehawk:region:${cityQuery.toLowerCase()}`, 86_400, async () => {
-    const res = await fetch(`${rateHawkBaseUrl()}/search/multicomplete/`, {
-      method: "POST",
-      headers: { Authorization: rateHawkAuthHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ query: cityQuery, language: "en" }),
-      signal: AbortSignal.timeout(8_000),
-    })
-    if (!res.ok) throw new Error(`RateHawk multicomplete ${res.status}: ${res.statusText}`)
-    const json = await res.json()
-    const regions = (json?.data?.regions ?? []) as Array<{ id: number }>
-    return regions[0]?.id ?? null
-  })
+async function resolveRateHawkRegionId(
+  cityQuery: string,
+): Promise<number | null> {
+  return memoize(
+    `e2b:ratehawk:region:${cityQuery.toLowerCase()}`,
+    86_400,
+    async () => {
+      const res = await fetch(`${rateHawkBaseUrl()}/search/multicomplete/`, {
+        method: "POST",
+        headers: {
+          Authorization: rateHawkAuthHeader(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: cityQuery, language: "en" }),
+        signal: AbortSignal.timeout(8_000),
+      })
+      if (!res.ok)
+        throw new Error(
+          `RateHawk multicomplete ${res.status}: ${res.statusText}`,
+        )
+      const json = await res.json()
+      const regions = (json?.data?.regions ?? []) as Array<{ id: number }>
+      return regions[0]?.id ?? null
+    },
+  )
 }
 
 /**
@@ -159,7 +187,10 @@ async function resolveRateHawkRegionId(cityQuery: string): Promise<number | null
  * déjà (lib/currency.ts : 1 TND = CURRENCY_META.USD.rateFromTND USD).
  * Passthrough si RateHawk renvoyait un jour directement du TND.
  */
-export function convertRateHawkAmountToTnd(amount: number, currency: string): number {
+export function convertRateHawkAmountToTnd(
+  amount: number,
+  currency: string,
+): number {
   return currency === "USD" ? amount / CURRENCY_META.USD.rateFromTND : amount
 }
 
@@ -168,9 +199,11 @@ export function convertRateHawkAmountToTnd(amount: number, currency: string): nu
  * statique hôtels) pour résoudre nom/étoiles/photo par id d'hôtel. Retourne
  * délibérément `null` tant que ce n'est pas fait — jamais un nom inventé.
  */
-async function resolveHotelStaticInfo(
-  _hotelId: string,
-): Promise<{ name: string; stars: number | null; thumbnailUrl: string | null } | null> {
+async function resolveHotelStaticInfo(_hotelId: string): Promise<{
+  name: string
+  stars: number | null
+  thumbnailUrl: string | null
+} | null> {
   return null
 }
 
@@ -198,7 +231,10 @@ export function createRateHawkDriver(): WorldHotelSupplierDriver {
       const rawHotels = await memoize(cacheKey, 300, async () => {
         const res = await fetch(`${rateHawkBaseUrl()}/search/serp/region/`, {
           method: "POST",
-          headers: { Authorization: rateHawkAuthHeader(), "Content-Type": "application/json" },
+          headers: {
+            Authorization: rateHawkAuthHeader(),
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             region_id: regionId,
             checkin: input.checkIn,
@@ -210,14 +246,22 @@ export function createRateHawkDriver(): WorldHotelSupplierDriver {
           signal: AbortSignal.timeout(12_000),
         })
         if (!res.ok) {
-          throw new Error(`RateHawk search/serp/region ${res.status}: ${res.statusText}`)
+          throw new Error(
+            `RateHawk search/serp/region ${res.status}: ${res.statusText}`,
+          )
         }
         const json = await res.json()
         return (json?.data?.hotels ?? []) as Array<{
           id: string
           rates?: Array<{
             daily_prices?: string[]
-            payment_options?: { payment_types?: Array<{ amount?: string; currency_code?: string; type?: string }> }
+            payment_options?: {
+              payment_types?: Array<{
+                amount?: string
+                currency_code?: string
+                type?: string
+              }>
+            }
           }>
         }>
       })
@@ -227,8 +271,15 @@ export function createRateHawkDriver(): WorldHotelSupplierDriver {
         const cheapestRate = (hotel.rates ?? [])
           .map((rate) => {
             const paymentType = rate.payment_options?.payment_types?.[0]
-            const totalPrice = paymentType?.amount ? parseFloat(paymentType.amount) : NaN
-            return { rate, totalPrice, currency: paymentType?.currency_code ?? "USD", refundable: paymentType?.type !== "deposit" }
+            const totalPrice = paymentType?.amount
+              ? parseFloat(paymentType.amount)
+              : NaN
+            return {
+              rate,
+              totalPrice,
+              currency: paymentType?.currency_code ?? "USD",
+              refundable: paymentType?.type !== "deposit",
+            }
           })
           .filter((r) => Number.isFinite(r.totalPrice))
           .sort((a, b) => a.totalPrice - b.totalPrice)[0]
@@ -239,7 +290,10 @@ export function createRateHawkDriver(): WorldHotelSupplierDriver {
         const staticInfo = await resolveHotelStaticInfo(hotel.id)
         if (!staticInfo) continue
 
-        const totalPriceTnd = convertRateHawkAmountToTnd(cheapestRate.totalPrice, cheapestRate.currency)
+        const totalPriceTnd = convertRateHawkAmountToTnd(
+          cheapestRate.totalPrice,
+          cheapestRate.currency,
+        )
 
         offers.push({
           id: hotel.id,
@@ -250,7 +304,8 @@ export function createRateHawkDriver(): WorldHotelSupplierDriver {
           rating: null,
           reviewCount: null,
           thumbnailUrl: staticInfo.thumbnailUrl,
-          pricePerNightTnd: Math.round((totalPriceTnd / Math.max(1, input.nights)) * 100) / 100,
+          pricePerNightTnd:
+            Math.round((totalPriceTnd / Math.max(1, input.nights)) * 100) / 100,
           totalPriceTnd: Math.round(totalPriceTnd * 100) / 100,
           nights: input.nights,
           currency: "TND",
@@ -282,10 +337,16 @@ export async function searchAcrossWorldHotelDrivers(
 ): Promise<WorldHotelSearchResult> {
   const configured = drivers.filter((d) => d.getConfigStatus() === "CONFIGURED")
   if (configured.length === 0) {
-    return { ok: false, error: "Aucun fournisseur hôtels monde configuré.", code: "NO_SUPPLIER_CONFIGURED" }
+    return {
+      ok: false,
+      error: "Aucun fournisseur hôtels monde configuré.",
+      code: "NO_SUPPLIER_CONFIGURED",
+    }
   }
 
-  const outcomes = await Promise.allSettled(configured.map((d) => d.search(input)))
+  const outcomes = await Promise.allSettled(
+    configured.map((d) => d.search(input)),
+  )
 
   const offers: WorldHotelOffer[] = []
   let searchId: string | undefined

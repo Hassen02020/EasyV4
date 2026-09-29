@@ -20,7 +20,13 @@
 import { eq, and, gt } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, customers, payments } from "@/lib/db/schema"
-import { flightBookings, flightBookingPassengers, flightBookingSegments, flightAncillaries, flightPriceSnapshots } from "@/lib/db/schema/flights"
+import {
+  flightBookings,
+  flightBookingPassengers,
+  flightBookingSegments,
+  flightAncillaries,
+  flightPriceSnapshots,
+} from "@/lib/db/schema/flights"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
 import type { CanonicalItinerary } from "./canonical"
@@ -70,7 +76,9 @@ const flightBookingRequestSchema = z.object({
   paymentMethod: z.enum(["transfer", "cash"]).optional(),
 })
 
-export type FlightBookingRequestInput = z.infer<typeof flightBookingRequestSchema>
+export type FlightBookingRequestInput = z.infer<
+  typeof flightBookingRequestSchema
+>
 
 export type FlightBookingRequestResult =
   | {
@@ -94,10 +102,14 @@ function providerToSource(
   provider: string,
 ): "internal" | "amadeus" | "sabre" | "travelport" | "manual" {
   switch (provider) {
-    case "amadeus":   return "amadeus"
-    case "sabre":     return "sabre"
-    case "travelport": return "travelport"
-    default:          return "internal" // virtual, demo, unknown
+    case "amadeus":
+      return "amadeus"
+    case "sabre":
+      return "sabre"
+    case "travelport":
+      return "travelport"
+    default:
+      return "internal" // virtual, demo, unknown
   }
 }
 
@@ -127,11 +139,22 @@ export async function createFlightBookingRequest(
     }
   }
 
-  const { snapshotId, passengers, contact, orderId, ancillaries, paymentMethod } = parsed.data
+  const {
+    snapshotId,
+    passengers,
+    contact,
+    orderId,
+    ancillaries,
+    paymentMethod,
+  } = parsed.data
 
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
-    return { ok: false, error: "Aucune agence de vente directe configurée.", code: "NO_AGENCY" }
+    return {
+      ok: false,
+      error: "Aucune agence de vente directe configurée.",
+      code: "NO_AGENCY",
+    }
   }
 
   const slaDeadline = new Date(Date.now() + SLA_MINUTES * 60 * 1000)
@@ -165,12 +188,14 @@ export async function createFlightBookingRequest(
 
       if (snapRows.length === 0) throw new SnapshotExpiredError()
 
-      const snap = (snapRows as Array<{
-        provider: string
-        itinerary: Record<string, unknown>
-        sellingAmount: string
-        sellingCurrency: string | null
-      }>)[0]!
+      const snap = (
+        snapRows as Array<{
+          provider: string
+          itinerary: Record<string, unknown>
+          sellingAmount: string
+          sellingCurrency: string | null
+        }>
+      )[0]!
       const itinerary = snap.itinerary as unknown as CanonicalItinerary
 
       // ── 1. Find or create customer ─────────────────────────────────────────
@@ -209,9 +234,11 @@ export async function createFlightBookingRequest(
       // ── 3. Insert reservations row (Booking Core bridge) ───────────────────
       const firstItinSeg = itinerary.journeys?.[0]?.segments?.[0]
       const lastJourney = itinerary.journeys?.[itinerary.journeys.length - 1]
-      const lastItinSeg = lastJourney?.segments?.[lastJourney.segments.length - 1]
+      const lastItinSeg =
+        lastJourney?.segments?.[lastJourney.segments.length - 1]
       const origin = firstItinSeg?.origin ?? ""
-      const destination = lastItinSeg?.destination ?? firstItinSeg?.destination ?? ""
+      const destination =
+        lastItinSeg?.destination ?? firstItinSeg?.destination ?? ""
 
       const reservationRows = await tx
         .insert(reservations)
@@ -226,13 +253,17 @@ export async function createFlightBookingRequest(
           originalAmount: snap.sellingAmount,
           tndAmount: snap.sellingAmount,
           providerPayload: {
-            offerLabel: origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
+            offerLabel:
+              origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
             startDate: firstItinSeg?.departure ?? null,
             channel: "b2c_guest",
             paymentMethod: paymentMethod ?? null,
           },
         })
-        .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
+        .returning({
+          id: reservations.id,
+          guestAccessToken: reservations.guestAccessToken,
+        })
 
       const { id: reservationId, guestAccessToken } = (
         reservationRows as Array<{ id: string; guestAccessToken: string }>
@@ -318,19 +349,23 @@ export async function createFlightBookingRequest(
       if (ancillaries && ancillaries.length > 0) {
         const catalog = itinerary.ancillaries ?? []
         const resolved = ancillaries.flatMap((sel) => {
-          const canonical = catalog.find((c) => c.ancillaryId === sel.ancillaryId)
+          const canonical = catalog.find(
+            (c) => c.ancillaryId === sel.ancillaryId,
+          )
           if (!canonical) return [] // unknown ancillaryId — silently skip
-          return [{
-            bookingId,
-            ancillaryType: canonical.type,
-            description: canonical.description,
-            amount: String(canonical.amount),
-            currency: canonical.currency,
-            segmentRefs: canonical.segmentRefs ?? null,
-            passengerRef: sel.passengerRef ?? canonical.passengerRef ?? null,
-            status: "PENDING",
-            providerAncillaryId: canonical.ancillaryId,
-          }]
+          return [
+            {
+              bookingId,
+              ancillaryType: canonical.type,
+              description: canonical.description,
+              amount: String(canonical.amount),
+              currency: canonical.currency,
+              segmentRefs: canonical.segmentRefs ?? null,
+              passengerRef: sel.passengerRef ?? canonical.passengerRef ?? null,
+              status: "PENDING",
+              providerAncillaryId: canonical.ancillaryId,
+            },
+          ]
         })
         if (resolved.length > 0) {
           await tx.insert(flightAncillaries).values(resolved)

@@ -14,7 +14,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, reservationPackage, catalogPackages, customers, agencies } from "@/lib/db/schema"
+import {
+  reservations,
+  reservationPackage,
+  catalogPackages,
+  customers,
+  agencies,
+} from "@/lib/db/schema"
 import { renderPackageVoucherPdf } from "@/lib/pdf/voucher-package"
 import { isPackageVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
@@ -52,9 +58,20 @@ export async function GET(
       .from(reservations)
       .innerJoin(customers, eq(customers.id, reservations.customerId))
       .innerJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .leftJoin(reservationPackage, eq(reservationPackage.reservationId, reservations.id))
-      .leftJoin(catalogPackages, eq(catalogPackages.id, reservationPackage.packageId))
-      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
+      .leftJoin(
+        reservationPackage,
+        eq(reservationPackage.reservationId, reservations.id),
+      )
+      .leftJoin(
+        catalogPackages,
+        eq(catalogPackages.id, reservationPackage.packageId),
+      )
+      .where(
+        and(
+          eq(reservations.publicRef, ref),
+          eq(reservations.guestAccessToken, token),
+        ),
+      )
       .limit(1)
     return r ?? null
   })

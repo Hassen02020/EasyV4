@@ -22,12 +22,19 @@ const inputSchema = z.object({
 
 export type SubmitReviewInput = z.infer<typeof inputSchema>
 
-export type SubmitReviewResult = { ok: true } | { ok: false; error: string; code?: string }
+export type SubmitReviewResult =
+  | { ok: true }
+  | { ok: false; error: string; code?: string }
 
-export async function submitReview(raw: SubmitReviewInput): Promise<SubmitReviewResult> {
+export async function submitReview(
+  raw: SubmitReviewInput,
+): Promise<SubmitReviewResult> {
   const parsed = inputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors[0]?.message ?? "Entrée invalide." }
+    return {
+      ok: false,
+      error: parsed.error.errors[0]?.message ?? "Entrée invalide.",
+    }
   }
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Service temporairement indisponible." }
@@ -38,7 +45,11 @@ export async function submitReview(raw: SubmitReviewInput): Promise<SubmitReview
     data: { user },
   } = await supabase.auth.getUser()
   if (!user?.email) {
-    return { ok: false, error: "Connectez-vous pour laisser un avis.", code: "NOT_AUTHENTICATED" }
+    return {
+      ok: false,
+      error: "Connectez-vous pour laisser un avis.",
+      code: "NOT_AUTHENTICATED",
+    }
   }
 
   const tenant = await guestTenantContext()

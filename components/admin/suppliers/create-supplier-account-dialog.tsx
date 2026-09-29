@@ -90,7 +90,11 @@ export function CreateSupplierAccountDialog({
 
   const agency = agencies.find((a) => a.id === ownerAgencyId)
   const ownerTypePreview =
-    agency?.agencyType !== "ota" ? "agence partenaire" : agency?.domain ? "marque blanche" : "master (Easy2Book)"
+    agency?.agencyType !== "ota"
+      ? "agence partenaire"
+      : agency?.domain
+        ? "marque blanche"
+        : "master (Easy2Book)"
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -104,8 +108,9 @@ export function CreateSupplierAccountDialog({
         <DialogHeader>
           <DialogTitle>Nouveau compte fournisseur</DialogTitle>
           <DialogDescription>
-            Un compte appartient à UNE agence (master, partenaire ou marque blanche) — jamais partagé implicitement.
-            Les identifiants sont chiffrés dès la création, jamais stockés en clair.
+            Un compte appartient à UNE agence (master, partenaire ou marque
+            blanche) — jamais partagé implicitement. Les identifiants sont
+            chiffrés dès la création, jamais stockés en clair.
           </DialogDescription>
         </DialogHeader>
 
@@ -118,8 +123,15 @@ export function CreateSupplierAccountDialog({
               </SelectTrigger>
               <SelectContent>
                 {suppliers.map((s) => (
-                  <SelectItem key={s.id} value={s.id} disabled={s.documentationStatus !== "documented"}>
-                    {s.name} {s.documentationStatus !== "documented" ? "(documentation requise)" : ""}
+                  <SelectItem
+                    key={s.id}
+                    value={s.id}
+                    disabled={s.documentationStatus !== "documented"}
+                  >
+                    {s.name}{" "}
+                    {s.documentationStatus !== "documented"
+                      ? "(documentation requise)"
+                      : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -140,18 +152,27 @@ export function CreateSupplierAccountDialog({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-muted-foreground text-xs">Type détecté : {ownerTypePreview}</p>
+            <p className="text-muted-foreground text-xs">
+              Type détecté : {ownerTypePreview}
+            </p>
           </div>
 
           <div className="grid gap-2">
             <Label>Nom d&apos;affichage</Label>
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex. myGo — Compte Easy2Book" />
+            <Input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Ex. myGo — Compte Easy2Book"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Mode</Label>
-              <Select value={mode} onValueChange={(v) => setMode(v as "live" | "virtual")}>
+              <Select
+                value={mode}
+                onValueChange={(v) => setMode(v as "live" | "virtual")}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -163,23 +184,43 @@ export function CreateSupplierAccountDialog({
             </div>
             <div className="grid gap-2">
               <Label>Priorité</Label>
-              <Input type="number" value={priority} onChange={(e) => setPriority(e.target.value)} />
+              <Input
+                type="number"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              />
             </div>
           </div>
 
           <div className="grid gap-2">
             <Label>Login</Label>
-            <Input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="off" />
+            <Input
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              autoComplete="off"
+            />
           </div>
           <div className="grid gap-2">
             <Label>Mot de passe</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
           </div>
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isPending || !supplierId || !ownerAgencyId}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer le compte"}
+          <Button
+            onClick={handleSubmit}
+            disabled={isPending || !supplierId || !ownerAgencyId}
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Créer le compte"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

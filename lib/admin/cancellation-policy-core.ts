@@ -27,7 +27,10 @@
 import { eq, and, isNull, desc } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { cancellationPolicies, auditEvents } from "@/lib/db/schema"
-import type { PolicyProductType, ResolvedPolicy } from "@/lib/booking/policy-engine"
+import type {
+  PolicyProductType,
+  ResolvedPolicy,
+} from "@/lib/booking/policy-engine"
 
 export interface CancellationPolicyRow extends ResolvedPolicy {
   isActive: boolean
@@ -82,7 +85,9 @@ export async function listCancellationPoliciesForAgency(
     modifiable: row.modifiable,
     deadlineHours: row.deadlineHours,
     cancellationFeePercent:
-      row.cancellationFeePercent == null ? null : parseFloat(row.cancellationFeePercent),
+      row.cancellationFeePercent == null
+        ? null
+        : parseFloat(row.cancellationFeePercent),
     refundAllowed: row.refundAllowed,
     creditAllowed: row.creditAllowed,
     nonRefundable: row.nonRefundable,
@@ -122,72 +127,85 @@ export async function publishCancellationPolicyForAgency(
     input.cancellationFeePercent != null &&
     (input.cancellationFeePercent < 0 || input.cancellationFeePercent > 100)
   ) {
-    throw new Error("Le pourcentage de frais d'annulation doit être compris entre 0 et 100.")
+    throw new Error(
+      "Le pourcentage de frais d'annulation doit être compris entre 0 et 100.",
+    )
   }
 
-  return withTenantContext({ agencyId, userId, isSuperAdmin: false }, async (tx) => {
-    const existingMatch = productId
-      ? eq(cancellationPolicies.productId, productId)
-      : isNull(cancellationPolicies.productId)
+  return withTenantContext(
+    { agencyId, userId, isSuperAdmin: false },
+    async (tx) => {
+      const existingMatch = productId
+        ? eq(cancellationPolicies.productId, productId)
+        : isNull(cancellationPolicies.productId)
 
-    const [previous] = await tx
-      .select({ id: cancellationPolicies.id, version: cancellationPolicies.version })
-      .from(cancellationPolicies)
-      .where(
-        and(
-          eq(cancellationPolicies.agencyId, agencyId),
-          eq(cancellationPolicies.productType, input.productType),
-          existingMatch,
-          eq(cancellationPolicies.isActive, true),
-        ),
-      )
-      .limit(1)
+      const [previous] = await tx
+        .select({
+          id: cancellationPolicies.id,
+          version: cancellationPolicies.version,
+        })
+        .from(cancellationPolicies)
+        .where(
+          and(
+            eq(cancellationPolicies.agencyId, agencyId),
+            eq(cancellationPolicies.productType, input.productType),
+            existingMatch,
+            eq(cancellationPolicies.isActive, true),
+          ),
+        )
+        .limit(1)
 
-    if (previous) {
-      await tx
-        .update(cancellationPolicies)
-        .set({ isActive: false, updatedAt: new Date() })
-        .where(eq(cancellationPolicies.id, previous.id))
-    }
+      if (previous) {
+        await tx
+          .update(cancellationPolicies)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(eq(cancellationPolicies.id, previous.id))
+      }
 
-    const [inserted] = await tx
-      .insert(cancellationPolicies)
-      .values({
+      const [inserted] = await tx
+        .insert(cancellationPolicies)
+        .values({
+          agencyId,
+          productType: input.productType,
+          productId,
+          version: (previous?.version ?? 0) + 1,
+          isActive: true,
+          cancellable: input.cancellable,
+          modifiable: input.modifiable,
+          deadlineHours: input.deadlineHours ?? null,
+          cancellationFeePercent:
+            input.cancellationFeePercent == null
+              ? null
+              : String(input.cancellationFeePercent),
+          refundAllowed: input.refundAllowed,
+          creditAllowed: input.creditAllowed,
+          nonRefundable: input.nonRefundable ?? false,
+          requiresValidatedDocument: input.requiresValidatedDocument ?? false,
+          postDeadlineDescription: input.postDeadlineDescription ?? null,
+          createdByUserId: userId,
+        })
+        .returning({
+          id: cancellationPolicies.id,
+          version: cancellationPolicies.version,
+        })
+
+      await tx.insert(auditEvents).values({
         agencyId,
-        productType: input.productType,
-        productId,
-        version: (previous?.version ?? 0) + 1,
-        isActive: true,
-        cancellable: input.cancellable,
-        modifiable: input.modifiable,
-        deadlineHours: input.deadlineHours ?? null,
-        cancellationFeePercent:
-          input.cancellationFeePercent == null ? null : String(input.cancellationFeePercent),
-        refundAllowed: input.refundAllowed,
-        creditAllowed: input.creditAllowed,
-        nonRefundable: input.nonRefundable ?? false,
-        requiresValidatedDocument: input.requiresValidatedDocument ?? false,
-        postDeadlineDescription: input.postDeadlineDescription ?? null,
-        createdByUserId: userId,
+        actorUserId: userId,
+        entityType: "cancellation_policy",
+        entityId: inserted!.id,
+        action: "cancellation_policy.published",
+        diff: {
+          productType: input.productType,
+          productId,
+          version: inserted!.version,
+          previousVersionId: previous?.id ?? null,
+        },
       })
-      .returning({ id: cancellationPolicies.id, version: cancellationPolicies.version })
 
-    await tx.insert(auditEvents).values({
-      agencyId,
-      actorUserId: userId,
-      entityType: "cancellation_policy",
-      entityId: inserted!.id,
-      action: "cancellation_policy.published",
-      diff: {
-        productType: input.productType,
-        productId,
-        version: inserted!.version,
-        previousVersionId: previous?.id ?? null,
-      },
-    })
-
-    return inserted!
-  })
+      return inserted!
+    },
+  )
 }
 
 /**
@@ -200,18 +218,21 @@ export async function deactivateCancellationPolicyForAgency(
   userId: string,
   policyId: string,
 ): Promise<void> {
-  await withTenantContext({ agencyId, userId, isSuperAdmin: false }, async (tx) => {
-    await tx
-      .update(cancellationPolicies)
-      .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(cancellationPolicies.id, policyId))
-    await tx.insert(auditEvents).values({
-      agencyId,
-      actorUserId: userId,
-      entityType: "cancellation_policy",
-      entityId: policyId,
-      action: "cancellation_policy.deactivated",
-      diff: {},
-    })
-  })
+  await withTenantContext(
+    { agencyId, userId, isSuperAdmin: false },
+    async (tx) => {
+      await tx
+        .update(cancellationPolicies)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(cancellationPolicies.id, policyId))
+      await tx.insert(auditEvents).values({
+        agencyId,
+        actorUserId: userId,
+        entityType: "cancellation_policy",
+        entityId: policyId,
+        action: "cancellation_policy.deactivated",
+        diff: {},
+      })
+    },
+  )
 }

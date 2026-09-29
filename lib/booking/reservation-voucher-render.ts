@@ -81,7 +81,8 @@ export async function renderReservationVoucher(
 
   if (!base) return { ok: false, status: 404, error: "not_found" }
 
-  const customerName = `${base.customerFirstName} ${base.customerLastName}`.trim()
+  const customerName =
+    `${base.customerFirstName} ${base.customerLastName}`.trim()
   const agencyName = base.agencyBrandName ?? base.agencyName
   const totalTnd = parseFloat(base.tndAmount)
   const unavailable = (message: string): VoucherRenderResult => ({
@@ -106,8 +107,17 @@ export async function renderReservationVoucher(
         .from(reservationHotel)
         .where(eq(reservationHotel.reservationId, reservationId))
         .limit(1)
-      const input = { module: base.module, status: base.status, hotelName: row?.hotelName, checkIn: row?.checkIn, checkOut: row?.checkOut }
-      const eligible = base.module === "hotel" ? isVoucherEligible(input) : isWorldHotelVoucherEligible(input)
+      const input = {
+        module: base.module,
+        status: base.status,
+        hotelName: row?.hotelName,
+        checkIn: row?.checkIn,
+        checkOut: row?.checkOut,
+      }
+      const eligible =
+        base.module === "hotel"
+          ? isVoucherEligible(input)
+          : isWorldHotelVoucherEligible(input)
       if (!eligible) {
         return unavailable(
           base.module === "hotel"
@@ -139,12 +149,23 @@ export async function renderReservationVoucher(
           pilgrims: reservationOmra.pilgrims,
         })
         .from(reservationOmra)
-        .leftJoin(omraPackages, eq(omraPackages.id, reservationOmra.omraPackageId))
+        .leftJoin(
+          omraPackages,
+          eq(omraPackages.id, reservationOmra.omraPackageId),
+        )
         .where(eq(reservationOmra.reservationId, reservationId))
         .limit(1)
-      const input = { module: base.module, status: base.status, packageName: row?.packageName, departureDate: row?.departureDate, returnDate: row?.returnDate }
+      const input = {
+        module: base.module,
+        status: base.status,
+        packageName: row?.packageName,
+        departureDate: row?.departureDate,
+        returnDate: row?.returnDate,
+      }
       if (!isOmraVoucherEligible(input)) {
-        return unavailable("Le voucher n'est disponible qu'une fois la réservation confirmée.")
+        return unavailable(
+          "Le voucher n'est disponible qu'une fois la réservation confirmée.",
+        )
       }
       const pdf = await renderOmraVoucherPdf({
         publicRef: base.publicRef,
@@ -169,12 +190,23 @@ export async function renderReservationVoucher(
           childrenAges: reservationPackage.childrenAges,
         })
         .from(reservationPackage)
-        .leftJoin(catalogPackages, eq(catalogPackages.id, reservationPackage.packageId))
+        .leftJoin(
+          catalogPackages,
+          eq(catalogPackages.id, reservationPackage.packageId),
+        )
         .where(eq(reservationPackage.reservationId, reservationId))
         .limit(1)
-      const input = { module: base.module, status: base.status, packageName: row?.packageName, departureDate: row?.departureDate, returnDate: row?.returnDate }
+      const input = {
+        module: base.module,
+        status: base.status,
+        packageName: row?.packageName,
+        departureDate: row?.departureDate,
+        returnDate: row?.returnDate,
+      }
       if (!isPackageVoucherEligible(input)) {
-        return unavailable("Le voucher n'est disponible qu'une fois la réservation confirmée.")
+        return unavailable(
+          "Le voucher n'est disponible qu'une fois la réservation confirmée.",
+        )
       }
       const pdf = await renderPackageVoucherPdf({
         publicRef: base.publicRef,
@@ -187,7 +219,11 @@ export async function renderReservationVoucher(
         totalTnd,
         agencyName,
       })
-      return { ok: true, pdf, filename: `voucher-package-${base.publicRef}.pdf` }
+      return {
+        ok: true,
+        pdf,
+        filename: `voucher-package-${base.publicRef}.pdf`,
+      }
     }
 
     case "activity": {
@@ -201,12 +237,22 @@ export async function renderReservationVoucher(
           children: reservationActivity.children,
         })
         .from(reservationActivity)
-        .leftJoin(catalogActivities, eq(catalogActivities.id, reservationActivity.activityId))
+        .leftJoin(
+          catalogActivities,
+          eq(catalogActivities.id, reservationActivity.activityId),
+        )
         .where(eq(reservationActivity.reservationId, reservationId))
         .limit(1)
-      const input = { module: base.module, status: base.status, activityName: row?.activityName, sessionDate: row?.sessionDate }
+      const input = {
+        module: base.module,
+        status: base.status,
+        activityName: row?.activityName,
+        sessionDate: row?.sessionDate,
+      }
       if (!isActivityVoucherEligible(input)) {
-        return unavailable("Le voucher n'est disponible qu'une fois la réservation confirmée.")
+        return unavailable(
+          "Le voucher n'est disponible qu'une fois la réservation confirmée.",
+        )
       }
       const pdf = await renderActivityVoucherPdf({
         publicRef: base.publicRef,
@@ -220,7 +266,11 @@ export async function renderReservationVoucher(
         totalTnd,
         agencyName,
       })
-      return { ok: true, pdf, filename: `voucher-activity-${base.publicRef}.pdf` }
+      return {
+        ok: true,
+        pdf,
+        filename: `voucher-activity-${base.publicRef}.pdf`,
+      }
     }
 
     case "flight": {
@@ -247,9 +297,16 @@ export async function renderReservationVoucher(
         departAt: row?.departAt ? row.departAt.toISOString() : null,
       }
       if (!isFlightVoucherEligible(input)) {
-        return unavailable("Le voucher n'est disponible qu'une fois la réservation confirmée.")
+        return unavailable(
+          "Le voucher n'est disponible qu'une fois la réservation confirmée.",
+        )
       }
-      const firstSegment = (row!.segments as Array<{ carrier?: string; flightNumber?: string }> | null)?.[0]
+      const firstSegment = (
+        row!.segments as Array<{
+          carrier?: string
+          flightNumber?: string
+        }> | null
+      )?.[0]
       const pdf = await renderFlightVoucherPdf({
         publicRef: base.publicRef,
         customerName,

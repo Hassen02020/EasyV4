@@ -95,37 +95,55 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No agency configured" }, { status: 503 })
   }
 
-  const messages = payload.entry?.flatMap((e) => e.changes ?? []).flatMap((c) => c.value?.messages ?? []) ?? []
+  const messages =
+    payload.entry
+      ?.flatMap((e) => e.changes ?? [])
+      .flatMap((c) => c.value?.messages ?? []) ?? []
   const contactsByWaId = new Map<string, string | undefined>()
   for (const change of payload.entry?.flatMap((e) => e.changes ?? []) ?? []) {
     for (const contact of change.value?.contacts ?? []) {
-      if (contact.wa_id) contactsByWaId.set(contact.wa_id, contact.profile?.name)
+      if (contact.wa_id)
+        contactsByWaId.set(contact.wa_id, contact.profile?.name)
     }
   }
 
   let processed = 0
   for (const message of messages) {
-    if (message.type !== "text" || !message.text?.body || !message.from || !message.id) continue
+    if (
+      message.type !== "text" ||
+      !message.text?.body ||
+      !message.from ||
+      !message.id
+    )
+      continue
     const phone = normalizeWhatsAppPhone(message.from)
     if (!phone) continue
 
-    const sentAt = message.timestamp ? new Date(Number(message.timestamp) * 1000) : new Date()
+    const sentAt = message.timestamp
+      ? new Date(Number(message.timestamp) * 1000)
+      : new Date()
 
     try {
-      await withTenantContext({ agencyId, userId: "", isSuperAdmin: true }, (tx) =>
-        upsertConversationForInboundCore(tx, {
-          agencyId,
-          channel: "whatsapp",
-          contactPhone: phone,
-          contactName: contactsByWaId.get(message.from!) ?? null,
-          body: message.text!.body!,
-          externalMessageId: message.id!,
-          sentAt,
-        }),
+      await withTenantContext(
+        { agencyId, userId: "", isSuperAdmin: true },
+        (tx) =>
+          upsertConversationForInboundCore(tx, {
+            agencyId,
+            channel: "whatsapp",
+            contactPhone: phone,
+            contactName: contactsByWaId.get(message.from!) ?? null,
+            body: message.text!.body!,
+            externalMessageId: message.id!,
+            sentAt,
+          }),
       )
       processed++
     } catch (err) {
-      console.error("[Webhook/WhatsApp] Échec traitement message", message.id, err)
+      console.error(
+        "[Webhook/WhatsApp] Échec traitement message",
+        message.id,
+        err,
+      )
     }
   }
 

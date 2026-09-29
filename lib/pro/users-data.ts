@@ -34,23 +34,23 @@ export async function loadPartnerUsers(
     const rows = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
-    db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        role: users.role,
-        status: users.status,
-        lastLoginAt: users.lastLoginAt,
-      })
-      .from(users)
-      .where(
-        and(
-          eq(users.agencyId, agencyId),
-          inArray(users.role, ["partner_owner", "partner_agent"]),
-        ),
-      )
-      .orderBy(users.createdAt),
+        db
+          .select({
+            id: users.id,
+            email: users.email,
+            name: users.name,
+            role: users.role,
+            status: users.status,
+            lastLoginAt: users.lastLoginAt,
+          })
+          .from(users)
+          .where(
+            and(
+              eq(users.agencyId, agencyId),
+              inArray(users.role, ["partner_owner", "partner_agent"]),
+            ),
+          )
+          .orderBy(users.createdAt),
     )
 
     return rows.map((r) => ({
@@ -59,9 +59,7 @@ export async function loadPartnerUsers(
       fullName: r.name ?? r.email.split("@")[0] ?? "—",
       role: r.role as "partner_owner" | "partner_agent",
       isActive: r.status === "active",
-      lastLoginAt: r.lastLoginAt
-        ? r.lastLoginAt.toLocaleString("fr-FR")
-        : null,
+      lastLoginAt: r.lastLoginAt ? r.lastLoginAt.toLocaleString("fr-FR") : null,
     }))
   } catch (err) {
     logger.error("[loadPartnerUsers] failed", {

@@ -7,6 +7,7 @@ Tunisie, Hôtels Monde, Omra, Packages (Voyages organisés), Attractions, Vols, 
 
 **Méthode** : 5 audits en lecture seule menés en parallèle sur le code réel (jamais une supposition à
 partir des noms de fichiers), zéro modification, zéro build lancé :
+
 1. Hôtels Tunisie + Hôtels Monde (composants, params, endpoints, schémas, destination, dates/occupancy).
 2. Omra + Packages + Attractions (mêmes dimensions).
 3. Vols + Car + Transferts (existence réelle, mêmes dimensions) + matrice de nommage cross-module.
@@ -22,12 +23,12 @@ acquis (chantier i18n déjà fait dans une session antérieure), pas un gap de c
 
 ## Résumé exécutif — comptage par priorité
 
-| Priorité | Nombre de constats | Sens |
-|---|---|---|
-| **P0** | 28 | Bug utilisateur réel ou incohérence bloquante pour l'unification |
-| **P1** | ~26 | Incohérence gênante à corriger avant/pendant l'unification |
-| **P2** | ~15 | Amélioration mineure, non bloquante |
-| 🚫 Légitime | plusieurs | Différence métier volontaire — à ne pas "corriger" |
+| Priorité    | Nombre de constats | Sens                                                             |
+| ----------- | ------------------ | ---------------------------------------------------------------- |
+| **P0**      | 28                 | Bug utilisateur réel ou incohérence bloquante pour l'unification |
+| **P1**      | ~26                | Incohérence gênante à corriger avant/pendant l'unification       |
+| **P2**      | ~15                | Amélioration mineure, non bloquante                              |
+| 🚫 Légitime | plusieurs          | Différence métier volontaire — à ne pas "corriger"               |
 
 **Les 3 constats les plus structurants** (conditionnent toute la suite du chantier "unifier sans casser") :
 
@@ -53,30 +54,31 @@ acquis (chantier i18n déjà fait dans une session antérieure), pas un gap de c
 
 ## 1. Composants de recherche existants
 
-| Module | Implémentations | État |
-|---|---|---|
-| Hôtels Tunisie | 1 composant unique (`HotelsTunisieSearch`), réutilisé partout | ✅ Référence |
-| Hôtels Monde | **3** : `WorldHotelSearch` (page dédiée), `HotelsMondeForm` (widget hero, incohérent avec la page) | ❌ P0 |
-| Omra | **2** : `OmraSearch` (page dédiée, sans `FIELD_SHELL`), `OmratyForm` (widget hero, incomplet — pas de champ pèlerins) | ⚠️ P1 |
-| Packages | **2** : `PackageSearch` (page dédiée), `VoyagesOrganisesForm` (widget hero, sans champ mois) | ⚠️ P1 |
-| Attractions | **2**, mécanismes différents : `&lt;form&gt;` HTML natif (page dédiée) vs state React + `router.push` (widget hero) pour le même champ `q` | P2 |
+| Module                  | Implémentations                                                                                                                                                 | État            |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| Hôtels Tunisie          | 1 composant unique (`HotelsTunisieSearch`), réutilisé partout                                                                                                   | ✅ Référence    |
+| Hôtels Monde            | **3** : `WorldHotelSearch` (page dédiée), `HotelsMondeForm` (widget hero, incohérent avec la page)                                                              | ❌ P0           |
+| Omra                    | **2** : `OmraSearch` (page dédiée, sans `FIELD_SHELL`), `OmratyForm` (widget hero, incomplet — pas de champ pèlerins)                                           | ⚠️ P1           |
+| Packages                | **2** : `PackageSearch` (page dédiée), `VoyagesOrganisesForm` (widget hero, sans champ mois)                                                                    | ⚠️ P1           |
+| Attractions             | **2**, mécanismes différents : `&lt;form&gt;` HTML natif (page dédiée) vs state React + `router.push` (widget hero) pour le même champ `q`                      | P2              |
 | Vols / Car / Transferts | 1 composant page dédiée chacun ; les 3 formulaires du widget hero (`VolsForm`/`CarForm`/`TransfertsForm`) sont **du code mort**, non branchés dans `tabsConfig` | Info (voir §12) |
 
 ---
 
 ## 2. Paramètres URL — matrice de nommage cross-module
 
-| Concept | Hotels-TN | Hotels-Monde | Omra | Packages | Attractions | Vols | Car | Transferts |
-|---|---|---|---|---|---|---|---|---|
-| destination | `cityId` (num.) | `destination` (clé statique) | N/A (fixe) | `destination` (clé statique) | N/A (texte libre `q`) | `origin`+`destination` (IATA) | `pickup`+`dropoff` (UUID) | `from`+`to` (UUID) |
-| date début | `checkin` | `checkIn` (casse !) | `month` (mois) | `month` (mois) | ABSENT | `departureDate` | `pickupDate` | `date` |
-| date fin | `checkout` | `checkOut` (casse !) | N/A | `duration` (jours, pas une date) | ABSENT | `returnDate` (optionnel) | `returnDate` | N/A |
-| nb. personnes | `adults` | `adults` | `pilgrims` | `travelers` | ABSENT | `adults` | ABSENT | `pax` |
-| enfants | `children` (âges CSV) | ABSENT | ABSENT | ABSENT | ABSENT | `children` (compte simple) | ABSENT | ABSENT |
-| chambres/unités | `roomsCount` **et** `rooms` (2 sens différents !) | `rooms` (entier) | N/A | N/A | N/A | N/A | `category` (véhicule) | `vehicle` (type) |
-| devise | accepté par schéma, jamais envoyé | ABSENT à la recherche | ABSENT | ABSENT | ABSENT | ABSENT à la recherche | calculé serveur only | calculé serveur only |
+| Concept         | Hotels-TN                                         | Hotels-Monde                 | Omra           | Packages                         | Attractions           | Vols                          | Car                       | Transferts           |
+| --------------- | ------------------------------------------------- | ---------------------------- | -------------- | -------------------------------- | --------------------- | ----------------------------- | ------------------------- | -------------------- |
+| destination     | `cityId` (num.)                                   | `destination` (clé statique) | N/A (fixe)     | `destination` (clé statique)     | N/A (texte libre `q`) | `origin`+`destination` (IATA) | `pickup`+`dropoff` (UUID) | `from`+`to` (UUID)   |
+| date début      | `checkin`                                         | `checkIn` (casse !)          | `month` (mois) | `month` (mois)                   | ABSENT                | `departureDate`               | `pickupDate`              | `date`               |
+| date fin        | `checkout`                                        | `checkOut` (casse !)         | N/A            | `duration` (jours, pas une date) | ABSENT                | `returnDate` (optionnel)      | `returnDate`              | N/A                  |
+| nb. personnes   | `adults`                                          | `adults`                     | `pilgrims`     | `travelers`                      | ABSENT                | `adults`                      | ABSENT                    | `pax`                |
+| enfants         | `children` (âges CSV)                             | ABSENT                       | ABSENT         | ABSENT                           | ABSENT                | `children` (compte simple)    | ABSENT                    | ABSENT               |
+| chambres/unités | `roomsCount` **et** `rooms` (2 sens différents !) | `rooms` (entier)             | N/A            | N/A                              | N/A                   | N/A                           | `category` (véhicule)     | `vehicle` (type)     |
+| devise          | accepté par schéma, jamais envoyé                 | ABSENT à la recherche        | ABSENT         | ABSENT                           | ABSENT                | ABSENT à la recherche         | calculé serveur only      | calculé serveur only |
 
 **Incohérences bloquantes pour une unification naïve** :
+
 - `rooms` désigne 2 choses différentes **dans le même module** (Hôtels Tunisie) : compteur d'affichage vs
   chaîne encodée âges-par-chambre consommée par l'API.
 - `children` a 2 formats incompatibles sous le même nom : âges CSV (Hôtels Tunisie) vs compte simple (Vols).
@@ -89,16 +91,16 @@ acquis (chantier i18n déjà fait dans une session antérieure), pas un gap de c
 
 ## 3. Endpoints appelés
 
-| Module | Endpoint dédié | Moteur réel |
-|---|---|---|
-| Hôtels Tunisie | `/api/hotels/search-public` (zod validé, `HotelSearchQuerySchema`) | myGo (fournisseur réel) |
-| Hôtels Monde | `/api/hotels-monde/search` | **Virtual World Hotel Supplier** — stub explicitement documenté, pas de vrai fournisseur branché |
-| Vols | `/api/vols/search` (zod validé) | **Virtual Flight Supplier** — même statut stub |
-| Omra | **Aucun** — requête Drizzle directe depuis la Server Component | — |
-| Packages | **Aucun** — idem | — |
-| Attractions | **Aucun** — idem, et pas même de dossier `app/api/attractions` | — |
-| Car | **Aucun** — devis unique via `calculateCarPrice()` côté page | — |
-| Transferts | **Aucun** — devis unique via `calculateTransferPrice()` côté page | — |
+| Module         | Endpoint dédié                                                     | Moteur réel                                                                                      |
+| -------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Hôtels Tunisie | `/api/hotels/search-public` (zod validé, `HotelSearchQuerySchema`) | myGo (fournisseur réel)                                                                          |
+| Hôtels Monde   | `/api/hotels-monde/search`                                         | **Virtual World Hotel Supplier** — stub explicitement documenté, pas de vrai fournisseur branché |
+| Vols           | `/api/vols/search` (zod validé)                                    | **Virtual Flight Supplier** — même statut stub                                                   |
+| Omra           | **Aucun** — requête Drizzle directe depuis la Server Component     | —                                                                                                |
+| Packages       | **Aucun** — idem                                                   | —                                                                                                |
+| Attractions    | **Aucun** — idem, et pas même de dossier `app/api/attractions`     | —                                                                                                |
+| Car            | **Aucun** — devis unique via `calculateCarPrice()` côté page       | —                                                                                                |
+| Transferts     | **Aucun** — devis unique via `calculateTransferPrice()` côté page  | —                                                                                                |
 
 Constat structurant : **5 des 8 modules n'ont aucune API de recherche** — la "recherche" y est en réalité
 une requête serveur directe à l'affichage de la page. Unifier "l'endpoint de recherche" suppose donc de
@@ -119,15 +121,15 @@ ne peut pas couvrir les deux familles sans variante de type (P1).
 
 ## 5. Destination / autocomplete
 
-| Module | Source de données | Type |
-|---|---|---|
-| Hôtels Tunisie | `/api/hotels/cities` (catalogue myGo réel, cache 24h) | ✅ Autocomplete réel |
-| Hôtels Monde | Liste statique 10 destinations | ⚠️ Décalage avec le marketing ("1M+ établissements") — P1 |
-| Omra | N/A (mono-destination) | 🚫 Légitime |
-| Packages | Liste statique 8 valeurs, matchée par `ILIKE` sur titre (pas de colonne DB dédiée), **dupliquée deux fois** en dur (page + widget hero) | ❌ P1 |
-| Attractions | Texte libre `ILIKE` sur titre/localisation, aucun sélecteur structuré alors qu'une colonne `location` dédiée existe | ⚠️ P2 |
-| Vols | `&lt;Select&gt;` figé sur liste `AIRPORTS` statique | Pas d'autocomplete réel |
-| Car / Transferts | `&lt;Select&gt;` de lieux/zones réels issus du catalogue DB par agence | ✅ Correct pour leur besoin |
+| Module           | Source de données                                                                                                                       | Type                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Hôtels Tunisie   | `/api/hotels/cities` (catalogue myGo réel, cache 24h)                                                                                   | ✅ Autocomplete réel                                      |
+| Hôtels Monde     | Liste statique 10 destinations                                                                                                          | ⚠️ Décalage avec le marketing ("1M+ établissements") — P1 |
+| Omra             | N/A (mono-destination)                                                                                                                  | 🚫 Légitime                                               |
+| Packages         | Liste statique 8 valeurs, matchée par `ILIKE` sur titre (pas de colonne DB dédiée), **dupliquée deux fois** en dur (page + widget hero) | ❌ P1                                                     |
+| Attractions      | Texte libre `ILIKE` sur titre/localisation, aucun sélecteur structuré alors qu'une colonne `location` dédiée existe                     | ⚠️ P2                                                     |
+| Vols             | `&lt;Select&gt;` figé sur liste `AIRPORTS` statique                                                                                     | Pas d'autocomplete réel                                   |
+| Car / Transferts | `&lt;Select&gt;` de lieux/zones réels issus du catalogue DB par agence                                                                  | ✅ Correct pour leur besoin                               |
 
 Aucun des modules non-Hôtels-Tunisie ne réutilise `useCities()` — chacun réinvente sa propre solution (P1,
 XMOD-02).
@@ -219,6 +221,7 @@ XMOD-02).
 
 C'est la dimension la mieux traitée globalement — aucun bug bloquant de débordement ou de CTA inatteignable
 sur 390px identifié :
+
 - Hôtels Tunisie (formulaire + `Sheet` d'édition) et le widget hero (bottom-sheet dédié avec
   `safe-area-inset-bottom`) ont un vrai traitement mobile soigné — référence positive.
 - Le composant `Calendar` partagé gère nativement l'empilement des 2 mois sous 768px.
@@ -232,13 +235,13 @@ sur 390px identifié :
 
 ## 12. Différences Hotels Tunisie / Hotels Monde / Omra / Voyages / Attractions / Vols / Car / Transferts
 
-| Dimension | Tunisie | Monde | Omra | Packages | Attractions | Vols | Car | Transferts |
-|---|---|---|---|---|---|---|---|---|
-| Fournisseur | myGo réel | Virtual (stub) | DB directe | DB directe | DB directe | Virtual (stub) | DB directe | DB directe |
-| API recherche | ✅ zod validée | ✅ zod validée | 🚫 | 🚫 | 🚫 | ✅ zod validée | 🚫 | 🚫 |
-| Résultat | liste `offers[]` | liste `offers[]` | liste (page) | liste (page) | liste (page) | liste `offers[]` | devis unique | devis unique |
-| Devise dynamique | ✅ seule | ❌ TND figé | ❌ TND figé | ❌ TND figé | ❌ TND figé | ❌ TND figé | ❌ TND figé | ❌ TND figé |
-| Lié depuis la nav/accueil | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ orphelin | ❌ orphelin | ❌ orphelin |
+| Dimension                 | Tunisie          | Monde            | Omra         | Packages     | Attractions  | Vols             | Car          | Transferts   |
+| ------------------------- | ---------------- | ---------------- | ------------ | ------------ | ------------ | ---------------- | ------------ | ------------ |
+| Fournisseur               | myGo réel        | Virtual (stub)   | DB directe   | DB directe   | DB directe   | Virtual (stub)   | DB directe   | DB directe   |
+| API recherche             | ✅ zod validée   | ✅ zod validée   | 🚫           | 🚫           | 🚫           | ✅ zod validée   | 🚫           | 🚫           |
+| Résultat                  | liste `offers[]` | liste `offers[]` | liste (page) | liste (page) | liste (page) | liste `offers[]` | devis unique | devis unique |
+| Devise dynamique          | ✅ seule         | ❌ TND figé      | ❌ TND figé  | ❌ TND figé  | ❌ TND figé  | ❌ TND figé      | ❌ TND figé  | ❌ TND figé  |
+| Lié depuis la nav/accueil | ✅               | ✅               | ✅           | ✅           | ✅           | ❌ orphelin      | ❌ orphelin  | ❌ orphelin  |
 
 **Vols/Car/Transferts sont fonctionnels de bout en bout (recherche→réservation) mais volontairement
 retirés de la navigation principale** — documenté explicitement en commentaire dans le code

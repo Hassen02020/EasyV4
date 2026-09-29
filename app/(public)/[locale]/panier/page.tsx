@@ -23,10 +23,10 @@ export default async function CartPage() {
       <Header />
       <main className="bg-muted/30 flex-1 py-8">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t("pageTitle")}</h1>
-          <p className="text-muted-foreground mb-6">
-            {t("pageSubtitle")}
-          </p>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
+            {t("pageTitle")}
+          </h1>
+          <p className="text-muted-foreground mb-6">{t("pageSubtitle")}</p>
           <CartView />
         </div>
       </main>

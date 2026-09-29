@@ -29,7 +29,10 @@ import {
   validateSearchDateRange,
 } from "@/lib/mygo/search-core"
 import { rateLimit } from "@/lib/rate-limit"
-import { resolveMyGoAccessForTenant, guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import {
+  resolveMyGoAccessForTenant,
+  guestTenantContext,
+} from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
 import { signHotelSearchOffersInPlace } from "@/lib/booking/price-token"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
@@ -84,10 +87,14 @@ export async function GET(req: NextRequest) {
   // du guest booking, jamais un ID accepté du client) — voir
   // lib/hotel-suppliers/tenant/live-resolution.ts.
   const tenantContext = await guestTenantContext()
-  const access = tenantContext ? await resolveMyGoAccessForTenant(tenantContext) : undefined
+  const access = tenantContext
+    ? await resolveMyGoAccessForTenant(tenantContext)
+    : undefined
   // PHASE 28 — recherche orchestrée par le Hub — contrat de réponse
   // inchangé, voir lib/hotel-suppliers/search-hub.ts.
-  const resp = await executeHotelSearchThroughHub(q, access, { agencyId: tenantContext?.agencyId ?? null })
+  const resp = await executeHotelSearchThroughHub(q, access, {
+    agencyId: tenantContext?.agencyId ?? null,
+  })
 
   // Certification E2E — ajoute un `priceToken` signé par chambre (prix
   // exact que CE serveur vient de calculer), pour que le tunnel B2C
@@ -102,7 +109,11 @@ export async function GET(req: NextRequest) {
   } catch {
     return resp
   }
-  if (body && typeof body === "object" && Array.isArray((body as { offers?: unknown }).offers)) {
+  if (
+    body &&
+    typeof body === "object" &&
+    Array.isArray((body as { offers?: unknown }).offers)
+  ) {
     // P1 "SERP Commercial Truth" — le prix affiché doit être le prix
     // réellement facturé : la marge OTA est appliquée ICI, avant signature,
     // avec exactement la même résolution d'agence/marge
@@ -115,8 +126,13 @@ export async function GET(req: NextRequest) {
     // vérification anti-fraude existante.
     const typedBody = body as { offers: HotelOfferDTO[] }
     const margins = await getMarginsForAgency(tenantContext?.agencyId ?? null)
-    typedBody.offers = typedBody.offers.map((offer) => applyMarginToHotelOffer(offer, margins))
-    signHotelSearchOffersInPlace(body as Parameters<typeof signHotelSearchOffersInPlace>[0], q)
+    typedBody.offers = typedBody.offers.map((offer) =>
+      applyMarginToHotelOffer(offer, margins),
+    )
+    signHotelSearchOffersInPlace(
+      body as Parameters<typeof signHotelSearchOffersInPlace>[0],
+      q,
+    )
   }
   return NextResponse.json(body, { status: resp.status, headers: resp.headers })
 }

@@ -8,9 +8,22 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -74,7 +87,15 @@ function LocationForm({ onDone }: { onDone: () => void }) {
       return
     }
     startTransition(async () => {
-      const res = await createCarLocation({ name, city, locationType: locationType as "airport" | "city" | "hotel" | "train_station" })
+      const res = await createCarLocation({
+        name,
+        city,
+        locationType: locationType as
+          | "airport"
+          | "city"
+          | "hotel"
+          | "train_station",
+      })
       if (!res.ok) {
         toast.error(res.error)
         return
@@ -102,11 +123,21 @@ function LocationForm({ onDone }: { onDone: () => void }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="cl-name">Nom</Label>
-            <Input id="cl-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Aéroport Tunis-Carthage" />
+            <Input
+              id="cl-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Aéroport Tunis-Carthage"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cl-city">Ville</Label>
-            <Input id="cl-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Tunis" />
+            <Input
+              id="cl-city"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Tunis"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Type</Label>
@@ -125,11 +156,17 @@ function LocationForm({ onDone }: { onDone: () => void }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
           <Button onClick={submit} disabled={isPending} className="gap-1.5">
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
             Créer
           </Button>
         </DialogFooter>
@@ -138,12 +175,21 @@ function LocationForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-function LocationsTab({ locations, onDone }: { locations: CarLocation[]; onDone: () => void }) {
+function LocationsTab({
+  locations,
+  onDone,
+}: {
+  locations: CarLocation[]
+  onDone: () => void
+}) {
   const [isPending, startTransition] = useTransition()
 
   function toggle(id: string, current: string) {
     startTransition(async () => {
-      const res = await setCarLocationStatus(id, current === "active" ? "inactive" : "active")
+      const res = await setCarLocationStatus(
+        id,
+        current === "active" ? "inactive" : "active",
+      )
       if (!res.ok) {
         toast.error(res.error)
         return
@@ -156,14 +202,20 @@ function LocationsTab({ locations, onDone }: { locations: CarLocation[]; onDone:
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-base">Lieux de prise en charge / retour</CardTitle>
-          <CardDescription>Comptoirs où un client peut récupérer ou rendre un véhicule.</CardDescription>
+          <CardTitle className="text-base">
+            Lieux de prise en charge / retour
+          </CardTitle>
+          <CardDescription>
+            Comptoirs où un client peut récupérer ou rendre un véhicule.
+          </CardDescription>
         </div>
         <LocationForm onDone={onDone} />
       </CardHeader>
       <CardContent>
         {locations.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">Aucun lieu créé pour le moment.</p>
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            Aucun lieu créé pour le moment.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -180,14 +232,29 @@ function LocationsTab({ locations, onDone }: { locations: CarLocation[]; onDone:
                 <TableRow key={l.id}>
                   <TableCell className="font-medium">{l.name}</TableCell>
                   <TableCell className="text-sm">{l.city}</TableCell>
-                  <TableCell className="text-sm">{LOCATION_TYPES.find((t) => t.value === l.locationType)?.label ?? l.locationType}</TableCell>
+                  <TableCell className="text-sm">
+                    {LOCATION_TYPES.find((t) => t.value === l.locationType)
+                      ?.label ?? l.locationType}
+                  </TableCell>
                   <TableCell>
-                    <Badge className={l.status === "active" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : ""} variant={l.status === "active" ? "default" : "outline"}>
+                    <Badge
+                      className={
+                        l.status === "active"
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                          : ""
+                      }
+                      variant={l.status === "active" ? "default" : "outline"}
+                    >
                       {l.status === "active" ? "Actif" : "Inactif"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" disabled={isPending} onClick={() => toggle(l.id, l.status)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isPending}
+                      onClick={() => toggle(l.id, l.status)}
+                    >
                       {l.status === "active" ? "Désactiver" : "Activer"}
                     </Button>
                   </TableCell>
@@ -254,15 +321,32 @@ function CategoryForm({ onDone }: { onDone: () => void }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="cc-code">Code</Label>
-            <Input id="cc-code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ECO" />
+            <Input
+              id="cc-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="ECO"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cc-name">Nom</Label>
-            <Input id="cc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Économique" />
+            <Input
+              id="cc-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Économique"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cc-seats">Places</Label>
-            <Input id="cc-seats" type="number" min="1" max="60" value={seats} onChange={(e) => setSeats(e.target.value)} />
+            <Input
+              id="cc-seats"
+              type="number"
+              min="1"
+              max="60"
+              value={seats}
+              onChange={(e) => setSeats(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Transmission</Label>
@@ -296,11 +380,17 @@ function CategoryForm({ onDone }: { onDone: () => void }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
           <Button onClick={submit} disabled={isPending} className="gap-1.5">
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
             Créer
           </Button>
         </DialogFooter>
@@ -309,12 +399,21 @@ function CategoryForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-function CategoriesTab({ categories, onDone }: { categories: CarCategory[]; onDone: () => void }) {
+function CategoriesTab({
+  categories,
+  onDone,
+}: {
+  categories: CarCategory[]
+  onDone: () => void
+}) {
   const [isPending, startTransition] = useTransition()
 
   function toggle(id: string, current: string) {
     startTransition(async () => {
-      const res = await setCarCategoryStatus(id, current === "active" ? "inactive" : "active")
+      const res = await setCarCategoryStatus(
+        id,
+        current === "active" ? "inactive" : "active",
+      )
       if (!res.ok) {
         toast.error(res.error)
         return
@@ -328,13 +427,17 @@ function CategoriesTab({ categories, onDone }: { categories: CarCategory[]; onDo
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle className="text-base">Catégories de véhicules</CardTitle>
-          <CardDescription>Économique, SUV, Luxe… chacune avec ses caractéristiques.</CardDescription>
+          <CardDescription>
+            Économique, SUV, Luxe… chacune avec ses caractéristiques.
+          </CardDescription>
         </div>
         <CategoryForm onDone={onDone} />
       </CardHeader>
       <CardContent>
         {categories.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">Aucune catégorie créée pour le moment.</p>
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            Aucune catégorie créée pour le moment.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -353,14 +456,29 @@ function CategoriesTab({ categories, onDone }: { categories: CarCategory[]; onDo
                   <TableCell className="font-mono text-sm">{c.code}</TableCell>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell className="text-sm">{c.seats}</TableCell>
-                  <TableCell className="text-sm">{TRANSMISSION_TYPES.find((t) => t.value === c.transmission)?.label ?? c.transmission}</TableCell>
+                  <TableCell className="text-sm">
+                    {TRANSMISSION_TYPES.find((t) => t.value === c.transmission)
+                      ?.label ?? c.transmission}
+                  </TableCell>
                   <TableCell>
-                    <Badge className={c.status === "active" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : ""} variant={c.status === "active" ? "default" : "outline"}>
+                    <Badge
+                      className={
+                        c.status === "active"
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                          : ""
+                      }
+                      variant={c.status === "active" ? "default" : "outline"}
+                    >
                       {c.status === "active" ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" disabled={isPending} onClick={() => toggle(c.id, c.status)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isPending}
+                      onClick={() => toggle(c.id, c.status)}
+                    >
                       {c.status === "active" ? "Désactiver" : "Activer"}
                     </Button>
                   </TableCell>
@@ -378,7 +496,15 @@ function CategoriesTab({ categories, onDone }: { categories: CarCategory[]; onDo
 /* Tarifs                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function PricingForm({ categories, locations, onDone }: { categories: CarCategory[]; locations: CarLocation[]; onDone: () => void }) {
+function PricingForm({
+  categories,
+  locations,
+  onDone,
+}: {
+  categories: CarCategory[]
+  locations: CarLocation[]
+  onDone: () => void
+}) {
   const [open, setOpen] = useState(false)
   const [categoryId, setCategoryId] = useState("")
   const [locationId, setLocationId] = useState("__all__")
@@ -416,7 +542,11 @@ function PricingForm({ categories, locations, onDone }: { categories: CarCategor
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5" disabled={activeCategories.length === 0}>
+        <Button
+          size="sm"
+          className="gap-1.5"
+          disabled={activeCategories.length === 0}
+        >
           <Plus className="h-4 w-4" />
           Nouveau tarif
         </Button>
@@ -424,7 +554,10 @@ function PricingForm({ categories, locations, onDone }: { categories: CarCategor
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nouveau tarif</DialogTitle>
-          <DialogDescription>Tarif journalier pour une catégorie, éventuellement limité à un lieu.</DialogDescription>
+          <DialogDescription>
+            Tarif journalier pour une catégorie, éventuellement limité à un
+            lieu.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
@@ -460,19 +593,39 @@ function PricingForm({ categories, locations, onDone }: { categories: CarCategor
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cp-daily">Tarif journalier (DT)</Label>
-            <Input id="cp-daily" type="number" min="0" step="0.001" value={dailyRateTnd} onChange={(e) => setDailyRateTnd(e.target.value)} />
+            <Input
+              id="cp-daily"
+              type="number"
+              min="0"
+              step="0.001"
+              value={dailyRateTnd}
+              onChange={(e) => setDailyRateTnd(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cp-deposit">Franchise/dépôt (DT)</Label>
-            <Input id="cp-deposit" type="number" min="0" step="0.001" value={depositTnd} onChange={(e) => setDepositTnd(e.target.value)} />
+            <Input
+              id="cp-deposit"
+              type="number"
+              min="0"
+              step="0.001"
+              value={depositTnd}
+              onChange={(e) => setDepositTnd(e.target.value)}
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
           <Button onClick={submit} disabled={isPending} className="gap-1.5">
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
             Créer
           </Button>
         </DialogFooter>
@@ -510,16 +663,26 @@ function PricingTab({
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle className="text-base">Tarifs</CardTitle>
-          <CardDescription>Tarif journalier par catégorie, éventuellement par lieu.</CardDescription>
+          <CardDescription>
+            Tarif journalier par catégorie, éventuellement par lieu.
+          </CardDescription>
         </div>
-        <PricingForm categories={categories} locations={locations} onDone={onDone} />
+        <PricingForm
+          categories={categories}
+          locations={locations}
+          onDone={onDone}
+        />
       </CardHeader>
       <CardContent>
         {categories.filter((c) => c.status === "active").length === 0 && (
-          <p className="text-muted-foreground mb-4 text-sm">Créez au moins une catégorie active avant d&apos;ajouter un tarif.</p>
+          <p className="text-muted-foreground mb-4 text-sm">
+            Créez au moins une catégorie active avant d&apos;ajouter un tarif.
+          </p>
         )}
         {rates.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">Aucun tarif configuré pour le moment.</p>
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            Aucun tarif configuré pour le moment.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -535,17 +698,37 @@ function PricingTab({
             <TableBody>
               {rates.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.categoryName}</TableCell>
-                  <TableCell className="text-sm">{r.locationName ?? "Tous les lieux"}</TableCell>
-                  <TableCell className="tabular-nums">{r.dailyRateTnd.toFixed(3)} DT</TableCell>
-                  <TableCell className="tabular-nums">{r.depositTnd.toFixed(3)} DT</TableCell>
+                  <TableCell className="font-medium">
+                    {r.categoryName}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {r.locationName ?? "Tous les lieux"}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {r.dailyRateTnd.toFixed(3)} DT
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {r.depositTnd.toFixed(3)} DT
+                  </TableCell>
                   <TableCell>
-                    <Badge className={r.isActive ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : ""} variant={r.isActive ? "default" : "outline"}>
+                    <Badge
+                      className={
+                        r.isActive
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                          : ""
+                      }
+                      variant={r.isActive ? "default" : "outline"}
+                    >
                       {r.isActive ? "Actif" : "Inactif"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" disabled={isPending} onClick={() => toggle(r.id, r.isActive)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isPending}
+                      onClick={() => toggle(r.id, r.isActive)}
+                    >
                       {r.isActive ? "Désactiver" : "Activer"}
                     </Button>
                   </TableCell>
@@ -602,7 +785,12 @@ export function CarCatalogManager({
         <CategoriesTab categories={categories} onDone={refresh} />
       </TabsContent>
       <TabsContent value="pricing">
-        <PricingTab categories={categories} locations={locations} rates={rates} onDone={refresh} />
+        <PricingTab
+          categories={categories}
+          locations={locations}
+          rates={rates}
+          onDone={refresh}
+        />
       </TabsContent>
     </Tabs>
   )

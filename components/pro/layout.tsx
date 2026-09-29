@@ -248,7 +248,10 @@ function WalletBadge({
       )}
     >
       <Wallet
-        className={cn("h-4 w-4 shrink-0", isLow ? "text-destructive" : "text-primary")}
+        className={cn(
+          "h-4 w-4 shrink-0",
+          isLow ? "text-destructive" : "text-primary",
+        )}
       />
       <div className="min-w-0 flex-1">
         <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
@@ -297,8 +300,7 @@ function NavGroup({
             const isActive =
               item.href === "/pro"
                 ? pathname === "/pro"
-                : pathname === item.href ||
-                  pathname.startsWith(item.href + "/")
+                : pathname === item.href || pathname.startsWith(item.href + "/")
 
             if (item.subItems) {
               return (
@@ -421,7 +423,7 @@ export function ProShell({
                 <span className="text-sidebar-primary">2</span>
                 <span className="text-sidebar-foreground">Book</span>
               </span>
-              <span className="text-sidebar-foreground/60 text-[10px] font-medium uppercase tracking-wider">
+              <span className="text-sidebar-foreground/60 text-[10px] font-medium tracking-wider uppercase">
                 Espace Pro
               </span>
             </div>
@@ -461,9 +463,21 @@ export function ProShell({
 
         {/* Navigation */}
         <SidebarContent className="gap-0">
-          <NavGroup label="Recherche & Réservation" items={BOOKING_NAV} pathname={pathname} />
-          <NavGroup label="Mon Compte" items={ACCOUNT_NAV} pathname={pathname} />
-          <NavGroup label="Paramètres" items={settingsNav} pathname={pathname} />
+          <NavGroup
+            label="Recherche & Réservation"
+            items={BOOKING_NAV}
+            pathname={pathname}
+          />
+          <NavGroup
+            label="Mon Compte"
+            items={ACCOUNT_NAV}
+            pathname={pathname}
+          />
+          <NavGroup
+            label="Paramètres"
+            items={settingsNav}
+            pathname={pathname}
+          />
         </SidebarContent>
 
         {/* Footer — wallet + user */}

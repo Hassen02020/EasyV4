@@ -20,7 +20,10 @@ import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 import { walletRechargeRequests } from "@/lib/db/schema"
-import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  resolveSessionContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
 import { creditRechargeRequest } from "./wallet-credit"
 
@@ -99,7 +102,8 @@ export async function submitRechargeRequest(
   // Résoudre agencyId et userId depuis la session — jamais depuis le client
   const session = await resolveSessionContext()
   if (!session.ok) return { ok: false, error: "Non authentifié" }
-  if (!session.agencyId) return { ok: false, error: "Profil utilisateur introuvable" }
+  if (!session.agencyId)
+    return { ok: false, error: "Profil utilisateur introuvable" }
 
   const agencyId = session.agencyId
   const requestedByUserId = session.userId
@@ -168,7 +172,8 @@ export async function validateRechargeRequest(
 
         const outcome = await creditRechargeRequest(tx, request, {
           reviewedByUserId: input.reviewedByUserId,
-          description: `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
+          description:
+            `Recharge wallet — ${methodLabel(request.method)} ${request.paymentReference ? `(réf: ${request.paymentReference})` : ""}`.trim(),
         })
 
         notifyAgencyId = outcome.agencyId
@@ -187,7 +192,10 @@ export async function validateRechargeRequest(
       return { ok: false, error: "Agence introuvable" }
     }
     if (msg.startsWith("REQUEST_ALREADY_PROCESSED:")) {
-      return { ok: false, error: `Demande déjà traitée (statut: ${msg.split(":")[1]})` }
+      return {
+        ok: false,
+        error: `Demande déjà traitée (statut: ${msg.split(":")[1]})`,
+      }
     }
     throw err
   }
@@ -204,7 +212,9 @@ export async function validateRechargeRequest(
       newBalance: notifyNewBalance,
       method: notifyMethod,
       adminUserId: authResult.userId,
-    }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }).catch(() => {
+      /* fire-and-forget — le retry Inngest suffira */
+    })
   }
 
   revalidatePath("/b2b")
@@ -260,7 +270,10 @@ export async function rejectRechargeRequest(
       return { ok: false, error: "Demande de recharge introuvable" }
     }
     if (msg.startsWith("REQUEST_ALREADY_PROCESSED:")) {
-      return { ok: false, error: `Demande déjà traitée (statut: ${msg.split(":")[1]})` }
+      return {
+        ok: false,
+        error: `Demande déjà traitée (statut: ${msg.split(":")[1]})`,
+      }
     }
     throw err
   }

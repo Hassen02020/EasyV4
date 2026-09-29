@@ -73,13 +73,13 @@ function stripeEventPayload(
   return JSON.stringify({
     id: eventId,
     type,
-    data: { object: { id: providerRef, amount_tnd: amountTnd.toFixed(3), currency } },
+    data: {
+      object: { id: providerRef, amount_tnd: amountTnd.toFixed(3), currency },
+    },
   })
 }
 
-function spsEventBody(
-  fields: Record<string, string>,
-): Record<string, string> {
+function spsEventBody(fields: Record<string, string>): Record<string, string> {
   return { ...fields }
 }
 
@@ -94,7 +94,9 @@ export function buildVirtualWebhookRequest(
   scenario: VirtualPaymentScenario,
   opts: VirtualWebhookOptions,
 ): VirtualWebhookRequest {
-  const eventId = opts.eventId ?? `virtual-${scenario.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const eventId =
+    opts.eventId ??
+    `virtual-${scenario.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const ref =
     scenario === "UNKNOWN_REFERENCE"
       ? `unknown-ref-${Math.random().toString(36).slice(2, 10)}`
@@ -115,8 +117,15 @@ export function buildVirtualWebhookRequest(
   const webhookPath = opts.webhookPath ?? "/api/payment/webhook"
 
   if (opts.provider === "stripe") {
-    const payload = stripeEventPayload(eventId, eventType, ref, amount, currency)
-    const signingSecret = scenario === "INVALID_SIGNATURE" ? `${opts.secret}-wrong` : opts.secret
+    const payload = stripeEventPayload(
+      eventId,
+      eventType,
+      ref,
+      amount,
+      currency,
+    )
+    const signingSecret =
+      scenario === "INVALID_SIGNATURE" ? `${opts.secret}-wrong` : opts.secret
     return {
       scenario,
       url: (baseUrl) => `${baseUrl}${webhookPath}?provider=stripe`,
@@ -143,7 +152,8 @@ export function buildVirtualWebhookRequest(
             ? "sps.payment.refunded"
             : "sps.unknown",
   })
-  const signingSecret = scenario === "INVALID_SIGNATURE" ? `${opts.secret}-wrong` : opts.secret
+  const signingSecret =
+    scenario === "INVALID_SIGNATURE" ? `${opts.secret}-wrong` : opts.secret
   fields.seal = computeSpsSeal(fields, signingSecret)
   const body = new URLSearchParams(fields).toString()
 

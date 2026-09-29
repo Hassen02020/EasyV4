@@ -44,7 +44,9 @@ async function assertSupportStaff(): Promise<SupportStaffContext> {
 
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile || !profile.agencyId) throw new Error("FORBIDDEN")
-  if (!(SUPPORT_STAFF_ROLES as readonly string[]).includes(profile.role ?? "")) {
+  if (
+    !(SUPPORT_STAFF_ROLES as readonly string[]).includes(profile.role ?? "")
+  ) {
     throw new Error("FORBIDDEN")
   }
   if (profile.agencyType !== "ota") throw new Error("FORBIDDEN")
@@ -52,7 +54,9 @@ async function assertSupportStaff(): Promise<SupportStaffContext> {
   return { userId: user.id, agencyId: profile.agencyId }
 }
 
-export type ListLeadsResult = { ok: true; leads: LeadRow[] } | { ok: false; error: string }
+export type ListLeadsResult =
+  | { ok: true; leads: LeadRow[] }
+  | { ok: false; error: string }
 
 export async function listLeads(status?: LeadStatus): Promise<ListLeadsResult> {
   let ctx: SupportStaffContext
@@ -61,11 +65,13 @@ export async function listLeads(status?: LeadStatus): Promise<ListLeadsResult> {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
-    const rows = await withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, (tx) =>
-      listLeadsCore(tx, { agencyId: ctx.agencyId, status }),
+    const rows = await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) => listLeadsCore(tx, { agencyId: ctx.agencyId, status }),
     )
     return { ok: true, leads: rows }
   } catch (err) {
@@ -87,7 +93,8 @@ export async function updateLeadStatus(input: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   if (!(LEAD_STATUSES as readonly string[]).includes(input.status)) {
     return { ok: false, error: "Statut invalide." }
@@ -101,7 +108,8 @@ export async function updateLeadStatus(input: {
   if (input.status === "converted") {
     return {
       ok: false,
-      error: "Utilisez « Lier à une réservation » pour marquer une demande comme convertie.",
+      error:
+        "Utilisez « Lier à une réservation » pour marquer une demande comme convertie.",
     }
   }
   const status = input.status
@@ -127,7 +135,9 @@ export async function updateLeadStatus(input: {
   }
 }
 
-export type ConvertLeadActionResult = { ok: true } | { ok: false; error: string }
+export type ConvertLeadActionResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function convertLead(input: {
   id: string
@@ -140,7 +150,8 @@ export async function convertLead(input: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
   if (!input.id || !input.reservationId) {
     return { ok: false, error: "Identifiant invalide." }
   }
@@ -185,7 +196,8 @@ export async function searchReservationsForLeadLink(input: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
   if (!input.leadId) return { ok: false, error: "Identifiant invalide." }
 
   try {
@@ -210,4 +222,3 @@ export async function searchReservationsForLeadLink(input: {
     return { ok: false, error: "Erreur technique. Veuillez réessayer." }
   }
 }
-

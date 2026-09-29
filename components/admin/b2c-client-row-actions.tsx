@@ -58,7 +58,9 @@ export function B2cClientRowActions({ client }: { client: Client }) {
   const [editOpen, setEditOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const [civility, setCivility] = useState<"M" | "Mme" | "Mlle" | "">(client.civility ?? "")
+  const [civility, setCivility] = useState<"M" | "Mme" | "Mlle" | "">(
+    client.civility ?? "",
+  )
   const [firstName, setFirstName] = useState(client.firstName)
   const [lastName, setLastName] = useState(client.lastName)
   const [email, setEmail] = useState(client.email ?? "")
@@ -96,7 +98,11 @@ export function B2cClientRowActions({ client }: { client: Client }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={`Actions pour ${displayName}`}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Actions pour ${displayName}`}
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -131,14 +137,19 @@ export function B2cClientRowActions({ client }: { client: Client }) {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Modifier — {displayName}</DialogTitle>
-            <DialogDescription>Coordonnées et identité du client, dans votre agence.</DialogDescription>
+            <DialogDescription>
+              Coordonnées et identité du client, dans votre agence.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor={`edit-civility-${client.id}`}>Civilité</Label>
-                <Select value={civility} onValueChange={(v) => setCivility(v as typeof civility)}>
+                <Select
+                  value={civility}
+                  onValueChange={(v) => setCivility(v as typeof civility)}
+                >
                   <SelectTrigger id={`edit-civility-${client.id}`}>
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
@@ -189,7 +200,9 @@ export function B2cClientRowActions({ client }: { client: Client }) {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor={`edit-civicid-${client.id}`}>CIN / Passeport</Label>
+                <Label htmlFor={`edit-civicid-${client.id}`}>
+                  CIN / Passeport
+                </Label>
                 <Input
                   id={`edit-civicid-${client.id}`}
                   value={civicId}
@@ -207,12 +220,21 @@ export function B2cClientRowActions({ client }: { client: Client }) {
                 disabled={isPending}
               />
             </div>
-            {error && <p className="text-destructive text-sm font-medium">{error}</p>}
+            {error && (
+              <p className="text-destructive text-sm font-medium">{error}</p>
+            )}
           </div>
 
           <DialogFooter>
-            <Button onClick={handleSave} disabled={isPending || !firstName.trim() || !lastName.trim()}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+            <Button
+              onClick={handleSave}
+              disabled={isPending || !firstName.trim() || !lastName.trim()}
+            >
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Enregistrer"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

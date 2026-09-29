@@ -42,7 +42,10 @@ export async function GET(req: NextRequest) {
   const moduleParam = req.nextUrl.searchParams.get("module")
   if (!isAllowedModule(moduleParam)) {
     return NextResponse.json(
-      { error: "invalid_module", message: `module doit être l'un de : ${ALLOWED_MODULES.join(", ")}` },
+      {
+        error: "invalid_module",
+        message: `module doit être l'un de : ${ALLOWED_MODULES.join(", ")}`,
+      },
       { status: 400 },
     )
   }
@@ -62,7 +65,10 @@ export async function GET(req: NextRequest) {
         countryNameAr: country.nameAr,
       })
       .from(destinationExternalRefs)
-      .innerJoin(destinations, eq(destinationExternalRefs.destinationId, destinations.id))
+      .innerJoin(
+        destinations,
+        eq(destinationExternalRefs.destinationId, destinations.id),
+      )
       .leftJoin(country, eq(destinations.parentId, country.id))
       .where(
         and(

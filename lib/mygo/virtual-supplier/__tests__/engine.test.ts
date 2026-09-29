@@ -76,14 +76,18 @@ test("HotelSearch: le VRAI schéma Zod valide la réponse, prix calculé (pas co
   reset()
   const raw = searchHammamet()
   const parsed = HotelSearchResponse.parse(raw)
-  assert.ok(parsed.HotelSearch && parsed.HotelSearch.length > 0, "des hôtels à Hammamet")
+  assert.ok(
+    parsed.HotelSearch && parsed.HotelSearch.length > 0,
+    "des hôtels à Hammamet",
+  )
   const first = parsed.HotelSearch![0]!
   assert.ok(first.Token.length > 10)
   const room = first.Price.Boarding[0]!.Pax[0]!.Rooms[0]!
   assert.ok(room.Price > 0)
   // 3 nuits doit coûter ~3x plus qu'une nuit pour la même chambre/boarding — pas un prix fixe.
-  const oneNight = HotelSearchResponse.parse(searchHammamet("2026-09-10", "2026-09-11"))
-    .HotelSearch![0]!.Price.Boarding[0]!.Pax[0]!.Rooms[0]!.Price
+  const oneNight = HotelSearchResponse.parse(
+    searchHammamet("2026-09-10", "2026-09-11"),
+  ).HotelSearch![0]!.Price.Boarding[0]!.Pax[0]!.Rooms[0]!.Price
   assert.ok(Math.abs(room.Price - oneNight * 3) < 0.01)
 })
 
@@ -102,12 +106,21 @@ function extractFirstOffer() {
   const offer = parsed.HotelSearch!.find((h) =>
     h.Price.Boarding.some((b) => b.Pax.some((p) => p.Rooms.length > 0)),
   )!
-  const boarding = offer.Price.Boarding.find((b) => b.Pax.some((p) => p.Rooms.length > 0))!
+  const boarding = offer.Price.Boarding.find((b) =>
+    b.Pax.some((p) => p.Rooms.length > 0),
+  )!
   const room = boarding.Pax[0]!.Rooms[0]!
-  return { hotelId: offer.Hotel.Id, token: offer.Token, boardingId: boarding.Id, roomId: room.Id }
+  return {
+    hotelId: offer.Hotel.Id,
+    token: offer.Token,
+    boardingId: boarding.Id,
+    roomId: room.Id,
+  }
 }
 
-function bookingRequest(over: Partial<ReturnType<typeof extractFirstOffer>> = {}) {
+function bookingRequest(
+  over: Partial<ReturnType<typeof extractFirstOffer>> = {},
+) {
   const offer = { ...extractFirstOffer(), ...over }
   return {
     ...CRED,
@@ -122,7 +135,9 @@ function bookingRequest(over: Partial<ReturnType<typeof extractFirstOffer>> = {}
           Id: offer.roomId,
           Boarding: offer.boardingId,
           Pax: {
-            Adult: [{ Civility: "M", Name: "Test", Surname: "User", Holder: true }],
+            Adult: [
+              { Civility: "M", Name: "Test", Surname: "User", Holder: true },
+            ],
             Child: [],
           },
         },
@@ -200,19 +215,26 @@ test("Cycle complet: BookingCreation décrémente l'inventaire, BookingCancellat
   const afterBooking = HotelSearchResponse.parse(searchHammamet())
     .HotelSearch!.find((h) => h.Hotel.Id === offer.hotelId)!
     .Price.Boarding.find((b) => b.Id === offer.boardingId)!
-    .Pax[0]!.Rooms.find((r) => r.Id === offer.roomId)?.Quantity as number | undefined
+    .Pax[0]!.Rooms.find((r) => r.Id === offer.roomId)?.Quantity as
+    | number
+    | undefined
 
-  assert.equal((afterBooking ?? 0), before - 1, "inventaire décrémenté de 1")
+  assert.equal(afterBooking ?? 0, before - 1, "inventaire décrémenté de 1")
 
-  const cancelled = await handleBookingCancellation({ ...CRED, Booking: bookingId })
+  const cancelled = await handleBookingCancellation({
+    ...CRED,
+    Booking: bookingId,
+  })
   const cancelParsed = BookingCancellationResponse.parse(cancelled.json)
   assert.ok(cancelParsed.Cancelled)
 
   const afterCancel = HotelSearchResponse.parse(searchHammamet())
     .HotelSearch!.find((h) => h.Hotel.Id === offer.hotelId)!
     .Price.Boarding.find((b) => b.Id === offer.boardingId)!
-    .Pax[0]!.Rooms.find((r) => r.Id === offer.roomId)?.Quantity as number | undefined
-  assert.equal((afterCancel ?? 0), before, "inventaire restitué après annulation")
+    .Pax[0]!.Rooms.find((r) => r.Id === offer.roomId)?.Quantity as
+    | number
+    | undefined
+  assert.equal(afterCancel ?? 0, before, "inventaire restitué après annulation")
 })
 
 test("SÉCURITÉ — BookingCancellation: MyGo rejette => la réservation reste Validated côté ledger", async () => {
@@ -221,14 +243,21 @@ test("SÉCURITÉ — BookingCancellation: MyGo rejette => la réservation reste 
   const bookingId = BookingCreationResponse.parse(created.json).Id!
 
   setScenario("CANCEL_FAILED")
-  const cancelled = await handleBookingCancellation({ ...CRED, Booking: bookingId })
+  const cancelled = await handleBookingCancellation({
+    ...CRED,
+    Booking: bookingId,
+  })
   const parsed = BookingCancellationResponse.parse(cancelled.json)
   assert.ok(parsed.ErrorMessage && !Array.isArray(parsed.ErrorMessage))
 
   resetScenario()
   const list = handleBookingList({ ...CRED, Filters: { Booking: bookingId } })
   const listParsed = BookingListResponse.parse(list)
-  assert.equal(listParsed.BookingDetail![0]!.State, "Validated", "toujours active — pas annulée")
+  assert.equal(
+    listParsed.BookingDetail![0]!.State,
+    "Validated",
+    "toujours active — pas annulée",
+  )
 })
 
 test("BookingCancellation: annuler une résa déjà annulée est idempotent (Fee=0 la 2e fois)", async () => {
@@ -236,7 +265,10 @@ test("BookingCancellation: annuler une résa déjà annulée est idempotent (Fee
   const created = await handleBookingCreation(bookingRequest())
   const bookingId = BookingCreationResponse.parse(created.json).Id!
   await handleBookingCancellation({ ...CRED, Booking: bookingId })
-  const second = await handleBookingCancellation({ ...CRED, Booking: bookingId })
+  const second = await handleBookingCancellation({
+    ...CRED,
+    Booking: bookingId,
+  })
   const parsed = BookingCancellationResponse.parse(second.json)
   assert.equal(parsed.Fee, 0)
 })
@@ -274,5 +306,9 @@ test("TWO_PLAUSIBLE_CANDIDATES: deux réservations plausibles apparaissent dans 
   resetScenario()
   const list = handleBookingList({ ...CRED, Filters: { Hotel: offer.hotelId } })
   const parsed = BookingListResponse.parse(list)
-  assert.equal(parsed.BookingDetail?.length, 2, "deux candidats plausibles — l'appelant ne doit PAS deviner")
+  assert.equal(
+    parsed.BookingDetail?.length,
+    2,
+    "deux candidats plausibles — l'appelant ne doit PAS deviner",
+  )
 })

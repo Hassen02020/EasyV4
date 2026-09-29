@@ -26,7 +26,10 @@ import {
   type ProductMediaVariants,
 } from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
-import { PRODUCT_MEDIA_MODULES, type ProductMediaModule } from "./product-constants"
+import {
+  PRODUCT_MEDIA_MODULES,
+  type ProductMediaModule,
+} from "./product-constants"
 import {
   validateImageBuffer,
   generateMediaVariants,
@@ -34,7 +37,11 @@ import {
   type MediaVariantName,
 } from "@/lib/media/optimize"
 import { getMediaStorage } from "@/lib/media/storage"
-import { reassignCoverAfterDelete, isValidReorderSet, setCoverAtomic } from "@/lib/media/media-core"
+import {
+  reassignCoverAfterDelete,
+  isValidReorderSet,
+  setCoverAtomic,
+} from "@/lib/media/media-core"
 
 export type ProductMediaActionResult<T = { id: string }> =
   | { ok: true; data: T }
@@ -96,20 +103,24 @@ function buildVariantKey(
  * REVALIDÉE ici intégralement (type MIME réel, dimensions, taille) — jamais
  * confiance dans ce que le navigateur a déclaré.
  */
-export async function uploadProductMedia(formData: FormData): Promise<ProductMediaActionResult> {
+export async function uploadProductMedia(
+  formData: FormData,
+): Promise<ProductMediaActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const moduleRaw = String(formData.get("module") ?? "")
   const productId = String(formData.get("productId") ?? "")
   const file = formData.get("file")
 
-  if (!isProductMediaModule(moduleRaw)) return { ok: false, error: "Module invalide" }
+  if (!isProductMediaModule(moduleRaw))
+    return { ok: false, error: "Module invalide" }
   if (!productId) return { ok: false, error: "Produit manquant" }
   if (!(file instanceof File)) return { ok: false, error: "Fichier manquant" }
 
@@ -142,12 +153,47 @@ export async function uploadProductMedia(formData: FormData): Promise<ProductMed
 
   const assetId = randomUUID()
   const originalExt = MIME_TO_EXT[validated.mimeType]
-  const originalKey = buildVariantKey(ctx.agencyId, mediaModule, productId, assetId, "original", originalExt)
+  const originalKey = buildVariantKey(
+    ctx.agencyId,
+    mediaModule,
+    productId,
+    assetId,
+    "original",
+    originalExt,
+  )
   const variantKeys: Record<MediaVariantName, string> = {
-    large: buildVariantKey(ctx.agencyId, mediaModule, productId, assetId, "large", "webp"),
-    medium: buildVariantKey(ctx.agencyId, mediaModule, productId, assetId, "medium", "webp"),
-    card: buildVariantKey(ctx.agencyId, mediaModule, productId, assetId, "card", "webp"),
-    thumbnail: buildVariantKey(ctx.agencyId, mediaModule, productId, assetId, "thumbnail", "webp"),
+    large: buildVariantKey(
+      ctx.agencyId,
+      mediaModule,
+      productId,
+      assetId,
+      "large",
+      "webp",
+    ),
+    medium: buildVariantKey(
+      ctx.agencyId,
+      mediaModule,
+      productId,
+      assetId,
+      "medium",
+      "webp",
+    ),
+    card: buildVariantKey(
+      ctx.agencyId,
+      mediaModule,
+      productId,
+      assetId,
+      "card",
+      "webp",
+    ),
+    thumbnail: buildVariantKey(
+      ctx.agencyId,
+      mediaModule,
+      productId,
+      assetId,
+      "thumbnail",
+      "webp",
+    ),
   }
 
   const storage = getMediaStorage()
@@ -155,7 +201,10 @@ export async function uploadProductMedia(formData: FormData): Promise<ProductMed
   try {
     await storage.put(originalKey, buffer, validated.mimeType)
     uploaded.push(originalKey)
-    for (const [name, key] of Object.entries(variantKeys) as [MediaVariantName, string][]) {
+    for (const [name, key] of Object.entries(variantKeys) as [
+      MediaVariantName,
+      string,
+    ][]) {
       await storage.put(key, variants[name].buffer, "image/webp")
       uploaded.push(key)
     }
@@ -164,7 +213,11 @@ export async function uploadProductMedia(formData: FormData): Promise<ProductMed
     // orphelin référencé nulle part en DB (mission §11/§20 : clés uniques
     // par upload, donc sûr à nettoyer sans affecter d'autres médias).
     await storage.remove(uploaded).catch(() => {})
-    return { ok: false, error: e instanceof Error ? e.message : "Échec de l'upload vers le stockage" }
+    return {
+      ok: false,
+      error:
+        e instanceof Error ? e.message : "Échec de l'upload vers le stockage",
+    }
   }
 
   const mediaVariants: ProductMediaVariants = {
@@ -184,7 +237,12 @@ export async function uploadProductMedia(formData: FormData): Promise<ProductMed
         const existing = await tx
           .select({ id: productMedia.id })
           .from(productMedia)
-          .where(and(eq(productMedia.module, mediaModule), eq(productMedia.productId, productId)))
+          .where(
+            and(
+              eq(productMedia.module, mediaModule),
+              eq(productMedia.productId, productId),
+            ),
+          )
 
         const [inserted] = await tx
           .insert(productMedia)
@@ -223,7 +281,10 @@ export async function uploadProductMedia(formData: FormData): Promise<ProductMed
     // La ligne DB n'a pas pu être créée (produit introuvable, etc.) —
     // les fichiers déjà uploadés seraient orphelins, on les retire.
     await storage.remove(uploaded).catch(() => {})
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -238,14 +299,17 @@ export async function uploadProductMedia(formData: FormData): Promise<ProductMed
  * pointant vers rien (mission §20 : solution simple et fiable, pas de
  * garbage-collector complexe pour ce V1).
  */
-export async function deleteProductMedia(mediaId: string): Promise<ProductMediaActionResult> {
+export async function deleteProductMedia(
+  mediaId: string,
+): Promise<ProductMediaActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   let keysToRemove: string[] = []
   try {
@@ -255,7 +319,12 @@ export async function deleteProductMedia(mediaId: string): Promise<ProductMediaA
         const [row] = await tx
           .select()
           .from(productMedia)
-          .where(and(eq(productMedia.id, mediaId), eq(productMedia.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(productMedia.id, mediaId),
+              eq(productMedia.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!row) throw new Error("MEDIA_NOT_FOUND")
 
@@ -264,7 +333,11 @@ export async function deleteProductMedia(mediaId: string): Promise<ProductMediaA
         if (row.isCover) {
           // Promeut le premier média restant en couverture — sans effet (donc
           // zéro couverture, explicitement permis) s'il n'en reste aucun.
-          await reassignCoverAfterDelete(tx, row.module as ProductMediaModule, row.productId)
+          await reassignCoverAfterDelete(
+            tx,
+            row.module as ProductMediaModule,
+            row.productId,
+          )
         }
 
         await tx.insert(auditEvents).values({
@@ -276,12 +349,18 @@ export async function deleteProductMedia(mediaId: string): Promise<ProductMediaA
           diff: { module: row.module, productId: row.productId },
         })
 
-        keysToRemove = Object.values(row.variants).filter((v): v is string => Boolean(v))
-        if (!keysToRemove.includes(row.storageKey)) keysToRemove.push(row.storageKey)
+        keysToRemove = Object.values(row.variants).filter((v): v is string =>
+          Boolean(v),
+        )
+        if (!keysToRemove.includes(row.storageKey))
+          keysToRemove.push(row.storageKey)
       },
     )
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 
   const storage = getMediaStorage()
@@ -309,8 +388,10 @@ export async function reorderProductMedia(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!isProductMediaModule(module)) return { ok: false, error: "Module invalide" }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!isProductMediaModule(module))
+    return { ok: false, error: "Module invalide" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     await withTenantContext(
@@ -321,9 +402,19 @@ export async function reorderProductMedia(
         const existing = await tx
           .select({ id: productMedia.id })
           .from(productMedia)
-          .where(and(eq(productMedia.module, module), eq(productMedia.productId, productId)))
+          .where(
+            and(
+              eq(productMedia.module, module),
+              eq(productMedia.productId, productId),
+            ),
+          )
 
-        if (!isValidReorderSet(existing.map((r) => r.id), orderedMediaIds)) {
+        if (
+          !isValidReorderSet(
+            existing.map((r) => r.id),
+            orderedMediaIds,
+          )
+        ) {
           // La liste envoyée ne correspond pas EXACTEMENT aux médias réels de
           // ce produit — jamais appliquer un ordre partiel ou pointant vers
           // un média d'un autre produit/agence (mission §26 : tests sécurité).
@@ -335,7 +426,12 @@ export async function reorderProductMedia(
             tx
               .update(productMedia)
               .set({ sortOrder: index, updatedAt: new Date() })
-              .where(and(eq(productMedia.id, id), eq(productMedia.agencyId, ctx.agencyId))),
+              .where(
+                and(
+                  eq(productMedia.id, id),
+                  eq(productMedia.agencyId, ctx.agencyId),
+                ),
+              ),
           ),
         )
       },
@@ -343,7 +439,10 @@ export async function reorderProductMedia(
     revalidatePath("/admin/products")
     return { ok: true, data: { count: orderedMediaIds.length } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -358,33 +457,52 @@ export async function reorderProductMedia(
  * puis on pose la nouvelle — jamais les deux vraies en même temps, jamais
  * de conflit avec `product_media_one_cover_uniq`.
  */
-export async function setCoverProductMedia(mediaId: string): Promise<ProductMediaActionResult> {
+export async function setCoverProductMedia(
+  mediaId: string,
+): Promise<ProductMediaActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     await withTenantContext(
       { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
       async (tx) => {
         const [row] = await tx
-          .select({ module: productMedia.module, productId: productMedia.productId })
+          .select({
+            module: productMedia.module,
+            productId: productMedia.productId,
+          })
           .from(productMedia)
-          .where(and(eq(productMedia.id, mediaId), eq(productMedia.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(productMedia.id, mediaId),
+              eq(productMedia.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!row) throw new Error("MEDIA_NOT_FOUND")
 
-        await setCoverAtomic(tx, row.module as ProductMediaModule, row.productId, mediaId)
+        await setCoverAtomic(
+          tx,
+          row.module as ProductMediaModule,
+          row.productId,
+          mediaId,
+        )
       },
     )
     revalidatePath("/admin/products")
     return { ok: true, data: { id: mediaId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -409,7 +527,8 @@ export async function replaceProductMedia(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const file = formData.get("file")
   if (!(file instanceof File)) return { ok: false, error: "Fichier manquant" }
@@ -448,14 +567,22 @@ export async function replaceProductMedia(
         const [row] = await tx
           .select()
           .from(productMedia)
-          .where(and(eq(productMedia.id, mediaId), eq(productMedia.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(productMedia.id, mediaId),
+              eq(productMedia.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!row) throw new Error("MEDIA_NOT_FOUND")
         return row
       },
     )
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 
   const assetId = randomUUID()
@@ -464,12 +591,47 @@ export async function replaceProductMedia(
   // Drizzle — voir lib/db/schema/media.ts) : la valeur lue est garantie
   // valide par cette contrainte, d'où l'assertion de type ici.
   const oldModule = oldRow.module as ProductMediaModule
-  const originalKey = buildVariantKey(ctx.agencyId, oldModule, oldRow.productId, assetId, "original", originalExt)
+  const originalKey = buildVariantKey(
+    ctx.agencyId,
+    oldModule,
+    oldRow.productId,
+    assetId,
+    "original",
+    originalExt,
+  )
   const variantKeys: Record<MediaVariantName, string> = {
-    large: buildVariantKey(ctx.agencyId, oldModule, oldRow.productId, assetId, "large", "webp"),
-    medium: buildVariantKey(ctx.agencyId, oldModule, oldRow.productId, assetId, "medium", "webp"),
-    card: buildVariantKey(ctx.agencyId, oldModule, oldRow.productId, assetId, "card", "webp"),
-    thumbnail: buildVariantKey(ctx.agencyId, oldModule, oldRow.productId, assetId, "thumbnail", "webp"),
+    large: buildVariantKey(
+      ctx.agencyId,
+      oldModule,
+      oldRow.productId,
+      assetId,
+      "large",
+      "webp",
+    ),
+    medium: buildVariantKey(
+      ctx.agencyId,
+      oldModule,
+      oldRow.productId,
+      assetId,
+      "medium",
+      "webp",
+    ),
+    card: buildVariantKey(
+      ctx.agencyId,
+      oldModule,
+      oldRow.productId,
+      assetId,
+      "card",
+      "webp",
+    ),
+    thumbnail: buildVariantKey(
+      ctx.agencyId,
+      oldModule,
+      oldRow.productId,
+      assetId,
+      "thumbnail",
+      "webp",
+    ),
   }
 
   // Étape 2 : upload du NOUVEAU contenu — l'ancien reste intact et servi
@@ -478,13 +640,20 @@ export async function replaceProductMedia(
   try {
     await storage.put(originalKey, buffer, validated.mimeType)
     uploaded.push(originalKey)
-    for (const [name, key] of Object.entries(variantKeys) as [MediaVariantName, string][]) {
+    for (const [name, key] of Object.entries(variantKeys) as [
+      MediaVariantName,
+      string,
+    ][]) {
       await storage.put(key, variants[name].buffer, "image/webp")
       uploaded.push(key)
     }
   } catch (e) {
     await storage.remove(uploaded).catch(() => {})
-    return { ok: false, error: e instanceof Error ? e.message : "Échec de l'upload vers le stockage" }
+    return {
+      ok: false,
+      error:
+        e instanceof Error ? e.message : "Échec de l'upload vers le stockage",
+    }
   }
 
   const mediaVariants: ProductMediaVariants = {
@@ -512,7 +681,12 @@ export async function replaceProductMedia(
             height: validated.height,
             updatedAt: new Date(),
           })
-          .where(and(eq(productMedia.id, mediaId), eq(productMedia.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(productMedia.id, mediaId),
+              eq(productMedia.agencyId, ctx.agencyId),
+            ),
+          )
           .returning({ id: productMedia.id })
         if (!updated) throw new Error("MEDIA_NOT_FOUND")
 
@@ -522,7 +696,11 @@ export async function replaceProductMedia(
           entityType: "product_media",
           entityId: mediaId,
           action: "media.replaced",
-          diff: { module: oldRow.module, productId: oldRow.productId, newStorageKey: originalKey },
+          diff: {
+            module: oldRow.module,
+            productId: oldRow.productId,
+            newStorageKey: originalKey,
+          },
         })
       },
     )
@@ -530,11 +708,16 @@ export async function replaceProductMedia(
     // La ligne DB n'a pas basculé — le nouveau contenu uploadé est orphelin,
     // l'ancien reste la source de vérité valide.
     await storage.remove(uploaded).catch(() => {})
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 
   // Étape 4 : SEULEMENT MAINTENANT, l'ancien contenu peut être supprimé.
-  const oldKeys = Object.values(oldRow.variants).filter((v): v is string => Boolean(v))
+  const oldKeys = Object.values(oldRow.variants).filter((v): v is string =>
+    Boolean(v),
+  )
   if (!oldKeys.includes(oldRow.storageKey)) oldKeys.push(oldRow.storageKey)
   await storage.remove(oldKeys).catch(() => {})
 

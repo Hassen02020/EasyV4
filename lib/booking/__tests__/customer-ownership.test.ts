@@ -46,8 +46,18 @@ before(async () => {
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, slug: `own-a-${agencyA}`, name: "Ownership Test Agency A", agencyType: "ota" },
-      { id: agencyB, slug: `own-b-${agencyB}`, name: "Ownership Test Agency B", agencyType: "ota" },
+      {
+        id: agencyA,
+        slug: `own-a-${agencyA}`,
+        name: "Ownership Test Agency A",
+        agencyType: "ota",
+      },
+      {
+        id: agencyB,
+        slug: `own-b-${agencyB}`,
+        name: "Ownership Test Agency B",
+        agencyType: "ota",
+      },
     ])
     const [customer] = await tx
       .insert(customers)
@@ -94,13 +104,20 @@ async function findOwnedReservation(params: {
   authUserId: string
   verifiedEmail: string
 }) {
-  return withTenantContext({ agencyId: params.agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    tx
-      .select({ id: reservations.id })
-      .from(reservations)
-      .innerJoin(customers, eq(reservations.customerId, customers.id))
-      .where(and(eq(reservations.id, reservationId), ownedByCurrentCustomer(params)))
-      .limit(1),
+  return withTenantContext(
+    { agencyId: params.agencyId, userId: "", isSuperAdmin: false },
+    (tx) =>
+      tx
+        .select({ id: reservations.id })
+        .from(reservations)
+        .innerJoin(customers, eq(reservations.customerId, customers.id))
+        .where(
+          and(
+            eq(reservations.id, reservationId),
+            ownedByCurrentCustomer(params),
+          ),
+        )
+        .limit(1),
   )
 }
 
@@ -142,5 +159,9 @@ test("ownedByCurrentCustomer : isolation tenant — même authUserId/email mais 
     authUserId: ownerAuthUserId,
     verifiedEmail: ownerEmail,
   })
-  assert.equal(rows.length, 0, "la réservation appartient à l'agence A, jamais visible depuis B")
+  assert.equal(
+    rows.length,
+    0,
+    "la réservation appartient à l'agence A, jamais visible depuis B",
+  )
 })

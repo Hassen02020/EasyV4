@@ -34,16 +34,17 @@ export interface PartnerSession {
  */
 export async function requirePartnerSession(
   req: NextRequest,
-  allowedRoles: PartnerSession["role"][] = ["super_admin", "manager", "agent_resa"],
+  allowedRoles: PartnerSession["role"][] = [
+    "super_admin",
+    "manager",
+    "agent_resa",
+  ],
 ): Promise<PartnerSession | NextResponse> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !anonKey) {
-    return NextResponse.json(
-      { error: "server_misconfigured" },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "server_misconfigured" }, { status: 500 })
   }
 
   // Construire un client Supabase à partir des cookies de la requête (SSR)

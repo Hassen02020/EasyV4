@@ -101,15 +101,23 @@ export function MediaManager({
   /* ------------------------------------------------------------------ */
 
   function validateClientSide(file: File): string | null {
-    if (!ACCEPTED_MIME_TYPES.includes(file.type)) return "Format non supporté (JPG, PNG ou WebP uniquement)"
-    if (file.size > MAX_FILE_SIZE_BYTES) return "Fichier trop volumineux (20MB max)"
+    if (!ACCEPTED_MIME_TYPES.includes(file.type))
+      return "Format non supporté (JPG, PNG ou WebP uniquement)"
+    if (file.size > MAX_FILE_SIZE_BYTES)
+      return "Fichier trop volumineux (20MB max)"
     return null
   }
 
   async function uploadOne(pending: PendingUpload) {
     const clientError = validateClientSide(pending.file)
     if (clientError) {
-      setPendingUploads((prev) => prev.map((p) => (p.key === pending.key ? { ...p, status: "error", error: clientError } : p)))
+      setPendingUploads((prev) =>
+        prev.map((p) =>
+          p.key === pending.key
+            ? { ...p, status: "error", error: clientError }
+            : p,
+        ),
+      )
       return
     }
 
@@ -120,10 +128,20 @@ export function MediaManager({
 
     const result = await uploadProductMedia(formData)
     if (!result.ok) {
-      setPendingUploads((prev) => prev.map((p) => (p.key === pending.key ? { ...p, status: "error", error: result.error } : p)))
+      setPendingUploads((prev) =>
+        prev.map((p) =>
+          p.key === pending.key
+            ? { ...p, status: "error", error: result.error }
+            : p,
+        ),
+      )
       return
     }
-    setPendingUploads((prev) => prev.map((p) => (p.key === pending.key ? { ...p, status: "success" } : p)))
+    setPendingUploads((prev) =>
+      prev.map((p) =>
+        p.key === pending.key ? { ...p, status: "success" } : p,
+      ),
+    )
   }
 
   function handleFilesSelected(files: FileList | null) {
@@ -144,7 +162,11 @@ export function MediaManager({
   function retryUpload(key: string) {
     const target = pendingUploads.find((p) => p.key === key)
     if (!target) return
-    setPendingUploads((prev) => prev.map((p) => (p.key === key ? { ...p, status: "uploading", error: undefined } : p)))
+    setPendingUploads((prev) =>
+      prev.map((p) =>
+        p.key === key ? { ...p, status: "uploading", error: undefined } : p,
+      ),
+    )
     uploadOne(target).then(() => router.refresh())
   }
 
@@ -197,7 +219,10 @@ export function MediaManager({
     const targetIndex = index + direction
     if (targetIndex < 0 || targetIndex >= media.length) return
     const reordered = [...media]
-    ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
+    ;[reordered[index], reordered[targetIndex]] = [
+      reordered[targetIndex],
+      reordered[index],
+    ]
     const orderedIds = reordered.map((m) => m.id)
     startTransition(async () => {
       const result = await reorderProductMedia(module, productId, orderedIds)
@@ -245,7 +270,9 @@ export function MediaManager({
       {/* UploadZone : drag & drop desktop + clic (fonctionne aussi sur mobile, où le clic ouvre le sélecteur natif) */}
       <div
         className={`rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
-          dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+          dragActive
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25"
         }`}
         onDragOver={(e) => {
           e.preventDefault()
@@ -258,7 +285,11 @@ export function MediaManager({
         <p className="text-muted-foreground mb-3 text-sm">
           Glissez-déposez des photos ici, ou
         </p>
-        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+        >
           Ajouter des photos
         </Button>
         <input
@@ -272,7 +303,9 @@ export function MediaManager({
             e.target.value = ""
           }}
         />
-        <p className="text-muted-foreground mt-2 text-xs">JPG, PNG ou WebP — 20MB max par photo</p>
+        <p className="text-muted-foreground mt-2 text-xs">
+          JPG, PNG ou WebP — 20MB max par photo
+        </p>
       </div>
 
       {/* Input caché dédié au remplacement (une seule photo à la fois) */}
@@ -294,7 +327,11 @@ export function MediaManager({
             <div key={p.key} className="flex items-center gap-3 text-sm">
               <div className="bg-muted relative size-10 shrink-0 overflow-hidden rounded">
                 {/* eslint-disable-next-line @next/next/no-img-element -- aperçu local instantané via object URL, jamais optimisable par next/image */}
-                <img src={p.previewUrl} alt="" className="size-full object-cover" />
+                <img
+                  src={p.previewUrl}
+                  alt=""
+                  className="size-full object-cover"
+                />
               </div>
               <span className="flex-1 truncate">{p.file.name}</span>
               {p.status === "uploading" ? (
@@ -306,15 +343,26 @@ export function MediaManager({
                 <CheckCircle2 className="size-4 text-emerald-600" />
               ) : (
                 <div className="flex items-center gap-2">
-                  <AlertCircle className="size-4 text-destructive" />
+                  <AlertCircle className="text-destructive size-4" />
                   <span className="text-destructive text-xs">{p.error}</span>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => retryUpload(p.key)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => retryUpload(p.key)}
+                  >
                     Réessayer
                   </Button>
                 </div>
               )}
               {p.status !== "uploading" ? (
-                <Button type="button" size="icon" variant="ghost" className="size-6" onClick={() => dismissUpload(p.key)}>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-6"
+                  onClick={() => dismissUpload(p.key)}
+                >
                   ×
                 </Button>
               ) : null}
@@ -332,7 +380,10 @@ export function MediaManager({
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {media.map((item, index) => (
-            <div key={item.id} className="group relative overflow-hidden rounded-lg border">
+            <div
+              key={item.id}
+              className="group relative overflow-hidden rounded-lg border"
+            >
               <div className="bg-muted relative aspect-video w-full">
                 <Image
                   src={item.cardUrl}
@@ -342,13 +393,13 @@ export function MediaManager({
                   sizes="(max-width: 640px) 50vw, 25vw"
                 />
                 {item.isCover ? (
-                  <Badge className="absolute left-2 top-2 gap-1 bg-amber-500 text-white hover:bg-amber-500">
+                  <Badge className="absolute top-2 left-2 gap-1 bg-amber-500 text-white hover:bg-amber-500">
                     <Star className="size-3 fill-current" /> Couverture
                   </Badge>
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-between gap-1 border-t bg-background p-1.5">
+              <div className="bg-background flex items-center justify-between gap-1 border-t p-1.5">
                 <div className="flex items-center gap-0.5">
                   <Button
                     type="button"

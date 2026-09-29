@@ -31,12 +31,14 @@ export const dynamic = "force-dynamic"
 
 async function loadAgencyOptions(userId: string) {
   try {
-    return await withTenantContext({ agencyId: null, userId, isSuperAdmin: true }, (tx) =>
-      tx
-        .select({ id: agencies.id, name: agencies.name })
-        .from(agencies)
-        .where(eq(agencies.status, "active"))
-        .orderBy(agencies.name),
+    return await withTenantContext(
+      { agencyId: null, userId, isSuperAdmin: true },
+      (tx) =>
+        tx
+          .select({ id: agencies.id, name: agencies.name })
+          .from(agencies)
+          .where(eq(agencies.status, "active"))
+          .orderBy(agencies.name),
     )
   } catch {
     return []
@@ -62,7 +64,9 @@ export default async function MutuelleGroupsPage() {
   const activeCount = groups.filter((g) => g.status === "active").length
   const totalMembers = groups.reduce((sum, g) => sum + g.memberCount, 0)
   const avgMarkup =
-    groups.length > 0 ? groups.reduce((sum, g) => sum + g.markupPercent, 0) / groups.length : 0
+    groups.length > 0
+      ? groups.reduce((sum, g) => sum + g.markupPercent, 0) / groups.length
+      : 0
 
   return (
     <div className="space-y-6">
@@ -72,7 +76,8 @@ export default async function MutuelleGroupsPage() {
             Groupes Mutuelle
           </h1>
           <p className="text-muted-foreground mt-1">
-            Distributeurs privés B2B2C — {groups.length} groupe{groups.length !== 1 ? "s" : ""}
+            Distributeurs privés B2B2C — {groups.length} groupe
+            {groups.length !== 1 ? "s" : ""}
           </p>
         </div>
       </div>
@@ -119,7 +124,10 @@ export default async function MutuelleGroupsPage() {
       <Card>
         <CardContent className="pt-6">
           <Suspense>
-            <MutuelleGroupsDataTable data={groups} agencyOptions={agencyOptions} />
+            <MutuelleGroupsDataTable
+              data={groups}
+              agencyOptions={agencyOptions}
+            />
           </Suspense>
         </CardContent>
       </Card>

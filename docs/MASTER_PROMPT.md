@@ -9,6 +9,7 @@
 **Session 1 = AUDIT-ONLY (lecture seule).**
 
 Pendant l'audit, il est interdit de :
+
 - modifier du code, des migrations, la base de données, la configuration ou la production ;
 - lancer une commande qui écrit (install, migrate, seed, deploy, format --write) ;
 - ouvrir ou fusionner des PR.
@@ -64,11 +65,11 @@ CODE > TESTS > CERTIFICATIONS REPRODUCTIBLES > GIT HISTORY > DOCUMENTATION RÉCE
 
 Toute affirmation d'un rapport porte un label :
 
-| Label | Sens |
-|---|---|
-| `VERIFIED` | prouvé par le code, un test ou une commande (cite `fichier:ligne` ou la sortie) |
-| `INFERRED` | déduit, non prouvé (dis ce qui permettrait de le vérifier) |
-| `NOT VERIFIED` | non examiné |
+| Label          | Sens                                                                            |
+| -------------- | ------------------------------------------------------------------------------- |
+| `VERIFIED`     | prouvé par le code, un test ou une commande (cite `fichier:ligne` ou la sortie) |
+| `INFERRED`     | déduit, non prouvé (dis ce qui permettrait de le vérifier)                      |
+| `NOT VERIFIED` | non examiné                                                                     |
 
 Interdit : présenter une hypothèse comme un fait ; déclarer « existe » sans avoir ouvert le fichier ; s'appuyer sur un ancien document contre le code.
 
@@ -116,16 +117,16 @@ Toujours **un seul chantier** en cours, sur une branche dédiée, en petites PR 
 
 ## 7. HIÉRARCHIE DE DÉCISION
 
-| P | Domaine | Règle clé |
-|---|---|---|
-| P0 | Sécurité / intégrité : prod, Auth, RLS, tenant isolation, secrets, Payment, Financial, Wallet, Booking, données | Risque sérieux : STOP, audit, aucune modification |
-| P1 | Business critique : Search, Availability, Pricing, Booking, Payment, Wallet, Financial, Settlement, Supplier connectivity | |
-| P2 | Revenue / conversion : trouver, comprendre, voir le vrai prix, réserver, payer, confirmer | |
-| P3 | Supply / inventaire | Jamais d'UI qui simule un produit réservable sans backend/supply réel |
-| P4 | Data / contexte voyageur et destination | |
-| P5 | UX / visuel | Ne jamais masquer un problème fonctionnel |
-| P6 | Cleanup | Suppression uniquement avec preuve (dead code confirmé) |
-| P7 | Intelligence (reco, ranking, IA) | Seulement sur données fiables |
+| P   | Domaine                                                                                                                   | Règle clé                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| P0  | Sécurité / intégrité : prod, Auth, RLS, tenant isolation, secrets, Payment, Financial, Wallet, Booking, données           | Risque sérieux : STOP, audit, aucune modification                     |
+| P1  | Business critique : Search, Availability, Pricing, Booking, Payment, Wallet, Financial, Settlement, Supplier connectivity |                                                                       |
+| P2  | Revenue / conversion : trouver, comprendre, voir le vrai prix, réserver, payer, confirmer                                 |                                                                       |
+| P3  | Supply / inventaire                                                                                                       | Jamais d'UI qui simule un produit réservable sans backend/supply réel |
+| P4  | Data / contexte voyageur et destination                                                                                   |                                                                       |
+| P5  | UX / visuel                                                                                                               | Ne jamais masquer un problème fonctionnel                             |
+| P6  | Cleanup                                                                                                                   | Suppression uniquement avec preuve (dead code confirmé)               |
+| P7  | Intelligence (reco, ranking, IA)                                                                                          | Seulement sur données fiables                                         |
 
 **Score de priorisation d'un gap** (à afficher dans le rapport) :
 `Sévérité (0–5) × Exposition (0–5) ÷ Effort (1–5)`, le niveau P prévalant toujours sur le score.
@@ -142,7 +143,7 @@ Cet ordre ne peut changer que si l'audit démontre une dépendance ou un P0/P1 s
 
 - **Master User** : Identity, Authentication, Tenant, Agency, Role, Permissions, Profile, Access. Un seul système utilisateur.
 - **B2B User** : `Agency → B2B User → Customer → Search → Quote → Booking → Payment → Wallet`. Vérifier tenant, rôles, pricing, commission, ownership.
-- **CRM** : *le CRM ne vend pas, il orchestre la vente.* Hors périmètre immédiat.
+- **CRM** : _le CRM ne vend pas, il orchestre la vente._ Hors périmètre immédiat.
 
 ---
 
@@ -152,16 +153,16 @@ Principe : **DELEGATE THE WORK, NOT THE RESPONSIBILITY.** L'agent principal synt
 
 ### Vague 1 — Audit parallèle (lecture seule, indépendante)
 
-| Agent | Périmètre | Livrable |
-|---|---|---|
-| A1 Architecture | structure, modules, couplages, doublons, config build/déploiement | carte CURRENT + incohérences |
-| A2 DB & RLS | schéma Drizzle, migrations, policies, isolation tenant | matrice tables × tenant × RLS |
-| A3 Auth / RBAC | middleware, sessions, rôles, protection `/admin` et API | matrice route × protection |
-| A4 Commerce | search, availability, pricing, booking, mocks vs réel | matrice module × état |
-| A5 Financial | paiement, wallet, ledger, montants, idempotence | schéma flux + invariants violés |
-| A6 Supplier | connecteurs, adaptateurs, providers mock/virtuels | inventaire providers × niveau N0–N4 |
-| A7 Front & UX | parcours, visuel, mobile, RTL, perf, accessibilité, honnêteté des états | audit UX + backlog conversion |
-| A8 QA & Delivery | tests unit/E2E, CI, PR ouvertes, dette, état de `main` | couverture réelle + PR à trier |
+| Agent            | Périmètre                                                               | Livrable                            |
+| ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
+| A1 Architecture  | structure, modules, couplages, doublons, config build/déploiement       | carte CURRENT + incohérences        |
+| A2 DB & RLS      | schéma Drizzle, migrations, policies, isolation tenant                  | matrice tables × tenant × RLS       |
+| A3 Auth / RBAC   | middleware, sessions, rôles, protection `/admin` et API                 | matrice route × protection          |
+| A4 Commerce      | search, availability, pricing, booking, mocks vs réel                   | matrice module × état               |
+| A5 Financial     | paiement, wallet, ledger, montants, idempotence                         | schéma flux + invariants violés     |
+| A6 Supplier      | connecteurs, adaptateurs, providers mock/virtuels                       | inventaire providers × niveau N0–N4 |
+| A7 Front & UX    | parcours, visuel, mobile, RTL, perf, accessibilité, honnêteté des états | audit UX + backlog conversion       |
+| A8 QA & Delivery | tests unit/E2E, CI, PR ouvertes, dette, état de `main`                  | couverture réelle + PR à trier      |
 
 ### Contrat de chaque sous-agent
 
@@ -323,7 +324,7 @@ NEXT SINGLE CHANTIER
 
 ## 17. RÈGLE FINALE
 
-Ne jamais raisonner « je vais améliorer ceci parce que cela semble mieux ». Raisonner : *voici l'état réel → le risque → ce qui existe → le gap → les dépendances → ma proposition → pourquoi → le prochain chantier.*
+Ne jamais raisonner « je vais améliorer ceci parce que cela semble mieux ». Raisonner : _voici l'état réel → le risque → ce qui existe → le gap → les dépendances → ma proposition → pourquoi → le prochain chantier._
 
 ```text
 PROTECT → PROVE → CONNECT → COMMERCIALIZE → DISTRIBUTE → EXPAND → CONTEXTUALIZE → INTELLIGENT

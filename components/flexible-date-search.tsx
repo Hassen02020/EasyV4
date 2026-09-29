@@ -87,9 +87,15 @@ export function FlexibleDateSearch({
     <div className="border-border bg-card mb-4 rounded-lg border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-muted-foreground text-xs">{t("requestedDatesLabel")}</p>
+          <p className="text-muted-foreground text-xs">
+            {t("requestedDatesLabel")}
+          </p>
           <p className="text-foreground text-sm font-medium">
-            {formatShortRange(requestedCheckin, requestedCheckout, dateFnsLocale)}
+            {formatShortRange(
+              requestedCheckin,
+              requestedCheckout,
+              dateFnsLocale,
+            )}
           </p>
         </div>
         <div
@@ -138,7 +144,10 @@ export function FlexibleDateSearch({
                 {data.candidates.map((c) => {
                   const isRequested = c.offsetDays === 0
                   const isBest =
-                    bestPrice != null && c.ok && c.fromPrice === bestPrice && !isRequested
+                    bestPrice != null &&
+                    c.ok &&
+                    c.fromPrice === bestPrice &&
+                    !isRequested
                   return (
                     <button
                       key={`${c.checkin}-${c.checkout}`}
@@ -157,7 +166,9 @@ export function FlexibleDateSearch({
                       </span>
                       {c.ok && c.fromPrice != null ? (
                         <span className="text-primary mt-0.5 font-semibold">
-                          {t("flexFromPrice", { price: formatPrice(c.fromPrice) })}
+                          {t("flexFromPrice", {
+                            price: formatPrice(c.fromPrice),
+                          })}
                           {isBest && (
                             <span className="ms-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
                               {t("bestPriceBadge")}
@@ -165,9 +176,13 @@ export function FlexibleDateSearch({
                           )}
                         </span>
                       ) : c.ok ? (
-                        <span className="text-muted-foreground mt-0.5">{t("noOfferLabel")}</span>
+                        <span className="text-muted-foreground mt-0.5">
+                          {t("noOfferLabel")}
+                        </span>
                       ) : (
-                        <span className="text-muted-foreground mt-0.5">{t("unavailableLabel")}</span>
+                        <span className="text-muted-foreground mt-0.5">
+                          {t("unavailableLabel")}
+                        </span>
                       )}
                     </button>
                   )

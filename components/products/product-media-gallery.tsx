@@ -16,11 +16,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -69,7 +65,7 @@ export function ProductMediaGallery({
   return (
     <div className="space-y-2">
       <div
-        className="group relative aspect-video w-full overflow-hidden rounded-xl bg-muted"
+        className="group bg-muted relative aspect-video w-full overflow-hidden rounded-xl"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -93,7 +89,7 @@ export function ProductMediaGallery({
           type="button"
           size="icon"
           variant="secondary"
-          className="absolute right-3 top-3 z-10 size-8 opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute top-3 right-3 z-10 size-8 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={() => setFullscreen(true)}
           aria-label="Plein écran"
         >
@@ -106,7 +102,7 @@ export function ProductMediaGallery({
               type="button"
               size="icon"
               variant="secondary"
-              className="absolute left-2 top-1/2 z-10 size-8 -translate-y-1/2"
+              className="absolute top-1/2 left-2 z-10 size-8 -translate-y-1/2"
               onClick={() => goTo(activeIndex - 1)}
               aria-label="Photo précédente"
             >
@@ -116,13 +112,13 @@ export function ProductMediaGallery({
               type="button"
               size="icon"
               variant="secondary"
-              className="absolute right-2 top-1/2 z-10 size-8 -translate-y-1/2"
+              className="absolute top-1/2 right-2 z-10 size-8 -translate-y-1/2"
               onClick={() => goTo(activeIndex + 1)}
               aria-label="Photo suivante"
             >
               <ChevronRight className="size-4" />
             </Button>
-            <div className="absolute bottom-3 right-3 z-10 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
+            <div className="absolute right-3 bottom-3 z-10 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
               {activeIndex + 1} / {items.length}
             </div>
           </>
@@ -138,20 +134,33 @@ export function ProductMediaGallery({
               onClick={() => setActiveIndex(index)}
               className={cn(
                 "relative size-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors",
-                index === activeIndex ? "border-primary" : "border-transparent opacity-70 hover:opacity-100",
+                index === activeIndex
+                  ? "border-primary"
+                  : "border-transparent opacity-70 hover:opacity-100",
               )}
               aria-label={`Voir la photo ${index + 1}`}
               aria-current={index === activeIndex}
             >
-              <Image src={item.thumbnailUrl} alt="" fill className="object-cover" sizes="64px" />
+              <Image
+                src={item.thumbnailUrl}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="64px"
+              />
             </button>
           ))}
         </div>
       ) : null}
 
       <Dialog open={fullscreen} onOpenChange={setFullscreen}>
-        <DialogContent showCloseButton={false} className="max-w-5xl border-none bg-transparent p-0 shadow-none">
-          <DialogTitle className="sr-only">{active.altText || productName}</DialogTitle>
+        <DialogContent
+          showCloseButton={false}
+          className="max-w-5xl border-none bg-transparent p-0 shadow-none"
+        >
+          <DialogTitle className="sr-only">
+            {active.altText || productName}
+          </DialogTitle>
           <div
             className="relative aspect-video w-full"
             onTouchStart={handleTouchStart}
@@ -168,7 +177,7 @@ export function ProductMediaGallery({
               type="button"
               size="icon"
               variant="secondary"
-              className="absolute right-2 top-2 size-8"
+              className="absolute top-2 right-2 size-8"
               onClick={() => setFullscreen(false)}
               aria-label="Fermer"
             >
@@ -180,7 +189,7 @@ export function ProductMediaGallery({
                   type="button"
                   size="icon"
                   variant="secondary"
-                  className="absolute left-2 top-1/2 size-8 -translate-y-1/2"
+                  className="absolute top-1/2 left-2 size-8 -translate-y-1/2"
                   onClick={() => goTo(activeIndex - 1)}
                   aria-label="Photo précédente"
                 >
@@ -190,7 +199,7 @@ export function ProductMediaGallery({
                   type="button"
                   size="icon"
                   variant="secondary"
-                  className="absolute right-2 top-1/2 size-8 -translate-y-1/2"
+                  className="absolute top-1/2 right-2 size-8 -translate-y-1/2"
                   onClick={() => goTo(activeIndex + 1)}
                   aria-label="Photo suivante"
                 >

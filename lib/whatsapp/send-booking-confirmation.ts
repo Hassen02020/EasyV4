@@ -121,13 +121,21 @@ function maskPhone(phone: string): string {
 
 export async function sendBookingConfirmationWhatsApp(
   input: SendBookingConfirmationWhatsAppInput,
-  deps: { auditStore?: NotificationAuditStore; provider?: WhatsAppProvider; configured?: boolean } = {},
+  deps: {
+    auditStore?: NotificationAuditStore
+    provider?: WhatsAppProvider
+    configured?: boolean
+  } = {},
 ): Promise<SendBookingConfirmationWhatsAppOutcome> {
   const auditStore = deps.auditStore ?? defaultNotificationAuditStore
   const configured = deps.configured ?? hasConfiguredWhatsAppProvider()
   const provider = deps.provider ?? getWhatsAppProvider()
 
-  const auditIdentity = { agencyId: input.agencyId, reservationId: input.reservationId, publicRef: input.publicRef }
+  const auditIdentity = {
+    agencyId: input.agencyId,
+    reservationId: input.reservationId,
+    publicRef: input.publicRef,
+  }
 
   // --- Idempotence : ne jamais renvoyer un message déjà confirmé envoyé. ---
   if (await auditStore.hasAlreadySucceeded(input.reservationId, ACTION_SENT)) {
@@ -142,7 +150,9 @@ export async function sendBookingConfirmationWhatsApp(
     return { outcome: "skipped", reason: "NOT_CONFIGURED" }
   }
   if (!input.customerPhone) {
-    await auditStore.recordAttempt(auditIdentity, ACTION_SKIPPED, { reason: "NO_PHONE" })
+    await auditStore.recordAttempt(auditIdentity, ACTION_SKIPPED, {
+      reason: "NO_PHONE",
+    })
     return { outcome: "skipped", reason: "NO_PHONE" }
   }
 
@@ -170,7 +180,11 @@ export async function sendBookingConfirmationWhatsApp(
       phone: maskPhone(input.customerPhone),
       templateName,
     })
-    return { outcome: "failed", code: result.code ?? "UNKNOWN", message: result.message ?? "Échec inconnu." }
+    return {
+      outcome: "failed",
+      code: result.code ?? "UNKNOWN",
+      message: result.message ?? "Échec inconnu.",
+    }
   }
 
   await auditStore.recordAttempt(auditIdentity, ACTION_SENT, {

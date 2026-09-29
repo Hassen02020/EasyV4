@@ -9,11 +9,18 @@ const TYPE_META: Record<string, { label: string; icon: typeof Package }> = {
   omra: { label: "Omra", icon: Plane },
 }
 
-export function CatalogMemberGrid({ items }: { items: MutuelleCatalogMemberItem[] }) {
+export function CatalogMemberGrid({
+  items,
+}: {
+  items: MutuelleCatalogMemberItem[]
+}) {
   if (items.length === 0) {
     return (
       <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-center text-sm">
-        <p>Votre directeur n&apos;a pas encore autorisé de produit pour votre groupe.</p>
+        <p>
+          Votre directeur n&apos;a pas encore autorisé de produit pour votre
+          groupe.
+        </p>
       </div>
     )
   }
@@ -32,19 +39,24 @@ export function CatalogMemberGrid({ items }: { items: MutuelleCatalogMemberItem[
                   {meta.label}
                 </Badge>
               </div>
-              <p className="text-foreground text-sm font-semibold">{item.title}</p>
+              <p className="text-foreground text-sm font-semibold">
+                {item.title}
+              </p>
               {item.priceFromTnd != null ? (
                 <div className="space-y-1">
                   <p className="text-muted-foreground text-xs">
-                    Prix public (référence) : à partir de {item.priceFromTnd.toFixed(3)} DT
+                    Prix public (référence) : à partir de{" "}
+                    {item.priceFromTnd.toFixed(3)} DT
                   </p>
                   <p className="text-sm font-bold text-violet-700">
-                    Prix Mutuelle (indicatif, convention groupe) : {item.mutuellePriceFromTnd?.toFixed(3)} DT
+                    Prix Mutuelle (indicatif, convention groupe) :{" "}
+                    {item.mutuellePriceFromTnd?.toFixed(3)} DT
                   </p>
                 </div>
               ) : (
                 <p className="text-muted-foreground text-xs">
-                  Tarif non encore disponible — aucun départ/session programmé pour le moment.
+                  Tarif non encore disponible — aucun départ/session programmé
+                  pour le moment.
                 </p>
               )}
             </CardContent>

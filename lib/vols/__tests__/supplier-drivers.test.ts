@@ -77,13 +77,26 @@ function fakeDriver(
 test("searchAcrossFlightDrivers — un seul driver CONFIGURED renvoie ses offres", async () => {
   const calls: string[] = []
   const drivers = [
-    fakeDriver("virtual", "CONFIGURED", { offers: [fakeOffer("v1")], searchId: "s1" }, calls),
-    fakeDriver("api", "NOT_CONFIGURED", { offers: [fakeOffer("a1")], searchId: "s2" }, calls),
+    fakeDriver(
+      "virtual",
+      "CONFIGURED",
+      { offers: [fakeOffer("v1")], searchId: "s1" },
+      calls,
+    ),
+    fakeDriver(
+      "api",
+      "NOT_CONFIGURED",
+      { offers: [fakeOffer("a1")], searchId: "s2" },
+      calls,
+    ),
   ]
   const result = await searchAcrossFlightDrivers(drivers, INPUT)
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.deepEqual(result.offers.map((o) => o.id), ["v1"])
+    assert.deepEqual(
+      result.offers.map((o) => o.id),
+      ["v1"],
+    )
     assert.equal(result.searchId, "s1")
   }
   assert.deepEqual(calls, ["virtual"])
@@ -92,35 +105,52 @@ test("searchAcrossFlightDrivers — un seul driver CONFIGURED renvoie ses offres
 test("searchAcrossFlightDrivers — fusionne les offres de plusieurs drivers CONFIGURED", async () => {
   const calls: string[] = []
   const drivers = [
-    fakeDriver("virtual", "CONFIGURED", { offers: [fakeOffer("v1")], searchId: "s1" }, calls),
-    fakeDriver("api", "CONFIGURED", { offers: [fakeOffer("a1")], searchId: "s2" }, calls),
+    fakeDriver(
+      "virtual",
+      "CONFIGURED",
+      { offers: [fakeOffer("v1")], searchId: "s1" },
+      calls,
+    ),
+    fakeDriver(
+      "api",
+      "CONFIGURED",
+      { offers: [fakeOffer("a1")], searchId: "s2" },
+      calls,
+    ),
   ]
   const result = await searchAcrossFlightDrivers(drivers, INPUT)
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.deepEqual(
-      result.offers.map((o) => o.id).sort(),
-      ["a1", "v1"],
-    )
+    assert.deepEqual(result.offers.map((o) => o.id).sort(), ["a1", "v1"])
   }
 })
 
 test("searchAcrossFlightDrivers — isole un driver en échec, garde les résultats des autres", async () => {
   const calls: string[] = []
   const drivers = [
-    fakeDriver("virtual", "CONFIGURED", { offers: [fakeOffer("v1")], searchId: "s1" }, calls),
+    fakeDriver(
+      "virtual",
+      "CONFIGURED",
+      { offers: [fakeOffer("v1")], searchId: "s1" },
+      calls,
+    ),
     fakeDriver("api", "CONFIGURED", new Error("API en panne"), calls),
   ]
   const result = await searchAcrossFlightDrivers(drivers, INPUT)
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.deepEqual(result.offers.map((o) => o.id), ["v1"])
+    assert.deepEqual(
+      result.offers.map((o) => o.id),
+      ["v1"],
+    )
   }
 })
 
 test("searchAcrossFlightDrivers — tous les drivers CONFIGURED échouent → ok:false", async () => {
   const calls: string[] = []
-  const drivers = [fakeDriver("virtual", "CONFIGURED", new Error("panne totale"), calls)]
+  const drivers = [
+    fakeDriver("virtual", "CONFIGURED", new Error("panne totale"), calls),
+  ]
   const result = await searchAcrossFlightDrivers(drivers, INPUT)
   assert.equal(result.ok, false)
   if (!result.ok) {
@@ -131,7 +161,14 @@ test("searchAcrossFlightDrivers — tous les drivers CONFIGURED échouent → ok
 
 test("searchAcrossFlightDrivers — aucun driver CONFIGURED → NO_SUPPLIER_CONFIGURED", async () => {
   const calls: string[] = []
-  const drivers = [fakeDriver("virtual", "NOT_CONFIGURED", { offers: [], searchId: "s" }, calls)]
+  const drivers = [
+    fakeDriver(
+      "virtual",
+      "NOT_CONFIGURED",
+      { offers: [], searchId: "s" },
+      calls,
+    ),
+  ]
   const result = await searchAcrossFlightDrivers(drivers, INPUT)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "NO_SUPPLIER_CONFIGURED")
@@ -148,7 +185,10 @@ test("virtual/api drivers réels — mutuellement exclusifs via FLIGHTS_API_KEY 
     assert.equal(createFlightApiDriver().getConfigStatus(), "NOT_CONFIGURED")
 
     process.env.FLIGHTS_API_KEY = "fake-key"
-    assert.equal(createVirtualFlightDriver().getConfigStatus(), "NOT_CONFIGURED")
+    assert.equal(
+      createVirtualFlightDriver().getConfigStatus(),
+      "NOT_CONFIGURED",
+    )
     assert.equal(createFlightApiDriver().getConfigStatus(), "CONFIGURED")
 
     process.env.FLIGHTS_DEMO_MODE = "true"

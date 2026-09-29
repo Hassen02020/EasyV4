@@ -19,7 +19,11 @@ import { hashSeed, mulberry32Like } from "./rng"
 const BASE_MIN = 0
 const BASE_MAX = 6
 
-function baseAvailability(hotelId: number, roomId: number, dateIso: string): number {
+function baseAvailability(
+  hotelId: number,
+  roomId: number,
+  dateIso: string,
+): number {
   const seed = hashSeed(`${hotelId}:${roomId}:${dateIso}`)
   const rng = mulberry32Like(seed)
   // Distribution volontairement réaliste : ~15% SOLD_OUT, ~25% LIMITED (1-2), le reste 3-6.
@@ -50,7 +54,11 @@ export function nightsBetween(checkIn: string, checkOut: string): string[] {
   return nights
 }
 
-export function currentAvailability(hotelId: number, roomId: number, dateIso: string): number {
+export function currentAvailability(
+  hotelId: number,
+  roomId: number,
+  dateIso: string,
+): number {
   const k = key(hotelId, roomId, dateIso)
   const base = baseAvailability(hotelId, roomId, dateIso)
   const delta = deltas.get(k) ?? 0

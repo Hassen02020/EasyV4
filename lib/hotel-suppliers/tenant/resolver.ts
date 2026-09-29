@@ -32,7 +32,12 @@ import {
   hotelSupplierCredentials,
   type HotelSupplierAccountRow,
 } from "@/lib/db/schema"
-import { withTenantContext, withSystemContext, withPublicAgencyContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  withSystemContext,
+  withPublicAgencyContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { decryptSecret } from "@/lib/security/secret-crypto"
 import type {
@@ -50,7 +55,10 @@ async function findSupplierRow(supplierCode: SupplierName) {
   // accès via autorisation partagée sur hotel_supplier_credentials (0035),
   // ce cas nécessite structurellement le contexte système privilégié.
   return withPublicAgencyContext(null, async (tx: DrizzleTransaction) => {
-    const [row] = await tx.select().from(hotelSuppliers).where(eq(hotelSuppliers.code, supplierCode))
+    const [row] = await tx
+      .select()
+      .from(hotelSuppliers)
+      .where(eq(hotelSuppliers.code, supplierCode))
     return row ?? null
   })
 }
@@ -129,7 +137,10 @@ async function decryptAccountCredentials(
       .where(
         and(
           eq(hotelSupplierAuthorizations.accountId, accountId),
-          eq(hotelSupplierAuthorizations.authorizedAgencyId, authorizedAgencyId),
+          eq(
+            hotelSupplierAuthorizations.authorizedAgencyId,
+            authorizedAgencyId,
+          ),
         ),
       )
     if (!authRow) return null
@@ -153,7 +164,11 @@ export async function resolveSupplierAccount(
 
   const supplierRow = await findSupplierRow(supplierCode)
   if (!supplierRow) {
-    return { ok: false, reason: "SUPPLIER_UNKNOWN", message: `Fournisseur inconnu: ${supplierCode}` }
+    return {
+      ok: false,
+      reason: "SUPPLIER_UNKNOWN",
+      message: `Fournisseur inconnu: ${supplierCode}`,
+    }
   }
 
   if (requestedAccountId) {
@@ -166,20 +181,42 @@ export async function resolveSupplierAccount(
       return r ?? null
     })
     if (!row || row.supplierId !== supplierRow.id) {
-      return { ok: false, reason: "ACCOUNT_NOT_FOUND", message: "Compte fournisseur introuvable ou inaccessible pour ce tenant." }
+      return {
+        ok: false,
+        reason: "ACCOUNT_NOT_FOUND",
+        message:
+          "Compte fournisseur introuvable ou inaccessible pour ce tenant.",
+      }
     }
     if (row.status !== "active") {
-      return { ok: false, reason: "ACCOUNT_DISABLED", message: `Compte fournisseur non actif (statut: ${row.status}).` }
+      return {
+        ok: false,
+        reason: "ACCOUNT_DISABLED",
+        message: `Compte fournisseur non actif (statut: ${row.status}).`,
+      }
     }
-    const credentials = await decryptAccountCredentials(row.id, row.agencyId, tenantContext)
+    const credentials = await decryptAccountCredentials(
+      row.id,
+      row.agencyId,
+      tenantContext,
+    )
     if (!credentials) {
-      return { ok: false, reason: "CREDENTIALS_MISSING", message: "Identifiants introuvables ou accès refusé pour ce compte." }
+      return {
+        ok: false,
+        reason: "CREDENTIALS_MISSING",
+        message: "Identifiants introuvables ou accès refusé pour ce compte.",
+      }
     }
     return { ok: true, account: toResolved(row, supplierCode, credentials) }
   }
 
   if (!tenantContext.agencyId) {
-    return { ok: false, reason: "NOT_CONFIGURED", message: "Aucun contexte agence — impossible de résoudre un compte par défaut." }
+    return {
+      ok: false,
+      reason: "NOT_CONFIGURED",
+      message:
+        "Aucun contexte agence — impossible de résoudre un compte par défaut.",
+    }
   }
   const agencyId = tenantContext.agencyId
 
@@ -194,12 +231,20 @@ export async function resolveSupplierAccount(
           eq(hotelSupplierAccounts.status, "active"),
         ),
       )
-      .orderBy(desc(hotelSupplierAccounts.isDefault), asc(hotelSupplierAccounts.priority))
+      .orderBy(
+        desc(hotelSupplierAccounts.isDefault),
+        asc(hotelSupplierAccounts.priority),
+      )
   })
   const own = ownAccounts[0]
   if (own) {
-    const credentials = await decryptAccountCredentials(own.id, own.agencyId, tenantContext)
-    if (credentials) return { ok: true, account: toResolved(own, supplierCode, credentials) }
+    const credentials = await decryptAccountCredentials(
+      own.id,
+      own.agencyId,
+      tenantContext,
+    )
+    if (credentials)
+      return { ok: true, account: toResolved(own, supplierCode, credentials) }
   }
 
   // Comptes partagés EXPLICITEMENT autorisés pour cette agence (inclut les comptes MASTER — jamais implicite).
@@ -207,7 +252,10 @@ export async function resolveSupplierAccount(
     return tx
       .select({ account: hotelSupplierAccounts })
       .from(hotelSupplierAuthorizations)
-      .innerJoin(hotelSupplierAccounts, eq(hotelSupplierAccounts.id, hotelSupplierAuthorizations.accountId))
+      .innerJoin(
+        hotelSupplierAccounts,
+        eq(hotelSupplierAccounts.id, hotelSupplierAuthorizations.accountId),
+      )
       .where(
         and(
           eq(hotelSupplierAuthorizations.authorizedAgencyId, agencyId),
@@ -218,9 +266,21 @@ export async function resolveSupplierAccount(
       .orderBy(asc(hotelSupplierAccounts.priority))
   })
   for (const { account } of sharedRows) {
-    const credentials = await decryptAccountCredentials(account.id, account.agencyId, tenantContext)
-    if (credentials) return { ok: true, account: toResolved(account, supplierCode, credentials) }
+    const credentials = await decryptAccountCredentials(
+      account.id,
+      account.agencyId,
+      tenantContext,
+    )
+    if (credentials)
+      return {
+        ok: true,
+        account: toResolved(account, supplierCode, credentials),
+      }
   }
 
-  return { ok: false, reason: "NOT_CONFIGURED", message: `Aucun compte ${supplierCode} actif/configuré pour ce tenant.` }
+  return {
+    ok: false,
+    reason: "NOT_CONFIGURED",
+    message: `Aucun compte ${supplierCode} actif/configuré pour ce tenant.`,
+  }
 }

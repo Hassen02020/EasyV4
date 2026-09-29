@@ -12,7 +12,10 @@ import { flightPriceSnapshots } from "@/lib/db/schema/flights"
 import { eq, lt, and } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import type { CanonicalItinerary } from "./canonical"
-import { applyCommercialEngine, type DistributionChannel } from "./commercial-engine"
+import {
+  applyCommercialEngine,
+  type DistributionChannel,
+} from "./commercial-engine"
 
 /** Snapshot TTL in minutes. */
 const SNAPSHOT_TTL_MINUTES = 20
@@ -75,7 +78,10 @@ export async function createPriceSnapshot(
         sellingAmount: String(commercial.sellingAmount),
         sellingCurrency: commercial.sellingCurrency,
         baggage: input.itinerary.baggage as unknown as Record<string, unknown>,
-        fareRules: input.itinerary.fareRules as unknown as Record<string, unknown>,
+        fareRules: input.itinerary.fareRules as unknown as Record<
+          string,
+          unknown
+        >,
         status: "ACTIVE",
         expiresAt,
       })
@@ -102,7 +108,7 @@ export async function getPriceSnapshot(snapshotId: string) {
       .limit(1),
   )
 
-  const list = rows as typeof flightPriceSnapshots.$inferSelect[]
+  const list = rows as (typeof flightPriceSnapshots.$inferSelect)[]
   if (list.length === 0) return null
   const snapshot = list[0]
 

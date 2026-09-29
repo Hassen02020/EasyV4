@@ -35,35 +35,35 @@ export async function loadReservationByRef(
     const rows = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
-    db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        module: reservations.module,
-        status: reservations.status,
-        tndAmount: reservations.tndAmount,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        hotelName: reservationHotel.hotelName,
-        checkIn: reservationHotel.checkIn,
-        checkOut: reservationHotel.checkOut,
-        nights: reservationHotel.nights,
-        createdAt: reservations.createdAt,
-      })
-      .from(reservations)
-      .leftJoin(customers, eq(customers.id, reservations.customerId))
-      .leftJoin(
-        reservationHotel,
-        eq(reservationHotel.reservationId, reservations.id),
-      )
-      .where(
-        and(
-          eq(reservations.publicRef, publicRef),
-          eq(reservations.agencyId, agencyId),
-        ),
-      )
-      .limit(1),
+        db
+          .select({
+            id: reservations.id,
+            publicRef: reservations.publicRef,
+            module: reservations.module,
+            status: reservations.status,
+            tndAmount: reservations.tndAmount,
+            firstName: customers.firstName,
+            lastName: customers.lastName,
+            email: customers.email,
+            hotelName: reservationHotel.hotelName,
+            checkIn: reservationHotel.checkIn,
+            checkOut: reservationHotel.checkOut,
+            nights: reservationHotel.nights,
+            createdAt: reservations.createdAt,
+          })
+          .from(reservations)
+          .leftJoin(customers, eq(customers.id, reservations.customerId))
+          .leftJoin(
+            reservationHotel,
+            eq(reservationHotel.reservationId, reservations.id),
+          )
+          .where(
+            and(
+              eq(reservations.publicRef, publicRef),
+              eq(reservations.agencyId, agencyId),
+            ),
+          )
+          .limit(1),
     )
 
     const row = rows[0]

@@ -190,7 +190,10 @@ export function applyMarginToHotelOffer<
       ...b,
       pax: b.pax.map((p) => ({
         ...p,
-        rooms: p.rooms.map((r) => ({ ...r, price: applyMargin(r.price, rule) })),
+        rooms: p.rooms.map((r) => ({
+          ...r,
+          price: applyMargin(r.price, rule),
+        })),
       })),
     })),
   }

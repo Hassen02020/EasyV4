@@ -54,11 +54,17 @@ import { createTunisiaBedDriver } from "./tunisia-bed/driver"
 import { createCyberesaDriver } from "./cyberesa/driver"
 import { createThreeTDriver } from "./3t/driver"
 import type { HotelSupplierDriver, SupplierSearchResult } from "./core/supplier"
-import type { HotelSearchRequest, HubSearchResult, SupplierName } from "./core/types"
+import type {
+  HotelSearchRequest,
+  HubSearchResult,
+  SupplierName,
+} from "./core/types"
 import type { ResolvedMyGoAccess } from "./tenant/live-resolution"
 
 /** Traduit la query déjà validée par le route handler vers le contrat Hub neutre — aucun champ inventé, un simple renommage/regroupement. */
-export function buildHubSearchRequestFromQuery(q: HotelSearchQuery): HotelSearchRequest {
+export function buildHubSearchRequestFromQuery(
+  q: HotelSearchQuery,
+): HotelSearchRequest {
   const rooms = q.rooms ?? [{ adults: q.adults, childAges: q.children }]
   return {
     destinationId: String(q.cityId),
@@ -95,13 +101,17 @@ export async function runSearchThroughHub(
   access?: ResolvedMyGoAccess,
   correlationId?: string,
 ): Promise<HubOrchestratedSearch> {
-  const overrides: RunHotelSearchOverrides | undefined = access?.client ? { client: access.client } : undefined
+  const overrides: RunHotelSearchOverrides | undefined = access?.client
+    ? { client: access.client }
+    : undefined
   const runResult = await runHotelSearch(q, overrides)
 
   const hubRequest = buildHubSearchRequestFromQuery(q)
   const occupancy = {
     adults: hubRequest.rooms[0]?.adults ?? q.adults,
-    childAges: hubRequest.rooms[0]?.childAges?.length ? hubRequest.rooms[0].childAges : undefined,
+    childAges: hubRequest.rooms[0]?.childAges?.length
+      ? hubRequest.rooms[0].childAges
+      : undefined,
   }
 
   // Driver "passthrough" : ne refait JAMAIS l'appel réseau — normalise
@@ -122,15 +132,44 @@ export async function runSearchThroughHub(
       if (!runResult.ok) {
         throw new Error(runResult.message ?? runResult.error)
       }
-      const hotels = runResult.dto.offers.map((o) => mapMyGoHotelSummary(o.hotel))
-      const rates = runResult.dto.offers.flatMap((o) => mapMyGoOfferToRates(o, q.cityId, occupancy))
+      const hotels = runResult.dto.offers.map((o) =>
+        mapMyGoHotelSummary(o.hotel),
+      )
+      const rates = runResult.dto.offers.flatMap((o) =>
+        mapMyGoOfferToRates(o, q.cityId, occupancy),
+      )
       return { hotels, rates }
     },
-    getDetails: () => Promise.reject(new Error("myGoPassthrough: getDetails non utilisé pour l'orchestration de recherche")),
-    checkRate: () => Promise.reject(new Error("myGoPassthrough: checkRate non utilisé pour l'orchestration de recherche")),
-    book: () => Promise.reject(new Error("myGoPassthrough: book non utilisé pour l'orchestration de recherche")),
-    getBooking: () => Promise.reject(new Error("myGoPassthrough: getBooking non utilisé pour l'orchestration de recherche")),
-    cancel: () => Promise.reject(new Error("myGoPassthrough: cancel non utilisé pour l'orchestration de recherche")),
+    getDetails: () =>
+      Promise.reject(
+        new Error(
+          "myGoPassthrough: getDetails non utilisé pour l'orchestration de recherche",
+        ),
+      ),
+    checkRate: () =>
+      Promise.reject(
+        new Error(
+          "myGoPassthrough: checkRate non utilisé pour l'orchestration de recherche",
+        ),
+      ),
+    book: () =>
+      Promise.reject(
+        new Error(
+          "myGoPassthrough: book non utilisé pour l'orchestration de recherche",
+        ),
+      ),
+    getBooking: () =>
+      Promise.reject(
+        new Error(
+          "myGoPassthrough: getBooking non utilisé pour l'orchestration de recherche",
+        ),
+      ),
+    cancel: () =>
+      Promise.reject(
+        new Error(
+          "myGoPassthrough: cancel non utilisé pour l'orchestration de recherche",
+        ),
+      ),
     reconcileBooking: () => Promise.resolve({ outcome: "UNSUPPORTED" }),
   }
 
@@ -140,7 +179,9 @@ export async function runSearchThroughHub(
     createCyberesaDriver(),
     createThreeTDriver(),
   ]
-  const hubResult = await searchAcrossSuppliers(drivers, hubRequest, { correlationId })
+  const hubResult = await searchAcrossSuppliers(drivers, hubRequest, {
+    correlationId,
+  })
 
   return { runResult, hubResult }
 }
@@ -151,16 +192,23 @@ export async function runSearchThroughHub(
  */
 export function logHubSearchObservability(
   hubResult: HubSearchResult,
-  ctx: { agencyId?: string | null; tenantId?: string | null; supplierAccountId?: string | null },
+  ctx: {
+    agencyId?: string | null
+    tenantId?: string | null
+    supplierAccountId?: string | null
+  },
 ): void {
-  for (const supplier of Object.keys(hubResult.supplierDetails) as SupplierName[]) {
+  for (const supplier of Object.keys(
+    hubResult.supplierDetails,
+  ) as SupplierName[]) {
     const detail = hubResult.supplierDetails[supplier]
     logger.info("[hotel-suppliers.search]", {
       correlationId: hubResult.correlationId,
       tenantId: ctx.tenantId ?? null,
       agencyId: ctx.agencyId ?? null,
       supplierId: supplier,
-      supplierAccountId: supplier === "mygo" ? (ctx.supplierAccountId ?? null) : null,
+      supplierAccountId:
+        supplier === "mygo" ? (ctx.supplierAccountId ?? null) : null,
       operation: "SEARCH",
       status: detail.status,
       elapsedMs: detail.elapsedMs,
@@ -183,6 +231,9 @@ export async function executeHotelSearchThroughHub(
   ctx: { agencyId?: string | null; tenantId?: string | null } = {},
 ): Promise<NextResponse> {
   const { runResult, hubResult } = await runSearchThroughHub(q, access)
-  logHubSearchObservability(hubResult, { ...ctx, supplierAccountId: access?.accountId ?? null })
+  logHubSearchObservability(hubResult, {
+    ...ctx,
+    supplierAccountId: access?.accountId ?? null,
+  })
   return formatHotelSearchResponse(runResult)
 }

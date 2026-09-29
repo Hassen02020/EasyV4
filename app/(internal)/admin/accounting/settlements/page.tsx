@@ -32,7 +32,10 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { commissionSettlements } from "@/lib/db/schema"
 import { getUnsettledCommissionBalance } from "@/lib/finance/commission-settlement"
-import { NewSettlementButton, MarkPaidButton } from "@/components/admin/settlement-buttons"
+import {
+  NewSettlementButton,
+  MarkPaidButton,
+} from "@/components/admin/settlement-buttons"
 import { desc } from "drizzle-orm"
 
 export const metadata = { title: "Settlements commissions | Admin Easy2Book" }
@@ -44,7 +47,10 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Annulé",
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+const STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
   pending: "outline",
   paid: "default",
   cancelled: "destructive",
@@ -87,11 +93,15 @@ export default async function SettlementsPage() {
           <p className="text-muted-foreground mt-1">
             Solde non settlé :{" "}
             <strong>
-              {unsettledBalance.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} DT
+              {unsettledBalance.toLocaleString("fr-FR", {
+                minimumFractionDigits: 2,
+              })}{" "}
+              DT
             </strong>
             {pendingCount > 0 && (
               <span className="ml-2 text-amber-600 dark:text-amber-400">
-                · {pendingCount} settlement{pendingCount > 1 ? "s" : ""} en attente de virement
+                · {pendingCount} settlement{pendingCount > 1 ? "s" : ""} en
+                attente de virement
               </span>
             )}
           </p>
@@ -106,18 +116,21 @@ export default async function SettlementsPage() {
             Historique ({settlements.length})
           </CardTitle>
           <CardDescription>
-            Chaque ligne représente un settlement périodique. Cliquer &quot;Marquer payé&quot; après
-            confirmation du virement réel — action irréversible.
+            Chaque ligne représente un settlement périodique. Cliquer
+            &quot;Marquer payé&quot; après confirmation du virement réel —
+            action irréversible.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {settlements.length === 0 ? (
             <div className="py-12 text-center">
               <Clock className="mx-auto h-12 w-12 text-gray-300" />
-              <p className="text-muted-foreground mt-4">Aucun settlement créé.</p>
+              <p className="text-muted-foreground mt-4">
+                Aucun settlement créé.
+              </p>
               <p className="text-muted-foreground mt-1 text-sm">
-                Utilisez le bouton &quot;Nouveau settlement&quot; pour grouper les commissions non
-                settlées sur une période.
+                Utilisez le bouton &quot;Nouveau settlement&quot; pour grouper
+                les commissions non settlées sur une période.
               </p>
             </div>
           ) : (
@@ -141,15 +154,20 @@ export default async function SettlementsPage() {
                         {row.periodStart} → {row.periodEnd}
                       </TableCell>
                       <TableCell className="text-right font-semibold">
-                        {Number.parseFloat(row.totalAmount).toLocaleString("fr-FR", {
-                          minimumFractionDigits: 2,
-                        })}
+                        {Number.parseFloat(row.totalAmount).toLocaleString(
+                          "fr-FR",
+                          {
+                            minimumFractionDigits: 2,
+                          },
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {row.ledgerEntryCount}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={STATUS_VARIANT[row.status] ?? "secondary"}>
+                        <Badge
+                          variant={STATUS_VARIANT[row.status] ?? "secondary"}
+                        >
                           {STATUS_LABEL[row.status] ?? row.status}
                         </Badge>
                       </TableCell>
@@ -163,7 +181,9 @@ export default async function SettlementsPage() {
                         {row.status === "pending" ? (
                           <MarkPaidButton settlementId={row.id} />
                         ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
+                          <span className="text-muted-foreground text-sm">
+                            —
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>

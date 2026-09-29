@@ -48,8 +48,15 @@ let fakeBooking: FakeBooking
 let fakeSnapshot: FakeSnapshot
 let reservationStatus: string
 let statusTransitions: string[]
-let transactionsLogged: Array<{ type: string; response: Record<string, unknown> }>
-let financialsRecorded: Array<{ reservationId: string; supplierPriceTnd: number; salePriceTnd: number }>
+let transactionsLogged: Array<{
+  type: string
+  response: Record<string, unknown>
+}>
+let financialsRecorded: Array<{
+  reservationId: string
+  supplierPriceTnd: number
+  salePriceTnd: number
+}>
 
 function resetState() {
   fakeBooking = {
@@ -80,12 +87,22 @@ interface ManualInput {
   operatorNote?: string
 }
 
-function validateInput(input: ManualInput): { ok: true } | { ok: false; error: string; code: string } {
+function validateInput(
+  input: ManualInput,
+): { ok: true } | { ok: false; error: string; code: string } {
   if (!input.supplierBookingRef || !input.supplierBookingRef.trim()) {
-    return { ok: false, error: "Référence fournisseur manquante.", code: "INVALID_INPUT" }
+    return {
+      ok: false,
+      error: "Référence fournisseur manquante.",
+      code: "INVALID_INPUT",
+    }
   }
   if (!Number.isFinite(input.confirmedPrice) || input.confirmedPrice <= 0) {
-    return { ok: false, error: "Prix confirmé invalide.", code: "INVALID_INPUT" }
+    return {
+      ok: false,
+      error: "Prix confirmé invalide.",
+      code: "INVALID_INPUT",
+    }
   }
   return { ok: true }
 }
@@ -125,13 +142,21 @@ async function runManualConfirmation(
   // reservation existence check happens alongside the CAS claim in the real
   // code (SELECT after a failed claim) — modeled here explicitly.
   if (!reservationExists) {
-    return { ok: false, error: "Réservation de vol introuvable.", code: "NOT_FOUND" }
+    return {
+      ok: false,
+      error: "Réservation de vol introuvable.",
+      code: "NOT_FOUND",
+    }
   }
 
   // 2. Atomic CAS claim
   const claimed = claimBookingCas()
   if (!claimed) {
-    return { ok: false, error: `Ce dossier est déjà en statut ${fakeBooking.status}.`, code: "WRONG_STATUS" }
+    return {
+      ok: false,
+      error: `Ce dossier est déjà en statut ${fakeBooking.status}.`,
+      code: "WRONG_STATUS",
+    }
   }
 
   // 3. Log B2B validation transaction — never mutates the snapshot
@@ -255,7 +280,10 @@ describe("PROVIDER-CONNECTIVITY-BRIDGE — Manual B2B_OFFLINE confirmation", () 
     const claimA = claimBookingCas()
     const claimB = claimBookingCas()
     assert.ok(claimA, "first operator wins the claim")
-    assert.ok(!claimB, "second operator cannot claim an already-claimed booking")
+    assert.ok(
+      !claimB,
+      "second operator cannot claim an already-claimed booking",
+    )
   })
 
   test("M8 — API_DIRECT already confirmed → manual path loses the CAS", async () => {
@@ -266,8 +294,16 @@ describe("PROVIDER-CONNECTIVITY-BRIDGE — Manual B2B_OFFLINE confirmation", () 
     })
     assert.ok(!result.ok)
     assert.equal(result.code, "WRONG_STATUS")
-    assert.equal(fakeBooking.fulfillmentMode, "api_direct", "channel must remain api_direct, never overwritten")
-    assert.equal(financialsRecorded.length, 0, "manual path must never double-write financials")
+    assert.equal(
+      fakeBooking.fulfillmentMode,
+      "api_direct",
+      "channel must remain api_direct, never overwritten",
+    )
+    assert.equal(
+      financialsRecorded.length,
+      0,
+      "manual path must never double-write financials",
+    )
   })
 
   test("M9 — financials recorded exactly once on the happy path", async () => {

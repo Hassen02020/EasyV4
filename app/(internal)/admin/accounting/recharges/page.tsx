@@ -9,19 +9,8 @@ import { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { desc, eq } from "drizzle-orm"
-import {
-  CheckCircle2,
-  XCircle,
-  Clock,
-  ArrowLeft,
-  Banknote,
-} from "lucide-react"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Banknote } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -115,7 +104,12 @@ export default async function AdminRechargesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild aria-label="Retour à la comptabilité">
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          aria-label="Retour à la comptabilité"
+        >
           <Link href="/admin/accounting">
             <ArrowLeft className="h-4 w-4" />
           </Link>
@@ -140,7 +134,7 @@ export default async function AdminRechargesPage() {
         </CardHeader>
         <CardContent>
           {requests.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">
+            <p className="text-muted-foreground py-8 text-center text-sm">
               Aucune demande de recharge pour le moment.
             </p>
           ) : (
@@ -159,7 +153,8 @@ export default async function AdminRechargesPage() {
                 </TableHeader>
                 <TableBody>
                   {requests.map((req) => {
-                    const cfg = STATUS_CONFIG[req.status] ?? STATUS_CONFIG.pending
+                    const cfg =
+                      STATUS_CONFIG[req.status] ?? STATUS_CONFIG.pending
                     return (
                       <TableRow key={req.id}>
                         <TableCell className="font-medium">
@@ -186,7 +181,7 @@ export default async function AdminRechargesPage() {
                         <TableCell>
                           <Badge variant={cfg.variant}>{cfg.label}</Badge>
                           {req.rejectionReason && (
-                            <p className="text-xs text-red-500 mt-1">
+                            <p className="mt-1 text-xs text-red-500">
                               {req.rejectionReason}
                             </p>
                           )}
@@ -202,7 +197,9 @@ export default async function AdminRechargesPage() {
                           ) : (
                             <span className="text-muted-foreground text-xs">
                               {req.reviewedAt
-                                ? new Date(req.reviewedAt).toLocaleDateString("fr-FR")
+                                ? new Date(req.reviewedAt).toLocaleDateString(
+                                    "fr-FR",
+                                  )
                                 : "—"}
                             </span>
                           )}

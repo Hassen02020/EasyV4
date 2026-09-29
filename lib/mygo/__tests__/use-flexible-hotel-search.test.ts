@@ -82,7 +82,11 @@ test("applyFlexibleCandidateToParams : remplace checkin/checkout et retire flexD
     flexDays: "3",
     adults: "2",
   })
-  const next = applyFlexibleCandidateToParams(current, "2026-09-11", "2026-09-14")
+  const next = applyFlexibleCandidateToParams(
+    current,
+    "2026-09-11",
+    "2026-09-14",
+  )
   assert.equal(next.get("checkin"), "2026-09-11")
   assert.equal(next.get("checkout"), "2026-09-14")
   assert.equal(next.has("flexDays"), false)

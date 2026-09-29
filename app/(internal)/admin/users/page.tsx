@@ -169,7 +169,11 @@ export default async function UsersManagementPage() {
             Administration des comptes et rôles — {allUsers.length} utilisateurs
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90" disabled title="Pas encore disponible">
+        <Button
+          className="bg-primary hover:bg-primary/90"
+          disabled
+          title="Pas encore disponible"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nouvel Utilisateur
         </Button>

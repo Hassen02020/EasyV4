@@ -11,7 +11,8 @@
 import { createHmac, randomUUID } from "node:crypto"
 
 const SECRET =
-  process.env.VIRTUAL_MYGO_TOKEN_SECRET ?? "virtual-mygo-dev-secret-not-for-prod"
+  process.env.VIRTUAL_MYGO_TOKEN_SECRET ??
+  "virtual-mygo-dev-secret-not-for-prod"
 
 const TOKEN_TTL_MS = 15 * 60_000 // 15 min — proche du comportement réel documenté ("Token... Expire")
 

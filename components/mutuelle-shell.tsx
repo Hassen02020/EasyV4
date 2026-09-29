@@ -20,11 +20,36 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 
 const NAV_ITEMS = [
-  { href: "/mutuelle", label: "Dashboard", icon: HeartHandshake, disabled: false },
-  { href: "/mutuelle/dossiers", label: "Dossiers Assurés", icon: Users, disabled: false },
-  { href: "/mutuelle/catalogue", label: "Catalogue", icon: Package, disabled: false },
-  { href: "/mutuelle/factures", label: "Factures", icon: FileText, disabled: true },
-  { href: "/mutuelle/parametres", label: "Paramètres", icon: Settings, disabled: true },
+  {
+    href: "/mutuelle",
+    label: "Dashboard",
+    icon: HeartHandshake,
+    disabled: false,
+  },
+  {
+    href: "/mutuelle/dossiers",
+    label: "Dossiers Assurés",
+    icon: Users,
+    disabled: false,
+  },
+  {
+    href: "/mutuelle/catalogue",
+    label: "Catalogue",
+    icon: Package,
+    disabled: false,
+  },
+  {
+    href: "/mutuelle/factures",
+    label: "Factures",
+    icon: FileText,
+    disabled: true,
+  },
+  {
+    href: "/mutuelle/parametres",
+    label: "Paramètres",
+    icon: Settings,
+    disabled: true,
+  },
 ]
 
 /** Violet-600/violet-100 (Tailwind), la teinte fixe du portail avant ce chantier — valeur de repli si `accentColor` est absent/invalide. */
@@ -56,7 +81,10 @@ export function MutuelleShell({
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const accent = accentColor && HEX_COLOR_REGEX.test(accentColor) ? accentColor : DEFAULT_ACCENT
+  const accent =
+    accentColor && HEX_COLOR_REGEX.test(accentColor)
+      ? accentColor
+      : DEFAULT_ACCENT
   const accentTint = hexToRgba(accent, 0.12)
 
   async function handleLogout() {
@@ -74,7 +102,10 @@ export function MutuelleShell({
       {/* Sidebar desktop */}
       <aside className="border-border bg-card hidden w-60 shrink-0 flex-col border-r lg:flex">
         <div className="flex h-16 items-center gap-3 border-b px-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: accentTint }}>
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-xl"
+            style={{ backgroundColor: accentTint }}
+          >
             <HeartHandshake className="h-5 w-5" style={{ color: accent }} />
           </div>
           <div className="min-w-0">
@@ -109,7 +140,9 @@ export function MutuelleShell({
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  active ? "text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  active
+                    ? "text-white"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
                 style={active ? { backgroundColor: accent } : undefined}
               >
@@ -123,7 +156,10 @@ export function MutuelleShell({
 
         <div className="border-border border-t px-3 py-4">
           <div className="mb-3 flex items-center gap-3 px-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: accentTint }}>
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+              style={{ backgroundColor: accentTint }}
+            >
               <span className="text-xs font-bold" style={{ color: accent }}>
                 {displayName.charAt(0).toUpperCase()}
               </span>
@@ -150,7 +186,10 @@ export function MutuelleShell({
       <div className="flex flex-1 flex-col">
         <header className="border-border bg-card flex h-14 items-center justify-between border-b px-4 lg:hidden">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: accentTint }}>
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ backgroundColor: accentTint }}
+            >
               <HeartHandshake className="h-4 w-4" style={{ color: accent }} />
             </div>
             <span className="text-foreground text-sm font-semibold">
@@ -199,7 +238,9 @@ export function MutuelleShell({
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                      active ? "text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      active
+                        ? "text-white"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                     style={active ? { backgroundColor: accent } : undefined}
                   >

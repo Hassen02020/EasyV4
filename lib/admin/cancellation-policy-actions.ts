@@ -39,7 +39,10 @@ export async function listCancellationPolicies(): Promise<
     const data = await listCancellationPoliciesForAgency(ctx.agencyId)
     return { ok: true, data }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur interne",
+    }
   }
 }
 
@@ -55,11 +58,18 @@ export async function publishCancellationPolicy(
 ): Promise<ProductActionResult<{ id: string; version: number }>> {
   try {
     const ctx = await assertProductManager()
-    const result = await publishCancellationPolicyForAgency(ctx.agencyId, ctx.userId, input)
+    const result = await publishCancellationPolicyForAgency(
+      ctx.agencyId,
+      ctx.userId,
+      input,
+    )
     revalidatePath("/admin/policies")
     return { ok: true, data: result }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur interne",
+    }
   }
 }
 
@@ -73,10 +83,17 @@ export async function deactivateCancellationPolicy(
 ): Promise<ProductActionResult<null>> {
   try {
     const ctx = await assertProductManager()
-    await deactivateCancellationPolicyForAgency(ctx.agencyId, ctx.userId, policyId)
+    await deactivateCancellationPolicyForAgency(
+      ctx.agencyId,
+      ctx.userId,
+      policyId,
+    )
     revalidatePath("/admin/policies")
     return { ok: true, data: null }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur interne",
+    }
   }
 }

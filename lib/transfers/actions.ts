@@ -230,7 +230,9 @@ export async function createTransferBooking(
         createdByUserId,
         reservationId,
         idempotencyKey: `booking-debit:${reservationId}`,
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+        txOverride: tx as Parameters<
+          typeof debitPartnerCredit
+        >[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
@@ -244,7 +246,11 @@ export async function createTransferBooking(
       // status=confirmed + paiement — auparavant fait par walletDebitReservation.
       await tx
         .update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .set({
+          status: "confirmed",
+          confirmedAt: new Date(),
+          updatedAt: new Date(),
+        })
         .where(eq(reservations.id, reservationId))
 
       await recordReservationTransition(tx, {
@@ -356,7 +362,9 @@ export async function createTransferBooking(
         pickupAt: `${input.pickupDate}T${input.pickupTime}:00`,
         vehicleType: input.vehicleType,
         totalTnd: outcome.result.totalTnd,
-      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+      }).catch(() => {
+        /* fire-and-forget — le retry Inngest suffira */
+      })
     }
 
     // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
@@ -368,10 +376,16 @@ export async function createTransferBooking(
         actorUserId: outcome.result.createdByUserId,
       })
       if (!invoiceResult.ok) {
-        console.error("[transfers] génération facture échouée", invoiceResult.error)
+        console.error(
+          "[transfers] génération facture échouée",
+          invoiceResult.error,
+        )
       }
     } catch (err) {
-      console.error("[transfers] génération facture échouée", err instanceof Error ? err.message : String(err))
+      console.error(
+        "[transfers] génération facture échouée",
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
     return {

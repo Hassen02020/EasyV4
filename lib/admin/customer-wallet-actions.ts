@@ -30,7 +30,9 @@ async function assertSuperAdmin(): Promise<string> {
   return user.id
 }
 
-export type CustomerWalletActionResult = { ok: true } | { ok: false; error: string }
+export type CustomerWalletActionResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function adminCreditCustomerWallet(
   customerId: string,
@@ -75,7 +77,9 @@ export async function adminCreditCustomerWallet(
           amountTnd,
           description: `Crédit direct admin${note ? ` — ${note}` : ""}`,
           source: "adjustment",
-          txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
+          txOverride: tx as Parameters<
+            typeof creditCustomerWallet
+          >[0]["txOverride"],
         })
         if (!credit.ok) {
           throw new Error(`WALLET_CREDIT_FAILED: ${credit.message}`)
@@ -87,13 +91,21 @@ export async function adminCreditCustomerWallet(
           entityType: "customer",
           entityId: customerId,
           action: "customer.wallet_credited",
-          diff: { amountTnd, note: note ?? null, balanceAfter: credit.balanceAfter },
+          diff: {
+            amountTnd,
+            note: note ?? null,
+            balanceAfter: credit.balanceAfter,
+          },
         })
       },
     )
 
     if (customerAgencyId) revalidatePath("/admin/clients")
-    logger.info("[customer-wallet-actions] wallet credited", { customerId, amountTnd, actorId })
+    logger.info("[customer-wallet-actions] wallet credited", {
+      customerId,
+      amountTnd,
+      actorId,
+    })
     return { ok: true }
   } catch (e) {
     logger.error("[customer-wallet-actions] adminCreditCustomerWallet failed", {

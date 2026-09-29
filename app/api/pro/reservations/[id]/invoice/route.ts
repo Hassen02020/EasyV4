@@ -56,7 +56,12 @@ export async function GET(
         })
         .from(reservations)
         .innerJoin(customers, eq(customers.id, reservations.customerId))
-        .where(and(eq(reservations.id, reservationId), eq(reservations.agencyId, profile.agency.id)))
+        .where(
+          and(
+            eq(reservations.id, reservationId),
+            eq(reservations.agencyId, profile.agency.id),
+          ),
+        )
         .limit(1)
       if (!row) return null
 
@@ -65,7 +70,9 @@ export async function GET(
 
       const summary = await getReservationPaymentSummary({
         reservationId: row.id,
-        txOverride: tx as unknown as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+        txOverride: tx as unknown as Parameters<
+          typeof getReservationPaymentSummary
+        >[0]["txOverride"],
       })
       return { row, invoice, summary }
     },
@@ -78,7 +85,8 @@ export async function GET(
     return NextResponse.json(
       {
         error: "invoice_unavailable",
-        message: "La facture n'est disponible qu'une fois la réservation confirmée et intégralement réglée.",
+        message:
+          "La facture n'est disponible qu'une fois la réservation confirmée et intégralement réglée.",
       },
       { status: 404 },
     )
@@ -86,12 +94,16 @@ export async function GET(
 
   const { row, invoice, summary } = result
   const payload = (row.providerPayload as Record<string, unknown> | null) ?? {}
-  const label = typeof payload.offerLabel === "string" ? payload.offerLabel : `Réservation ${row.module}`
+  const label =
+    typeof payload.offerLabel === "string"
+      ? payload.offerLabel
+      : `Réservation ${row.module}`
 
   const pdf = await renderInvoicePdf({
     invoiceNumber: invoice.invoiceNumber,
     publicRef: row.publicRef,
-    validationDate: invoice.validationDate ?? new Date().toISOString().slice(0, 10),
+    validationDate:
+      invoice.validationDate ?? new Date().toISOString().slice(0, 10),
     customerName: `${row.customerFirstName} ${row.customerLastName}`.trim(),
     customerEmail: row.customerEmail ?? undefined,
     agencyName: profile.agency.brandName ?? profile.agency.name,

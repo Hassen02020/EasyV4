@@ -77,7 +77,11 @@ test("extractHotelProviderMetadata: champs requis manquants → null", () => {
 
 test("buildMyGoBookingRequest: voyageur principal = Holder avec sa vraie identité", () => {
   const meta = extractHotelProviderMetadata(baseDraft.metadata)!
-  const req = buildMyGoBookingRequest({ draft: baseDraft, traveler, providerMeta: meta })
+  const req = buildMyGoBookingRequest({
+    draft: baseDraft,
+    traveler,
+    providerMeta: meta,
+  })
   assert.equal(req.token, "tok-abc123")
   assert.equal(req.cityId, 10)
   assert.equal(req.hotelId, 646)
@@ -111,7 +115,10 @@ test("buildMyGoBookingRequest: adultes additionnels génériques, non-Holder", (
 
 test("buildMyGoBookingRequest: âges enfants réels repris depuis les métadonnées", () => {
   const draft: BookingDraft = { ...baseDraft, children: 2 }
-  const metaRaw = { ...(baseDraft.metadata as Record<string, unknown>), childrenAges: [5, 9] }
+  const metaRaw = {
+    ...(baseDraft.metadata as Record<string, unknown>),
+    childrenAges: [5, 9],
+  }
   const meta = extractHotelProviderMetadata(metaRaw)!
   const req = buildMyGoBookingRequest({ draft, traveler, providerMeta: meta })
   const children = req.rooms[0]!.children!
@@ -123,7 +130,10 @@ test("buildMyGoBookingRequest: âges enfants réels repris depuis les métadonn�
 
 test("buildMyGoBookingRequest: âge par défaut si liste d'âges plus courte que le nombre d'enfants", () => {
   const draft: BookingDraft = { ...baseDraft, children: 2 }
-  const metaRaw = { ...(baseDraft.metadata as Record<string, unknown>), childrenAges: [7] }
+  const metaRaw = {
+    ...(baseDraft.metadata as Record<string, unknown>),
+    childrenAges: [7],
+  }
   const meta = extractHotelProviderMetadata(metaRaw)!
   const req = buildMyGoBookingRequest({ draft, traveler, providerMeta: meta })
   const children = req.rooms[0]!.children!
@@ -135,7 +145,11 @@ test("buildMyGoBookingRequest: hotelId retombe sur draft.offerId si absent des m
   const metaRaw = { ...(baseDraft.metadata as Record<string, unknown>) }
   delete metaRaw.hotelId
   const meta = extractHotelProviderMetadata(metaRaw)!
-  const req = buildMyGoBookingRequest({ draft: baseDraft, traveler, providerMeta: meta })
+  const req = buildMyGoBookingRequest({
+    draft: baseDraft,
+    traveler,
+    providerMeta: meta,
+  })
   assert.equal(req.hotelId, 646) // Number(draft.offerId)
 })
 
@@ -170,7 +184,11 @@ test("SÉCURITÉ — prix client 100 TND ignoré, total myGo 850 TND fait foi", 
 
 test("SÉCURITÉ — buildMyGoBookingRequest n'expose aucun champ currency (forcé TND côté client myGo)", () => {
   const meta = extractHotelProviderMetadata(baseDraft.metadata)!
-  const req = buildMyGoBookingRequest({ draft: baseDraft, traveler, providerMeta: meta })
+  const req = buildMyGoBookingRequest({
+    draft: baseDraft,
+    traveler,
+    providerMeta: meta,
+  })
   assert.equal("currency" in req, false)
 })
 
@@ -183,10 +201,7 @@ test("classifyMyGoBookingError: distingue chaque type d'erreur myGo", () => {
     classifyMyGoBookingError(new MyGoAuthError("bad creds")),
     "AUTHENTICATION_ERROR",
   )
-  assert.equal(
-    classifyMyGoBookingError(new MyGoTimeoutError(8000)),
-    "TIMEOUT",
-  )
+  assert.equal(classifyMyGoBookingError(new MyGoTimeoutError(8000)), "TIMEOUT")
   assert.equal(
     classifyMyGoBookingError(new MyGoNetworkError("ECONNRESET")),
     "NETWORK_ERROR",
@@ -323,7 +338,11 @@ test("SÉCURITÉ — reconcileAmbiguousBooking: DEUX candidats plausibles → re
     { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
     NOW,
   )
-  assert.equal(match, null, "ambiguïté non résolue -> jamais d'adoption silencieuse")
+  assert.equal(
+    match,
+    null,
+    "ambiguïté non résolue -> jamais d'adoption silencieuse",
+  )
 })
 
 test("reconcileAmbiguousBooking: candidat hors fenêtre temporelle → null", () => {

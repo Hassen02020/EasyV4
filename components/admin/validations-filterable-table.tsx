@@ -29,13 +29,40 @@ import {
 } from "@/components/ui/select"
 import { ValidationRowActions } from "@/components/admin/validation-row-actions"
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon }> = {
-  pending: { label: "En attente", color: "bg-amber-100 text-amber-800", icon: Clock },
-  pending_supplier: { label: "Attente fournisseur", color: "bg-blue-100 text-blue-800", icon: AlertCircle },
-  pending_payment: { label: "Attente paiement", color: "bg-purple-100 text-purple-800", icon: Clock },
-  approved: { label: "Validé", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
-  rejected: { label: "Rejeté", color: "bg-red-100 text-red-800", icon: XCircle },
-  cancelled: { label: "Annulé", color: "bg-gray-100 text-gray-800", icon: XCircle },
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; icon: LucideIcon }
+> = {
+  pending: {
+    label: "En attente",
+    color: "bg-amber-100 text-amber-800",
+    icon: Clock,
+  },
+  pending_supplier: {
+    label: "Attente fournisseur",
+    color: "bg-blue-100 text-blue-800",
+    icon: AlertCircle,
+  },
+  pending_payment: {
+    label: "Attente paiement",
+    color: "bg-purple-100 text-purple-800",
+    icon: Clock,
+  },
+  approved: {
+    label: "Validé",
+    color: "bg-emerald-100 text-emerald-800",
+    icon: CheckCircle,
+  },
+  rejected: {
+    label: "Rejeté",
+    color: "bg-red-100 text-red-800",
+    icon: XCircle,
+  },
+  cancelled: {
+    label: "Annulé",
+    color: "bg-gray-100 text-gray-800",
+    icon: XCircle,
+  },
 }
 
 export interface ValidationTableRow {
@@ -62,7 +89,9 @@ interface ValidationsFilterableTableProps {
   rows: ValidationTableRow[]
 }
 
-export function ValidationsFilterableTable({ rows }: ValidationsFilterableTableProps) {
+export function ValidationsFilterableTable({
+  rows,
+}: ValidationsFilterableTableProps) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [moduleFilter, setModuleFilter] = useState("all")
@@ -72,7 +101,8 @@ export function ValidationsFilterableTable({ rows }: ValidationsFilterableTableP
     return rows.filter(({ reservation, validation, customer }) => {
       const status = validation?.status ?? "pending"
       if (statusFilter !== "all" && status !== statusFilter) return false
-      if (moduleFilter !== "all" && reservation.module !== moduleFilter) return false
+      if (moduleFilter !== "all" && reservation.module !== moduleFilter)
+        return false
       if (q) {
         const haystack = [
           reservation.publicRef,
@@ -109,7 +139,9 @@ export function ValidationsFilterableTable({ rows }: ValidationsFilterableTableP
             <SelectContent>
               <SelectItem value="all">Tous les statuts</SelectItem>
               <SelectItem value="pending">En attente</SelectItem>
-              <SelectItem value="pending_supplier">Attente fournisseur</SelectItem>
+              <SelectItem value="pending_supplier">
+                Attente fournisseur
+              </SelectItem>
               <SelectItem value="pending_payment">Attente paiement</SelectItem>
               <SelectItem value="approved">Validées</SelectItem>
               <SelectItem value="rejected">Rejetées</SelectItem>
@@ -147,14 +179,18 @@ export function ValidationsFilterableTable({ rows }: ValidationsFilterableTableP
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell
+                    colSpan={8}
+                    className="text-muted-foreground py-8 text-center"
+                  >
                     Aucune validation ne correspond à ces filtres.
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.map(({ reservation, validation, customer }) => {
                   const statusConfig = validation
-                    ? (STATUS_CONFIG[validation.status] ?? STATUS_CONFIG.pending)
+                    ? (STATUS_CONFIG[validation.status] ??
+                      STATUS_CONFIG.pending)
                     : STATUS_CONFIG.pending
                   const StatusIcon = statusConfig.icon
 
@@ -166,16 +202,21 @@ export function ValidationsFilterableTable({ rows }: ValidationsFilterableTableP
                       <TableCell>
                         <div>
                           <p className="font-medium">
-                            {customer ? `${customer.firstName} ${customer.lastName}` : "—"}
+                            {customer
+                              ? `${customer.firstName} ${customer.lastName}`
+                              : "—"}
                           </p>
-                          <p className="text-xs text-gray-500">{customer?.email}</p>
+                          <p className="text-xs text-gray-500">
+                            {customer?.email}
+                          </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{reservation.module}</Badge>
                       </TableCell>
                       <TableCell className="font-semibold">
-                        {Number(reservation.tndAmount).toLocaleString("fr-FR")} DT
+                        {Number(reservation.tndAmount).toLocaleString("fr-FR")}{" "}
+                        DT
                       </TableCell>
                       <TableCell>
                         <Badge className={statusConfig.color}>

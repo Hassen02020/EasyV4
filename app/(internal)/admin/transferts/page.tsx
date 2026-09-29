@@ -13,7 +13,10 @@ import { redirect } from "next/navigation"
 import { Bus } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { listTransferZones, listTransferPricing } from "@/lib/admin/transfers-catalog-actions"
+import {
+  listTransferZones,
+  listTransferPricing,
+} from "@/lib/admin/transfers-catalog-actions"
 import { TransferCatalogManager } from "@/components/admin/transfer-catalog-manager"
 
 export const dynamic = "force-dynamic"
@@ -32,11 +35,18 @@ export default async function AdminTransfertsPage() {
   if (!user) redirect("/login?next=/admin/transferts")
 
   const profile = await getCurrentAdminProfile(user.id)
-  if (!profile || profile.agencyType !== "ota" || !PRODUCT_MANAGER_ROLES.includes(profile.role ?? "")) {
+  if (
+    !profile ||
+    profile.agencyType !== "ota" ||
+    !PRODUCT_MANAGER_ROLES.includes(profile.role ?? "")
+  ) {
     redirect("/admin")
   }
 
-  const [zones, pricing] = await Promise.all([listTransferZones(), listTransferPricing()])
+  const [zones, pricing] = await Promise.all([
+    listTransferZones(),
+    listTransferPricing(),
+  ])
 
   return (
     <div className="space-y-6">
@@ -46,7 +56,8 @@ export default async function AdminTransfertsPage() {
           Transferts — Catalogue
         </h1>
         <p className="text-muted-foreground text-sm">
-          Zones de départ/arrivée et tarifs — le flux client (recherche, devis, réservation) les utilise déjà.
+          Zones de départ/arrivée et tarifs — le flux client (recherche, devis,
+          réservation) les utilise déjà.
         </p>
       </div>
 

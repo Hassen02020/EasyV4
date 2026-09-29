@@ -7,10 +7,18 @@
  * MYGO_MODE (lib/mygo/config.ts, inchangé) — dupliquer cette bascule dans
  * deux classes distinctes aurait été une régression, pas une abstraction.
  */
-import { getMyGoClient, createMyGoClientForAccount, type MyGoClient } from "@/lib/mygo/client"
+import {
+  getMyGoClient,
+  createMyGoClientForAccount,
+  type MyGoClient,
+} from "@/lib/mygo/client"
 import { runHotelSearch, type HotelSearchQuery } from "@/lib/mygo/search-core"
 import { getMyGoConfig, type MyGoConfig } from "@/lib/mygo/config"
-import type { HotelSupplierDriver, SupplierSearchResult, SupplierHotelDetails } from "../core/supplier"
+import type {
+  HotelSupplierDriver,
+  SupplierSearchResult,
+  SupplierHotelDetails,
+} from "../core/supplier"
 import type {
   HotelSearchRequest,
   HotelDetailsRequest,
@@ -27,15 +35,27 @@ import type {
 } from "../core/types"
 import { SupplierApiError, SupplierNotConfiguredError } from "../core/errors"
 import { isMyGoConfigured } from "./config"
-import { mapMyGoHotelSummary, mapMyGoOfferToRates, decodeMyGoSupplierToken } from "./mapper"
-import { mapHotelDetails, mapBookingListItemToConfirmation } from "@/lib/mygo/mappers"
+import {
+  mapMyGoHotelSummary,
+  mapMyGoOfferToRates,
+  decodeMyGoSupplierToken,
+} from "./mapper"
+import {
+  mapHotelDetails,
+  mapBookingListItemToConfirmation,
+} from "@/lib/mygo/mappers"
 /**
  * PHASE 27.2 — réutilise la classification d'erreur MyGo EXISTANTE (déjà
  * utilisée par Booking Core, lib/booking/actions.ts) plutôt que d'en inventer
  * une seconde qui pourrait diverger avec le temps. `lib/booking/hotel-provider-booking.ts`
  * ne dépend elle-même que de lib/mygo/** — aucun cycle réel introduit.
  */
-import { classifyMyGoBookingError, isAmbiguousBookingError, reconcileAmbiguousBooking, type MyGoBookingErrorKind } from "@/lib/booking/hotel-provider-booking"
+import {
+  classifyMyGoBookingError,
+  isAmbiguousBookingError,
+  reconcileAmbiguousBooking,
+  type MyGoBookingErrorKind,
+} from "@/lib/booking/hotel-provider-booking"
 
 export class MyGoDriver implements HotelSupplierDriver {
   readonly supplier = "mygo" as const
@@ -53,7 +73,9 @@ export class MyGoDriver implements HotelSupplierDriver {
   ) {}
 
   getConfigStatus(): "CONFIGURED" | "NOT_CONFIGURED" {
-    return isMyGoConfigured(this.configOverride) ? "CONFIGURED" : "NOT_CONFIGURED"
+    return isMyGoConfigured(this.configOverride)
+      ? "CONFIGURED"
+      : "NOT_CONFIGURED"
   }
 
   /** Indique si les résultats proviennent du simulateur local — jamais présenté comme une disponibilité réelle (section 26). */
@@ -67,11 +89,17 @@ export class MyGoDriver implements HotelSupplierDriver {
 
   async search(request: HotelSearchRequest): Promise<SupplierSearchResult> {
     if (this.getConfigStatus() === "NOT_CONFIGURED") {
-      throw new SupplierNotConfiguredError("mygo", "MYGO_LOGIN/MYGO_PASSWORD absents")
+      throw new SupplierNotConfiguredError(
+        "mygo",
+        "MYGO_LOGIN/MYGO_PASSWORD absents",
+      )
     }
     const cityId = Number(request.destinationId)
     if (!Number.isFinite(cityId) || cityId <= 0) {
-      throw new SupplierApiError("mygo", `destinationId invalide pour myGo (attendu un cityId numérique): "${request.destinationId}"`)
+      throw new SupplierApiError(
+        "mygo",
+        `destinationId invalide pour myGo (attendu un cityId numérique): "${request.destinationId}"`,
+      )
     }
     const query: HotelSearchQuery = {
       cityId,
@@ -88,26 +116,44 @@ export class MyGoDriver implements HotelSupplierDriver {
       // réel à myGo pour la même recherche.
       stars: request.stars ?? [],
       onlyAvailable: request.onlyAvailable ?? true,
-      rooms: request.rooms.length ? request.rooms.map((r) => ({ adults: r.adults, childAges: r.childAges })) : null,
+      rooms: request.rooms.length
+        ? request.rooms.map((r) => ({
+            adults: r.adults,
+            childAges: r.childAges,
+          }))
+        : null,
     }
-    const result = await runHotelSearch(query, this.configOverride ? { client: this.client } : undefined)
+    const result = await runHotelSearch(
+      query,
+      this.configOverride ? { client: this.client } : undefined,
+    )
     if (!result.ok) {
       throw new SupplierApiError("mygo", result.message ?? result.error, result)
     }
-    const occupancy = { adults: query.adults, childAges: query.children.length ? query.children : undefined }
+    const occupancy = {
+      adults: query.adults,
+      childAges: query.children.length ? query.children : undefined,
+    }
     const hotels = result.dto.offers.map((o) => mapMyGoHotelSummary(o.hotel))
-    const rates = result.dto.offers.flatMap((o) => mapMyGoOfferToRates(o, cityId, occupancy))
+    const rates = result.dto.offers.flatMap((o) =>
+      mapMyGoOfferToRates(o, cityId, occupancy),
+    )
     return { hotels, rates }
   }
 
-  async getDetails(request: HotelDetailsRequest): Promise<SupplierHotelDetails> {
+  async getDetails(
+    request: HotelDetailsRequest,
+  ): Promise<SupplierHotelDetails> {
     if (this.getConfigStatus() === "NOT_CONFIGURED") {
       throw new SupplierNotConfiguredError("mygo")
     }
     const hotelId = Number(request.supplierHotelCode)
     const raw = await this.client.hotelDetail(hotelId)
     if (!raw) {
-      throw new SupplierApiError("mygo", `Hôtel myGo introuvable: ${request.supplierHotelCode}`)
+      throw new SupplierApiError(
+        "mygo",
+        `Hôtel myGo introuvable: ${request.supplierHotelCode}`,
+      )
     }
     const detail = mapHotelDetails(raw)
     return {
@@ -116,11 +162,14 @@ export class MyGoDriver implements HotelSupplierDriver {
         address: detail.address,
         city: detail.cityName,
         latitude: detail.latitude != null ? Number(detail.latitude) : undefined,
-        longitude: detail.longitude != null ? Number(detail.longitude) : undefined,
+        longitude:
+          detail.longitude != null ? Number(detail.longitude) : undefined,
         stars: detail.stars,
         images: detail.album.map((a) => a.url),
         facilities: detail.facilities.map((f) => f.title),
-        supplierMappings: [{ supplier: "mygo", supplierHotelCode: String(detail.id) }],
+        supplierMappings: [
+          { supplier: "mygo", supplierHotelCode: String(detail.id) },
+        ],
       },
     }
   }
@@ -134,10 +183,18 @@ export class MyGoDriver implements HotelSupplierDriver {
    */
   async checkRate(request: CheckRateRequest): Promise<CheckRateResult> {
     if (this.getConfigStatus() === "NOT_CONFIGURED") {
-      return { ok: false, code: "NOT_CONFIGURED", message: "myGo non configuré." }
+      return {
+        ok: false,
+        code: "NOT_CONFIGURED",
+        message: "myGo non configuré.",
+      }
     }
     if (!request.supplierToken) {
-      return { ok: false, code: "SUPPLIER_ERROR", message: "supplierToken myGo manquant pour CheckRate." }
+      return {
+        ok: false,
+        code: "SUPPLIER_ERROR",
+        message: "supplierToken myGo manquant pour CheckRate.",
+      }
     }
     const decoded = decodeMyGoSupplierToken(request.supplierToken)
     const totalAdults = request.rooms.reduce((sum, r) => sum + r.adults, 0)
@@ -200,10 +257,18 @@ export class MyGoDriver implements HotelSupplierDriver {
 
   async book(request: SupplierBookingRequest): Promise<SupplierBookingResult> {
     if (this.getConfigStatus() === "NOT_CONFIGURED") {
-      return { outcome: "DEFINITIVE_FAILURE", code: "NOT_CONFIGURED", message: "myGo non configuré." }
+      return {
+        outcome: "DEFINITIVE_FAILURE",
+        code: "NOT_CONFIGURED",
+        message: "myGo non configuré.",
+      }
     }
     if (!request.supplierToken) {
-      return { outcome: "DEFINITIVE_FAILURE", code: "SUPPLIER_ERROR", message: "supplierToken myGo manquant pour Book." }
+      return {
+        outcome: "DEFINITIVE_FAILURE",
+        code: "SUPPLIER_ERROR",
+        message: "supplierToken myGo manquant pour Book.",
+      }
     }
     const decoded = decodeMyGoSupplierToken(request.supplierToken)
     try {
@@ -219,10 +284,19 @@ export class MyGoDriver implements HotelSupplierDriver {
             boardingId: decoded.boardingId,
             adults: request.travelers
               .filter((t) => t.age == null)
-              .map((t) => ({ civility: t.civility ?? "M", name: t.firstName, surname: t.lastName, holder: t.isHolder ?? false })),
+              .map((t) => ({
+                civility: t.civility ?? "M",
+                name: t.firstName,
+                surname: t.lastName,
+                holder: t.isHolder ?? false,
+              })),
             children: request.travelers
               .filter((t) => t.age != null)
-              .map((t) => ({ name: t.firstName, surname: t.lastName, age: t.age as number })),
+              .map((t) => ({
+                name: t.firstName,
+                surname: t.lastName,
+                age: t.age as number,
+              })),
           },
         ],
       })
@@ -235,7 +309,10 @@ export class MyGoDriver implements HotelSupplierDriver {
         confirmedNetPrice: confirmation.totalPrice,
         currency: confirmation.currency,
         state: confirmation.state === "OnRequest" ? "ON_REQUEST" : "CONFIRMED",
-        hotelId: confirmation.hotelId != null ? String(confirmation.hotelId) : undefined,
+        hotelId:
+          confirmation.hotelId != null
+            ? String(confirmation.hotelId)
+            : undefined,
       }
     } catch (err) {
       return classifyBookOutcome(err)
@@ -249,7 +326,9 @@ export class MyGoDriver implements HotelSupplierDriver {
    * fonction pure de correspondance `reconcileAmbiguousBooking` — aucune
    * seconde logique de réconciliation inventée.
    */
-  async reconcileBooking(request: SupplierBookingReconciliationRequest): Promise<SupplierBookingReconciliationResult> {
+  async reconcileBooking(
+    request: SupplierBookingReconciliationRequest,
+  ): Promise<SupplierBookingReconciliationResult> {
     if (this.getConfigStatus() === "NOT_CONFIGURED") {
       return { outcome: "UNSUPPORTED" }
     }
@@ -286,12 +365,19 @@ export class MyGoDriver implements HotelSupplierDriver {
         confirmedNetPrice: confirmation.totalPrice,
         currency: confirmation.currency,
         state: confirmation.state === "OnRequest" ? "ON_REQUEST" : "CONFIRMED",
-        hotelId: confirmation.hotelId != null ? String(confirmation.hotelId) : undefined,
+        hotelId:
+          confirmation.hotelId != null
+            ? String(confirmation.hotelId)
+            : undefined,
       }
     } catch {
       // La réconciliation elle-même a échoué (réseau/timeout sur BookingList)
       // — l'état reste incertain, jamais "certainement pas créée".
-      return { outcome: "STILL_AMBIGUOUS", message: "Impossible d'interroger BookingList pour réconcilier — état toujours incertain." }
+      return {
+        outcome: "STILL_AMBIGUOUS",
+        message:
+          "Impossible d'interroger BookingList pour réconcilier — état toujours incertain.",
+      }
     }
   }
 
@@ -300,7 +386,10 @@ export class MyGoDriver implements HotelSupplierDriver {
     const list = await this.client.listBookings({ booking: bookingId })
     const row = list[0]
     if (!row) {
-      return { supplierBookingReference: request.supplierBookingReference, state: "UNKNOWN" }
+      return {
+        supplierBookingReference: request.supplierBookingReference,
+        state: "UNKNOWN",
+      }
     }
     const stateMap: Record<string, SupplierBooking["state"]> = {
       Validated: "CONFIRMED",
@@ -318,9 +407,15 @@ export class MyGoDriver implements HotelSupplierDriver {
     }
   }
 
-  async cancel(request: SupplierCancellationRequest): Promise<SupplierCancellationResult> {
+  async cancel(
+    request: SupplierCancellationRequest,
+  ): Promise<SupplierCancellationResult> {
     if (this.getConfigStatus() === "NOT_CONFIGURED") {
-      return { ok: false, code: "NOT_CONFIGURED", message: "myGo non configuré." }
+      return {
+        ok: false,
+        code: "NOT_CONFIGURED",
+        message: "myGo non configuré.",
+      }
     }
     try {
       const result = await this.client.cancelBooking({
@@ -337,8 +432,10 @@ export class MyGoDriver implements HotelSupplierDriver {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       const name = err instanceof Error ? err.constructor.name : ""
-      if (name === "MyGoTimeoutError") return { ok: false, code: "TIMEOUT", message }
-      if (name === "MyGoAuthError") return { ok: false, code: "AUTH_ERROR", message }
+      if (name === "MyGoTimeoutError")
+        return { ok: false, code: "TIMEOUT", message }
+      if (name === "MyGoAuthError")
+        return { ok: false, code: "AUTH_ERROR", message }
       return { ok: false, code: "SUPPLIER_ERROR", message }
     }
   }
@@ -356,7 +453,12 @@ function classifyBookOutcome(err: unknown): SupplierBookingResult {
   const message = err instanceof Error ? err.message : String(err)
 
   if (isAmbiguousBookingError(kind)) {
-    const code = kind === "TIMEOUT" ? "TIMEOUT" : kind === "MALFORMED_RESPONSE" ? "MALFORMED_RESPONSE" : "NETWORK_ERROR"
+    const code =
+      kind === "TIMEOUT"
+        ? "TIMEOUT"
+        : kind === "MALFORMED_RESPONSE"
+          ? "MALFORMED_RESPONSE"
+          : "NETWORK_ERROR"
     return { outcome: "AMBIGUOUS", code, message }
   }
 
@@ -386,6 +488,9 @@ export function createMyGoDriver(): MyGoDriver {
  * cache de données statiques namespacé). `accountId` et `config` proviennent
  * TOUJOURS de `resolveSupplierAccount()` — jamais construits ailleurs.
  */
-export function createMyGoDriverForAccount(accountId: string, config: MyGoConfig): MyGoDriver {
+export function createMyGoDriverForAccount(
+  accountId: string,
+  config: MyGoConfig,
+): MyGoDriver {
   return new MyGoDriver(createMyGoClientForAccount(accountId, config), config)
 }

@@ -7,7 +7,12 @@
 
 import test from "node:test"
 import assert from "node:assert/strict"
-import { reserve, release, currentAvailability, resetInventory } from "../inventory-store"
+import {
+  reserve,
+  release,
+  currentAvailability,
+  resetInventory,
+} from "../inventory-store"
 
 const HOTEL = 999001
 const ROOM = 999002
@@ -64,7 +69,9 @@ test("SÉCURITÉ — CONCURRENCE : 10 tentatives simultanées sur 1 chambre => e
   }
 
   const attempts = await Promise.all(
-    Array.from({ length: 10 }, () => reserve(HOTEL, ROOM, CHECK_IN, CHECK_OUT, 1)),
+    Array.from({ length: 10 }, () =>
+      reserve(HOTEL, ROOM, CHECK_IN, CHECK_OUT, 1),
+    ),
   )
   const successes = attempts.filter((r) => r.ok).length
   const failures = attempts.filter((r) => !r.ok).length

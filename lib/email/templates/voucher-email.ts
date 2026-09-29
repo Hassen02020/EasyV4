@@ -31,7 +31,15 @@ function formatDate(iso: string): string {
  * Compatible Resend `html` field (string synchrone).
  */
 export function renderVoucherEmailHtml(props: VoucherEmailProps): string {
-  const { customerName, publicRef, guestAccessToken, hotelName, checkIn, checkOut, nights } = props
+  const {
+    customerName,
+    publicRef,
+    guestAccessToken,
+    hotelName,
+    checkIn,
+    checkOut,
+    nights,
+  } = props
 
   return `<!DOCTYPE html>
 <html lang="fr">

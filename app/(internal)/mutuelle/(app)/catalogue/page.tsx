@@ -13,10 +13,19 @@ import { redirect } from "next/navigation"
 import { Package } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { listExecutionAgencyCatalog, listMyMutuelleCatalog } from "@/lib/mutuelle/catalog-actions"
+import {
+  listExecutionAgencyCatalog,
+  listMyMutuelleCatalog,
+} from "@/lib/mutuelle/catalog-actions"
 import { CatalogDirectorTable } from "@/components/mutuelle/catalog-director-table"
 import { CatalogMemberGrid } from "@/components/mutuelle/catalog-member-grid"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 
 export const dynamic = "force-dynamic"
 
@@ -35,7 +44,9 @@ export default async function MutuelleCataloguePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-foreground text-2xl font-bold">Catalogue Mutuelle</h1>
+        <h1 className="text-foreground text-2xl font-bold">
+          Catalogue Mutuelle
+        </h1>
         <p className="text-muted-foreground text-sm">
           {isDirector
             ? "Sélectionnez les produits du catalogue de votre agence d'exécution que vos membres pourront consulter."
@@ -47,7 +58,9 @@ export default async function MutuelleCataloguePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Package className="h-4 w-4" />
-            {isDirector ? "Catalogue de l'agence d'exécution" : "Votre catalogue"}
+            {isDirector
+              ? "Catalogue de l'agence d'exécution"
+              : "Votre catalogue"}
           </CardTitle>
           <CardDescription>
             {isDirector

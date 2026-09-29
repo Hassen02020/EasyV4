@@ -1,9 +1,18 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { HeartHandshake, Users, FileText, TrendingUp, AlertCircle } from "lucide-react"
+import {
+  HeartHandshake,
+  Users,
+  FileText,
+  TrendingUp,
+  AlertCircle,
+} from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { listMyMutuelleRequests, listGroupMutuelleRequests } from "@/lib/mutuelle/requests-actions"
+import {
+  listMyMutuelleRequests,
+  listGroupMutuelleRequests,
+} from "@/lib/mutuelle/requests-actions"
 
 export const dynamic = "force-dynamic"
 
@@ -44,8 +53,20 @@ export default async function MutuelleDashboard() {
       iconClass: "text-amber-500",
       value: String(pendingCount),
     },
-    { label: "Factures Ce Mois", sub: undefined, icon: FileText, iconClass: "text-blue-500", value: "—" },
-    { label: "Montant Total", sub: undefined, icon: TrendingUp, iconClass: "text-emerald-500", value: "—" },
+    {
+      label: "Factures Ce Mois",
+      sub: undefined,
+      icon: FileText,
+      iconClass: "text-blue-500",
+      value: "—",
+    },
+    {
+      label: "Montant Total",
+      sub: undefined,
+      icon: TrendingUp,
+      iconClass: "text-emerald-500",
+      value: "—",
+    },
   ]
 
   return (
@@ -87,25 +108,38 @@ export default async function MutuelleDashboard() {
             <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-center text-sm">
               <Users className="h-6 w-6" />
               <p>Aucune demande pour le moment.</p>
-              <Link href="/mutuelle/dossiers" className="text-primary text-xs hover:underline">
-                {isDirector ? "Voir la file d'attente" : "Soumettre une demande"}
+              <Link
+                href="/mutuelle/dossiers"
+                className="text-primary text-xs hover:underline"
+              >
+                {isDirector
+                  ? "Voir la file d'attente"
+                  : "Soumettre une demande"}
               </Link>
             </div>
           ) : (
             <div className="space-y-2">
               {recentRequests.map((r) => (
-                <div key={r.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                >
                   <div>
                     <p className="font-medium">{r.description.slice(0, 60)}</p>
                     <p className="text-muted-foreground text-xs">
-                      {new Date(r.travelStartDate).toLocaleDateString("fr-FR")} —{" "}
-                      {new Date(r.travelEndDate).toLocaleDateString("fr-FR")}
+                      {new Date(r.travelStartDate).toLocaleDateString("fr-FR")}{" "}
+                      — {new Date(r.travelEndDate).toLocaleDateString("fr-FR")}
                     </p>
                   </div>
-                  <span className="text-muted-foreground text-xs capitalize">{r.status}</span>
+                  <span className="text-muted-foreground text-xs capitalize">
+                    {r.status}
+                  </span>
                 </div>
               ))}
-              <Link href="/mutuelle/dossiers" className="text-primary block text-xs hover:underline">
+              <Link
+                href="/mutuelle/dossiers"
+                className="text-primary block text-xs hover:underline"
+              >
                 Voir tous les dossiers →
               </Link>
             </div>

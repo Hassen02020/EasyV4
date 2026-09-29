@@ -96,9 +96,12 @@ export async function getCurrentAdminProfile(
     }
   } catch (error) {
     const { logger } = await import("@/lib/logger")
-    logger.warn("[getCurrentAdminProfile] DB lookup failed — fallback to Supabase auth", {
-      code: error instanceof Error ? error.constructor.name : "unknown",
-    })
+    logger.warn(
+      "[getCurrentAdminProfile] DB lookup failed — fallback to Supabase auth",
+      {
+        code: error instanceof Error ? error.constructor.name : "unknown",
+      },
+    )
     return null
   }
 }

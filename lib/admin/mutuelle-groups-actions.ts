@@ -24,7 +24,10 @@ import { and, eq, isNotNull, count } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { auditEvents, mutuelleGroups, users, agencies } from "@/lib/db/schema"
-import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
+import {
+  createServerSupabase,
+  createServiceRoleSupabase,
+} from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
@@ -37,7 +40,10 @@ async function requireSuperAdmin() {
 
   const profile = await getCurrentAdminProfile(user.id)
   if (profile?.role !== "super_admin") {
-    return { ok: false as const, error: "Seul un super_admin peut gérer les groupes Mutuelle." }
+    return {
+      ok: false as const,
+      error: "Seul un super_admin peut gérer les groupes Mutuelle.",
+    }
   }
   return { ok: true as const, user, profile }
 }
@@ -53,7 +59,10 @@ const createGroupSchema = z.object({
     .trim()
     .min(1)
     .max(64)
-    .regex(/^[a-z0-9-]+$/, "Slug : lettres minuscules, chiffres et tirets uniquement"),
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug : lettres minuscules, chiffres et tirets uniquement",
+    ),
   executionAgencyId: z.string().uuid(),
   markupPercent: z.coerce.number().min(0).max(100),
   conventionStartDate: z.string().optional().default(""),
@@ -62,14 +71,21 @@ const createGroupSchema = z.object({
   contactPhone: z.string().trim().max(32).optional().default(""),
 })
 
-export type CreateMutuelleGroupResult = { ok: true; groupId: string } | { ok: false; error: string }
+export type CreateMutuelleGroupResult =
+  | { ok: true; groupId: string }
+  | { ok: false; error: string }
 
 export async function createMutuelleGroup(
   raw: z.infer<typeof createGroupSchema>,
 ): Promise<CreateMutuelleGroupResult> {
   const parsed = createGroupSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -108,7 +124,11 @@ export async function createMutuelleGroup(
           entityType: "mutuelle_group",
           entityId: group.id,
           action: "mutuelle_group.created",
-          diff: { name: input.name, slug: input.slug, executionAgencyId: input.executionAgencyId },
+          diff: {
+            name: input.name,
+            slug: input.slug,
+            executionAgencyId: input.executionAgencyId,
+          },
         })
 
         return group.id
@@ -127,7 +147,9 @@ export async function createMutuelleGroup(
 /* Statut (activer / suspendre)                                                */
 /* -------------------------------------------------------------------------- */
 
-export type SetMutuelleGroupStatusResult = { ok: true } | { ok: false; error: string }
+export type SetMutuelleGroupStatusResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function setMutuelleGroupStatus(
   groupId: string,
@@ -138,27 +160,39 @@ export async function setMutuelleGroupStatus(
   const { user } = auth
 
   try {
-    await withTenantContext({ agencyId: null, userId: user.id, isSuperAdmin: true }, async (tx) => {
-      const [updated] = await tx
-        .update(mutuelleGroups)
-        .set({ status, updatedAt: new Date() })
-        .where(eq(mutuelleGroups.id, groupId))
-        .returning({ id: mutuelleGroups.id, executionAgencyId: mutuelleGroups.executionAgencyId })
-      if (!updated) throw new Error("Groupe introuvable")
+    await withTenantContext(
+      { agencyId: null, userId: user.id, isSuperAdmin: true },
+      async (tx) => {
+        const [updated] = await tx
+          .update(mutuelleGroups)
+          .set({ status, updatedAt: new Date() })
+          .where(eq(mutuelleGroups.id, groupId))
+          .returning({
+            id: mutuelleGroups.id,
+            executionAgencyId: mutuelleGroups.executionAgencyId,
+          })
+        if (!updated) throw new Error("Groupe introuvable")
 
-      await tx.insert(auditEvents).values({
-        agencyId: updated.executionAgencyId,
-        actorUserId: user.id,
-        entityType: "mutuelle_group",
-        entityId: groupId,
-        action: status === "active" ? "mutuelle_group.activated" : "mutuelle_group.suspended",
-        diff: { status },
-      })
-    })
+        await tx.insert(auditEvents).values({
+          agencyId: updated.executionAgencyId,
+          actorUserId: user.id,
+          entityType: "mutuelle_group",
+          entityId: groupId,
+          action:
+            status === "active"
+              ? "mutuelle_group.activated"
+              : "mutuelle_group.suspended",
+          diff: { status },
+        })
+      },
+    )
     revalidatePath("/admin/mutuelle")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -173,14 +207,21 @@ const inviteUserSchema = z.object({
   role: z.enum(["mutuelle_director", "mutuelle_member"]),
 })
 
-export type InviteMutuelleUserResult = { ok: true; userId: string } | { ok: false; error: string }
+export type InviteMutuelleUserResult =
+  | { ok: true; userId: string }
+  | { ok: false; error: string }
 
 export async function inviteMutuelleUser(
   raw: z.infer<typeof inviteUserSchema>,
 ): Promise<InviteMutuelleUserResult> {
   const parsed = inviteUserSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -189,14 +230,18 @@ export async function inviteMutuelleUser(
   const { user } = auth
 
   const defaultAgencyId = await getDefaultAgencyId()
-  if (!defaultAgencyId) return { ok: false, error: "Agence OTA par défaut introuvable." }
+  if (!defaultAgencyId)
+    return { ok: false, error: "Agence OTA par défaut introuvable." }
 
   const admin = createServiceRoleSupabase()
   const invited = await admin.auth.admin.inviteUserByEmail(input.email, {
     data: { name: input.name },
   })
   if (invited.error || !invited.data.user) {
-    return { ok: false, error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}` }
+    return {
+      ok: false,
+      error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}`,
+    }
   }
   const newUserId = invited.data.user.id
 
@@ -226,14 +271,22 @@ export async function inviteMutuelleUser(
           entityType: "user",
           entityId: newUserId,
           action: "mutuelle_user.created",
-          diff: { email: input.email, name: input.name, role: input.role, groupId: input.groupId },
+          diff: {
+            email: input.email,
+            name: input.name,
+            role: input.role,
+            groupId: input.groupId,
+          },
         })
       },
     )
   } catch (err) {
     await admin.auth.admin.deleteUser(newUserId).catch(() => {})
     const message = err instanceof Error ? err.message : "Erreur inconnue"
-    return { ok: false, error: `Compte invité mais profil non créé (annulé) : ${message}` }
+    return {
+      ok: false,
+      error: `Compte invité mais profil non créé (annulé) : ${message}`,
+    }
   }
 
   revalidatePath("/admin/mutuelle")
@@ -263,39 +316,44 @@ export async function listMutuelleGroups(): Promise<MutuelleGroupRow[]> {
   if (!auth.ok) return []
   const { user } = auth
 
-  return withTenantContext({ agencyId: null, userId: user.id, isSuperAdmin: true }, async (tx) => {
-    const groups = await tx
-      .select({
-        id: mutuelleGroups.id,
-        slug: mutuelleGroups.slug,
-        name: mutuelleGroups.name,
-        executionAgencyId: mutuelleGroups.executionAgencyId,
-        executionAgencyName: agencies.name,
-        markupPercent: mutuelleGroups.markupPercent,
-        conventionStartDate: mutuelleGroups.conventionStartDate,
-        conventionEndDate: mutuelleGroups.conventionEndDate,
-        status: mutuelleGroups.status,
-        createdAt: mutuelleGroups.createdAt,
-      })
-      .from(mutuelleGroups)
-      .innerJoin(agencies, eq(agencies.id, mutuelleGroups.executionAgencyId))
+  return withTenantContext(
+    { agencyId: null, userId: user.id, isSuperAdmin: true },
+    async (tx) => {
+      const groups = await tx
+        .select({
+          id: mutuelleGroups.id,
+          slug: mutuelleGroups.slug,
+          name: mutuelleGroups.name,
+          executionAgencyId: mutuelleGroups.executionAgencyId,
+          executionAgencyName: agencies.name,
+          markupPercent: mutuelleGroups.markupPercent,
+          conventionStartDate: mutuelleGroups.conventionStartDate,
+          conventionEndDate: mutuelleGroups.conventionEndDate,
+          status: mutuelleGroups.status,
+          createdAt: mutuelleGroups.createdAt,
+        })
+        .from(mutuelleGroups)
+        .innerJoin(agencies, eq(agencies.id, mutuelleGroups.executionAgencyId))
 
-    const memberCounts = await tx
-      .select({ groupId: users.mutuelleGroupId, count: count(users.id) })
-      .from(users)
-      .where(and(eq(users.status, "active"), isNotNull(users.mutuelleGroupId)))
-      .groupBy(users.mutuelleGroupId)
+      const memberCounts = await tx
+        .select({ groupId: users.mutuelleGroupId, count: count(users.id) })
+        .from(users)
+        .where(
+          and(eq(users.status, "active"), isNotNull(users.mutuelleGroupId)),
+        )
+        .groupBy(users.mutuelleGroupId)
 
-    const countByGroup = new Map<string, number>()
-    for (const row of memberCounts) {
-      if (!row.groupId) continue
-      countByGroup.set(row.groupId, row.count)
-    }
+      const countByGroup = new Map<string, number>()
+      for (const row of memberCounts) {
+        if (!row.groupId) continue
+        countByGroup.set(row.groupId, row.count)
+      }
 
-    return groups.map((g) => ({
-      ...g,
-      markupPercent: parseFloat(g.markupPercent),
-      memberCount: countByGroup.get(g.id) ?? 0,
-    }))
-  })
+      return groups.map((g) => ({
+        ...g,
+        markupPercent: parseFloat(g.markupPercent),
+        memberCount: countByGroup.get(g.id) ?? 0,
+      }))
+    },
+  )
 }

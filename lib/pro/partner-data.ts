@@ -56,6 +56,10 @@ export async function loadPartnerClients(
         lastName: customers.lastName,
         email: customers.email,
         phone: customers.phone,
+        civility: customers.civility,
+        civicId: customers.civicId,
+        city: customers.city,
+        country: customers.country,
         createdAt: customers.createdAt,
         bookings:
           sql<number>`CAST(COUNT(DISTINCT ${reservations.id}) AS INTEGER)`,
@@ -82,6 +86,12 @@ export async function loadPartnerClients(
       reservationsCount: r.bookings,
       bookings: r.bookings,
       createdAt: r.createdAt.toISOString().slice(0, 10),
+      firstName: r.firstName ?? "",
+      lastName: r.lastName ?? "",
+      civility: (r.civility ?? "") as "M" | "Mme" | "Mlle" | "",
+      civicId: r.civicId ?? undefined,
+      city: r.city ?? undefined,
+      country: r.country ?? undefined,
     }))
   } catch (err) {
     logger.error("loadPartnerClients failed", {

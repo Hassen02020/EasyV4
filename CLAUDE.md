@@ -8,6 +8,20 @@ Ne JAMAIS reproposer "faut-il un modèle Quote/devis ?" comme question ouverte �
 - Pas de devis pour l'instant, différé volontairement.
 - Quand ce chantier sera repris (sur GO explicite uniquement) : le devis s'applique SEULEMENT à 3 cas — demandes de groupe, transferts, voyage à la carte — flux devis → validation client → facture. Tous les autres modules restent en réservation directe → facture, sans devis.
 
+## Incident ouvert — DEPLOY-01 : `main` → Vercel Production cassé, 2026-09-29
+
+**Ne jamais considérer un changement comme "Production DONE" tant que ceci n'est pas résolu.**
+
+Depuis le commit `72032224`, aucun push vers `main` ne déclenche de déploiement Vercel sur `easy2book-new` (le projet de production réel — les autres projets Vercel connectés au même repo, `claudegolive`/`easyv4`/`easyv4-golive`, ne sont PAS des cibles de production). Diagnostic complet dans la conversation de session (GitHub reçoit bien les push, GitHub Actions tourne normalement, mais 0 déploiement Vercel créé pour `main` — pas même une tentative échouée — alors que les Preview Deployments de branche continuent de fonctionner). Cause exacte non confirmée ; ticket support Vercel préparé et remis à l'utilisateur pour envoi.
+
+**Règle de fonctionnement pendant que l'incident est ouvert** :
+- Ne PAS bloquer les chantiers Easy2Book à cause de cet incident. Continuer normalement : audit, développement, corrections, tests, commits, PR, documentation.
+- Chaque chantier clos pendant cette période doit être marqué explicitement `TESTED / READY FOR PRODUCTION — NOT YET DEPLOYED` (dans le message de clôture et dans ROADMAP.md) plutôt que "Atteint"/"DONE" simple, tant que ce commit n'a pas effectivement été reçu par Vercel Production sur `easy2book-new`.
+- Utiliser les Preview Deployments (fonctionnels) pour valider visuellement un changement si nécessaire.
+- Aucun déploiement Production manuel sans GO explicite de l'utilisateur pour ce test précis.
+- Ne jamais déclarer cet incident résolu sur la base d'une reconnexion, d'un déploiement manuel réussi, ou d'un preview qui fonctionne — seule preuve valable : un prochain push normal sur `main` qui produit un déploiement `state=READY`, `target=production`, `SHA=HEAD(main)` sur `easy2book-new`.
+- Marquer résolu dans ce fichier (et ROADMAP.md) uniquement avec cette preuve.
+
 ---
 
 ## RÈGLE OPÉRATIONNELLE ABSOLUE

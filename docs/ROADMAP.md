@@ -38,9 +38,23 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ```text
 ID: (aucun — en attente de proposition du prochain chantier)
-Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01 et PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols) CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont clos ; R7-01/R7-03 (P3/P4, gouvernance) traités aussi. Incident DEPLOY-01 (main → Vercel Production) résolu le 2026-09-29, preuve détaillée dans CLAUDE.md. Prochain chantier à proposer un par un, un GO à la fois.
+Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols) et SEC-RLS-02 CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont clos ; R7-01/R7-03 (P3/P4, gouvernance) traités aussi. Incident DEPLOY-01 (main → Vercel Production) résolu le 2026-09-29, preuve détaillée dans CLAUDE.md. Prochain chantier à proposer un par un, un GO à la fois.
 Branche: (aucune)
 ```
+
+### SEC-RLS-02 — CLÔTURÉ (2026-09-29)
+
+**Corrige une prémisse fausse de R2-04** (ci-dessous) : l'audit Phase 0 affirmait que les 7 tables `flight_*` "n'existent pas du tout en base" en production, donc pas d'urgence sur leur RLS manquante. C'était vrai au moment de l'audit mais plus depuis la PR #59 (mergée, déployée en prod) qui modifie `flight_bookings` par `ALTER TABLE` — preuve que la table existe déjà. Vérification directe en base (`crygnaichvlxavvbifqi`) : **11 tables `flight_*`** existent réellement en production, RLS activée mais **0 policy** sur chacune (deny-all pour tout rôle sans bypass, mais aucune isolation tenant réelle en base). Gap supplémentaire découvert au passage : **`commission_settlement_entries`** (créée par R4-03/PR#56, 2 jours plus tôt) — RLS **pas même activée** (niveau ERROR de l'advisor Supabase, pas seulement policy manquante), table financière exposée sans protection RLS. `supplier_nodes`/`supplier_portal_users` : même défaut que le lot Omra corrigé en 0061 (RLS activée, 0 policy).
+
+Correction : migration `drizzle/manual/0076_flight_commission_supplier_rls.sql`, **appliquée en production**. Pattern réutilisé de 0010/0061 (`agency_id = current_agency_id() OR is_super_admin()` pour les 7 tables à `agency_id` direct ; jointure sur `flight_bookings.agency_id` via `booking_id` pour les 4 tables enfants NOT NULL CASCADE ; `flight_supplier_transactions` avec `booking_id` nullable traité en deny sauf super_admin si orphelin ; `commission_settlement_entries`/`supplier_nodes`/`supplier_portal_users` en `is_super_admin()` uniquement, faute de `agency_id` ou de mécanisme de session pour un scoping plus fin).
+
+Limitation documentée (pas d'invention de plomberie hors périmètre) : `supplier_nodes`/`supplier_portal_users` n'ont aucun mécanisme de session (`current_supplier_node_id()` n'existe pas dans `lib/db/tenant-context.ts`) pour un scoping self-service "un fournisseur ne voit que son propre nœud" — elles restent donc `is_super_admin()`-only ; un scoping plus fin est un futur chantier séparé si le portail fournisseur interroge un jour la base directement.
+
+Preuves : `postgres` (rôle réel de `DATABASE_URL`) a `rolbypassrls=true` — RLS reste inerte pour la connexion serveur actuelle, ce chantier est un renforcement défense-en-profondeur (protège un accès direct anon/authenticated via PostgREST/Supabase client), pas un correctif d'un bug fonctionnel observé. Vérifié post-migration : 15/15 tables avec `rls_enabled=true` + 1 policy chacune ; `get_advisors(security)` ne remonte plus aucun `rls_enabled_no_policy` ni `rls_disabled_in_public` sur ces tables (restent 2 WARN pré-existants hors périmètre : `function_search_path_mutable`, `auth_leaked_password_protection`). Test empirique par simulation de rôle (`SET LOCAL ROLE authenticated` + GUC) : `flight_bookings`/`supplier_nodes` retournent 0 ligne sans contexte agence/super_admin — mais ces tables sont actuellement **vides en production** (0 ligne), donc ce test ne peut pas différencier deny-vs-allow ; validité du pattern reposant sur son identité avec `wallet_ledger`/`journal_lines` (0010), déjà éprouvé en prod. `typecheck`/`lint`/`test`/`build` verts (aucun fichier applicatif touché, migration SQL pure).
+
+### Correction — R2-04 (audit Phase 2, 2026-09-28)
+
+La ligne R2-04 ci-dessous datait de l'audit Phase 0 et est **obsolète depuis SEC-RLS-02** : la RLS manquante sur les tables `flight_*` a été corrigée (voir ci-dessus), et la prémisse "ces 7 tables n'existent pas du tout en base" ne tient plus (elles existent depuis au moins la PR #59). Ligne du tableau Phase 2 à lire comme `DONE (2026-09-29, voir SEC-RLS-02)`.
 
 **Phase 0 exécutée le 2026-09-28** (agents A1-A8, lecture seule). Rapport complet livré en session. Résumé exécutif et détails par phase ci-dessous (colonne "État audit").
 

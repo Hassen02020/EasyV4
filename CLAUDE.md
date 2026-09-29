@@ -5,22 +5,25 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Décision produit permanente — Devis (Quote), 2026-09-29
 
 Ne JAMAIS reproposer "faut-il un modèle Quote/devis ?" comme question ouverte — la réponse est déjà tranchée par l'utilisateur. Détail complet dans docs/ROADMAP.md (Phase 3, R3-03). Résumé :
+
 - Pas de devis pour l'instant, différé volontairement.
 - Quand ce chantier sera repris (sur GO explicite uniquement) : le devis s'applique SEULEMENT à 3 cas — demandes de groupe, transferts, voyage à la carte — flux devis → validation client → facture. Tous les autres modules restent en réservation directe → facture, sans devis.
 
-## Incident ouvert — DEPLOY-01 : `main` → Vercel Production cassé, 2026-09-29
+## Incident résolu — DEPLOY-01 : `main` → Vercel Production cassé, ouvert 2026-09-29, résolu 2026-09-29
 
-**Ne jamais considérer un changement comme "Production DONE" tant que ceci n'est pas résolu.**
+Depuis le commit `72032224`, aucun push vers `main` ne déclenchait de déploiement Vercel sur `easy2book-new` (le projet de production réel — les autres projets Vercel connectés au même repo, `claudegolive`/`easyv4`/`easyv4-golive`, ne sont PAS des cibles de production). Cause exacte non confirmée ; ticket support Vercel préparé et remis à l'utilisateur.
 
-Depuis le commit `72032224`, aucun push vers `main` ne déclenche de déploiement Vercel sur `easy2book-new` (le projet de production réel — les autres projets Vercel connectés au même repo, `claudegolive`/`easyv4`/`easyv4-golive`, ne sont PAS des cibles de production). Diagnostic complet dans la conversation de session (GitHub reçoit bien les push, GitHub Actions tourne normalement, mais 0 déploiement Vercel créé pour `main` — pas même une tentative échouée — alors que les Preview Deployments de branche continuent de fonctionner). Cause exacte non confirmée ; ticket support Vercel préparé et remis à l'utilisateur pour envoi.
+**Preuve de résolution** : merge de la PR #59 sur `main` (commit `d86a3a2d20a8bcf3bf8ce7402f15b993ad615110`) → déploiement Vercel `dpl_C32RD3TofRbiytXd96FoJc5jqbuS` sur `easy2book-new`, `state=READY`, `target=production`, `githubCommitSha=d86a3a2d...` = HEAD(main) au moment du merge, aliasé sur `easy2book-new.vercel.app`. Inspector : https://vercel.com/easy2book/easy2book-new/C32RD3TofRbiytXd96FoJc5jqbuS. C'est exactement le critère de preuve défini ci-dessous lors de l'ouverture de l'incident.
 
-**Règle de fonctionnement pendant que l'incident est ouvert** :
-- Ne PAS bloquer les chantiers Easy2Book à cause de cet incident. Continuer normalement : audit, développement, corrections, tests, commits, PR, documentation.
-- Chaque chantier clos pendant cette période doit être marqué explicitement `TESTED / READY FOR PRODUCTION — NOT YET DEPLOYED` (dans le message de clôture et dans ROADMAP.md) plutôt que "Atteint"/"DONE" simple, tant que ce commit n'a pas effectivement été reçu par Vercel Production sur `easy2book-new`.
-- Utiliser les Preview Deployments (fonctionnels) pour valider visuellement un changement si nécessaire.
-- Aucun déploiement Production manuel sans GO explicite de l'utilisateur pour ce test précis.
-- Ne jamais déclarer cet incident résolu sur la base d'une reconnexion, d'un déploiement manuel réussi, ou d'un preview qui fonctionne — seule preuve valable : un prochain push normal sur `main` qui produit un déploiement `state=READY`, `target=production`, `SHA=HEAD(main)` sur `easy2book-new`.
-- Marquer résolu dans ce fichier (et ROADMAP.md) uniquement avec cette preuve.
+**Conséquence** : les chantiers clos avant cette résolution et étiquetés `TESTED / READY FOR PRODUCTION — NOT YET DEPLOYED` (dont PR #59 elle-même) sont maintenant effectivement en Production sur `easy2book-new` depuis ce déploiement — à confirmer chantier par chantier si besoin, mais le pipeline `main` → Production est de nouveau opérationnel à partir de ce commit.
+
+**Règle qui avait été appliquée pendant l'incident (référence historique)** :
+
+- Chantiers non bloqués par l'incident ; travail normal (audit, dev, tests, commits, PR, doc).
+- Chaque chantier clos pendant cette période marqué `TESTED / READY FOR PRODUCTION — NOT YET DEPLOYED` plutôt que "DONE" tant que non confirmé en Production.
+- Preview Deployments utilisés pour validation visuelle.
+- Aucun déploiement Production manuel sans GO explicite.
+- Résolution actée uniquement sur preuve d'un déploiement `state=READY`, `target=production`, `SHA=HEAD(main)` sur `easy2book-new` — jamais sur une reconnexion ou un déploiement manuel.
 
 ---
 

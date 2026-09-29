@@ -29,6 +29,7 @@ import type { AuthorizedProductRow } from "@/lib/b2b/authorized-products"
 import { getBookableOptionsForProduct, type BookableOption } from "@/lib/b2b/product-booking-options-actions"
 import { createPackageBooking } from "@/lib/packages/booking-actions"
 import { createActivityBooking } from "@/lib/activities/booking-actions"
+import { createNetworkProductBooking } from "@/lib/network/product-booking-actions"
 
 const TYPE_LABEL: Record<AuthorizedProductRow["productType"], string> = {
   package: "Voyage Organisé",
@@ -37,12 +38,11 @@ const TYPE_LABEL: Record<AuthorizedProductRow["productType"], string> = {
   network: "Réseau",
 }
 
-/** DISTRIBUTION-01 : un Network Product peut être AUTORISÉ (visible ici)
- * sans être RÉSERVABLE en B2B — aucune action de réservation publique
- * n'existe pour ce type (ECON-PILOT-01 reste staff-only, jamais de flux
- * client réel). Élargir la visibilité (product_authorizations) sans créer
- * un nouveau moteur de réservation. */
-const BOOKABLE_TYPES: AuthorizedProductRow["productType"][] = ["package", "activity"]
+/** DISTRIBUTION-02 : un Network Product est désormais réservable en B2B
+ * (createNetworkProductBooking, mirror exact du pattern package/activity).
+ * Pas de date/session pour ce type — géré séparément dans
+ * BookingInlineForm (pas d'appel à getBookableOptionsForProduct). */
+const BOOKABLE_TYPES: AuthorizedProductRow["productType"][] = ["package", "activity", "network"]
 
 interface AuthorizedProductsListProps {
   products: AuthorizedProductRow[]
@@ -120,7 +120,9 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  if (options === null && !isPending && !loadError) {
+  const isNetwork = product.productType === "network"
+
+  if (!isNetwork && options === null && !isPending && !loadError) {
     startTransition(async () => {
       const result = await getBookableOptionsForProduct(product.productType as "package" | "activity", product.productId)
       if (!result.ok) {
@@ -144,7 +146,7 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
 
   function handleSubmit() {
     setSubmitError(null)
-    if (!optionId) {
+    if (!isNetwork && !optionId) {
       setSubmitError("Choisissez une date.")
       return
     }
@@ -153,8 +155,16 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
       return
     }
     startTransition(async () => {
-      const result =
-        product.productType === "package"
+      const result = isNetwork
+        ? await createNetworkProductBooking({
+            productId: product.productId,
+            quantity: adults + children,
+            customerFirstName: firstName,
+            customerLastName: lastName,
+            customerPhone: phone,
+            customerEmail: email,
+          })
+        : product.productType === "package"
           ? await createPackageBooking({
               packageId: product.productId,
               departureId: optionId,
@@ -196,11 +206,11 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
     )
   }
 
-  if (loadError) {
+  if (!isNetwork && loadError) {
     return <p className="text-destructive text-sm">{loadError}</p>
   }
 
-  if (options === null) {
+  if (!isNetwork && options === null) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" /> Chargement des disponibilités…
@@ -208,7 +218,7 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
     )
   }
 
-  if (options.length === 0) {
+  if (!isNetwork && options !== null && options.length === 0) {
     return <p className="text-sm text-muted-foreground">Aucune date disponible pour ce produit actuellement.</p>
   }
 
@@ -216,32 +226,36 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
     <div className="space-y-4">
       {submitError ? <p className="text-destructive text-sm">{submitError}</p> : null}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <Label className="text-xs">Date</Label>
-          <Select value={optionId} onValueChange={setOptionId}>
-            <SelectTrigger className="mt-1 h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {options.map((o) => (
-                <SelectItem key={o.id} value={o.id}>
-                  {new Date(o.date).toLocaleDateString("fr-FR")}
-                  {o.kind === "session" ? ` · ${o.start}–${o.end}` : ""} —{" "}
-                  {o.kind === "departure" ? o.seatsLeft : o.capacityLeft} places
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!isNetwork ? (
+          <div>
+            <Label className="text-xs">Date</Label>
+            <Select value={optionId} onValueChange={setOptionId}>
+              <SelectTrigger className="mt-1 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(options ?? []).map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {new Date(o.date).toLocaleDateString("fr-FR")}
+                    {o.kind === "session" ? ` · ${o.start}–${o.end}` : ""} —{" "}
+                    {o.kind === "departure" ? o.seatsLeft : o.capacityLeft} places
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs">Adultes</Label>
+            <Label className="text-xs">{isNetwork ? "Quantité" : "Adultes"}</Label>
             <Input type="number" min={1} value={adults} onChange={(e) => setAdults(Math.max(1, Number(e.target.value) || 1))} className="mt-1 h-9" />
           </div>
-          <div>
-            <Label className="text-xs">Enfants</Label>
-            <Input type="number" min={0} value={children} onChange={(e) => setChildrenCount(Math.max(0, Number(e.target.value) || 0))} className="mt-1 h-9" />
-          </div>
+          {!isNetwork ? (
+            <div>
+              <Label className="text-xs">Enfants</Label>
+              <Input type="number" min={0} value={children} onChange={(e) => setChildrenCount(Math.max(0, Number(e.target.value) || 0))} className="mt-1 h-9" />
+            </div>
+          ) : null}
         </div>
       </div>
       {children > 0 ? (

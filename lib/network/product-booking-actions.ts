@@ -1,0 +1,208 @@
+"use server"
+
+/**
+ * DISTRIBUTION-02 — réservation B2B RÉELLE d'un Network Product autorisé
+ * (product_authorizations, DISTRIBUTION-01). Mirror exact du pattern déjà
+ * prouvé 3x (`createActivityBooking`/`createPackageBooking`/
+ * `createOmraBooking`) : session partenaire réelle via
+ * `resolveSessionContext()`, débit du compte de dépôt via
+ * `debitPartnerCredit` (idempotent, même transaction), verrouillage
+ * implicite par la RLS `products` (DISTRIBUTION-01) qui ne laisse
+ * apparaître que les produits possédés ou autorisés.
+ *
+ * Différence volontaire avec `createActivityBooking`/Omra : la marge est
+ * RÉELLE ici (margin-calculator.ts, comme `createNetworkProductTestBooking`
+ * dans economic-pilot-actions.ts), jamais le raccourci
+ * `supplierPriceTnd = salePriceTnd` — Network Product a un coût fournisseur
+ * distinct dès la création (ECON-PILOT-01), pas de raison de le masquer ici.
+ *
+ * `agencyId` de la réservation = l'agence REVENDEUSE réelle (session), pas
+ * l'agence par défaut du produit — même principe que
+ * `createActivityBooking` : la réservation et le débit appartiennent au
+ * revendeur, pas au propriétaire du catalogue.
+ */
+
+import { eq } from "drizzle-orm"
+import { z } from "zod"
+import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  products,
+  supplierNodes,
+  customers,
+  reservations,
+  reservationNetworkProduct,
+  marginRules,
+} from "@/lib/db/schema"
+import { debitPartnerCredit } from "@/lib/pro/booking-actions"
+import { nextPublicRef } from "@/lib/booking/actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import {
+  findApplicableMarginRule,
+  calculateMargin,
+  type MarginCalculationContext,
+} from "@/lib/finance/margin-calculator"
+
+const bookingInputSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: z.number().int().positive().default(1),
+  customerFirstName: z.string().trim().min(1).max(200),
+  customerLastName: z.string().trim().min(1).max(200),
+  customerPhone: z.string().trim().min(1).max(32),
+  customerEmail: z.string().trim().email().max(320).optional(),
+})
+
+export type CreateNetworkProductBookingResult =
+  | { ok: true; reservationId: string; publicRef: string }
+  | { ok: false; error: string; code?: string }
+
+export async function createNetworkProductBooking(
+  raw: z.infer<typeof bookingInputSchema>,
+): Promise<CreateNetworkProductBookingResult> {
+  const parsed = bookingInputSchema.safeParse(raw)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+    }
+  }
+  const booking = parsed.data
+
+  if (!process.env.DATABASE_URL) {
+    return { ok: false, error: "Base de données non configurée" }
+  }
+
+  const session = await resolveSessionContext()
+  if (!session.ok) return { ok: false, error: "Non authentifié" }
+  if (!session.agencyId) return { ok: false, error: "Profil utilisateur introuvable" }
+  const agencyId = session.agencyId
+  const createdByUserId = session.userId
+
+  try {
+    return await withTenantContext(
+      { agencyId, userId: createdByUserId, isSuperAdmin: session.isSuperAdmin },
+      async (tx) => {
+        // --- 1. Produit (RLS décide si cette agence peut le voir : propriétaire OU autorisée) ---
+        const [product] = await tx
+          .select()
+          .from(products)
+          .where(eq(products.id, booking.productId))
+          .limit(1)
+        if (!product) return { ok: false as const, error: "Produit introuvable ou non autorisé" }
+        if (product.status !== "active") {
+          return { ok: false as const, error: "Ce produit n'est plus actif.", code: "PRODUCT_NOT_ACTIVE" }
+        }
+        if (!product.supplierNodeId || !product.costPrice) {
+          return { ok: false as const, error: "Produit Network incomplet (coût/fournisseur manquant)" }
+        }
+
+        const [node] = await tx
+          .select({ onboardingStatus: supplierNodes.onboardingStatus })
+          .from(supplierNodes)
+          .where(eq(supplierNodes.id, product.supplierNodeId))
+          .limit(1)
+        if (!node || node.onboardingStatus !== "active") {
+          return { ok: false as const, error: "Le nœud fournisseur de ce produit n'est pas actif" }
+        }
+
+        // --- 2. Marge réelle (margin-calculator.ts, même moteur que le pilote staff) ---
+        const costPriceTnd = Number(product.costPrice) * booking.quantity
+        const rulesRows = await tx.select().from(marginRules).where(eq(marginRules.agencyId, agencyId))
+        const marginContext: MarginCalculationContext = {
+          agencyId,
+          productType: product.type,
+          destination: product.destination ?? undefined,
+          supplierPrice: costPriceTnd,
+          supplierCurrency: product.costCurrency ?? "TND",
+        }
+        const rule = findApplicableMarginRule(rulesRows, marginContext)
+        const marginResult = calculateMargin(marginContext, rule)
+        const totalTnd = marginResult.salePriceTnd
+
+        // --- 3. Client ---
+        const [customer] = await tx
+          .insert(customers)
+          .values({
+            agencyId,
+            civility: "M",
+            firstName: booking.customerFirstName,
+            lastName: booking.customerLastName,
+            email: booking.customerEmail || undefined,
+            phone: booking.customerPhone,
+          })
+          .returning({ id: customers.id })
+        if (!customer) throw new Error("createNetworkProductBooking: insert customer a échoué")
+
+        // --- 4. Réservation (pending, confirmée seulement après débit) ---
+        const publicRef = await nextPublicRef(tx, agencyId)
+        const [reservation] = await tx
+          .insert(reservations)
+          .values({
+            agencyId,
+            publicRef,
+            customerId: customer.id,
+            module: "network",
+            source: "internal",
+            status: "pending",
+            originalCurrency: "TND",
+            originalAmount: totalTnd.toFixed(2),
+            tndAmount: totalTnd.toFixed(2),
+            depositAmount: totalTnd.toFixed(2),
+            depositPaid: "0",
+            createdByUserId,
+          })
+          .returning({ id: reservations.id })
+        if (!reservation) throw new Error("createNetworkProductBooking: insert reservation a échoué")
+        const reservationId = reservation.id
+
+        // --- 5. Débit crédit agence (même transaction, pas de tx imbriquée) ---
+        const debitResult = await debitPartnerCredit({
+          agencyId,
+          amountTnd: totalTnd,
+          reference: publicRef,
+          description: `Réservation Network — ${product.name}`,
+          createdByUserId,
+          reservationId,
+          idempotencyKey: `booking-debit:${reservationId}`,
+          txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+        })
+        if (!debitResult.ok) {
+          throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
+        }
+
+        await tx
+          .update(reservations)
+          .set({ status: "confirmed", confirmedAt: new Date(), depositPaid: totalTnd.toFixed(2), updatedAt: new Date() })
+          .where(eq(reservations.id, reservationId))
+
+        // --- 6. Extension Network Product ---
+        await tx.insert(reservationNetworkProduct).values({
+          reservationId,
+          productId: booking.productId,
+          supplierNodeId: product.supplierNodeId,
+          quantity: booking.quantity,
+        })
+
+        // --- 7. Snapshot financier — coût RÉEL, jamais supplierPriceTnd = salePriceTnd ---
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: marginResult.supplierPriceTnd,
+          salePriceTnd: marginResult.salePriceTnd,
+          commissionPercent: marginResult.commissionPercent,
+          marginRuleId: marginResult.marginRuleId,
+        })
+
+        return { ok: true as const, reservationId, publicRef }
+      },
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur interne"
+    if (message === "INSUFFICIENT_BALANCE") {
+      return { ok: false, error: "Solde de dépôt insuffisant pour cette réservation.", code: "INSUFFICIENT_BALANCE" }
+    }
+    if (message === "WALLET_DEBIT_FAILED") {
+      return { ok: false, error: "Échec du débit du compte de dépôt.", code: "WALLET_DEBIT_FAILED" }
+    }
+    return { ok: false, error: message }
+  }
+}

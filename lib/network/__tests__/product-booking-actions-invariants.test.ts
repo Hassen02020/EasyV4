@@ -1,0 +1,55 @@
+/**
+ * DISTRIBUTION-02 — invariants statiques sur
+ * `lib/network/product-booking-actions.ts`.
+ *
+ * Le fichier porte `"use server"` — ne peut pas être chargé par
+ * `node --test` hors bundler Next.js (même contrainte documentée dans
+ * tenant-continuity-invariants.test.ts). Vérification statique sur le code
+ * source réel.
+ */
+import test from "node:test"
+import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+
+const src = readFileSync(join(process.cwd(), "lib/network/product-booking-actions.ts"), "utf8")
+
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1
+}
+
+test("createNetworkProductBooking : résolution de session RÉELLE (resolveSessionContext) — jamais un staff/super_admin substitué à l'agence revendeuse", () => {
+  assert.match(src, /await resolveSessionContext\(\)/)
+  assert.equal(countOccurrences(src, "requireSuperAdmin"), 0)
+})
+
+test("createNetworkProductBooking : utilise margin-calculator.ts réel (findApplicableMarginRule + calculateMargin) — jamais supplierPriceTnd = salePriceTnd", () => {
+  assert.equal(countOccurrences(src, "findApplicableMarginRule("), 1)
+  assert.equal(countOccurrences(src, "calculateMargin("), 1)
+  assert.match(src, /supplierPriceTnd: marginResult\.supplierPriceTnd,/)
+})
+
+test("createNetworkProductBooking : débit du crédit partenaire DANS la même transaction (txOverride), idempotencyKey liée à la réservation", () => {
+  assert.match(src, /txOverride: tx as Parameters<typeof debitPartnerCredit>\[0\]\["txOverride"\]/)
+  assert.match(src, /idempotencyKey: `booking-debit:\$\{reservationId\}`/)
+})
+
+test("createNetworkProductBooking : la réservation passe par 'pending' puis 'confirmed' APRÈS le débit — jamais confirmée avant un débit réussi", () => {
+  const pendingIdx = src.indexOf('status: "pending"')
+  const debitIdx = src.indexOf("await debitPartnerCredit(")
+  const confirmedIdx = src.indexOf('status: "confirmed"')
+  assert.ok(
+    pendingIdx > 0 && pendingIdx < debitIdx && debitIdx < confirmedIdx,
+    "ordre attendu : insert pending -> debit -> update confirmed",
+  )
+})
+
+test("createNetworkProductBooking : vérifie le statut du supplier_node (onboardingStatus === 'active') avant toute réservation — même garde que NETWORK-HARDEN-01", () => {
+  assert.match(src, /node\.onboardingStatus !== "active"/)
+})
+
+test("aucun nouveau moteur de marge/settlement créé — margin_rules et recordReservationFinancials réutilisés tels quels", () => {
+  assert.match(src, /\.from\(marginRules\)/)
+  assert.equal(countOccurrences(src, "await recordReservationFinancials("), 1)
+  assert.equal(countOccurrences(src, "flightCommercialRules"), 0)
+})

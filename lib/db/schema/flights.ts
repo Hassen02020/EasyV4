@@ -61,6 +61,19 @@ export const flightBookingStatus = pgEnum("flight_booking_status", [
   "CANCELLED",
 ])
 
+/**
+ * PROVIDER-CONNECTIVITY-BRIDGE (P2) : canal par lequel CETTE transaction a
+ * été réellement exécutée — pas une configuration/intention (voir
+ * flight_supplier_configs.bookingMode, jamais branché), une preuve
+ * historisée sur la transaction elle-même. NULL tant que ni le chemin API
+ * (fulfillFlightBooking) ni le chemin manuel (confirmManualFlightBooking)
+ * n'a encore réussi — jamais déclaré à l'avance.
+ */
+export const flightFulfillmentMode = pgEnum("flight_fulfillment_mode", [
+  "api_direct",
+  "b2b_offline",
+])
+
 export const flightTicketStatus = pgEnum("flight_ticket_status", [
   "NOT_ISSUED",
   "ISSUING",
@@ -240,6 +253,8 @@ export const flightBookings = pgTable(
     contact: jsonb("contact").notNull(),
     status: flightBookingStatus("status").notNull().default("PENDING"),
     provider: varchar("provider", { length: 32 }),
+    /** PROVIDER-CONNECTIVITY-BRIDGE (P2) — voir flightFulfillmentMode ci-dessus. */
+    fulfillmentMode: flightFulfillmentMode("fulfillment_mode"),
     supplierBookingRef: varchar("supplier_booking_ref", { length: 64 }),
     pnr: varchar("pnr", { length: 16 }),
     lastRecheckStatus: flightRecheckStatus("last_recheck_status"),

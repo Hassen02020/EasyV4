@@ -20,6 +20,7 @@ import { MANUAL_PAYMENT_ALLOWED_ROLES } from "@/lib/finance/manual-payment-logic
 import { REFUND_ALLOWED_ROLES } from "@/lib/finance/refund-logic"
 import { isAdminReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
 import { FulfillFlightButton } from "@/components/admin/fulfill-flight-button"
+import { ConfirmManualFlightButton } from "@/components/admin/confirm-manual-flight-button"
 
 export const dynamic = "force-dynamic"
 
@@ -75,6 +76,15 @@ export default async function AdminReservationDetailPage({
       )
     )
 
+  // PROVIDER-CONNECTIVITY-BRIDGE (P3/P4) : chemin B2B_OFFLINE, structurellement
+  // séparé de canFulfillFlight — ne couvre que l'Arm A (PENDING). L'Arm B
+  // (FAILED + PNR déjà émis côté GDS) est spécifique à la ré-émission API et
+  // n'a pas de sens pour une confirmation manuelle.
+  const canConfirmManually =
+    detail.module === "flight" &&
+    isFlightRoleAllowed &&
+    detail.status === "pending"
+
   const canVerifyPayment =
     detail.status === "pending" &&
     (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)
@@ -94,6 +104,9 @@ export default async function AdminReservationDetailPage({
         <>
           {canFulfillFlight ? (
             <FulfillFlightButton reservationId={detail.id} />
+          ) : null}
+          {canConfirmManually ? (
+            <ConfirmManualFlightButton reservationId={detail.id} />
           ) : null}
           {canVerifyPayment && detail.paymentSummary.remainingTnd > 0 ? (
             <VerifyPaymentButton

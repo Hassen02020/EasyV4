@@ -38,7 +38,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ```text
 ID: (aucun — en attente de proposition du prochain chantier)
-Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08 et R1-03 CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 de l'audit Phase 0 sont désormais clos. Prochain chantier à proposer un par un, un GO à la fois.
+Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01 et R4-03 CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont désormais clos. Prochain chantier à proposer un par un, un GO à la fois.
 Branche: (aucune)
 ```
 
@@ -87,6 +87,16 @@ Audit Phase 3 (B2B User) demandé par l'utilisateur. Gap confirmé puis comblé,
 Audit demandé par l'utilisateur en ouverture de la Phase 2 (Master User). Gap confirmé puis comblé : `createPartnerOwner` (`lib/admin/agencies-actions.ts`, super_admin, intégré à l'étape 2 optionnelle de `/admin/agencies/new`) et `createPartnerAgent` (`lib/auth/partner-agent-actions.ts`, partner_owner via le grant `"staff.create"`, bouton "Inviter un agent" sur `/pro/utilisateurs`) — même motif que `createStaffUser` (invitation Supabase Auth réelle, `users`+`auditEvents` dans la même transaction, rollback du compte Auth orphelin si le profil échoue). `typecheck`/`lint`/`test` (1068/1068)/`build` verts en local et en CI. PR : https://github.com/Hassen02020/EasyV4/pull/54 (mergée).
 
 **Phase 2 (Master User) — bilan** : R2-01/02/03 (`REUSE`), R2-04 (`EXTEND`, gap RLS `flight_*` dormant/non appliqué en prod, sans urgence), R2-05 (fait ci-dessus), R2-06 (`N/A`, pas de migration à faire, système déjà unique). Plus aucun gap P0/P1/P2 ouvert sur cette phase.
+
+### R4-03 — CLÔTURÉ (2026-09-29)
+
+Audit Phase 4 (Wallet) demandé par l'utilisateur après le cadrage définitif du modèle Quote (voir R3-03 ci-dessus). Gap P2 confirmé (identifié dès l'audit Phase 0) : `settleCommissions()` (`lib/finance/commission-settlement.ts`) faisait un `UPDATE wallet_ledger SET settled_at=…, settlement_id=…` — violation littérale de l'invariant append-only (Master Prompt §13.2), même si seules des métadonnées de rapprochement étaient touchées (pas les montants).
+
+Correction : nouvelle table append-only `commission_settlement_entries` (`UNIQUE INDEX` sur `wallet_ledger_id` — empêche tout double-settlement), migration `drizzle/manual/0074_commission_settlement_entries.sql` **appliquée en production** (`crygnaichvlxavvbifqi`, backfill = 0 ligne — aucun settlement historique n'avait encore de commission réglée). `settleCommissions()` fait désormais un `INSERT` dans cette table au lieu d'un `UPDATE` du ledger ; les 2 requêtes "non settlée" (agrégat de période + `getUnsettledCommissionBalance()`) passent de `isNull(walletLedger.settledAt)` à `NOT EXISTS(... commission_settlement_entries ...)`. Colonnes `wallet_ledger.settled_at`/`settlement_id` conservées (jamais supprimées, jamais réécrites — compat historique). Test d'invariant statique (`commission-wiring-invariants.test.ts`) mis à jour : vérifie le nouveau filtre `notExists(commissionSettlementEntries)` et l'absence de tout `.update(walletLedger)` dans le fichier.
+
+Preuves : migration appliquée en prod avec vérification du compte backfill (0=0) ; `typecheck`/`lint`/`build` verts ; `pnpm test` local 1069/1069 ; CI (`typecheck`/`lint`/`test`/`build`) verte après un re-run confirmé flake sur un test non lié (`P18` throughput timing, `lib/vols/__tests__/production-load.test.ts`, hors périmètre du diff). `format` en échec attendu/documenté (744 fichiers pré-existants, non bloquant depuis R1-07). PR : https://github.com/Hassen02020/EasyV4/pull/56 (mergée).
+
+**Phase 4 (Wallet) — bilan** : R4-01 (`REUSE`, étape expand atteinte, bascule lecture différée/observation), R4-02 (`REUSE`), R4-03 (fait ci-dessus), R4-04 (`REUSE`), R4-05 (`REUSE`, confirmé le 2026-09-29). Plus aucun gap P0/P1/P2 ouvert sur cette phase. R6-05 (Phase 6, doublonnait ce même gap) clos par la même PR.
 
 ---
 
@@ -193,7 +203,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 |---|---|---|---|
 | R4-01 | Schéma wallet/ledger, montants entiers, idempotence | **REUSE (largement)** — VERIFIED : `wallet_ledger`/`partner_credit_movements` avec `idempotencyKey` + index unique partiel (SAVEPOINT/ROLLBACK pour les courses concurrentes) ; colonnes `*_millimes` (bigint) ajoutées en double-écriture (étape "expand" du chantier-49C), colonnes `decimal` restent seules sources de vérité pour l'instant. Aucun `float`/`double` dans tout le schéma (grep négatif, 100 usages `decimal`). | Étape "expand" atteinte ; bascule lecture différée (observation en cours) |
 | R4-02 | Solde dérivé du ledger, jamais modifié isolément | **REUSE** — VERIFIED : `agencies.deposit_balance` modifiable UNIQUEMENT via `set_agency_deposit_balance()` (SECURITY DEFINER), RLS ne permet pas d'UPDATE direct pour une session tenant normale ; les 7 sites d'appel sont tous accompagnés d'un insert `partnerCreditMovements` dans la même transaction. | Atteint |
-| R4-03 | Interdiction UPDATE/DELETE sur ledger | **FIX (gap P2)** — VERIFIED : `lib/finance/commission-settlement.ts:80-92` fait un `UPDATE wallet_ledger SET settled_at=…, settlement_id=…` en code applicatif — viole l'append-only au sens strict (montants non touchés, seulement métadonnées de rapprochement). Aucune autre violation trouvée (les `.delete()` trouvés sont dans des fixtures de test). | À corriger : remplacer par une table de rapprochement séparée ou un événement supplémentaire, jamais un UPDATE du ledger |
+| R4-03 | Interdiction UPDATE/DELETE sur ledger | **DONE (2026-09-29, PR #56)** — VERIFIED : nouvelle table append-only `commission_settlement_entries` (migration 0074, appliquée en prod, backfill=0). `settleCommissions()` fait désormais un `INSERT` dans cette table au lieu d'un `UPDATE wallet_ledger`. Les 2 filtres "non settlée" passent de `isNull(walletLedger.settledAt)` à `NOT EXISTS(... commission_settlement_entries ...)`. Colonnes `settled_at`/`settlement_id` sur `wallet_ledger` conservées (compat historique, jamais réécrites). Test d'invariant statique mis à jour (assert absence de `.update(walletLedger)`). | Atteint |
 | R4-04 | Service wallet serveur idempotent/transactionnel | **REUSE** — VERIFIED pattern à 3 couches (cache Redis best-effort + backstop DB par relecture + SAVEPOINT/ROLLBACK sur contrainte unique concurrente) sur `debitPartnerCredit`/`debitCustomerWallet`/`creditCustomerWallet`. Risque P3 documenté dans le code lui-même : dégradation silencieuse si Redis/Upstash absent (le backstop DB reste sûr). | Atteint |
 | R4-05 | Écran wallet agence | **REUSE (confirmé, 2026-09-29)** — VERIFIED `/pro/releve-compte` (`loadPartnerLedger`, solde réel + historique réel). Export CSV absent (P6 mineur, pas de chantier dédié). | Atteint (export en option, non prioritaire) |
 
@@ -219,7 +229,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R6-02 | Décomposition prix stockée par booking | **N/A (fait, 2026-09-28)** — `recordReservationFinancials` câblé sur omra/packages/activités (6 points, `supplierPriceTnd=salePriceTnd`, marge=0 assumée par design). "cars" hors périmètre (décision produit à clarifier). PR #52 mergée. | Atteint (cars excepté) |
 | R6-03 | Séquence autoriser→réserver→capturer, échec→libérer/rembourser | **REUSE (partiel)** — VERIFIED pattern présent sur hôtels/B2B (verrou FOR UPDATE, rollback total si échec fournisseur) ; pas vérifié en détail sur tous les modules. | À confirmer par module |
 | R6-04 | Annulation/remboursement | **REUSE** — VERIFIED `cancel-actions.ts`/`refund-logic.ts` avec écriture ledger tracée (millimes inclus). | Atteint |
-| R6-05 | Settlement / rapprochement | **REUSE (avec gap P2)** — `commission-settlement.ts` existe et fonctionne, mais viole l'append-only du ledger (voir R4-03). | Corriger le pattern d'écriture (R4-03) |
+| R6-05 | Settlement / rapprochement | **DONE (2026-09-29)** — `commission-settlement.ts` existe et fonctionne, append-only depuis R4-03 (PR #56). | Atteint |
 | R6-06 | Vouchers depuis le booking réel | **REUSE** — VERIFIED `app/api/admin/reservations/[id]/voucher`, `app/api/pro/reservations/[id]/voucher` génèrent depuis les données réelles, protégés RBAC. | Atteint |
 
 ---

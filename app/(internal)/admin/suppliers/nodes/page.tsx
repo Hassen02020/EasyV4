@@ -28,9 +28,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import Link from "next/link"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { listSupplierNodes } from "@/lib/suppliers/portal-actions"
+import { listSuppliers } from "@/lib/suppliers/list-suppliers"
+import { CreateSupplierNodeDialog } from "@/components/admin/create-supplier-node-dialog"
 import type { SupplierOnboardingStatus } from "@/lib/db/schema"
 
 export const metadata: Metadata = {
@@ -66,7 +69,9 @@ export default async function SupplierNodesPage() {
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile || profile.role !== "super_admin") redirect("/admin")
 
-  const nodes = await listSupplierNodes()
+  const [nodes, suppliers] = await Promise.all([listSupplierNodes(), listSuppliers()])
+  const nodeSupplierIds = new Set(nodes.map((n) => n.supplierId))
+  const availableSuppliers = suppliers.filter((s) => !nodeSupplierIds.has(s.id))
 
   const countByStatus = Object.fromEntries(
     STATUS_ORDER.map((s) => [s, nodes.filter((n) => n.onboardingStatus === s).length]),
@@ -86,6 +91,10 @@ export default async function SupplierNodesPage() {
         <p className="text-muted-foreground">
           Portail self-service L0/L1 — onboarding, modules couverts, accès portail.
         </p>
+      </div>
+
+      <div className="flex justify-end">
+        <CreateSupplierNodeDialog availableSuppliers={availableSuppliers} />
       </div>
 
       {/* Stat tiles */}
@@ -148,10 +157,13 @@ export default async function SupplierNodesPage() {
                     return (
                       <TableRow key={node.id}>
                         <TableCell>
-                          <div>
+                          <Link
+                            href={`/admin/suppliers/nodes/${node.id}`}
+                            className="hover:underline"
+                          >
                             <p className="font-medium">{node.displayName}</p>
                             <p className="text-xs text-muted-foreground font-mono">{node.slug}</p>
-                          </div>
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <div className="text-xs">

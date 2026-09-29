@@ -34,7 +34,15 @@ const TYPE_LABEL: Record<AuthorizedProductRow["productType"], string> = {
   package: "Voyage Organisé",
   omra: "Omra",
   activity: "Attraction",
+  network: "Réseau",
 }
+
+/** DISTRIBUTION-01 : un Network Product peut être AUTORISÉ (visible ici)
+ * sans être RÉSERVABLE en B2B — aucune action de réservation publique
+ * n'existe pour ce type (ECON-PILOT-01 reste staff-only, jamais de flux
+ * client réel). Élargir la visibilité (product_authorizations) sans créer
+ * un nouveau moteur de réservation. */
+const BOOKABLE_TYPES: AuthorizedProductRow["productType"][] = ["package", "activity"]
 
 interface AuthorizedProductsListProps {
   products: AuthorizedProductRow[]
@@ -62,7 +70,7 @@ export function AuthorizedProductsList({ products }: AuthorizedProductsListProps
                 <Button variant="outline" size="sm" asChild>
                   <a href={`/pro/produits/omra/${p.productId}`}>Voir le programme</a>
                 </Button>
-              ) : (
+              ) : BOOKABLE_TYPES.includes(p.productType) ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -78,9 +86,13 @@ export function AuthorizedProductsList({ products }: AuthorizedProductsListProps
                     </>
                   )}
                 </Button>
+              ) : (
+                <Badge variant="secondary" className="text-xs">
+                  Réservation B2B non disponible
+                </Badge>
               )}
             </div>
-            {expandedId === p.authorizationId && p.productType !== "omra" ? (
+            {expandedId === p.authorizationId && BOOKABLE_TYPES.includes(p.productType) ? (
               <div className="mt-4 border-t pt-4">
                 <BookingInlineForm product={p} />
               </div>

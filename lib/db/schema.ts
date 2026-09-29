@@ -1237,6 +1237,10 @@ export const authorizedProductType = pgEnum("authorized_product_type", [
   "package",
   "omra",
   "activity",
+  /** DISTRIBUTION-01 : produit canonique `products` (Network, ECON-PILOT-01) —
+   * même mécanisme d'autorisation B2B/White Label que les 3 valeurs
+   * historiques, pas un nouveau moteur de distribution. */
+  "network",
 ])
 
 /**

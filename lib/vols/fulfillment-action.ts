@@ -137,7 +137,11 @@ async function dispatchFlightConfirmed(
           setTimeout(resolve, INNGEST_RETRY_BASE_MS * 2 ** (attempt - 2)),
         )
       }
-      await inngest.send({ id: eventId, name: "booking/flight.confirmed", data: payload })
+      await inngest.send({
+        id: eventId,
+        name: "booking/flight.confirmed",
+        data: payload,
+      })
       return
     } catch (err) {
       if (attempt < INNGEST_MAX_ATTEMPTS) continue
@@ -163,8 +167,11 @@ export async function fulfillFlightBooking(
 ): Promise<FulfillResult> {
   // ── 0. Auth ─────────────────────────────────────────────────────────────────
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: "Non authentifié.", code: "UNAUTHORIZED" }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user)
+    return { ok: false, error: "Non authentifié.", code: "UNAUTHORIZED" }
 
   const profile = await getCurrentAdminProfile(user.id)
   if (
@@ -254,13 +261,18 @@ export async function fulfillFlightBooking(
         .limit(1),
     )
     if (!existingRows.length) {
-      return { ok: false, error: "Réservation de vol introuvable.", code: "NOT_FOUND" }
+      return {
+        ok: false,
+        error: "Réservation de vol introuvable.",
+        code: "NOT_FOUND",
+      }
     }
-    const existing = (existingRows[0] as { status: string; pnr: string | null })
+    const existing = existingRows[0] as { status: string; pnr: string | null }
     // FAILED without a PNR: no GDS booking exists, nothing to re-issue.
-    const hint = existing.status === "FAILED" && !existing.pnr
-      ? " (aucun PNR — le dossier doit être réinitialisé manuellement)"
-      : ""
+    const hint =
+      existing.status === "FAILED" && !existing.pnr
+        ? " (aucun PNR — le dossier doit être réinitialisé manuellement)"
+        : ""
     return {
       ok: false,
       error: `Ce dossier est déjà en statut ${existing.status}.${hint}`,
@@ -281,9 +293,13 @@ export async function fulfillFlightBooking(
       .where(eq(flightPriceSnapshots.id, snapshotId!))
       .limit(1),
   )
-  const snapshot = (snapRows as typeof flightPriceSnapshots.$inferSelect[])[0]
+  const snapshot = (snapRows as (typeof flightPriceSnapshots.$inferSelect)[])[0]
   if (!snapshot) {
-    return { ok: false, error: "Snapshot de prix introuvable.", code: "SNAPSHOT_MISSING" }
+    return {
+      ok: false,
+      error: "Snapshot de prix introuvable.",
+      code: "SNAPSHOT_MISSING",
+    }
   }
 
   const itinerary = snapshot.itinerary as unknown as CanonicalItinerary
@@ -296,10 +312,15 @@ export async function fulfillFlightBooking(
       .where(eq(flightBookingPassengers.bookingId, bookingId))
       .orderBy(flightBookingPassengers.sequence),
   )
-  const passengers = passengersRows as typeof flightBookingPassengers.$inferSelect[]
+  const passengers =
+    passengersRows as (typeof flightBookingPassengers.$inferSelect)[]
 
   // ── 4. Load contact (stored in flight_bookings.contact JSONB) ───────────────
-  const contact = claimed.contact as { email?: string; firstName?: string; lastName?: string }
+  const contact = claimed.contact as {
+    email?: string
+    firstName?: string
+    lastName?: string
+  }
 
   // ── 5. Get the right GDS adapter ────────────────────────────────────────────
   const adapters = getDefaultAdapters()
@@ -329,9 +350,22 @@ export async function fulfillFlightBooking(
       recheckMs = Date.now() - recheckMs
     } catch (err) {
       recheckMs = Date.now() - recheckMs
-      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "RECHECK", "FAILURE", {}, { error: String(err) }, recheckMs)
+      await logTransaction(
+        bookingId,
+        snapshotId ?? null,
+        snapshot.provider,
+        "RECHECK",
+        "FAILURE",
+        {},
+        { error: String(err) },
+        recheckMs,
+      )
       await updateFlightStatus(bookingId, "FAILED")
-      return { ok: false, error: "Erreur lors de la revalidation fournisseur.", code: "RECHECK_ERROR" }
+      return {
+        ok: false,
+        error: "Erreur lors de la revalidation fournisseur.",
+        code: "RECHECK_ERROR",
+      }
     }
 
     await logTransaction(
@@ -340,7 +374,10 @@ export async function fulfillFlightBooking(
       snapshot.provider,
       "RECHECK",
       recheckResult.status === "AVAILABLE" ? "SUCCESS" : "FAILURE",
-      { provider: snapshot.provider, providerOfferId: snapshot.providerOfferId },
+      {
+        provider: snapshot.provider,
+        providerOfferId: snapshot.providerOfferId,
+      },
       recheckResult,
       recheckMs,
     )
@@ -350,7 +387,12 @@ export async function fulfillFlightBooking(
       tx
         .update(flightBookings)
         .set({
-          lastRecheckStatus: recheckResult.status as "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR",
+          lastRecheckStatus: recheckResult.status as
+            | "AVAILABLE"
+            | "PRICE_CHANGED"
+            | "UNAVAILABLE"
+            | "EXPIRED"
+            | "ERROR",
           lastRecheckAt: new Date(),
           updatedAt: new Date(),
         })
@@ -382,9 +424,22 @@ export async function fulfillFlightBooking(
       bookMs = Date.now() - bookMs
     } catch (err) {
       bookMs = Date.now() - bookMs
-      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "BOOK", "FAILURE", {}, { error: String(err) }, bookMs)
+      await logTransaction(
+        bookingId,
+        snapshotId ?? null,
+        snapshot.provider,
+        "BOOK",
+        "FAILURE",
+        {},
+        { error: String(err) },
+        bookMs,
+      )
       await updateFlightStatus(bookingId, "FAILED")
-      return { ok: false, error: "La réservation fournisseur a échoué.", code: "BOOK_FAILED" }
+      return {
+        ok: false,
+        error: "La réservation fournisseur a échoué.",
+        code: "BOOK_FAILED",
+      }
     }
 
     await logTransaction(
@@ -393,8 +448,14 @@ export async function fulfillFlightBooking(
       snapshot.provider,
       "BOOK",
       "SUCCESS",
-      { provider: snapshot.provider, providerOfferId: snapshot.providerOfferId },
-      { pnr: bookResult.pnr, supplierBookingReference: bookResult.supplierBookingReference },
+      {
+        provider: snapshot.provider,
+        providerOfferId: snapshot.providerOfferId,
+      },
+      {
+        pnr: bookResult.pnr,
+        supplierBookingReference: bookResult.supplierBookingReference,
+      },
       bookMs,
     )
 
@@ -423,16 +484,43 @@ export async function fulfillFlightBooking(
     issueMs = Date.now() - issueMs
   } catch (err) {
     issueMs = Date.now() - issueMs
-    await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "ISSUE", "FAILURE", {}, { error: String(err) }, issueMs)
+    await logTransaction(
+      bookingId,
+      snapshotId ?? null,
+      snapshot.provider,
+      "ISSUE",
+      "FAILURE",
+      {},
+      { error: String(err) },
+      issueMs,
+    )
 
     // PNR is live at GDS — attempt auto-cancel to avoid an orphaned booking.
     let pnrOrphaned = false
     const cancelMs0 = Date.now()
     try {
       await adapter.cancel(activePnr, itinerary)
-      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "SUCCESS", { pnr: activePnr }, {}, Date.now() - cancelMs0)
+      await logTransaction(
+        bookingId,
+        snapshotId ?? null,
+        snapshot.provider,
+        "CANCEL",
+        "SUCCESS",
+        { pnr: activePnr },
+        {},
+        Date.now() - cancelMs0,
+      )
     } catch (cancelErr) {
-      await logTransaction(bookingId, snapshotId ?? null, snapshot.provider, "CANCEL", "FAILURE", { pnr: activePnr }, { error: String(cancelErr) }, Date.now() - cancelMs0)
+      await logTransaction(
+        bookingId,
+        snapshotId ?? null,
+        snapshot.provider,
+        "CANCEL",
+        "FAILURE",
+        { pnr: activePnr },
+        { error: String(cancelErr) },
+        Date.now() - cancelMs0,
+      )
       pnrOrphaned = true
     }
 
@@ -525,7 +613,13 @@ export async function fulfillFlightBooking(
       .where(eq(reservations.id, reservationId))
       .limit(1),
   )
-  const res = (resRows as Array<{ publicRef: string; originalAmount: string; customerId: string | null }>)[0]
+  const res = (
+    resRows as Array<{
+      publicRef: string
+      originalAmount: string
+      customerId: string | null
+    }>
+  )[0]
   if (!res) {
     // Non-fatal — reservation already updated; Inngest event is best-effort.
     return { ok: true, pnr: activePnr, publicRef: "", bookingId }
@@ -533,17 +627,24 @@ export async function fulfillFlightBooking(
 
   // Load customer email
   let customerEmail = contact.email ?? ""
-  let customerName = `${contact.firstName ?? ""} ${contact.lastName ?? ""}`.trim()
+  let customerName =
+    `${contact.firstName ?? ""} ${contact.lastName ?? ""}`.trim()
 
   if (res.customerId && !customerEmail) {
     const custRows = await withSystemContext((tx) =>
       tx
-        .select({ email: customers.email, firstName: customers.firstName, lastName: customers.lastName })
+        .select({
+          email: customers.email,
+          firstName: customers.firstName,
+          lastName: customers.lastName,
+        })
         .from(customers)
         .where(eq(customers.id, res.customerId!))
         .limit(1),
     )
-    const cust = (custRows as Array<{ email: string; firstName: string; lastName: string }>)[0]
+    const cust = (
+      custRows as Array<{ email: string; firstName: string; lastName: string }>
+    )[0]
     if (cust) {
       customerEmail = cust.email
       customerName = `${cust.firstName} ${cust.lastName}`
@@ -553,8 +654,10 @@ export async function fulfillFlightBooking(
   // Derive first segment for the event payload
   const firstJourney = itinerary.journeys?.[0]
   const firstSeg = firstJourney?.segments[0]
-  const adults = itinerary.fares?.find((f) => f.passengerType === "ADT")?.count ?? 1
-  const children = itinerary.fares?.find((f) => f.passengerType === "CHD")?.count ?? 0
+  const adults =
+    itinerary.fares?.find((f) => f.passengerType === "ADT")?.count ?? 1
+  const children =
+    itinerary.fares?.find((f) => f.passengerType === "CHD")?.count ?? 0
 
   await dispatchFlightConfirmed(bookingId, customerEmail, {
     reservationId,

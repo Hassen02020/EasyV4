@@ -86,3 +86,34 @@ test("aucune nouvelle table/moteur de marge créé — margin_rules importée et
   assert.match(src, /\.from\(marginRules\)/)
   assert.equal(countOccurrences(src, "flightCommercialRules"), 0)
 })
+
+test("NETWORK-HARDEN-01 : createNetworkProduct refuse un nœud non 'active' AVANT l'insert produit", () => {
+  const fnIdx = src.indexOf("export async function createNetworkProduct")
+  const checkIdx = src.indexOf('node.onboardingStatus !== "active"', fnIdx)
+  const insertIdx = src.indexOf(".insert(products)", fnIdx)
+  assert.ok(
+    fnIdx > 0 && checkIdx > fnIdx && checkIdx < insertIdx,
+    "le check de statut doit précéder l'insert produit",
+  )
+})
+
+test("NETWORK-HARDEN-01 : createNetworkProductTestBooking refuse un nœud non 'active' AVANT la transaction de réservation", () => {
+  const fnIdx = src.indexOf(
+    "export async function createNetworkProductTestBooking",
+  )
+  const checkIdx = src.indexOf('node.onboardingStatus !== "active"', fnIdx)
+  const txIdx = src.indexOf("await withTenantContext(", fnIdx)
+  assert.ok(
+    fnIdx > 0 && checkIdx > fnIdx && checkIdx < txIdx,
+    "le check de statut doit précéder la transaction",
+  )
+})
+
+test("NETWORK-HARDEN-01 : createNetworkProduct intercepte la collision SKU (23505) et renvoie {ok:false} propre plutôt qu'une erreur DB brute", () => {
+  const fnIdx = src.indexOf("export async function createNetworkProduct")
+  const fnBody = src.slice(
+    fnIdx,
+    src.indexOf("\nexport async function", fnIdx + 1),
+  )
+  assert.match(fnBody, /pgErrorCode\(err\) === "23505"/)
+})

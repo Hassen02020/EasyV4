@@ -45,6 +45,7 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { pgErrorCode } from "@/lib/db/pg-error"
 import {
   findApplicableMarginRule,
   calculateMargin,
@@ -121,41 +122,57 @@ export async function createNetworkProduct(
 
   const [node] = await withSystemContext((db) =>
     db
-      .select({ id: supplierNodes.id })
+      .select({ id: supplierNodes.id, onboardingStatus: supplierNodes.onboardingStatus })
       .from(supplierNodes)
       .where(eq(supplierNodes.id, input.supplierNodeId))
       .limit(1),
   )
   if (!node) return { ok: false, error: "Nœud fournisseur introuvable." }
+  if (node.onboardingStatus !== "active") {
+    return {
+      ok: false,
+      error: `Ce nœud n'est pas actif (statut actuel : ${node.onboardingStatus}) — activez-le avant de créer un produit.`,
+    }
+  }
 
   const sku = `NET-${input.supplierNodeId.slice(0, 8)}-${Date.now().toString(36)}`
 
-  const [product] = await withSystemContext((db) =>
-    db
-      .insert(products)
-      .values({
-        agencyId: defaultAgencyId,
-        supplierNodeId: input.supplierNodeId,
-        sku,
-        type: input.type,
-        status: "active",
-        name: input.name,
-        destination: input.destination,
-        costPrice: input.costPrice.toFixed(3),
-        costCurrency: input.costCurrency,
-        // basePrice reste requis par le schéma existant (NOT NULL) — non
-        // pertinent pour un produit Network (le prix de vente n'est jamais
-        // stocké, il est dérivé à la réservation), on y recopie le coût par
-        // défaut pour ne jamais laisser un 0 trompeur.
-        basePrice: input.costPrice.toFixed(3),
-        currency: input.costCurrency,
-      })
-      .returning({ id: products.id }),
-  )
-  if (!product) return { ok: false, error: "Échec de la création du produit." }
+  try {
+    const [product] = await withSystemContext((db) =>
+      db
+        .insert(products)
+        .values({
+          agencyId: defaultAgencyId,
+          supplierNodeId: input.supplierNodeId,
+          sku,
+          type: input.type,
+          status: "active",
+          name: input.name,
+          destination: input.destination,
+          costPrice: input.costPrice.toFixed(3),
+          costCurrency: input.costCurrency,
+          // basePrice reste requis par le schéma existant (NOT NULL) — non
+          // pertinent pour un produit Network (le prix de vente n'est jamais
+          // stocké, il est dérivé à la réservation), on y recopie le coût par
+          // défaut pour ne jamais laisser un 0 trompeur.
+          basePrice: input.costPrice.toFixed(3),
+          currency: input.costCurrency,
+        })
+        .returning({ id: products.id }),
+    )
+    if (!product) return { ok: false, error: "Échec de la création du produit." }
 
-  revalidatePath("/admin/suppliers/nodes")
-  return { ok: true, productId: product.id }
+    revalidatePath("/admin/suppliers/nodes")
+    return { ok: true, productId: product.id }
+  } catch (err) {
+    if (pgErrorCode(err) === "23505") {
+      return {
+        ok: false,
+        error: "Conflit de SKU — veuillez réessayer (collision improbable, un nouvel essai suffit).",
+      }
+    }
+    throw err
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -226,6 +243,20 @@ export async function createNetworkProductTestBooking(
     return {
       ok: false,
       error: "Ce produit n'a pas de coût fournisseur renseigné.",
+    }
+  }
+
+  const [node] = await withSystemContext((db) =>
+    db
+      .select({ onboardingStatus: supplierNodes.onboardingStatus })
+      .from(supplierNodes)
+      .where(eq(supplierNodes.id, product.supplierNodeId!))
+      .limit(1),
+  )
+  if (!node || node.onboardingStatus !== "active") {
+    return {
+      ok: false,
+      error: `Le nœud fournisseur de ce produit n'est pas actif (statut : ${node?.onboardingStatus ?? "introuvable"}) — réservation refusée.`,
     }
   }
 

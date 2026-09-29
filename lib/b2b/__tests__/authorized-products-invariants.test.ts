@@ -27,11 +27,11 @@ test("listAuthorizedProductsForAgency : traite le type 'network' comme les 3 typ
   assert.match(authorizedProductsSrc, /\.from\(products\)/)
 })
 
-test("BOOKABLE_TYPES exclut 'network' — aucun bouton Réserver tant qu'aucune action de réservation B2B réelle n'existe pour les Network Products", () => {
+test("DISTRIBUTION-02 : BOOKABLE_TYPES inclut 'network' — createNetworkProductBooking existe désormais et est bien câblé dans handleSubmit", () => {
   const constIdx = listComponentSrc.indexOf("const BOOKABLE_TYPES")
   const arrayLine = listComponentSrc.slice(constIdx, listComponentSrc.indexOf("\n", constIdx))
-  assert.match(arrayLine, /\["package", "activity"\]/)
-  assert.doesNotMatch(arrayLine, /"network"/)
+  assert.match(arrayLine, /\["package", "activity", "network"\]/)
+  assert.match(listComponentSrc, /await createNetworkProductBooking\(/)
 })
 
 test("TYPE_LABEL couvre 'network' (satisfait Record<AuthorizedProductRow['productType'], string> sans `as any`)", () => {

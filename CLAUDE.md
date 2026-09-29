@@ -2,6 +2,12 @@ Lis docs/MASTER_PROMPT.md et docs/ROADMAP.md avant toute action.
 Mode par défaut : lecture seule. Aucune écriture sans GO explicite.
 Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Chantier actif").
 
+## Décision produit permanente — Devis (Quote), 2026-09-29
+
+Ne JAMAIS reproposer "faut-il un modèle Quote/devis ?" comme question ouverte — la réponse est déjà tranchée par l'utilisateur. Détail complet dans docs/ROADMAP.md (Phase 3, R3-03). Résumé :
+- Pas de devis pour l'instant, différé volontairement.
+- Quand ce chantier sera repris (sur GO explicite uniquement) : le devis s'applique SEULEMENT à 3 cas — demandes de groupe, transferts, voyage à la carte — flux devis → validation client → facture. Tous les autres modules restent en réservation directe → facture, sans devis.
+
 ---
 
 ## RÈGLE OPÉRATIONNELLE ABSOLUE

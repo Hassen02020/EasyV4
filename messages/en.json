@@ -744,7 +744,8 @@
     "processing": "Processing…",
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
     "mustAcceptPolicy": "You must accept the cancellation policy.",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "nearbyActivitiesTitle": "Nearby activities"
   },
   "Vols": {
     "kicker": "Flights Module",

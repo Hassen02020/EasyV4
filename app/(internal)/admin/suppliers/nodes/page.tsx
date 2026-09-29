@@ -28,14 +28,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import Link from "next/link"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { listSupplierNodes } from "@/lib/suppliers/portal-actions"
+import { listSuppliers } from "@/lib/suppliers/list-suppliers"
+import { CreateSupplierNodeDialog } from "@/components/admin/create-supplier-node-dialog"
 import type { SupplierOnboardingStatus } from "@/lib/db/schema"
 
 export const metadata: Metadata = {
   title: "Nœuds Fournisseurs — Portail Easy2Book",
-  description: "Gestion des nœuds fournisseurs et du portail self-service L0/L1",
+  description:
+    "Gestion des nœuds fournisseurs et du portail self-service L0/L1",
 }
 
 export const dynamic = "force-dynamic"
@@ -44,16 +48,45 @@ const STATUS_CONFIG: Record<
   SupplierOnboardingStatus,
   { label: string; className: string; icon: typeof CheckCircle2 }
 > = {
-  invited:        { label: "Invité",             className: "bg-sky-100 text-sky-700",      icon: Mail },
-  onboarding:     { label: "En cours",           className: "bg-blue-100 text-blue-700",    icon: Clock },
-  pending_review: { label: "En attente review",  className: "bg-amber-100 text-amber-700",  icon: AlertCircle },
-  active:         { label: "Actif",              className: "bg-emerald-100 text-emerald-800", icon: CheckCircle2 },
-  suspended:      { label: "Suspendu",           className: "bg-red-100 text-red-800",      icon: XCircle },
-  offboarded:     { label: "Hors réseau",        className: "bg-slate-100 text-slate-600",  icon: LogOut },
+  invited: {
+    label: "Invité",
+    className: "bg-sky-100 text-sky-700",
+    icon: Mail,
+  },
+  onboarding: {
+    label: "En cours",
+    className: "bg-blue-100 text-blue-700",
+    icon: Clock,
+  },
+  pending_review: {
+    label: "En attente review",
+    className: "bg-amber-100 text-amber-700",
+    icon: AlertCircle,
+  },
+  active: {
+    label: "Actif",
+    className: "bg-emerald-100 text-emerald-800",
+    icon: CheckCircle2,
+  },
+  suspended: {
+    label: "Suspendu",
+    className: "bg-red-100 text-red-800",
+    icon: XCircle,
+  },
+  offboarded: {
+    label: "Hors réseau",
+    className: "bg-slate-100 text-slate-600",
+    icon: LogOut,
+  },
 }
 
 const STATUS_ORDER: SupplierOnboardingStatus[] = [
-  "invited", "onboarding", "pending_review", "active", "suspended", "offboarded",
+  "invited",
+  "onboarding",
+  "pending_review",
+  "active",
+  "suspended",
+  "offboarded",
 ]
 
 export default async function SupplierNodesPage() {
@@ -66,14 +99,25 @@ export default async function SupplierNodesPage() {
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile || profile.role !== "super_admin") redirect("/admin")
 
-  const nodes = await listSupplierNodes()
+  const [nodes, suppliers] = await Promise.all([
+    listSupplierNodes(),
+    listSuppliers(),
+  ])
+  const nodeSupplierIds = new Set(nodes.map((n) => n.supplierId))
+  const availableSuppliers = suppliers.filter((s) => !nodeSupplierIds.has(s.id))
 
   const countByStatus = Object.fromEntries(
-    STATUS_ORDER.map((s) => [s, nodes.filter((n) => n.onboardingStatus === s).length]),
+    STATUS_ORDER.map((s) => [
+      s,
+      nodes.filter((n) => n.onboardingStatus === s).length,
+    ]),
   ) as Record<SupplierOnboardingStatus, number>
 
-  const activeCount  = countByStatus.active
-  const pendingCount = countByStatus.pending_review + countByStatus.onboarding + countByStatus.invited
+  const activeCount = countByStatus.active
+  const pendingCount =
+    countByStatus.pending_review +
+    countByStatus.onboarding +
+    countByStatus.invited
 
   return (
     <div className="space-y-6">
@@ -81,11 +125,18 @@ export default async function SupplierNodesPage() {
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <Store className="text-primary h-6 w-6" />
-          <h1 className="text-foreground text-3xl font-bold tracking-tight">Nœuds Fournisseurs</h1>
+          <h1 className="text-foreground text-3xl font-bold tracking-tight">
+            Nœuds Fournisseurs
+          </h1>
         </div>
         <p className="text-muted-foreground">
-          Portail self-service L0/L1 — onboarding, modules couverts, accès portail.
+          Portail self-service L0/L1 — onboarding, modules couverts, accès
+          portail.
         </p>
+      </div>
+
+      <div className="flex justify-end">
+        <CreateSupplierNodeDialog availableSuppliers={availableSuppliers} />
       </div>
 
       {/* Stat tiles */}
@@ -96,10 +147,10 @@ export default async function SupplierNodesPage() {
           return (
             <Card key={status} className="relative overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between pb-1">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
                   {cfg.label}
                 </CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground/50" />
+                <Icon className="text-muted-foreground/50 h-4 w-4" />
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{countByStatus[status]}</p>
@@ -111,11 +162,12 @@ export default async function SupplierNodesPage() {
 
       {/* Table */}
       <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base">
             Nœuds enregistrés
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              {nodes.length} total · {activeCount} actifs · {pendingCount} en attente
+            <span className="text-muted-foreground ml-2 text-sm font-normal">
+              {nodes.length} total · {activeCount} actifs · {pendingCount} en
+              attente
             </span>
           </CardTitle>
         </CardHeader>
@@ -135,9 +187,13 @@ export default async function SupplierNodesPage() {
               <TableBody>
                 {nodes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                      Aucun nœud fournisseur enregistré. Les nœuds sont créés via l&apos;invitation
-                      d&apos;un fournisseur dans le réseau.
+                    <TableCell
+                      colSpan={6}
+                      className="text-muted-foreground py-8 text-center"
+                    >
+                      Aucun nœud fournisseur enregistré. Les nœuds sont créés
+                      via l&apos;invitation d&apos;un fournisseur dans le
+                      réseau.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -148,21 +204,26 @@ export default async function SupplierNodesPage() {
                     return (
                       <TableRow key={node.id}>
                         <TableCell>
-                          <div>
+                          <Link
+                            href={`/admin/suppliers/nodes/${node.id}`}
+                            className="hover:underline"
+                          >
                             <p className="font-medium">{node.displayName}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{node.slug}</p>
-                          </div>
+                            <p className="text-muted-foreground font-mono text-xs">
+                              {node.slug}
+                            </p>
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <div className="text-xs">
                             {node.contactEmail && (
                               <p className="flex items-center gap-1">
-                                <Mail className="h-3 w-3 text-muted-foreground" />
+                                <Mail className="text-muted-foreground h-3 w-3" />
                                 {node.contactEmail}
                               </p>
                             )}
                             {node.contactCountry && (
-                              <p className="flex items-center gap-1 text-muted-foreground">
+                              <p className="text-muted-foreground flex items-center gap-1">
                                 <Globe2 className="h-3 w-3" />
                                 {node.contactCountry}
                               </p>
@@ -172,10 +233,16 @@ export default async function SupplierNodesPage() {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {mods.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              <span className="text-muted-foreground text-xs">
+                                —
+                              </span>
                             ) : (
                               mods.map((m) => (
-                                <Badge key={m} variant="outline" className="text-xs">
+                                <Badge
+                                  key={m}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
                                   {m}
                                 </Badge>
                               ))
@@ -192,18 +259,20 @@ export default async function SupplierNodesPage() {
                         </TableCell>
                         <TableCell>
                           {node.portalEnabled ? (
-                            <span className="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800">
+                            <span className="inline-flex rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
                               Actif
                             </span>
                           ) : (
-                            <span className="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500">
+                            <span className="inline-flex rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
                               Inactif
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-muted-foreground text-xs">
                           {node.activatedAt
-                            ? new Date(node.activatedAt).toLocaleDateString("fr-FR")
+                            ? new Date(node.activatedAt).toLocaleDateString(
+                                "fr-FR",
+                              )
                             : "—"}
                         </TableCell>
                       </TableRow>

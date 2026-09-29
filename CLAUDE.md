@@ -5,6 +5,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Décision produit permanente — Devis (Quote), 2026-09-29
 
 Ne JAMAIS reproposer "faut-il un modèle Quote/devis ?" comme question ouverte — la réponse est déjà tranchée par l'utilisateur. Détail complet dans docs/ROADMAP.md (Phase 3, R3-03). Résumé :
+
 - Pas de devis pour l'instant, différé volontairement.
 - Quand ce chantier sera repris (sur GO explicite uniquement) : le devis s'applique SEULEMENT à 3 cas — demandes de groupe, transferts, voyage à la carte — flux devis → validation client → facture. Tous les autres modules restent en réservation directe → facture, sans devis.
 
@@ -17,6 +18,7 @@ Depuis le commit `72032224`, aucun push vers `main` ne déclenchait de déploiem
 **Conséquence** : les chantiers clos avant cette résolution et étiquetés `TESTED / READY FOR PRODUCTION — NOT YET DEPLOYED` (dont PR #59 elle-même) sont maintenant effectivement en Production sur `easy2book-new` depuis ce déploiement — à confirmer chantier par chantier si besoin, mais le pipeline `main` → Production est de nouveau opérationnel à partir de ce commit.
 
 **Règle qui avait été appliquée pendant l'incident (référence historique)** :
+
 - Chantiers non bloqués par l'incident ; travail normal (audit, dev, tests, commits, PR, doc).
 - Chaque chantier clos pendant cette période marqué `TESTED / READY FOR PRODUCTION — NOT YET DEPLOYED` plutôt que "DONE" tant que non confirmé en Production.
 - Preview Deployments utilisés pour validation visuelle.

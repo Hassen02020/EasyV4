@@ -13,8 +13,10 @@
  *  5. La migration 0066 possède bien un UNIQUE INDEX sur
  *     `commission_settlements(period_start, period_end)`
  *     (protection double-settlement concurrentiel).
- *  6. `commission-settlement.ts` filtre `isNull(walletLedger.settledAt)`
- *     dans l'agrégat (idempotence settlement).
+ *  6. `commission-settlement.ts` filtre les entrées non settlées via
+ *     `notExists(... commission_settlement_entries ...)` (idempotence
+ *     settlement) — et non via un `UPDATE` sur `wallet_ledger`, qui
+ *     violerait l'invariant append-only (R4-03, Master Prompt §13.2).
  */
 
 import test from "node:test"
@@ -91,11 +93,16 @@ test("migration 0066 : possède un UNIQUE INDEX sur commission_settlements(perio
 })
 
 /* -------------------------------------------------------------------------- */
-/* Idempotence settlement — filtrage settled_at IS NULL                        */
+/* Idempotence settlement — filtrage via table append-only dédiée              */
 /* -------------------------------------------------------------------------- */
 
-test("commission-settlement.ts : settleCommissions filtre isNull(walletLedger.settledAt) pour éviter de re-settler", () => {
-  assert.match(settlementSrc, /isNull\(walletLedger\.settledAt\)/)
+test("commission-settlement.ts : settleCommissions filtre via notExists(commissionSettlementEntries) pour éviter de re-settler", () => {
+  assert.match(settlementSrc, /notExists\(/)
+  assert.match(settlementSrc, /commissionSettlementEntries/)
+})
+
+test("commission-settlement.ts : n'UPDATE plus jamais walletLedger (append-only, R4-03)", () => {
+  assert.doesNotMatch(settlementSrc, /\.update\(walletLedger\)/)
 })
 
 test("commission-settlement.ts : markSettlementPaid passe status à 'paid'", () => {

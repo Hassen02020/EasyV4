@@ -469,6 +469,29 @@ export const commissionSettlements = pgTable(
   ],
 )
 
+/**
+ * R4-03 (audit Phase 0) : suivi "cette ligne de ledger a été incluse dans ce
+ * settlement" — remplace `wallet_ledger.settled_at`/`settlement_id`, qui
+ * exigeaient un `UPDATE` sur le ledger (violation littérale de l'invariant
+ * append-only, Master Prompt §13.2). Les anciennes colonnes restent en place
+ * sur `wallet_ledger` (backfillées une fois, jamais réécrites depuis) —
+ * jamais supprimées ici, cohérent avec la prudence déjà appliquée sur le
+ * chantier millimes (0072_wallet_partner_millimes_expand.sql).
+ */
+export const commissionSettlementEntries = pgTable(
+  "commission_settlement_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    walletLedgerId: uuid("wallet_ledger_id").notNull(),
+    settlementId: uuid("settlement_id").notNull(),
+    settledAt: timestamp("settled_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("commission_settlement_entries_ledger_uniq").on(t.walletLedgerId),
+    index("commission_settlement_entries_settlement_idx").on(t.settlementId),
+  ],
+)
+
 /* -------------------------------------------------------------------------- */
 /* Type Exports                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -483,6 +506,8 @@ export type ReservationFinancial = typeof reservationFinancials.$inferSelect
 export type NewReservationFinancial = typeof reservationFinancials.$inferInsert
 export type CommissionSettlement = typeof commissionSettlements.$inferSelect
 export type NewCommissionSettlement = typeof commissionSettlements.$inferInsert
+export type CommissionSettlementEntry = typeof commissionSettlementEntries.$inferSelect
+export type NewCommissionSettlementEntry = typeof commissionSettlementEntries.$inferInsert
 export type JournalEntry = typeof journalEntries.$inferSelect
 export type NewJournalEntry = typeof journalEntries.$inferInsert
 export type JournalLine = typeof journalLines.$inferSelect

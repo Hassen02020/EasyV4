@@ -2663,6 +2663,7 @@ export {
   journalLines,
   reservationStatusHistory,
   commissionSettlements,
+  commissionSettlementEntries,
   walletAccountType,
   walletTxType,
   walletTxStatusV6,
@@ -2685,6 +2686,8 @@ export {
   type NewReservationStatusHistory,
   type CommissionSettlement,
   type NewCommissionSettlement,
+  type CommissionSettlementEntry,
+  type NewCommissionSettlementEntry,
 } from "./schema/financials"
 
 /* -------------------------------------------------------------------------- */

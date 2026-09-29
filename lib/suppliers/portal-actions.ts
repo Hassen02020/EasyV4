@@ -5,16 +5,20 @@
  * fournisseur + création de nœud, gated super_admin (V1 staff-only, aucune
  * session self-service fournisseur pour l'instant).
  *
- * `createSupplierNode`/`listSupplierNodes`/etc. ci-dessus existaient déjà
- * (lecture + insert brut, sans RBAC intégrée) mais n'avaient AUCUN appelant
- * autorisé (seul `app/(internal)/admin/suppliers/nodes/page.tsx`, en lecture
- * seule, les utilisait). Les actions ci-dessous sont les premières à
- * réellement écrire dans `supplier_nodes`/`supplier_portal_users` avec une
- * vérification super_admin — même pattern que createStaffUser/
- * createPartnerAgent : invitation Supabase Auth réelle (jamais un token
- * custom différé) → `userId` réel obtenu immédiatement → insert profil +
- * trace dans la même transaction → rollback (suppression du compte Auth) si
- * l'insert échoue.
+ * `listSupplierNodes`/`getSupplierNodeBySlug`/etc. ci-dessus sont en lecture
+ * seule (`app/(internal)/admin/suppliers/nodes/page.tsx`). Les actions
+ * ci-dessous sont les seules à écrire dans `supplier_nodes`/
+ * `supplier_portal_users`, toutes gated super_admin — même pattern que
+ * createStaffUser/createPartnerAgent : invitation Supabase Auth réelle
+ * (jamais un token custom différé) → `userId` réel obtenu immédiatement →
+ * insert profil + trace dans la même transaction → rollback (suppression du
+ * compte Auth) si l'insert échoue.
+ *
+ * NETWORK-HARDEN-01 : `createSupplierNode`/`updateSupplierNodeStatus`
+ * bruts (insert/update directs, sans vérification d'autorisation) ont été
+ * supprimés — zéro appelant, piège RBAC latent pour un futur import.
+ * `updateSupplierNodeStatusAction` (gated) est la seule voie restante pour
+ * faire avancer le cycle de vie d'un nœud.
  *
  * Trace : `supplier_nodes`/`supplier_portal_users` sont des entités
  * PLATEFORME (pas de agencyId, comme `suppliers` lui-même) — la table
@@ -49,7 +53,6 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import type {
   SupplierNode,
   NewSupplierNode,
-  SupplierOnboardingStatus,
   SupplierPortalUserRole,
 } from "@/lib/db/schema"
 
@@ -123,41 +126,6 @@ export async function getSupplierNodeBySupplierId(
       .limit(1),
   )
   return rows[0] ?? null
-}
-
-/* -------------------------------------------------------------------------- */
-/* Write                                                                       */
-/* -------------------------------------------------------------------------- */
-
-export async function createSupplierNode(
-  data: Omit<NewSupplierNode, "id" | "createdAt" | "updatedAt">,
-): Promise<SupplierNode> {
-  const rows = await withSystemContext((db) =>
-    db.insert(supplierNodes).values(data).returning(),
-  )
-  if (!rows[0]) throw new Error("createSupplierNode: insert returned no row")
-  return rows[0]
-}
-
-export async function updateSupplierNodeStatus(
-  nodeId: string,
-  status: SupplierOnboardingStatus,
-  portalEnabled?: boolean,
-): Promise<void> {
-  const patch: Partial<NewSupplierNode> = {
-    onboardingStatus: status,
-    updatedAt: new Date(),
-  }
-  if (status === "active") {
-    patch.activatedAt = new Date()
-    patch.portalEnabled = portalEnabled ?? true
-  }
-  if (portalEnabled !== undefined) {
-    patch.portalEnabled = portalEnabled
-  }
-  await withSystemContext((db) =>
-    db.update(supplierNodes).set(patch).where(eq(supplierNodes.id, nodeId)),
-  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -394,4 +362,89 @@ export async function inviteSupplierPortalUser(
 
   revalidatePath(`/admin/suppliers/nodes/${input.nodeId}`)
   return { ok: true, userId: newUserId }
+}
+
+const updateStatusInputSchema = z.object({
+  nodeId: z.string().uuid(),
+  status: z.enum([
+    "invited",
+    "onboarding",
+    "pending_review",
+    "active",
+    "suspended",
+    "offboarded",
+  ]),
+  portalEnabled: z.boolean().optional(),
+})
+
+export type UpdateSupplierNodeStatusResult =
+  | { ok: true }
+  | { ok: false; error: string }
+
+/**
+ * NETWORK-HARDEN-01 : seule voie réelle pour faire avancer le cycle de vie
+ * d'un nœud (invited → ... → active). L'ancienne `updateSupplierNodeStatus`
+ * brute (aucune gate RBAC, zéro appelant) a été supprimée — cette action
+ * gated super_admin la remplace intégralement, même logique de patch.
+ */
+export async function updateSupplierNodeStatusAction(
+  raw: z.infer<typeof updateStatusInputSchema>,
+): Promise<UpdateSupplierNodeStatusResult> {
+  const parsed = updateStatusInputSchema.safeParse(raw)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
+  }
+  const input = parsed.data
+
+  const auth = await requireSuperAdmin()
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const { user } = auth
+
+  const outcome = await withTenantContext(
+    { agencyId: null, userId: user.id, isSuperAdmin: true },
+    async (tx) => {
+      const [node] = await tx
+        .select({ id: supplierNodes.id, supplierId: supplierNodes.supplierId })
+        .from(supplierNodes)
+        .where(eq(supplierNodes.id, input.nodeId))
+        .limit(1)
+      if (!node)
+        return { ok: false as const, error: "Nœud fournisseur introuvable." }
+
+      const patch: Partial<NewSupplierNode> = {
+        onboardingStatus: input.status,
+        updatedAt: new Date(),
+      }
+      if (input.status === "active") {
+        patch.activatedAt = new Date()
+        patch.portalEnabled = input.portalEnabled ?? true
+      }
+      if (input.portalEnabled !== undefined) {
+        patch.portalEnabled = input.portalEnabled
+      }
+
+      await tx
+        .update(supplierNodes)
+        .set(patch)
+        .where(eq(supplierNodes.id, input.nodeId))
+
+      await tx.insert(supplierLogs).values({
+        supplierId: node.supplierId,
+        type: "portal",
+        level: "info",
+        message: `Statut du nœud changé à "${input.status}" par ${user.id}`,
+        details: { nodeId: input.nodeId, status: input.status, actorUserId: user.id },
+      })
+
+      return { ok: true as const }
+    },
+  )
+
+  if (outcome.ok) revalidatePath(`/admin/suppliers/nodes/${input.nodeId}`)
+  return outcome
 }

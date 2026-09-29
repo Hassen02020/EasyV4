@@ -46,7 +46,9 @@ export function splitIntoRooms(
 export function encodeRoomsParam(rooms: RoomSplit[]): string {
   return rooms
     .map((r) =>
-      r.childAges?.length ? `${r.adults}-${r.childAges.join(".")}` : `${r.adults}`,
+      r.childAges?.length
+        ? `${r.adults}-${r.childAges.join(".")}`
+        : `${r.adults}`,
     )
     .join("|")
 }

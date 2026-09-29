@@ -76,11 +76,14 @@ const stripeEventSchema = z.object({
   }),
 })
 
-export function normalizeStripeEvent(raw: unknown): NormalizedChargeEvent | null {
+export function normalizeStripeEvent(
+  raw: unknown,
+): NormalizedChargeEvent | null {
   const parsed = stripeEventSchema.safeParse(raw)
   if (!parsed.success) return null
   const obj = parsed.data.data.object
-  const amountTnd = typeof obj.amount_tnd === "string" ? Number(obj.amount_tnd) : obj.amount_tnd
+  const amountTnd =
+    typeof obj.amount_tnd === "string" ? Number(obj.amount_tnd) : obj.amount_tnd
   if (!Number.isFinite(amountTnd)) return null
   return {
     eventId: parsed.data.id,
@@ -163,7 +166,8 @@ export function normalizePaymeeEvent(
 
   if (!token || !orderId) return null
 
-  const amountTnd = typeof amountRaw === "string" ? Number(amountRaw) : Number(amountRaw)
+  const amountTnd =
+    typeof amountRaw === "string" ? Number(amountRaw) : Number(amountRaw)
   if (!Number.isFinite(amountTnd)) return null
 
   const eventId =
@@ -186,7 +190,10 @@ export function normalizePaymeeEvent(
 
 export type ChargeMatchResult =
   | { ok: true }
-  | { ok: false; reason: "REFERENCE_MISMATCH" | "CURRENCY_MISMATCH" | "AMOUNT_MISMATCH" }
+  | {
+      ok: false
+      reason: "REFERENCE_MISMATCH" | "CURRENCY_MISMATCH" | "AMOUNT_MISMATCH"
+    }
 
 /**
  * Ne fait jamais confiance au seul payload client/PSP : re-vérifie que le
@@ -198,14 +205,20 @@ export function matchesPendingRecharge(
   request: { amount: string; paymentReference: string | null },
   charge: NormalizedChargeEvent,
 ): ChargeMatchResult {
-  if (!request.paymentReference || request.paymentReference !== charge.providerRef) {
+  if (
+    !request.paymentReference ||
+    request.paymentReference !== charge.providerRef
+  ) {
     return { ok: false, reason: "REFERENCE_MISMATCH" }
   }
   if (charge.currency !== "TND") {
     return { ok: false, reason: "CURRENCY_MISMATCH" }
   }
   const expected = parseFloat(request.amount)
-  if (!Number.isFinite(expected) || Math.abs(expected - charge.amountTnd) > 0.001) {
+  if (
+    !Number.isFinite(expected) ||
+    Math.abs(expected - charge.amountTnd) > 0.001
+  ) {
     return { ok: false, reason: "AMOUNT_MISMATCH" }
   }
   return { ok: true }

@@ -14,5 +14,7 @@
  * NOT_CONFIGURED.
  */
 export function isTunisiaBedConfigured(): boolean {
-  return Boolean(process.env.TUNISIABED_USERNAME && process.env.TUNISIABED_PASSWORD)
+  return Boolean(
+    process.env.TUNISIABED_USERNAME && process.env.TUNISIABED_PASSWORD,
+  )
 }

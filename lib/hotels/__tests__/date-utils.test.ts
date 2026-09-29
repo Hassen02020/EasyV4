@@ -15,39 +15,93 @@ import {
 // jamais un calcul basé sur des timestamps/heures.
 
 test("calculateNights : 12 → 13 = 1 nuit", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2026-10-12"), parseIsoDateLocal("2026-10-13")), 1)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2026-10-12"),
+      parseIsoDateLocal("2026-10-13"),
+    ),
+    1,
+  )
 })
 
 test("calculateNights : 12 → 14 = 2 nuits", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2026-10-12"), parseIsoDateLocal("2026-10-14")), 2)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2026-10-12"),
+      parseIsoDateLocal("2026-10-14"),
+    ),
+    2,
+  )
 })
 
 test("calculateNights : 12 → 18 = 6 nuits", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2026-10-12"), parseIsoDateLocal("2026-10-18")), 6)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2026-10-12"),
+      parseIsoDateLocal("2026-10-18"),
+    ),
+    6,
+  )
 })
 
 test("calculateNights : 31 déc → 1 jan = 1 nuit (changement d'année)", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2026-12-31"), parseIsoDateLocal("2027-01-01")), 1)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2026-12-31"),
+      parseIsoDateLocal("2027-01-01"),
+    ),
+    1,
+  )
 })
 
 test("calculateNights : 28 fév → 1 mars, année NON bissextile (2026) = 1 nuit", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2026-02-28"), parseIsoDateLocal("2026-03-01")), 1)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2026-02-28"),
+      parseIsoDateLocal("2026-03-01"),
+    ),
+    1,
+  )
 })
 
 test("calculateNights : 28 fév → 29 fév, année bissextile (2028) existe et compte 1 nuit", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2028-02-28"), parseIsoDateLocal("2028-02-29")), 1)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2028-02-28"),
+      parseIsoDateLocal("2028-02-29"),
+    ),
+    1,
+  )
 })
 
 test("calculateNights : 28 fév → 1 mars, année bissextile (2028) = 2 nuits (29 fév existe)", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2028-02-28"), parseIsoDateLocal("2028-03-01")), 2)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2028-02-28"),
+      parseIsoDateLocal("2028-03-01"),
+    ),
+    2,
+  )
 })
 
 test("calculateNights : même date = 0 nuit, jamais négatif", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2026-10-12"), parseIsoDateLocal("2026-10-12")), 0)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2026-10-12"),
+      parseIsoDateLocal("2026-10-12"),
+    ),
+    0,
+  )
 })
 
 test("calculateNights : départ avant arrivée = 0, jamais un nombre négatif", () => {
-  assert.equal(calculateNights(parseIsoDateLocal("2026-10-18"), parseIsoDateLocal("2026-10-12")), 0)
+  assert.equal(
+    calculateNights(
+      parseIsoDateLocal("2026-10-18"),
+      parseIsoDateLocal("2026-10-12"),
+    ),
+    0,
+  )
 })
 
 test("calculateNights : null/undefined = 0, jamais une exception", () => {
@@ -57,7 +111,13 @@ test("calculateNights : null/undefined = 0, jamais une exception", () => {
 })
 
 test("parseIsoDateLocal : round-trip avec formatDateIso préserve le jour calendaire exact (pas de décalage UTC)", () => {
-  const dates = ["2026-01-01", "2026-02-28", "2028-02-29", "2026-12-31", "2026-09-19"]
+  const dates = [
+    "2026-01-01",
+    "2026-02-28",
+    "2028-02-29",
+    "2026-12-31",
+    "2026-09-19",
+  ]
   for (const iso of dates) {
     const parsed = parseIsoDateLocal(iso)
     assert.ok(parsed, `parseIsoDateLocal(${iso}) ne doit jamais être null`)
@@ -85,16 +145,34 @@ test("addDaysLocal : traverse le 29 février d'une année bissextile", () => {
 test("isValidStayRange : refuse une arrivée dans le passé", () => {
   const yesterday = addDaysLocal(todayLocal(), -1)
   const tomorrow = addDaysLocal(todayLocal(), 1)
-  assert.equal(isValidStayRange({ checkIn: yesterday, checkOut: tomorrow }), false)
+  assert.equal(
+    isValidStayRange({ checkIn: yesterday, checkOut: tomorrow }),
+    false,
+  )
 })
 
 test("isValidStayRange : accepte aujourd'hui → demain (1 nuit)", () => {
-  assert.equal(isValidStayRange({ checkIn: todayLocal(), checkOut: addDaysLocal(todayLocal(), 1) }), true)
+  assert.equal(
+    isValidStayRange({
+      checkIn: todayLocal(),
+      checkOut: addDaysLocal(todayLocal(), 1),
+    }),
+    true,
+  )
 })
 
 test("isValidStayRange : refuse une seule date posée", () => {
-  assert.equal(isValidStayRange({ checkIn: todayLocal(), checkOut: null }), false)
-  assert.equal(isValidStayRange({ checkIn: null, checkOut: addDaysLocal(todayLocal(), 1) }), false)
+  assert.equal(
+    isValidStayRange({ checkIn: todayLocal(), checkOut: null }),
+    false,
+  )
+  assert.equal(
+    isValidStayRange({
+      checkIn: null,
+      checkOut: addDaysLocal(todayLocal(), 1),
+    }),
+    false,
+  )
 })
 
 test("isValidStayRange : refuse départ = arrivée (0 nuit)", () => {

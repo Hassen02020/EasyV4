@@ -11,7 +11,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, reservationFlight, customers, agencies } from "@/lib/db/schema"
+import {
+  reservations,
+  reservationFlight,
+  customers,
+  agencies,
+} from "@/lib/db/schema"
 import { renderFlightVoucherPdf } from "@/lib/pdf/voucher-flight"
 import { isFlightVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
@@ -53,8 +58,16 @@ export async function GET(
       .from(reservations)
       .innerJoin(customers, eq(customers.id, reservations.customerId))
       .innerJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .leftJoin(reservationFlight, eq(reservationFlight.reservationId, reservations.id))
-      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
+      .leftJoin(
+        reservationFlight,
+        eq(reservationFlight.reservationId, reservations.id),
+      )
+      .where(
+        and(
+          eq(reservations.publicRef, ref),
+          eq(reservations.guestAccessToken, token),
+        ),
+      )
       .limit(1)
     return r ?? null
   })
@@ -83,7 +96,9 @@ export async function GET(
     )
   }
 
-  const firstSegment = (row.segments as Array<{ carrier?: string; flightNumber?: string }> | null)?.[0]
+  const firstSegment = (
+    row.segments as Array<{ carrier?: string; flightNumber?: string }> | null
+  )?.[0]
 
   const pdf = await renderFlightVoucherPdf({
     publicRef: row.publicRef,

@@ -12,7 +12,10 @@ import { flightBookings } from "@/lib/db/schema/flights"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { mapFlightStatusToReservation } from "./flight-status-utils"
 import type { FlightStatus } from "./flight-status-utils"
-import { isTransitionAllowed, type ReservationStatus } from "@/lib/admin/reservation-status"
+import {
+  isTransitionAllowed,
+  type ReservationStatus,
+} from "@/lib/admin/reservation-status"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /**

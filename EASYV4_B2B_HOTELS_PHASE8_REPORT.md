@@ -25,6 +25,7 @@ false}`.
 ## 2. B2C engine reused
 
 Aucune duplication introduite. Réutilisé **tel quel** :
+
 - `lib/mygo/search-core.ts` — `HotelSearchQuerySchema`,
   `validateSearchDateRange`, et le moteur lui-même (nouveau
   `runHotelSearch()`, voir §7 — extraction pure du corps déjà existant
@@ -48,15 +49,15 @@ gagner, un vrai risque métier à éviter.
 
 ## 3. B2B differences
 
-| | B2C (`/hotels/search`) | B2B (`/pro/hotels`, après cette phase) |
-|---|---|---|
-| Moteur | `runHotelSearch` (démo/réel) | **Même** `runHotelSearch`, appelé directement (pas de HTTP) |
-| Filtres/tri/facets | `lib/mygo/facets.ts`/`sort.ts` | **Mêmes fonctions** |
-| UI filtres/tri | `FilterSidebar`/`MobileFilterSortBar` | **Mêmes composants** |
-| Prix affiché | `fromPrice` myGo, aucune marge | `fromPrice` + marge agence (`applyMarginToHotelOffer`) |
-| Carte résultat | `HotelCard`/`hotel-listings.tsx` (B2C) | Nouvelle carte minimale (`ProHotelResultCard`, dans `pro-hotel-results.tsx`) — champs réels uniquement |
-| Réservation | Réelle (pont `/booking`) | **Désactivée**, CTA "bientôt" documenté (P1, voir §9) |
-| Détail hôtel / chambres | `/hotels/[id]` réel | `/pro/hotels/[id]` reste sur fixture, non lié depuis cette page |
+|                         | B2C (`/hotels/search`)                 | B2B (`/pro/hotels`, après cette phase)                                                                 |
+| ----------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Moteur                  | `runHotelSearch` (démo/réel)           | **Même** `runHotelSearch`, appelé directement (pas de HTTP)                                            |
+| Filtres/tri/facets      | `lib/mygo/facets.ts`/`sort.ts`         | **Mêmes fonctions**                                                                                    |
+| UI filtres/tri          | `FilterSidebar`/`MobileFilterSortBar`  | **Mêmes composants**                                                                                   |
+| Prix affiché            | `fromPrice` myGo, aucune marge         | `fromPrice` + marge agence (`applyMarginToHotelOffer`)                                                 |
+| Carte résultat          | `HotelCard`/`hotel-listings.tsx` (B2C) | Nouvelle carte minimale (`ProHotelResultCard`, dans `pro-hotel-results.tsx`) — champs réels uniquement |
+| Réservation             | Réelle (pont `/booking`)               | **Désactivée**, CTA "bientôt" documenté (P1, voir §9)                                                  |
+| Détail hôtel / chambres | `/hotels/[id]` réel                    | `/pro/hotels/[id]` reste sur fixture, non lié depuis cette page                                        |
 
 ## 4. Fixtures
 
@@ -85,6 +86,7 @@ n'affichant que des champs réellement présents dans `HotelOfferDTO`.
 ## 5. Security
 
 Audité, **non modifié** — déjà correct :
+
 - `getActivePartnerMargins()` (`lib/pro/server-context.ts`) résout
   l'agence **strictement depuis la session authentifiée**
   (`getCurrentPartnerProfile` → `resolve_session_context()`, le même
@@ -131,6 +133,7 @@ après coup et donc incohérent avec l'ordre/les bornes de prix montrés).
 ## 7. Implementation
 
 Fichiers modifiés/créés (2 commits) :
+
 - `lib/mygo/search-core.ts` — extraction de `runHotelSearch()` (résultat
   pur, sans `NextResponse`) ; `executeHotelSearch()` devient une fine
   couche HTTP au-dessus, comportement identique pour `/api/hotels/search`
@@ -152,6 +155,7 @@ Fichiers modifiés/créés (2 commits) :
 ## 8. Tests
 
 Ajoutés uniquement les tests nécessaires (mission §7) :
+
 - `lib/mygo/__tests__/search-core.test.ts` (+2) : `runHotelSearch` en mode
   démo renvoie les vraies offres du fixture pour une ville connue ; une
   ville inconnue renvoie zéro résultat sans erreur (pas un résultat
@@ -172,6 +176,7 @@ sans accès DB — rien à isoler côté tenant à ce niveau, l'agence est déj�
 résolue en amont par du code non touché.
 
 Gates :
+
 ```
 pnpm typecheck   → 0 erreur
 pnpm lint        → 0 erreur (118 avertissements pré-existants, inchangés)

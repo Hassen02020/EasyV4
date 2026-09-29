@@ -14,7 +14,10 @@
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { createServerSupabase } from "@/lib/supabase/server"
-import { listFavoritesCore, type FavoriteItemType } from "@/lib/favorites/favorites-core"
+import {
+  listFavoritesCore,
+  type FavoriteItemType,
+} from "@/lib/favorites/favorites-core"
 
 export interface MyFavorite {
   id: string
@@ -29,7 +32,9 @@ export interface MyFavorite {
   createdAt: string
 }
 
-export type ListMyFavoritesResult = { ok: true; favorites: MyFavorite[] } | { ok: false; error: string }
+export type ListMyFavoritesResult =
+  | { ok: true; favorites: MyFavorite[] }
+  | { ok: false; error: string }
 
 export async function listMyFavorites(): Promise<ListMyFavoritesResult> {
   if (!process.env.DATABASE_URL) {
@@ -51,11 +56,17 @@ export async function listMyFavorites(): Promise<ListMyFavoritesResult> {
 
   try {
     const rows = await withTenantContext(tenant, (tx) =>
-      listFavoritesCore(tx, { agencyId: tenant.agencyId!, authUserId: user.id }),
+      listFavoritesCore(tx, {
+        agencyId: tenant.agencyId!,
+        authUserId: user.id,
+      }),
     )
     return {
       ok: true,
-      favorites: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+      favorites: rows.map((r) => ({
+        ...r,
+        createdAt: r.createdAt.toISOString(),
+      })),
     }
   } catch (err) {
     console.error("[listMyFavorites]", err)

@@ -61,7 +61,13 @@
 import { and, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { pspWebhooks, payments, reservations, agencies, partnerCreditMovements } from "@/lib/db/schema"
+import {
+  pspWebhooks,
+  payments,
+  reservations,
+  agencies,
+  partnerCreditMovements,
+} from "@/lib/db/schema"
 import { logger } from "@/lib/logger"
 
 /**
@@ -75,7 +81,9 @@ import { logger } from "@/lib/logger"
  * requête/tenant à résoudre, donc reproduit ici uniquement le fallback OTA
  * que getDefaultAgencyId() utiliserait dans ce même cas.
  */
-async function resolveFallbackAgencyId(tx: DrizzleTransaction): Promise<string | null> {
+async function resolveFallbackAgencyId(
+  tx: DrizzleTransaction,
+): Promise<string | null> {
   const [agency] = await tx
     .select({ id: agencies.id })
     .from(agencies)
@@ -115,7 +123,10 @@ export const RECONCILIATION_LOCK_KEY = BigInt(847_362_910_123)
 async function findOrphanedWebhooks(
   tx: DrizzleTransaction,
   since: Date,
-): Promise<{ findings: ReconciliationFinding[]; unresolvedAgencyWarnings: number }> {
+): Promise<{
+  findings: ReconciliationFinding[]
+  unresolvedAgencyWarnings: number
+}> {
   const rows = await tx
     .select({
       id: pspWebhooks.id,
@@ -128,7 +139,9 @@ async function findOrphanedWebhooks(
     .from(pspWebhooks)
     .where(and(isNotNull(pspWebhooks.error), gte(pspWebhooks.createdAt, since)))
 
-  const fallbackAgencyId = rows.some((r) => !r.agencyId) ? await resolveFallbackAgencyId(tx) : null
+  const fallbackAgencyId = rows.some((r) => !r.agencyId)
+    ? await resolveFallbackAgencyId(tx)
+    : null
 
   const findings: ReconciliationFinding[] = []
   let unresolvedAgencyWarnings = 0
@@ -141,12 +154,15 @@ async function findOrphanedWebhooks(
       // audit_events (agency_id NOT NULL), mais on ne disparaît pas pour
       // autant. Compté dans le résultat + log serveur visible (Vercel logs).
       unresolvedAgencyWarnings++
-      logger.error("[reconciliation] webhook orphelin sans agence attribuable — aucune agence OTA par défaut", {
-        pspWebhookId: r.id,
-        psp: r.psp,
-        eventType: r.eventType,
-        error: r.error,
-      })
+      logger.error(
+        "[reconciliation] webhook orphelin sans agence attribuable — aucune agence OTA par défaut",
+        {
+          pspWebhookId: r.id,
+          psp: r.psp,
+          eventType: r.eventType,
+          error: r.error,
+        },
+      )
       continue
     }
     findings.push({
@@ -166,7 +182,10 @@ async function findOrphanedWebhooks(
   return { findings, unresolvedAgencyWarnings }
 }
 
-async function findStuckPendingPayments(tx: DrizzleTransaction, since: Date): Promise<ReconciliationFinding[]> {
+async function findStuckPendingPayments(
+  tx: DrizzleTransaction,
+  since: Date,
+): Promise<ReconciliationFinding[]> {
   const deadline = new Date(Date.now() - STUCK_PAYMENT_GRACE_MS)
   const rows = await tx
     .select({
@@ -204,7 +223,10 @@ async function findStuckPendingPayments(tx: DrizzleTransaction, since: Date): Pr
   }))
 }
 
-async function findConfirmedWithoutPayment(tx: DrizzleTransaction, since: Date): Promise<ReconciliationFinding[]> {
+async function findConfirmedWithoutPayment(
+  tx: DrizzleTransaction,
+  since: Date,
+): Promise<ReconciliationFinding[]> {
   const rows = await tx
     .select({
       reservationId: reservations.id,
@@ -248,7 +270,10 @@ async function findConfirmedWithoutPayment(tx: DrizzleTransaction, since: Date):
  * JOUR (protège contre deux passages qui se chevaupent le même jour) sans
  * jamais supprimer le signalement les jours suivants.
  */
-async function findWalletLedgerDrift(tx: DrizzleTransaction, dayBucket: string): Promise<ReconciliationFinding[]> {
+async function findWalletLedgerDrift(
+  tx: DrizzleTransaction,
+  dayBucket: string,
+): Promise<ReconciliationFinding[]> {
   // ORDER BY created_at DESC, id DESC : le tiebreaker sur `id` n'a aucune
   // signification d'ordre d'insertion (uuid v4 aléatoire) — son seul rôle
   // est de rendre le choix DÉTERMINISTE (toujours la même ligne choisie en
@@ -315,16 +340,26 @@ export async function runPaymentReconciliation(
     )) as Array<{ locked: boolean }>
 
     if (!locked) {
-      return { findings: [] as ReconciliationFinding[], unresolvedAgencyWarnings: 0, skipped: true }
+      return {
+        findings: [] as ReconciliationFinding[],
+        unresolvedAgencyWarnings: 0,
+        skipped: true,
+      }
     }
 
-    const [orphaned, stuck, confirmedWithoutPayment, walletDrift] = await Promise.all([
-      findOrphanedWebhooks(tx, since),
-      findStuckPendingPayments(tx, since),
-      findConfirmedWithoutPayment(tx, since),
-      findWalletLedgerDrift(tx, dayBucket),
-    ])
-    const all = [...orphaned.findings, ...stuck, ...confirmedWithoutPayment, ...walletDrift]
+    const [orphaned, stuck, confirmedWithoutPayment, walletDrift] =
+      await Promise.all([
+        findOrphanedWebhooks(tx, since),
+        findStuckPendingPayments(tx, since),
+        findConfirmedWithoutPayment(tx, since),
+        findWalletLedgerDrift(tx, dayBucket),
+      ])
+    const all = [
+      ...orphaned.findings,
+      ...stuck,
+      ...confirmedWithoutPayment,
+      ...walletDrift,
+    ]
 
     if (all.length > 0) {
       // SQL brut + ON CONFLICT ciblant explicitement l'index unique PARTIEL
@@ -353,7 +388,11 @@ export async function runPaymentReconciliation(
       `)
     }
 
-    return { findings: all, unresolvedAgencyWarnings: orphaned.unresolvedAgencyWarnings, skipped: false }
+    return {
+      findings: all,
+      unresolvedAgencyWarnings: orphaned.unresolvedAgencyWarnings,
+      skipped: false,
+    }
   })
 
   const counts: Record<ReconciliationCheck, number> = {

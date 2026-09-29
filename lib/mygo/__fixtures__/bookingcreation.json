@@ -30,7 +30,12 @@
       "NotRefundable": false,
       "Pax": {
         "Adult": [
-          { "Civility": "M", "Name": "Ahmed", "Surname": "Ben Salah", "Holder": true }
+          {
+            "Civility": "M",
+            "Name": "Ahmed",
+            "Surname": "Ben Salah",
+            "Holder": true
+          }
         ],
         "Child": []
       }

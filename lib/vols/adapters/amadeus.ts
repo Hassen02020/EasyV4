@@ -5,7 +5,12 @@
  * outside this file.
  */
 
-import type { GdsAdapter, RecheckResult, BookResult, IssueResult } from "./types"
+import type {
+  GdsAdapter,
+  RecheckResult,
+  BookResult,
+  IssueResult,
+} from "./types"
 import type {
   CanonicalSearchRequest,
   CanonicalSearchResult,
@@ -21,8 +26,12 @@ export function createAmadeusAdapter(): GdsAdapter {
     name: "amadeus",
     getConfigStatus: () => (isConfigured() ? "CONFIGURED" : "NOT_CONFIGURED"),
 
-    async search(_request: CanonicalSearchRequest): Promise<CanonicalSearchResult> {
-      throw new Error("Amadeus adapter: not yet implemented — add real search logic here.")
+    async search(
+      _request: CanonicalSearchRequest,
+    ): Promise<CanonicalSearchResult> {
+      throw new Error(
+        "Amadeus adapter: not yet implemented — add real search logic here.",
+      )
     },
 
     async recheck(_itinerary: CanonicalItinerary): Promise<RecheckResult> {
@@ -37,7 +46,10 @@ export function createAmadeusAdapter(): GdsAdapter {
       throw new Error("Amadeus adapter: book not yet implemented.")
     },
 
-    async issue(_pnr: string, _itinerary: CanonicalItinerary): Promise<IssueResult> {
+    async issue(
+      _pnr: string,
+      _itinerary: CanonicalItinerary,
+    ): Promise<IssueResult> {
       throw new Error("Amadeus adapter: issue not yet implemented.")
     },
 

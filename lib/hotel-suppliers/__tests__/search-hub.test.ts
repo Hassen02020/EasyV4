@@ -62,8 +62,14 @@ test("runSearchThroughHub (démo, ville connue) : MyGo SUCCESS, résultats norma
   assert.equal(hubResult.supplierStatus.cyberesa, "NOT_CONFIGURED")
   assert.equal(hubResult.supplierStatus["3t"], "NOT_CONFIGURED")
   assert.equal(hubResult.failedSuppliers.includes("mygo"), false)
-  assert.ok(hubResult.results.length > 0, "les hôtels normalisés doivent être non vides")
-  assert.ok(hubResult.rates.length > 0, "les tarifs normalisés doivent être non vides")
+  assert.ok(
+    hubResult.results.length > 0,
+    "les hôtels normalisés doivent être non vides",
+  )
+  assert.ok(
+    hubResult.rates.length > 0,
+    "les tarifs normalisés doivent être non vides",
+  )
 })
 
 test("runSearchThroughHub : les 3 fournisseurs NOT_CONFIGURED ne cassent jamais la recherche myGo (catégorie 3)", async () => {
@@ -75,7 +81,11 @@ test("runSearchThroughHub : les 3 fournisseurs NOT_CONFIGURED ne cassent jamais 
 
 test("runSearchThroughHub : un correlationId est toujours renvoyé (fourni ou généré)", async () => {
   const q = knownCityQuery()
-  const { hubResult } = await runSearchThroughHub(q, undefined, "test-correlation-42")
+  const { hubResult } = await runSearchThroughHub(
+    q,
+    undefined,
+    "test-correlation-42",
+  )
   assert.equal(hubResult.correlationId, "test-correlation-42")
   const { hubResult: generated } = await runSearchThroughHub(q)
   assert.ok(generated.correlationId.length > 0)
@@ -86,14 +96,22 @@ test("runSearchThroughHub : les résultats normalisés proviennent EXACTEMENT du
   const { runResult, hubResult } = await runSearchThroughHub(q)
   assert.equal(runResult.ok, true)
   if (!runResult.ok) return
-  const uniqueHotelIds = new Set(runResult.dto.offers.map((o) => o.hotel.id)).size
+  const uniqueHotelIds = new Set(runResult.dto.offers.map((o) => o.hotel.id))
+    .size
   const totalRoomOffers = runResult.dto.offers.reduce(
-    (sum, o) => sum + o.boardings.reduce((s, b) => s + b.pax.reduce((s2, p) => s2 + p.rooms.length, 0), 0),
+    (sum, o) =>
+      sum +
+      o.boardings.reduce(
+        (s, b) => s + b.pax.reduce((s2, p) => s2 + p.rooms.length, 0),
+        0,
+      ),
     0,
   )
   // deduplicateHotels() ne peut que FUSIONNER des hôtels (jamais en créer) —
   // le nombre de groupes est donc <= au nombre d'hôtels bruts, jamais plus.
-  assert.ok(hubResult.results.length > 0 && hubResult.results.length <= uniqueHotelIds)
+  assert.ok(
+    hubResult.results.length > 0 && hubResult.results.length <= uniqueHotelIds,
+  )
   // Traçabilité : AUCUN tarif ne doit disparaître pendant le regroupement,
   // même quand des hôtels sont fusionnés en groupes.
   assert.equal(hubResult.rates.length, totalRoomOffers)
@@ -109,7 +127,9 @@ test("runSearchThroughHub : ne recalcule jamais la marge — sellingPrice normal
   const firstRoom = firstOffer.boardings[0]?.pax[0]?.rooms[0]
   assert.ok(firstRoom, "l'offre doit avoir au moins une chambre")
   const matchingRate = hubResult.rates.find(
-    (r) => r.hotelId === String(firstOffer.hotel.id) && r.roomId === String(firstRoom.id),
+    (r) =>
+      r.hotelId === String(firstOffer.hotel.id) &&
+      r.roomId === String(firstRoom.id),
   )
   assert.ok(matchingRate, "le tarif normalisé correspondant doit exister")
   assert.equal(matchingRate!.sellingPrice, firstRoom.price)
@@ -119,7 +139,10 @@ test("runSearchThroughHub : supplierToken reste opaque — jamais interprétable
   const q = knownCityQuery()
   const { hubResult } = await runSearchThroughHub(q)
   for (const rate of hubResult.rates) {
-    assert.ok(rate.supplierToken, "chaque tarif myGo doit porter un supplierToken")
+    assert.ok(
+      rate.supplierToken,
+      "chaque tarif myGo doit porter un supplierToken",
+    )
     assert.doesNotMatch(rate.supplierToken!, /login|password|MYGO_/i)
   }
 })
@@ -133,7 +156,11 @@ test("logHubSearchObservability : jamais de credentials/tokens dans les champs j
     logged.push(args)
   }
   try {
-    logHubSearchObservability(hubResult, { agencyId: "agency-1", tenantId: "tenant-1", supplierAccountId: "account-1" })
+    logHubSearchObservability(hubResult, {
+      agencyId: "agency-1",
+      tenantId: "tenant-1",
+      supplierAccountId: "account-1",
+    })
   } finally {
     ;(await import("@/lib/logger")).logger.info = originalInfo
   }
@@ -141,7 +168,10 @@ test("logHubSearchObservability : jamais de credentials/tokens dans les champs j
   for (const call of logged) {
     const [, ctx] = call as [string, Record<string, unknown>]
     const serialized = JSON.stringify(ctx)
-    assert.doesNotMatch(serialized, /login|password|secret|MYGO_LOGIN|MYGO_PASSWORD/i)
+    assert.doesNotMatch(
+      serialized,
+      /login|password|secret|MYGO_LOGIN|MYGO_PASSWORD/i,
+    )
     assert.equal("client" in ctx, false)
     assert.equal("driver" in ctx, false)
   }
@@ -156,7 +186,10 @@ test("executeHotelSearchThroughHub : réponse HTTP identique (statut/headers/cor
   const legacyBody = await legacy.json()
   const hubBody = await hubResp.json()
   assert.deepEqual(hubBody, legacyBody)
-  assert.equal(hubResp.headers.get("x-demo-mode"), legacy.headers.get("x-demo-mode"))
+  assert.equal(
+    hubResp.headers.get("x-demo-mode"),
+    legacy.headers.get("x-demo-mode"),
+  )
 })
 
 test("executeHotelSearchThroughHub (démo, ville inconnue) : zéro résultat, jamais une erreur — repli démo inchangé (catégorie 20)", async () => {
@@ -195,7 +228,9 @@ test("runSearchThroughHub : le passthrough reflète fidèlement un échec réel 
       throw new Error("simulated upstream failure")
     },
   } as unknown as import("@/lib/mygo/client").MyGoClient
-  const fakeDriver = { getConfigStatus: () => "CONFIGURED" as const } as unknown as import("../mygo/driver").MyGoDriver
+  const fakeDriver = {
+    getConfigStatus: () => "CONFIGURED" as const,
+  } as unknown as import("../mygo/driver").MyGoDriver
   const { runResult, hubResult } = await runSearchThroughHub(q, {
     client: failingClient,
     driver: fakeDriver,

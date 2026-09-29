@@ -50,7 +50,11 @@ export async function GET(
   const isSuperAdmin = profile.role === "super_admin"
 
   const result = await withTenantContext(
-    { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
+    {
+      agencyId: isSuperAdmin ? null : profile.agencyId,
+      userId: user.id,
+      isSuperAdmin,
+    },
     (tx) => renderReservationVoucher(tx, reservationId),
   )
 

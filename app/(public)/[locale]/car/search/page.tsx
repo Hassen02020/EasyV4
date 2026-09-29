@@ -73,11 +73,25 @@ export default async function CarResultsPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const { pickup, dropoff, pickupDate, pickupTime, returnDate, returnTime, category } =
-    await searchParams
+  const {
+    pickup,
+    dropoff,
+    pickupDate,
+    pickupTime,
+    returnDate,
+    returnTime,
+    category,
+  } = await searchParams
   const t = await getTranslations("Car")
 
-  if (!pickup || !dropoff || !pickupDate || !pickupTime || !returnDate || !returnTime) {
+  if (
+    !pickup ||
+    !dropoff ||
+    !pickupDate ||
+    !pickupTime ||
+    !returnDate ||
+    !returnTime
+  ) {
     return <ErrorState message={t("incompleteCriteria")} t={t} />
   }
   if (`${returnDate}T${returnTime}` <= `${pickupDate}T${pickupTime}`) {
@@ -94,14 +108,24 @@ export default async function CarResultsPage({
       db
         .select()
         .from(carLocations)
-        .where(and(eq(carLocations.agencyId, agencyId), eq(carLocations.status, "active")))
+        .where(
+          and(
+            eq(carLocations.agencyId, agencyId),
+            eq(carLocations.status, "active"),
+          ),
+        )
         .orderBy(carLocations.name),
     ),
     withSystemContext((db) =>
       db
         .select()
         .from(carCategories)
-        .where(and(eq(carCategories.agencyId, agencyId), eq(carCategories.status, "active")))
+        .where(
+          and(
+            eq(carCategories.agencyId, agencyId),
+            eq(carCategories.status, "active"),
+          ),
+        )
         .orderBy(carCategories.name),
     ),
   ])
@@ -113,15 +137,13 @@ export default async function CarResultsPage({
   }
 
   if (categories.length === 0) {
-    return (
-      <ErrorState message={t("noCategoryConfigured")} t={t} />
-    )
+    return <ErrorState message={t("noCategoryConfigured")} t={t} />
   }
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <div className="bg-gradient-to-br from-orange-900 to-orange-700 px-4 py-10 text-white">
           <div className="mx-auto max-w-4xl text-center">
             <p className="mb-2 text-sm font-medium tracking-widest text-orange-300 uppercase">
@@ -129,7 +151,9 @@ export default async function CarResultsPage({
             </p>
             <h1 className="text-2xl font-bold md:text-3xl">
               {pickupLocation.name}
-              {dropoffLocation.id !== pickupLocation.id ? ` → ${dropoffLocation.name}` : ""}
+              {dropoffLocation.id !== pickupLocation.id
+                ? ` → ${dropoffLocation.name}`
+                : ""}
             </h1>
           </div>
         </div>
@@ -142,7 +166,9 @@ export default async function CarResultsPage({
             prefill={{
               pickupLocationId: pickup,
               dropoffLocationId: dropoff,
-              categoryId: categories.find((c) => c.id === category)?.id ?? categories[0]!.id,
+              categoryId:
+                categories.find((c) => c.id === category)?.id ??
+                categories[0]!.id,
               pickupDate,
               pickupTime,
               returnDate,

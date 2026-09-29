@@ -23,7 +23,10 @@ test("APPROVED maps to on_request", () => {
 })
 
 test("BOOKING_IN_PROGRESS maps to on_request", () => {
-  assert.equal(mapFlightStatusToReservation("BOOKING_IN_PROGRESS"), "on_request")
+  assert.equal(
+    mapFlightStatusToReservation("BOOKING_IN_PROGRESS"),
+    "on_request",
+  )
 })
 
 test("BOOKED maps to on_request", () => {
@@ -31,7 +34,10 @@ test("BOOKED maps to on_request", () => {
 })
 
 test("TICKETING_IN_PROGRESS maps to on_request", () => {
-  assert.equal(mapFlightStatusToReservation("TICKETING_IN_PROGRESS"), "on_request")
+  assert.equal(
+    mapFlightStatusToReservation("TICKETING_IN_PROGRESS"),
+    "on_request",
+  )
 })
 
 test("CONFIRMED maps to confirmed", () => {

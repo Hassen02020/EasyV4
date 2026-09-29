@@ -3,7 +3,9 @@ import assert from "node:assert/strict"
 import { matchesPendingPayment } from "../reservation-payment-logic"
 import type { NormalizedChargeEvent } from "../webhook-logic"
 
-function charge(overrides: Partial<NormalizedChargeEvent> = {}): NormalizedChargeEvent {
+function charge(
+  overrides: Partial<NormalizedChargeEvent> = {},
+): NormalizedChargeEvent {
   return {
     eventId: "evt_1",
     eventType: "payment_intent.succeeded",
@@ -26,12 +28,18 @@ test("matchesPendingPayment : correspondance exacte -> ok", () => {
 })
 
 test("matchesPendingPayment : référence différente -> REFERENCE_MISMATCH", () => {
-  const result = matchesPendingPayment(payment, charge({ providerRef: "ref-other" }))
+  const result = matchesPendingPayment(
+    payment,
+    charge({ providerRef: "ref-other" }),
+  )
   assert.deepEqual(result, { ok: false, reason: "REFERENCE_MISMATCH" })
 })
 
 test("matchesPendingPayment : pspOrderId absent (jamais posé) -> REFERENCE_MISMATCH", () => {
-  const result = matchesPendingPayment({ ...payment, pspOrderId: null }, charge())
+  const result = matchesPendingPayment(
+    { ...payment, pspOrderId: null },
+    charge(),
+  )
   assert.deepEqual(result, { ok: false, reason: "REFERENCE_MISMATCH" })
 })
 
@@ -51,6 +59,9 @@ test("matchesPendingPayment : écart flottant négligeable (<0.001) -> ok", () =
 })
 
 test("matchesPendingPayment : montant attendu non numérique -> AMOUNT_MISMATCH, jamais une exception", () => {
-  const result = matchesPendingPayment({ ...payment, originalAmount: "not-a-number" }, charge())
+  const result = matchesPendingPayment(
+    { ...payment, originalAmount: "not-a-number" },
+    charge(),
+  )
   assert.deepEqual(result, { ok: false, reason: "AMOUNT_MISMATCH" })
 })

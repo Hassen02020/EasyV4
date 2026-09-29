@@ -10,9 +10,15 @@ import { test, expect } from "@playwright/test"
 
 const PAGES = [
   { name: "home", url: "/" },
-  { name: "hotels-search", url: "/hotels/search?cityId=1&checkin=2026-09-10&checkout=2026-09-13&adults=2" },
+  {
+    name: "hotels-search",
+    url: "/hotels/search?cityId=1&checkin=2026-09-10&checkout=2026-09-13&adults=2",
+  },
   { name: "hotel-detail", url: "/hotels/500001" },
-  { name: "booking-confirmation-not-found", url: "/booking/confirmation/TG-DOES-NOT-EXIST?token=x" },
+  {
+    name: "booking-confirmation-not-found",
+    url: "/booking/confirmation/TG-DOES-NOT-EXIST?token=x",
+  },
 ]
 
 for (const width of [320, 375, 390, 414, 768]) {

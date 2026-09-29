@@ -30,7 +30,9 @@ const ACTION_VOUCHER_EMAIL_SENT = "notification.voucher_email.sent"
  * fonction ne touche jamais `payments`/`wallet_*`, uniquement un touch
  * idempotent de `reservations.updatedAt` (sûr à répéter).
  */
-async function hasVoucherEmailAlreadySucceeded(reservationId: string): Promise<boolean> {
+async function hasVoucherEmailAlreadySucceeded(
+  reservationId: string,
+): Promise<boolean> {
   const [existing] = await withSystemContext((tx) =>
     tx
       .select({ id: auditEvents.id })
@@ -47,7 +49,11 @@ async function hasVoucherEmailAlreadySucceeded(reservationId: string): Promise<b
   return Boolean(existing)
 }
 
-async function recordVoucherEmailSent(agencyId: string, reservationId: string, publicRef: string): Promise<void> {
+async function recordVoucherEmailSent(
+  agencyId: string,
+  reservationId: string,
+  publicRef: string,
+): Promise<void> {
   try {
     await withSystemContext((tx) =>
       tx.insert(auditEvents).values({
@@ -74,7 +80,11 @@ export const processConfirmedBooking = inngest.createFunction(
     triggers: { event: "booking/confirmed" },
     onFailure: makeOnFailure("process-confirmed-booking"),
   },
-  async ({ event }: { event: { data: Events["booking/confirmed"]["data"] } }) => {
+  async ({
+    event,
+  }: {
+    event: { data: Events["booking/confirmed"]["data"] }
+  }) => {
     const {
       reservationId,
       publicRef,

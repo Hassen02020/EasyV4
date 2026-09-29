@@ -10,7 +10,11 @@
  * acceptée silencieusement.
  */
 
-import type { BoardingOfferDTO, HotelOfferDTO, RoomOfferDTO } from "@/lib/mygo/types"
+import type {
+  BoardingOfferDTO,
+  HotelOfferDTO,
+  RoomOfferDTO,
+} from "@/lib/mygo/types"
 
 export interface MatchedRoom {
   boarding: BoardingOfferDTO

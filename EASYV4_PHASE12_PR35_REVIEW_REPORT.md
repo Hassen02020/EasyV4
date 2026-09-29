@@ -86,13 +86,14 @@ reason to hold this merge.
 **No P0/P1 found.** Specifically checked against the Phase 11 `draft.unitPriceTnd` vulnerability
 class:
 
-| Path | Price source | Client can influence price? |
-|---|---|---|
-| Hotel guest | `myGoBooking.totalPrice` (server, post-revalidation) | No — `draft.unitPriceTnd` only feeds the pre-checkout *display* estimate; the charge always re-derives from the provider-confirmed booking, identical to the B2B path |
-| Omra guest | `allotment.overridePrice ?? pkg.basePrice`, read under `FOR UPDATE` | No — `omraGuestBookingSchema` has **no price field at all** (verified by a test that injects `totalTnd`/`unitPriceTnd` and asserts Zod strips them) |
-| Packages guest | `departure.adultPriceTnd`/`childPriceTnd`, read under `FOR UPDATE` | No — same structural guarantee, same test pattern |
+| Path           | Price source                                                        | Client can influence price?                                                                                                                                           |
+| -------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hotel guest    | `myGoBooking.totalPrice` (server, post-revalidation)                | No — `draft.unitPriceTnd` only feeds the pre-checkout _display_ estimate; the charge always re-derives from the provider-confirmed booking, identical to the B2B path |
+| Omra guest     | `allotment.overridePrice ?? pkg.basePrice`, read under `FOR UPDATE` | No — `omraGuestBookingSchema` has **no price field at all** (verified by a test that injects `totalTnd`/`unitPriceTnd` and asserts Zod strips them)                   |
+| Packages guest | `departure.adultPriceTnd`/`childPriceTnd`, read under `FOR UPDATE`  | No — same structural guarantee, same test pattern                                                                                                                     |
 
 Other checks:
+
 - **Forged `agencyId`**: none of the 3 guest actions accept an `agencyId` parameter at all;
   it's always `getDefaultAgencyId()`. Verified structurally (schema has no such field) and by
   reading every call site.
@@ -163,7 +164,7 @@ Same conclusion as Omra: the schema (`catalog_packages`/`catalog_package_departu
 **genuinely configurable in principle** (real columns for price/seats/dates/inclusions), but
 **no admin CRUD UI exists** to actually configure it — confirmed by the same grep (zero
 `insert(catalogPackages)`/`update(catalogPackages)` outside my own new booking action, which
-only *reads* the catalog, never writes it). **Not claiming Packages are launch-ready** —
+only _reads_ the catalog, never writes it). **Not claiming Packages are launch-ready** —
 the booking engine is real; the product-management tooling to operate it is missing,
 identically to Omra.
 
@@ -191,17 +192,17 @@ something this PR removed or broke, and not something this PR claims to deliver.
 
 One migration in this PR: `drizzle/manual/0021_omra_remaining_rls.sql`.
 
-| Item | Detail |
-|---|---|
-| Tables changed | `omra_packages`, `omra_allotments`, `omra_flights`, `omra_room_allocations` |
-| Columns added | None — RLS only |
-| Indexes/constraints/FKs | None added |
-| RLS enabled? | Yes, all 4 (`ENABLE` + `FORCE ROW LEVEL SECURITY`) |
-| Policies | `<table>_tenant_isolation`, `FOR ALL`, `agency_id = current_agency_id() OR is_super_admin()` — direct for `omra_packages`, via subquery on `omra_packages`/`reservations` for the other 3 (no direct `agency_id` column) |
-| Data migration risk | None — RLS policies don't move or transform data |
-| Rollback difficulty | Trivial (`DROP POLICY` + `DISABLE ROW LEVEL SECURITY`), not scripted but one-line if ever needed |
-| No dangerous `USING(true)` | Confirmed — every policy gates on `current_agency_id()`/`is_super_admin()` |
-| Applied to production? | Yes, via Supabase MCP against project `vqhuptgjhoornteibbpj`, verified post-application: `relrowsecurity`/`relforcerowsecurity = true` on all 4, security advisor no longer flags them, `app_runtime` role's existing grants unaffected |
+| Item                       | Detail                                                                                                                                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tables changed             | `omra_packages`, `omra_allotments`, `omra_flights`, `omra_room_allocations`                                                                                                                                                             |
+| Columns added              | None — RLS only                                                                                                                                                                                                                         |
+| Indexes/constraints/FKs    | None added                                                                                                                                                                                                                              |
+| RLS enabled?               | Yes, all 4 (`ENABLE` + `FORCE ROW LEVEL SECURITY`)                                                                                                                                                                                      |
+| Policies                   | `<table>_tenant_isolation`, `FOR ALL`, `agency_id = current_agency_id() OR is_super_admin()` — direct for `omra_packages`, via subquery on `omra_packages`/`reservations` for the other 3 (no direct `agency_id` column)                |
+| Data migration risk        | None — RLS policies don't move or transform data                                                                                                                                                                                        |
+| Rollback difficulty        | Trivial (`DROP POLICY` + `DISABLE ROW LEVEL SECURITY`), not scripted but one-line if ever needed                                                                                                                                        |
+| No dangerous `USING(true)` | Confirmed — every policy gates on `current_agency_id()`/`is_super_admin()`                                                                                                                                                              |
+| Applied to production?     | Yes, via Supabase MCP against project `vqhuptgjhoornteibbpj`, verified post-application: `relrowsecurity`/`relforcerowsecurity = true` on all 4, security advisor no longer flags them, `app_runtime` role's existing grants unaffected |
 
 **No duplicated parallel product tables** (`omra_products`/`package_products`/etc.) were
 created — `catalog_packages` (generic) and `omra_packages` (Omra-specific, pre-existing
@@ -216,7 +217,7 @@ assumed): the DB role backing this session's connection is `postgres`
 role **already exists** on this project (`rolbypassrls=false`, full CRUD grants on all 6
 Omra tables confirmed). **Not verifiable from this sandbox**: whether the deployed Vercel
 app's `DATABASE_URL` actually authenticates as `app_runtime` rather than `postgres` — this
-determines whether RLS is *actually enforced* for the running app or only structurally
+determines whether RLS is _actually enforced_ for the running app or only structurally
 present. Exact operator check:
 
 ```sql
@@ -254,9 +255,9 @@ rather than claiming a visual pass.
   `SELECT MAX(publicRef) WHERE agencyId=... AND publicRef LIKE prefix%` algorithm, differing
   only by prefix constant (`TG-`, `OM-` ×2, `PK-`). Two of the four are new in this PR
   (`lib/omra/guest-booking-actions.ts`, `lib/packages/booking-actions.ts`) because the
-  pre-existing `omra`/booking-actions.ts` versions weren't exported. **Not fixed in this
-  review pass** (would be a cross-file refactor, out of scope for an audit) — flagged as a
-  clean, low-risk post-merge consolidation: `nextPublicRef(tx, agencyId, prefix)`.
+  pre-existing `omra`/booking-actions.ts`versions weren't exported. **Not fixed in this
+review pass** (would be a cross-file refactor, out of scope for an audit) — flagged as a
+clean, low-risk post-merge consolidation:`nextPublicRef(tx, agencyId, prefix)`.
 - The 3 guest-booking transactions (Hotel/Omra/Packages) share a real structural skeleton
   (resolve agency → lock inventory → price → pay → insert reservation → insert extension →
   decrement stock → audit) that isn't extracted into a shared helper. Deliberately left
@@ -278,12 +279,12 @@ rather than claiming a visual pass.
 
 ## 17. Regression findings
 
-| | Before (Phase 11) | After (PR #35) |
-|---|---|---|
-| Tests | 265/265 | **313/313** (+48 new, 0 regressions) |
-| typecheck | clean | clean |
-| lint | 0 errors, 119 warnings (pre-existing, untouched) | 0 errors, 119 warnings (identical set) |
-| build | green | green (fresh rebuild performed for this review) |
+|           | Before (Phase 11)                                | After (PR #35)                                  |
+| --------- | ------------------------------------------------ | ----------------------------------------------- |
+| Tests     | 265/265                                          | **313/313** (+48 new, 0 regressions)            |
+| typecheck | clean                                            | clean                                           |
+| lint      | 0 errors, 119 warnings (pre-existing, untouched) | 0 errors, 119 warnings (identical set)          |
+| build     | green                                            | green (fresh rebuild performed for this review) |
 
 E2E: ran the **full existing suite** (not just new specs) against a live local server —
 29/33 pass. The 4 failures (`a11y.spec.ts` ×2 admin pages, `auth.spec.ts` dashboard,
@@ -295,6 +296,7 @@ assumed. The 11 new specs (2 files) pass 11/11, actually executed, not just writ
 ## 18. Tests: 313/313
 
 ## 19. Build result: PASS (fresh `pnpm build`, all 37 changed files compile, both new voucher
+
 routes and both new `/book` pages correctly register as dynamic routes)
 
 ## 20. Required corrections before merge
@@ -332,7 +334,7 @@ attach to.
 
 ---
 
-*Scope note: this review did not attempt full mobile/tablet/desktop visual QA (§15), full
+_Scope note: this review did not attempt full mobile/tablet/desktop visual QA (§15), full
 B2B cross-agency integration tests (§10 — out of PR #35's diff, already green pre-existing),
 or a live payment-provider test (§18 of the original request — no provider is configured
-anywhere in the repo to test against, honestly, per §6).*
+anywhere in the repo to test against, honestly, per §6)._

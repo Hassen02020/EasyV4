@@ -45,7 +45,8 @@ export function InventoryLocksTable({ locks }: { locks: InventoryLock[] }) {
   const [statusFilter, setStatusFilter] = useState("all")
 
   const filtered = useMemo(
-    () => locks.filter((l) => statusFilter === "all" || l.status === statusFilter),
+    () =>
+      locks.filter((l) => statusFilter === "all" || l.status === statusFilter),
     [locks, statusFilter],
   )
 
@@ -58,11 +59,13 @@ export function InventoryLocksTable({ locks }: { locks: InventoryLock[] }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
-            {(Object.keys(STATUS_LABEL) as InventoryLock["status"][]).map((s) => (
-              <SelectItem key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </SelectItem>
-            ))}
+            {(Object.keys(STATUS_LABEL) as InventoryLock["status"][]).map(
+              (s) => (
+                <SelectItem key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </SelectItem>
+              ),
+            )}
           </SelectContent>
         </Select>
       </CardHeader>
@@ -83,7 +86,10 @@ export function InventoryLocksTable({ locks }: { locks: InventoryLock[] }) {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={7}
+                    className="text-muted-foreground py-8 text-center"
+                  >
                     Aucun verrou d&apos;inventaire pour le moment.
                   </TableCell>
                 </TableRow>
@@ -93,11 +99,21 @@ export function InventoryLocksTable({ locks }: { locks: InventoryLock[] }) {
                     <TableCell>
                       <Badge variant="outline">{lock.module}</Badge>
                     </TableCell>
-                    <TableCell className="max-w-48 truncate font-mono text-xs">{lock.itemId}</TableCell>
-                    <TableCell className="max-w-32 truncate font-mono text-xs">{lock.sessionId}</TableCell>
-                    <TableCell>{lock.priceTnd ? `${Number(lock.priceTnd).toLocaleString("fr-FR")} DT` : "—"}</TableCell>
+                    <TableCell className="max-w-48 truncate font-mono text-xs">
+                      {lock.itemId}
+                    </TableCell>
+                    <TableCell className="max-w-32 truncate font-mono text-xs">
+                      {lock.sessionId}
+                    </TableCell>
                     <TableCell>
-                      <Badge className={STATUS_COLOR[lock.status]}>{STATUS_LABEL[lock.status]}</Badge>
+                      {lock.priceTnd
+                        ? `${Number(lock.priceTnd).toLocaleString("fr-FR")} DT`
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={STATUS_COLOR[lock.status]}>
+                        {STATUS_LABEL[lock.status]}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(lock.expiresAt).toLocaleString("fr-FR")}

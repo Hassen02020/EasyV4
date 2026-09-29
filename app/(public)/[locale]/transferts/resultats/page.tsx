@@ -74,9 +74,7 @@ export default async function TransferResultsPage({
   const t = await getTranslations("Transferts")
 
   if (!from || !to || !vehicle || !date || !time) {
-    return (
-      <ErrorState message={t("incompleteCriteria")} t={t} />
-    )
+    return <ErrorState message={t("incompleteCriteria")} t={t} />
   }
   if (!VEHICLE_VALUES.has(vehicle)) {
     return <ErrorState message={t("invalidVehicleType")} t={t} />
@@ -86,9 +84,7 @@ export default async function TransferResultsPage({
 
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
-    return (
-      <ErrorState message={t("noAgencyConfigured")} t={t} />
-    )
+    return <ErrorState message={t("noAgencyConfigured")} t={t} />
   }
 
   // Catalogue public de zones (trafic anonyme, pas de session storefront) —
@@ -98,16 +94,19 @@ export default async function TransferResultsPage({
     db
       .select()
       .from(catalogTransferZones)
-      .where(and(eq(catalogTransferZones.agencyId, agencyId), eq(catalogTransferZones.status, "active")))
+      .where(
+        and(
+          eq(catalogTransferZones.agencyId, agencyId),
+          eq(catalogTransferZones.status, "active"),
+        ),
+      )
       .orderBy(catalogTransferZones.name),
   )
 
   const fromZone = zones.find((z) => z.id === from)
   const toZone = zones.find((z) => z.id === to)
   if (!fromZone || !toZone) {
-    return (
-      <ErrorState message={t("zoneNotFound")} t={t} />
-    )
+    return <ErrorState message={t("zoneNotFound")} t={t} />
   }
 
   const pricing = await calculateTransferPrice({
@@ -122,7 +121,7 @@ export default async function TransferResultsPage({
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <div className="bg-gradient-to-br from-blue-900 to-blue-700 px-4 py-10 text-white">
           <div className="mx-auto max-w-4xl text-center">
             <p className="mb-2 text-sm font-medium tracking-widest text-blue-300 uppercase">
@@ -145,11 +144,17 @@ export default async function TransferResultsPage({
             </Alert>
           ) : (
             <Alert className="mb-8 border-emerald-200 bg-emerald-50 text-emerald-900">
-              <AlertTitle>{t("quoteTitle", { total: pricing.totalTnd.toFixed(3) })}</AlertTitle>
+              <AlertTitle>
+                {t("quoteTitle", { total: pricing.totalTnd.toFixed(3) })}
+              </AlertTitle>
               <AlertDescription className="text-emerald-800">
-                {t("quoteBasePrice", { basePrice: pricing.basePriceTnd.toFixed(3) })}
+                {t("quoteBasePrice", {
+                  basePrice: pricing.basePriceTnd.toFixed(3),
+                })}
                 {pricing.nightSurchargeAmount > 0 &&
-                  t("nightSurcharge", { amount: pricing.nightSurchargeAmount.toFixed(3) })}
+                  t("nightSurcharge", {
+                    amount: pricing.nightSurchargeAmount.toFixed(3),
+                  })}
                 {t("finalizeBelow")}
               </AlertDescription>
             </Alert>

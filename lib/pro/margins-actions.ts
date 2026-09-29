@@ -17,7 +17,10 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { withTenantContext, resolveSessionContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  resolveSessionContext,
+} from "@/lib/db/tenant-context"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { invalidateMarginsCache } from "./server-context"
@@ -36,18 +39,26 @@ const MarginInputSchema = z.object({
 })
 
 export type MarginActionInput = z.infer<typeof MarginInputSchema>
-export type MarginActionResult = { ok: true; id: string } | { ok: false; error: string }
+export type MarginActionResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string }
 
 /**
  * Partenaire authentifié — édite la marge d'un module pour SA PROPRE
  * agence uniquement.
  */
-export async function upsertMyPricingMargin(input: MarginActionInput): Promise<MarginActionResult> {
+export async function upsertMyPricingMargin(
+  input: MarginActionInput,
+): Promise<MarginActionResult> {
   const parsed = MarginInputSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Service temporairement indisponible." }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Service temporairement indisponible." }
 
   const supabase = await createServerSupabase()
   const {
@@ -56,7 +67,8 @@ export async function upsertMyPricingMargin(input: MarginActionInput): Promise<M
   if (!user) return { ok: false, error: "Session expirée — reconnectez-vous." }
 
   const profile = await getCurrentPartnerProfile(user.id)
-  if (!profile?.agency?.id) return { ok: false, error: "Profil partenaire introuvable." }
+  if (!profile?.agency?.id)
+    return { ok: false, error: "Profil partenaire introuvable." }
   const agencyId = profile.agency.id
 
   try {
@@ -84,16 +96,23 @@ export type AdminMarginActionInput = z.infer<typeof AdminMarginInputSchema>
  * (resolveSessionContext + isSuperAdmin), jamais un rôle fourni par le
  * client.
  */
-export async function upsertAgencyPricingMargin(input: AdminMarginActionInput): Promise<MarginActionResult> {
+export async function upsertAgencyPricingMargin(
+  input: AdminMarginActionInput,
+): Promise<MarginActionResult> {
   const session = await resolveSessionContext()
   if (!session.ok) return { ok: false, error: "Non authentifié" }
-  if (!session.isSuperAdmin) return { ok: false, error: "Accès refusé : rôle super_admin requis" }
+  if (!session.isSuperAdmin)
+    return { ok: false, error: "Accès refusé : rôle super_admin requis" }
 
   const parsed = AdminMarginInputSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Service temporairement indisponible." }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Service temporairement indisponible." }
 
   try {
     const result = await withTenantContext(

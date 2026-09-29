@@ -54,7 +54,10 @@ function isAdminShellRole(role: string): role is AdminShellRole {
  * ses agents reçoit un grant `staff.create`/`staff.edit` explicite — voir
  * lib/auth/partner-agent-actions.ts.
  */
-const PARTNER_ROLE_PERMISSIONS: Record<"partner_owner" | "partner_agent", readonly Permission[]> = {
+const PARTNER_ROLE_PERMISSIONS: Record<
+  "partner_owner" | "partner_agent",
+  readonly Permission[]
+> = {
   partner_owner: [
     "reservations.view",
     "reservations.create",
@@ -77,10 +80,13 @@ export const PARTNER_DELEGATABLE_PERMISSIONS: readonly Permission[] = [
 ]
 
 /** Baseline (rôle seul, sans override) — jamais de DB ici, pure et testable. */
-export function getBaselinePermissions(role: AnyRole | string | null | undefined): readonly Permission[] {
+export function getBaselinePermissions(
+  role: AnyRole | string | null | undefined,
+): readonly Permission[] {
   if (!role) return []
   if (isAdminShellRole(role)) return getAdminRolePermissions(role)
-  if (role === "partner_owner" || role === "partner_agent") return PARTNER_ROLE_PERMISSIONS[role]
+  if (role === "partner_owner" || role === "partner_agent")
+    return PARTNER_ROLE_PERMISSIONS[role]
   return []
 }
 
@@ -104,7 +110,9 @@ export interface EffectivePermissionInput {
  * existe pour CE user précis, sinon baseline du rôle. Toujours résolu
  * côté serveur — jamais un rôle/une permission fournie par le client.
  */
-export async function getEffectivePermission(input: EffectivePermissionInput): Promise<boolean> {
+export async function getEffectivePermission(
+  input: EffectivePermissionInput,
+): Promise<boolean> {
   const { agencyId, userId, role, permission, txOverride } = input
 
   const run = (tx: DrizzleTransaction) =>
@@ -122,7 +130,10 @@ export async function getEffectivePermission(input: EffectivePermissionInput): P
 
   const rows = txOverride
     ? await run(txOverride)
-    : await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, run)
+    : await withTenantContext(
+        { agencyId, userId: "", isSuperAdmin: false },
+        run,
+      )
 
   if (rows[0]) return rows[0].granted
   return hasBaselinePermission(role, permission)
@@ -143,20 +154,30 @@ export async function getAgencyPermissionGrants(
   const map = new Map<string, PermissionGrantRow[]>()
   if (userIds.length === 0) return map
 
-  const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    tx
-      .select({
-        userId: permissionGrants.userId,
-        permission: permissionGrants.permission,
-        granted: permissionGrants.granted,
-      })
-      .from(permissionGrants)
-      .where(and(eq(permissionGrants.agencyId, agencyId), inArray(permissionGrants.userId, [...userIds]))),
+  const rows = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) =>
+      tx
+        .select({
+          userId: permissionGrants.userId,
+          permission: permissionGrants.permission,
+          granted: permissionGrants.granted,
+        })
+        .from(permissionGrants)
+        .where(
+          and(
+            eq(permissionGrants.agencyId, agencyId),
+            inArray(permissionGrants.userId, [...userIds]),
+          ),
+        ),
   )
 
   for (const row of rows) {
     const list = map.get(row.userId) ?? []
-    list.push({ permission: row.permission as Permission, granted: row.granted })
+    list.push({
+      permission: row.permission as Permission,
+      granted: row.granted,
+    })
     map.set(row.userId, list)
   }
   return map

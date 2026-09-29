@@ -37,12 +37,12 @@ export function OmraSearch() {
   }
 
   return (
-    <div className="mb-8 rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="bg-card mb-8 rounded-2xl border p-6 shadow-sm">
       <h2 className="mb-6 text-lg font-semibold">{t("refineSearch")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+            <Tag className="text-muted-foreground h-3.5 w-3.5" />
             {tCommon("programme")}
           </Label>
           <Select value={programme} onValueChange={setProgramme}>
@@ -61,7 +61,7 @@ export function OmraSearch() {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <Calendar className="text-muted-foreground h-3.5 w-3.5" />
             {tCommon("moisDepart")}
           </Label>
           <Select value={month} onValueChange={setMonth}>
@@ -80,7 +80,7 @@ export function OmraSearch() {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <Users className="text-muted-foreground h-3.5 w-3.5" />
             {t("pilgrimsLabel")}
           </Label>
           <Select value={pilgrims} onValueChange={setPilgrims}>

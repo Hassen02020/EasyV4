@@ -17,14 +17,14 @@ back-office, et le SEO existant (`generateMetadata`, sitemap).
 géographie est modélisée uniquement en colonnes texte libre éparpillées sur des
 tables métier, jamais avec une clé étrangère vers un référentiel partagé :
 
-| Table | Colonnes géo | Fichier:ligne | Type | Consommateur réel |
-|---|---|---|---|---|
-| `products` | `destination varchar(128)`, `country varchar(64)`, `city varchar(64)` + index `product_destination_idx` | `lib/db/schema.ts:1850-1855,1959` | texte libre, pas de FK | **Aucun** — champ posé, jamais alimenté ni lu par le code applicatif |
-| `car_locations` | `city varchar(100)` (texte libre, pas FK), `airportCode`, `lat/lng` | `lib/db/schema/cars.ts:92-126` | texte libre | `lib/cars/actions.ts` (lecture seule) |
-| `catalog_transfer_zones` | `name`, `zoneType` (airport/hotel/city/station), `lat/lng` — **aucune colonne ville/pays** | `lib/db/schema.ts:935-950` | aucun rattachement géo | `lib/transfers/actions.ts` (lecture seule) |
-| `omra_hotels.city` | `varchar(16)`, valeurs `'mecca'`/`'medina'` | `lib/db/schema/omra.ts:245-246` | énumération à 2 valeurs | module Omra uniquement |
-| `catalog_activities.location` | `varchar(200)` | `lib/db/schema.ts:877` | texte libre non structuré | recherche `ILIKE` |
-| `reservation_flight.destination`/`.returnDestination` | `varchar(8)` (IATA) | `lib/db/schema.ts:504,508` | code IATA | module Vols |
+| Table                                                 | Colonnes géo                                                                                            | Fichier:ligne                     | Type                      | Consommateur réel                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------- | -------------------------------------------------------------------- |
+| `products`                                            | `destination varchar(128)`, `country varchar(64)`, `city varchar(64)` + index `product_destination_idx` | `lib/db/schema.ts:1850-1855,1959` | texte libre, pas de FK    | **Aucun** — champ posé, jamais alimenté ni lu par le code applicatif |
+| `car_locations`                                       | `city varchar(100)` (texte libre, pas FK), `airportCode`, `lat/lng`                                     | `lib/db/schema/cars.ts:92-126`    | texte libre               | `lib/cars/actions.ts` (lecture seule)                                |
+| `catalog_transfer_zones`                              | `name`, `zoneType` (airport/hotel/city/station), `lat/lng` — **aucune colonne ville/pays**              | `lib/db/schema.ts:935-950`        | aucun rattachement géo    | `lib/transfers/actions.ts` (lecture seule)                           |
+| `omra_hotels.city`                                    | `varchar(16)`, valeurs `'mecca'`/`'medina'`                                                             | `lib/db/schema/omra.ts:245-246`   | énumération à 2 valeurs   | module Omra uniquement                                               |
+| `catalog_activities.location`                         | `varchar(200)`                                                                                          | `lib/db/schema.ts:877`            | texte libre non structuré | recherche `ILIKE`                                                    |
+| `reservation_flight.destination`/`.returnDestination` | `varchar(8)` (IATA)                                                                                     | `lib/db/schema.ts:504,508`        | code IATA                 | module Vols                                                          |
 
 **Duplication de schéma non migrée** : `lib/db/schema/products.ts:68` définit une
 **deuxième table `products`**, distincte de celle réellement migrée
@@ -41,7 +41,12 @@ mort, à ne jamais confondre avec la vraie table `products`.
 Structure réelle (`lib/mygo/__fixtures__/listcity.json`, 36 entrées) :
 
 ```json
-{ "Id": 10, "Name": "Hammamet", "Region": "Cap Bon", "Country": { "Id": 219, "Name": "Tunisie" } }
+{
+  "Id": 10,
+  "Name": "Hammamet",
+  "Region": "Cap Bon",
+  "Country": { "Id": 219, "Name": "Tunisie" }
+}
 ```
 
 - Vraie hiérarchie fournisseur : **Country{Id,Name} → City{Id,Name,Region}**,
@@ -101,19 +106,20 @@ câblée ni morte.
 
 ## 8. Volumétrie réelle
 
-| Source | Nombre | Preuve |
-|---|---|---|
-| Villes myGo (Tunisie) | 36, sur 12 régions | `lib/mygo/__fixtures__/listcity.json` |
-| — dont villes touristiques actives | 10 | `catalog.ts:70` |
-| Destinations statiques Hôtels Monde | 10 | `lib/hotels-monde/search-state.ts:19-30` |
-| Destinations statiques Packages | 8 (liste **différente** de celle Hôtels Monde) | `components/packages/package-search.tsx:18` |
-| Aéroports Vols | 11 codes IATA | `lib/vols/search-state.ts:33-45` |
-| Car/Transfer locations en base | non déterminable — aucun seed trouvé | — |
-| Mock hôtels démo réservations | 8 hôtels / 3 villes, `cityId` **incompatibles** avec les IDs myGo réels (ex. Hammamet=3 ici vs 10 chez myGo) | `scripts/seed-mock-data.ts:147-161` |
+| Source                              | Nombre                                                                                                       | Preuve                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| Villes myGo (Tunisie)               | 36, sur 12 régions                                                                                           | `lib/mygo/__fixtures__/listcity.json`       |
+| — dont villes touristiques actives  | 10                                                                                                           | `catalog.ts:70`                             |
+| Destinations statiques Hôtels Monde | 10                                                                                                           | `lib/hotels-monde/search-state.ts:19-30`    |
+| Destinations statiques Packages     | 8 (liste **différente** de celle Hôtels Monde)                                                               | `components/packages/package-search.tsx:18` |
+| Aéroports Vols                      | 11 codes IATA                                                                                                | `lib/vols/search-state.ts:33-45`            |
+| Car/Transfer locations en base      | non déterminable — aucun seed trouvé                                                                         | —                                           |
+| Mock hôtels démo réservations       | 8 hôtels / 3 villes, `cityId` **incompatibles** avec les IDs myGo réels (ex. Hammamet=3 ici vs 10 chez myGo) | `scripts/seed-mock-data.ts:147-161`         |
 
 **Ordre de grandeur global** : une petite quarantaine de lieux distincts tous
 modules confondus, répartis sur **6 systèmes d'identifiants différents et non
 réconciliés** :
+
 1. `cityId` numérique myGo (officiel, avec `Country.Id`/`Region`)
 2. `value` slug texte Hôtels Monde
 3. `value` slug texte Packages (liste différente de la précédente malgré des
@@ -156,6 +162,6 @@ réconciliés** :
 
 ---
 
-*Prochaine étape (chantier 2, distinct — pas commencé) : conception du Canonical
+_Prochaine étape (chantier 2, distinct — pas commencé) : conception du Canonical
 Destination Model (schéma, stratégie de réconciliation des 6 systèmes d'ID,
-scope du backfill) à partir de ces constats.*
+scope du backfill) à partir de ces constats._

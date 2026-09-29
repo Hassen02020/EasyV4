@@ -35,7 +35,10 @@ const CITY_FROM_HOME: Record<string, string> = {
   sousse: "Sousse",
 }
 
-function matchLocation(input: string | undefined, locations: CarLocation[]): string {
+function matchLocation(
+  input: string | undefined,
+  locations: CarLocation[],
+): string {
   if (!input) return ""
   const code = AIRPORT_CODE_FROM_HOME[input]
   if (code) {
@@ -44,7 +47,9 @@ function matchLocation(input: string | undefined, locations: CarLocation[]): str
   }
   const city = CITY_FROM_HOME[input]
   if (city) {
-    const byCity = locations.find((l) => l.city.toLowerCase() === city.toLowerCase())
+    const byCity = locations.find(
+      (l) => l.city.toLowerCase() === city.toLowerCase(),
+    )
     if (byCity) return byCity.id
   }
   return ""
@@ -57,7 +62,10 @@ const CATEGORY_CODE_FROM_HOME: Record<string, string> = {
   luxe: "premium",
 }
 
-function matchCategory(input: string | undefined, categories: CarCategory[]): string {
+function matchCategory(
+  input: string | undefined,
+  categories: CarCategory[],
+): string {
   if (!input) return ""
   const code = CATEGORY_CODE_FROM_HOME[input]
   if (!code) return ""
@@ -101,7 +109,9 @@ export function CarSearch({
       : (initialReturnDate ?? ""),
   )
   const [returnTime, setReturnTime] = useState("10:00")
-  const [category, setCategory] = useState(() => matchCategory(initialCategory, categories))
+  const [category, setCategory] = useState(() =>
+    matchCategory(initialCategory, categories),
+  )
 
   function handleSearch() {
     if (locations.length === 0) {
@@ -139,13 +149,13 @@ export function CarSearch({
   const today = new Date().toISOString().split("T")[0]!
 
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="bg-card rounded-2xl border p-6 shadow-sm">
       <h2 className="mb-6 text-xl font-semibold">{t("title")}</h2>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            <MapPin className="text-muted-foreground h-3.5 w-3.5" />
             {t("pickupLocationLabel")}
           </Label>
           <Select value={pickupLocation} onValueChange={setPickupLocation}>
@@ -171,10 +181,10 @@ export function CarSearch({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="flex items-center gap-1.5 text-sm">
-              <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+              <MapPin className="text-muted-foreground h-3.5 w-3.5" />
               {t("dropoffLocationLabel")}
             </Label>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
                 checked={sameDropoff}
@@ -186,7 +196,7 @@ export function CarSearch({
             </div>
           </div>
           {sameDropoff ? (
-            <div className="flex h-10 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
+            <div className="bg-muted text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
               {pickupLocation
                 ? locations.find((l) => l.id === pickupLocation)?.name
                 : t("sameAsPickup")}
@@ -210,7 +220,7 @@ export function CarSearch({
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <Calendar className="text-muted-foreground h-3.5 w-3.5" />
               {t("pickupDateLabel")}
             </Label>
             <Input
@@ -233,7 +243,7 @@ export function CarSearch({
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <Calendar className="text-muted-foreground h-3.5 w-3.5" />
               {t("returnDateLabel")}
             </Label>
             <Input
@@ -255,7 +265,7 @@ export function CarSearch({
 
         <div className="space-y-2 sm:col-span-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Car className="h-3.5 w-3.5 text-muted-foreground" />
+            <Car className="text-muted-foreground h-3.5 w-3.5" />
             {t("vehicleCategoryLabel")}
           </Label>
           <Select value={category} onValueChange={setCategory}>

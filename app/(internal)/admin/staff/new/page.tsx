@@ -10,7 +10,13 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { NewStaffForm } from "@/components/admin/new-staff-form"
@@ -28,7 +34,10 @@ export default async function NewStaffPage() {
   if (!user) redirect("/login?next=/admin/staff/new")
 
   const profile = await getCurrentAdminProfile(user.id)
-  if (!profile || !(ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
+  if (
+    !profile ||
+    !(ALLOWED_ROLES as readonly string[]).includes(profile.role)
+  ) {
     redirect("/admin/staff")
   }
 
@@ -43,7 +52,9 @@ export default async function NewStaffPage() {
       <Card>
         <CardHeader>
           <CardTitle>Nouvel agent</CardTitle>
-          <CardDescription>Invite un nouveau membre du personnel dans votre agence.</CardDescription>
+          <CardDescription>
+            Invite un nouveau membre du personnel dans votre agence.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <NewStaffForm canGrantSuperAdmin={profile.role === "super_admin"} />

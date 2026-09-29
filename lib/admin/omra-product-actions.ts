@@ -25,21 +25,32 @@ import { omraPackages, omraAllotments } from "@/lib/db/schema"
 import { auditEvents } from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 import { isValidProductStatus } from "./product-constants"
-import { omraProductSchema, omraDepartureSchema, type OmraProductInput, type OmraDepartureInput } from "./schemas/omra-product"
+import {
+  omraProductSchema,
+  omraDepartureSchema,
+  type OmraProductInput,
+  type OmraDepartureInput,
+} from "./schemas/omra-product"
 import type { ProductActionResult } from "./packages-actions"
 
-export async function createOmraProduct(input: OmraProductInput): Promise<ProductActionResult> {
+export async function createOmraProduct(
+  input: OmraProductInput,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const parsed = omraProductSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
 
@@ -87,7 +98,10 @@ export async function createOmraProduct(input: OmraProductInput): Promise<Produc
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -101,11 +115,15 @@ export async function updateOmraProduct(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const parsed = omraProductSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
 
@@ -135,7 +153,12 @@ export async function updateOmraProduct(
             channels: data.channels,
             updatedAt: new Date(),
           })
-          .where(and(eq(omraPackages.id, productId), eq(omraPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(omraPackages.id, productId),
+              eq(omraPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .returning({ id: omraPackages.id })
         if (!updated) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -152,19 +175,27 @@ export async function updateOmraProduct(
     revalidatePath("/admin/products")
     return { ok: true, data: { id: productId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
-export async function setOmraProductStatus(productId: string, status: string): Promise<ProductActionResult> {
+export async function setOmraProductStatus(
+  productId: string,
+  status: string,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!isValidProductStatus(status)) return { ok: false, error: "Statut invalide" }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!isValidProductStatus(status))
+    return { ok: false, error: "Statut invalide" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     await withTenantContext(
@@ -173,7 +204,12 @@ export async function setOmraProductStatus(productId: string, status: string): P
         const [updated] = await tx
           .update(omraPackages)
           .set({ status, updatedAt: new Date() })
-          .where(and(eq(omraPackages.id, productId), eq(omraPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(omraPackages.id, productId),
+              eq(omraPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .returning({ id: omraPackages.id })
         if (!updated) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -190,18 +226,24 @@ export async function setOmraProductStatus(productId: string, status: string): P
     revalidatePath("/admin/products")
     return { ok: true, data: { id: productId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
-export async function duplicateOmraProduct(productId: string): Promise<ProductActionResult> {
+export async function duplicateOmraProduct(
+  productId: string,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const result = await withTenantContext(
@@ -210,7 +252,12 @@ export async function duplicateOmraProduct(productId: string): Promise<ProductAc
         const [original] = await tx
           .select()
           .from(omraPackages)
-          .where(and(eq(omraPackages.id, productId), eq(omraPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(omraPackages.id, productId),
+              eq(omraPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!original) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -258,7 +305,10 @@ export async function duplicateOmraProduct(productId: string): Promise<ProductAc
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -274,10 +324,14 @@ export async function createOmraDeparture(
   }
   const parsed = omraDepartureSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const result = await withTenantContext(
@@ -286,7 +340,12 @@ export async function createOmraDeparture(
         const [product] = await tx
           .select({ id: omraPackages.id })
           .from(omraPackages)
-          .where(and(eq(omraPackages.id, productId), eq(omraPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(omraPackages.id, productId),
+              eq(omraPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!product) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -300,7 +359,10 @@ export async function createOmraDeparture(
             confirmedCount: 0,
             blockedCount: 0,
             availableCount: data.totalCapacity,
-            overridePrice: data.overridePrice != null ? data.overridePrice.toFixed(3) : undefined,
+            overridePrice:
+              data.overridePrice != null
+                ? data.overridePrice.toFixed(3)
+                : undefined,
             bookingDeadline: data.bookingDeadline || undefined,
             status: "active",
           })
@@ -321,7 +383,10 @@ export async function createOmraDeparture(
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -335,7 +400,8 @@ export async function setOmraDepartureStatus(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     await withTenantContext(
@@ -345,19 +411,36 @@ export async function setOmraDepartureStatus(
         // vérifie l'appartenance via une jointure sur omra_packages, même
         // modèle que la policy RLS 0021_omra_remaining_rls.sql.
         const rows = await tx
-          .select({ id: omraAllotments.id, packageId: omraAllotments.packageId })
+          .select({
+            id: omraAllotments.id,
+            packageId: omraAllotments.packageId,
+          })
           .from(omraAllotments)
-          .innerJoin(omraPackages, eq(omraPackages.id, omraAllotments.packageId))
-          .where(and(eq(omraAllotments.id, allotmentId), eq(omraPackages.agencyId, ctx.agencyId)))
+          .innerJoin(
+            omraPackages,
+            eq(omraPackages.id, omraAllotments.packageId),
+          )
+          .where(
+            and(
+              eq(omraAllotments.id, allotmentId),
+              eq(omraPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!rows[0]) throw new Error("DEPARTURE_NOT_FOUND")
 
-        await tx.update(omraAllotments).set({ status, updatedAt: new Date() }).where(eq(omraAllotments.id, allotmentId))
+        await tx
+          .update(omraAllotments)
+          .set({ status, updatedAt: new Date() })
+          .where(eq(omraAllotments.id, allotmentId))
       },
     )
     revalidatePath("/admin/products")
     return { ok: true, data: { id: allotmentId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }

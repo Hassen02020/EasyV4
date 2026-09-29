@@ -19,7 +19,11 @@ function reset() {
 // Marge inactive — la plupart des tests ci-dessous vérifient le comportement
 // de revalidation/inventaire de book(), indépendant de la marge (déjà testée
 // séparément ci-dessous) : prix net === prix agence avec cette règle.
-const NO_MARGIN: MarginRule = { marginType: "percent", marginValue: 0, isActive: false }
+const NO_MARGIN: MarginRule = {
+  marginType: "percent",
+  marginValue: 0,
+  isActive: false,
+}
 
 const BASE_INPUT = {
   origin: "TUN",
@@ -101,8 +105,14 @@ test("book: décrémente réellement l'inventaire (disponibilité baisse après 
 
   await book(offer.token, offer.priceTnd, NO_MARGIN)
 
-  const after = search(BASE_INPUT).offers.find((o) => o.offerId === offer.offerId)!
-  assert.equal(after.availableSeats, before - 2, "2 sièges (adults) décrémentés")
+  const after = search(BASE_INPUT).offers.find(
+    (o) => o.offerId === offer.offerId,
+  )!
+  assert.equal(
+    after.availableSeats,
+    before - 2,
+    "2 sièges (adults) décrémentés",
+  )
 })
 
 test("cancel: restitue l'inventaire réservé par book()", async () => {
@@ -122,8 +132,14 @@ test("cancel: restitue l'inventaire réservé par book()", async () => {
     children: booked.children,
   })
 
-  const after = search(BASE_INPUT).offers.find((o) => o.offerId === offer.offerId)!
-  assert.equal(after.availableSeats, before, "inventaire restitué après annulation")
+  const after = search(BASE_INPUT).offers.find(
+    (o) => o.offerId === offer.offerId,
+  )!
+  assert.equal(
+    after.availableSeats,
+    before,
+    "inventaire restitué après annulation",
+  )
 })
 
 test("SÉCURITÉ — book: jeton altéré (signature invalide) => TOKEN_INVALID", async () => {
@@ -156,18 +172,34 @@ test("book: marge agence appliquée avant comparaison — prix marginé accepté
   reset()
   const { offers } = search(BASE_INPUT)
   const offer = offers.find((o) => o.availableSeats >= 2)!
-  const margin: MarginRule = { marginType: "fixed", marginValue: 25, isActive: true }
+  const margin: MarginRule = {
+    marginType: "fixed",
+    marginValue: 25,
+    isActive: true,
+  }
   const agencyPriceTnd = offer.priceTnd + 25
 
   const rejected = await book(offer.token, offer.priceTnd, margin)
-  assert.equal(rejected.ok, false, "le prix net brut (sans marge) ne doit jamais être accepté quand une marge est active")
+  assert.equal(
+    rejected.ok,
+    false,
+    "le prix net brut (sans marge) ne doit jamais être accepté quand une marge est active",
+  )
   if (!rejected.ok) assert.equal(rejected.kind, "PRICE_CHANGED")
 
   const accepted = await book(offer.token, agencyPriceTnd, margin)
   assert.equal(accepted.ok, true)
   if (accepted.ok) {
-    assert.equal(accepted.totalPriceTnd, agencyPriceTnd, "prix facturé = prix net + marge (une seule fois, par offre)")
-    assert.equal(accepted.supplierPriceTnd, offer.priceTnd, "prix fournisseur enregistré = prix net, jamais le prix marginé")
+    assert.equal(
+      accepted.totalPriceTnd,
+      agencyPriceTnd,
+      "prix facturé = prix net + marge (une seule fois, par offre)",
+    )
+    assert.equal(
+      accepted.supplierPriceTnd,
+      offer.priceTnd,
+      "prix fournisseur enregistré = prix net, jamais le prix marginé",
+    )
   }
 })
 
@@ -180,8 +212,14 @@ test("scénario SOLD_OUT: book échoue proprement, aucune décrémentation appli
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "SOLD_OUT")
   resetScenario()
-  const after = search(BASE_INPUT).offers.find((o) => o.offerId === offer.offerId)!
-  assert.equal(after.availableSeats, offer.availableSeats, "inventaire inchangé — jamais décrémenté sur un échec")
+  const after = search(BASE_INPUT).offers.find(
+    (o) => o.offerId === offer.offerId,
+  )!
+  assert.equal(
+    after.availableSeats,
+    offer.availableSeats,
+    "inventaire inchangé — jamais décrémenté sur un échec",
+  )
 })
 
 test("scénario PRICE_CHANGED: prix serveur recalculé +12%, currentPriceTnd renvoyé pour ré-affichage", async () => {
@@ -219,6 +257,9 @@ test("scénario TIMEOUT: le fournisseur ne répond pas — kind TIMEOUT après l
   const elapsed = Date.now() - start
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.kind, "TIMEOUT")
-  assert.ok(elapsed >= 2900, "doit réellement attendre le délai simulé, pas un timeout instantané fabriqué")
+  assert.ok(
+    elapsed >= 2900,
+    "doit réellement attendre le délai simulé, pas un timeout instantané fabriqué",
+  )
   resetScenario()
 })

@@ -1,8 +1,15 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { searchAcrossSuppliers } from "../core/orchestration"
-import type { HotelSupplierDriver, SupplierSearchResult } from "../core/supplier"
-import type { HotelSearchRequest, NormalizedHotel, SupplierName } from "../core/types"
+import type {
+  HotelSupplierDriver,
+  SupplierSearchResult,
+} from "../core/supplier"
+import type {
+  HotelSearchRequest,
+  NormalizedHotel,
+  SupplierName,
+} from "../core/types"
 
 function fakeDriver(
   supplier: SupplierName,
@@ -14,18 +21,21 @@ function fakeDriver(
 ): HotelSupplierDriver {
   return {
     supplier,
-    getConfigStatus: () => (behavior.kind === "not-configured" ? "NOT_CONFIGURED" : "CONFIGURED"),
+    getConfigStatus: () =>
+      behavior.kind === "not-configured" ? "NOT_CONFIGURED" : "CONFIGURED",
     async search(): Promise<SupplierSearchResult> {
       if (behavior.kind === "hang") return new Promise(() => {}) // ne résout jamais — exercé par le timeout
       if (behavior.kind === "error") {
-        if (behavior.delayMs) await new Promise((r) => setTimeout(r, behavior.delayMs))
+        if (behavior.delayMs)
+          await new Promise((r) => setTimeout(r, behavior.delayMs))
         throw new Error(`${supplier} boom`)
       }
       if (behavior.kind === "not-configured") {
         // Jamais réellement appelé (l'orchestrateur court-circuite via getConfigStatus) — filet de sécurité typé.
         throw new Error(`${supplier} should not be called when NOT_CONFIGURED`)
       }
-      if (behavior.delayMs) await new Promise((r) => setTimeout(r, behavior.delayMs))
+      if (behavior.delayMs)
+        await new Promise((r) => setTimeout(r, behavior.delayMs))
       return { hotels: behavior.hotels ?? [], rates: [] }
     },
     getDetails: () => Promise.reject(new Error("not used in this test")),
@@ -48,14 +58,24 @@ const REQUEST: HotelSearchRequest = {
 test("searchAcrossSuppliers : un fournisseur lent (hang) n'empêche pas les autres de répondre", async () => {
   const fast = fakeDriver("cyberesa", { kind: "success" })
   const slow = fakeDriver("mygo", { kind: "hang" })
-  const result = await searchAcrossSuppliers([fast, slow], REQUEST, { timeoutMs: 100 })
+  const result = await searchAcrossSuppliers([fast, slow], REQUEST, {
+    timeoutMs: 100,
+  })
   assert.equal(result.supplierStatus.cyberesa, "SUCCESS")
   assert.equal(result.supplierStatus.mygo, "TIMEOUT")
-  assert.ok(result.elapsedMs < 500, "ne doit pas attendre le fournisseur bloqué")
+  assert.ok(
+    result.elapsedMs < 500,
+    "ne doit pas attendre le fournisseur bloqué",
+  )
 })
 
 test("searchAcrossSuppliers : l'échec d'un fournisseur n'affecte jamais les résultats des autres (isolation)", async () => {
-  const ok = fakeDriver("mygo", { kind: "success", hotels: [{ name: "Hotel OK", images: [], facilities: [], supplierMappings: [] }] })
+  const ok = fakeDriver("mygo", {
+    kind: "success",
+    hotels: [
+      { name: "Hotel OK", images: [], facilities: [], supplierMappings: [] },
+    ],
+  })
   const broken = fakeDriver("3t", { kind: "error" })
   const result = await searchAcrossSuppliers([ok, broken], REQUEST)
   assert.equal(result.supplierStatus.mygo, "SUCCESS")
@@ -83,7 +103,9 @@ test("searchAcrossSuppliers : tous les fournisseurs réussissent -> statut SUCCE
 
 test("searchAcrossSuppliers : un correlationId est toujours renvoyé (fourni ou généré)", async () => {
   const a = fakeDriver("mygo", { kind: "success" })
-  const withId = await searchAcrossSuppliers([a], REQUEST, { correlationId: "corr-123" })
+  const withId = await searchAcrossSuppliers([a], REQUEST, {
+    correlationId: "corr-123",
+  })
   assert.equal(withId.correlationId, "corr-123")
   const withoutId = await searchAcrossSuppliers([a], REQUEST)
   assert.ok(withoutId.correlationId.length > 0)

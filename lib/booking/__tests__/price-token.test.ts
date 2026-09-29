@@ -28,9 +28,14 @@ test("price-token: sign puis verify round-trip — même contexte, prix intact",
 test("price-token: prix trafiqué dans le payload (signature ne correspond plus) — rejeté", () => {
   const token = signHotelPriceToken({ ...BASE_CONTEXT, unitPriceTnd: 150 })
   const [payloadB64, sig] = token.split(".")
-  const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"))
+  const payload = JSON.parse(
+    Buffer.from(payloadB64, "base64url").toString("utf8"),
+  )
   payload.unitPriceTnd = 1 // falsification — ramène le prix à 1 TND
-  const tamperedPayloadB64 = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")
+  const tamperedPayloadB64 = Buffer.from(
+    JSON.stringify(payload),
+    "utf8",
+  ).toString("base64url")
   const tamperedToken = `${tamperedPayloadB64}.${sig}`
   const result = verifyHotelPriceToken(tamperedToken, BASE_CONTEXT)
   assert.equal(result.ok, false)
@@ -62,7 +67,11 @@ test("price-token: réutilisation d'un token valide pour UNE AUTRE chambre — r
 
 test("price-token: réutilisation d'un token valide pour d'AUTRES dates — rejeté (mismatch)", () => {
   const token = signHotelPriceToken({ ...BASE_CONTEXT, unitPriceTnd: 150 })
-  const result = verifyHotelPriceToken(token, { ...BASE_CONTEXT, checkin: "2026-08-01", checkout: "2026-08-06" })
+  const result = verifyHotelPriceToken(token, {
+    ...BASE_CONTEXT,
+    checkin: "2026-08-01",
+    checkout: "2026-08-06",
+  })
   assert.equal(result.ok, false)
   assert.equal(!result.ok && result.reason, "mismatch")
 })
@@ -71,7 +80,10 @@ test("price-token: token absent/vide — rejeté (malformed), jamais une excepti
   assert.equal(verifyHotelPriceToken(undefined, BASE_CONTEXT).ok, false)
   assert.equal(verifyHotelPriceToken(null, BASE_CONTEXT).ok, false)
   assert.equal(verifyHotelPriceToken("", BASE_CONTEXT).ok, false)
-  assert.equal(verifyHotelPriceToken("not-a-valid-token", BASE_CONTEXT).ok, false)
+  assert.equal(
+    verifyHotelPriceToken("not-a-valid-token", BASE_CONTEXT).ok,
+    false,
+  )
 })
 
 test("signHotelSearchOffersInPlace: ajoute un priceToken par chambre, revérifiable avec le prix unitaire exact", () => {
@@ -94,8 +106,13 @@ test("signHotelSearchOffersInPlace: ajoute un priceToken par chambre, revérifia
       },
     ],
   }
-  signHotelSearchOffersInPlace(dto, { checkin: "2026-07-15", checkout: "2026-07-20" })
-  const room = dto.offers[0].boardings[0].pax[0].rooms[0] as { priceToken?: string }
+  signHotelSearchOffersInPlace(dto, {
+    checkin: "2026-07-15",
+    checkout: "2026-07-20",
+  })
+  const room = dto.offers[0].boardings[0].pax[0].rooms[0] as {
+    priceToken?: string
+  }
   assert.ok(room.priceToken)
   const result = verifyHotelPriceToken(room.priceToken, BASE_CONTEXT)
   assert.equal(result.ok, true)
@@ -155,7 +172,11 @@ test("resolveDraftHotelPrice: priceToken d'une AUTRE chambre injecté dans le dr
   // que celle réellement décrite par le reste du brouillon (roomId différent)
   // — reproduit le scénario "attaquant copie un vrai token d'une offre bon
   // marché sur un draft pointant vers une offre plus chère".
-  const cheapToken = signHotelPriceToken({ ...BASE_CONTEXT, roomId: 1, unitPriceTnd: 10 })
+  const cheapToken = signHotelPriceToken({
+    ...BASE_CONTEXT,
+    roomId: 1,
+    unitPriceTnd: 10,
+  })
   const resolved = resolveDraftHotelPrice({
     module: "hotel",
     unitPriceTnd: 10,

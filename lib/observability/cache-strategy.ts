@@ -23,24 +23,24 @@
 
 export const CACHE_TTL = {
   // ── Données FROIDES (statiques, changent rarement) ──────────────────────
-  MYGO_STATIC: 86_400,        // 24h — villes, hôtels catalogue, régimes
-  HOTEL_DETAIL: 86_400,       // 24h — descriptions, photos
-  STALE_FALLBACK: 86_400,     // 24h — cache de dégradation gracieuse
+  MYGO_STATIC: 86_400, // 24h — villes, hôtels catalogue, régimes
+  HOTEL_DETAIL: 86_400, // 24h — descriptions, photos
+  STALE_FALLBACK: 86_400, // 24h — cache de dégradation gracieuse
 
   // ── Données TIÈDES (changent quotidiennement) ────────────────────────────
-  YIELD_RULES: 300,           // 5 min — marges agence
-  HOTEL_SEARCH: 300,          // 5 min — résultats de recherche
-  FEATURE_FLAGS: 30,          // 30s  — feature flags
+  YIELD_RULES: 300, // 5 min — marges agence
+  HOTEL_SEARCH: 300, // 5 min — résultats de recherche
+  FEATURE_FLAGS: 30, // 30s  — feature flags
 
   // ── Données CHAUDES (temps réel, changent à chaque requête) ─────────────
-  AVAILABILITY: 60,           // 60s  — disponibilités dynamiques
+  AVAILABILITY: 60, // 60s  — disponibilités dynamiques
 
   // ── Idempotence ───────────────────────────────────────────────────────────
-  IDEMPOTENCY_DEBIT: 86_400,  // 24h  — clés d'idempotence débit wallet
+  IDEMPOTENCY_DEBIT: 86_400, // 24h  — clés d'idempotence débit wallet
 } as const
 
 export const SWR_STALE_AFTER = {
-  MYGO_STATIC: 43_200,   // fraîche 12h, revalidation si entre 12h et 24h
+  MYGO_STATIC: 43_200, // fraîche 12h, revalidation si entre 12h et 24h
   HOTEL_DETAIL: 43_200,
 } as const
 
@@ -65,6 +65,7 @@ export const SWR_STALE_AFTER = {
 export const CACHE_ADVICE = {
   coldStart: "Utiliser /api/cron/warm-cache via Vercel Cron à 04:00 UTC",
   edgeCache: "Cache-Control: public, max-age=300, stale-while-revalidate=60",
-  deduplication: "Clé hash stable sur les paramètres de recherche (voir lib/mygo/client.ts stableHash)",
+  deduplication:
+    "Clé hash stable sur les paramètres de recherche (voir lib/mygo/client.ts stableHash)",
   prefetch: "generateStaticParams pour les 8 destinations phares",
 } as const

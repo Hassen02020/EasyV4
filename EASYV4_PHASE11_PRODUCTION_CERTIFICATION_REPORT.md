@@ -40,28 +40,28 @@ limite de session B2B obligatoire.
 
 ## B. Module Functional Matrix
 
-| Module | Statut | Preuve principale |
-|---|---|---|
-| Homepage | PASS | Smoke test 200, ARIA corrigé (voir §J) |
-| Vols — recherche/résultats | PASS | Démo honnête vérifiée Phase 10 (`source:"demo"`, 502 si clé configurée mais fournisseur injoignable — jamais de repli silencieux) |
-| Vols — booking | PARTIAL (volontaire) | Bouton désactivé en UI, aucun fournisseur réel — conforme à la règle "pas de faux booking" |
-| Hôtels Tunisie — recherche/résultats | PASS | E2E golden-path réel (Phase 10) : Home → recherche → `/hotels/search` → résultats visibles |
-| Hôtels Tunisie — booking B2B | PASS | myGo `BookingCreation` réel, wallet réel, voucher/facture réels (voir §C, §F) |
-| Hôtels Tunisie — booking B2C direct | **FAIL (structurel)** | `createReservationFromDraft` exige une session partenaire — voir Finding critique #2 |
-| Hôtels Monde | PASS (démo) | Idem Vols — démo honnête, aucun booking simulé |
-| Omra — catalogue | PASS | Prix réels lus depuis `omra_packages`/`omra_allotments` |
-| Omra — booking | **FAIL (accessibilité)** | Moteur serveur réel (`createOmraBooking`, wallet+facture atomiques) mais **non branché** à la page catalogue publique ; seul point d'entrée = `/pro/sandbox` avec un package **mocké**, sans session valide — voir Finding critique #3 |
-| Packages | **FAIL** | Aucun moteur de réservation du tout — CTA = téléphone |
-| Transferts | PASS (moteur), PARTIAL (accès) | `createTransferBooking` réel, `calculateTransferPrice` réel, mais exige une session |
-| Car | PASS (moteur), PARTIAL (accès) | `createCarBooking`/`calculateCarPrice` réels (Phase 9-10), même limite de session |
-| Login B2B (`/pro/login`) | PASS | 307 vers login avec `next` préservé, vérifié en direct |
-| Login B2C | NOT TESTABLE | Aucune session réelle disponible en sandbox ; pas de flux "register" B2C identifié dans le code exploré |
-| Wallet (mécanique) | PASS | `FOR UPDATE` + idempotence, désormais testés unitairement (voir §L) |
-| Voucher (Hôtel) | PASS (après correction) | Filtre de statut ajouté cette phase — voir Finding P1 #1 |
-| Voucher (autres modules) | ABSENT | Aucun mécanisme — la route ne traite que `module==="hotel"` |
-| Facture | PASS (Hôtel/Transfert/Omra/Car), ABSENT (Packages) | `generateInvoiceForReservation` appelé dans les 4 pipelines réels |
-| Commissions/Markups | PASS (Hôtel/Transfert/Car), **ABSENT (Omra/Packages)** | `pricing_margins` réellement lu et appliqué pour 3 modules sur 5 qui ont un moteur de prix |
-| Admin OTA | NOT TESTABLE (majoritairement) | Aucune session admin disponible ; preuve de code uniquement (`admin-gate.ts`, `recharge-actions.ts`) — voir §H |
+| Module                               | Statut                                                 | Preuve principale                                                                                                                                                                                                                      |
+| ------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Homepage                             | PASS                                                   | Smoke test 200, ARIA corrigé (voir §J)                                                                                                                                                                                                 |
+| Vols — recherche/résultats           | PASS                                                   | Démo honnête vérifiée Phase 10 (`source:"demo"`, 502 si clé configurée mais fournisseur injoignable — jamais de repli silencieux)                                                                                                      |
+| Vols — booking                       | PARTIAL (volontaire)                                   | Bouton désactivé en UI, aucun fournisseur réel — conforme à la règle "pas de faux booking"                                                                                                                                             |
+| Hôtels Tunisie — recherche/résultats | PASS                                                   | E2E golden-path réel (Phase 10) : Home → recherche → `/hotels/search` → résultats visibles                                                                                                                                             |
+| Hôtels Tunisie — booking B2B         | PASS                                                   | myGo `BookingCreation` réel, wallet réel, voucher/facture réels (voir §C, §F)                                                                                                                                                          |
+| Hôtels Tunisie — booking B2C direct  | **FAIL (structurel)**                                  | `createReservationFromDraft` exige une session partenaire — voir Finding critique #2                                                                                                                                                   |
+| Hôtels Monde                         | PASS (démo)                                            | Idem Vols — démo honnête, aucun booking simulé                                                                                                                                                                                         |
+| Omra — catalogue                     | PASS                                                   | Prix réels lus depuis `omra_packages`/`omra_allotments`                                                                                                                                                                                |
+| Omra — booking                       | **FAIL (accessibilité)**                               | Moteur serveur réel (`createOmraBooking`, wallet+facture atomiques) mais **non branché** à la page catalogue publique ; seul point d'entrée = `/pro/sandbox` avec un package **mocké**, sans session valide — voir Finding critique #3 |
+| Packages                             | **FAIL**                                               | Aucun moteur de réservation du tout — CTA = téléphone                                                                                                                                                                                  |
+| Transferts                           | PASS (moteur), PARTIAL (accès)                         | `createTransferBooking` réel, `calculateTransferPrice` réel, mais exige une session                                                                                                                                                    |
+| Car                                  | PASS (moteur), PARTIAL (accès)                         | `createCarBooking`/`calculateCarPrice` réels (Phase 9-10), même limite de session                                                                                                                                                      |
+| Login B2B (`/pro/login`)             | PASS                                                   | 307 vers login avec `next` préservé, vérifié en direct                                                                                                                                                                                 |
+| Login B2C                            | NOT TESTABLE                                           | Aucune session réelle disponible en sandbox ; pas de flux "register" B2C identifié dans le code exploré                                                                                                                                |
+| Wallet (mécanique)                   | PASS                                                   | `FOR UPDATE` + idempotence, désormais testés unitairement (voir §L)                                                                                                                                                                    |
+| Voucher (Hôtel)                      | PASS (après correction)                                | Filtre de statut ajouté cette phase — voir Finding P1 #1                                                                                                                                                                               |
+| Voucher (autres modules)             | ABSENT                                                 | Aucun mécanisme — la route ne traite que `module==="hotel"`                                                                                                                                                                            |
+| Facture                              | PASS (Hôtel/Transfert/Omra/Car), ABSENT (Packages)     | `generateInvoiceForReservation` appelé dans les 4 pipelines réels                                                                                                                                                                      |
+| Commissions/Markups                  | PASS (Hôtel/Transfert/Car), **ABSENT (Omra/Packages)** | `pricing_margins` réellement lu et appliqué pour 3 modules sur 5 qui ont un moteur de prix                                                                                                                                             |
+| Admin OTA                            | NOT TESTABLE (majoritairement)                         | Aucune session admin disponible ; preuve de code uniquement (`admin-gate.ts`, `recharge-actions.ts`) — voir §H                                                                                                                         |
 
 ## C. Corrections effectuées cette phase (avec preuve + test)
 
@@ -83,11 +83,13 @@ lui-même choisi, dès lors que `myGoBooking` (résultat de la confirmation
 fournisseur) est `null`.
 
 **EVIDENCE** : `lib/booking/actions.ts:279-292` (avant correction) —
+
 ```ts
 const breakdown = computePriceBreakdown(
   myGoBooking ? { ...prix myGo margé... } : { unitPriceTnd: draft.unitPriceTnd, ... }
 )
 ```
+
 Le brouillon `draft.unitPriceTnd` est **la seule et unique valeur utilisée**
 quand `myGoBooking` est absent — ce qui est le cas pour tout module
 autre que `"hotel"`, ET pour `"hotel"` si les métadonnées myGo sont
@@ -299,6 +301,7 @@ unitaires (succès, solde insuffisant, agence introuvable, **idempotence**
 
 **Majoritairement NOT TESTABLE** — aucune session admin disponible dans ce
 sandbox. Preuve de code uniquement :
+
 - `lib/auth/admin-gate.ts::isAllowedIntoAdmin` : exige rôle staff **et**
   `agency_type==='ota'` — corrige un bug historique documenté où un
   `manager` d'agence partenaire pouvait entrer dans `/admin`.
@@ -370,21 +373,21 @@ démarré et sondé en direct — toutes les routes B2C/B2B testées répondent
 
 ## N. Smoke test production (build local, `pnpm start`)
 
-*(Le sandbox ne peut pas atteindre `*.vercel.app` — `EGRESS_BLOCKED`
+_(Le sandbox ne peut pas atteindre `_.vercel.app`—`EGRESS_BLOCKED`
 confirmé la phase précédente ; ceci n'est pas traité comme un bug
 applicatif, conformément à la consigne. Build local identique au commit
-validé utilisé à la place.)*
+validé utilisé à la place.)\*
 
-| Route | Statut | Note |
-|---|---|---|
-| `/` | 200 | |
-| `/vols`, `/vols/search?...` | 200 | Démo honnête |
-| `/hotels/search?...` | 200 | |
-| `/hotels-monde`, `/hotels-monde/search?...` | 200 | Démo honnête |
-| `/omra`, `/packages`, `/transferts`, `/car` | 200 | |
-| `/booking` (sans draft) | 200 (redirect interne App Router vers `/`) | |
-| `/pro/login` | 200 | |
-| `/pro/hotels`, `/pro/hotels/[id]` (sans session) | 307 → `/pro/login?next=...` | `next` préservé, vérifié |
+| Route                                            | Statut                                     | Note                     |
+| ------------------------------------------------ | ------------------------------------------ | ------------------------ |
+| `/`                                              | 200                                        |                          |
+| `/vols`, `/vols/search?...`                      | 200                                        | Démo honnête             |
+| `/hotels/search?...`                             | 200                                        |                          |
+| `/hotels-monde`, `/hotels-monde/search?...`      | 200                                        | Démo honnête             |
+| `/omra`, `/packages`, `/transferts`, `/car`      | 200                                        |                          |
+| `/booking` (sans draft)                          | 200 (redirect interne App Router vers `/`) |                          |
+| `/pro/login`                                     | 200                                        |                          |
+| `/pro/hotels`, `/pro/hotels/[id]` (sans session) | 307 → `/pro/login?next=...`                | `next` préservé, vérifié |
 
 **Aucun secret dans le bundle client** : grep ciblé sur
 `.next/static/chunks/` pour `DATABASE_URL`, `SUPABASE_SERVICE_ROLE`,
@@ -420,21 +423,21 @@ n'est faite que si explicitement demandée).
 
 ## Functional Score
 
-| Domaine | Score | Justification |
-|---|---|---|
-| B2C | 45/100 | Recherche/affichage réels et honnêtes partout ; **aucun paiement B2C autonome possible** |
-| B2B | 70/100 | Hôtel/Transfert/Car réels et corrects ; Omra inatteignable ; gestion agents = mock |
-| Admin | 40/100 | Preuve de code correcte mais majoritairement NOT TESTABLE ce sandbox |
-| Hotels (Tunisie) | 90/100 | Seul parcours entièrement vérifié bout-en-bout, P0 corrigé |
-| Flights | 60/100 | Honnête et sans faille, mais aucune réservation réelle possible (assumé, pas un bug) |
-| Omra | 35/100 | Moteur serveur solide, **zéro accès public réel** |
-| Packages | 10/100 | Catalogue seul, aucun moteur de réservation |
-| Transfers | 75/100 | Moteur réel correct, limité par la session B2B obligatoire |
-| Car | 75/100 | Idem Transferts |
-| Wallet | 85/100 | Atomique, verrou correct, idempotence désormais testée ; dépendance Redis non garantie en prod |
-| Payments | 60/100 | Webhook PSP correct (audité) ; **faille prix P0 corrigée** cette phase |
-| Security | 75/100 | RLS globalement solide et déjà durci sur plusieurs phases ; faille P0 prix trouvée et corrigée ; RLS Omra toujours ouvert (déjà connu) ; BYPASSRLS non vérifiable |
-| UX | Non ré-évalué cette phase | Voir rapport Phase 10 (mobile/a11y déjà audités et corrigés) |
+| Domaine          | Score                     | Justification                                                                                                                                                     |
+| ---------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B2C              | 45/100                    | Recherche/affichage réels et honnêtes partout ; **aucun paiement B2C autonome possible**                                                                          |
+| B2B              | 70/100                    | Hôtel/Transfert/Car réels et corrects ; Omra inatteignable ; gestion agents = mock                                                                                |
+| Admin            | 40/100                    | Preuve de code correcte mais majoritairement NOT TESTABLE ce sandbox                                                                                              |
+| Hotels (Tunisie) | 90/100                    | Seul parcours entièrement vérifié bout-en-bout, P0 corrigé                                                                                                        |
+| Flights          | 60/100                    | Honnête et sans faille, mais aucune réservation réelle possible (assumé, pas un bug)                                                                              |
+| Omra             | 35/100                    | Moteur serveur solide, **zéro accès public réel**                                                                                                                 |
+| Packages         | 10/100                    | Catalogue seul, aucun moteur de réservation                                                                                                                       |
+| Transfers        | 75/100                    | Moteur réel correct, limité par la session B2B obligatoire                                                                                                        |
+| Car              | 75/100                    | Idem Transferts                                                                                                                                                   |
+| Wallet           | 85/100                    | Atomique, verrou correct, idempotence désormais testée ; dépendance Redis non garantie en prod                                                                    |
+| Payments         | 60/100                    | Webhook PSP correct (audité) ; **faille prix P0 corrigée** cette phase                                                                                            |
+| Security         | 75/100                    | RLS globalement solide et déjà durci sur plusieurs phases ; faille P0 prix trouvée et corrigée ; RLS Omra toujours ouvert (déjà connu) ; BYPASSRLS non vérifiable |
+| UX               | Non ré-évalué cette phase | Voir rapport Phase 10 (mobile/a11y déjà audités et corrigés)                                                                                                      |
 
 ## Production Readiness
 

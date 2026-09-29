@@ -19,7 +19,11 @@ import { and, arrayContains, eq } from "drizzle-orm"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { listActiveDestinationSlugs } from "@/lib/destinations/queries"
 import { withPublicAgencyContext } from "@/lib/db/tenant-context"
-import { catalogPackages, catalogActivities, omraPackages } from "@/lib/db/schema"
+import {
+  catalogPackages,
+  catalogActivities,
+  omraPackages,
+} from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { siteOrigin } from "@/lib/mygo/config"
 
@@ -44,10 +48,16 @@ function absoluteUrl(pathname: string): string {
   return new URL(pathname, siteOrigin()).toString()
 }
 
-function buildEntry(path: string, lastModified?: Date): MetadataRoute.Sitemap[number] {
+function buildEntry(
+  path: string,
+  lastModified?: Date,
+): MetadataRoute.Sitemap[number] {
   const languages = buildLanguageAlternates(path)
   const absoluteLanguages = Object.fromEntries(
-    Object.entries(languages).map(([locale, pathname]) => [locale, absoluteUrl(pathname)]),
+    Object.entries(languages).map(([locale, pathname]) => [
+      locale,
+      absoluteUrl(pathname),
+    ]),
   )
   return {
     url: absoluteLanguages.fr ?? absoluteUrl(path),
@@ -69,51 +79,74 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       getDefaultAgencyId(),
     ])
 
-    const destinationEntries = destinationSlugs.map((slug) => buildEntry(`/destinations/${slug}`))
+    const destinationEntries = destinationSlugs.map((slug) =>
+      buildEntry(`/destinations/${slug}`),
+    )
 
     if (!agencyId) {
       return [...staticEntries, ...destinationEntries]
     }
 
-    const [packages, activities, omra] = await withPublicAgencyContext(agencyId, async (tx) => {
-      const pkgRows = await tx
-        .select({ slug: catalogPackages.slug, updatedAt: catalogPackages.updatedAt })
-        .from(catalogPackages)
-        .where(
-          and(
-            eq(catalogPackages.agencyId, agencyId),
-            eq(catalogPackages.status, "published"),
-            arrayContains(catalogPackages.channels, ["b2c"]),
-          ),
-        )
-      const actRows = await tx
-        .select({ slug: catalogActivities.slug, updatedAt: catalogActivities.updatedAt })
-        .from(catalogActivities)
-        .where(
-          and(
-            eq(catalogActivities.agencyId, agencyId),
-            eq(catalogActivities.status, "published"),
-            arrayContains(catalogActivities.channels, ["b2c"]),
-          ),
-        )
-      const omraRows = await tx
-        .select({ id: omraPackages.id, updatedAt: omraPackages.updatedAt })
-        .from(omraPackages)
-        .where(
-          and(
-            eq(omraPackages.agencyId, agencyId),
-            eq(omraPackages.status, "published"),
-            arrayContains(omraPackages.channels, ["b2c"]),
-          ),
-        )
-      return [pkgRows, actRows, omraRows]
-    })
+    const [packages, activities, omra] = await withPublicAgencyContext(
+      agencyId,
+      async (tx) => {
+        const pkgRows = await tx
+          .select({
+            slug: catalogPackages.slug,
+            updatedAt: catalogPackages.updatedAt,
+          })
+          .from(catalogPackages)
+          .where(
+            and(
+              eq(catalogPackages.agencyId, agencyId),
+              eq(catalogPackages.status, "published"),
+              arrayContains(catalogPackages.channels, ["b2c"]),
+            ),
+          )
+        const actRows = await tx
+          .select({
+            slug: catalogActivities.slug,
+            updatedAt: catalogActivities.updatedAt,
+          })
+          .from(catalogActivities)
+          .where(
+            and(
+              eq(catalogActivities.agencyId, agencyId),
+              eq(catalogActivities.status, "published"),
+              arrayContains(catalogActivities.channels, ["b2c"]),
+            ),
+          )
+        const omraRows = await tx
+          .select({ id: omraPackages.id, updatedAt: omraPackages.updatedAt })
+          .from(omraPackages)
+          .where(
+            and(
+              eq(omraPackages.agencyId, agencyId),
+              eq(omraPackages.status, "published"),
+              arrayContains(omraPackages.channels, ["b2c"]),
+            ),
+          )
+        return [pkgRows, actRows, omraRows]
+      },
+    )
 
-    const packageEntries = packages.map((p) => buildEntry(`/packages/${p.slug}`, p.updatedAt))
-    const activityEntries = activities.map((a) => buildEntry(`/attractions/${a.slug}`, a.updatedAt))
-    const omraEntries = omra.map((o) => buildEntry(`/omra/${o.id}`, o.updatedAt))
+    const packageEntries = packages.map((p) =>
+      buildEntry(`/packages/${p.slug}`, p.updatedAt),
+    )
+    const activityEntries = activities.map((a) =>
+      buildEntry(`/attractions/${a.slug}`, a.updatedAt),
+    )
+    const omraEntries = omra.map((o) =>
+      buildEntry(`/omra/${o.id}`, o.updatedAt),
+    )
 
-    return [...staticEntries, ...destinationEntries, ...packageEntries, ...activityEntries, ...omraEntries]
+    return [
+      ...staticEntries,
+      ...destinationEntries,
+      ...packageEntries,
+      ...activityEntries,
+      ...omraEntries,
+    ]
   } catch {
     return staticEntries
   }

@@ -78,15 +78,15 @@ pages publiques. Aucun "load more"/scroll infini.
 
 ## Résumé
 
-| Module | Pagination API/UI | Plafond actuel | Volume réel |
-|---|---|---|---|
-| Hôtels Tunisie (myGo) | aucune | aucun (count = taille réelle) | dépend du fournisseur — risque réel |
-| Hôtels Monde | aucune | plafond structurel (catalogue à 6 templates) | 4-6, toujours |
-| Vols | aucune | plafond structurel (générateur) | 3-5, toujours |
-| Packages | aucune | aucun | ~1 seedé, non borné en prod |
-| Attractions | aucune | aucun | ~1 seedé, non borné en prod |
-| Omra | aucune | aucun | ~1 seedé, non borné en prod |
-| `/destinations` | aucune | aucun | ~28, hors de propos |
+| Module                | Pagination API/UI | Plafond actuel                               | Volume réel                         |
+| --------------------- | ----------------- | -------------------------------------------- | ----------------------------------- |
+| Hôtels Tunisie (myGo) | aucune            | aucun (count = taille réelle)                | dépend du fournisseur — risque réel |
+| Hôtels Monde          | aucune            | plafond structurel (catalogue à 6 templates) | 4-6, toujours                       |
+| Vols                  | aucune            | plafond structurel (générateur)              | 3-5, toujours                       |
+| Packages              | aucune            | aucun                                        | ~1 seedé, non borné en prod         |
+| Attractions           | aucune            | aucun                                        | ~1 seedé, non borné en prod         |
+| Omra                  | aucune            | aucun                                        | ~1 seedé, non borné en prod         |
+| `/destinations`       | aucune            | aucun                                        | ~28, hors de propos                 |
 
 ## Question d'architecture à trancher avant le code
 

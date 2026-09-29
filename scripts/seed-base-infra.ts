@@ -209,7 +209,8 @@ async function main() {
         agencyId: OTA_AGENCY_ID,
         type: "omra",
         name: "Omra Famille Standard 12J",
-        description: "Séjour Omra 12 jours, La Mecque / Médine, hôtels 4 étoiles, vols inclus.",
+        description:
+          "Séjour Omra 12 jours, La Mecque / Médine, hôtels 4 étoiles, vols inclus.",
         durationDays: 12,
         validFrom: futureDate(0),
         validUntil: futureDate(365),
@@ -243,7 +244,9 @@ async function main() {
       })
       .onConflictDoNothing({ target: omraAllotments.id })
 
-    console.log("[seed-base] 5/6 Package (Voyage organisé) + departure (OTA)...")
+    console.log(
+      "[seed-base] 5/6 Package (Voyage organisé) + departure (OTA)...",
+    )
     await tx
       .insert(catalogPackages)
       .values({
@@ -252,8 +255,10 @@ async function main() {
         code: "PKG-DJERBA-7J",
         title: "Séjour Djerba 7 jours / 6 nuits",
         slug: "sejour-djerba-7-jours",
-        shortDescription: "Séjour tout compris à Djerba, vols + hôtel 4 étoiles.",
-        longDescription: "Séjour balnéaire 7 jours à Djerba : vols, transferts, hôtel 4 étoiles all inclusive.",
+        shortDescription:
+          "Séjour tout compris à Djerba, vols + hôtel 4 étoiles.",
+        longDescription:
+          "Séjour balnéaire 7 jours à Djerba : vols, transferts, hôtel 4 étoiles all inclusive.",
         departureLocations: ["Tunis"],
         transportMode: "flight",
         durationDays: 7,
@@ -291,8 +296,10 @@ async function main() {
         code: "ACT-DJERBA-JEEPSAFARI",
         title: "Jeep Safari Djerba",
         slug: "jeep-safari-djerba",
-        shortDescription: "Excursion Jeep Safari sur l'île de Djerba, journée complète.",
-        longDescription: "Excursion Jeep Safari d'une journée : désert, oasis, villages berbères, déjeuner inclus.",
+        shortDescription:
+          "Excursion Jeep Safari sur l'île de Djerba, journée complète.",
+        longDescription:
+          "Excursion Jeep Safari d'une journée : désert, oasis, villages berbères, déjeuner inclus.",
         location: "Djerba",
         durationMinutes: 480,
         inclusions: ["Transport 4x4", "Déjeuner", "Guide francophone"],
@@ -368,15 +375,31 @@ async function main() {
   console.log("[seed-base] ✅ done. Verifying counts...")
   const db = getDb()
   const counts = await withSystemContext(async (tx) => {
-    const [a] = await tx.select({ n: sql<number>`count(*)::int` }).from(agencies)
+    const [a] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(agencies)
     const [u] = await tx.select({ n: sql<number>`count(*)::int` }).from(users)
-    const [m] = await tx.select({ n: sql<number>`count(*)::int` }).from(pricingMargins)
-    const [op] = await tx.select({ n: sql<number>`count(*)::int` }).from(omraPackages)
-    const [oa] = await tx.select({ n: sql<number>`count(*)::int` }).from(omraAllotments)
-    const [cp] = await tx.select({ n: sql<number>`count(*)::int` }).from(catalogPackages)
-    const [cpd] = await tx.select({ n: sql<number>`count(*)::int` }).from(catalogPackageDepartures)
-    const [ca] = await tx.select({ n: sql<number>`count(*)::int` }).from(catalogActivities)
-    const [cas] = await tx.select({ n: sql<number>`count(*)::int` }).from(catalogActivitySessions)
+    const [m] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(pricingMargins)
+    const [op] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(omraPackages)
+    const [oa] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(omraAllotments)
+    const [cp] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(catalogPackages)
+    const [cpd] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(catalogPackageDepartures)
+    const [ca] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(catalogActivities)
+    const [cas] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(catalogActivitySessions)
     return { a, u, m, op, oa, cp, cpd, ca, cas }
   })
   console.log("  agencies                  :", counts.a?.n)

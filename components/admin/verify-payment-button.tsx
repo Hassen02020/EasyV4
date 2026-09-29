@@ -52,7 +52,12 @@ export function VerifyPaymentButton({
   function handleVerify() {
     setError(null)
     startTransition(async () => {
-      const result = await verifyManualPayment({ reservationId, method: defaultMethod, reference, amountTnd })
+      const result = await verifyManualPayment({
+        reservationId,
+        method: defaultMethod,
+        reference,
+        amountTnd,
+      })
       if (!result.ok) {
         setError(result.error)
         return
@@ -65,7 +70,12 @@ export function VerifyPaymentButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={disabled} className="gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          className="gap-1.5"
+        >
           <CheckCircle2 className="h-4 w-4" />
           Vérifier
         </Button>
@@ -74,12 +84,15 @@ export function VerifyPaymentButton({
         <DialogHeader>
           <DialogTitle>Vérifier le règlement</DialogTitle>
           <DialogDescription>
-            Confirme la réservation, génère la facture et déclenche le voucher — uniquement après
-            enregistrement d&apos;une référence de règlement réelle.
+            Confirme la réservation, génère la facture et déclenche le voucher —
+            uniquement après enregistrement d&apos;une référence de règlement
+            réelle.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor="payment-amount">Montant encaissé (DT) — solde restant : {remainingTnd.toFixed(2)} DT</Label>
+          <Label htmlFor="payment-amount">
+            Montant encaissé (DT) — solde restant : {remainingTnd.toFixed(2)} DT
+          </Label>
           <Input
             id="payment-amount"
             type="number"
@@ -109,10 +122,16 @@ export function VerifyPaymentButton({
         <DialogFooter>
           <Button
             onClick={handleVerify}
-            disabled={isPending || reference.trim().length === 0 || !amountValid}
+            disabled={
+              isPending || reference.trim().length === 0 || !amountValid
+            }
             className="gap-2"
           >
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
             Confirmer le règlement
           </Button>
         </DialogFooter>

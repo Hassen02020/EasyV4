@@ -26,12 +26,24 @@ import { buildVirtualWebhookRequest } from "./virtual-provider"
 import { siteOrigin } from "@/lib/mygo/config"
 
 export type VirtualPaymentSessionResult =
-  | { ok: true; amountTnd: number; publicRef: string; guestAccessToken: string; offerLabel: string }
+  | {
+      ok: true
+      amountTnd: number
+      publicRef: string
+      guestAccessToken: string
+      offerLabel: string
+    }
   | { ok: false; error: string }
 
-export async function getVirtualPaymentSession(ref: string): Promise<VirtualPaymentSessionResult> {
+export async function getVirtualPaymentSession(
+  ref: string,
+): Promise<VirtualPaymentSessionResult> {
   if (!isVirtualPaymentModeEnabled()) {
-    return { ok: false, error: "Le mode de paiement simulé n'est pas activé sur cet environnement." }
+    return {
+      ok: false,
+      error:
+        "Le mode de paiement simulé n'est pas activé sur cet environnement.",
+    }
   }
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -60,7 +72,8 @@ export async function getVirtualPaymentSession(ref: string): Promise<VirtualPaym
   }
 
   const payload = (row.providerPayload as Record<string, unknown> | null) ?? {}
-  const offerLabel = typeof payload.offerLabel === "string" ? payload.offerLabel : "Réservation"
+  const offerLabel =
+    typeof payload.offerLabel === "string" ? payload.offerLabel : "Réservation"
 
   return {
     ok: true,
@@ -71,18 +84,28 @@ export async function getVirtualPaymentSession(ref: string): Promise<VirtualPaym
   }
 }
 
-export type SimulateVirtualPaymentResult = { ok: true } | { ok: false; error: string }
+export type SimulateVirtualPaymentResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function simulateVirtualPayment(
   ref: string,
   outcome: "success" | "failure",
 ): Promise<SimulateVirtualPaymentResult> {
   if (!isVirtualPaymentModeEnabled()) {
-    return { ok: false, error: "Le mode de paiement simulé n'est pas activé sur cet environnement." }
+    return {
+      ok: false,
+      error:
+        "Le mode de paiement simulé n'est pas activé sur cet environnement.",
+    }
   }
   const secret = process.env.SPS_HMAC_KEY
   if (!secret) {
-    return { ok: false, error: "SPS_HMAC_KEY manquant — requis même en mode simulé pour signer le webhook." }
+    return {
+      ok: false,
+      error:
+        "SPS_HMAC_KEY manquant — requis même en mode simulé pour signer le webhook.",
+    }
   }
 
   const session = await getVirtualPaymentSession(ref)
@@ -90,13 +113,16 @@ export async function simulateVirtualPayment(
     return session
   }
 
-  const request = buildVirtualWebhookRequest(outcome === "success" ? "CARD_SUCCESS" : "CARD_DECLINED", {
-    provider: "sps",
-    providerRef: ref,
-    amountTnd: session.amountTnd,
-    secret,
-    webhookPath: "/api/payment/reservation-webhook",
-  })
+  const request = buildVirtualWebhookRequest(
+    outcome === "success" ? "CARD_SUCCESS" : "CARD_DECLINED",
+    {
+      provider: "sps",
+      providerRef: ref,
+      amountTnd: session.amountTnd,
+      secret,
+      webhookPath: "/api/payment/reservation-webhook",
+    },
+  )
 
   const res = await fetch(request.url(siteOrigin()), {
     method: "POST",

@@ -23,12 +23,12 @@ bouton Rembourser, historique d'audit) → Pro d'une autre agence : réservation
 
 ## 3. Corrections appliquées pendant cette certification
 
-| # | Fichier(s) | Problème réel trouvé | Correction |
-|---|---|---|---|
-| 1 | `lib/mygo/config.ts`, `lib/payment/virtual-payment-provider.ts` | Aucun garde-fou n'empêchait `MYGO_MODE=virtual` / `PAYMENT_MODE=virtual` en `NODE_ENV=production` — seuls des commentaires l'affirmaient, rien ne l'appliquait | `throw` explicite si virtuel + production. Tests dédiés ajoutés (`lib/mygo/__tests__/config.test.ts`, cas ajouté à `virtual-payment-provider.test.ts`) |
-| 2 | `lib/admin/users-actions.ts` (nouvelle fonction `setPlatformUserStatus`), `components/admin/user-row-actions.tsx` | `/admin/users` (vue cross-agence, "Administration Système") n'avait aucune Server Action de suspension/réactivation — toast honnête admettant l'absence de câblage. **Important** : une première tentative a par erreur écrasé le fichier existant `users-actions.ts` (qui gérait déjà `/admin/staff` avec `createStaffUser`/`setUserStatus`/`setUserRole`) — restauré immédiatement via `git checkout`, puis la nouvelle fonction a été **ajoutée** (jamais retirée) sous un nom distinct pour ne pas collisionner avec la fonction existante scopée à une seule agence | Nouvelle action `setPlatformUserStatus` (super_admin uniquement, jamais auto-suspension, jamais suspendre le dernier super_admin actif de la plateforme), testée en direct : DB `status`→`suspended`, `audit_events` réel, connexion `pro.test` bien bloquée en aval par le check existant `validate-role.ts` |
-| 3 | `app/unauthorized/page.tsx` (nouveau) | `proxy.ts` redirige vers `/unauthorized` sur RBAC refusé (y compris un compte suspendu, découvert en testant #2) — cette route n'existait pas, 404 générique au lieu d'un message honnête | Page créée, style cohérent avec `app/error.tsx` |
-| 4 | `lib/hotel-suppliers/__tests__/flexible-search.test.ts` | 3 assertions utilisaient des dates de test codées en dur (`2026-09-01`/`2026-09-10`) désormais dans le passé réel (aujourd'hui : 2026-09-10) — `runFlexibleHotelSearch` n'accepte pas d'override d'horloge, contrairement aux tests purs de `generateFlexibleDateCandidates` | Dates remplacées par un calcul relatif à `Date.now()` (`futureDateStr()`) |
+| #   | Fichier(s)                                                                                                        | Problème réel trouvé                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Correction                                                                                                                                                                                                                                                                                                    |
+| --- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `lib/mygo/config.ts`, `lib/payment/virtual-payment-provider.ts`                                                   | Aucun garde-fou n'empêchait `MYGO_MODE=virtual` / `PAYMENT_MODE=virtual` en `NODE_ENV=production` — seuls des commentaires l'affirmaient, rien ne l'appliquait                                                                                                                                                                                                                                                                                                                                                                                                           | `throw` explicite si virtuel + production. Tests dédiés ajoutés (`lib/mygo/__tests__/config.test.ts`, cas ajouté à `virtual-payment-provider.test.ts`)                                                                                                                                                        |
+| 2   | `lib/admin/users-actions.ts` (nouvelle fonction `setPlatformUserStatus`), `components/admin/user-row-actions.tsx` | `/admin/users` (vue cross-agence, "Administration Système") n'avait aucune Server Action de suspension/réactivation — toast honnête admettant l'absence de câblage. **Important** : une première tentative a par erreur écrasé le fichier existant `users-actions.ts` (qui gérait déjà `/admin/staff` avec `createStaffUser`/`setUserStatus`/`setUserRole`) — restauré immédiatement via `git checkout`, puis la nouvelle fonction a été **ajoutée** (jamais retirée) sous un nom distinct pour ne pas collisionner avec la fonction existante scopée à une seule agence | Nouvelle action `setPlatformUserStatus` (super_admin uniquement, jamais auto-suspension, jamais suspendre le dernier super_admin actif de la plateforme), testée en direct : DB `status`→`suspended`, `audit_events` réel, connexion `pro.test` bien bloquée en aval par le check existant `validate-role.ts` |
+| 3   | `app/unauthorized/page.tsx` (nouveau)                                                                             | `proxy.ts` redirige vers `/unauthorized` sur RBAC refusé (y compris un compte suspendu, découvert en testant #2) — cette route n'existait pas, 404 générique au lieu d'un message honnête                                                                                                                                                                                                                                                                                                                                                                                | Page créée, style cohérent avec `app/error.tsx`                                                                                                                                                                                                                                                               |
+| 4   | `lib/hotel-suppliers/__tests__/flexible-search.test.ts`                                                           | 3 assertions utilisaient des dates de test codées en dur (`2026-09-01`/`2026-09-10`) désormais dans le passé réel (aujourd'hui : 2026-09-10) — `runFlexibleHotelSearch` n'accepte pas d'override d'horloge, contrairement aux tests purs de `generateFlexibleDateCandidates`                                                                                                                                                                                                                                                                                             | Dates remplacées par un calcul relatif à `Date.now()` (`futureDateStr()`)                                                                                                                                                                                                                                     |
 
 Aucune autre correction de code produit n'a été nécessaire — tout le reste testé était déjà correct.
 
@@ -47,7 +47,7 @@ investigation ». Cette conclusion était **fausse** — root cause réelle trou
 1. **Reproduction avec la cause suspectée** : `source .env.local && pnpm test` → 826/828, mêmes 2
    échecs, mêmes diffs (`/tmp/investigate-full.log`).
 2. **Test décisif en environnement propre** : `env -i PATH="$PATH" HOME="$HOME"
-   DATABASE_URL="$DATABASE_URL" pnpm test` (aucune autre variable héritée) → **828/828, 0 échec**
+DATABASE_URL="$DATABASE_URL" pnpm test` (aucune autre variable héritée) → **828/828, 0 échec**
    (`/tmp/clean-env-test.log`).
 3. **Root cause** : `.env.local` (dev/E2E navigateur, pilote le Virtual MyGo Supplier via des appels
    HTTP réels) définit `MYGO_MODE=virtual` / `MYGO_LOGIN=...`. Quand ces variables fuitent dans le
@@ -80,6 +80,7 @@ pouvait voir un montant puis en payer un autre.
 
 **Correction — le serveur devient l'unique source de vérité pour l'affichage, pas seulement pour la
 capture** :
+
 - `lib/booking/price-token.ts` (nouveau) : `/api/hotels/search-public` signe (HMAC-SHA256,
   `PRICE_TOKEN_SECRET`) le prix exact qu'il vient de calculer pour {hôtel, chambre, board, dates,
   adultes, devise}, et l'attache à chaque chambre (`priceToken`, forme JSON libre, DTO canonique
@@ -147,6 +148,7 @@ Corrigé dans `app/admin/reservations/[id]/page.tsx` : le bouton n'est plus rend
 réelles dans `docs/audits/screenshots/dashboard-ops-*.png`).
 
 **Preuve DB post-cycle** (réservation `TG-2026-001254`, requêtée en superuser) :
+
 ```
 reservations.status = 'refunded'
 payments : cash/deposit (pending, 1502.08 — placeholder initial du checkout) ;
@@ -161,19 +163,19 @@ audit_events (ordre chronologique réel) :
 Voyages organisés (`dashboard-operations-package-lifecycle.spec.ts`) et Attractions
 (`dashboard-operations-activity-lifecycle.spec.ts`), tous via une vraie réservation créée par le test
 lui-même puis gérée sur le même back-office admin partagé, chaque étape revérifiée en base. Permissions
-+ isolation cross-agence n'ont été retestées en direct QUE sur Hôtel (le mécanisme — `isAllowedIntoAdmin`
-+ RLS `current_agency_id()` — est strictement identique et déjà audité en profondeur pour tous les
-modules dans les cycles précédents, section 5). **[État à la date de CE cycle uniquement — dépassé,
-voir mise à jour ci-dessous]** Vols et Hôtels Monde n'avaient alors aucune réservation réelle à
-certifier (`disabled title="… — bientôt disponible"`, confirmé dans le code à cette date) — construire
-ces intégrations (vraies ou mock réaliste) était le plus gros levier "fonctionnalités manquantes vs
-concurrents" identifié, hors périmètre de CE cycle d'audit précis.
->
-> **Mise à jour (cycles ultérieurs, voir §9 et §10)** : Vols puis Hôtels Monde disposent désormais
-> chacun d'une réservation réelle de bout en bout (Virtual Flight Supplier / Virtual World Hotel
-> Supplier), certifiée navigateur réel avec preuve DB à chaque étape — les 6 modules commercialisables
-> sont maintenant tous dans cet état. Cette section reste inchangée pour préserver l'historique exact du
-> cycle où elle a été écrite ; se référer à §9 (Vols) et §10 (Hôtels Monde) pour l'état réel actuel.
+
+- isolation cross-agence n'ont été retestées en direct QUE sur Hôtel (le mécanisme — `isAllowedIntoAdmin`
+- RLS `current_agency_id()` — est strictement identique et déjà audité en profondeur pour tous les
+  modules dans les cycles précédents, section 5). **[État à la date de CE cycle uniquement — dépassé,
+  voir mise à jour ci-dessous]** Vols et Hôtels Monde n'avaient alors aucune réservation réelle à
+  certifier (`disabled title="… — bientôt disponible"`, confirmé dans le code à cette date) — construire
+  ces intégrations (vraies ou mock réaliste) était le plus gros levier "fonctionnalités manquantes vs
+  concurrents" identifié, hors périmètre de CE cycle d'audit précis.
+  > **Mise à jour (cycles ultérieurs, voir §9 et §10)** : Vols puis Hôtels Monde disposent désormais
+  > chacun d'une réservation réelle de bout en bout (Virtual Flight Supplier / Virtual World Hotel
+  > Supplier), certifiée navigateur réel avec preuve DB à chaque étape — les 6 modules commercialisables
+  > sont maintenant tous dans cet état. Cette section reste inchangée pour préserver l'historique exact du
+  > cycle où elle a été écrite ; se référer à §9 (Vols) et §10 (Hôtels Monde) pour l'état réel actuel.
 
 Le Virtual
 MyGo Supplier (fournisseur externe simulé pour Hôtels Tunisie) était déjà un mock métier réaliste AVANT
@@ -195,34 +197,34 @@ d'avant après un 2ème cycle complet. Test de garde : `lib/finance/__tests__/re
 
 ## 4. Trouvailles remontées SANS correction (décision produit requise)
 
-| # | Sujet | Constat | Pourquoi non corrigé automatiquement |
-|---|---|---|---|
-| 1 | **Création d'agence/tenant** | Bouton "Nouvelle agence" honnêtement désactivé (`disabled title="Pas encore disponible"`) — aucune Server Action, les agences n'existent que via insertion SQL directe | Fonctionnalité complète à construire (formulaire, validation métier, onboarding), pas un bug |
-| 2 | **Branding White Label éditable** (logo/nom/domaine) | `brandName`/`logoUrl` sont lus en base et appliqués en runtime (White Label fonctionnel en lecture), mais aucune UI/action ne permet de les éditer — Phase 13 "White Label foundation (minimal)" est bien une fondation lecture-seule | Idem — feature à construire, pas un défaut |
+| #   | Sujet                                                | Constat                                                                                                                                                                                                                               | Pourquoi non corrigé automatiquement                                                         |
+| --- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | **Création d'agence/tenant**                         | Bouton "Nouvelle agence" honnêtement désactivé (`disabled title="Pas encore disponible"`) — aucune Server Action, les agences n'existent que via insertion SQL directe                                                                | Fonctionnalité complète à construire (formulaire, validation métier, onboarding), pas un bug |
+| 2   | **Branding White Label éditable** (logo/nom/domaine) | `brandName`/`logoUrl` sont lus en base et appliqués en runtime (White Label fonctionnel en lecture), mais aucune UI/action ne permet de les éditer — Phase 13 "White Label foundation (minimal)" est bien une fondation lecture-seule | Idem — feature à construire, pas un défaut                                                   |
 
 ## 5. Tableau de synthèse
 
-| Module | Scénarios testés | PASS | FAIL | Corrigé | Restant (MISSING) | Statut |
-| --- | ---: | ---: | ---: | ---: | ---: | --- |
-| B2C (Hôtel, baseline) | 12 | 12 | 0 | 0 | 0 | 🟢 |
-| B2B / Pro | 12 pages + RBAC | 12 | 0 | 0 | 0 | 🟢 |
-| Admin | Réservations/clients/staff/agences | Réel | — | 1 (suspend user) | 2 (créer agence, branding) | 🟡 |
-| Super Admin | Activation agence, suppliers, staff, users | 4 | 0 | 1 | 2 | 🟡 |
-| Hôtels | Recherche/booking/paiement/voucher | Baseline | — | — | — | 🟢 |
-| Omra | Catalogue→départ→visa→paiement→voucher | 1 flux complet | 0 | 0 (1 donnée de test ajoutée) | 0 | 🟢 |
-| Trips/Packages | Idem + concurrence dernier siège | 1 flux + concurrence | 0 | 0 | 0 | 🟢 |
-| Attractions | Idem | 1 flux complet | 0 | 0 | 0 | 🟢 |
-| Payments | Webhook idempotent, double capture, refus, partiel | Couverture DB-mode existante | 0 | 0 | 0 | 🟢 |
-| Wallet | Débit/crédit, solde insuffisant, idempotence | Couverture DB-mode existante | 0 | 0 | 0 | 🟢 |
-| Accounting | Facture, relevé | Existant | 0 | 0 | 0 | 🟢 |
-| Voucher | Token opaque, 404 sans/mauvais token | 3 preuves live (hôtel/omra/attraction) | 0 | 0 | 0 | 🟢 |
-| Cancellation | FREE/PENALTY/NON_REFUNDABLE | Couverture DB-mode existante | 0 | 0 | 0 | 🟢 |
-| CRM | Leads/scoring/inbox/WhatsApp | Couverture DB-mode existante | 0 | 0 | 0 | 🟢 |
-| Supplier Hub | 11 scénarios d'erreur MyGo | Couverture existante (driver+virtual supplier) | 0 | 0 | 0 | 🟢 |
-| White Label | Isolation cross-tenant (RLS) | Couverture extensive + preuve live | 0 | 0 | 2 (branding, création tenant) | 🟡 |
-| Security | ID/prix tampering, session, RBAC | PASS charge / 1 finding affichage | 0 | 0 | 1 (remonté, non corrigé) | 🟡 |
-| Frontend | Scan honnêteté (pas de lien mort) | 18 marqueurs honnêtes sur 12 fichiers | 0 | 1 (`/unauthorized`) | reste = features non construites, documentées | 🟢 |
-| Production | Garde-fous MYGO_MODE/PAYMENT_MODE | 2 | 0 | 2 | 0 | 🟢 |
+| Module                |                                   Scénarios testés |                                           PASS | FAIL |                      Corrigé |                             Restant (MISSING) | Statut |
+| --------------------- | -------------------------------------------------: | ---------------------------------------------: | ---: | ---------------------------: | --------------------------------------------: | ------ |
+| B2C (Hôtel, baseline) |                                                 12 |                                             12 |    0 |                            0 |                                             0 | 🟢     |
+| B2B / Pro             |                                    12 pages + RBAC |                                             12 |    0 |                            0 |                                             0 | 🟢     |
+| Admin                 |                 Réservations/clients/staff/agences |                                           Réel |    — |             1 (suspend user) |                    2 (créer agence, branding) | 🟡     |
+| Super Admin           |         Activation agence, suppliers, staff, users |                                              4 |    0 |                            1 |                                             2 | 🟡     |
+| Hôtels                |                 Recherche/booking/paiement/voucher |                                       Baseline |    — |                            — |                                             — | 🟢     |
+| Omra                  |             Catalogue→départ→visa→paiement→voucher |                                 1 flux complet |    0 | 0 (1 donnée de test ajoutée) |                                             0 | 🟢     |
+| Trips/Packages        |                   Idem + concurrence dernier siège |                           1 flux + concurrence |    0 |                            0 |                                             0 | 🟢     |
+| Attractions           |                                               Idem |                                 1 flux complet |    0 |                            0 |                                             0 | 🟢     |
+| Payments              | Webhook idempotent, double capture, refus, partiel |                   Couverture DB-mode existante |    0 |                            0 |                                             0 | 🟢     |
+| Wallet                |       Débit/crédit, solde insuffisant, idempotence |                   Couverture DB-mode existante |    0 |                            0 |                                             0 | 🟢     |
+| Accounting            |                                    Facture, relevé |                                       Existant |    0 |                            0 |                                             0 | 🟢     |
+| Voucher               |               Token opaque, 404 sans/mauvais token |         3 preuves live (hôtel/omra/attraction) |    0 |                            0 |                                             0 | 🟢     |
+| Cancellation          |                        FREE/PENALTY/NON_REFUNDABLE |                   Couverture DB-mode existante |    0 |                            0 |                                             0 | 🟢     |
+| CRM                   |                       Leads/scoring/inbox/WhatsApp |                   Couverture DB-mode existante |    0 |                            0 |                                             0 | 🟢     |
+| Supplier Hub          |                         11 scénarios d'erreur MyGo | Couverture existante (driver+virtual supplier) |    0 |                            0 |                                             0 | 🟢     |
+| White Label           |                       Isolation cross-tenant (RLS) |             Couverture extensive + preuve live |    0 |                            0 |                 2 (branding, création tenant) | 🟡     |
+| Security              |                   ID/prix tampering, session, RBAC |              PASS charge / 1 finding affichage |    0 |                            0 |                      1 (remonté, non corrigé) | 🟡     |
+| Frontend              |                  Scan honnêteté (pas de lien mort) |          18 marqueurs honnêtes sur 12 fichiers |    0 |          1 (`/unauthorized`) | reste = features non construites, documentées | 🟢     |
+| Production            |                  Garde-fous MYGO_MODE/PAYMENT_MODE |                                              2 |    0 |                            2 |                                             0 | 🟢     |
 
 ## 6. Tests automatisés finaux
 
@@ -335,10 +337,10 @@ injectables), jamais un `return fake data`. Hôtels Monde était hors périmètr
   (était `disabled title="bientôt disponible"`).
 - **Back-office** : `reservation-detail.ts` gérait déjà le cas `"flight"` (schéma présent avant ce
   cycle, jamais câblé) — vérifié fonctionnel tel quel. Ajouté : voucher PDF (`lib/pdf/voucher-flight.tsx`
-  + `/api/vols/voucher/[ref]`), éligibilité voucher (`isFlightVoucherEligible`,
-  `VOUCHER_ROUTE_BY_MODULE.flight`), enrichissement `/compte` (`getProductDetails` case `"flight"`,
-  absent avant ce cycle — une réservation vol confirmée n'affichait aucun détail produit sur le compte
-  client).
+  - `/api/vols/voucher/[ref]`), éligibilité voucher (`isFlightVoucherEligible`,
+    `VOUCHER_ROUTE_BY_MODULE.flight`), enrichissement `/compte` (`getProductDetails` case `"flight"`,
+    absent avant ce cycle — une réservation vol confirmée n'affichait aucun détail produit sur le compte
+    client).
 - **Notification** : événement `booking/flight.confirmed` (déjà déclaré dans `lib/inngest/client.ts`
   avant ce cycle, jamais émis ni consommé) — désormais réellement envoyé par
   `createGuestFlightBooking` et consommé par la nouvelle fonction Inngest `process-flight-confirmed.ts`
@@ -582,20 +584,21 @@ final, pour quiconque ne lirait pas le document dans l'ordre.
 réel (Playwright, infra locale, preuve DB/`psql`/audit_events à chaque étape du cycle
 créer→rechercher→valider→modifier→annuler) :**
 
-| Module | Fournisseur (réel ou virtuel réaliste) | Certification | Référence |
-|---|---|---|---|
-| Hôtels Tunisie | Virtual MyGo Supplier | 🟢 CERTIFIÉ | Section 3ter |
-| Omraty | Inventaire interne (`omra_allotments`) | 🟢 CERTIFIÉ | Section 3ter |
-| Voyages organisés | Inventaire interne (`catalog_package_departures`) | 🟢 CERTIFIÉ | Section 3ter |
-| Attractions | Inventaire interne (`catalog_activity_sessions`) | 🟢 CERTIFIÉ | Section 3ter |
-| Vols | Virtual Flight Supplier | 🟢 CERTIFIÉ | Section 9 |
-| Hôtels Monde | Virtual World Hotel Supplier | 🟢 CERTIFIÉ | Section 10 |
+| Module            | Fournisseur (réel ou virtuel réaliste)            | Certification | Référence    |
+| ----------------- | ------------------------------------------------- | ------------- | ------------ |
+| Hôtels Tunisie    | Virtual MyGo Supplier                             | 🟢 CERTIFIÉ   | Section 3ter |
+| Omraty            | Inventaire interne (`omra_allotments`)            | 🟢 CERTIFIÉ   | Section 3ter |
+| Voyages organisés | Inventaire interne (`catalog_package_departures`) | 🟢 CERTIFIÉ   | Section 3ter |
+| Attractions       | Inventaire interne (`catalog_activity_sessions`)  | 🟢 CERTIFIÉ   | Section 3ter |
+| Vols              | Virtual Flight Supplier                           | 🟢 CERTIFIÉ   | Section 9    |
+| Hôtels Monde      | Virtual World Hotel Supplier                      | 🟢 CERTIFIÉ   | Section 10   |
 
 Aucun des 6 modules n'est plus dans l'état "recherche uniquement, bouton désactivé" — cet état a
 existé historiquement pour Vols et Hôtels Monde (documenté fidèlement dans les sections écrites à
 l'époque) et a été fermé par les cycles décrits en sections 9 et 10.
 
 **Limitations connues, communes aux 6 modules et non régressées par cette certification** :
+
 - Remboursement staff (`RefundButton`) ne restitue l'inventaire que pour les 3 modules à stock LOCAL
   (Omra/Package/Activity, via `releaseStock()`) — Hôtel/Vols/Hôtels Monde ont leur inventaire chez un
   "fournisseur" (réel ou virtuel) qui n'est jamais rappelé par un remboursement staff, même limitation
@@ -621,25 +624,25 @@ rejoué ce cycle — raison exacte ci-dessous, aucune capture de substitution fa
 
 ### 12.1 Résultat par module
 
-| Module | E2E | DB Evidence | Screenshots |
-|---|---|---|---|
-| Hôtels Tunisie | PASS (cycle antérieur, non rejoué ce cycle) | PASS (cycle antérieur, non revérifié ce cycle) | N/A ce cycle — voir §12.2 pour la raison exacte ; captures antérieures réelles conservées à `docs/audits/screenshots/dashboard-ops-01..11-*.png` |
-| Omraty | PASS | PASS | PASS |
-| Voyages organisés | PASS | PASS | PASS |
-| Attractions | PASS | PASS | PASS |
-| Vols | PASS | PASS | PASS |
-| Hôtels Monde | PASS | PASS | PASS |
+| Module            | E2E                                         | DB Evidence                                    | Screenshots                                                                                                                                      |
+| ----------------- | ------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Hôtels Tunisie    | PASS (cycle antérieur, non rejoué ce cycle) | PASS (cycle antérieur, non revérifié ce cycle) | N/A ce cycle — voir §12.2 pour la raison exacte ; captures antérieures réelles conservées à `docs/audits/screenshots/dashboard-ops-01..11-*.png` |
+| Omraty            | PASS                                        | PASS                                           | PASS                                                                                                                                             |
+| Voyages organisés | PASS                                        | PASS                                           | PASS                                                                                                                                             |
+| Attractions       | PASS                                        | PASS                                           | PASS                                                                                                                                             |
+| Vols              | PASS                                        | PASS                                           | PASS                                                                                                                                             |
+| Hôtels Monde      | PASS                                        | PASS                                           | PASS                                                                                                                                             |
 
 DB Evidence (5 modules rejoués) vérifiée par requête `psql` directe sur `easyv4_e2e`, pas seulement
 lue depuis l'UI :
 
-| Module | public_ref | status final | original_amount | payment captured_at | payment refunded_at |
-|---|---|---|---|---|---|
-| Omraty | OM-2026-000005 | refunded | 4500.00 TND | 2026-09-11 13:57:15 | 2026-09-11 13:57:18 |
-| Voyages organisés | PK-2026-000004 | refunded | 1725.50 TND | 2026-09-11 13:57:26 | 2026-09-11 13:57:29 |
-| Attractions | AT-2026-000004 | refunded | 101.15 TND | 2026-09-11 13:56:41 | 2026-09-11 13:56:45 |
-| Vols | FL-2026-000005 | refunded | 382.00 TND | 2026-09-11 13:56:53 | 2026-09-11 13:56:56 |
-| Hôtels Monde | WH-2026-000005 | refunded | 1647.00 TND | 2026-09-11 13:57:04 | 2026-09-11 13:57:07 |
+| Module            | public_ref     | status final | original_amount | payment captured_at | payment refunded_at |
+| ----------------- | -------------- | ------------ | --------------- | ------------------- | ------------------- |
+| Omraty            | OM-2026-000005 | refunded     | 4500.00 TND     | 2026-09-11 13:57:15 | 2026-09-11 13:57:18 |
+| Voyages organisés | PK-2026-000004 | refunded     | 1725.50 TND     | 2026-09-11 13:57:26 | 2026-09-11 13:57:29 |
+| Attractions       | AT-2026-000004 | refunded     | 101.15 TND      | 2026-09-11 13:56:41 | 2026-09-11 13:56:45 |
+| Vols              | FL-2026-000005 | refunded     | 382.00 TND      | 2026-09-11 13:56:53 | 2026-09-11 13:56:56 |
+| Hôtels Monde      | WH-2026-000005 | refunded     | 1647.00 TND     | 2026-09-11 13:57:04 | 2026-09-11 13:57:07 |
 
 ### 12.2 Hôtels Tunisie — raison exacte de l'absence de captures neuves
 

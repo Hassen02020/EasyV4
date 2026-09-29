@@ -34,7 +34,9 @@ export default async function ProUsersPage() {
   // explicite "staff.edit" (Phase 22/23) — jamais automatique du seul rôle
   // owner, voir `canManage` plus bas.
   const isValidPartnerRole =
-    profile.role === "partner_owner" || profile.role === "partner_agent" || profile.role === "super_admin"
+    profile.role === "partner_owner" ||
+    profile.role === "partner_agent" ||
+    profile.role === "super_admin"
   if (!isValidPartnerRole) {
     redirect("/pro?forbidden=utilisateurs")
   }
@@ -61,10 +63,18 @@ export default async function ProUsersPage() {
       permission: "staff.create",
     }))
 
-  const agentIds = initial.filter((u) => u.role === "partner_agent").map((u) => u.id)
+  const agentIds = initial
+    .filter((u) => u.role === "partner_agent")
+    .map((u) => u.id)
   const grantsByUser = canManage
     ? await getAgencyPermissionGrants(profile.agency.id, agentIds)
-    : new Map<string, { permission: (typeof PARTNER_DELEGATABLE_PERMISSIONS)[number]; granted: boolean }[]>()
+    : new Map<
+        string,
+        {
+          permission: (typeof PARTNER_DELEGATABLE_PERMISSIONS)[number]
+          granted: boolean
+        }[]
+      >()
 
   return (
     <ProPageShell

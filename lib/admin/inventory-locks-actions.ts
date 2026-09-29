@@ -38,7 +38,8 @@ export async function listInventoryLocks(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const rows = await withTenantContext(

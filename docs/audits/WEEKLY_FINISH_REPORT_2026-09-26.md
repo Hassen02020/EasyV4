@@ -10,6 +10,7 @@
 ## Corrections réalisées dans le code
 
 ### 1. Visuel réel des pages modules
+
 Le composant partagé `components/module-hero.tsx` accepte maintenant `imageUrl`.
 Les pages publiques suivantes sont câblées sur une photographie éditoriale réelle, avec overlay de marque pour conserver la lisibilité :
 
@@ -25,6 +26,7 @@ Les pages publiques suivantes sont câblées sur une photographie éditoriale r�
 Le système conserve un fallback gradient si une page n'envoie pas d'image.
 
 ### 2. Cartes produits
+
 Le code actuel possède déjà le Media System :
 `coverMediaUrl` prioritaire, puis `coverImage` legacy, puis fallback graphique.
 Aucune fausse photo n'a été injectée dans la base produit.
@@ -32,10 +34,13 @@ Aucune fausse photo n'a été injectée dans la base produit.
 Pour obtenir de vraies photos produit sur les cartes Omraty / Voyages / Attractions, il faut renseigner les médias via le back-office/Media System. C'est préférable à une association automatique arbitraire entre un produit et une photo.
 
 ### 3. Homepage
+
 Le hero principal possède déjà une photographie réelle de Sidi Bou Saïd dans `components/booking-engine.tsx`. Aucun remplacement inutile n'a été fait.
 
 ### 4. Production hardening déjà présent
+
 Le dépôt contient déjà les protections récentes :
+
 - `PRICE_TOKEN_SECRET` obligatoire et non-dev en production.
 - `/api/health`.
 - Sentry client/server configuré dans le code.
@@ -49,6 +54,7 @@ Le dépôt contient déjà les protections récentes :
 Le code ne peut pas lire les secrets du projet Vercel depuis GitHub. Dans le projet `easy2book-new`, vérifier les variables Production :
 
 ### Obligatoires
+
 - `DATABASE_URL` — pooler Supabase, port 6543
 - `DATABASE_DIRECT_URL` — migrations uniquement
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -64,6 +70,7 @@ Le code ne peut pas lire les secrets du projet Vercel depuis GitHub. Dans le pro
 - `PRICE_TOKEN_SECRET`
 
 ### Recommandés / selon modules
+
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 - `HEALTH_SECRET`
@@ -74,6 +81,7 @@ Le code ne peut pas lire les secrets du projet Vercel depuis GitHub. Dans le pro
 - clés WhatsApp si le canal doit être actif
 
 ### À ne jamais activer en production
+
 - `MYGO_MODE=virtual`
 - secrets `*-dev-secret-not-for-prod`
 - valeurs `changeme-*`
@@ -82,6 +90,7 @@ Le code ne peut pas lire les secrets du projet Vercel depuis GitHub. Dans le pro
 ## Feature flags de lancement
 
 État déclaré dans `.env.example` :
+
 - Hôtels Tunisie : actif
 - Hôtels Monde : désactivé
 - Vols : désactivé
@@ -97,6 +106,7 @@ Cette configuration doit rester cohérente avec les fournisseurs réellement bra
 Le dépôt est prêt pour un déploiement automatique via le projet Vercel connecté à GitHub, mais la console Vercel et ses variables/secrets ne sont pas accessibles depuis le connecteur GitHub utilisé ici. Donc ce rapport **ne prétend pas que la Production Vercel a été vérifiée live**.
 
 Après merge sur `main`, contrôler dans `easy2book-new` :
+
 1. Deployment = Ready
 2. Build = success
 3. `/api/health` = OK
@@ -110,6 +120,7 @@ Après merge sur `main`, contrôler dans `easy2book-new` :
 ## Ce qui reste réellement à finir
 
 ### P0 — avant annonce commerciale large
+
 - Vérification live du deployment Vercel Production.
 - Vérification des variables Production.
 - Vérification MyGo live.
@@ -117,12 +128,14 @@ Après merge sur `main`, contrôler dans `easy2book-new` :
 - Vérification mobile des parcours B2C.
 
 ### P1 — cette prochaine itération
+
 - Renseigner les vraies photos produit dans Media System pour les produits effectivement commercialisés.
 - Compléter les visuels éditoriaux destination par destination.
 - Finir le câblage fournisseur commercial réel pour les modules encore virtuels.
 - Vérifier les parcours B2C de bout en bout après chaque activation de feature flag.
 
 ### Ne pas rouvrir cette semaine
+
 - Nouvelle architecture Travel Commerce OS.
 - Nouvelles familles de produits.
 - CRM complet.

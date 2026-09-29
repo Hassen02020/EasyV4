@@ -38,7 +38,9 @@ export async function assertProductManager(): Promise<ProductManagerContext> {
 
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile || !profile.agencyId) throw new Error("FORBIDDEN")
-  if (!(PRODUCT_MANAGER_ROLES as readonly string[]).includes(profile.role ?? "")) {
+  if (
+    !(PRODUCT_MANAGER_ROLES as readonly string[]).includes(profile.role ?? "")
+  ) {
     throw new Error("FORBIDDEN")
   }
   if (profile.agencyType !== "ota") throw new Error("FORBIDDEN")

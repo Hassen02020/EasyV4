@@ -10,7 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import type { CatalogPackage } from "@/lib/db/schema"
 
-type PackageWithPrice = CatalogPackage & { priceFromTnd: number | null; coverMediaUrl?: string | null }
+type PackageWithPrice = CatalogPackage & {
+  priceFromTnd: number | null
+  coverMediaUrl?: string | null
+}
 
 interface Props {
   packages: PackageWithPrice[]
@@ -27,7 +30,7 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
   const coverImage = pkg.coverMediaUrl || pkg.coverImage
   return (
     <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
-      <div className="relative h-44 w-full bg-muted">
+      <div className="bg-muted relative h-44 w-full">
         {coverImage ? (
           <Image
             src={coverImage}
@@ -42,20 +45,23 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
           </div>
         )}
         {pkg.durationDays && (
-          <Badge className="absolute left-3 top-3 bg-black/60 text-white">
-            {t("durationBadge", { days: pkg.durationDays, nights: pkg.durationNights ?? pkg.durationDays - 1 })}
+          <Badge className="absolute top-3 left-3 bg-black/60 text-white">
+            {t("durationBadge", {
+              days: pkg.durationDays,
+              nights: pkg.durationNights ?? pkg.durationDays - 1,
+            })}
           </Badge>
         )}
       </div>
 
       <CardContent className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <p className="mb-0.5 text-xs text-muted-foreground uppercase tracking-wide">
+          <p className="text-muted-foreground mb-0.5 text-xs tracking-wide uppercase">
             {pkg.code}
           </p>
-          <h3 className="text-base font-semibold leading-tight">{pkg.title}</h3>
+          <h3 className="text-base leading-tight font-semibold">{pkg.title}</h3>
           {pkg.shortDescription && (
-            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+            <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
               {pkg.shortDescription}
             </p>
           )}
@@ -63,13 +69,13 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
 
         <div className="mt-auto flex flex-wrap gap-2">
           {pkg.transportMode && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex items-center gap-1 text-xs">
               <Plane className="h-3 w-3" />
               {pkg.transportMode}
             </div>
           )}
           {pkg.durationDays && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex items-center gap-1 text-xs">
               <Clock className="h-3 w-3" />
               {t("daysCount", { days: pkg.durationDays })}
             </div>
@@ -78,10 +84,12 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
 
         {pkg.priceFromTnd != null && (
           <div className="mt-auto">
-            <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
+            <p className="text-muted-foreground text-xs">{t("startingFrom")}</p>
             <p className="text-2xl font-bold text-violet-700">
               {formatPrice(pkg.priceFromTnd)}
-              <span className="ml-1 text-sm font-normal">{t("priceUnitPerPerson")}</span>
+              <span className="ml-1 text-sm font-normal">
+                {t("priceUnitPerPerson")}
+              </span>
             </p>
           </div>
         )}
@@ -103,23 +111,19 @@ export function PackageList({ packages, totalCount }: Props) {
   const t = useTranslations("Packages")
   if (packages.length === 0) {
     return (
-      <div className="mt-4 rounded-xl border border-dashed bg-card p-12 text-center">
+      <div className="bg-card mt-4 rounded-xl border border-dashed p-12 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-50">
           <Globe className="h-8 w-8 text-violet-600" />
         </div>
-        <h3 className="mb-2 text-lg font-semibold">
-          {t("emptyTitle")}
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          {t("emptyDescription")}
-        </p>
+        <h3 className="mb-2 text-lg font-semibold">{t("emptyTitle")}</h3>
+        <p className="text-muted-foreground text-sm">{t("emptyDescription")}</p>
       </div>
     )
   }
 
   return (
     <div>
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="text-muted-foreground mb-4 text-sm">
         {t("circuitsAvailableCount", { count: totalCount })}
       </p>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

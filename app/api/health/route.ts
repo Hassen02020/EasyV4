@@ -26,14 +26,18 @@ export const revalidate = 0
 
 // SLOs définis en tant que contrats
 const SLO_TARGETS = {
-  "mygo.search":   { successRate: 0.995, p99Ms: 3_000 },
-  "wallet.debit":  { successRate: 0.999, p99Ms: 500 },
-  "inventory":     { successRate: 0.999, p99Ms: 200 },
+  "mygo.search": { successRate: 0.995, p99Ms: 3_000 },
+  "wallet.debit": { successRate: 0.999, p99Ms: 500 },
+  inventory: { successRate: 0.999, p99Ms: 200 },
 } as const
 
 type SloName = keyof typeof SLO_TARGETS
 
-async function checkRedis(): Promise<{ ok: boolean; configured: boolean; latencyMs?: number }> {
+async function checkRedis(): Promise<{
+  ok: boolean
+  configured: boolean
+  latencyMs?: number
+}> {
   const redis = getRedis()
   // Redis (Upstash) est un cache/rate-limit distribué OPTIONNEL — voir
   // lib/cache/redis.ts : son absence bascule sur un fallback in-memory
@@ -54,14 +58,20 @@ async function checkRedis(): Promise<{ ok: boolean; configured: boolean; latency
 }
 
 async function buildSloReport() {
-  const report: Record<string, {
-    slo: boolean
-    successRate: number | null
-    p99Ms: number | null
-    target: { successRate: number; p99Ms: number }
-  }> = {}
+  const report: Record<
+    string,
+    {
+      slo: boolean
+      successRate: number | null
+      p99Ms: number | null
+      target: { successRate: number; p99Ms: number }
+    }
+  > = {}
 
-  for (const [name, target] of Object.entries(SLO_TARGETS) as [SloName, typeof SLO_TARGETS[SloName]][]) {
+  for (const [name, target] of Object.entries(SLO_TARGETS) as [
+    SloName,
+    (typeof SLO_TARGETS)[SloName],
+  ][]) {
     const [sloData, p99] = await Promise.all([
       metrics.readSlo(name),
       metrics.readPercentile(`${name}.latency_ms`, 99),

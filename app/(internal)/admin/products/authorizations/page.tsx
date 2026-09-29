@@ -17,7 +17,11 @@ import { Badge } from "@/components/ui/badge"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { catalogPackages, catalogActivities, omraPackages } from "@/lib/db/schema"
+import {
+  catalogPackages,
+  catalogActivities,
+  omraPackages,
+} from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { listAuthorizableAgencies } from "@/lib/admin/product-authorizations-actions"
 import { listAuthorizationsForProduct } from "@/lib/admin/product-authorizations-actions"
@@ -25,35 +29,51 @@ import { ProductAuthorizationPanel } from "@/components/admin/product-authorizat
 
 export const metadata: Metadata = {
   title: "Autorisations B2B / White Label — Manager",
-  description: "Autoriser des agences partenaires ou tenants White Label à revendre des produits.",
+  description:
+    "Autoriser des agences partenaires ou tenants White Label à revendre des produits.",
 }
 
 export const dynamic = "force-dynamic"
 
-type ProductRow = { id: string; name: string; type: "package" | "omra" | "activity" }
+type ProductRow = {
+  id: string
+  name: string
+  type: "package" | "omra" | "activity"
+}
 
 async function getPublishedProducts(agencyId: string): Promise<ProductRow[]> {
-  return withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, async (tx) => {
-    const [packages, omra, activities] = await Promise.all([
-      tx
-        .select({ id: catalogPackages.id, title: catalogPackages.title })
-        .from(catalogPackages)
-        .where(eq(catalogPackages.agencyId, agencyId)),
-      tx
-        .select({ id: omraPackages.id, name: omraPackages.name })
-        .from(omraPackages)
-        .where(eq(omraPackages.agencyId, agencyId)),
-      tx
-        .select({ id: catalogActivities.id, title: catalogActivities.title })
-        .from(catalogActivities)
-        .where(eq(catalogActivities.agencyId, agencyId)),
-    ])
-    return [
-      ...packages.map((p) => ({ id: p.id, name: p.title, type: "package" as const })),
-      ...omra.map((p) => ({ id: p.id, name: p.name, type: "omra" as const })),
-      ...activities.map((p) => ({ id: p.id, name: p.title, type: "activity" as const })),
-    ]
-  })
+  return withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    async (tx) => {
+      const [packages, omra, activities] = await Promise.all([
+        tx
+          .select({ id: catalogPackages.id, title: catalogPackages.title })
+          .from(catalogPackages)
+          .where(eq(catalogPackages.agencyId, agencyId)),
+        tx
+          .select({ id: omraPackages.id, name: omraPackages.name })
+          .from(omraPackages)
+          .where(eq(omraPackages.agencyId, agencyId)),
+        tx
+          .select({ id: catalogActivities.id, title: catalogActivities.title })
+          .from(catalogActivities)
+          .where(eq(catalogActivities.agencyId, agencyId)),
+      ])
+      return [
+        ...packages.map((p) => ({
+          id: p.id,
+          name: p.title,
+          type: "package" as const,
+        })),
+        ...omra.map((p) => ({ id: p.id, name: p.name, type: "omra" as const })),
+        ...activities.map((p) => ({
+          id: p.id,
+          name: p.title,
+          type: "activity" as const,
+        })),
+      ]
+    },
+  )
 }
 
 const TYPE_LABEL: Record<ProductRow["type"], string> = {
@@ -71,14 +91,18 @@ export default async function ProductAuthorizationsPage() {
 
   const profile = await getCurrentAdminProfile(user.id)
   const allowedRoles = ["super_admin", "manager"]
-  if (!profile || !allowedRoles.includes(profile.role) || profile.agencyType !== "ota") {
+  if (
+    !profile ||
+    !allowedRoles.includes(profile.role) ||
+    profile.agencyType !== "ota"
+  ) {
     redirect("/admin")
   }
 
   if (!process.env.DATABASE_URL) {
     return (
       <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground">
+        <CardContent className="text-muted-foreground p-6 text-sm">
           Base de données non configurée.
         </CardContent>
       </Card>
@@ -105,14 +129,15 @@ export default async function ProductAuthorizationsPage() {
           Autorisations B2B / White Label
         </h1>
         <p className="text-muted-foreground mt-1">
-          Autorisez une agence partenaire ou un tenant White Label à voir et vendre un produit —
-          sans autorisation, une agence tierce ne voit jamais un produit qui ne lui appartient pas.
+          Autorisez une agence partenaire ou un tenant White Label à voir et
+          vendre un produit — sans autorisation, une agence tierce ne voit
+          jamais un produit qui ne lui appartient pas.
         </p>
       </div>
 
       {agencies.length === 0 ? (
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground p-6 text-sm">
             Aucune autre agence active à autoriser pour le moment.
           </CardContent>
         </Card>
@@ -120,9 +145,9 @@ export default async function ProductAuthorizationsPage() {
 
       {authorizationsByProduct.length === 0 ? (
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
-            Aucun produit dans le catalogue — créez d&apos;abord un produit depuis{" "}
-            <span className="font-medium">Catalogue Produits</span>.
+          <CardContent className="text-muted-foreground p-6 text-sm">
+            Aucun produit dans le catalogue — créez d&apos;abord un produit
+            depuis <span className="font-medium">Catalogue Produits</span>.
           </CardContent>
         </Card>
       ) : (

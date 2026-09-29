@@ -75,7 +75,12 @@ export async function getMyLoyaltySummary(): Promise<MyLoyaltySummaryResult> {
         lifetimeEarnedPoints += account.lifetimeEarnedPoints
         lifetimeRedeemedPoints += account.lifetimeRedeemedPoints
       }
-      return { pendingPoints, availablePoints, lifetimeEarnedPoints, lifetimeRedeemedPoints }
+      return {
+        pendingPoints,
+        availablePoints,
+        lifetimeEarnedPoints,
+        lifetimeRedeemedPoints,
+      }
     })
 
     return { ok: true, ...totals }

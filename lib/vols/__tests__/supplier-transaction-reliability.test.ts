@@ -61,7 +61,13 @@ async function logTransactionReliable(
   // injectable stderr collector instead of console.error
   stderrLines: string[],
 ): Promise<LogResult> {
-  const entry: LogEntry = { bookingId, provider, transactionType, status, durationMs }
+  const entry: LogEntry = {
+    bookingId,
+    provider,
+    transactionType,
+    status,
+    durationMs,
+  }
 
   for (let attempt = 1; attempt <= AUDIT_MAX_ATTEMPTS; attempt++) {
     try {
@@ -117,12 +123,18 @@ const dbAlwaysFail = async (_: LogEntry) => {
 // ===========================================================================
 
 describe("G12 — Supplier Transaction Reliability", () => {
-
   test("S01 — happy path: DB succeeds on first attempt, no retry, no stderr", async () => {
     const delays: number[] = []
     const stderr: string[] = []
     const result = await logTransactionReliable(
-      "bk-001", "AMADEUS", "BOOK", "SUCCESS", 420, dbOk, delays, stderr,
+      "bk-001",
+      "AMADEUS",
+      "BOOK",
+      "SUCCESS",
+      420,
+      dbOk,
+      delays,
+      stderr,
     )
 
     assert.equal(result.outcome, "stored")
@@ -135,7 +147,14 @@ describe("G12 — Supplier Transaction Reliability", () => {
     const delays: number[] = []
     const stderr: string[] = []
     const result = await logTransactionReliable(
-      "bk-002", "AMADEUS", "RECHECK", "FAILURE", 120, dbFailN(1), delays, stderr,
+      "bk-002",
+      "AMADEUS",
+      "RECHECK",
+      "FAILURE",
+      120,
+      dbFailN(1),
+      delays,
+      stderr,
     )
 
     assert.equal(result.outcome, "stored")
@@ -148,7 +167,14 @@ describe("G12 — Supplier Transaction Reliability", () => {
     const delays: number[] = []
     const stderr: string[] = []
     const result = await logTransactionReliable(
-      "bk-003", "SABRE", "ISSUE", "FAILURE", 800, dbAlwaysFail, delays, stderr,
+      "bk-003",
+      "SABRE",
+      "ISSUE",
+      "FAILURE",
+      800,
+      dbAlwaysFail,
+      delays,
+      stderr,
     )
 
     assert.equal(result.outcome, "fallback")
@@ -159,8 +185,17 @@ describe("G12 — Supplier Transaction Reliability", () => {
     const delays: number[] = []
     const stderr: string[] = []
     // Must NOT throw even when db always fails
-    await assert.doesNotReject(
-      () => logTransactionReliable("bk-004", "AMADEUS", "CANCEL", "FAILURE", 50, dbAlwaysFail, delays, stderr),
+    await assert.doesNotReject(() =>
+      logTransactionReliable(
+        "bk-004",
+        "AMADEUS",
+        "CANCEL",
+        "FAILURE",
+        50,
+        dbAlwaysFail,
+        delays,
+        stderr,
+      ),
     )
   })
 
@@ -169,7 +204,14 @@ describe("G12 — Supplier Transaction Reliability", () => {
     const stderr: string[] = []
     // fail 3 times, succeed on attempt 4 (= AUDIT_MAX_ATTEMPTS)
     const result = await logTransactionReliable(
-      "bk-005", "TRAVELPORT", "BOOK", "SUCCESS", 310, dbFailN(3), delays, stderr,
+      "bk-005",
+      "TRAVELPORT",
+      "BOOK",
+      "SUCCESS",
+      310,
+      dbFailN(3),
+      delays,
+      stderr,
     )
 
     assert.equal(result.outcome, "stored")
@@ -182,7 +224,14 @@ describe("G12 — Supplier Transaction Reliability", () => {
     const delays: number[] = []
     const stderr: string[] = []
     await logTransactionReliable(
-      "bk-006", "AMADEUS", "RECHECK", "SUCCESS", 90, dbFailN(3), delays, stderr,
+      "bk-006",
+      "AMADEUS",
+      "RECHECK",
+      "SUCCESS",
+      90,
+      dbFailN(3),
+      delays,
+      stderr,
     )
 
     assert.equal(delays.length, 3)
@@ -192,23 +241,46 @@ describe("G12 — Supplier Transaction Reliability", () => {
     assert.equal(delays[2], 200)
     // monotonically non-decreasing
     for (let i = 1; i < delays.length; i++) {
-      assert.ok(delays[i] >= delays[i - 1], `delay[${i}]=${delays[i]} must be >= delay[${i - 1}]=${delays[i - 1]}`)
+      assert.ok(
+        delays[i] >= delays[i - 1],
+        `delay[${i}]=${delays[i]} must be >= delay[${i - 1}]=${delays[i - 1]}`,
+      )
     }
   })
 
   test("S07 — stderr fallback JSON is parseable", async () => {
     const stderr: string[] = []
-    await logTransactionReliable("bk-007", "AMADEUS", "ISSUE", "FAILURE", 500, dbAlwaysFail, [], stderr)
+    await logTransactionReliable(
+      "bk-007",
+      "AMADEUS",
+      "ISSUE",
+      "FAILURE",
+      500,
+      dbAlwaysFail,
+      [],
+      stderr,
+    )
 
     assert.equal(stderr.length, 1)
     let parsed: unknown
-    assert.doesNotThrow(() => { parsed = JSON.parse(stderr[0]) }, "stderr must be valid JSON")
+    assert.doesNotThrow(() => {
+      parsed = JSON.parse(stderr[0])
+    }, "stderr must be valid JSON")
     assert.ok(parsed && typeof parsed === "object", "parsed must be an object")
   })
 
   test("S08 — stderr JSON contains bookingId, provider, transactionType, status", async () => {
     const stderr: string[] = []
-    await logTransactionReliable("bk-008", "SABRE", "BOOK", "FAILURE", 300, dbAlwaysFail, [], stderr)
+    await logTransactionReliable(
+      "bk-008",
+      "SABRE",
+      "BOOK",
+      "FAILURE",
+      300,
+      dbAlwaysFail,
+      [],
+      stderr,
+    )
 
     const payload = JSON.parse(stderr[0]) as Record<string, unknown>
     assert.equal(payload.bookingId, "bk-008")
@@ -219,7 +291,16 @@ describe("G12 — Supplier Transaction Reliability", () => {
 
   test("S09 — stderr JSON contains tag = 'AUDIT_FAILURE'", async () => {
     const stderr: string[] = []
-    await logTransactionReliable("bk-009", "AMADEUS", "CANCEL", "FAILURE", 100, dbAlwaysFail, [], stderr)
+    await logTransactionReliable(
+      "bk-009",
+      "AMADEUS",
+      "CANCEL",
+      "FAILURE",
+      100,
+      dbAlwaysFail,
+      [],
+      stderr,
+    )
 
     const payload = JSON.parse(stderr[0]) as Record<string, unknown>
     assert.equal(payload.tag, "AUDIT_FAILURE")
@@ -227,7 +308,16 @@ describe("G12 — Supplier Transaction Reliability", () => {
 
   test("S10 — stderr JSON contains durationMs and error string", async () => {
     const stderr: string[] = []
-    await logTransactionReliable("bk-010", "AMADEUS", "RECHECK", "SUCCESS", 999, dbAlwaysFail, [], stderr)
+    await logTransactionReliable(
+      "bk-010",
+      "AMADEUS",
+      "RECHECK",
+      "SUCCESS",
+      999,
+      dbAlwaysFail,
+      [],
+      stderr,
+    )
 
     const payload = JSON.parse(stderr[0]) as Record<string, unknown>
     assert.equal(payload.durationMs, 999)
@@ -237,28 +327,58 @@ describe("G12 — Supplier Transaction Reliability", () => {
 
   test("S11 — stderr JSON contains ts (ISO timestamp)", async () => {
     const stderr: string[] = []
-    await logTransactionReliable("bk-011", "AMADEUS", "ISSUE", "FAILURE", 600, dbAlwaysFail, [], stderr)
+    await logTransactionReliable(
+      "bk-011",
+      "AMADEUS",
+      "ISSUE",
+      "FAILURE",
+      600,
+      dbAlwaysFail,
+      [],
+      stderr,
+    )
 
     const payload = JSON.parse(stderr[0]) as Record<string, unknown>
     assert.ok(typeof payload.ts === "string", "ts must be a string")
-    assert.ok(!isNaN(Date.parse(payload.ts as string)), "ts must be a valid ISO date")
+    assert.ok(
+      !isNaN(Date.parse(payload.ts as string)),
+      "ts must be a valid ISO date",
+    )
   })
 
   test("S12 — attempt count: exactly AUDIT_MAX_ATTEMPTS on complete failure", async () => {
     const stderr: string[] = []
     const result = await logTransactionReliable(
-      "bk-012", "TRAVELPORT", "BOOK", "FAILURE", 700, dbAlwaysFail, [], stderr,
+      "bk-012",
+      "TRAVELPORT",
+      "BOOK",
+      "FAILURE",
+      700,
+      dbAlwaysFail,
+      [],
+      stderr,
     )
 
     assert.equal(result.outcome, "fallback")
-    assert.equal(result.attempts, AUDIT_MAX_ATTEMPTS, `must try exactly ${AUDIT_MAX_ATTEMPTS} times before giving up`)
+    assert.equal(
+      result.attempts,
+      AUDIT_MAX_ATTEMPTS,
+      `must try exactly ${AUDIT_MAX_ATTEMPTS} times before giving up`,
+    )
   })
 
   test("S13 — success after exactly 2 failures → no stderr, total 3 attempts", async () => {
     const delays: number[] = []
     const stderr: string[] = []
     const result = await logTransactionReliable(
-      "bk-013", "AMADEUS", "ISSUE", "SUCCESS", 450, dbFailN(2), delays, stderr,
+      "bk-013",
+      "AMADEUS",
+      "ISSUE",
+      "SUCCESS",
+      450,
+      dbFailN(2),
+      delays,
+      stderr,
     )
 
     assert.equal(result.outcome, "stored")
@@ -275,17 +395,34 @@ describe("G12 — Supplier Transaction Reliability", () => {
     await Promise.all(
       ids.map((id) =>
         logTransactionReliable(
-          id, "AMADEUS", "BOOK", "FAILURE", 100, dbAlwaysFail, [], allStderr,
+          id,
+          "AMADEUS",
+          "BOOK",
+          "FAILURE",
+          100,
+          dbAlwaysFail,
+          [],
+          allStderr,
         ),
       ),
     )
 
-    assert.equal(allStderr.length, 20, "each concurrent call must emit exactly one stderr line")
+    assert.equal(
+      allStderr.length,
+      20,
+      "each concurrent call must emit exactly one stderr line",
+    )
 
-    const payloads = allStderr.map((line) => JSON.parse(line) as Record<string, unknown>)
+    const payloads = allStderr.map(
+      (line) => JSON.parse(line) as Record<string, unknown>,
+    )
     const bookingIds = payloads.map((p) => p.bookingId)
     const uniqueIds = new Set(bookingIds)
-    assert.equal(uniqueIds.size, 20, "each stderr line must reference its own booking ID")
+    assert.equal(
+      uniqueIds.size,
+      20,
+      "each stderr line must reference its own booking ID",
+    )
 
     // Every id from the input must appear
     for (const id of ids) {
@@ -306,8 +443,26 @@ describe("G12 — Supplier Transaction Reliability", () => {
     }
 
     await Promise.all([
-      logTransactionReliable("bk-015", "AMADEUS", "ISSUE", "FAILURE", 500, dbCapture, [], stderr),
-      logTransactionReliable("bk-015", "AMADEUS", "CANCEL", "SUCCESS", 120, dbCapture, [], stderr),
+      logTransactionReliable(
+        "bk-015",
+        "AMADEUS",
+        "ISSUE",
+        "FAILURE",
+        500,
+        dbCapture,
+        [],
+        stderr,
+      ),
+      logTransactionReliable(
+        "bk-015",
+        "AMADEUS",
+        "CANCEL",
+        "SUCCESS",
+        120,
+        dbCapture,
+        [],
+        stderr,
+      ),
     ])
 
     assert.equal(stderr.length, 0, "no fallback when retry succeeds")

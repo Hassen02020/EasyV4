@@ -2,7 +2,13 @@
 
 import { useCallback, useSyncExternalStore } from "react"
 import type { CartLine, NewCartLine } from "./cart-types"
-import { addCartLine, clearCart, generateCartLineId, readCart, removeCartLine } from "./cart-store"
+import {
+  addCartLine,
+  clearCart,
+  generateCartLineId,
+  readCart,
+  removeCartLine,
+} from "./cart-store"
 
 /**
  * Panier localStorage exposé via useSyncExternalStore — même pattern que
@@ -32,7 +38,11 @@ export function useCart() {
   const lines = useSyncExternalStore(subscribe, readCart, getServerSnapshot)
 
   const add = useCallback((line: NewCartLine) => {
-    const full = { ...line, id: generateCartLineId(), addedAt: new Date().toISOString() } as CartLine
+    const full = {
+      ...line,
+      id: generateCartLineId(),
+      addedAt: new Date().toISOString(),
+    } as CartLine
     addCartLine(full)
     return full
   }, [])

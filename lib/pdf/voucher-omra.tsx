@@ -37,7 +37,12 @@ const colors = {
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: "Helvetica", fontSize: 10, color: "#1f2937" },
+  page: {
+    padding: 40,
+    fontFamily: "Helvetica",
+    fontSize: 10,
+    color: "#1f2937",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -48,9 +53,24 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 20, fontFamily: "Helvetica-Bold", color: colors.primary },
   subtitle: { fontSize: 9, color: colors.muted, marginTop: 2 },
-  refBox: { backgroundColor: colors.bg, padding: 10, borderRadius: 4, alignItems: "flex-end" },
-  refLabel: { fontSize: 8, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.5 },
-  refValue: { fontSize: 14, fontFamily: "Helvetica-Bold", color: colors.primary, marginTop: 2 },
+  refBox: {
+    backgroundColor: colors.bg,
+    padding: 10,
+    borderRadius: 4,
+    alignItems: "flex-end",
+  },
+  refLabel: {
+    fontSize: 8,
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  refValue: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primary,
+    marginTop: 2,
+  },
   sectionTitle: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
@@ -60,8 +80,16 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  table: { marginTop: 4, border: `1px solid ${colors.border}`, borderRadius: 4 },
-  row: { flexDirection: "row", borderBottom: `1px solid ${colors.border}`, minHeight: 28 },
+  table: {
+    marginTop: 4,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 4,
+  },
+  row: {
+    flexDirection: "row",
+    borderBottom: `1px solid ${colors.border}`,
+    minHeight: 28,
+  },
   rowLast: { flexDirection: "row", minHeight: 28 },
   cellLabel: {
     width: "40%",
@@ -79,7 +107,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 12,
   },
-  totalLabel: { flex: 1, fontSize: 11, color: "#ffffff", fontFamily: "Helvetica-Bold" },
+  totalLabel: {
+    flex: 1,
+    fontSize: 11,
+    color: "#ffffff",
+    fontFamily: "Helvetica-Bold",
+  },
   totalValue: { fontSize: 14, color: "#ffffff", fontFamily: "Helvetica-Bold" },
   footer: {
     position: "absolute",
@@ -99,7 +132,12 @@ const styles = StyleSheet.create({
     border: `2px solid ${colors.accent}`,
     alignSelf: "flex-start",
   },
-  stampText: { fontSize: 12, fontFamily: "Helvetica-Bold", color: colors.accent, textTransform: "uppercase" },
+  stampText: {
+    fontSize: 12,
+    fontFamily: "Helvetica-Bold",
+    color: colors.accent,
+    textTransform: "uppercase",
+  },
 })
 
 function formatDate(iso: string): string {
@@ -112,7 +150,10 @@ function formatDate(iso: string): string {
 }
 
 function formatTnd(v: number): string {
-  return v.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return v.toLocaleString("fr-FR", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
 }
 
 function OmraVoucherDocument({ data }: { data: OmraVoucherData }) {
@@ -138,7 +179,12 @@ function OmraVoucherDocument({ data }: { data: OmraVoucherData }) {
           </View>
           <View style={styles.rowLast}>
             <Text style={styles.cellLabel}>Statut</Text>
-            <Text style={[styles.cellValue, { color: colors.accent, fontFamily: "Helvetica-Bold" }]}>
+            <Text
+              style={[
+                styles.cellValue,
+                { color: colors.accent, fontFamily: "Helvetica-Bold" },
+              ]}
+            >
               CONFIRMÉ
             </Text>
           </View>
@@ -148,11 +194,15 @@ function OmraVoucherDocument({ data }: { data: OmraVoucherData }) {
         <View style={styles.table}>
           <View style={styles.row}>
             <Text style={styles.cellLabel}>Package</Text>
-            <Text style={[styles.cellValue, { fontFamily: "Helvetica-Bold" }]}>{data.packageName}</Text>
+            <Text style={[styles.cellValue, { fontFamily: "Helvetica-Bold" }]}>
+              {data.packageName}
+            </Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.cellLabel}>Date de départ</Text>
-            <Text style={styles.cellValue}>{formatDate(data.departureDate)}</Text>
+            <Text style={styles.cellValue}>
+              {formatDate(data.departureDate)}
+            </Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.cellLabel}>Date de retour</Text>
@@ -177,16 +227,21 @@ function OmraVoucherDocument({ data }: { data: OmraVoucherData }) {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            {data.agencyName ?? "Easy2Book"} — {data.agencyPhone ?? "+216 70 000 000"}
+            {data.agencyName ?? "Easy2Book"} —{" "}
+            {data.agencyPhone ?? "+216 70 000 000"}
           </Text>
-          <Text style={styles.footerText}>Généré le {new Date().toLocaleDateString("fr-FR")}</Text>
+          <Text style={styles.footerText}>
+            Généré le {new Date().toLocaleDateString("fr-FR")}
+          </Text>
         </View>
       </Page>
     </Document>
   )
 }
 
-export async function renderOmraVoucherPdf(data: OmraVoucherData): Promise<Uint8Array> {
+export async function renderOmraVoucherPdf(
+  data: OmraVoucherData,
+): Promise<Uint8Array> {
   const buffer = await renderToBuffer(<OmraVoucherDocument data={data} />)
   return new Uint8Array(buffer)
 }

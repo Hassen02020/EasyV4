@@ -19,7 +19,11 @@
  * réel sera branché — corrigé préventivement, pas fabriqué.
  */
 
-import type { CreatePaymentInput, PaymentProvider, PaymentResult } from "@/lib/payment/provider"
+import type {
+  CreatePaymentInput,
+  PaymentProvider,
+  PaymentResult,
+} from "@/lib/payment/provider"
 
 /**
  * Tente un paiement carte. Que le provider renvoie `{ok:false}` OU lève une

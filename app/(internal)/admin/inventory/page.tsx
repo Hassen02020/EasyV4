@@ -52,8 +52,9 @@ export default async function InventoryLocksPage() {
           Verrous d&apos;inventaire
         </h1>
         <p className="text-muted-foreground text-sm">
-          Journal d&apos;audit des verrous posés pendant le tunnel de réservation (Redis reste la source de
-          décision — voir lib/booking/inventory.ts).
+          Journal d&apos;audit des verrous posés pendant le tunnel de
+          réservation (Redis reste la source de décision — voir
+          lib/booking/inventory.ts).
         </p>
       </div>
 
@@ -62,7 +63,9 @@ export default async function InventoryLocksPage() {
           <CardHeader>
             <CardTitle className="text-destructive text-base">Erreur</CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-sm">{result.error}</CardContent>
+          <CardContent className="text-muted-foreground text-sm">
+            {result.error}
+          </CardContent>
         </Card>
       ) : (
         <InventoryLocksTable locks={result.locks} />

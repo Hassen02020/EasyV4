@@ -36,10 +36,17 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { isTransitionAllowed, type ReservationStatus } from "@/lib/admin/reservation-status"
+import {
+  isTransitionAllowed,
+  type ReservationStatus,
+} from "@/lib/admin/reservation-status"
 import { applyReservationRefund, REFUND_ALLOWED_ROLES } from "./refund-logic"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
-import { releaseStock, CANCELLABLE_MODULES, type CancellableModule } from "@/lib/booking/policy-cancel-core"
+import {
+  releaseStock,
+  CANCELLABLE_MODULES,
+  type CancellableModule,
+} from "@/lib/booking/policy-cancel-core"
 
 const ALLOWED_ROLES = REFUND_ALLOWED_ROLES
 
@@ -53,11 +60,21 @@ const inputSchema = z.object({
 export type RefundReservationInput = z.infer<typeof inputSchema>
 
 export type RefundReservationResult =
-  | { ok: true; reservationId: string; publicRef: string; refundedTnd: string; fullyRefunded: boolean }
+  | {
+      ok: true
+      reservationId: string
+      publicRef: string
+      refundedTnd: string
+      fullyRefunded: boolean
+    }
   | {
       ok: false
       error: string
-      code?: "UNAUTHORIZED" | "NOT_REFUNDABLE" | "NO_CAPTURED_PAYMENT" | "AMOUNT_EXCEEDS_CAPTURED"
+      code?:
+        | "UNAUTHORIZED"
+        | "NOT_REFUNDABLE"
+        | "NO_CAPTURED_PAYMENT"
+        | "AMOUNT_EXCEEDS_CAPTURED"
     }
 
 export async function refundReservation(
@@ -65,7 +82,12 @@ export async function refundReservation(
 ): Promise<RefundReservationResult> {
   const parsed = inputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -81,15 +103,26 @@ export async function refundReservation(
 
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile?.agencyId) {
-    return { ok: false, error: "Profil administrateur introuvable ou non lié à une agence" }
+    return {
+      ok: false,
+      error: "Profil administrateur introuvable ou non lié à une agence",
+    }
   }
   if (!(ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
-    return { ok: false, code: "UNAUTHORIZED", error: "Votre rôle n'est pas autorisé à effectuer un remboursement." }
+    return {
+      ok: false,
+      code: "UNAUTHORIZED",
+      error: "Votre rôle n'est pas autorisé à effectuer un remboursement.",
+    }
   }
   const isSuperAdmin = profile.role === "super_admin"
 
   const outcome = await withTenantContext(
-    { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
+    {
+      agencyId: isSuperAdmin ? null : profile.agencyId,
+      userId: user.id,
+      isSuperAdmin,
+    },
     async (tx) => {
       // Un super_admin doit pouvoir rembourser N'IMPORTE QUELLE réservation
       // (Vue consolidée /admin/reservations, cross-agence), pas seulement
@@ -110,11 +143,15 @@ export async function refundReservation(
         .where(
           isSuperAdmin
             ? eq(reservations.id, input.reservationId)
-            : and(eq(reservations.id, input.reservationId), eq(reservations.agencyId, profile.agencyId)),
+            : and(
+                eq(reservations.id, input.reservationId),
+                eq(reservations.agencyId, profile.agencyId),
+              ),
         )
         .for("update")
 
-      if (!reservation) return { ok: false as const, error: "Réservation introuvable" }
+      if (!reservation)
+        return { ok: false as const, error: "Réservation introuvable" }
       const agencyId = reservation.agencyId
 
       const result = await applyReservationRefund({
@@ -160,8 +197,16 @@ export async function refundReservation(
         // indéfiniment alors que la résa est terminée et remboursée. Hôtel
         // exclu : sa disponibilité vit chez myGo (fournisseur externe), pas
         // dans une table locale que cette action pourrait libérer.
-        if ((CANCELLABLE_MODULES as readonly string[]).includes(reservation.module)) {
-          await releaseStock(tx, reservation.module as CancellableModule, reservation.id)
+        if (
+          (CANCELLABLE_MODULES as readonly string[]).includes(
+            reservation.module,
+          )
+        ) {
+          await releaseStock(
+            tx,
+            reservation.module as CancellableModule,
+            reservation.id,
+          )
         }
       }
 

@@ -18,15 +18,32 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Users, Calendar, CreditCard, Banknote, Wallet, ShoppingCart } from "lucide-react"
+import {
+  Loader2,
+  Users,
+  Calendar,
+  CreditCard,
+  Banknote,
+  Wallet,
+  ShoppingCart,
+} from "lucide-react"
 import { createGuestActivityBooking } from "@/lib/activities/guest-booking-actions"
-import { activityGuestBookingSchema, type ActivityGuestBookingInput } from "@/lib/activities/schemas"
+import {
+  activityGuestBookingSchema,
+  type ActivityGuestBookingInput,
+} from "@/lib/activities/schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
@@ -63,16 +80,38 @@ export function ActivityGuestBookingForm({
   const intlLocale = getIntlLocale(locale)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const METHODS: { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] = [
-    { key: "card", label: t("methodCard"), desc: t("methodCardDesc"), icon: CreditCard },
-    { key: "transfer", label: t("methodTransfer"), desc: t("methodTransferDesc"), icon: Banknote },
-    { key: "cash", label: t("methodCash"), desc: t("methodCashDesc"), icon: Wallet },
+  const METHODS: {
+    key: GuestPaymentMethod
+    label: string
+    desc: string
+    icon: typeof CreditCard
+  }[] = [
+    {
+      key: "card",
+      label: t("methodCard"),
+      desc: t("methodCardDesc"),
+      icon: CreditCard,
+    },
+    {
+      key: "transfer",
+      label: t("methodTransfer"),
+      desc: t("methodTransferDesc"),
+      icon: Banknote,
+    },
+    {
+      key: "cash",
+      label: t("methodCash"),
+      desc: t("methodCashDesc"),
+      icon: Wallet,
+    },
   ]
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
   const [policyAccepted, setPolicyAccepted] = useState(false)
-  const [resolvedPolicy, setResolvedPolicy] = useState<ResolvedPolicy | null | undefined>(undefined)
+  const [resolvedPolicy, setResolvedPolicy] = useState<
+    ResolvedPolicy | null | undefined
+  >(undefined)
 
   const form = useForm<ActivityGuestBookingInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,12 +136,23 @@ export function ActivityGuestBookingForm({
     },
   })
 
-  const watchedSessionId = useWatch({ control: form.control, name: "sessionId" })
+  const watchedSessionId = useWatch({
+    control: form.control,
+    name: "sessionId",
+  })
   const watchedAdults = useWatch({ control: form.control, name: "adults" }) ?? 1
-  const watchedChildren = useWatch({ control: form.control, name: "children" }) ?? 0
-  const watchedChildrenAges = useWatch({ control: form.control, name: "childrenAges" }) ?? []
-  const watchedCivicIdType = useWatch({ control: form.control, name: "traveler.civicIdType" })
-  const watchedCivility = useWatch({ control: form.control, name: "traveler.civility" })
+  const watchedChildren =
+    useWatch({ control: form.control, name: "children" }) ?? 0
+  const watchedChildrenAges =
+    useWatch({ control: form.control, name: "childrenAges" }) ?? []
+  const watchedCivicIdType = useWatch({
+    control: form.control,
+    name: "traveler.civicIdType",
+  })
+  const watchedCivility = useWatch({
+    control: form.control,
+    name: "traveler.civility",
+  })
 
   const selectedSession = sessions.find((s) => s.id === watchedSessionId)
   const adultPrice = selectedSession?.adultPriceTnd ?? 0
@@ -136,13 +186,18 @@ export function ActivityGuestBookingForm({
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      const result = await createGuestActivityBooking({ booking: { ...data, policyAccepted }, paymentMethod: method })
+      const result = await createGuestActivityBooking({
+        booking: { ...data, policyAccepted },
+        paymentMethod: method,
+      })
       if (!result.ok) {
         setSubmitError(result.error)
         setIsSubmitting(false)
         return
       }
-      router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+      router.push(
+        `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
+      )
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
@@ -182,7 +237,10 @@ export function ActivityGuestBookingForm({
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">{activityTitle}</p>
-            <Select value={watchedSessionId} onValueChange={(v) => form.setValue("sessionId", v)}>
+            <Select
+              value={watchedSessionId}
+              onValueChange={(v) => form.setValue("sessionId", v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder={t("chooseDatePlaceholder")} />
               </SelectTrigger>
@@ -191,9 +249,12 @@ export function ActivityGuestBookingForm({
                   <SelectItem key={s.id} value={s.id}>
                     <div className="flex items-center justify-between gap-4">
                       <span>
-                        {new Date(s.sessionDate).toLocaleDateString(intlLocale)} · {s.sessionStart}–{s.sessionEnd}
+                        {new Date(s.sessionDate).toLocaleDateString(intlLocale)}{" "}
+                        · {s.sessionStart}–{s.sessionEnd}
                       </span>
-                      <Badge variant={s.capacityLeft > 5 ? "default" : "destructive"}>
+                      <Badge
+                        variant={s.capacityLeft > 5 ? "default" : "destructive"}
+                      >
                         {t("placesLeft", { count: s.capacityLeft })}
                       </Badge>
                     </div>
@@ -202,7 +263,9 @@ export function ActivityGuestBookingForm({
               </SelectContent>
             </Select>
             {form.formState.errors.sessionId ? (
-              <p className="text-destructive text-sm">{form.formState.errors.sessionId.message}</p>
+              <p className="text-destructive text-sm">
+                {form.formState.errors.sessionId.message}
+              </p>
             ) : null}
           </CardContent>
         </Card>
@@ -225,7 +288,9 @@ export function ActivityGuestBookingForm({
                   {...form.register("adults", { valueAsNumber: true })}
                 />
                 {form.formState.errors.adults ? (
-                  <p className="text-destructive text-sm">{form.formState.errors.adults.message}</p>
+                  <p className="text-destructive text-sm">
+                    {form.formState.errors.adults.message}
+                  </p>
                 ) : null}
               </div>
               <div className="space-y-2">
@@ -235,7 +300,9 @@ export function ActivityGuestBookingForm({
                   min={0}
                   max={50}
                   value={watchedChildren}
-                  onChange={(e) => setChildrenCount(Math.max(0, Number(e.target.value) || 0))}
+                  onChange={(e) =>
+                    setChildrenCount(Math.max(0, Number(e.target.value) || 0))
+                  }
                 />
               </div>
             </div>
@@ -272,7 +339,12 @@ export function ActivityGuestBookingForm({
                 <Label>{t("civilityLabel")}</Label>
                 <Select
                   value={watchedCivility}
-                  onValueChange={(v) => form.setValue("traveler.civility", v as "M" | "Mme" | "Mlle")}
+                  onValueChange={(v) =>
+                    form.setValue(
+                      "traveler.civility",
+                      v as "M" | "Mme" | "Mlle",
+                    )
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -286,32 +358,58 @@ export function ActivityGuestBookingForm({
               </div>
               <div>
                 <Label>{t("firstNameLabel")}</Label>
-                <Input {...form.register("traveler.firstName")} className="mt-1" placeholder="Hassen" />
+                <Input
+                  {...form.register("traveler.firstName")}
+                  className="mt-1"
+                  placeholder="Hassen"
+                />
                 {form.formState.errors.traveler?.firstName ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.firstName.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.firstName.message}
+                  </p>
                 ) : null}
               </div>
               <div>
                 <Label>{t("lastNameLabel")}</Label>
-                <Input {...form.register("traveler.lastName")} className="mt-1" placeholder="Tarhouni" />
+                <Input
+                  {...form.register("traveler.lastName")}
+                  className="mt-1"
+                  placeholder="Tarhouni"
+                />
                 {form.formState.errors.traveler?.lastName ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.lastName.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.lastName.message}
+                  </p>
                 ) : null}
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>{t("emailLabel")}</Label>
-                <Input type="email" {...form.register("traveler.email")} className="mt-1" placeholder="vous@email.tn" />
+                <Input
+                  type="email"
+                  {...form.register("traveler.email")}
+                  className="mt-1"
+                  placeholder="vous@email.tn"
+                />
                 {form.formState.errors.traveler?.email ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.email.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.email.message}
+                  </p>
                 ) : null}
               </div>
               <div>
                 <Label>{t("phoneLabel")}</Label>
-                <Input type="tel" {...form.register("traveler.phone")} className="mt-1" placeholder="+216 98 140 514" />
+                <Input
+                  type="tel"
+                  {...form.register("traveler.phone")}
+                  className="mt-1"
+                  placeholder="+216 98 140 514"
+                />
                 {form.formState.errors.traveler?.phone ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.phone.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.phone.message}
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -320,26 +418,42 @@ export function ActivityGuestBookingForm({
                 <Label>{t("idTypeLabel")}</Label>
                 <Select
                   value={watchedCivicIdType}
-                  onValueChange={(v) => form.setValue("traveler.civicIdType", v as "cin" | "passport")}
+                  onValueChange={(v) =>
+                    form.setValue(
+                      "traveler.civicIdType",
+                      v as "cin" | "passport",
+                    )
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cin">{t("idTypeCin")}</SelectItem>
-                    <SelectItem value="passport">{t("idTypePassport")}</SelectItem>
+                    <SelectItem value="passport">
+                      {t("idTypePassport")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="sm:col-span-2">
                 <Label>
                   {t("idNumberLabel", {
-                    type: watchedCivicIdType === "cin" ? t("idTypeCinShort") : t("idTypePassportShort"),
+                    type:
+                      watchedCivicIdType === "cin"
+                        ? t("idTypeCinShort")
+                        : t("idTypePassportShort"),
                   })}
                 </Label>
-                <Input {...form.register("traveler.civicId")} className="mt-1" placeholder="12345678" />
+                <Input
+                  {...form.register("traveler.civicId")}
+                  className="mt-1"
+                  placeholder="12345678"
+                />
                 {form.formState.errors.traveler?.civicId ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.civicId.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.civicId.message}
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -370,27 +484,42 @@ export function ActivityGuestBookingForm({
                   onClick={() => setMethod(m.key)}
                   className={
                     "flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-all " +
-                    (active ? "border-sidebar bg-sidebar/5 shadow-sm" : "border-border hover:border-foreground/30")
+                    (active
+                      ? "border-sidebar bg-sidebar/5 shadow-sm"
+                      : "border-border hover:border-foreground/30")
                   }
                 >
                   <span
                     className={
                       "mt-0.5 inline-flex size-9 items-center justify-center rounded-md " +
-                      (active ? "bg-sidebar text-white" : "bg-muted text-muted-foreground")
+                      (active
+                        ? "bg-sidebar text-white"
+                        : "bg-muted text-muted-foreground")
                     }
                   >
                     <Icon className="size-5" />
                   </span>
                   <span className="flex-1">
-                    <span className="block text-sm font-semibold">{m.label}</span>
-                    <span className="text-muted-foreground text-xs">{m.desc}</span>
+                    <span className="block text-sm font-semibold">
+                      {m.label}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {m.desc}
+                    </span>
                   </span>
                 </button>
               )
             })}
             <div className="flex items-start gap-2 pt-2">
-              <Checkbox id="cgv-activity" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
-              <Label htmlFor="cgv-activity" className="text-muted-foreground text-sm leading-snug">
+              <Checkbox
+                id="cgv-activity"
+                checked={acceptCgv}
+                onCheckedChange={(v) => setAcceptCgv(Boolean(v))}
+              />
+              <Label
+                htmlFor="cgv-activity"
+                className="text-muted-foreground text-sm leading-snug"
+              >
                 {t("acceptCgv")}
               </Label>
             </div>
@@ -406,19 +535,29 @@ export function ActivityGuestBookingForm({
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm">{t("adultsSummary", { n: watchedAdults })}</span>
-              <span className="font-medium">{(adultPrice * watchedAdults).toFixed(3)} DT</span>
+              <span className="text-sm">
+                {t("adultsSummary", { n: watchedAdults })}
+              </span>
+              <span className="font-medium">
+                {(adultPrice * watchedAdults).toFixed(3)} DT
+              </span>
             </div>
             {watchedChildren > 0 ? (
               <div className="flex items-center justify-between">
-                <span className="text-sm">{t("childrenSummary", { n: watchedChildren })}</span>
-                <span className="font-medium">{(childPrice * watchedChildren).toFixed(3)} DT</span>
+                <span className="text-sm">
+                  {t("childrenSummary", { n: watchedChildren })}
+                </span>
+                <span className="font-medium">
+                  {(childPrice * watchedChildren).toFixed(3)} DT
+                </span>
               </div>
             ) : null}
             <Separator />
             <div className="flex items-center justify-between text-lg">
               <span className="font-semibold">{t("totalTtc")}</span>
-              <span className="font-bold text-teal-700">{totalPrice.toFixed(3)} DT</span>
+              <span className="font-bold text-teal-700">
+                {totalPrice.toFixed(3)} DT
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -439,7 +578,12 @@ export function ActivityGuestBookingForm({
             type="submit"
             size="lg"
             className="w-full sm:flex-1"
-            disabled={isSubmitting || !watchedSessionId || !acceptCgv || policyAcceptanceRequired}
+            disabled={
+              isSubmitting ||
+              !watchedSessionId ||
+              !acceptCgv ||
+              policyAcceptanceRequired
+            }
           >
             {isSubmitting ? (
               <>

@@ -92,12 +92,12 @@ vérifiée "à la main" dans chaque Server Action
 
 - **Une seule couverture par produit** (mission §17) : index unique
   **partiel** `product_media_one_cover_uniq on (module, product_id) where
-  (is_cover = true)`. Les Server Actions basculent la couverture en deux
+(is_cover = true)`. Les Server Actions basculent la couverture en deux
   UPDATE dans la même transaction (retirer partout, puis poser) — jamais
   deux lignes `is_cover = true` vraies en même temps, donc jamais de
   conflit avec cet index.
 - **Ordre d'affichage** : `sort_order`, index `(module, product_id,
-  sort_order)` pour la lecture de galerie la plus fréquente.
+sort_order)` pour la lecture de galerie la plus fréquente.
 
 ### 2.4 RLS
 
@@ -178,13 +178,13 @@ testé, voir `lib/media/__tests__/optimize.test.ts`).
 
 ## 5. Optimisation — variantes générées
 
-| Variante | Usage prévu | Dimensions | Fit | Format | Qualité |
-|---|---|---|---|---|---|
-| `original` | archive / téléchargement haute résolution | telle quelle, **aucun traitement** | — | inchangé | — |
-| `large` | hero, page détail, galerie plein écran | ≤ 1920×1080 | inside (jamais suramplifié) | WebP | 82 |
-| `medium` | contenu secondaire | ≤ 1024×576 | inside | WebP | 80 |
-| `card` | cartes produit, résultats de recherche | 640×360 exact | cover | WebP | 78 |
-| `thumbnail` | miniatures galerie, gestion admin | 240×240 exact | cover | WebP | 75 |
+| Variante    | Usage prévu                               | Dimensions                         | Fit                         | Format   | Qualité |
+| ----------- | ----------------------------------------- | ---------------------------------- | --------------------------- | -------- | ------- |
+| `original`  | archive / téléchargement haute résolution | telle quelle, **aucun traitement** | —                           | inchangé | —       |
+| `large`     | hero, page détail, galerie plein écran    | ≤ 1920×1080                        | inside (jamais suramplifié) | WebP     | 82      |
+| `medium`    | contenu secondaire                        | ≤ 1024×576                         | inside                      | WebP     | 80      |
+| `card`      | cartes produit, résultats de recherche    | 640×360 exact                      | cover                       | WebP     | 78      |
+| `thumbnail` | miniatures galerie, gestion admin         | 240×240 exact                      | cover                       | WebP     | 75      |
 
 **`card` est dérivé d'un usage réel vérifié dans le repo**, pas choisi au
 hasard (mission §6/§33) :

@@ -45,8 +45,16 @@ const METHOD_LABELS: Record<string, string> = {
 
 const STATUS_CONFIG = {
   pending: { label: "En attente", variant: "secondary" as const, Icon: Clock },
-  validated: { label: "Validée", variant: "default" as const, Icon: CheckCircle2 },
-  rejected: { label: "Refusée", variant: "destructive" as const, Icon: XCircle },
+  validated: {
+    label: "Validée",
+    variant: "default" as const,
+    Icon: CheckCircle2,
+  },
+  rejected: {
+    label: "Refusée",
+    variant: "destructive" as const,
+    Icon: XCircle,
+  },
 }
 
 export default async function WalletPage() {
@@ -82,20 +90,25 @@ export default async function WalletPage() {
       <div>
         <h1 className="text-2xl font-bold">Mon Portefeuille</h1>
         <p className="text-muted-foreground">
-          Gérez votre solde, soumettez des recharges et consultez vos mouvements.
+          Gérez votre solde, soumettez des recharges et consultez vos
+          mouvements.
         </p>
       </div>
 
       {/* Solde */}
       <Card className={balance?.isLow ? "border-amber-400" : ""}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Solde disponible</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            Solde disponible
+          </CardTitle>
           <Wallet className="text-muted-foreground h-5 w-5" />
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-bold">
             {balance ? formatTnd(balance.balance) : "—"}{" "}
-            <span className="text-muted-foreground text-lg font-normal">DT</span>
+            <span className="text-muted-foreground text-lg font-normal">
+              DT
+            </span>
           </p>
           {balance?.isLow && (
             <p className="mt-1 text-sm text-amber-600">
@@ -114,10 +127,7 @@ export default async function WalletPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <WalletRechargeForm
-            agencyId={profile.agencyId}
-            userId={user.id}
-          />
+          <WalletRechargeForm agencyId={profile.agencyId} userId={user.id} />
         </CardContent>
       </Card>
 
@@ -130,7 +140,8 @@ export default async function WalletPage() {
           <CardContent>
             <div className="divide-border divide-y">
               {rechargeRequests.map((req) => {
-                const cfg = STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]
+                const cfg =
+                  STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]
                 return (
                   <div
                     key={req.id}
@@ -180,7 +191,8 @@ export default async function WalletPage() {
           ) : (
             <div className="divide-border divide-y">
               {movements.map((m) => {
-                const isCredit = m.movementType === "credit" || m.movementType === "refund"
+                const isCredit =
+                  m.movementType === "credit" || m.movementType === "refund"
                 return (
                   <div
                     key={m.id}

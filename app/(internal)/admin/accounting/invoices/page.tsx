@@ -35,7 +35,10 @@ import { listAdminInvoices } from "@/lib/finance/invoice-actions"
 export const metadata: Metadata = { title: "Factures — Admin Easy2Book" }
 export const dynamic = "force-dynamic"
 
-const TND_FORMAT = new Intl.NumberFormat("fr-TN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const TND_FORMAT = new Intl.NumberFormat("fr-TN", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
 
 export default async function AdminInvoicesPage() {
   const supabase = await createServerSupabase()
@@ -59,9 +62,12 @@ export default async function AdminInvoicesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-foreground text-3xl font-bold tracking-tight">Factures</h1>
+        <h1 className="text-foreground text-3xl font-bold tracking-tight">
+          Factures
+        </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          {isSuperAdmin ? "Toutes agences" : "Votre agence"} — {invoices.length} facture(s)
+          {isSuperAdmin ? "Toutes agences" : "Votre agence"} — {invoices.length}{" "}
+          facture(s)
         </p>
       </div>
 
@@ -70,11 +76,15 @@ export default async function AdminInvoicesPage() {
           <CardTitle className="flex items-center gap-2 text-base">
             <FileText className="h-4 w-4" /> Liste des factures
           </CardTitle>
-          <CardDescription>Générées automatiquement à la confirmation d&apos;une réservation.</CardDescription>
+          <CardDescription>
+            Générées automatiquement à la confirmation d&apos;une réservation.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {invoices.length === 0 ? (
-            <p className="text-muted-foreground py-12 text-center text-sm">Aucune facture.</p>
+            <p className="text-muted-foreground py-12 text-center text-sm">
+              Aucune facture.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -92,8 +102,12 @@ export default async function AdminInvoicesPage() {
                 <TableBody>
                   {invoices.map((inv) => (
                     <TableRow key={inv.id}>
-                      <TableCell className="font-mono text-xs">{inv.invoiceNumber}</TableCell>
-                      {isSuperAdmin ? <TableCell>{inv.agencyName ?? "—"}</TableCell> : null}
+                      <TableCell className="font-mono text-xs">
+                        {inv.invoiceNumber}
+                      </TableCell>
+                      {isSuperAdmin ? (
+                        <TableCell>{inv.agencyName ?? "—"}</TableCell>
+                      ) : null}
                       <TableCell>{inv.invoiceType}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {inv.validationDate ?? "—"}
@@ -102,7 +116,8 @@ export default async function AdminInvoicesPage() {
                         {TND_FORMAT.format(Number.parseFloat(inv.totalTtc))} DT
                       </TableCell>
                       <TableCell className="text-right">
-                        {TND_FORMAT.format(Number.parseFloat(inv.amountPaid))} DT
+                        {TND_FORMAT.format(Number.parseFloat(inv.amountPaid))}{" "}
+                        DT
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{inv.status}</Badge>

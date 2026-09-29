@@ -45,7 +45,10 @@ for (const [id, mod] of Object.entries(MODULE_CAPABILITIES)) {
         `${id} est déclaré DEMO mais n'a pas de demoSupplierFile — le statut DEMO doit être prouvé par un driver fournisseur simulé`,
       )
       const path = join(ROOT, mod.demoSupplierFile!)
-      assert.ok(existsSync(path), `${id} : demoSupplierFile déclaré (${mod.demoSupplierFile}) n'existe plus`)
+      assert.ok(
+        existsSync(path),
+        `${id} : demoSupplierFile déclaré (${mod.demoSupplierFile}) n'existe plus`,
+      )
       const src = readFileSync(path, "utf8")
       assert.match(
         src,

@@ -62,7 +62,11 @@ export interface ResolvedPolicy {
  */
 export async function resolveCancellationPolicy(
   tx: DrizzleTransaction,
-  params: { agencyId: string; productType: PolicyProductType; productId: string | null },
+  params: {
+    agencyId: string
+    productType: PolicyProductType
+    productId: string | null
+  },
 ): Promise<ResolvedPolicy | null> {
   const { agencyId, productType, productId } = params
 
@@ -109,7 +113,10 @@ function mapRow(row: typeof cancellationPolicies.$inferSelect): ResolvedPolicy {
     cancellable: row.cancellable,
     modifiable: row.modifiable,
     deadlineHours: row.deadlineHours,
-    cancellationFeePercent: row.cancellationFeePercent == null ? null : parseFloat(row.cancellationFeePercent),
+    cancellationFeePercent:
+      row.cancellationFeePercent == null
+        ? null
+        : parseFloat(row.cancellationFeePercent),
     refundAllowed: row.refundAllowed,
     creditAllowed: row.creditAllowed,
     nonRefundable: row.nonRefundable,
@@ -184,6 +191,13 @@ export function evaluateCancellation(
     }
   }
   const feePercent = policy.cancellationFeePercent ?? 0
-  const creditableTnd = Math.max(0, reservationTndAmount * (1 - feePercent / 100))
-  return { allowed: true, creditableTnd, feePercent: policy.cancellationFeePercent }
+  const creditableTnd = Math.max(
+    0,
+    reservationTndAmount * (1 - feePercent / 100),
+  )
+  return {
+    allowed: true,
+    creditableTnd,
+    feePercent: policy.cancellationFeePercent,
+  }
 }

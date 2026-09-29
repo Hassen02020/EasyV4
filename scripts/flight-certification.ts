@@ -37,7 +37,10 @@ import {
   flightTickets,
 } from "@/lib/db/schema/flights"
 import { createPriceSnapshot } from "@/lib/vols/price-snapshot"
-import { setScenario, resetScenario } from "@/lib/vols/virtual-supplier/scenarios"
+import {
+  setScenario,
+  resetScenario,
+} from "@/lib/vols/virtual-supplier/scenarios"
 import type { FlightSimulationScenario } from "@/lib/vols/virtual-supplier/scenarios"
 import { createVirtualGdsAdapter } from "@/lib/vols/adapters/virtual"
 import { flattenSegments } from "@/lib/vols/canonical"
@@ -211,7 +214,8 @@ async function createBookingRequest(
         sellingAmount: flightPriceSnapshots.sellingAmount,
         sellingCurrency: flightPriceSnapshots.sellingCurrency,
       })
-    if (!snapRows.length) throw new Error("Snapshot expired, already claimed, or not found")
+    if (!snapRows.length)
+      throw new Error("Snapshot expired, already claimed, or not found")
 
     const snap = snapRows[0]!
     const itinerary = snap.itinerary as unknown as CanonicalItinerary
@@ -221,7 +225,12 @@ async function createBookingRequest(
     const existing = await tx
       .select({ id: customers.id })
       .from(customers)
-      .where(and(eq(customers.agencyId, agencyId), eq(customers.email, CONTACT.email)))
+      .where(
+        and(
+          eq(customers.agencyId, agencyId),
+          eq(customers.email, CONTACT.email),
+        ),
+      )
       .limit(1)
     if (existing[0]) {
       customerId = existing[0].id
@@ -263,7 +272,8 @@ async function createBookingRequest(
         originalAmount: snap.sellingAmount,
         tndAmount: snap.sellingAmount,
         providerPayload: {
-          offerLabel: origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
+          offerLabel:
+            origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
           startDate: firstSeg?.departure ?? null,
           channel: "b2c_guest",
           paymentMethod: null,
@@ -356,10 +366,23 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
         .set({ status: "on_request", updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
     }
-    return (rows as Array<{ id: string; priceSnapshotId: string | null; contact: unknown }>)[0] ?? null
+    return (
+      (
+        rows as Array<{
+          id: string
+          priceSnapshotId: string | null
+          contact: unknown
+        }>
+      )[0] ?? null
+    )
   })
 
-  if (!claimed) return { ok: false, error: "No PENDING booking found", code: "WRONG_STATUS" }
+  if (!claimed)
+    return {
+      ok: false,
+      error: "No PENDING booking found",
+      code: "WRONG_STATUS",
+    }
 
   const bookingId = claimed.id
   const snapshotId = claimed.priceSnapshotId
@@ -372,8 +395,9 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
       .where(eq(flightPriceSnapshots.id, snapshotId!))
       .limit(1),
   )
-  const snapshot = (snapRows as typeof flightPriceSnapshots.$inferSelect[])[0]
-  if (!snapshot) return { ok: false, error: "Snapshot missing", code: "SNAPSHOT_MISSING" }
+  const snapshot = (snapRows as (typeof flightPriceSnapshots.$inferSelect)[])[0]
+  if (!snapshot)
+    return { ok: false, error: "Snapshot missing", code: "SNAPSHOT_MISSING" }
 
   const itinerary = snapshot.itinerary as unknown as CanonicalItinerary
 
@@ -384,7 +408,7 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
       .from(flightBookingPassengers)
       .where(eq(flightBookingPassengers.bookingId, bookingId))
       .orderBy(flightBookingPassengers.sequence),
-  )) as typeof flightBookingPassengers.$inferSelect[]
+  )) as (typeof flightBookingPassengers.$inferSelect)[]
 
   const contact = claimed.contact as { email?: string }
   const adapter = createVirtualGdsAdapter()
@@ -397,7 +421,16 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     recheckMs = Date.now() - recheckMs
   } catch (err) {
     recheckMs = Date.now() - recheckMs
-    await logTx(bookingId, snapshotId, snapshot.provider, "RECHECK", "FAILURE", {}, { error: String(err) }, recheckMs)
+    await logTx(
+      bookingId,
+      snapshotId,
+      snapshot.provider,
+      "RECHECK",
+      "FAILURE",
+      {},
+      { error: String(err) },
+      recheckMs,
+    )
     await updateFlightStatus(bookingId, "FAILED")
     return { ok: false, error: "Recheck error", code: "RECHECK_ERROR" }
   }
@@ -417,7 +450,12 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     tx
       .update(flightBookings)
       .set({
-        lastRecheckStatus: recheckResult.status as "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR",
+        lastRecheckStatus: recheckResult.status as
+          | "AVAILABLE"
+          | "PRICE_CHANGED"
+          | "UNAVAILABLE"
+          | "EXPIRED"
+          | "ERROR",
         lastRecheckAt: new Date(),
         updatedAt: new Date(),
       })
@@ -426,7 +464,11 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
 
   if (recheckResult.status === "PRICE_CHANGED") {
     await updateFlightStatus(bookingId, "PRICE_CHANGED")
-    return { ok: false, error: "Price changed at recheck", code: "PRICE_CHANGED" }
+    return {
+      ok: false,
+      error: "Price changed at recheck",
+      code: "PRICE_CHANGED",
+    }
   }
   if (recheckResult.status !== "AVAILABLE") {
     await updateFlightStatus(bookingId, "FAILED")
@@ -441,7 +483,16 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     bookMs = Date.now() - bookMs
   } catch (err) {
     bookMs = Date.now() - bookMs
-    await logTx(bookingId, snapshotId, snapshot.provider, "BOOK", "FAILURE", {}, { error: String(err) }, bookMs)
+    await logTx(
+      bookingId,
+      snapshotId,
+      snapshot.provider,
+      "BOOK",
+      "FAILURE",
+      {},
+      { error: String(err) },
+      bookMs,
+    )
     await updateFlightStatus(bookingId, "FAILED")
     return { ok: false, error: String(err), code: "BOOK_FAILED" }
   }
@@ -453,7 +504,10 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     "BOOK",
     "SUCCESS",
     {},
-    { pnr: bookResult.pnr, supplierBookingReference: bookResult.supplierBookingReference },
+    {
+      pnr: bookResult.pnr,
+      supplierBookingReference: bookResult.supplierBookingReference,
+    },
     bookMs,
   )
 
@@ -479,14 +533,41 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     issueMs = Date.now() - issueMs
   } catch (err) {
     issueMs = Date.now() - issueMs
-    await logTx(bookingId, snapshotId, snapshot.provider, "ISSUE", "FAILURE", {}, { error: String(err) }, issueMs)
+    await logTx(
+      bookingId,
+      snapshotId,
+      snapshot.provider,
+      "ISSUE",
+      "FAILURE",
+      {},
+      { error: String(err) },
+      issueMs,
+    )
     // Best-effort cancel to avoid orphaned PNR
     const cancelMs0 = Date.now()
     try {
       await adapter.cancel(bookResult.pnr, itinerary)
-      await logTx(bookingId, snapshotId, snapshot.provider, "CANCEL", "SUCCESS", { pnr: bookResult.pnr }, {}, Date.now() - cancelMs0)
+      await logTx(
+        bookingId,
+        snapshotId,
+        snapshot.provider,
+        "CANCEL",
+        "SUCCESS",
+        { pnr: bookResult.pnr },
+        {},
+        Date.now() - cancelMs0,
+      )
     } catch (cancelErr) {
-      await logTx(bookingId, snapshotId, snapshot.provider, "CANCEL", "FAILURE", { pnr: bookResult.pnr }, { error: String(cancelErr) }, Date.now() - cancelMs0)
+      await logTx(
+        bookingId,
+        snapshotId,
+        snapshot.provider,
+        "CANCEL",
+        "FAILURE",
+        { pnr: bookResult.pnr },
+        { error: String(cancelErr) },
+        Date.now() - cancelMs0,
+      )
     }
     await updateFlightStatus(bookingId, "FAILED")
     return { ok: false, error: "Issue failed", code: "ISSUE_FAILED" }
@@ -530,7 +611,9 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
 // DB verification helpers
 // ---------------------------------------------------------------------------
 
-async function getFlightBookingStatus(reservationId: string): Promise<string | null> {
+async function getFlightBookingStatus(
+  reservationId: string,
+): Promise<string | null> {
   const rows = await withSystemContext((tx) =>
     tx
       .select({ status: flightBookings.status, pnr: flightBookings.pnr })
@@ -538,10 +621,14 @@ async function getFlightBookingStatus(reservationId: string): Promise<string | n
       .where(eq(flightBookings.reservationId, reservationId))
       .limit(1),
   )
-  return (rows as Array<{ status: string; pnr: string | null }>)[0]?.status ?? null
+  return (
+    (rows as Array<{ status: string; pnr: string | null }>)[0]?.status ?? null
+  )
 }
 
-async function getReservationStatus(reservationId: string): Promise<string | null> {
+async function getReservationStatus(
+  reservationId: string,
+): Promise<string | null> {
   const rows = await withSystemContext((tx) =>
     tx
       .select({ status: reservations.status })
@@ -603,9 +690,15 @@ function assert(condition: boolean, message: string): void {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log("\n╔══════════════════════════════════════════════════════════════╗")
-  console.log("║  Flight E2E Certification — Chantier 46                      ║")
-  console.log("╚══════════════════════════════════════════════════════════════╝\n")
+  console.log(
+    "\n╔══════════════════════════════════════════════════════════════╗",
+  )
+  console.log(
+    "║  Flight E2E Certification — Chantier 46                      ║",
+  )
+  console.log(
+    "╚══════════════════════════════════════════════════════════════╝\n",
+  )
 
   // Resolve default OTA agency (inline — avoids next/headers via getDefaultAgencyId)
   const [agencyRow] = await withSystemContext((db) =>
@@ -622,94 +715,142 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   console.log(`  Agency  : ${agencyId}`)
-  console.log(`  DB      : ${(process.env.DATABASE_URL ?? "").replace(/:[^:@]+@/, ":***@") || "(from .env.local)"}`)
+  console.log(
+    `  DB      : ${(process.env.DATABASE_URL ?? "").replace(/:[^:@]+@/, ":***@") || "(from .env.local)"}`,
+  )
   console.log("")
 
   // ── S1: NORMAL ──────────────────────────────────────────────────────────────
-  await scenario("S1 NORMAL — full happy path → CONFIRMED + ticket issued", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId, publicRef } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S1 NORMAL — full happy path → CONFIRMED + ticket issued",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId, publicRef } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    const result = await runFulfillment(reservationId)
-    assert(result.ok === true, `Expected ok=true, got ok=${result.ok} code=${(result as { code?: string }).code} ${(result as { error?: string }).error}`)
-    assert(!!(result as { pnr?: string }).pnr, "Expected PNR to be set")
+      const result = await runFulfillment(reservationId)
+      assert(
+        result.ok === true,
+        `Expected ok=true, got ok=${result.ok} code=${(result as { code?: string }).code} ${(result as { error?: string }).error}`,
+      )
+      assert(!!(result as { pnr?: string }).pnr, "Expected PNR to be set")
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "CONFIRMED", `Expected flight_bookings.status=CONFIRMED, got ${flightStatus}`)
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "CONFIRMED",
+        `Expected flight_bookings.status=CONFIRMED, got ${flightStatus}`,
+      )
 
-    const resStatus = await getReservationStatus(reservationId)
-    assert(resStatus === "confirmed", `Expected reservations.status=confirmed, got ${resStatus}`)
+      const resStatus = await getReservationStatus(reservationId)
+      assert(
+        resStatus === "confirmed",
+        `Expected reservations.status=confirmed, got ${resStatus}`,
+      )
 
-    const ticketCount = await getTicketCount(reservationId)
-    assert(ticketCount >= 1, `Expected at least 1 ticket, got ${ticketCount}`)
+      const ticketCount = await getTicketCount(reservationId)
+      assert(ticketCount >= 1, `Expected at least 1 ticket, got ${ticketCount}`)
 
-    const okResult = result as { ok: true; pnr: string }
-    console.log(`        publicRef=${publicRef}  pnr=${okResult.pnr}  tickets=${ticketCount}`)
-  })
+      const okResult = result as { ok: true; pnr: string }
+      console.log(
+        `        publicRef=${publicRef}  pnr=${okResult.pnr}  tickets=${ticketCount}`,
+      )
+    },
+  )
 
   // ── S2: PRICE_CHANGED ────────────────────────────────────────────────────────
-  await scenario("S2 PRICE_CHANGED — virtual book() rejects +12% → FAILED(BOOK_FAILED)", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S2 PRICE_CHANGED — virtual book() rejects +12% → FAILED(BOOK_FAILED)",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    setScenario("PRICE_CHANGED" as FlightSimulationScenario)
-    const result = await runFulfillment(reservationId)
-    resetScenario()
+      setScenario("PRICE_CHANGED" as FlightSimulationScenario)
+      const result = await runFulfillment(reservationId)
+      resetScenario()
 
-    assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
-    assert(
-      (result as { code?: string }).code === "BOOK_FAILED",
-      `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
-    )
+      assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
+      assert(
+        (result as { code?: string }).code === "BOOK_FAILED",
+        `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
+      )
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "FAILED", `Expected flight_bookings.status=FAILED, got ${flightStatus}`)
-  })
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "FAILED",
+        `Expected flight_bookings.status=FAILED, got ${flightStatus}`,
+      )
+    },
+  )
 
   // ── S3: SOLD_OUT ─────────────────────────────────────────────────────────────
-  await scenario("S3 SOLD_OUT — virtual book() forces sold-out → FAILED(BOOK_FAILED)", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S3 SOLD_OUT — virtual book() forces sold-out → FAILED(BOOK_FAILED)",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    setScenario("SOLD_OUT" as FlightSimulationScenario)
-    const result = await runFulfillment(reservationId)
-    resetScenario()
+      setScenario("SOLD_OUT" as FlightSimulationScenario)
+      const result = await runFulfillment(reservationId)
+      resetScenario()
 
-    assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
-    assert(
-      (result as { code?: string }).code === "BOOK_FAILED",
-      `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
-    )
+      assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
+      assert(
+        (result as { code?: string }).code === "BOOK_FAILED",
+        `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
+      )
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "FAILED", `Expected flight_bookings.status=FAILED, got ${flightStatus}`)
-  })
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "FAILED",
+        `Expected flight_bookings.status=FAILED, got ${flightStatus}`,
+      )
+    },
+  )
 
   // ── S4: BOOKING_REJECTED ─────────────────────────────────────────────────────
-  await scenario("S4 BOOKING_REJECTED — provider refuses booking → FAILED(BOOK_FAILED)", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S4 BOOKING_REJECTED — provider refuses booking → FAILED(BOOK_FAILED)",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    setScenario("BOOKING_REJECTED" as FlightSimulationScenario)
-    const result = await runFulfillment(reservationId)
-    resetScenario()
+      setScenario("BOOKING_REJECTED" as FlightSimulationScenario)
+      const result = await runFulfillment(reservationId)
+      resetScenario()
 
-    assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
-    assert(
-      (result as { code?: string }).code === "BOOK_FAILED",
-      `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
-    )
+      assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
+      assert(
+        (result as { code?: string }).code === "BOOK_FAILED",
+        `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
+      )
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "FAILED", `Expected flight_bookings.status=FAILED, got ${flightStatus}`)
-  })
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "FAILED",
+        `Expected flight_bookings.status=FAILED, got ${flightStatus}`,
+      )
+    },
+  )
 
   // ── Summary ──────────────────────────────────────────────────────────────────
-  console.log("\n──────────────────────────────────────────────────────────────")
+  console.log(
+    "\n──────────────────────────────────────────────────────────────",
+  )
   results.forEach((r) => console.log(`  ${r}`))
   console.log(`\n  ${passed} passed, ${failed} failed out of 4 scenarios\n`)
 

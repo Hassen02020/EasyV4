@@ -7,7 +7,10 @@
  */
 export type PageWindowEntry = number | "ellipsis"
 
-export function buildPageWindow(currentPage: number, totalPages: number): PageWindowEntry[] {
+export function buildPageWindow(
+  currentPage: number,
+  totalPages: number,
+): PageWindowEntry[] {
   if (totalPages <= 1) return [1]
 
   const pages: PageWindowEntry[] = [1]

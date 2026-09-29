@@ -46,7 +46,9 @@ export const processFlightConfirmed = inngest.createFunction(
       if (error) {
         // Throw so Inngest's built-in retry fires — returning { sent: false } would
         // mark the run as succeeded and suppress all retries.
-        throw new Error(`[process-flight-confirmed] envoi email échoué — ${error.message} (ref: ${d.publicRef})`)
+        throw new Error(
+          `[process-flight-confirmed] envoi email échoué — ${error.message} (ref: ${d.publicRef})`,
+        )
       }
     }
 

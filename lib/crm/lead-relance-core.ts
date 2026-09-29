@@ -17,7 +17,10 @@
 
 import { eq } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { leadRelanceSettings, type NewLeadRelanceSetting } from "@/lib/db/schema"
+import {
+  leadRelanceSettings,
+  type NewLeadRelanceSetting,
+} from "@/lib/db/schema"
 import type { LeadRow } from "./leads-core"
 
 export const DEFAULT_RELANCE_THRESHOLD_DAYS = 3
@@ -38,7 +41,11 @@ export function defaultLeadRelanceSettings(): LeadRelanceSettingsValue {
  * `updatedAt` (dernier geste staff, sinon `createdAt` à la création) date
  * de plus de `thresholdDays` jours. Pure, sans DB — testable directement.
  */
-export function isLeadStale(lead: LeadRow, settings: LeadRelanceSettingsValue, now: Date = new Date()): boolean {
+export function isLeadStale(
+  lead: LeadRow,
+  settings: LeadRelanceSettingsValue,
+  now: Date = new Date(),
+): boolean {
   if (!settings.isEnabled) return false
   if (lead.status !== "new") return false
   const ageMs = now.getTime() - lead.updatedAt.getTime()
@@ -50,7 +57,10 @@ export async function getLeadRelanceSettingsCore(
   params: { agencyId: string },
 ): Promise<LeadRelanceSettingsValue> {
   const [row] = await tx
-    .select({ thresholdDays: leadRelanceSettings.thresholdDays, isEnabled: leadRelanceSettings.isEnabled })
+    .select({
+      thresholdDays: leadRelanceSettings.thresholdDays,
+      isEnabled: leadRelanceSettings.isEnabled,
+    })
     .from(leadRelanceSettings)
     .where(eq(leadRelanceSettings.agencyId, params.agencyId))
     .limit(1)
@@ -71,7 +81,11 @@ export async function upsertLeadRelanceSettingsCore(
     .values(values)
     .onConflictDoUpdate({
       target: leadRelanceSettings.agencyId,
-      set: { thresholdDays: values.thresholdDays, isEnabled: values.isEnabled, updatedAt: new Date() },
+      set: {
+        thresholdDays: values.thresholdDays,
+        isEnabled: values.isEnabled,
+        updatedAt: new Date(),
+      },
     })
     .returning({ id: leadRelanceSettings.id })
   return { id: row!.id }

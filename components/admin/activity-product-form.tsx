@@ -12,11 +12,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Plus, Trash2 } from "lucide-react"
-import { createActivityProduct, updateActivityProduct } from "@/lib/admin/activities-actions"
-import { activityProductSchema, type ActivityProductInput } from "@/lib/admin/schemas/activity-product"
+import {
+  createActivityProduct,
+  updateActivityProduct,
+} from "@/lib/admin/activities-actions"
+import {
+  activityProductSchema,
+  type ActivityProductInput,
+} from "@/lib/admin/schemas/activity-product"
 import { PRODUCT_CHANNELS } from "@/lib/admin/product-constants"
 
-const CHANNEL_LABEL: Record<string, string> = { b2c: "B2C (grand public)", b2b: "B2B (agences)", white_label: "Marque blanche" }
+const CHANNEL_LABEL: Record<string, string> = {
+  b2c: "B2C (grand public)",
+  b2b: "B2B (agences)",
+  white_label: "Marque blanche",
+}
 
 export function ActivityProductForm({
   productId,
@@ -52,7 +62,9 @@ export function ActivityProductForm({
   const exclusions = useWatch({ control: form.control, name: "exclusions" })
 
   function toggleChannel(channel: string, checked: boolean) {
-    const next = checked ? [...channels, channel] : channels.filter((c) => c !== channel)
+    const next = checked
+      ? [...channels, channel]
+      : channels.filter((c) => c !== channel)
     form.setValue("channels", next as ActivityProductInput["channels"])
   }
 
@@ -61,14 +73,24 @@ export function ActivityProductForm({
     form.setValue(field, [...current, ""])
   }
 
-  function updateListItem(field: "galleryUrls" | "inclusions" | "exclusions", index: number, value: string) {
+  function updateListItem(
+    field: "galleryUrls" | "inclusions" | "exclusions",
+    index: number,
+    value: string,
+  ) {
     const current = [...form.getValues(field)]
     current[index] = value
     form.setValue(field, current)
   }
 
-  function removeListItem(field: "galleryUrls" | "inclusions" | "exclusions", index: number) {
-    form.setValue(field, form.getValues(field).filter((_, i) => i !== index))
+  function removeListItem(
+    field: "galleryUrls" | "inclusions" | "exclusions",
+    index: number,
+  ) {
+    form.setValue(
+      field,
+      form.getValues(field).filter((_, i) => i !== index),
+    )
   }
 
   async function onSubmit(data: ActivityProductInput) {
@@ -87,7 +109,9 @@ export function ActivityProductForm({
       toast.error(result.error)
       return
     }
-    toast.success(productId ? "Attraction mise à jour." : "Attraction créée en brouillon.")
+    toast.success(
+      productId ? "Attraction mise à jour." : "Attraction créée en brouillon.",
+    )
     router.push("/admin/products")
     router.refresh()
   }
@@ -95,45 +119,86 @@ export function ActivityProductForm({
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>Général</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Général</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label>Code produit *</Label>
-              <Input {...form.register("code")} placeholder="TAB-EXC" className="mt-1" />
-              {form.formState.errors.code ? <p className="text-destructive mt-1 text-xs">{form.formState.errors.code.message}</p> : null}
+              <Input
+                {...form.register("code")}
+                placeholder="TAB-EXC"
+                className="mt-1"
+              />
+              {form.formState.errors.code ? (
+                <p className="text-destructive mt-1 text-xs">
+                  {form.formState.errors.code.message}
+                </p>
+              ) : null}
             </div>
             <div>
               <Label>Titre *</Label>
-              <Input {...form.register("title")} placeholder="Excursion Tabarka" className="mt-1" />
-              {form.formState.errors.title ? <p className="text-destructive mt-1 text-xs">{form.formState.errors.title.message}</p> : null}
+              <Input
+                {...form.register("title")}
+                placeholder="Excursion Tabarka"
+                className="mt-1"
+              />
+              {form.formState.errors.title ? (
+                <p className="text-destructive mt-1 text-xs">
+                  {form.formState.errors.title.message}
+                </p>
+              ) : null}
             </div>
           </div>
           <div>
             <Label>Lieu</Label>
-            <Input {...form.register("location")} placeholder="Tabarka" className="mt-1" />
+            <Input
+              {...form.register("location")}
+              placeholder="Tabarka"
+              className="mt-1"
+            />
           </div>
           <div>
             <Label>Description courte</Label>
-            <Textarea {...form.register("shortDescription")} className="mt-1" rows={2} />
+            <Textarea
+              {...form.register("shortDescription")}
+              className="mt-1"
+              rows={2}
+            />
           </div>
           <div>
             <Label>Description longue</Label>
-            <Textarea {...form.register("longDescription")} className="mt-1" rows={5} />
+            <Textarea
+              {...form.register("longDescription")}
+              className="mt-1"
+              rows={5}
+            />
           </div>
           <div>
             <Label>Durée (minutes) *</Label>
-            <Input type="number" min={1} {...form.register("durationMinutes", { valueAsNumber: true })} className="mt-1 w-40" />
+            <Input
+              type="number"
+              min={1}
+              {...form.register("durationMinutes", { valueAsNumber: true })}
+              className="mt-1 w-40"
+            />
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Médias</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Médias</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-4">
           <div>
             <Label>Image de couverture (URL)</Label>
-            <Input {...form.register("coverImage")} placeholder="https://..." className="mt-1" />
+            <Input
+              {...form.register("coverImage")}
+              placeholder="https://..."
+              className="mt-1"
+            />
           </div>
           <ListEditor
             label="Galerie (URLs)"
@@ -146,7 +211,9 @@ export function ActivityProductForm({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Inclus / Non inclus</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Inclus / Non inclus</CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <ListEditor
             label="Inclus"
@@ -166,15 +233,25 @@ export function ActivityProductForm({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Canaux de vente</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Canaux de vente</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-2">
           {PRODUCT_CHANNELS.map((c) => (
             <div key={c} className="flex items-center gap-2">
-              <Checkbox id={`channel-${c}`} checked={channels.includes(c)} onCheckedChange={(v) => toggleChannel(c, Boolean(v))} />
+              <Checkbox
+                id={`channel-${c}`}
+                checked={channels.includes(c)}
+                onCheckedChange={(v) => toggleChannel(c, Boolean(v))}
+              />
               <Label htmlFor={`channel-${c}`}>{CHANNEL_LABEL[c]}</Label>
             </div>
           ))}
-          {form.formState.errors.channels ? <p className="text-destructive text-xs">{form.formState.errors.channels.message}</p> : null}
+          {form.formState.errors.channels ? (
+            <p className="text-destructive text-xs">
+              {form.formState.errors.channels.message}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 

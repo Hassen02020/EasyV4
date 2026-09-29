@@ -39,7 +39,12 @@ async function getZones() {
       db
         .select()
         .from(catalogTransferZones)
-        .where(and(eq(catalogTransferZones.agencyId, agencyId), eq(catalogTransferZones.status, "active")))
+        .where(
+          and(
+            eq(catalogTransferZones.agencyId, agencyId),
+            eq(catalogTransferZones.status, "active"),
+          ),
+        )
         .orderBy(catalogTransferZones.name),
     )
   } catch {
@@ -54,7 +59,7 @@ export default async function TransfertsPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <ModuleHero
           Icon={Navigation}
           gradient="from-slate-900 to-slate-700"

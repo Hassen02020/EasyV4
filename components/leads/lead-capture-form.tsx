@@ -74,7 +74,7 @@ export function LeadCaptureForm({
 
   if (sent) {
     return (
-      <div className="border-border bg-emerald-50 flex items-start gap-2 rounded-xl border p-4 text-sm">
+      <div className="border-border flex items-start gap-2 rounded-xl border bg-emerald-50 p-4 text-sm">
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
         <p className="text-emerald-800">{t("leadFormSuccessMessage")}</p>
       </div>
@@ -82,7 +82,10 @@ export function LeadCaptureForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border-border rounded-xl border p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="border-border rounded-xl border p-4"
+    >
       <div className="mb-3 flex items-center gap-2">
         <Mail className="text-muted-foreground h-4 w-4" />
         <span className="text-foreground text-sm font-semibold">
@@ -156,8 +159,16 @@ export function LeadCaptureForm({
 
         {error && <p className="text-destructive text-xs">{error}</p>}
 
-        <Button type="submit" disabled={pending || !firstName} className="w-full">
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("leadFormSubmitButton")}
+        <Button
+          type="submit"
+          disabled={pending || !firstName}
+          className="w-full"
+        >
+          {pending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            t("leadFormSubmitButton")
+          )}
         </Button>
       </div>
     </form>

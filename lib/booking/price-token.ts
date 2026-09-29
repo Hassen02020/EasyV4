@@ -30,7 +30,8 @@ const _DEFAULT_SECRET = "price-token-dev-secret-not-for-prod"
 
 if (
   process.env.NODE_ENV === "production" &&
-  (!process.env.PRICE_TOKEN_SECRET || process.env.PRICE_TOKEN_SECRET === _DEFAULT_SECRET)
+  (!process.env.PRICE_TOKEN_SECRET ||
+    process.env.PRICE_TOKEN_SECRET === _DEFAULT_SECRET)
 ) {
   throw new Error(
     "PRICE_TOKEN_SECRET manquant ou valeur dev par défaut détectée en production. " +
@@ -97,7 +98,8 @@ export function verifyHotelPriceToken(
   expected: HotelPriceTokenContext,
   ttlMs: number = HOTEL_PRICE_TOKEN_TTL_MS,
 ): VerifyHotelPriceTokenResult {
-  if (!token || typeof token !== "string") return { ok: false, reason: "malformed" }
+  if (!token || typeof token !== "string")
+    return { ok: false, reason: "malformed" }
   const dotIndex = token.indexOf(".")
   if (dotIndex <= 0 || dotIndex === token.length - 1) {
     return { ok: false, reason: "malformed" }
@@ -129,7 +131,8 @@ export function verifyHotelPriceToken(
     return { ok: false, reason: "malformed" }
   }
 
-  if (Date.now() - parsed.issuedAt > ttlMs) return { ok: false, reason: "expired" }
+  if (Date.now() - parsed.issuedAt > ttlMs)
+    return { ok: false, reason: "expired" }
 
   if (
     parsed.hotelId !== expected.hotelId ||
@@ -161,7 +164,10 @@ export interface ResolvedDraftHotelPrice {
   /** true uniquement si un `priceToken` serveur a été revérifié avec succès pour EXACTEMENT ce brouillon. */
   verified: boolean
   /** Raison d'échec — jamais affichée telle quelle à l'utilisateur, seulement pour log/debug. */
-  reason?: "not_hotel" | "no_token" | Extract<VerifyHotelPriceTokenResult, { ok: false }>["reason"]
+  reason?:
+    | "not_hotel"
+    | "no_token"
+    | Extract<VerifyHotelPriceTokenResult, { ok: false }>["reason"]
 }
 
 /**
@@ -186,15 +192,31 @@ export function resolveDraftHotelPrice(draft: {
   metadata?: Record<string, unknown> | null
 }): ResolvedDraftHotelPrice {
   if (draft.module !== "hotel") {
-    return { unitPriceTnd: draft.unitPriceTnd, verified: false, reason: "not_hotel" }
+    return {
+      unitPriceTnd: draft.unitPriceTnd,
+      verified: false,
+      reason: "not_hotel",
+    }
   }
   const meta = draft.metadata ?? undefined
-  const token = typeof meta?.priceToken === "string" ? meta.priceToken : undefined
+  const token =
+    typeof meta?.priceToken === "string" ? meta.priceToken : undefined
   const hotelId = typeof meta?.hotelId === "number" ? meta.hotelId : undefined
   const roomId = typeof meta?.roomId === "number" ? meta.roomId : undefined
-  const boardingId = typeof meta?.boardingId === "number" ? meta.boardingId : undefined
-  if (!token || hotelId == null || roomId == null || boardingId == null || !draft.endDate) {
-    return { unitPriceTnd: draft.unitPriceTnd, verified: false, reason: "no_token" }
+  const boardingId =
+    typeof meta?.boardingId === "number" ? meta.boardingId : undefined
+  if (
+    !token ||
+    hotelId == null ||
+    roomId == null ||
+    boardingId == null ||
+    !draft.endDate
+  ) {
+    return {
+      unitPriceTnd: draft.unitPriceTnd,
+      verified: false,
+      reason: "no_token",
+    }
   }
   const result = verifyHotelPriceToken(token, {
     hotelId,
@@ -206,7 +228,11 @@ export function resolveDraftHotelPrice(draft: {
     currency: draft.currency,
   })
   if (!result.ok) {
-    return { unitPriceTnd: draft.unitPriceTnd, verified: false, reason: result.reason }
+    return {
+      unitPriceTnd: draft.unitPriceTnd,
+      verified: false,
+      reason: result.reason,
+    }
   }
   return { unitPriceTnd: result.unitPriceTnd, verified: true }
 }

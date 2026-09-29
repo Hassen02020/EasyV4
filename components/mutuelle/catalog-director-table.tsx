@@ -14,7 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { setMutuelleCatalogItem, type MutuelleCatalogBrowseItem } from "@/lib/mutuelle/catalog-actions"
+import {
+  setMutuelleCatalogItem,
+  type MutuelleCatalogBrowseItem,
+} from "@/lib/mutuelle/catalog-actions"
 
 const TYPE_LABELS: Record<string, string> = {
   package: "Voyage organisé",
@@ -37,7 +40,11 @@ function ToggleCell({ item }: { item: MutuelleCatalogBrowseItem }) {
         toast.error(result.error)
         return
       }
-      toast.success(item.enabled ? "Produit retiré du catalogue du groupe." : "Produit ajouté au catalogue du groupe.")
+      toast.success(
+        item.enabled
+          ? "Produit retiré du catalogue du groupe."
+          : "Produit ajouté au catalogue du groupe.",
+      )
       router.refresh()
     })
   }
@@ -46,7 +53,11 @@ function ToggleCell({ item }: { item: MutuelleCatalogBrowseItem }) {
     <Button
       size="sm"
       variant={item.enabled ? "outline" : "default"}
-      className={item.enabled ? "gap-1.5 border-red-300 text-red-700 hover:bg-red-50" : "gap-1.5"}
+      className={
+        item.enabled
+          ? "gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+          : "gap-1.5"
+      }
       onClick={toggle}
       disabled={isPending}
     >
@@ -56,11 +67,18 @@ function ToggleCell({ item }: { item: MutuelleCatalogBrowseItem }) {
   )
 }
 
-export function CatalogDirectorTable({ items }: { items: MutuelleCatalogBrowseItem[] }) {
+export function CatalogDirectorTable({
+  items,
+}: {
+  items: MutuelleCatalogBrowseItem[]
+}) {
   if (items.length === 0) {
     return (
       <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-center text-sm">
-        <p>Aucun produit publié dans le catalogue de l&apos;agence d&apos;exécution du groupe pour le moment.</p>
+        <p>
+          Aucun produit publié dans le catalogue de l&apos;agence
+          d&apos;exécution du groupe pour le moment.
+        </p>
       </div>
     )
   }
@@ -80,14 +98,22 @@ export function CatalogDirectorTable({ items }: { items: MutuelleCatalogBrowseIt
         <TableBody>
           {items.map((item) => (
             <TableRow key={`${item.productType}:${item.productId}`}>
-              <TableCell className="text-sm">{TYPE_LABELS[item.productType] ?? item.productType}</TableCell>
-              <TableCell className="text-sm font-medium">{item.title}</TableCell>
               <TableCell className="text-sm">
-                {item.priceFromTnd != null ? `${item.priceFromTnd.toFixed(3)} DT` : "—"}
+                {TYPE_LABELS[item.productType] ?? item.productType}
+              </TableCell>
+              <TableCell className="text-sm font-medium">
+                {item.title}
+              </TableCell>
+              <TableCell className="text-sm">
+                {item.priceFromTnd != null
+                  ? `${item.priceFromTnd.toFixed(3)} DT`
+                  : "—"}
               </TableCell>
               <TableCell>
                 {item.enabled ? (
-                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Visible au groupe</Badge>
+                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                    Visible au groupe
+                  </Badge>
                 ) : (
                   <Badge variant="outline" className="text-muted-foreground">
                     Non visible

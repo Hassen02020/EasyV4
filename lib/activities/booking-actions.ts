@@ -35,7 +35,10 @@ import {
   payments,
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
-import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  resolveSessionContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
@@ -61,7 +64,9 @@ function isPastBookingDeadline(session: {
 }): boolean {
   const now = new Date()
   if (session.bookingDeadline) return now >= session.bookingDeadline
-  const sessionStartsAt = new Date(`${session.sessionDate}T${session.sessionStart}:00`)
+  const sessionStartsAt = new Date(
+    `${session.sessionDate}T${session.sessionStart}:00`,
+  )
   return now >= sessionStartsAt
 }
 
@@ -76,7 +81,9 @@ export async function createActivityBooking(
   if (!parsed.success) {
     return {
       ok: false,
-      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Réservation invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
     }
   }
   const booking = parsed.data
@@ -103,10 +110,15 @@ export async function createActivityBooking(
           .where(eq(catalogActivities.id, booking.activityId))
           .limit(1)
         if (!activity) throw new Error("ACTIVITY_NOT_FOUND")
-        if (activity.status !== "published") throw new Error("ACTIVITY_NOT_ACTIVE")
-        if (!activity.channels?.includes("b2b")) throw new Error("ACTIVITY_NOT_ACTIVE")
+        if (activity.status !== "published")
+          throw new Error("ACTIVITY_NOT_ACTIVE")
+        if (!activity.channels?.includes("b2b"))
+          throw new Error("ACTIVITY_NOT_ACTIVE")
 
-        const ageError = validateChildAgesAgainstTariffRules(activity.tariffRules, booking.childrenAges)
+        const ageError = validateChildAgesAgainstTariffRules(
+          activity.tariffRules,
+          booking.childrenAges,
+        )
         if (ageError) throw new Error(`CHILD_AGE_INVALID: ${ageError}`)
 
         // --- 2. Session (verrou FOR UPDATE) ---
@@ -122,12 +134,16 @@ export async function createActivityBooking(
           .limit(1)
           .for("update")
         if (!activitySession) throw new Error("SESSION_NOT_FOUND")
-        if (activitySession.status !== "open") throw new Error("SESSION_NOT_OPEN")
-        if (isPastBookingDeadline(activitySession)) throw new Error("BOOKING_DEADLINE_PASSED")
+        if (activitySession.status !== "open")
+          throw new Error("SESSION_NOT_OPEN")
+        if (isPastBookingDeadline(activitySession))
+          throw new Error("BOOKING_DEADLINE_PASSED")
 
         const capacityLeft = activitySession.capacity - activitySession.booked
         if (capacityLeft < paxCount) {
-          throw new Error(`INSUFFICIENT_STOCK: ${capacityLeft} places disponibles, ${paxCount} demandées`)
+          throw new Error(
+            `INSUFFICIENT_STOCK: ${capacityLeft} places disponibles, ${paxCount} demandées`,
+          )
         }
 
         // --- 3. Prix (100% serveur, aucune marge appliquée — voir commentaire de tête) ---
@@ -196,15 +212,25 @@ export async function createActivityBooking(
           createdByUserId,
           reservationId,
           idempotencyKey: `booking-debit:${reservationId}`,
-          txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
         })
         if (!debitResult.ok) {
-          throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
+          throw new Error(
+            debitResult.code === "INSUFFICIENT_FUNDS"
+              ? "INSUFFICIENT_BALANCE"
+              : "WALLET_DEBIT_FAILED",
+          )
         }
 
         await tx
           .update(reservations)
-          .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+          .set({
+            status: "confirmed",
+            confirmedAt: new Date(),
+            updatedAt: new Date(),
+          })
           .where(eq(reservations.id, reservationId))
 
         await recordReservationTransition(tx, {
@@ -263,7 +289,14 @@ export async function createActivityBooking(
           entityType: "reservation",
           entityId: reservationId,
           action: "activity_booking.created",
-          diff: { activityId: booking.activityId, sessionId: booking.sessionId, paxCount, totalTnd, publicRef, via: "b2b" },
+          diff: {
+            activityId: booking.activityId,
+            sessionId: booking.sessionId,
+            paxCount,
+            totalTnd,
+            publicRef,
+            via: "b2b",
+          },
         })
 
         return { reservationId, publicRef }
@@ -277,32 +310,54 @@ export async function createActivityBooking(
         actorUserId: createdByUserId,
       })
       if (!invoiceResult.ok) {
-        console.error("[activity-b2b] génération facture échouée", invoiceResult.error)
+        console.error(
+          "[activity-b2b] génération facture échouée",
+          invoiceResult.error,
+        )
       }
     } catch (err) {
-      console.error("[activity-b2b] génération facture échouée", err instanceof Error ? err.message : String(err))
+      console.error(
+        "[activity-b2b] génération facture échouée",
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
-      ACTIVITY_NOT_FOUND: "Attraction introuvable ou non autorisée pour votre agence",
+      ACTIVITY_NOT_FOUND:
+        "Attraction introuvable ou non autorisée pour votre agence",
       ACTIVITY_NOT_ACTIVE: "Cette attraction n'est plus disponible en B2B",
-      CHILD_AGE_INVALID: msg.match(/CHILD_AGE_INVALID: (.+)/)?.[1] ?? "Âge enfant invalide pour cette attraction",
+      CHILD_AGE_INVALID:
+        msg.match(/CHILD_AGE_INVALID: (.+)/)?.[1] ??
+        "Âge enfant invalide pour cette attraction",
       SESSION_NOT_FOUND: "Session introuvable pour cette attraction",
       SESSION_NOT_OPEN: "Cette session n'est plus ouverte à la réservation",
-      BOOKING_DEADLINE_PASSED: "La date limite de réservation pour cette session est dépassée",
-      INSUFFICIENT_STOCK: msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Places insuffisantes",
+      BOOKING_DEADLINE_PASSED:
+        "La date limite de réservation pour cette session est dépassée",
+      INSUFFICIENT_STOCK:
+        msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Places insuffisantes",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
-    return { ok: false, error: code ? codes[code] : `Erreur interne: ${msg}`, code: code ?? "INTERNAL_ERROR" }
+    return {
+      ok: false,
+      error: code ? codes[code] : `Erreur interne: ${msg}`,
+      code: code ?? "INTERNAL_ERROR",
+    }
   }
 }
 
-async function nextActivityPublicRef(tx: DrizzleTransaction, agencyId: string): Promise<string> {
+async function nextActivityPublicRef(
+  tx: DrizzleTransaction,
+  agencyId: string,
+): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `AT-${year}-`
   const [row] = await tx

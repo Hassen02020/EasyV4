@@ -43,7 +43,12 @@ export async function createCustomer(
 ): Promise<CreateCustomerResult> {
   const parsed = createCustomerInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -58,8 +63,14 @@ export async function createCustomer(
   if (!user) return { ok: false, error: "Session expirée" }
 
   const profile = await getCurrentAdminProfile(user.id)
-  if (!profile || !(ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
-    return { ok: false, error: "Votre rôle n'est pas autorisé à créer un client." }
+  if (
+    !profile ||
+    !(ALLOWED_ROLES as readonly string[]).includes(profile.role)
+  ) {
+    return {
+      ok: false,
+      error: "Votre rôle n'est pas autorisé à créer un client.",
+    }
   }
 
   try {
@@ -73,7 +84,12 @@ export async function createCustomer(
           const [existing] = await tx
             .select({ id: customers.id })
             .from(customers)
-            .where(and(eq(customers.agencyId, profile.agencyId), eq(customers.email, input.email)))
+            .where(
+              and(
+                eq(customers.agencyId, profile.agencyId),
+                eq(customers.email, input.email),
+              ),
+            )
             .limit(1)
           if (existing) throw new Error("DUPLICATE_EMAIL")
         }
@@ -99,7 +115,12 @@ export async function createCustomer(
           entityType: "customer",
           entityId: created.id,
           action: "customer.created",
-          diff: { firstName: input.firstName, lastName: input.lastName, email: input.email || null, via: "staff" },
+          diff: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            email: input.email || null,
+            via: "staff",
+          },
         })
 
         return created.id
@@ -107,16 +128,25 @@ export async function createCustomer(
     )
 
     revalidatePath("/admin/b2c/clients")
-    logger.info("[b2c-clients-actions] customer created", { customerId, actorId: user.id })
+    logger.info("[b2c-clients-actions] customer created", {
+      customerId,
+      actorId: user.id,
+    })
     return { ok: true, customerId }
   } catch (err) {
     if (err instanceof Error && err.message === "DUPLICATE_EMAIL") {
-      return { ok: false, error: "Un client avec cet email existe déjà dans votre agence." }
+      return {
+        ok: false,
+        error: "Un client avec cet email existe déjà dans votre agence.",
+      }
     }
     logger.error("[b2c-clients-actions] createCustomer failed", {
       err: err instanceof Error ? err.message : String(err),
     })
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -145,7 +175,12 @@ export async function updateCustomer(
 ): Promise<UpdateCustomerResult> {
   const parsed = updateCustomerInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -160,8 +195,14 @@ export async function updateCustomer(
   if (!user) return { ok: false, error: "Session expirée" }
 
   const profile = await getCurrentAdminProfile(user.id)
-  if (!profile || !(ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
-    return { ok: false, error: "Votre rôle n'est pas autorisé à modifier un client." }
+  if (
+    !profile ||
+    !(ALLOWED_ROLES as readonly string[]).includes(profile.role)
+  ) {
+    return {
+      ok: false,
+      error: "Votre rôle n'est pas autorisé à modifier un client.",
+    }
   }
 
   try {
@@ -174,7 +215,12 @@ export async function updateCustomer(
         const [existing] = await tx
           .select({ id: customers.id })
           .from(customers)
-          .where(and(eq(customers.id, input.customerId), eq(customers.agencyId, profile.agencyId)))
+          .where(
+            and(
+              eq(customers.id, input.customerId),
+              eq(customers.agencyId, profile.agencyId),
+            ),
+          )
           .limit(1)
         if (!existing) throw new Error("NOT_FOUND")
 
@@ -182,9 +228,15 @@ export async function updateCustomer(
           const [duplicate] = await tx
             .select({ id: customers.id })
             .from(customers)
-            .where(and(eq(customers.agencyId, profile.agencyId), eq(customers.email, input.email)))
+            .where(
+              and(
+                eq(customers.agencyId, profile.agencyId),
+                eq(customers.email, input.email),
+              ),
+            )
             .limit(1)
-          if (duplicate && duplicate.id !== input.customerId) throw new Error("DUPLICATE_EMAIL")
+          if (duplicate && duplicate.id !== input.customerId)
+            throw new Error("DUPLICATE_EMAIL")
         }
 
         await tx
@@ -207,25 +259,38 @@ export async function updateCustomer(
           entityType: "customer",
           entityId: input.customerId,
           action: "customer.updated",
-          diff: { firstName: input.firstName, lastName: input.lastName, email: input.email || null },
+          diff: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            email: input.email || null,
+          },
         })
       },
     )
 
     revalidatePath("/admin/b2c/clients")
     revalidatePath(`/admin/b2c/clients/${input.customerId}`)
-    logger.info("[b2c-clients-actions] customer updated", { customerId: input.customerId, actorId: user.id })
+    logger.info("[b2c-clients-actions] customer updated", {
+      customerId: input.customerId,
+      actorId: user.id,
+    })
     return { ok: true }
   } catch (err) {
     if (err instanceof Error && err.message === "NOT_FOUND") {
       return { ok: false, error: "Client introuvable dans votre agence." }
     }
     if (err instanceof Error && err.message === "DUPLICATE_EMAIL") {
-      return { ok: false, error: "Un autre client avec cet email existe déjà dans votre agence." }
+      return {
+        ok: false,
+        error: "Un autre client avec cet email existe déjà dans votre agence.",
+      }
     }
     logger.error("[b2c-clients-actions] updateCustomer failed", {
       err: err instanceof Error ? err.message : String(err),
     })
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }

@@ -17,7 +17,16 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, inArray, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, payments, pspWebhooks, auditEvents, walletAccounts, walletLedger } from "@/lib/db/schema"
+import {
+  agencies,
+  customers,
+  reservations,
+  payments,
+  pspWebhooks,
+  auditEvents,
+  walletAccounts,
+  walletLedger,
+} from "@/lib/db/schema"
 import { processReservationWebhookCore } from "../reservation-webhook-core"
 import { normalizePaymeeEvent } from "../webhook-logic"
 import { computePaymeeChecksum, verifyPaymeeChecksum } from "../paymee-signing"
@@ -36,12 +45,16 @@ async function isDbAvailable(): Promise<boolean> {
 }
 
 let dbAvailable = false
-const skipReason = () => "Postgres local indisponible (DATABASE_URL) — voir favorites-core.test.ts pour la procédure."
+const skipReason = () =>
+  "Postgres local indisponible (DATABASE_URL) — voir favorites-core.test.ts pour la procédure."
 
 let agencyId = ""
 let customerId = ""
 
-async function makeReservation(params: { status: "pending" | "cancelled"; tndAmount: string }): Promise<string> {
+async function makeReservation(params: {
+  status: "pending" | "cancelled"
+  tndAmount: string
+}): Promise<string> {
   const [row] = await withSystemContext((tx) =>
     tx
       .insert(reservations)
@@ -61,7 +74,11 @@ async function makeReservation(params: { status: "pending" | "cancelled"; tndAmo
   return row!.id
 }
 
-async function makePendingPayment(params: { reservationId: string; orderId: string; tndAmount: string }): Promise<string> {
+async function makePendingPayment(params: {
+  reservationId: string
+  orderId: string
+  tndAmount: string
+}): Promise<string> {
   const [row] = await withSystemContext((tx) =>
     tx
       .insert(payments)
@@ -92,7 +109,11 @@ function buildSignedPaymeeWebhook(params: {
   paymentId?: string
 }) {
   const token = `tok_${randomUUID()}`
-  const checkSum = computePaymeeChecksum({ token, paymentStatus: params.paymentStatus, apiKey: API_KEY })
+  const checkSum = computePaymeeChecksum({
+    token,
+    paymentStatus: params.paymentStatus,
+    apiKey: API_KEY,
+  })
   const body: Record<string, unknown> = {
     token,
     order_id: params.orderId,
@@ -108,14 +129,20 @@ function buildSignedPaymeeWebhook(params: {
     checkSum: body["check_sum"] as string,
     apiKey: API_KEY,
   })
-  const eventType = params.paymentStatus ? "paymee.payment.success" : "paymee.payment.failed"
+  const eventType = params.paymentStatus
+    ? "paymee.payment.success"
+    : "paymee.payment.failed"
   const charge = normalizePaymeeEvent(body, eventType)
 
   return { body, signatureOk, eventType, charge, token }
 }
 
 test("verifyPaymeeChecksum + normalizePaymeeEvent : un webhook signé avec une mauvaise clé échoue AVANT même la normalisation (jamais traité)", () => {
-  const w = buildSignedPaymeeWebhook({ orderId: "whatever", amountTnd: 10, paymentStatus: true })
+  const w = buildSignedPaymeeWebhook({
+    orderId: "whatever",
+    amountTnd: 10,
+    paymentStatus: true,
+  })
   const wrongKeyOk = verifyPaymeeChecksum({
     token: w.token,
     paymentStatusRaw: true,
@@ -130,10 +157,20 @@ before(async () => {
   if (!dbAvailable) return
   agencyId = randomUUID()
   await withSystemContext(async (tx) => {
-    await tx.insert(agencies).values({ id: agencyId, slug: `pmee-a-${agencyId}`, name: "Paymee Test Agency", agencyType: "ota" })
+    await tx.insert(agencies).values({
+      id: agencyId,
+      slug: `pmee-a-${agencyId}`,
+      name: "Paymee Test Agency",
+      agencyType: "ota",
+    })
     const [c] = await tx
       .insert(customers)
-      .values({ agencyId, firstName: "Client", lastName: "Test", email: `pmee-${randomUUID()}@example.com` })
+      .values({
+        agencyId,
+        firstName: "Client",
+        lastName: "Test",
+        email: `pmee-${randomUUID()}@example.com`,
+      })
       .returning({ id: customers.id })
     customerId = c!.id
   })
@@ -152,10 +189,15 @@ after(async () => {
       .where(eq(walletAccounts.customerId, customerId))
     if (walletAccountRows.length > 0) {
       await tx.delete(walletLedger).where(
-        inArray(walletLedger.walletAccountId, walletAccountRows.map((r) => r.id)),
+        inArray(
+          walletLedger.walletAccountId,
+          walletAccountRows.map((r) => r.id),
+        ),
       )
     }
-    await tx.delete(walletAccounts).where(eq(walletAccounts.customerId, customerId))
+    await tx
+      .delete(walletAccounts)
+      .where(eq(walletAccounts.customerId, customerId))
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyId))
     await tx.delete(pspWebhooks).where(eq(pspWebhooks.agencyId, agencyId))
     await tx.delete(payments).where(eq(payments.agencyId, agencyId))
@@ -167,11 +209,19 @@ after(async () => {
 
 test("signature valide + succès : capture le paiement et confirme la réservation (pipeline Paymee complet)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "250.000" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "250.000",
+  })
   const orderId = `order-${randomUUID()}`
   await makePendingPayment({ reservationId, orderId, tndAmount: "250.000" })
 
-  const w = buildSignedPaymeeWebhook({ orderId, amountTnd: 250, paymentStatus: true, paymentId: `pmt-${randomUUID()}` })
+  const w = buildSignedPaymeeWebhook({
+    orderId,
+    amountTnd: 250,
+    paymentStatus: true,
+    paymentId: `pmt-${randomUUID()}`,
+  })
   assert.equal(w.signatureOk, true)
   assert.ok(w.charge)
 
@@ -186,16 +236,24 @@ test("signature valide + succès : capture le paiement et confirme la réservati
     }),
   )
   assert.equal(outcome.status, "captured_confirmed")
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "confirmed")
-  const [pay] = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const [pay] = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(pay!.status, "captured")
   assert.equal(pay!.psp, "paymee")
 })
 
 test("mauvais order_id (item 8) -> no_match, rien n'est écrit", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const w = buildSignedPaymeeWebhook({ orderId: `unknown-${randomUUID()}`, amountTnd: 42, paymentStatus: true })
+  const w = buildSignedPaymeeWebhook({
+    orderId: `unknown-${randomUUID()}`,
+    amountTnd: 42,
+    paymentStatus: true,
+  })
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
       provider: "paymee",
@@ -211,11 +269,18 @@ test("mauvais order_id (item 8) -> no_match, rien n'est écrit", async (t) => {
 
 test("montant différent du montant attendu (item 7) -> mismatch, paiement failed, réservation reste pending", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "300.000" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "300.000",
+  })
   const orderId = `order-${randomUUID()}`
   await makePendingPayment({ reservationId, orderId, tndAmount: "300.000" })
 
-  const w = buildSignedPaymeeWebhook({ orderId, amountTnd: 999, paymentStatus: true })
+  const w = buildSignedPaymeeWebhook({
+    orderId,
+    amountTnd: 999,
+    paymentStatus: true,
+  })
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
       provider: "paymee",
@@ -227,17 +292,26 @@ test("montant différent du montant attendu (item 7) -> mismatch, paiement faile
     }),
   )
   assert.equal(outcome.status, "mismatch")
-  const [pay] = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const [pay] = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(pay!.status, "failed")
 })
 
 test("webhook failed (item 11) : payment_status=false -> payment_failed, réservation reste pending (retryable)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "60.000" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "60.000",
+  })
   const orderId = `order-${randomUUID()}`
   await makePendingPayment({ reservationId, orderId, tndAmount: "60.000" })
 
-  const w = buildSignedPaymeeWebhook({ orderId, amountTnd: 60, paymentStatus: false })
+  const w = buildSignedPaymeeWebhook({
+    orderId,
+    amountTnd: 60,
+    paymentStatus: false,
+  })
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
       provider: "paymee",
@@ -249,17 +323,27 @@ test("webhook failed (item 11) : payment_status=false -> payment_failed, réserv
     }),
   )
   assert.equal(outcome.status, "payment_failed")
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "pending")
 })
 
 test("webhook duplicate (item 9) : même notification (même payment_id) reçue deux fois -> duplicate au deuxième appel", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "120.000" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "120.000",
+  })
   const orderId = `order-${randomUUID()}`
   await makePendingPayment({ reservationId, orderId, tndAmount: "120.000" })
 
-  const w = buildSignedPaymeeWebhook({ orderId, amountTnd: 120, paymentStatus: true, paymentId: `pmt-${randomUUID()}` })
+  const w = buildSignedPaymeeWebhook({
+    orderId,
+    amountTnd: 120,
+    paymentStatus: true,
+    paymentId: `pmt-${randomUUID()}`,
+  })
 
   const first = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -288,11 +372,19 @@ test("webhook duplicate (item 9) : même notification (même payment_id) reçue 
 
 test("webhook success après déjà-captured (item 10) : event_id différent pour le même paiement déjà capturé -> already_processed", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "80.000" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "80.000",
+  })
   const orderId = `order-${randomUUID()}`
   await makePendingPayment({ reservationId, orderId, tndAmount: "80.000" })
 
-  const w1 = buildSignedPaymeeWebhook({ orderId, amountTnd: 80, paymentStatus: true, paymentId: `pmt-${randomUUID()}` })
+  const w1 = buildSignedPaymeeWebhook({
+    orderId,
+    amountTnd: 80,
+    paymentStatus: true,
+    paymentId: `pmt-${randomUUID()}`,
+  })
   const first = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
       provider: "paymee",
@@ -307,7 +399,12 @@ test("webhook success après déjà-captured (item 10) : event_id différent pou
 
   // Paymee (ou un attaquant qui rejoue une notification passée) renvoie un
   // "succès" pour la même référence, avec un payment_id différent.
-  const w2 = buildSignedPaymeeWebhook({ orderId, amountTnd: 80, paymentStatus: true, paymentId: `pmt-${randomUUID()}` })
+  const w2 = buildSignedPaymeeWebhook({
+    orderId,
+    amountTnd: 80,
+    paymentStatus: true,
+    paymentId: `pmt-${randomUUID()}`,
+  })
   const second = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
       provider: "paymee",
@@ -320,18 +417,28 @@ test("webhook success après déjà-captured (item 10) : event_id différent pou
   )
   assert.equal(second.status, "already_processed")
 
-  const paymentRows = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const paymentRows = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(paymentRows.length, 1)
   assert.equal(paymentRows[0]!.status, "captured")
 })
 
 test("replay protection (item 12) : rejouer EXACTEMENT le même webhook déjà traité (même check_sum, même payload) est sans effet", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "45.000" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "45.000",
+  })
   const orderId = `order-${randomUUID()}`
   await makePendingPayment({ reservationId, orderId, tndAmount: "45.000" })
 
-  const w = buildSignedPaymeeWebhook({ orderId, amountTnd: 45, paymentStatus: true, paymentId: `pmt-${randomUUID()}` })
+  const w = buildSignedPaymeeWebhook({
+    orderId,
+    amountTnd: 45,
+    paymentStatus: true,
+    paymentId: `pmt-${randomUUID()}`,
+  })
 
   const first = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -359,6 +466,8 @@ test("replay protection (item 12) : rejouer EXACTEMENT le même webhook déjà t
   )
   assert.equal(replay.status, "duplicate")
 
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "confirmed") // toujours confirmée une seule fois, pas de double-effet
 })

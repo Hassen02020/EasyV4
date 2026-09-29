@@ -9,11 +9,17 @@
  */
 
 import { decodeDraft } from "./draft-store"
-import { resolveDraftHotelPrice, type ResolvedDraftHotelPrice } from "./price-token"
+import {
+  resolveDraftHotelPrice,
+  type ResolvedDraftHotelPrice,
+} from "./price-token"
 
 export async function resolveDraftPriceAction(
   token: string,
-): Promise<ResolvedDraftHotelPrice | { unitPriceTnd: number; verified: false; reason: "invalid_draft" }> {
+): Promise<
+  | ResolvedDraftHotelPrice
+  | { unitPriceTnd: number; verified: false; reason: "invalid_draft" }
+> {
   const payload = decodeDraft(token)
   if (!payload) {
     return { unitPriceTnd: 0, verified: false, reason: "invalid_draft" }

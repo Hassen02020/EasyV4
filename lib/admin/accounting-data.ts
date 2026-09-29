@@ -7,7 +7,12 @@
 
 import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { customers, partnerInvoices, payments, reservations } from "@/lib/db/schema"
+import {
+  customers,
+  partnerInvoices,
+  payments,
+  reservations,
+} from "@/lib/db/schema"
 
 export type AccountingStats = {
   revenueTodayTnd: number
@@ -54,15 +59,20 @@ export async function loadAccountingStats(
     startOfToday.setUTCHours(0, 0, 0, 0)
 
     const agencyFilter = agencyId ? eq(payments.agencyId, agencyId) : undefined
-    const reservationAgencyFilter = agencyId ? eq(reservations.agencyId, agencyId) : undefined
-    const invoiceAgencyFilter = agencyId ? eq(partnerInvoices.agencyId, agencyId) : undefined
+    const reservationAgencyFilter = agencyId
+      ? eq(reservations.agencyId, agencyId)
+      : undefined
+    const invoiceAgencyFilter = agencyId
+      ? eq(partnerInvoices.agencyId, agencyId)
+      : undefined
 
-    const [todayRow, monthRow, pendingRow, invoicesRow] = await withTenantContext(
-      { agencyId, userId: "", isSuperAdmin },
-      (db) =>
+    const [todayRow, monthRow, pendingRow, invoicesRow] =
+      await withTenantContext({ agencyId, userId: "", isSuperAdmin }, (db) =>
         Promise.all([
           db
-            .select({ total: sql<string>`COALESCE(SUM(${payments.tndAmount} - ${payments.refundedAmount}), '0')` })
+            .select({
+              total: sql<string>`COALESCE(SUM(${payments.tndAmount} - ${payments.refundedAmount}), '0')`,
+            })
             .from(payments)
             .where(
               and(
@@ -72,7 +82,9 @@ export async function loadAccountingStats(
               ),
             ),
           db
-            .select({ total: sql<string>`COALESCE(SUM(${payments.tndAmount} - ${payments.refundedAmount}), '0')` })
+            .select({
+              total: sql<string>`COALESCE(SUM(${payments.tndAmount} - ${payments.refundedAmount}), '0')`,
+            })
             .from(payments)
             .where(
               and(
@@ -82,12 +94,19 @@ export async function loadAccountingStats(
               ),
             ),
           db
-            .select({ total: sql<string>`COALESCE(SUM(${reservations.tndAmount}), '0')` })
+            .select({
+              total: sql<string>`COALESCE(SUM(${reservations.tndAmount}), '0')`,
+            })
             .from(reservations)
-            .where(and(reservationAgencyFilter, eq(reservations.status, "pending"))),
-          db.select({ value: count() }).from(partnerInvoices).where(invoiceAgencyFilter),
+            .where(
+              and(reservationAgencyFilter, eq(reservations.status, "pending")),
+            ),
+          db
+            .select({ value: count() })
+            .from(partnerInvoices)
+            .where(invoiceAgencyFilter),
         ]),
-    )
+      )
 
     return {
       revenueTodayTnd: Number.parseFloat(todayRow[0]?.total ?? "0"),
@@ -110,30 +129,42 @@ export async function loadRecentPayments(
   try {
     const agencyFilter = agencyId ? eq(payments.agencyId, agencyId) : undefined
 
-    const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin }, (db) =>
-      db
-        .select({
-          id: payments.id,
-          publicRef: reservations.publicRef,
-          firstName: customers.firstName,
-          lastName: customers.lastName,
-          tndAmount: payments.tndAmount,
-          method: payments.method,
-          status: payments.status,
-          capturedAt: payments.capturedAt,
-        })
-        .from(payments)
-        .innerJoin(reservations, eq(reservations.id, payments.reservationId))
-        .leftJoin(customers, eq(customers.id, reservations.customerId))
-        .where(and(agencyFilter, inArray(payments.status, ["captured", "partial_refund", "refunded"])))
-        .orderBy(desc(payments.capturedAt))
-        .limit(limit),
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin },
+      (db) =>
+        db
+          .select({
+            id: payments.id,
+            publicRef: reservations.publicRef,
+            firstName: customers.firstName,
+            lastName: customers.lastName,
+            tndAmount: payments.tndAmount,
+            method: payments.method,
+            status: payments.status,
+            capturedAt: payments.capturedAt,
+          })
+          .from(payments)
+          .innerJoin(reservations, eq(reservations.id, payments.reservationId))
+          .leftJoin(customers, eq(customers.id, reservations.customerId))
+          .where(
+            and(
+              agencyFilter,
+              inArray(payments.status, [
+                "captured",
+                "partial_refund",
+                "refunded",
+              ]),
+            ),
+          )
+          .orderBy(desc(payments.capturedAt))
+          .limit(limit),
     )
 
     return rows.map((r) => ({
       id: r.id,
       publicRef: r.publicRef,
-      customerName: [r.firstName, r.lastName].filter(Boolean).join(" ").trim() || "—",
+      customerName:
+        [r.firstName, r.lastName].filter(Boolean).join(" ").trim() || "—",
       tndAmount: Number.parseFloat(r.tndAmount),
       method: r.method,
       status: r.status,
@@ -154,27 +185,35 @@ export async function loadMonthlyRevenueReport(
   try {
     const agencyFilter = agencyId ? eq(payments.agencyId, agencyId) : undefined
 
-    const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin }, (db) =>
-      db
-        .select({
-          monthStart: sql<string>`date_trunc('month', ${payments.capturedAt})`,
-          revenueTnd: sql<string>`COALESCE(SUM(${payments.tndAmount} - ${payments.refundedAmount}), '0')`,
-          paymentsCount: count(),
-        })
-        .from(payments)
-        .where(
-          and(
-            agencyFilter,
-            inArray(payments.status, ["captured", "partial_refund"]),
-            gte(payments.capturedAt, sql`date_trunc('month', now()) - interval '2 months'`),
-          ),
-        )
-        .groupBy(sql`date_trunc('month', ${payments.capturedAt})`)
-        .orderBy(sql`date_trunc('month', ${payments.capturedAt}) desc`),
+    const rows = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin },
+      (db) =>
+        db
+          .select({
+            monthStart: sql<string>`date_trunc('month', ${payments.capturedAt})`,
+            revenueTnd: sql<string>`COALESCE(SUM(${payments.tndAmount} - ${payments.refundedAmount}), '0')`,
+            paymentsCount: count(),
+          })
+          .from(payments)
+          .where(
+            and(
+              agencyFilter,
+              inArray(payments.status, ["captured", "partial_refund"]),
+              gte(
+                payments.capturedAt,
+                sql`date_trunc('month', now()) - interval '2 months'`,
+              ),
+            ),
+          )
+          .groupBy(sql`date_trunc('month', ${payments.capturedAt})`)
+          .orderBy(sql`date_trunc('month', ${payments.capturedAt}) desc`),
     )
 
     return rows.map((r) => ({
-      monthLabel: new Date(r.monthStart).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
+      monthLabel: new Date(r.monthStart).toLocaleDateString("fr-FR", {
+        month: "long",
+        year: "numeric",
+      }),
       revenueTnd: Number.parseFloat(r.revenueTnd),
       paymentsCount: r.paymentsCount,
     }))

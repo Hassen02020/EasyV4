@@ -45,7 +45,12 @@ type BookingStatus =
   | "FAILED"
   | "PRICE_CHANGED"
 
-type RecheckStatus = "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR"
+type RecheckStatus =
+  | "AVAILABLE"
+  | "PRICE_CHANGED"
+  | "UNAVAILABLE"
+  | "EXPIRED"
+  | "ERROR"
 
 interface BookingRecord {
   id: string
@@ -92,7 +97,11 @@ async function fulfillWithRecovery(
 ): Promise<FulfillResult> {
   // CAS: PENDING → BOOKING_IN_PROGRESS
   if (booking.status !== "PENDING") {
-    return { ok: false, error: `Statut invalide: ${booking.status}`, code: "WRONG_STATUS" }
+    return {
+      ok: false,
+      error: `Statut invalide: ${booking.status}`,
+      code: "WRONG_STATUS",
+    }
   }
   booking.status = "BOOKING_IN_PROGRESS"
   reservation.status = "on_request"
@@ -173,7 +182,13 @@ async function fulfillWithRecovery(
 let bookingSeq = 0
 function makeBooking(): BookingRecord {
   const id = `booking-${++bookingSeq}`
-  return { id, reservationId: `res-${bookingSeq}`, status: "PENDING", pnr: null, opsNotes: null }
+  return {
+    id,
+    reservationId: `res-${bookingSeq}`,
+    status: "PENDING",
+    pnr: null,
+    opsNotes: null,
+  }
 }
 
 function makeReservation(bookingSeq: number): ReservationRecord {
@@ -185,7 +200,6 @@ function makeReservation(bookingSeq: number): ReservationRecord {
 // ===========================================================================
 
 describe("G11 — Ticketing Recovery", () => {
-
   test("R01 — issue() fails → cancel() is called with the correct PNR", async () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
@@ -193,24 +207,44 @@ describe("G11 — Ticketing Recovery", () => {
     await fulfillWithRecovery(b, r, { issueThrows: true }, [], cancelLog)
 
     assert.equal(cancelLog.length, 1, "cancel() must be called exactly once")
-    assert.equal(cancelLog[0].pnr, b.pnr, "cancel() must receive the PNR returned by book()")
+    assert.equal(
+      cancelLog[0].pnr,
+      b.pnr,
+      "cancel() must receive the PNR returned by book()",
+    )
   })
 
   test("R02 — issue() fails + cancel() succeeds → code = ISSUE_FAILED, no opsNotes", async () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
-    const result = await fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: false }, [], [])
+    const result = await fulfillWithRecovery(
+      b,
+      r,
+      { issueThrows: true, cancelThrows: false },
+      [],
+      [],
+    )
 
     assert.equal(result.ok, false)
     assert.equal((result as { code: string }).code, "ISSUE_FAILED")
-    assert.equal(b.opsNotes, null, "opsNotes must not be set when cancel succeeds")
+    assert.equal(
+      b.opsNotes,
+      null,
+      "opsNotes must not be set when cancel succeeds",
+    )
     assert.equal(b.status, "FAILED")
   })
 
   test("R03 — issue() fails + cancel() throws → code = PNR_ORPHANED, opsNotes set", async () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
-    const result = await fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: true }, [], [])
+    const result = await fulfillWithRecovery(
+      b,
+      r,
+      { issueThrows: true, cancelThrows: true },
+      [],
+      [],
+    )
 
     assert.equal(result.ok, false)
     assert.equal((result as { code: string }).code, "PNR_ORPHANED")
@@ -224,7 +258,11 @@ describe("G11 — Ticketing Recovery", () => {
     const cancelLog: Array<{ pnr: string; itinerary: unknown }> = []
     await fulfillWithRecovery(b, r, { bookThrows: true }, [], cancelLog)
 
-    assert.equal(cancelLog.length, 0, "cancel() must not be called when book() fails")
+    assert.equal(
+      cancelLog.length,
+      0,
+      "cancel() must not be called when book() fails",
+    )
     assert.equal(b.pnr, null, "PNR must not be set when book() fails")
     assert.equal(b.status, "FAILED")
   })
@@ -233,7 +271,13 @@ describe("G11 — Ticketing Recovery", () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
     const cancelLog: Array<{ pnr: string; itinerary: unknown }> = []
-    await fulfillWithRecovery(b, r, { recheckStatus: "UNAVAILABLE" }, [], cancelLog)
+    await fulfillWithRecovery(
+      b,
+      r,
+      { recheckStatus: "UNAVAILABLE" },
+      [],
+      cancelLog,
+    )
 
     assert.equal(cancelLog.length, 0)
     assert.equal(b.pnr, null)
@@ -243,7 +287,13 @@ describe("G11 — Ticketing Recovery", () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
     const cancelLog: Array<{ pnr: string; itinerary: unknown }> = []
-    await fulfillWithRecovery(b, r, { recheckStatus: "PRICE_CHANGED" }, [], cancelLog)
+    await fulfillWithRecovery(
+      b,
+      r,
+      { recheckStatus: "PRICE_CHANGED" },
+      [],
+      cancelLog,
+    )
 
     assert.equal(cancelLog.length, 0)
     assert.equal(b.status, "PRICE_CHANGED")
@@ -253,7 +303,13 @@ describe("G11 — Ticketing Recovery", () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
     const audit: AuditEntry[] = []
-    await fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: false }, audit, [])
+    await fulfillWithRecovery(
+      b,
+      r,
+      { issueThrows: true, cancelThrows: false },
+      audit,
+      [],
+    )
 
     const issueEntry = audit.find((e) => e.transactionType === "ISSUE")
     const cancelEntry = audit.find((e) => e.transactionType === "CANCEL")
@@ -268,7 +324,13 @@ describe("G11 — Ticketing Recovery", () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
     const audit: AuditEntry[] = []
-    await fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: true }, audit, [])
+    await fulfillWithRecovery(
+      b,
+      r,
+      { issueThrows: true, cancelThrows: true },
+      audit,
+      [],
+    )
 
     const issueEntry = audit.find((e) => e.transactionType === "ISSUE")
     const cancelEntry = audit.find((e) => e.transactionType === "CANCEL")
@@ -282,18 +344,36 @@ describe("G11 — Ticketing Recovery", () => {
   test("R09 — opsNotes contains the PNR value when cancel fails", async () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
-    await fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: true }, [], [])
+    await fulfillWithRecovery(
+      b,
+      r,
+      { issueThrows: true, cancelThrows: true },
+      [],
+      [],
+    )
 
     assert.ok(b.opsNotes, "opsNotes must be set")
     assert.ok(b.pnr, "PNR must be set from book()")
-    assert.ok(b.opsNotes!.includes(b.pnr!), `opsNotes must include PNR "${b.pnr}", got: "${b.opsNotes}"`)
-    assert.ok(b.opsNotes!.toLowerCase().includes("manual"), "opsNotes must mention manual void")
+    assert.ok(
+      b.opsNotes!.includes(b.pnr!),
+      `opsNotes must include PNR "${b.pnr}", got: "${b.opsNotes}"`,
+    )
+    assert.ok(
+      b.opsNotes!.toLowerCase().includes("manual"),
+      "opsNotes must mention manual void",
+    )
   })
 
   test("R10 — opsNotes is null when cancel succeeds", async () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
-    await fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: false }, [], [])
+    await fulfillWithRecovery(
+      b,
+      r,
+      { issueThrows: true, cancelThrows: false },
+      [],
+      [],
+    )
 
     assert.equal(b.opsNotes, null)
   })
@@ -306,7 +386,11 @@ describe("G11 — Ticketing Recovery", () => {
 
     assert.equal(result.ok, true)
     assert.equal(b.status, "CONFIRMED")
-    assert.equal(cancelLog.length, 0, "cancel() must never be called on successful issue")
+    assert.equal(
+      cancelLog.length,
+      0,
+      "cancel() must never be called on successful issue",
+    )
   })
 
   test("R12 — FAILED booking → second fulfillment call returns WRONG_STATUS", async () => {
@@ -330,7 +414,8 @@ describe("G11 — Ticketing Recovery", () => {
     assert.ok(cancelLog[0].itinerary, "itinerary must be passed to cancel()")
     // Must be the same shape (tripType field present)
     assert.ok(
-      typeof (cancelLog[0].itinerary as Record<string, unknown>).tripType === "string",
+      typeof (cancelLog[0].itinerary as Record<string, unknown>).tripType ===
+        "string",
       "itinerary.tripType must be present",
     )
   })
@@ -340,9 +425,19 @@ describe("G11 — Ticketing Recovery", () => {
     const b = makeBooking()
     const r = makeReservation(bookingSeq)
     const cancelLog: Array<{ pnr: string; itinerary: unknown }> = []
-    await fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: false }, [], cancelLog)
+    await fulfillWithRecovery(
+      b,
+      r,
+      { issueThrows: true, cancelThrows: false },
+      [],
+      cancelLog,
+    )
 
-    assert.equal(cancelLog.length, 1, "cancel() must always be attempted after issue() failure")
+    assert.equal(
+      cancelLog.length,
+      1,
+      "cancel() must always be attempted after issue() failure",
+    )
   })
 
   test("R15 — 10 concurrent issue() failures → 10 cancel() calls, no cross-contamination", async () => {
@@ -354,7 +449,13 @@ describe("G11 — Ticketing Recovery", () => {
 
     await Promise.all(
       bookings.map(({ b, r }) =>
-        fulfillWithRecovery(b, r, { issueThrows: true, cancelThrows: false }, [], cancelLog),
+        fulfillWithRecovery(
+          b,
+          r,
+          { issueThrows: true, cancelThrows: false },
+          [],
+          cancelLog,
+        ),
       ),
     )
 
@@ -363,7 +464,11 @@ describe("G11 — Ticketing Recovery", () => {
     // Each cancel call must reference a unique PNR
     const pnrs = cancelLog.map((e) => e.pnr)
     const uniquePnrs = new Set(pnrs)
-    assert.equal(uniquePnrs.size, 10, "Each cancel() must reference its own PNR — no cross-contamination")
+    assert.equal(
+      uniquePnrs.size,
+      10,
+      "Each cancel() must reference its own PNR — no cross-contamination",
+    )
 
     // Every booking must be FAILED
     const allFailed = bookings.every(({ b }) => b.status === "FAILED")

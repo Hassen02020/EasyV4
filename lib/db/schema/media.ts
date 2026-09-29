@@ -84,8 +84,12 @@ export const productMedia = pgTable(
     /** Une seule image de couverture par produit — appliqué par un index unique partiel (migration 0052), pas seulement en code (mission §17). */
     isCover: boolean("is_cover").notNull().default(false),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("product_media_agency_idx").on(t.agencyId),

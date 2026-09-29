@@ -61,9 +61,15 @@ import {
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { isValidWalletAmount } from "@/lib/finance/customer-wallet"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
-import { evaluateCancellation, type PolicySnapshot } from "@/lib/booking/policy-engine"
+import {
+  evaluateCancellation,
+  type PolicySnapshot,
+} from "@/lib/booking/policy-engine"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
-import { reverseEarnedPoints, reinstateRedeemedPoints } from "@/lib/loyalty/rewards-core"
+import {
+  reverseEarnedPoints,
+  reinstateRedeemedPoints,
+} from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
 
@@ -135,14 +141,20 @@ export async function cancelPolicyReservationCore(
     return row ?? null
   })
 
-  if (!preCheck) return { ok: false, error: "Réservation introuvable.", code: "NOT_FOUND" }
+  if (!preCheck)
+    return { ok: false, error: "Réservation introuvable.", code: "NOT_FOUND" }
   if (!CANCELLABLE_MODULES.includes(preCheck.module as CancellableModule)) {
     return {
       ok: false,
-      error: "Ce module de réservation n'est pas géré par ce mécanisme d'annulation.",
+      error:
+        "Ce module de réservation n'est pas géré par ce mécanisme d'annulation.",
     }
   }
-  if (!CANCELLABLE_STATUSES.includes(preCheck.status as (typeof CANCELLABLE_STATUSES)[number])) {
+  if (
+    !CANCELLABLE_STATUSES.includes(
+      preCheck.status as (typeof CANCELLABLE_STATUSES)[number],
+    )
+  ) {
     return {
       ok: false,
       error: `Cette réservation est déjà "${preCheck.status}" — impossible de l'annuler.`,
@@ -153,7 +165,9 @@ export async function cancelPolicyReservationCore(
   // 2. Évaluation à partir du snapshot FIGÉ à la réservation — jamais une
   //    résolution live (voir doc de tête).
   // ---------------------------------------------------------------------
-  const providerPayload = (preCheck.providerPayload ?? {}) as { policySnapshot?: PolicySnapshot }
+  const providerPayload = (preCheck.providerPayload ?? {}) as {
+    policySnapshot?: PolicySnapshot
+  }
   const snapshot = providerPayload.policySnapshot ?? null
   const tndAmount = parseTnd(preCheck.tndAmount)
   const outcome = evaluateCancellation(snapshot, tndAmount)
@@ -180,7 +194,12 @@ export async function cancelPolicyReservationCore(
         .where(eq(reservations.id, reservationId))
         .for("update")
 
-      if (!locked || !CANCELLABLE_STATUSES.includes(locked.status as (typeof CANCELLABLE_STATUSES)[number])) {
+      if (
+        !locked ||
+        !CANCELLABLE_STATUSES.includes(
+          locked.status as (typeof CANCELLABLE_STATUSES)[number],
+        )
+      ) {
         throw new Error("ALREADY_CANCELLED_CONCURRENTLY")
       }
 
@@ -227,7 +246,11 @@ export async function cancelPolicyReservationCore(
         reason: "Annulation self-service client (policy engine)",
       })
 
-      await releaseStock(tx, preCheck.module as CancellableModule, reservationId)
+      await releaseStock(
+        tx,
+        preCheck.module as CancellableModule,
+        reservationId,
+      )
 
       // Easy2Book Rewards (Phase 38D) — reprise des points gagnés sur cette
       // réservation, même transaction que l'annulation. No-op silencieux
@@ -288,14 +311,20 @@ export async function cancelPolicyReservationCore(
     if (msg === "ALREADY_CANCELLED_CONCURRENTLY") {
       return {
         ok: false,
-        error: "Cette réservation vient d'être annulée par une autre action — rafraîchissez la page.",
+        error:
+          "Cette réservation vient d'être annulée par une autre action — rafraîchissez la page.",
       }
     }
-    logger.error("[cancelMyPolicyReservation] transaction failed", { reservationId, err: msg })
+    logger.error("[cancelMyPolicyReservation] transaction failed", {
+      reservationId,
+      err: msg,
+    })
     return {
       ok: false,
       error:
-        "Erreur lors de l'annulation. Contactez le support avec la référence " + preCheck.publicRef + ".",
+        "Erreur lors de l'annulation. Contactez le support avec la référence " +
+        preCheck.publicRef +
+        ".",
     }
   }
 }

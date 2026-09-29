@@ -32,7 +32,10 @@ export default async function ProProductsPage() {
   const profile = await getCurrentPartnerProfile(user.id)
   if (!profile) redirect("/pro/login")
 
-  const products = await listAuthorizedProductsForAgency(profile.agency.id, user.id)
+  const products = await listAuthorizedProductsForAgency(
+    profile.agency.id,
+    user.id,
+  )
 
   return (
     <ProPageShell
@@ -41,9 +44,9 @@ export default async function ProProductsPage() {
       description="Omraty, Voyages Organisés et Attractions que votre agence est autorisée à vendre."
     >
       {products.length === 0 ? (
-        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          Aucun produit autorisé pour le moment. Contactez Easy2Book pour être autorisé à
-          revendre un produit Omraty, Voyage Organisé ou Attraction.
+        <div className="bg-card text-muted-foreground rounded-xl border p-8 text-center text-sm">
+          Aucun produit autorisé pour le moment. Contactez Easy2Book pour être
+          autorisé à revendre un produit Omraty, Voyage Organisé ou Attraction.
         </div>
       ) : (
         <AuthorizedProductsList products={products} />

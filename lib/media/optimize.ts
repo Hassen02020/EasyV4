@@ -61,7 +61,11 @@ export const MEDIA_VARIANT_SPECS: Record<MediaVariantName, VariantSpec> = {
 }
 
 /** JPEG/PNG/WebP en priorité (mission §5) — fiabilité avant tout, pas d'AVIF en entrée pour l'instant (décodage fiable mais écosystème d'édition/partage encore inégal côté admin). */
-export const ALLOWED_MEDIA_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const
+export const ALLOWED_MEDIA_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const
 export type AllowedMediaMimeType = (typeof ALLOWED_MEDIA_MIME_TYPES)[number]
 
 const SHARP_FORMAT_TO_MIME: Record<string, AllowedMediaMimeType> = {
@@ -111,8 +115,11 @@ export async function validateImageBuffer(
   declaredMimeType: string,
 ): Promise<ValidatedImageMeta> {
   if (buffer.byteLength === 0) throw new MediaValidationError("empty_file")
-  if (buffer.byteLength > MAX_FILE_SIZE_BYTES) throw new MediaValidationError("file_too_large")
-  if (!(ALLOWED_MEDIA_MIME_TYPES as readonly string[]).includes(declaredMimeType)) {
+  if (buffer.byteLength > MAX_FILE_SIZE_BYTES)
+    throw new MediaValidationError("file_too_large")
+  if (
+    !(ALLOWED_MEDIA_MIME_TYPES as readonly string[]).includes(declaredMimeType)
+  ) {
     throw new MediaValidationError("unsupported_mime_type")
   }
 
@@ -138,7 +145,11 @@ export async function validateImageBuffer(
     throw new MediaValidationError("mime_mismatch")
   }
 
-  return { width: metadata.width, height: metadata.height, mimeType: sniffedMime }
+  return {
+    width: metadata.width,
+    height: metadata.height,
+    mimeType: sniffedMime,
+  }
 }
 
 export interface GeneratedVariant {
@@ -156,23 +167,26 @@ export async function generateMediaVariants(
   buffer: Buffer,
 ): Promise<Record<MediaVariantName, GeneratedVariant>> {
   const entries = await Promise.all(
-    (Object.entries(MEDIA_VARIANT_SPECS) as [MediaVariantName, VariantSpec][]).map(
-      async ([name, spec]) => {
-        const outBuffer = await sharp(buffer)
-          .rotate() // auto-oriente selon l'EXIF avant redimensionnement (source ne sera plus affichée telle quelle ensuite)
-          .resize(spec.width, spec.height, {
-            fit: spec.fit,
-            withoutEnlargement: spec.fit === "inside",
-          })
-          .webp({ quality: spec.quality })
-          .toBuffer()
-        const outMeta = await sharp(outBuffer).metadata()
-        return [
-          name,
-          { buffer: outBuffer, width: outMeta.width!, height: outMeta.height! },
-        ] as const
-      },
-    ),
+    (
+      Object.entries(MEDIA_VARIANT_SPECS) as [MediaVariantName, VariantSpec][]
+    ).map(async ([name, spec]) => {
+      const outBuffer = await sharp(buffer)
+        .rotate() // auto-oriente selon l'EXIF avant redimensionnement (source ne sera plus affichée telle quelle ensuite)
+        .resize(spec.width, spec.height, {
+          fit: spec.fit,
+          withoutEnlargement: spec.fit === "inside",
+        })
+        .webp({ quality: spec.quality })
+        .toBuffer()
+      const outMeta = await sharp(outBuffer).metadata()
+      return [
+        name,
+        { buffer: outBuffer, width: outMeta.width!, height: outMeta.height! },
+      ] as const
+    }),
   )
-  return Object.fromEntries(entries) as Record<MediaVariantName, GeneratedVariant>
+  return Object.fromEntries(entries) as Record<
+    MediaVariantName,
+    GeneratedVariant
+  >
 }

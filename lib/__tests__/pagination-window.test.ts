@@ -20,7 +20,15 @@ test("buildPageWindow — peu de pages : aucune ellipse", () => {
 })
 
 test("buildPageWindow — beaucoup de pages, page courante au milieu : ellipses des deux côtés", () => {
-  assert.deepEqual(buildPageWindow(10, 20), [1, "ellipsis", 9, 10, 11, "ellipsis", 20])
+  assert.deepEqual(buildPageWindow(10, 20), [
+    1,
+    "ellipsis",
+    9,
+    10,
+    11,
+    "ellipsis",
+    20,
+  ])
 })
 
 test("buildPageWindow — page courante proche du début : pas d'ellipse à gauche", () => {

@@ -81,7 +81,12 @@ const AMENITY_ICON_RULES: { keywords: string[]; icon: React.ReactNode }[] = [
   { keywords: ["wifi", "wi-fi"], icon: <Wifi className="h-4 w-4" /> },
   { keywords: ["pool", "piscine"], icon: <Waves className="h-4 w-4" /> },
   {
-    keywords: ["breakfast", "petit-déjeuner", "petit déjeuner", "petit dejeuner"],
+    keywords: [
+      "breakfast",
+      "petit-déjeuner",
+      "petit déjeuner",
+      "petit dejeuner",
+    ],
     icon: <Coffee className="h-4 w-4" />,
   },
   { keywords: ["spa"], icon: <Sparkles className="h-4 w-4" /> },
@@ -89,7 +94,9 @@ const AMENITY_ICON_RULES: { keywords: string[]; icon: React.ReactNode }[] = [
 
 function resolveAmenityIcon(amenity: string): React.ReactNode {
   const normalized = amenity.toLowerCase()
-  const rule = AMENITY_ICON_RULES.find((r) => r.keywords.some((k) => normalized.includes(k)))
+  const rule = AMENITY_ICON_RULES.find((r) =>
+    r.keywords.some((k) => normalized.includes(k)),
+  )
   return rule?.icon ?? <CheckCircle2 className="h-4 w-4" />
 }
 
@@ -212,7 +219,9 @@ export function HotelCard({
           >
             <Heart
               className={`h-4 w-4 ${
-                isFavorited ? "fill-destructive text-destructive" : "text-foreground"
+                isFavorited
+                  ? "fill-destructive text-destructive"
+                  : "text-foreground"
               } ${favoritePending ? "animate-pulse" : ""}`}
             />
           </button>
@@ -351,7 +360,9 @@ export function HotelCard({
             )}
 
             <div className="text-right">
-              <p className="text-muted-foreground mb-1 text-xs">{t("startingFrom")}</p>
+              <p className="text-muted-foreground mb-1 text-xs">
+                {t("startingFrom")}
+              </p>
               <div className="flex items-baseline justify-end gap-1.5">
                 {hotel.discountPercent > 0 && (
                   <span className="text-muted-foreground text-sm line-through">

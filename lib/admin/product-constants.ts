@@ -8,7 +8,12 @@
  * ("Module not found: Can't resolve 'tls'"), pas une prévention théorique.
  */
 
-export const PRODUCT_STATUSES = ["draft", "published", "suspended", "archived"] as const
+export const PRODUCT_STATUSES = [
+  "draft",
+  "published",
+  "suspended",
+  "archived",
+] as const
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number]
 
 export function isValidProductStatus(value: string): value is ProductStatus {

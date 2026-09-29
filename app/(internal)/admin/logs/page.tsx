@@ -25,7 +25,10 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, auditEvents, users } from "@/lib/db/schema"
-import { AuditTimeline, type AuditTimelineEntry } from "@/components/admin/audit-timeline"
+import {
+  AuditTimeline,
+  type AuditTimelineEntry,
+} from "@/components/admin/audit-timeline"
 
 export const metadata: Metadata = {
   title: "Logs Système — Super Admin",
@@ -36,40 +39,57 @@ export const dynamic = "force-dynamic"
 
 const CATEGORY_GROUPS: Record<string, string[]> = {
   Paiements: ["payment", "reservation"],
-  Catalogue: ["catalog_activity", "catalog_activity_session", "catalog_package", "catalog_package_departure", "omra_package", "omra_allotment", "product"],
+  Catalogue: [
+    "catalog_activity",
+    "catalog_activity_session",
+    "catalog_package",
+    "catalog_package_departure",
+    "omra_package",
+    "omra_allotment",
+    "product",
+  ],
   Wallet: ["wallet", "wallet_account"],
   Utilisateurs: ["user", "agency"],
 }
 
 async function loadAuditEvents() {
-  return withTenantContext({ agencyId: null, userId: "", isSuperAdmin: true }, async (tx) => {
-    const rows = await tx
-      .select({
-        id: auditEvents.id,
-        entityType: auditEvents.entityType,
-        entityId: auditEvents.entityId,
-        action: auditEvents.action,
-        diff: auditEvents.diff,
-        createdAt: auditEvents.createdAt,
-        actorName: users.name,
-        actorEmail: users.email,
-        agencyName: agencies.name,
-      })
-      .from(auditEvents)
-      .leftJoin(users, eq(users.id, auditEvents.actorUserId))
-      .leftJoin(agencies, eq(agencies.id, auditEvents.agencyId))
-      .orderBy(desc(auditEvents.createdAt))
-      .limit(100)
+  return withTenantContext(
+    { agencyId: null, userId: "", isSuperAdmin: true },
+    async (tx) => {
+      const rows = await tx
+        .select({
+          id: auditEvents.id,
+          entityType: auditEvents.entityType,
+          entityId: auditEvents.entityId,
+          action: auditEvents.action,
+          diff: auditEvents.diff,
+          createdAt: auditEvents.createdAt,
+          actorName: users.name,
+          actorEmail: users.email,
+          agencyName: agencies.name,
+        })
+        .from(auditEvents)
+        .leftJoin(users, eq(users.id, auditEvents.actorUserId))
+        .leftJoin(agencies, eq(agencies.id, auditEvents.agencyId))
+        .orderBy(desc(auditEvents.createdAt))
+        .limit(100)
 
-    return rows.map((r) => ({
-      id: r.id,
-      action: r.action,
-      actorName: r.actorName ?? r.actorEmail ?? null,
-      diff: { entité: `${r.entityType}#${r.entityId}`, agence: r.agencyName ?? "—", ...(typeof r.diff === "object" && r.diff ? (r.diff as Record<string, unknown>) : {}) },
-      createdAt: r.createdAt.toISOString(),
-      entityType: r.entityType,
-    }))
-  })
+      return rows.map((r) => ({
+        id: r.id,
+        action: r.action,
+        actorName: r.actorName ?? r.actorEmail ?? null,
+        diff: {
+          entité: `${r.entityType}#${r.entityId}`,
+          agence: r.agencyName ?? "—",
+          ...(typeof r.diff === "object" && r.diff
+            ? (r.diff as Record<string, unknown>)
+            : {}),
+        },
+        createdAt: r.createdAt.toISOString(),
+        entityType: r.entityType,
+      }))
+    },
+  )
 }
 
 export default async function SystemLogsPage() {
@@ -110,7 +130,8 @@ export default async function SystemLogsPage() {
             Logs Système
           </h1>
           <p className="text-muted-foreground mt-1">
-            Journal d&apos;audit plateforme — 100 derniers événements, toutes agences
+            Journal d&apos;audit plateforme — 100 derniers événements, toutes
+            agences
           </p>
         </div>
       </div>
@@ -144,7 +165,9 @@ export default async function SystemLogsPage() {
             Tous les événements
           </CardTitle>
           <CardDescription>
-            Source : table <code>audit_events</code> — chaque mutation sensible (paiement, remboursement, changement de statut, notification) y écrit une ligne.
+            Source : table <code>audit_events</code> — chaque mutation sensible
+            (paiement, remboursement, changement de statut, notification) y
+            écrit une ligne.
           </CardDescription>
         </CardHeader>
         <CardContent>

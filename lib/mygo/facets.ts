@@ -63,11 +63,15 @@ export const EMPTY_FILTER_STATE: HotelFilterState = {
  * fiche hôtel — sans jamais redéclencher un appel myGo (le filtrage reste
  * appliqué côté client sur les offres déjà chargées, voir `applyFilters`).
  */
-export function filtersToSearchParams(filters: HotelFilterState): URLSearchParams {
+export function filtersToSearchParams(
+  filters: HotelFilterState,
+): URLSearchParams {
   const params = new URLSearchParams()
   if (filters.stars.length > 0) params.set("f_stars", filters.stars.join(","))
-  if (filters.boardings.length > 0) params.set("f_board", filters.boardings.join("|"))
-  if (filters.facilities.length > 0) params.set("f_amenities", filters.facilities.join("|"))
+  if (filters.boardings.length > 0)
+    params.set("f_board", filters.boardings.join("|"))
+  if (filters.facilities.length > 0)
+    params.set("f_amenities", filters.facilities.join("|"))
   if (filters.themes.length > 0) params.set("f_theme", filters.themes.join("|"))
   if (filters.priceRange) {
     params.set("f_price", `${filters.priceRange[0]}-${filters.priceRange[1]}`)
@@ -293,7 +297,8 @@ export function countActiveFilters(
   if (
     state.priceRange &&
     facets &&
-    (state.priceRange[0] > facets.priceMin || state.priceRange[1] < facets.priceMax)
+    (state.priceRange[0] > facets.priceMin ||
+      state.priceRange[1] < facets.priceMax)
   ) {
     count += 1
   }

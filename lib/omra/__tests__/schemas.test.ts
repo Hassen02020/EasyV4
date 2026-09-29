@@ -37,25 +37,36 @@ test("omraGuestBookingSchema : refuse si le premier pèlerin n'a pas d'email (co
   })
   assert.equal(result.success, false)
   if (!result.success) {
-    assert.ok(result.error.errors.some((e) => e.path.join(".") === "pilgrims.0.email"))
+    assert.ok(
+      result.error.errors.some((e) => e.path.join(".") === "pilgrims.0.email"),
+    )
   }
 })
 
 test("omraGuestBookingSchema : accepte l'absence d'email pour un pèlerin secondaire", () => {
   const result = omraGuestBookingSchema.safeParse({
     ...validBooking,
-    pilgrims: [validPilgrim, { ...validPilgrim, email: "", firstName: "Fatma" }],
+    pilgrims: [
+      validPilgrim,
+      { ...validPilgrim, email: "", firstName: "Fatma" },
+    ],
   })
   assert.equal(result.success, true)
 })
 
 test("omraGuestBookingSchema : refuse un packageId qui n'est pas un UUID", () => {
-  const result = omraGuestBookingSchema.safeParse({ ...validBooking, packageId: "not-a-uuid" })
+  const result = omraGuestBookingSchema.safeParse({
+    ...validBooking,
+    packageId: "not-a-uuid",
+  })
   assert.equal(result.success, false)
 })
 
 test("omraGuestBookingSchema : refuse une liste de pèlerins vide", () => {
-  const result = omraGuestBookingSchema.safeParse({ ...validBooking, pilgrims: [] })
+  const result = omraGuestBookingSchema.safeParse({
+    ...validBooking,
+    pilgrims: [],
+  })
   assert.equal(result.success, false)
 })
 

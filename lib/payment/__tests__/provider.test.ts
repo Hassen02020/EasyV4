@@ -32,9 +32,12 @@ before(() => {
   delete process.env.PAYMEE_API_KEY
 })
 after(() => {
-  if (savedPaymentMode !== undefined) process.env.PAYMENT_MODE = savedPaymentMode
-  if (savedPaymentProvider !== undefined) process.env.PAYMENT_PROVIDER = savedPaymentProvider
-  if (savedPaymeeApiKey !== undefined) process.env.PAYMEE_API_KEY = savedPaymeeApiKey
+  if (savedPaymentMode !== undefined)
+    process.env.PAYMENT_MODE = savedPaymentMode
+  if (savedPaymentProvider !== undefined)
+    process.env.PAYMENT_PROVIDER = savedPaymentProvider
+  if (savedPaymeeApiKey !== undefined)
+    process.env.PAYMEE_API_KEY = savedPaymeeApiKey
 })
 
 test("getPaymentProvider() : renvoie un provider non configuré tant qu'aucune clé n'est présente", () => {

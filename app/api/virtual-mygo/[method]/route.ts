@@ -91,7 +91,9 @@ export async function POST(
       return NextResponse.json(handleBookingList(body))
     default:
       return NextResponse.json(
-        { ErrorMessage: { Code: 404, Description: `Unknown method ${method}` } },
+        {
+          ErrorMessage: { Code: 404, Description: `Unknown method ${method}` },
+        },
         { status: 200 },
       )
   }

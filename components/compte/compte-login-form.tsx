@@ -33,8 +33,7 @@ export function CompteLoginForm() {
   const [pending, startTransition] = useTransition()
 
   function readableAuthError(message: string): string {
-    if (/Email rate limit/i.test(message))
-      return t("rateLimitError")
+    if (/Email rate limit/i.test(message)) return t("rateLimitError")
     return message
   }
 
@@ -67,9 +66,7 @@ export function CompteLoginForm() {
       <Alert>
         <Mail className="h-4 w-4" />
         <AlertTitle>{t("linkSentTitle")}</AlertTitle>
-        <AlertDescription>
-          {t("linkSentDesc", { email })}
-        </AlertDescription>
+        <AlertDescription>{t("linkSentDesc", { email })}</AlertDescription>
       </Alert>
     )
   }
@@ -96,9 +93,7 @@ export function CompteLoginForm() {
             className="pl-9"
           />
         </div>
-        <p className="text-muted-foreground text-xs">
-          {t("emailHint")}
-        </p>
+        <p className="text-muted-foreground text-xs">{t("emailHint")}</p>
       </div>
 
       {error ? (

@@ -20,20 +20,28 @@ import { Redis } from "@upstash/redis"
 /* Fallback mémoire (dev sans .env)                                           */
 /* -------------------------------------------------------------------------- */
 
-interface MemEntry<T> { value: T; expiresAt: number }
+interface MemEntry<T> {
+  value: T
+  expiresAt: number
+}
 const memStore = new Map<string, MemEntry<unknown>>()
 
 const memCache = {
   async get<T>(key: string): Promise<T | null> {
     const e = memStore.get(key)
     if (!e) return null
-    if (Date.now() >= e.expiresAt) { memStore.delete(key); return null }
+    if (Date.now() >= e.expiresAt) {
+      memStore.delete(key)
+      return null
+    }
     return e.value as T
   },
   async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
     memStore.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 })
   },
-  async del(key: string): Promise<void> { memStore.delete(key) },
+  async del(key: string): Promise<void> {
+    memStore.delete(key)
+  },
 }
 
 /* -------------------------------------------------------------------------- */
@@ -159,7 +167,10 @@ export async function memoizeSWR<T>(
             ]),
           )
           .catch((err) =>
-            console.error(`[memoizeSWR] Background revalidation failed for ${key}:`, err),
+            console.error(
+              `[memoizeSWR] Background revalidation failed for ${key}:`,
+              err,
+            ),
           )
       }
       return cached

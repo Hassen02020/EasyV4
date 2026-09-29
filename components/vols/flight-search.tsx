@@ -3,7 +3,15 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
-import { Plane, Calendar, Users, ArrowLeftRight, Loader2, Plus, Trash2 } from "lucide-react"
+import {
+  Plane,
+  Calendar,
+  Users,
+  ArrowLeftRight,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,8 +67,12 @@ export function FlightSearch({
 
   // ── Shared state ─────────────────────────────────────────────────────────
   const [tripType, setTripType] = useState<TripTab>("oneway")
-  const [origin, setOrigin] = useState(() => matchAirportCode(initialOrigin) || "TUN")
-  const [destination, setDestination] = useState(() => matchAirportCode(initialDestination))
+  const [origin, setOrigin] = useState(
+    () => matchAirportCode(initialOrigin) || "TUN",
+  )
+  const [destination, setDestination] = useState(() =>
+    matchAirportCode(initialDestination),
+  )
   const [departureDate, setDepartureDate] = useState("")
   const [returnDate, setReturnDate] = useState("")
   const [adults, setAdults] = useState(() =>
@@ -71,14 +83,21 @@ export function FlightSearch({
 
   // ── Multi-city legs ───────────────────────────────────────────────────────
   const [legs, setLegs] = useState<MultiCityLeg[]>([
-    { origin: matchAirportCode(initialOrigin) || "TUN", destination: "", departureDate: "" },
+    {
+      origin: matchAirportCode(initialOrigin) || "TUN",
+      destination: "",
+      departureDate: "",
+    },
     { origin: "", destination: "", departureDate: "" },
   ])
 
   function addLeg() {
     if (legs.length >= 5) return
     const last = legs[legs.length - 1]
-    setLegs([...legs, { origin: last?.destination ?? "", destination: "", departureDate: "" }])
+    setLegs([
+      ...legs,
+      { origin: last?.destination ?? "", destination: "", departureDate: "" },
+    ])
   }
 
   function removeLeg(i: number) {
@@ -160,13 +179,14 @@ export function FlightSearch({
       children,
       cabin,
     })
-    if (tripType === "roundtrip" && returnDate) params.set("returnDate", returnDate)
+    if (tripType === "roundtrip" && returnDate)
+      params.set("returnDate", returnDate)
 
     startTransition(() => router.push(`/vols/search?${params.toString()}`))
   }
 
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="bg-card rounded-2xl border p-6 shadow-sm">
       {/* Trip type tabs */}
       <Tabs
         value={tripType}
@@ -203,7 +223,7 @@ export function FlightSearch({
             <button
               type="button"
               onClick={swapAirports}
-              className="absolute -left-5 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-background p-1 shadow-sm transition-colors hover:bg-muted rtl:-right-5 rtl:left-auto sm:block"
+              className="bg-background hover:bg-muted absolute top-1/2 -left-5 z-10 hidden -translate-y-1/2 rounded-full border p-1 shadow-sm transition-colors sm:block rtl:-right-5 rtl:left-auto"
               title={t("swapAria")}
             >
               <ArrowLeftRight className="h-3 w-3 rtl:rotate-180" />
@@ -212,7 +232,7 @@ export function FlightSearch({
 
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <Calendar className="text-muted-foreground h-3.5 w-3.5" />
               {t("departureDateLabel")}
             </Label>
             <Input
@@ -226,7 +246,7 @@ export function FlightSearch({
           {tripType === "roundtrip" && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5 text-sm">
-                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                <Calendar className="text-muted-foreground h-3.5 w-3.5" />
                 {t("returnDateLabel")}
               </Label>
               <Input
@@ -241,7 +261,7 @@ export function FlightSearch({
           {/* Passengers */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
-              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <Users className="text-muted-foreground h-3.5 w-3.5" />
               {t("passengersLabel")}
             </Label>
             <div className="flex gap-2">
@@ -275,7 +295,10 @@ export function FlightSearch({
           {/* Cabin */}
           <div className="space-y-2">
             <Label className="text-sm">{t("classLabel")}</Label>
-            <Select value={cabin} onValueChange={(v) => setCabin(v as CabinClass)}>
+            <Select
+              value={cabin}
+              onValueChange={(v) => setCabin(v as CabinClass)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -300,14 +323,14 @@ export function FlightSearch({
               className="rounded-lg border border-dashed border-sky-200 bg-sky-50/40 p-4 dark:border-sky-800 dark:bg-sky-950/20"
             >
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-semibold text-sky-700 dark:text-sky-300 uppercase tracking-wide">
+                <span className="text-xs font-semibold tracking-wide text-sky-700 uppercase dark:text-sky-300">
                   {t("multiCityLegTitle", { n: i + 1 })}
                 </span>
                 {legs.length > 2 && (
                   <button
                     type="button"
                     onClick={() => removeLeg(i)}
-                    className="rounded p-1 text-muted-foreground hover:text-destructive"
+                    className="text-muted-foreground hover:text-destructive rounded p-1"
                     title={t("removeLeg")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -330,14 +353,16 @@ export function FlightSearch({
                 />
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1.5 text-sm">
-                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Calendar className="text-muted-foreground h-3.5 w-3.5" />
                     {t("departureDateLabel")}
                   </Label>
                   <Input
                     type="date"
                     value={leg.departureDate}
-                    min={i > 0 ? (legs[i - 1]?.departureDate || today) : today}
-                    onChange={(e) => updateLeg(i, { departureDate: e.target.value })}
+                    min={i > 0 ? legs[i - 1]?.departureDate || today : today}
+                    onChange={(e) =>
+                      updateLeg(i, { departureDate: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -358,10 +383,10 @@ export function FlightSearch({
           )}
 
           {/* Passengers + cabin for multicity */}
-          <div className="grid gap-4 sm:grid-cols-2 pt-2">
+          <div className="grid gap-4 pt-2 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5 text-sm">
-                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <Users className="text-muted-foreground h-3.5 w-3.5" />
                 {t("passengersLabel")}
               </Label>
               <div className="flex gap-2">
@@ -393,7 +418,10 @@ export function FlightSearch({
             </div>
             <div className="space-y-2">
               <Label className="text-sm">{t("classLabel")}</Label>
-              <Select value={cabin} onValueChange={(v) => setCabin(v as CabinClass)}>
+              <Select
+                value={cabin}
+                onValueChange={(v) => setCabin(v as CabinClass)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

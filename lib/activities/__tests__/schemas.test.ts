@@ -50,12 +50,18 @@ test("activityGuestBookingSchema : refuse si le nombre d'âges d'enfants ne corr
 })
 
 test("activityGuestBookingSchema : refuse zéro adulte", () => {
-  const result = activityGuestBookingSchema.safeParse({ ...validGuestBooking, adults: 0 })
+  const result = activityGuestBookingSchema.safeParse({
+    ...validGuestBooking,
+    adults: 0,
+  })
   assert.equal(result.success, false)
 })
 
 test("activityGuestBookingSchema : refuse un activityId non-UUID", () => {
-  const result = activityGuestBookingSchema.safeParse({ ...validGuestBooking, activityId: "not-a-uuid" })
+  const result = activityGuestBookingSchema.safeParse({
+    ...validGuestBooking,
+    activityId: "not-a-uuid",
+  })
   assert.equal(result.success, false)
 })
 
@@ -76,17 +82,26 @@ test("activityPartnerBookingSchema : accepte une réservation B2B valide", () =>
 })
 
 test("activityPartnerBookingSchema : n'exige pas d'email (contact B2B simplifié)", () => {
-  const result = activityPartnerBookingSchema.safeParse({ ...validPartnerBooking, customerEmail: "" })
+  const result = activityPartnerBookingSchema.safeParse({
+    ...validPartnerBooking,
+    customerEmail: "",
+  })
   assert.equal(result.success, true)
 })
 
 test("activityPartnerBookingSchema : refuse un email malformé si fourni", () => {
-  const result = activityPartnerBookingSchema.safeParse({ ...validPartnerBooking, customerEmail: "not-an-email" })
+  const result = activityPartnerBookingSchema.safeParse({
+    ...validPartnerBooking,
+    customerEmail: "not-an-email",
+  })
   assert.equal(result.success, false)
 })
 
 test("activityPartnerBookingSchema : refuse un téléphone client manquant", () => {
-  const result = activityPartnerBookingSchema.safeParse({ ...validPartnerBooking, customerPhone: "" })
+  const result = activityPartnerBookingSchema.safeParse({
+    ...validPartnerBooking,
+    customerPhone: "",
+  })
   assert.equal(result.success, false)
 })
 
@@ -98,15 +113,24 @@ test("validateChildAgesAgainstTariffRules : ne rejette rien si tariffRules est a
 })
 
 test("validateChildAgesAgainstTariffRules : ne rejette rien si childMaxAge n'est pas défini", () => {
-  assert.equal(validateChildAgesAgainstTariffRules({ note: "libre" }, [10, 16]), null)
+  assert.equal(
+    validateChildAgesAgainstTariffRules({ note: "libre" }, [10, 16]),
+    null,
+  )
 })
 
 test("validateChildAgesAgainstTariffRules : accepte des âges sous la limite childMaxAge", () => {
-  assert.equal(validateChildAgesAgainstTariffRules({ childMaxAge: 12 }, [5, 10, 12]), null)
+  assert.equal(
+    validateChildAgesAgainstTariffRules({ childMaxAge: 12 }, [5, 10, 12]),
+    null,
+  )
 })
 
 test("validateChildAgesAgainstTariffRules : rejette un âge au-dessus de childMaxAge", () => {
-  const result = validateChildAgesAgainstTariffRules({ childMaxAge: 12 }, [5, 13])
+  const result = validateChildAgesAgainstTariffRules(
+    { childMaxAge: 12 },
+    [5, 13],
+  )
   assert.notEqual(result, null)
   assert.match(result ?? "", /12/)
 })

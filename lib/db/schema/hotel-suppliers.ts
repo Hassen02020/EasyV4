@@ -45,13 +45,10 @@ export const hotelSupplierOwnerType = pgEnum("hotel_supplier_owner_type", [
   "whitelabel",
 ])
 
-export const hotelSupplierAccountStatus = pgEnum("hotel_supplier_account_status", [
-  "active",
-  "disabled",
-  "invalid_credentials",
-  "not_configured",
-  "error",
-])
+export const hotelSupplierAccountStatus = pgEnum(
+  "hotel_supplier_account_status",
+  ["active", "disabled", "invalid_credentials", "not_configured", "error"],
+)
 
 /**
  * Définition technique d'un fournisseur — code stable, jamais de secret.
@@ -64,13 +61,20 @@ export const hotelSuppliers = pgTable(
     code: varchar("code", { length: 32 }).notNull(),
     name: varchar("name", { length: 100 }).notNull(),
     driver: varchar("driver", { length: 32 }).notNull(),
-    capabilities: jsonb("capabilities").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    capabilities: jsonb("capabilities")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     documentationStatus: hotelSupplierDocStatus("documentation_status")
       .notNull()
       .default("documentation_required"),
     isGloballyEnabled: boolean("is_globally_enabled").notNull().default(true),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [uniqueIndex("hotel_suppliers_code_uniq").on(t.code)],
 )
@@ -96,7 +100,9 @@ export const hotelSupplierAccounts = pgTable(
     ownerType: hotelSupplierOwnerType("owner_type").notNull(),
     agencyId: uuid("agency_id").notNull(),
     displayName: varchar("display_name", { length: 200 }).notNull(),
-    status: hotelSupplierAccountStatus("status").notNull().default("not_configured"),
+    status: hotelSupplierAccountStatus("status")
+      .notNull()
+      .default("not_configured"),
     /** Libre (pas un enum rigide) — seul myGo distingue live/virtual aujourd'hui ; les futurs fournisseurs ne partagent pas forcément ce concept. */
     mode: varchar("mode", { length: 16 }).notNull().default("live"),
     /** Plus petit = priorité plus haute dans le ranking/orchestration de CETTE agence pour CE fournisseur. */
@@ -107,8 +113,12 @@ export const hotelSupplierAccounts = pgTable(
     lastTestStatus: varchar("last_test_status", { length: 32 }),
     lastTestErrorCode: varchar("last_test_error_code", { length: 64 }),
     createdByUserId: uuid("created_by_user_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("hotel_supplier_accounts_agency_idx").on(t.agencyId),
@@ -136,8 +146,12 @@ export const hotelSupplierCredentials = pgTable(
     ciphertext: text("ciphertext").notNull(),
     keyVersion: integer("key_version").notNull(),
     updatedByUserId: uuid("updated_by_user_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("hotel_supplier_credentials_account_uniq").on(t.accountId),
@@ -159,7 +173,9 @@ export const hotelSupplierAuthorizations = pgTable(
       .references(() => hotelSupplierAccounts.id, { onDelete: "cascade" }),
     authorizedAgencyId: uuid("authorized_agency_id").notNull(),
     authorizedByUserId: uuid("authorized_by_user_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("hotel_supplier_authorizations_account_agency_uniq").on(
@@ -173,8 +189,13 @@ export const hotelSupplierAuthorizations = pgTable(
 export type HotelSupplierRow = typeof hotelSuppliers.$inferSelect
 export type NewHotelSupplierRow = typeof hotelSuppliers.$inferInsert
 export type HotelSupplierAccountRow = typeof hotelSupplierAccounts.$inferSelect
-export type NewHotelSupplierAccountRow = typeof hotelSupplierAccounts.$inferInsert
-export type HotelSupplierCredentialRow = typeof hotelSupplierCredentials.$inferSelect
-export type NewHotelSupplierCredentialRow = typeof hotelSupplierCredentials.$inferInsert
-export type HotelSupplierAuthorizationRow = typeof hotelSupplierAuthorizations.$inferSelect
-export type NewHotelSupplierAuthorizationRow = typeof hotelSupplierAuthorizations.$inferInsert
+export type NewHotelSupplierAccountRow =
+  typeof hotelSupplierAccounts.$inferInsert
+export type HotelSupplierCredentialRow =
+  typeof hotelSupplierCredentials.$inferSelect
+export type NewHotelSupplierCredentialRow =
+  typeof hotelSupplierCredentials.$inferInsert
+export type HotelSupplierAuthorizationRow =
+  typeof hotelSupplierAuthorizations.$inferSelect
+export type NewHotelSupplierAuthorizationRow =
+  typeof hotelSupplierAuthorizations.$inferInsert

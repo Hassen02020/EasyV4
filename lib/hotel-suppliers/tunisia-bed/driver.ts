@@ -6,5 +6,8 @@ import { createDocumentationRequiredDriver } from "../core/stub-driver"
  * détail. Aucun endpoint/champ n'a été inventé.
  */
 export function createTunisiaBedDriver(): HotelSupplierDriver {
-  return createDocumentationRequiredDriver("tunisia-bed", "Documentation API Tunisia Bed non fournie")
+  return createDocumentationRequiredDriver(
+    "tunisia-bed",
+    "Documentation API Tunisia Bed non fournie",
+  )
 }

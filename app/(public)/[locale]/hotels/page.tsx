@@ -21,7 +21,7 @@ export default async function HotelsTunisiePage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <ModuleHero
           Icon={Building2}
           gradient="from-blue-900 to-blue-700"

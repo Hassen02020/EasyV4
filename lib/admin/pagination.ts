@@ -269,7 +269,10 @@ export async function paginateCursor<T>({
   let prevCursor: string | null = null
 
   if (hasNextPage && actualData.length > 0) {
-    const lastItem = actualData[actualData.length - 1] as unknown as Record<string, unknown>
+    const lastItem = actualData[actualData.length - 1] as unknown as Record<
+      string,
+      unknown
+    >
     if (lastItem[sortColumn] && lastItem.id) {
       nextCursor = createTimestampCursor(
         new Date(lastItem[sortColumn] as string),

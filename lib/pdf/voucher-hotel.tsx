@@ -222,7 +222,12 @@ function HotelVoucherDocument({ data }: { data: VoucherData }) {
           </View>
           <View style={styles.rowLast}>
             <Text style={styles.cellLabel}>Statut</Text>
-            <Text style={[styles.cellValue, { color: colors.accent, fontFamily: "Helvetica-Bold" }]}>
+            <Text
+              style={[
+                styles.cellValue,
+                { color: colors.accent, fontFamily: "Helvetica-Bold" },
+              ]}
+            >
               CONFIRMÉ
             </Text>
           </View>
@@ -277,7 +282,8 @@ function HotelVoucherDocument({ data }: { data: VoucherData }) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            {data.agencyName ?? "Easy2Book"} — {data.agencyPhone ?? "+216 70 000 000"}
+            {data.agencyName ?? "Easy2Book"} —{" "}
+            {data.agencyPhone ?? "+216 70 000 000"}
           </Text>
           <Text style={styles.footerText}>
             Généré le {new Date().toLocaleDateString("fr-FR")}
@@ -297,8 +303,6 @@ function HotelVoucherDocument({ data }: { data: VoucherData }) {
  * Peut être appelé depuis un Server Action ou une fonction Inngest.
  */
 export async function renderVoucherPdf(data: VoucherData): Promise<Uint8Array> {
-  const buffer = await renderToBuffer(
-    <HotelVoucherDocument data={data} />,
-  )
+  const buffer = await renderToBuffer(<HotelVoucherDocument data={data} />)
   return new Uint8Array(buffer)
 }

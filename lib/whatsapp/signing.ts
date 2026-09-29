@@ -12,7 +12,10 @@
 
 import { createHmac, timingSafeEqual } from "crypto"
 
-export function computeWhatsAppSignature(payload: Buffer, appSecret: string): string {
+export function computeWhatsAppSignature(
+  payload: Buffer,
+  appSecret: string,
+): string {
   return createHmac("sha256", appSecret).update(payload).digest("hex")
 }
 
@@ -27,7 +30,10 @@ export function verifyWhatsAppSignature(
 
   const expected = computeWhatsAppSignature(payload, appSecret)
   try {
-    return timingSafeEqual(Buffer.from(hex, "hex"), Buffer.from(expected, "hex"))
+    return timingSafeEqual(
+      Buffer.from(hex, "hex"),
+      Buffer.from(expected, "hex"),
+    )
   } catch {
     return false
   }

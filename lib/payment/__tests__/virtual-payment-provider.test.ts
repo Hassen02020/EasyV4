@@ -1,6 +1,9 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { VirtualPaymentProvider, isVirtualPaymentModeEnabled } from "../virtual-payment-provider"
+import {
+  VirtualPaymentProvider,
+  isVirtualPaymentModeEnabled,
+} from "../virtual-payment-provider"
 import { getPaymentProvider } from "../provider"
 
 test("VirtualPaymentProvider.createPayment : ne confirme jamais de façon synchrone — requires_action + redirectUrl", async () => {

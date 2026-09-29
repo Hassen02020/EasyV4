@@ -14,15 +14,15 @@ nécessaires. Aucun mock en production."
 
 ## 1. Où on en est (constaté dans le code, pas supposé)
 
-| Couche | État |
-|---|---|
-| Formulaire homepage (`components/booking-engine.tsx:639`, `HotelsMondeForm`) | Existe, pousse vers `/hotels-monde?destination=...` |
-| Formulaire `/hotels-monde` (`components/hotels-monde/world-hotel-search.tsx`) | Existe, pousse vers `/hotels-monde/search?...` — **route inexistante, 404 systématique** |
-| Destinations proposées | `POPULAR_DESTINATIONS` — 10 valeurs codées en dur (`istanbul`, `dubai`, `paris`…), pas une vraie liste de villes/aéroports |
-| Schéma DB dédié | **Aucun** — pas de `lib/db/schema/hotels-monde.ts`, aucune table |
-| Client API / provider | **Aucun** — aucun fichier dans `lib/` n'appelle un fournisseur externe pour ce module |
-| Route API (`app/api/hotels-monde/*`) | **Inexistante** |
-| Indice dans le schéma existant | `reservation_source` (`lib/db/schema.ts:97-99`) liste déjà `amadeus`, `sabre`, `expedia` comme sources possibles — l'architecture anticipait un agrégateur tiers pour ce module, jamais implémenté |
+| Couche                                                                        | État                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Formulaire homepage (`components/booking-engine.tsx:639`, `HotelsMondeForm`)  | Existe, pousse vers `/hotels-monde?destination=...`                                                                                                                                                |
+| Formulaire `/hotels-monde` (`components/hotels-monde/world-hotel-search.tsx`) | Existe, pousse vers `/hotels-monde/search?...` — **route inexistante, 404 systématique**                                                                                                           |
+| Destinations proposées                                                        | `POPULAR_DESTINATIONS` — 10 valeurs codées en dur (`istanbul`, `dubai`, `paris`…), pas une vraie liste de villes/aéroports                                                                         |
+| Schéma DB dédié                                                               | **Aucun** — pas de `lib/db/schema/hotels-monde.ts`, aucune table                                                                                                                                   |
+| Client API / provider                                                         | **Aucun** — aucun fichier dans `lib/` n'appelle un fournisseur externe pour ce module                                                                                                              |
+| Route API (`app/api/hotels-monde/*`)                                          | **Inexistante**                                                                                                                                                                                    |
+| Indice dans le schéma existant                                                | `reservation_source` (`lib/db/schema.ts:97-99`) liste déjà `amadeus`, `sabre`, `expedia` comme sources possibles — l'architecture anticipait un agrégateur tiers pour ce module, jamais implémenté |
 
 Contrairement à Car (voir `EASYV4_CAR_DECISION.md`), il n'existe **aucune**
 brique de départ ici : ni schéma, ni RLS, ni type. Tout est à faire.
@@ -34,12 +34,12 @@ l'inventaire hôtelier **tunisien** (contrat B2B avec un fournisseur local).
 Hôtels Monde vise l'inventaire **mondial** — aucun fournisseur tunisien
 n'a ce catalogue. Il faut un agrégateur global type OTA :
 
-| Fournisseur envisageable | Modèle | Remarque |
-|---|---|---|
-| Expedia Rapid API (Expedia Partner Solutions) | Agrégateur mondial, contrat B2B/affilié | Déjà anticipé dans `reservation_source` |
-| Booking.com Affiliate/Demand API | Agrégateur mondial | Accès généralement restreint (partenariat à négocier) |
-| HotelBeds / TravelgateX | Bedbank B2B classique | Modèle proche de myGo (contrat B2B direct), pas de compte utilisateur final requis |
-| Amadeus Hotel Search API | Agrégateur GDS | Cohérent avec `amadeus` déjà listé dans `reservation_source` (déjà envisagé pour Vols aussi) |
+| Fournisseur envisageable                      | Modèle                                  | Remarque                                                                                     |
+| --------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Expedia Rapid API (Expedia Partner Solutions) | Agrégateur mondial, contrat B2B/affilié | Déjà anticipé dans `reservation_source`                                                      |
+| Booking.com Affiliate/Demand API              | Agrégateur mondial                      | Accès généralement restreint (partenariat à négocier)                                        |
+| HotelBeds / TravelgateX                       | Bedbank B2B classique                   | Modèle proche de myGo (contrat B2B direct), pas de compte utilisateur final requis           |
+| Amadeus Hotel Search API                      | Agrégateur GDS                          | Cohérent avec `amadeus` déjà listé dans `reservation_source` (déjà envisagé pour Vols aussi) |
 
 **Décision produit requise avant tout développement** : quel fournisseur,
 quel type de contrat (self-service API key vs négociation commerciale),
@@ -48,6 +48,7 @@ quel délai d'accès. Rien dans ce rapport ne présuppose un choix.
 ## 3. Ce qu'il faudra construire (une fois le fournisseur choisi)
 
 ### 3.1 Provider / API
+
 - Client HTTP dédié (`lib/hotels-monde/client.ts`), même architecture que
   `lib/mygo/client.ts` ou `lib/vols/client.ts` : circuit-breaker, cache,
   retry, timeout, **jamais de fixtures/mock actives par défaut en
@@ -60,6 +61,7 @@ quel délai d'accès. Rien dans ce rapport ne présuppose un choix.
   fournisseur retenu) — secrets via variables d'environnement, jamais en dur.
 
 ### 3.2 Données
+
 - Pas de schéma DB de catalogue nécessaire si le fournisseur est un
   agrégateur "search-on-demand" (Expedia/Booking/HotelBeds cherchent en
   direct, pas de synchronisation d'inventaire local) — à la différence de
@@ -76,6 +78,7 @@ quel délai d'accès. Rien dans ce rapport ne présuppose un choix.
   réutilisés sans réécriture si la forme des données est suffisamment proche.
 
 ### 3.3 Booking capability
+
 - Le fournisseur permet-il une confirmation instantanée (comme myGo) ou
   uniquement une pré-réservation "on request" ? Détermine si le pipeline
   `/booking` générique (`lib/booking/actions.ts`) peut être réutilisé tel
@@ -86,6 +89,7 @@ quel délai d'accès. Rien dans ce rapport ne présuppose un choix.
   hôtels myGo (`lib/pdf/voucher-hotel.tsx`) ?
 
 ### 3.4 Pricing
+
 - Marge B2B : `pricing_margins` est déjà générique par module — il suffira
   d'ajouter `hotels_monde` (ou réutiliser `hotel` si le fournisseur choisi
   est traité comme une extension du même module) à l'enum
@@ -96,11 +100,13 @@ quel délai d'accès. Rien dans ce rapport ne présuppose un choix.
   si un taux de change fournisseur dédié est nécessaire).
 
 ### 3.5 Availability
+
 - Recherche en temps réel côté fournisseur (pas de stock local à gérer,
   sauf si le fournisseur choisi est un bedbank avec allotement — à vérifier
   au moment du choix).
 
 ### 3.6 Cancellation
+
 - Politique d'annulation : la plupart des agrégateurs renvoient une
   `CancellationPolicyDTO`-like structure par offre (délai, pénalité) — à
   mapper vers le type existant `CancellationPolicyDTO` (`lib/mygo/types.ts:74`)

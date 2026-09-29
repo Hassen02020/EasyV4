@@ -1,7 +1,15 @@
 import { Link } from "@/i18n/navigation"
 import { notFound } from "next/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
-import { CheckCircle2, Mail, Calendar, User, Download, Banknote, Building2 } from "lucide-react"
+import {
+  CheckCircle2,
+  Mail,
+  Calendar,
+  User,
+  Download,
+  Banknote,
+  Building2,
+} from "lucide-react"
 import { and, eq } from "drizzle-orm"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -56,7 +64,12 @@ export default async function ConfirmationPage({
       })
       .from(reservations)
       .leftJoin(customers, eq(reservations.customerId, customers.id))
-      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
+      .where(
+        and(
+          eq(reservations.publicRef, ref),
+          eq(reservations.guestAccessToken, token),
+        ),
+      )
       .limit(1)
     const found = rows[0]
     if (!found) return { row: undefined, hasInvoice: false }
@@ -159,7 +172,7 @@ export default async function ConfirmationPage({
 
               {/* Payment method instructions for pending bookings */}
               {row.status === "pending" && pl?.paymentMethod === "transfer" && (
-                <div className="border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/30 rounded-lg border p-4 text-sm">
+                <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm dark:border-sky-800 dark:bg-sky-950/30">
                   <p className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-200">
                     <Building2 className="h-4 w-4 shrink-0" />
                     {t("paymentTransferTitle")}
@@ -170,7 +183,7 @@ export default async function ConfirmationPage({
                 </div>
               )}
               {row.status === "pending" && pl?.paymentMethod === "cash" && (
-                <div className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 rounded-lg border p-4 text-sm">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950/30">
                   <p className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-200">
                     <Banknote className="h-4 w-4 shrink-0" />
                     {t("paymentCashTitle")}
@@ -187,7 +200,11 @@ export default async function ConfirmationPage({
                 </Button>
                 {voucherHref ? (
                   <Button asChild className="flex-1">
-                    <a href={voucherHref} target="_blank" rel="noopener noreferrer">
+                    <a
+                      href={voucherHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       <Download className="mr-2 size-4" />
                       {t("downloadVoucher")}
                     </a>

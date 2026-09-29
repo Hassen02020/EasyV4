@@ -73,9 +73,15 @@ export function siteOrigin(): string {
  * serait faux pour un compte tenant qui n'a justement PAS besoin de ces
  * variables d'environnement globales.
  */
-export function resolveMyGoInfraDefaults(mode: MyGoMode): Pick<
+export function resolveMyGoInfraDefaults(
+  mode: MyGoMode,
+): Pick<
   MyGoConfig,
-  "baseUrl" | "timeoutMs" | "maxRetries" | "staticDataTtlSeconds" | "searchTtlSeconds"
+  | "baseUrl"
+  | "timeoutMs"
+  | "maxRetries"
+  | "staticDataTtlSeconds"
+  | "searchTtlSeconds"
 > {
   if (mode === "virtual") {
     return {

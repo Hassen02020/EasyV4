@@ -102,7 +102,9 @@ function atomicClaim(booking: BookingRecord | undefined): ClaimResult {
 
 type SnapshotUseResult = "ok" | "already_used" | "not_found"
 
-function atomicMarkSnapshotUsed(snapshot: SnapshotRecord | undefined): SnapshotUseResult {
+function atomicMarkSnapshotUsed(
+  snapshot: SnapshotRecord | undefined,
+): SnapshotUseResult {
   if (!snapshot) return "not_found"
   if (snapshot.status !== "ACTIVE") return "already_used"
   snapshot.status = "USED"
@@ -157,7 +159,10 @@ async function runPipeline(
 // ---------------------------------------------------------------------------
 
 let _seq = 0
-function makeBooking(status: BookingStatus = "PENDING", pnr: string | null = null): BookingRecord {
+function makeBooking(
+  status: BookingStatus = "PENDING",
+  pnr: string | null = null,
+): BookingRecord {
   const n = ++_seq
   return { id: `bk-${n}`, reservationId: `res-${n}`, status, pnr }
 }
@@ -166,7 +171,10 @@ function makeSnapshot(status: SnapshotStatus = "ACTIVE"): SnapshotRecord {
   return { id: `snap-${++_seq}`, status }
 }
 
-const bookOk = (suffix = "") => async () => `PNR-${++_seq}-${suffix}`
+const bookOk =
+  (suffix = "") =>
+  async () =>
+    `PNR-${++_seq}-${suffix}`
 const issueOk = async (_pnr: string) => {}
 
 // ===========================================================================
@@ -174,7 +182,6 @@ const issueOk = async (_pnr: string) => {}
 // ===========================================================================
 
 describe("G14 — Real DB Concurrency", () => {
-
   // ── Single-booking concurrent claim ────────────────────────────────────────
 
   test("D01 — Two concurrent Arm A claims on same booking → exactly 1 wins", async () => {
@@ -202,7 +209,10 @@ describe("G14 — Real DB Concurrency", () => {
     assert.equal(winners.length, 1, "exactly 1 re-issue must win")
     assert.equal(losers.length, 1)
     assert.equal(b.status, "TICKETING_IN_PROGRESS")
-    assert.ok(winners[0].claimed && winners[0].reissueOnly, "winner must be reissueOnly=true")
+    assert.ok(
+      winners[0].claimed && winners[0].reissueOnly,
+      "winner must be reissueOnly=true",
+    )
   })
 
   test("D03 — 50 concurrent Arm A claims on same booking → exactly 1 wins, 49 WRONG_STATUS", async () => {
@@ -236,7 +246,11 @@ describe("G14 — Real DB Concurrency", () => {
     const result = atomicClaim(b)
 
     assert.ok(result.claimed)
-    assert.equal(result.reissueOnly, false, "PENDING booking must take Arm A, not Arm B")
+    assert.equal(
+      result.reissueOnly,
+      false,
+      "PENDING booking must take Arm A, not Arm B",
+    )
     assert.equal(b.status, "BOOKING_IN_PROGRESS")
   })
 
@@ -245,8 +259,10 @@ describe("G14 — Real DB Concurrency", () => {
     const bookings = Array.from({ length: 100 }, () => makeBooking("PENDING"))
     const results = bookings.map((b) => atomicClaim(b))
 
-    assert.ok(results.every((r) => r.claimed && !r.reissueOnly),
-      "all PENDING bookings must use Arm A (reissueOnly=false)")
+    assert.ok(
+      results.every((r) => r.claimed && !r.reissueOnly),
+      "all PENDING bookings must use Arm A (reissueOnly=false)",
+    )
   })
 
   // ── Cross-reservation isolation ────────────────────────────────────────────
@@ -259,12 +275,20 @@ describe("G14 — Real DB Concurrency", () => {
       bookings.map(async (b) => {
         const results = [atomicClaim(b), atomicClaim(b), atomicClaim(b)]
         const wins = results.filter((r) => r.claimed).length
-        assert.equal(wins, 1, `booking ${b.id}: exactly 1 of 3 concurrent claims must win`)
+        assert.equal(
+          wins,
+          1,
+          `booking ${b.id}: exactly 1 of 3 concurrent claims must win`,
+        )
         totalWins += wins
       }),
     )
 
-    assert.equal(totalWins, 20, "total wins across all reservations must equal total reservation count")
+    assert.equal(
+      totalWins,
+      20,
+      "total wins across all reservations must equal total reservation count",
+    )
   })
 
   test("D08 — Cross-reservation: booking A's PNR never appears in booking B", async () => {
@@ -300,8 +324,12 @@ describe("G14 — Real DB Concurrency", () => {
   // ── Mixed-state batch ───────────────────────────────────────────────────────
 
   test("D10 — Mixed: 5 PENDING + 5 FAILED+pnr → exactly 5 Arm A + 5 Arm B wins", () => {
-    const pendingBookings = Array.from({ length: 5 }, () => makeBooking("PENDING"))
-    const orphanBookings = Array.from({ length: 5 }, () => makeBooking("FAILED", `PNR-ORPHAN-${++_seq}`))
+    const pendingBookings = Array.from({ length: 5 }, () =>
+      makeBooking("PENDING"),
+    )
+    const orphanBookings = Array.from({ length: 5 }, () =>
+      makeBooking("FAILED", `PNR-ORPHAN-${++_seq}`),
+    )
     const all = [...pendingBookings, ...orphanBookings]
 
     const results = all.map((b) => atomicClaim(b))
@@ -328,8 +356,10 @@ describe("G14 — Real DB Concurrency", () => {
     const result = atomicClaim(b)
 
     assert.equal(result.claimed, false)
-    assert.ok(!result.claimed && result.reason === "WRONG_STATUS",
-      "FAILED with no PNR must return WRONG_STATUS, never enter Arm B")
+    assert.ok(
+      !result.claimed && result.reason === "WRONG_STATUS",
+      "FAILED with no PNR must return WRONG_STATUS, never enter Arm B",
+    )
     assert.equal(b.status, "FAILED", "status must not change")
   })
 
@@ -337,7 +367,9 @@ describe("G14 — Real DB Concurrency", () => {
 
   test("D13 — Snapshot single-use CAS: 10 concurrent markSnapshotUsed → exactly 1 ACTIVE→USED", () => {
     const snap = makeSnapshot("ACTIVE")
-    const results = Array.from({ length: 10 }, () => atomicMarkSnapshotUsed(snap))
+    const results = Array.from({ length: 10 }, () =>
+      atomicMarkSnapshotUsed(snap),
+    )
 
     const successes = results.filter((r) => r === "ok")
     const dupes = results.filter((r) => r === "already_used")
@@ -381,7 +413,9 @@ describe("G14 — Real DB Concurrency", () => {
     )
 
     const wins = results.filter((r) => r.ok)
-    const wrong = results.filter((r) => !r.ok && !r.ok && (r as { code: string }).code === "WRONG_STATUS")
+    const wrong = results.filter(
+      (r) => !r.ok && !r.ok && (r as { code: string }).code === "WRONG_STATUS",
+    )
 
     // All PENDING (Arm A) + all FAILED+pnr (Arm B) must confirm
     assert.equal(wins.length, 70, "40 Arm A + 30 Arm B = 70 confirmed")
@@ -394,13 +428,21 @@ describe("G14 — Real DB Concurrency", () => {
     assert.equal(reissues.length, 30, "30 Arm B re-issues")
 
     // All PNRs for Arm A wins must be distinct
-    const armAPnrs = wins.filter((r) => r.ok && !r.reissueOnly).map((r) => r.pnr)
+    const armAPnrs = wins
+      .filter((r) => r.ok && !r.reissueOnly)
+      .map((r) => r.pnr)
     assert.equal(new Set(armAPnrs).size, 40, "40 Arm A PNRs must be distinct")
 
     // All bookings must be in a terminal state (no stuck-in-progress)
     const inProgress = all.filter(
-      (b) => b.status === "BOOKING_IN_PROGRESS" || b.status === "TICKETING_IN_PROGRESS",
+      (b) =>
+        b.status === "BOOKING_IN_PROGRESS" ||
+        b.status === "TICKETING_IN_PROGRESS",
     )
-    assert.equal(inProgress.length, 0, "no booking must be stuck in a progress state")
+    assert.equal(
+      inProgress.length,
+      0,
+      "no booking must be stuck in a progress state",
+    )
   })
 })

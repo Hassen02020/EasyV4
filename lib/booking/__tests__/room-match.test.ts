@@ -6,7 +6,12 @@ import type { HotelOfferDTO } from "@/lib/mygo/types"
 
 function makeOffer(): HotelOfferDTO {
   return {
-    hotel: { id: 646, name: "Yocca Hotel Residence", facilities: [], themes: [] },
+    hotel: {
+      id: 646,
+      name: "Yocca Hotel Residence",
+      facilities: [],
+      themes: [],
+    },
     token: "tok-abc",
     currency: "TND",
     fromPrice: 250,

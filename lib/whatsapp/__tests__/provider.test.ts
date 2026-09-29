@@ -26,7 +26,8 @@ function withoutWhatsAppEnv<T>(fn: () => T): T {
     return fn()
   } finally {
     if (savedToken !== undefined) process.env.WHATSAPP_ACCESS_TOKEN = savedToken
-    if (savedPhoneId !== undefined) process.env.WHATSAPP_PHONE_NUMBER_ID = savedPhoneId
+    if (savedPhoneId !== undefined)
+      process.env.WHATSAPP_PHONE_NUMBER_ID = savedPhoneId
   }
 }
 

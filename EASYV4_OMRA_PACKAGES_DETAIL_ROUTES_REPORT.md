@@ -33,10 +33,10 @@ ne touche que 2 nouveaux fichiers, tous les deux sous `app/omra/` et
 
 ## Problème initial (rappel — EASYV4_SEARCH_ENGINES_AUDIT_REPORT.md)
 
-| # | Sévérité | Problème |
-|---|---|---|
-| 4 | 🟠 HIGH | Omra : lien de détail mort (404), booking bridge existant mais non branché au flux public |
-| 5 | 🟠 HIGH | Packages/Voyages Organisés : lien de détail mort (404), aucun booking bridge du tout |
+| #   | Sévérité | Problème                                                                                  |
+| --- | -------- | ----------------------------------------------------------------------------------------- |
+| 4   | 🟠 HIGH  | Omra : lien de détail mort (404), booking bridge existant mais non branché au flux public |
+| 5   | 🟠 HIGH  | Packages/Voyages Organisés : lien de détail mort (404), aucun booking bridge du tout      |
 
 `components/omra/omra-package-list.tsx:86` liait déjà vers `/omra/${pkg.id}`
 et `components/packages/package-list.tsx:69` vers `/packages/${pkg.slug}` —
@@ -57,6 +57,7 @@ lui-même.
 
 Server Component, même pattern que `app/omra/page.tsx` (`withSystemContext`,
 requête Drizzle directe, catalogue public anonyme) :
+
 - Récupère le package par `id` (garde regex UUID avant la requête SQL, pas de
   quote-injection possible de toute façon avec Drizzle, mais évite une
   requête inutile sur un id manifestement invalide) et `status = 'active'`
@@ -72,6 +73,7 @@ requête Drizzle directe, catalogue public anonyme) :
 ### `app/packages/[slug]/page.tsx` (nouveau)
 
 Même pattern, sur `catalogPackages`/`catalogPackageDepartures` :
+
 - Récupère le package par `slug` + `status='active'`. `notFound()` sinon.
 - Récupère les départs `status='open'`, futurs, avec calcul des places
   restantes (`totalSeats - bookedSeats`) fait au moment de la requête plutôt
@@ -125,6 +127,7 @@ Aucun.
 ## Tests
 
 Gates automatisés :
+
 ```
 $ pnpm typecheck   → 0 erreur
 $ pnpm lint        → 0 erreur (avertissements restants tous pré-existants,
@@ -135,6 +138,7 @@ $ pnpm build       → build de production réussi ; /omra/[id] et
 ```
 
 Vérifications manuelles (dev server + curl/Playwright) :
+
 - `/omra` et `/packages` (listes) : toujours 200, état vide affiché —
   cohérent avec la réalité actuelle de la base (voir limitation ci-dessous).
 - `/omra/00000000-0000-0000-0000-000000000000` → 404 propre (`notFound()`),

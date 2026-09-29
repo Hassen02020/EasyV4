@@ -119,14 +119,20 @@ export const flightCommercialRules = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     // NULL = applies to all agencies (global rule)
-    agencyId: uuid("agency_id").references(() => agencies.id, { onDelete: "cascade" }),
+    agencyId: uuid("agency_id").references(() => agencies.id, {
+      onDelete: "cascade",
+    }),
     // NULL = applies to all channels
     channel: varchar("channel", { length: 16 }),
     priority: integer("priority").notNull().default(50),
     // JSONB product scope: { cabin?, provider?, origin?, destination?, airline? }
     productScope: jsonb("product_scope"),
-    fixedFee: decimal("fixed_fee", { precision: 12, scale: 3 }).notNull().default("0"),
-    markupRate: decimal("markup_rate", { precision: 8, scale: 5 }).notNull().default("0"),
+    fixedFee: decimal("fixed_fee", { precision: 12, scale: 3 })
+      .notNull()
+      .default("0"),
+    markupRate: decimal("markup_rate", { precision: 8, scale: 5 })
+      .notNull()
+      .default("0"),
     // Optional floor/ceiling on computed markup amount
     minMarkup: decimal("min_markup", { precision: 12, scale: 3 }),
     maxMarkup: decimal("max_markup", { precision: 12, scale: 3 }),
@@ -135,12 +141,19 @@ export const flightCommercialRules = pgTable(
     validFrom: timestamp("valid_from", { withTimezone: true }),
     validTo: timestamp("valid_to", { withTimezone: true }),
     notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("flight_commercial_rules_priority_idx").on(t.priority),
-    index("flight_commercial_rules_agency_channel_idx").on(t.agencyId, t.channel),
+    index("flight_commercial_rules_agency_channel_idx").on(
+      t.agencyId,
+      t.channel,
+    ),
     index("flight_commercial_rules_active_idx").on(t.isActive),
   ],
 )
@@ -165,7 +178,9 @@ export const flightSearches = pgTable(
     currency: varchar("currency", { length: 3 }).notNull().default("TND"),
     provider: varchar("provider", { length: 32 }),
     searchId: varchar("search_id", { length: 64 }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("flight_searches_agency_idx").on(t.agencyId),
@@ -177,23 +192,39 @@ export const flightPriceSnapshots = pgTable(
   "flight_price_snapshots",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    searchId: uuid("search_id").references(() => flightSearches.id, { onDelete: "set null" }),
+    searchId: uuid("search_id").references(() => flightSearches.id, {
+      onDelete: "set null",
+    }),
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "restrict" }),
     provider: varchar("provider", { length: 32 }).notNull(),
     providerOfferId: varchar("provider_offer_id", { length: 128 }).notNull(),
     itinerary: jsonb("itinerary").notNull(),
-    supplierAmount: decimal("supplier_amount", { precision: 12, scale: 3 }).notNull(),
-    supplierCurrency: varchar("supplier_currency", { length: 3 }).notNull().default("TND"),
+    supplierAmount: decimal("supplier_amount", {
+      precision: 12,
+      scale: 3,
+    }).notNull(),
+    supplierCurrency: varchar("supplier_currency", { length: 3 })
+      .notNull()
+      .default("TND"),
     fee: decimal("fee", { precision: 12, scale: 3 }).notNull().default("0"),
-    markup: decimal("markup", { precision: 12, scale: 3 }).notNull().default("0"),
-    sellingAmount: decimal("selling_amount", { precision: 12, scale: 3 }).notNull(),
-    sellingCurrency: varchar("selling_currency", { length: 3 }).notNull().default("TND"),
+    markup: decimal("markup", { precision: 12, scale: 3 })
+      .notNull()
+      .default("0"),
+    sellingAmount: decimal("selling_amount", {
+      precision: 12,
+      scale: 3,
+    }).notNull(),
+    sellingCurrency: varchar("selling_currency", { length: 3 })
+      .notNull()
+      .default("TND"),
     baggage: jsonb("baggage"),
     fareRules: jsonb("fare_rules"),
     status: flightSnapshotStatus("status").notNull().default("ACTIVE"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
   (t) => [
@@ -214,14 +245,20 @@ export const flightOrders = pgTable(
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "restrict" }),
-    reservationId: uuid("reservation_id").references(() => reservations.id, { onDelete: "set null" }),
+    reservationId: uuid("reservation_id").references(() => reservations.id, {
+      onDelete: "set null",
+    }),
     customerId: uuid("customer_id"),
     tripType: flightTripType("trip_type").notNull(),
     status: varchar("status", { length: 32 }).notNull().default("PENDING"),
     /** NDC/GDS order ID when the provider supports Order Management. */
     providerOrderId: varchar("provider_order_id", { length: 128 }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("flight_orders_agency_idx").on(t.agencyId),
@@ -247,7 +284,9 @@ export const flightBookings = pgTable(
     }),
     customerId: uuid("customer_id"),
     /** Links this booking to a FlightOrder when multi-PNR grouping is used. */
-    orderId: uuid("order_id").references(() => flightOrders.id, { onDelete: "set null" }),
+    orderId: uuid("order_id").references(() => flightOrders.id, {
+      onDelete: "set null",
+    }),
     tripType: flightTripType("trip_type").notNull(),
     itinerary: jsonb("itinerary").notNull(),
     contact: jsonb("contact").notNull(),
@@ -261,8 +300,12 @@ export const flightBookings = pgTable(
     lastRecheckAt: timestamp("last_recheck_at", { withTimezone: true }),
     opsNotes: text("ops_notes"),
     slaDeadline: timestamp("sla_deadline", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("flight_bookings_agency_idx").on(t.agencyId),
@@ -280,7 +323,9 @@ export const flightBookingPassengers = pgTable(
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => flightBookings.id, { onDelete: "cascade" }),
-    passengerType: varchar("passenger_type", { length: 3 }).notNull().default("ADT"),
+    passengerType: varchar("passenger_type", { length: 3 })
+      .notNull()
+      .default("ADT"),
     firstName: varchar("first_name", { length: 100 }).notNull(),
     lastName: varchar("last_name", { length: 100 }).notNull(),
     birthDate: date("birth_date"),
@@ -322,9 +367,12 @@ export const flightTickets = pgTable(
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => flightBookings.id, { onDelete: "cascade" }),
-    passengerId: uuid("passenger_id").references(() => flightBookingPassengers.id, {
-      onDelete: "set null",
-    }),
+    passengerId: uuid("passenger_id").references(
+      () => flightBookingPassengers.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     ticketNumber: varchar("ticket_number", { length: 32 }),
     status: flightTicketStatus("status").notNull().default("NOT_ISSUED"),
     /**
@@ -335,7 +383,9 @@ export const flightTickets = pgTable(
     issuedAt: timestamp("issued_at", { withTimezone: true }),
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     eticketUrl: text("eticket_url"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [index("flight_tickets_booking_idx").on(t.bookingId)],
 )
@@ -344,7 +394,9 @@ export const flightSupplierTransactions = pgTable(
   "flight_supplier_transactions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    bookingId: uuid("booking_id").references(() => flightBookings.id, { onDelete: "set null" }),
+    bookingId: uuid("booking_id").references(() => flightBookings.id, {
+      onDelete: "set null",
+    }),
     snapshotId: uuid("snapshot_id").references(() => flightPriceSnapshots.id, {
       onDelete: "set null",
     }),
@@ -354,7 +406,9 @@ export const flightSupplierTransactions = pgTable(
     request: jsonb("request"),
     response: jsonb("response"),
     durationMs: integer("duration_ms"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("flight_tx_booking_idx").on(t.bookingId),
@@ -383,7 +437,9 @@ export const flightAncillaries = pgTable(
     passengerRef: integer("passenger_ref"),
     status: varchar("status", { length: 16 }).notNull().default("PENDING"),
     providerAncillaryId: varchar("provider_ancillary_id", { length: 64 }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("flight_ancillaries_booking_idx").on(t.bookingId),
@@ -406,8 +462,10 @@ export type NewFlightPriceSnapshot = typeof flightPriceSnapshots.$inferInsert
 export type FlightBooking = typeof flightBookings.$inferSelect
 export type NewFlightBooking = typeof flightBookings.$inferInsert
 export type FlightBookingPassenger = typeof flightBookingPassengers.$inferSelect
-export type NewFlightBookingPassenger = typeof flightBookingPassengers.$inferInsert
+export type NewFlightBookingPassenger =
+  typeof flightBookingPassengers.$inferInsert
 export type FlightTicket = typeof flightTickets.$inferSelect
 export type FlightAncillary = typeof flightAncillaries.$inferSelect
 export type NewFlightAncillary = typeof flightAncillaries.$inferInsert
-export type FlightSupplierTransaction = typeof flightSupplierTransactions.$inferSelect
+export type FlightSupplierTransaction =
+  typeof flightSupplierTransactions.$inferSelect

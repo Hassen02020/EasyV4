@@ -23,7 +23,10 @@ export const ONLINE_PAYMENT_WINDOW_MS = 30 * 60 * 1000 // 30 minutes
 
 export type PaymentMatchResult =
   | { ok: true }
-  | { ok: false; reason: "REFERENCE_MISMATCH" | "CURRENCY_MISMATCH" | "AMOUNT_MISMATCH" }
+  | {
+      ok: false
+      reason: "REFERENCE_MISMATCH" | "CURRENCY_MISMATCH" | "AMOUNT_MISMATCH"
+    }
 
 /**
  * Revérifie qu'un événement PSP normalisé correspond exactement (référence,
@@ -32,7 +35,11 @@ export type PaymentMatchResult =
  * était attendu au moment de la création de la session de paiement.
  */
 export function matchesPendingPayment(
-  payment: { pspOrderId: string | null; originalAmount: string; originalCurrency: string },
+  payment: {
+    pspOrderId: string | null
+    originalAmount: string
+    originalCurrency: string
+  },
   charge: NormalizedChargeEvent,
 ): PaymentMatchResult {
   if (!payment.pspOrderId || payment.pspOrderId !== charge.providerRef) {
@@ -42,7 +49,10 @@ export function matchesPendingPayment(
     return { ok: false, reason: "CURRENCY_MISMATCH" }
   }
   const expected = parseFloat(payment.originalAmount)
-  if (!Number.isFinite(expected) || Math.abs(expected - charge.amountTnd) > 0.001) {
+  if (
+    !Number.isFinite(expected) ||
+    Math.abs(expected - charge.amountTnd) > 0.001
+  ) {
     return { ok: false, reason: "AMOUNT_MISMATCH" }
   }
   return { ok: true }

@@ -30,7 +30,8 @@ const SearchSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "anon"
+  const ip =
+    req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "anon"
   const rl = await rateLimit(`hotels-monde:search:${ip}`)
   if (!rl.ok) {
     return NextResponse.json({ error: "Trop de requêtes" }, { status: 429 })
@@ -57,7 +58,8 @@ export async function GET(req: NextRequest) {
   }
 
   const nights = Math.round(
-    (new Date(parsed.data.checkOut).getTime() - new Date(parsed.data.checkIn).getTime()) /
+    (new Date(parsed.data.checkOut).getTime() -
+      new Date(parsed.data.checkIn).getTime()) /
       86_400_000,
   )
 

@@ -24,10 +24,20 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { paymentEvents, pspWebhooks, walletRechargeRequests } from "@/lib/db/schema"
+import {
+  paymentEvents,
+  pspWebhooks,
+  walletRechargeRequests,
+} from "@/lib/db/schema"
 import { sendEvent } from "@/lib/inngest/client"
-import { creditRechargeRequest, reverseRechargeCredit } from "@/lib/finance/wallet-credit"
-import { verifySpsSignature, verifyStripeSignature } from "@/lib/payment/signing"
+import {
+  creditRechargeRequest,
+  reverseRechargeCredit,
+} from "@/lib/finance/wallet-credit"
+import {
+  verifySpsSignature,
+  verifyStripeSignature,
+} from "@/lib/payment/signing"
 import {
   classifyEventType,
   matchesPendingRecharge,
@@ -74,7 +84,10 @@ export async function POST(request: NextRequest) {
     }
     const parsed = raw as { id?: unknown; type?: unknown }
     if (typeof parsed.id !== "string" || typeof parsed.type !== "string") {
-      return NextResponse.json({ error: "Invalid event shape" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid event shape" },
+        { status: 400 },
+      )
     }
     eventId = parsed.id
     eventType = parsed.type
@@ -87,7 +100,9 @@ export async function POST(request: NextRequest) {
     }
     let body: Record<string, string>
     try {
-      body = Object.fromEntries(new URLSearchParams(bodyBuffer.toString("utf8")))
+      body = Object.fromEntries(
+        new URLSearchParams(bodyBuffer.toString("utf8")),
+      )
     } catch {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 })
     }
@@ -100,13 +115,20 @@ export async function POST(request: NextRequest) {
     const spsType = body["event_type"] ?? body["status"] ?? "unknown"
     eventType = spsType
     charge = normalizeSpsEvent(body, spsType)
-    eventId = charge?.eventId ?? body["transaction_id"] ?? body["order_id"] ?? `sps-unknown-${Date.now()}`
+    eventId =
+      charge?.eventId ??
+      body["transaction_id"] ??
+      body["order_id"] ??
+      `sps-unknown-${Date.now()}`
   } else {
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 })
   }
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "Base de données non configurée" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Base de données non configurée" },
+      { status: 500 },
+    )
   }
 
   const result = await withSystemContext(async (tx) => {
@@ -122,7 +144,8 @@ export async function POST(request: NextRequest) {
     }
 
     /* --- 3. Journal brut (audit) — toute requête signée valide est tracée --- */
-    const auditPayload: Record<string, unknown> = spsBody ?? JSON.parse(bodyBuffer.toString("utf8"))
+    const auditPayload: Record<string, unknown> =
+      spsBody ?? JSON.parse(bodyBuffer.toString("utf8"))
 
     const kind = classifyEventType(eventType)
 
@@ -303,10 +326,21 @@ export async function POST(request: NextRequest) {
       newBalance: result.newBalance,
       method: `PSP_${provider.toUpperCase()}`,
       adminUserId: "webhook",
-    }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+    }).catch(() => {
+      /* fire-and-forget — le retry Inngest suffira */
+    })
   }
 
-  console.log(JSON.stringify({ level: "info", module: "webhook", provider, eventType: eventType!, eventId: eventId!, result: result.status }))
+  console.log(
+    JSON.stringify({
+      level: "info",
+      module: "webhook",
+      provider,
+      eventType: eventType!,
+      eventId: eventId!,
+      result: result.status,
+    }),
+  )
 
   return NextResponse.json({ ok: true, result: result.status })
 }

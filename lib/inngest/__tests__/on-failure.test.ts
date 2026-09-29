@@ -6,8 +6,12 @@ import { makeOnFailure } from "../on-failure"
 test("makeOnFailure : ne lève jamais, même sans event.data", async () => {
   const handler = makeOnFailure("test-function")
   await assert.doesNotReject(() => handler({ error: new Error("boom") }))
-  await assert.doesNotReject(() => handler({ error: new Error("boom"), event: null }))
-  await assert.doesNotReject(() => handler({ error: new Error("boom"), event: { data: {} } }))
+  await assert.doesNotReject(() =>
+    handler({ error: new Error("boom"), event: null }),
+  )
+  await assert.doesNotReject(() =>
+    handler({ error: new Error("boom"), event: { data: {} } }),
+  )
 })
 
 test("makeOnFailure : n'écrit jamais dans reservations/payments — capture uniquement", async () => {

@@ -10,7 +10,10 @@
  */
 
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { listApprovedReviewsForProductCore, type ReviewModule } from "@/lib/reviews/reviews-core"
+import {
+  listApprovedReviewsForProductCore,
+  type ReviewModule,
+} from "@/lib/reviews/reviews-core"
 import { ReviewsDisplay } from "@/components/reviews/reviews-display"
 
 export async function ProductReviewsSection({

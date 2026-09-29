@@ -8,17 +8,27 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { REVIEW_MODULES, listReviewSummariesForProductsCore, type ReviewModule } from "@/lib/reviews/reviews-core"
+import {
+  REVIEW_MODULES,
+  listReviewSummariesForProductsCore,
+  type ReviewModule,
+} from "@/lib/reviews/reviews-core"
 
 export async function GET(request: NextRequest) {
   const moduleParam = request.nextUrl.searchParams.get("module")
   const refsParam = request.nextUrl.searchParams.get("productRefs")
 
-  if (!moduleParam || !(REVIEW_MODULES as readonly string[]).includes(moduleParam) || !refsParam) {
+  if (
+    !moduleParam ||
+    !(REVIEW_MODULES as readonly string[]).includes(moduleParam) ||
+    !refsParam
+  ) {
     return NextResponse.json({ error: "Invalid parameters" }, { status: 400 })
   }
 
-  const productRefs = Array.from(new Set(refsParam.split(",").filter(Boolean))).slice(0, 100)
+  const productRefs = Array.from(
+    new Set(refsParam.split(",").filter(Boolean)),
+  ).slice(0, 100)
 
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -26,7 +36,11 @@ export async function GET(request: NextRequest) {
   }
 
   const summaries = await withPublicAgencyContext(agencyId, (db) =>
-    listReviewSummariesForProductsCore(db, { agencyId, module: moduleParam as ReviewModule, productRefs }),
+    listReviewSummariesForProductsCore(db, {
+      agencyId,
+      module: moduleParam as ReviewModule,
+      productRefs,
+    }),
   )
 
   return NextResponse.json({ summaries })

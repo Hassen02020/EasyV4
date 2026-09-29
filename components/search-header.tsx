@@ -24,11 +24,7 @@ interface SearchHeaderProps {
   paxLabel?: string
 }
 
-export function SearchHeader({
-  city,
-  dateRange,
-  paxLabel,
-}: SearchHeaderProps) {
+export function SearchHeader({ city, dateRange, paxLabel }: SearchHeaderProps) {
   const t = useTranslations("Common")
   const tHotels = useTranslations("Hotels")
   const [loggedIn, setLoggedIn] = useState(false)
@@ -128,9 +124,15 @@ export function SearchHeader({
                 </div>
               </div>
 
-              <Button size="sm" className="shrink-0" onClick={() => setEditOpen(true)}>
+              <Button
+                size="sm"
+                className="shrink-0"
+                onClick={() => setEditOpen(true)}
+              >
                 <Search className="h-4 w-4" />
-                <span className="ms-1 hidden sm:inline">{tHotels("modifyButton")}</span>
+                <span className="ms-1 hidden sm:inline">
+                  {tHotels("modifyButton")}
+                </span>
               </Button>
             </div>
           </div>

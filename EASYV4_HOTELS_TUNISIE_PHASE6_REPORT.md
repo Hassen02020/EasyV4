@@ -13,18 +13,18 @@ FACETS + FILTERS + SORTING + DEDUPLICATION + BEST RATE" était **déjà
 construite** dans une mission précédente de cette même session
 (`EASYV4_HOTEL_SEARCH_ENGINE_REPORT.md`) :
 
-| Capacité | État avant cette phase |
-|---|---|
-| Deduplication | ✅ réel (`dedupeOffersByHotelId`, `lib/mygo/mappers.ts`) |
-| Facets | ✅ réel (`computeFacets`, `lib/mygo/facets.ts`) |
-| Filtres | ✅ réels, persistés dans l'URL, Filter Chips | 
-| Tri (Sort Engine) | ✅ réel (`lib/mygo/sort.ts`), 4 modes documentés |
-| Best Rate Engine | ✅ réel (`lib/mygo/best-rate.ts`) |
-| Recherche multi-chambres | ✅ réelle |
-| Accès B2C public (`/api/hotels/search-public`) | ✅ réel, déjà séparé de la route B2B (`/api/hotels/search`) |
-| **Skeletons** | ⚠️ partiel — `HotelListings` en a déjà (résultats), mais `FilterSidebar` n'en avait aucun (section vide plutôt que squelette), et le `Suspense` racine de la page n'avait qu'un `<div>` vide comme fallback |
-| **Drawer mobile Filtres/Tri (Vaul)** | ❌ non construit — seul un empilement vertical brut existait, déjà documenté comme gap P3 dans le rapport précédent |
-| **B2B/B2C UX** | Déjà correctement séparés architecturalement : `/hotels/search` (B2C, `useHotelSearch` → `/api/hotels/search-public`) vs `/pro/hotels` (B2B) — voir §5 |
+| Capacité                                       | État avant cette phase                                                                                                                                                                                      |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deduplication                                  | ✅ réel (`dedupeOffersByHotelId`, `lib/mygo/mappers.ts`)                                                                                                                                                    |
+| Facets                                         | ✅ réel (`computeFacets`, `lib/mygo/facets.ts`)                                                                                                                                                             |
+| Filtres                                        | ✅ réels, persistés dans l'URL, Filter Chips                                                                                                                                                                |
+| Tri (Sort Engine)                              | ✅ réel (`lib/mygo/sort.ts`), 4 modes documentés                                                                                                                                                            |
+| Best Rate Engine                               | ✅ réel (`lib/mygo/best-rate.ts`)                                                                                                                                                                           |
+| Recherche multi-chambres                       | ✅ réelle                                                                                                                                                                                                   |
+| Accès B2C public (`/api/hotels/search-public`) | ✅ réel, déjà séparé de la route B2B (`/api/hotels/search`)                                                                                                                                                 |
+| **Skeletons**                                  | ⚠️ partiel — `HotelListings` en a déjà (résultats), mais `FilterSidebar` n'en avait aucun (section vide plutôt que squelette), et le `Suspense` racine de la page n'avait qu'un `<div>` vide comme fallback |
+| **Drawer mobile Filtres/Tri (Vaul)**           | ❌ non construit — seul un empilement vertical brut existait, déjà documenté comme gap P3 dans le rapport précédent                                                                                         |
+| **B2B/B2C UX**                                 | Déjà correctement séparés architecturalement : `/hotels/search` (B2C, `useHotelSearch` → `/api/hotels/search-public`) vs `/pro/hotels` (B2B) — voir §5                                                      |
 
 Donc le périmètre réel restant pour cette phase, une fois l'audit fait,
 était concentré sur exactement les deux items encore non cochés :
@@ -48,18 +48,20 @@ séparation B2B/B2C.
 ## 3. IMPLEMENT
 
 ### 3.1 Skeletons
+
 - `components/filter-sidebar.tsx` : extraction du contenu des filtres dans
   `FilterControls` (réutilisable), ajout de `FilterControlsSkeleton`
   (squelettes `Skeleton` déjà utilisé ailleurs dans l'app, rien de nouveau
   installé), affiché tant que la recherche est **réellement en cours**
   (nouveau prop explicite `loading`, voir §4 — pas déduit de `facets ===
-  null`, qui est aussi vrai pour "chargé, zéro résultat").
+null`, qui est aussi vrai pour "chargé, zéro résultat").
 - `app/hotels/search/page.tsx` : le fallback du `Suspense` racine (page
   entière), auparavant un `<div>` vide, est maintenant un vrai squelette de
   la mise en page (barre de recherche, sidebar, 3 cartes) via
   `HotelSearchPageSkeleton`.
 
 ### 3.2 Mobile Vaul (bottom-sheets Filtres / Tri)
+
 - `components/ui/drawer.tsx` (wrapper Vaul déjà présent, `vaul` déjà une
   dépendance du projet — confirmé avant tout ajout) réutilisé tel quel,
   aucun nouveau composant primitif créé.
@@ -79,6 +81,7 @@ séparation B2B/B2C.
   `hidden shrink-0 lg:block lg:w-1/4`) au lieu de s'empiler verticalement.
 
 ### 3.3 B2B/B2C UX — audit, pas de code
+
 Confirmé par relecture du code (`lib/mygo/use-hotel-search.ts`, commentaire
 de tête explicite) : `/hotels/search` est **exclusivement** B2C
 (`/api/hotels/search-public`, aucune session requise), le portail B2B
@@ -142,6 +145,7 @@ existaient déjà, réutilisés tels quels).
 ## 7. Tests
 
 Gates automatisés :
+
 ```
 pnpm typecheck   → 0 erreur
 pnpm lint        → 0 erreur (118 avertissements, tous pré-existants et

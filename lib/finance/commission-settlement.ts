@@ -22,7 +22,11 @@
 
 import { and, eq, gte, lte, notExists, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { commissionSettlementEntries, commissionSettlements, walletLedger } from "@/lib/db/schema"
+import {
+  commissionSettlementEntries,
+  commissionSettlements,
+  walletLedger,
+} from "@/lib/db/schema"
 import { PLATFORM_COMMISSION_WALLET_ID } from "./platform-commission"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,7 +141,12 @@ export async function markSettlementPaid(
   await withSystemContext(async (tx) => {
     await tx
       .update(commissionSettlements)
-      .set({ status: "paid", settledAt: new Date(), settledBy: paidBy, updatedAt: new Date() })
+      .set({
+        status: "paid",
+        settledAt: new Date(),
+        settledBy: paidBy,
+        updatedAt: new Date(),
+      })
       .where(eq(commissionSettlements.id, settlementId))
   })
 }

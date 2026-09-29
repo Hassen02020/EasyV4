@@ -24,10 +24,19 @@
 import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { catalogActivities, catalogActivitySessions, auditEvents } from "@/lib/db/schema"
+import {
+  catalogActivities,
+  catalogActivitySessions,
+  auditEvents,
+} from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 import { isValidProductStatus } from "./product-constants"
-import { activityProductSchema, activitySessionSchema, type ActivityProductInput, type ActivitySessionInput } from "./schemas/activity-product"
+import {
+  activityProductSchema,
+  activitySessionSchema,
+  type ActivityProductInput,
+  type ActivitySessionInput,
+} from "./schemas/activity-product"
 import type { ProductActionResult } from "./packages-actions"
 
 function slugify(title: string): string {
@@ -40,18 +49,24 @@ function slugify(title: string): string {
     .slice(0, 190)
 }
 
-export async function createActivityProduct(input: ActivityProductInput): Promise<ProductActionResult> {
+export async function createActivityProduct(
+  input: ActivityProductInput,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const parsed = activityProductSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
 
@@ -94,7 +109,10 @@ export async function createActivityProduct(input: ActivityProductInput): Promis
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -108,11 +126,15 @@ export async function updateActivityProduct(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const parsed = activityProductSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
 
@@ -136,7 +158,12 @@ export async function updateActivityProduct(
             channels: data.channels,
             updatedAt: new Date(),
           })
-          .where(and(eq(catalogActivities.id, productId), eq(catalogActivities.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogActivities.id, productId),
+              eq(catalogActivities.agencyId, ctx.agencyId),
+            ),
+          )
           .returning({ id: catalogActivities.id })
         if (!updated) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -153,19 +180,27 @@ export async function updateActivityProduct(
     revalidatePath("/admin/products")
     return { ok: true, data: { id: productId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
-export async function setActivityProductStatus(productId: string, status: string): Promise<ProductActionResult> {
+export async function setActivityProductStatus(
+  productId: string,
+  status: string,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!isValidProductStatus(status)) return { ok: false, error: "Statut invalide" }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!isValidProductStatus(status))
+    return { ok: false, error: "Statut invalide" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     await withTenantContext(
@@ -174,7 +209,12 @@ export async function setActivityProductStatus(productId: string, status: string
         const [updated] = await tx
           .update(catalogActivities)
           .set({ status, updatedAt: new Date() })
-          .where(and(eq(catalogActivities.id, productId), eq(catalogActivities.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogActivities.id, productId),
+              eq(catalogActivities.agencyId, ctx.agencyId),
+            ),
+          )
           .returning({ id: catalogActivities.id })
         if (!updated) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -191,18 +231,24 @@ export async function setActivityProductStatus(productId: string, status: string
     revalidatePath("/admin/products")
     return { ok: true, data: { id: productId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
-export async function duplicateActivityProduct(productId: string): Promise<ProductActionResult> {
+export async function duplicateActivityProduct(
+  productId: string,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const result = await withTenantContext(
@@ -211,7 +257,12 @@ export async function duplicateActivityProduct(productId: string): Promise<Produ
         const [original] = await tx
           .select()
           .from(catalogActivities)
-          .where(and(eq(catalogActivities.id, productId), eq(catalogActivities.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogActivities.id, productId),
+              eq(catalogActivities.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!original) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -252,7 +303,10 @@ export async function duplicateActivityProduct(productId: string): Promise<Produ
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -268,10 +322,14 @@ export async function createActivitySession(
   }
   const parsed = activitySessionSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const result = await withTenantContext(
@@ -280,7 +338,12 @@ export async function createActivitySession(
         const [product] = await tx
           .select({ id: catalogActivities.id })
           .from(catalogActivities)
-          .where(and(eq(catalogActivities.id, productId), eq(catalogActivities.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogActivities.id, productId),
+              eq(catalogActivities.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!product) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -295,8 +358,14 @@ export async function createActivitySession(
             capacity: data.capacity,
             booked: 0,
             adultPriceTnd: data.adultPriceTnd.toFixed(2),
-            childPriceTnd: data.childPriceTnd != null ? data.childPriceTnd.toFixed(2) : undefined,
-            seniorPriceTnd: data.seniorPriceTnd != null ? data.seniorPriceTnd.toFixed(2) : undefined,
+            childPriceTnd:
+              data.childPriceTnd != null
+                ? data.childPriceTnd.toFixed(2)
+                : undefined,
+            seniorPriceTnd:
+              data.seniorPriceTnd != null
+                ? data.seniorPriceTnd.toFixed(2)
+                : undefined,
             status: "open",
           })
           .returning({ id: catalogActivitySessions.id })
@@ -316,6 +385,9 @@ export async function createActivitySession(
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }

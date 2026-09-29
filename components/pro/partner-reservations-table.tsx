@@ -104,17 +104,15 @@ const STATUS_META: Record<
   },
 }
 
-const MODULE_META: Record<
-  string,
-  { label: string; icon: React.ElementType }
-> = {
-  hotel: { label: "Hôtel", icon: Building2 },
-  flight: { label: "Vol", icon: Plane },
-  package: { label: "Package", icon: Sun },
-  activity: { label: "Activité", icon: Sun },
-  omra: { label: "Omra", icon: Moon },
-  transfer: { label: "Transfert", icon: Car },
-}
+const MODULE_META: Record<string, { label: string; icon: React.ElementType }> =
+  {
+    hotel: { label: "Hôtel", icon: Building2 },
+    flight: { label: "Vol", icon: Plane },
+    package: { label: "Package", icon: Sun },
+    activity: { label: "Activité", icon: Sun },
+    omra: { label: "Omra", icon: Moon },
+    transfer: { label: "Transfert", icon: Car },
+  }
 
 /* -------------------------------------------------------------------------- */
 /* Actions (annulation + voucher réels — le reste reste desactivé/à venir)     */
@@ -154,7 +152,12 @@ function ReservationActionsCell({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isPending}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={isPending}
+          >
             {isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -178,7 +181,10 @@ function ReservationActionsCell({
             <FileText className="mr-1.5 h-3.5 w-3.5" />
             Facture proforma
           </DropdownMenuItem>
-          {isAdminReservationVoucherEligible(reservation.module, reservation.status) && (
+          {isAdminReservationVoucherEligible(
+            reservation.module,
+            reservation.status,
+          ) && (
             <DropdownMenuItem asChild>
               <a
                 href={`/api/pro/reservations/${reservation.id}/voucher`}

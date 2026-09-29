@@ -19,17 +19,24 @@ export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const bearer = req.headers.get("authorization")?.replace("Bearer ", "")
-  const secret = bearer ?? req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
+  const secret =
+    bearer ??
+    req.headers.get("x-cron-secret") ??
+    req.nextUrl.searchParams.get("secret")
 
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "Base de données non configurée" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Base de données non configurée" },
+      { status: 500 },
+    )
   }
 
-  const { counts, findings, skipped, unresolvedAgencyWarnings } = await runPaymentReconciliation()
+  const { counts, findings, skipped, unresolvedAgencyWarnings } =
+    await runPaymentReconciliation()
 
   return NextResponse.json({
     ok: true,

@@ -16,7 +16,9 @@ const PRO_PASSWORD = process.env.E2E_PRO_PASSWORD ?? "TestPass123!"
 
 let publicRef = ""
 try {
-  publicRef = JSON.parse(readFileSync("/tmp/dashboard-ops-ref.json", "utf8")).publicRef
+  publicRef = JSON.parse(
+    readFileSync("/tmp/dashboard-ops-ref.json", "utf8"),
+  ).publicRef
 } catch {
   // Le test précédent n'a pas encore tourné dans cette session — les tests
   // ci-dessous échoueront explicitement (publicRef vide) plutôt que d'être
@@ -24,13 +26,20 @@ try {
 }
 
 test.describe("Dashboard Operations — permissions + isolation cross-agence", () => {
-  test("PERMISSIONS — un compte partenaire (Pro) ne peut pas atteindre le back-office Master Admin", async ({ page }) => {
-    expect(publicRef, "publicRef manquant — exécuter d'abord dashboard-operations-hotel-lifecycle.spec.ts").toBeTruthy()
+  test("PERMISSIONS — un compte partenaire (Pro) ne peut pas atteindre le back-office Master Admin", async ({
+    page,
+  }) => {
+    expect(
+      publicRef,
+      "publicRef manquant — exécuter d'abord dashboard-operations-hotel-lifecycle.spec.ts",
+    ).toBeTruthy()
 
     await page.goto("/pro/login")
     await page.getByLabel("Email professionnel").fill(PRO_EMAIL)
     await page.getByLabel("Mot de passe", { exact: true }).fill(PRO_PASSWORD)
-    await page.getByRole("button", { name: /Accéder à mon Espace Pro/i }).click()
+    await page
+      .getByRole("button", { name: /Accéder à mon Espace Pro/i })
+      .click()
     await page.waitForURL(/\/pro(?!\/login)/, { timeout: 15_000 })
 
     // Tente d'atteindre directement la liste ADMIN cross-agence avec une
@@ -46,13 +55,20 @@ test.describe("Dashboard Operations — permissions + isolation cross-agence", (
     })
   })
 
-  test("ISOLATION — l'agence partenaire de pro.test ne voit PAS une réservation créée sous l'agence OTA", async ({ page }) => {
-    expect(publicRef, "publicRef manquant — exécuter d'abord dashboard-operations-hotel-lifecycle.spec.ts").toBeTruthy()
+  test("ISOLATION — l'agence partenaire de pro.test ne voit PAS une réservation créée sous l'agence OTA", async ({
+    page,
+  }) => {
+    expect(
+      publicRef,
+      "publicRef manquant — exécuter d'abord dashboard-operations-hotel-lifecycle.spec.ts",
+    ).toBeTruthy()
 
     await page.goto("/pro/login")
     await page.getByLabel("Email professionnel").fill(PRO_EMAIL)
     await page.getByLabel("Mot de passe", { exact: true }).fill(PRO_PASSWORD)
-    await page.getByRole("button", { name: /Accéder à mon Espace Pro/i }).click()
+    await page
+      .getByRole("button", { name: /Accéder à mon Espace Pro/i })
+      .click()
     await page.waitForURL(/\/pro(?!\/login)/, { timeout: 15_000 })
 
     await page.goto("/pro/reservations")

@@ -92,9 +92,7 @@ export default async function PackageBookPage({
             {t("backToPackage")}
           </Link>
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{pkg.title}</h1>
-          <p className="text-muted-foreground mb-6">
-            {t("bookIntro")}
-          </p>
+          <p className="text-muted-foreground mb-6">{t("bookIntro")}</p>
           <BookingSteps current={2} />
 
           <div className="mt-8">

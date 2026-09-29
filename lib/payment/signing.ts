@@ -49,7 +49,11 @@ export function verifyStripeSignature(
   const v1 = parts["v1"]
   if (!timestamp || !v1) return false
 
-  const expected = computeStripeSignature(payload.toString("utf8"), secret, Number(timestamp))
+  const expected = computeStripeSignature(
+    payload.toString("utf8"),
+    secret,
+    Number(timestamp),
+  )
   try {
     return timingSafeEqual(Buffer.from(v1, "hex"), Buffer.from(expected, "hex"))
   } catch {

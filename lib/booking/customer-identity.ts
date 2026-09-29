@@ -42,7 +42,9 @@ export function emailsMatch(
   travelerEmail: string | null | undefined,
 ): boolean {
   if (!sessionEmail || !travelerEmail) return false
-  return sessionEmail.trim().toLowerCase() === travelerEmail.trim().toLowerCase()
+  return (
+    sessionEmail.trim().toLowerCase() === travelerEmail.trim().toLowerCase()
+  )
 }
 
 /**
@@ -85,7 +87,10 @@ export function ownedByCurrentCustomer(params: {
 }) {
   return and(
     eq(customers.agencyId, params.agencyId),
-    or(eq(customers.authUserId, params.authUserId), ilike(customers.email, params.verifiedEmail)),
+    or(
+      eq(customers.authUserId, params.authUserId),
+      ilike(customers.email, params.verifiedEmail),
+    ),
   )
 }
 
@@ -131,13 +136,21 @@ export async function resolveOrCreateLinkedCustomer(
   const existing = await tx
     .select({ id: customers.id, authUserId: customers.authUserId })
     .from(customers)
-    .where(and(eq(customers.agencyId, agencyId), eq(customers.email, traveler.email)))
+    .where(
+      and(
+        eq(customers.agencyId, agencyId),
+        eq(customers.email, traveler.email),
+      ),
+    )
     .limit(1)
 
   if (existing[0]) {
     const customerId = existing[0].id
     if (linkedAuthUserId && !existing[0].authUserId) {
-      await tx.update(customers).set({ authUserId: linkedAuthUserId }).where(eq(customers.id, customerId))
+      await tx
+        .update(customers)
+        .set({ authUserId: linkedAuthUserId })
+        .where(eq(customers.id, customerId))
     }
     return customerId
   }

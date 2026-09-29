@@ -16,7 +16,12 @@ import { and, desc, eq } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customerFavorites } from "@/lib/db/schema"
 
-export const FAVORITE_ITEM_TYPES = ["hotel", "omra", "package", "activity"] as const
+export const FAVORITE_ITEM_TYPES = [
+  "hotel",
+  "omra",
+  "package",
+  "activity",
+] as const
 export type FavoriteItemType = (typeof FAVORITE_ITEM_TYPES)[number]
 
 export interface FavoriteSnapshot {
@@ -73,7 +78,9 @@ export async function toggleFavoriteCore(
     .limit(1)
 
   if (existing[0]) {
-    await tx.delete(customerFavorites).where(eq(customerFavorites.id, existing[0].id))
+    await tx
+      .delete(customerFavorites)
+      .where(eq(customerFavorites.id, existing[0].id))
     return { favorited: false }
   }
 
@@ -85,7 +92,8 @@ export async function toggleFavoriteCore(
     title: snapshot.title,
     imageUrl: snapshot.imageUrl ?? undefined,
     location: snapshot.location ?? undefined,
-    priceFrom: snapshot.priceFrom != null ? String(snapshot.priceFrom) : undefined,
+    priceFrom:
+      snapshot.priceFrom != null ? String(snapshot.priceFrom) : undefined,
     currency: snapshot.currency ?? undefined,
     href: snapshot.href,
   })

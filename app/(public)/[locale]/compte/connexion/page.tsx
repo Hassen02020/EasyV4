@@ -7,7 +7,8 @@ import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
   title: "Mon compte — Connexion | Easy2Book",
-  description: "Connectez-vous pour retrouver l'historique de toutes vos réservations Easy2Book.",
+  description:
+    "Connectez-vous pour retrouver l'historique de toutes vos réservations Easy2Book.",
   alternates: { languages: buildLanguageAlternates("/compte/connexion") },
 }
 
@@ -47,7 +48,10 @@ export default async function CompteConnexionPage() {
         <div className="mt-6 flex flex-col items-center gap-2 text-center text-xs">
           <p className="text-muted-foreground">
             {t("noAccountPrefix")}{" "}
-            <Link href="/bookings" className="text-primary font-medium hover:underline">
+            <Link
+              href="/bookings"
+              className="text-primary font-medium hover:underline"
+            >
               {t("lookupWithCodeLink")}
             </Link>
           </p>

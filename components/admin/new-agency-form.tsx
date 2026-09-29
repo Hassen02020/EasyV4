@@ -25,7 +25,13 @@ import { createAgency, createPartnerOwner } from "@/lib/admin/agencies-actions"
  * (lib/admin/agencies-actions.ts), pour ne pas laisser une agence sans
  * aucun utilisateur capable de s'y connecter.
  */
-function InviteOwnerStep({ agencyId, agencyName }: { agencyId: string; agencyName: string }) {
+function InviteOwnerStep({
+  agencyId,
+  agencyName,
+}: {
+  agencyId: string
+  agencyName: string
+}) {
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -49,12 +55,19 @@ function InviteOwnerStep({ agencyId, agencyName }: { agencyId: string; agencyNam
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-muted-foreground text-sm">
-        Agence <strong>{agencyName}</strong> créée. Invitez son premier propriétaire (partner_owner) pour qu&apos;elle
-        soit utilisable, ou passez cette étape pour l&apos;inviter plus tard.
+        Agence <strong>{agencyName}</strong> créée. Invitez son premier
+        propriétaire (partner_owner) pour qu&apos;elle soit utilisable, ou
+        passez cette étape pour l&apos;inviter plus tard.
       </p>
       <div className="space-y-2">
         <Label htmlFor="owner-name">Nom complet</Label>
-        <Input id="owner-name" value={name} onChange={(e) => setName(e.target.value)} required disabled={isPending} />
+        <Input
+          id="owner-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          disabled={isPending}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="owner-email">Email</Label>
@@ -74,10 +87,19 @@ function InviteOwnerStep({ agencyId, agencyName }: { agencyId: string; agencyNam
       )}
       <div className="flex gap-2">
         <Button type="submit" disabled={isPending} className="gap-2">
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <UserPlus className="h-4 w-4" />
+          )}
           Envoyer l&apos;invitation
         </Button>
-        <Button type="button" variant="ghost" disabled={isPending} onClick={() => router.push("/admin/agencies")}>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={isPending}
+          onClick={() => router.push("/admin/agencies")}
+        >
           Passer, inviter plus tard
         </Button>
       </div>
@@ -93,13 +115,21 @@ export function NewAgencyForm() {
   const [contactPhone, setContactPhone] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-  const [created, setCreated] = useState<{ agencyId: string; name: string } | null>(null)
+  const [created, setCreated] = useState<{
+    agencyId: string
+    name: string
+  } | null>(null)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      const result = await createAgency({ name, agencyType, contactEmail, contactPhone })
+      const result = await createAgency({
+        name,
+        agencyType,
+        contactEmail,
+        contactPhone,
+      })
       if (!result.ok) {
         setError(result.error)
         return
@@ -114,7 +144,9 @@ export function NewAgencyForm() {
   }
 
   if (created) {
-    return <InviteOwnerStep agencyId={created.agencyId} agencyName={created.name} />
+    return (
+      <InviteOwnerStep agencyId={created.agencyId} agencyName={created.name} />
+    )
   }
 
   return (
@@ -131,7 +163,10 @@ export function NewAgencyForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="agency-type">Type</Label>
-        <Select value={agencyType} onValueChange={(v) => setAgencyType(v as "ota" | "partner")}>
+        <Select
+          value={agencyType}
+          onValueChange={(v) => setAgencyType(v as "ota" | "partner")}
+        >
           <SelectTrigger id="agency-type">
             <SelectValue />
           </SelectTrigger>
@@ -141,8 +176,9 @@ export function NewAgencyForm() {
           </SelectContent>
         </Select>
         <p className="text-muted-foreground text-xs">
-          « Partenaire B2B » couvre l&apos;immense majorité des cas — accès /pro, wallet, recharge.
-          « OTA » est réservé aux entités Easy2Book elles-mêmes (accès /admin).
+          « Partenaire B2B » couvre l&apos;immense majorité des cas — accès
+          /pro, wallet, recharge. « OTA » est réservé aux entités Easy2Book
+          elles-mêmes (accès /admin).
         </p>
       </div>
       <div className="space-y-2">
@@ -170,7 +206,11 @@ export function NewAgencyForm() {
         </Alert>
       )}
       <Button type="submit" disabled={isPending} className="gap-2">
-        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building className="h-4 w-4" />}
+        {isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Building className="h-4 w-4" />
+        )}
         Créer l&apos;agence
       </Button>
     </form>

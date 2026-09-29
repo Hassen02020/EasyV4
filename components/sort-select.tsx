@@ -22,9 +22,10 @@ export interface SortSelectLabels {
   optionLabel: (mode: HotelSortMode) => string
 }
 
-const DEFAULT_SORT_OPTION_LABELS: Record<HotelSortMode, string> = Object.fromEntries(
-  SORT_OPTIONS.map((opt) => [opt.value, opt.label]),
-) as Record<HotelSortMode, string>
+const DEFAULT_SORT_OPTION_LABELS: Record<HotelSortMode, string> =
+  Object.fromEntries(
+    SORT_OPTIONS.map((opt) => [opt.value, opt.label]),
+  ) as Record<HotelSortMode, string>
 
 export const DEFAULT_SORT_SELECT_LABELS: SortSelectLabels = {
   ariaLabel: "Trier les résultats",
@@ -50,7 +51,11 @@ export function SortSelect({
       onValueChange={(v) => onChange(v as HotelSortMode)}
       disabled={disabled}
     >
-      <SelectTrigger size="sm" className="w-[220px] gap-2 rounded-full" aria-label={labels.ariaLabel}>
+      <SelectTrigger
+        size="sm"
+        className="w-[220px] gap-2 rounded-full"
+        aria-label={labels.ariaLabel}
+      >
         <ArrowUpDown className="text-muted-foreground size-3.5" />
         <SelectValue />
       </SelectTrigger>

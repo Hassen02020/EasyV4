@@ -25,7 +25,8 @@ export function makeOnFailure(functionId: string) {
     const data = event?.data ?? {}
     captureError(error, {
       operation: `inngest:${functionId}`,
-      reservationId: typeof data.reservationId === "string" ? data.reservationId : undefined,
+      reservationId:
+        typeof data.reservationId === "string" ? data.reservationId : undefined,
       agencyId: typeof data.agencyId === "string" ? data.agencyId : undefined,
     })
   }

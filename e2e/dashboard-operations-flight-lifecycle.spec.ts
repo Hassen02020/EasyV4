@@ -47,14 +47,19 @@ const SHOT_DIR = "docs/audits/screenshots/vols"
 test.describe("Dashboard Operations — cycle de vie complet réservation Vol", () => {
   test.setTimeout(120_000)
 
-  test("créer → rechercher → valider → modifier → annuler, via l'UI admin réelle (module Vol)", async ({ page }) => {
+  test("créer → rechercher → valider → modifier → annuler, via l'UI admin réelle (module Vol)", async ({
+    page,
+  }) => {
     let publicRef = ""
     let guestAccessToken = ""
 
     await test.step("01-search — formulaire de recherche Vols", async () => {
       await page.goto("/vols")
       await page.waitForLoadState("networkidle")
-      await page.screenshot({ path: `${SHOT_DIR}/01-search.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/01-search.png`,
+        fullPage: true,
+      })
     })
 
     await test.step("02-results / 03-detail — résultats de recherche réels (Virtual Flight Supplier)", async () => {
@@ -65,7 +70,10 @@ test.describe("Dashboard Operations — cycle de vie complet réservation Vol", 
 
       const reserveBtn = page.getByRole("link", { name: /^Réserver$/ }).first()
       await expect(reserveBtn).toBeVisible({ timeout: 20_000 })
-      await page.screenshot({ path: `${SHOT_DIR}/02-results.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/02-results.png`,
+        fullPage: true,
+      })
       // 03-detail : N/A — pas de page détail séparée, voir en-tête de fichier.
 
       await reserveBtn.click()
@@ -76,25 +84,45 @@ test.describe("Dashboard Operations — cycle de vie complet réservation Vol", 
       const suffix = Date.now().toString().slice(-6)
       await page.getByLabel("Prénom *", { exact: true }).fill("Certif")
       await page.getByLabel("Nom *", { exact: true }).fill(`E2E-${suffix}`)
-      await page.getByLabel("Date de naissance *", { exact: true }).fill("1990-01-01")
+      await page
+        .getByLabel("Date de naissance *", { exact: true })
+        .fill("1990-01-01")
       await page.getByLabel("Nationalité *", { exact: true }).fill("TN")
-      await page.getByLabel("Numéro de passeport / CIN *", { exact: true }).fill("87654321")
-      await page.getByLabel("Email *", { exact: true }).fill(`certif-flight-e2e-${suffix}@example.com`)
+      await page
+        .getByLabel("Numéro de passeport / CIN *", { exact: true })
+        .fill("87654321")
+      await page
+        .getByLabel("Email *", { exact: true })
+        .fill(`certif-flight-e2e-${suffix}@example.com`)
 
       await page.getByText("Espèces en agence").click()
-      await page.getByLabel(/J'accepte les conditions générales de vente d'Easy2Book/).check()
-      await page.screenshot({ path: `${SHOT_DIR}/04-booking.png`, fullPage: true })
+      await page
+        .getByLabel(/J'accepte les conditions générales de vente d'Easy2Book/)
+        .check()
+      await page.screenshot({
+        path: `${SHOT_DIR}/04-booking.png`,
+        fullPage: true,
+      })
 
       await page.getByRole("button", { name: /Confirmer & payer/i }).click()
       await page.waitForURL(/\/booking\/confirmation\//, { timeout: 20_000 })
 
-      const refText = await page.getByText(/^FL-\d{4}-\d{6}$/).first().textContent()
+      const refText = await page
+        .getByText(/^FL-\d{4}-\d{6}$/)
+        .first()
+        .textContent()
       expect(refText).toBeTruthy()
       publicRef = refText!.trim()
       guestAccessToken = new URL(page.url()).searchParams.get("token") ?? ""
       expect(guestAccessToken).toBeTruthy()
-      writeFileSync("/tmp/dashboard-ops-flight-ref.json", JSON.stringify({ publicRef }))
-      await page.screenshot({ path: `${SHOT_DIR}/05-confirmation.png`, fullPage: true })
+      writeFileSync(
+        "/tmp/dashboard-ops-flight-ref.json",
+        JSON.stringify({ publicRef }),
+      )
+      await page.screenshot({
+        path: `${SHOT_DIR}/05-confirmation.png`,
+        fullPage: true,
+      })
     })
 
     await test.step("Login admin réel", async () => {
@@ -108,25 +136,41 @@ test.describe("Dashboard Operations — cycle de vie complet réservation Vol", 
     await test.step("06-admin-reservation — RECHERCHER, détail admin (statut pending)", async () => {
       await page.goto(`/admin/reservations?search=${publicRef}`)
       await page.waitForLoadState("networkidle")
-      await expect(page.getByText(publicRef).first()).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText(publicRef).first()).toBeVisible({
+        timeout: 10_000,
+      })
 
       await page.getByText(publicRef).first().click()
-      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, { timeout: 10_000 })
+      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, {
+        timeout: 10_000,
+      })
 
       // Détail module (PNR + trajet) — preuve que loadModuleDetail() gère
       // réellement "flight", pas juste un fallback générique.
-      await expect(page.getByText(new RegExp(`Vol ${ORIGIN} → ${DESTINATION}`))).toBeVisible({ timeout: 10_000 })
-      await page.screenshot({ path: `${SHOT_DIR}/06-admin-reservation.png`, fullPage: true })
+      await expect(
+        page.getByText(new RegExp(`Vol ${ORIGIN} → ${DESTINATION}`)),
+      ).toBeVisible({ timeout: 10_000 })
+      await page.screenshot({
+        path: `${SHOT_DIR}/06-admin-reservation.png`,
+        fullPage: true,
+      })
     })
 
     await test.step("07-payment — VALIDER, règlement manuel réel", async () => {
       const verifyBtn = page.getByRole("button", { name: /^Vérifier$/ })
       await expect(verifyBtn).toBeVisible({ timeout: 10_000 })
       await verifyBtn.click()
-      await page.getByLabel(/Référence du règlement/i).fill(`E2E-CASH-FL-${Date.now()}`)
-      await page.getByRole("button", { name: /Confirmer le règlement/i }).click()
+      await page
+        .getByLabel(/Référence du règlement/i)
+        .fill(`E2E-CASH-FL-${Date.now()}`)
+      await page
+        .getByRole("button", { name: /Confirmer le règlement/i })
+        .click()
       await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 })
-      await page.screenshot({ path: `${SHOT_DIR}/07-payment.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/07-payment.png`,
+        fullPage: true,
+      })
     })
 
     await test.step("08-voucher — route de téléchargement réellement vérifiée (HTTP 200, PDF)", async () => {
@@ -146,7 +190,10 @@ test.describe("Dashboard Operations — cycle de vie complet réservation Vol", 
       const resp = await page.request.get(href!)
       expect(resp.status()).toBe(200)
       expect(resp.headers()["content-type"]).toContain("application/pdf")
-      await page.screenshot({ path: `${SHOT_DIR}/08-voucher.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/08-voucher.png`,
+        fullPage: true,
+      })
     })
 
     await test.step("MODIFIER — changement de statut depuis la liste (confirmed -> completed)", async () => {
@@ -156,20 +203,31 @@ test.describe("Dashboard Operations — cycle de vie complet réservation Vol", 
       await expect(statusSelect).toBeVisible({ timeout: 10_000 })
       await statusSelect.click()
       await page.getByRole("option", { name: "Terminée" }).click()
-      await expect(page.getByText("Terminée").first()).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText("Terminée").first()).toBeVisible({
+        timeout: 10_000,
+      })
     })
 
     await test.step("09-cancellation-refund — ANNULER, remboursement réel (état terminal fait en dernier)", async () => {
       await page.getByText(publicRef).first().click()
-      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, { timeout: 10_000 })
+      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, {
+        timeout: 10_000,
+      })
 
       const refundBtn = page.getByRole("button", { name: /^Rembourser$/ })
       await expect(refundBtn).toBeVisible({ timeout: 10_000 })
       await refundBtn.click()
-      await page.getByLabel(/Motif du remboursement/i).fill("Certification E2E Vol — annulation test")
-      await page.getByRole("button", { name: /Confirmer le remboursement/i }).click()
+      await page
+        .getByLabel(/Motif du remboursement/i)
+        .fill("Certification E2E Vol — annulation test")
+      await page
+        .getByRole("button", { name: /Confirmer le remboursement/i })
+        .click()
       await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 })
-      await page.screenshot({ path: `${SHOT_DIR}/09-cancellation-refund.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/09-cancellation-refund.png`,
+        fullPage: true,
+      })
     })
   })
 })

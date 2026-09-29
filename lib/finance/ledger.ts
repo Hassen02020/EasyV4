@@ -54,7 +54,10 @@ export async function getAgencyBalance(
       data: { balance, threshold, isLow: balance <= threshold },
     }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -101,6 +104,9 @@ export async function getMovements(opts: {
       data: { movements, total: totalResult[0]?.count ?? 0 },
     }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }

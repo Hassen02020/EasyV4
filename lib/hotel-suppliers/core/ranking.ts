@@ -8,7 +8,11 @@
 
 import type { NormalizedRate } from "./types"
 
-export type RankingStrategy = "LOWEST_PRICE" | "BEST_MARGIN" | "BEST_VALUE" | "PREFERRED_SUPPLIER"
+export type RankingStrategy =
+  | "LOWEST_PRICE"
+  | "BEST_MARGIN"
+  | "BEST_VALUE"
+  | "PREFERRED_SUPPLIER"
 
 export interface RankingOptions {
   strategy?: RankingStrategy
@@ -16,7 +20,10 @@ export interface RankingOptions {
   preferredSupplierOrder?: string[]
 }
 
-const CANCELLATION_SCORE: Record<NormalizedRate["cancellationPolicy"]["type"], number> = {
+const CANCELLATION_SCORE: Record<
+  NormalizedRate["cancellationPolicy"]["type"],
+  number
+> = {
   FREE_CANCELLATION: 1,
   PARTIAL_PENALTY: 0.5,
   UNKNOWN: 0.25,
@@ -40,7 +47,9 @@ export function scoreOffer(
   const minPrice = Math.min(...prices)
   const maxPrice = Math.max(...prices)
   const priceScore =
-    maxPrice === minPrice ? 1 : 1 - (rate.sellingPrice - minPrice) / (maxPrice - minPrice)
+    maxPrice === minPrice
+      ? 1
+      : 1 - (rate.sellingPrice - minPrice) / (maxPrice - minPrice)
 
   switch (strategy) {
     case "LOWEST_PRICE":
@@ -51,29 +60,44 @@ export function scoreOffer(
       const margins = allRates.map((r) => r.sellingPrice - r.netPrice)
       const minMargin = Math.min(...margins)
       const maxMargin = Math.max(...margins)
-      return maxMargin === minMargin ? 1 : (margin - minMargin) / (maxMargin - minMargin)
+      return maxMargin === minMargin
+        ? 1
+        : (margin - minMargin) / (maxMargin - minMargin)
     }
 
     case "PREFERRED_SUPPLIER": {
       const order = options.preferredSupplierOrder ?? []
       const idx = order.indexOf(rate.supplier)
-      const preferenceScore = idx === -1 ? 0 : 1 - idx / Math.max(order.length, 1)
+      const preferenceScore =
+        idx === -1 ? 0 : 1 - idx / Math.max(order.length, 1)
       return preferenceScore * 0.7 + priceScore * 0.3
     }
 
     case "BEST_VALUE":
     default: {
-      const cancellationScore = CANCELLATION_SCORE[rate.cancellationPolicy.type] ?? 0.25
-      const availabilityScore = rate.availability === "AVAILABLE" || typeof rate.availability === "number" ? 1 : 0.3
+      const cancellationScore =
+        CANCELLATION_SCORE[rate.cancellationPolicy.type] ?? 0.25
+      const availabilityScore =
+        rate.availability === "AVAILABLE" ||
+        typeof rate.availability === "number"
+          ? 1
+          : 0.3
       // Pondération volontairement moins price-dominante que LOWEST_PRICE —
       // "meilleure valeur" doit pouvoir préférer une offre légèrement plus
       // chère mais annulable gratuitement à une offre non remboursable.
-      return priceScore * 0.35 + cancellationScore * 0.45 + availabilityScore * 0.2
+      return (
+        priceScore * 0.35 + cancellationScore * 0.45 + availabilityScore * 0.2
+      )
     }
   }
 }
 
-export function rankOffers(rates: NormalizedRate[], options: RankingOptions = {}): NormalizedRate[] {
+export function rankOffers(
+  rates: NormalizedRate[],
+  options: RankingOptions = {},
+): NormalizedRate[] {
   if (rates.length === 0) return []
-  return [...rates].sort((a, b) => scoreOffer(b, rates, options) - scoreOffer(a, rates, options))
+  return [...rates].sort(
+    (a, b) => scoreOffer(b, rates, options) - scoreOffer(a, rates, options),
+  )
 }

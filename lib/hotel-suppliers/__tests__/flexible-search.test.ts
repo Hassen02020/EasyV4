@@ -30,13 +30,20 @@ const FIXED_NOW = Date.parse("2026-06-01T00:00:00Z")
  * plus tôt à J+30) pour rester valide longtemps.
  */
 function futureDateStr(daysFromNow: number): string {
-  return new Date(Date.now() + daysFromNow * 86_400_000).toISOString().slice(0, 10)
+  return new Date(Date.now() + daysFromNow * 86_400_000)
+    .toISOString()
+    .slice(0, 10)
 }
 
 test("generateFlexibleDateCandidates : flexDays=0 renvoie uniquement la date demandée", () => {
-  const candidates = generateFlexibleDateCandidates("2026-09-01", "2026-09-05", 0, {
-    nowMs: FIXED_NOW,
-  })
+  const candidates = generateFlexibleDateCandidates(
+    "2026-09-01",
+    "2026-09-05",
+    0,
+    {
+      nowMs: FIXED_NOW,
+    },
+  )
   assert.equal(candidates.length, 1)
   assert.deepEqual(candidates[0], {
     checkin: "2026-09-01",
@@ -46,9 +53,14 @@ test("generateFlexibleDateCandidates : flexDays=0 renvoie uniquement la date dem
 })
 
 test("generateFlexibleDateCandidates : flexDays=3 renvoie 7 candidats, même durée de séjour partout", () => {
-  const candidates = generateFlexibleDateCandidates("2026-09-10", "2026-09-14", 3, {
-    nowMs: FIXED_NOW,
-  })
+  const candidates = generateFlexibleDateCandidates(
+    "2026-09-10",
+    "2026-09-14",
+    3,
+    {
+      nowMs: FIXED_NOW,
+    },
+  )
   assert.equal(candidates.length, 7)
   assert.deepEqual(
     candidates.map((c) => c.offsetDays),
@@ -56,28 +68,47 @@ test("generateFlexibleDateCandidates : flexDays=3 renvoie 7 candidats, même dur
   )
   for (const c of candidates) {
     const nights =
-      (Date.parse(`${c.checkout}T00:00:00Z`) - Date.parse(`${c.checkin}T00:00:00Z`)) /
+      (Date.parse(`${c.checkout}T00:00:00Z`) -
+        Date.parse(`${c.checkin}T00:00:00Z`)) /
       86_400_000
-    assert.equal(nights, 4, `candidat offset=${c.offsetDays} doit garder 4 nuits`)
+    assert.equal(
+      nights,
+      4,
+      `candidat offset=${c.offsetDays} doit garder 4 nuits`,
+    )
   }
   // Le candidat offset=0 doit être EXACTEMENT la date demandée.
   const exact = candidates.find((c) => c.offsetDays === 0)
-  assert.deepEqual(exact, { checkin: "2026-09-10", checkout: "2026-09-14", offsetDays: 0 })
+  assert.deepEqual(exact, {
+    checkin: "2026-09-10",
+    checkout: "2026-09-14",
+    offsetDays: 0,
+  })
 })
 
 test("generateFlexibleDateCandidates : flexDays au-delà de MAX_FLEX_DAYS est plafonné", () => {
-  const candidates = generateFlexibleDateCandidates("2026-09-10", "2026-09-14", 10, {
-    nowMs: FIXED_NOW,
-  })
+  const candidates = generateFlexibleDateCandidates(
+    "2026-09-10",
+    "2026-09-14",
+    10,
+    {
+      nowMs: FIXED_NOW,
+    },
+  )
   assert.equal(candidates.length, 2 * MAX_FLEX_DAYS + 1)
 })
 
 test("generateFlexibleDateCandidates : exclut les candidats dont l'arrivée tomberait dans le passé", () => {
   // "Aujourd'hui" fixé au 2026-06-01 ; checkin demandé = 2026-06-02 (J+1),
   // donc offset -2/-3 tomberait avant aujourd'hui et doit être exclu.
-  const candidates = generateFlexibleDateCandidates("2026-06-02", "2026-06-05", 3, {
-    nowMs: FIXED_NOW,
-  })
+  const candidates = generateFlexibleDateCandidates(
+    "2026-06-02",
+    "2026-06-05",
+    3,
+    {
+      nowMs: FIXED_NOW,
+    },
+  )
   for (const c of candidates) {
     assert.ok(
       Date.parse(`${c.checkin}T00:00:00Z`) >= FIXED_NOW,
@@ -89,9 +120,14 @@ test("generateFlexibleDateCandidates : exclut les candidats dont l'arrivée tomb
 })
 
 test("generateFlexibleDateCandidates : dates invalides (checkout <= checkin) → aucun candidat", () => {
-  const candidates = generateFlexibleDateCandidates("2026-09-05", "2026-09-01", 2, {
-    nowMs: FIXED_NOW,
-  })
+  const candidates = generateFlexibleDateCandidates(
+    "2026-09-05",
+    "2026-09-01",
+    2,
+    {
+      nowMs: FIXED_NOW,
+    },
+  )
   assert.deepEqual(candidates, [])
 })
 
@@ -108,7 +144,10 @@ test("runFlexibleHotelSearch (démo) : flexDays=0 se comporte comme une recherch
   const only = result.candidates[0]!
   assert.equal(only.offsetDays, 0)
   assert.equal(only.ok, true)
-  assert.ok((only.offersCount ?? 0) > 0, "la ville 10 a des offres réelles dans le fixture")
+  assert.ok(
+    (only.offersCount ?? 0) > 0,
+    "la ville 10 a des offres réelles dans le fixture",
+  )
   assert.ok(typeof only.fromPrice === "number" && only.fromPrice > 0)
 })
 
@@ -143,7 +182,10 @@ test("runFlexibleHotelSearch (démo) : ville sans offre reste ok:true avec offer
     adults: "2",
   })
   const result = await runFlexibleHotelSearch(q, 1)
-  assert.ok(result.candidates.length > 0, "au moins un candidat pour ne pas tester une boucle vide")
+  assert.ok(
+    result.candidates.length > 0,
+    "au moins un candidat pour ne pas tester une boucle vide",
+  )
   for (const c of result.candidates) {
     assert.equal(c.ok, true)
     assert.equal(c.offersCount, 0)
@@ -158,7 +200,12 @@ test("lowestDisplayPrice : ignore la sentinelle fromPrice=0 d'un hôtel entière
   // vaut 0 — jamais un vrai prix. lowestDisplayPrice doit retomber sur le
   // prix indicatif du Best Rate Engine (447), jamais laisser gagner le 0.
   const soldOutOffer: HotelOfferDTO = {
-    hotel: { id: 500051, name: "Virtual Hotel 051", facilities: [], themes: [] },
+    hotel: {
+      id: 500051,
+      name: "Virtual Hotel 051",
+      facilities: [],
+      themes: [],
+    },
     token: "tok",
     currency: "TND",
     fromPrice: 0,

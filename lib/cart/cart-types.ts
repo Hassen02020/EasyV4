@@ -68,7 +68,9 @@ export type CartLine = CartLineHotel | CartLinePackage | CartLineActivity
  * paramètre générique nu `T` est requis pour que le conditionnel
  * distribue réellement sur l'union, contrairement à `CartLine extends ...`
  * qui ne distribue jamais sur un type nommé directement). */
-type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never
+type DistributiveOmit<T, K extends keyof T> = T extends unknown
+  ? Omit<T, K>
+  : never
 export type NewCartLine = DistributiveOmit<CartLine, "id" | "addedAt">
 
 export type CartCheckoutMethod = "transfer" | "cash"

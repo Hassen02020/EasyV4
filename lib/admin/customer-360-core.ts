@@ -17,9 +17,19 @@ import { and, desc, eq, or } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customers, reservations } from "@/lib/db/schema"
 import { getLeadCore, type LeadRow } from "@/lib/crm/leads-core"
-import { computeLeadScore, type LeadScore, type LeadScoreRuleMap } from "@/lib/crm/lead-scoring-core"
-import { getLoyaltyAccountSummary, type LoyaltyAccountRow } from "@/lib/loyalty/rewards-core"
-import { listConversationsCore, type ConversationRow } from "@/lib/crm/inbox-core"
+import {
+  computeLeadScore,
+  type LeadScore,
+  type LeadScoreRuleMap,
+} from "@/lib/crm/lead-scoring-core"
+import {
+  getLoyaltyAccountSummary,
+  type LoyaltyAccountRow,
+} from "@/lib/loyalty/rewards-core"
+import {
+  listConversationsCore,
+  type ConversationRow,
+} from "@/lib/crm/inbox-core"
 
 export interface Customer360ReservationRow {
   id: string
@@ -43,7 +53,10 @@ export async function getCustomer360Core(
   tx: DrizzleTransaction,
   params: { agencyId: string; leadId: string; scoreRules: LeadScoreRuleMap },
 ): Promise<Customer360 | null> {
-  const lead = await getLeadCore(tx, { agencyId: params.agencyId, id: params.leadId })
+  const lead = await getLeadCore(tx, {
+    agencyId: params.agencyId,
+    id: params.leadId,
+  })
   if (!lead) return null
 
   const score = computeLeadScore(lead, params.scoreRules)
@@ -80,8 +93,12 @@ export async function getCustomer360Core(
     if (loyalty) break
   }
 
-  const allConversations = await listConversationsCore(tx, { agencyId: params.agencyId })
-  const conversations = allConversations.filter((c) => c.leadId === params.leadId)
+  const allConversations = await listConversationsCore(tx, {
+    agencyId: params.agencyId,
+  })
+  const conversations = allConversations.filter(
+    (c) => c.leadId === params.leadId,
+  )
   // Repli par téléphone : une conversation peut exister avant qu'un lead
   // n'ait été créé/lié (voir upsertConversationForInboundCore), donc pas
   // encore marquée leadId — mais reste utile à afficher ici.

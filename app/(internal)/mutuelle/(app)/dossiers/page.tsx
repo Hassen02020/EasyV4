@@ -12,10 +12,19 @@ import { redirect } from "next/navigation"
 import { Users } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { listMyMutuelleRequests, listGroupMutuelleRequests } from "@/lib/mutuelle/requests-actions"
+import {
+  listMyMutuelleRequests,
+  listGroupMutuelleRequests,
+} from "@/lib/mutuelle/requests-actions"
 import { NewRequestForm } from "@/components/mutuelle/new-request-form"
 import { RequestsTable } from "@/components/mutuelle/requests-table"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 
 export const dynamic = "force-dynamic"
 
@@ -30,7 +39,9 @@ export default async function MutuelleDossiersPage() {
   if (!profile || !profile.mutuelleGroupId) redirect("/mutuelle")
 
   const isDirector = profile.role === "mutuelle_director"
-  const requests = isDirector ? await listGroupMutuelleRequests() : await listMyMutuelleRequests()
+  const requests = isDirector
+    ? await listGroupMutuelleRequests()
+    : await listMyMutuelleRequests()
   const pendingCount = requests.filter((r) => r.status === "pending").length
 
   return (
@@ -59,7 +70,10 @@ export default async function MutuelleDossiersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <RequestsTable requests={requests} role={profile.role as "mutuelle_member" | "mutuelle_director"} />
+          <RequestsTable
+            requests={requests}
+            role={profile.role as "mutuelle_member" | "mutuelle_director"}
+          />
         </CardContent>
       </Card>
     </div>

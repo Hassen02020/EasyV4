@@ -44,22 +44,33 @@ test("packageGuestBookingSchema : refuse si le nombre d'âges d'enfants ne corre
   })
   assert.equal(result.success, false)
   if (!result.success) {
-    assert.ok(result.error.errors.some((e) => e.path.join(".") === "childrenAges"))
+    assert.ok(
+      result.error.errors.some((e) => e.path.join(".") === "childrenAges"),
+    )
   }
 })
 
 test("packageGuestBookingSchema : refuse un packageId qui n'est pas un UUID", () => {
-  const result = packageGuestBookingSchema.safeParse({ ...validBooking, packageId: "not-a-uuid" })
+  const result = packageGuestBookingSchema.safeParse({
+    ...validBooking,
+    packageId: "not-a-uuid",
+  })
   assert.equal(result.success, false)
 })
 
 test("packageGuestBookingSchema : refuse un départureId qui n'est pas un UUID", () => {
-  const result = packageGuestBookingSchema.safeParse({ ...validBooking, departureId: "not-a-uuid" })
+  const result = packageGuestBookingSchema.safeParse({
+    ...validBooking,
+    departureId: "not-a-uuid",
+  })
   assert.equal(result.success, false)
 })
 
 test("packageGuestBookingSchema : refuse zéro adulte", () => {
-  const result = packageGuestBookingSchema.safeParse({ ...validBooking, adults: 0 })
+  const result = packageGuestBookingSchema.safeParse({
+    ...validBooking,
+    adults: 0,
+  })
   assert.equal(result.success, false)
 })
 

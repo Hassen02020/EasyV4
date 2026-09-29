@@ -62,19 +62,17 @@ export default async function AdminReservationDetailPage({
   // systématiquement en échec, sans jamais pouvoir revenir dans le seul état
   // qui l'accepte. On aligne l'affichage sur la précondition réelle du
   // serveur plutôt que de laisser un bouton présent mais non câblé.
-  const isFlightRoleAllowed = (["super_admin", "manager", "agent_resa"] as readonly string[]).includes(profile.role)
+  const isFlightRoleAllowed = (
+    ["super_admin", "manager", "agent_resa"] as readonly string[]
+  ).includes(profile.role)
   // Arm A: normal path — reservation still PENDING (flight_bookings.status PENDING).
   // Arm B: re-issue path — flight_bookings.status FAILED with a live PNR at the GDS.
   const canFulfillFlight =
     detail.module === "flight" &&
     isFlightRoleAllowed &&
-    (
-      detail.status === "pending" ||
-      (
-        detail.flightDetail?.bookingStatus === "FAILED" &&
-        detail.flightDetail.pnr != null
-      )
-    )
+    (detail.status === "pending" ||
+      (detail.flightDetail?.bookingStatus === "FAILED" &&
+        detail.flightDetail.pnr != null))
 
   // PROVIDER-CONNECTIVITY-BRIDGE (P3/P4) : chemin B2B_OFFLINE, structurellement
   // séparé de canFulfillFlight — ne couvre que l'Arm A (PENDING). L'Arm B
@@ -88,9 +86,18 @@ export default async function AdminReservationDetailPage({
   const canVerifyPayment =
     detail.status === "pending" &&
     (MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)
-  const canRefund = (REFUND_ALLOWED_ROLES as readonly string[]).includes(profile.role)
-  const defaultManualMethod = detail.payments.some((p) => p.method === "transfer") ? "transfer" : "cash"
-  const voucherHref = isAdminReservationVoucherEligible(detail.module, detail.status)
+  const canRefund = (REFUND_ALLOWED_ROLES as readonly string[]).includes(
+    profile.role,
+  )
+  const defaultManualMethod = detail.payments.some(
+    (p) => p.method === "transfer",
+  )
+    ? "transfer"
+    : "cash"
+  const voucherHref = isAdminReservationVoucherEligible(
+    detail.module,
+    detail.status,
+  )
     ? `/api/admin/reservations/${detail.id}/voucher`
     : null
 
@@ -116,7 +123,10 @@ export default async function AdminReservationDetailPage({
             />
           ) : null}
           {canRefund ? (
-            <RefundButton reservationId={detail.id} refundableTnd={detail.paymentSummary.collectedTnd} />
+            <RefundButton
+              reservationId={detail.id}
+              refundableTnd={detail.paymentSummary.collectedTnd}
+            />
           ) : null}
         </>
       }

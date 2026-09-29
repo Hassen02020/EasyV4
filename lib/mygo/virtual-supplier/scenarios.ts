@@ -54,7 +54,9 @@ function normalize(raw: string | undefined | null): SimulationScenario {
     : "NORMAL"
 }
 
-let current: SimulationScenario = normalize(process.env.MYGO_SIMULATION_SCENARIO)
+let current: SimulationScenario = normalize(
+  process.env.MYGO_SIMULATION_SCENARIO,
+)
 
 export function getScenario(): SimulationScenario {
   return current

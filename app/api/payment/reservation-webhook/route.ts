@@ -43,8 +43,14 @@ import { type NextRequest, NextResponse } from "next/server"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
-import { verifySpsSignature, verifyStripeSignature } from "@/lib/payment/signing"
-import { verifyPaymeeChecksum, normalizePaymeeStatus } from "@/lib/payment/paymee-signing"
+import {
+  verifySpsSignature,
+  verifyStripeSignature,
+} from "@/lib/payment/signing"
+import {
+  verifyPaymeeChecksum,
+  normalizePaymeeStatus,
+} from "@/lib/payment/paymee-signing"
 import {
   normalizeSpsEvent,
   normalizeStripeEvent,
@@ -79,7 +85,9 @@ export async function POST(request: NextRequest) {
     const sig = request.headers.get("stripe-signature")
     signatureOk = verifyStripeSignature(bodyBuffer, sig, stripeSecret)
     if (!signatureOk) {
-      console.warn("[ReservationWebhook/Stripe] Signature invalide — requête rejetée")
+      console.warn(
+        "[ReservationWebhook/Stripe] Signature invalide — requête rejetée",
+      )
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
     let raw: unknown
@@ -90,7 +98,10 @@ export async function POST(request: NextRequest) {
     }
     const parsed = raw as { id?: unknown; type?: unknown }
     if (typeof parsed.id !== "string" || typeof parsed.type !== "string") {
-      return NextResponse.json({ error: "Invalid event shape" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid event shape" },
+        { status: 400 },
+      )
     }
     eventId = parsed.id
     eventType = parsed.type
@@ -104,20 +115,28 @@ export async function POST(request: NextRequest) {
     }
     let body: Record<string, string>
     try {
-      body = Object.fromEntries(new URLSearchParams(bodyBuffer.toString("utf8")))
+      body = Object.fromEntries(
+        new URLSearchParams(bodyBuffer.toString("utf8")),
+      )
     } catch {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 })
     }
     signatureOk = verifySpsSignature(body, spsSecret)
     if (!signatureOk) {
-      console.warn("[ReservationWebhook/SPS] Signature invalide — requête rejetée")
+      console.warn(
+        "[ReservationWebhook/SPS] Signature invalide — requête rejetée",
+      )
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
     rawPayload = body
     const spsType = body["event_type"] ?? body["status"] ?? "unknown"
     eventType = spsType
     charge = normalizeSpsEvent(body, spsType)
-    eventId = charge?.eventId ?? body["transaction_id"] ?? body["order_id"] ?? `sps-unknown-${Date.now()}`
+    eventId =
+      charge?.eventId ??
+      body["transaction_id"] ??
+      body["order_id"] ??
+      `sps-unknown-${Date.now()}`
   } else if (provider === "paymee") {
     // Paymee — voir lib/payment/paymee-provider.ts et paymee-signing.ts pour
     // l'avertissement complet sur le contrat non vérifié contre la doc
@@ -150,12 +169,17 @@ export async function POST(request: NextRequest) {
       apiKey: paymeeApiKey,
     })
     if (!signatureOk) {
-      console.warn("[ReservationWebhook/Paymee] check_sum invalide — requête rejetée")
+      console.warn(
+        "[ReservationWebhook/Paymee] check_sum invalide — requête rejetée",
+      )
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
     rawPayload = body
     const paymentStatus = normalizePaymeeStatus(body["payment_status"])
-    const paymeeEventType = paymentStatus === true ? "paymee.payment.success" : "paymee.payment.failed"
+    const paymeeEventType =
+      paymentStatus === true
+        ? "paymee.payment.success"
+        : "paymee.payment.failed"
     eventType = paymeeEventType
     charge = normalizePaymeeEvent(body, paymeeEventType)
     eventId = charge?.eventId ?? `paymee-${token}-${paymeeEventType}`
@@ -164,7 +188,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "Base de données non configurée" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Base de données non configurée" },
+      { status: 500 },
+    )
   }
 
   const result: WebhookOutcome = await withSystemContext((tx) =>
@@ -190,7 +217,10 @@ export async function POST(request: NextRequest) {
         actorUserId: "webhook",
       })
       if (!invoiceResult.ok) {
-        console.error("[ReservationWebhook] génération facture échouée", invoiceResult.error)
+        console.error(
+          "[ReservationWebhook] génération facture échouée",
+          invoiceResult.error,
+        )
       }
     } catch (err) {
       console.error(
@@ -200,8 +230,14 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const detail = await withSystemContext((tx) => loadConfirmedBookingDetail(tx, result.reservationId))
-      if (detail?.module === "hotel" && detail.customerEmail && detail.hotelName) {
+      const detail = await withSystemContext((tx) =>
+        loadConfirmedBookingDetail(tx, result.reservationId),
+      )
+      if (
+        detail?.module === "hotel" &&
+        detail.customerEmail &&
+        detail.hotelName
+      ) {
         await sendEvent("booking/confirmed", {
           reservationId: result.reservationId,
           publicRef: result.publicRef,

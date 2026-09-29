@@ -47,10 +47,12 @@ export async function recordReservationFinancials(
 ): Promise<{ commissionAmount: number }> {
   const { tx, reservationId, supplierPriceTnd, salePriceTnd } = input
   const marginAmount = salePriceTnd - supplierPriceTnd
-  const marginPercent = supplierPriceTnd > 0 ? (marginAmount / supplierPriceTnd) * 100 : 0
+  const marginPercent =
+    supplierPriceTnd > 0 ? (marginAmount / supplierPriceTnd) * 100 : 0
 
   const commissionRate = input.commissionPercent ?? 0
-  const commissionAmount = Math.round(marginAmount * (commissionRate / 100) * 100) / 100
+  const commissionAmount =
+    Math.round(marginAmount * (commissionRate / 100) * 100) / 100
 
   await tx.insert(reservationFinancials).values({
     reservationId,

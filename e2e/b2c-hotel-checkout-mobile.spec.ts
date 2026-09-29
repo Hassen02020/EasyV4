@@ -16,7 +16,10 @@ const WITH_TRAVELER =
 const PAGES = [
   { name: "booking-step1-summary", url: `/booking?d=${DRAFT_ONLY}` },
   { name: "booking-travelers", url: `/booking/travelers?d=${DRAFT_ONLY}` },
-  { name: "booking-checkout-payment", url: `/booking/checkout?d=${WITH_TRAVELER}` },
+  {
+    name: "booking-checkout-payment",
+    url: `/booking/checkout?d=${WITH_TRAVELER}`,
+  },
 ]
 
 for (const width of [320, 375, 390, 414, 768]) {

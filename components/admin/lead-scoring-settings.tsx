@@ -22,12 +22,19 @@ import {
   type LeadScoreSignal,
 } from "@/lib/crm/lead-scoring-core"
 
-export function LeadScoringSettings({ initial }: { initial: LeadScoreRuleMap }) {
+export function LeadScoringSettings({
+  initial,
+}: {
+  initial: LeadScoreRuleMap
+}) {
   const [rules, setRules] = useState<LeadScoreRuleMap>(initial)
   const [savingSignal, setSavingSignal] = useState<LeadScoreSignal | null>(null)
   const [, startTransition] = useTransition()
 
-  function updateLocal(signal: LeadScoreSignal, patch: Partial<{ points: number; isActive: boolean }>) {
+  function updateLocal(
+    signal: LeadScoreSignal,
+    patch: Partial<{ points: number; isActive: boolean }>,
+  ) {
     setRules((prev) => ({ ...prev, [signal]: { ...prev[signal], ...patch } }))
   }
 
@@ -35,7 +42,11 @@ export function LeadScoringSettings({ initial }: { initial: LeadScoreRuleMap }) 
     setSavingSignal(signal)
     const rule = rules[signal]
     startTransition(() => {
-      updateLeadScoreRule({ signal, points: rule.points, isActive: rule.isActive })
+      updateLeadScoreRule({
+        signal,
+        points: rule.points,
+        isActive: rule.isActive,
+      })
         .then((result) => {
           if (!result.ok) {
             toast.error(result.error)
@@ -56,8 +67,9 @@ export function LeadScoringSettings({ initial }: { initial: LeadScoreRuleMap }) 
           Pondération du score des demandes
         </CardTitle>
         <p className="text-muted-foreground text-xs">
-          4 signaux fixes, objectivement vérifiables sur chaque demande — le score est toujours la somme
-          transparente des signaux actifs qui matchent.
+          4 signaux fixes, objectivement vérifiables sur chaque demande — le
+          score est toujours la somme transparente des signaux actifs qui
+          matchent.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -65,11 +77,16 @@ export function LeadScoringSettings({ initial }: { initial: LeadScoreRuleMap }) 
           const rule = rules[signal]
           const saving = savingSignal === signal
           return (
-            <div key={signal} className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
+            <div
+              key={signal}
+              className="flex flex-wrap items-center gap-3 rounded-lg border p-3"
+            >
               <label className="flex flex-1 items-center gap-2 text-sm">
                 <Checkbox
                   checked={rule.isActive}
-                  onCheckedChange={(c) => updateLocal(signal, { isActive: c === true })}
+                  onCheckedChange={(c) =>
+                    updateLocal(signal, { isActive: c === true })
+                  }
                 />
                 {LEAD_SCORE_SIGNAL_LABELS[signal]}
               </label>
@@ -79,13 +96,26 @@ export function LeadScoringSettings({ initial }: { initial: LeadScoreRuleMap }) 
                 max={1000}
                 step={1}
                 value={rule.points}
-                onChange={(e) => updateLocal(signal, { points: Number.parseInt(e.target.value, 10) || 0 })}
+                onChange={(e) =>
+                  updateLocal(signal, {
+                    points: Number.parseInt(e.target.value, 10) || 0,
+                  })
+                }
                 className="w-24 text-right tabular-nums"
                 disabled={!rule.isActive}
               />
               <span className="text-muted-foreground text-xs">points</span>
-              <Button size="sm" variant="outline" onClick={() => save(signal)} disabled={saving}>
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => save(signal)}
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
               </Button>
             </div>
           )

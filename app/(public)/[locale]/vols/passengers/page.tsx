@@ -29,9 +29,11 @@ async function PassengersContent({ snapshotId }: { snapshotId: string }) {
 
   const itinerary = snapshot.itinerary as unknown as CanonicalItinerary
   const firstJourney = itinerary.journeys?.[0]
-  const lastJourney = itinerary.journeys?.[itinerary.journeys.length - 1] ?? firstJourney
+  const lastJourney =
+    itinerary.journeys?.[itinerary.journeys.length - 1] ?? firstJourney
   const firstSeg = firstJourney?.segments[0]
-  const lastSeg = lastJourney?.segments[lastJourney.segments.length - 1] ?? firstSeg
+  const lastSeg =
+    lastJourney?.segments[lastJourney.segments.length - 1] ?? firstSeg
 
   const origin = firstSeg?.origin ?? "—"
   const destination = lastSeg?.destination ?? "—"
@@ -54,7 +56,8 @@ async function PassengersContent({ snapshotId }: { snapshotId: string }) {
   })
 
   // Passenger count from adults + children metadata in itinerary (fallback to 1)
-  const passengerCount = (itinerary as unknown as { adults?: number; children?: number }).adults ?? 1
+  const passengerCount =
+    (itinerary as unknown as { adults?: number; children?: number }).adults ?? 1
   // G7: available ancillaries for this offer (prices are server-side, client only sends ids)
   const availableAncillaries: Ancillary[] = itinerary.ancillaries ?? []
 
@@ -83,7 +86,7 @@ export default async function PassengersPage({ searchParams }: Props) {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <div className="flex-1 bg-muted/30">
+      <div className="bg-muted/30 flex-1">
         <Suspense
           fallback={
             <main className="mx-auto flex max-w-3xl items-center justify-center px-4 py-24">

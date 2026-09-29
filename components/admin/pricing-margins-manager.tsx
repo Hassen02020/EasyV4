@@ -39,7 +39,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { upsertAgencyPricingMargin, type AdminMarginActionInput } from "@/lib/pro/margins-actions"
+import {
+  upsertAgencyPricingMargin,
+  type AdminMarginActionInput,
+} from "@/lib/pro/margins-actions"
 import type { PricingMargin } from "@/lib/db/schema"
 
 interface Agency {
@@ -61,7 +64,9 @@ const MODULE_LABELS: Record<string, string> = {
   transfer: "Transferts",
 }
 
-const ALL_MODULES = Object.keys(MODULE_LABELS) as AdminMarginActionInput["module"][]
+const ALL_MODULES = Object.keys(
+  MODULE_LABELS,
+) as AdminMarginActionInput["module"][]
 
 const EMPTY_FORM: AdminMarginActionInput = {
   agencyId: "",
@@ -79,7 +84,9 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
   const [isPending, startTransition] = useTransition()
 
   const displayed =
-    selectedAgency === "all" ? margins : margins.filter((m) => m.agencyId === selectedAgency)
+    selectedAgency === "all"
+      ? margins
+      : margins.filter((m) => m.agencyId === selectedAgency)
 
   function agencyName(id: string) {
     return agencies.find((a) => a.id === id)?.name ?? id.slice(0, 8) + "…"
@@ -104,7 +111,9 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
       toast.success("Marge enregistrée.")
       setDialogOpen(false)
       setMargins((prev) => {
-        const idx = prev.findIndex((m) => m.agencyId === form.agencyId && m.module === form.module)
+        const idx = prev.findIndex(
+          (m) => m.agencyId === form.agencyId && m.module === form.module,
+        )
         const updated: PricingMargin = {
           id: idx >= 0 ? prev[idx]!.id : result.id,
           agencyId: form.agencyId,
@@ -139,14 +148,18 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
         toast.error(result.error)
         return
       }
-      setMargins((prev) => prev.map((m) => (m.id === margin.id ? { ...m, isActive: !m.isActive } : m)))
+      setMargins((prev) =>
+        prev.map((m) =>
+          m.id === margin.id ? { ...m, isActive: !m.isActive } : m,
+        ),
+      )
       toast.success(margin.isActive ? "Marge désactivée." : "Marge activée.")
     })
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-4">
+      <div className="bg-card flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4">
         <div className="flex items-center gap-3">
           <Label className="text-sm font-medium">Agence :</Label>
           <Select value={selectedAgency} onValueChange={setSelectedAgency}>
@@ -180,7 +193,10 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
             <div className="grid gap-4 py-2">
               <div className="space-y-1.5">
                 <Label>Agence partenaire</Label>
-                <Select value={form.agencyId} onValueChange={(v) => setForm((f) => ({ ...f, agencyId: v }))}>
+                <Select
+                  value={form.agencyId}
+                  onValueChange={(v) => setForm((f) => ({ ...f, agencyId: v }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner…" />
                   </SelectTrigger>
@@ -199,7 +215,12 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                   <Label>Module</Label>
                   <Select
                     value={form.module}
-                    onValueChange={(v) => setForm((f) => ({ ...f, module: v as AdminMarginActionInput["module"] }))}
+                    onValueChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        module: v as AdminMarginActionInput["module"],
+                      }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -218,7 +239,12 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                   <Label>Type de marge</Label>
                   <Select
                     value={form.marginType}
-                    onValueChange={(v) => setForm((f) => ({ ...f, marginType: v as "percent" | "fixed" }))}
+                    onValueChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        marginType: v as "percent" | "fixed",
+                      }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -232,14 +258,21 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
               </div>
 
               <div className="space-y-1.5">
-                <Label>{form.marginType === "percent" ? "Marge %" : "Fixe (TND)"}</Label>
+                <Label>
+                  {form.marginType === "percent" ? "Marge %" : "Fixe (TND)"}
+                </Label>
                 <Input
                   type="number"
                   min={0}
                   max={form.marginType === "percent" ? 200 : undefined}
                   step={0.5}
                   value={form.marginValue}
-                  onChange={(e) => setForm((f) => ({ ...f, marginValue: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      marginValue: parseFloat(e.target.value) || 0,
+                    }))
+                  }
                 />
               </div>
 
@@ -248,7 +281,9 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                   type="checkbox"
                   id="margin-active"
                   checked={form.isActive}
-                  onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, isActive: e.target.checked }))
+                  }
                   className="h-4 w-4 rounded border-gray-300"
                 />
                 <label htmlFor="margin-active" className="text-sm">
@@ -260,7 +295,11 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button onClick={handleSave} disabled={isPending} className="gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={isPending}
+                className="gap-2"
+              >
                 <Check className="h-4 w-4" />
                 Enregistrer
               </Button>
@@ -269,7 +308,7 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
         </Dialog>
       </div>
 
-      <div className="rounded-xl border bg-card">
+      <div className="bg-card rounded-xl border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -284,10 +323,16 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
           <TableBody>
             {displayed.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="text-muted-foreground py-12 text-center"
+                >
                   <Percent className="mx-auto mb-2 h-8 w-8 opacity-30" />
                   Aucune marge configurée.{" "}
-                  <button onClick={() => openNew()} className="text-primary underline">
+                  <button
+                    onClick={() => openNew()}
+                    className="text-primary underline"
+                  >
                     Ajouter la première.
                   </button>
                 </TableCell>
@@ -295,10 +340,16 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
             ) : (
               displayed.map((margin) => (
                 <TableRow key={margin.id}>
-                  <TableCell className="font-medium">{agencyName(margin.agencyId)}</TableCell>
-                  <TableCell>{MODULE_LABELS[margin.module] ?? margin.module}</TableCell>
+                  <TableCell className="font-medium">
+                    {agencyName(margin.agencyId)}
+                  </TableCell>
+                  <TableCell>
+                    {MODULE_LABELS[margin.module] ?? margin.module}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {margin.marginType === "percent" ? "Pourcentage" : "Fixe (TND)"}
+                    {margin.marginType === "percent"
+                      ? "Pourcentage"
+                      : "Fixe (TND)"}
                   </TableCell>
                   <TableCell className="text-right">
                     {margin.marginType === "percent"
@@ -320,7 +371,7 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                       title={margin.isActive ? "Désactiver" : "Activer"}
                     >
                       {margin.isActive ? (
-                        <X className="h-3.5 w-3.5 text-destructive" />
+                        <X className="text-destructive h-3.5 w-3.5" />
                       ) : (
                         <Check className="h-3.5 w-3.5 text-emerald-600" />
                       )}

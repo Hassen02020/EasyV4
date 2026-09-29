@@ -33,7 +33,9 @@ export interface SendVoucherEmailInput {
  * Envoie l'email de voucher avec PDF en pièce jointe.
  * Throws on failure (retried par Inngest).
  */
-export async function sendVoucherEmail(input: SendVoucherEmailInput): Promise<void> {
+export async function sendVoucherEmail(
+  input: SendVoucherEmailInput,
+): Promise<void> {
   const {
     to,
     customerName,

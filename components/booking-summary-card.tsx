@@ -199,14 +199,20 @@ interface BookingCardProps {
    * ("Annulation acceptée" / "Frais configurés: X" / "Crédit Easy2Book: X")
    * — affichés tels quels, jamais reformulés.
    */
-  onCancel?: (bookingId: string) => Promise<{ ok: boolean; error?: string; messages?: string[] }>
+  onCancel?: (
+    bookingId: string,
+  ) => Promise<{ ok: boolean; error?: string; messages?: string[] }>
   /**
    * Avis client — même frontière que `onCancel` : `/compte`
    * (authentifié) seul le transmet, `/bookings` (lookup anonyme) ne le
    * fait jamais (soumettre un avis exige une session Supabase vérifiée,
    * pas juste ref+email — voir app/actions/submit-review.ts).
    */
-  onReview?: (bookingId: string, rating: number, comment: string) => Promise<{ ok: boolean; error?: string }>
+  onReview?: (
+    bookingId: string,
+    rating: number,
+    comment: string,
+  ) => Promise<{ ok: boolean; error?: string }>
 }
 
 export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
@@ -278,7 +284,9 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
   const canCancelOnline =
     Boolean(onCancel) &&
     (booking.module === "hotel" || isPolicyEngineModule) &&
-    (booking.status === "pending" || booking.status === "confirmed" || booking.status === "on_request")
+    (booking.status === "pending" ||
+      booking.status === "confirmed" ||
+      booking.status === "on_request")
 
   function handleConfirmCancel() {
     if (!onCancel) return
@@ -306,13 +314,13 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
   return (
     <div className="bg-card border-border overflow-hidden rounded-2xl border shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b bg-sidebar/3 px-5 py-4">
+      <div className="bg-sidebar/3 flex items-center justify-between gap-4 border-b px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar/10">
-            <ModuleIcon className="h-5 w-5 text-sidebar" />
+          <div className="bg-sidebar/10 flex h-10 w-10 items-center justify-center rounded-xl">
+            <ModuleIcon className="text-sidebar h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-medium text-sidebar">{moduleLabel}</p>
+            <p className="text-sidebar text-xs font-medium">{moduleLabel}</p>
             <p className="text-foreground font-mono text-lg font-bold tracking-wider">
               {booking.publicRef}
             </p>
@@ -325,7 +333,7 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
         {/* Destination/produit, dates, voyageurs — ticket E2B-004 */}
         {booking.product ? (
           <div className="bg-muted/40 flex flex-col gap-2 rounded-xl p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 font-medium text-foreground">
+            <div className="text-foreground flex items-center gap-2 font-medium">
               <MapPin className="text-muted-foreground h-4 w-4 shrink-0" />
               <span>{booking.product.label}</span>
             </div>
@@ -389,9 +397,12 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {booking.payment && (
                 <div className="text-sm">
-                  <p className="text-muted-foreground text-xs">{t("paymentMethodLabel")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("paymentMethodLabel")}
+                  </p>
                   <p className="text-foreground font-medium">
-                    {PAYMENT_METHOD_LABEL[booking.payment.method] ?? booking.payment.method}
+                    {PAYMENT_METHOD_LABEL[booking.payment.method] ??
+                      booking.payment.method}
                     {" — "}
                     <span
                       className={
@@ -402,16 +413,21 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                             : "text-amber-600"
                       }
                     >
-                      {PAYMENT_STATUS_LABEL[booking.payment.status] ?? booking.payment.status}
+                      {PAYMENT_STATUS_LABEL[booking.payment.status] ??
+                        booking.payment.status}
                     </span>
                   </p>
                 </div>
               )}
               {booking.status === "pending" && booking.paymentExpiresAt && (
                 <div className="text-sm">
-                  <p className="text-muted-foreground text-xs">{t("paymentDeadlineLabel")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("paymentDeadlineLabel")}
+                  </p>
                   <p className="text-foreground font-medium">
-                    {t("beforeDate", { date: formatDate(booking.paymentExpiresAt) })}
+                    {t("beforeDate", {
+                      date: formatDate(booking.paymentExpiresAt),
+                    })}
                   </p>
                 </div>
               )}
@@ -425,11 +441,17 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
           <div>
             <p className="text-muted-foreground text-xs">{t("montant")}</p>
             <p className="text-foreground text-xl font-bold">
-              {parseFloat(booking.tndAmount).toLocaleString(getIntlLocale(locale))} DT
+              {parseFloat(booking.tndAmount).toLocaleString(
+                getIntlLocale(locale),
+              )}{" "}
+              DT
             </p>
             {booking.originalCurrency !== "TND" && (
               <p className="text-muted-foreground text-xs">
-                ({parseFloat(booking.originalAmount).toLocaleString(getIntlLocale(locale))}{" "}
+                (
+                {parseFloat(booking.originalAmount).toLocaleString(
+                  getIntlLocale(locale),
+                )}{" "}
                 {booking.originalCurrency})
               </p>
             )}
@@ -468,7 +490,8 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 <span>
                   {t("cancellableColon")}{" "}
                   <span className="text-foreground font-medium">
-                    {booking.cancellationPolicy.cancellable && !booking.cancellationPolicy.nonRefundable
+                    {booking.cancellationPolicy.cancellable &&
+                    !booking.cancellationPolicy.nonRefundable
                       ? t("yes")
                       : t("no")}
                   </span>
@@ -485,7 +508,8 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                   <span>
                     {t("deadlineColon")}{" "}
                     <span className="text-foreground font-medium">
-                      {booking.cancellationPolicy.deadlineHours} {t("hoursUnit")}
+                      {booking.cancellationPolicy.deadlineHours}{" "}
+                      {t("hoursUnit")}
                     </span>
                   </span>
                 )}
@@ -503,7 +527,11 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
           {(() => {
             const voucherHref =
               booking.status === "confirmed" || booking.status === "completed"
-                ? voucherHrefForModule(booking.module, booking.publicRef, booking.guestAccessToken)
+                ? voucherHrefForModule(
+                    booking.module,
+                    booking.publicRef,
+                    booking.guestAccessToken,
+                  )
                 : null
             return voucherHref ? (
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
@@ -565,7 +593,12 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
             </Button>
           ) : (
             booking.status === "pending" && (
-              <Button variant="destructive" size="sm" className="ml-auto gap-1.5" disabled>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="ml-auto gap-1.5"
+                disabled
+              >
                 <XCircle className="h-4 w-4" />
                 {t("annuler")}
               </Button>
@@ -575,7 +608,9 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
 
         {canReview && reviewOpen && (
           <div className="border-border bg-muted/20 space-y-3 rounded-lg border p-3 text-sm">
-            <p className="text-foreground font-medium">{t("reviewFormTitle")}</p>
+            <p className="text-foreground font-medium">
+              {t("reviewFormTitle")}
+            </p>
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -602,7 +637,11 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
               className="min-h-20 text-sm"
               maxLength={2000}
             />
-            {reviewError && <p className="text-destructive text-xs font-medium">{reviewError}</p>}
+            {reviewError && (
+              <p className="text-destructive text-xs font-medium">
+                {reviewError}
+              </p>
+            )}
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -610,10 +649,19 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 onClick={handleSubmitReview}
                 disabled={reviewPending}
               >
-                {reviewPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+                {reviewPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Star className="h-4 w-4" />
+                )}
                 {t("sendReviewButton")}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setReviewOpen(false)} disabled={reviewPending}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setReviewOpen(false)}
+                disabled={reviewPending}
+              >
                 {t("annuler")}
               </Button>
             </div>
@@ -628,7 +676,9 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
             <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="space-y-0.5">
               {successMessages.map((m) => (
-                <p key={m} className="font-medium">{m}</p>
+                <p key={m} className="font-medium">
+                  {m}
+                </p>
               ))}
             </div>
           </div>
@@ -642,7 +692,11 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 ? t("cancelConfirmPolicyText")
                 : t("cancelConfirmHotelText")}
             </p>
-            {cancelError && <p className="text-destructive text-xs font-medium">{cancelError}</p>}
+            {cancelError && (
+              <p className="text-destructive text-xs font-medium">
+                {cancelError}
+              </p>
+            )}
             <div className="flex gap-2">
               <Button
                 variant="destructive"
@@ -651,7 +705,11 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
                 onClick={handleConfirmCancel}
                 disabled={pending}
               >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                {pending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
                 {t("confirmCancelButton")}
               </Button>
               <Button
@@ -692,17 +750,21 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
           </div>
         )}
 
-        {!canCancelOnline && (booking.status === "pending" || booking.status === "on_request") && (
-          <p className="text-muted-foreground text-xs">
-            {t.rich("cancelSoonAvailableNotice", {
-              phoneLink: (chunks) => (
-                <a href="tel:+21698140514" className="text-primary hover:underline">
-                  {chunks}
-                </a>
-              ),
-            })}
-          </p>
-        )}
+        {!canCancelOnline &&
+          (booking.status === "pending" || booking.status === "on_request") && (
+            <p className="text-muted-foreground text-xs">
+              {t.rich("cancelSoonAvailableNotice", {
+                phoneLink: (chunks) => (
+                  <a
+                    href="tel:+21698140514"
+                    className="text-primary hover:underline"
+                  >
+                    {chunks}
+                  </a>
+                ),
+              })}
+            </p>
+          )}
       </div>
     </div>
   )

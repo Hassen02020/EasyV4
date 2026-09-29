@@ -94,7 +94,7 @@ export function WalletStatus({
         <TooltipContent side="bottom">
           <p className="font-medium">Solde Wallet</p>
           {isLow && (
-            <p className="text-amber-600 text-xs">
+            <p className="text-xs text-amber-600">
               ⚠ Solde faible — rechargez avant la prochaine réservation
             </p>
           )}
@@ -139,7 +139,7 @@ export function WalletStatus({
             )}
           </div>
           <div>
-            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Solde Wallet
             </p>
             {error ? (
@@ -168,7 +168,7 @@ export function WalletStatus({
           {isLow && !isZero && (
             <Badge
               variant="outline"
-              className="border-amber-400 text-amber-700 text-xs"
+              className="border-amber-400 text-xs text-amber-700"
             >
               Solde faible
             </Badge>

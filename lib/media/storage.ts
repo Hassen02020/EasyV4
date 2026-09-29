@@ -61,23 +61,30 @@ function createSupabaseMediaStorage(): MediaStorageAdapter {
   return {
     backend: "supabase",
     async put(key, buffer, contentType) {
-      const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(key, buffer, {
-        contentType,
-        upsert: false,
-      })
+      const { error } = await supabase.storage
+        .from(MEDIA_BUCKET)
+        .upload(key, buffer, {
+          contentType,
+          upsert: false,
+        })
       if (error) {
-        throw new Error(`[media-storage] échec upload Supabase Storage (${key}): ${error.message}`)
+        throw new Error(
+          `[media-storage] échec upload Supabase Storage (${key}): ${error.message}`,
+        )
       }
     },
     async remove(keys) {
       if (keys.length === 0) return
       const { error } = await supabase.storage.from(MEDIA_BUCKET).remove(keys)
       if (error) {
-        throw new Error(`[media-storage] échec suppression Supabase Storage: ${error.message}`)
+        throw new Error(
+          `[media-storage] échec suppression Supabase Storage: ${error.message}`,
+        )
       }
     },
     getPublicUrl(key) {
-      return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(key).data.publicUrl
+      return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(key).data
+        .publicUrl
     },
   }
 }
@@ -117,8 +124,11 @@ function createLocalMediaStorage(): MediaStorageAdapter {
 /* -------------------------------------------------------------------------- */
 
 export function getMediaStorage(): MediaStorageAdapter {
-  const backend = process.env.MEDIA_STORAGE_BACKEND === "local" ? "local" : "supabase"
-  return backend === "local" ? createLocalMediaStorage() : createSupabaseMediaStorage()
+  const backend =
+    process.env.MEDIA_STORAGE_BACKEND === "local" ? "local" : "supabase"
+  return backend === "local"
+    ? createLocalMediaStorage()
+    : createSupabaseMediaStorage()
 }
 
 export { LOCAL_MEDIA_ROOT, MEDIA_BUCKET }

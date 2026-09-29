@@ -59,7 +59,11 @@ export function CurrencyProvider({
   /** Locale next-intl (fr/en/ar) pour le formatage numérique — indépendante de la devise elle-même. */
   locale?: string
 }) {
-  const currency = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const currency = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  )
 
   return (
     <CurrencyContext.Provider
@@ -67,7 +71,8 @@ export function CurrencyProvider({
         currency,
         setCurrency: setStoredCurrency,
         meta: CURRENCY_META[currency],
-        format: (amountTND: number) => formatCurrency(amountTND, currency, locale),
+        format: (amountTND: number) =>
+          formatCurrency(amountTND, currency, locale),
       }}
     >
       {children}

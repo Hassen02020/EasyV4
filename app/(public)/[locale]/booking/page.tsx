@@ -20,7 +20,7 @@ import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import { getIntlLocale } from "@/lib/i18n-date"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 type SP = { [k: string]: string | string[] | undefined }
 
@@ -151,7 +151,9 @@ export default async function BookingStep1Page({
                   <dl className="grid gap-3 sm:grid-cols-2">
                     <div className="flex items-center gap-2 text-sm">
                       <CalendarDays className="text-muted-foreground size-4" />
-                      <span className="text-muted-foreground">{t("fromLabel")}</span>
+                      <span className="text-muted-foreground">
+                        {t("fromLabel")}
+                      </span>
                       <span className="font-medium">
                         {formatDate(draft.startDate, locale)}
                       </span>
@@ -159,7 +161,9 @@ export default async function BookingStep1Page({
                     {draft.endDate ? (
                       <div className="flex items-center gap-2 text-sm">
                         <CalendarDays className="text-muted-foreground size-4" />
-                        <span className="text-muted-foreground">{t("toLabel")}</span>
+                        <span className="text-muted-foreground">
+                          {t("toLabel")}
+                        </span>
                         <span className="font-medium">
                           {formatDate(draft.endDate, locale)}
                         </span>
@@ -167,7 +171,9 @@ export default async function BookingStep1Page({
                     ) : null}
                     <div className="flex items-center gap-2 text-sm">
                       <Users className="text-muted-foreground size-4" />
-                      <span className="text-muted-foreground">{tc("voyageurs")}</span>
+                      <span className="text-muted-foreground">
+                        {tc("voyageurs")}
+                      </span>
                       <span className="font-medium">
                         {t("adultsCount", { n: draft.adults })}
                         {draft.children
@@ -178,7 +184,9 @@ export default async function BookingStep1Page({
                     {draft.module === "hotel" ? (
                       <div className="flex items-center gap-2 text-sm">
                         <Tag className="text-muted-foreground size-4" />
-                        <span className="text-muted-foreground">{t("durationLabel")}</span>
+                        <span className="text-muted-foreground">
+                          {t("durationLabel")}
+                        </span>
                         <span className="font-medium">
                           {t("nightsCount", { n: nights })}
                         </span>

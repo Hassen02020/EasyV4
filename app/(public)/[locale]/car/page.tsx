@@ -49,14 +49,24 @@ async function getCatalog() {
         db
           .select()
           .from(carLocations)
-          .where(and(eq(carLocations.agencyId, agencyId), eq(carLocations.status, "active")))
+          .where(
+            and(
+              eq(carLocations.agencyId, agencyId),
+              eq(carLocations.status, "active"),
+            ),
+          )
           .orderBy(carLocations.name),
       ),
       withSystemContext((db) =>
         db
           .select()
           .from(carCategories)
-          .where(and(eq(carCategories.agencyId, agencyId), eq(carCategories.status, "active")))
+          .where(
+            and(
+              eq(carCategories.agencyId, agencyId),
+              eq(carCategories.status, "active"),
+            ),
+          )
           .orderBy(carCategories.name),
       ),
     ])
@@ -85,7 +95,7 @@ export default async function CarPage({
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <ModuleHero
           Icon={Car}
           gradient="from-red-900 to-red-700"

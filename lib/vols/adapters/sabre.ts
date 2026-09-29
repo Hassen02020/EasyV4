@@ -4,7 +4,12 @@
  * SABRE_PCC are set. Supports Sabre REST (Bargain Finder Max / NDC).
  */
 
-import type { GdsAdapter, RecheckResult, BookResult, IssueResult } from "./types"
+import type {
+  GdsAdapter,
+  RecheckResult,
+  BookResult,
+  IssueResult,
+} from "./types"
 import type {
   CanonicalSearchRequest,
   CanonicalSearchResult,
@@ -24,7 +29,9 @@ export function createSabreAdapter(): GdsAdapter {
     name: "sabre",
     getConfigStatus: () => (isConfigured() ? "CONFIGURED" : "NOT_CONFIGURED"),
 
-    async search(_request: CanonicalSearchRequest): Promise<CanonicalSearchResult> {
+    async search(
+      _request: CanonicalSearchRequest,
+    ): Promise<CanonicalSearchResult> {
       throw new Error("Sabre adapter: not yet implemented.")
     },
 
@@ -40,7 +47,10 @@ export function createSabreAdapter(): GdsAdapter {
       throw new Error("Sabre adapter: book not yet implemented.")
     },
 
-    async issue(_pnr: string, _itinerary: CanonicalItinerary): Promise<IssueResult> {
+    async issue(
+      _pnr: string,
+      _itinerary: CanonicalItinerary,
+    ): Promise<IssueResult> {
       throw new Error("Sabre adapter: issue not yet implemented.")
     },
 

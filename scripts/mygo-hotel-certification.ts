@@ -51,7 +51,11 @@ import { applyMargin } from "@/lib/pro/pricing"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
-import { debitPartnerCredit, parseTnd as parseAgencyTnd, formatTnd } from "@/lib/pro/booking-actions"
+import {
+  debitPartnerCredit,
+  parseTnd as parseAgencyTnd,
+  formatTnd,
+} from "@/lib/pro/booking-actions"
 import { pgErrorCode } from "@/lib/db/pg-error"
 import type { BookingDraft, TravelerInput } from "@/lib/booking/schemas"
 import {
@@ -77,7 +81,10 @@ import {
   handleListCity,
   handleListBoarding,
 } from "@/lib/mygo/virtual-supplier/engine"
-import { setScenario, resetScenario } from "@/lib/mygo/virtual-supplier/scenarios"
+import {
+  setScenario,
+  resetScenario,
+} from "@/lib/mygo/virtual-supplier/scenarios"
 
 /* -------------------------------------------------------------------------- */
 /* nextPublicRef — répliqué depuis lib/booking/actions.ts pour éviter la       */
@@ -89,7 +96,13 @@ function _pad(n: number, w = 6) {
 }
 
 async function nextPublicRef(
-  db: ReturnType<typeof import("@/lib/db/client").getDb> | Parameters<Parameters<ReturnType<typeof import("@/lib/db/client").getDb>["transaction"]>[0]>[0],
+  db:
+    | ReturnType<typeof import("@/lib/db/client").getDb>
+    | Parameters<
+        Parameters<
+          ReturnType<typeof import("@/lib/db/client").getDb>["transaction"]
+        >[0]
+      >[0],
   agencyId: string,
 ): Promise<string> {
   const year = new Date().getFullYear()
@@ -97,7 +110,12 @@ async function nextPublicRef(
   const [row] = await (db as ReturnType<typeof import("@/lib/db/client").getDb>)
     .select({ maxRef: sql<string | null>`MAX(${reservations.publicRef})` })
     .from(reservations)
-    .where(and(eq(reservations.agencyId, agencyId), sql`${reservations.publicRef} LIKE ${prefix + "%"}`))
+    .where(
+      and(
+        eq(reservations.agencyId, agencyId),
+        sql`${reservations.publicRef} LIKE ${prefix + "%"}`,
+      ),
+    )
   const maxRef = row?.maxRef
   const max = maxRef ? Number(maxRef.slice(prefix.length)) : 0
   return `${prefix}${_pad(Number.isFinite(max) ? max + 1 : 1)}`
@@ -107,7 +125,12 @@ async function nextPublicRef(
 /* Harness                                                                      */
 /* -------------------------------------------------------------------------- */
 
-type Row = { id: string; label: string; status: "PASS" | "FAIL"; details: string }
+type Row = {
+  id: string
+  label: string
+  status: "PASS" | "FAIL"
+  details: string
+}
 const results: Row[] = []
 
 function record(id: string, label: string, ok: boolean, details: string) {
@@ -121,25 +144,31 @@ function assertTrue(cond: unknown, msg: string): void {
 }
 
 function assertClose(a: number, b: number, eps: number, msg: string): void {
-  if (Math.abs(a - b) > eps) throw new Error(`ASSERT: ${msg} — got ${a}, expected ~${b} (eps ${eps})`)
+  if (Math.abs(a - b) > eps)
+    throw new Error(`ASSERT: ${msg} — got ${a}, expected ~${b} (eps ${eps})`)
 }
 
 /* -------------------------------------------------------------------------- */
 /* Embedded Virtual MyGo HTTP server                                           */
 /* -------------------------------------------------------------------------- */
 
-type MethodHandler = (body: unknown) => unknown | Promise<{ status: number; json: unknown; delayMs?: number }>
+type MethodHandler = (
+  body: unknown,
+) => unknown | Promise<{ status: number; json: unknown; delayMs?: number }>
 
 const METHOD_MAP: Record<string, MethodHandler> = {
-  ListCity:             handleListCity,
-  ListBoarding:         handleListBoarding,
-  HotelSearch:          handleHotelSearch,
-  BookingCreation:      handleBookingCreation,
-  BookingCancellation:  handleBookingCancellation,
-  BookingList:          handleBookingList,
+  ListCity: handleListCity,
+  ListBoarding: handleListBoarding,
+  HotelSearch: handleHotelSearch,
+  BookingCreation: handleBookingCreation,
+  BookingCancellation: handleBookingCancellation,
+  BookingList: handleBookingList,
 }
 
-function startVirtualServer(): Promise<{ url: string; close: () => Promise<void> }> {
+function startVirtualServer(): Promise<{
+  url: string
+  close: () => Promise<void>
+}> {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
       const parts = (req.url ?? "").split("/")
@@ -149,7 +178,11 @@ function startVirtualServer(): Promise<{ url: string; close: () => Promise<void>
       req.on("data", (c: Buffer) => (body += c.toString()))
       req.on("end", async () => {
         let parsed: unknown = {}
-        try { parsed = JSON.parse(body || "{}") } catch { /* ignore */ }
+        try {
+          parsed = JSON.parse(body || "{}")
+        } catch {
+          /* ignore */
+        }
 
         const handler = METHOD_MAP[method]
         if (!handler) {
@@ -159,19 +192,34 @@ function startVirtualServer(): Promise<{ url: string; close: () => Promise<void>
         }
 
         try {
-          const result = await (handler as (b: unknown) => Promise<{ status: number; json: unknown; delayMs?: number }> | unknown)(parsed)
+          const result = await (
+            handler as (
+              b: unknown,
+            ) =>
+              | Promise<{ status: number; json: unknown; delayMs?: number }>
+              | unknown
+          )(parsed)
           let status = 200
           let json: unknown = result
           let delayMs = 0
 
-          if (result && typeof result === "object" && "json" in (result as object)) {
-            const r = result as { status: number; json: unknown; delayMs?: number }
+          if (
+            result &&
+            typeof result === "object" &&
+            "json" in (result as object)
+          ) {
+            const r = result as {
+              status: number
+              json: unknown
+              delayMs?: number
+            }
             status = r.status
             json = r.json
             delayMs = r.delayMs ?? 0
           }
 
-          if (delayMs > 0) await new Promise<void>(r => setTimeout(r, delayMs))
+          if (delayMs > 0)
+            await new Promise<void>((r) => setTimeout(r, delayMs))
 
           res.writeHead(status, { "Content-Type": "application/json" })
           res.end(JSON.stringify(json))
@@ -187,7 +235,10 @@ function startVirtualServer(): Promise<{ url: string; close: () => Promise<void>
       const url = `http://127.0.0.1:${addr.port}`
       resolve({
         url,
-        close: () => new Promise<void>((r, j) => server.close((err) => err ? j(err) : r())),
+        close: () =>
+          new Promise<void>((r, j) =>
+            server.close((err) => (err ? j(err) : r())),
+          ),
       })
     })
     server.on("error", reject)
@@ -206,8 +257,8 @@ function makeVirtualClient(baseUrl: string): MyGoClient {
     baseUrl,
     login: "cert-test-login",
     password: "cert-test-password",
-    timeoutMs: 500,     // < SIMULATED_TIMEOUT_DELAY_MS (3000ms) → vrai timeout pour S2
-    maxRetries: 0,      // pas de retry auto (les tests vérifient l'état exact)
+    timeoutMs: 500, // < SIMULATED_TIMEOUT_DELAY_MS (3000ms) → vrai timeout pour S2
+    maxRetries: 0, // pas de retry auto (les tests vérifient l'état exact)
     staticDataTtlSeconds: 0,
     searchTtlSeconds: 0,
   }
@@ -230,7 +281,13 @@ function makeAccess(client: MyGoClient): ResolvedMyGoAccess {
 /* Fixtures de draft / traveler                                                 */
 /* -------------------------------------------------------------------------- */
 
-function makeDraft(token: string, hotelId: number, cityId: number, roomId: number, boardingId: number): BookingDraft {
+function makeDraft(
+  token: string,
+  hotelId: number,
+  cityId: number,
+  roomId: number,
+  boardingId: number,
+): BookingDraft {
   return {
     module: "hotel",
     offerId: String(hotelId),
@@ -240,7 +297,7 @@ function makeDraft(token: string, hotelId: number, cityId: number, roomId: numbe
     adults: 2,
     children: 0,
     currency: "TND",
-    unitPriceTnd: 0,   // ignoré — authoritativeUnitPrice() remplace
+    unitPriceTnd: 0, // ignoré — authoritativeUnitPrice() remplace
     unitChildPriceTnd: 0,
     metadata: {
       myGoToken: token,
@@ -298,37 +355,69 @@ type BookReservationResult =
       myGoBookingId?: number
     }
 
-async function bookReservation(input: BookReservationInput): Promise<BookReservationResult> {
+async function bookReservation(
+  input: BookReservationInput,
+): Promise<BookReservationResult> {
   const { agencyId, draft, traveler, client } = input
   const access = makeAccess(client)
 
   // ---- 1. Confirm with provider ----
-  const providerMeta = extractHotelProviderMetadata(draft.metadata as Record<string, unknown>)
+  const providerMeta = extractHotelProviderMetadata(
+    draft.metadata as Record<string, unknown>,
+  )
   if (!providerMeta) return { ok: false, error: "NO_PROVIDER_META" }
 
   let myGoBooking
   try {
-    myGoBooking = await client.createBooking(buildMyGoBookingRequest({ draft, traveler, providerMeta }))
+    myGoBooking = await client.createBooking(
+      buildMyGoBookingRequest({ draft, traveler, providerMeta }),
+    )
   } catch (err) {
     const kind = classifyMyGoBookingError(err)
     if (isAmbiguousBookingError(kind)) {
       // Try reconciliation
       try {
-        const bookings = await client.listBookings({ hotel: providerMeta.hotelId, currency: "TND" })
+        const bookings = await client.listBookings({
+          hotel: providerMeta.hotelId,
+          currency: "TND",
+        })
         const mapped = bookings.map(mapBookingListItemToConfirmation)
         const reconciled = reconcileAmbiguousBooking(
-          mapped.map(b => ({ bookingId: b.bookingId, hotelId: b.hotelId, checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate, state: b.state ?? undefined, createdAt: undefined })),
-          { hotelId: providerMeta.hotelId ?? Number(draft.offerId), checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate },
+          mapped.map((b) => ({
+            bookingId: b.bookingId,
+            hotelId: b.hotelId,
+            checkIn: draft.startDate,
+            checkOut: draft.endDate ?? draft.startDate,
+            state: b.state ?? undefined,
+            createdAt: undefined,
+          })),
+          {
+            hotelId: providerMeta.hotelId ?? Number(draft.offerId),
+            checkIn: draft.startDate,
+            checkOut: draft.endDate ?? draft.startDate,
+          },
           Date.now(),
         )
         if (reconciled) {
-          const matched = mapped.find(b => b.bookingId === (reconciled as unknown as { bookingId: number }).bookingId)
-          if (matched) { myGoBooking = matched }
+          const matched = mapped.find(
+            (b) =>
+              b.bookingId ===
+              (reconciled as unknown as { bookingId: number }).bookingId,
+          )
+          if (matched) {
+            myGoBooking = matched
+          }
         }
-      } catch { /* reconciliation failed */ }
+      } catch {
+        /* reconciliation failed */
+      }
     }
     if (!myGoBooking) {
-      return { ok: false, error: String(err), kind: classifyMyGoBookingError(err) }
+      return {
+        ok: false,
+        error: String(err),
+        kind: classifyMyGoBookingError(err),
+      }
     }
   }
 
@@ -341,13 +430,25 @@ async function bookReservation(input: BookReservationInput): Promise<BookReserva
     try {
       await client.cancelBooking({ bookingId: myGoBooking.bookingId })
       compensated = true
-    } catch { /* best-effort */ }
-    return { ok: false, error: "SIMULATED_DB_FAILURE", compensated, myGoBookingId: myGoBooking.bookingId }
+    } catch {
+      /* best-effort */
+    }
+    return {
+      ok: false,
+      error: "SIMULATED_DB_FAILURE",
+      compensated,
+      myGoBookingId: myGoBooking.bookingId,
+    }
   }
 
   // ---- 3. Apply margin ----
   // Use DEFAULT_MARGINS (10% percent for hotel) — no DB margin lookup needed in test
-  const hotelMarginRule = { marginType: "percent" as const, marginValue: 10, isActive: true, commissionPercent: 5 }
+  const hotelMarginRule = {
+    marginType: "percent" as const,
+    marginValue: 10,
+    isActive: true,
+    commissionPercent: 5,
+  }
   const agencyHotelPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
   const breakdown = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyHotelPrice, draft.adults),
@@ -385,40 +486,58 @@ async function bookReservation(input: BookReservationInput): Promise<BookReserva
       if (customerRow) {
         customerId = customerRow.id
       } else {
-        const [existing] = await tx.select({ id: customers.id }).from(customers)
-          .where(and(eq(customers.agencyId, agencyId), eq(customers.email, traveler.email!)))
+        const [existing] = await tx
+          .select({ id: customers.id })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.agencyId, agencyId),
+              eq(customers.email, traveler.email!),
+            ),
+          )
           .limit(1)
         customerId = existing!.id
       }
 
       const publicRef = await nextPublicRef(tx, agencyId)
 
-      let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
+      let inserted: {
+        id: string
+        publicRef: string
+        guestAccessToken: string
+      }[]
       try {
         inserted = await tx.transaction((tx2) =>
-          tx2.insert(reservations).values({
-            agencyId,
-            publicRef,
-            customerId,
-            module: draft.module,
-            source: "internal",
-            status: "pending",
-            originalCurrency: draft.currency,
-            originalAmount: String(breakdown.totalTnd),
-            tndAmount: String(breakdown.totalTnd),
-            depositAmount: String(breakdown.depositTnd),
-            depositPaid: "0",
-            guestIdempotencyKey: idempotencyKey,
-            providerPayload: {
-              offerId: draft.offerId,
-              startDate: draft.startDate,
-              endDate: draft.endDate,
-              adults: draft.adults,
-              children: draft.children,
-              myGoBookingId: myGoBooking!.bookingId,
-              myGoState: myGoBooking!.state ?? null,
-            },
-          }).returning({ id: reservations.id, publicRef: reservations.publicRef, guestAccessToken: reservations.guestAccessToken }),
+          tx2
+            .insert(reservations)
+            .values({
+              agencyId,
+              publicRef,
+              customerId,
+              module: draft.module,
+              source: "internal",
+              status: "pending",
+              originalCurrency: draft.currency,
+              originalAmount: String(breakdown.totalTnd),
+              tndAmount: String(breakdown.totalTnd),
+              depositAmount: String(breakdown.depositTnd),
+              depositPaid: "0",
+              guestIdempotencyKey: idempotencyKey,
+              providerPayload: {
+                offerId: draft.offerId,
+                startDate: draft.startDate,
+                endDate: draft.endDate,
+                adults: draft.adults,
+                children: draft.children,
+                myGoBookingId: myGoBooking!.bookingId,
+                myGoState: myGoBooking!.state ?? null,
+              },
+            })
+            .returning({
+              id: reservations.id,
+              publicRef: reservations.publicRef,
+              guestAccessToken: reservations.guestAccessToken,
+            }),
         )
       } catch (err) {
         if (pgErrorCode(err) === "23505") return { conflict: true as const }
@@ -480,14 +599,22 @@ async function bookReservation(input: BookReservationInput): Promise<BookReserva
         createdByUserId: CERT_USER_ID,
         reservationId,
         idempotencyKey: `cert-debit:${reservationId}`,
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+        txOverride: tx as Parameters<
+          typeof debitPartnerCredit
+        >[0]["txOverride"],
       })
 
-      if (!debitResult.ok) throw new Error(`DEBIT_FAILED:${debitResult.message}`)
+      if (!debitResult.ok)
+        throw new Error(`DEBIT_FAILED:${debitResult.message}`)
 
       // confirm reservation
-      await tx.update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+      await tx
+        .update(reservations)
+        .set({
+          status: "confirmed",
+          confirmedAt: new Date(),
+          updatedAt: new Date(),
+        })
         .where(eq(reservations.id, reservationId))
 
       await tx.insert(payments).values({
@@ -525,28 +652,51 @@ async function bookReservation(input: BookReservationInput): Promise<BookReserva
 /* Cancel replication                                                           */
 /* -------------------------------------------------------------------------- */
 
-async function cancelReservation(agencyId: string, reservationId: string, client: MyGoClient): Promise<{
-  ok: boolean; feeTnd: number; refundTnd: number; error?: string
+async function cancelReservation(
+  agencyId: string,
+  reservationId: string,
+  client: MyGoClient,
+): Promise<{
+  ok: boolean
+  feeTnd: number
+  refundTnd: number
+  error?: string
 }> {
   // Fetch providerBookingId
-  const row = await withTenantContext({ agencyId, userId: CERT_USER_ID, isSuperAdmin: false }, async (tx) => {
-    const [r] = await tx.select({
-      providerBookingId: reservationHotel.providerBookingId,
-      tndAmount: reservations.tndAmount,
-    })
-      .from(reservations)
-      .leftJoin(reservationHotel, eq(reservationHotel.reservationId, reservations.id))
-      .where(eq(reservations.id, reservationId))
-      .limit(1)
-    return r ?? null
-  })
+  const row = await withTenantContext(
+    { agencyId, userId: CERT_USER_ID, isSuperAdmin: false },
+    async (tx) => {
+      const [r] = await tx
+        .select({
+          providerBookingId: reservationHotel.providerBookingId,
+          tndAmount: reservations.tndAmount,
+        })
+        .from(reservations)
+        .leftJoin(
+          reservationHotel,
+          eq(reservationHotel.reservationId, reservations.id),
+        )
+        .where(eq(reservations.id, reservationId))
+        .limit(1)
+      return r ?? null
+    },
+  )
 
-  if (!row?.providerBookingId) return { ok: false, feeTnd: 0, refundTnd: 0, error: "NO_PROVIDER_BOOKING_ID" }
+  if (!row?.providerBookingId)
+    return {
+      ok: false,
+      feeTnd: 0,
+      refundTnd: 0,
+      error: "NO_PROVIDER_BOOKING_ID",
+    }
 
   // Cancel at provider
   let feeTnd = 0
   try {
-    const cancellation = await client.cancelBooking({ bookingId: Number(row.providerBookingId), currency: "TND" })
+    const cancellation = await client.cancelBooking({
+      bookingId: Number(row.providerBookingId),
+      currency: "TND",
+    })
     feeTnd = cancellation.fee
   } catch (err) {
     return { ok: false, feeTnd: 0, refundTnd: 0, error: String(err) }
@@ -556,53 +706,60 @@ async function cancelReservation(agencyId: string, reservationId: string, client
   const refundTnd = Math.max(0, tndAmount - feeTnd)
   const cancelledAt = new Date()
 
-  await withTenantContext({ agencyId, userId: CERT_USER_ID, isSuperAdmin: false }, async (tx) => {
-    if (refundTnd >= 0.001) {
-      const [agency] = await tx.select({ id: agencies.id, depositBalance: agencies.depositBalance })
-        .from(agencies)
-        .where(eq(agencies.id, agencyId))
-        .for("update")
+  await withTenantContext(
+    { agencyId, userId: CERT_USER_ID, isSuperAdmin: false },
+    async (tx) => {
+      if (refundTnd >= 0.001) {
+        const [agency] = await tx
+          .select({ id: agencies.id, depositBalance: agencies.depositBalance })
+          .from(agencies)
+          .where(eq(agencies.id, agencyId))
+          .for("update")
 
-      const currentBalance = parseAgencyTnd(agency!.depositBalance)
-      const newBalance = currentBalance + refundTnd
-      const newBalanceTnd = formatTnd(newBalance)
+        const currentBalance = parseAgencyTnd(agency!.depositBalance)
+        const newBalance = currentBalance + refundTnd
+        const newBalanceTnd = formatTnd(newBalance)
 
-      await tx.insert(partnerCreditMovements).values({
-        agencyId,
-        movementType: "refund",
-        amount: formatTnd(refundTnd),
-        balanceAfter: newBalanceTnd,
-        reference: `REFUND-CERT-${reservationId.slice(-8)}`,
-        description: `Remboursement annulation cert (frais: ${formatTnd(feeTnd)} DT)`,
+        await tx.insert(partnerCreditMovements).values({
+          agencyId,
+          movementType: "refund",
+          amount: formatTnd(refundTnd),
+          balanceAfter: newBalanceTnd,
+          reference: `REFUND-CERT-${reservationId.slice(-8)}`,
+          description: `Remboursement annulation cert (frais: ${formatTnd(feeTnd)} DT)`,
+          reservationId,
+          createdByUserId: CERT_USER_ID,
+        })
+
+        await tx.execute(
+          sql`SELECT set_agency_deposit_balance(${agencyId}::uuid, ${newBalanceTnd}::numeric)`,
+        )
+      }
+
+      await recordCancellationFinancials({
+        tx,
         reservationId,
-        createdByUserId: CERT_USER_ID,
+        cancellationFeeTnd: feeTnd,
+        refundAmountTnd: refundTnd,
+        reason: "Annulation certification E2E",
+        cancelledAt,
       })
 
-      await tx.execute(sql`SELECT set_agency_deposit_balance(${agencyId}::uuid, ${newBalanceTnd}::numeric)`)
-    }
+      await tx
+        .update(reservations)
+        .set({ status: "cancelled", cancelledAt })
+        .where(eq(reservations.id, reservationId))
 
-    await recordCancellationFinancials({
-      tx,
-      reservationId,
-      cancellationFeeTnd: feeTnd,
-      refundAmountTnd: refundTnd,
-      reason: "Annulation certification E2E",
-      cancelledAt,
-    })
-
-    await tx.update(reservations)
-      .set({ status: "cancelled", cancelledAt })
-      .where(eq(reservations.id, reservationId))
-
-    await tx.insert(auditEvents).values({
-      agencyId,
-      actorUserId: CERT_USER_ID,
-      entityType: "reservation",
-      entityId: reservationId,
-      action: "reservation.cancelled",
-      diff: { feeTnd, refundTnd },
-    })
-  })
+      await tx.insert(auditEvents).values({
+        agencyId,
+        actorUserId: CERT_USER_ID,
+        entityType: "reservation",
+        entityId: reservationId,
+        action: "reservation.cancelled",
+        diff: { feeTnd, refundTnd },
+      })
+    },
+  )
 
   return { ok: true, feeTnd, refundTnd }
 }
@@ -613,7 +770,8 @@ async function cancelReservation(agencyId: string, reservationId: string, client
 
 async function getFinancials(reservationId: string) {
   return withSystemContext(async (tx) => {
-    const [row] = await tx.select()
+    const [row] = await tx
+      .select()
       .from(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))
       .limit(1)
@@ -622,27 +780,44 @@ async function getFinancials(reservationId: string) {
 }
 
 async function getReservationStatus(agencyId: string, reservationId: string) {
-  return withTenantContext({ agencyId, userId: CERT_USER_ID, isSuperAdmin: false }, async (tx) => {
-    const [row] = await tx.select({ status: reservations.status, tndAmount: reservations.tndAmount })
-      .from(reservations)
-      .where(eq(reservations.id, reservationId))
-      .limit(1)
-    return row ?? null
-  })
+  return withTenantContext(
+    { agencyId, userId: CERT_USER_ID, isSuperAdmin: false },
+    async (tx) => {
+      const [row] = await tx
+        .select({
+          status: reservations.status,
+          tndAmount: reservations.tndAmount,
+        })
+        .from(reservations)
+        .where(eq(reservations.id, reservationId))
+        .limit(1)
+      return row ?? null
+    },
+  )
 }
 
 async function getAgencyBalance(agencyId: string): Promise<number> {
   const [row] = await withSystemContext(async (tx) =>
-    tx.select({ depositBalance: agencies.depositBalance }).from(agencies).where(eq(agencies.id, agencyId)).limit(1)
+    tx
+      .select({ depositBalance: agencies.depositBalance })
+      .from(agencies)
+      .where(eq(agencies.id, agencyId))
+      .limit(1),
   )
   return parseAgencyTnd(row!.depositBalance)
 }
 
 async function getWalletLedgerEntry(reservationId: string) {
   return withSystemContext(async (tx) => {
-    const [row] = await tx.select()
+    const [row] = await tx
+      .select()
       .from((await import("@/lib/db/schema")).walletLedger)
-      .where(eq((await import("@/lib/db/schema")).walletLedger.reservationId, reservationId))
+      .where(
+        eq(
+          (await import("@/lib/db/schema")).walletLedger.reservationId,
+          reservationId,
+        ),
+      )
       .limit(1)
     return row ?? null
   })
@@ -652,7 +827,14 @@ async function getWalletLedgerEntry(reservationId: string) {
 /* Scenario helpers                                                             */
 /* -------------------------------------------------------------------------- */
 
-async function doSearch(client: MyGoClient): Promise<{ token: string; hotelId: number; cityId: number; roomId: number; boardingId: number; price: number } | null> {
+async function doSearch(client: MyGoClient): Promise<{
+  token: string
+  hotelId: number
+  cityId: number
+  roomId: number
+  boardingId: number
+  price: number
+} | null> {
   const raw = await client.searchHotels({
     cityId: 1,
     checkIn: "2026-10-15",
@@ -685,12 +867,15 @@ async function doSearch(client: MyGoClient): Promise<{ token: string; hotelId: n
 async function setupCertAgency(): Promise<{ agencyId: string }> {
   const slug = `cert-mygo-${Date.now()}`
   const [agency] = await withSystemContext(async (tx) =>
-    tx.insert(agencies).values({
-      slug,
-      name: "MyGo Certification Agency",
-      agencyType: "partner",
-      depositBalance: "5000.000",  // 5000 TND — suffisant pour couvrir les réservations de test
-    }).returning({ id: agencies.id })
+    tx
+      .insert(agencies)
+      .values({
+        slug,
+        name: "MyGo Certification Agency",
+        agencyType: "partner",
+        depositBalance: "5000.000", // 5000 TND — suffisant pour couvrir les réservations de test
+      })
+      .returning({ id: agencies.id }),
   )
   return { agencyId: agency!.id }
 }
@@ -698,7 +883,9 @@ async function setupCertAgency(): Promise<{ agencyId: string }> {
 async function teardownCertAgency(agencyId: string): Promise<void> {
   // Pas de suppression — NEVER DELETE FINANCIAL TRANSACTIONS.
   // On laisse les données de certification avec le slug cert-mygo-* pour inspection.
-  console.log(`\n[teardown] Agence de certification conservée pour inspection : ${agencyId}`)
+  console.log(
+    `\n[teardown] Agence de certification conservée pour inspection : ${agencyId}`,
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -726,60 +913,145 @@ async function main() {
 
   try {
     const search = await doSearch(client)
-    record("S1.search", "NORMAL: HotelSearch renvoie au moins un hôtel disponible", !!search, search ? `hotelId=${search.hotelId} price=${search.price}` : "aucun résultat")
+    record(
+      "S1.search",
+      "NORMAL: HotelSearch renvoie au moins un hôtel disponible",
+      !!search,
+      search
+        ? `hotelId=${search.hotelId} price=${search.price}`
+        : "aucun résultat",
+    )
 
     if (search) {
-      const draft = makeDraft(search.token, search.hotelId, search.cityId, search.roomId, search.boardingId)
+      const draft = makeDraft(
+        search.token,
+        search.hotelId,
+        search.cityId,
+        search.roomId,
+        search.boardingId,
+      )
       const balanceBefore = await getAgencyBalance(agencyId)
 
-      const bookResult = await bookReservation({ agencyId, draft, traveler: TEST_TRAVELER, client })
-      record("S1.confirm", "NORMAL: BookingCreation réussie", bookResult.ok, bookResult.ok ? `id=${bookResult.reservationId} myGoId=${bookResult.myGoBookingId}` : (bookResult as { error: string }).error)
+      const bookResult = await bookReservation({
+        agencyId,
+        draft,
+        traveler: TEST_TRAVELER,
+        client,
+      })
+      record(
+        "S1.confirm",
+        "NORMAL: BookingCreation réussie",
+        bookResult.ok,
+        bookResult.ok
+          ? `id=${bookResult.reservationId} myGoId=${bookResult.myGoBookingId}`
+          : (bookResult as { error: string }).error,
+      )
 
       if (bookResult.ok) {
         // Vérifier statut DB
-        const status = await getReservationStatus(agencyId, bookResult.reservationId)
-        record("S1.status", "NORMAL: réservation confirmée en DB", status?.status === "confirmed", `status=${status?.status}`)
+        const status = await getReservationStatus(
+          agencyId,
+          bookResult.reservationId,
+        )
+        record(
+          "S1.status",
+          "NORMAL: réservation confirmée en DB",
+          status?.status === "confirmed",
+          `status=${status?.status}`,
+        )
 
         // Vérifier financials
         const fin = await getFinancials(bookResult.reservationId)
-        record("S1.financials.exists", "NORMAL: reservation_financials créé", !!fin, fin ? `supplierPrice=${fin.supplierPriceTnd} salePrice=${fin.salePriceTnd}` : "absent")
+        record(
+          "S1.financials.exists",
+          "NORMAL: reservation_financials créé",
+          !!fin,
+          fin
+            ? `supplierPrice=${fin.supplierPriceTnd} salePrice=${fin.salePriceTnd}`
+            : "absent",
+        )
 
         if (fin) {
-          const margin = parseFloat(fin.salePriceTnd!) - parseFloat(fin.supplierPriceTnd!)
-          const expectedMargin = parseFloat(fin.salePriceTnd!) - parseFloat(fin.supplierPriceTnd!)
-          record("S1.financials.margin", "NORMAL: marginAmount = salePrice - supplierPrice", Math.abs(parseFloat(fin.marginAmount!) - expectedMargin) < TND_EPS,
-            `margin=${fin.marginAmount} computed=${margin.toFixed(2)}`)
+          const margin =
+            parseFloat(fin.salePriceTnd!) - parseFloat(fin.supplierPriceTnd!)
+          const expectedMargin =
+            parseFloat(fin.salePriceTnd!) - parseFloat(fin.supplierPriceTnd!)
+          record(
+            "S1.financials.margin",
+            "NORMAL: marginAmount = salePrice - supplierPrice",
+            Math.abs(parseFloat(fin.marginAmount!) - expectedMargin) < TND_EPS,
+            `margin=${fin.marginAmount} computed=${margin.toFixed(2)}`,
+          )
 
           const rate = parseFloat(fin.commissionPercent ?? "0")
-          const expectedComm = Math.round(parseFloat(fin.marginAmount!) * (rate / 100) * 100) / 100
-          record("S1.financials.commission", "NORMAL: commissionAmount = ROUND(margin×rate/100, 2)", Math.abs(parseFloat(fin.commissionAmount!) - expectedComm) < TND_EPS,
-            `commission=${fin.commissionAmount} expected=${expectedComm} rate=${rate}`)
+          const expectedComm =
+            Math.round(parseFloat(fin.marginAmount!) * (rate / 100) * 100) / 100
+          record(
+            "S1.financials.commission",
+            "NORMAL: commissionAmount = ROUND(margin×rate/100, 2)",
+            Math.abs(parseFloat(fin.commissionAmount!) - expectedComm) <
+              TND_EPS,
+            `commission=${fin.commissionAmount} expected=${expectedComm} rate=${rate}`,
+          )
         }
 
         // Vérifier débit wallet
         const balanceAfter = await getAgencyBalance(agencyId)
         const amountDebited = balanceBefore - balanceAfter
-        record("S1.wallet.debit", "NORMAL: wallet débité du prix agence", amountDebited > 0 && Math.abs(amountDebited - parseFloat(status?.tndAmount ?? "0")) < TND_EPS,
-          `before=${balanceBefore.toFixed(3)} after=${balanceAfter.toFixed(3)} debited=${amountDebited.toFixed(3)}`)
+        record(
+          "S1.wallet.debit",
+          "NORMAL: wallet débité du prix agence",
+          amountDebited > 0 &&
+            Math.abs(amountDebited - parseFloat(status?.tndAmount ?? "0")) <
+              TND_EPS,
+          `before=${balanceBefore.toFixed(3)} after=${balanceAfter.toFixed(3)} debited=${amountDebited.toFixed(3)}`,
+        )
 
         // Annulation
-        const cancelResult = await cancelReservation(agencyId, bookResult.reservationId, client)
-        record("S1.cancel", "NORMAL: annulation myGo réussie", cancelResult.ok, cancelResult.ok ? `fee=${cancelResult.feeTnd} refund=${cancelResult.refundTnd}` : cancelResult.error ?? "")
+        const cancelResult = await cancelReservation(
+          agencyId,
+          bookResult.reservationId,
+          client,
+        )
+        record(
+          "S1.cancel",
+          "NORMAL: annulation myGo réussie",
+          cancelResult.ok,
+          cancelResult.ok
+            ? `fee=${cancelResult.feeTnd} refund=${cancelResult.refundTnd}`
+            : (cancelResult.error ?? ""),
+        )
 
         if (cancelResult.ok) {
-          const statusAfterCancel = await getReservationStatus(agencyId, bookResult.reservationId)
-          record("S1.cancel.status", "NORMAL: réservation annulée en DB", statusAfterCancel?.status === "cancelled", `status=${statusAfterCancel?.status}`)
+          const statusAfterCancel = await getReservationStatus(
+            agencyId,
+            bookResult.reservationId,
+          )
+          record(
+            "S1.cancel.status",
+            "NORMAL: réservation annulée en DB",
+            statusAfterCancel?.status === "cancelled",
+            `status=${statusAfterCancel?.status}`,
+          )
 
           const finAfterCancel = await getFinancials(bookResult.reservationId)
-          record("S1.cancel.financials", "NORMAL: cancellationFee enregistré dans reservation_financials",
-            finAfterCancel?.cancellationFee !== null && finAfterCancel?.refundAmount !== null,
-            `fee=${finAfterCancel?.cancellationFee} refund=${finAfterCancel?.refundAmount}`)
+          record(
+            "S1.cancel.financials",
+            "NORMAL: cancellationFee enregistré dans reservation_financials",
+            finAfterCancel?.cancellationFee !== null &&
+              finAfterCancel?.refundAmount !== null,
+            `fee=${finAfterCancel?.cancellationFee} refund=${finAfterCancel?.refundAmount}`,
+          )
 
           const balanceAfterRefund = await getAgencyBalance(agencyId)
           const refundApplied = balanceAfterRefund - balanceAfter
-          record("S1.cancel.refund", "NORMAL: wallet recrédité du refundAmount",
-            cancelResult.refundTnd === 0 || Math.abs(refundApplied - cancelResult.refundTnd) < TND_EPS,
-            `refundTnd=${cancelResult.refundTnd} applied=${refundApplied.toFixed(3)}`)
+          record(
+            "S1.cancel.refund",
+            "NORMAL: wallet recrédité du refundAmount",
+            cancelResult.refundTnd === 0 ||
+              Math.abs(refundApplied - cancelResult.refundTnd) < TND_EPS,
+            `refundTnd=${cancelResult.refundTnd} applied=${refundApplied.toFixed(3)}`,
+          )
         }
       }
     }
@@ -803,26 +1075,61 @@ async function main() {
     })()
 
     if (!search) {
-      record("S2.search", "TIMEOUT_AFTER_ACCEPT: search disponible", false, "aucun résultat")
+      record(
+        "S2.search",
+        "TIMEOUT_AFTER_ACCEPT: search disponible",
+        false,
+        "aucun résultat",
+      )
     } else {
-      const draft = makeDraft(search.token, search.hotelId, search.cityId, search.roomId, search.boardingId)
+      const draft = makeDraft(
+        search.token,
+        search.hotelId,
+        search.cityId,
+        search.roomId,
+        search.boardingId,
+      )
 
       // bookReservation va obtenir un MyGoTimeoutError (timeoutMs=500 < delayMs=3000)
       // puis appeler reconcileAmbiguousBooking via listBookings → doit trouver la réservation
-      const bookResult = await bookReservation({ agencyId, draft, traveler: { ...TEST_TRAVELER, email: `cert-timeout-${Date.now()}@example.com` }, client })
+      const bookResult = await bookReservation({
+        agencyId,
+        draft,
+        traveler: {
+          ...TEST_TRAVELER,
+          email: `cert-timeout-${Date.now()}@example.com`,
+        },
+        client,
+      })
 
-      record("S2.reconcile", "TIMEOUT_AFTER_ACCEPT: booking réconcilié via BookingList", bookResult.ok,
-        bookResult.ok ? `myGoId=${bookResult.myGoBookingId} supplierPrice=${bookResult.supplierPriceTnd}` : `error=${("error" in bookResult ? bookResult.error : "")} kind=${("kind" in bookResult ? bookResult.kind : "")}`)
+      record(
+        "S2.reconcile",
+        "TIMEOUT_AFTER_ACCEPT: booking réconcilié via BookingList",
+        bookResult.ok,
+        bookResult.ok
+          ? `myGoId=${bookResult.myGoBookingId} supplierPrice=${bookResult.supplierPriceTnd}`
+          : `error=${"error" in bookResult ? bookResult.error : ""} kind=${"kind" in bookResult ? bookResult.kind : ""}`,
+      )
 
       if (bookResult.ok) {
         const fin = await getFinancials(bookResult.reservationId)
-        record("S2.reconcile.financials", "TIMEOUT_AFTER_ACCEPT: financials enregistrés après réconciliation",
+        record(
+          "S2.reconcile.financials",
+          "TIMEOUT_AFTER_ACCEPT: financials enregistrés après réconciliation",
           !!fin && parseFloat(fin.supplierPriceTnd!) > 0,
-          fin ? `supplierPrice=${fin.supplierPriceTnd} commission=${fin.commissionAmount}` : "absent")
+          fin
+            ? `supplierPrice=${fin.supplierPriceTnd} commission=${fin.commissionAmount}`
+            : "absent",
+        )
       }
     }
   } catch (err) {
-    record("S2.error", "TIMEOUT_AFTER_ACCEPT: exception inattendue", false, String(err))
+    record(
+      "S2.error",
+      "TIMEOUT_AFTER_ACCEPT: exception inattendue",
+      false,
+      String(err),
+    )
   }
 
   /* ======================================================================== */
@@ -835,37 +1142,79 @@ async function main() {
     const search = await doSearch(client)
 
     if (!search) {
-      record("S3.search", "DB_FAILURE: search disponible", false, "aucun résultat")
+      record(
+        "S3.search",
+        "DB_FAILURE: search disponible",
+        false,
+        "aucun résultat",
+      )
     } else {
-      const draft = makeDraft(search.token, search.hotelId, search.cityId, search.roomId, search.boardingId)
+      const draft = makeDraft(
+        search.token,
+        search.hotelId,
+        search.cityId,
+        search.roomId,
+        search.boardingId,
+      )
 
       // On demande au harness de forcer le DB_FAILURE après confirmation myGo
-      const bookResult = await bookReservation({ agencyId, draft, traveler: { ...TEST_TRAVELER, email: `cert-dbfail-${Date.now()}@example.com` }, client, forceDbFailure: true })
+      const bookResult = await bookReservation({
+        agencyId,
+        draft,
+        traveler: {
+          ...TEST_TRAVELER,
+          email: `cert-dbfail-${Date.now()}@example.com`,
+        },
+        client,
+        forceDbFailure: true,
+      })
 
-      record("S3.fail", "DB_FAILURE: bookReservation renvoie ok=false après DB failure",
-        !bookResult.ok && ("error" in bookResult) && bookResult.error === "SIMULATED_DB_FAILURE",
-        !bookResult.ok ? `error=${("error" in bookResult ? bookResult.error : "")}` : "inattendu ok=true")
+      record(
+        "S3.fail",
+        "DB_FAILURE: bookReservation renvoie ok=false après DB failure",
+        !bookResult.ok &&
+          "error" in bookResult &&
+          bookResult.error === "SIMULATED_DB_FAILURE",
+        !bookResult.ok
+          ? `error=${"error" in bookResult ? bookResult.error : ""}`
+          : "inattendu ok=true",
+      )
 
-      record("S3.compensated", "DB_FAILURE: myGo booking annulé en compensation (best-effort)",
-        !bookResult.ok && "compensated" in bookResult && bookResult.compensated === true,
-        !bookResult.ok && "myGoBookingId" in bookResult ? `myGoBookingId=${bookResult.myGoBookingId} compensated=${("compensated" in bookResult ? bookResult.compensated : false)}` : "")
+      record(
+        "S3.compensated",
+        "DB_FAILURE: myGo booking annulé en compensation (best-effort)",
+        !bookResult.ok &&
+          "compensated" in bookResult &&
+          bookResult.compensated === true,
+        !bookResult.ok && "myGoBookingId" in bookResult
+          ? `myGoBookingId=${bookResult.myGoBookingId} compensated=${"compensated" in bookResult ? bookResult.compensated : false}`
+          : "",
+      )
 
       // Vérifier qu'aucune réservation locale n'a été créée (zombiecheck)
-      if (!bookResult.ok && "myGoBookingId" in bookResult && bookResult.myGoBookingId) {
+      if (
+        !bookResult.ok &&
+        "myGoBookingId" in bookResult &&
+        bookResult.myGoBookingId
+      ) {
         const zombieCheck = await withSystemContext(async (tx) => {
-          const rows = await tx.select({ id: reservations.id })
+          const rows = await tx
+            .select({ id: reservations.id })
             .from(reservations)
             .where(
               and(
                 eq(reservations.agencyId, agencyId),
-                sql`provider_payload->>'myGoBookingId' = ${String(bookResult.myGoBookingId)}`
-              )
+                sql`provider_payload->>'myGoBookingId' = ${String(bookResult.myGoBookingId)}`,
+              ),
             )
           return rows
         })
-        record("S3.no_zombie", "DB_FAILURE: aucune réservation zombie en DB pour ce myGoBookingId",
+        record(
+          "S3.no_zombie",
+          "DB_FAILURE: aucune réservation zombie en DB pour ce myGoBookingId",
           zombieCheck.length === 0,
-          `found=${zombieCheck.length} zombie(s)`)
+          `found=${zombieCheck.length} zombie(s)`,
+        )
       }
     }
   } catch (err) {
@@ -883,24 +1232,56 @@ async function main() {
 
   try {
     if (!searchForS4) {
-      record("S4.precondition", "NO_AVAILABILITY: token de recherche disponible", false, "aucun résultat en NORMAL")
+      record(
+        "S4.precondition",
+        "NO_AVAILABILITY: token de recherche disponible",
+        false,
+        "aucun résultat en NORMAL",
+      )
     } else {
-      const draft = makeDraft(searchForS4.token, searchForS4.hotelId, searchForS4.cityId, searchForS4.roomId, searchForS4.boardingId)
+      const draft = makeDraft(
+        searchForS4.token,
+        searchForS4.hotelId,
+        searchForS4.cityId,
+        searchForS4.roomId,
+        searchForS4.boardingId,
+      )
       const balanceBefore = await getAgencyBalance(agencyId)
 
-      const bookResult = await bookReservation({ agencyId, draft, traveler: { ...TEST_TRAVELER, email: `cert-noavail-${Date.now()}@example.com` }, client })
+      const bookResult = await bookReservation({
+        agencyId,
+        draft,
+        traveler: {
+          ...TEST_TRAVELER,
+          email: `cert-noavail-${Date.now()}@example.com`,
+        },
+        client,
+      })
 
-      record("S4.rejected", "NO_AVAILABILITY: bookReservation renvoie ok=false",
+      record(
+        "S4.rejected",
+        "NO_AVAILABILITY: bookReservation renvoie ok=false",
         !bookResult.ok,
-        !bookResult.ok ? `error=${("error" in bookResult ? bookResult.error.slice(0, 100) : "")} kind=${("kind" in bookResult ? bookResult.kind : "")}` : "inattendu ok=true")
+        !bookResult.ok
+          ? `error=${"error" in bookResult ? bookResult.error.slice(0, 100) : ""} kind=${"kind" in bookResult ? bookResult.kind : ""}`
+          : "inattendu ok=true",
+      )
 
       const balanceAfter = await getAgencyBalance(agencyId)
-      record("S4.no_debit", "NO_AVAILABILITY: aucun débit wallet effectué",
+      record(
+        "S4.no_debit",
+        "NO_AVAILABILITY: aucun débit wallet effectué",
         Math.abs(balanceBefore - balanceAfter) < TND_EPS,
-        `before=${balanceBefore.toFixed(3)} after=${balanceAfter.toFixed(3)}`)
+        `before=${balanceBefore.toFixed(3)} after=${balanceAfter.toFixed(3)}`,
+      )
     }
   } catch (err) {
-    record("S4.error", "NO_AVAILABILITY: exception inattendue", false, String(err))
+    record(
+      "S4.error",
+      "NO_AVAILABILITY: exception inattendue",
+      false,
+      String(err),
+    )
   }
 
   /* ======================================================================== */
@@ -911,17 +1292,22 @@ async function main() {
   await server.close()
 
   console.log("\n=== RAPPORT FINAL ===\n")
-  const fails = results.filter(r => r.status === "FAIL")
-  const passes = results.filter(r => r.status === "PASS")
-  console.log(`${passes.length} PASS  |  ${fails.length} FAIL  |  ${results.length} total`)
+  const fails = results.filter((r) => r.status === "FAIL")
+  const passes = results.filter((r) => r.status === "PASS")
+  console.log(
+    `${passes.length} PASS  |  ${fails.length} FAIL  |  ${results.length} total`,
+  )
 
   if (fails.length > 0) {
     console.log("\nÉCHECS :")
-    for (const f of fails) console.log(`  ❌ [${f.id}] ${f.label}\n     ${f.details}`)
+    for (const f of fails)
+      console.log(`  ❌ [${f.id}] ${f.label}\n     ${f.details}`)
   }
 
   const exitCode = fails.length > 0 ? 1 : 0
-  console.log(`\nExit ${exitCode === 0 ? "0 — CERTIFICATION OK ✅" : "1 — CERTIFICATION KO ❌"}`)
+  console.log(
+    `\nExit ${exitCode === 0 ? "0 — CERTIFICATION OK ✅" : "1 — CERTIFICATION KO ❌"}`,
+  )
   process.exit(exitCode)
 }
 

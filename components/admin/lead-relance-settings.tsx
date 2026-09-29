@@ -17,7 +17,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { updateLeadRelanceSettings } from "@/lib/admin/lead-relance-actions"
 import type { LeadRelanceSettingsValue } from "@/lib/crm/lead-relance-core"
 
-export function LeadRelanceSettings({ initial }: { initial: LeadRelanceSettingsValue }) {
+export function LeadRelanceSettings({
+  initial,
+}: {
+  initial: LeadRelanceSettingsValue
+}) {
   const [settings, setSettings] = useState<LeadRelanceSettingsValue>(initial)
   const [saving, setSaving] = useState(false)
   const [, startTransition] = useTransition()
@@ -46,8 +50,9 @@ export function LeadRelanceSettings({ initial }: { initial: LeadRelanceSettingsV
           Relance des demandes
         </CardTitle>
         <p className="text-muted-foreground text-xs">
-          Signale les demandes restées « Nouveau » (jamais contactées) au-delà du délai — visible dans la
-          liste ci-dessous, jamais un envoi automatique au client.
+          Signale les demandes restées « Nouveau » (jamais contactées) au-delà
+          du délai — visible dans la liste ci-dessous, jamais un envoi
+          automatique au client.
         </p>
       </CardHeader>
       <CardContent>
@@ -55,7 +60,9 @@ export function LeadRelanceSettings({ initial }: { initial: LeadRelanceSettingsV
           <label className="flex flex-1 items-center gap-2 text-sm">
             <Checkbox
               checked={settings.isEnabled}
-              onCheckedChange={(c) => setSettings((s) => ({ ...s, isEnabled: c === true }))}
+              onCheckedChange={(c) =>
+                setSettings((s) => ({ ...s, isEnabled: c === true }))
+              }
             />
             Activer la relance
           </label>
@@ -66,14 +73,23 @@ export function LeadRelanceSettings({ initial }: { initial: LeadRelanceSettingsV
             step={1}
             value={settings.thresholdDays}
             onChange={(e) =>
-              setSettings((s) => ({ ...s, thresholdDays: Number.parseInt(e.target.value, 10) || 1 }))
+              setSettings((s) => ({
+                ...s,
+                thresholdDays: Number.parseInt(e.target.value, 10) || 1,
+              }))
             }
             className="w-24 text-right tabular-nums"
             disabled={!settings.isEnabled}
           />
-          <span className="text-muted-foreground text-xs">jours sans contact</span>
+          <span className="text-muted-foreground text-xs">
+            jours sans contact
+          </span>
           <Button size="sm" variant="outline" onClick={save} disabled={saving}>
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
           </Button>
         </div>
       </CardContent>

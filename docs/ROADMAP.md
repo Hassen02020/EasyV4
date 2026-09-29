@@ -38,7 +38,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ```text
 ID: (aucun — en attente de proposition du prochain chantier)
-Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03 et R7-03 CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont clos ; R7-03 (P3/P4, gouvernance) traité aussi. Prochain chantier à proposer un par un, un GO à la fois.
+Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03 et R7-01 CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont clos ; R7-01/R7-03 (P3/P4, gouvernance) traités aussi. Prochain chantier à proposer un par un, un GO à la fois.
 Branche: (aucune)
 ```
 
@@ -106,7 +106,17 @@ Fiche chantier présentée avec 2 options (câbler les flags réellement vs. les
 
 Preuves : changement limité à `.env.example` (aucun fichier applicatif touché) ; CI verte (`typecheck`/`lint`/`test`/`build`, `format` en échec attendu/documenté comme d'habitude). PR : https://github.com/Hassen02020/EasyV4/pull/57 (mergée).
 
-**Phase 7 (Honnêteté Commerce & Supply) — bilan** : R7-01 (`CREATE`, gap confirmé — registre de capacités par module absent, pas de chantier lancé, P3 non urgent), R7-02 (`REUSE partiel`, badge démo visible NOT VERIFIED — revue visuelle requise, pas de chantier lancé), R7-03 (fait ci-dessus), R7-04/R7-05 (`FIX` différé — décision produit déjà prise en session précédente de ne pas brancher de 2e fournisseur hôtel aujourd'hui). Aucun gap P0/P1/P2 sur cette phase (tous P2-P4 avec décision de différer déjà actée, sauf R7-03 désormais clos).
+### R7-01 — CLÔTURÉ (2026-09-29)
+
+Gap confirmé (aucune constante `IMPLEMENTED/CERTIFIED/PARTIAL/SCAFFOLDED/NOT_WIRED` dans `lib/**`). Pendant l'audit, dérive concrète constatée : `EASYV4_CAR_DECISION.md` affirmait le module Car "couche application : 0%", alors que `lib/cars/actions.ts::createCarBooking`, `lib/cars/guest-booking-actions.ts` et `app/(public)/[locale]/car/search/page.tsx` existent déjà et fonctionnent réellement (`/car/search` ne renvoie plus de 404) — preuve que la doc humaine seule dérive silencieusement.
+
+Correction : nouveau `lib/modules/capabilities.ts`, registre unique en code pour les 8 modules de réservation (statut `REAL`/`DEMO`/`SEARCH_ONLY`/`NOT_WIRED` + note + fichier de preuve), et nouveau test statique `capabilities-consistency.test.ts` qui échoue si le `bookingActionFile` déclaré disparaît, ou si le `demoSupplierFile` d'un module `DEMO` ne porte plus le signal `isDemoMode`/driver `"virtual"` — pas une déclaration qui peut dériver sans être détectée.
+
+État vérifié (audit code direct, pas de supposition) : Hôtels Tunisie/Omra/Packages/Activités/Transferts/**Car** = `REAL` (booking réel) ; Vols/**Hôtels Monde** = `DEMO` (booking réel, fournisseur de recherche simulé). Point notable : Hôtels Monde a été reclassé `DEMO` (et non `SEARCH_ONLY` comme supposé initialement) après vérification de `lib/hotels-monde/guest-booking-actions.ts` — un vrai pipeline de réservation existe, seul le fournisseur de recherche est simulé, exactement comme Vols ; confirmé avec l'utilisateur avant implémentation (`AskUserQuestion`). `EASYV4_CAR_DECISION.md` corrigé (note en tête, historique conservé).
+
+Preuves : `typecheck`/`lint` verts ; `pnpm test` 1080/1080 (dont 11 nouveaux tests de cohérence) ; `build` vert (GitHub Actions — un déploiement Vercel preview non lié à la CI requise, projet `claudegolive`, a échoué en parallèle avec `BUILD_UTILS_SPAWN_1` ; logs inaccessibles en session, 403 hors scope Vercel ; non bloquant, pas un check requis, écarté après confirmation que le `build` GitHub Actions — qui rejoue exactement la même commande avec les mêmes secrets placeholder — était vert). PR : https://github.com/Hassen02020/EasyV4/pull/58 (mergée).
+
+**Phase 7 (Honnêteté Commerce & Supply) — bilan** : R7-01 (fait ci-dessus), R7-02 (`REUSE partiel`, badge démo visible NOT VERIFIED — revue visuelle requise, pas de chantier lancé), R7-03 (fait plus haut), R7-04/R7-05 (`FIX` différé — décision produit déjà prise en session précédente de ne pas brancher de 2e fournisseur hôtel aujourd'hui). Aucun gap P0/P1/P2 sur cette phase ; R7-01 et R7-03 désormais clos, R7-02 nécessite juste une revue visuelle (pas un chantier de code), R7-04/R7-05 différés par décision déjà actée.
 
 ---
 
@@ -248,7 +258,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 | ID | Chantier | État audit | Critère de sortie |
 |---|---|---|---|
-| R7-01 | Registre de capacités par module | **CREATE — gap confirmé** — VERIFIED : aucune constante `IMPLEMENTED/CERTIFIED/PARTIAL/SCAFFOLDED/NOT_WIRED` trouvée nulle part dans `lib/**`. Seule doc humaine (`EASYV4_CAR_DECISION.md`, `docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md`) porte cette information, rien de programmatique. | À créer |
+| R7-01 | Registre de capacités par module | **DONE (2026-09-29, PR #58)** — VERIFIED : `lib/modules/capabilities.ts` (8 modules, statut `REAL`/`DEMO`/`SEARCH_ONLY`/`NOT_WIRED` + preuve fichier), vérifié par un test statique (`capabilities-consistency.test.ts`) qui échoue si la preuve disparaît. Dérive concrète détectée et corrigée pendant ce chantier : `EASYV4_CAR_DECISION.md` affirmait le module Car à "0% application", alors que `lib/cars/actions.ts::createCarBooking` existe déjà. | Atteint |
 | R7-02 | Modules non câblés affichés « Bientôt », non réservables | **REUSE (partiel)** — VERIFIED sur `components/pro/pro-module-tabs.tsx` (label "Bientôt disponible" + `disabled: true` réel, pas cosmétique). **Mais** : Vols et Hôtels Monde exposent un flux de réservation complet (PNR/confirmation) adossé à un fournisseur 100% virtuel, étiqueté `isDemo` côté UI (VERIFIED props transmises) — badge visible à l'écran NOT VERIFIED (revue visuelle requise). | Confirmer visuellement le badge démo ; étendre le pattern "Bientôt" si besoin |
 | R7-03 | Mocks isolés, désactivés en prod | **DONE (2026-09-29, PR #57, option B)** — VERIFIED : les 9 `FEATURE_*` (`HOTELS_TUNISIE/HOTELS_MONDE/VOLS/OMRA/PACKAGES/TRANSFERTS/CAR/YIELD_ENGINE/INVENTORY_LOCKS/WALLET_B2B`) sont documentés dans `.env.example` mais 0 occurrence `process.env.FEATURE_*` dans le code applicatif (reconfirmé sur `main` avant correction) — aucun flag n'est techniquement lu, le gating réel est un `disabled: true` en dur par module (`pro-module-tabs.tsx`). Choix : documentation-only (commentaire explicite "RÉSERVÉ, NON CÂBLÉ" ajouté), pas de câblage réel — proportionné à un gap P3/P4, aucun changement de comportement. | Atteint |
 | R7-04 | Couche Connector/Adapter générique | **FIX — gap P2 confirmé** — VERIFIED `lib/booking/hotel-provider-booking.ts` et `lib/booking/actions.ts` sont 100% spécifiques myGo (`MyGoClient`, `MyGoBookingErrorKind` en dur), n'utilisent PAS le Hub générique existant (`lib/hotel-suppliers/core/orchestration.ts`) qui ne couvre que la recherche, pas le booking. Migration vers un 2e fournisseur hôtel réel nécessiterait une réécriture, pas une extension. | Différé — pas de second fournisseur réel à brancher aujourd'hui (déjà tranché par l'utilisateur en session précédente) |

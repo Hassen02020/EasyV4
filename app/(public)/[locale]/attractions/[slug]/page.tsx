@@ -34,6 +34,8 @@ import { ProductReviewsSection } from "@/components/reviews/product-reviews-sect
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { getCrossSellActivities } from "@/lib/destinations/cross-sell"
+import { NearbyActivities } from "@/components/attractions/nearby-activities"
 
 function formatDate(d: string | Date | null, intlLocale: string): string {
   if (!d) return "—"
@@ -137,6 +139,10 @@ export default async function ActivityDetailPage({
   const t = await getTranslations("Attractions")
   const locale = await getLocale()
   const intlLocale = getIntlLocale(locale)
+
+  const nearbyActivities = activity.location
+    ? (await getCrossSellActivities(activity.location)).filter((a) => a.id !== activity.id)
+    : []
 
   const priceTnd = sessions[0] ? parseFloat(sessions[0].adultPriceTnd) : null
 
@@ -296,8 +302,9 @@ export default async function ActivityDetailPage({
           </aside>
         </div>
 
-        <div className="mx-auto max-w-4xl px-4 pb-8">
+        <div className="mx-auto max-w-4xl space-y-6 px-4 pb-8">
           <ProductReviewsSection agencyId={activity.agencyId} module="activity" productRef={activity.id} />
+          <NearbyActivities activities={nearbyActivities} />
         </div>
       </main>
       <Footer />

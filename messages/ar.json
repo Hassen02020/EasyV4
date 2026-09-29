@@ -744,7 +744,8 @@
     "processing": "جارٍ المعالجة…",
     "mustAcceptCgv": "يجب عليك الموافقة على الشروط والأحكام العامة للبيع.",
     "mustAcceptPolicy": "يجب عليك الموافقة على سياسة الإلغاء.",
-    "unknownError": "خطأ غير معروف"
+    "unknownError": "خطأ غير معروف",
+    "nearbyActivitiesTitle": "أنشطة قريبة"
   },
   "Vols": {
     "kicker": "وحدة الرحلات الجوية",

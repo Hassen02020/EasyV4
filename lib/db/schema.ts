@@ -23,6 +23,7 @@
 
 import { sql } from "drizzle-orm"
 import { marginType, walletTxType } from "./schema/financials"
+import { supplierNodes } from "./schema/supplier-portal"
 import {
   bigint,
   boolean,
@@ -93,6 +94,12 @@ export const reservationModule = pgEnum("reservation_module", [
   "omra",
   "car",
   "hotel_monde",
+  /** ECON-PILOT-01 : réservation d'un produit canonique `products` porté par
+   * un supplier_node (Network), distincte de "activity" (catalogue agence
+   * classique `catalog_activities`) pour ne jamais confondre les deux
+   * origines dans le reporting/dashboards — même principe que "hotel_monde"
+   * vs "hotel" (drizzle/manual/0051). */
+  "network",
 ])
 
 export const reservationSource = pgEnum("reservation_source", [
@@ -706,6 +713,38 @@ export const reservationActivity = pgTable(
   (t) => [
     index("res_activity_agency_idx").on(t.agencyId),
     index("res_activity_session_idx").on(t.sessionId, t.sessionDate),
+  ],
+)
+
+/* ----- Network Product extension (ECON-PILOT-01) --------------------------
+ * Réservation d'un produit CANONIQUE `products` porté par un supplier_node
+ * (Network) — distincte de `reservation_activity` (catalogue agence
+ * `catalog_activities`) : réutiliser cette dernière aurait conflaté deux
+ * origines de données différentes (canonique vs catalogue historique) sous
+ * un même `activityId` par convention, ambigu pour tout lecteur futur.
+ * Nouvelle table minimale, volontairement étroite (scope du pilote =
+ * prouver la chaîne, pas construire un système de réservation générique
+ * complet — pas de sessions/disponibilité, contrairement à
+ * reservation_activity). */
+export const reservationNetworkProduct = pgTable(
+  "reservation_network_product",
+  {
+    reservationId: uuid("reservation_id")
+      .primaryKey()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    supplierNodeId: uuid("supplier_node_id")
+      .notNull()
+      .references(() => supplierNodes.id, { onDelete: "restrict" }),
+    /** Quantité réservée (pas de distinction adulte/enfant au stade pilote). */
+    quantity: integer("quantity").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("res_network_product_product_idx").on(t.productId),
+    index("res_network_product_supplier_node_idx").on(t.supplierNodeId),
   ],
 )
 
@@ -1988,6 +2027,30 @@ export const products = pgTable(
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "cascade" }),
+    /**
+     * ECON-PILOT-01 : nœud fournisseur réseau (supplier_nodes) propriétaire
+     * réel de ce produit, quand il vient du Network plutôt que du catalogue
+     * agence classique. `null` pour tout produit non-Network (comportement
+     * inchangé — cette colonne est additive et ne modifie aucune ligne
+     * existante). Un produit Network garde `agencyId` = agence OTA par
+     * défaut (`getDefaultAgencyId()`, même précédent que le guest checkout
+     * B2C sans agence réelle) plutôt qu'un `agencyId` nullable — évite de
+     * relâcher la contrainte NOT NULL sur une table déjà partitionnée par
+     * agence.
+     */
+    supplierNodeId: uuid("supplier_node_id").references(() => supplierNodes.id, {
+      onDelete: "set null",
+    }),
+    /**
+     * ECON-PILOT-01 : coût fournisseur réel (HT), distinct du prix de vente.
+     * `null` = pas de coût connu séparément (comportement historique
+     * inchangé pour tout produit créé avant ce chantier). Le prix de vente
+     * n'est JAMAIS stocké ici — il est dérivé à la réservation via
+     * `lib/finance/margin-calculator.ts` (Système B, déjà réel), jamais une
+     * deuxième formule de marge.
+     */
+    costPrice: decimal("cost_price", { precision: 14, scale: 3 }),
+    costCurrency: varchar("cost_currency", { length: 3 }),
     /** SKU unique par agence */
     sku: varchar("sku", { length: 64 }).notNull(),
     /** Type de produit discriminant */

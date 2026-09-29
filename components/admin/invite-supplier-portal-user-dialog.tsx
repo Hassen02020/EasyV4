@@ -68,7 +68,13 @@ export function InviteSupplierPortalUserDialog({ nodeId }: { nodeId: string }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setError(null)
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className="gap-1.5">
           <UserPlus className="h-4 w-4" />
@@ -79,7 +85,8 @@ export function InviteSupplierPortalUserDialog({ nodeId }: { nodeId: string }) {
         <DialogHeader>
           <DialogTitle>Inviter un utilisateur portail</DialogTitle>
           <DialogDescription>
-            Un email d&apos;invitation Supabase sera envoyé pour la création du mot de passe.
+            Un email d&apos;invitation Supabase sera envoyé pour la création du
+            mot de passe.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,7 +123,11 @@ export function InviteSupplierPortalUserDialog({ nodeId }: { nodeId: string }) {
           )}
           <DialogFooter>
             <Button type="submit" disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
               Envoyer l&apos;invitation
             </Button>
           </DialogFooter>

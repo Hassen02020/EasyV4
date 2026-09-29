@@ -36,7 +36,14 @@ import {
 import { createSupplierNodeAction } from "@/lib/suppliers/portal-actions"
 import type { SupplierRow } from "@/lib/suppliers/list-suppliers"
 
-const MODULE_OPTIONS = ["hotel", "flight", "package", "transfer", "activity", "omra"]
+const MODULE_OPTIONS = [
+  "hotel",
+  "flight",
+  "package",
+  "transfer",
+  "activity",
+  "omra",
+]
 
 export function CreateSupplierNodeDialog({
   availableSuppliers,
@@ -54,7 +61,9 @@ export function CreateSupplierNodeDialog({
   const [isPending, startTransition] = useTransition()
 
   function toggleModule(m: string) {
-    setModules((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
+    setModules((prev) =>
+      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
+    )
   }
 
   function reset() {
@@ -89,9 +98,19 @@ export function CreateSupplierNodeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) reset()
+      }}
+    >
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5" disabled={availableSuppliers.length === 0}>
+        <Button
+          size="sm"
+          className="gap-1.5"
+          disabled={availableSuppliers.length === 0}
+        >
           <Plus className="h-4 w-4" />
           Créer un nœud
         </Button>
@@ -100,14 +119,19 @@ export function CreateSupplierNodeDialog({
         <DialogHeader>
           <DialogTitle>Créer un nœud fournisseur</DialogTitle>
           <DialogDescription>
-            Rattache un fournisseur technique existant au réseau (identité, contact, modules
-            couverts). Le portail reste désactivé jusqu&apos;à validation.
+            Rattache un fournisseur technique existant au réseau (identité,
+            contact, modules couverts). Le portail reste désactivé jusqu&apos;à
+            validation.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="node-supplier">Fournisseur technique</Label>
-            <Select value={supplierId} onValueChange={setSupplierId} disabled={isPending}>
+            <Select
+              value={supplierId}
+              onValueChange={setSupplierId}
+              disabled={isPending}
+            >
               <SelectTrigger id="node-supplier">
                 <SelectValue placeholder="Sélectionner un fournisseur" />
               </SelectTrigger>
@@ -160,7 +184,7 @@ export function CreateSupplierNodeDialog({
                   key={m}
                   onClick={() => toggleModule(m)}
                   disabled={isPending}
-                  className={`rounded px-2 py-1 text-xs font-medium border ${
+                  className={`rounded border px-2 py-1 text-xs font-medium ${
                     modules.includes(m)
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-muted-foreground border-input"
@@ -177,8 +201,16 @@ export function CreateSupplierNodeDialog({
             </Alert>
           )}
           <DialogFooter>
-            <Button type="submit" disabled={isPending || !supplierId} className="gap-2">
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            <Button
+              type="submit"
+              disabled={isPending || !supplierId}
+              className="gap-2"
+            >
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               Créer
             </Button>
           </DialogFooter>

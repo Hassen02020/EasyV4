@@ -33,10 +33,18 @@
 
 import { revalidatePath } from "next/cache"
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
-import { supplierNodes, supplierPortalUsers, suppliers, supplierLogs } from "@/lib/db/schema"
+import {
+  supplierNodes,
+  supplierPortalUsers,
+  suppliers,
+  supplierLogs,
+} from "@/lib/db/schema"
 import { eq, desc, asc } from "drizzle-orm"
 import { z } from "zod"
-import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
+import {
+  createServerSupabase,
+  createServiceRoleSupabase,
+} from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import type {
   SupplierNode,
@@ -91,16 +99,28 @@ export async function listSupplierNodes(): Promise<SupplierNodeRow[]> {
   )
 }
 
-export async function getSupplierNodeBySlug(slug: string): Promise<SupplierNode | null> {
+export async function getSupplierNodeBySlug(
+  slug: string,
+): Promise<SupplierNode | null> {
   const rows = await withSystemContext((db) =>
-    db.select().from(supplierNodes).where(eq(supplierNodes.slug, slug)).limit(1),
+    db
+      .select()
+      .from(supplierNodes)
+      .where(eq(supplierNodes.slug, slug))
+      .limit(1),
   )
   return rows[0] ?? null
 }
 
-export async function getSupplierNodeBySupplierId(supplierId: string): Promise<SupplierNode | null> {
+export async function getSupplierNodeBySupplierId(
+  supplierId: string,
+): Promise<SupplierNode | null> {
   const rows = await withSystemContext((db) =>
-    db.select().from(supplierNodes).where(eq(supplierNodes.supplierId, supplierId)).limit(1),
+    db
+      .select()
+      .from(supplierNodes)
+      .where(eq(supplierNodes.supplierId, supplierId))
+      .limit(1),
   )
   return rows[0] ?? null
 }
@@ -150,7 +170,10 @@ export async function listPortalUsersForNode(nodeId: string) {
       .select()
       .from(supplierPortalUsers)
       .where(eq(supplierPortalUsers.supplierNodeId, nodeId))
-      .orderBy(asc(supplierPortalUsers.role), desc(supplierPortalUsers.invitedAt)),
+      .orderBy(
+        asc(supplierPortalUsers.role),
+        desc(supplierPortalUsers.invitedAt),
+      ),
   )
 }
 
@@ -159,7 +182,8 @@ export async function listPortalUsersForNode(nodeId: string) {
 /* -------------------------------------------------------------------------- */
 
 async function requireSuperAdmin() {
-  if (!process.env.DATABASE_URL) return { ok: false as const, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false as const, error: "Base de données non configurée" }
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -180,7 +204,10 @@ const createNodeInputSchema = z.object({
     .trim()
     .min(1)
     .max(100)
-    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug invalide (minuscules, chiffres, tirets)"),
+    .regex(
+      /^[a-z0-9]+(-[a-z0-9]+)*$/,
+      "Slug invalide (minuscules, chiffres, tirets)",
+    ),
   displayName: z.string().trim().min(1).max(200),
   shortDescription: z.string().trim().max(2000).optional(),
   contactName: z.string().trim().max(200).optional(),
@@ -189,7 +216,9 @@ const createNodeInputSchema = z.object({
   modules: z.array(z.string()).default([]),
 })
 
-export type CreateSupplierNodeResult = { ok: true; nodeId: string } | { ok: false; error: string }
+export type CreateSupplierNodeResult =
+  | { ok: true; nodeId: string }
+  | { ok: false; error: string }
 
 /**
  * Crée un nœud fournisseur à partir d'une ligne `suppliers` EXISTANTE
@@ -203,7 +232,12 @@ export async function createSupplierNodeAction(
 ): Promise<CreateSupplierNodeResult> {
   const parsed = createNodeInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -219,14 +253,19 @@ export async function createSupplierNodeAction(
         .from(suppliers)
         .where(eq(suppliers.id, input.supplierId))
         .limit(1)
-      if (!supplier) return { ok: false as const, error: "Fournisseur introuvable." }
+      if (!supplier)
+        return { ok: false as const, error: "Fournisseur introuvable." }
 
       const [existing] = await tx
         .select({ id: supplierNodes.id })
         .from(supplierNodes)
         .where(eq(supplierNodes.supplierId, input.supplierId))
         .limit(1)
-      if (existing) return { ok: false as const, error: "Ce fournisseur a déjà un nœud réseau." }
+      if (existing)
+        return {
+          ok: false as const,
+          error: "Ce fournisseur a déjà un nœud réseau.",
+        }
 
       const [node] = await tx
         .insert(supplierNodes)
@@ -242,7 +281,8 @@ export async function createSupplierNodeAction(
           invitedByUserId: user.id,
         })
         .returning({ id: supplierNodes.id })
-      if (!node) return { ok: false as const, error: "Échec de la création du nœud." }
+      if (!node)
+        return { ok: false as const, error: "Échec de la création du nœud." }
 
       await tx.insert(supplierLogs).values({
         supplierId: input.supplierId,
@@ -266,7 +306,9 @@ const inviteInputSchema = z.object({
   role: z.enum(["owner", "manager", "staff"]),
 })
 
-export type InviteSupplierPortalUserResult = { ok: true; userId: string } | { ok: false; error: string }
+export type InviteSupplierPortalUserResult =
+  | { ok: true; userId: string }
+  | { ok: false; error: string }
 
 /**
  * Invite un utilisateur portail pour un nœud fournisseur — même pattern
@@ -278,7 +320,12 @@ export async function inviteSupplierPortalUser(
 ): Promise<InviteSupplierPortalUserResult> {
   const parsed = inviteInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -288,7 +335,11 @@ export async function inviteSupplierPortalUser(
 
   const node = await withSystemContext((db) =>
     db
-      .select({ id: supplierNodes.id, supplierId: supplierNodes.supplierId, displayName: supplierNodes.displayName })
+      .select({
+        id: supplierNodes.id,
+        supplierId: supplierNodes.supplierId,
+        displayName: supplierNodes.displayName,
+      })
       .from(supplierNodes)
       .where(eq(supplierNodes.id, input.nodeId))
       .limit(1),
@@ -300,7 +351,10 @@ export async function inviteSupplierPortalUser(
     data: { supplierNodeId: input.nodeId, supplierPortalRole: input.role },
   })
   if (invited.error || !invited.data.user) {
-    return { ok: false, error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}` }
+    return {
+      ok: false,
+      error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}`,
+    }
   }
   const newUserId = invited.data.user.id
 
@@ -319,14 +373,23 @@ export async function inviteSupplierPortalUser(
           type: "portal",
           level: "info",
           message: `Utilisateur portail invité (${input.email}, ${input.role}) par ${user.id}`,
-          details: { nodeId: input.nodeId, invitedUserId: newUserId, email: input.email, role: input.role, actorUserId: user.id },
+          details: {
+            nodeId: input.nodeId,
+            invitedUserId: newUserId,
+            email: input.email,
+            role: input.role,
+            actorUserId: user.id,
+          },
         })
       },
     )
   } catch (err) {
     await admin.auth.admin.deleteUser(newUserId).catch(() => {})
     const message = err instanceof Error ? err.message : "Erreur inconnue"
-    return { ok: false, error: `Compte invité mais profil non créé (annulé) : ${message}` }
+    return {
+      ok: false,
+      error: `Compte invité mais profil non créé (annulé) : ${message}`,
+    }
   }
 
   revalidatePath(`/admin/suppliers/nodes/${input.nodeId}`)

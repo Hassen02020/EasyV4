@@ -62,7 +62,9 @@ export default async function SupplierNodeDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-foreground text-3xl font-bold tracking-tight">{node.displayName}</h1>
+        <h1 className="text-foreground text-3xl font-bold tracking-tight">
+          {node.displayName}
+        </h1>
         <p className="text-muted-foreground font-mono text-sm">{node.slug}</p>
       </div>
 
@@ -72,25 +74,32 @@ export default async function SupplierNodeDetailPage({
             <CardTitle className="text-base">Identité</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {node.shortDescription && <p className="text-muted-foreground">{node.shortDescription}</p>}
+            {node.shortDescription && (
+              <p className="text-muted-foreground">{node.shortDescription}</p>
+            )}
             {node.contactEmail && (
               <p className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" /> {node.contactEmail}
+                <Mail className="text-muted-foreground h-4 w-4" />{" "}
+                {node.contactEmail}
               </p>
             )}
             {node.contactPhone && (
               <p className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-muted-foreground" /> {node.contactPhone}
+                <Phone className="text-muted-foreground h-4 w-4" />{" "}
+                {node.contactPhone}
               </p>
             )}
             {node.contactCountry && (
               <p className="flex items-center gap-2">
-                <Globe2 className="h-4 w-4 text-muted-foreground" /> {node.contactCountry}
+                <Globe2 className="text-muted-foreground h-4 w-4" />{" "}
+                {node.contactCountry}
               </p>
             )}
             <div className="flex flex-wrap gap-1 pt-2">
               {modules.length === 0 ? (
-                <span className="text-xs text-muted-foreground">Aucun module</span>
+                <span className="text-muted-foreground text-xs">
+                  Aucun module
+                </span>
               ) : (
                 modules.map((m) => (
                   <Badge key={m} variant="outline" className="text-xs">
@@ -100,9 +109,10 @@ export default async function SupplierNodeDetailPage({
               )}
             </div>
             <div className="flex items-center gap-2 pt-2">
-              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <ShieldCheck className="text-muted-foreground h-4 w-4" />
               <span className="text-xs">
-                Portail : {node.portalEnabled ? "activé" : "désactivé"} · Statut : {node.onboardingStatus}
+                Portail : {node.portalEnabled ? "activé" : "désactivé"} · Statut
+                : {node.onboardingStatus}
               </span>
             </div>
           </CardContent>
@@ -112,7 +122,9 @@ export default async function SupplierNodeDetailPage({
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">
               Utilisateurs portail
-              <span className="ml-2 text-sm font-normal text-muted-foreground">{portalUsers.length}</span>
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
+                {portalUsers.length}
+              </span>
             </CardTitle>
             <InviteSupplierPortalUserDialog nodeId={node.id} />
           </CardHeader>
@@ -129,24 +141,33 @@ export default async function SupplierNodeDetailPage({
               <TableBody>
                 {portalUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={4}
+                      className="text-muted-foreground py-8 text-center"
+                    >
                       Aucun utilisateur portail invité.
                     </TableCell>
                   </TableRow>
                 ) : (
                   portalUsers.map((pu) => (
                     <TableRow key={pu.id}>
-                      <TableCell className="text-sm">{pu.invitedEmail ?? "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {pu.invitedEmail ?? "—"}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {ROLE_LABEL[pu.role] ?? pu.role}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {pu.invitedAt ? new Date(pu.invitedAt).toLocaleDateString("fr-FR") : "—"}
+                      <TableCell className="text-muted-foreground text-xs">
+                        {pu.invitedAt
+                          ? new Date(pu.invitedAt).toLocaleDateString("fr-FR")
+                          : "—"}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {pu.acceptedAt ? new Date(pu.acceptedAt).toLocaleDateString("fr-FR") : "En attente"}
+                      <TableCell className="text-muted-foreground text-xs">
+                        {pu.acceptedAt
+                          ? new Date(pu.acceptedAt).toLocaleDateString("fr-FR")
+                          : "En attente"}
                       </TableCell>
                     </TableRow>
                   ))

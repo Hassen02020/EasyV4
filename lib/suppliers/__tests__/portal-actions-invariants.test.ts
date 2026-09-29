@@ -12,7 +12,10 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const src = readFileSync(join(process.cwd(), "lib/suppliers/portal-actions.ts"), "utf8")
+const src = readFileSync(
+  join(process.cwd(), "lib/suppliers/portal-actions.ts"),
+  "utf8",
+)
 
 function countOccurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
@@ -22,14 +25,20 @@ test("createSupplierNodeAction : gated super_admin (requireSuperAdmin) avant tou
   const fnIdx = src.indexOf("export async function createSupplierNodeAction")
   const authIdx = src.indexOf("await requireSuperAdmin()", fnIdx)
   const insertIdx = src.indexOf(".insert(supplierNodes)", fnIdx)
-  assert.ok(fnIdx > 0 && authIdx > fnIdx && insertIdx > authIdx, "l'auth doit précéder l'insert")
+  assert.ok(
+    fnIdx > 0 && authIdx > fnIdx && insertIdx > authIdx,
+    "l'auth doit précéder l'insert",
+  )
 })
 
 test("inviteSupplierPortalUser : gated super_admin (requireSuperAdmin) avant l'invitation Supabase", () => {
   const fnIdx = src.indexOf("export async function inviteSupplierPortalUser")
   const authIdx = src.indexOf("await requireSuperAdmin()", fnIdx)
   const inviteIdx = src.indexOf("admin.auth.admin.inviteUserByEmail", fnIdx)
-  assert.ok(fnIdx > 0 && authIdx > fnIdx && authIdx < inviteIdx, "l'auth doit précéder l'invitation")
+  assert.ok(
+    fnIdx > 0 && authIdx > fnIdx && authIdx < inviteIdx,
+    "l'auth doit précéder l'invitation",
+  )
 })
 
 test("inviteSupplierPortalUser : invitation Supabase Auth réelle (jamais un token custom différé) — userId réel obtenu immédiatement, jamais un invitationToken écrit", () => {
@@ -41,14 +50,20 @@ test("inviteSupplierPortalUser : rollback du compte Auth orphelin si l'insert pr
   const fnIdx = src.indexOf("export async function inviteSupplierPortalUser")
   const nextFnIdx = src.indexOf("\nexport async function", fnIdx + 1)
   const fnBody = src.slice(fnIdx, nextFnIdx > 0 ? nextFnIdx : undefined)
-  assert.match(fnBody, /admin\.auth\.admin\.deleteUser\(newUserId\)\.catch\(\(\) => \{\}\)/)
+  assert.match(
+    fnBody,
+    /admin\.auth\.admin\.deleteUser\(newUserId\)\.catch\(\(\) => \{\}\)/,
+  )
 })
 
 test("createSupplierNodeAction : vérifie qu'aucun nœud n'existe déjà pour ce supplierId AVANT l'insert (contrainte d'unicité applicative, pas seulement DB)", () => {
   const fnIdx = src.indexOf("export async function createSupplierNodeAction")
   const checkIdx = src.indexOf("Ce fournisseur a déjà un nœud réseau", fnIdx)
   const insertIdx = src.indexOf(".insert(supplierNodes)", fnIdx)
-  assert.ok(checkIdx > fnIdx && checkIdx < insertIdx, "la vérification d'unicité doit précéder l'insert")
+  assert.ok(
+    checkIdx > fnIdx && checkIdx < insertIdx,
+    "la vérification d'unicité doit précéder l'insert",
+  )
 })
 
 test("créations tracées via supplierLogs (jamais auditEvents — FK agency_id NOT NULL incompatible avec des entités plateforme sans agence)", () => {

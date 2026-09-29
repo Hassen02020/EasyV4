@@ -38,7 +38,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ```text
 ID: (aucun — en attente de proposition du prochain chantier)
-Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03 et R7-01 CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont clos ; R7-01/R7-03 (P3/P4, gouvernance) traités aussi. Prochain chantier à proposer un par un, un GO à la fois.
+Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01 et PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols) CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont clos ; R7-01/R7-03 (P3/P4, gouvernance) traités aussi. Incident DEPLOY-01 (main → Vercel Production) résolu le 2026-09-29, preuve détaillée dans CLAUDE.md. Prochain chantier à proposer un par un, un GO à la fois.
 Branche: (aucune)
 ```
 
@@ -117,6 +117,14 @@ Correction : nouveau `lib/modules/capabilities.ts`, registre unique en code pour
 Preuves : `typecheck`/`lint` verts ; `pnpm test` 1080/1080 (dont 11 nouveaux tests de cohérence) ; `build` vert (GitHub Actions — un déploiement Vercel preview non lié à la CI requise, projet `claudegolive`, a échoué en parallèle avec `BUILD_UTILS_SPAWN_1` ; logs inaccessibles en session, 403 hors scope Vercel ; non bloquant, pas un check requis, écarté après confirmation que le `build` GitHub Actions — qui rejoue exactement la même commande avec les mêmes secrets placeholder — était vert). PR : https://github.com/Hassen02020/EasyV4/pull/58 (mergée).
 
 **Phase 7 (Honnêteté Commerce & Supply) — bilan** : R7-01 (fait ci-dessus), R7-02 (`REUSE partiel`, badge démo visible NOT VERIFIED — revue visuelle requise, pas de chantier lancé), R7-03 (fait plus haut), R7-04/R7-05 (`FIX` différé — décision produit déjà prise en session précédente de ne pas brancher de 2e fournisseur hôtel aujourd'hui). Aucun gap P0/P1/P2 sur cette phase ; R7-01 et R7-03 désormais clos, R7-02 nécessite juste une revue visuelle (pas un chantier de code), R7-04/R7-05 différés par décision déjà actée.
+
+### PROVIDER-CONNECTIVITY-BRIDGE P2/P3/P4 (Vols) — CLÔTURÉ, PRODUCTION CONFIRMÉE (2026-09-29)
+
+Ajout du canal de confirmation manuelle B2B_OFFLINE (`confirmManualFlightBooking`, `lib/vols/manual-confirmation-action.ts`) pour les réservations vol validées hors plateforme (portail fournisseur, téléphone, email), en parallèle du canal API_DIRECT existant (`fulfillFlightBooking`, inchangé) — exclusion mutuelle par CAS atomique sur le statut de réservation. Les deux canaux convergent désormais sur un ancrage financier unique, `finalizeFlightBookingFinancials()` (`lib/vols/flight-financials.ts`), corrigeant un gap pré-existant où les réservations vol confirmées n'atteignaient jamais `reservation_financials`.
+
+Ajouts : colonne `flight_bookings.fulfillment_mode` (`api_direct`|`b2b_offline`, migration `drizzle/manual/0075_flight_fulfillment_mode.sql`) pour la traçabilité ; UI staff (`ConfirmManualFlightButton`) ; affichage admin du provider/mode de fulfillment/référence fournisseur (`reservation-detail-view.tsx`). Tests : suite complète M1-M10 (`lib/vols/__tests__/manual-confirmation-action.test.ts`) couvrant rôle, validation, CAS concurrent, exclusion mutuelle avec API_DIRECT, financials enregistrés une seule fois.
+
+Preuves : CI GitHub Actions verte (`typecheck`/`lint`/`test`/`build`) sur le commit de la PR. PR : https://github.com/Hassen02020/EasyV4/pull/59 (mergée, GO explicite de Hassen, commit de merge `d86a3a2d20a8bcf3bf8ce7402f15b993ad615110`). **Déploiement Production confirmé** : ce commit a produit un déploiement Vercel `state=READY`/`target=production` sur `easy2book-new` (`dpl_C32RD3TofRbiytXd96FoJc5jqbuS`) — preuve de clôture de l'incident DEPLOY-01 (détail dans CLAUDE.md). Ce chantier est donc le premier depuis l'ouverture de l'incident à passer de `TESTED / READY FOR PRODUCTION — NOT YET DEPLOYED` à réellement déployé en Production.
 
 ---
 

@@ -50,7 +50,7 @@ export async function invalidateMarginsCache(agencyId: string): Promise<void> {
  * fusionnée avec les valeurs par défaut afin que chaque module ait une
  * règle, même si la BDD n'a pas (encore) la ligne.
  */
-const MARGIN_MODULES = new Set<string>(["hotel", "flight", "transfer"])
+const MARGIN_MODULES = new Set<string>(["hotel", "flight", "transfer", "network"])
 
 export async function getMarginsForAgency(
   agencyId: string | null | undefined,

@@ -11,10 +11,25 @@
  * apparaître que les produits possédés ou autorisés.
  *
  * Différence volontaire avec `createActivityBooking`/Omra : la marge est
- * RÉELLE ici (margin-calculator.ts, comme `createNetworkProductTestBooking`
- * dans economic-pilot-actions.ts), jamais le raccourci
- * `supplierPriceTnd = salePriceTnd` — Network Product a un coût fournisseur
- * distinct dès la création (ECON-PILOT-01), pas de raison de le masquer ici.
+ * RÉELLE ici, jamais le raccourci `supplierPriceTnd = salePriceTnd` —
+ * Network Product a un coût fournisseur distinct dès la création
+ * (ECON-PILOT-01), pas de raison de le masquer ici.
+ *
+ * COMMERCIAL-CONVERGENCE-01 (2026-09-29) : la marge vient de
+ * `getMarginsForAgency()`/`applyMargin()` (lib/pro/pricing.ts +
+ * lib/pro/server-context.ts, module "network") — EXACTEMENT le moteur
+ * réel déjà utilisé par hotel/flight/transfer/hôtels-monde, jamais une
+ * deuxième formule. Configurable par l'agence via `/pro/marges`
+ * (`upsertMyPricingMargin`, table `pricing_margins`) et/ou par une règle
+ * `margin_rules` (System B, fusionnée automatiquement par
+ * `getMarginsForAgency`). Avant ce chantier, `product-booking-actions.ts`
+ * lisait directement `margin_rules` via `margin-calculator.ts` — un moteur
+ * SANS AUCUN chemin d'écriture applicatif (ni UI ni Server Action),
+ * condamnant chaque réservation réelle à la marge de repli 10 % sans
+ * qu'aucune agence ne puisse jamais la changer. `economic-pilot-actions.ts`
+ * (ECON-PILOT-01, réservation de TEST staff-only, jamais de débit réel)
+ * reste sur l'ancien moteur pour l'instant — hors périmètre de ce chantier,
+ * qui porte sur le flux réel/financier uniquement.
  *
  * `agencyId` de la réservation = l'agence REVENDEUSE réelle (session), pas
  * l'agence par défaut du produit — même principe que
@@ -25,22 +40,12 @@
 import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
-import {
-  products,
-  supplierNodes,
-  customers,
-  reservations,
-  reservationNetworkProduct,
-  marginRules,
-} from "@/lib/db/schema"
+import { products, supplierNodes, customers, reservations, reservationNetworkProduct } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { nextPublicRef } from "@/lib/booking/actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
-import {
-  findApplicableMarginRule,
-  calculateMargin,
-  type MarginCalculationContext,
-} from "@/lib/finance/margin-calculator"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMargin } from "@/lib/pro/pricing"
 
 const bookingInputSchema = z.object({
   productId: z.string().uuid(),
@@ -77,6 +82,13 @@ export async function createNetworkProductBooking(
   const agencyId = session.agencyId
   const createdByUserId = session.userId
 
+  // Marge réelle (getMarginsForAgency/applyMargin, module "network") — même
+  // moteur configurable que hotel/flight/transfer, appelé AVANT la
+  // transaction comme dans lib/booking/actions.ts et
+  // lib/hotels-monde/guest-booking-actions.ts (jamais une deuxième formule,
+  // jamais imbriqué dans la transaction de réservation).
+  const networkMarginRule = (await getMarginsForAgency(agencyId, createdByUserId)).network
+
   try {
     return await withTenantContext(
       { agencyId, userId: createdByUserId, isSuperAdmin: session.isSuperAdmin },
@@ -104,19 +116,9 @@ export async function createNetworkProductBooking(
           return { ok: false as const, error: "Le nœud fournisseur de ce produit n'est pas actif" }
         }
 
-        // --- 2. Marge réelle (margin-calculator.ts, même moteur que le pilote staff) ---
+        // --- 2. Prix de vente = coût réel + marge (calculée avant la transaction) ---
         const costPriceTnd = Number(product.costPrice) * booking.quantity
-        const rulesRows = await tx.select().from(marginRules).where(eq(marginRules.agencyId, agencyId))
-        const marginContext: MarginCalculationContext = {
-          agencyId,
-          productType: product.type,
-          destination: product.destination ?? undefined,
-          supplierPrice: costPriceTnd,
-          supplierCurrency: product.costCurrency ?? "TND",
-        }
-        const rule = findApplicableMarginRule(rulesRows, marginContext)
-        const marginResult = calculateMargin(marginContext, rule)
-        const totalTnd = marginResult.salePriceTnd
+        const totalTnd = applyMargin(costPriceTnd, networkMarginRule)
 
         // --- 3. Client ---
         const [customer] = await tx
@@ -186,10 +188,10 @@ export async function createNetworkProductBooking(
         await recordReservationFinancials({
           tx,
           reservationId,
-          supplierPriceTnd: marginResult.supplierPriceTnd,
-          salePriceTnd: marginResult.salePriceTnd,
-          commissionPercent: marginResult.commissionPercent,
-          marginRuleId: marginResult.marginRuleId,
+          supplierPriceTnd: costPriceTnd,
+          salePriceTnd: totalTnd,
+          commissionPercent: networkMarginRule.commissionPercent,
+          marginRuleId: networkMarginRule.ruleId,
         })
 
         return { ok: true as const, reservationId, publicRef }

@@ -23,10 +23,19 @@ test("createNetworkProductBooking : résolution de session RÉELLE (resolveSessi
   assert.equal(countOccurrences(src, "requireSuperAdmin"), 0)
 })
 
-test("createNetworkProductBooking : utilise margin-calculator.ts réel (findApplicableMarginRule + calculateMargin) — jamais supplierPriceTnd = salePriceTnd", () => {
-  assert.equal(countOccurrences(src, "findApplicableMarginRule("), 1)
-  assert.equal(countOccurrences(src, "calculateMargin("), 1)
-  assert.match(src, /supplierPriceTnd: marginResult\.supplierPriceTnd,/)
+test("COMMERCIAL-CONVERGENCE-01 : utilise le moteur de marge RÉEL et configurable (getMarginsForAgency/applyMargin, module 'network') — jamais margin-calculator.ts (marginRules sans aucun chemin d'écriture), jamais supplierPriceTnd = salePriceTnd", () => {
+  assert.match(src, /const networkMarginRule = \(await getMarginsForAgency\(agencyId, createdByUserId\)\)\.network/)
+  assert.match(src, /const totalTnd = applyMargin\(costPriceTnd, networkMarginRule\)/)
+  assert.equal(countOccurrences(src, "findApplicableMarginRule"), 0)
+  assert.equal(src.includes('from "@/lib/finance/margin-calculator"'), false)
+  assert.match(src, /\.network\b/)
+  assert.match(src, /supplierPriceTnd: costPriceTnd,/)
+})
+
+test("COMMERCIAL-CONVERGENCE-01 : la marge est calculée AVANT la transaction de réservation, comme lib/booking/actions.ts et lib/hotels-monde/guest-booking-actions.ts (jamais imbriquée dans withTenantContext)", () => {
+  const marginIdx = src.indexOf("getMarginsForAgency(")
+  const txIdx = src.indexOf("withTenantContext(")
+  assert.ok(marginIdx > 0 && txIdx > 0 && marginIdx < txIdx, "getMarginsForAgency doit être appelé avant withTenantContext")
 })
 
 test("createNetworkProductBooking : débit du crédit partenaire DANS la même transaction (txOverride), idempotencyKey liée à la réservation", () => {
@@ -48,8 +57,9 @@ test("createNetworkProductBooking : vérifie le statut du supplier_node (onboard
   assert.match(src, /node\.onboardingStatus !== "active"/)
 })
 
-test("aucun nouveau moteur de marge/settlement créé — margin_rules et recordReservationFinancials réutilisés tels quels", () => {
-  assert.match(src, /\.from\(marginRules\)/)
+test("aucun nouveau moteur de marge/settlement créé — recordReservationFinancials réutilisé tel quel, commissionPercent/marginRuleId transmis depuis la règle réelle", () => {
   assert.equal(countOccurrences(src, "await recordReservationFinancials("), 1)
+  assert.match(src, /commissionPercent: networkMarginRule\.commissionPercent,/)
+  assert.match(src, /marginRuleId: networkMarginRule\.ruleId,/)
   assert.equal(countOccurrences(src, "flightCommercialRules"), 0)
 })

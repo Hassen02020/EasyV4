@@ -43,8 +43,13 @@
  * silencieusement un prix déjà fixé par l'agence — jamais fait ici. Car
  * reste hors périmètre tant que le module n'est pas commercialisable
  * (voir EASYV4_CAR_DECISION.md — FEATURE_CAR=false, aucun catalogue).
+ *
+ * "network" (COMMERCIAL-CONVERGENCE-01) : à l'inverse, un Network Product
+ * A un coût fournisseur net séparé dès sa création (`products.costPrice`,
+ * ECON-PILOT-01) — la marge a donc un sens ici, comme hotel/flight/transfer,
+ * et suit le même moteur (jamais une deuxième formule).
  */
-export type MarginModule = "hotel" | "flight" | "transfer"
+export type MarginModule = "hotel" | "flight" | "transfer" | "network"
 
 export type MarginRule = {
   marginType: "percent" | "fixed"
@@ -78,6 +83,8 @@ export const DEFAULT_MARGINS: MarginMap = {
   flight: { marginType: "fixed", marginValue: 25, isActive: true },
 
   transfer: { marginType: "fixed", marginValue: 10, isActive: true },
+
+  network: { marginType: "percent", marginValue: 10, isActive: true },
 }
 
 /**

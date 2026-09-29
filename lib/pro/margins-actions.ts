@@ -27,9 +27,11 @@ import { upsertPricingMarginCore } from "./margins-core"
 // du prix de vente (l'agence fixe directement le prix au niveau du
 // catalogue produit) — voir le commentaire détaillé sur MarginModule
 // (lib/pro/pricing.ts). Car reste hors périmètre (module non
-// commercialisable, voir EASYV4_CAR_DECISION.md).
+// commercialisable, voir EASYV4_CAR_DECISION.md). "network" ajouté
+// (COMMERCIAL-CONVERGENCE-01) : un Network Product a un coût fournisseur
+// net séparé (products.costPrice), la marge a donc un sens ici.
 const MarginInputSchema = z.object({
-  module: z.enum(["hotel", "flight", "transfer"]),
+  module: z.enum(["hotel", "flight", "transfer", "network"]),
   marginType: z.enum(["percent", "fixed"]),
   marginValue: z.coerce.number().min(0).max(1000),
   isActive: z.boolean(),

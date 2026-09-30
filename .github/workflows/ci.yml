@@ -138,7 +138,7 @@ jobs:
             CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS \$\$ SELECT NULL::uuid \$\$;
           "
 
-      - name: Créer le rôle app_runtime (avant le replay des migrations : 0068/0073 y font GRANT EXECUTE)
+      - name: Créer le rôle app_runtime (avant le replay des migrations — 0068/0073 y font GRANT EXECUTE)
         run: |
           psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
             CREATE ROLE app_runtime LOGIN PASSWORD '$APP_RUNTIME_PASSWORD';

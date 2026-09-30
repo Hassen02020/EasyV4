@@ -182,6 +182,32 @@ jobs:
           # fatale (ON_ERROR_STOP=1 par fichier), donc un vrai problème de
           # migration échoue toujours bruyamment.
           for f in $(ls drizzle/manual/*.sql | sort -V); do
+            # 0035 is the one collision file (of the 13) that ALSO defines
+            # SQL functions (is_authorized_for_hotel_supplier_account,
+            # owns_hotel_supplier_account) after its unguarded CREATE TABLE
+            # statements — db:push already created its 4 tables, so its own
+            # first CREATE TABLE fails and ON_ERROR_STOP aborts the rest of
+            # the file, silently skipping those two functions too. That's a
+            # real gap (unlike the other 12 collision files' trailing RLS,
+            # which don't matter to the targeted scope): 0068 later REVOKEs/
+            # GRANTs on is_authorized_for_hotel_supplier_account, and if 0068
+            # aborts at ITS first statement for the same reason, app_runtime
+            # never gets EXECUTE on lock_agency_for_debit/
+            # set_agency_deposit_balance either — functions
+            # lib/pro/booking-actions.ts::debitPartnerCredit genuinely calls,
+            # exercised by the targeted booking-actions-concurrency test.
+            # Dropping these 4 tables first lets 0035 replay end-to-end
+            # (their shape doesn't matter — untouched by the targeted tests,
+            # confirmed by grep) so its functions get created normally.
+            if [ "$(basename "$f")" = "0035_hotel_supplier_control_plane.sql" ]; then
+              echo "== Pre-drop hotel_supplier_* tables (already created by db:push) so 0035 replays end-to-end, including its 2 functions =="
+              psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 <<'SQL'
+                DROP TABLE IF EXISTS hotel_supplier_authorizations CASCADE;
+                DROP TABLE IF EXISTS hotel_supplier_credentials CASCADE;
+                DROP TABLE IF EXISTS hotel_supplier_accounts CASCADE;
+                DROP TABLE IF EXISTS hotel_suppliers CASCADE;
+          SQL
+            fi
             echo "== Applying $f =="
             if ! out=$(psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -f "$f" 2>&1); then
               if echo "$out" | grep -qiE "already exists"; then

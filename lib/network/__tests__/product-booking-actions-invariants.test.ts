@@ -63,3 +63,19 @@ test("aucun nouveau moteur de marge/settlement créé — recordReservationFinan
   assert.match(src, /marginRuleId: networkMarginRule\.ruleId,/)
   assert.equal(countOccurrences(src, "flightCommercialRules"), 0)
 })
+
+test("PLATFORM-COMMISSION-NETWORK-01 : creditPlatformCommission réutilisé tel quel (import du module Hotel), appelé UNE fois, DANS la même transaction (tx), APRÈS recordReservationFinancials, avec le commissionAmount qu'il retourne — jamais un second moteur/calcul de commission plateforme", () => {
+  assert.match(src, /import \{ creditPlatformCommission \} from "@\/lib\/finance\/platform-commission"/)
+  assert.equal(countOccurrences(src, "creditPlatformCommission("), 1)
+  assert.match(src, /const \{ commissionAmount \} = await recordReservationFinancials\(/)
+  assert.match(src, /await creditPlatformCommission\(tx, \{/)
+
+  const financialsIdx = src.indexOf("await recordReservationFinancials(")
+  const creditIdx = src.indexOf("await creditPlatformCommission(tx,")
+  const txCloseIdx = src.lastIndexOf("},\n    )")
+  assert.ok(
+    financialsIdx > 0 && creditIdx > financialsIdx,
+    "creditPlatformCommission doit être appelé APRÈS recordReservationFinancials",
+  )
+  assert.ok(creditIdx < txCloseIdx, "creditPlatformCommission doit être appelé DANS withTenantContext (avant sa fermeture)")
+})

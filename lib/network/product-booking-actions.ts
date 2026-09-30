@@ -44,6 +44,7 @@ import { products, supplierNodes, customers, reservations, reservationNetworkPro
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { nextPublicRef } from "@/lib/booking/actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 
@@ -185,13 +186,26 @@ export async function createNetworkProductBooking(
         })
 
         // --- 7. Snapshot financier — coût RÉEL, jamais supplierPriceTnd = salePriceTnd ---
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: costPriceTnd,
           salePriceTnd: totalTnd,
           commissionPercent: networkMarginRule.commissionPercent,
           marginRuleId: networkMarginRule.ruleId,
+        })
+
+        // --- 8. Commission plateforme Easy2Book — même appel, même transaction,
+        // même position que lib/booking/actions.ts et lib/booking/guest-actions.ts
+        // (module Hotel) : PLATFORM-COMMISSION-NETWORK-01, gap trouvé lors de
+        // l'audit commerce-readiness (le taux vient du MÊME moteur de marge
+        // réel que ci-dessus, jamais un second calcul/une nouvelle table de
+        // taux). No-op silencieux si commissionAmount <= 0 (géré par
+        // creditPlatformCommission lui-même).
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission network — réservation ${publicRef}`,
         })
 
         return { ok: true as const, reservationId, publicRef }

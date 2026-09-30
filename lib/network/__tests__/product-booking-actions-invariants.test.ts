@@ -79,6 +79,74 @@ test("aucun nouveau moteur de marge/settlement créé — recordReservationFinan
   assert.equal(countOccurrences(src, "flightCommercialRules"), 0)
 })
 
+test("ECON-BREAKDOWN-01 : 'CURRENT ASSUMPTION — NOT ENFORCED' documentée verbatim là où les lignes de droit sont construites (Network traite costPrice comme TND sans jamais LIRE product.costCurrency dans le code exécutable)", () => {
+  assert.match(src, /CURRENT ASSUMPTION — NOT ENFORCED/)
+  // `product.costCurrency` n'apparaît que dans les commentaires qui
+  // documentent CETTE hypothèse — jamais dans une ligne de code exécutable
+  // (aucune lecture réelle de la colonne, aucun garde-fou ajouté, décision
+  // Direction 2026-09-30).
+  const codeLines = src
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
+    .join("\n")
+  assert.equal(
+    countOccurrences(codeLines, "costCurrency"),
+    0,
+    "le call site ne doit PAS lire costCurrency en dehors des commentaires",
+  )
+})
+
+test("ECON-BREAKDOWN-01 : recordReservationFinancials reçoit exactement 3 lignes economic_entitlements (supplier/seller/easy2book), qualifications et rôles conformes à docs/ECONOMIC_MODEL.md §3.1", () => {
+  assert.match(src, /economicEntitlements: \[/)
+  assert.match(src, /role: "supplier",\s*\n\s*qualification: "supplier_cost",/)
+  assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
+  assert.match(src, /role: "easy2book",\s*\n\s*qualification: "commission",/)
+  // party_id du fournisseur = supplier_nodes.id RÉEL (product.supplierNodeId), jamais null/inventé
+  assert.match(src, /partyId: product\.supplierNodeId,/)
+  // party_id du vendeur = l'agence revendeuse réelle (session), jamais l'agence par défaut du produit
+  assert.match(src, /partyId: agencyId,\s*\n\s*role: "seller",/)
+})
+
+test("ECON-BREAKDOWN-01 : la ligne 'seller_margin' est nette de commission, et la formule de commission dupliquée ici est TEXTUELLEMENT la même que celle de recordReservationFinancials() (même arrondi, même 2 décimales) — jamais une deuxième formule divergente", () => {
+  const financialsSrc = readFileSync(
+    join(process.cwd(), "lib/finance/reservation-financials.ts"),
+    "utf8",
+  )
+  const callSiteFormula = /Math\.round\(marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100\) \/ 100/
+  const financialsFormula = /Math\.round\(marginAmount \* \(commissionRate \/ 100\) \* 100\) \/ 100/
+  assert.match(src, callSiteFormula, "formule de commission absente/différente côté call site")
+  assert.match(financialsSrc, financialsFormula, "formule de commission absente/différente côté recordReservationFinancials")
+  assert.match(src, /amount: marginAmountTnd - commissionAmountForEntitlements,/)
+})
+
+test("ECON-BREAKDOWN-01 : Σ des 3 montants (supplier_cost + seller_margin net + commission) égale algébriquement totalTnd (= salePriceTnd), pour toute valeur — preuve symbolique, indépendante des valeurs réelles à l'exécution", () => {
+  // costPriceTnd + (marginAmountTnd - commissionAmountForEntitlements) + commissionAmountForEntitlements
+  //   = costPriceTnd + marginAmountTnd
+  //   = costPriceTnd + (totalTnd - costPriceTnd)
+  //   = totalTnd
+  // Vérifié numériquement ici pour plusieurs couples (coût, marge%, commission%) avec la
+  // MÊME formule que product-booking-actions.ts (copie littérale, pas une nouvelle formule).
+  function applyMarginLike(net: number, pct: number) {
+    return Math.round(net * (1 + pct / 100) * 1000) / 1000
+  }
+  const cases = [
+    { cost: 700, marginPct: 10, commissionPct: 20 },
+    { cost: 1000, marginPct: 0, commissionPct: 50 },
+    { cost: 123.456, marginPct: 7.5, commissionPct: 0 },
+  ]
+  for (const c of cases) {
+    const totalTnd = applyMarginLike(c.cost, c.marginPct)
+    const marginAmountTnd = totalTnd - c.cost
+    const commissionAmount = Math.round(marginAmountTnd * (c.commissionPct / 100) * 100) / 100
+    const supplier = c.cost
+    const seller = marginAmountTnd - commissionAmount
+    const easy2book = commissionAmount
+    const sum = Math.round((supplier + seller + easy2book) * 100) / 100
+    const expected = Math.round(totalTnd * 100) / 100
+    assert.equal(sum, expected, `Σ lignes (${sum}) ≠ totalTnd (${expected}) pour ${JSON.stringify(c)}`)
+  }
+})
+
 test("PLATFORM-COMMISSION-NETWORK-01 : creditPlatformCommission réutilisé tel quel (import du module Hotel), appelé UNE fois, DANS la même transaction (tx), APRÈS recordReservationFinancials, avec le commissionAmount qu'il retourne — jamais un second moteur/calcul de commission plateforme", () => {
   assert.match(src, /import \{ creditPlatformCommission \} from "@\/lib\/finance\/platform-commission"/)
   assert.equal(countOccurrences(src, "creditPlatformCommission("), 1)

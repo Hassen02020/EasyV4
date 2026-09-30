@@ -22,11 +22,12 @@
  */
 
 import { sql } from "drizzle-orm"
-import { marginType, walletTxType } from "./schema/financials"
+import { marginRules, marginType, walletTxType } from "./schema/financials"
 import { supplierNodes } from "./schema/supplier-portal"
 import {
   bigint,
   boolean,
+  check,
   date,
   decimal,
   index,
@@ -747,6 +748,116 @@ export const reservationNetworkProduct = pgTable(
     index("res_network_product_supplier_node_idx").on(t.supplierNodeId),
   ],
 )
+
+/* ----- Economic Entitlements (ECON-BREAKDOWN-01) ---------------------------
+ * `docs/ECONOMIC_MODEL.md` §3.1 — la table qui enregistre QUI a droit à QUOI
+ * sur une réservation (couche Economic, distincte de Money Events déjà
+ * portés par `wallet_ledger`/`partner_credit_movements`, inchangés). Seul
+ * écrivain prévu par le modèle : `recordReservationFinancials()`
+ * (lib/finance/reservation-financials.ts). Ce chantier ne câble QUE le
+ * module Network (lib/network/product-booking-actions.ts) — les 8 autres
+ * modules sont hors périmètre (ECON-WIRING-01, chantier séparé, pas encore
+ * GO'd). Aucune logique de transition `earned → settleable/settled` ici :
+ * seule la valeur initiale `earned` est écrite à la création.
+ */
+export const economicEntitlementRole = pgEnum("economic_entitlement_role", [
+  "seller",
+  "product_owner",
+  "supplier",
+  "partner",
+  "easy2book",
+  "tax_authority",
+  "discount",
+])
+
+export const economicEntitlementStatus = pgEnum("economic_entitlement_status", [
+  "pending",
+  "earned",
+  "settleable",
+  "settled",
+  "compensated",
+])
+
+export const economicEntitlements = pgTable(
+  "economic_entitlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reservationId: uuid("reservation_id")
+      .notNull()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+
+    /** Table conceptuelle que `partyId` référence ('agency' | 'supplier_node'
+     * | 'easy2book' | 'external') — polymorphique, donc pas de FK Postgres
+     * possible sur `partyId` lui-même. */
+    partyType: varchar("party_type", { length: 30 }).notNull(),
+    /** `agencies.id`, `supplier_nodes.id` — NULL pour easy2book/fournisseur
+     * externe non modélisé (cf. audit : "le nœud fournisseur n'est crédité
+     * nulle part"). */
+    partyId: uuid("party_id"),
+
+    role: economicEntitlementRole("role").notNull(),
+    /** §3.1 : liste fermée, appliquée via CHECK (pas un pgEnum Postgres —
+     * volontaire, cf. docs/ECONOMIC_MODEL.md qui la documente comme "text"
+     * pour rester extensible sans ALTER TYPE). */
+    qualification: varchar("qualification", { length: 30 }).notNull(),
+
+    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+
+    /** Description libre de la base de calcul, ex. "net × 5%". */
+    basis: text("basis"),
+
+    /** Placeholder EN ATTENDANT AGREEMENT-01 (pas de table
+     * `commercial_agreements` dans ce chantier). PRÉCISION DIRECTION
+     * (2026-09-30) : `margin_rules` N'EST PAS `commercial_agreements` — ceci
+     * est un point d'attache TECHNIQUE PROVISOIRE au modèle économique
+     * existant (cf. docs/ECONOMIC_MODEL.md §2 "Réutilisation"), pas une
+     * équivalence conceptuelle. Volontairement SANS `.references()` /
+     * SANS contrainte FK en base vers `margin_rules` — pour qu'AGREEMENT-01
+     * puisse la repointer vers un vrai `commercial_agreements.id` par un
+     * simple UPDATE de valeur, sans devoir défaire une contrainte. */
+    agreementId: uuid("agreement_id"),
+    /** `margin_rules.id` qui a produit CETTE ligne précisément — référence
+     * RÉELLE et durable (indépendante d'AGREEMENT-01), donc FK conservée en
+     * base. Peut être numériquement égal à `agreementId` aujourd'hui (même
+     * table source, faute de mieux) ; ce n'est pas un doublon, c'est
+     * documenté ici comme attendu. */
+    ruleId: uuid("rule_id").references(() => marginRules.id, { onDelete: "set null" }),
+
+    status: economicEntitlementStatus("status").notNull().default("pending"),
+    effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+
+    /** §4 — colonne posée pour un futur chantier de compensation ;
+     * aucune logique d'annulation/reversal n'utilise encore ce champ. */
+    cancellationTreatment: varchar("cancellation_treatment", { length: 20 }),
+    /** Auto-référence : la ligne compensatoire pointe vers la ligne qu'elle
+     * corrige. Colonne posée pour le même futur chantier — non utilisée ici. */
+    compensatesId: uuid("compensates_id"),
+
+    settlementStatus: varchar("settlement_status", { length: 20 }),
+    settlementRef: text("settlement_ref"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("economic_entitlements_reservation_idx").on(t.reservationId),
+    index("economic_entitlements_party_idx").on(t.partyId),
+    index("economic_entitlements_status_idx").on(t.status),
+    index("economic_entitlements_compensates_idx").on(t.compensatesId),
+    check(
+      "economic_entitlements_qualification_check",
+      sql`${t.qualification} in ('supplier_cost','seller_margin','owner_share','commission','platform_fee','distribution_fee','revenue_share','service_fee','tax','discount')`,
+    ),
+    check(
+      "economic_entitlements_cancellation_treatment_check",
+      sql`${t.cancellationTreatment} is null or ${t.cancellationTreatment} in ('full_reversal','pro_rata_fee','non_refundable')`,
+    ),
+  ],
+)
+
+export type EconomicEntitlement = typeof economicEntitlements.$inferSelect
+export type NewEconomicEntitlement = typeof economicEntitlements.$inferInsert
 
 /* ----- Transfer extension ------------------------------------------------- */
 export const reservationTransfer = pgTable(

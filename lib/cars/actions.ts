@@ -35,6 +35,7 @@ import {
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateCarPrice } from "./pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
@@ -301,6 +302,18 @@ export async function createCarBooking(
         kind: "deposit",
         status: "captured",
         capturedAt: new Date(),
+      })
+
+      // Coût base ↔ prix agence — alimente le Dashboard Marges (même motif
+      // que lib/transfers/actions.ts pour les transferts) : réutilise les
+      // DEUX montants déjà calculés par calculateCarPrice()/applyMargin(),
+      // jamais un recalcul. preMargin = baseTotalTnd + insuranceTotalTnd
+      // (pricing.totalTnd - marginAmount, cf. lib/cars/pricing.ts).
+      await recordReservationFinancials({
+        tx,
+        reservationId,
+        supplierPriceTnd: pricing.baseTotalTnd + pricing.insuranceTotalTnd,
+        salePriceTnd: pricing.totalTnd,
       })
 
       await tx.insert(reservationCar).values({

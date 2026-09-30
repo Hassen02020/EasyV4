@@ -29,6 +29,7 @@ import {
   payments,
 } from "@/lib/db/schema"
 import { calculateCarPrice } from "./pricing"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
@@ -297,6 +298,17 @@ async function runCreateGuestCarBooking(
           tndAmount: totalTnd.toFixed(2),
           kind: "deposit",
           status: "pending",
+        })
+
+        // Coût base ↔ prix agence — alimente le Dashboard Marges, même motif
+        // que le chemin B2B (lib/cars/actions.ts) : réutilise les DEUX
+        // montants déjà calculés par calculateCarPrice()/applyMargin(),
+        // jamais un recalcul.
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: pricing.baseTotalTnd + pricing.insuranceTotalTnd,
+          salePriceTnd: pricing.totalTnd,
         })
 
         // 7. Extension Car

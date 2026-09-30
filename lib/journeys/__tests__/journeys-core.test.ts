@@ -8,7 +8,7 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withTenantContext, withSystemContext } from "@/lib/db/tenant-context"
-import { agencies, customers } from "@/lib/db/schema"
+import { agencies, customers, reservations } from "@/lib/db/schema"
 import {
   deriveJourneyStatus,
   createJourneyCore,
@@ -91,6 +91,12 @@ before(async () => {
 after(async () => {
   if (!dbAvailable || !agencyId) return
   await withSystemContext(async (tx) => {
+    // reservations.agency_id ET customers.agency_id sont tous deux en
+    // onDelete:"restrict" (jamais cascade sur une donnée financière) — les
+    // réservations puis le client de test créés par les cas ci-dessus
+    // doivent être supprimés avant l'agence elle-même.
+    await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
+    await tx.delete(customers).where(eq(customers.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
 })
@@ -150,13 +156,30 @@ test("casLineToProcessingCore : idempotent — une ligne déjà 'confirmed' reto
     const journey = await createJourneyCore(tx, { agencyId, createdByUserId: randomUUID() })
     const line = await addJourneyLineCore(tx, { journeyId: journey.id, module: "network", payload: {} })
     await casLineToProcessingCore(tx, { lineId: line.id })
-    const fakeReservationId = randomUUID()
-    await recordLineOutcomeCore(tx, { lineId: line.id, outcome: { ok: true, reservationId: fakeReservationId } })
+    // journey_lines.reservation_id référence réellement reservations.id (FK) —
+    // jamais un id fabriqué : on insère une vraie ligne minimale, exactement
+    // ce que ferait le vrai moteur de réservation avant de retourner son id
+    // (voir journey-actions.ts::confirmJourneyLine, étape 2/3).
+    const [reservation] = await tx
+      .insert(reservations)
+      .values({
+        agencyId,
+        customerId,
+        publicRef: `JRN-TEST-${randomUUID().slice(0, 8)}`,
+        module: "network",
+        source: "internal",
+        originalCurrency: "TND",
+        originalAmount: "0",
+        tndAmount: "0",
+      })
+      .returning({ id: reservations.id })
+    const realReservationId = reservation!.id
+    await recordLineOutcomeCore(tx, { lineId: line.id, outcome: { ok: true, reservationId: realReservationId } })
 
     const retry = await casLineToProcessingCore(tx, { lineId: line.id })
     assert.equal(retry.outcome, "already_confirmed")
     if (retry.outcome === "already_confirmed") {
-      assert.equal(retry.line.reservationId, fakeReservationId)
+      assert.equal(retry.line.reservationId, realReservationId)
     }
   })
 })
@@ -187,11 +210,43 @@ test("recordLineOutcomeCore : jamais d'écrasement d'une ligne déjà 'confirmed
     const journey = await createJourneyCore(tx, { agencyId, createdByUserId: randomUUID() })
     const line = await addJourneyLineCore(tx, { journeyId: journey.id, module: "omra", payload: {} })
     await casLineToProcessingCore(tx, { lineId: line.id })
-    const firstReservationId = randomUUID()
+    const [firstReservation] = await tx
+      .insert(reservations)
+      .values({
+        agencyId,
+        customerId,
+        publicRef: `JRN-TEST-${randomUUID().slice(0, 8)}`,
+        module: "omra",
+        source: "internal",
+        originalCurrency: "TND",
+        originalAmount: "0",
+        tndAmount: "0",
+      })
+      .returning({ id: reservations.id })
+    const firstReservationId = firstReservation!.id
     await recordLineOutcomeCore(tx, { lineId: line.id, outcome: { ok: true, reservationId: firstReservationId } })
 
-    // Un second appel (ex. retry réseau du même résultat) ne doit jamais écraser le reservationId réel.
-    await recordLineOutcomeCore(tx, { lineId: line.id, outcome: { ok: true, reservationId: randomUUID() } })
+    // Un second appel (ex. retry réseau du même résultat) ne doit jamais
+    // écraser le reservationId réel — id d'une DEUXIÈME vraie réservation,
+    // pour prouver que l'écrasement est bien refusé et non pas juste
+    // silencieusement compatible avec un id fabriqué.
+    const [secondReservation] = await tx
+      .insert(reservations)
+      .values({
+        agencyId,
+        customerId,
+        publicRef: `JRN-TEST-${randomUUID().slice(0, 8)}`,
+        module: "omra",
+        source: "internal",
+        originalCurrency: "TND",
+        originalAmount: "0",
+        tndAmount: "0",
+      })
+      .returning({ id: reservations.id })
+    await recordLineOutcomeCore(tx, {
+      lineId: line.id,
+      outcome: { ok: true, reservationId: secondReservation!.id },
+    })
 
     const withLines = await getJourneyWithLinesCore(tx, { journeyId: journey.id })
     const confirmedLine = withLines?.lines.find((l) => l.id === line.id)
@@ -205,7 +260,20 @@ test("removeJourneyLineCore : refuse de supprimer une ligne confirmed (RULE FINA
     const journey = await createJourneyCore(tx, { agencyId, createdByUserId: randomUUID() })
     const line = await addJourneyLineCore(tx, { journeyId: journey.id, module: "hotel", payload: {} })
     await casLineToProcessingCore(tx, { lineId: line.id })
-    await recordLineOutcomeCore(tx, { lineId: line.id, outcome: { ok: true, reservationId: randomUUID() } })
+    const [reservation] = await tx
+      .insert(reservations)
+      .values({
+        agencyId,
+        customerId,
+        publicRef: `JRN-TEST-${randomUUID().slice(0, 8)}`,
+        module: "hotel",
+        source: "internal",
+        originalCurrency: "TND",
+        originalAmount: "0",
+        tndAmount: "0",
+      })
+      .returning({ id: reservations.id })
+    await recordLineOutcomeCore(tx, { lineId: line.id, outcome: { ok: true, reservationId: reservation!.id } })
 
     await assert.rejects(() => removeJourneyLineCore(tx, { lineId: line.id }), /LINE_NOT_REMOVABLE/)
   })

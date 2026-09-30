@@ -136,6 +136,7 @@ jobs:
           psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
             CREATE SCHEMA IF NOT EXISTS auth;
             CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS \$\$ SELECT NULL::uuid \$\$;
+            CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS \$\$ SELECT NULL::text \$\$;
             CREATE ROLE anon NOLOGIN;
             CREATE ROLE authenticated NOLOGIN;
             CREATE ROLE service_role NOLOGIN;

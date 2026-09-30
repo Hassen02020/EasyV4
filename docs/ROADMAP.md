@@ -37,9 +37,10 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: (aucun — en attente de proposition du prochain chantier)
-Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols) et SEC-RLS-02 CLÔTURÉS (voir ci-dessous). Tous les gaps P0-P2 identifiés à ce jour (Phase 0 + Phase 4) sont clos ; R7-01/R7-03 (P3/P4, gouvernance) traités aussi. Incident DEPLOY-01 (main → Vercel Production) résolu le 2026-09-29, preuve détaillée dans CLAUDE.md. Prochain chantier à proposer un par un, un GO à la fois.
-Branche: (aucune)
+ID: PLATFORM-COMMISSION-NETWORK-01 / NAV-FIX-01 / CART-DRIFT-01 / WALLET-RACE-CI-01 (4 chantiers indépendants, domaines disjoints, exécution parallèle explicitement autorisée)
+GO: explicite, donné par l'utilisateur (Direction@easy2book.tn) le 2026-09-30, message exact "GO 1/2/3/4", en réponse aux 4 chantiers candidats numérotés proposés en clôture de l'audit commerce-readiness du même jour. Portée du GO : exactement ces 4 fiches, telles que proposées dans cet audit — rien au-delà.
+Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02 et JOURNEY-BUILDER-01 CLÔTURÉS (voir ci-dessous). Les 4 chantiers ci-dessus sont EN COURS D'EXÉCUTION (chacun sur sa propre branche/worktree, aucun recoupement de fichiers). Incident DEPLOY-01 (main → Vercel Production) résolu le 2026-09-29, preuve détaillée dans CLAUDE.md.
+Branches: platform-commission-network-01 / nav-fix-01 / cart-drift-01 / wallet-race-ci-01
 ```
 
 ### SEC-RLS-02 — CLÔTURÉ (2026-09-29)

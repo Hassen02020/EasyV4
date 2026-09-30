@@ -247,14 +247,16 @@ test("T10b — max_markup: when computed markup below max, max not applied", () 
 
 // ── T11: DB rule found → env fallback NOT used ────────────────────────────────
 test("T11 — when DB rule resolved, env fallback defaults are NOT used", () => {
-  // Simulate a DB rule with different rates than env defaults (B2C env: fee=15, markup=0.04)
-  const dbRule: CommercialRules = { fixedFee: 99, markupRate: 0.99, currency: "EUR" }
+  // Simulate a DB rule with different rates than env defaults (B2C env: fee=15, markup=0.04).
+  // CURRENCY-DIM-01b : currency doit matcher supplierCurrency (TND) — ce
+  // test porte sur la résolution de règle, pas sur la conversion de devise.
+  const dbRule: CommercialRules = { fixedFee: 99, markupRate: 0.99, currency: "TND" }
   const result = computeCommercialResult(1000, "TND", dbRule)
   // If env fallback were used, fee would be 15 and markup would be 40
   assert.notEqual(result.fee, 15, "env default fee=15 must NOT be used")
   assert.notEqual(result.markup, 40, "env default markup=40 must NOT be used")
   assert.equal(result.fee, 99, "DB rule fee=99 is used")
-  assert.equal(result.sellingCurrency, "EUR", "DB rule currency=EUR is used")
+  assert.equal(result.sellingCurrency, "TND", "DB rule currency is used")
 })
 
 // ── T12: No DB rule → env fallback ───────────────────────────────────────────

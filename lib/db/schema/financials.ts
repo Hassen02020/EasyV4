@@ -270,6 +270,28 @@ export const marginRules = pgTable(
     // Commission Easy2Book (prélevée sur la marge)
     commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }),
 
+    /**
+     * AGREEMENT-01 — lien optionnel vers l'accord commercial qui justifie
+     * cette règle. Nullable, `ON DELETE SET NULL`, purement additif :
+     * AUCUNE ligne existante n'est modifiée par l'ajout de cette colonne,
+     * AUCUN lecteur de `margin_rules` (`getMarginsForAgency()`,
+     * `applyMargin()`, `economic-pilot-actions.ts`) ne la lit — confirmé
+     * par lecture complète de ces fonctions avant d'ajouter la colonne.
+     * Remplace, pour les futures lignes réelles, le placeholder
+     * `economic_entitlements.agreement_id = margin_rules.id` posé par
+     * ECON-BREAKDOWN-01 (cf. commentaire sur `economicEntitlements` dans
+     * lib/db/schema.ts). Aucune ligne `margin_rules` existante n'est
+     * rétro-remplie ici (production = 0 ligne au moment de ce chantier).
+     *
+     * Pas de `.references()` Drizzle ici : `commercialAgreements` vit dans
+     * `lib/db/schema.ts`, qui importe déjà `marginRules` depuis CE fichier
+     * (`./schema/financials`) — une référence TS inverse créerait un cycle
+     * d'import. La contrainte FK réelle (`ON DELETE SET NULL`) est posée
+     * au niveau SQL par la migration (0089_agreement_01_margin_rules_link.sql),
+     * exactement comme pour les FK cross-fichier existantes de ce dépôt.
+     */
+    agreementId: uuid("agreement_id"),
+
     // Priorité : règle la plus haute gagne (ex: fournisseur > produit > global)
     priority: integer("priority").notNull().default(0),
 
@@ -288,6 +310,7 @@ export const marginRules = pgTable(
     { name: "margin_rules_agency_idx", on: t.agencyId },
     { name: "margin_rules_supplier_idx", on: t.supplierId },
     { name: "margin_rules_priority_idx", on: t.priority },
+    { name: "margin_rules_agreement_idx", on: t.agreementId },
   ],
 )
 

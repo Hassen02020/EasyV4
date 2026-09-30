@@ -859,6 +859,120 @@ export const economicEntitlements = pgTable(
 export type EconomicEntitlement = typeof economicEntitlements.$inferSelect
 export type NewEconomicEntitlement = typeof economicEntitlements.$inferInsert
 
+/**
+ * AGREEMENT-01 — `commercial_agreements` (docs/ECONOMIC_MODEL.md §2, "Accord
+ * commercial", 9 questions).
+ *
+ * Construit le MÉCANISME d'accord uniquement : ce chantier ne crée AUCUNE
+ * ligne réelle/permanente ici (décision Direction, 2026-09-30 — le taux
+ * D-01b "option 3, frais sur prix net" n'est pas tranché ; créer un accord
+ * Network réel avec un taux inventé ou un taux à 0% "juste pour la preuve"
+ * serait fabriquer une politique commerciale, pas construire un mécanisme).
+ * Le premier accord réel, quel qu'il soit, est un chantier séparé (GO
+ * explicite requis), une fois D-01b tranché.
+ *
+ * [D-01a] Qui détient le droit d'Easy2Book dans un accord ? Easy2Book
+ * uniquement (création/modification super_admin) — une agence ne peut
+ * JAMAIS modifier la part d'Easy2Book. Contrairement à la plupart des
+ * tables de ce dépôt, il n'existe PAS de cas "une agence peut écrire ses
+ * propres lignes" : RLS écriture = `is_super_admin()` uniquement, sans
+ * exception. Lecture : élargie aux parties prenantes d'un accord (une
+ * agence peut voir les accords où elle apparaît comme seller/owner/
+ * supplier/collector), cf. 0088_agreement_01_rls.sql — le point dur demandé
+ * par Direction est la RESTRICTION EN ÉCRITURE, pas la lecture.
+ *
+ * `*_party_type`/`*_party_id` : même convention polymorphique que
+ * `economic_entitlements.party_type`/`party_id` ('agency' | 'supplier_node'
+ * | 'easy2book' | 'external') — pas de FK Postgres possible sur l'id
+ * lui-même. `owner_party_id`/`supplier_party_id`/`collector_party_id`
+ * nullable — §2 : "Qui fournit ? supplier_party (ou « tout fournisseur du
+ * produit »)" ; même principe étendu à owner/collector quand l'accord ne
+ * vise pas une partie précise.
+ */
+export const commercialAgreementEasy2bookRole = pgEnum("commercial_agreement_easy2book_role", [
+  "platform",
+  "distributor",
+  "seller",
+  "owner",
+])
+
+export const commercialAgreementChannel = pgEnum("commercial_agreement_channel", [
+  "b2c",
+  "b2b",
+  "network",
+  "white_label",
+  "api",
+])
+
+export const commercialAgreementStatus = pgEnum("commercial_agreement_status", [
+  "draft",
+  "active",
+  "suspended",
+  "terminated",
+])
+
+export const commercialAgreements = pgTable(
+  "commercial_agreements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    /** Qui vend ? — toujours connu, jamais nul. */
+    sellerPartyType: varchar("seller_party_type", { length: 30 }).notNull(),
+    sellerPartyId: uuid("seller_party_id").notNull(),
+
+    /** Qui possède ? — nullable : l'accord peut viser "tout propriétaire"
+     * plutôt qu'une partie précise. */
+    ownerPartyType: varchar("owner_party_type", { length: 30 }),
+    ownerPartyId: uuid("owner_party_id"),
+
+    /** Qui fournit ? — nullable : §2 "ou tout fournisseur du produit". */
+    supplierPartyType: varchar("supplier_party_type", { length: 30 }),
+    supplierPartyId: uuid("supplier_party_id"),
+
+    /** Rôle d'Easy2Book dans CET accord (§0 : plateforme, distributeur,
+     * vendeur ou propriétaire selon l'accord — jamais 4 moteurs distincts). */
+    easy2bookRole: commercialAgreementEasy2bookRole("easy2book_role").notNull(),
+
+    /** Périmètre canal — mêmes valeurs que le reste du dépôt
+     * (product_authorizations, reservation_source côté network). */
+    channel: commercialAgreementChannel("channel").notNull(),
+
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+
+    /** Qui paie ? — généralement 'customer', parfois 'seller' pour le net
+     * (§2). Texte libre volontairement (comme `qualification` sur
+     * `economic_entitlements`) plutôt qu'un enum fermé — extensible sans
+     * ALTER TYPE. */
+    payerRole: text("payer_role").notNull().default("customer"),
+
+    /** Qui encaisse ? — nullable : peut être implicite (Easy2Book) tant que
+     * non renseigné. */
+    collectorPartyType: varchar("collector_party_type", { length: 30 }),
+    collectorPartyId: uuid("collector_party_id"),
+
+    status: commercialAgreementStatus("status").notNull().default("draft"),
+
+    validFrom: date("valid_from"),
+    validTo: date("valid_to"),
+
+    createdByUserId: uuid("created_by_user_id").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("commercial_agreements_seller_idx").on(t.sellerPartyType, t.sellerPartyId),
+    index("commercial_agreements_owner_idx").on(t.ownerPartyType, t.ownerPartyId),
+    index("commercial_agreements_supplier_idx").on(t.supplierPartyType, t.supplierPartyId),
+    index("commercial_agreements_collector_idx").on(t.collectorPartyType, t.collectorPartyId),
+    index("commercial_agreements_status_idx").on(t.status),
+    index("commercial_agreements_channel_idx").on(t.channel),
+  ],
+)
+
+export type CommercialAgreement = typeof commercialAgreements.$inferSelect
+export type NewCommercialAgreement = typeof commercialAgreements.$inferInsert
+
 /* ----- Transfer extension ------------------------------------------------- */
 export const reservationTransfer = pgTable(
   "reservation_transfer",

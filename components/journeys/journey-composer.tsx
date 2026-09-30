@@ -273,9 +273,9 @@ export function JourneyComposer({ journey, lines }: Props) {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <Label className="text-xs">Module</Label>
+              <Label htmlFor="journey-module-select" className="text-xs">Module</Label>
               <Select value={module} onValueChange={(v) => setModule(v as JourneyWiredModule)}>
-                <SelectTrigger className="mt-1 h-9">
+                <SelectTrigger id="journey-module-select" className="mt-1 h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -307,10 +307,11 @@ export function JourneyComposer({ journey, lines }: Props) {
 }
 
 function TextField({ label, k, fields, setField, type = "text" }: { label: string; k: string; fields: Record<string, string>; setField: (k: string, v: string) => void; type?: string }) {
+  const id = `journey-field-${k}`
   return (
     <div>
-      <Label className="text-xs">{label}</Label>
-      <Input type={type} value={fields[k] ?? ""} onChange={(e) => setField(k, e.target.value)} className="mt-1 h-9" />
+      <Label htmlFor={id} className="text-xs">{label}</Label>
+      <Input id={id} type={type} value={fields[k] ?? ""} onChange={(e) => setField(k, e.target.value)} className="mt-1 h-9" />
     </div>
   )
 }

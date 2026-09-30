@@ -129,7 +129,7 @@ jobs:
       - name: db:push (schéma réel depuis lib/db/schema.ts)
         env:
           DATABASE_URL: ${{ env.DATABASE_DIRECT_URL }}
-        run: pnpm db:push -- --force
+        run: pnpm db:push --force
 
       - name: Stub schéma auth (auth.uid() — absent d'un Postgres nu, présent uniquement via Supabase)
         run: |

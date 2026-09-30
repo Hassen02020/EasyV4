@@ -133,35 +133,35 @@ jobs:
 
       - name: Stub schéma auth + rôles + publication Supabase (absents d'un Postgres nu, fournis nativement par Supabase)
         run: |
-          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
+          # Notifications : table présente en production hors de tout fichier
+          # de migration du dépôt (drizzle-kit ou manual), déjà documentée
+          # dans l'en-tête de drizzle/manual/0061 ("notifications ... présents
+          # en production sans trace dans aucune migration du dépôt — schéma
+          # non capturé ici, seules leurs policies RLS le sont"). 0061 y pose
+          # quand même une CREATE POLICY dessus (gap RLS réel trouvé en prod) :
+          # stub minimal (seule colonne lue par cette policy) pour que 0061
+          # s'applique intégralement au lieu d'échouer sur "relation
+          # notifications does not exist".
+          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 <<'SQL'
             CREATE SCHEMA IF NOT EXISTS auth;
-            CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS \$\$ SELECT NULL::uuid \$\$;
-            CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS \$\$ SELECT NULL::text \$\$;
+            CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
+            CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT NULL::text $$;
             CREATE ROLE anon NOLOGIN;
             CREATE ROLE authenticated NOLOGIN;
             CREATE ROLE service_role NOLOGIN;
             CREATE PUBLICATION supabase_realtime;
-            -- notifications : table présente en production hors de tout
-            -- fichier de migration du dépôt (drizzle-kit ou manual), déjà
-            -- documenté dans drizzle/manual/0061 (§ en-tête : "notifications
-            -- ... présents en production sans trace dans aucune migration
-            -- du dépôt — schéma non capturé ici, seules leurs policies RLS
-            -- le sont"). 0061 y pose quand même une CREATE POLICY dessus
-            -- (gap RLS réel trouvé en prod) : stub minimal (seule colonne
-            -- lue par cette policy) pour que 0061 s'applique intégralement
-            -- au lieu d'échouer sur 'relation notifications does not exist'.
             CREATE TABLE IF NOT EXISTS notifications (
               id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
               agency_id uuid
             );
-          "
+          SQL
 
       - name: Créer le rôle app_runtime (avant le replay des migrations — 0068/0073 y font GRANT EXECUTE)
         run: |
-          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
+          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 <<SQL
             CREATE ROLE app_runtime LOGIN PASSWORD '$APP_RUNTIME_PASSWORD';
             GRANT USAGE ON SCHEMA public TO app_runtime;
-          "
+          SQL
 
       - name: Rejouer drizzle/manual/*.sql en ordre numérique ascendant
         run: |
@@ -199,14 +199,14 @@ jobs:
 
       - name: Grants finaux app_runtime (table-level + fonctions RLS — voir drizzle/manual/0061 §5 et 0068)
         run: |
-          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
+          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 <<'SQL'
             GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_runtime;
             ALTER DEFAULT PRIVILEGES IN SCHEMA public
               GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
             GRANT EXECUTE ON FUNCTION resolve_session_context(uuid) TO app_runtime;
             GRANT EXECUTE ON FUNCTION current_agency_id() TO app_runtime;
             GRANT EXECUTE ON FUNCTION is_super_admin() TO app_runtime;
-          "
+          SQL
 
       - name: Tests financiers ciblés (DATABASE_URL = app_runtime, non-BYPASSRLS — comme en production)
         env:

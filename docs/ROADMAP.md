@@ -37,10 +37,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: ECONOMIC-MODEL-FREEZE-01 (Phase 0 — document seul, EN ATTENTE DE VALIDATION DIRECTION, PR #80 draft)
-Statut: VERIFY-RUNTIME-ROLE-01 et NETWORK-NODE-VISIBILITY-01 CLÔTURÉS le 2026-09-30 (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
-Branche: economic-model-freeze-01
+ID: (aucun — ECON-BREAKDOWN-01 clôturé le 2026-09-30, prochain chantier à proposer un par un, un GO à la fois)
+Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01 et ECON-BREAKDOWN-01 CLÔTURÉS le 2026-09-30 (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
+Branche: (aucune)
 ```
+
+### ECON-BREAKDOWN-01 — CLÔTURÉ (2026-09-30)
+
+GO explicite de la Direction, avec deux précisions obligatoires appliquées : (1) `agreement_id` documenté comme rattachement technique provisoire à `margin_rules.id` — pas une équivalence avec `commercial_agreements` (table non créée, réservée à AGREEMENT-01), colonne volontairement sans FK pour rester repointable sans migration de contrainte ; (2) l'invariant Σ droits = prix client n'est PAS présenté comme une preuve multi-devise générale — testé et documenté explicitement comme le **« Network/TND reference case »**, `product.costCurrency` restant une colonne non lue/non contrainte par le code réel (**« CURRENT ASSUMPTION — NOT ENFORCED »**, phrase verbatim dans le code et les tests). Couverture complète des devises différée à un futur chantier nommé **`CURRENCY-DIM-01`**.
+
+Nouvelle table `economic_entitlements` (`drizzle/manual/0085_econ_breakdown_01.sql` + `0086_..._rls.sql`, RLS par le même pattern EXISTS-via-`reservations.agency_id` que `reservation_financials`), écrivain unique `recordReservationFinancials()` (extension additive, param optionnel — comportement inchangé pour les 8 autres modules), câblé uniquement sur Network (`lib/network/product-booking-actions.ts`) : 3 lignes par réservation (`supplier_cost`/`seller_margin` net de commission/`easy2book commission`), aucun changement à `creditPlatformCommission()`/wallet/ledger/settlement/pricing/`margin_rules`. Numéro de migration vérifié sans collision avec PR #82 (LEDGER-INTEGRITY-01, `0084`, toujours ouverte/non mergée à ce stade).
+
+Preuves vérifiées indépendamment par l'orchestrateur (diff réel + CI réelle, pas seulement l'affirmation de l'agent) : cycle rollback→apply→re-apply idempotent en production (`crygnaichvlxavvbifqi`) avec vérification `has_table_privilege`/RLS/contraintes à chaque étape ; preuve d'invariant Σ=770 sur fixtures jetables insérées puis supprimées dans la même transaction ; CI réelle verte (`typecheck`/`lint`/`test`/`build`/`financial-e2e`), seul `format` rouge (dette connue, PR #63) — run https://github.com/Hassen02020/EasyV4/actions/runs/36774280426. PR https://github.com/Hassen02020/EasyV4/pull/88, mergée (squash `c0d02e1`).
+
+Limites explicites (non résolues par ce chantier, par périmètre) : pas de REVOKE UPDATE/DELETE au niveau privilèges Postgres sur `economic_entitlements` (append-only applicatif seulement, pas encore imposé en base — un futur chantier type LEDGER-INTEGRITY-01 pourrait l'ajouter) ; aucune transition de statut `earned→settleable/settled/compensated` implémentée ; `cancellation_treatment`/`compensates_id` posées mais non utilisées (logique de compensation = futur chantier séparé) ; ECON-WIRING-01 (8 autres modules) non câblé, bloqué sur la décision de taux par module (D-01b, option 3) ; `commercial_agreements` n'existe toujours pas (AGREEMENT-01, non GO'd).
 
 ### Audit Commercial & Revenue 01 — 2026-09-30 (lecture seule, `main` @ `fa96c53`)
 

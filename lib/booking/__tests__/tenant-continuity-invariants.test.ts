@@ -61,9 +61,13 @@ test("lib/booking/guest-actions.ts : resolveMyGoAccessForTenant() n'est appelée
   assert.equal(countOccurrences(guestActionsSrc, "resolveMyGoAccessForTenant("), 1)
 })
 
-test("lib/booking/guest-actions.ts : les 3 sites de compensation (hold carte, conflit idempotence, catch général) annulent tous via myGoAccess.client — MÊME compte que la création", () => {
+test("lib/booking/guest-actions.ts : les 4 sites de compensation (drift de prix CART-DRIFT-01, hold carte, conflit idempotence, catch général) annulent tous via myGoAccess.client — MÊME compte que la création", () => {
+  // CART-DRIFT-01 a ajouté un 4e site : le rejet PRICE_CHANGED (prix
+  // recalculé serveur matériellement différent du montant affiché au
+  // panier) compense le hold myGo exactement comme les 3 autres rejets déjà
+  // couverts ici — jamais un second client/compte re-résolu.
   assert.equal(
     countOccurrences(guestActionsSrc, "(myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })"),
-    3,
+    4,
   )
 })

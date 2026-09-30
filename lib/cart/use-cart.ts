@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react"
 import type { CartLine, NewCartLine } from "./cart-types"
-import { addCartLine, clearCart, generateCartLineId, readCart, removeCartLine } from "./cart-store"
+import { addCartLine, clearCart, generateCartLineId, readCart, removeCartLine, updateCartLinePrice } from "./cart-store"
 
 /**
  * Panier localStorage exposé via useSyncExternalStore — même pattern que
@@ -45,5 +45,10 @@ export function useCart() {
     clearCart()
   }, [])
 
-  return { lines, add, remove, clear }
+  /** CART-DRIFT-01 — voir lib/cart/cart-store.ts::updateCartLinePrice. */
+  const updatePrice = useCallback((id: string, priceTnd: number) => {
+    updateCartLinePrice(id, priceTnd)
+  }, [])
+
+  return { lines, add, remove, clear, updatePrice }
 }

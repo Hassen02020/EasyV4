@@ -37,9 +37,9 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: (aucun — ECON-BREAKDOWN-01 clôturé le 2026-09-30, prochain chantier à proposer un par un, un GO à la fois)
-Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01 et ECON-BREAKDOWN-01 CLÔTURÉS le 2026-09-30 (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
-Branche: (aucune)
+ID: AGREEMENT-01 (EN COURS — audit + design freeze fait, mécanisme en cours d'implémentation ; aucun accord commercial réel créé, BLOQUÉ sur la décision de taux D-01b)
+Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01 et ECON-BREAKDOWN-01 CLÔTURÉS le 2026-09-30 (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
+Branche: agreement-01
 ```
 
 ### ECON-BREAKDOWN-01 — CLÔTURÉ (2026-09-30)

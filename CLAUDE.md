@@ -161,6 +161,12 @@ et non :
 
 `WRITE BOTH → SWITCH READ immédiatement`.
 
+### Règle permanente — Taux de change, 2026-10-01
+
+Un prix financier ne doit JAMAIS être calculé avec un taux inventé, un taux de repli codé en dur, ou un taux prévu uniquement pour l'affichage (ex. un sélecteur de devise cosmétique côté client). Si aucun taux de change réel et traçable (source, horodatage) n'est disponible pour une conversion, le code doit refuser explicitement l'opération concernée (erreur/exclusion de l'offre) plutôt que de produire un montant financier avec un taux fabriqué — précédent : `CURRENCY-DIM-01a` (2026-10-01, `lib/hotels-monde/supplier-drivers.ts`, PR #94), où `convertRateHawkAmountToTnd()` réutilisait le taux statique du sélecteur de devise d'affichage (`lib/currency.ts`) pour une conversion financière réelle.
+
+Discipline de séquencement associée, à réappliquer pour tout futur chantier de ce type : d'abord fermer le trou (neutraliser le risque avec un correctif minimal, fail-safe plutôt que silencieux), puis seulement ensuite construire la route complète (le vrai mécanisme, sur fiche et GO séparés) — jamais l'inverse.
+
 ## RÈGLE DE DÉLÉGATION
 
 Claude peut utiliser des sous-agents pour accélérer :

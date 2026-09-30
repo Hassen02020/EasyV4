@@ -83,6 +83,98 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  # FINANCIAL-E2E-01 : exécute les 5 suites de tests financiers qui se
+  # `skip`-ent sans DATABASE_URL (convention isDbAvailable(), voir en-tête
+  # de chaque fichier) contre un Postgres CI éphémère, avec le schéma réel
+  # + les policies RLS réelles (drizzle/manual/*.sql) appliquées, pour
+  # remplacer un skip silencieux par une preuve d'exécution réelle.
+  #
+  # Job séparé du `test` job existant : celui-ci garde `pnpm test` sans
+  # DATABASE_URL, comportement inchangé pour le reste de la suite. Le
+  # service Postgres et la base préparée ici sont détruits à la fin du job,
+  # aucune donnée persistante, aucun impact production.
+  financial-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Rôle propriétaire (superuser du conteneur) : sert à créer le schéma
+      # (db:push) et à rejouer les migrations manuelles (DDL/RLS/rôles).
+      DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # Throwaway, CI-only — la base est détruite à la fin du job.
+      APP_RUNTIME_PASSWORD: ci_app_runtime_throwaway_password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: db:push (schéma réel depuis lib/db/schema.ts)
+        env:
+          DATABASE_URL: ${{ env.DATABASE_DIRECT_URL }}
+        run: pnpm db:push -- --force
+
+      - name: Stub schéma auth (auth.uid() — absent d'un Postgres nu, présent uniquement via Supabase)
+        run: |
+          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
+            CREATE SCHEMA IF NOT EXISTS auth;
+            CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS \$\$ SELECT NULL::uuid \$\$;
+          "
+
+      - name: Créer le rôle app_runtime (avant le replay des migrations : 0068/0073 y font GRANT EXECUTE)
+        run: |
+          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
+            CREATE ROLE app_runtime LOGIN PASSWORD '$APP_RUNTIME_PASSWORD';
+            GRANT USAGE ON SCHEMA public TO app_runtime;
+          "
+
+      - name: Rejouer drizzle/manual/*.sql en ordre numérique ascendant
+        run: |
+          set -euo pipefail
+          for f in $(ls drizzle/manual/*.sql | sort -V); do
+            echo "== Applying $f =="
+            psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Grants finaux app_runtime (table-level + fonctions RLS — voir drizzle/manual/0061 §5 et 0068)
+        run: |
+          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_runtime;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
+            GRANT EXECUTE ON FUNCTION resolve_session_context(uuid) TO app_runtime;
+            GRANT EXECUTE ON FUNCTION current_agency_id() TO app_runtime;
+            GRANT EXECUTE ON FUNCTION is_super_admin() TO app_runtime;
+          "
+
+      - name: Tests financiers ciblés (DATABASE_URL = app_runtime, non-BYPASSRLS — comme en production)
+        env:
+          DATABASE_URL: postgresql://app_runtime:${{ env.APP_RUNTIME_PASSWORD }}@localhost:5432/postgres
+        run: |
+          node --import tsx --test \
+            lib/journeys/__tests__/journeys-core.test.ts \
+            lib/pro/__tests__/booking-actions-concurrency.test.ts \
+            lib/finance/__tests__/customer-wallet-concurrency.test.ts \
+            lib/finance/__tests__/reconciliation.test.ts \
+            lib/pro/__tests__/margins-core.test.ts
+
   build:
     runs-on: ubuntu-latest
     needs: [typecheck, lint, test]

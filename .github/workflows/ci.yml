@@ -246,7 +246,8 @@ jobs:
             lib/pro/__tests__/booking-actions-concurrency.test.ts \
             lib/finance/__tests__/customer-wallet-concurrency.test.ts \
             lib/finance/__tests__/reconciliation.test.ts \
-            lib/pro/__tests__/margins-core.test.ts
+            lib/pro/__tests__/margins-core.test.ts \
+            lib/admin/__tests__/commercial-agreements-live.test.ts
 
   build:
     runs-on: ubuntu-latest

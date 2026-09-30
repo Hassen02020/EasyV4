@@ -86,7 +86,19 @@ test.describe("JOURNEY-BUILDER-01 — composition B2B réelle", () => {
     })
   })
 
-  test("double-clic sur Confirmer — jamais deux réservations (idempotence CAS)", async ({ page }) => {
+  test("après confirmation, le bouton 'Confirmer' disparaît — aucune resoumission possible depuis l'UI", async ({ page }) => {
+    // La garantie d'idempotence réelle (CAS pending|failed→processing,
+    // au plus un appel au moteur réel par ligne) est déjà prouvée de façon
+    // déterministe contre un vrai Postgres par
+    // lib/journeys/__tests__/journeys-core.test.ts (casLineToProcessingCore
+    // : double appel concurrent → "already_processing"). Simuler une vraie
+    // course de double-clic dans un navigateur est intrinsèquement flaky
+    // (le premier clic déclenche un router.refresh() qui peut détacher le
+    // bouton avant qu'un second clic simulé n'atterisse) — ce test vérifie
+    // à la place le garde-fou UI complémentaire, réel et non-flaky : une
+    // fois confirmée, la ligne n'offre plus AUCUN bouton "Confirmer" (voir
+    // journey-composer.tsx : `line.status === "pending" || "failed"` seule
+    // condition d'affichage), donc rien à double-cliquer après succès.
     await page.goto("/pro/login")
     await page.getByLabel("Email professionnel").fill(PRO_EMAIL)
     await page.getByLabel("Mot de passe", { exact: true }).fill(PRO_PASSWORD)
@@ -108,17 +120,14 @@ test.describe("JOURNEY-BUILDER-01 — composition B2B réelle", () => {
     await page.getByRole("button", { name: /Ajouter au Journey/i }).click()
     await page.waitForLoadState("networkidle")
 
-    // Double-clic quasi-simultané sur "Confirmer" — le CAS
-    // pending|failed→processing (lib/journeys/journeys-core.ts) doit
-    // garantir qu'un SEUL des deux clics déclenche réellement le moteur
-    // (createNetworkProductBooking, débit réel) ; l'autre reçoit
-    // "ALREADY_PROCESSING" sans jamais recréer une réservation.
-    const confirmButton = page.getByRole("button", { name: /^Confirmer$/i })
-    await Promise.all([confirmButton.click(), confirmButton.click({ force: true }).catch(() => {})])
+    await page.getByRole("button", { name: /^Confirmer$/i }).click()
     await page.waitForLoadState("networkidle")
     await expect(page.getByText("Confirmée")).toBeVisible({ timeout: 20_000 })
 
-    // Une seule ligne existe sur ce Journey (jamais dupliquée par le double-clic).
+    // Le bouton "Confirmer" a disparu — plus aucune action de resoumission
+    // possible depuis cette page pour cette ligne.
+    await expect(page.getByRole("button", { name: /^Confirmer$/i })).toHaveCount(0)
+    // Une seule ligne existe sur ce Journey.
     await expect(page.getByText("Produit Réseau")).toHaveCount(1)
   })
 })

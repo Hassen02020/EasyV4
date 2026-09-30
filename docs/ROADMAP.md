@@ -42,6 +42,31 @@ Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, 
 Branche: (aucune)
 ```
 
+### WALLET-RACE-CI-01 — TESTED / NOT VERIFIED — requires live Postgres to run (2026-09-30)
+
+**Contexte** : flagué par l'audit commerce-readiness (section E2E/Stress, 2026-09-30) comme écart de couverture de tests sur la concurrence des débits wallet. GO utilisateur (Direction@easy2book.tn, message exact "GO 1/2/3/4") enregistré dans le commit `e2d3911` (branche `journey-builder-01-e2e-fixes`, poussée sur `origin`) — **pas encore sur `main`** au moment de ce chantier (vérifié directement : `docs/ROADMAP.md` sur `origin/main` ne portait pas encore ce GO). Ce chantier a démarré sur la base de `origin/main` (branche `wallet-race-ci-01`), en s'appuyant sur cette preuve de GO indépendamment vérifiée plutôt que sur la seule affirmation du coordinateur.
+
+**Audit (SEARCH → VERIFY, avant toute écriture)** : tous les chemins de code qui écrivent `agencies.deposit_balance` ou `wallet_accounts.current_balance` ont été recensés (grep sur `debitPartnerCredit`/`partner_credit_movements`/`deposit_balance`/`set_agency_deposit_balance`). Deux fonctions de débit réelles, chacune point d'entrée unique de son domaine :
+
+- `debitPartnerCredit` (`lib/pro/booking-actions.ts`) — wallet agence B2B. Tous les modules de réservation (`lib/booking/actions.ts`, `lib/omra/*`, `lib/transfers/*`, `lib/cars/actions.ts`, `lib/packages/*`, `lib/activities/*`, `lib/network/product-booking-actions.ts`) l'appellent, aucune logique dupliquée.
+- `debitCustomerWallet` (`lib/finance/customer-wallet.ts`) — wallet client B2C ("Solde Easy2Book").
+
+Les deux ont déjà un verrouillage pessimiste row-level correct (`lock_agency_for_debit()` SECURITY DEFINER `FOR UPDATE` pour le premier, `SELECT ... FOR UPDATE` direct sur `wallet_accounts` pour le second), cohérent avec les chemins de crédit voisins (`lib/finance/wallet-credit.ts`, `lib/booking/cancel-actions.ts`, `lib/finance/refund-logic.ts`) et déjà durci par deux audits antérieurs (migrations `0020_agency_wallet_balance_write_gap.sql`, `0025_agency_debit_lock_rls_gap.sql`). **Aucun bug de concurrence trouvé** — pas de nouvelle logique de débit écrite, conformément à la RÈGLE FINANCIÈRE (on ne modifie pas une écriture financière sans un bug concret et concret à corriger).
+
+**Écart réel = tests uniquement** : `lib/pro/__tests__/booking-actions.test.ts` et `lib/finance/__tests__/customer-wallet.test.ts` n'exerçaient ces fonctions qu'avec `dbOverride`/`txOverride` mockés, en single-thread — jamais deux appels concurrents contre un Postgres réel, contrairement à `lib/journeys/__tests__/journeys-core.test.ts` (pattern CAS de Journey Builder, déjà prouvé en conditions réelles). Un script manuel préexistant (`scripts/wallet-race-test.ts`, `npm run wallet:race`) démontrait déjà le principe du verrou `FOR UPDATE`, mais sur une réimplémentation simplifiée (`tx.update(agencies)` direct, pas `set_agency_deposit_balance()`), hors suite de tests automatisée (`npm test`), sans couverture du wallet client — ne comble donc pas l'écart.
+
+**Ce qui a été ajouté** (REUSE du pattern `journeys-core.test.ts`, aucune nouvelle primitive de concurrence) :
+- `lib/pro/__tests__/booking-actions-concurrency.test.ts`
+- `lib/finance/__tests__/customer-wallet-concurrency.test.ts`
+
+Chaque fichier prouve, contre un Postgres réel, deux scénarios par fonction de débit (deux appels `Promise.all` dans des transactions Drizzle séparées, jamais un `txOverride` partagé) :
+1. **Double-spend** : deux débits concurrents dont la somme dépasse le solde → exactement un réussit, l'autre `INSUFFICIENT_FUNDS`, solde final cohérent.
+2. **Lost update** : deux débits concurrents dont la somme ne dépasse pas le solde → les deux réussissent, solde final reflète les deux (pas de lecture périmée par la seconde transaction).
+
+**Statut des tests : `NOT VERIFIED — requires live Postgres to run`.** Docker indisponible dans le sandbox d'exécution (`docker ps` → daemon injoignable), `DATABASE_URL` non définie dans le worktree — mêmes contraintes d'environnement que celles déjà documentées pour `journeys-core.test.ts`. Les 4 tests ont été exécutés (`node --import tsx --test ...`) : ils passent en `SKIP` propre via le même garde `isDbAvailable()`, prouvant que le code compile et s'importe correctement, mais **aucune exécution réelle contre Postgres n'a eu lieu dans cette session**. `typecheck`/`lint`/`prettier` verts sur les deux nouveaux fichiers. Aucun fichier applicatif (`booking-actions.ts`, `customer-wallet.ts`) modifié.
+
+**Critère de sortie réel** : exécuter ces deux fichiers contre un Postgres réel (CI ou local avec `DATABASE_URL`) et confirmer les 4 tests au vert avant de marquer ce chantier `DONE`.
+
 ### SEC-RLS-02 — CLÔTURÉ (2026-09-29)
 
 **Corrige une prémisse fausse de R2-04** (ci-dessous) : l'audit Phase 0 affirmait que les 7 tables `flight_*` "n'existent pas du tout en base" en production, donc pas d'urgence sur leur RLS manquante. C'était vrai au moment de l'audit mais plus depuis la PR #59 (mergée, déployée en prod) qui modifie `flight_bookings` par `ALTER TABLE` — preuve que la table existe déjà. Vérification directe en base (`crygnaichvlxavvbifqi`) : **11 tables `flight_*`** existent réellement en production, RLS activée mais **0 policy** sur chacune (deny-all pour tout rôle sans bypass, mais aucune isolation tenant réelle en base). Gap supplémentaire découvert au passage : **`commission_settlement_entries`** (créée par R4-03/PR#56, 2 jours plus tôt) — RLS **pas même activée** (niveau ERROR de l'advisor Supabase, pas seulement policy manquante), table financière exposée sans protection RLS. `supplier_nodes`/`supplier_portal_users` : même défaut que le lot Omra corrigé en 0061 (RLS activée, 0 policy).

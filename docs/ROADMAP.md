@@ -37,10 +37,22 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: AUCUN — dernier chantier clos (AGREEMENT-01) le 2026-09-30, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
-Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01 et AGREEMENT-01 CLÔTURÉS le 2026-09-30 (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
+ID: AUCUN — dernier chantier clos (ECON-WIRING-01) le 2026-09-30/10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
+Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01 et ECON-WIRING-01 CLÔTURÉS (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
 Branche: aucune (main)
 ```
+
+### ECON-WIRING-01 — CLÔTURÉ (2026-10-01)
+
+Objectif : brancher `economic_entitlements` (ECON-BREAKDOWN-01) sur les 8 modules non encore câblés — Hotel TN, Car, Transfer, Hotels-Monde, Vols, Omra, Activities, Packages (13 call sites) — en miroir additif du pattern déjà prouvé sur Network, sans nouveau taux/accord commercial, sans dépendance à D-01b.
+
+Décision Direction appliquée pendant le chantier (`product_owner ≠ external_supplier`, 2026-10) : Car/Transfer/Omra/Activities/Packages lisent des catalogues **propres à l'agence** (`car_pricing_rates.agency_id`, `omra_packages.agency_id`, `catalog_packages.agency_id`, `catalog_activities.agency_id` — toutes FK agence, aucun fournisseur externe modélisé) → ligne de coût `role="product_owner"`, `partyType="agency"`, jamais `"external_supplier"`. Hotel TN/Hotels-Monde/Vols ont un fournisseur externe réel (myGo, APIs hôtels-monde/vols) → `external_supplier`/`partyId: null`, comme Network/`supplier_node`. **Aucune ligne fabriquée** : Omra/Activities/Packages (pas de marge aujourd'hui, `supplierPriceTnd === salePriceTnd`) → une seule ligne `product_owner`, jamais `seller_margin`/`commission` inventées à 0 ; Car/Transfer/Hotels-Monde/Vols (marge réelle, 0 commission aujourd'hui) → 2 lignes, pas de ligne commission fabriquée ; Hotel TN (commission réelle, `creditPlatformCommission` déjà câblé) → 3 lignes comme Network.
+
+Gap trouvé et corrigé au passage : `lib/finance/__tests__/economic-entitlements-network.test.ts` (preuve live d'ECON-BREAKDOWN-01) n'avait jamais été ajouté à la liste explicite du job CI `financial-e2e` — il s'auto-skippait silencieusement depuis sa création, jamais réellement exécuté contre Postgres réel. Ajouté à la liste (`.github/workflows/ci.yml`).
+
+Preuves vérifiées indépendamment par l'orchestrateur (diff réel intégral + logs CI bruts, pas seulement les coches vertes) : `qualification`/`role` vérifiés directement contre la vraie contrainte CHECK Postgres (`drizzle/manual/0085_econ_breakdown_01.sql`) et le `pgEnum` avant écriture du code, pas seulement les types TypeScript ; 14 nouveaux invariants statiques (`lib/finance/__tests__/econ-wiring-01-invariants.test.ts`) ; `tsc --noEmit` propre ; CI réelle — job `test` = 1193 PASS/0 FAIL/234 SKIP (identique au local), job `financial-e2e` = 40/40 PASS/0 FAIL (log brut, incluant `economic-entitlements-network.test.ts` prouvé pour la première fois contre Postgres réel) — run https://github.com/Hassen02020/EasyV4/actions/runs/36785025754. `typecheck`/`lint`/`build` verts, seul `format` rouge (dette connue, PR #63). Aucune modification de `pricing.ts`/`applyMargin`/`getMarginsForAgency`/`creditPlatformCommission`/wallet/ledger/settlement — confirmé par le diff intégral ET les invariants. Aucune migration DB (table déjà en production). PR https://github.com/Hassen02020/EasyV4/pull/92, mergée (`9bbdced`).
+
+Limites explicites : `network/economic-pilot-actions.ts` (outil de test admin, pas le flux de réservation réel) reste non câblé. Aucune activation de commission réelle sur Car/Transfer/Hotels-Monde/Vols (décision commerciale distincte, non prise ici). `CURRENCY-DIM-01` (multi-devise complet) reste un chantier séparé.
 
 ### AGREEMENT-01 — CLÔTURÉ (2026-09-30), PREMIER ACCORD RÉEL RESTE BLOQUÉ SUR D-01b
 

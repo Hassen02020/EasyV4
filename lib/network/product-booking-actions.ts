@@ -191,6 +191,40 @@ export async function createNetworkProductBooking(
         })
 
         // --- 7. Snapshot financier — coût RÉEL, jamais supplierPriceTnd = salePriceTnd ---
+        //
+        // ECON-BREAKDOWN-01 : droits économiques (economic_entitlements)
+        // pour le module Network UNIQUEMENT — seul module câblé par ce
+        // chantier (ECON-WIRING-01 câblera les 8 autres modules, pas encore
+        // GO'd, chantier séparé).
+        //
+        // CURRENT ASSUMPTION — NOT ENFORCED : `costPriceTnd`/`totalTnd`
+        // ci-dessus traitent `product.costPrice` comme déjà exprimé en TND,
+        // sans jamais lire `product.costCurrency` (colonne nullable, sans
+        // contrainte en base à 'TND' — voir `lib/db/schema.ts`). Les lignes
+        // de droit ci-dessous héritent de cette même hypothèse : `amount`/
+        // `currency` sont enregistrés directement en TND, parce que c'est ce
+        // que fait déjà tout le reste du flux (`reservation_financials`,
+        // débit wallet). AUCUN garde-fou n'est ajouté ici pour l'imposer —
+        // ce serait une nouvelle règle métier ("Network = TND uniquement")
+        // que ce chantier n'a pas le mandat d'inventer (décision Direction,
+        // 2026-09-30 : ne pas modifier ce fichier au-delà de la construction
+        // des lignes de droit). Si `product.costCurrency` différait de
+        // 'TND' un jour, ces montants seraient faux sans qu'aucun code ici
+        // ne le détecte. Couverture réelle du sujet devise (par module,
+        // taux, arrondi, application) : futur chantier CURRENCY-DIM-01,
+        // pas celui-ci.
+        const marginAmountTnd = totalTnd - costPriceTnd
+        // Même formule EXACTE que `recordReservationFinancials()`
+        // (lib/finance/reservation-financials.ts) — dupliquée ici (une
+        // soustraction + un taux, pas un second moteur de marge) uniquement
+        // pour pouvoir construire la ligne "seller_margin" nette de
+        // commission AVANT l'appel. Égalité prouvée par un test statique
+        // (formule identique) ET par l'invariant Σ lignes = salePriceTnd
+        // vérifié en base (lib/network/__tests__).
+        const commissionRateForEntitlements = networkMarginRule.commissionPercent ?? 0
+        const commissionAmountForEntitlements =
+          Math.round(marginAmountTnd * (commissionRateForEntitlements / 100) * 100) / 100
+
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
@@ -198,6 +232,49 @@ export async function createNetworkProductBooking(
           salePriceTnd: totalTnd,
           commissionPercent: networkMarginRule.commissionPercent,
           marginRuleId: networkMarginRule.ruleId,
+          // economic_entitlements — §3.1 : supplier (coût réel, aucun
+          // fournisseur réel crédité au-delà de cet enregistrement, cf.
+          // audit "le nœud fournisseur n'est crédité nulle part" — hors
+          // scope d'y remédier ici), seller (marge nette de commission),
+          // easy2book (commission — même montant que creditPlatformCommission
+          // ci-dessous, qui reste le SEUL mouvement d'argent réel ; ceci
+          // n'est que l'enregistrement du DROIT correspondant).
+          economicEntitlements: [
+            {
+              partyType: "supplier_node",
+              partyId: product.supplierNodeId,
+              role: "supplier",
+              qualification: "supplier_cost",
+              amount: costPriceTnd,
+              basis: "coût fournisseur réel (products.cost_price × quantité)",
+              ruleId: networkMarginRule.ruleId ?? null,
+              agreementId: networkMarginRule.ruleId ?? null,
+            },
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "seller",
+              qualification: "seller_margin",
+              amount: marginAmountTnd - commissionAmountForEntitlements,
+              basis: `marge vendeur nette de commission (${
+                networkMarginRule.marginType === "percent"
+                  ? `${networkMarginRule.marginValue}%`
+                  : `${networkMarginRule.marginValue} TND`
+              } − commission ${commissionRateForEntitlements}%)`,
+              ruleId: networkMarginRule.ruleId ?? null,
+              agreementId: networkMarginRule.ruleId ?? null,
+            },
+            {
+              partyType: "easy2book",
+              partyId: null,
+              role: "easy2book",
+              qualification: "commission",
+              amount: commissionAmountForEntitlements,
+              basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+              ruleId: networkMarginRule.ruleId ?? null,
+              agreementId: networkMarginRule.ruleId ?? null,
+            },
+          ],
         })
 
         // --- 8. Commission plateforme Easy2Book — même appel, même transaction,

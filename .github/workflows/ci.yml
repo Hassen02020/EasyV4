@@ -131,11 +131,14 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_DIRECT_URL }}
         run: pnpm db:push --force
 
-      - name: Stub schéma auth (auth.uid() — absent d'un Postgres nu, présent uniquement via Supabase)
+      - name: Stub schéma auth + rôles Supabase (absents d'un Postgres nu, fournis nativement par Supabase)
         run: |
           psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 -c "
             CREATE SCHEMA IF NOT EXISTS auth;
             CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS \$\$ SELECT NULL::uuid \$\$;
+            CREATE ROLE anon NOLOGIN;
+            CREATE ROLE authenticated NOLOGIN;
+            CREATE ROLE service_role NOLOGIN;
           "
 
       - name: Créer le rôle app_runtime (avant le replay des migrations — 0068/0073 y font GRANT EXECUTE)

@@ -25,7 +25,7 @@
  * P12 — expireStaleSnapshots: only ACTIVE+past-TTL rows are updated
  * P13 — expireStaleSnapshots: USED/INVALIDATED rows are untouched
  * P14 — Price isolation: client-supplied amount ignored; server uses snapshot
- * P15 — Currency flows correctly: supplierCurrency stored separately from sellingCurrency
+ * P15 — CURRENCY-DIM-01b : devises différentes → rejet explicite, jamais une addition inter-devises
  * P16 — sellingAmount ≥ supplierAmount (fee + markup never go negative)
  * P17 — 50 concurrent createPriceSnapshot → 50 distinct snapshot IDs
  * P18 — Snapshot status machine: USED/EXPIRED/INVALIDATED are terminal (no back-transition)
@@ -35,7 +35,10 @@
 
 import assert from "node:assert/strict"
 import { test, describe } from "node:test"
-import { computeCommercialResult } from "@/lib/vols/commercial-engine"
+import {
+  computeCommercialResult,
+  UnsupportedCommercialCurrencyMismatchError,
+} from "@/lib/vols/commercial-engine"
 
 // ---------------------------------------------------------------------------
 // Types mirrored from price-snapshot.ts (no "use server" import allowed)
@@ -331,16 +334,26 @@ describe("G10 — PriceSnapshot Integrity", () => {
 
   // ── Currency integrity ───────────────────────────────────────────────────────
 
-  test("P15 — Currency flows correctly: supplierCurrency stored independently of sellingCurrency", () => {
-    // Supplier bills in EUR; agency sells in TND
-    const result = computeCommercialResult(200, "EUR", {
+  test("P15 — CURRENCY-DIM-01b : supplier bills in EUR, rule sells in TND → rejet explicite (jamais une addition EUR+TND)", () => {
+    assert.throws(
+      () =>
+        computeCommercialResult(200, "EUR", {
+          fixedFee: 15,
+          markupRate: 0.04,
+          currency: "TND",
+        }),
+      UnsupportedCommercialCurrencyMismatchError,
+    )
+  })
+
+  test("P15b — CURRENCY-DIM-01b : même devise des deux côtés → calcul normal, aucune régression", () => {
+    const result = computeCommercialResult(200, "TND", {
       fixedFee: 15,
       markupRate: 0.04,
       currency: "TND",
     })
-    assert.equal(result.supplierCurrency, "EUR", "supplierCurrency must reflect GDS currency")
-    assert.equal(result.sellingCurrency, "TND", "sellingCurrency must reflect selling currency")
-    assert.notEqual(result.supplierCurrency, result.sellingCurrency)
+    assert.equal(result.supplierCurrency, "TND")
+    assert.equal(result.sellingCurrency, "TND")
   })
 
   test("P16 — sellingAmount ≥ supplierAmount (fee + markup never negative)", () => {

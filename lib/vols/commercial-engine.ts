@@ -186,6 +186,38 @@ export async function getCommercialRules(
 }
 
 /**
+ * CURRENCY-DIM-01b (2026-10) : avant ce correctif, `sellingAmount =
+ * supplierAmount + fee + markup` additionnait directement `supplierAmount`
+ * (exprimé en `supplierCurrency`, ex. la devise d'un GDS) à `fee`/`markup`
+ * (exprimés en `rules.currency`) SANS AUCUNE conversion — une simple somme
+ * arithmétique entre deux devises différentes si jamais elles divergeaient.
+ * Le test P15 ("Currency flows correctly") ne vérifiait que les ÉTIQUETTES
+ * de devise stockées, jamais la justesse du calcul — confirmé par lecture,
+ * pas par supposition. Dormant aujourd'hui : aucun fournisseur de vols réel
+ * n'est branché (seul l'adaptateur virtuel de démo existe, toujours TND),
+ * donc `supplierCurrency` n'a jamais divergé de `rules.currency` en
+ * production — mais le jour où un vrai GDS facturant en devise étrangère
+ * sera connecté, chaque offre aurait été mal calculée silencieusement.
+ *
+ * Correctif volontairement minimal (même discipline que CURRENCY-DIM-01a,
+ * `lib/hotels-monde/supplier-drivers.ts`) : ne JAMAIS additionner des
+ * montants de devises différentes. Un vrai taux de change réel (source
+ * fournisseur/PSP, horodaté) reste à construire par CURRENCY-DIM-01
+ * (chantier séparé, pas encore GO'd).
+ */
+export class UnsupportedCommercialCurrencyMismatchError extends Error {
+  constructor(
+    public readonly supplierCurrency: string,
+    public readonly sellingCurrency: string,
+  ) {
+    super(
+      `Le fournisseur facture en "${supplierCurrency}" mais la règle commerciale vend en "${sellingCurrency}" — aucune conversion réelle n'est câblée (CURRENCY-DIM-01, pas encore livré), impossible d'additionner ces montants sans inventer un taux.`,
+    )
+    this.name = "UnsupportedCommercialCurrencyMismatchError"
+  }
+}
+
+/**
  * Pure arithmetic: apply a resolved CommercialRules object to a supplier price.
  * Exported for unit testing — no I/O, no DB.
  */
@@ -194,6 +226,10 @@ export function computeCommercialResult(
   supplierCurrency: string,
   rules: CommercialRules,
 ): CommercialResult {
+  if (supplierCurrency !== rules.currency) {
+    throw new UnsupportedCommercialCurrencyMismatchError(supplierCurrency, rules.currency)
+  }
+
   const fee = Math.round(rules.fixedFee * 1000) / 1000
   let markup = Math.round(supplierAmount * rules.markupRate * 1000) / 1000
 

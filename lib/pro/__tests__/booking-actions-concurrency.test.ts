@@ -3,14 +3,22 @@
  * (lib/pro/booking-actions.ts), le débit du wallet agence B2B
  * (`agencies.deposit_balance` / `partner_credit_movements`).
  *
- * ⚠️ NOT VERIFIED — requires live Postgres to run. Ce fichier n'a jamais été
- * exécuté avec succès contre une vraie base dans la session qui l'a écrit :
- * Docker indisponible dans ce sandbox (`docker ps` → daemon injoignable) et
- * `DATABASE_URL` non définie dans ce worktree. Le skip guard ci-dessous
- * (`isDbAvailable()`) fait que ces tests se `skip`-ent proprement en local
- * sans DB, exactement comme `lib/journeys/__tests__/journeys-core.test.ts` —
- * mais AUCUNE exécution réelle n'a eu lieu ici. À faire tourner en CI ou en
- * local avec un Postgres réel avant de considérer ce chantier clos.
+ * Le skip guard ci-dessous (`isDbAvailable()`) fait que ces tests se
+ * `skip`-ent proprement en local sans DB, exactement comme
+ * `lib/journeys/__tests__/journeys-core.test.ts`.
+ *
+ * BOOKING-CONCURRENCY-TEST-RLS-FIX-01 (2026-09-30) — première exécution
+ * réelle en CI (FINANCIAL-E2E-01, PR #85) : les deux tests échouaient avec
+ * "new row violates row-level security policy for table
+ * partner_credit_movements". Cause : ce fichier appelait debitPartnerCredit
+ * SANS contexte tenant (aucun withTenantContext), retombant sur le mode
+ * getDb() autonome de la fonction (lib/pro/booking-actions.ts:500-503) —
+ * jamais utilisé par un appelant de production réel (tous passent
+ * txOverride depuis un withTenantContext déjà établi : lib/booking/
+ * actions.ts:627, lib/cars/actions.ts:262, lib/transfers/actions.ts:225).
+ * Corrigé en donnant à CHAQUE bras concurrent son propre
+ * withTenantContext/txOverride (voir commentaire dans le premier test) —
+ * pas un défaut applicatif.
  *
  * Ce que ce fichier prouve, une fois exécuté contre un Postgres réel :
  *
@@ -31,10 +39,12 @@
  * Le verrou testé est `lock_agency_for_debit()` (SELECT ... FOR UPDATE,
  * SECURITY DEFINER — drizzle/manual/0025_agency_debit_lock_rls_gap.sql),
  * appelé par `debitPartnerCredit`. Chaque appel de ce test ouvre SA PROPRE
- * transaction Drizzle (aucun `txOverride` partagé) — c'est exactement le
- * chemin emprunté par deux requêtes HTTP concurrentes en production (deux
- * réservations B2B simultanées sur la même agence), pas une simulation
- * artificielle dans une seule transaction.
+ * transaction Drizzle, via SON PROPRE `withTenantContext`/`txOverride` —
+ * jamais un contexte/transaction partagé entre les deux bras concurrents,
+ * ce qui les sérialiserait — c'est exactement le chemin emprunté par deux
+ * requêtes HTTP concurrentes en production (deux réservations B2B
+ * simultanées sur la même agence), pas une simulation artificielle dans
+ * une seule transaction.
  *
  * Même convention que `journeys-core.test.ts` : `before`/`after` créent et
  * nettoient des agences de test dédiées ; `isDbAvailable()` fait `t.skip()`
@@ -44,7 +54,7 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, partnerCreditMovements } from "@/lib/db/schema"
 import { debitPartnerCredit, parseTnd } from "../booking-actions"
 
@@ -123,19 +133,33 @@ test("debitPartnerCredit : deux débits concurrents dont la somme dépasse le so
 
   // Solde = 100.000 TND, tolérance 0. Deux débits de 60 TND concurrents :
   // la somme (120) dépasse le solde disponible, donc un seul doit passer.
+  // Chaque bras pose SON PROPRE contexte tenant (withTenantContext), dans
+  // SA PROPRE transaction (txOverride) — exactement comme deux requêtes
+  // HTTP concurrentes en production (lib/booking/actions.ts:627 et
+  // consorts, qui appellent toujours debitPartnerCredit avec un txOverride
+  // issu d'un withTenantContext déjà établi en amont). Un seul
+  // withTenantContext partagé entre les deux bras servirait les deux
+  // débits dans LA MÊME transaction, ce qui les sérialiserait et invaliderait
+  // la preuve de concurrence réelle que ce test doit apporter.
   const [resultA, resultB] = await Promise.all([
-    debitPartnerCredit({
-      agencyId: doubleSpendAgencyId,
-      amountTnd: 60,
-      reference: `WALLET-RACE-DS-A-${randomUUID().slice(0, 8)}`,
-      description: "WALLET-RACE-CI-01 — bras A",
-    }),
-    debitPartnerCredit({
-      agencyId: doubleSpendAgencyId,
-      amountTnd: 60,
-      reference: `WALLET-RACE-DS-B-${randomUUID().slice(0, 8)}`,
-      description: "WALLET-RACE-CI-01 — bras B",
-    }),
+    withTenantContext({ agencyId: doubleSpendAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
+      debitPartnerCredit({
+        agencyId: doubleSpendAgencyId,
+        amountTnd: 60,
+        reference: `WALLET-RACE-DS-A-${randomUUID().slice(0, 8)}`,
+        description: "WALLET-RACE-CI-01 — bras A",
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+      }),
+    ),
+    withTenantContext({ agencyId: doubleSpendAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
+      debitPartnerCredit({
+        agencyId: doubleSpendAgencyId,
+        amountTnd: 60,
+        reference: `WALLET-RACE-DS-B-${randomUUID().slice(0, 8)}`,
+        description: "WALLET-RACE-CI-01 — bras B",
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+      }),
+    ),
   ])
 
   const results = [resultA, resultB]
@@ -178,18 +202,24 @@ test("debitPartnerCredit : deux débits concurrents dont la somme NE dépasse PA
   // "lost update" où la seconde transaction lirait le solde AVANT le
   // commit de la première et écraserait son résultat).
   const [resultA, resultB] = await Promise.all([
-    debitPartnerCredit({
-      agencyId: lostUpdateAgencyId,
-      amountTnd: 40,
-      reference: `WALLET-RACE-LU-A-${randomUUID().slice(0, 8)}`,
-      description: "WALLET-RACE-CI-01 — bras A",
-    }),
-    debitPartnerCredit({
-      agencyId: lostUpdateAgencyId,
-      amountTnd: 40,
-      reference: `WALLET-RACE-LU-B-${randomUUID().slice(0, 8)}`,
-      description: "WALLET-RACE-CI-01 — bras B",
-    }),
+    withTenantContext({ agencyId: lostUpdateAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
+      debitPartnerCredit({
+        agencyId: lostUpdateAgencyId,
+        amountTnd: 40,
+        reference: `WALLET-RACE-LU-A-${randomUUID().slice(0, 8)}`,
+        description: "WALLET-RACE-CI-01 — bras A",
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+      }),
+    ),
+    withTenantContext({ agencyId: lostUpdateAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
+      debitPartnerCredit({
+        agencyId: lostUpdateAgencyId,
+        amountTnd: 40,
+        reference: `WALLET-RACE-LU-B-${randomUUID().slice(0, 8)}`,
+        description: "WALLET-RACE-CI-01 — bras B",
+        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+      }),
+    ),
   ])
 
   const results = [resultA, resultB]

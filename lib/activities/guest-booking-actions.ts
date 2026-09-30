@@ -32,7 +32,7 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { computePriceBreakdown } from "@/lib/booking/pricing"
+import { computePriceBreakdown, priceDrifted } from "@/lib/booking/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -58,7 +58,7 @@ export type CreateGuestActivityBookingResult =
       guestAccessToken: string
       status: "confirmed" | "pending"
     }
-  | { ok: false; error: string; code?: string }
+  | { ok: false; error: string; code?: string; currentTotalTnd?: number }
 
 function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
@@ -69,6 +69,13 @@ class PaymentRejected extends Error {
   constructor(message: string, code?: string) {
     super(message)
     this.code = code
+  }
+}
+
+/** CART-DRIFT-01 — voir lib/booking/guest-actions.ts pour le contexte complet. */
+class PriceChanged extends Error {
+  constructor(public readonly currentTotalTnd: number) {
+    super("PRICE_CHANGED")
   }
 }
 
@@ -87,6 +94,8 @@ function isPastBookingDeadline(session: {
 export async function createGuestActivityBooking(input: {
   booking: ActivityGuestBookingInput
   paymentMethod: GuestPaymentMethod
+  /** CART-DRIFT-01 — voir lib/booking/guest-actions.ts::createGuestReservationFromDraft. */
+  expectedTotalTnd?: number
 }): Promise<CreateGuestActivityBookingResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -113,6 +122,9 @@ export async function createGuestActivityBooking(input: {
         children: parsed.data.children,
         travelerEmail: parsed.data.traveler.email,
         paymentMethod: input.paymentMethod,
+        // CART-DRIFT-01 — voir lib/packages/booking-actions.ts pour la
+        // justification (clé fraîche après un rejet PRICE_CHANGED).
+        expectedTotalTnd: input.expectedTotalTnd ?? null,
       }),
     )
     .digest("hex")
@@ -121,7 +133,7 @@ export async function createGuestActivityBooking(input: {
   const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.traveler.email)
 
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestActivityBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
+    runCreateGuestActivityBooking(parsed.data, input.paymentMethod, linkedAuthUserId, input.expectedTotalTnd),
   )
 }
 
@@ -129,6 +141,7 @@ async function runCreateGuestActivityBooking(
   booking: ActivityGuestBookingInput,
   paymentMethod: GuestPaymentMethod,
   linkedAuthUserId: string | null,
+  expectedTotalTnd: number | undefined,
 ): Promise<CreateGuestActivityBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -186,6 +199,17 @@ async function runCreateGuestActivityBooking(
           depositPercent: 100, // Attractions : pas d'acompte partiel, règlement intégral à la réservation.
         })
         const totalTnd = breakdown.totalTnd
+
+        // --- Garde anti-drift de prix (CART-DRIFT-01) ---
+        // `totalTnd` ci-dessus vient d'être recalculé depuis `session`
+        // verrouillée `FOR UPDATE` — déjà le seul montant qui sera chargé.
+        // Si le client a accepté un montant affiché avant (snapshot panier,
+        // potentiellement vieux — aucun TTL, voir lib/cart/cart-store.ts) et
+        // que le tarif a réellement changé depuis, on rejette plutôt que de
+        // charger silencieusement un montant différent de celui affiché.
+        if (priceDrifted(expectedTotalTnd, totalTnd)) {
+          throw new PriceChanged(totalTnd)
+        }
 
         // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---
         // Résolue et figée AU MOMENT de cette réservation précise (spécifique
@@ -391,6 +415,14 @@ async function runCreateGuestActivityBooking(
   } catch (err) {
     if (err instanceof PaymentRejected) {
       return { ok: false, error: err.message, code: err.code }
+    }
+    if (err instanceof PriceChanged) {
+      return {
+        ok: false,
+        error: `Le prix de cette attraction a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${err.currentTotalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
+        code: "PRICE_CHANGED",
+        currentTotalTnd: err.currentTotalTnd,
+      }
     }
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {

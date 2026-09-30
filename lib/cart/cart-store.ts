@@ -77,6 +77,21 @@ export function removeCartLine(id: string): CartLine[] {
   return lines
 }
 
+/**
+ * CART-DRIFT-01 — met à jour le prix affiché d'une ligne déjà en panier,
+ * après qu'une tentative de confirmation a été rejetée par le serveur
+ * (`code: "PRICE_CHANGED"`, voir lib/booking/guest-actions.ts et
+ * équivalents package/activity) pour cause de tarif réellement changé
+ * depuis l'ajout. Ne modifie QUE l'affichage local ; le montant réellement
+ * chargé reste, comme toujours, celui recalculé serveur au moment de la
+ * confirmation suivante — jamais celui-ci.
+ */
+export function updateCartLinePrice(id: string, priceTnd: number): CartLine[] {
+  const lines = readCart().map((l) => (l.id === id ? { ...l, priceTnd } : l))
+  writeCart(lines)
+  return lines
+}
+
 export function clearCart(): CartLine[] {
   writeCart([])
   return []

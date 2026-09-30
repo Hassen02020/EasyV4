@@ -117,6 +117,25 @@ export function convertFromTnd(amountTnd: number, rate: number): number {
 }
 
 /**
+ * Détecte un écart de prix matériel entre un montant ATTENDU (affiché au
+ * client avant confirmation — snapshot pris au moment de l'ajout au panier)
+ * et le montant réellement recalculé côté serveur juste avant la charge
+ * (CART-DRIFT-01). Tolérance = arrondi flottant uniquement (1 centime,
+ * jamais un pourcentage) : tout écart réel de prix (repricing fournisseur,
+ * marge, tarif) doit être détecté et bloquer la charge silencieuse.
+ * `expectedTnd` absent (chemin non-panier, ex. checkout individuel qui a
+ * déjà revérifié via price-token.ts) ⇒ jamais de faux positif, `false`.
+ */
+export function priceDrifted(
+  expectedTnd: number | undefined | null,
+  actualTnd: number,
+  toleranceTnd = 0.01,
+): boolean {
+  if (expectedTnd == null || !Number.isFinite(expectedTnd)) return false
+  return Math.abs(actualTnd - expectedTnd) > toleranceTnd
+}
+
+/**
  * Format français : 1 234,50 TND
  */
 export function formatMoney(amount: number, currency = "TND"): string {

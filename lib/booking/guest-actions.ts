@@ -53,7 +53,7 @@ import {
 } from "@/lib/db/schema"
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule, paymentMethodSchema } from "./schemas"
-import { computePriceBreakdown } from "./pricing"
+import { computePriceBreakdown, priceDrifted } from "./pricing"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
@@ -107,7 +107,15 @@ export type CreateGuestReservationResult =
        * (voir app/api/payment/reservation-webhook/route.ts). */
       redirectUrl?: string
     }
-  | { ok: false; error: string; code?: string }
+  | {
+      ok: false
+      error: string
+      code?: string
+      /** Présent uniquement pour `code: "PRICE_CHANGED"` (CART-DRIFT-01) —
+       * le total réellement recalculé côté serveur, à afficher/reconfirmer
+       * avant toute nouvelle tentative. */
+      currentTotalTnd?: number
+    }
 
 export async function createGuestReservationFromDraft(input: {
   draft: BookingDraft
@@ -115,6 +123,19 @@ export async function createGuestReservationFromDraft(input: {
   paymentMethod: GuestPaymentMethod
   /** Clé d'idempotence stable pour cette soumission précise (voir appelant). */
   idempotencyKey: string
+  /**
+   * CART-DRIFT-01 — montant TTC affiché au client à la dernière étape avant
+   * confirmation (snapshot panier ou récap checkout individuel), s'il en
+   * existe un fiable. Le prix réellement chargé reste TOUJOURS celui
+   * recalculé ci-dessous à partir de myGo + marge (jamais celui-ci) ; ce
+   * champ sert UNIQUEMENT de garde : si le total serveur fraîchement
+   * recalculé diffère matériellement (`priceDrifted`, lib/booking/pricing.ts)
+   * de ce que le client a vu et accepté, on rejette (`PRICE_CHANGED`)
+   * plutôt que de charger silencieusement un montant différent de celui
+   * affiché — voir CLAUDE.md RÈGLE FINANCIÈRE, tightening de validation,
+   * pas de migration de représentation de données.
+   */
+  expectedTotalTnd?: number
 }): Promise<CreateGuestReservationResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -152,6 +173,7 @@ export async function createGuestReservationFromDraft(input: {
       methodParse.data as GuestPaymentMethod,
       input.idempotencyKey,
       linkedAuthUserId,
+      input.expectedTotalTnd,
     ),
   )
 }
@@ -195,6 +217,7 @@ async function runCreateGuestReservation(
   paymentMethod: GuestPaymentMethod,
   idempotencyKey: string,
   linkedAuthUserId: string | null,
+  expectedTotalTnd: number | undefined,
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -293,6 +316,32 @@ async function runCreateGuestReservation(
     adults: draft.adults,
     children: draft.children,
   })
+
+  // --- Garde anti-drift de prix (CART-DRIFT-01) ---
+  // Le total ci-dessus vient d'être recalculé à partir du VRAI prix myGo +
+  // marge (jamais du panier/draft client) — c'est déjà, et reste, le seul
+  // montant qui sera chargé. Mais si le client a accepté un montant affiché
+  // AVANT (ex. snapshot panier pris à l'ajout, potentiellement vieux de
+  // plusieurs jours — voir lib/cart/cart-store.ts, aucun TTL) et que le prix
+  // a réellement bougé depuis (repricing fournisseur), le facturer quand
+  // même sans le dire au client serait le rendre lésé silencieusement.
+  // On rejette plutôt que de continuer, compensation myGo/verrou identique
+  // aux autres rejets ci-dessus.
+  if (priceDrifted(expectedTotalTnd, breakdown.totalTnd)) {
+    try {
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+    } catch {
+      /* best effort — un hold myGo redondant sans réservation locale associée
+       * n'a aucun impact financier/paiement côté Easy2Book. */
+    }
+    await releaseInventoryLock()
+    return {
+      ok: false,
+      error: `Le prix de cette offre a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${breakdown.totalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
+      code: "PRICE_CHANGED",
+      currentTotalTnd: breakdown.totalTnd,
+    }
+  }
 
   const hotelStartDate = new Date(draft.startDate)
   const hotelEndDate = draft.endDate ? new Date(draft.endDate) : hotelStartDate

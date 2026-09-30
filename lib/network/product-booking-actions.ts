@@ -37,10 +37,10 @@
  * revendeur, pas au propriétaire du catalogue.
  */
 
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
-import { products, supplierNodes, customers, reservations, reservationNetworkProduct } from "@/lib/db/schema"
+import { products, customers, reservations, reservationNetworkProduct } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { nextPublicRef } from "@/lib/booking/actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
@@ -108,12 +108,17 @@ export async function createNetworkProductBooking(
           return { ok: false as const, error: "Produit Network incomplet (coût/fournisseur manquant)" }
         }
 
-        const [node] = await tx
-          .select({ onboardingStatus: supplierNodes.onboardingStatus })
-          .from(supplierNodes)
-          .where(eq(supplierNodes.id, product.supplierNodeId))
-          .limit(1)
-        if (!node || node.onboardingStatus !== "active") {
+        // NETWORK-NODE-VISIBILITY-01 : `supplier_nodes` est super_admin-only
+        // (RLS, 0076) et le runtime tourne sous `app_runtime` (RLS réellement
+        // appliquée) — un SELECT direct ici ne voyait jamais le nœud pour une
+        // agence revendeuse, d'où un échec systématique. La fonction SECURITY
+        // DEFINER (0083) ne renvoie qu'un booléen, et seulement pour un
+        // produit que l'agence a déjà le droit de voir.
+        const nodeRows = (await tx.execute(
+          sql`SELECT network_product_node_is_active(${booking.productId}::uuid) AS "isActive"`,
+        )) as Array<{ isActive: boolean }>
+        const nodeIsActive = nodeRows[0]?.isActive === true
+        if (!nodeIsActive) {
           return { ok: false as const, error: "Le nœud fournisseur de ce produit n'est pas actif" }
         }
 

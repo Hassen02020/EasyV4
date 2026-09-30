@@ -53,8 +53,23 @@ test("createNetworkProductBooking : la réservation passe par 'pending' puis 'co
   )
 })
 
-test("createNetworkProductBooking : vérifie le statut du supplier_node (onboardingStatus === 'active') avant toute réservation — même garde que NETWORK-HARDEN-01", () => {
-  assert.match(src, /node\.onboardingStatus !== "active"/)
+test("createNetworkProductBooking : vérifie que le supplier_node est actif avant toute réservation — via network_product_node_is_active() (NETWORK-NODE-VISIBILITY-01), jamais un SELECT direct sur supplier_nodes (super_admin-only en RLS, invisible pour une agence sous app_runtime)", () => {
+  assert.match(src, /network_product_node_is_active\(\$\{booking\.productId\}::uuid\)/)
+  assert.match(src, /if \(!nodeIsActive\)/)
+  assert.equal(src.includes(".from(supplierNodes)"), false)
+  assert.equal(/\bsupplierNodes\b/.test(src.replace(/\/\/.*$/gm, "")), false)
+})
+
+test("NETWORK-NODE-VISIBILITY-01 : la migration 0083 crée la fonction SECURITY DEFINER, limitée au produit visible par l'appelant, EXECUTE réservé au backend", () => {
+  const mig = readFileSync(join(process.cwd(), "drizzle/manual/0083_network_node_visibility_01.sql"), "utf8")
+  assert.match(mig, /CREATE OR REPLACE FUNCTION network_product_node_is_active\(p_product_id uuid\)/)
+  assert.match(mig, /SECURITY DEFINER/)
+  assert.match(mig, /SET search_path = public/)
+  assert.match(mig, /RETURNS boolean/)
+  assert.match(mig, /p\.agency_id = current_agency_id\(\)/)
+  assert.match(mig, /pa\.agency_id = current_agency_id\(\)/)
+  assert.match(mig, /REVOKE EXECUTE ON FUNCTION network_product_node_is_active\(uuid\) FROM anon, authenticated/)
+  assert.match(mig, /GRANT EXECUTE ON FUNCTION network_product_node_is_active\(uuid\) TO service_role, app_runtime/)
 })
 
 test("aucun nouveau moteur de marge/settlement créé — recordReservationFinancials réutilisé tel quel, commissionPercent/marginRuleId transmis depuis la règle réelle", () => {

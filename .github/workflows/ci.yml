@@ -200,12 +200,15 @@ jobs:
             # (their shape doesn't matter — untouched by the targeted tests,
             # confirmed by grep) so its functions get created normally.
             if [ "$(basename "$f")" = "0035_hotel_supplier_control_plane.sql" ]; then
-              echo "== Pre-drop hotel_supplier_* tables (already created by db:push) so 0035 replays end-to-end, including its 2 functions =="
+              echo "== Pre-drop hotel_supplier_* tables + enum types (already created by db:push) so 0035 replays end-to-end, including its 2 functions =="
               psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 <<'SQL'
                 DROP TABLE IF EXISTS hotel_supplier_authorizations CASCADE;
                 DROP TABLE IF EXISTS hotel_supplier_credentials CASCADE;
                 DROP TABLE IF EXISTS hotel_supplier_accounts CASCADE;
                 DROP TABLE IF EXISTS hotel_suppliers CASCADE;
+                DROP TYPE IF EXISTS hotel_supplier_doc_status CASCADE;
+                DROP TYPE IF EXISTS hotel_supplier_owner_type CASCADE;
+                DROP TYPE IF EXISTS hotel_supplier_account_status CASCADE;
           SQL
             fi
             echo "== Applying $f =="

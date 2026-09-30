@@ -91,10 +91,12 @@ before(async () => {
 after(async () => {
   if (!dbAvailable || !agencyId) return
   await withSystemContext(async (tx) => {
-    // reservations.agency_id est en onDelete:"restrict" (jamais cascade sur
-    // une donnée financière) — les réservations de test créées par les cas
-    // ci-dessus doivent être supprimées avant l'agence elle-même.
+    // reservations.agency_id ET customers.agency_id sont tous deux en
+    // onDelete:"restrict" (jamais cascade sur une donnée financière) — les
+    // réservations puis le client de test créés par les cas ci-dessus
+    // doivent être supprimés avant l'agence elle-même.
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
+    await tx.delete(customers).where(eq(customers.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
 })

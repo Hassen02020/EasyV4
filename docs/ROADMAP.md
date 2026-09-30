@@ -37,10 +37,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: AUCUN — dernier chantier clos (ECON-PILOT-01-DEPRECATE) le 2026-10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
-Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01, ECON-WIRING-01 et ECON-PILOT-01-DEPRECATE CLÔTURÉS (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
+ID: AUCUN — dernier chantier clos (CURRENCY-DIM-01a) le 2026-10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
+Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01, ECON-WIRING-01, ECON-PILOT-01-DEPRECATE et CURRENCY-DIM-01a CLÔTURÉS (voir ci-dessous). CURRENCY-DIM-01 (périmètre complet Vols+Hotels-Monde) reste à ré-auditer puis proposer séparément, sur GO explicite uniquement — pas encore démarré. Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
 Branche: aucune (main)
 ```
+
+### CURRENCY-DIM-01a — CLÔTURÉ (2026-10-01)
+
+Audit ciblé (lecture seule) de la gestion des devises dans `lib/hotels-monde/supplier-drivers.ts`, déclenché en amont d'une future fiche `CURRENCY-DIM-01` complète. Trouvaille : `convertRateHawkAmountToTnd()` réutilisait `CURRENCY_META` (`lib/currency.ts`) — le taux **statique et cosmétique** du sélecteur de devise d'affichage côté client (`components/currency-switcher.tsx`, pensé pour donner un ordre de grandeur sur les pages de listing, jamais mis à jour), sans aucun rapport avec un vrai taux de change. **Dormant** : RateHawk n'a jamais eu de vraies clés API dans cet environnement (`isDemoMode()` toujours vrai, faute de `RATEHAWK_KEY_ID`/`RATEHAWK_API_KEY`) — aucune réservation réelle n'a donc été mal convertie à ce jour — mais dès la première vraie clé configurée, chaque offre cotée en USD aurait été facturée/comptabilisée avec un taux inventé.
+
+Décision Direction sur la suite (avant d'ouvrir CURRENCY-DIM-01 complet) : source de taux = celui du fournisseur/PSP au moment de la transaction (pas de table de taux centrale type BCT) ; précision = taux à 4 décimales, montants TND à 2 décimales ; besoin réel confirmé uniquement sur Vols et/ou Hotels-Monde (Car/Transfer/Omra/Activities/Packages/Hotel TN restent TND-only, aucun besoin réel identifié).
+
+Correctif (périmètre volontairement minimal, exécuté avant tout chantier complet pour neutraliser le risque immédiatement) : `convertRateHawkAmountToTnd()` lève désormais `UnsupportedRateHawkCurrencyError` pour tout montant non-TND au lieu d'inventer une conversion ; l'appelant ignore cette offre précise (même pattern que le skip existant quand le contenu statique de l'hôtel ne peut pas être résolu), sans faire échouer toute la recherche. Preuves : `tsc --noEmit` propre, `eslint lib/hotels-monde` propre, `node --test` sur le fichier concerné 8/8 PASS, `pnpm test` complet 1182 PASS/0 FAIL/234 SKIP (comportement inchangé ailleurs) — CI réelle vérifiée sur log brut, identique au local, `typecheck`/`lint`/`build`/`financial-e2e` verts, seul `format` rouge (dette connue) — run https://github.com/Hassen02020/EasyV4/actions/runs/36788999749. PR https://github.com/Hassen02020/EasyV4/pull/94, mergée (`5ad3276`).
+
+Prochaine étape (sur votre instruction explicite) : ré-auditer ce résultat, puis préparer la fiche `CURRENCY-DIM-01` complète (Vols + Hotels-Monde, taux fournisseur/PSP réel, colonnes rate/source/horodatage sur `reservation_financials`/`economic_entitlements` à confirmer) — non démarré, aucun GO reçu.
 
 ### ECON-PILOT-01-DEPRECATE — CLÔTURÉ (2026-10-01)
 

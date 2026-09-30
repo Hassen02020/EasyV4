@@ -37,10 +37,28 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: (aucun — 4 chantiers du batch GO 1/2/3/4 clôturés le 2026-09-30, prochain chantier à proposer un par un, un GO à la fois)
-Statut: R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel, voir note) et NAV-FIX-01 (N/A) CLÔTURÉS (voir ci-dessous). Incident DEPLOY-01 (main → Vercel Production) résolu le 2026-09-29, preuve détaillée dans CLAUDE.md.
-Branche: (aucune)
+ID: ECONOMIC-MODEL-FREEZE-01 (Phase 0 — document seul, EN ATTENTE DE VALIDATION DIRECTION, PR #80 draft)
+Statut: VERIFY-RUNTIME-ROLE-01 et NETWORK-NODE-VISIBILITY-01 CLÔTURÉS le 2026-09-30 (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
+Branche: economic-model-freeze-01
 ```
+
+### Audit Commercial & Revenue 01 — 2026-09-30 (lecture seule, `main` @ `fa96c53`)
+
+Constats principaux (preuves SQL production + code) : `margin_rules` = 0 ligne et `pricing_margins` = 0 ligne en production → marges = `DEFAULT_MARGINS` codés, `commissionPercent` absent → **droit Easy2Book = 0 TND sur 100 % des ventes** ; commission câblée sur 2 modules / 9 (Hôtel TN, Network) ; aucune contre-passation à l'annulation ; aucune dette fournisseur/propriétaire enregistrée (settlement = commission interne seulement) ; `journal_entries`/`journal_lines`/`exchange_rates` présents en schéma sans aucun écrivain ; TVA 19 % par défaut codée. Rapport, blueprint v3 (« Global Commerce, Local Accounting — One Commerce, Multiple Books », cœur = Economic Entitlement) et roadmap v3 remis à l'utilisateur. Décision utilisateur : **Phase 0 ECONOMIC-MODEL-FREEZE-01 avant tout câblage de revenu** ; l'ancien COMMISSION-REVERSAL-01 est absorbé dans ECON-BREAKDOWN-01 (annulation = droit compensatoire pour tous les rôles). Garde-fou d'ici là : **aucune règle de commission activée en production**.
+
+### VERIFY-RUNTIME-ROLE-01 — CLÔTURÉ (2026-09-30), aucun code
+
+La doc des migrations se contredisait (0069 : `DATABASE_URL` = `app_runtime` ; 0076/0078/0079 : `postgres` BYPASSRLS). Preuve production : `pg_stat_statements` → `app_runtime` (`rolbypassrls=false`) porte 214 060 appels dont 296 sur `reservations` et 106 sur le wallet B2B ; `postgres` 4 154 (migrations/outils). La RLS est réellement appliquée au runtime ; l'autorisation Network (`products_tenant_isolation` : super_admin OU propriétaire OU `product_authorizations` actif) est effective. **Les commentaires de 0076/0078/0079 sont obsolètes sur ce point.** Simulation empirique `SET ROLE app_runtime` : NOT VERIFIED — ENVIRONMENT LIMITATION (refusée à l'outil d'audit).
+
+### NETWORK-NODE-VISIBILITY-01 — CLÔTURÉ, EN PRODUCTION (2026-09-30)
+
+Bug trouvé par VERIFY-RUNTIME-ROLE-01 : `supplier_nodes` est super_admin-only (0076) et `createNetworkProductBooking` le lisait directement dans le contexte de l'agence revendeuse → 0 ligne sous `app_runtime` → échec systématique « nœud fournisseur pas actif » pour toute agence (latent : 0 produit/0 nœud en prod). Correctif : `network_product_node_is_active(uuid)` (`drizzle/manual/0083_network_node_visibility_01.sql`, SECURITY DEFINER, `search_path` fixé, renvoie un booléen uniquement pour un produit visible par l'appelant, EXECUTE `app_runtime`/`service_role` seulement) ; `supplier_nodes` reste super_admin-only ; appel dans `lib/network/product-booking-actions.ts` (motif `tx.execute … as Array<…>` de `lock_agency_for_debit`). Preuves : invariants 9/9 en local ; migration validée en prod dans une transaction ROLLBACK puis **appliquée en production** (vérifié : `prosecdef=true`, `search_path=public`, EXECUTE app_runtime=true / anon=false / authenticated=false, produit inconnu → false) ; CI PR #79 `typecheck`/`lint`/`test`/`build` verts (`format` rouge, dette connue) ; PR https://github.com/Hassen02020/EasyV4/pull/79 mergée (squash `27d8c9d`) ; statut Vercel `easy2book-new` sur `27d8c9d` = success (« Deployment has completed », lu via l'API GitHub — l'API Vercel reste en 403 sur le scope `easy2book` pour cette session). NOT VERIFIED : réservation Network réelle par une agence autorisée (aucun produit en prod, pas de Postgres en CI).
+
+### ECONOMIC-MODEL-FREEZE-01 — EN COURS (Phase 0)
+
+`docs/ECONOMIC_MODEL.md` rédigé (PR #80, draft) : acteurs et rôles, accord commercial, droit économique (champs, invariants, qualification ≠ moteur), annulation compensatoire, droits vs money events, devise, contexte fiscal, 5 modèles chiffrés (Network en premier), décisions D-01 à D-04. **En attente des décisions de la Direction (§10 du document).** Aucun code, aucune migration.
+
+Prochains chantiers possibles, indépendants du gel (à proposer un par un, un GO à la fois) : LEDGER-INTEGRITY-01, FINANCIAL-E2E-01.
 
 ### Batch GO 1/2/3/4 — CLÔTURÉ (2026-09-30)
 

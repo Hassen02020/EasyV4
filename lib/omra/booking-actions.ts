@@ -333,11 +333,26 @@ export async function createOmraBooking(
       // jamais un chiffre inventé, seulement pour que cette réservation
       // compte dans le chiffre d'affaires du Dashboard Marges (auparavant
       // invisible, la requête part d'un INNER JOIN sur reservation_financials).
+      // ECON-WIRING-01 — economic_entitlements. Aucune marge n'existe pour
+      // ce module (supplierPriceTnd = salePriceTnd, cf. commentaire R6-02
+      // ci-dessus) : une SEULE ligne product_owner=agence, pas de lignes
+      // seller_margin/commission fabriquées à 0 (règle Direction, 2026-10 —
+      // ne jamais fabriquer une ligne sans valeur économique réelle).
       await recordReservationFinancials({
         tx,
         reservationId,
         supplierPriceTnd: totalTnd,
         salePriceTnd: totalTnd,
+        economicEntitlements: [
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "product_owner",
+            qualification: "owner_share",
+            amount: totalTnd,
+            basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+          },
+        ],
       })
 
       /* ------------------------------------------------------------------

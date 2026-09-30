@@ -318,11 +318,23 @@ async function runCreateGuestPackageBooking(
 
         // R6-02 : voir lib/omra/booking-actions.ts pour la justification
         // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
+        // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
+        // lignes seller_margin/commission fabriquées à 0.
         await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
           salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "owner_share",
+              amount: totalTnd,
+              basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+            },
+          ],
         })
 
         // Easy2Book Rewards (Phase 38D) — B2C uniquement (voir doc de tête
@@ -603,11 +615,23 @@ export async function createPackageBooking(
 
         // R6-02 : voir lib/omra/booking-actions.ts pour la justification
         // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
+        // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
+        // lignes seller_margin/commission fabriquées à 0.
         await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
           salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "owner_share",
+              amount: totalTnd,
+              basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+            },
+          ],
         })
 
         await tx.insert(reservationPackage).values({

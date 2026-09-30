@@ -304,11 +304,33 @@ async function runCreateGuestCarBooking(
         // que le chemin B2B (lib/cars/actions.ts) : réutilise les DEUX
         // montants déjà calculés par calculateCarPrice()/applyMargin(),
         // jamais un recalcul.
+        // ECON-WIRING-01 — voir lib/cars/actions.ts (chemin B2B) pour le
+        // commentaire complet : agence product_owner ET seller (catalogue
+        // propre, pas de fournisseur externe), pas de commission aujourd'hui.
+        const carSupplierCostTnd = pricing.baseTotalTnd + pricing.insuranceTotalTnd
         await recordReservationFinancials({
           tx,
           reservationId,
-          supplierPriceTnd: pricing.baseTotalTnd + pricing.insuranceTotalTnd,
+          supplierPriceTnd: carSupplierCostTnd,
           salePriceTnd: pricing.totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "supplier_cost",
+              amount: carSupplierCostTnd,
+              basis: "tarif propre de l'agence (car_pricing_rates : base + assurance)",
+            },
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "seller",
+              qualification: "seller_margin",
+              amount: pricing.totalTnd - carSupplierCostTnd,
+              basis: "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+            },
+          ],
         })
 
         // 7. Extension Car

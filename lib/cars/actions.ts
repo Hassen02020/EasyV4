@@ -309,11 +309,39 @@ export async function createCarBooking(
       // DEUX montants déjà calculés par calculateCarPrice()/applyMargin(),
       // jamais un recalcul. preMargin = baseTotalTnd + insuranceTotalTnd
       // (pricing.totalTnd - marginAmount, cf. lib/cars/pricing.ts).
+      // ECON-WIRING-01 — economic_entitlements. Car est un catalogue PROPRE
+      // à l'agence (car_pricing_rates.agency_id), pas un fournisseur externe
+      // modélisé : le coût de base (baseTotalTnd+insuranceTotalTnd) est donc
+      // attribué à l'agence elle-même en tant que "product_owner", jamais
+      // "external_supplier" (règle Direction, 2026-10 : product_owner ≠
+      // external_supplier — déterminer QUI porte réellement le produit).
+      // Aucune commission Easy2Book n'existe aujourd'hui sur ce module
+      // (pas de `commissionPercent` passé ci-dessus) : pas de ligne
+      // "commission" fabriquée à 0, seulement les 2 lignes réelles.
+      const carSupplierCostTnd = pricing.baseTotalTnd + pricing.insuranceTotalTnd
       await recordReservationFinancials({
         tx,
         reservationId,
-        supplierPriceTnd: pricing.baseTotalTnd + pricing.insuranceTotalTnd,
+        supplierPriceTnd: carSupplierCostTnd,
         salePriceTnd: pricing.totalTnd,
+        economicEntitlements: [
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "product_owner",
+            qualification: "supplier_cost",
+            amount: carSupplierCostTnd,
+            basis: "tarif propre de l'agence (car_pricing_rates : base + assurance)",
+          },
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "seller",
+            qualification: "seller_margin",
+            amount: pricing.totalTnd - carSupplierCostTnd,
+            basis: "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+          },
+        ],
       })
 
       await tx.insert(reservationCar).values({

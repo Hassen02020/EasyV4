@@ -41,7 +41,11 @@ test("actions.ts : importe recordReservationFinancials depuis lib/finance/reserv
 
 test("actions.ts : appelle recordReservationFinancials exactement une fois, avec le split coût/prix réel de calculateCarPrice (jamais un recalcul)", () => {
   assert.equal(countOccurrences(actionsSrc, "await recordReservationFinancials("), 1)
-  assert.match(actionsSrc, /supplierPriceTnd:\s*pricing\.baseTotalTnd\s*\+\s*pricing\.insuranceTotalTnd,/)
+  // ECON-WIRING-01 : le split réel est maintenant capturé dans une variable
+  // (carSupplierCostTnd), réutilisée telle quelle pour supplierPriceTnd ET
+  // pour la ligne economic_entitlements product_owner — jamais un recalcul.
+  assert.match(actionsSrc, /const carSupplierCostTnd = pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/)
+  assert.match(actionsSrc, /supplierPriceTnd:\s*carSupplierCostTnd,/)
   assert.match(actionsSrc, /salePriceTnd:\s*pricing\.totalTnd,/)
 })
 
@@ -76,7 +80,8 @@ test("guest-booking-actions.ts : importe recordReservationFinancials depuis lib/
 
 test("guest-booking-actions.ts : appelle recordReservationFinancials exactement une fois, avec le split coût/prix réel de calculateCarPrice (jamais un recalcul)", () => {
   assert.equal(countOccurrences(guestActionsSrc, "await recordReservationFinancials("), 1)
-  assert.match(guestActionsSrc, /supplierPriceTnd:\s*pricing\.baseTotalTnd\s*\+\s*pricing\.insuranceTotalTnd,/)
+  assert.match(guestActionsSrc, /const carSupplierCostTnd = pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/)
+  assert.match(guestActionsSrc, /supplierPriceTnd:\s*carSupplierCostTnd,/)
   assert.match(guestActionsSrc, /salePriceTnd:\s*pricing\.totalTnd,/)
 })
 

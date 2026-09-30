@@ -293,11 +293,32 @@ async function runCreateGuestFlightBooking(
       // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges (voir
       // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
       // déjà calculés par bookFlight()/applyMargin(), jamais un recalcul.
+      // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe
+      // (API vols), non modélisé — external_supplier/partyId null, comme
+      // Hotel TN/Hotels-Monde. Aucune commission Easy2Book aujourd'hui.
       await recordReservationFinancials({
         tx,
         reservationId,
         supplierPriceTnd: bookResult.supplierPriceTnd,
         salePriceTnd: bookResult.totalPriceTnd,
+        economicEntitlements: [
+          {
+            partyType: "external_supplier",
+            partyId: null,
+            role: "supplier",
+            qualification: "supplier_cost",
+            amount: bookResult.supplierPriceTnd,
+            basis: "coût fournisseur réel confirmé par l'API vols",
+          },
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "seller",
+            qualification: "seller_margin",
+            amount: bookResult.totalPriceTnd - bookResult.supplierPriceTnd,
+            basis: "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
+          },
+        ],
       })
 
       const firstSegment = bookResult.segments[0]!

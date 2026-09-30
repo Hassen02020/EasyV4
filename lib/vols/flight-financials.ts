@@ -25,6 +25,7 @@
 import { eq } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { flightPriceSnapshots } from "@/lib/db/schema/flights"
+import { reservations } from "@/lib/db/schema"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 export async function finalizeFlightBookingFinancials(
@@ -44,10 +45,44 @@ export async function finalizeFlightBookingFinancials(
 
   if (!snapshot) return
 
+  const supplierPriceTnd = Number(snapshot.supplierAmount)
+  const salePriceTnd = Number(snapshot.sellingAmount)
+
+  // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe (API
+  // vols), non modélisé — external_supplier/partyId null, comme les autres
+  // modules à fournisseur externe. Lecture de agencyId (non fourni par les
+  // deux appelants aujourd'hui) — simple SELECT dans la même transaction,
+  // aucun changement de comportement du calcul financier lui-même.
+  const [reservation] = await tx
+    .select({ agencyId: reservations.agencyId })
+    .from(reservations)
+    .where(eq(reservations.id, input.reservationId))
+    .limit(1)
+
   await recordReservationFinancials({
     tx,
     reservationId: input.reservationId,
-    supplierPriceTnd: Number(snapshot.supplierAmount),
-    salePriceTnd: Number(snapshot.sellingAmount),
+    supplierPriceTnd,
+    salePriceTnd,
+    economicEntitlements: reservation
+      ? [
+          {
+            partyType: "external_supplier",
+            partyId: null,
+            role: "supplier",
+            qualification: "supplier_cost",
+            amount: supplierPriceTnd,
+            basis: "coût fournisseur réel figé au moment de la recherche (flight_price_snapshots.supplier_amount)",
+          },
+          {
+            partyType: "agency",
+            partyId: reservation.agencyId,
+            role: "seller",
+            qualification: "seller_margin",
+            amount: salePriceTnd - supplierPriceTnd,
+            basis: "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
+          },
+        ]
+      : undefined,
   })
 }

@@ -547,6 +547,14 @@ async function runCreateGuestReservation(
         // montants déjà calculés plus haut par `applyMargin()`, jamais un
         // recalcul.
         if (draft.module === "hotel") {
+          // ECON-WIRING-01 — voir lib/booking/actions.ts (chemin front-office)
+          // pour le commentaire complet : même formule dupliquée que
+          // recordReservationFinancials(), fournisseur myGo non modélisé.
+          const marginAmountTnd = agencyPrice - myGoBooking.totalPrice
+          const commissionRateForEntitlements = hotelMarginRule.commissionPercent ?? 0
+          const commissionAmountForEntitlements =
+            Math.round(marginAmountTnd * (commissionRateForEntitlements / 100) * 100) / 100
+
           const { commissionAmount } = await recordReservationFinancials({
             tx,
             reservationId,
@@ -554,6 +562,42 @@ async function runCreateGuestReservation(
             salePriceTnd: agencyPrice,
             commissionPercent: hotelMarginRule.commissionPercent,
             marginRuleId: hotelMarginRule.ruleId,
+            economicEntitlements: [
+              {
+                partyType: "external_supplier",
+                partyId: null,
+                role: "supplier",
+                qualification: "supplier_cost",
+                amount: myGoBooking.totalPrice,
+                basis: "coût fournisseur réel confirmé par myGo (totalPrice)",
+                ruleId: hotelMarginRule.ruleId ?? null,
+                agreementId: hotelMarginRule.ruleId ?? null,
+              },
+              {
+                partyType: "agency",
+                partyId: agencyId,
+                role: "seller",
+                qualification: "seller_margin",
+                amount: marginAmountTnd - commissionAmountForEntitlements,
+                basis: `marge vendeur nette de commission (${
+                  hotelMarginRule.marginType === "percent"
+                    ? `${hotelMarginRule.marginValue}%`
+                    : `${hotelMarginRule.marginValue} TND`
+                } − commission ${commissionRateForEntitlements}%)`,
+                ruleId: hotelMarginRule.ruleId ?? null,
+                agreementId: hotelMarginRule.ruleId ?? null,
+              },
+              {
+                partyType: "easy2book",
+                partyId: null,
+                role: "easy2book",
+                qualification: "commission",
+                amount: commissionAmountForEntitlements,
+                basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+                ruleId: hotelMarginRule.ruleId ?? null,
+                agreementId: hotelMarginRule.ruleId ?? null,
+              },
+            ],
           })
           await creditPlatformCommission(tx, {
             reservationId,

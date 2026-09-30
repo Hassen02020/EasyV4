@@ -291,11 +291,35 @@ async function runCreateGuestWorldHotelBooking(
       // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges (voir
       // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
       // déjà calculés par bookWorldHotel()/applyMargin(), jamais un recalcul.
+      // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe
+      // (API hôtels monde), non modélisé comme partie — partyType
+      // "external_supplier"/partyId null, comme Hotel TN/myGo. Aucune
+      // commission Easy2Book aujourd'hui sur ce module (pas de
+      // `commissionPercent` passé ci-dessus) : pas de ligne "commission"
+      // fabriquée à 0.
       await recordReservationFinancials({
         tx,
         reservationId,
         supplierPriceTnd: bookResult.supplierPriceTnd,
         salePriceTnd: bookResult.totalPriceTnd,
+        economicEntitlements: [
+          {
+            partyType: "external_supplier",
+            partyId: null,
+            role: "supplier",
+            qualification: "supplier_cost",
+            amount: bookResult.supplierPriceTnd,
+            basis: "coût fournisseur réel confirmé par l'API hôtels monde",
+          },
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "seller",
+            qualification: "seller_margin",
+            amount: bookResult.totalPriceTnd - bookResult.supplierPriceTnd,
+            basis: "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
+          },
+        ],
       })
 
       await tx.insert(reservationHotel).values({

@@ -58,6 +58,14 @@ Bug trouvé par VERIFY-RUNTIME-ROLE-01 : `supplier_nodes` est super_admin-only (
 
 `docs/ECONOMIC_MODEL.md` rédigé (PR #80, draft) : acteurs et rôles, accord commercial, droit économique (champs, invariants, qualification ≠ moteur), annulation compensatoire, droits vs money events, devise, contexte fiscal, 5 modèles chiffrés (Network en premier), décisions D-01 à D-04. **En attente des décisions de la Direction (§10 du document).** Aucun code, aucune migration.
 
+### COMMERCIAL-REVENUE-01 (commission reversal) — ABANDONNÉ SANS ÉCRITURE (2026-09-30)
+
+GO initial donné avant que l'audit Commercial & Revenue 01 (ci-dessus) ne soit délivré. Dès réception du rapport et de la mise à jour de ce fichier actant l'absorption dans ECON-BREAKDOWN-01, l'agent d'implémentation a été arrêté par l'orchestrateur avant tout commit/push/PR. Aucune branche `commercial-revenue-01-*` n'existe sur `origin`. Un brouillon de travail (`reverseCommission()` réutilisant `credit_platform_commission()` avec un montant négatif, pas de nouveau moteur ni migration) reste non commité dans un worktree local, conservé comme référence possible pour ECON-BREAKDOWN-01, pas comme travail en cours.
+
+### COMMERCIAL-REVENUE-02 (Car financials) — CLÔTURÉ (2026-09-30)
+
+GO donné avant l'audit Commercial & Revenue 01 ; ré-audité après coup pour vérifier qu'il n'entre pas en conflit avec le gel du modèle économique. Gap : `lib/cars/actions.ts`/`lib/cars/guest-booking-actions.ts` appellent `debitPartnerCredit` et calculent une marge réelle via `calculateCarPrice()` (même moteur `applyMargin()` que Transferts) mais n'appelaient jamais `recordReservationFinancials()` — marge calculée puis silencieusement jamais persistée. Correctif : ajout du seul appel manquant, mirroir exact du pattern Transferts, aucune modification du calcul de prix. L'audit Commercial & Revenue 01 avait qualifié Car de « 2 moteurs de prix incohérents / UNKNOWN » : ré-vérifié directement sur le code par l'orchestrateur ET par l'agent — un seul moteur (`applyMargin()`), pas deux formules divergentes. Le vrai gap (déjà documenté ailleurs : ROADMAP R3-02/R6-02) est que `car` est exclu du type `MarginModule` et qu'aucune UI n'écrit jamais `pricing_margins` pour ce module — donc la marge persistée sera `0` pour la quasi-totalité des réservations réelles aujourd'hui, ce qui est le comportement correct à documenter, pas un bug de ce chantier. Non concerné par le gel ECONOMIC-MODEL-FREEZE-01 (aucune activation de commission/revenu, persistance additive uniquement). CI vérifiée directement par l'orchestrateur : `typecheck`/`lint`/`test`/`build` verts, `format` rouge (dette connue, PR #63). PR https://github.com/Hassen02020/EasyV4/pull/83, mergée (squash `a1aedb5`).
+
 Prochains chantiers possibles, indépendants du gel (à proposer un par un, un GO à la fois) : LEDGER-INTEGRITY-01, FINANCIAL-E2E-01.
 
 ### Batch GO 1/2/3/4 — CLÔTURÉ (2026-09-30)

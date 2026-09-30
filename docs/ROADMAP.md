@@ -66,7 +66,34 @@ GO initial donné avant que l'audit Commercial & Revenue 01 (ci-dessus) ne soit 
 
 GO donné avant l'audit Commercial & Revenue 01 ; ré-audité après coup pour vérifier qu'il n'entre pas en conflit avec le gel du modèle économique. Gap : `lib/cars/actions.ts`/`lib/cars/guest-booking-actions.ts` appellent `debitPartnerCredit` et calculent une marge réelle via `calculateCarPrice()` (même moteur `applyMargin()` que Transferts) mais n'appelaient jamais `recordReservationFinancials()` — marge calculée puis silencieusement jamais persistée. Correctif : ajout du seul appel manquant, mirroir exact du pattern Transferts, aucune modification du calcul de prix. L'audit Commercial & Revenue 01 avait qualifié Car de « 2 moteurs de prix incohérents / UNKNOWN » : ré-vérifié directement sur le code par l'orchestrateur ET par l'agent — un seul moteur (`applyMargin()`), pas deux formules divergentes. Le vrai gap (déjà documenté ailleurs : ROADMAP R3-02/R6-02) est que `car` est exclu du type `MarginModule` et qu'aucune UI n'écrit jamais `pricing_margins` pour ce module — donc la marge persistée sera `0` pour la quasi-totalité des réservations réelles aujourd'hui, ce qui est le comportement correct à documenter, pas un bug de ce chantier. Non concerné par le gel ECONOMIC-MODEL-FREEZE-01 (aucune activation de commission/revenu, persistance additive uniquement). CI vérifiée directement par l'orchestrateur : `typecheck`/`lint`/`test`/`build` verts, `format` rouge (dette connue, PR #63). PR https://github.com/Hassen02020/EasyV4/pull/83, mergée (squash `a1aedb5`).
 
-Prochains chantiers possibles, indépendants du gel (à proposer un par un, un GO à la fois) : LEDGER-INTEGRITY-01, FINANCIAL-E2E-01.
+Prochains chantiers possibles, indépendants du gel (à proposer un par un, un GO à la fois) : LEDGER-INTEGRITY-01 (pris en charge par une autre piste, PR #82 ouverte — non touché ici, voir note dédiée plus bas), FINANCIAL-E2E-01.
+
+### FINANCIAL-E2E-01 — EN COURS (diagnostic, pas de clôture)
+
+```text
+FINANCIAL-E2E-01
+→ infrastructure CI PostgreSQL : VALIDÉE
+→ 0 SKIP : VALIDÉ
+→ 2 défauts de fixtures de tests identifiés
+→ corrections séparées autorisées
+
+JOURNEYS-TEST-FK-FIX-01
+→ GO
+→ en cours
+
+BOOKING-CONCURRENCY-TEST-RLS-FIX-01
+→ GO
+→ en cours
+```
+
+GO donné pour construire un vrai Postgres éphémère en CI (service container GitHub Actions) et y exécuter réellement 5 suites de tests financiers jusqu'ici toujours en `SKIP` faute de `DATABASE_URL`. Premier run réel (PR #85, job `financial-e2e`, run https://github.com/Hassen02020/EasyV4/actions/runs/36737333279) : schéma + 81 migrations manuelles + rôle `app_runtime` (non-bypass RLS, conforme production) répliqués avec succès ; **0 SKIP sur les 33 tests ciblés — objectif infrastructure atteint et vérifié indépendamment par l'orchestrateur** (logs bruts relus, pas seulement l'affirmation de l'agent). Résultat brut : `27 pass / 6 fail / 0 skip`.
+
+Diagnostic des 6 échecs (lecture directe du code applicatif réel, pas de supposition) : **les deux défauts sont des fixtures de test qui ne respectaient pas les contraintes réelles du système — pas des bugs financiers de production.**
+
+- **`journeys-core.test.ts` (4 fail)** — 3 tests appelaient `recordLineOutcomeCore(..., { reservationId: randomUUID() })` avec un id fabriqué, jamais inséré dans `reservations`, alors que `journey_lines.reservation_id` porte une vraie FK. Vérifié dans `journey-actions.ts:309-327` : en production, `recordLineOutcomeCore` ne reçoit jamais un id fabriqué — toujours celui, réel et déjà committé, retourné par le vrai moteur de réservation (`dispatchJourneyLine`). Le `after()` échouait en cascade (agence non supprimable tant que des lignes orphelines la référencent).
+- **`booking-actions-concurrency.test.ts` (2 fail, 0 pass)** — le test appelait `debitPartnerCredit()` sans aucun contexte tenant, retombant sur son mode `getDb()` autonome (`lib/pro/booking-actions.ts:500-503`), jamais utilisé par un appelant réel. Vérifié : les 3 SEULS appelants de production (`lib/booking/actions.ts:627`, `lib/cars/actions.ts:262`, `lib/transfers/actions.ts:225`) passent tous `txOverride` depuis un `withTenantContext` déjà établi. Sous `app_runtime` (RLS active), l'absence de contexte fait échouer le `WITH CHECK` de la policy `partner_credit_movements_tenant_isolation`.
+
+Les deux corrections (fichiers de test uniquement, aucun changement applicatif) sont GO'd séparément et en cours — voir commit `18cfb97` sur la branche `financial-e2e-01` (PR #85). **PR #85 reste ouverte et NON mergée.** Prochaine étape : relancer la CI réelle ; si `33/33 PASS — 0 FAIL — 0 SKIP`, `FINANCIAL-E2E-01` pourra être considéré réellement DONE, le diff de #85 revu, et une décision de merge prise séparément.
 
 ### Batch GO 1/2/3/4 — CLÔTURÉ (2026-09-30)
 

@@ -68,23 +68,31 @@ GO donné avant l'audit Commercial & Revenue 01 ; ré-audité après coup pour v
 
 Prochains chantiers possibles, indépendants du gel (à proposer un par un, un GO à la fois) : LEDGER-INTEGRITY-01 (pris en charge par une autre piste, PR #82 ouverte — non touché ici, voir note dédiée plus bas), FINANCIAL-E2E-01.
 
-### FINANCIAL-E2E-01 — EN COURS (diagnostic, pas de clôture)
+### FINANCIAL-E2E-01 — CLÔTURÉ (2026-09-30)
 
 ```text
 FINANCIAL-E2E-01
 → infrastructure CI PostgreSQL : VALIDÉE
-→ 0 SKIP : VALIDÉ
 → 2 défauts de fixtures de tests identifiés
 → corrections séparées autorisées
 
 JOURNEYS-TEST-FK-FIX-01
 → GO
-→ en cours
+→ CLÔTURÉ
 
 BOOKING-CONCURRENCY-TEST-RLS-FIX-01
 → GO
-→ en cours
+→ CLÔTURÉ
+
+Résultat final : 32/32 PASS — 0 FAIL — 0 SKIP
 ```
+
+Les deux corrections (fichiers de test uniquement, aucun changement applicatif, conforme au périmètre des deux GO) ont été poussées sur la branche `financial-e2e-01` (PR #85) : `18cfb97` (insertion d'une vraie ligne `reservations` avant `recordLineOutcomeCore(ok:true)`, `withTenantContext`+`txOverride` séparé par bras concurrent pour `debitPartnerCredit`) puis `5bf1659` (un second gap FK trouvé au run suivant — `customers.agency_id` également `onDelete:"restrict"`, jamais nettoyé dans `after()`, même fichier, même périmètre). Re-run CI réel après chaque push, logs bruts relus directement par l'orchestrateur (pas seulement l'affirmation d'un agent) :
+- run 1 (avant les 2 fixes) : `27 pass / 6 fail / 0 skip`.
+- run 2 (après fix FK partiel + fix RLS complet) : `32 pass / 1 fail / 0 skip` — les deux tests de concurrence `debitPartnerCredit` passent réellement sous RLS (`app_runtime`, non-bypass) pour la première fois.
+- run 3 (après le second fix FK) : **`32 pass / 0 fail / 0 skip`** — https://github.com/Hassen02020/EasyV4/actions/runs/36752274039/job/110013608391. `typecheck`/`lint`/`test`/`build` verts, `format` rouge (dette connue, PR #63, sans rapport).
+
+**Définition de "DONE" de l'utilisateur pleinement remplie** : infrastructure CI PostgreSQL réelle validée, schéma + 81 migrations manuelles + rôle `app_runtime` répliqués avec succès en CI, 5 suites financières exécutées réellement (plus `margins-core.test.ts`), 0 FAIL, 0 SKIP. Les 6 échecs du premier run n'étaient, dans les deux cas, PAS des bugs financiers de production — le code applicatif réel (`debitPartnerCredit`, `recordLineOutcomeCore`, les 3 vrais appelants de `debitPartnerCredit`) a été vérifié directement et est correct ; c'étaient des fixtures de test qui ne respectaient pas les contraintes réelles du système (FK, RLS) jamais exercées auparavant faute de Postgres réel. PR https://github.com/Hassen02020/EasyV4/pull/85, mergée (squash `1f1a654`).
 
 GO donné pour construire un vrai Postgres éphémère en CI (service container GitHub Actions) et y exécuter réellement 5 suites de tests financiers jusqu'ici toujours en `SKIP` faute de `DATABASE_URL`. Premier run réel (PR #85, job `financial-e2e`, run https://github.com/Hassen02020/EasyV4/actions/runs/36737333279) : schéma + 81 migrations manuelles + rôle `app_runtime` (non-bypass RLS, conforme production) répliqués avec succès ; **0 SKIP sur les 33 tests ciblés — objectif infrastructure atteint et vérifié indépendamment par l'orchestrateur** (logs bruts relus, pas seulement l'affirmation de l'agent). Résultat brut : `27 pass / 6 fail / 0 skip`.
 

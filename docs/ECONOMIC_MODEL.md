@@ -1,12 +1,15 @@
 # EASY2BOOK — MODÈLE ÉCONOMIQUE (Phase 0 · ECONOMIC-MODEL-FREEZE-01)
 
-> Statut : **PROPOSITION — À VALIDER PAR LA DIRECTION.** Rien dans ce document n'est encore implémenté.
+> Statut : **D-01 à D-03 VALIDÉS PAR LA DIRECTION (2026-09-30). D-04 OPEN — bloqué en attente d'un avis d'expert-comptable
+> tunisien.** Rien dans ce document n'est encore implémenté — la validation des décisions n'est PAS un GO de câblage.
 > Rédigé le 30/09/2026 à partir de l'audit Commercial & Revenue 01 (`main` @ `fa96c53`) et du cadrage
 > « Global Commerce, Local Accounting — One Commerce, Multiple Books ».
-> Aucun code, aucune migration. Tant que ce document n'est pas validé, **aucun chantier de câblage de revenu ne démarre**
-> (ECON-BREAKDOWN-01, AGREEMENT-01, CURRENCY-DIM-01, ECON-WIRING-01, SETTLEMENT-OBLIGATIONS-01…).
+> Aucun code, aucune migration. Les décisions ci-dessous sont figées, mais **aucun chantier de câblage de revenu ne
+> démarre sans un GO séparé et explicite** (ECON-BREAKDOWN-01, AGREEMENT-01, CURRENCY-DIM-01, ECON-WIRING-01,
+> SETTLEMENT-OBLIGATIONS-01…). Prochaine étape : auditer ce que le code actuel respecte déjà de ce modèle et ce qui en
+> diverge — pas encore implémenter.
 >
-> Chaque décision ouverte est marquée **[D-xx]** avec une proposition par défaut. La Direction coche, corrige ou refuse.
+> Chaque décision est marquée **[D-xx]** avec sa proposition et son statut de validation (§10).
 
 ---
 
@@ -303,17 +306,38 @@ Seules tables nouvelles au cœur : `commercial_agreements`, `economic_entitlemen
 
 ---
 
-## 10. Décisions à trancher (Direction)
+## 10. Décisions tranchées (Direction, 2026-09-30)
 
-- [ ] **D-01a** — le droit d'Easy2Book est fixé par Easy2Book seul (proposé : oui)
-- [ ] **D-01b** — base de calcul par défaut : option 3 « frais sur net » pour le réseau, option 1 conservée pour Hôtel TN
-- [ ] **D-01c** — droit `earned` à la confirmation, `settleable` à la prestation
-- [ ] **D-02** — Omra, Packages, Activités, Car : monétisés par accord (proposé : oui, via option 3) ; Car après
-      unification de ses deux moteurs de prix
-- [ ] **D-02a** — traitement d'annulation par rôle (tableau §4)
-- [ ] **D-03** — devise fonctionnelle E2B TND ; économique et settlement = devise de l'accord
-- [ ] **D-04** — avis expert-comptable sur les régimes fiscaux par rôle (prérequis)
-- [ ] Validation des 5 exemples chiffrés (§8), Network en premier
+- [x] **D-01a** — VALIDÉ. Le droit d'Easy2Book est fixé par Easy2Book seul (super_admin) ; une agence ne peut jamais
+      modifier la part d'Easy2Book.
+- [x] **D-01b** — VALIDÉ avec coexistence explicite legacy/réseau (pas un remplacement uniforme) :
+      **option 3 « frais/% sur prix net »** = défaut pour le réseau Easy2Book (Network et tout nouvel accord) —
+      seule base qui fonctionne uniformément sur les 9 modules, y compris ceux à marge 0 aujourd'hui (Omra, Packages,
+      Activités) ; **option 1 « % de la marge vendeur »** reste en vigueur pour les accords Hôtel TN existants, sans
+      réécriture rétroactive pour ne pas casser ce qui tourne déjà.
+- [x] **D-01c** — VALIDÉ. `earned` à la confirmation → `settleable` à la réalisation du service (check-in/départ).
+      Objectif explicite : rendre propre annulation, remboursement, no-show, reversal, commission et settlement, en
+      évitant le modèle « confirmation = argent définitivement acquis ».
+- [x] **D-02** — VALIDÉ. Omra/Packages/Activités/Car sont monétisables par accord (option 3). Car : seulement après
+      harmonisation de ses deux moteurs de prix (référence : audit Commercial & Revenue 01, gap déjà documenté
+      ROADMAP R3-02/R6-02 — pas une divergence numérique entre deux formules, mais `car` exclu du type
+      `MarginModule` et sans UI d'écriture de taux, cf. clôture COMMERCIAL-REVENUE-02).
+- [x] **D-02a** — VALIDÉ. Compensation/reversal économique par rôle (tableau §4), jamais de réécriture d'une écriture
+      historique — cohérent avec l'invariant append-only déjà prouvé sur `wallet_ledger`/`partner_credit_movements`.
+- [x] **D-03** — VALIDÉ. TND = devise fonctionnelle Easy2Book ; devise économique et de settlement d'un droit =
+      devise de l'accord.
+- [ ] **D-04** — **OPEN / BLOQUÉ, volontairement non tranché.** Aucun avis d'expert-comptable tunisien obtenu à ce
+      jour sur les régimes fiscaux applicables par rôle. Décision explicite : ne pas chercher à combler cette
+      décision en interne. `TAX-CONTEXT-01` reste bloqué indépendamment des 6 décisions ci-dessus, même une fois
+      celles-ci mises en œuvre.
+- [ ] Validation des 5 exemples chiffrés (§8) — à faire au moment de l'audit de conformité (prochaine étape),
+      Network (modèle D) en premier.
+
+**Prochaine étape (pas un GO d'implémentation)** : auditer le code réel (`main` courant) par rapport à ces 6
+décisions validées — ce qu'il respecte déjà (ex. `applyMargin()`, `margin_rules`, append-only du ledger) et ce qui en
+diverge (ex. aucune table `commercial_agreements`/`economic_entitlements`, `credit_platform_commission()` crédite
+sans contrepartie — R-02, taux vivant dans une ligne appartenant à l'agence — R-06). Cet audit produira la fiche
+chantier ECON-BREAKDOWN-01 (ou équivalent), soumise à son propre GO avant tout code.
 
 ## 11. Hors périmètre de ce document
 

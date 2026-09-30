@@ -248,7 +248,8 @@ jobs:
             lib/finance/__tests__/reconciliation.test.ts \
             lib/pro/__tests__/margins-core.test.ts \
             lib/admin/__tests__/commercial-agreements-live.test.ts \
-            lib/finance/__tests__/economic-entitlements-network.test.ts
+            lib/finance/__tests__/economic-entitlements-network.test.ts \
+            lib/finance/__tests__/currency-dim-01-plumbing.test.ts
 
   build:
     runs-on: ubuntu-latest

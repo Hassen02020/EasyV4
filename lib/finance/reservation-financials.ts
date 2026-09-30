@@ -32,6 +32,24 @@
  * chantier séparé, pas encore GO'd) et ne changent donc pas de comportement.
  * Statut initial toujours `earned` (aucune transition
  * earned → settleable/settled implémentée ici, cf. décision de scope).
+ *
+ * CURRENCY-DIM-01 (plomberie uniquement, 2026-10) : `reservation_financials`
+ * a toujours eu les colonnes `supplier_currency`/`sale_currency`/
+ * `exchange_rate`/`exchange_rate_at` — jamais renseignées avec de vraies
+ * valeurs (toujours `"TND"`/`1`/`null`). Ajout OPTIONNEL et additif de
+ * `supplierOriginal`/`saleOriginal`/`exchangeRate` ci-dessous : absents =
+ * comportement STRICTEMENT inchangé (les 13 call sites actuels ne les
+ * passent pas). Cette fonction ne calcule ni n'invente AUCUN taux — elle se
+ * contente de persister ce que l'appelant fournit déjà (même discipline que
+ * `supplierPriceTnd`/`salePriceTnd` ci-dessus). Aucun appelant réel
+ * n'existe encore : ni Vols ni Hotels-Monde ne sont câblés dessus — aucun
+ * fournisseur réel n'est aujourd'hui connecté pour l'un ou l'autre (seuls
+ * des adaptateurs de démo/virtuels), donc aucun vrai taux fournisseur n'est
+ * disponible à câbler sans l'inventer (voir la règle permanente "Taux de
+ * change" dans CLAUDE.md § RÈGLE FINANCIÈRE, et les correctifs CURRENCY-
+ * DIM-01a/01b qui ont fermé les deux trous trouvés entre-temps). Le
+ * câblage réel (Vols/Hotels-Monde) reste un chantier séparé, à reprendre
+ * une fois un vrai fournisseur connecté, pas avant.
  */
 
 import type { DrizzleTransaction } from "@/lib/db/client"
@@ -90,6 +108,32 @@ export interface RecordReservationFinancialsInput {
    * réelle sur une assertion de développement.
    */
   economicEntitlements?: EconomicEntitlementLineInput[]
+  /**
+   * CURRENCY-DIM-01 (plomberie) — montant + devise d'origine RÉELS côté
+   * fournisseur, quand connus et différents de TND. Optionnel : absent =
+   * `supplierCurrency = "TND"`, `supplierPrice = supplierPriceTnd`
+   * (comportement actuel, strictement inchangé). Ne JAMAIS déduire/inventer
+   * cette valeur — seulement la transmettre telle que fournie par le
+   * fournisseur réel.
+   */
+  supplierOriginal?: { amount: number; currency: string }
+  /**
+   * CURRENCY-DIM-01 (plomberie) — montant + devise d'origine RÉELS côté
+   * vente, quand connus et différents de TND. Optionnel, même règle que
+   * `supplierOriginal` ci-dessus.
+   */
+  saleOriginal?: { amount: number; currency: string }
+  /**
+   * CURRENCY-DIM-01 (plomberie) — taux de change RÉEL appliqué pour la
+   * conversion ci-dessus, avec son horodatage de capture. Optionnel : absent
+   * = `exchange_rate`/`exchange_rate_at` gardent leurs valeurs par défaut
+   * (`1`/`null`), comportement actuel inchangé. Jamais calculé ni inventé
+   * ici (voir règle permanente "Taux de change", CLAUDE.md § RÈGLE
+   * FINANCIÈRE) — uniquement un taux réel déjà obtenu par l'appelant
+   * (source fournisseur/PSP au moment de la transaction, par décision
+   * Direction 2026-10-01), à 4 décimales.
+   */
+  exchangeRate?: { rate: number; at: Date }
 }
 
 export async function recordReservationFinancials(
@@ -104,17 +148,20 @@ export async function recordReservationFinancials(
 
   await tx.insert(reservationFinancials).values({
     reservationId,
-    supplierPrice: supplierPriceTnd.toFixed(2),
-    supplierCurrency: "TND",
+    supplierPrice: (input.supplierOriginal?.amount ?? supplierPriceTnd).toFixed(2),
+    supplierCurrency: input.supplierOriginal?.currency ?? "TND",
     supplierPriceTnd: supplierPriceTnd.toFixed(2),
-    salePrice: salePriceTnd.toFixed(2),
-    saleCurrency: "TND",
+    salePrice: (input.saleOriginal?.amount ?? salePriceTnd).toFixed(2),
+    saleCurrency: input.saleOriginal?.currency ?? "TND",
     salePriceTnd: salePriceTnd.toFixed(2),
     marginAmount: marginAmount.toFixed(2),
     marginPercent: marginPercent.toFixed(2),
     commissionAmount: commissionAmount.toFixed(2),
     commissionPercent: commissionRate.toFixed(2),
     ...(input.marginRuleId ? { marginRuleId: input.marginRuleId } : {}),
+    ...(input.exchangeRate
+      ? { exchangeRate: input.exchangeRate.rate.toFixed(4), exchangeRateAt: input.exchangeRate.at }
+      : {}),
   })
 
   if (input.economicEntitlements && input.economicEntitlements.length > 0) {

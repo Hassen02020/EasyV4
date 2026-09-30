@@ -139,7 +139,16 @@ test("commercial_agreements : une agence (non super_admin) NE PEUT PAS créer un
           createdByUserId: ctxAgencyA.userId,
         }),
       ),
-    /row-level security|new row violates/i,
+    (err: unknown) => {
+      // drizzle-orm@0.45 (postgres-js driver) wraps the real Postgres error
+      // in `DrizzleQueryError`, whose own `.message` is "Failed query: ...
+      // params: ..." — the actual RLS text ("new row violates row-level
+      // security policy") lives on `.cause.message`, not on the outer
+      // error's `.message`, so a plain regex against `err` never matches.
+      const causeMessage = err instanceof Error && err.cause instanceof Error ? err.cause.message : ""
+      assert.match(causeMessage, /row-level security|new row violates/i)
+      return true
+    },
     "l'INSERT d'une agence non super_admin doit être rejeté par la policy RLS WITH CHECK (is_super_admin())",
   )
 })

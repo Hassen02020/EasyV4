@@ -37,10 +37,16 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: AUCUN — dernier chantier clos (ECON-WIRING-01) le 2026-09-30/10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
-Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01 et ECON-WIRING-01 CLÔTURÉS (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
+ID: AUCUN — dernier chantier clos (ECON-PILOT-01-DEPRECATE) le 2026-10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
+Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01, ECON-WIRING-01 et ECON-PILOT-01-DEPRECATE CLÔTURÉS (voir ci-dessous). Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01, WALLET-RACE-CI-01 (partiel) et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
 Branche: aucune (main)
 ```
+
+### ECON-PILOT-01-DEPRECATE — CLÔTURÉ (2026-10-01)
+
+Audit (lecture seule, sur GO ciblé) de `lib/network/economic-pilot-actions.ts` (ECON-PILOT-01, commit `0eaf804`, antérieur à ECON-BREAKDOWN-01/AGREEMENT-01/ECON-WIRING-01). Constats : **zéro appelant** (aucune page/route/composant dans `app/`, seul son propre test statique le référençait) ; utilisait un **second moteur de marge divergent** (`lib/finance/margin-calculator.ts` — `findApplicableMarginRule`/`calculateMargin`) jamais utilisé ailleurs en production (le vrai flux Network câblé, `product-booking-actions.ts`, utilise exclusivement `applyMargin`/`getMarginsForAgency` — confirmé par son propre invariant `findApplicableMarginRule === 0`) ; commentaire d'en-tête affirmant ce moteur « déjà utilisé par les hôtels » était faux/obsolète. Recommandation (option 1 de l'audit, confirmée par GO explicite) : supprimer plutôt que câbler sur `economic_entitlements`, pour ne pas légitimer un second moteur sur un chemin mort.
+
+Exécution : suppression de `lib/network/economic-pilot-actions.ts` et `lib/network/__tests__/economic-pilot-actions-invariants.test.ts`. Aucune autre référence code (seulement des commentaires historiques dans `lib/network/product-booking-actions.ts`, `lib/db/schema/financials.ts`, `drizzle/manual/0089_...sql` citant le fichier comme contexte de décision passée — laissés inchangés, exacts à la date où ils ont été écrits). Aucune migration, aucune donnée, aucun moteur de prix/commission/wallet touché. Preuves : `tsc --noEmit` propre, `eslint lib/network` propre, `pnpm test` 1182 PASS/0 FAIL/234 SKIP (1193→1182 = suppression des 11 tests du fichier supprimé, zéro régression ailleurs).
 
 ### ECON-WIRING-01 — CLÔTURÉ (2026-10-01)
 

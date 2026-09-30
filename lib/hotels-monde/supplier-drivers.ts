@@ -18,7 +18,6 @@
 import { destinationByValue } from "./search-state"
 import { search as virtualSearch } from "@/lib/hotels-monde/virtual-supplier/engine"
 import { memoize } from "@/lib/cache/redis"
-import { CURRENCY_META } from "@/lib/currency"
 import type { WorldHotelOffer, WorldHotelSearchInput, WorldHotelSearchResult } from "@/lib/hotels-monde/client"
 
 export interface WorldHotelSupplierDriver {
@@ -153,14 +152,36 @@ async function resolveRateHawkRegionId(cityQuery: string): Promise<number | null
 }
 
 /**
- * Convertit un montant RateHawk (toujours demandé en USD, voir search()
- * ci-dessous) vers TND — pricePerNightTnd/totalPriceTnd doivent être en TND
- * comme leur nom l'indique, exactement comme le driver virtuel les produit
- * déjà (lib/currency.ts : 1 TND = CURRENCY_META.USD.rateFromTND USD).
- * Passthrough si RateHawk renvoyait un jour directement du TND.
+ * CURRENCY-DIM-01a (2026-10) : cette fonction réutilisait `CURRENCY_META`
+ * (lib/currency.ts) — le taux STATIQUE, jamais mis à jour, du sélecteur de
+ * devise d'AFFICHAGE côté client (purement cosmétique, pensé pour donner un
+ * ordre de grandeur sur les pages de listing). Aucun rapport avec un taux de
+ * change réel. Tant que RateHawk n'a jamais eu de clé API réelle configurée
+ * dans cet environnement (`isDemoMode()` toujours vrai ici), ce bug n'a
+ * converti aucun montant réel — mais il aurait silencieusement mal facturé/
+ * mal compté chaque offre dès la première vraie clé RateHawk.
+ *
+ * Correctif volontairement minimal (périmètre CURRENCY-DIM-01a) : ne JAMAIS
+ * convertir avec un taux inventé. Toute offre dont le montant n'est pas déjà
+ * en TND est REJETÉE explicitement (voir l'appelant : offre ignorée, jamais
+ * un prix fabriqué) — un vrai taux de change (source fournisseur/PSP réelle,
+ * horodaté) reste à construire par CURRENCY-DIM-01 (chantier séparé, pas
+ * encore GO'd).
  */
+export class UnsupportedRateHawkCurrencyError extends Error {
+  constructor(public readonly currency: string) {
+    super(
+      `RateHawk a renvoyé un montant en "${currency}", jamais TND — aucune conversion réelle n'est câblée (CURRENCY-DIM-01, pas encore livré). Offre ignorée plutôt que mal convertie.`,
+    )
+    this.name = "UnsupportedRateHawkCurrencyError"
+  }
+}
+
 export function convertRateHawkAmountToTnd(amount: number, currency: string): number {
-  return currency === "USD" ? amount / CURRENCY_META.USD.rateFromTND : amount
+  if (currency !== "TND") {
+    throw new UnsupportedRateHawkCurrencyError(currency)
+  }
+  return amount
 }
 
 /**
@@ -239,7 +260,18 @@ export function createRateHawkDriver(): WorldHotelSupplierDriver {
         const staticInfo = await resolveHotelStaticInfo(hotel.id)
         if (!staticInfo) continue
 
-        const totalPriceTnd = convertRateHawkAmountToTnd(cheapestRate.totalPrice, cheapestRate.currency)
+        // CURRENCY-DIM-01a : offre ignorée (jamais mal convertie avec un
+        // taux inventé) si RateHawk renvoie une devise non-TND — voir
+        // convertRateHawkAmountToTnd() ci-dessus. Même style que le skip
+        // staticInfo juste au-dessus : une offre individuelle écartée,
+        // jamais toute la recherche interrompue pour cet hôtel.
+        let totalPriceTnd: number
+        try {
+          totalPriceTnd = convertRateHawkAmountToTnd(cheapestRate.totalPrice, cheapestRate.currency)
+        } catch (err) {
+          if (err instanceof UnsupportedRateHawkCurrencyError) continue
+          throw err
+        }
 
         offers.push({
           id: hotel.id,

@@ -1,12 +1,15 @@
 /**
- * LEDGER-INTEGRITY-01 — invariants statiques.
+ * LEDGER-INTEGRITY-01 + ECON-ENTITLEMENTS-INTEGRITY-01 — invariants statiques.
  *
- * Les ledgers (`wallet_ledger`, `partner_credit_movements`,
- * `commission_settlement_entries`) sont append-only : depuis 0084, le rôle
- * runtime `app_runtime` n'a plus UPDATE/DELETE/TRUNCATE sur ces tables en
- * base. Ce test empêche qu'un futur code applicatif réintroduise une
- * mutation (qui échouerait en production avec "permission denied") ou un
- * upsert `onConflictDoUpdate` (qui exige le privilège UPDATE).
+ * Tables append-only protégées par REVOKE au niveau PostgreSQL :
+ *   - `wallet_ledger`, `partner_credit_movements`, `commission_settlement_entries`
+ *     (0084, LEDGER-INTEGRITY-01)
+ *   - `economic_entitlements` (0092, ECON-ENTITLEMENTS-INTEGRITY-01)
+ *
+ * Depuis ces migrations, `app_runtime` ne peut plus qu'insérer et lire.
+ * Ce test empêche qu'un futur code applicatif réintroduise une mutation
+ * (qui échouerait en production avec "permission denied") ou un upsert
+ * `onConflictDoUpdate` (qui exige le privilège UPDATE).
  *
  * Vérification statique sur le code source réel, comme
  * commission-wiring-invariants.test.ts.
@@ -17,8 +20,18 @@ import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const LEDGER_TABLES_TS = ["walletLedger", "partnerCreditMovements", "commissionSettlementEntries"]
-const LEDGER_TABLES_SQL = ["wallet_ledger", "partner_credit_movements", "commission_settlement_entries"]
+const LEDGER_TABLES_TS = [
+  "walletLedger",
+  "partnerCreditMovements",
+  "commissionSettlementEntries",
+  "economicEntitlements",
+]
+const LEDGER_TABLES_SQL = [
+  "wallet_ledger",
+  "partner_credit_movements",
+  "commission_settlement_entries",
+  "economic_entitlements",
+]
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = []
@@ -71,7 +84,7 @@ test("aucun upsert onConflictDoUpdate sur un ledger (exigerait le privilège UPD
 
 test("migration 0084 : REVOKE UPDATE/DELETE/TRUNCATE aux rôles runtime sur les 3 ledgers + unicité commission par réservation", () => {
   const mig = readFileSync(join(ROOT, "drizzle/manual/0084_ledger_integrity_01.sql"), "utf8")
-  for (const t of LEDGER_TABLES_SQL) {
+  for (const t of ["wallet_ledger", "partner_credit_movements", "commission_settlement_entries"]) {
     assert.match(
       mig,
       new RegExp(`REVOKE UPDATE, DELETE, TRUNCATE ON TABLE ${t}\\s+FROM app_runtime, anon, authenticated, service_role;`),
@@ -80,4 +93,13 @@ test("migration 0084 : REVOKE UPDATE/DELETE/TRUNCATE aux rôles runtime sur les 
   }
   assert.match(mig, /CREATE UNIQUE INDEX IF NOT EXISTS wallet_ledger_commission_per_reservation_uniq/)
   assert.match(mig, /WHERE type = 'commission' AND category = 'commission' AND reservation_id IS NOT NULL/)
+})
+
+test("migration 0092 : REVOKE UPDATE/DELETE/TRUNCATE aux rôles runtime sur economic_entitlements", () => {
+  const mig = readFileSync(join(ROOT, "drizzle/manual/0092_econ_entitlements_integrity_01.sql"), "utf8")
+  assert.match(
+    mig,
+    /REVOKE UPDATE, DELETE, TRUNCATE ON TABLE economic_entitlements\s+FROM app_runtime, anon, authenticated, service_role;/,
+    "REVOKE manquant pour economic_entitlements",
+  )
 })

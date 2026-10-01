@@ -115,9 +115,9 @@ test("commission-settlement.ts : markSettlementPaid passe status à 'paid'", () 
 /* reservation_financials → Dashboard Marges affichait 0 pour 7/8 modules)    */
 /* -------------------------------------------------------------------------- */
 
-const MODULE_FILES: Array<{ label: string; path: string }> = [
+// Modules qui appellent recordReservationFinancials DIRECTEMENT
+const DIRECT_WIRING_FILES: Array<{ label: string; path: string }> = [
   { label: "vols/guest-booking-actions.ts",           path: "lib/vols/guest-booking-actions.ts" },
-  { label: "vols/fulfillment-action.ts",              path: "lib/vols/fulfillment-action.ts" },
   { label: "transfers/guest-booking-actions.ts",      path: "lib/transfers/guest-booking-actions.ts" },
   { label: "transfers/actions.ts",                    path: "lib/transfers/actions.ts" },
   { label: "activities/guest-booking-actions.ts",     path: "lib/activities/guest-booking-actions.ts" },
@@ -127,7 +127,7 @@ const MODULE_FILES: Array<{ label: string; path: string }> = [
   { label: "hotels-monde/guest-booking-actions.ts",   path: "lib/hotels-monde/guest-booking-actions.ts" },
 ]
 
-for (const { label, path } of MODULE_FILES) {
+for (const { label, path } of DIRECT_WIRING_FILES) {
   const src = readFileSync(join(ROOT, path), "utf8")
 
   test(`Chantier 62 — ${label} : importe recordReservationFinancials`, () => {
@@ -147,5 +147,25 @@ for (const { label, path } of MODULE_FILES) {
     assert.match(src, /reservationId/,   `${label} : passe reservationId`)
     assert.match(src, /supplierPriceTnd/, `${label} : passe supplierPriceTnd`)
     assert.match(src, /salePriceTnd/,     `${label} : passe salePriceTnd`)
+  })
+}
+
+// PROVIDER-CONNECTIVITY-BRIDGE (P3) : vols/fulfillment-action.ts délègue à
+// finalizeFlightBookingFinancials (lib/vols/flight-financials.ts) qui encapsule
+// recordReservationFinancials — l'ancrage financier est toujours garanti mais
+// via le wrapper, pas via un import direct dans fulfillment-action.ts.
+{
+  const fulfillmentSrc = readFileSync(join(ROOT, "lib/vols/fulfillment-action.ts"), "utf8")
+  test("Chantier 62 — vols/fulfillment-action.ts : délègue à finalizeFlightBookingFinancials (PROVIDER-CONNECTIVITY-BRIDGE)", () => {
+    assert.match(
+      fulfillmentSrc,
+      /finalizeFlightBookingFinancials/,
+      "fulfillment-action.ts doit appeler finalizeFlightBookingFinancials",
+    )
+    assert.match(
+      fulfillmentSrc,
+      /import.*finalizeFlightBookingFinancials/,
+      "fulfillment-action.ts doit importer finalizeFlightBookingFinancials",
+    )
   })
 }

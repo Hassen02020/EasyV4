@@ -22,7 +22,9 @@ import { newSearchId } from "@/lib/vols/virtual-supplier/tokens"
 import type { Cabin } from "@/lib/vols/virtual-supplier/catalog"
 
 function isDemoMode(): boolean {
-  return !process.env.FLIGHTS_API_KEY || process.env.FLIGHTS_DEMO_MODE === "true"
+  return (
+    !process.env.FLIGHTS_API_KEY && !process.env.DUFFEL_ACCESS_TOKEN
+  ) || process.env.FLIGHTS_DEMO_MODE === "true"
 }
 
 function parsePricingToken(token: string): {

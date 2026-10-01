@@ -33,7 +33,7 @@ config({ path: resolve(process.cwd(), ".env") })
 
 import * as http from "node:http"
 import { randomUUID, createHash } from "node:crypto"
-import { eq, and, sql } from "drizzle-orm"
+import { eq, and, sql, isNull, gte, lte } from "drizzle-orm"
 
 import { withTenantContext, withSystemContext } from "@/lib/db/tenant-context"
 import {
@@ -45,12 +45,15 @@ import {
   partnerCreditMovements,
   auditEvents,
   payments,
+  walletLedger,
+  commissionSettlements,
 } from "@/lib/db/schema"
 import { computePriceBreakdown } from "@/lib/booking/pricing"
 import { applyMargin } from "@/lib/pro/pricing"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
-import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { creditPlatformCommission, PLATFORM_COMMISSION_WALLET_ID } from "@/lib/finance/platform-commission"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
+import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
 import { debitPartnerCredit, parseTnd as parseAgencyTnd, formatTnd } from "@/lib/pro/booking-actions"
 import { pgErrorCode } from "@/lib/db/pg-error"
 import type { BookingDraft, TravelerInput } from "@/lib/booking/schemas"
@@ -315,15 +318,21 @@ async function bookReservation(input: BookReservationInput): Promise<BookReserva
       // Try reconciliation
       try {
         const bookings = await client.listBookings({ hotel: providerMeta.hotelId, currency: "TND" })
-        const mapped = bookings.map(mapBookingListItemToConfirmation)
         const reconciled = reconcileAmbiguousBooking(
-          mapped.map(b => ({ bookingId: b.bookingId, hotelId: b.hotelId, checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate, state: b.state ?? undefined, createdAt: undefined })),
+          bookings.map(b => ({
+            bookingId: b.Id,
+            hotelId: b.Hotel?.Id,
+            checkIn: b.CheckIn ?? draft.startDate,
+            checkOut: b.CheckOut ?? (draft.endDate ?? draft.startDate),
+            state: b.State ?? undefined,
+            createdAt: b.Created ?? undefined,
+          })),
           { hotelId: providerMeta.hotelId ?? Number(draft.offerId), checkIn: draft.startDate, checkOut: draft.endDate ?? draft.startDate },
           Date.now(),
         )
         if (reconciled) {
-          const matched = mapped.find(b => b.bookingId === (reconciled as unknown as { bookingId: number }).bookingId)
-          if (matched) { myGoBooking = matched }
+          const rawMatch = bookings.find(b => b.Id === reconciled.bookingId)
+          if (rawMatch) { myGoBooking = mapBookingListItemToConfirmation(rawMatch) }
         }
       } catch { /* reconciliation failed */ }
     }
@@ -641,8 +650,8 @@ async function getAgencyBalance(agencyId: string): Promise<number> {
 async function getWalletLedgerEntry(reservationId: string) {
   return withSystemContext(async (tx) => {
     const [row] = await tx.select()
-      .from((await import("@/lib/db/schema")).walletLedger)
-      .where(eq((await import("@/lib/db/schema")).walletLedger.reservationId, reservationId))
+      .from(walletLedger)
+      .where(eq(walletLedger.reservationId, reservationId))
       .limit(1)
     return row ?? null
   })
@@ -654,7 +663,7 @@ async function getWalletLedgerEntry(reservationId: string) {
 
 async function doSearch(client: MyGoClient): Promise<{ token: string; hotelId: number; cityId: number; roomId: number; boardingId: number; price: number } | null> {
   const raw = await client.searchHotels({
-    cityId: 1,
+    cityId: 10, // Hammamet — premier TOURISTIC_CITY_ID du catalogue virtuel
     checkIn: "2026-10-15",
     checkOut: "2026-10-18",
     rooms: [{ adults: 2 }],
@@ -671,7 +680,7 @@ async function doSearch(client: MyGoClient): Promise<{ token: string; hotelId: n
   return {
     token: first.token,
     hotelId: first.hotel.id,
-    cityId: 1,
+    cityId: first.hotel.cityId ?? 10,
     roomId: room.id,
     boardingId: boarding.id,
     price: room.price,
@@ -754,6 +763,32 @@ async function main() {
           const expectedComm = Math.round(parseFloat(fin.marginAmount!) * (rate / 100) * 100) / 100
           record("S1.financials.commission", "NORMAL: commissionAmount = ROUND(margin×rate/100, 2)", Math.abs(parseFloat(fin.commissionAmount!) - expectedComm) < TND_EPS,
             `commission=${fin.commissionAmount} expected=${expectedComm} rate=${rate}`)
+
+          // Vérifier walletLedger commission
+          const walletEntry = await getWalletLedgerEntry(bookResult.reservationId)
+          record("S1.wallet.commission", "NORMAL: walletLedger entrée commission créée",
+            !!walletEntry && walletEntry.category === "commission",
+            walletEntry ? `id=${walletEntry.id} amount=${walletEntry.amount} category=${walletEntry.category}` : "absent")
+        }
+
+        // Voucher PDF
+        try {
+          const voucherBuf = await renderVoucherPdf({
+            publicRef: bookResult.publicRef,
+            customerName: `${TEST_TRAVELER.firstName} ${TEST_TRAVELER.lastName}`,
+            hotelName: draft.offerLabel,
+            checkIn: draft.startDate,
+            checkOut: draft.endDate!,
+            nights: 3,
+            adults: draft.adults,
+            children: draft.children ?? 0,
+            totalTnd: parseFloat(status?.tndAmount ?? "0"),
+            paymentStatus: "paid",
+            agencyName: "MyGo Certification Agency",
+          }, "fr")
+          record("S1.voucher", "NORMAL: voucher PDF généré", voucherBuf.length > 1000, `size=${voucherBuf.length} bytes`)
+        } catch (err) {
+          record("S1.voucher", "NORMAL: voucher PDF généré", false, String(err))
         }
 
         // Vérifier débit wallet
@@ -901,6 +936,87 @@ async function main() {
     }
   } catch (err) {
     record("S4.error", "NO_AVAILABILITY: exception inattendue", false, String(err))
+  }
+
+  /* ======================================================================== */
+  /* S5 — Settlement pipeline                                                  */
+  /* ======================================================================== */
+  console.log("\n--- S5 : Settlement pipeline ---")
+  resetScenario()
+
+  try {
+    const periodStart = new Date(Date.now() - 86_400_000 * 30)
+    const periodEnd = new Date()
+
+    const settlementResult = await withSystemContext(async (tx) => {
+      const [summary] = await tx
+        .select({
+          totalAmount: sql<number>`COALESCE(SUM(${walletLedger.amount}), 0)`,
+          entryCount: sql<number>`COUNT(*)`,
+        })
+        .from(walletLedger)
+        .where(
+          and(
+            eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
+            eq(walletLedger.category, "commission"),
+            isNull(walletLedger.settledAt),
+            gte(walletLedger.createdAt, periodStart),
+            lte(walletLedger.createdAt, periodEnd),
+          ),
+        )
+
+      const totalAmount = Number(summary?.totalAmount) || 0
+      const entryCount = Number(summary?.entryCount) || 0
+
+      const [settlement] = await tx
+        .insert(commissionSettlements)
+        .values({
+          periodStart: periodStart.toISOString().split("T")[0]!,
+          periodEnd: periodEnd.toISOString().split("T")[0]!,
+          totalAmount: totalAmount.toFixed(2),
+          ledgerEntryCount: entryCount,
+          status: "pending",
+          settledBy: CERT_USER_ID,
+        })
+        .onConflictDoUpdate({
+          target: [commissionSettlements.periodStart, commissionSettlements.periodEnd],
+          set: {
+            totalAmount: totalAmount.toFixed(2),
+            ledgerEntryCount: entryCount,
+            settledBy: CERT_USER_ID,
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ id: commissionSettlements.id })
+
+      if (entryCount > 0) {
+        await tx
+          .update(walletLedger)
+          .set({ settledAt: new Date(), settlementId: settlement!.id })
+          .where(
+            and(
+              eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
+              eq(walletLedger.category, "commission"),
+              isNull(walletLedger.settledAt),
+              gte(walletLedger.createdAt, periodStart),
+              lte(walletLedger.createdAt, periodEnd),
+            ),
+          )
+      }
+
+      return { id: settlement!.id, totalAmount, entryCount }
+    })
+
+    record("S5.settlement.created", "SETTLEMENT: commissionSettlements row créé",
+      !!settlementResult.id, `id=${settlementResult.id}`)
+    record("S5.settlement.amount", "SETTLEMENT: totalAmount > 0",
+      settlementResult.totalAmount > 0,
+      `totalAmount=${settlementResult.totalAmount.toFixed(3)} entryCount=${settlementResult.entryCount}`)
+    record("S5.settlement.entries", "SETTLEMENT: au moins une entrée commission settlée",
+      settlementResult.entryCount > 0,
+      `entryCount=${settlementResult.entryCount}`)
+  } catch (err) {
+    record("S5.error", "SETTLEMENT: exception inattendue", false, String(err))
   }
 
   /* ======================================================================== */

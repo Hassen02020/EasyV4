@@ -22,7 +22,9 @@ import { newSearchId } from "@/lib/vols/virtual-supplier/tokens"
 import type { Cabin } from "@/lib/vols/virtual-supplier/catalog"
 
 function isDemoMode(): boolean {
-  return !process.env.FLIGHTS_API_KEY || process.env.FLIGHTS_DEMO_MODE === "true"
+  return (
+    !process.env.FLIGHTS_API_KEY && !process.env.DUFFEL_ACCESS_TOKEN
+  ) || process.env.FLIGHTS_DEMO_MODE === "true"
 }
 
 function parsePricingToken(token: string): {
@@ -38,8 +40,8 @@ function parsePricingToken(token: string): {
   priceTnd: number
 } | null {
   try {
-    const [, payload] = token.split(".")
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString())
+    const [encoded] = token.split(".")
+    const decoded = JSON.parse(Buffer.from(encoded!, "base64url").toString())
     return decoded as ReturnType<typeof parsePricingToken>
   } catch {
     return null

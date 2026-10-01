@@ -315,6 +315,40 @@ export const marginRules = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* FX Policies (CURRENCY-DIM-02 — politique taux appliqué & frais banque)     */
+/* -------------------------------------------------------------------------- */
+
+export const fxPolicies = pgTable(
+  "fx_policies",
+  {
+    id:      uuid("id").primaryKey().defaultRandom(),
+    version: integer("version").notNull(),
+
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull().defaultNow(),
+    effectiveTo:   timestamp("effective_to",   { withTimezone: true }),
+
+    // NONE | PERCENTAGE | FIXED_SPREAD | FIXED_RATE
+    correctionMode:  varchar("correction_mode",  { length: 16 }).notNull().default("NONE"),
+    correctionValue: decimal("correction_value", { precision: 10, scale: 4 }).notNull().default("0"),
+
+    bankFeeMode:     varchar("bank_fee_mode",    { length: 16 }).notNull().default("NONE"),
+    bankFeeFixed:    decimal("bank_fee_fixed",   { precision: 10, scale: 2 }),
+    bankFeePercent:  decimal("bank_fee_percent", { precision: 6,  scale: 4 }),
+    bankFeeMin:      decimal("bank_fee_min",     { precision: 10, scale: 2 }),
+    bankFeeMax:      decimal("bank_fee_max",     { precision: 10, scale: 2 }),
+    bankFeeCurrency: varchar("bank_fee_currency", { length: 3 }).notNull().default("TND"),
+
+    note:      text("note"),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("fx_policies_version_uniq").on(t.version),
+    index("fx_policies_effective_idx").on(t.effectiveFrom, t.effectiveTo),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* Reservation Financials (Liaison prix achat ↔ vente ↔ marge)                */
 /* -------------------------------------------------------------------------- */
 
@@ -343,9 +377,15 @@ export const reservationFinancials = pgTable(
     commissionAmount: decimal("commission_amount", { precision: 14, scale: 2 }).default("0"),
     commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0"),
 
-    // Taux de change appliqué
+    // Taux de change — référence mid-market (exchangerate-api.com)
     exchangeRate: decimal("exchange_rate", { precision: 10, scale: 6 }).default("1"),
     exchangeRateAt: timestamp("exchange_rate_at", { withTimezone: true }),
+
+    // CURRENCY-DIM-02 — taux appliqué (référence + correction banque)
+    // NULL si le fournisseur facture en TND (pas de conversion nécessaire).
+    appliedExchangeRate:   decimal("applied_exchange_rate", { precision: 10, scale: 6 }),
+    appliedExchangeRateAt: timestamp("applied_exchange_rate_at", { withTimezone: true }),
+    fxPolicyId:            uuid("fx_policy_id"),
 
     // Grand Livre
     journalEntryId: uuid("journal_entry_id"),

@@ -108,3 +108,64 @@ test("commission-settlement.ts : n'UPDATE plus jamais walletLedger (append-only,
 test("commission-settlement.ts : markSettlementPaid passe status à 'paid'", () => {
   assert.match(settlementSrc, /status:\s*["']paid["']/)
 })
+
+/* -------------------------------------------------------------------------- */
+/* Chantier 62 — câblage recordReservationFinancials dans les 7 modules        */
+/* manquants (Break 4 : tous les modules sauf hotel n'écrivaient jamais dans   */
+/* reservation_financials → Dashboard Marges affichait 0 pour 7/8 modules)    */
+/* -------------------------------------------------------------------------- */
+
+// Modules qui appellent recordReservationFinancials DIRECTEMENT
+const DIRECT_WIRING_FILES: Array<{ label: string; path: string }> = [
+  { label: "vols/guest-booking-actions.ts",           path: "lib/vols/guest-booking-actions.ts" },
+  { label: "transfers/guest-booking-actions.ts",      path: "lib/transfers/guest-booking-actions.ts" },
+  { label: "transfers/actions.ts",                    path: "lib/transfers/actions.ts" },
+  { label: "activities/guest-booking-actions.ts",     path: "lib/activities/guest-booking-actions.ts" },
+  { label: "omra/guest-booking-actions.ts",           path: "lib/omra/guest-booking-actions.ts" },
+  { label: "packages/booking-actions.ts",             path: "lib/packages/booking-actions.ts" },
+  { label: "cars/guest-booking-actions.ts",           path: "lib/cars/guest-booking-actions.ts" },
+  { label: "hotels-monde/guest-booking-actions.ts",   path: "lib/hotels-monde/guest-booking-actions.ts" },
+]
+
+for (const { label, path } of DIRECT_WIRING_FILES) {
+  const src = readFileSync(join(ROOT, path), "utf8")
+
+  test(`Chantier 62 — ${label} : importe recordReservationFinancials`, () => {
+    assert.match(
+      src,
+      /import\s*\{[^}]*recordReservationFinancials[^}]*\}\s*from\s*["']@\/lib\/finance\/reservation-financials["']/,
+      `${label} doit importer recordReservationFinancials depuis lib/finance/reservation-financials`,
+    )
+  })
+
+  test(`Chantier 62 — ${label} : appelle recordReservationFinancials avec reservationId + supplierPriceTnd + salePriceTnd`, () => {
+    assert.match(
+      src,
+      /recordReservationFinancials\(\s*\{/,
+      `${label} doit appeler recordReservationFinancials({}...)`,
+    )
+    assert.match(src, /reservationId/,   `${label} : passe reservationId`)
+    assert.match(src, /supplierPriceTnd/, `${label} : passe supplierPriceTnd`)
+    assert.match(src, /salePriceTnd/,     `${label} : passe salePriceTnd`)
+  })
+}
+
+// PROVIDER-CONNECTIVITY-BRIDGE (P3) : vols/fulfillment-action.ts délègue à
+// finalizeFlightBookingFinancials (lib/vols/flight-financials.ts) qui encapsule
+// recordReservationFinancials — l'ancrage financier est toujours garanti mais
+// via le wrapper, pas via un import direct dans fulfillment-action.ts.
+{
+  const fulfillmentSrc = readFileSync(join(ROOT, "lib/vols/fulfillment-action.ts"), "utf8")
+  test("Chantier 62 — vols/fulfillment-action.ts : délègue à finalizeFlightBookingFinancials (PROVIDER-CONNECTIVITY-BRIDGE)", () => {
+    assert.match(
+      fulfillmentSrc,
+      /finalizeFlightBookingFinancials/,
+      "fulfillment-action.ts doit appeler finalizeFlightBookingFinancials",
+    )
+    assert.match(
+      fulfillmentSrc,
+      /import.*finalizeFlightBookingFinancials/,
+      "fulfillment-action.ts doit importer finalizeFlightBookingFinancials",
+    )
+  })
+}

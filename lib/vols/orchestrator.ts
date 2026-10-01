@@ -16,10 +16,12 @@ import { createVirtualGdsAdapter } from "./adapters/virtual"
 import { createAmadeusAdapter } from "./adapters/amadeus"
 import { createTravelportAdapter } from "./adapters/travelport"
 import { createSabreAdapter } from "./adapters/sabre"
+import { createDuffelAdapter } from "./adapters/duffel"
 
 export function getDefaultAdapters(): GdsAdapter[] {
   return [
     createVirtualGdsAdapter(),
+    createDuffelAdapter(),
     createAmadeusAdapter(),
     createTravelportAdapter(),
     createSabreAdapter(),

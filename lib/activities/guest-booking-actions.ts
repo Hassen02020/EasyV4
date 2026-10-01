@@ -292,6 +292,10 @@ async function runCreateGuestActivityBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
+        // Données financières (Break 4 — Chantier 62)
+        // Activité : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
+
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)

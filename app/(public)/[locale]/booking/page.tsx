@@ -143,7 +143,7 @@ export default async function BookingStep1Page({
                         {draft.offerLabel}
                       </h2>
                     </div>
-                    <Badge className="bg-emerald-500 hover:bg-emerald-500">
+                    <Badge className="bg-success hover:bg-success/90 text-success-foreground">
                       {t("availableBadge")}
                     </Badge>
                   </div>

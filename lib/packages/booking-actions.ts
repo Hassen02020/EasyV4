@@ -287,6 +287,10 @@ async function runCreateGuestPackageBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
+        // Données financières (Break 4 — Chantier 62)
+        // Package : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
+
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
@@ -572,6 +576,9 @@ export async function createPackageBooking(
           })
           .returning({ id: reservations.id })
         const reservationId = reservation.id
+
+        // Données financières (Break 4 — Chantier 62) — voie B2B agent
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
 
         const debitResult = await debitPartnerCredit({
           agencyId,

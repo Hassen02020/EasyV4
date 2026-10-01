@@ -56,7 +56,10 @@ function resolveMyGoMode(): MyGoMode {
 }
 
 export function siteOrigin(): string {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL
+  const explicit =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.SITE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL
   if (explicit) return explicit.replace(/\/$/, "")
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
   return `http://localhost:${process.env.PORT ?? 3000}`

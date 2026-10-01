@@ -723,6 +723,7 @@ export async function createReservationFromDraft(input: {
         kind: "deposit",
         status: "captured",
         capturedAt: new Date(),
+        idempotencyKey: `booking-captured:${reservationId}`,
       })
 
       await tx.insert(auditEvents).values({
@@ -928,6 +929,7 @@ export async function submitCheckoutAction(
     traveler: payload.traveler,
     paymentMethod:
       paymentMethod === "transfer" ||
+      paymentMethod === "bank_deposit" ||
       paymentMethod === "cash" ||
       paymentMethod === "wallet" ||
       paymentMethod === "at_hotel"

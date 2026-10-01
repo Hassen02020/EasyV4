@@ -55,6 +55,7 @@ import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
+import { round2 } from "@/lib/shared/money"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
@@ -171,7 +172,7 @@ async function runCreateGuestOmraBooking(
         const pricePerPilgrim = allotment.overridePrice
           ? parseFloat(allotment.overridePrice)
           : parseFloat(pkg.basePrice)
-        const totalTnd = pricePerPilgrim * pilgrimCount
+        const totalTnd = round2(pricePerPilgrim * pilgrimCount)
 
         // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---
         // Résolue et figée AU MOMENT de cette réservation précise (spécifique
@@ -237,9 +238,9 @@ async function runCreateGuestOmraBooking(
             source: "internal",
             status: "pending",
             originalCurrency: "TND",
-            originalAmount: String(totalTnd),
-            tndAmount: String(totalTnd),
-            depositAmount: String(totalTnd),
+            originalAmount: totalTnd.toFixed(2),
+            tndAmount: totalTnd.toFixed(2),
+            depositAmount: totalTnd.toFixed(2),
             depositPaid: "0",
             providerPayload: {
               packageId: booking.packageId,
@@ -258,6 +259,10 @@ async function runCreateGuestOmraBooking(
           .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
+
+        // Données financières (Break 4 — Chantier 62)
+        // Omra : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
+        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
 
         if (isImmediatelyPaid) {
           await tx

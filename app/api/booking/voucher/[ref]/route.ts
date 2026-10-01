@@ -29,6 +29,7 @@ export async function GET(
 ) {
   const { ref } = await params
   const token = req.nextUrl.searchParams.get("token")
+  const locale = req.nextUrl.searchParams.get("locale") ?? "fr"
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "server_misconfigured" }, { status: 500 })
@@ -91,7 +92,7 @@ export async function GET(
     children: row.childrenAges?.length ?? 0,
     totalTnd: parseFloat(row.tndAmount),
     agencyName: row.agencyBrandName ?? row.agencyName,
-  })
+  }, locale)
 
   return new NextResponse(Buffer.from(pdf), {
     status: 200,

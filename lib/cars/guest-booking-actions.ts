@@ -259,9 +259,9 @@ async function runCreateGuestCarBooking(
             source: "internal",
             status: "pending",
             originalCurrency: "TND",
-            originalAmount: String(totalTnd),
-            tndAmount: String(totalTnd),
-            depositAmount: String(totalTnd),
+            originalAmount: totalTnd.toFixed(2),
+            tndAmount: totalTnd.toFixed(2),
+            depositAmount: totalTnd.toFixed(2),
             depositPaid: "0",
             providerPayload: {
               categoryId: input.categoryId,
@@ -354,7 +354,7 @@ async function runCreateGuestCarBooking(
         // 8. Audit
         await tx.insert(auditEvents).values({
           agencyId,
-          actorUserId: "",
+          actorUserId: null,
           entityType: "reservation",
           entityId: reservationId,
           action: "car_booking.created",

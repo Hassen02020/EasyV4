@@ -18,6 +18,7 @@
 import { destinationByValue } from "./search-state"
 import { search as virtualSearch } from "@/lib/hotels-monde/virtual-supplier/engine"
 import { memoize } from "@/lib/cache/redis"
+import { fetchExchangeRateForDisplay, ExchangeRateUnavailableError } from "@/lib/finance/exchange-rate"
 import type { WorldHotelOffer, WorldHotelSearchInput, WorldHotelSearchResult } from "@/lib/hotels-monde/client"
 
 export interface WorldHotelSupplierDriver {
@@ -177,11 +178,10 @@ export class UnsupportedRateHawkCurrencyError extends Error {
   }
 }
 
-export function convertRateHawkAmountToTnd(amount: number, currency: string): number {
-  if (currency !== "TND") {
-    throw new UnsupportedRateHawkCurrencyError(currency)
-  }
-  return amount
+export async function convertRateHawkAmountToTnd(amount: number, currency: string): Promise<number> {
+  if (currency === "TND") return amount
+  const rate = await fetchExchangeRateForDisplay(currency, "TND")
+  return Math.round(amount * rate.rate * 100) / 100
 }
 
 /**
@@ -267,9 +267,9 @@ export function createRateHawkDriver(): WorldHotelSupplierDriver {
         // jamais toute la recherche interrompue pour cet hôtel.
         let totalPriceTnd: number
         try {
-          totalPriceTnd = convertRateHawkAmountToTnd(cheapestRate.totalPrice, cheapestRate.currency)
+          totalPriceTnd = await convertRateHawkAmountToTnd(cheapestRate.totalPrice, cheapestRate.currency)
         } catch (err) {
-          if (err instanceof UnsupportedRateHawkCurrencyError) continue
+          if (err instanceof ExchangeRateUnavailableError) continue
           throw err
         }
 

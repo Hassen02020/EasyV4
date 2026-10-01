@@ -26,7 +26,8 @@ import { eq } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { flightPriceSnapshots } from "@/lib/db/schema/flights"
 import { reservations } from "@/lib/db/schema"
-import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { recordReservationFinancials, type RecordReservationFinancialsInput } from "@/lib/finance/reservation-financials"
+import { fetchExchangeRateForBooking, ExchangeRateUnavailableError } from "@/lib/finance/exchange-rate"
 
 export async function finalizeFlightBookingFinancials(
   tx: DrizzleTransaction,
@@ -38,6 +39,7 @@ export async function finalizeFlightBookingFinancials(
     .select({
       supplierAmount: flightPriceSnapshots.supplierAmount,
       sellingAmount: flightPriceSnapshots.sellingAmount,
+      supplierCurrency: flightPriceSnapshots.supplierCurrency,
     })
     .from(flightPriceSnapshots)
     .where(eq(flightPriceSnapshots.id, input.snapshotId))
@@ -45,8 +47,28 @@ export async function finalizeFlightBookingFinancials(
 
   if (!snapshot) return
 
-  const supplierPriceTnd = Number(snapshot.supplierAmount)
+  const supplierOriginalAmount = Number(snapshot.supplierAmount)
   const salePriceTnd = Number(snapshot.sellingAmount)
+  const supplierCurrency = snapshot.supplierCurrency ?? "TND"
+
+  // CURRENCY-DIM-01 : si le fournisseur a facturé dans une devise ≠ TND,
+  // on obtient un taux frais au moment du booking (D2 Option B — jamais le
+  // taux de search) et on transmet l'original + le taux à
+  // recordReservationFinancials pour alimenter supplier_currency /
+  // exchange_rate / exchange_rate_at. Sans clé ou provider indisponible :
+  // ExchangeRateUnavailableError → on laisse remonter (fail closed).
+  // Aujourd'hui supplierCurrency est toujours "TND" (commercial engine
+  // bloque les autres devises via UnsupportedCommercialCurrencyMismatchError)
+  // — ce bloc est inerte mais câblé pour Duffel et tout futur GDS.
+  let supplierPriceTnd = supplierOriginalAmount
+  const financialExtra: Partial<RecordReservationFinancialsInput> = {}
+
+  if (supplierCurrency !== "TND") {
+    const rate = await fetchExchangeRateForBooking(supplierCurrency, "TND")
+    supplierPriceTnd = Math.round(supplierOriginalAmount * rate.rate * 100) / 100
+    financialExtra.supplierOriginal = { amount: supplierOriginalAmount, currency: supplierCurrency }
+    financialExtra.exchangeRate = { rate: rate.rate, at: rate.capturedAt }
+  }
 
   // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe (API
   // vols), non modélisé — external_supplier/partyId null, comme les autres
@@ -64,6 +86,7 @@ export async function finalizeFlightBookingFinancials(
     reservationId: input.reservationId,
     supplierPriceTnd,
     salePriceTnd,
+    ...financialExtra,
     economicEntitlements: reservation
       ? [
           {

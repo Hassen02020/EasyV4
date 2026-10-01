@@ -14,21 +14,43 @@ import {
   createVirtualWorldHotelDriver,
   createRateHawkDriver,
   convertRateHawkAmountToTnd,
-  UnsupportedRateHawkCurrencyError,
   type WorldHotelSupplierDriver,
 } from "@/lib/hotels-monde/supplier-drivers"
+import {
+  setExchangeRateProvider,
+  createMockProvider,
+  ExchangeRateUnavailableError,
+} from "@/lib/finance/exchange-rate"
 import type { WorldHotelOffer, WorldHotelSearchInput } from "@/lib/hotels-monde/client"
 
-test("CURRENCY-DIM-01a : convertRateHawkAmountToTnd rejette explicitement un montant non-TND — jamais un taux inventé (CURRENCY_META était le taux d'affichage cosmétique, pas un vrai taux de change)", () => {
-  assert.throws(
-    () => convertRateHawkAmountToTnd(32, "USD"),
-    UnsupportedRateHawkCurrencyError,
-  )
-  assert.throws(() => convertRateHawkAmountToTnd(32, "EUR"), UnsupportedRateHawkCurrencyError)
+test("CURRENCY-DIM-01a : convertRateHawkAmountToTnd lève ExchangeRateUnavailableError si provider échoue — jamais un taux inventé", async () => {
+  setExchangeRateProvider(createMockProvider({}))
+  try {
+    await assert.rejects(
+      () => convertRateHawkAmountToTnd(32, "USD"),
+      ExchangeRateUnavailableError,
+    )
+    await assert.rejects(
+      () => convertRateHawkAmountToTnd(32, "EUR"),
+      ExchangeRateUnavailableError,
+    )
+  } finally {
+    setExchangeRateProvider(null)
+  }
 })
 
-test("convertRateHawkAmountToTnd — passthrough si déjà en TND", () => {
-  assert.equal(convertRateHawkAmountToTnd(150, "TND"), 150)
+test("CURRENCY-DIM-01a : convertRateHawkAmountToTnd convertit via taux réel si provider disponible", async () => {
+  setExchangeRateProvider(createMockProvider({ "USD/TND": 3.1052 }))
+  try {
+    const result = await convertRateHawkAmountToTnd(100, "USD")
+    assert.strictEqual(result, 310.52)
+  } finally {
+    setExchangeRateProvider(null)
+  }
+})
+
+test("convertRateHawkAmountToTnd — passthrough si déjà en TND", async () => {
+  assert.equal(await convertRateHawkAmountToTnd(150, "TND"), 150)
 })
 
 const INPUT: WorldHotelSearchInput = {

@@ -43,7 +43,6 @@ import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "@/lib/bo
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { flightGuestBookingSchema, type FlightGuestBookingInput } from "./schemas"
 import { book as bookFlight, cancel as cancelFlight, type BookResult } from "./virtual-supplier/engine"
-import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
 export type FlightGuestPaymentMethod = "card" | "transfer" | "cash"
@@ -262,10 +261,6 @@ async function runCreateGuestFlightBooking(
         .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
       const reservationId = reservation.id
       const guestAccessToken = reservation.guestAccessToken
-
-      // Données financières (Break 4 — Chantier 62)
-      // Flight B2C : prix GDS = prix de vente (marge B2C non appliquée — Break 6, à traiter séparément)
-      await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: bookResult.totalPriceTnd, salePriceTnd: bookResult.totalPriceTnd })
 
       if (isImmediatelyPaid) {
         await tx

@@ -50,7 +50,6 @@ import { hashSeed } from "@/lib/hotels-monde/virtual-supplier/rng"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { worldHotelGuestBookingSchema, type WorldHotelGuestBookingInput } from "./schemas"
 import { book as bookWorldHotel, cancel as cancelWorldHotel, type BookResult } from "./virtual-supplier/engine"
-import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
 export type WorldHotelGuestPaymentMethod = "card" | "transfer" | "cash"
@@ -260,10 +259,6 @@ async function runCreateGuestWorldHotelBooking(
         .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
       const reservationId = reservation.id
       const guestAccessToken = reservation.guestAccessToken
-
-      // Données financières (Break 4 — Chantier 62)
-      // World Hotel B2C : prix moteur virtuel = prix de vente (pas de marge agence B2C)
-      await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: bookResult.totalPriceTnd, salePriceTnd: bookResult.totalPriceTnd })
 
       if (isImmediatelyPaid) {
         await tx

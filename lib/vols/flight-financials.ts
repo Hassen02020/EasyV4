@@ -28,6 +28,12 @@ import { flightPriceSnapshots } from "@/lib/db/schema/flights"
 import { reservations } from "@/lib/db/schema"
 import { recordReservationFinancials, type RecordReservationFinancialsInput } from "@/lib/finance/reservation-financials"
 import { fetchExchangeRateForBooking, ExchangeRateUnavailableError } from "@/lib/finance/exchange-rate"
+import {
+  getActiveFxPolicy,
+  applyFxCorrection,
+  computeBankFeeContribution,
+  FxPolicyUnavailableError,
+} from "@/lib/finance/fx-policy"
 
 export async function finalizeFlightBookingFinancials(
   tx: DrizzleTransaction,
@@ -51,23 +57,34 @@ export async function finalizeFlightBookingFinancials(
   const salePriceTnd = Number(snapshot.sellingAmount)
   const supplierCurrency = snapshot.supplierCurrency ?? "TND"
 
-  // CURRENCY-DIM-01 : si le fournisseur a facturé dans une devise ≠ TND,
-  // on obtient un taux frais au moment du booking (D2 Option B — jamais le
-  // taux de search) et on transmet l'original + le taux à
-  // recordReservationFinancials pour alimenter supplier_currency /
-  // exchange_rate / exchange_rate_at. Sans clé ou provider indisponible :
-  // ExchangeRateUnavailableError → on laisse remonter (fail closed).
+  // CURRENCY-DIM-01 + CURRENCY-DIM-02 : si le fournisseur facture dans une
+  // devise ≠ TND, on obtient :
+  //   1. Le taux de référence mid-market (fetchExchangeRateForBooking — D2 Option B)
+  //   2. La politique FX active (getActiveFxPolicy — CURRENCY-DIM-02)
+  //   3. Le taux appliqué = référence + correction banque (applyFxCorrection)
+  //   4. Le frais bancaire proratisé (computeBankFeeContribution)
+  //
+  // Fail-closed sur les deux : ExchangeRateUnavailableError ou
+  // FxPolicyUnavailableError remontent tels quels → booking annulé proprement.
+  //
   // Aujourd'hui supplierCurrency est toujours "TND" (commercial engine
   // bloque les autres devises via UnsupportedCommercialCurrencyMismatchError)
   // — ce bloc est inerte mais câblé pour Duffel et tout futur GDS.
   let supplierPriceTnd = supplierOriginalAmount
   const financialExtra: Partial<RecordReservationFinancialsInput> = {}
+  let bankFeeTnd = 0
 
   if (supplierCurrency !== "TND") {
-    const rate = await fetchExchangeRateForBooking(supplierCurrency, "TND")
-    supplierPriceTnd = Math.round(supplierOriginalAmount * rate.rate * 100) / 100
+    const referenceRate = await fetchExchangeRateForBooking(supplierCurrency, "TND")
+    const policy       = await getActiveFxPolicy()
+    const applied      = applyFxCorrection(referenceRate, policy)
+
+    supplierPriceTnd = Math.round(supplierOriginalAmount * applied.appliedRate * 100) / 100
+    bankFeeTnd       = computeBankFeeContribution(supplierOriginalAmount, applied.appliedRate, policy)
+
     financialExtra.supplierOriginal = { amount: supplierOriginalAmount, currency: supplierCurrency }
-    financialExtra.exchangeRate = { rate: rate.rate, at: rate.capturedAt }
+    financialExtra.exchangeRate     = { rate: referenceRate.rate, at: referenceRate.capturedAt }
+    financialExtra.appliedRate      = applied
   }
 
   // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe (API
@@ -105,6 +122,23 @@ export async function finalizeFlightBookingFinancials(
             amount: salePriceTnd - supplierPriceTnd,
             basis: "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
           },
+          // CURRENCY-DIM-02 : estimation proratisée du frais bancaire FX, uniquement
+          // si supplierCurrency ≠ TND et si la politique FX définit un frais > 0.
+          // Ligne informative (coût absorbé par Easy2Book) — n'affecte ni salePriceTnd
+          // ni le montant facturé à l'agence. L'allocation réelle d'un virement
+          // multi-bookings reste pour BANK-RECONCILE-01.
+          ...(bankFeeTnd > 0
+            ? [
+                {
+                  partyType: "easy2book",
+                  partyId: null,
+                  role: "easy2book" as const,
+                  qualification: "platform_fee" as const,
+                  amount: -bankFeeTnd,
+                  basis: `frais bancaire FX (CURRENCY-DIM-02, politique version ${financialExtra.appliedRate?.policyVersion ?? "?"})`,
+                },
+              ]
+            : []),
         ]
       : undefined,
   })

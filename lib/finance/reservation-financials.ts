@@ -54,6 +54,7 @@
 
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { economicEntitlements, reservationFinancials } from "@/lib/db/schema"
+import type { AppliedRate } from "./fx-policy"
 
 /** Une ligne de droit économique (`economic_entitlements`) — §3.1 du modèle. */
 export interface EconomicEntitlementLineInput {
@@ -134,6 +135,14 @@ export interface RecordReservationFinancialsInput {
    * Direction 2026-10-01), à 4 décimales.
    */
   exchangeRate?: { rate: number; at: Date }
+  /**
+   * CURRENCY-DIM-02 — taux appliqué (taux référence + correction banque)
+   * et `policyId` (FK immuable vers la version de politique utilisée).
+   * Optionnel : absent = `applied_exchange_rate`/`applied_exchange_rate_at`/
+   * `fx_policy_id` restent NULL — comportement inchangé pour les 13 call
+   * sites qui ne passent pas de politique FX (modules TND natifs).
+   */
+  appliedRate?: AppliedRate
 }
 
 export async function recordReservationFinancials(
@@ -161,6 +170,13 @@ export async function recordReservationFinancials(
     ...(input.marginRuleId ? { marginRuleId: input.marginRuleId } : {}),
     ...(input.exchangeRate
       ? { exchangeRate: input.exchangeRate.rate.toFixed(4), exchangeRateAt: input.exchangeRate.at }
+      : {}),
+    ...(input.appliedRate
+      ? {
+          appliedExchangeRate:   input.appliedRate.appliedRate.toFixed(6),
+          appliedExchangeRateAt: input.appliedRate.capturedAt,
+          fxPolicyId:            input.appliedRate.policyId,
+        }
       : {}),
   })
 

@@ -183,7 +183,18 @@ GO explicite de l'utilisateur (Direction@easy2book.tn), message exact "GO 1/2/3/
 
 **NAV-FIX-01 — CLÔTURÉ N/A.** Audit complet de toutes les surfaces de nav (admin-shell, pro/layout, mutuelle-shell, header, footer) : aucune entrée morte/cassée trouvée. L'historique git montre que cette classe de bug a déjà été corrigée par plusieurs chantiers antérieurs (`86fb563`, `6a17840`, `5cabfe2`, `d83fab8`, `5aabc7c`). Aucun code changé, aucune PR.
 
-### WALLET-RACE-CI-01 — TESTED / NOT VERIFIED — requires live Postgres to run (2026-09-30)
+### WALLET-RACE-CI-01 — CLÔTURÉ / DONE (réconcilié 2026-10-01)
+
+**RÉCONCILIATION (2026-10-01)** : critère de sortie réel (ci-dessous) désormais satisfait. Les deux fichiers de test ont été ajoutés à la liste explicite du job CI `financial-e2e` pendant `FINANCIAL-E2E-01` (2026-09-30) et s'exécutent contre Postgres réel à chaque run depuis. Vérifié directement sur le log brut du run le plus récent (`36792833784`, déjà mergé sur `main` via PR #96) :
+
+```
+ok 8  - debitCustomerWallet : deux débits concurrents dont la somme dépasse le solde -> exactement un réussit, jamais un découvert client
+ok 9  - debitCustomerWallet : deux débits concurrents dont la somme NE dépasse PAS le solde -> les deux réussissent, aucun 'lost update'
+ok 39 - debitPartnerCredit : deux débits concurrents dont la somme dépasse le solde -> exactement un réussit, jamais un double-spend
+ok 40 - debitPartnerCredit : deux débits concurrents dont la somme NE dépasse PAS le solde -> les deux réussissent, aucun 'lost update'
+```
+
+4/4 PASS, contre Postgres réel non-BYPASSRLS (`app_runtime`) — exactement le critère fixé ci-dessous. Chantier marqué DONE.
 
 **Contexte** : flagué par l'audit commerce-readiness (section E2E/Stress, 2026-09-30) comme écart de couverture de tests sur la concurrence des débits wallet. GO utilisateur (Direction@easy2book.tn, message exact "GO 1/2/3/4") enregistré dans le commit `e2d3911` (branche `journey-builder-01-e2e-fixes`, poussée sur `origin`) — **pas encore sur `main`** au moment de ce chantier (vérifié directement : `docs/ROADMAP.md` sur `origin/main` ne portait pas encore ce GO). Ce chantier a démarré sur la base de `origin/main` (branche `wallet-race-ci-01`), en s'appuyant sur cette preuve de GO indépendamment vérifiée plutôt que sur la seule affirmation du coordinateur.
 

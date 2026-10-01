@@ -294,13 +294,16 @@ test(
 
     assert.ok(result?.ok === true, `debitCustomerWallet échoué : ${JSON.stringify(result)}`)
     if (!result?.ok) return
+    // TypeScript can't narrow `result` through the closure assignment above —
+    // re-bind to a typed constant to carry the discriminated union forward.
+    const successResult = result as import("../customer-wallet").WalletMovementSuccess
 
-    assert.equal(result.balanceBefore, "1000.00", "solde avant = 1000 TND")
-    assert.equal(result.balanceAfter,  "500.00",  "solde après = 500 TND")
+    assert.equal(successResult.balanceBefore, "1000.00", "solde avant = 1000 TND")
+    assert.equal(successResult.balanceAfter,  "500.00",  "solde après = 500 TND")
 
     // Vérifier le mouvement dans wallet_ledger
     const entries = await withSystemContext((tx) =>
-      tx.select().from(walletLedger).where(eq(walletLedger.id, result!.ledgerId))
+      tx.select().from(walletLedger).where(eq(walletLedger.id, successResult.ledgerId))
     )
     assert.equal(entries.length, 1, "exactement 1 ligne ledger créée")
     const e = entries[0]!
@@ -314,7 +317,7 @@ test(
     const [acc] = await withSystemContext((tx) =>
       tx.select({ bal: walletAccounts.currentBalance })
         .from(walletAccounts)
-        .where(eq(walletAccounts.id, result!.walletAccountId))
+        .where(eq(walletAccounts.id, successResult.walletAccountId))
     )
     assert.equal(acc?.bal, "500.00", "wallet_accounts.current_balance mis à jour à 500 TND")
   },

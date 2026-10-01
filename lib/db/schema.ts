@@ -3047,6 +3047,7 @@ export {
   walletLedger,
   marginRules,
   reservationFinancials,
+  fxPolicies,
   journalEntries,
   journalLines,
   reservationStatusHistory,

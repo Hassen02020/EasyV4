@@ -390,6 +390,7 @@ test("T7 — virtual yield : virtual NOT_CONFIGURED quand DUFFEL_ACCESS_TOKEN pr
     process.env.DUFFEL_ACCESS_TOKEN = "duffel_test_fake_key"
     delete process.env.FLIGHTS_API_KEY
     delete process.env.FLIGHTS_DEMO_MODE
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createVirtualGdsAdapter } = require("@/lib/vols/adapters/virtual")
     assert.equal(createVirtualGdsAdapter().getConfigStatus(), "NOT_CONFIGURED")
     assert.equal(createDuffelAdapter().getConfigStatus(), "CONFIGURED")
@@ -409,6 +410,7 @@ test("T7 — virtual CONFIGURED quand FLIGHTS_DEMO_MODE=true même avec token", 
   try {
     process.env.DUFFEL_ACCESS_TOKEN = "duffel_test_fake_key"
     process.env.FLIGHTS_DEMO_MODE = "true"
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createVirtualGdsAdapter } = require("@/lib/vols/adapters/virtual")
     assert.equal(createVirtualGdsAdapter().getConfigStatus(), "CONFIGURED")
     assert.equal(createDuffelAdapter().getConfigStatus(), "NOT_CONFIGURED")

@@ -18,6 +18,16 @@
  *  4. wallet_ledger_drift — le solde stocké (agencies.deposit_balance) ne
  *     correspond plus au dernier mouvement du grand livre
  *     (partner_credit_movements.balance_after) : bug de tenue de compte.
+ *  5. cancelled_with_captured_payment — une réservation "cancelled" alors
+ *     qu'un paiement "captured" (jamais remboursé) existe encore. Trou
+ *     confirmé par audit (R6-03-FLIGHT-REFUND-GAP, 2026-10-01) : sur le
+ *     pipeline Vols, lib/vols/flight-status-sync.ts::updateFlightStatus()
+ *     peut faire passer une réservation à "cancelled" après un fulfillment
+ *     GDS échoué, sans jamais déclencher de remboursement — manual-payment-
+ *     actions.ts permet par ailleurs de capturer un paiement avant même la
+ *     confirmation fournisseur. Détection uniquement : AUCUN remboursement
+ *     automatique ici, le process reste humain via refund-actions.ts/
+ *     refund-logic.ts (R6-04) — ce check ne fait que rendre le trou visible.
  *
  * Fenêtre glissante (checks 1-3) : ne re-signale QUE les événements
  * apparus depuis le dernier passage (~25h, légèrement > le cycle cron
@@ -89,6 +99,7 @@ export type ReconciliationCheck =
   | "stuck_pending_payment"
   | "confirmed_without_payment"
   | "wallet_ledger_drift"
+  | "cancelled_with_captured_payment"
 
 export interface ReconciliationFinding {
   check: ReconciliationCheck
@@ -238,6 +249,42 @@ async function findConfirmedWithoutPayment(tx: DrizzleTransaction, since: Date):
   }))
 }
 
+async function findCancelledWithCapturedPayment(
+  tx: DrizzleTransaction,
+  since: Date,
+): Promise<ReconciliationFinding[]> {
+  const rows = await tx
+    .select({
+      reservationId: reservations.id,
+      agencyId: reservations.agencyId,
+      publicRef: reservations.publicRef,
+      cancelledAt: reservations.cancelledAt,
+      paymentId: payments.id,
+      paymentAmount: payments.tndAmount,
+      capturedAt: payments.capturedAt,
+    })
+    .from(reservations)
+    .innerJoin(
+      payments,
+      and(eq(payments.reservationId, reservations.id), eq(payments.status, "captured")),
+    )
+    .where(and(eq(reservations.status, "cancelled"), gte(reservations.cancelledAt, since)))
+
+  return rows.map((r) => ({
+    check: "cancelled_with_captured_payment" as const,
+    agencyId: r.agencyId,
+    entityId: r.paymentId,
+    details: {
+      reservationId: r.reservationId,
+      publicRef: r.publicRef,
+      cancelledAt: r.cancelledAt,
+      paymentId: r.paymentId,
+      paymentAmount: r.paymentAmount,
+      capturedAt: r.capturedAt,
+    },
+  }))
+}
+
 /**
  * `dayBucket` (YYYY-MM-DD UTC) fait partie de l'entityId : ce check est un
  * contrôle d'ÉTAT (pas un événement daté), rescanné intégralement à chaque
@@ -294,7 +341,7 @@ export interface ReconciliationResult {
 }
 
 /**
- * Exécute les 4 contrôles et journalise chaque écart trouvé dans
+ * Exécute les 5 contrôles et journalise chaque écart trouvé dans
  * `audit_events` (entityType="reconciliation") — jamais d'action corrective
  * automatique, uniquement de la détection : une dérive financière doit
  * toujours être résolue par un humain qui en comprend la cause exacte.
@@ -318,13 +365,21 @@ export async function runPaymentReconciliation(
       return { findings: [] as ReconciliationFinding[], unresolvedAgencyWarnings: 0, skipped: true }
     }
 
-    const [orphaned, stuck, confirmedWithoutPayment, walletDrift] = await Promise.all([
-      findOrphanedWebhooks(tx, since),
-      findStuckPendingPayments(tx, since),
-      findConfirmedWithoutPayment(tx, since),
-      findWalletLedgerDrift(tx, dayBucket),
-    ])
-    const all = [...orphaned.findings, ...stuck, ...confirmedWithoutPayment, ...walletDrift]
+    const [orphaned, stuck, confirmedWithoutPayment, walletDrift, cancelledWithCapturedPayment] =
+      await Promise.all([
+        findOrphanedWebhooks(tx, since),
+        findStuckPendingPayments(tx, since),
+        findConfirmedWithoutPayment(tx, since),
+        findWalletLedgerDrift(tx, dayBucket),
+        findCancelledWithCapturedPayment(tx, since),
+      ])
+    const all = [
+      ...orphaned.findings,
+      ...stuck,
+      ...confirmedWithoutPayment,
+      ...walletDrift,
+      ...cancelledWithCapturedPayment,
+    ]
 
     if (all.length > 0) {
       // SQL brut + ON CONFLICT ciblant explicitement l'index unique PARTIEL
@@ -361,6 +416,7 @@ export async function runPaymentReconciliation(
     stuck_pending_payment: 0,
     confirmed_without_payment: 0,
     wallet_ledger_drift: 0,
+    cancelled_with_captured_payment: 0,
   }
   for (const f of result.findings) counts[f.check]++
 

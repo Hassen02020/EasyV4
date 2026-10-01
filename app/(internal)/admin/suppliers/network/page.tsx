@@ -10,6 +10,7 @@
  * Cette page ne mélange jamais les deux comme signal de qualité unique.
  */
 import { Metadata } from "next"
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import {
   Network,
@@ -226,7 +227,7 @@ export default async function SupplierNetworkPage() {
                     <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                       Aucun fournisseur enregistré dans la table réseau.
                       Les fournisseurs hôteliers (Phase 27) sont gérés dans{" "}
-                      <a href="/admin/suppliers" className="underline">Fournisseurs hôteliers</a>.
+                      <Link href="/admin/suppliers" className="underline">Fournisseurs hôteliers</Link>.
                     </TableCell>
                   </TableRow>
                 ) : (

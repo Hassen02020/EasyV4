@@ -8,6 +8,8 @@ interface ModuleHeroProps {
   kicker: string
   title: string
   subtitle?: string
+  /** Real editorial image behind the color overlay. */
+  imageUrl?: string
   /** Optional slot — inline search form rendered inside the hero (Attractions) */
   children?: React.ReactNode
 }
@@ -18,11 +20,24 @@ export function ModuleHero({
   kicker,
   title,
   subtitle,
+  imageUrl,
   children,
 }: ModuleHeroProps) {
   return (
-    <div className={cn("bg-gradient-to-br px-4 py-12 text-white", gradient)}>
-      <div className="mx-auto max-w-4xl text-center">
+    <div className={cn("relative overflow-hidden px-4 py-12 text-white", gradient)}>
+      {imageUrl ? (
+        <>
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url("${imageUrl}")` }}
+          />
+          <div aria-hidden="true" className="absolute inset-0 bg-black/45" />
+          <div aria-hidden="true" className={cn("absolute inset-0 bg-gradient-to-br opacity-75", gradient)} />
+        </>
+      ) : null}
+
+      <div className="relative mx-auto max-w-4xl text-center">
         <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
           <Icon className="size-7" />
         </div>

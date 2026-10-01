@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic"
 
 // omra/package/activity retirés : ces modules n'ont pas de coût net séparé
 // du prix de vente — voir lib/pro/pricing.ts (commentaire MarginModule).
-const MODULES: MarginModule[] = ["hotel", "flight", "transfer"]
+// "network" ajouté (COMMERCIAL-CONVERGENCE-01).
+const MODULES: MarginModule[] = ["hotel", "flight", "transfer", "network"]
 
 export default async function ProMarginsPage() {
   // Phase 9 : lit la table pricing_margins via getActivePartnerMargins

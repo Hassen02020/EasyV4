@@ -14,18 +14,17 @@ import {
   createVirtualWorldHotelDriver,
   createRateHawkDriver,
   convertRateHawkAmountToTnd,
+  UnsupportedRateHawkCurrencyError,
   type WorldHotelSupplierDriver,
 } from "@/lib/hotels-monde/supplier-drivers"
-import { CURRENCY_META } from "@/lib/currency"
 import type { WorldHotelOffer, WorldHotelSearchInput } from "@/lib/hotels-monde/client"
 
-test("convertRateHawkAmountToTnd — convertit un montant USD (devise RateHawk) en TND", () => {
-  // RateHawk est toujours interrogé en currency:"USD" (voir createRateHawkDriver) —
-  // un bug réel a laissé passer un montant USD brut dans pricePerNightTnd/
-  // totalPriceTnd sans conversion ; ce test protège contre une régression.
-  const amountUsd = 32
-  assert.equal(convertRateHawkAmountToTnd(amountUsd, "USD"), amountUsd / CURRENCY_META.USD.rateFromTND)
-  assert.equal(convertRateHawkAmountToTnd(32, "USD"), 100)
+test("CURRENCY-DIM-01a : convertRateHawkAmountToTnd rejette explicitement un montant non-TND — jamais un taux inventé (CURRENCY_META était le taux d'affichage cosmétique, pas un vrai taux de change)", () => {
+  assert.throws(
+    () => convertRateHawkAmountToTnd(32, "USD"),
+    UnsupportedRateHawkCurrencyError,
+  )
+  assert.throws(() => convertRateHawkAmountToTnd(32, "EUR"), UnsupportedRateHawkCurrencyError)
 })
 
 test("convertRateHawkAmountToTnd — passthrough si déjà en TND", () => {

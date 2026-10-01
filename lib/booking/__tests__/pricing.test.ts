@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { computePriceBreakdown, convertFromTnd, formatMoney } from "../pricing"
+import { computePriceBreakdown, convertFromTnd, formatMoney, priceDrifted } from "../pricing"
 
 test("pricing: 2 adultes seuls — TVA 19%, acompte 30%", () => {
   const r = computePriceBreakdown({ unitPriceTnd: 100, adults: 2 })
@@ -115,4 +115,41 @@ test("formatMoney: 1234.5 TND", () => {
   const s = formatMoney(1234.5, "TND")
   assert.ok(/1\s?234,5/u.test(s))
   assert.ok(s.endsWith("TND"))
+})
+
+// --- priceDrifted (CART-DRIFT-01) ---------------------------------------
+// Le prix réellement chargé est TOUJOURS recalculé côté serveur (hôtel via
+// myGo, package/activité via la ligne DB verrouillée FOR UPDATE) — jamais
+// celui affiché au panier. `priceDrifted` est la garde qui décide si ce
+// recalcul s'écarte assez de ce que le client a vu/accepté pour justifier
+// un rejet (`PRICE_CHANGED`) plutôt qu'une charge silencieuse à un montant
+// différent de celui affiché.
+
+test("priceDrifted: aucun montant attendu (chemin non-panier) — jamais de drift", () => {
+  assert.equal(priceDrifted(undefined, 238), false)
+  assert.equal(priceDrifted(null, 238), false)
+})
+
+test("priceDrifted: même montant — pas de drift", () => {
+  assert.equal(priceDrifted(238, 238), false)
+})
+
+test("priceDrifted: écart d'arrondi flottant (<= 1 centime) — toléré", () => {
+  assert.equal(priceDrifted(238, 238.005), false)
+  assert.equal(priceDrifted(238.004999, 238, 0.01), false)
+})
+
+test("priceDrifted: prix fournisseur réellement changé à la hausse — détecté", () => {
+  // Scénario CART-DRIFT-01 : 200 TND affiché au panier, 260 TND recalculé
+  // serveur au moment de la confirmation (repricing fournisseur entre-temps).
+  assert.equal(priceDrifted(200, 260), true)
+})
+
+test("priceDrifted: prix réellement changé à la baisse — aussi détecté (jamais un repli silencieux dans un sens comme dans l'autre)", () => {
+  assert.equal(priceDrifted(260, 200), true)
+})
+
+test("priceDrifted: tolérance personnalisée respectée", () => {
+  assert.equal(priceDrifted(100, 100.5, 1), false)
+  assert.equal(priceDrifted(100, 101.5, 1), true)
 })

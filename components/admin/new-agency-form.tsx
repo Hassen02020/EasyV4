@@ -15,7 +15,75 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { createAgency } from "@/lib/admin/agencies-actions"
+import { UserPlus } from "lucide-react"
+import { createAgency, createPartnerOwner } from "@/lib/admin/agencies-actions"
+
+/**
+ * R2-05 (audit Phase 0) : createAgency ne crée que la ligne `agencies` —
+ * pour une agence "partner", cette étape 2 (facultative, "Passer" possible)
+ * invite immédiatement son premier partner_owner via createPartnerOwner
+ * (lib/admin/agencies-actions.ts), pour ne pas laisser une agence sans
+ * aucun utilisateur capable de s'y connecter.
+ */
+function InviteOwnerStep({ agencyId, agencyName }: { agencyId: string; agencyName: string }) {
+  const router = useRouter()
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    startTransition(async () => {
+      const result = await createPartnerOwner({ agencyId, email, name })
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      toast.success(`Invitation envoyée à ${email}.`)
+      router.push("/admin/agencies")
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-muted-foreground text-sm">
+        Agence <strong>{agencyName}</strong> créée. Invitez son premier propriétaire (partner_owner) pour qu&apos;elle
+        soit utilisable, ou passez cette étape pour l&apos;inviter plus tard.
+      </p>
+      <div className="space-y-2">
+        <Label htmlFor="owner-name">Nom complet</Label>
+        <Input id="owner-name" value={name} onChange={(e) => setName(e.target.value)} required disabled={isPending} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="owner-email">Email</Label>
+        <Input
+          id="owner-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          disabled={isPending}
+        />
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={isPending} className="gap-2">
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+          Envoyer l&apos;invitation
+        </Button>
+        <Button type="button" variant="ghost" disabled={isPending} onClick={() => router.push("/admin/agencies")}>
+          Passer, inviter plus tard
+        </Button>
+      </div>
+    </form>
+  )
+}
 
 export function NewAgencyForm() {
   const router = useRouter()
@@ -25,6 +93,7 @@ export function NewAgencyForm() {
   const [contactPhone, setContactPhone] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [created, setCreated] = useState<{ agencyId: string; name: string } | null>(null)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,8 +105,16 @@ export function NewAgencyForm() {
         return
       }
       toast.success(`Agence "${name}" créée.`)
+      if (agencyType === "partner") {
+        setCreated({ agencyId: result.agencyId, name })
+        return
+      }
       router.push("/admin/agencies")
     })
+  }
+
+  if (created) {
+    return <InviteOwnerStep agencyId={created.agencyId} agencyName={created.name} />
   }
 
   return (

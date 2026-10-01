@@ -159,6 +159,7 @@ export default async function OmraPage({
         <ModuleHero
           Icon={Moon}
           gradient="from-emerald-900 to-emerald-700"
+          imageUrl="https://images.unsplash.com/photo-1564769625905-50e93615e769?w=1800&q=85&auto=format&fit=crop"
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

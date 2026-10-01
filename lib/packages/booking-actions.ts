@@ -38,7 +38,7 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { computePriceBreakdown } from "@/lib/booking/pricing"
+import { computePriceBreakdown, priceDrifted } from "@/lib/booking/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -55,6 +55,7 @@ import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 export type CreateGuestPackageBookingResult =
@@ -65,7 +66,7 @@ export type CreateGuestPackageBookingResult =
       guestAccessToken: string
       status: "confirmed" | "pending"
     }
-  | { ok: false; error: string; code?: string }
+  | { ok: false; error: string; code?: string; currentTotalTnd?: number }
 
 function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
@@ -79,9 +80,18 @@ class PaymentRejected extends Error {
   }
 }
 
+/** CART-DRIFT-01 — voir lib/booking/guest-actions.ts pour le contexte complet. */
+class PriceChanged extends Error {
+  constructor(public readonly currentTotalTnd: number) {
+    super("PRICE_CHANGED")
+  }
+}
+
 export async function createGuestPackageBooking(input: {
   booking: PackageGuestBookingInput
   paymentMethod: GuestPaymentMethod
+  /** CART-DRIFT-01 — voir lib/booking/guest-actions.ts::createGuestReservationFromDraft. */
+  expectedTotalTnd?: number
 }): Promise<CreateGuestPackageBookingResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -108,6 +118,12 @@ export async function createGuestPackageBooking(input: {
         children: parsed.data.children,
         travelerEmail: parsed.data.traveler.email,
         paymentMethod: input.paymentMethod,
+        // CART-DRIFT-01 — inclus dans la clé pour qu'une reconfirmation
+        // après un rejet PRICE_CHANGED (nouveau expectedTotalTnd, le client
+        // ayant vu/accepté le nouveau montant) obtienne une clé FRAÎCHE,
+        // jamais le rejet mis en cache 1h par withGuestIdempotency pour
+        // l'ancien montant (voir lib/booking/guest-idempotency.ts).
+        expectedTotalTnd: input.expectedTotalTnd ?? null,
       }),
     )
     .digest("hex")
@@ -116,7 +132,7 @@ export async function createGuestPackageBooking(input: {
   const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.traveler.email)
 
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestPackageBooking(parsed.data, input.paymentMethod, linkedAuthUserId),
+    runCreateGuestPackageBooking(parsed.data, input.paymentMethod, linkedAuthUserId, input.expectedTotalTnd),
   )
 }
 
@@ -124,6 +140,7 @@ async function runCreateGuestPackageBooking(
   booking: PackageGuestBookingInput,
   paymentMethod: GuestPaymentMethod,
   linkedAuthUserId: string | null,
+  expectedTotalTnd: number | undefined,
 ): Promise<CreateGuestPackageBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -176,6 +193,17 @@ async function runCreateGuestPackageBooking(
           depositPercent: departure.depositPercent,
         })
         const totalTnd = breakdown.totalTnd
+
+        // --- Garde anti-drift de prix (CART-DRIFT-01) ---
+        // `totalTnd` ci-dessus vient d'être recalculé depuis `departure`
+        // verrouillé `FOR UPDATE` — déjà le seul montant qui sera chargé.
+        // Si le client a accepté un montant affiché avant (snapshot panier,
+        // potentiellement vieux — aucun TTL, voir lib/cart/cart-store.ts) et
+        // que le tarif a réellement changé depuis, on rejette plutôt que de
+        // charger silencieusement un montant différent de celui affiché.
+        if (priceDrifted(expectedTotalTnd, totalTnd)) {
+          throw new PriceChanged(totalTnd)
+        }
 
         // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---
         // Résolue et figée AU MOMENT de cette réservation précise (spécifique
@@ -268,6 +296,14 @@ async function runCreateGuestPackageBooking(
             .update(reservations)
             .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
             .where(eq(reservations.id, reservationId))
+
+          await recordReservationTransition(tx, {
+            reservationId,
+            from: "pending",
+            to: "confirmed",
+            automated: true,
+            reason: "Règlement wallet client immédiat à la création (guest)",
+          })
         }
 
         await tx.insert(payments).values({
@@ -282,6 +318,27 @@ async function runCreateGuestPackageBooking(
           kind: "deposit",
           status: isImmediatelyPaid ? "captured" : "pending",
           capturedAt: isImmediatelyPaid ? new Date() : undefined,
+        })
+
+        // R6-02 : voir lib/omra/booking-actions.ts pour la justification
+        // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
+        // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
+        // lignes seller_margin/commission fabriquées à 0.
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "owner_share",
+              amount: totalTnd,
+              basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+            },
+          ],
         })
 
         // Easy2Book Rewards (Phase 38D) — B2C uniquement (voir doc de tête
@@ -373,6 +430,14 @@ async function runCreateGuestPackageBooking(
   } catch (err) {
     if (err instanceof PaymentRejected) {
       return { ok: false, error: err.message, code: err.code }
+    }
+    if (err instanceof PriceChanged) {
+      return {
+        ok: false,
+        error: `Le prix de ce voyage a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${err.currentTotalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
+        code: "PRICE_CHANGED",
+        currentTotalTnd: err.currentTotalTnd,
+      }
     }
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
@@ -534,6 +599,14 @@ export async function createPackageBooking(
           .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
           .where(eq(reservations.id, reservationId))
 
+        await recordReservationTransition(tx, {
+          reservationId,
+          from: "pending",
+          to: "confirmed",
+          triggeredBy: createdByUserId,
+          reason: "Règlement wallet B2B immédiat à la création",
+        })
+
         await tx.insert(payments).values({
           agencyId,
           reservationId,
@@ -545,6 +618,27 @@ export async function createPackageBooking(
           kind: "deposit",
           status: "captured",
           capturedAt: new Date(),
+        })
+
+        // R6-02 : voir lib/omra/booking-actions.ts pour la justification
+        // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
+        // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
+        // lignes seller_margin/commission fabriquées à 0.
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "owner_share",
+              amount: totalTnd,
+              basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+            },
+          ],
         })
 
         await tx.insert(reservationPackage).values({

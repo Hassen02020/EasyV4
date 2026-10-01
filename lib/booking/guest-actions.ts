@@ -53,7 +53,7 @@ import {
 } from "@/lib/db/schema"
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule, paymentMethodSchema } from "./schemas"
-import { computePriceBreakdown } from "./pricing"
+import { computePriceBreakdown, priceDrifted } from "./pricing"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
@@ -74,6 +74,8 @@ import { pgErrorCode } from "@/lib/db/pg-error"
 import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./customer-identity"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
 export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "bank_deposit" | "cash" | "at_hotel"
 
@@ -105,7 +107,15 @@ export type CreateGuestReservationResult =
        * (voir app/api/payment/reservation-webhook/route.ts). */
       redirectUrl?: string
     }
-  | { ok: false; error: string; code?: string }
+  | {
+      ok: false
+      error: string
+      code?: string
+      /** Présent uniquement pour `code: "PRICE_CHANGED"` (CART-DRIFT-01) —
+       * le total réellement recalculé côté serveur, à afficher/reconfirmer
+       * avant toute nouvelle tentative. */
+      currentTotalTnd?: number
+    }
 
 export async function createGuestReservationFromDraft(input: {
   draft: BookingDraft
@@ -113,6 +123,19 @@ export async function createGuestReservationFromDraft(input: {
   paymentMethod: GuestPaymentMethod
   /** Clé d'idempotence stable pour cette soumission précise (voir appelant). */
   idempotencyKey: string
+  /**
+   * CART-DRIFT-01 — montant TTC affiché au client à la dernière étape avant
+   * confirmation (snapshot panier ou récap checkout individuel), s'il en
+   * existe un fiable. Le prix réellement chargé reste TOUJOURS celui
+   * recalculé ci-dessous à partir de myGo + marge (jamais celui-ci) ; ce
+   * champ sert UNIQUEMENT de garde : si le total serveur fraîchement
+   * recalculé diffère matériellement (`priceDrifted`, lib/booking/pricing.ts)
+   * de ce que le client a vu et accepté, on rejette (`PRICE_CHANGED`)
+   * plutôt que de charger silencieusement un montant différent de celui
+   * affiché — voir CLAUDE.md RÈGLE FINANCIÈRE, tightening de validation,
+   * pas de migration de représentation de données.
+   */
+  expectedTotalTnd?: number
 }): Promise<CreateGuestReservationResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -150,6 +173,7 @@ export async function createGuestReservationFromDraft(input: {
       methodParse.data as GuestPaymentMethod,
       input.idempotencyKey,
       linkedAuthUserId,
+      input.expectedTotalTnd,
     ),
   )
 }
@@ -193,6 +217,7 @@ async function runCreateGuestReservation(
   paymentMethod: GuestPaymentMethod,
   idempotencyKey: string,
   linkedAuthUserId: string | null,
+  expectedTotalTnd: number | undefined,
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -221,17 +246,58 @@ async function runCreateGuestReservation(
   const existingByKey = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
   if (existingByKey) return existingByKey
 
+  // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
+  // Empêche deux requêtes concurrentes pour LA MÊME offre (même draft.offerId)
+  // d'appeler toutes les deux confirmHotelWithProvider — le backstop DB
+  // ci-dessus ne protège que contre un RETRY de la MÊME idempotencyKey, pas
+  // contre deux soumissions concurrentes (double-clic, deux onglets, ou même
+  // un vrai retry réseau avec la MÊME idempotencyKey lancé en parallèle —
+  // voir le commentaire "Double-submit vraiment simultané" plus bas) sur la
+  // même offre, qui atteindraient sinon toutes les deux myGo avant que
+  // reservations_guest_idempotency_uniq ne tranche la course ; ce verrou vise
+  // à éviter d'en arriver là plutôt que de nettoyer après coup.
+  // `sessionId` = un identifiant FRAIS par invocation (jamais idempotencyKey :
+  // deux requêtes qui partagent la même idempotencyKey — le cas exact décrit
+  // ci-dessous — doivent quand même être traitées comme deux détenteurs
+  // distincts, sinon le ré-acquire idempotent du verrou laisserait passer
+  // les deux vers myGo).
+  const lockSessionId = crypto.randomUUID()
+  const lockResult = await acquireLock({
+    agencyId,
+    sessionId: lockSessionId,
+    module: "hotel",
+    itemId: draft.offerId,
+  })
+  if (!lockResult.ok) {
+    return { ok: false, error: lockResult.message, code: lockResult.reason }
+  }
+  // Libéré sur CHAQUE sortie de fonction ci-dessous (échec fournisseur, échec
+  // paiement, conflit DB, succès, erreur générique) — même discipline que les
+  // compensations `cancelBooking()` déjà explicites à chacun de ces points,
+  // jamais un try/finally global qui aurait forcé une ré-indentation massive
+  // d'une fonction déjà longue et testée.
+  const releaseInventoryLock = (reservationId?: string) =>
+    releaseLock({
+      agencyId,
+      sessionId: lockSessionId,
+      module: "hotel",
+      itemId: draft.offerId,
+      reservationId,
+    })
+
   // --- Revalidation fournisseur RÉELLE (myGo) — jamais de prix client-fourni ---
   // Même garde que le correctif P0 Phase 11 (lib/booking/actions.ts) : sans
   // confirmation fournisseur valide, aucun prix n'est jamais calculé ni
   // débité, quel que soit le module ou le mode de paiement.
   const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
+    await releaseInventoryLock()
     return { ok: false, error: providerConfirmation.error }
   }
   const myGoBooking = providerConfirmation.attempted ? providerConfirmation.booking : null
   const providerMeta = providerConfirmation.attempted ? providerConfirmation.providerMeta : null
   if (!myGoBooking) {
+    await releaseInventoryLock()
     return {
       ok: false,
       error:
@@ -250,6 +316,32 @@ async function runCreateGuestReservation(
     adults: draft.adults,
     children: draft.children,
   })
+
+  // --- Garde anti-drift de prix (CART-DRIFT-01) ---
+  // Le total ci-dessus vient d'être recalculé à partir du VRAI prix myGo +
+  // marge (jamais du panier/draft client) — c'est déjà, et reste, le seul
+  // montant qui sera chargé. Mais si le client a accepté un montant affiché
+  // AVANT (ex. snapshot panier pris à l'ajout, potentiellement vieux de
+  // plusieurs jours — voir lib/cart/cart-store.ts, aucun TTL) et que le prix
+  // a réellement bougé depuis (repricing fournisseur), le facturer quand
+  // même sans le dire au client serait le rendre lésé silencieusement.
+  // On rejette plutôt que de continuer, compensation myGo/verrou identique
+  // aux autres rejets ci-dessus.
+  if (priceDrifted(expectedTotalTnd, breakdown.totalTnd)) {
+    try {
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+    } catch {
+      /* best effort — un hold myGo redondant sans réservation locale associée
+       * n'a aucun impact financier/paiement côté Easy2Book. */
+    }
+    await releaseInventoryLock()
+    return {
+      ok: false,
+      error: `Le prix de cette offre a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${breakdown.totalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
+      code: "PRICE_CHANGED",
+      currentTotalTnd: breakdown.totalTnd,
+    }
+  }
 
   const hotelStartDate = new Date(draft.startDate)
   const hotelEndDate = draft.endDate ? new Date(draft.endDate) : hotelStartDate
@@ -294,6 +386,9 @@ async function runCreateGuestReservation(
       () => (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId }),
     )
     if (!paymentResult.ok) {
+      // Compensation fournisseur déjà déclenchée par attemptCardPayment
+      // (callback ci-dessus) — ne reste plus qu'à libérer NOTRE verrou.
+      await releaseInventoryLock()
       return {
         ok: false,
         error: paymentResult.message ?? "Le paiement n'a pas pu être traité.",
@@ -452,6 +547,14 @@ async function runCreateGuestReservation(
         // montants déjà calculés plus haut par `applyMargin()`, jamais un
         // recalcul.
         if (draft.module === "hotel") {
+          // ECON-WIRING-01 — voir lib/booking/actions.ts (chemin front-office)
+          // pour le commentaire complet : même formule dupliquée que
+          // recordReservationFinancials(), fournisseur myGo non modélisé.
+          const marginAmountTnd = agencyPrice - myGoBooking.totalPrice
+          const commissionRateForEntitlements = hotelMarginRule.commissionPercent ?? 0
+          const commissionAmountForEntitlements =
+            Math.round(marginAmountTnd * (commissionRateForEntitlements / 100) * 100) / 100
+
           const { commissionAmount } = await recordReservationFinancials({
             tx,
             reservationId,
@@ -459,6 +562,42 @@ async function runCreateGuestReservation(
             salePriceTnd: agencyPrice,
             commissionPercent: hotelMarginRule.commissionPercent,
             marginRuleId: hotelMarginRule.ruleId,
+            economicEntitlements: [
+              {
+                partyType: "external_supplier",
+                partyId: null,
+                role: "supplier",
+                qualification: "supplier_cost",
+                amount: myGoBooking.totalPrice,
+                basis: "coût fournisseur réel confirmé par myGo (totalPrice)",
+                ruleId: hotelMarginRule.ruleId ?? null,
+                agreementId: hotelMarginRule.ruleId ?? null,
+              },
+              {
+                partyType: "agency",
+                partyId: agencyId,
+                role: "seller",
+                qualification: "seller_margin",
+                amount: marginAmountTnd - commissionAmountForEntitlements,
+                basis: `marge vendeur nette de commission (${
+                  hotelMarginRule.marginType === "percent"
+                    ? `${hotelMarginRule.marginValue}%`
+                    : `${hotelMarginRule.marginValue} TND`
+                } − commission ${commissionRateForEntitlements}%)`,
+                ruleId: hotelMarginRule.ruleId ?? null,
+                agreementId: hotelMarginRule.ruleId ?? null,
+              },
+              {
+                partyType: "easy2book",
+                partyId: null,
+                role: "easy2book",
+                qualification: "commission",
+                amount: commissionAmountForEntitlements,
+                basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+                ruleId: hotelMarginRule.ruleId ?? null,
+                agreementId: hotelMarginRule.ruleId ?? null,
+              },
+            ],
           })
           await creditPlatformCommission(tx, {
             reservationId,
@@ -496,6 +635,14 @@ async function runCreateGuestReservation(
             .update(reservations)
             .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
             .where(eq(reservations.id, reservationId))
+
+          await recordReservationTransition(tx, {
+            reservationId,
+            from: "pending",
+            to: "confirmed",
+            automated: true,
+            reason: "Règlement wallet client immédiat à la création (guest)",
+          })
 
           await tx.insert(payments).values({
             agencyId,
@@ -599,6 +746,11 @@ async function runCreateGuestReservation(
         /* best effort — un hold myGo redondant sans réservation locale associée
          * n'a aucun impact financier/paiement côté Easy2Book. */
       }
+      // Cette tentative n'a créé aucune réservation (l'autre a gagné) —
+      // libère notre verrou sans reservationId (statut "released", pas
+      // "confirmed" — la réservation confirmée appartient à l'autre requête,
+      // qui aura elle-même libéré/confirmé son propre verrou).
+      await releaseInventoryLock()
       const winner = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
       if (winner) return winner
       return {
@@ -654,6 +806,9 @@ async function runCreateGuestReservation(
       }
     }
 
+    // Réservation réellement créée (et confirmée fournisseur) — le verrou
+    // passe en "confirmed" plutôt que "released", tracé jusqu'à la résa finale.
+    await releaseInventoryLock(result.reservationId)
     return {
       ok: true,
       reservationId: result.reservationId,
@@ -669,6 +824,9 @@ async function runCreateGuestReservation(
     } catch {
       compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
     }
+    // Transaction annulée (ROLLBACK) — aucune réservation locale créée par
+    // CETTE tentative, quel que soit le chemin d'erreur ci-dessous.
+    await releaseInventoryLock()
     // Solde wallet insuffisant : transaction annulée (ROLLBACK, aucune
     // réservation créée), résa fournisseur compensée ci-dessus — message
     // clair plutôt que l'erreur interne générique, même distinction que

@@ -31,6 +31,7 @@ import { calculateTransferPrice } from "./pricing"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -246,6 +247,14 @@ export async function createTransferBooking(
         .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
 
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "confirmed",
+        triggeredBy: createdByUserId,
+        reason: "Règlement wallet B2B immédiat à la création",
+      })
+
       await tx.insert(payments).values({
         agencyId,
         reservationId,
@@ -264,11 +273,35 @@ export async function createTransferBooking(
       // montants déjà calculés par calculateTransferPrice()/applyMargin(),
       // jamais un recalcul. preMargin = basePriceTnd + nightSurchargeAmount
       // (pricing.totalTnd - marginAmount, cf. lib/transfers/pricing.ts).
+      // ECON-WIRING-01 — economic_entitlements. Transfer est un catalogue
+      // PROPRE à l'agence (mêmes tarifs internes que Car), pas de
+      // fournisseur externe modélisé : coût attribué à l'agence en tant que
+      // "product_owner", jamais "external_supplier" (voir lib/cars/actions.ts
+      // pour le commentaire complet). Aucune commission aujourd'hui.
+      const transferSupplierCostTnd = pricing.basePriceTnd + pricing.nightSurchargeAmount
       await recordReservationFinancials({
         tx,
         reservationId,
-        supplierPriceTnd: pricing.basePriceTnd + pricing.nightSurchargeAmount,
+        supplierPriceTnd: transferSupplierCostTnd,
         salePriceTnd: pricing.totalTnd,
+        economicEntitlements: [
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "product_owner",
+            qualification: "supplier_cost",
+            amount: transferSupplierCostTnd,
+            basis: "tarif propre de l'agence (base + majoration nuit)",
+          },
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "seller",
+            qualification: "seller_margin",
+            amount: pricing.totalTnd - transferSupplierCostTnd,
+            basis: "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+          },
+        ],
       })
 
       /* ------------------------------------------------------------------

@@ -22,6 +22,7 @@ import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -599,6 +600,20 @@ export async function createReservationFromDraft(input: {
       // lib/finance/reservation-financials.ts). Réutilise les DEUX montants
       // déjà calculés plus haut par `applyMargin()`, jamais un recalcul.
       if (draft.module === "hotel" && myGoBooking) {
+        // ECON-WIRING-01 — economic_entitlements, miroir exact du pattern
+        // Network (lib/network/product-booking-actions.ts) : même formule
+        // TEXTUELLE que recordReservationFinancials() (marge = vente - coût,
+        // commission = marge × taux, arrondi 2 décimales), dupliquée ici
+        // uniquement pour construire la ligne "seller_margin" nette de
+        // commission AVANT l'appel — pas un second moteur de marge.
+        // Fournisseur myGo non modélisé comme partie (partyType
+        // "external_supplier", partyId null), comme prévu par
+        // EconomicEntitlementLineInput.
+        const marginAmountTnd = agencyHotelPrice - myGoBooking.totalPrice
+        const commissionRateForEntitlements = hotelMarginRule.commissionPercent ?? 0
+        const commissionAmountForEntitlements =
+          Math.round(marginAmountTnd * (commissionRateForEntitlements / 100) * 100) / 100
+
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
@@ -606,6 +621,42 @@ export async function createReservationFromDraft(input: {
           salePriceTnd: agencyHotelPrice,
           commissionPercent: hotelMarginRule.commissionPercent,
           marginRuleId: hotelMarginRule.ruleId,
+          economicEntitlements: [
+            {
+              partyType: "external_supplier",
+              partyId: null,
+              role: "supplier",
+              qualification: "supplier_cost",
+              amount: myGoBooking.totalPrice,
+              basis: "coût fournisseur réel confirmé par myGo (totalPrice)",
+              ruleId: hotelMarginRule.ruleId ?? null,
+              agreementId: hotelMarginRule.ruleId ?? null,
+            },
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "seller",
+              qualification: "seller_margin",
+              amount: marginAmountTnd - commissionAmountForEntitlements,
+              basis: `marge vendeur nette de commission (${
+                hotelMarginRule.marginType === "percent"
+                  ? `${hotelMarginRule.marginValue}%`
+                  : `${hotelMarginRule.marginValue} TND`
+              } − commission ${commissionRateForEntitlements}%)`,
+              ruleId: hotelMarginRule.ruleId ?? null,
+              agreementId: hotelMarginRule.ruleId ?? null,
+            },
+            {
+              partyType: "easy2book",
+              partyId: null,
+              role: "easy2book",
+              qualification: "commission",
+              amount: commissionAmountForEntitlements,
+              basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+              ruleId: hotelMarginRule.ruleId ?? null,
+              agreementId: hotelMarginRule.ruleId ?? null,
+            },
+          ],
         })
         await creditPlatformCommission(tx, {
           reservationId,
@@ -652,6 +703,14 @@ export async function createReservationFromDraft(input: {
         .update(reservations)
         .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
+
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "confirmed",
+        triggeredBy: authUserId,
+        reason: "Règlement wallet B2B immédiat à la création",
+      })
 
       await tx.insert(payments).values({
         agencyId,

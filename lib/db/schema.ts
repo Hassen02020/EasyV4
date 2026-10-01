@@ -22,9 +22,12 @@
  */
 
 import { sql } from "drizzle-orm"
-import { marginType, walletTxType } from "./schema/financials"
+import { marginRules, marginType, walletTxType } from "./schema/financials"
+import { supplierNodes } from "./schema/supplier-portal"
 import {
+  bigint,
   boolean,
+  check,
   date,
   decimal,
   index,
@@ -92,6 +95,12 @@ export const reservationModule = pgEnum("reservation_module", [
   "omra",
   "car",
   "hotel_monde",
+  /** ECON-PILOT-01 : réservation d'un produit canonique `products` porté par
+   * un supplier_node (Network), distincte de "activity" (catalogue agence
+   * classique `catalog_activities`) pour ne jamais confondre les deux
+   * origines dans le reporting/dashboards — même principe que "hotel_monde"
+   * vs "hotel" (drizzle/manual/0051). */
+  "network",
 ])
 
 export const reservationSource = pgEnum("reservation_source", [
@@ -708,6 +717,262 @@ export const reservationActivity = pgTable(
   ],
 )
 
+/* ----- Network Product extension (ECON-PILOT-01) --------------------------
+ * Réservation d'un produit CANONIQUE `products` porté par un supplier_node
+ * (Network) — distincte de `reservation_activity` (catalogue agence
+ * `catalog_activities`) : réutiliser cette dernière aurait conflaté deux
+ * origines de données différentes (canonique vs catalogue historique) sous
+ * un même `activityId` par convention, ambigu pour tout lecteur futur.
+ * Nouvelle table minimale, volontairement étroite (scope du pilote =
+ * prouver la chaîne, pas construire un système de réservation générique
+ * complet — pas de sessions/disponibilité, contrairement à
+ * reservation_activity). */
+export const reservationNetworkProduct = pgTable(
+  "reservation_network_product",
+  {
+    reservationId: uuid("reservation_id")
+      .primaryKey()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    supplierNodeId: uuid("supplier_node_id")
+      .notNull()
+      .references(() => supplierNodes.id, { onDelete: "restrict" }),
+    /** Quantité réservée (pas de distinction adulte/enfant au stade pilote). */
+    quantity: integer("quantity").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("res_network_product_product_idx").on(t.productId),
+    index("res_network_product_supplier_node_idx").on(t.supplierNodeId),
+  ],
+)
+
+/* ----- Economic Entitlements (ECON-BREAKDOWN-01) ---------------------------
+ * `docs/ECONOMIC_MODEL.md` §3.1 — la table qui enregistre QUI a droit à QUOI
+ * sur une réservation (couche Economic, distincte de Money Events déjà
+ * portés par `wallet_ledger`/`partner_credit_movements`, inchangés). Seul
+ * écrivain prévu par le modèle : `recordReservationFinancials()`
+ * (lib/finance/reservation-financials.ts). Ce chantier ne câble QUE le
+ * module Network (lib/network/product-booking-actions.ts) — les 8 autres
+ * modules sont hors périmètre (ECON-WIRING-01, chantier séparé, pas encore
+ * GO'd). Aucune logique de transition `earned → settleable/settled` ici :
+ * seule la valeur initiale `earned` est écrite à la création.
+ */
+export const economicEntitlementRole = pgEnum("economic_entitlement_role", [
+  "seller",
+  "product_owner",
+  "supplier",
+  "partner",
+  "easy2book",
+  "tax_authority",
+  "discount",
+])
+
+export const economicEntitlementStatus = pgEnum("economic_entitlement_status", [
+  "pending",
+  "earned",
+  "settleable",
+  "settled",
+  "compensated",
+])
+
+export const economicEntitlements = pgTable(
+  "economic_entitlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reservationId: uuid("reservation_id")
+      .notNull()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+
+    /** Table conceptuelle que `partyId` référence ('agency' | 'supplier_node'
+     * | 'easy2book' | 'external') — polymorphique, donc pas de FK Postgres
+     * possible sur `partyId` lui-même. */
+    partyType: varchar("party_type", { length: 30 }).notNull(),
+    /** `agencies.id`, `supplier_nodes.id` — NULL pour easy2book/fournisseur
+     * externe non modélisé (cf. audit : "le nœud fournisseur n'est crédité
+     * nulle part"). */
+    partyId: uuid("party_id"),
+
+    role: economicEntitlementRole("role").notNull(),
+    /** §3.1 : liste fermée, appliquée via CHECK (pas un pgEnum Postgres —
+     * volontaire, cf. docs/ECONOMIC_MODEL.md qui la documente comme "text"
+     * pour rester extensible sans ALTER TYPE). */
+    qualification: varchar("qualification", { length: 30 }).notNull(),
+
+    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+
+    /** Description libre de la base de calcul, ex. "net × 5%". */
+    basis: text("basis"),
+
+    /** Placeholder EN ATTENDANT AGREEMENT-01 (pas de table
+     * `commercial_agreements` dans ce chantier). PRÉCISION DIRECTION
+     * (2026-09-30) : `margin_rules` N'EST PAS `commercial_agreements` — ceci
+     * est un point d'attache TECHNIQUE PROVISOIRE au modèle économique
+     * existant (cf. docs/ECONOMIC_MODEL.md §2 "Réutilisation"), pas une
+     * équivalence conceptuelle. Volontairement SANS `.references()` /
+     * SANS contrainte FK en base vers `margin_rules` — pour qu'AGREEMENT-01
+     * puisse la repointer vers un vrai `commercial_agreements.id` par un
+     * simple UPDATE de valeur, sans devoir défaire une contrainte. */
+    agreementId: uuid("agreement_id"),
+    /** `margin_rules.id` qui a produit CETTE ligne précisément — référence
+     * RÉELLE et durable (indépendante d'AGREEMENT-01), donc FK conservée en
+     * base. Peut être numériquement égal à `agreementId` aujourd'hui (même
+     * table source, faute de mieux) ; ce n'est pas un doublon, c'est
+     * documenté ici comme attendu. */
+    ruleId: uuid("rule_id").references(() => marginRules.id, { onDelete: "set null" }),
+
+    status: economicEntitlementStatus("status").notNull().default("pending"),
+    effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+
+    /** §4 — colonne posée pour un futur chantier de compensation ;
+     * aucune logique d'annulation/reversal n'utilise encore ce champ. */
+    cancellationTreatment: varchar("cancellation_treatment", { length: 20 }),
+    /** Auto-référence : la ligne compensatoire pointe vers la ligne qu'elle
+     * corrige. Colonne posée pour le même futur chantier — non utilisée ici. */
+    compensatesId: uuid("compensates_id"),
+
+    settlementStatus: varchar("settlement_status", { length: 20 }),
+    settlementRef: text("settlement_ref"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("economic_entitlements_reservation_idx").on(t.reservationId),
+    index("economic_entitlements_party_idx").on(t.partyId),
+    index("economic_entitlements_status_idx").on(t.status),
+    index("economic_entitlements_compensates_idx").on(t.compensatesId),
+    check(
+      "economic_entitlements_qualification_check",
+      sql`${t.qualification} in ('supplier_cost','seller_margin','owner_share','commission','platform_fee','distribution_fee','revenue_share','service_fee','tax','discount')`,
+    ),
+    check(
+      "economic_entitlements_cancellation_treatment_check",
+      sql`${t.cancellationTreatment} is null or ${t.cancellationTreatment} in ('full_reversal','pro_rata_fee','non_refundable')`,
+    ),
+  ],
+)
+
+export type EconomicEntitlement = typeof economicEntitlements.$inferSelect
+export type NewEconomicEntitlement = typeof economicEntitlements.$inferInsert
+
+/**
+ * AGREEMENT-01 — `commercial_agreements` (docs/ECONOMIC_MODEL.md §2, "Accord
+ * commercial", 9 questions).
+ *
+ * Construit le MÉCANISME d'accord uniquement : ce chantier ne crée AUCUNE
+ * ligne réelle/permanente ici (décision Direction, 2026-09-30 — le taux
+ * D-01b "option 3, frais sur prix net" n'est pas tranché ; créer un accord
+ * Network réel avec un taux inventé ou un taux à 0% "juste pour la preuve"
+ * serait fabriquer une politique commerciale, pas construire un mécanisme).
+ * Le premier accord réel, quel qu'il soit, est un chantier séparé (GO
+ * explicite requis), une fois D-01b tranché.
+ *
+ * [D-01a] Qui détient le droit d'Easy2Book dans un accord ? Easy2Book
+ * uniquement (création/modification super_admin) — une agence ne peut
+ * JAMAIS modifier la part d'Easy2Book. Contrairement à la plupart des
+ * tables de ce dépôt, il n'existe PAS de cas "une agence peut écrire ses
+ * propres lignes" : RLS écriture = `is_super_admin()` uniquement, sans
+ * exception. Lecture : élargie aux parties prenantes d'un accord (une
+ * agence peut voir les accords où elle apparaît comme seller/owner/
+ * supplier/collector), cf. 0088_agreement_01_rls.sql — le point dur demandé
+ * par Direction est la RESTRICTION EN ÉCRITURE, pas la lecture.
+ *
+ * `*_party_type`/`*_party_id` : même convention polymorphique que
+ * `economic_entitlements.party_type`/`party_id` ('agency' | 'supplier_node'
+ * | 'easy2book' | 'external') — pas de FK Postgres possible sur l'id
+ * lui-même. `owner_party_id`/`supplier_party_id`/`collector_party_id`
+ * nullable — §2 : "Qui fournit ? supplier_party (ou « tout fournisseur du
+ * produit »)" ; même principe étendu à owner/collector quand l'accord ne
+ * vise pas une partie précise.
+ */
+export const commercialAgreementEasy2bookRole = pgEnum("commercial_agreement_easy2book_role", [
+  "platform",
+  "distributor",
+  "seller",
+  "owner",
+])
+
+export const commercialAgreementChannel = pgEnum("commercial_agreement_channel", [
+  "b2c",
+  "b2b",
+  "network",
+  "white_label",
+  "api",
+])
+
+export const commercialAgreementStatus = pgEnum("commercial_agreement_status", [
+  "draft",
+  "active",
+  "suspended",
+  "terminated",
+])
+
+export const commercialAgreements = pgTable(
+  "commercial_agreements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    /** Qui vend ? — toujours connu, jamais nul. */
+    sellerPartyType: varchar("seller_party_type", { length: 30 }).notNull(),
+    sellerPartyId: uuid("seller_party_id").notNull(),
+
+    /** Qui possède ? — nullable : l'accord peut viser "tout propriétaire"
+     * plutôt qu'une partie précise. */
+    ownerPartyType: varchar("owner_party_type", { length: 30 }),
+    ownerPartyId: uuid("owner_party_id"),
+
+    /** Qui fournit ? — nullable : §2 "ou tout fournisseur du produit". */
+    supplierPartyType: varchar("supplier_party_type", { length: 30 }),
+    supplierPartyId: uuid("supplier_party_id"),
+
+    /** Rôle d'Easy2Book dans CET accord (§0 : plateforme, distributeur,
+     * vendeur ou propriétaire selon l'accord — jamais 4 moteurs distincts). */
+    easy2bookRole: commercialAgreementEasy2bookRole("easy2book_role").notNull(),
+
+    /** Périmètre canal — mêmes valeurs que le reste du dépôt
+     * (product_authorizations, reservation_source côté network). */
+    channel: commercialAgreementChannel("channel").notNull(),
+
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+
+    /** Qui paie ? — généralement 'customer', parfois 'seller' pour le net
+     * (§2). Texte libre volontairement (comme `qualification` sur
+     * `economic_entitlements`) plutôt qu'un enum fermé — extensible sans
+     * ALTER TYPE. */
+    payerRole: text("payer_role").notNull().default("customer"),
+
+    /** Qui encaisse ? — nullable : peut être implicite (Easy2Book) tant que
+     * non renseigné. */
+    collectorPartyType: varchar("collector_party_type", { length: 30 }),
+    collectorPartyId: uuid("collector_party_id"),
+
+    status: commercialAgreementStatus("status").notNull().default("draft"),
+
+    validFrom: date("valid_from"),
+    validTo: date("valid_to"),
+
+    createdByUserId: uuid("created_by_user_id").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("commercial_agreements_seller_idx").on(t.sellerPartyType, t.sellerPartyId),
+    index("commercial_agreements_owner_idx").on(t.ownerPartyType, t.ownerPartyId),
+    index("commercial_agreements_supplier_idx").on(t.supplierPartyType, t.supplierPartyId),
+    index("commercial_agreements_collector_idx").on(t.collectorPartyType, t.collectorPartyId),
+    index("commercial_agreements_status_idx").on(t.status),
+    index("commercial_agreements_channel_idx").on(t.channel),
+  ],
+)
+
+export type CommercialAgreement = typeof commercialAgreements.$inferSelect
+export type NewCommercialAgreement = typeof commercialAgreements.$inferInsert
+
 /* ----- Transfer extension ------------------------------------------------- */
 export const reservationTransfer = pgTable(
   "reservation_transfer",
@@ -1197,6 +1462,10 @@ export const authorizedProductType = pgEnum("authorized_product_type", [
   "package",
   "omra",
   "activity",
+  /** DISTRIBUTION-01 : produit canonique `products` (Network, ECON-PILOT-01) —
+   * même mécanisme d'autorisation B2B/White Label que les 3 valeurs
+   * historiques, pas un nouveau moteur de distribution. */
+  "network",
 ])
 
 /**
@@ -1258,6 +1527,102 @@ export const productAuthorizations = pgTable(
     index("product_auth_agency_idx").on(t.agencyId),
   ],
 )
+
+/**
+ * JOURNEY-BUILDER-01 — composition B2B multi-produits (Flight/Hotel/
+ * Transfer/Activity/Car/Package/Omra/Network) au-dessus des moteurs de
+ * réservation EXISTANTS, jamais un nouveau booking/pricing/financial
+ * engine. Une agence (ou le staff, agence explicite comme
+ * `upsertAgencyPricingMargin`) compose un `journey` = plusieurs
+ * `journey_lines`, chacune ciblant un module réel (`reservationModule`,
+ * réutilisé tel quel — jamais un second enum de modules). Le prix
+ * agrégé (`priceTnd` par ligne) est un SNAPSHOT commercial, jamais
+ * une nouvelle formule : au moment de la confirmation, c'est TOUJOURS
+ * le moteur réel du module (lib/activities/booking-actions.ts,
+ * lib/packages/booking-actions.ts, etc.) qui recalcule et débite le
+ * prix réel — voir lib/journeys/journey-actions.ts.
+ *
+ * Décision produit actée (pas d'atomicité multi-moteurs — chaque moteur
+ * a SA PROPRE transaction/débit/idempotence indépendante) :
+ * `journey_lines.status` : pending → processing → confirmed | failed.
+ * `journeys.status` (dérivé, jamais écrit directement) :
+ * draft → ready → processing → confirmed | partially_confirmed | failed.
+ * Une ligne `confirmed` n'est JAMAIS supprimée/écrasée pour simuler un
+ * rollback (RULE FINANCIÈRE) — seule une annulation via les mécanismes
+ * existants (lib/booking/cancel-actions.ts etc.) peut la défaire, hors
+ * périmètre de ce chantier.
+ */
+export const journeyStatus = pgEnum("journey_status", [
+  "draft",
+  "ready",
+  "processing",
+  "confirmed",
+  "partially_confirmed",
+  "failed",
+])
+
+export const journeyLineStatus = pgEnum("journey_line_status", [
+  "pending",
+  "processing",
+  "confirmed",
+  "failed",
+])
+
+export const journeys = pgTable(
+  "journeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** Client final de l'agence (optionnel — composition possible avant identification du client). */
+    customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    createdByUserId: uuid("created_by_user_id").notNull(),
+    title: text("title"),
+    /** Dérivé de journey_lines.status par recomputeJourneyStatus() (lib/journeys/journeys-core.ts) — jamais écrit à la main ailleurs. */
+    status: journeyStatus("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("journeys_agency_idx").on(t.agencyId),
+    index("journeys_customer_idx").on(t.customerId),
+  ],
+)
+
+export const journeyLines = pgTable(
+  "journey_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    journeyId: uuid("journey_id")
+      .notNull()
+      .references(() => journeys.id, { onDelete: "cascade" }),
+    module: reservationModule("module").notNull(),
+    status: journeyLineStatus("status").notNull().default("pending"),
+    /** Payload exact attendu par le moteur réel du module (ex. ActivityPartnerBookingInput) — jamais réinterprété ici, transmis tel quel à la confirmation. */
+    payload: jsonb("payload").notNull(),
+    /** Snapshot commercial non-authoritatif — le moteur réel recalcule à la confirmation. */
+    priceTnd: decimal("price_tnd", { precision: 14, scale: 2 }),
+    reservationId: uuid("reservation_id").references(() => reservations.id, { onDelete: "set null" }),
+    errorMessage: text("error_message"),
+    /** Posée par la CAS pending/failed → processing (lib/journeys/journeys-core.ts) — garantit qu'un double-clic/retry n'appelle jamais deux fois le moteur réel. */
+    confirmationIdempotencyKey: varchar("confirmation_idempotency_key", { length: 100 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("journey_lines_journey_idx").on(t.journeyId),
+    index("journey_lines_reservation_idx").on(t.reservationId),
+    uniqueIndex("journey_lines_idempotency_uniq")
+      .on(t.confirmationIdempotencyKey)
+      .where(sql`${t.confirmationIdempotencyKey} is not null`),
+  ],
+)
+
+export type Journey = typeof journeys.$inferSelect
+export type NewJourney = typeof journeys.$inferInsert
+export type JourneyLine = typeof journeyLines.$inferSelect
+export type NewJourneyLine = typeof journeyLines.$inferInsert
 
 /**
  * Policy Engine — politiques d'annulation/modification, Omra/Package/
@@ -1841,6 +2206,13 @@ export const partnerCreditMovements = pgTable(
       precision: 12,
       scale: 3,
     }).notNull(),
+    /**
+     * chantier-49C, étape 1 (expand/contract) — voir commentaire équivalent
+     * sur wallet_ledger (lib/db/schema/financials.ts). Nullable, double-
+     * écrites par lib/finance/millimes.ts, aucune lecture n'en dépend encore.
+     */
+    amountMillimes: bigint("amount_millimes", { mode: "number" }),
+    balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
     /** Référence externe (n° réservation, n° facture, etc.). */
     reference: varchar("reference", { length: 64 }),
     /** Lien optionnel à une réservation. */
@@ -1849,6 +2221,15 @@ export const partnerCreditMovements = pgTable(
     invoiceId: uuid("invoice_id"),
     description: text("description"),
     createdByUserId: uuid("created_by_user_id"),
+    /**
+     * Backstop DB indépendant de Redis (chantier-49, sous-chantier B) — même
+     * pattern que `reservations.guest_idempotency_key` (0030) et
+     * `payments.idempotency_key` (index unique partiel) : un retry après
+     * timeout (Redis up ou down) retrouve le mouvement déjà créé au lieu
+     * d'en créer un second ; un double-appel vraiment simultané se résout
+     * via la contrainte unique elle-même.
+     */
+    idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1856,6 +2237,9 @@ export const partnerCreditMovements = pgTable(
   (t) => [
     index("partner_credit_agency_idx").on(t.agencyId),
     index("partner_credit_created_idx").on(t.agencyId, t.createdAt),
+    uniqueIndex("partner_credit_movements_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
   ],
 )
 
@@ -1968,6 +2352,30 @@ export const products = pgTable(
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "cascade" }),
+    /**
+     * ECON-PILOT-01 : nœud fournisseur réseau (supplier_nodes) propriétaire
+     * réel de ce produit, quand il vient du Network plutôt que du catalogue
+     * agence classique. `null` pour tout produit non-Network (comportement
+     * inchangé — cette colonne est additive et ne modifie aucune ligne
+     * existante). Un produit Network garde `agencyId` = agence OTA par
+     * défaut (`getDefaultAgencyId()`, même précédent que le guest checkout
+     * B2C sans agence réelle) plutôt qu'un `agencyId` nullable — évite de
+     * relâcher la contrainte NOT NULL sur une table déjà partitionnée par
+     * agence.
+     */
+    supplierNodeId: uuid("supplier_node_id").references(() => supplierNodes.id, {
+      onDelete: "set null",
+    }),
+    /**
+     * ECON-PILOT-01 : coût fournisseur réel (HT), distinct du prix de vente.
+     * `null` = pas de coût connu séparément (comportement historique
+     * inchangé pour tout produit créé avant ce chantier). Le prix de vente
+     * n'est JAMAIS stocké ici — il est dérivé à la réservation via
+     * `lib/finance/margin-calculator.ts` (Système B, déjà réel), jamais une
+     * deuxième formule de marge.
+     */
+    costPrice: decimal("cost_price", { precision: 14, scale: 3 }),
+    costCurrency: varchar("cost_currency", { length: 3 }),
     /** SKU unique par agence */
     sku: varchar("sku", { length: 64 }).notNull(),
     /** Type de produit discriminant */
@@ -2220,8 +2628,11 @@ export const walletTxStatus = pgEnum("wallet_tx_status", [
 ])
 
 /**
- * Un wallet par agence. La colonne `balance` est modifiée uniquement
- * via des transactions SQL atomiques (voir lib/wallet/actions.ts).
+ * Un wallet par agence — DÉPRÉCIÉ (chantier-49, nettoyage) : aucun flux de
+ * rechargement en production ne crédite plus ce solde. Le solde réellement
+ * crédité est `agencies.deposit_balance` (`partner_credit_movements`) —
+ * voir lib/pro/booking-actions.ts::debitPartnerCredit. Conservé pour
+ * `getWalletBalance()` (lib/wallet/balance.ts, sandbox `/pro` uniquement).
  *
  * `numeric(14,3)` : millimes TND, plage ±99 999 999 999.999 DT.
  */
@@ -2438,11 +2849,18 @@ export const inventoryLocks = pgTable(
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "cascade" }),
-    /** Clé unique côté Redis : `e2b:lock:<module>:<itemId>:<sessionId>`. */
-    redisKey: varchar("redis_key", { length: 256 }).notNull(),
+    /**
+     * Clé unique côté Redis : `e2b:lock:<agencyId>:<module>:<itemId>:<sessionId>`.
+     * `text` (pas varchar(256)) : un itemId réel (token myGo/Hôtels Monde/
+     * Vols signé) mesure ~330-410 caractères en pratique — un varchar(256)
+     * ferait échouer cet INSERT sur toute offre réelle, jamais détecté avant
+     * que `lib/booking/inventory.ts::acquireLock()` n'ait un appelant réel
+     * (chantier "Inventory Hold Integration").
+     */
+    redisKey: text("redis_key").notNull(),
     module: varchar("module", { length: 32 }).notNull(),
-    /** Identifiant de l'offre verrouillée (token myGo, UUID package, etc.). */
-    itemId: varchar("item_id", { length: 256 }).notNull(),
+    /** Identifiant de l'offre verrouillée (token myGo, UUID package, etc.) — voir redisKey. */
+    itemId: text("item_id").notNull(),
     /** Session ou userId qui détient le verrou. */
     sessionId: varchar("session_id", { length: 128 }).notNull(),
     /** Montant TND figé au moment du verrou. */
@@ -2457,7 +2875,13 @@ export const inventoryLocks = pgTable(
   },
   (t) => [
     index("inv_locks_agency_idx").on(t.agencyId),
-    index("inv_locks_redis_key_idx").on(t.redisKey),
+    // uniqueIndex (pas index) : lib/booking/inventory.ts::acquireLock() fait
+    // .onConflictDoUpdate({ target: [inventoryLocks.redisKey] }), qui exige
+    // une vraie contrainte unique — un index simple ne satisfait pas
+    // ON CONFLICT (reproduit directement : "no unique or exclusion
+    // constraint matching the ON CONFLICT specification"). Jamais détecté
+    // avant parce qu'aucun appelant réel n'existait avant ce chantier.
+    uniqueIndex("inv_locks_redis_key_uniq").on(t.redisKey),
     index("inv_locks_expires_idx").on(t.status, t.expiresAt),
   ],
 )
@@ -2627,6 +3051,7 @@ export {
   journalLines,
   reservationStatusHistory,
   commissionSettlements,
+  commissionSettlementEntries,
   walletAccountType,
   walletTxType,
   walletTxStatusV6,
@@ -2649,6 +3074,8 @@ export {
   type NewReservationStatusHistory,
   type CommissionSettlement,
   type NewCommissionSettlement,
+  type CommissionSettlementEntry,
+  type NewCommissionSettlementEntry,
 } from "./schema/financials"
 
 /* -------------------------------------------------------------------------- */
@@ -2726,13 +3153,17 @@ export {
   flightTicketStatus,
   flightSnapshotStatus,
   flightRecheckStatus,
+  flightFulfillmentMode,
+  flightCommercialRules,
   flightSearches,
   flightPriceSnapshots,
+  flightOrders,
   flightBookings,
   flightBookingPassengers,
   flightBookingSegments,
   flightTickets,
   flightSupplierTransactions,
+  flightAncillaries,
   type FlightSearch,
   type NewFlightSearch,
   type FlightPriceSnapshot,

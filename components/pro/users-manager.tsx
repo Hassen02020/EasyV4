@@ -12,14 +12,16 @@
  *    (composant partagé avec /admin/staff), limité à
  *    `delegatablePermissions` (PARTNER_DELEGATABLE_PERMISSIONS).
  *
- * L'invitation (création de compte) et la suppression restent hors
- * périmètre (nécessitent l'API Admin Supabase, voir lib/admin/users-
- * actions.ts::createStaffUser côté OTA) — jamais affichées ici comme des
- * contrôles qui ne font rien : mieux vaut une page plus courte qu'un faux
- * bouton (cf. mission Phase 23, "Remove all fake/toast-only controls").
+ * Étendu (R2-05, audit Phase 0) : `InviteAgentDialog` couvre désormais la
+ * création de compte (invitation Supabase Auth réelle via
+ * `createPartnerAgent`, lib/auth/partner-agent-actions.ts), gérée par le
+ * grant "staff.create" — distinct de "staff.edit", d'où `canCreate` séparé
+ * de `canManage` (un partner_owner peut avoir l'un sans l'autre).
+ * La suppression de compte reste hors périmètre.
  *
- * `canManage` ne fait qu'afficher/masquer les contrôles — la vraie porte
- * est toujours re-vérifiée côté serveur dans chaque Server Action.
+ * `canManage`/`canCreate` ne font qu'afficher/masquer les contrôles — la
+ * vraie porte est toujours re-vérifiée côté serveur dans chaque Server
+ * Action.
  */
 
 import { useState, useTransition } from "react"
@@ -38,6 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { PermissionGrantEditor, type PermissionOverrideRow } from "@/components/permissions/permission-grant-editor"
+import { InviteAgentDialog } from "@/components/pro/invite-agent-dialog"
 import { setPartnerAgentStatus } from "@/lib/auth/partner-agent-actions"
 import type { Permission } from "@/lib/auth/permissions"
 
@@ -54,6 +57,8 @@ interface UsersManagerProps {
   initial: PartnerUserRow[]
   /** true seulement pour un partner_owner détenant le grant "staff.edit" — sinon lecture seule. */
   canManage: boolean
+  /** true seulement pour un partner_owner détenant le grant "staff.create" — distinct de canManage. */
+  canCreate: boolean
   currentUserId: string
   delegatablePermissions: readonly Permission[]
   agentBaseline: readonly Permission[]
@@ -63,6 +68,7 @@ interface UsersManagerProps {
 export function UsersManager({
   initial,
   canManage,
+  canCreate,
   currentUserId,
   delegatablePermissions,
   agentBaseline,
@@ -95,6 +101,11 @@ export function UsersManager({
 
   return (
     <div className="space-y-4">
+      {canCreate ? (
+        <div className="flex justify-end">
+          <InviteAgentDialog />
+        </div>
+      ) : null}
       <section className="bg-card border-border/60 shadow-e2b-soft overflow-hidden rounded-2xl border">
         <Table>
           <TableHeader>

@@ -25,7 +25,8 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { TND_EPSILON } from "@/lib/finance/payment-summary"
-import { isTransitionAllowed } from "@/lib/admin/reservation-status"
+import { isTransitionAllowed, type ReservationStatus } from "@/lib/admin/reservation-status"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { matchesPendingPayment } from "@/lib/payment/reservation-payment-logic"
 import { classifyEventType, type NormalizedChargeEvent } from "@/lib/payment/webhook-logic"
 import { creditCustomerWallet, recordTargetedWalletSettlement } from "@/lib/finance/customer-wallet"
@@ -158,6 +159,13 @@ export async function processReservationWebhookCore(
         .update(reservations)
         .set({ status: "refunded", updatedAt: new Date() })
         .where(eq(reservations.id, reservation.id))
+      await recordReservationTransition(tx, {
+        reservationId: reservation.id,
+        from: reservation.status as ReservationStatus,
+        to: "refunded",
+        automated: true,
+        reason: `Webhook remboursement ${provider}`,
+      })
     }
 
     await tx.insert(pspWebhooks).values({
@@ -308,6 +316,14 @@ export async function processReservationWebhookCore(
     .update(reservations)
     .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
     .where(eq(reservations.id, reservation.id))
+
+  await recordReservationTransition(tx, {
+    reservationId: reservation.id,
+    from: "pending",
+    to: "confirmed",
+    automated: true,
+    reason: `Webhook paiement capturé (${provider})`,
+  })
 
   await tx.insert(auditEvents).values({
     agencyId: payment.agencyId,

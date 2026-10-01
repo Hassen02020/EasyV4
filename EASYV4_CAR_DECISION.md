@@ -1,5 +1,15 @@
 # EASY2BOOK — Location de Voiture : décision à prendre
 
+> **⚠️ Correction (R7-01, audit Phase 7, 2026-09-29)** : la section 1
+> ci-dessous ("Code applicatif : Zéro", "couche application à 0%") est
+> **obsolète**. Depuis la rédaction de ce document, l'Option A (§3) a été
+> implémentée : `lib/cars/actions.ts::createCarBooking`,
+> `lib/cars/guest-booking-actions.ts` et `app/(public)/[locale]/car/search/page.tsx`
+> existent et fonctionnent réellement (`/car/search` ne renvoie plus de 404).
+> Statut technique réel à jour : voir `lib/modules/capabilities.ts`
+> (module `car`, statut `REAL`). Le reste de ce document (contexte,
+> analyse du schéma, options) garde sa valeur historique.
+
 Phase 5 de la reconstruction des search journeys (`EASYV4_SEARCH_ENGINES_AUDIT_REPORT.md`,
 finding CRITICAL #3). **Document uniquement — aucun code modifié dans cette
 phase.** Conforme à l'instruction : "NE PAS développer maintenant. Préparer

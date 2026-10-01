@@ -14,6 +14,7 @@
 
 import { sql } from "drizzle-orm"
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -113,6 +114,11 @@ export const reservationTransition = pgEnum("reservation_transition", [
   "cancel",
   "complete",
   "refund",
+  // chantier-49A : statuts réellement écrits par le code (grep) mais sans
+  // libellé de transition existant — "expired" (délai de paiement dépassé)
+  // et "on_request" (en attente de confirmation fournisseur, ex. vols).
+  "expire",
+  "await_provider",
 ])
 
 /* -------------------------------------------------------------------------- */
@@ -187,6 +193,18 @@ export const walletLedger = pgTable(
     balanceBefore: decimal("balance_before", { precision: 14, scale: 2 }).notNull(),
     balanceAfter: decimal("balance_after", { precision: 14, scale: 2 }).notNull(),
 
+    /**
+     * chantier-49C, étape 1 (expand/contract) — colonnes entiers de
+     * millimes EN PARALLÈLE des colonnes decimal ci-dessus, double-écrites
+     * par le code applicatif (lib/finance/millimes.ts). Nullable : aucune
+     * lecture n'en dépend encore, une valeur NULL signale une ligne écrite
+     * avant ce chantier (backfillée séparément) ou un chemin de code pas
+     * encore migré vers la double-écriture — jamais confondu avec un 0 réel.
+     */
+    amountMillimes: bigint("amount_millimes", { mode: "number" }),
+    balanceBeforeMillimes: bigint("balance_before_millimes", { mode: "number" }),
+    balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
+
     // Corrélation métier
     reservationId: uuid("reservation_id"),
     paymentId: uuid("payment_id"),
@@ -201,6 +219,14 @@ export const walletLedger = pgTable(
     metadata: jsonb("metadata").$type<WalletLedgerMetadata>(),
     createdBy: uuid("created_by"),
 
+    /**
+     * Backstop DB indépendant de Redis (chantier-49, sous-chantier B) — même
+     * pattern que `reservations.guest_idempotency_key` / `payments.idempotency_key`.
+     * `debitCustomerWallet`/`creditCustomerWallet` (lib/finance/customer-wallet.ts)
+     * n'avaient jusqu'ici qu'un cache Redis (dégradation silencieuse si absent).
+     */
+    idempotencyKey: text("idempotency_key"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 
     // Settlement commission (37C) — renseigné quand cette entrée est incluse dans un commission_settlement
@@ -211,6 +237,9 @@ export const walletLedger = pgTable(
     { name: "wallet_ledger_account_idx", on: t.walletAccountId },
     { name: "wallet_ledger_reservation_idx", on: t.reservationId },
     { name: "wallet_ledger_created_idx", on: t.createdAt },
+    uniqueIndex("wallet_ledger_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
   ],
 )
 
@@ -241,6 +270,28 @@ export const marginRules = pgTable(
     // Commission Easy2Book (prélevée sur la marge)
     commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }),
 
+    /**
+     * AGREEMENT-01 — lien optionnel vers l'accord commercial qui justifie
+     * cette règle. Nullable, `ON DELETE SET NULL`, purement additif :
+     * AUCUNE ligne existante n'est modifiée par l'ajout de cette colonne,
+     * AUCUN lecteur de `margin_rules` (`getMarginsForAgency()`,
+     * `applyMargin()`, `economic-pilot-actions.ts`) ne la lit — confirmé
+     * par lecture complète de ces fonctions avant d'ajouter la colonne.
+     * Remplace, pour les futures lignes réelles, le placeholder
+     * `economic_entitlements.agreement_id = margin_rules.id` posé par
+     * ECON-BREAKDOWN-01 (cf. commentaire sur `economicEntitlements` dans
+     * lib/db/schema.ts). Aucune ligne `margin_rules` existante n'est
+     * rétro-remplie ici (production = 0 ligne au moment de ce chantier).
+     *
+     * Pas de `.references()` Drizzle ici : `commercialAgreements` vit dans
+     * `lib/db/schema.ts`, qui importe déjà `marginRules` depuis CE fichier
+     * (`./schema/financials`) — une référence TS inverse créerait un cycle
+     * d'import. La contrainte FK réelle (`ON DELETE SET NULL`) est posée
+     * au niveau SQL par la migration (0089_agreement_01_margin_rules_link.sql),
+     * exactement comme pour les FK cross-fichier existantes de ce dépôt.
+     */
+    agreementId: uuid("agreement_id"),
+
     // Priorité : règle la plus haute gagne (ex: fournisseur > produit > global)
     priority: integer("priority").notNull().default(0),
 
@@ -259,6 +310,7 @@ export const marginRules = pgTable(
     { name: "margin_rules_agency_idx", on: t.agencyId },
     { name: "margin_rules_supplier_idx", on: t.supplierId },
     { name: "margin_rules_priority_idx", on: t.priority },
+    { name: "margin_rules_agreement_idx", on: t.agreementId },
   ],
 )
 
@@ -440,6 +492,29 @@ export const commissionSettlements = pgTable(
   ],
 )
 
+/**
+ * R4-03 (audit Phase 0) : suivi "cette ligne de ledger a été incluse dans ce
+ * settlement" — remplace `wallet_ledger.settled_at`/`settlement_id`, qui
+ * exigeaient un `UPDATE` sur le ledger (violation littérale de l'invariant
+ * append-only, Master Prompt §13.2). Les anciennes colonnes restent en place
+ * sur `wallet_ledger` (backfillées une fois, jamais réécrites depuis) —
+ * jamais supprimées ici, cohérent avec la prudence déjà appliquée sur le
+ * chantier millimes (0072_wallet_partner_millimes_expand.sql).
+ */
+export const commissionSettlementEntries = pgTable(
+  "commission_settlement_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    walletLedgerId: uuid("wallet_ledger_id").notNull(),
+    settlementId: uuid("settlement_id").notNull(),
+    settledAt: timestamp("settled_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("commission_settlement_entries_ledger_uniq").on(t.walletLedgerId),
+    index("commission_settlement_entries_settlement_idx").on(t.settlementId),
+  ],
+)
+
 /* -------------------------------------------------------------------------- */
 /* Type Exports                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -454,6 +529,8 @@ export type ReservationFinancial = typeof reservationFinancials.$inferSelect
 export type NewReservationFinancial = typeof reservationFinancials.$inferInsert
 export type CommissionSettlement = typeof commissionSettlements.$inferSelect
 export type NewCommissionSettlement = typeof commissionSettlements.$inferInsert
+export type CommissionSettlementEntry = typeof commissionSettlementEntries.$inferSelect
+export type NewCommissionSettlementEntry = typeof commissionSettlementEntries.$inferInsert
 export type JournalEntry = typeof journalEntries.$inferSelect
 export type NewJournalEntry = typeof journalEntries.$inferInsert
 export type JournalLine = typeof journalLines.$inferSelect

@@ -64,6 +64,7 @@ import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import { evaluateCancellation, type PolicySnapshot } from "@/lib/booking/policy-engine"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
 import { reverseEarnedPoints, reinstateRedeemedPoints } from "@/lib/loyalty/rewards-core"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
@@ -217,6 +218,14 @@ export async function cancelPolicyReservationCore(
         .update(reservations)
         .set({ status: "cancelled", cancelledAt: new Date() })
         .where(eq(reservations.id, reservationId))
+
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: locked.status as (typeof CANCELLABLE_STATUSES)[number],
+        to: "cancelled",
+        triggeredBy: actorUserId,
+        reason: "Annulation self-service client (policy engine)",
+      })
 
       await releaseStock(tx, preCheck.module as CancellableModule, reservationId)
 

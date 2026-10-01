@@ -11,6 +11,7 @@ import { generateOffers, type Cabin, type VirtualFlightOffer } from "./catalog"
 import { issueOfferToken, newSearchId, validateOfferToken } from "./tokens"
 import { currentAvailability, reserve, release } from "./inventory-store"
 import { getScenario, SIMULATED_TIMEOUT_DELAY_MS } from "./scenarios"
+import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
 
 export interface SearchInput {
   origin: string
@@ -104,7 +105,10 @@ export type BookResult =
       pnr: string
       offerId: string
       segments: VirtualFlightOffer["segments"]
+      /** Prix agence (net + marge) — ce que le client paie réellement. */
       totalPriceTnd: number
+      /** Prix net fournisseur (avant marge) — pour le grand livre (reservation_financials). */
+      supplierPriceTnd: number
       adults: number
       children: number
       origin: string
@@ -128,7 +132,11 @@ function generatePnr(): string {
  * soit, exactement le même principe que confirmHotelWithProvider() pour
  * myGo.
  */
-export async function book(token: string, expectedPriceTnd: number): Promise<BookResult> {
+export async function book(
+  token: string,
+  expectedPriceTnd: number,
+  marginRule: MarginRule,
+): Promise<BookResult> {
   const scenario = getScenario()
 
   if (scenario === "TIMEOUT") {
@@ -171,12 +179,18 @@ export async function book(token: string, expectedPriceTnd: number): Promise<Boo
       ? Math.round(matched.unitPriceTnd * paxCount * 1.12) // +12%, simule une hausse tarifaire réelle
       : matched.unitPriceTnd * paxCount
 
-  if (livePriceTnd !== expectedPriceTnd) {
+  // Marge agence appliquée au prix net AVANT comparaison : `expectedPriceTnd`
+  // vient du client, qui n'a jamais vu que le prix déjà marginé (recherche
+  // marginée elle aussi, voir app/api/vols/search/route.ts) — comparer
+  // livePriceTnd (net) directement au prix marginé rejetterait systématiquement.
+  const agencyPriceTnd = applyMargin(livePriceTnd, marginRule)
+
+  if (agencyPriceTnd !== expectedPriceTnd) {
     return {
       ok: false,
       kind: "PRICE_CHANGED",
-      message: `Le prix a changé depuis la recherche : ${livePriceTnd} TND (était ${expectedPriceTnd} TND).`,
-      currentPriceTnd: livePriceTnd,
+      message: `Le prix a changé depuis la recherche : ${agencyPriceTnd} TND (était ${expectedPriceTnd} TND).`,
+      currentPriceTnd: agencyPriceTnd,
     }
   }
 
@@ -192,7 +206,8 @@ export async function book(token: string, expectedPriceTnd: number): Promise<Boo
     pnr: generatePnr(),
     offerId: p.offerId,
     segments: matched.segments,
-    totalPriceTnd: livePriceTnd,
+    totalPriceTnd: agencyPriceTnd,
+    supplierPriceTnd: livePriceTnd,
     adults: p.adults,
     children: p.children,
     origin: p.origin,

@@ -105,6 +105,13 @@ export type PartnerClient = {
   bookings: number
   /** Date du premier dossier */
   createdAt: string
+  /** R3-01 : champs détaillés pour l'édition (updatePartnerClient) — absents des clients mock. */
+  firstName?: string
+  lastName?: string
+  civility?: "M" | "Mme" | "Mlle" | ""
+  civicId?: string
+  city?: string
+  country?: string
 }
 
 // Fonctions mock pour générer des données de test

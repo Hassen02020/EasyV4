@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { getWalletBalance } from "@/lib/wallet/actions"
+import { getWalletBalance } from "@/lib/wallet/balance"
 import { cn } from "@/lib/utils"
 
 interface WalletStatusProps {

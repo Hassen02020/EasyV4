@@ -3,7 +3,12 @@
  *
  * Agrège les entrées `wallet_ledger` (category=commission, non settlées)
  * sur une période donnée, crée un enregistrement `commission_settlements`
- * et marque les entrées comme settlées (settled_at + settlement_id).
+ * et enregistre les entrées settlées dans `commission_settlement_entries`.
+ *
+ * R4-03 (audit Phase 0) : `wallet_ledger` ne doit jamais être UPDATE (append-only,
+ * Master Prompt §13.2). "Non settlée" se détermine désormais par l'absence
+ * de ligne dans `commission_settlement_entries` (NOT EXISTS), plus par
+ * `isNull(wallet_ledger.settled_at)` qui exigeait un UPDATE du ledger.
  *
  * Seul un super_admin peut déclencher un settlement (vérifié en amont par
  * l'appelant — cette fonction ne résout pas elle-même la session).
@@ -15,10 +20,20 @@
 
 "use server"
 
-import { and, eq, gte, isNull, lte, sql } from "drizzle-orm"
+import { and, eq, gte, lte, notExists, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { commissionSettlements, walletLedger } from "@/lib/db/schema"
+import { commissionSettlementEntries, commissionSettlements, walletLedger } from "@/lib/db/schema"
 import { PLATFORM_COMMISSION_WALLET_ID } from "./platform-commission"
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function notSettledFilter(tx: any) {
+  return notExists(
+    tx
+      .select({ one: sql`1` })
+      .from(commissionSettlementEntries)
+      .where(eq(commissionSettlementEntries.walletLedgerId, walletLedger.id)),
+  )
+}
 
 export interface CommissionSettlementResult {
   settlementId: string
@@ -52,7 +67,7 @@ export async function settleCommissions(
         and(
           eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
           eq(walletLedger.category, "commission"),
-          isNull(walletLedger.settledAt),
+          notSettledFilter(tx),
           gte(walletLedger.createdAt, periodStart),
           lte(walletLedger.createdAt, periodEnd),
         ),
@@ -75,20 +90,29 @@ export async function settleCommissions(
       })
       .returning({ id: commissionSettlements.id })
 
-    // 3. Marquer les entrées comme settlées
+    // 3. Enregistrer les entrées settlées (append-only — jamais d'UPDATE sur wallet_ledger)
     if (entryCount > 0) {
-      await tx
-        .update(walletLedger)
-        .set({ settledAt: new Date(), settlementId: settlement.id })
+      const settledEntries = await tx
+        .select({ id: walletLedger.id })
+        .from(walletLedger)
         .where(
           and(
             eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
             eq(walletLedger.category, "commission"),
-            isNull(walletLedger.settledAt),
+            notSettledFilter(tx),
             gte(walletLedger.createdAt, periodStart),
             lte(walletLedger.createdAt, periodEnd),
           ),
         )
+
+      if (settledEntries.length > 0) {
+        await tx.insert(commissionSettlementEntries).values(
+          settledEntries.map((entry) => ({
+            walletLedgerId: entry.id,
+            settlementId: settlement.id,
+          })),
+        )
+      }
     }
 
     return {
@@ -131,7 +155,7 @@ export async function getUnsettledCommissionBalance(): Promise<number> {
         and(
           eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
           eq(walletLedger.category, "commission"),
-          isNull(walletLedger.settledAt),
+          notSettledFilter(tx),
         ),
       )
     return Number(row?.total) || 0

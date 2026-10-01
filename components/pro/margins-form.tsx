@@ -9,6 +9,7 @@ import {
   Coins,
   Save,
   Loader2,
+  Network,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -22,7 +23,9 @@ import { upsertMyPricingMargin } from "@/lib/pro/margins-actions"
 
 // omra/package/activity retirés : ces modules n'ont pas de coût net séparé
 // du prix de vente — voir lib/pro/pricing.ts (commentaire MarginModule).
-export type MarginModule = "hotel" | "flight" | "transfer"
+// "network" ajouté (COMMERCIAL-CONVERGENCE-01) : un Network Product a un
+// coût fournisseur net séparé (products.costPrice), la marge a un sens ici.
+export type MarginModule = "hotel" | "flight" | "transfer" | "network"
 
 export type MarginRow = {
   module: MarginModule
@@ -49,6 +52,11 @@ const MODULE_META: Record<
     label: "Transferts",
     icon: Car,
     description: "Transferts aéroport",
+  },
+  network: {
+    label: "Produits Réseau",
+    icon: Network,
+    description: "Produits Network (fournisseurs partenaires)",
   },
 }
 

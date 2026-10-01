@@ -17,9 +17,10 @@
  * Toutes les sommes sont stockées en `numeric(12, 3)` (millimes TND).
  */
 
-import { sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 
 import { getDb } from "@/lib/db/client"
+import { toMillimes } from "@/lib/finance/millimes"
 import { getRedis } from "@/lib/cache/redis"
 import { metrics } from "@/lib/observability/metrics"
 import {
@@ -257,6 +258,40 @@ export async function debitPartnerCredit(
   try {
     const runDebit = async (tx: DrizzleLikeTx) => {
       // ------------------------------------------------------------------
+      // 0. Backstop d'idempotence DB (chantier-49B) — indépendant du cache
+      // Redis ci-dessous (absent en prod si Upstash n'est pas configuré, ou
+      // simplement expiré après 24h). Si un mouvement portant la même clé
+      // existe déjà, on retourne son résultat sans rejouer le débit —
+      // avant même de poser le verrou pessimiste, pour ne pas bloquer
+      // inutilement une autre transaction sur cette agence.
+      // ------------------------------------------------------------------
+      if (input.idempotencyKey) {
+        const existingRows = (await tx
+          .select({
+            id: partnerCreditMovements.id,
+            amount: partnerCreditMovements.amount,
+            balanceAfter: partnerCreditMovements.balanceAfter,
+          })
+          .from?.(partnerCreditMovements)
+          .where?.(
+            eq(partnerCreditMovements.idempotencyKey, input.idempotencyKey),
+          )) as
+          | Array<{ id: string; amount: string; balanceAfter: string }>
+          | undefined
+        const existing = existingRows?.[0]
+        if (existing) {
+          return {
+            ok: true,
+            movementId: existing.id,
+            balanceBefore: formatTnd(
+              parseTnd(existing.balanceAfter) - parseTnd(existing.amount),
+            ),
+            balanceAfter: existing.balanceAfter,
+          } as DebitPartnerCreditSuccess
+        }
+      }
+
+      // ------------------------------------------------------------------
       // 1. Verrou pessimiste row-level sur l'agence partenaire.
       //
       // Passe par la fonction SECURITY DEFINER `lock_agency_for_debit()`
@@ -339,14 +374,68 @@ export async function debitPartnerCredit(
         description: input.description,
         reservationId: input.reservationId,
         createdByUserId: input.createdByUserId,
+        idempotencyKey: input.idempotencyKey ?? null,
+        // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+        amountMillimes: toMillimes(-input.amountTnd),
+        balanceAfterMillimes: toMillimes(newBalance),
       }
 
-      const inserted = (await tx
-        .insert(partnerCreditMovements)
-        .values?.(movementInsert)
-        .returning?.({ id: partnerCreditMovements.id })) as
-        | Array<{ id: string }>
-        | undefined
+      // SAVEPOINT : un INSERT qui échoue (violation de contrainte unique)
+      // met TOUTE la transaction Postgres en cours dans un état "aborted"
+      // — tout statement suivant (y compris un SELECT de repli) échouerait
+      // avec "current transaction is aborted" sans ce point de reprise
+      // explicite. Nécessaire ici précisément parce que `runDebit` s'exécute
+      // le plus souvent DANS la transaction parente de l'appelant
+      // (txOverride, ex. lib/booking/actions.ts) : on ne peut pas se
+      // contenter d'ouvrir une nouvelle transaction pour ce seul INSERT.
+      if (input.idempotencyKey) {
+        await tx.execute(sql`SAVEPOINT idem_insert`)
+      }
+
+      let inserted: Array<{ id: string }> | undefined
+      try {
+        inserted = (await tx
+          .insert(partnerCreditMovements)
+          .values?.(movementInsert)
+          .returning?.({ id: partnerCreditMovements.id })) as
+          | Array<{ id: string }>
+          | undefined
+      } catch (insertErr) {
+        // Course concurrente réelle : deux appels avec la même clé ont
+        // passé le pré-check (étape 0) avant que l'un des deux ne
+        // commette. La contrainte unique partielle rejette le second
+        // INSERT — on relit le mouvement déjà créé par le premier au lieu
+        // de propager une erreur pour une opération déjà appliquée.
+        const isUniqueViolation =
+          insertErr instanceof Error &&
+          /idempotency_uniq|duplicate key value/.test(insertErr.message)
+        if (!isUniqueViolation || !input.idempotencyKey) throw insertErr
+
+        await tx.execute(sql`ROLLBACK TO SAVEPOINT idem_insert`)
+
+        const raceRows = (await tx
+          .select({
+            id: partnerCreditMovements.id,
+            amount: partnerCreditMovements.amount,
+            balanceAfter: partnerCreditMovements.balanceAfter,
+          })
+          .from?.(partnerCreditMovements)
+          .where?.(
+            eq(partnerCreditMovements.idempotencyKey, input.idempotencyKey),
+          )) as
+          | Array<{ id: string; amount: string; balanceAfter: string }>
+          | undefined
+        const race = raceRows?.[0]
+        if (!race) throw insertErr
+        return {
+          ok: true,
+          movementId: race.id,
+          balanceBefore: formatTnd(
+            parseTnd(race.balanceAfter) - parseTnd(race.amount),
+          ),
+          balanceAfter: race.balanceAfter,
+        } as DebitPartnerCreditSuccess
+      }
 
       const movementId = inserted?.[0]?.id
       if (!movementId) {

@@ -83,6 +83,7 @@ export default async function VolsPage({
         <ModuleHero
           Icon={Plane}
           gradient="from-sky-900 to-sky-700"
+          imageUrl="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1800&q=85&auto=format&fit=crop"
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

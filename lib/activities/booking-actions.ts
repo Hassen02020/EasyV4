@@ -37,6 +37,8 @@ import {
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { computePriceBreakdown } from "@/lib/booking/pricing"
 import {
   activityPartnerBookingSchema,
@@ -205,6 +207,14 @@ export async function createActivityBooking(
           .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
           .where(eq(reservations.id, reservationId))
 
+        await recordReservationTransition(tx, {
+          reservationId,
+          from: "pending",
+          to: "confirmed",
+          triggeredBy: createdByUserId,
+          reason: "Règlement wallet B2B immédiat à la création",
+        })
+
         await tx.insert(payments).values({
           agencyId,
           reservationId,
@@ -216,6 +226,27 @@ export async function createActivityBooking(
           kind: "deposit",
           status: "captured",
           capturedAt: new Date(),
+        })
+
+        // R6-02 : voir lib/omra/booking-actions.ts pour la justification
+        // (pas de coût net séparé pour activités, supplierPriceTnd=salePriceTnd).
+        // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
+        // lignes seller_margin/commission fabriquées à 0.
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "owner_share",
+              amount: totalTnd,
+              basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+            },
+          ],
         })
 
         // --- 7. Extension Activity ---

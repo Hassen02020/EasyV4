@@ -5,12 +5,12 @@ import "server-only"
  * (Phase 13.1, gap #2 — "Agency → Authorized Products").
  *
  * `product_authorizations` (0023_commerce_completion.sql) ne stocke que
- * (agence, type, id) — pas les données du produit lui-même (3 tables
+ * (agence, type, id) — pas les données du produit lui-même (4 tables
  * cibles différentes, pas de FK cross-table possible). Ce fichier fait le
  * jointure applicative : une requête par type de produit, RLS élargie
- * (même migration) fait le reste — l'agence courante ne verra que ce pour
- * quoi elle a une autorisation active (ou ses propres produits si elle est
- * elle-même de type 'ota').
+ * (même migration, + DISTRIBUTION-01 pour `products`) fait le reste —
+ * l'agence courante ne verra que ce pour quoi elle a une autorisation
+ * active (ou ses propres produits si elle est elle-même de type 'ota').
  *
  * `import "server-only"` (PAS `"use server"`) délibérément : ces fonctions
  * prennent `agencyId` en paramètre brut — elles ne doivent JAMAIS devenir
@@ -28,11 +28,12 @@ import {
   catalogPackages,
   omraPackages,
   catalogActivities,
+  products,
 } from "@/lib/db/schema"
 
 export interface AuthorizedProductRow {
   authorizationId: string
-  productType: "package" | "omra" | "activity"
+  productType: "package" | "omra" | "activity" | "network"
   productId: string
   channel: string
   title: string
@@ -63,8 +64,9 @@ export async function listAuthorizedProductsForAgency(
     const packageIds = authRows.filter((a) => a.productType === "package").map((a) => a.productId)
     const omraIds = authRows.filter((a) => a.productType === "omra").map((a) => a.productId)
     const activityIds = authRows.filter((a) => a.productType === "activity").map((a) => a.productId)
+    const networkIds = authRows.filter((a) => a.productType === "network").map((a) => a.productId)
 
-    const [packages, omras, activities] = await Promise.all([
+    const [packages, omras, activities, networkProducts] = await Promise.all([
       packageIds.length
         ? tx.select().from(catalogPackages).where(inArray(catalogPackages.id, packageIds))
         : Promise.resolve([]),
@@ -73,6 +75,9 @@ export async function listAuthorizedProductsForAgency(
         : Promise.resolve([]),
       activityIds.length
         ? tx.select().from(catalogActivities).where(inArray(catalogActivities.id, activityIds))
+        : Promise.resolve([]),
+      networkIds.length
+        ? tx.select().from(products).where(inArray(products.id, networkIds))
         : Promise.resolve([]),
     ])
 
@@ -84,9 +89,12 @@ export async function listAuthorizedProductsForAgency(
       } else if (auth.productType === "omra") {
         const p = omras.find((x) => x.id === auth.productId)
         if (p) rows.push({ authorizationId: auth.id, productType: "omra", productId: p.id, channel: auth.channel, title: p.name, status: p.status })
-      } else {
+      } else if (auth.productType === "activity") {
         const p = activities.find((x) => x.id === auth.productId)
         if (p) rows.push({ authorizationId: auth.id, productType: "activity", productId: p.id, channel: auth.channel, title: p.title, status: p.status })
+      } else {
+        const p = networkProducts.find((x) => x.id === auth.productId)
+        if (p) rows.push({ authorizationId: auth.id, productType: "network", productId: p.id, channel: auth.channel, title: p.name, status: p.status })
       }
     }
     return rows

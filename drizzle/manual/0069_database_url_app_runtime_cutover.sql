@@ -1,0 +1,44 @@
+-- =============================================================================
+-- chantier-49 — Documentation a posteriori : bascule DATABASE_URL (production
+-- Vercel) du rôle `postgres` (BYPASSRLS) vers `app_runtime` (non-BYPASSRLS),
+-- appliquée directement via l'API Vercel + Supabase (pas de SQL DDL ici,
+-- ce fichier ne fait rien d'exécutable — capture d'état pour mémoire).
+--
+-- Ce que 0061 préparait mais laissait « décision séparée, non faite » est
+-- maintenant fait :
+--   - Mot de passe généré et posé sur `app_runtime` (ALTER ROLE ... PASSWORD).
+--   - DATABASE_URL (Vercel, production + preview) repointée vers
+--     postgresql://app_runtime.crygnaichvlxavvbifqi@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
+--     (pooler partagé, port 5432). DATABASE_DIRECT_URL INCHANGÉE (reste sur
+--     `postgres` — utilisée uniquement par drizzle-kit en local via
+--     drizzle.config.ts, jamais par l'app en runtime : vérifié, getDb()
+--     dans lib/db/client.ts ne lit que DATABASE_URL).
+--   - Redéploiement production déclenché pour recharger la variable.
+--
+-- Vérification post-bascule (lecture seule) :
+--   - pg_stat_activity : connexions actives sous usename=app_runtime via
+--     Supavisor immédiatement après le déploiement READY.
+--   - postgres_logs (fenêtre de la bascule) : aucune occurrence de
+--     "permission denied" / "row-level security" / erreur.
+--   - rolbypassrls=false confirmé pour app_runtime (contre true pour
+--     postgres) : le RLS est désormais structurellement actif pour tout le
+--     trafic applicatif de production.
+--
+-- Non vérifié depuis cette session (à surveiller côté équipe) :
+--   - Logs runtime Vercel post-bascule sur une fenêtre plus large que
+--     quelques minutes (accès get_runtime_errors/get_deployment refusé par
+--     le scope du token de cette session — 403 sur le scope d'équipe
+--     "easy2book", à re-vérifier avec un accès approprié).
+--   - Chemins de code non exercés pendant la fenêtre de vérification (ex.
+--     lib/pro/booking-actions.ts::debitPartnerCredit — dépend de
+--     lock_agency_for_debit/set_agency_deposit_balance, qui vérifient elles-
+--     mêmes current_agency_id()=p_agency_id OR is_super_admin() ; le GUC
+--     tenant doit être posé par l'appelant AVANT ce chemin pour que la
+--     vérification interne de la fonction passe — non tracé bout en bout
+--     dans cette session, à confirmer par un test de débit crédit agence
+--     réel en production ou staging).
+--
+-- Rollback (si besoin) : remettre DATABASE_URL sur l'ancienne valeur
+-- (rôle postgres) dans Vercel et redéployer — réversible en quelques
+-- minutes, aucune donnée n'a été modifiée par cette bascule.
+-- =============================================================================

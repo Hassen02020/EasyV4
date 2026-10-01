@@ -34,6 +34,8 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -303,6 +305,14 @@ export async function createOmraBooking(
         .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
 
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "confirmed",
+        triggeredBy: createdByUserId,
+        reason: "Règlement wallet B2B immédiat à la création",
+      })
+
       await tx.insert(payments).values({
         agencyId,
         reservationId,
@@ -314,6 +324,35 @@ export async function createOmraBooking(
         kind: "deposit",
         status: "captured",
         capturedAt: new Date(),
+      })
+
+      // R6-02 (audit Phase 0) : omra n'a pas de coût net fournisseur séparé
+      // du prix de vente — l'agence fixe directement totalTnd au niveau du
+      // catalogue (lib/pro/pricing.ts:36-45, module volontairement exclu du
+      // hub de marge central). supplierPriceTnd = salePriceTnd (marge=0) :
+      // jamais un chiffre inventé, seulement pour que cette réservation
+      // compte dans le chiffre d'affaires du Dashboard Marges (auparavant
+      // invisible, la requête part d'un INNER JOIN sur reservation_financials).
+      // ECON-WIRING-01 — economic_entitlements. Aucune marge n'existe pour
+      // ce module (supplierPriceTnd = salePriceTnd, cf. commentaire R6-02
+      // ci-dessus) : une SEULE ligne product_owner=agence, pas de lignes
+      // seller_margin/commission fabriquées à 0 (règle Direction, 2026-10 —
+      // ne jamais fabriquer une ligne sans valeur économique réelle).
+      await recordReservationFinancials({
+        tx,
+        reservationId,
+        supplierPriceTnd: totalTnd,
+        salePriceTnd: totalTnd,
+        economicEntitlements: [
+          {
+            partyType: "agency",
+            partyId: agencyId,
+            role: "product_owner",
+            qualification: "owner_share",
+            amount: totalTnd,
+            basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+          },
+        ],
       })
 
       /* ------------------------------------------------------------------

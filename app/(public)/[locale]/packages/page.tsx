@@ -219,6 +219,7 @@ export default async function PackagesPage({
         <ModuleHero
           Icon={Briefcase}
           gradient="from-violet-900 to-violet-700"
+          imageUrl="https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=1800&q=85&auto=format&fit=crop"
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

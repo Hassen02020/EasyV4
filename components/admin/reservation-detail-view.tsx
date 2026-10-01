@@ -213,6 +213,22 @@ export function ReservationDetailView({
                   <span className="font-mono text-xs">PNR : <strong>{detail.flightDetail.pnr}</strong></span>
                 ) : null}
               </div>
+              {/* PROVIDER-CONNECTIVITY-BRIDGE (P4) — traçabilité fournisseur/canal, absente jusqu'ici de toute UI staff. */}
+              {(detail.flightDetail.provider || detail.flightDetail.fulfillmentMode || detail.flightDetail.supplierBookingRef) ? (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {detail.flightDetail.provider ? (
+                    <span className="text-muted-foreground">Fournisseur : <strong className="text-foreground font-mono">{detail.flightDetail.provider}</strong></span>
+                  ) : null}
+                  {detail.flightDetail.fulfillmentMode ? (
+                    <Badge variant="secondary" className="font-mono">
+                      {detail.flightDetail.fulfillmentMode === "b2b_offline" ? "B2B offline" : "API directe"}
+                    </Badge>
+                  ) : null}
+                  {detail.flightDetail.supplierBookingRef ? (
+                    <span className="text-muted-foreground">Réf. fournisseur : <strong className="text-foreground font-mono">{detail.flightDetail.supplierBookingRef}</strong></span>
+                  ) : null}
+                </div>
+              ) : null}
               {detail.flightDetail.slaDeadline ? (
                 <p className="text-muted-foreground">
                   Délai d&apos;émission : <span className="font-medium text-foreground">{formatDate(detail.flightDetail.slaDeadline)}</span>

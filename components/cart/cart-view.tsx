@@ -108,35 +108,59 @@ export function CartView() {
     for (const line of cart.lines) {
       try {
         if (line.module === "hotel") {
+          // CART-DRIFT-01 — `priceTnd` fait partie de la clé : si une
+          // tentative précédente a été rejetée (`PRICE_CHANGED`) et que
+          // `cart.updatePrice` a mis à jour la ligne ci-dessous, cette
+          // reconfirmation obtient une clé D'IDEMPOTENCE FRAÎCHE, jamais le
+          // rejet précédent mis en cache 1h pour l'ancien montant (voir
+          // lib/booking/guest-idempotency.ts).
           const idempotencyKey = await computeIdempotencyKey(
-            JSON.stringify({ draft: line.draft, traveler: line.traveler, method }),
+            JSON.stringify({ draft: line.draft, traveler: line.traveler, method, priceTnd: line.priceTnd }),
           )
           const result = await createGuestReservationFromDraft({
             draft: line.draft,
             traveler: line.traveler,
             paymentMethod: method,
             idempotencyKey,
+            expectedTotalTnd: line.priceTnd,
           })
           if (result.ok) {
             newlyConfirmed.push({ lineId: line.id, title: line.title, publicRef: result.publicRef, guestAccessToken: result.guestAccessToken })
             cart.remove(line.id)
           } else {
+            if (result.code === "PRICE_CHANGED" && result.currentTotalTnd != null) {
+              cart.updatePrice(line.id, result.currentTotalTnd)
+            }
             errors[line.id] = result.error
           }
         } else if (line.module === "package") {
-          const result = await createGuestPackageBooking({ booking: line.booking, paymentMethod: method })
+          const result = await createGuestPackageBooking({
+            booking: line.booking,
+            paymentMethod: method,
+            expectedTotalTnd: line.priceTnd,
+          })
           if (result.ok) {
             newlyConfirmed.push({ lineId: line.id, title: line.title, publicRef: result.publicRef, guestAccessToken: result.guestAccessToken })
             cart.remove(line.id)
           } else {
+            if (result.code === "PRICE_CHANGED" && result.currentTotalTnd != null) {
+              cart.updatePrice(line.id, result.currentTotalTnd)
+            }
             errors[line.id] = result.error
           }
         } else {
-          const result = await createGuestActivityBooking({ booking: line.booking, paymentMethod: method })
+          const result = await createGuestActivityBooking({
+            booking: line.booking,
+            paymentMethod: method,
+            expectedTotalTnd: line.priceTnd,
+          })
           if (result.ok) {
             newlyConfirmed.push({ lineId: line.id, title: line.title, publicRef: result.publicRef, guestAccessToken: result.guestAccessToken })
             cart.remove(line.id)
           } else {
+            if (result.code === "PRICE_CHANGED" && result.currentTotalTnd != null) {
+              cart.updatePrice(line.id, result.currentTotalTnd)
+            }
             errors[line.id] = result.error
           }
         }

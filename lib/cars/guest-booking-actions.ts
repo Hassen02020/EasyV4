@@ -29,10 +29,10 @@ import {
   payments,
 } from "@/lib/db/schema"
 import { calculateCarPrice } from "./pricing"
+import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
-import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -287,11 +287,7 @@ async function runCreateGuestCarBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
-        // 6. Données financières (Break 4 — Chantier 62)
-        // Car : prix catalogue = prix de vente (pas de coût fournisseur séparé)
-        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
-
-        // 7. Paiement en attente
+        // 6. Paiement en attente
         await tx.insert(payments).values({
           agencyId,
           reservationId,
@@ -304,7 +300,40 @@ async function runCreateGuestCarBooking(
           status: "pending",
         })
 
-        // 8. Extension Car
+        // Coût base ↔ prix agence — alimente le Dashboard Marges, même motif
+        // que le chemin B2B (lib/cars/actions.ts) : réutilise les DEUX
+        // montants déjà calculés par calculateCarPrice()/applyMargin(),
+        // jamais un recalcul.
+        // ECON-WIRING-01 — voir lib/cars/actions.ts (chemin B2B) pour le
+        // commentaire complet : agence product_owner ET seller (catalogue
+        // propre, pas de fournisseur externe), pas de commission aujourd'hui.
+        const carSupplierCostTnd = pricing.baseTotalTnd + pricing.insuranceTotalTnd
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: carSupplierCostTnd,
+          salePriceTnd: pricing.totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "supplier_cost",
+              amount: carSupplierCostTnd,
+              basis: "tarif propre de l'agence (car_pricing_rates : base + assurance)",
+            },
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "seller",
+              qualification: "seller_margin",
+              amount: pricing.totalTnd - carSupplierCostTnd,
+              basis: "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+            },
+          ],
+        })
+
+        // 7. Extension Car
         await tx.insert(reservationCar).values({
           reservationId,
           agencyId,

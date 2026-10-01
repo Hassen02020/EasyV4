@@ -40,6 +40,7 @@ import { agencies, auditEvents, partnerCreditMovements, payments } from "@/lib/d
 import { creditCustomerWallet } from "./customer-wallet"
 import { TND_EPSILON } from "./payment-summary"
 import { allocateRefund } from "./refund-allocation"
+import { toMillimes } from "@/lib/finance/millimes"
 
 /**
  * Détecte si CETTE réservation a été financée par le crédit agence B2B
@@ -126,6 +127,9 @@ async function creditAgencyForRefund(
     description: `Remboursement réservation ${params.publicRef} — ${params.reason}`,
     reservationId: params.reservationId,
     createdByUserId: params.actorUserId,
+    // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
+    amountMillimes: toMillimes(params.amountTnd),
+    balanceAfterMillimes: toMillimes(newBalance),
   })
 }
 

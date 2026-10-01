@@ -19,7 +19,7 @@
 
 import { eq, and, isNotNull } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, customers, payments, reservationFinancials } from "@/lib/db/schema"
+import { reservations, customers } from "@/lib/db/schema"
 import {
   flightBookings,
   flightBookingPassengers,
@@ -34,13 +34,14 @@ import type { CanonicalItinerary } from "./canonical"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
-import { debitPartnerCredit } from "@/lib/pro/booking-actions"
-import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
-import { creditPlatformCommission } from "@/lib/finance/platform-commission"
-import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { finalizeFlightBookingFinancials } from "./flight-financials"
 
 // ─── roles allowed to trigger fulfillment ────────────────────────────────────
-const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
+// PROVIDER-CONNECTIVITY-BRIDGE (P3) : exportée pour être réutilisée telle
+// quelle par confirmManualFlightBooking (manual-confirmation-action.ts) —
+// même garde d'autorisation pour les deux canaux, jamais dupliquée.
+export const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
 
 export type FulfillResult =
   | { ok: true; pnr: string; publicRef: string; bookingId: string }
@@ -208,6 +209,15 @@ export async function fulfillFlightBooking(
         .update(reservations)
         .set({ status: "on_request", updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
+      // La CAS ci-dessus (flightBookings.status = PENDING) garantit que la
+      // réservation associée est encore "pending" (voir mapFlightStatusToReservation).
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: "pending",
+        to: "on_request",
+        triggeredBy: user.id,
+        reason: "Prise en charge fulfillment vol (claim booking)",
+      })
       return pendingRows.map((r) => ({ ...r, reissueOnly: false as const }))
     }
 
@@ -480,6 +490,19 @@ export async function fulfillFlightBooking(
   // ── 10. Confirm ───────────────────────────────────────────────────────────────
   await updateFlightStatus(bookingId, "CONFIRMED")
 
+  // PROVIDER-CONNECTIVITY-BRIDGE (P2/P3) : marque le canal réellement
+  // emprunté (jamais réécrit ensuite) et alimente le Dashboard Marges — voir
+  // le commentaire de tête de flight-financials.ts pour le gap corrigé ici.
+  await withSystemContext((tx) =>
+    tx
+      .update(flightBookings)
+      .set({ fulfillmentMode: "api_direct", updatedAt: new Date() })
+      .where(eq(flightBookings.id, bookingId)),
+  )
+  await withSystemContext((tx) =>
+    finalizeFlightBookingFinancials(tx, { reservationId, snapshotId }),
+  )
+
   // On successful re-issue, clear the orphan flag that was set previously.
   if (reissueOnly) {
     await withSystemContext((tx) =>
@@ -488,95 +511,6 @@ export async function fulfillFlightBooking(
         .set({ opsNotes: null, updatedAt: new Date() })
         .where(eq(flightBookings.id, bookingId)),
     )
-  }
-
-  // ── 10b. Financial Core — identique à MyGo Hotel ─────────────────────────────
-  // Idempotent : on vérifie reservationFinancials avant d'entrer en transaction.
-  // GDS déjà CONFIRMED → on loggue mais on ne bloque pas le résultat si ça échoue.
-  {
-    const supplierPriceTnd = Number(snapshot.supplierAmount)
-    const salePriceTnd = Number(snapshot.sellingAmount)
-    const flightMarginRule = (await getMarginsForAgency(claimed.agencyId, user.id)).flight
-    try {
-      await withSystemContext(async (tx) => {
-        const [existingFin] = (await tx
-          .select({ id: reservationFinancials.id })
-          .from(reservationFinancials)
-          .where(eq(reservationFinancials.reservationId, reservationId))
-          .limit(1)) as Array<{ id: string } | undefined>
-        if (existingFin) return
-
-        const { commissionAmount } = await recordReservationFinancials({
-          tx,
-          reservationId,
-          supplierPriceTnd,
-          salePriceTnd,
-          commissionPercent: flightMarginRule.commissionPercent,
-          marginRuleId: flightMarginRule.ruleId,
-        })
-
-        await creditPlatformCommission(tx, {
-          reservationId,
-          commissionAmount,
-          description: `Commission vol — réservation ${reservationId}`,
-        })
-
-        const debitResult = await debitPartnerCredit({
-          agencyId: claimed.agencyId,
-          amountTnd: salePriceTnd,
-          reference: reservationId,
-          description: `Réservation vol`,
-          reservationId,
-          idempotencyKey: `flight-debit:${reservationId}`,
-          txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
-        })
-        if (!debitResult.ok) {
-          throw new Error(`WALLET_ERROR:${debitResult.message}`)
-        }
-
-        const [existingPayment] = (await tx
-          .select({ id: payments.id })
-          .from(payments)
-          .where(eq(payments.reservationId, reservationId))
-          .limit(1)) as Array<{ id: string } | undefined>
-
-        if (existingPayment) {
-          await tx
-            .update(payments)
-            .set({
-              status: "captured",
-              capturedAt: new Date(),
-              updatedAt: new Date(),
-              idempotencyKey: `flight-captured:${reservationId}`,
-            })
-            .where(eq(payments.reservationId, reservationId))
-        } else {
-          await tx.insert(payments).values({
-            agencyId: claimed.agencyId,
-            reservationId,
-            psp: "manual",
-            method: "wallet",
-            originalCurrency: snapshot.sellingCurrency ?? "TND",
-            originalAmount: snapshot.sellingAmount,
-            tndAmount: snapshot.sellingAmount,
-            kind: "deposit",
-            status: "captured",
-            capturedAt: new Date(),
-            idempotencyKey: `flight-captured:${reservationId}`,
-          })
-        }
-      })
-    } catch (financialErr) {
-      console.error(
-        JSON.stringify({
-          tag: "FINANCIAL_WRITE_FAILURE",
-          reservationId,
-          bookingId,
-          error: String(financialErr),
-          ts: new Date().toISOString(),
-        }),
-      )
-    }
   }
 
   // ── 11. Load reservation data for Inngest event ──────────────────────────────

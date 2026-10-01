@@ -37,10 +37,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: AUCUN — dernier chantier clos (LEDGER-INTEGRITY-01) le 2026-10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
-Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01, ECON-WIRING-01, ECON-PILOT-01-DEPRECATE, CURRENCY-DIM-01a, CURRENCY-DIM-01b, CURRENCY-DIM-01 (plomberie générique), WALLET-RACE-CI-01 (réconcilié DONE), R6-01-DB-CONSTRAINT, CURRENCY-DIM-02 et LEDGER-INTEGRITY-01 CLÔTURÉS (voir ci-dessous). Le câblage réel Vols/Hotels-Monde sur la plomberie devise reste un chantier séparé, bloqué tant qu'aucun fournisseur réel (RateHawk avec clés, ou un GDS Vols) n'est connecté — à reprendre à ce moment-là, sur GO explicite uniquement. Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01 et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
+ID: AUCUN — dernier chantier clos (ECON-ENTITLEMENTS-INTEGRITY-01) le 2026-10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
+Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01, ECON-WIRING-01, ECON-PILOT-01-DEPRECATE, CURRENCY-DIM-01a, CURRENCY-DIM-01b, CURRENCY-DIM-01 (plomberie générique), WALLET-RACE-CI-01 (réconcilié DONE), R6-01-DB-CONSTRAINT, CURRENCY-DIM-02, LEDGER-INTEGRITY-01 et ECON-ENTITLEMENTS-INTEGRITY-01 CLÔTURÉS (voir ci-dessous). Le câblage réel Vols/Hotels-Monde sur la plomberie devise reste un chantier séparé, bloqué tant qu'aucun fournisseur réel (RateHawk avec clés, ou un GDS Vols) n'est connecté — à reprendre à ce moment-là, sur GO explicite uniquement. Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01 et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
 Branche: aucune (main)
 ```
+
+### ECON-ENTITLEMENTS-INTEGRITY-01 — CLÔTURÉ (2026-10-01)
+
+Objectif : imposer l'append-only de `economic_entitlements` au niveau privilege PostgreSQL (même risque R-08 que LEDGER-INTEGRITY-01, appliqué à cette table).
+
+Migration `drizzle/manual/0092_econ_entitlements_integrity_01.sql` : REVOKE UPDATE, DELETE, TRUNCATE sur `economic_entitlements` pour `app_runtime, anon, authenticated, service_role`. Aucun index (plusieurs lignes par réservation attendues et correctes). Tests statiques étendus dans `lib/finance/__tests__/ledger-integrity-invariants.test.ts` : 5/5 (economicEntitlements ajouté aux 3 tests de mutation + 1 nouveau test migration 0092).
+
+VERIFIED AGAINST REAL POSTGRES (`crygnaichvlxavvbifqi`) :
+- 0 ligne UPDATE/DELETE/TRUNCATE résiduelle pour les 4 rôles ✅
+- SELECT+INSERT toujours actifs pour app_runtime ✅
 
 ### LEDGER-INTEGRITY-01 — CLÔTURÉ (2026-10-01)
 

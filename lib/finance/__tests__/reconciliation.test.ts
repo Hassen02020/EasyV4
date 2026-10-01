@@ -229,6 +229,98 @@ test("runPaymentReconciliation : solde agence != dernier mouvement grand livre =
   assert.equal(found[0]!.details.lastLedgerBalance, "600.000")
 })
 
+test("runPaymentReconciliation : réservation cancelled avec paiement capturé jamais remboursé => cancelled_with_captured_payment", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+
+  const reservationId = await makeReservation({
+    module: "flight",
+    status: "cancelled",
+    cancelledAt: new Date(),
+  })
+  const [payment] = await withSystemContext((tx) =>
+    tx
+      .insert(payments)
+      .values({
+        agencyId,
+        reservationId,
+        psp: "paymee",
+        method: "card",
+        originalCurrency: "TND",
+        originalAmount: "100.00",
+        tndAmount: "100.00",
+        status: "captured",
+        capturedAt: new Date(),
+      })
+      .returning({ id: payments.id }),
+  )
+
+  const { findings } = await runPaymentReconciliation()
+  const found = findings.filter(
+    (f) => f.check === "cancelled_with_captured_payment" && f.details.reservationId === reservationId,
+  )
+  assert.equal(found.length, 1)
+  assert.equal(found[0]!.details.paymentId, payment!.id)
+})
+
+test("runPaymentReconciliation : réservation cancelled avec paiement DÉJÀ remboursé => pas signalée", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+
+  const reservationId = await makeReservation({
+    module: "flight",
+    status: "cancelled",
+    cancelledAt: new Date(),
+  })
+  await withSystemContext((tx) =>
+    tx.insert(payments).values({
+      agencyId,
+      reservationId,
+      psp: "paymee",
+      method: "card",
+      originalCurrency: "TND",
+      originalAmount: "100.00",
+      tndAmount: "100.00",
+      status: "refunded",
+      capturedAt: new Date(),
+      refundedAt: new Date(),
+    }),
+  )
+
+  const { findings } = await runPaymentReconciliation()
+  const found = findings.filter(
+    (f) => f.check === "cancelled_with_captured_payment" && f.details.reservationId === reservationId,
+  )
+  assert.equal(found.length, 0, "un paiement déjà remboursé ne doit jamais être re-signalé")
+})
+
+test("runPaymentReconciliation : réservation confirmée (pas cancelled) avec paiement capturé => pas signalée", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+
+  const reservationId = await makeReservation({
+    module: "flight",
+    status: "confirmed",
+    confirmedAt: new Date(),
+  })
+  await withSystemContext((tx) =>
+    tx.insert(payments).values({
+      agencyId,
+      reservationId,
+      psp: "paymee",
+      method: "card",
+      originalCurrency: "TND",
+      originalAmount: "100.00",
+      tndAmount: "100.00",
+      status: "captured",
+      capturedAt: new Date(),
+    }),
+  )
+
+  const { findings } = await runPaymentReconciliation()
+  const found = findings.filter(
+    (f) => f.check === "cancelled_with_captured_payment" && f.details.reservationId === reservationId,
+  )
+  assert.equal(found.length, 0, "une réservation non-cancelled ne doit jamais déclencher ce check")
+})
+
 test("runPaymentReconciliation : journalise chaque écart dans audit_events", async (t) => {
   if (!dbAvailable) return t.skip(skipReason())
 

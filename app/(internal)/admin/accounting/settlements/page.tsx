@@ -124,7 +124,7 @@ export default async function SettlementsPage() {
         <CardContent>
           {settlements.length === 0 ? (
             <div className="py-12 text-center">
-              <Clock className="mx-auto h-12 w-12 text-muted-foreground" />
+              <Clock className="text-muted-foreground mx-auto h-12 w-12" />
               <p className="text-muted-foreground mt-4">
                 Aucun settlement créé.
               </p>

@@ -150,7 +150,7 @@ export default function MarginsDashboardPage() {
       case "down":
         return <TrendingDown className="h-4 w-4 text-red-500" />
       default:
-        return <Minus className="h-4 w-4 text-muted-foreground" />
+        return <Minus className="text-muted-foreground h-4 w-4" />
     }
   }
 

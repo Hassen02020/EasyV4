@@ -70,7 +70,7 @@ export async function FeaturedDestinationsSection() {
             return (
               <li
                 key={dest.id}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
+                className="group border-border bg-card relative flex flex-col overflow-hidden rounded-xl border shadow-sm transition-shadow hover:shadow-md"
               >
                 {/* Cover image or gradient placeholder */}
                 <div className="relative h-40 w-full bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-900/30 dark:to-rose-800/30">
@@ -86,12 +86,10 @@ export async function FeaturedDestinationsSection() {
                 </div>
 
                 <div className="flex flex-1 flex-col gap-2 p-4">
-                  <p className="font-semibold text-foreground">
-                    {displayName}
-                  </p>
+                  <p className="text-foreground font-semibold">{displayName}</p>
 
                   {dest.region && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       {dest.region}
                     </p>
                   )}

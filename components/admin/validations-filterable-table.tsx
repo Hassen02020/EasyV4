@@ -124,7 +124,7 @@ export function ValidationsFilterableTable({
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
               placeholder="Rechercher une réservation..."
               className="pl-9"
@@ -195,7 +195,10 @@ export function ValidationsFilterableTable({
                   const StatusIcon = statusConfig.icon
 
                   return (
-                    <TableRow key={reservation.id} className="hover:bg-muted/50">
+                    <TableRow
+                      key={reservation.id}
+                      className="hover:bg-muted/50"
+                    >
                       <TableCell className="font-mono text-sm">
                         {reservation.publicRef}
                       </TableCell>
@@ -206,7 +209,7 @@ export function ValidationsFilterableTable({
                               ? `${customer.firstName} ${customer.lastName}`
                               : "—"}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-muted-foreground text-xs">
                             {customer?.email}
                           </p>
                         </div>
@@ -224,10 +227,10 @@ export function ValidationsFilterableTable({
                           {statusConfig.label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-sm">
                         {validation?.currentStep || "initial"}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-sm">
                         {new Date(
                           validation?.submittedAt ?? reservation.createdAt,
                         ).toLocaleDateString("fr-FR")}

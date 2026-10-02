@@ -377,7 +377,7 @@ export default async function B2CReservationsPage({
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
                 placeholder="Rechercher par référence, client..."
                 className="pl-9"
@@ -435,7 +435,7 @@ export default async function B2CReservationsPage({
             <TabsContent value={status || "all"} className="space-y-4">
               {filteredReservations.length === 0 ? (
                 <div className="py-12 text-center">
-                  <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <ShoppingBag className="text-muted-foreground mx-auto h-12 w-12" />
                   <p className="text-muted-foreground mt-4">
                     Aucune réservation trouvée
                   </p>
@@ -469,19 +469,19 @@ export default async function B2CReservationsPage({
                         return (
                           <TableRow key={reservation.id}>
                             <TableCell>
-                              <code className="rounded bg-muted px-2 py-1 font-mono text-sm">
+                              <code className="bg-muted rounded px-2 py-1 font-mono text-sm">
                                 {reservation.publicRef}
                               </code>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
+                                <User className="text-muted-foreground h-4 w-4" />
                                 <div>
                                   <p className="font-medium">
                                     {reservation.customer.firstName}{" "}
                                     {reservation.customer.lastName}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-muted-foreground text-xs">
                                     {reservation.customer.email}
                                   </p>
                                 </div>
@@ -489,7 +489,7 @@ export default async function B2CReservationsPage({
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1.5">
-                                <ModuleIcon className="h-4 w-4 text-muted-foreground" />
+                                <ModuleIcon className="text-muted-foreground h-4 w-4" />
                                 <span className="text-sm">{moduleLabel}</span>
                               </div>
                             </TableCell>
@@ -502,7 +502,7 @@ export default async function B2CReservationsPage({
                             <TableCell className="text-right font-semibold">
                               {reservation.tndAmount.toLocaleString("fr-FR")} DT
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
+                            <TableCell className="text-muted-foreground text-sm">
                               {new Date(
                                 reservation.createdAt,
                               ).toLocaleDateString("fr-FR")}

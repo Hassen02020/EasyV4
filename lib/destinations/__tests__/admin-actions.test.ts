@@ -15,11 +15,11 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const SRC = readFileSync(join(ROOT, "lib/destinations/admin-actions.ts"), "utf8")
-const SCHEMA = readFileSync(
-  join(ROOT, "lib/db/schema/destinations.ts"),
+const SRC = readFileSync(
+  join(ROOT, "lib/destinations/admin-actions.ts"),
   "utf8",
 )
+const SCHEMA = readFileSync(join(ROOT, "lib/db/schema/destinations.ts"), "utf8")
 
 // -------------------------------------------------------------------------
 // requireSuperAdmin guard

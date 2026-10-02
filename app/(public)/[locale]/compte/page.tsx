@@ -100,7 +100,7 @@ export default async function ComptePage() {
           <Link href="/" className="flex items-center gap-2">
             <Easy2BookLogo
               withWordmark={false}
-              className="size-9 bg-muted"
+              className="bg-muted size-9"
               priority
             />
             <span className="text-base font-bold">

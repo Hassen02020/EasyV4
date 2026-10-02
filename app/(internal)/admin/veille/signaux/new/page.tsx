@@ -47,7 +47,7 @@ export default async function NewMarketSignalPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6 p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/admin/veille/signaux">

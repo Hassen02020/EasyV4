@@ -37,10 +37,23 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: R8-01
-Statut: EN COURS (2026-10-02)
-Branche: claude/easy2book-v6-modernization-7gyb5v
+Aucun chantier actif — attente du prochain GO.
 ```
+
+### R8-01 — CLÔTURÉ (2026-10-02)
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `31726bd`.
+
+**Transparence tarifaire hôtel — durée séjour + politique d'annulation.**
+
+- SERP : `hotel-card.tsx` affiche "X nuits · à partir de" quand les dates sont connues (clé `Hotels.nightsFromPrice` FR/EN/AR). Prix SERP confirmé HT (TVA 19% ajoutée au checkout) — aucun label "TTC" incorrect.
+- Transmission : `hotel-listings.tsx` et `hotels/[id]/page.tsx` transmettent `hasFreeCancellation` + `freeCancellationDate` dans `draft.metadata` depuis les deux points d'entrée hôtel.
+- Checkout : `CancellationPolicyDisplay` étendu avec prop optionnelle `hotelCancellation` (bypass DB, informatif, sans case à cocher) ; `checkout/page.tsx` l'utilise pour les brouillons hôtel — composant existant réutilisé, aucun nouveau composant.
+- Tests : 20 invariants statiques dans `lib/booking/__tests__/r8-01-hotel-transparency-invariants.test.ts`, tous verts.
+- Validation : `pnpm format --check` ✓ · `pnpm typecheck` ✓ · `pnpm lint` 0 erreurs · `pnpm test` 1522 tests, 0 échecs.
+- Périmètre strict : aucun changement pricing/financials/booking/payment/DB, aucun R8-02/R8-04/R8-05.
+
+**NOT YET DEPLOYED** (PR non mergée sur `main`).
 
 ### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
 

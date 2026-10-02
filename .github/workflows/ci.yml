@@ -263,3 +263,26 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+  # R8-04 : Lighthouse CI — bloque sur LCP/FCP > seuil, non-bloquant le
+  # pipeline initialement (continue-on-error: true) pour recueillir une
+  # baseline avant de durcir. Rebuild ici car les artefacts .next ne sont
+  # pas partagés entre jobs GitHub Actions.
+  lighthouse:
+    runs-on: ubuntu-latest
+    needs: [build]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build (production)
+        run: pnpm build
+      - name: Lighthouse CI
+        run: pnpm dlx @lhci/cli autorun

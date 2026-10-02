@@ -1,9 +1,11 @@
 /**
  * Lighthouse CI configuration.
  *
- * Usage :
- *   npm install -g @lhci/cli
- *   lhci autorun
+ * Usage (local) :
+ *   pnpm build && pnpm dlx @lhci/cli autorun
+ *
+ * In CI the build step runs before lhci autorun, so startServerCommand
+ * only needs to start the already-built server.
  */
 module.exports = {
   ci: {
@@ -13,7 +15,9 @@ module.exports = {
         "http://localhost:3000/login",
         "http://localhost:3000/admin",
       ],
-      startServerCommand: "npm run dev",
+      startServerCommand: "pnpm start",
+      startServerReadyPattern: "Ready",
+      startServerReadyTimeout: 60000,
       numberOfRuns: 2,
     },
     assert: {
@@ -22,8 +26,8 @@ module.exports = {
         "categories:accessibility": ["error", { minScore: 0.9 }],
         "categories:best-practices": ["warn", { minScore: 0.8 }],
         "categories:seo": ["warn", { minScore: 0.8 }],
-        "first-contentful-paint": ["warn", { maxNumericValue: 3000 }],
-        "largest-contentful-paint": ["warn", { maxNumericValue: 4000 }],
+        "first-contentful-paint": ["error", { maxNumericValue: 3000 }],
+        "largest-contentful-paint": ["error", { maxNumericValue: 4000 }],
       },
     },
     upload: {

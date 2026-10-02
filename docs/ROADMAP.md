@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — Phase 8 CLÔTURÉE (2026-10-02). Attente du prochain GO.
+R9-01 EN COURS (2026-10-02) — migration DB locale prête, attente GO production.
 
 **Phase 8 — Clôture officielle (2026-10-02)**
 
@@ -47,6 +47,39 @@ CI run #158 (37022472737) · commit d3b3110 · branche claude/easy2book-v6-moder
   → 0 serious/critical WCAG violations sur les 5 pages publiques (14:53:33→14:53:48 UTC)
   → continue-on-error absent depuis commit 5853101 : test réellement bloquant prouvé
 - R8-04 CLÔTURÉ (commit cc617b4) · R8-05 CLÔTURÉ · R8-07 CLÔTURÉ (commit bf297f9)
+
+### R9-01 — EN COURS (2026-10-02) — ATTENTE GO PRODUCTION DB
+
+```text
+ID: R9-01
+Statut: IMPLÉMENTÉ · TESTÉ · CI EN COURS · PRODUCTION DB : attente GO explicite
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 427352f
+
+Fichiers créés:
+  - lib/db/schema/market.ts : schéma Drizzle (marketSignals, developmentProjects,
+    enums market_signal_confidence, development_project_confidence)
+  - drizzle/manual/0093_market_signals.sql : DDL tables + index
+  - drizzle/manual/0094_market_signals_rls.sql : RLS (lecture auth, écriture super_admin)
+  - lib/market/__tests__/market-signals-invariants.test.ts : 18 invariants statiques
+  - lib/db/schema.ts : re-export des nouvelles entités
+
+Garde-fous anti-fabrication (NOT NULL) :
+  - source_url NOT NULL : source primaire obligatoire
+  - published_at NOT NULL : horodatage de publication obligatoire
+  - confidence NOT NULL : niveau LOW | MEDIUM | HIGH obligatoire
+
+Tests locaux:
+  - Invariants statiques : 18/18 PASS
+  - pnpm typecheck : 0 erreur
+  - pnpm lint : 0 erreur (135 warnings pré-existants)
+  - pnpm format:check : ✅
+  - pnpm test : 1287 PASS / 0 FAIL / 253 SKIP (zéro régression)
+
+NOT APPLIED TO PRODUCTION : migration à appliquer sur GO explicite
+  Cible : crygnaichvlxavvbifqi (Supabase prod)
+  Vérification requise : tables créées, RLS activée, NOT NULL confirmés
+```
 
 ### R8-05 — CLÔTURÉ (2026-10-02)
 

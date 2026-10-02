@@ -1,7 +1,6 @@
 import "server-only"
 
 import { and, asc, eq, lte, or, isNull, gte } from "drizzle-orm"
-import { getDb } from "@/lib/db/client"
 import {
   agencies,
   publicSiteSettings,
@@ -66,6 +65,28 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig | null> {
     })
   } catch {
     return null
+  }
+}
+
+export async function getPublicModuleVisuals() {
+  const agencyId = await getDefaultAgencyId()
+  if (!agencyId) return []
+
+  try {
+    return await withSystemContext(async (db) =>
+      db
+        .select({
+          moduleSlug: publicModuleVisuals.moduleSlug,
+          enabled: publicModuleVisuals.enabled,
+          sortOrder: publicModuleVisuals.sortOrder,
+          heroImageUrl: publicModuleVisuals.heroImageUrl,
+        })
+        .from(publicModuleVisuals)
+        .where(eq(publicModuleVisuals.agencyId, agencyId))
+        .orderBy(asc(publicModuleVisuals.sortOrder), asc(publicModuleVisuals.moduleSlug)),
+    )
+  } catch {
+    return []
   }
 }
 

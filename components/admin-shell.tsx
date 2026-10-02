@@ -31,6 +31,9 @@ import {
   Car,
   Bus,
   BadgeDollarSign,
+  TrendingUp,
+  MapPin,
+  BarChart2,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -222,6 +225,28 @@ const superAdminNavItems: NavItem[] = [
     title: "Fournisseurs",
     icon: Settings,
     href: "/admin/suppliers",
+  },
+  {
+    title: "Veille marché",
+    icon: TrendingUp,
+    href: "/admin/veille/signaux",
+    subItems: [
+      {
+        title: "Signaux marché",
+        href: "/admin/veille/signaux",
+        icon: BarChart2,
+      },
+      {
+        title: "Projets de développement",
+        href: "/admin/veille/projets",
+        icon: Activity,
+      },
+      {
+        title: "Destinations en vedette",
+        href: "/admin/veille/destinations",
+        icon: MapPin,
+      },
+    ],
   },
   {
     title: "Administration Système",

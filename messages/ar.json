@@ -1180,6 +1180,11 @@
     "crossSellDurationDays": "{days, plural, one {# يوم} other {# أيام}}",
     "crossSellDurationMinutes": "{minutes} د"
   },
+  "FeaturedDestinations": {
+    "heading": "وجهات مميزة",
+    "cta": "احجز الآن",
+    "comingSoon": "قريباً"
+  },
   "DevelopmentProjects": {
     "heading": "قريباً",
     "badge": "معلن",

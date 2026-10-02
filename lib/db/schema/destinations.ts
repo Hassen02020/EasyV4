@@ -46,6 +46,7 @@ import {
   varchar,
   text,
   decimal,
+  integer,
   boolean,
   timestamp,
   index,
@@ -88,6 +89,10 @@ export const destinations = pgTable(
     coverMediaUrl: text("cover_media_url"),
     seoDescription: text("seo_description"),
     isActive: boolean("is_active").notNull().default(true),
+    /** Mise en avant sur la home page (section R9-04). */
+    isFeatured: boolean("is_featured").notNull().default(false),
+    /** Ordre d'affichage dans la section featured (ASC). */
+    displayOrder: integer("display_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -102,6 +107,9 @@ export const destinations = pgTable(
     uniqueIndex("destinations_country_code_uniq")
       .on(t.countryCode)
       .where(sql`${t.type} = 'country'`),
+    index("destinations_featured_idx")
+      .on(t.displayOrder, t.name)
+      .where(sql`${t.isFeatured} = true`),
     check(
       "destinations_city_has_parent_check",
       sql`(${t.type} = 'country' and ${t.parentId} is null) or (${t.type} = 'city' and ${t.parentId} is not null)`,

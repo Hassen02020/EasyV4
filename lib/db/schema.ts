@@ -3309,3 +3309,18 @@ export {
   type SupplierOnboardingStatus,
   type SupplierPortalUserRole,
 } from "./schema/supplier-portal"
+
+/* -------------------------------------------------------------------------- */
+/* Market Signals & Development Projects (R9-01) — anti-fabrication guards    */
+/* -------------------------------------------------------------------------- */
+
+export {
+  marketSignalConfidence,
+  developmentProjectConfidence,
+  marketSignals,
+  developmentProjects,
+  type MarketSignal,
+  type NewMarketSignal,
+  type DevelopmentProject,
+  type NewDevelopmentProject,
+} from "./schema/market"

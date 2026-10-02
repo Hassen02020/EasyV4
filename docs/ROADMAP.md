@@ -37,10 +37,14 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: FORMAT-CLEANUP-01
-Statut: EN COURS (2026-10-02) — pnpm format --write exécuté (794 fichiers), CI gate activé, PR en attente de merge.
+ID: R8-01
+Statut: EN COURS (2026-10-02)
 Branche: claude/easy2book-v6-modernization-7gyb5v
 ```
+
+### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
+
+794 fichiers reformatés via `pnpm format --write`. CI Prettier gate activé (blocking). 7 fichiers de tests statiques mis à jour pour tolérance au formatage automatique. PR #105 mergée (commit `75177c5`). Build vert, 0 régression.
 
 ### ECON-ENTITLEMENTS-INTEGRITY-01 — CLÔTURÉ (2026-10-01)
 
@@ -527,15 +531,15 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 ## Phase 8 — Front conversion
 
-| ID    | Chantier                                                                             | Critère de sortie                                      |
-| ----- | ------------------------------------------------------------------------------------ | ------------------------------------------------------ |
-| R8-01 | Prix total TTC dès la liste, devise claire, conditions d'annulation avant paiement   | Revue visuelle + test E2E prix liste = prix checkout   |
-| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif               | Captures avant/après                                   |
-| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                  | Test visuel RTL sur pages clés                         |
-| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante             | Pas de régression LCP/CLS en CI                        |
-| R8-05 | Accessibilité WCAG 2.2 AA                                                            | Audit automatisé + clavier sur parcours de réservation |
-| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0 | Un seul jeu de composants                              |
-| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                | Revue de contenu                                       |
+| ID    | Chantier                                                                                                                                                                                                                                                     | Critère de sortie                                      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | Revue visuelle + invariant statique draft metadata     |
+| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | Captures avant/après                                   |
+| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | Test visuel RTL sur pages clés                         |
+| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | Pas de régression LCP/CLS en CI                        |
+| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | Audit automatisé + clavier sur parcours de réservation |
+| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                              |
+| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | Revue de contenu                                       |
 
 ---
 

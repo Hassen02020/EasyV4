@@ -23,26 +23,36 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Info, ShieldCheck, ShieldX } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getCancellationPolicyForDisplay } from "@/lib/booking/policy-display-actions"
+import { getIntlLocale } from "@/lib/i18n-date"
 import type {
   PolicyProductType,
   ResolvedPolicy,
 } from "@/lib/booking/policy-engine"
 
+/** Données d'annulation lues depuis `draft.metadata` pour un hôtel — bypass
+ * la récupération DB, affichage purement informatif (sans case à cocher). */
+interface HotelCancellationOverride {
+  hasFreeCancellation: boolean
+  freeCancellationDate?: string
+}
+
 interface CancellationPolicyDisplayProps {
-  productType: PolicyProductType
-  productId: string
-  accepted: boolean
-  onAcceptedChange: (accepted: boolean) => void
+  productType?: PolicyProductType
+  productId?: string
+  accepted?: boolean
+  onAcceptedChange?: (accepted: boolean) => void
   /** Informe le formulaire parent si une politique réelle a été trouvée — permet de
    * n'exiger la case à cocher que lorsqu'il y a effectivement quelque chose à accepter. */
   onPolicyResolved?: (policy: ResolvedPolicy | null) => void
+  /** Mode hôtel : données d'annulation depuis `draft.metadata`, bypass DB, sans case à cocher. */
+  hotelCancellation?: HotelCancellationOverride
 }
 
 export function CancellationPolicyDisplay({
@@ -51,8 +61,10 @@ export function CancellationPolicyDisplay({
   accepted,
   onAcceptedChange,
   onPolicyResolved,
+  hotelCancellation,
 }: CancellationPolicyDisplayProps) {
   const t = useTranslations("Booking")
+  const locale = useLocale()
   // `result` reste `null` tant que la résolution pour CE `productId` n'est
   // pas revenue — évite un `setState` synchrone dans le corps de l'effet
   // (dérivé via la comparaison `result?.productId !== productId` plutôt
@@ -61,11 +73,13 @@ export function CancellationPolicyDisplay({
     productId: string
     policy: ResolvedPolicy | null
   } | null>(null)
-  const policy = result?.productId === productId ? result.policy : undefined
+  const policy = result?.productId === productId ? result?.policy : undefined
 
   useEffect(() => {
+    if (hotelCancellation !== undefined) return
+    if (!productType || !productId) return
     let cancelled = false
-    onAcceptedChange(false)
+    onAcceptedChange?.(false)
     getCancellationPolicyForDisplay(productType, productId)
       .then((p) => {
         if (!cancelled) {
@@ -83,7 +97,51 @@ export function CancellationPolicyDisplay({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productType, productId])
+  }, [productType, productId, hotelCancellation])
+
+  // Mode hôtel — bypass DB, affichage informatif (pas de case à cocher)
+  if (hotelCancellation !== undefined) {
+    const formattedDate = hotelCancellation.freeCancellationDate
+      ? (() => {
+          try {
+            return new Date(
+              hotelCancellation.freeCancellationDate!,
+            ).toLocaleDateString(getIntlLocale(locale), {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })
+          } catch {
+            return hotelCancellation.freeCancellationDate
+          }
+        })()
+      : null
+
+    return (
+      <Card
+        className={
+          hotelCancellation.hasFreeCancellation
+            ? "border-emerald-200"
+            : "border-amber-200"
+        }
+      >
+        <CardContent className="flex items-center gap-2 p-4">
+          {hotelCancellation.hasFreeCancellation ? (
+            <ShieldCheck className="size-5 shrink-0 text-emerald-600" />
+          ) : (
+            <ShieldX className="size-5 shrink-0 text-amber-600" />
+          )}
+          <p className="text-sm font-medium">
+            {hotelCancellation.hasFreeCancellation
+              ? formattedDate
+                ? t("freeCancellationUntilLabel", { date: formattedDate })
+                : t("freeCancellationAvailable")
+              : t("nonRefundable")}
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   if (policy === undefined) {
     return (
@@ -187,7 +245,7 @@ export function CancellationPolicyDisplay({
           <Checkbox
             id={`policy-accept-${productType}-${productId}`}
             checked={accepted}
-            onCheckedChange={(v) => onAcceptedChange(Boolean(v))}
+            onCheckedChange={(v) => onAcceptedChange?.(Boolean(v))}
           />
           <Label
             htmlFor={`policy-accept-${productType}-${productId}`}

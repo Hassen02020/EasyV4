@@ -503,6 +503,11 @@ function HotelDetailContent({ id }: { id: string }) {
           // lib/booking/price-token.ts), revérifié par /booking/checkout
           // avant tout affichage financier.
           priceToken: room.priceToken,
+          // Politique d'annulation de la chambre sélectionnée — affichée
+          // en lecture seule sur la page checkout avant tout paiement
+          // (transparence tarifaire). Non utilisé pour la logique de réservation.
+          hasFreeCancellation: room.cancellation === "FREE",
+          freeCancellationDate: room.freeCancellationDate,
         },
       },
     })

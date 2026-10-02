@@ -236,7 +236,7 @@ export default async function UsersManagementPage() {
         <CardContent>
           {allUsers.length === 0 ? (
             <div className="py-12 text-center">
-              <Users className="mx-auto h-12 w-12 text-gray-300" />
+              <Users className="mx-auto h-12 w-12 text-muted-foreground" />
               <p className="text-muted-foreground mt-4">
                 Aucun utilisateur trouvé. Créez le premier utilisateur.
               </p>
@@ -258,20 +258,20 @@ export default async function UsersManagementPage() {
                   {allUsers.map((user) => {
                     const roleConfig = ROLE_CONFIG[user.role] || {
                       label: user.role,
-                      color: "bg-gray-100",
+                      color: "bg-muted",
                       icon: User,
                     }
                     const RoleIcon = roleConfig.icon
                     const statusConfig = STATUS_CONFIG[user.status] || {
                       label: user.status,
-                      color: "bg-gray-100",
+                      color: "bg-muted",
                     }
 
                     return (
                       <TableRow key={user.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                               <span className="text-xs font-semibold">
                                 {user.name?.charAt(0).toUpperCase() ||
                                   user.email.charAt(0).toUpperCase()}

@@ -446,7 +446,7 @@ export function OmraBookingForm() {
             {fields.map((field, index) => (
               <div
                 key={field.id}
-                className="border-sidebar/10 relative space-y-4 rounded-lg border-2 bg-white p-4 sm:p-6"
+                className="border-sidebar/10 relative space-y-4 rounded-lg border-2 bg-card p-4 sm:p-6"
               >
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-sidebar text-lg font-semibold">

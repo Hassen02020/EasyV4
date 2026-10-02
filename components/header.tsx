@@ -66,12 +66,12 @@ export function Header({
               <img
                 src={logoUrl}
                 alt={brandName ?? "Logo agence"}
-                className="size-10 rounded bg-gray-100 object-contain"
+                className="size-10 rounded bg-muted object-contain"
               />
             ) : (
               <Easy2BookLogo
                 withWordmark={false}
-                className="size-10 bg-gray-100"
+                className="size-10 bg-muted"
                 priority
               />
             )}

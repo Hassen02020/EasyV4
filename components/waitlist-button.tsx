@@ -48,7 +48,7 @@ export function WaitlistButton({ projectId }: { projectId: string }) {
         onChange={(e) => setEmail(e.target.value)}
         placeholder={t("placeholder")}
         disabled={state === "loading"}
-        className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+        className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground disabled:opacity-50"
       />
       <button
         type="submit"

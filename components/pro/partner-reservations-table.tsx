@@ -99,7 +99,7 @@ const STATUS_META: Record<
   },
   no_show: {
     label: "No-show",
-    className: "border-gray-300 bg-gray-100 text-gray-700",
+    className: "border-border bg-muted text-muted-foreground",
     icon: XCircle,
   },
 }
@@ -328,7 +328,7 @@ const columns: ColumnDef<PartnerReservationRow>[] = [
     cell: ({ row }) => {
       const meta = STATUS_META[row.original.status] ?? {
         label: row.original.status,
-        className: "border-gray-300 bg-gray-100 text-gray-700",
+        className: "border-border bg-muted text-muted-foreground",
         icon: Clock,
       }
       const Icon = meta.icon

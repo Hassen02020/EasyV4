@@ -90,7 +90,7 @@ function StatusBadge({ status }: { status: BookingStatus }) {
     },
     refunded: {
       label: t("statusRefunded"),
-      color: "bg-gray-100 text-gray-800 border-gray-200",
+      color: "bg-muted text-muted-foreground border-border",
       icon: RefreshCw,
     },
     no_show: {
@@ -100,7 +100,7 @@ function StatusBadge({ status }: { status: BookingStatus }) {
     },
     expired: {
       label: t("statusExpired"),
-      color: "bg-gray-100 text-gray-600 border-gray-200",
+      color: "bg-muted text-muted-foreground border-border",
       icon: XCircle,
     },
     completed: {
@@ -157,7 +157,7 @@ function Timeline({ status }: { status: BookingStatus }) {
                     ? "border-emerald-500 bg-emerald-500 text-white"
                     : active
                       ? "border-sidebar bg-sidebar/10 text-sidebar"
-                      : "border-gray-200 bg-white text-gray-400"
+                      : "border-border bg-card text-muted-foreground"
                 }`}
               >
                 {done && !active ? (

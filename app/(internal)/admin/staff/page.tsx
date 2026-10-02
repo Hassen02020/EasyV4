@@ -244,7 +244,7 @@ export default async function StaffPage() {
         <CardContent>
           {staff.length === 0 ? (
             <div className="py-12 text-center">
-              <UserCog className="mx-auto h-12 w-12 text-gray-300" />
+              <UserCog className="mx-auto h-12 w-12 text-muted-foreground" />
               <p className="text-muted-foreground mt-4">
                 Aucun agent trouvé. Créez votre première équipe.
               </p>
@@ -267,7 +267,7 @@ export default async function StaffPage() {
                   {staff.map((member) => {
                     const roleConfig = ROLE_CONFIG[member.role] || {
                       label: member.role,
-                      color: "bg-gray-100",
+                      color: "bg-muted",
                       icon: User,
                     }
                     const RoleIcon = roleConfig.icon
@@ -276,7 +276,7 @@ export default async function StaffPage() {
                       <TableRow key={member.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                               <span className="text-xs font-bold">
                                 {member.name?.charAt(0).toUpperCase() ||
                                   member.email.charAt(0).toUpperCase()}
@@ -286,7 +286,7 @@ export default async function StaffPage() {
                               <p className="font-medium">
                                 {member.name || "—"}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-muted-foreground">
                                 {member.email}
                               </p>
                             </div>
@@ -303,7 +303,7 @@ export default async function StaffPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
-                            <Mail className="h-3 w-3 text-gray-400" />
+                            <Mail className="h-3 w-3 text-muted-foreground" />
                             {member.email}
                           </div>
                         </TableCell>
@@ -318,7 +318,7 @@ export default async function StaffPage() {
                             {member.status === "active" ? "Actif" : "Suspendu"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-500">
+                        <TableCell className="text-sm text-muted-foreground">
                           {member.lastLoginAt
                             ? new Date(member.lastLoginAt).toLocaleDateString(
                                 "fr-FR",

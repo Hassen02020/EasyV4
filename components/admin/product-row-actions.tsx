@@ -144,7 +144,7 @@ export function ProductRowActions({
         {status !== "archived" ? (
           <DropdownMenuItem
             onClick={() => handleSetStatus("archived")}
-            className="text-gray-600"
+            className="text-muted-foreground"
           >
             <Archive className="mr-2 h-4 w-4" />
             Archiver

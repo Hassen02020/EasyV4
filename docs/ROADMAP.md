@@ -40,6 +40,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 Aucun chantier actif — attente du prochain GO.
 ```
 
+### R8-02 — CLÔTURÉ (2026-10-02)
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `a57d5e3`.
+
+**Parcours complet — skeletons, error boundaries, Suspense fallbacks.**
+
+- `confirmation/[ref]/loading.tsx` : skeleton route-segment (5 Skeleton blocks : BookingSteps + header + card + détails + bouton).
+- `checkout/error.tsx` : error boundary checkout — reset + lien "Rechercher un hôtel" + "Retour à l'accueil".
+- `confirmation/[ref]/error.tsx` : error boundary confirmation — reset + "Retour à l'accueil" ; message rassurant "réservation enregistrée".
+- `checkout/page.tsx` : outer Suspense → `<CheckoutLoading />` ; inner Suspense (CheckoutForm) → `<Skeleton className="h-48 w-full rounded-2xl" />` ; suppression du `getTranslations` inutilisé dans `CheckoutPage`.
+- Validation : `pnpm typecheck` ✓ · `pnpm lint` 0 erreurs (135 warnings pré-existants) · 4 fichiers, 117 insertions.
+
+**NOT YET DEPLOYED** (dans la même PR que R8-01, non mergée sur `main`).
+
 ### R8-01 — CLÔTURÉ (2026-10-02)
 
 Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `31726bd`.

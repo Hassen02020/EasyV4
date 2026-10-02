@@ -137,6 +137,7 @@ function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
 function TabPills({
   activeTab,
   onSelect,
+  visibleTabs,
   className,
 }: {
   activeTab: TabId
@@ -225,7 +226,7 @@ export function BookingEngine({ heroImageUrl, modules = [] }: { heroImageUrl?: s
           style={{ animationDelay: "80ms" }}
         >
           <div className="flex items-center justify-between gap-3 px-1.5 pt-1.5 pb-2">
-            <TabPills activeTab={activeTab} onSelect={setActiveTab} />
+            <TabPills activeTab={activeTab} onSelect={setActiveTab} visibleTabs={visibleTabs} />
           </div>
 
           <div className="rounded-[1.4rem] bg-white/60 p-5 sm:p-6">
@@ -271,6 +272,7 @@ export function BookingEngine({ heroImageUrl, modules = [] }: { heroImageUrl?: s
                 <TabPills
                   activeTab={activeTab}
                   onSelect={setActiveTab}
+                  visibleTabs={visibleTabs}
                   className="flex-1"
                 />
                 <DrawerClose asChild>

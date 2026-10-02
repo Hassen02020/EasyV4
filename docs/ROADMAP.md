@@ -36,7 +36,47 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R10-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — R11-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### R11-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R11-01
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: ed05891
+
+Migrations appliquées en production (Supabase EasyV4, crygnaichvlxavvbifqi):
+  - 0095_destinations_featured : destinations.is_featured BOOLEAN DEFAULT false,
+    destinations.display_order INTEGER DEFAULT 0, index destinations_featured_idx
+  - 0096_development_project_waitlist : table development_project_waitlist créée
+
+Fichiers créés/modifiés:
+  - lib/market/admin-actions.ts :
+    createMarketSignal, deleteMarketSignal,
+    createDevelopmentProject, updateDevelopmentProject, deleteDevelopmentProject
+    (requireSuperAdmin pattern, Zod, revalidatePath)
+  - lib/destinations/admin-actions.ts :
+    setFeaturedDestination, listDestinationsForAdmin
+    (requireSuperAdmin pattern, Zod)
+  - app/(internal)/admin/veille/signaux/page.tsx : liste signaux + suppression
+  - app/(internal)/admin/veille/signaux/new/page.tsx : création signal
+  - app/(internal)/admin/veille/projets/page.tsx : liste projets + suppression
+  - app/(internal)/admin/veille/projets/new/page.tsx : création projet
+  - app/(internal)/admin/veille/projets/[id]/page.tsx : édition projet
+  - app/(internal)/admin/veille/destinations/page.tsx : toggle featured + ordre affichage
+  - lib/market/__tests__/admin-actions.test.ts : 13 tests invariants statiques — PASS
+  - lib/destinations/__tests__/admin-actions.test.ts : 9 tests invariants statiques — PASS
+  - components/admin-shell.tsx : nav "Veille marché" (TrendingUp) super_admin uniquement
+
+Tests: 22/22 pass (node --test)
+Typecheck: 0 erreurs (pnpm tsc --noEmit)
+Lint: 0 warnings
+
+VISUAL QA: NOT VERIFIED — pages admin nécessitent session super_admin en production.
+  À vérifier sur GO séparé : créer un signal/projet via /admin/veille/signaux/new
+  et confirmer qu'il apparaît dans MarketSignalsSection sur /fr.
+```
 
 ### R10-01 — CLÔTURÉ (2026-10-02)
 

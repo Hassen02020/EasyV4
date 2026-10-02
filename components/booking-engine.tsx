@@ -95,9 +95,6 @@ type TabId = (typeof tabsConfig)[number]["id"]
 
 // Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
 
-const HERO_BG_URL =
-  "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
-
 /** Rend le formulaire du module actif — partagé par la carte flottante desktop et le bottom-sheet mobile. */
 function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
   switch (activeTab) {
@@ -161,7 +158,7 @@ function TabPills({
   )
 }
 
-export function BookingEngine() {
+export function BookingEngine({ heroImageUrl }: { heroImageUrl?: string | null }) {
   const [activeTab, setActiveTab] = useState<TabId>("hotels-tunisie")
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useTranslations("Common")
@@ -175,7 +172,7 @@ export function BookingEngine() {
       {/* Hero background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url('${HERO_BG_URL}')` }}
+        style={heroImageUrl ? { backgroundImage: `url('${heroImageUrl}')` } : undefined}
       >
         <div className="from-sidebar/85 via-sidebar/35 to-background absolute inset-0 bg-gradient-to-b" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />

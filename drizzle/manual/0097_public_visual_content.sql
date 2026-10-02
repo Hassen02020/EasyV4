@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS public_promotions (
 CREATE INDEX IF NOT EXISTS public_promotions_agency_active_idx
   ON public_promotions(agency_id, enabled, sort_order);
 
+CREATE UNIQUE INDEX IF NOT EXISTS public_promotions_agency_destination_uniq
+  ON public_promotions(agency_id, destination);
+
 ALTER TABLE public_site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public_site_settings FORCE ROW LEVEL SECURITY;
 ALTER TABLE public_module_visuals ENABLE ROW LEVEL SECURITY;
@@ -152,6 +155,14 @@ CROSS JOIN (VALUES
   ('Djerba', 'Tout Inclus', 'Djerba', 'hotel', '/hotels/search', 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&h=400&fit=crop', '🇹🇳', 20),
   ('Omra', 'Programme Éco', 'Omra', 'omraty', '/omra', 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=600&h=400&fit=crop', '🇸🇦', 30)
 ) AS v(title, subtitle, destination, module_slug, href, image_url, flag, sort_order)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (agency_id, destination) DO UPDATE
+SET title = EXCLUDED.title,
+    subtitle = EXCLUDED.subtitle,
+    module_slug = EXCLUDED.module_slug,
+    href = EXCLUDED.href,
+    image_url = EXCLUDED.image_url,
+    flag = EXCLUDED.flag,
+    sort_order = EXCLUDED.sort_order,
+    updated_at = now();
 
 COMMIT;

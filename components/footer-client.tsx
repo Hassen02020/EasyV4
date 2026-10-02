@@ -86,7 +86,7 @@ export function FooterClient({ logoUrl, brandName, contactEmail, contactPhone, a
     {
       icon: trustBadgeIcons[3],
       title: t("agencePhysique"),
-      description: t("atunis"),
+      description: address ?? t("atunis"),
     },
   ]
   return (
@@ -208,10 +208,19 @@ export function FooterClient({ logoUrl, brandName, contactEmail, contactPhone, a
                 <li className="flex items-center gap-2">
                   <Phone className="text-accent size-4" />
                   <a
-                    href={contactEmail ? `mailto:${contactEmail}` : undefined}
+                    href={contactPhone ? `tel:${contactPhone.replace(/[^+\\d]/g, "")}` : undefined}
                     className="font-medium transition-colors hover:text-white"
                   >
                     {contactPhone ?? "—"}
+                  </a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-accent text-sm">@</span>
+                  <a
+                    href={contactEmail ? `mailto:${contactEmail}` : undefined}
+                    className="font-medium transition-colors hover:text-white"
+                  >
+                    {contactEmail ?? "—"}
                   </a>
                 </li>
                 <li className="flex items-center gap-2">

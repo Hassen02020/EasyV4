@@ -36,8 +36,21 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+Aucun — FORMAT-CLEANUP-01 CLÔTURÉ. Attente du prochain GO.
+
+### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
+
 ```text
-Aucun chantier actif — attente du prochain GO.
+ID: FORMAT-CLEANUP-01
+Statut: CLÔTURÉ (2026-10-02)
+PR: #105 — mergé sur main, commit 75177c576cdbaf1766fa10a749b70f51c37c190a
+CI: run #146 — conclusion: success (typecheck ✅ lint ✅ format ✅ test ✅)
+Résultat:
+  - 794 fichiers reformatés (pnpm format --write, diff purement mécanique)
+  - 13 fichiers supplémentaires (écart prettier-plugin-tailwindcss CI/local)
+  - 7 fichiers de tests invariants adaptés aux patterns multi-lignes Prettier
+  - gate format désormais bloquant dans CI (continue-on-error retiré)
+  - dette R1-07 soldée
 ```
 
 ### VOLS-DISPLAY-FIX-01 — CLÔTURÉ (2026-10-02)

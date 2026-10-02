@@ -36,7 +36,53 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R9-03 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — R9-04 CLÔTURÉ (2026-10-02). Phase 9 terminée. Attente du prochain GO.
+
+### R9-04 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R9-04
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: c6e9067
+
+Fichiers créés/modifiés:
+  - drizzle/manual/0095_destinations_featured.sql :
+    ADD COLUMN is_featured BOOLEAN NOT NULL DEFAULT false
+    ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0
+    INDEX destinations_featured_idx (display_order, name) WHERE is_featured
+  - lib/db/schema/destinations.ts : colonnes isFeatured + displayOrder + index
+  - lib/destinations/featured-destinations-queries.ts :
+    getFeaturedDestinations(limit, db?) · FEATURED_DESTINATIONS_PAGE_SIZE = 6
+    getExternalRefsForDestinations(ids, db?) · dependency injection
+  - lib/destinations/__tests__/featured-destinations-queries.test.ts : 5 tests
+  - components/featured-destinations-section.tsx : Server Component async
+    CTA réservation UNIQUEMENT si destinationExternalRef actif (R9-04 guard)
+    return null si aucune destination is_featured=true
+  - messages/fr.json, en.json, ar.json : clé FeaturedDestinations
+    (heading, cta, comingSoon)
+  - app/(public)/[locale]/page.tsx : <FeaturedDestinationsSection />
+    après OmratySection
+
+Reality Level: L0 (section invisible sans données) → L3 quand
+  destinations peuplées avec external_refs actifs.
+
+CTA guard: booking link généré UNIQUEMENT si destinationExternalRef
+  actif existe — conforme Master Prompt §10 (CTA Guard) et R9-04.
+
+Tests:
+  - pnpm test : 1302 PASS / 0 FAIL / 253 SKIP
+  - pnpm typecheck : 0 erreur
+  - pnpm lint : 0 erreur (135 warnings pré-existants)
+  - format:check ✅
+
+VISUAL QA: NOT VERIFIED — section invisible sans lignes is_featured=true
+  en production. Peupler via Supabase Studio + appliquer 0095.
+
+Migration DB: NON ENCORE APPLIQUÉE EN PRODUCTION.
+  À appliquer sur GO séparé : psql "$DATABASE_DIRECT_URL" -f
+  drizzle/manual/0095_destinations_featured.sql
+```
 
 ### R9-03 — CLÔTURÉ (2026-10-02)
 

@@ -30,7 +30,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getCancellationPolicyForDisplay } from "@/lib/booking/policy-display-actions"
-import type { PolicyProductType, ResolvedPolicy } from "@/lib/booking/policy-engine"
+import type {
+  PolicyProductType,
+  ResolvedPolicy,
+} from "@/lib/booking/policy-engine"
 
 interface CancellationPolicyDisplayProps {
   productType: PolicyProductType
@@ -54,7 +57,10 @@ export function CancellationPolicyDisplay({
   // pas revenue — évite un `setState` synchrone dans le corps de l'effet
   // (dérivé via la comparaison `result?.productId !== productId` plutôt
   // qu'un reset explicite).
-  const [result, setResult] = useState<{ productId: string; policy: ResolvedPolicy | null } | null>(null)
+  const [result, setResult] = useState<{
+    productId: string
+    policy: ResolvedPolicy | null
+  } | null>(null)
   const policy = result?.productId === productId ? result.policy : undefined
 
   useEffect(() => {
@@ -106,18 +112,30 @@ export function CancellationPolicyDisplay({
   }
 
   const rules: { label: string; value: string }[] = [
-    { label: t("cancellableLabel"), value: policy.cancellable ? t("yes") : t("no") },
-    { label: t("modifiableLabel"), value: policy.modifiable ? t("yes") : t("no") },
+    {
+      label: t("cancellableLabel"),
+      value: policy.cancellable ? t("yes") : t("no"),
+    },
+    {
+      label: t("modifiableLabel"),
+      value: policy.modifiable ? t("yes") : t("no"),
+    },
   ]
   if (policy.deadlineHours != null) {
-    rules.push({ label: t("deadlineLabel"), value: t("deadlineValue", { hours: policy.deadlineHours }) })
+    rules.push({
+      label: t("deadlineLabel"),
+      value: t("deadlineValue", { hours: policy.deadlineHours }),
+    })
   }
   if (policy.nonRefundable) {
     rules.push({ label: t("refundLabel"), value: t("nonRefundable") })
   } else {
     rules.push({
       label: t("cancellationFeeLabel"),
-      value: policy.cancellationFeePercent != null ? `${policy.cancellationFeePercent}%` : t("noFeeConfigured"),
+      value:
+        policy.cancellationFeePercent != null
+          ? `${policy.cancellationFeePercent}%`
+          : t("noFeeConfigured"),
     })
     rules.push({
       label: t("modalityLabel"),
@@ -133,7 +151,13 @@ export function CancellationPolicyDisplay({
   }
 
   return (
-    <Card className={policy.cancellable && !policy.nonRefundable ? "border-emerald-200" : "border-amber-200"}>
+    <Card
+      className={
+        policy.cancellable && !policy.nonRefundable
+          ? "border-emerald-200"
+          : "border-amber-200"
+      }
+    >
       <CardContent className="space-y-3 p-4">
         <div className="flex items-center gap-2">
           {policy.cancellable && !policy.nonRefundable ? (
@@ -145,14 +169,19 @@ export function CancellationPolicyDisplay({
         </div>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
           {rules.map((r) => (
-            <div key={r.label} className="flex items-center justify-between text-sm sm:block">
+            <div
+              key={r.label}
+              className="flex items-center justify-between text-sm sm:block"
+            >
               <dt className="text-muted-foreground text-xs">{r.label}</dt>
               <dd className="font-medium">{r.value}</dd>
             </div>
           ))}
         </dl>
         {policy.postDeadlineDescription ? (
-          <p className="text-muted-foreground border-t pt-2 text-xs">{policy.postDeadlineDescription}</p>
+          <p className="text-muted-foreground border-t pt-2 text-xs">
+            {policy.postDeadlineDescription}
+          </p>
         ) : null}
         <div className="flex items-start gap-2 border-t pt-3">
           <Checkbox

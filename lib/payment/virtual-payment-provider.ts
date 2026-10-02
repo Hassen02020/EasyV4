@@ -24,7 +24,12 @@
  * test avec un vrai paiement SPS dans les rapports staff.
  */
 
-import type { CreatePaymentInput, PaymentProvider, PaymentResult, PaymentStatusResult } from "./provider"
+import type {
+  CreatePaymentInput,
+  PaymentProvider,
+  PaymentResult,
+  PaymentStatusResult,
+} from "./provider"
 
 /**
  * Jamais vrai en production : `PAYMENT_MODE` n'est documenté dans
@@ -62,11 +67,19 @@ export class VirtualPaymentProvider implements PaymentProvider {
   // aujourd'hui (même constat que NotConfiguredPaymentProvider), gardées
   // pour compléter l'interface sans fabriquer de comportement.
   async confirmPayment(): Promise<PaymentResult> {
-    return { ok: false, code: "PAYMENT_NOT_FOUND", message: "Confirmation via webhook uniquement." }
+    return {
+      ok: false,
+      code: "PAYMENT_NOT_FOUND",
+      message: "Confirmation via webhook uniquement.",
+    }
   }
 
   async refundPayment(): Promise<PaymentResult> {
-    return { ok: false, code: "PAYMENT_NOT_FOUND", message: "Remboursement via webhook PSP uniquement." }
+    return {
+      ok: false,
+      code: "PAYMENT_NOT_FOUND",
+      message: "Remboursement via webhook PSP uniquement.",
+    }
   }
 
   async getPaymentStatus(): Promise<PaymentStatusResult> {

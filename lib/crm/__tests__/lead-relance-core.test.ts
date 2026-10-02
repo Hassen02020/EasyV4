@@ -6,7 +6,11 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  withSystemContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { agencies, leadRelanceSettings } from "@/lib/db/schema"
 import type { LeadRow } from "../leads-core"
 import {
@@ -56,13 +60,20 @@ test("isLeadStale : lead déjà contacté/converti/clôturé → jamais stale, m
   const old = new Date("2025-01-01T00:00:00Z")
   for (const status of ["contacted", "converted", "closed"] as const) {
     const lead = makeLead({ status, updatedAt: old })
-    assert.equal(isLeadStale(lead, defaultLeadRelanceSettings(), NOW), false, `status=${status}`)
+    assert.equal(
+      isLeadStale(lead, defaultLeadRelanceSettings(), NOW),
+      false,
+      `status=${status}`,
+    )
   }
 })
 
 test("isLeadStale : relance désactivée → jamais stale, même très ancien et 'new'", () => {
   const lead = makeLead({ updatedAt: new Date("2020-01-01T00:00:00Z") })
-  const settings = { thresholdDays: DEFAULT_RELANCE_THRESHOLD_DAYS, isEnabled: false }
+  const settings = {
+    thresholdDays: DEFAULT_RELANCE_THRESHOLD_DAYS,
+    isEnabled: false,
+  }
   assert.equal(isLeadStale(lead, settings, NOW), false)
 })
 
@@ -110,32 +121,56 @@ before(async () => {
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
-    await tx.delete(leadRelanceSettings).where(eq(leadRelanceSettings.agencyId, agencyA))
+    await tx
+      .delete(leadRelanceSettings)
+      .where(eq(leadRelanceSettings.agencyId, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
   })
 })
 
 test("getLeadRelanceSettingsCore : sans rien configuré, retourne le défaut (3 jours, actif)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctx: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
-  const settings = await withTenantContext(ctx, (tx) => getLeadRelanceSettingsCore(tx, { agencyId: agencyA }))
+  const ctx: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+  const settings = await withTenantContext(ctx, (tx) =>
+    getLeadRelanceSettingsCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(settings.thresholdDays, DEFAULT_RELANCE_THRESHOLD_DAYS)
   assert.equal(settings.isEnabled, true)
 })
 
 test("upsertLeadRelanceSettingsCore : crée puis met à jour (une ligne par agence)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctx: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
+  const ctx: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
 
   await withTenantContext(ctx, (tx) =>
-    upsertLeadRelanceSettingsCore(tx, { agencyId: agencyA, thresholdDays: 7, isEnabled: true }),
+    upsertLeadRelanceSettingsCore(tx, {
+      agencyId: agencyA,
+      thresholdDays: 7,
+      isEnabled: true,
+    }),
   )
-  let settings = await withTenantContext(ctx, (tx) => getLeadRelanceSettingsCore(tx, { agencyId: agencyA }))
+  let settings = await withTenantContext(ctx, (tx) =>
+    getLeadRelanceSettingsCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(settings.thresholdDays, 7)
 
   await withTenantContext(ctx, (tx) =>
-    upsertLeadRelanceSettingsCore(tx, { agencyId: agencyA, thresholdDays: 7, isEnabled: false }),
+    upsertLeadRelanceSettingsCore(tx, {
+      agencyId: agencyA,
+      thresholdDays: 7,
+      isEnabled: false,
+    }),
   )
-  settings = await withTenantContext(ctx, (tx) => getLeadRelanceSettingsCore(tx, { agencyId: agencyA }))
+  settings = await withTenantContext(ctx, (tx) =>
+    getLeadRelanceSettingsCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(settings.isEnabled, false)
 })

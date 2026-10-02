@@ -10,7 +10,12 @@ import assert from "node:assert/strict"
 
 import { buildVirtualWebhookRequest } from "../virtual-provider"
 import { verifySpsSignature, verifyStripeSignature } from "../signing"
-import { classifyEventType, matchesPendingRecharge, normalizeSpsEvent, normalizeStripeEvent } from "../webhook-logic"
+import {
+  classifyEventType,
+  matchesPendingRecharge,
+  normalizeSpsEvent,
+  normalizeStripeEvent,
+} from "../webhook-logic"
 
 const PENDING_REQUEST = { amount: "150.000", paymentReference: "pi_test_ref_1" }
 const STRIPE_SECRET = "whsec_virtual_test"
@@ -22,7 +27,11 @@ function verifyAndParse(
   secret: string,
 ) {
   if (provider === "stripe") {
-    const sigOk = verifyStripeSignature(Buffer.from(req.body), req.headers["stripe-signature"] ?? null, secret)
+    const sigOk = verifyStripeSignature(
+      Buffer.from(req.body),
+      req.headers["stripe-signature"] ?? null,
+      secret,
+    )
     const charge = sigOk ? normalizeStripeEvent(JSON.parse(req.body)) : null
     const eventType = JSON.parse(req.body).type as string
     return { sigOk, charge, eventType }
@@ -41,7 +50,10 @@ test("url() : cible /api/payment/webhook (wallet B2B) par défaut, jamais un aut
     amountTnd: 150,
     secret: SPS_SECRET,
   })
-  assert.equal(req.url("http://localhost:3000"), "http://localhost:3000/api/payment/webhook?provider=sps")
+  assert.equal(
+    req.url("http://localhost:3000"),
+    "http://localhost:3000/api/payment/webhook?provider=sps",
+  )
 })
 
 test("url() : webhookPath explicite redirige vers un AUTRE endpoint (ex. /api/payment/reservation-webhook) — régression du bug où le paiement B2C réservation simulé postait par erreur vers le webhook wallet", () => {
@@ -52,7 +64,10 @@ test("url() : webhookPath explicite redirige vers un AUTRE endpoint (ex. /api/pa
     secret: SPS_SECRET,
     webhookPath: "/api/payment/reservation-webhook",
   })
-  assert.equal(req.url("http://localhost:3000"), "http://localhost:3000/api/payment/reservation-webhook?provider=sps")
+  assert.equal(
+    req.url("http://localhost:3000"),
+    "http://localhost:3000/api/payment/reservation-webhook?provider=sps",
+  )
 })
 
 for (const provider of ["stripe", "sps"] as const) {
@@ -69,7 +84,9 @@ for (const provider of ["stripe", "sps"] as const) {
     assert.equal(sigOk, true)
     assert.equal(classifyEventType(eventType), "succeeded")
     assert.ok(charge)
-    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), { ok: true })
+    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), {
+      ok: true,
+    })
   })
 
   test(`[${provider}] CARD_DECLINED : classifié failed`, () => {
@@ -105,7 +122,10 @@ for (const provider of ["stripe", "sps"] as const) {
     const { sigOk, charge } = verifyAndParse(req, provider, secret)
     assert.equal(sigOk, true)
     assert.ok(charge)
-    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), { ok: false, reason: "AMOUNT_MISMATCH" })
+    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), {
+      ok: false,
+      reason: "AMOUNT_MISMATCH",
+    })
   })
 
   test(`[${provider}] WRONG_CURRENCY : rejeté par matching (CURRENCY_MISMATCH)`, () => {
@@ -117,7 +137,10 @@ for (const provider of ["stripe", "sps"] as const) {
     })
     const { charge } = verifyAndParse(req, provider, secret)
     assert.ok(charge)
-    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), { ok: false, reason: "CURRENCY_MISMATCH" })
+    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), {
+      ok: false,
+      reason: "CURRENCY_MISMATCH",
+    })
   })
 
   test(`[${provider}] UNKNOWN_REFERENCE : ne correspond à aucune demande connue (REFERENCE_MISMATCH)`, () => {
@@ -130,7 +153,10 @@ for (const provider of ["stripe", "sps"] as const) {
     const { charge } = verifyAndParse(req, provider, secret)
     assert.ok(charge)
     assert.notEqual(charge!.providerRef, PENDING_REQUEST.paymentReference)
-    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), { ok: false, reason: "REFERENCE_MISMATCH" })
+    assert.deepEqual(matchesPendingRecharge(PENDING_REQUEST, charge!), {
+      ok: false,
+      reason: "REFERENCE_MISMATCH",
+    })
   })
 
   test(`[${provider}] REFUND : classifié refunded`, () => {

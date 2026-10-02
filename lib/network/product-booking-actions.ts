@@ -39,8 +39,16 @@
 
 import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
-import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
-import { products, customers, reservations, reservationNetworkProduct } from "@/lib/db/schema"
+import {
+  resolveSessionContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
+import {
+  products,
+  customers,
+  reservations,
+  reservationNetworkProduct,
+} from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { nextPublicRef } from "@/lib/booking/actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
@@ -68,7 +76,9 @@ export async function createNetworkProductBooking(
   if (!parsed.success) {
     return {
       ok: false,
-      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Réservation invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
     }
   }
   const booking = parsed.data
@@ -79,7 +89,8 @@ export async function createNetworkProductBooking(
 
   const session = await resolveSessionContext()
   if (!session.ok) return { ok: false, error: "Non authentifié" }
-  if (!session.agencyId) return { ok: false, error: "Profil utilisateur introuvable" }
+  if (!session.agencyId)
+    return { ok: false, error: "Profil utilisateur introuvable" }
   const agencyId = session.agencyId
   const createdByUserId = session.userId
 
@@ -88,7 +99,9 @@ export async function createNetworkProductBooking(
   // transaction comme dans lib/booking/actions.ts et
   // lib/hotels-monde/guest-booking-actions.ts (jamais une deuxième formule,
   // jamais imbriqué dans la transaction de réservation).
-  const networkMarginRule = (await getMarginsForAgency(agencyId, createdByUserId)).network
+  const networkMarginRule = (
+    await getMarginsForAgency(agencyId, createdByUserId)
+  ).network
 
   try {
     return await withTenantContext(
@@ -100,12 +113,23 @@ export async function createNetworkProductBooking(
           .from(products)
           .where(eq(products.id, booking.productId))
           .limit(1)
-        if (!product) return { ok: false as const, error: "Produit introuvable ou non autorisé" }
+        if (!product)
+          return {
+            ok: false as const,
+            error: "Produit introuvable ou non autorisé",
+          }
         if (product.status !== "active") {
-          return { ok: false as const, error: "Ce produit n'est plus actif.", code: "PRODUCT_NOT_ACTIVE" }
+          return {
+            ok: false as const,
+            error: "Ce produit n'est plus actif.",
+            code: "PRODUCT_NOT_ACTIVE",
+          }
         }
         if (!product.supplierNodeId || !product.costPrice) {
-          return { ok: false as const, error: "Produit Network incomplet (coût/fournisseur manquant)" }
+          return {
+            ok: false as const,
+            error: "Produit Network incomplet (coût/fournisseur manquant)",
+          }
         }
 
         // NETWORK-NODE-VISIBILITY-01 : `supplier_nodes` est super_admin-only
@@ -119,7 +143,10 @@ export async function createNetworkProductBooking(
         )) as Array<{ isActive: boolean }>
         const nodeIsActive = nodeRows[0]?.isActive === true
         if (!nodeIsActive) {
-          return { ok: false as const, error: "Le nœud fournisseur de ce produit n'est pas actif" }
+          return {
+            ok: false as const,
+            error: "Le nœud fournisseur de ce produit n'est pas actif",
+          }
         }
 
         // --- 2. Prix de vente = coût réel + marge (calculée avant la transaction) ---
@@ -138,7 +165,10 @@ export async function createNetworkProductBooking(
             phone: booking.customerPhone,
           })
           .returning({ id: customers.id })
-        if (!customer) throw new Error("createNetworkProductBooking: insert customer a échoué")
+        if (!customer)
+          throw new Error(
+            "createNetworkProductBooking: insert customer a échoué",
+          )
 
         // --- 4. Réservation (pending, confirmée seulement après débit) ---
         const publicRef = await nextPublicRef(tx, agencyId)
@@ -159,7 +189,10 @@ export async function createNetworkProductBooking(
             createdByUserId,
           })
           .returning({ id: reservations.id })
-        if (!reservation) throw new Error("createNetworkProductBooking: insert reservation a échoué")
+        if (!reservation)
+          throw new Error(
+            "createNetworkProductBooking: insert reservation a échoué",
+          )
         const reservationId = reservation.id
 
         // --- 5. Débit crédit agence (même transaction, pas de tx imbriquée) ---
@@ -171,15 +204,26 @@ export async function createNetworkProductBooking(
           createdByUserId,
           reservationId,
           idempotencyKey: `booking-debit:${reservationId}`,
-          txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
         })
         if (!debitResult.ok) {
-          throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
+          throw new Error(
+            debitResult.code === "INSUFFICIENT_FUNDS"
+              ? "INSUFFICIENT_BALANCE"
+              : "WALLET_DEBIT_FAILED",
+          )
         }
 
         await tx
           .update(reservations)
-          .set({ status: "confirmed", confirmedAt: new Date(), depositPaid: totalTnd.toFixed(2), updatedAt: new Date() })
+          .set({
+            status: "confirmed",
+            confirmedAt: new Date(),
+            depositPaid: totalTnd.toFixed(2),
+            updatedAt: new Date(),
+          })
           .where(eq(reservations.id, reservationId))
 
         // --- 6. Extension Network Product ---
@@ -221,9 +265,12 @@ export async function createNetworkProductBooking(
         // commission AVANT l'appel. Égalité prouvée par un test statique
         // (formule identique) ET par l'invariant Σ lignes = salePriceTnd
         // vérifié en base (lib/network/__tests__).
-        const commissionRateForEntitlements = networkMarginRule.commissionPercent ?? 0
+        const commissionRateForEntitlements =
+          networkMarginRule.commissionPercent ?? 0
         const commissionAmountForEntitlements =
-          Math.round(marginAmountTnd * (commissionRateForEntitlements / 100) * 100) / 100
+          Math.round(
+            marginAmountTnd * (commissionRateForEntitlements / 100) * 100,
+          ) / 100
 
         const { commissionAmount } = await recordReservationFinancials({
           tx,
@@ -296,10 +343,18 @@ export async function createNetworkProductBooking(
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur interne"
     if (message === "INSUFFICIENT_BALANCE") {
-      return { ok: false, error: "Solde de dépôt insuffisant pour cette réservation.", code: "INSUFFICIENT_BALANCE" }
+      return {
+        ok: false,
+        error: "Solde de dépôt insuffisant pour cette réservation.",
+        code: "INSUFFICIENT_BALANCE",
+      }
     }
     if (message === "WALLET_DEBIT_FAILED") {
-      return { ok: false, error: "Échec du débit du compte de dépôt.", code: "WALLET_DEBIT_FAILED" }
+      return {
+        ok: false,
+        error: "Échec du débit du compte de dépôt.",
+        code: "WALLET_DEBIT_FAILED",
+      }
     }
     return { ok: false, error: message }
   }

@@ -122,8 +122,12 @@ export function HotelsTunisieSearch({
   // en gardant l'arrivée bloquée sur aujourd'hui — reproduit et confirmé en
   // E2E réel avant ce correctif. Partir d'une sélection vide élimine cette
   // ambiguïté : le premier clic pose toujours l'arrivée.
-  const [checkinDate, setCheckinDate] = useState<Date | null>(initialCheckin ?? null)
-  const [checkoutDate, setCheckoutDate] = useState<Date | null>(initialCheckout ?? null)
+  const [checkinDate, setCheckinDate] = useState<Date | null>(
+    initialCheckin ?? null,
+  )
+  const [checkoutDate, setCheckoutDate] = useState<Date | null>(
+    initialCheckout ?? null,
+  )
 
   // Pax state
   const [rooms, setRooms] = useState(initialRooms)
@@ -133,7 +137,8 @@ export function HotelsTunisieSearch({
   // le schéma MyGo (`Pax.Child: number[]`) attend déjà, donc aucune
   // modification du contrat d'API : on ajoute juste un âge par défaut selon
   // le bouton cliqué (1 an pour un bébé, 5 ans pour un enfant).
-  const [childrenAges, setChildrenAges] = useState<number[]>(initialChildrenAges)
+  const [childrenAges, setChildrenAges] =
+    useState<number[]>(initialChildrenAges)
   const [paxPopoverOpen, setPaxPopoverOpen] = useState(false)
 
   const babiesCount = childrenAges.filter((age) => age <= 2).length
@@ -205,7 +210,10 @@ export function HotelsTunisieSearch({
     // pour que la disponibilité/prix reflètent la vraie composition du
     // groupe plutôt qu'une seule chambre agrégée.
     if (rooms > 1) {
-      params.set("rooms", encodeRoomsParam(splitIntoRooms(rooms, adults, childrenAges)))
+      params.set(
+        "rooms",
+        encodeRoomsParam(splitIntoRooms(rooms, adults, childrenAges)),
+      )
     }
 
     onSearchSubmit?.()
@@ -360,10 +368,15 @@ export function HotelsTunisieSearch({
             <PopoverTrigger asChild>
               <button type="button" className={FIELD_SHELL}>
                 <FieldLabel icon={Users}>{tCommon("voyageurs")}</FieldLabel>
-                <span className="truncate text-sm font-semibold">{paxDisplay}</span>
+                <span className="truncate text-sm font-semibold">
+                  {paxDisplay}
+                </span>
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[320px] rounded-2xl p-4 shadow-e2b-elevated" align="start">
+            <PopoverContent
+              className="shadow-e2b-elevated w-[320px] rounded-2xl p-4"
+              align="start"
+            >
               <div className="space-y-4">
                 {/* Rooms */}
                 <div className="flex items-center justify-between">
@@ -379,9 +392,7 @@ export function HotelsTunisieSearch({
                     >
                       <Minus className="size-3" />
                     </Button>
-                    <span className="w-6 text-center font-medium">
-                      {rooms}
-                    </span>
+                    <span className="w-6 text-center font-medium">{rooms}</span>
                     <Button
                       variant="outline"
                       size="icon"
@@ -434,7 +445,9 @@ export function HotelsTunisieSearch({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{t("childrenFieldLabel")}</p>
-                    <p className="text-muted-foreground text-xs">{t("childrenAgeHint")}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {t("childrenAgeHint")}
+                    </p>
                   </div>
                   <Button
                     variant="outline"
@@ -452,7 +465,9 @@ export function HotelsTunisieSearch({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{t("babiesFieldLabel")}</p>
-                    <p className="text-muted-foreground text-xs">{t("babiesAgeHint")}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {t("babiesAgeHint")}
+                    </p>
                   </div>
                   <Button
                     variant="outline"
@@ -473,7 +488,8 @@ export function HotelsTunisieSearch({
                     {childrenAges.map((age, index) => (
                       <div key={index} className="flex items-center gap-3">
                         <span className="text-muted-foreground w-16 text-sm">
-                          {age <= 2 ? t("babyWord") : t("childWord")} {index + 1}
+                          {age <= 2 ? t("babyWord") : t("childWord")}{" "}
+                          {index + 1}
                         </span>
                         <select
                           value={age}
@@ -552,7 +568,9 @@ export function HotelsTunisieSearch({
             >
               <Star className="size-3.5 fill-amber-400 text-amber-400" />
               {selectedStars.length > 0 ? (
-                <span>{selectedStars.join(", ")} {t("starsUnit")}</span>
+                <span>
+                  {selectedStars.join(", ")} {t("starsUnit")}
+                </span>
               ) : (
                 <span>{t("categoryFilter")}</span>
               )}

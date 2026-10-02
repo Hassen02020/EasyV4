@@ -67,7 +67,10 @@ export function addDaysLocal(date: Date, days: number): Date {
  * directement le `Date` sélectionné dans le calendrier) — jamais une
  * chaîne re-parsée ici.
  */
-export function calculateNights(checkIn: Date | null, checkOut: Date | null): number {
+export function calculateNights(
+  checkIn: Date | null,
+  checkOut: Date | null,
+): number {
   if (!checkIn || !checkOut) return 0
   const nights = differenceInCalendarDays(checkOut, checkIn)
   return nights > 0 ? nights : 0

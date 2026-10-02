@@ -22,8 +22,20 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -39,7 +51,10 @@ import {
   Wallet,
 } from "lucide-react"
 import { createGuestOmraBooking } from "@/lib/omra/guest-booking-actions"
-import { omraGuestBookingSchema, type OmraGuestBookingInput } from "@/lib/omra/schemas"
+import {
+  omraGuestBookingSchema,
+  type OmraGuestBookingInput,
+} from "@/lib/omra/schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
@@ -76,13 +91,31 @@ const emptyPilgrim = {
   requiresSpecialAssistance: false,
 }
 
-function getMethods(
-  t: ReturnType<typeof useTranslations>,
-): { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] {
+function getMethods(t: ReturnType<typeof useTranslations>): {
+  key: GuestPaymentMethod
+  label: string
+  desc: string
+  icon: typeof CreditCard
+}[] {
   return [
-    { key: "card", label: t("paymentCardLabel"), desc: t("paymentCardDesc"), icon: CreditCard },
-    { key: "transfer", label: t("paymentTransferLabel"), desc: t("paymentTransferDesc"), icon: Banknote },
-    { key: "cash", label: t("paymentCashLabel"), desc: t("paymentCashDesc"), icon: Wallet },
+    {
+      key: "card",
+      label: t("paymentCardLabel"),
+      desc: t("paymentCardDesc"),
+      icon: CreditCard,
+    },
+    {
+      key: "transfer",
+      label: t("paymentTransferLabel"),
+      desc: t("paymentTransferDesc"),
+      icon: Banknote,
+    },
+    {
+      key: "cash",
+      label: t("paymentCashLabel"),
+      desc: t("paymentCashDesc"),
+      icon: Wallet,
+    },
   ]
 }
 
@@ -102,7 +135,9 @@ export function OmraGuestBookingForm({
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
   const [policyAccepted, setPolicyAccepted] = useState(false)
-  const [resolvedPolicy, setResolvedPolicy] = useState<ResolvedPolicy | null | undefined>(undefined)
+  const [resolvedPolicy, setResolvedPolicy] = useState<
+    ResolvedPolicy | null | undefined
+  >(undefined)
 
   const form = useForm<OmraGuestBookingInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,11 +149,19 @@ export function OmraGuestBookingForm({
     },
   })
 
-  const { fields, append, remove } = useFieldArray({ control: form.control, name: "pilgrims" })
-  const watchedDepartureDate = useWatch({ control: form.control, name: "departureDate" })
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "pilgrims",
+  })
+  const watchedDepartureDate = useWatch({
+    control: form.control,
+    name: "departureDate",
+  })
   const watchedPilgrims = useWatch({ control: form.control, name: "pilgrims" })
 
-  const selectedDeparture = departures.find((d) => d.departureDate === watchedDepartureDate)
+  const selectedDeparture = departures.find(
+    (d) => d.departureDate === watchedDepartureDate,
+  )
   const pricePerPilgrim = selectedDeparture?.price ?? basePrice
   const totalPrice = pricePerPilgrim * watchedPilgrims.length
 
@@ -148,7 +191,9 @@ export function OmraGuestBookingForm({
         setIsSubmitting(false)
         return
       }
-      router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+      router.push(
+        `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
+      )
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
@@ -174,7 +219,9 @@ export function OmraGuestBookingForm({
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">{packageName}</p>
-            <p className="text-muted-foreground text-xs">{t("daysCount", { days: durationDays })}</p>
+            <p className="text-muted-foreground text-xs">
+              {t("daysCount", { days: durationDays })}
+            </p>
             <Select
               value={watchedDepartureDate}
               onValueChange={(v) => form.setValue("departureDate", v)}
@@ -186,8 +233,14 @@ export function OmraGuestBookingForm({
                 {departures.map((d) => (
                   <SelectItem key={d.departureDate} value={d.departureDate}>
                     <div className="flex items-center justify-between gap-4">
-                      <span>{new Date(d.departureDate).toLocaleDateString("fr-FR")}</span>
-                      <Badge variant={d.availableCount > 10 ? "default" : "destructive"}>
+                      <span>
+                        {new Date(d.departureDate).toLocaleDateString("fr-FR")}
+                      </span>
+                      <Badge
+                        variant={
+                          d.availableCount > 10 ? "default" : "destructive"
+                        }
+                      >
                         {t("seatsAvailable", { count: d.availableCount })}
                       </Badge>
                     </div>
@@ -196,7 +249,9 @@ export function OmraGuestBookingForm({
               </SelectContent>
             </Select>
             {form.formState.errors.departureDate ? (
-              <p className="text-destructive text-sm">{form.formState.errors.departureDate.message}</p>
+              <p className="text-destructive text-sm">
+                {form.formState.errors.departureDate.message}
+              </p>
             ) : null}
           </CardContent>
         </Card>
@@ -224,9 +279,14 @@ export function OmraGuestBookingForm({
           </CardHeader>
           <CardContent className="space-y-6">
             {fields.map((field, index) => (
-              <div key={field.id} className="relative space-y-4 rounded-lg border p-4">
+              <div
+                key={field.id}
+                className="relative space-y-4 rounded-lg border p-4"
+              >
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">{t("pilgrimNumber", { n: index + 1 })}</h3>
+                  <h3 className="font-semibold">
+                    {t("pilgrimNumber", { n: index + 1 })}
+                  </h3>
                   {fields.length > 1 ? (
                     <Button
                       type="button"
@@ -241,35 +301,78 @@ export function OmraGuestBookingForm({
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label={t("firstNameLabel")} error={form.formState.errors.pilgrims?.[index]?.firstName?.message}>
-                    <Input {...form.register(`pilgrims.${index}.firstName`)} placeholder="Ahmed" />
+                  <Field
+                    label={t("firstNameLabel")}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.firstName
+                        ?.message
+                    }
+                  >
+                    <Input
+                      {...form.register(`pilgrims.${index}.firstName`)}
+                      placeholder="Ahmed"
+                    />
                   </Field>
-                  <Field label={t("lastNameLabel")} error={form.formState.errors.pilgrims?.[index]?.lastName?.message}>
-                    <Input {...form.register(`pilgrims.${index}.lastName`)} placeholder="Ben Ali" />
+                  <Field
+                    label={t("lastNameLabel")}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.lastName?.message
+                    }
+                  >
+                    <Input
+                      {...form.register(`pilgrims.${index}.lastName`)}
+                      placeholder="Ben Ali"
+                    />
                   </Field>
-                  <Field label={t("birthDateLabel")} error={form.formState.errors.pilgrims?.[index]?.birthDate?.message}>
-                    <Input type="date" {...form.register(`pilgrims.${index}.birthDate`)} />
+                  <Field
+                    label={t("birthDateLabel")}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.birthDate
+                        ?.message
+                    }
+                  >
+                    <Input
+                      type="date"
+                      {...form.register(`pilgrims.${index}.birthDate`)}
+                    />
                   </Field>
                 </div>
 
                 <Separator />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label={t("nationalityLabel")} error={form.formState.errors.pilgrims?.[index]?.nationality?.message}>
-                    <Input {...form.register(`pilgrims.${index}.nationality`)} placeholder="TN" maxLength={2} />
+                  <Field
+                    label={t("nationalityLabel")}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.nationality
+                        ?.message
+                    }
+                  >
+                    <Input
+                      {...form.register(`pilgrims.${index}.nationality`)}
+                      placeholder="TN"
+                      maxLength={2}
+                    />
                   </Field>
                   <div className="space-y-2">
                     <Label>{t("genderLabel")}</Label>
                     <Select
                       value={watchedPilgrims[index]?.gender}
-                      onValueChange={(v) => form.setValue(`pilgrims.${index}.gender`, v as "male" | "female")}
+                      onValueChange={(v) =>
+                        form.setValue(
+                          `pilgrims.${index}.gender`,
+                          v as "male" | "female",
+                        )
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="male">{t("gender.male")}</SelectItem>
-                        <SelectItem value="female">{t("gender.female")}</SelectItem>
+                        <SelectItem value="female">
+                          {t("gender.female")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -278,17 +381,28 @@ export function OmraGuestBookingForm({
                     <Select
                       value={watchedPilgrims[index]?.maritalStatus}
                       onValueChange={(v) =>
-                        form.setValue(`pilgrims.${index}.maritalStatus`, v as "single" | "married" | "widowed" | "divorced")
+                        form.setValue(
+                          `pilgrims.${index}.maritalStatus`,
+                          v as "single" | "married" | "widowed" | "divorced",
+                        )
                       }
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="single">{t("maritalStatus.single")}</SelectItem>
-                        <SelectItem value="married">{t("maritalStatus.married")}</SelectItem>
-                        <SelectItem value="widowed">{t("maritalStatus.widowed")}</SelectItem>
-                        <SelectItem value="divorced">{t("maritalStatus.divorced")}</SelectItem>
+                        <SelectItem value="single">
+                          {t("maritalStatus.single")}
+                        </SelectItem>
+                        <SelectItem value="married">
+                          {t("maritalStatus.married")}
+                        </SelectItem>
+                        <SelectItem value="widowed">
+                          {t("maritalStatus.widowed")}
+                        </SelectItem>
+                        <SelectItem value="divorced">
+                          {t("maritalStatus.divorced")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -297,14 +411,28 @@ export function OmraGuestBookingForm({
                 <Separator />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label={t("phoneLabel")} error={form.formState.errors.pilgrims?.[index]?.phone?.message}>
-                    <Input {...form.register(`pilgrims.${index}.phone`)} placeholder="+216 98 123 456" />
+                  <Field
+                    label={t("phoneLabel")}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.phone?.message
+                    }
+                  >
+                    <Input
+                      {...form.register(`pilgrims.${index}.phone`)}
+                      placeholder="+216 98 123 456"
+                    />
                   </Field>
                   <Field
                     label={index === 0 ? t("emailGroupLabel") : t("emailLabel")}
-                    error={form.formState.errors.pilgrims?.[index]?.email?.message}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.email?.message
+                    }
                   >
-                    <Input type="email" {...form.register(`pilgrims.${index}.email`)} placeholder="email@example.com" />
+                    <Input
+                      type="email"
+                      {...form.register(`pilgrims.${index}.email`)}
+                      placeholder="email@example.com"
+                    />
                   </Field>
                 </div>
 
@@ -313,27 +441,54 @@ export function OmraGuestBookingForm({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <Field
                     label={t("passportNumberLabel")}
-                    error={form.formState.errors.pilgrims?.[index]?.passportNumber?.message}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.passportNumber
+                        ?.message
+                    }
                   >
-                    <Input {...form.register(`pilgrims.${index}.passportNumber`)} placeholder="A12345678" />
+                    <Input
+                      {...form.register(`pilgrims.${index}.passportNumber`)}
+                      placeholder="A12345678"
+                    />
                   </Field>
                   <Field
                     label={t("passportIssuingCountryLabel")}
-                    error={form.formState.errors.pilgrims?.[index]?.passportIssuingCountry?.message}
+                    error={
+                      form.formState.errors.pilgrims?.[index]
+                        ?.passportIssuingCountry?.message
+                    }
                   >
-                    <Input {...form.register(`pilgrims.${index}.passportIssuingCountry`)} placeholder="TN" maxLength={2} />
+                    <Input
+                      {...form.register(
+                        `pilgrims.${index}.passportIssuingCountry`,
+                      )}
+                      placeholder="TN"
+                      maxLength={2}
+                    />
                   </Field>
                   <Field
                     label={t("passportIssueDateLabel")}
-                    error={form.formState.errors.pilgrims?.[index]?.passportIssueDate?.message}
+                    error={
+                      form.formState.errors.pilgrims?.[index]?.passportIssueDate
+                        ?.message
+                    }
                   >
-                    <Input type="date" {...form.register(`pilgrims.${index}.passportIssueDate`)} />
+                    <Input
+                      type="date"
+                      {...form.register(`pilgrims.${index}.passportIssueDate`)}
+                    />
                   </Field>
                   <Field
                     label={t("passportExpiryDateLabel")}
-                    error={form.formState.errors.pilgrims?.[index]?.passportExpiryDate?.message}
+                    error={
+                      form.formState.errors.pilgrims?.[index]
+                        ?.passportExpiryDate?.message
+                    }
                   >
-                    <Input type="date" {...form.register(`pilgrims.${index}.passportExpiryDate`)} />
+                    <Input
+                      type="date"
+                      {...form.register(`pilgrims.${index}.passportExpiryDate`)}
+                    />
                   </Field>
                 </div>
 
@@ -342,18 +497,29 @@ export function OmraGuestBookingForm({
                   <Select
                     value={watchedPilgrims[index]?.roomType}
                     onValueChange={(v) =>
-                      form.setValue(`pilgrims.${index}.roomType`, v as "single" | "double" | "triple" | "quad" | "suite")
+                      form.setValue(
+                        `pilgrims.${index}.roomType`,
+                        v as "single" | "double" | "triple" | "quad" | "suite",
+                      )
                     }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={t("chooseRoomType")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="single">{t("roomType.single")}</SelectItem>
-                      <SelectItem value="double">{t("roomType.double")}</SelectItem>
-                      <SelectItem value="triple">{t("roomType.triple")}</SelectItem>
+                      <SelectItem value="single">
+                        {t("roomType.single")}
+                      </SelectItem>
+                      <SelectItem value="double">
+                        {t("roomType.double")}
+                      </SelectItem>
+                      <SelectItem value="triple">
+                        {t("roomType.triple")}
+                      </SelectItem>
                       <SelectItem value="quad">{t("roomType.quad")}</SelectItem>
-                      <SelectItem value="suite">{t("roomType.suite")}</SelectItem>
+                      <SelectItem value="suite">
+                        {t("roomType.suite")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -387,27 +553,42 @@ export function OmraGuestBookingForm({
                   onClick={() => setMethod(m.key)}
                   className={
                     "flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-all " +
-                    (active ? "border-sidebar bg-sidebar/5 shadow-sm" : "border-border hover:border-foreground/30")
+                    (active
+                      ? "border-sidebar bg-sidebar/5 shadow-sm"
+                      : "border-border hover:border-foreground/30")
                   }
                 >
                   <span
                     className={
                       "mt-0.5 inline-flex size-9 items-center justify-center rounded-md " +
-                      (active ? "bg-sidebar text-white" : "bg-muted text-muted-foreground")
+                      (active
+                        ? "bg-sidebar text-white"
+                        : "bg-muted text-muted-foreground")
                     }
                   >
                     <Icon className="size-5" />
                   </span>
                   <span className="flex-1">
-                    <span className="block text-sm font-semibold">{m.label}</span>
-                    <span className="text-muted-foreground text-xs">{m.desc}</span>
+                    <span className="block text-sm font-semibold">
+                      {m.label}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {m.desc}
+                    </span>
                   </span>
                 </button>
               )
             })}
             <div className="flex items-start gap-2 pt-2">
-              <Checkbox id="cgv-omra" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
-              <Label htmlFor="cgv-omra" className="text-muted-foreground text-sm leading-snug">
+              <Checkbox
+                id="cgv-omra"
+                checked={acceptCgv}
+                onCheckedChange={(v) => setAcceptCgv(Boolean(v))}
+              />
+              <Label
+                htmlFor="cgv-omra"
+                className="text-muted-foreground text-sm leading-snug"
+              >
                 {t("acceptCgv")}
               </Label>
             </div>
@@ -429,12 +610,16 @@ export function OmraGuestBookingForm({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm">{t("pricePerPilgrim")}</span>
-              <span className="font-semibold">{pricePerPilgrim.toFixed(3)} DT</span>
+              <span className="font-semibold">
+                {pricePerPilgrim.toFixed(3)} DT
+              </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between text-lg">
               <span className="font-semibold">{t("totalTtc")}</span>
-              <span className="font-bold text-emerald-700">{totalPrice.toFixed(3)} DT</span>
+              <span className="font-bold text-emerald-700">
+                {totalPrice.toFixed(3)} DT
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -443,7 +628,12 @@ export function OmraGuestBookingForm({
           type="submit"
           size="lg"
           className="w-full"
-          disabled={isSubmitting || !watchedDepartureDate || !acceptCgv || policyAcceptanceRequired}
+          disabled={
+            isSubmitting ||
+            !watchedDepartureDate ||
+            !acceptCgv ||
+            policyAcceptanceRequired
+          }
         >
           {isSubmitting ? (
             <>

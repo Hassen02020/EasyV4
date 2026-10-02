@@ -49,7 +49,12 @@ export { ARABIC_FONT_FAMILY }
 /* -------------------------------------------------------------------------- */
 
 export const baseStyles = StyleSheet.create({
-  page: { padding: 40, fontFamily: "Helvetica", fontSize: 10, color: "#1f2937" },
+  page: {
+    padding: 40,
+    fontFamily: "Helvetica",
+    fontSize: 10,
+    color: "#1f2937",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -60,9 +65,24 @@ export const baseStyles = StyleSheet.create({
   },
   brand: { fontSize: 20, fontFamily: "Helvetica-Bold", color: BRAND.primary },
   subtitle: { fontSize: 9, color: BRAND.muted, marginTop: 2 },
-  refBox: { backgroundColor: BRAND.bg, padding: 10, borderRadius: 4, alignItems: "flex-end" },
-  refLabel: { fontSize: 8, color: BRAND.muted, textTransform: "uppercase", letterSpacing: 0.5 },
-  refValue: { fontSize: 14, fontFamily: "Helvetica-Bold", color: BRAND.primary, marginTop: 2 },
+  refBox: {
+    backgroundColor: BRAND.bg,
+    padding: 10,
+    borderRadius: 4,
+    alignItems: "flex-end",
+  },
+  refLabel: {
+    fontSize: 8,
+    color: BRAND.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  refValue: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Bold",
+    color: BRAND.primary,
+    marginTop: 2,
+  },
   sectionTitle: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
@@ -73,7 +93,11 @@ export const baseStyles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   table: { marginTop: 4, border: `1px solid ${BRAND.border}`, borderRadius: 4 },
-  row: { flexDirection: "row", borderBottom: `1px solid ${BRAND.border}`, minHeight: 28 },
+  row: {
+    flexDirection: "row",
+    borderBottom: `1px solid ${BRAND.border}`,
+    minHeight: 28,
+  },
   rowLast: { flexDirection: "row", minHeight: 28 },
   cellLabel: {
     width: "40%",
@@ -91,7 +115,12 @@ export const baseStyles = StyleSheet.create({
     borderRadius: 4,
     padding: 12,
   },
-  totalLabel: { flex: 1, fontSize: 11, color: "#ffffff", fontFamily: "Helvetica-Bold" },
+  totalLabel: {
+    flex: 1,
+    fontSize: 11,
+    color: "#ffffff",
+    fontFamily: "Helvetica-Bold",
+  },
   totalValue: { fontSize: 14, color: "#ffffff", fontFamily: "Helvetica-Bold" },
   footer: {
     position: "absolute",
@@ -146,19 +175,31 @@ export function getPageStyle(rtl: boolean) {
 
 export function getSectionTitleStyle(rtl: boolean) {
   return rtl
-    ? { ...baseStyles.sectionTitle, fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const }
+    ? {
+        ...baseStyles.sectionTitle,
+        fontFamily: ARABIC_FONT_FAMILY,
+        textAlign: "right" as const,
+      }
     : baseStyles.sectionTitle
 }
 
 export function getCellLabelStyle(rtl: boolean) {
   return rtl
-    ? { ...baseStyles.cellLabel, fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const }
+    ? {
+        ...baseStyles.cellLabel,
+        fontFamily: ARABIC_FONT_FAMILY,
+        textAlign: "right" as const,
+      }
     : baseStyles.cellLabel
 }
 
 export function getCellValueStyle(rtl: boolean) {
   return rtl
-    ? { ...baseStyles.cellValue, fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const }
+    ? {
+        ...baseStyles.cellValue,
+        fontFamily: ARABIC_FONT_FAMILY,
+        textAlign: "right" as const,
+      }
     : baseStyles.cellValue
 }
 
@@ -172,7 +213,10 @@ export function getRowStyle(rtl: boolean, isLast = false) {
 /* -------------------------------------------------------------------------- */
 
 export function formatTnd(v: number): string {
-  return v.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return v.toLocaleString("fr-FR", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
 }
 
 /* -------------------------------------------------------------------------- */
@@ -192,14 +236,26 @@ export function VoucherHeader({
 }) {
   const textStyle = rtl ? { fontFamily: ARABIC_FONT_FAMILY } : {}
   return (
-    <View style={rtl ? { ...baseStyles.header, flexDirection: "row-reverse" } : baseStyles.header}>
+    <View
+      style={
+        rtl
+          ? { ...baseStyles.header, flexDirection: "row-reverse" }
+          : baseStyles.header
+      }
+    >
       <View>
         <Text style={{ ...baseStyles.brand, ...textStyle }}>Easy2Book</Text>
         <Text style={{ ...baseStyles.subtitle, ...textStyle }}>{title}</Text>
       </View>
-      <View style={[baseStyles.refBox, rtl ? { alignItems: "flex-start" } : {}]}>
-        <Text style={{ ...baseStyles.refLabel, ...textStyle }}>{bookingRefLabel}</Text>
-        <Text style={{ ...baseStyles.refValue, ...textStyle }}>{publicRef}</Text>
+      <View
+        style={[baseStyles.refBox, rtl ? { alignItems: "flex-start" } : {}]}
+      >
+        <Text style={{ ...baseStyles.refLabel, ...textStyle }}>
+          {bookingRefLabel}
+        </Text>
+        <Text style={{ ...baseStyles.refValue, ...textStyle }}>
+          {publicRef}
+        </Text>
       </View>
     </View>
   )
@@ -216,9 +272,17 @@ export function VoucherTotal({
 }) {
   const textStyle = rtl ? { fontFamily: ARABIC_FONT_FAMILY } : {}
   return (
-    <View style={rtl ? { ...baseStyles.totalRow, flexDirection: "row-reverse" } : baseStyles.totalRow}>
+    <View
+      style={
+        rtl
+          ? { ...baseStyles.totalRow, flexDirection: "row-reverse" }
+          : baseStyles.totalRow
+      }
+    >
       <Text style={{ ...baseStyles.totalLabel, ...textStyle }}>{label}</Text>
-      <Text style={{ ...baseStyles.totalValue, ...textStyle }}>{formatTnd(amount)} DT</Text>
+      <Text style={{ ...baseStyles.totalValue, ...textStyle }}>
+        {formatTnd(amount)} DT
+      </Text>
     </View>
   )
 }
@@ -251,14 +315,23 @@ export function VoucherFooter({
   generatedOnLabel?: string
   rtl?: boolean
 }) {
-  const textStyle = rtl ? { ...baseStyles.footerText, fontFamily: ARABIC_FONT_FAMILY } : baseStyles.footerText
+  const textStyle = rtl
+    ? { ...baseStyles.footerText, fontFamily: ARABIC_FONT_FAMILY }
+    : baseStyles.footerText
   return (
-    <View style={rtl ? { ...baseStyles.footer, flexDirection: "row-reverse" } : baseStyles.footer}>
+    <View
+      style={
+        rtl
+          ? { ...baseStyles.footer, flexDirection: "row-reverse" }
+          : baseStyles.footer
+      }
+    >
       <Text style={textStyle}>
         {agencyName ?? "Easy2Book"} — {agencyPhone ?? "+216 70 000 000"}
       </Text>
       <Text style={textStyle}>
-        {generatedOnLabel} {new Date().toLocaleDateString(rtl ? "ar-TN" : "fr-FR")}
+        {generatedOnLabel}{" "}
+        {new Date().toLocaleDateString(rtl ? "ar-TN" : "fr-FR")}
       </Text>
     </View>
   )
@@ -284,18 +357,28 @@ export function VoucherAgencyContact({
   rtl?: boolean
 }) {
   if (!email && !website && !whatsapp) return null
-  const textStyle = rtl ? { fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const } : {}
+  const textStyle = rtl
+    ? { fontFamily: ARABIC_FONT_FAMILY, textAlign: "right" as const }
+    : {}
   return (
     <View style={baseStyles.agencyBox}>
-      <Text style={{ ...baseStyles.agencyBoxTitle, ...textStyle }}>{title}</Text>
+      <Text style={{ ...baseStyles.agencyBoxTitle, ...textStyle }}>
+        {title}
+      </Text>
       {email ? (
-        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>{emailLabel} : {email}</Text>
+        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>
+          {emailLabel} : {email}
+        </Text>
       ) : null}
       {whatsapp ? (
-        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>{whatsappLabel} : {whatsapp}</Text>
+        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>
+          {whatsappLabel} : {whatsapp}
+        </Text>
       ) : null}
       {website ? (
-        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>{websiteLabel} : {website}</Text>
+        <Text style={{ ...baseStyles.agencyBoxText, ...textStyle }}>
+          {websiteLabel} : {website}
+        </Text>
       ) : null}
     </View>
   )

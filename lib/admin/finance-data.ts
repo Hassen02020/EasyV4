@@ -73,50 +73,51 @@ export async function loadFinanceKpis(): Promise<FinanceKpis> {
 
   try {
     // Vue cross-agence (KPIs plateforme) : is_super_admin=true requis.
-    const [creditsRow, debitsRow, pendingRow, balanceRow] = await withTenantContext(
-      { agencyId: null, userId: "", isSuperAdmin: true },
-      (db) =>
-        Promise.all([
-      db
-        .select({
-          total: sql<string>`COALESCE(SUM(${partnerCreditMovements.amount}::numeric), 0)`,
-        })
-        .from(partnerCreditMovements)
-        .where(
-          and(
-            eq(partnerCreditMovements.movementType, "credit"),
-            gte(partnerCreditMovements.createdAt, since),
-          ),
-        ),
+    const [creditsRow, debitsRow, pendingRow, balanceRow] =
+      await withTenantContext(
+        { agencyId: null, userId: "", isSuperAdmin: true },
+        (db) =>
+          Promise.all([
+            db
+              .select({
+                total: sql<string>`COALESCE(SUM(${partnerCreditMovements.amount}::numeric), 0)`,
+              })
+              .from(partnerCreditMovements)
+              .where(
+                and(
+                  eq(partnerCreditMovements.movementType, "credit"),
+                  gte(partnerCreditMovements.createdAt, since),
+                ),
+              ),
 
-      db
-        .select({
-          total: sql<string>`COALESCE(SUM(ABS(${partnerCreditMovements.amount}::numeric)), 0)`,
-        })
-        .from(partnerCreditMovements)
-        .where(
-          and(
-            eq(partnerCreditMovements.movementType, "debit"),
-            gte(partnerCreditMovements.createdAt, since),
-          ),
-        ),
+            db
+              .select({
+                total: sql<string>`COALESCE(SUM(ABS(${partnerCreditMovements.amount}::numeric)), 0)`,
+              })
+              .from(partnerCreditMovements)
+              .where(
+                and(
+                  eq(partnerCreditMovements.movementType, "debit"),
+                  gte(partnerCreditMovements.createdAt, since),
+                ),
+              ),
 
-      db
-        .select({
-          cnt: count(walletRechargeRequests.id),
-          total: sql<string>`COALESCE(SUM(${walletRechargeRequests.amount}::numeric), 0)`,
-        })
-        .from(walletRechargeRequests)
-        .where(eq(walletRechargeRequests.status, "pending")),
+            db
+              .select({
+                cnt: count(walletRechargeRequests.id),
+                total: sql<string>`COALESCE(SUM(${walletRechargeRequests.amount}::numeric), 0)`,
+              })
+              .from(walletRechargeRequests)
+              .where(eq(walletRechargeRequests.status, "pending")),
 
-      db
-        .select({
-          total: sql<string>`COALESCE(SUM(${agencies.depositBalance}::numeric), 0)`,
-        })
-        .from(agencies)
-        .where(eq(agencies.status, "active")),
-        ]),
-    )
+            db
+              .select({
+                total: sql<string>`COALESCE(SUM(${agencies.depositBalance}::numeric), 0)`,
+              })
+              .from(agencies)
+              .where(eq(agencies.status, "active")),
+          ]),
+      )
 
     return {
       totalCreditsMonth: parseFloat(creditsRow[0]?.total ?? "0"),
@@ -169,10 +170,7 @@ export async function loadFinanceMovements(
         ? eq(partnerCreditMovements.agencyId, opts.agencyId)
         : undefined,
       opts.movementType
-        ? eq(
-            partnerCreditMovements.movementType,
-            opts.movementType as "credit",
-          )
+        ? eq(partnerCreditMovements.movementType, opts.movementType as "credit")
         : undefined,
       opts.since
         ? gte(partnerCreditMovements.createdAt, opts.since)
@@ -189,30 +187,28 @@ export async function loadFinanceMovements(
     const rows = await withTenantContext(
       { agencyId: opts.agencyId ?? null, userId: "", isSuperAdmin: true },
       (db) =>
-    db
-      .select({
-        id: partnerCreditMovements.id,
-        agencyId: partnerCreditMovements.agencyId,
-        agencyName: sql<string>`COALESCE(${agencies.brandName}, ${agencies.name}, '')`,
-        movementType: partnerCreditMovements.movementType,
-        amount: partnerCreditMovements.amount,
-        balanceAfter: partnerCreditMovements.balanceAfter,
-        reference: partnerCreditMovements.reference,
-        description: partnerCreditMovements.description,
-        createdAt: partnerCreditMovements.createdAt,
-      })
-      .from(partnerCreditMovements)
-      .leftJoin(agencies, eq(agencies.id, partnerCreditMovements.agencyId))
-      .where(where)
-      .orderBy(desc(partnerCreditMovements.createdAt))
-      .limit(limit + 1),
+        db
+          .select({
+            id: partnerCreditMovements.id,
+            agencyId: partnerCreditMovements.agencyId,
+            agencyName: sql<string>`COALESCE(${agencies.brandName}, ${agencies.name}, '')`,
+            movementType: partnerCreditMovements.movementType,
+            amount: partnerCreditMovements.amount,
+            balanceAfter: partnerCreditMovements.balanceAfter,
+            reference: partnerCreditMovements.reference,
+            description: partnerCreditMovements.description,
+            createdAt: partnerCreditMovements.createdAt,
+          })
+          .from(partnerCreditMovements)
+          .leftJoin(agencies, eq(agencies.id, partnerCreditMovements.agencyId))
+          .where(where)
+          .orderBy(desc(partnerCreditMovements.createdAt))
+          .limit(limit + 1),
     )
 
     const hasMore = rows.length > limit
     const pageRows = hasMore ? rows.slice(0, limit) : rows
-    const nextCursor = hasMore
-      ? pageRows.at(-1)!.createdAt.toISOString()
-      : null
+    const nextCursor = hasMore ? pageRows.at(-1)!.createdAt.toISOString() : null
 
     return {
       rows: pageRows.map((r) => ({
@@ -269,25 +265,25 @@ export async function loadRechargeRequests(
     const rows = await withTenantContext(
       { agencyId: opts.agencyId ?? null, userId: "", isSuperAdmin: true },
       (db) =>
-    db
-      .select({
-        id: walletRechargeRequests.id,
-        agencyId: walletRechargeRequests.agencyId,
-        agencyName: sql<string>`COALESCE(${agencies.brandName}, ${agencies.name}, '')`,
-        amount: walletRechargeRequests.amount,
-        method: walletRechargeRequests.method,
-        paymentReference: walletRechargeRequests.paymentReference,
-        note: walletRechargeRequests.note,
-        status: walletRechargeRequests.status,
-        proofUrl: walletRechargeRequests.proofUrl,
-        createdAt: walletRechargeRequests.createdAt,
-        reviewedAt: walletRechargeRequests.reviewedAt,
-      })
-      .from(walletRechargeRequests)
-      .leftJoin(agencies, eq(agencies.id, walletRechargeRequests.agencyId))
-      .where(where)
-      .orderBy(desc(walletRechargeRequests.createdAt))
-      .limit(limit),
+        db
+          .select({
+            id: walletRechargeRequests.id,
+            agencyId: walletRechargeRequests.agencyId,
+            agencyName: sql<string>`COALESCE(${agencies.brandName}, ${agencies.name}, '')`,
+            amount: walletRechargeRequests.amount,
+            method: walletRechargeRequests.method,
+            paymentReference: walletRechargeRequests.paymentReference,
+            note: walletRechargeRequests.note,
+            status: walletRechargeRequests.status,
+            proofUrl: walletRechargeRequests.proofUrl,
+            createdAt: walletRechargeRequests.createdAt,
+            reviewedAt: walletRechargeRequests.reviewedAt,
+          })
+          .from(walletRechargeRequests)
+          .leftJoin(agencies, eq(agencies.id, walletRechargeRequests.agencyId))
+          .where(where)
+          .orderBy(desc(walletRechargeRequests.createdAt))
+          .limit(limit),
     )
 
     return rows.map((r) => ({

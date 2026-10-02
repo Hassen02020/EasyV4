@@ -83,10 +83,10 @@ export const FlightOfferSchema = z.object({
 export type FlightOffer = z.infer<typeof FlightOfferSchema>
 
 export interface FlightSearchInput {
-  originCode: string      // IATA airport code (ex: TUN)
+  originCode: string // IATA airport code (ex: TUN)
   destinationCode: string // IATA airport code (ex: CDG)
-  departureDate: string   // YYYY-MM-DD
-  returnDate?: string     // YYYY-MM-DD (null = one-way)
+  departureDate: string // YYYY-MM-DD
+  returnDate?: string // YYYY-MM-DD (null = one-way)
   adults: number
   children?: number
   cabin?: "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST"

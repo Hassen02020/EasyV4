@@ -182,10 +182,19 @@ Record<string, any> & {
     >
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
-        {(payload as { name?: string; dataKey?: string | number; color?: string; value?: number; payload?: Record<string, unknown> }[]).map((item, index: number) => {
+        {(
+          payload as {
+            name?: string
+            dataKey?: string | number
+            color?: string
+            value?: number
+            payload?: Record<string, unknown>
+          }[]
+        ).map((item, index: number) => {
           const key = `${nameKey || item.name || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
-          const indicatorColor = color || (item.payload?.fill as string | undefined) || item.color
+          const indicatorColor =
+            color || (item.payload?.fill as string | undefined) || item.color
 
           return (
             <div

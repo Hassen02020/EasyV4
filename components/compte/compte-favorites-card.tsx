@@ -17,7 +17,11 @@ import { useCurrency } from "@/components/currency-context"
 import { removeFavorite } from "@/app/actions/remove-favorite"
 import type { MyFavorite } from "@/app/actions/list-my-favorites"
 
-export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) {
+export function CompteFavoritesCard({
+  favorites,
+}: {
+  favorites: MyFavorite[]
+}) {
   const t = useTranslations("Compte")
   const { format } = useCurrency()
   const [items, setItems] = useState(favorites)
@@ -49,62 +53,65 @@ export function CompteFavoritesCard({ favorites }: { favorites: MyFavorite[] }) 
     <div className="bg-card border-border mb-6 rounded-2xl border p-4">
       <div className="mb-3 flex items-center gap-2">
         <Heart className="fill-destructive text-destructive h-4 w-4" />
-        <span className="text-foreground text-sm font-semibold">{t("myFavoritesTitle")}</span>
+        <span className="text-foreground text-sm font-semibold">
+          {t("myFavoritesTitle")}
+        </span>
       </div>
 
       {items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          {t("noFavoritesYet")}
-        </p>
+        <p className="text-muted-foreground text-sm">{t("noFavoritesYet")}</p>
       ) : (
-      <ul className="space-y-2">
-        {items.map((fav) => (
-          <li
-            key={fav.id}
-            className="border-border flex items-center gap-3 rounded-xl border p-2.5"
-          >
-            {fav.imageUrl ? (
-              <div
-                className="h-14 w-14 shrink-0 rounded-lg bg-cover bg-center"
-                style={{ backgroundImage: `url(${fav.imageUrl})` }}
-                role="img"
-                aria-label={fav.title}
-              />
-            ) : (
-              <div className="bg-muted h-14 w-14 shrink-0 rounded-lg" />
-            )}
-
-            <div className="min-w-0 flex-1">
-              <Link href={fav.href} className="text-foreground truncate text-sm font-medium hover:underline">
-                {fav.title}
-              </Link>
-              <p className="text-muted-foreground truncate text-xs">
-                {ITEM_TYPE_LABEL[fav.itemType]}
-                {fav.location ? ` · ${fav.location}` : ""}
-              </p>
-              {fav.priceFrom != null && (
-                <p className="text-foreground mt-0.5 text-xs font-semibold">
-                  {t("priceFrom", { price: format(Number(fav.priceFrom)) })}
-                </p>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleRemove(fav.id)}
-              disabled={removingId === fav.id}
-              className="text-muted-foreground hover:text-destructive flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60"
-              aria-label={t("removeFavoriteAria")}
+        <ul className="space-y-2">
+          {items.map((fav) => (
+            <li
+              key={fav.id}
+              className="border-border flex items-center gap-3 rounded-xl border p-2.5"
             >
-              {removingId === fav.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {fav.imageUrl ? (
+                <div
+                  className="h-14 w-14 shrink-0 rounded-lg bg-cover bg-center"
+                  style={{ backgroundImage: `url(${fav.imageUrl})` }}
+                  role="img"
+                  aria-label={fav.title}
+                />
               ) : (
-                <Trash2 className="h-4 w-4" />
+                <div className="bg-muted h-14 w-14 shrink-0 rounded-lg" />
               )}
-            </button>
-          </li>
-        ))}
-      </ul>
+
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={fav.href}
+                  className="text-foreground truncate text-sm font-medium hover:underline"
+                >
+                  {fav.title}
+                </Link>
+                <p className="text-muted-foreground truncate text-xs">
+                  {ITEM_TYPE_LABEL[fav.itemType]}
+                  {fav.location ? ` · ${fav.location}` : ""}
+                </p>
+                {fav.priceFrom != null && (
+                  <p className="text-foreground mt-0.5 text-xs font-semibold">
+                    {t("priceFrom", { price: format(Number(fav.priceFrom)) })}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleRemove(fav.id)}
+                disabled={removingId === fav.id}
+                className="text-muted-foreground hover:text-destructive flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60"
+                aria-label={t("removeFavoriteAria")}
+              >
+                {removingId === fav.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

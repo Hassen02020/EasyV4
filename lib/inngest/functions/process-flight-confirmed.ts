@@ -21,7 +21,9 @@ import type { CanonicalItinerary } from "@/lib/vols/canonical"
 
 const ACTION_FLIGHT_VOUCHER_SENT = "notification.flight_voucher_email.sent"
 
-async function hasFlightVoucherAlreadySent(reservationId: string): Promise<boolean> {
+async function hasFlightVoucherAlreadySent(
+  reservationId: string,
+): Promise<boolean> {
   const [existing] = await withSystemContext((tx) =>
     tx
       .select({ id: auditEvents.id })
@@ -81,7 +83,10 @@ export const processFlightConfirmed = inngest.createFunction(
     // Load PNR and itinerary from flight_bookings
     const [booking] = (await withSystemContext((tx) =>
       tx
-        .select({ pnr: flightBookings.pnr, itinerary: flightBookings.itinerary })
+        .select({
+          pnr: flightBookings.pnr,
+          itinerary: flightBookings.itinerary,
+        })
         .from(flightBookings)
         .where(eq(flightBookings.reservationId, d.reservationId))
         .limit(1),
@@ -90,7 +95,8 @@ export const processFlightConfirmed = inngest.createFunction(
     const itinerary = (booking?.itinerary ?? {}) as CanonicalItinerary
     const firstJourney = itinerary.journeys?.[0]
     const firstSeg = firstJourney?.segments?.[0]
-    const lastJourney = itinerary.journeys?.[itinerary.journeys.length - 1] ?? firstJourney
+    const lastJourney =
+      itinerary.journeys?.[itinerary.journeys.length - 1] ?? firstJourney
     const lastSeg = lastJourney?.segments?.[lastJourney.segments.length - 1]
 
     const voucherData: FlightVoucherData = {

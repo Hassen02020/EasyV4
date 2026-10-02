@@ -18,7 +18,16 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, User, Plane, Clock, ShoppingBag, CreditCard, Banknote, Building2 } from "lucide-react"
+import {
+  Loader2,
+  User,
+  Plane,
+  Clock,
+  ShoppingBag,
+  CreditCard,
+  Banknote,
+  Building2,
+} from "lucide-react"
 import { createFlightBookingRequest } from "@/lib/vols/booking-request-action"
 import type { Ancillary } from "@/lib/vols/canonical"
 
@@ -53,7 +62,14 @@ interface ContactFields {
 }
 
 function emptyPassenger(): PassengerFields {
-  return { firstName: "", lastName: "", birthDate: "", nationality: "", passportNumber: "", passportExpiry: "" }
+  return {
+    firstName: "",
+    lastName: "",
+    birthDate: "",
+    nationality: "",
+    passportNumber: "",
+    passportExpiry: "",
+  }
 }
 
 function emptyContact(): ContactFields {
@@ -87,12 +103,22 @@ export function PassengerBookingForm({
     Array.from({ length: Math.max(1, passengerCount) }, emptyPassenger),
   )
   const [contact, setContact] = useState<ContactFields>(emptyContact)
-  const [paymentMethod, setPaymentMethod] = useState<"transfer" | "cash">("transfer")
+  const [paymentMethod, setPaymentMethod] = useState<"transfer" | "cash">(
+    "transfer",
+  )
   // G7: set of selected ancillaryIds
-  const [selectedAncillaryIds, setSelectedAncillaryIds] = useState<Set<string>>(new Set())
+  const [selectedAncillaryIds, setSelectedAncillaryIds] = useState<Set<string>>(
+    new Set(),
+  )
 
-  function updatePassenger(i: number, field: keyof PassengerFields, value: string) {
-    setPassengers((prev) => prev.map((p, j) => (j === i ? { ...p, [field]: value } : p)))
+  function updatePassenger(
+    i: number,
+    field: keyof PassengerFields,
+    value: string,
+  ) {
+    setPassengers((prev) =>
+      prev.map((p, j) => (j === i ? { ...p, [field]: value } : p)),
+    )
   }
 
   function toggleAncillary(ancillaryId: string) {
@@ -128,15 +154,20 @@ export function PassengerBookingForm({
         },
         paymentMethod,
         // G7: only identifiers — no price from the browser
-        ancillaries: selectedAncillaryIds.size > 0
-          ? Array.from(selectedAncillaryIds).map((ancillaryId) => ({ ancillaryId }))
-          : undefined,
+        ancillaries:
+          selectedAncillaryIds.size > 0
+            ? Array.from(selectedAncillaryIds).map((ancillaryId) => ({
+                ancillaryId,
+              }))
+            : undefined,
       })
       if (!result.ok) {
         setError(result.error)
         return
       }
-      router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+      router.push(
+        `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
+      )
     } catch {
       setError(t("unknownError"))
     } finally {
@@ -175,7 +206,9 @@ export function PassengerBookingForm({
               id="contact-fn"
               required
               value={contact.firstName}
-              onChange={(e) => setContact((c) => ({ ...c, firstName: e.target.value }))}
+              onChange={(e) =>
+                setContact((c) => ({ ...c, firstName: e.target.value }))
+              }
             />
           </div>
           <div className="space-y-1">
@@ -184,7 +217,9 @@ export function PassengerBookingForm({
               id="contact-ln"
               required
               value={contact.lastName}
-              onChange={(e) => setContact((c) => ({ ...c, lastName: e.target.value }))}
+              onChange={(e) =>
+                setContact((c) => ({ ...c, lastName: e.target.value }))
+              }
             />
           </div>
           <div className="space-y-1">
@@ -194,7 +229,9 @@ export function PassengerBookingForm({
               type="email"
               required
               value={contact.email}
-              onChange={(e) => setContact((c) => ({ ...c, email: e.target.value }))}
+              onChange={(e) =>
+                setContact((c) => ({ ...c, email: e.target.value }))
+              }
             />
           </div>
           <div className="space-y-1">
@@ -203,7 +240,9 @@ export function PassengerBookingForm({
               id="contact-phone"
               type="tel"
               value={contact.phone}
-              onChange={(e) => setContact((c) => ({ ...c, phone: e.target.value }))}
+              onChange={(e) =>
+                setContact((c) => ({ ...c, phone: e.target.value }))
+              }
             />
           </div>
         </CardContent>
@@ -224,7 +263,9 @@ export function PassengerBookingForm({
               <Input
                 required
                 value={pax.firstName}
-                onChange={(e) => updatePassenger(i, "firstName", e.target.value)}
+                onChange={(e) =>
+                  updatePassenger(i, "firstName", e.target.value)
+                }
               />
             </div>
             <div className="space-y-1">
@@ -240,7 +281,9 @@ export function PassengerBookingForm({
               <Input
                 type="date"
                 value={pax.birthDate}
-                onChange={(e) => updatePassenger(i, "birthDate", e.target.value)}
+                onChange={(e) =>
+                  updatePassenger(i, "birthDate", e.target.value)
+                }
               />
             </div>
             <div className="space-y-1">
@@ -249,14 +292,22 @@ export function PassengerBookingForm({
                 maxLength={2}
                 placeholder="TN"
                 value={pax.nationality}
-                onChange={(e) => updatePassenger(i, "nationality", e.target.value.toUpperCase())}
+                onChange={(e) =>
+                  updatePassenger(
+                    i,
+                    "nationality",
+                    e.target.value.toUpperCase(),
+                  )
+                }
               />
             </div>
             <div className="space-y-1">
               <Label>{t("passportOrCinLabel")}</Label>
               <Input
                 value={pax.passportNumber}
-                onChange={(e) => updatePassenger(i, "passportNumber", e.target.value)}
+                onChange={(e) =>
+                  updatePassenger(i, "passportNumber", e.target.value)
+                }
               />
             </div>
           </CardContent>
@@ -293,11 +344,19 @@ export function PassengerBookingForm({
                     className="flex flex-1 cursor-pointer items-start justify-between gap-2"
                   >
                     <span className="space-y-0.5">
-                      <span className="block text-sm font-medium">{anc.description}</span>
-                      <span className="text-muted-foreground block text-xs">{typeLabel}</span>
+                      <span className="block text-sm font-medium">
+                        {anc.description}
+                      </span>
+                      <span className="text-muted-foreground block text-xs">
+                        {typeLabel}
+                      </span>
                     </span>
                     <span className="shrink-0 text-sm font-semibold text-sky-700">
-                      +{anc.amount.toLocaleString("fr-TN", { minimumFractionDigits: 3 })} {anc.currency}
+                      +
+                      {anc.amount.toLocaleString("fr-TN", {
+                        minimumFractionDigits: 3,
+                      })}{" "}
+                      {anc.currency}
                     </span>
                   </label>
                 </div>
@@ -332,7 +391,9 @@ export function PassengerBookingForm({
                 <Building2 className="h-3.5 w-3.5 text-sky-700" />
                 {t("methodTransfer")}
               </span>
-              <span className="text-muted-foreground block text-xs">{t("methodTransferDesc")}</span>
+              <span className="text-muted-foreground block text-xs">
+                {t("methodTransferDesc")}
+              </span>
             </span>
           </label>
           <label
@@ -351,7 +412,9 @@ export function PassengerBookingForm({
                 <Banknote className="h-3.5 w-3.5 text-sky-700" />
                 {t("methodCash")}
               </span>
-              <span className="text-muted-foreground block text-xs">{t("methodCashDesc")}</span>
+              <span className="text-muted-foreground block text-xs">
+                {t("methodCashDesc")}
+              </span>
             </span>
           </label>
         </CardContent>
@@ -375,7 +438,7 @@ export function PassengerBookingForm({
       <Button
         type="submit"
         disabled={submitting}
-        className="w-full bg-sky-700 hover:bg-sky-800 text-white"
+        className="w-full bg-sky-700 text-white hover:bg-sky-800"
         size="lg"
       >
         {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

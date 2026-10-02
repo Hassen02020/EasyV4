@@ -21,7 +21,10 @@ const DURATIONS = ["3-5", "6-8", "9-12", "13+"]
 function useUpcomingMonths(count = 18) {
   const locale = useLocale()
   return useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" })
+    const formatter = new Intl.DateTimeFormat(locale, {
+      month: "long",
+      year: "numeric",
+    })
     const now = new Date()
     return Array.from({ length: count }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
@@ -51,7 +54,7 @@ export function PackageSearch() {
   }
 
   return (
-    <div className="mb-8 rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="bg-card mb-8 rounded-2xl border p-6 shadow-sm">
       <h2 className="mb-6 text-lg font-semibold">{t("refineSearch")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
@@ -65,7 +68,7 @@ export function PackageSearch() {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <Calendar className="text-muted-foreground h-3.5 w-3.5" />
             {tCommon("duree")}
           </Label>
           <Select value={duration} onValueChange={setDuration}>
@@ -84,7 +87,7 @@ export function PackageSearch() {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <Calendar className="text-muted-foreground h-3.5 w-3.5" />
             {tCommon("moisDepart")}
           </Label>
           <Select value={month} onValueChange={setMonth}>
@@ -103,7 +106,7 @@ export function PackageSearch() {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <Users className="text-muted-foreground h-3.5 w-3.5" />
             {tCommon("voyageurs")}
           </Label>
           <Select value={travelers} onValueChange={setTravelers}>

@@ -24,32 +24,32 @@ import type { ExchangeRate } from "../exchange-rate"
 
 function makePolicy(overrides: Partial<FxPolicy> = {}): FxPolicy {
   return {
-    id:              "policy-uuid-1",
-    version:         1,
-    effectiveFrom:   new Date("2026-01-01T00:00:00Z"),
-    effectiveTo:     null,
-    correctionMode:  "NONE",
+    id: "policy-uuid-1",
+    version: 1,
+    effectiveFrom: new Date("2026-01-01T00:00:00Z"),
+    effectiveTo: null,
+    correctionMode: "NONE",
     correctionValue: 0,
-    bankFeeMode:     "NONE",
-    bankFeeFixed:    null,
-    bankFeePercent:  null,
-    bankFeeMin:      null,
-    bankFeeMax:      null,
+    bankFeeMode: "NONE",
+    bankFeeFixed: null,
+    bankFeePercent: null,
+    bankFeeMin: null,
+    bankFeeMax: null,
     bankFeeCurrency: "TND",
-    note:            null,
-    createdBy:       "super-admin-uuid",
-    createdAt:       new Date("2026-01-01T00:00:00Z"),
+    note: null,
+    createdBy: "super-admin-uuid",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   }
 }
 
 function makeRate(overrides: Partial<ExchangeRate> = {}): ExchangeRate {
   return {
-    from:        "USD",
-    to:          "TND",
-    rate:        3.1052,
-    source:      "mock",
-    capturedAt:  new Date("2026-10-01T10:00:00Z"),
+    from: "USD",
+    to: "TND",
+    rate: 3.1052,
+    source: "mock",
+    capturedAt: new Date("2026-10-01T10:00:00Z"),
     ...overrides,
   }
 }
@@ -82,7 +82,7 @@ test("FX-POLICY-01 — getActiveFxPolicy sans override lève FxPolicyUnavailable
 
 test("FX-POLICY-02 — NONE : appliedRate === referenceRate", () => {
   const policy = makePolicy({ correctionMode: "NONE", correctionValue: 0 })
-  const rate   = makeRate({ rate: 3.1052 })
+  const rate = makeRate({ rate: 3.1052 })
   const result = applyFxCorrection(rate, policy)
 
   assert.equal(result.appliedRate, 3.1052)
@@ -95,8 +95,11 @@ test("FX-POLICY-02 — NONE : appliedRate === referenceRate", () => {
 /* -------------------------------------------------------------------------- */
 
 test("FX-POLICY-03 — PERCENTAGE 1.5% : appliedRate = ref × 1.015", () => {
-  const policy = makePolicy({ correctionMode: "PERCENTAGE", correctionValue: 1.5 })
-  const rate   = makeRate({ rate: 3.1052 })
+  const policy = makePolicy({
+    correctionMode: "PERCENTAGE",
+    correctionValue: 1.5,
+  })
+  const rate = makeRate({ rate: 3.1052 })
   const result = applyFxCorrection(rate, policy)
 
   const expected = Math.round(3.1052 * 1.015 * 1_000_000) / 1_000_000
@@ -111,8 +114,11 @@ test("FX-POLICY-03 — PERCENTAGE 1.5% : appliedRate = ref × 1.015", () => {
 /* -------------------------------------------------------------------------- */
 
 test("FX-POLICY-04a — FIXED_SPREAD 0.05 : appliedRate = ref + 0.05", () => {
-  const policy = makePolicy({ correctionMode: "FIXED_SPREAD", correctionValue: 0.05 })
-  const rate   = makeRate({ rate: 3.1052 })
+  const policy = makePolicy({
+    correctionMode: "FIXED_SPREAD",
+    correctionValue: 0.05,
+  })
+  const rate = makeRate({ rate: 3.1052 })
   const result = applyFxCorrection(rate, policy)
 
   const expected = Math.round((3.1052 + 0.05) * 1_000_000) / 1_000_000
@@ -121,8 +127,11 @@ test("FX-POLICY-04a — FIXED_SPREAD 0.05 : appliedRate = ref + 0.05", () => {
 })
 
 test("FX-POLICY-04b — FIXED_RATE 3.20 : appliedRate = 3.20 (remplace la ref)", () => {
-  const policy = makePolicy({ correctionMode: "FIXED_RATE", correctionValue: 3.20 })
-  const rate   = makeRate({ rate: 3.1052 })
+  const policy = makePolicy({
+    correctionMode: "FIXED_RATE",
+    correctionValue: 3.2,
+  })
+  const rate = makeRate({ rate: 3.1052 })
   const result = applyFxCorrection(rate, policy)
 
   assert.equal(result.appliedRate, 3.2)
@@ -144,11 +153,11 @@ test("FX-POLICY-05 — FIXED 8 TND : computeBankFeeContribution retourne 8", () 
 /* -------------------------------------------------------------------------- */
 
 test("FX-POLICY-06 — PERCENTAGE 0.5% : fee ≈ amountTnd × 0.005", () => {
-  const policy     = makePolicy({ bankFeeMode: "PERCENTAGE", bankFeePercent: 0.5 })
-  const amountFX   = 269.68   // USD
-  const appliedR   = 3.1518
-  const fee        = computeBankFeeContribution(amountFX, appliedR, policy)
-  const expected   = Math.round(amountFX * appliedR * 0.005 * 100) / 100
+  const policy = makePolicy({ bankFeeMode: "PERCENTAGE", bankFeePercent: 0.5 })
+  const amountFX = 269.68 // USD
+  const appliedR = 3.1518
+  const fee = computeBankFeeContribution(amountFX, appliedR, policy)
+  const expected = Math.round(amountFX * appliedR * 0.005 * 100) / 100
 
   assert.equal(fee, expected)
   assert.ok(fee > 0)
@@ -160,10 +169,10 @@ test("FX-POLICY-06 — PERCENTAGE 0.5% : fee ≈ amountTnd × 0.005", () => {
 
 test("FX-POLICY-07a — MIN_MAX : fee < min → clampé à min (5 TND)", () => {
   const policy = makePolicy({
-    bankFeeMode:    "MIN_MAX",
+    bankFeeMode: "MIN_MAX",
     bankFeePercent: 0.001, // 0.001% → fee très faible
-    bankFeeMin:     5,
-    bankFeeMax:     50,
+    bankFeeMin: 5,
+    bankFeeMax: 50,
   })
   const fee = computeBankFeeContribution(10, 3.1052, policy)
   assert.equal(fee, 5)
@@ -171,10 +180,10 @@ test("FX-POLICY-07a — MIN_MAX : fee < min → clampé à min (5 TND)", () => {
 
 test("FX-POLICY-07b — MIN_MAX : fee > max → clampé à max (50 TND)", () => {
   const policy = makePolicy({
-    bankFeeMode:    "MIN_MAX",
-    bankFeePercent: 50,    // 50% → fee énorme
-    bankFeeMin:     5,
-    bankFeeMax:     50,
+    bankFeeMode: "MIN_MAX",
+    bankFeePercent: 50, // 50% → fee énorme
+    bankFeeMin: 5,
+    bankFeeMax: 50,
   })
   const fee = computeBankFeeContribution(1000, 3.1052, policy)
   assert.equal(fee, 50)
@@ -209,7 +218,7 @@ test("FX-POLICY-09 — getActiveFxPolicy retourne l'override injecté", async ()
 
 test("FX-POLICY-10 — AppliedRate.policyId correspond à la version injectée", () => {
   const policy = makePolicy({ id: "immuable-uuid", version: 7 })
-  const rate   = makeRate()
+  const rate = makeRate()
   const result = applyFxCorrection(rate, policy)
 
   assert.equal(result.policyId, "immuable-uuid")
@@ -228,7 +237,11 @@ test("FX-POLICY-11 — reservation-financials.ts : paramètre appliedRate est op
     join(process.cwd(), "lib/finance/reservation-financials.ts"),
     "utf8",
   )
-  assert.match(src, /appliedRate\?:\s*AppliedRate/, "appliedRate doit être optionnel")
+  assert.match(
+    src,
+    /appliedRate\?:\s*AppliedRate/,
+    "appliedRate doit être optionnel",
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -240,7 +253,11 @@ test("FX-POLICY-12 — reservation-financials.ts : appliedRate → appliedExchan
     join(process.cwd(), "lib/finance/reservation-financials.ts"),
     "utf8",
   )
-  assert.match(src, /appliedExchangeRate/, "appliedExchangeRate doit être écrit")
+  assert.match(
+    src,
+    /appliedExchangeRate/,
+    "appliedExchangeRate doit être écrit",
+  )
   assert.match(src, /fxPolicyId/, "fxPolicyId doit être écrit")
   assert.match(src, /appliedRate\.policyId/, "policyId doit être transmis")
 })
@@ -271,6 +288,11 @@ test("FX-POLICY-14 — flight-financials.ts : politique FX uniquement dans le bl
     "utf8",
   )
   // getActiveFxPolicy doit être DANS le bloc conditionnel `if (supplierCurrency !== "TND")`
-  const block = src.match(/if\s*\(supplierCurrency !== "TND"\)\s*\{([\s\S]*?)\}/)?.[1] ?? ""
-  assert.match(block, /getActiveFxPolicy/, "getActiveFxPolicy doit être dans le bloc non-TND")
+  const block =
+    src.match(/if\s*\(supplierCurrency !== "TND"\)\s*\{([\s\S]*?)\}/)?.[1] ?? ""
+  assert.match(
+    block,
+    /getActiveFxPolicy/,
+    "getActiveFxPolicy doit être dans le bloc non-TND",
+  )
 })

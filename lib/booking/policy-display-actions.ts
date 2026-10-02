@@ -18,7 +18,11 @@
 
 import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { resolveCancellationPolicy, type PolicyProductType, type ResolvedPolicy } from "./policy-engine"
+import {
+  resolveCancellationPolicy,
+  type PolicyProductType,
+  type ResolvedPolicy,
+} from "./policy-engine"
 
 export async function getCancellationPolicyForDisplay(
   productType: PolicyProductType,
@@ -26,5 +30,7 @@ export async function getCancellationPolicyForDisplay(
 ): Promise<ResolvedPolicy | null> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) return null
-  return withPublicAgencyContext(agencyId, (tx) => resolveCancellationPolicy(tx, { agencyId, productType, productId }))
+  return withPublicAgencyContext(agencyId, (tx) =>
+    resolveCancellationPolicy(tx, { agencyId, productType, productId }),
+  )
 }

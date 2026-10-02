@@ -27,24 +27,24 @@ export interface MarginCalculationContext {
 export interface MarginCalculationResult {
   marginRuleId?: string
   marginRuleName?: string
-  
+
   // Prix achat
   supplierPrice: number
   supplierCurrency: string
   supplierPriceTnd: number // Converti en TND
-  
+
   // Prix vente calculé
   salePriceTnd: number
   salePriceOriginal: number // Dans la devise originale
-  
+
   // Marge
   marginAmount: number // En TND
   marginPercent: number // % du prix achat
-  
+
   // Commission Easy2Book
   commissionAmount: number
   commissionPercent: number
-  
+
   // Règle appliquée
   ruleType: "percent" | "fixed" | "hybrid"
   ruleValue?: {
@@ -58,7 +58,7 @@ export interface MarginCalculationResult {
  */
 export function findApplicableMarginRule(
   rules: MarginRule[],
-  context: MarginCalculationContext
+  context: MarginCalculationContext,
 ): MarginRule | null {
   // Filtrer les règles actives et valides
   const now = new Date()
@@ -66,7 +66,7 @@ export function findApplicableMarginRule(
     (rule) =>
       rule.isActive &&
       (!rule.validFrom || new Date(rule.validFrom) <= now) &&
-      (!rule.validTo || new Date(rule.validTo) >= now)
+      (!rule.validTo || new Date(rule.validTo) >= now),
   )
 
   // Score de correspondance (plus élevé = plus spécifique)
@@ -79,17 +79,29 @@ export function findApplicableMarginRule(
     }
 
     // Correspondance fournisseur (très spécifique)
-    if (rule.supplierId && context.supplierId && rule.supplierId === context.supplierId) {
+    if (
+      rule.supplierId &&
+      context.supplierId &&
+      rule.supplierId === context.supplierId
+    ) {
       score += 50
     }
 
     // Correspondance type produit
-    if (rule.productType && context.productType && rule.productType === context.productType) {
+    if (
+      rule.productType &&
+      context.productType &&
+      rule.productType === context.productType
+    ) {
       score += 20
     }
 
     // Correspondance destination
-    if (rule.destination && context.destination && rule.destination === context.destination) {
+    if (
+      rule.destination &&
+      context.destination &&
+      rule.destination === context.destination
+    ) {
       score += 15
     }
 
@@ -125,7 +137,7 @@ export function findApplicableMarginRule(
  */
 export function calculateMargin(
   context: MarginCalculationContext,
-  rule: MarginRule | null
+  rule: MarginRule | null,
 ): MarginCalculationResult {
   const exchangeRate = context.exchangeRate || 1
   const supplierPriceTnd = context.supplierPrice * exchangeRate
@@ -169,7 +181,9 @@ export function calculateMargin(
   }
 
   // Calcul de la commission Easy2Book
-  const commissionPercent = rule?.commissionPercent ? Number(rule.commissionPercent) : 0
+  const commissionPercent = rule?.commissionPercent
+    ? Number(rule.commissionPercent)
+    : 0
   const commissionAmount = marginAmount * (commissionPercent / 100)
 
   // Prix de vente dans la devise originale
@@ -202,7 +216,7 @@ export function calculateMargin(
  */
 export function calculateMarginWithRuleSelection(
   rules: MarginRule[],
-  context: MarginCalculationContext
+  context: MarginCalculationContext,
 ): MarginCalculationResult {
   const applicableRule = findApplicableMarginRule(rules, context)
   return calculateMargin(context, applicableRule)
@@ -211,9 +225,10 @@ export function calculateMarginWithRuleSelection(
 /**
  * Valide un calcul de marge
  */
-export function validateMarginCalculation(
-  result: MarginCalculationResult
-): { valid: boolean; errors: string[] } {
+export function validateMarginCalculation(result: MarginCalculationResult): {
+  valid: boolean
+  errors: string[]
+} {
   const errors: string[] = []
 
   if (result.salePriceTnd <= result.supplierPriceTnd) {
@@ -247,8 +262,8 @@ export function generateMarginSummary(result: MarginCalculationResult): string {
     result.ruleType === "percent"
       ? "Pourcentage"
       : result.ruleType === "fixed"
-      ? "Montant fixe"
-      : "Hybride"
+        ? "Montant fixe"
+        : "Hybride"
 
   return `${ruleName} (${ruleTypeLabel}): ${result.supplierPriceTnd.toFixed(2)} TND + ${result.marginAmount.toFixed(2)} TND (${result.marginPercent.toFixed(1)}%) = ${result.salePriceTnd.toFixed(2)} TND`
 }

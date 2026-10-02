@@ -62,7 +62,12 @@ interface MarkersLayerProps {
   onMarkerSelect: (id: number) => void
 }
 
-function MarkersLayer({ points, selectedId, hoveredId, onMarkerSelect }: MarkersLayerProps) {
+function MarkersLayer({
+  points,
+  selectedId,
+  hoveredId,
+  onMarkerSelect,
+}: MarkersLayerProps) {
   const map = useMap()
   const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null)
   const markersRef = useRef<Map<number, L.Marker>>(new Map())
@@ -80,7 +85,9 @@ function MarkersLayer({ points, selectedId, hoveredId, onMarkerSelect }: Markers
       const marker = L.marker([point.latitude, point.longitude], {
         icon: markerIcon(point.priceLabel, "default"),
       })
-      marker.bindPopup(`<strong>${escapeHtml(point.name)}</strong><br/>${escapeHtml(point.priceLabel)}`)
+      marker.bindPopup(
+        `<strong>${escapeHtml(point.name)}</strong><br/>${escapeHtml(point.priceLabel)}`,
+      )
       marker.on("click", () => onMarkerSelect(point.id))
       markersRef.current.set(point.id, marker)
       clusterGroup.addLayer(marker)
@@ -89,7 +96,9 @@ function MarkersLayer({ points, selectedId, hoveredId, onMarkerSelect }: Markers
     map.addLayer(clusterGroup)
 
     if (points.length > 0) {
-      const bounds = L.latLngBounds(points.map((p) => [p.latitude, p.longitude]))
+      const bounds = L.latLngBounds(
+        points.map((p) => [p.latitude, p.longitude]),
+      )
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 })
     } else {
       // Tunisie entière — repli honnête, jamais un centrage arbitraire sur
@@ -108,7 +117,12 @@ function MarkersLayer({ points, selectedId, hoveredId, onMarkerSelect }: Markers
     for (const [id, marker] of markersRef.current) {
       const point = points.find((p) => p.id === id)
       if (!point) continue
-      const state: MarkerState = id === selectedId ? "selected" : id === hoveredId ? "hovered" : "default"
+      const state: MarkerState =
+        id === selectedId
+          ? "selected"
+          : id === hoveredId
+            ? "hovered"
+            : "default"
       marker.setIcon(markerIcon(point.priceLabel, state))
     }
   }, [selectedId, hoveredId, points])
@@ -148,7 +162,13 @@ export interface HotelMapProps {
   className?: string
 }
 
-export function HotelMap({ points, selectedId, hoveredId, onMarkerSelect, className }: HotelMapProps) {
+export function HotelMap({
+  points,
+  selectedId,
+  hoveredId,
+  onMarkerSelect,
+  className,
+}: HotelMapProps) {
   return (
     <div className={className}>
       <MapContainer

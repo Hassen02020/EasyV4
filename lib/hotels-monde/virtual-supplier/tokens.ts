@@ -9,7 +9,8 @@
 import { createHmac, randomUUID } from "node:crypto"
 
 const SECRET =
-  process.env.VIRTUAL_WORLD_HOTELS_TOKEN_SECRET ?? "virtual-world-hotels-dev-secret-not-for-prod"
+  process.env.VIRTUAL_WORLD_HOTELS_TOKEN_SECRET ??
+  "virtual-world-hotels-dev-secret-not-for-prod"
 
 const TOKEN_TTL_MS = 15 * 60_000 // 15 min — même fenêtre que les autres Virtual Suppliers
 
@@ -48,7 +49,11 @@ export function issueOfferToken(
   input: Omit<WorldHotelOfferTokenPayload, "issuedAt" | "expiresAt">,
 ): string {
   const now = Date.now()
-  const payload: WorldHotelOfferTokenPayload = { ...input, issuedAt: now, expiresAt: now + TOKEN_TTL_MS }
+  const payload: WorldHotelOfferTokenPayload = {
+    ...input,
+    issuedAt: now,
+    expiresAt: now + TOKEN_TTL_MS,
+  }
   const encoded = b64url(JSON.stringify(payload))
   return `${encoded}.${sign(encoded)}`
 }
@@ -64,7 +69,10 @@ export function validateOfferToken(token: string): TokenValidationResult {
   if (sig !== sign(encoded)) return { ok: false, reason: "TAMPERED" }
   let payload: WorldHotelOfferTokenPayload
   try {
-    const json = Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8")
+    const json = Buffer.from(
+      encoded.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64",
+    ).toString("utf-8")
     payload = JSON.parse(json) as WorldHotelOfferTokenPayload
   } catch {
     return { ok: false, reason: "MALFORMED" }

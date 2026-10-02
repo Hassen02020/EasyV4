@@ -47,11 +47,15 @@ const CHECKOUT = "2027-02-10"
 test.describe("Dashboard Operations — cycle de vie complet réservation hôtel", () => {
   test.setTimeout(120_000)
 
-  test("créer → rechercher → valider → modifier → annuler, via l'UI admin réelle", async ({ page }) => {
+  test("créer → rechercher → valider → modifier → annuler, via l'UI admin réelle", async ({
+    page,
+  }) => {
     let publicRef = ""
 
     await test.step("1. CRÉER — B2C guest checkout réel (myGo virtuel)", async () => {
-      await page.goto(`/hotels/${HOTEL_ID}?checkin=${CHECKIN}&checkout=${CHECKOUT}&adults=2`)
+      await page.goto(
+        `/hotels/${HOTEL_ID}?checkin=${CHECKIN}&checkout=${CHECKOUT}&adults=2`,
+      )
       await page.waitForLoadState("networkidle")
 
       // Section "Chambres et tarifs disponibles" — sélectionne la 1ère ligne
@@ -74,14 +78,18 @@ test.describe("Dashboard Operations — cycle de vie complet réservation hôtel
       const suffix = Date.now().toString().slice(-6)
       await page.getByLabel("Prénom *", { exact: true }).fill("Certif")
       await page.getByLabel("Nom *", { exact: true }).fill(`E2E-${suffix}`)
-      await page.getByLabel("Email *", { exact: true }).fill(`certif-e2e-${suffix}@example.com`)
+      await page
+        .getByLabel("Email *", { exact: true })
+        .fill(`certif-e2e-${suffix}@example.com`)
       await page.getByLabel("Téléphone *", { exact: true }).fill("+21698140514")
       await page.getByLabel(/Numéro CIN/).fill("87654321")
       await page.screenshot({
         path: "docs/audits/screenshots/dashboard-ops-02-travelers-form.png",
         fullPage: true,
       })
-      await page.getByRole("button", { name: /Continuer vers le paiement/i }).click()
+      await page
+        .getByRole("button", { name: /Continuer vers le paiement/i })
+        .click()
       await page.waitForURL(/\/booking\/checkout/, { timeout: 15_000 })
 
       // Méthode "Espèces en agence" — laisse la réservation "pending",
@@ -96,10 +104,16 @@ test.describe("Dashboard Operations — cycle de vie complet réservation hôtel
       await page.getByRole("button", { name: /Confirmer & payer/i }).click()
       await page.waitForURL(/\/booking\/confirmation\//, { timeout: 20_000 })
 
-      const refText = await page.getByText(/^TG-\d{4}-\d{6}$/).first().textContent()
+      const refText = await page
+        .getByText(/^TG-\d{4}-\d{6}$/)
+        .first()
+        .textContent()
       expect(refText).toBeTruthy()
       publicRef = refText!.trim()
-      writeFileSync("/tmp/dashboard-ops-ref.json", JSON.stringify({ publicRef }))
+      writeFileSync(
+        "/tmp/dashboard-ops-ref.json",
+        JSON.stringify({ publicRef }),
+      )
       await page.screenshot({
         path: "docs/audits/screenshots/dashboard-ops-04-confirmation.png",
         fullPage: true,
@@ -117,14 +131,18 @@ test.describe("Dashboard Operations — cycle de vie complet réservation hôtel
     await test.step("3. RECHERCHER + VALIDER — liste admin, puis règlement manuel réel", async () => {
       await page.goto(`/admin/reservations?search=${publicRef}`)
       await page.waitForLoadState("networkidle")
-      await expect(page.getByText(publicRef).first()).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText(publicRef).first()).toBeVisible({
+        timeout: 10_000,
+      })
       await page.screenshot({
         path: "docs/audits/screenshots/dashboard-ops-05-admin-search.png",
         fullPage: true,
       })
 
       await page.getByText(publicRef).first().click()
-      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, { timeout: 10_000 })
+      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, {
+        timeout: 10_000,
+      })
       await page.screenshot({
         path: "docs/audits/screenshots/dashboard-ops-06-detail-pending.png",
         fullPage: true,
@@ -133,8 +151,12 @@ test.describe("Dashboard Operations — cycle de vie complet réservation hôtel
       const verifyBtn = page.getByRole("button", { name: /^Vérifier$/ })
       await expect(verifyBtn).toBeVisible({ timeout: 10_000 })
       await verifyBtn.click()
-      await page.getByLabel(/Référence du règlement/i).fill(`E2E-CASH-${Date.now()}`)
-      await page.getByRole("button", { name: /Confirmer le règlement/i }).click()
+      await page
+        .getByLabel(/Référence du règlement/i)
+        .fill(`E2E-CASH-${Date.now()}`)
+      await page
+        .getByRole("button", { name: /Confirmer le règlement/i })
+        .click()
       // Le dialogue se ferme + router.refresh() sur succès — attend sa disparition.
       await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 })
       await page.screenshot({
@@ -151,7 +173,9 @@ test.describe("Dashboard Operations — cycle de vie complet réservation hôtel
       await expect(statusSelect).toBeVisible({ timeout: 10_000 })
       await statusSelect.click()
       await page.getByRole("option", { name: "Terminée" }).click()
-      await expect(page.getByText("Terminée").first()).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText("Terminée").first()).toBeVisible({
+        timeout: 10_000,
+      })
       await page.screenshot({
         path: "docs/audits/screenshots/dashboard-ops-08-status-modified.png",
         fullPage: true,
@@ -160,13 +184,19 @@ test.describe("Dashboard Operations — cycle de vie complet réservation hôtel
 
     await test.step("5. ANNULER — remboursement réel (état terminal, fait en dernier)", async () => {
       await page.getByText(publicRef).first().click()
-      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, { timeout: 10_000 })
+      await page.waitForURL(/\/admin\/reservations\/[^/]+$/, {
+        timeout: 10_000,
+      })
 
       const refundBtn = page.getByRole("button", { name: /^Rembourser$/ })
       await expect(refundBtn).toBeVisible({ timeout: 10_000 })
       await refundBtn.click()
-      await page.getByLabel(/Motif du remboursement/i).fill("Certification E2E — annulation test")
-      await page.getByRole("button", { name: /Confirmer le remboursement/i }).click()
+      await page
+        .getByLabel(/Motif du remboursement/i)
+        .fill("Certification E2E — annulation test")
+      await page
+        .getByRole("button", { name: /Confirmer le remboursement/i })
+        .click()
       await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 })
       await page.screenshot({
         path: "docs/audits/screenshots/dashboard-ops-09-detail-refunded.png",

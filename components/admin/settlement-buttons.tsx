@@ -46,13 +46,19 @@ export function NewSettlementButton() {
     setError(null)
     setSuccessMsg(null)
     startTransition(async () => {
-      const result = await triggerCommissionSettlement(periodStart, periodEnd, notes || undefined)
+      const result = await triggerCommissionSettlement(
+        periodStart,
+        periodEnd,
+        notes || undefined,
+      )
       if (!result.ok) {
         setError(result.error)
         return
       }
       if (result.entryCount === 0) {
-        setSuccessMsg("Settlement créé (0 entrée — aucune commission non settlée sur cette période).")
+        setSuccessMsg(
+          "Settlement créé (0 entrée — aucune commission non settlée sur cette période).",
+        )
       } else {
         setSuccessMsg(
           `Settlement créé — ${result.entryCount} entrée(s), ${result.totalAmount.toLocaleString("fr-FR")} DT.`,
@@ -85,9 +91,10 @@ export function NewSettlementButton() {
         <DialogHeader>
           <DialogTitle>Créer un settlement de commissions</DialogTitle>
           <DialogDescription>
-            Agrège toutes les entrées commission non settlées sur la période sélectionnée et crée un
-            enregistrement comptable. L&apos;opération est idempotente : si aucune entrée non settlée
-            n&apos;existe, un settlement vide (0 DT) est quand même créé comme trace.
+            Agrège toutes les entrées commission non settlées sur la période
+            sélectionnée et crée un enregistrement comptable. L&apos;opération
+            est idempotente : si aucune entrée non settlée n&apos;existe, un
+            settlement vide (0 DT) est quand même créé comme trace.
           </DialogDescription>
         </DialogHeader>
 
@@ -140,11 +147,23 @@ export function NewSettlementButton() {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || isPending} className="gap-2">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          <Button
+            onClick={handleSubmit}
+            disabled={!isValid || isPending}
+            className="gap-2"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
             Créer le settlement
           </Button>
         </DialogFooter>
@@ -188,8 +207,9 @@ export function MarkPaidButton({ settlementId }: { settlementId: string }) {
         <DialogHeader>
           <DialogTitle>Confirmer le virement effectué</DialogTitle>
           <DialogDescription>
-            Passe ce settlement de <strong>pending</strong> → <strong>paid</strong>. À effectuer
-            uniquement APRÈS confirmation que le virement réel a été réalisé. Action irréversible.
+            Passe ce settlement de <strong>pending</strong> →{" "}
+            <strong>paid</strong>. À effectuer uniquement APRÈS confirmation que
+            le virement réel a été réalisé. Action irréversible.
           </DialogDescription>
         </DialogHeader>
 
@@ -200,11 +220,23 @@ export function MarkPaidButton({ settlementId }: { settlementId: string }) {
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
-          <Button onClick={handleConfirm} disabled={isPending} className="gap-2">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          <Button
+            onClick={handleConfirm}
+            disabled={isPending}
+            className="gap-2"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
             Confirmer le paiement
           </Button>
         </DialogFooter>

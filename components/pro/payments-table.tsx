@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react"
 
-import { Building2, Wallet, CreditCard, Banknote, Coins, Send } from "lucide-react"
+import {
+  Building2,
+  Wallet,
+  CreditCard,
+  Banknote,
+  Coins,
+  Send,
+} from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 

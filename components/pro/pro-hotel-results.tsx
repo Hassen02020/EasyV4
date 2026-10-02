@@ -24,7 +24,14 @@
 import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { MapPin, Calendar, Users, Star, ArrowRight, ShieldCheck } from "lucide-react"
+import {
+  MapPin,
+  Calendar,
+  Users,
+  Star,
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   FilterSidebar,
@@ -96,19 +103,28 @@ function ProHotelResultCard({
             {offer.hotel.stars ? (
               <span className="inline-flex items-center gap-0.5">
                 {Array.from({ length: offer.hotel.stars }).map((_, i) => (
-                  <Star key={i} className="text-accent h-3.5 w-3.5 fill-current" />
+                  <Star
+                    key={i}
+                    className="text-accent h-3.5 w-3.5 fill-current"
+                  />
                 ))}
               </span>
             ) : null}
             {offer.recommended && (
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+              <Badge
+                variant="secondary"
+                className="bg-emerald-100 text-emerald-700"
+              >
                 Recommandé
               </Badge>
             )}
           </div>
           <h3 className="text-foreground mt-0.5 text-lg leading-tight font-semibold">
             {detailHref ? (
-              <Link href={detailHref} className="hover:text-primary hover:underline">
+              <Link
+                href={detailHref}
+                className="hover:text-primary hover:underline"
+              >
                 {offer.hotel.name}
               </Link>
             ) : (
@@ -221,7 +237,13 @@ export function ProHotelResults({
       p.set("children", context.childrenAges.join(","))
     }
     return p
-  }, [context.cityId, context.checkin, context.checkout, context.adults, context.childrenAges])
+  }, [
+    context.cityId,
+    context.checkin,
+    context.checkout,
+    context.adults,
+    context.childrenAges,
+  ])
 
   const facets = useMemo(
     () => (offers.length > 0 ? computeFacets(offers) : null),
@@ -238,7 +260,9 @@ export function ProHotelResults({
 
   const paxLabel = context.adults
     ? `${context.adults} adulte${context.adults > 1 ? "s" : ""}${
-        context.children ? `, ${context.children} enfant${context.children > 1 ? "s" : ""}` : ""
+        context.children
+          ? `, ${context.children} enfant${context.children > 1 ? "s" : ""}`
+          : ""
       }`
     : "Voyageurs"
 
@@ -335,7 +359,9 @@ export function ProHotelResults({
                 offer={offer}
                 currency={currency}
                 detailHref={
-                  detailBaseParams ? `/pro/hotels/${offer.hotel.id}?${detailBaseParams.toString()}` : null
+                  detailBaseParams
+                    ? `/pro/hotels/${offer.hotel.id}?${detailBaseParams.toString()}`
+                    : null
                 }
               />
             ))

@@ -98,7 +98,11 @@ export function ClientsTable({ rows, canCreate, canEdit }: ClientsTableProps) {
 
               <TableHead className="font-semibold">Premier dossier</TableHead>
 
-              {canEdit ? <TableHead className="text-center font-semibold">Actions</TableHead> : null}
+              {canEdit ? (
+                <TableHead className="text-center font-semibold">
+                  Actions
+                </TableHead>
+              ) : null}
             </TableRow>
           </TableHeader>
 

@@ -50,7 +50,9 @@ export type JourneyWiredModule = (typeof JOURNEY_WIRED_MODULES)[number]
  *  - mélange (au moins un résultat confirmed/failed,
  *    mais pas 100% de l'un des deux)                 → partially_confirmed
  */
-export function deriveJourneyStatus(lines: { status: JourneyLineStatus }[]): JourneyStatus {
+export function deriveJourneyStatus(
+  lines: { status: JourneyLineStatus }[],
+): JourneyStatus {
   if (lines.length === 0) return "draft"
   const confirmed = lines.filter((l) => l.status === "confirmed").length
   const failed = lines.filter((l) => l.status === "failed").length
@@ -62,19 +64,30 @@ export function deriveJourneyStatus(lines: { status: JourneyLineStatus }[]): Jou
   return "partially_confirmed"
 }
 
-async function recomputeAndPersistJourneyStatus(tx: DrizzleTransaction, journeyId: string): Promise<JourneyStatus> {
+async function recomputeAndPersistJourneyStatus(
+  tx: DrizzleTransaction,
+  journeyId: string,
+): Promise<JourneyStatus> {
   const lines = await tx
     .select({ status: journeyLines.status })
     .from(journeyLines)
     .where(eq(journeyLines.journeyId, journeyId))
   const status = deriveJourneyStatus(lines)
-  await tx.update(journeys).set({ status, updatedAt: new Date() }).where(eq(journeys.id, journeyId))
+  await tx
+    .update(journeys)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(journeys.id, journeyId))
   return status
 }
 
 export async function createJourneyCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; createdByUserId: string; customerId?: string; title?: string },
+  params: {
+    agencyId: string
+    createdByUserId: string
+    customerId?: string
+    title?: string
+  },
 ): Promise<Journey> {
   const [row] = await tx
     .insert(journeys)
@@ -100,9 +113,18 @@ export async function createJourneyCore(
  */
 export async function addJourneyLineCore(
   tx: DrizzleTransaction,
-  params: { journeyId: string; module: JourneyWiredModule; payload: unknown; priceTnd?: number },
+  params: {
+    journeyId: string
+    module: JourneyWiredModule
+    payload: unknown
+    priceTnd?: number
+  },
 ): Promise<JourneyLine> {
-  const [journey] = await tx.select().from(journeys).where(eq(journeys.id, params.journeyId)).limit(1)
+  const [journey] = await tx
+    .select()
+    .from(journeys)
+    .where(eq(journeys.id, params.journeyId))
+    .limit(1)
   if (!journey) throw new Error("JOURNEY_NOT_FOUND")
   if (journey.status !== "draft" && journey.status !== "ready") {
     throw new Error("JOURNEY_COMPOSITION_LOCKED")
@@ -114,7 +136,8 @@ export async function addJourneyLineCore(
       journeyId: params.journeyId,
       module: params.module,
       payload: params.payload,
-      priceTnd: params.priceTnd !== undefined ? params.priceTnd.toFixed(2) : undefined,
+      priceTnd:
+        params.priceTnd !== undefined ? params.priceTnd.toFixed(2) : undefined,
     })
     .returning()
   if (!line) throw new Error("addJourneyLineCore: insert a échoué")
@@ -123,8 +146,15 @@ export async function addJourneyLineCore(
   return line
 }
 
-export async function removeJourneyLineCore(tx: DrizzleTransaction, params: { lineId: string }): Promise<void> {
-  const [line] = await tx.select().from(journeyLines).where(eq(journeyLines.id, params.lineId)).limit(1)
+export async function removeJourneyLineCore(
+  tx: DrizzleTransaction,
+  params: { lineId: string },
+): Promise<void> {
+  const [line] = await tx
+    .select()
+    .from(journeyLines)
+    .where(eq(journeyLines.id, params.lineId))
+    .limit(1)
   if (!line) throw new Error("LINE_NOT_FOUND")
   // Jamais supprimer une ligne déjà confirmée/en cours (RULE FINANCIÈRE —
   // aucun rollback silencieux d'une preuve de réservation/tentative réelle).
@@ -139,7 +169,11 @@ export async function getJourneyWithLinesCore(
   tx: DrizzleTransaction,
   params: { journeyId: string },
 ): Promise<{ journey: Journey; lines: JourneyLine[] } | null> {
-  const [journey] = await tx.select().from(journeys).where(eq(journeys.id, params.journeyId)).limit(1)
+  const [journey] = await tx
+    .select()
+    .from(journeys)
+    .where(eq(journeys.id, params.journeyId))
+    .limit(1)
   if (!journey) return null
   const lines = await tx
     .select()
@@ -178,7 +212,11 @@ export async function casLineToProcessingCore(
   tx: DrizzleTransaction,
   params: { lineId: string },
 ): Promise<CasToProcessingResult> {
-  const [line] = await tx.select().from(journeyLines).where(eq(journeyLines.id, params.lineId)).limit(1)
+  const [line] = await tx
+    .select()
+    .from(journeyLines)
+    .where(eq(journeyLines.id, params.lineId))
+    .limit(1)
   if (!line) return { outcome: "not_found" }
   if (line.status === "confirmed") return { outcome: "already_confirmed", line }
   if (line.status === "processing") return { outcome: "already_processing" }
@@ -186,8 +224,17 @@ export async function casLineToProcessingCore(
   const idempotencyKey = `journey-line-confirm:${line.id}:${randomUUID()}`
   const [updated] = await tx
     .update(journeyLines)
-    .set({ status: "processing", confirmationIdempotencyKey: idempotencyKey, updatedAt: new Date() })
-    .where(and(eq(journeyLines.id, params.lineId), inArray(journeyLines.status, ["pending", "failed"])))
+    .set({
+      status: "processing",
+      confirmationIdempotencyKey: idempotencyKey,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(journeyLines.id, params.lineId),
+        inArray(journeyLines.status, ["pending", "failed"]),
+      ),
+    )
     .returning()
 
   if (!updated) return { outcome: "already_processing" } // course perdue entre le SELECT et l'UPDATE
@@ -209,7 +256,11 @@ export async function recordLineOutcomeCore(
   tx: DrizzleTransaction,
   params: { lineId: string; outcome: LineOutcome },
 ): Promise<void> {
-  const [line] = await tx.select().from(journeyLines).where(eq(journeyLines.id, params.lineId)).limit(1)
+  const [line] = await tx
+    .select()
+    .from(journeyLines)
+    .where(eq(journeyLines.id, params.lineId))
+    .limit(1)
   if (!line) throw new Error("LINE_NOT_FOUND")
   // Idempotence défensive : si la ligne est déjà confirmed (ex. un appel
   // concurrent a déjà enregistré le succès), ne jamais écraser.
@@ -222,14 +273,21 @@ export async function recordLineOutcomeCore(
         status: "confirmed",
         reservationId: params.outcome.reservationId,
         errorMessage: null,
-        priceTnd: params.outcome.priceTnd !== undefined ? params.outcome.priceTnd.toFixed(2) : line.priceTnd,
+        priceTnd:
+          params.outcome.priceTnd !== undefined
+            ? params.outcome.priceTnd.toFixed(2)
+            : line.priceTnd,
         updatedAt: new Date(),
       })
       .where(eq(journeyLines.id, params.lineId))
   } else {
     await tx
       .update(journeyLines)
-      .set({ status: "failed", errorMessage: params.outcome.error, updatedAt: new Date() })
+      .set({
+        status: "failed",
+        errorMessage: params.outcome.error,
+        updatedAt: new Date(),
+      })
       .where(eq(journeyLines.id, params.lineId))
   }
   await recomputeAndPersistJourneyStatus(tx, line.journeyId)

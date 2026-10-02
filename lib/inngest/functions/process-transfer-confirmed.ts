@@ -40,7 +40,8 @@ export const processTransferConfirmed = inngest.createFunction(
     const d = event.data
 
     await step.run("send-client-email", async () => {
-      if (!process.env.RESEND_API_KEY || !d.customerEmail) return { skipped: true }
+      if (!process.env.RESEND_API_KEY || !d.customerEmail)
+        return { skipped: true }
       const resend = new Resend(process.env.RESEND_API_KEY)
 
       const { error } = await resend.emails.send({
@@ -108,23 +109,30 @@ export const processTransferConfirmed = inngest.createFunction(
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => "")
-        console.error("[process-transfer-confirmed] envoi SMS chauffeur échoué", {
-          reservationId: d.reservationId,
-          publicRef: d.publicRef,
-          status: response.status,
-          errorBody,
-        })
+        console.error(
+          "[process-transfer-confirmed] envoi SMS chauffeur échoué",
+          {
+            reservationId: d.reservationId,
+            publicRef: d.publicRef,
+            status: response.status,
+            errorBody,
+          },
+        )
         return { sent: false, status: response.status }
       }
 
-      const result = (await response.json().catch(() => null)) as
-        | { sid?: string; status?: string }
-        | null
+      const result = (await response.json().catch(() => null)) as {
+        sid?: string
+        status?: string
+      } | null
 
       await withSystemContext((db) =>
         db
           .update(reservationTransfer)
-          .set({ smsSid: result?.sid ?? null, smsStatus: result?.status ?? null })
+          .set({
+            smsSid: result?.sid ?? null,
+            smsStatus: result?.status ?? null,
+          })
           .where(eq(reservationTransfer.reservationId, d.reservationId)),
       )
 

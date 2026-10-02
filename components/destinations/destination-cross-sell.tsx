@@ -12,7 +12,10 @@ import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { useCurrency } from "@/components/currency-context"
 import { Clock, Compass, Package as PackageIcon } from "lucide-react"
-import type { CrossSellPackage, CrossSellActivity } from "@/lib/destinations/cross-sell"
+import type {
+  CrossSellPackage,
+  CrossSellActivity,
+} from "@/lib/destinations/cross-sell"
 
 interface Props {
   cityName: string
@@ -20,19 +23,25 @@ interface Props {
   activities: CrossSellActivity[]
 }
 
-export function DestinationCrossSell({ cityName, packages, activities }: Props) {
+export function DestinationCrossSell({
+  cityName,
+  packages,
+  activities,
+}: Props) {
   const t = useTranslations("Destinations")
   const { format: formatPrice } = useCurrency()
 
   if (packages.length === 0 && activities.length === 0) return null
 
   return (
-    <section className="rounded-xl border bg-card p-5">
-      <h2 className="mb-4 text-lg font-semibold">{t("crossSellTitle", { city: cityName })}</h2>
+    <section className="bg-card rounded-xl border p-5">
+      <h2 className="mb-4 text-lg font-semibold">
+        {t("crossSellTitle", { city: cityName })}
+      </h2>
       <div className="space-y-6">
         {packages.length > 0 && (
           <div>
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+            <h3 className="text-muted-foreground mb-3 text-sm font-medium">
               {t("crossSellPackagesHeading")}
             </h3>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -40,11 +49,17 @@ export function DestinationCrossSell({ cityName, packages, activities }: Props) 
                 <Link
                   key={pkg.id}
                   href={`/packages/${pkg.slug}`}
-                  className="flex gap-3 rounded-lg border bg-background p-3 transition-colors hover:border-violet-300"
+                  className="bg-background flex gap-3 rounded-lg border p-3 transition-colors hover:border-violet-300"
                 >
-                  <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+                  <div className="bg-muted relative h-16 w-20 shrink-0 overflow-hidden rounded-md">
                     {pkg.coverUrl ? (
-                      <Image src={pkg.coverUrl} alt={pkg.title} fill className="object-cover" sizes="80px" />
+                      <Image
+                        src={pkg.coverUrl}
+                        alt={pkg.title}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-800 to-violet-600">
                         <PackageIcon className="h-5 w-5 text-white/50" />
@@ -54,7 +69,7 @@ export function DestinationCrossSell({ cityName, packages, activities }: Props) 
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{pkg.title}</p>
                     {pkg.durationDays && (
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
                         <Clock className="h-3 w-3" />
                         {t("crossSellDurationDays", { days: pkg.durationDays })}
                       </p>
@@ -73,7 +88,7 @@ export function DestinationCrossSell({ cityName, packages, activities }: Props) 
 
         {activities.length > 0 && (
           <div>
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+            <h3 className="text-muted-foreground mb-3 text-sm font-medium">
               {t("crossSellActivitiesHeading")}
             </h3>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -81,9 +96,9 @@ export function DestinationCrossSell({ cityName, packages, activities }: Props) 
                 <Link
                   key={activity.id}
                   href={`/attractions/${activity.slug}`}
-                  className="flex gap-3 rounded-lg border bg-background p-3 transition-colors hover:border-violet-300"
+                  className="bg-background flex gap-3 rounded-lg border p-3 transition-colors hover:border-violet-300"
                 >
-                  <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+                  <div className="bg-muted relative h-16 w-20 shrink-0 overflow-hidden rounded-md">
                     {activity.coverUrl ? (
                       <Image
                         src={activity.coverUrl}
@@ -99,11 +114,15 @@ export function DestinationCrossSell({ cityName, packages, activities }: Props) 
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{activity.title}</p>
+                    <p className="truncate text-sm font-medium">
+                      {activity.title}
+                    </p>
                     {activity.durationMinutes && (
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
                         <Clock className="h-3 w-3" />
-                        {t("crossSellDurationMinutes", { minutes: activity.durationMinutes })}
+                        {t("crossSellDurationMinutes", {
+                          minutes: activity.durationMinutes,
+                        })}
                       </p>
                     )}
                     {activity.priceFromTnd != null && (

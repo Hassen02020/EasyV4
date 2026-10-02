@@ -60,7 +60,8 @@ function formatDate(d: string | Date | null): string {
   })
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const getPackageWithDepartures = cache(async (id: string) => {
   if (!UUID_RE.test(id)) return null
@@ -112,7 +113,9 @@ export async function generateMetadata({
   const result = await getPackageWithDepartures(id)
   if (!result) return {}
   const { pkg } = result
-  const description = pkg.description ?? `Programme Omra ${pkg.durationDays} jours au départ de Tunisie — Easy2Book.`
+  const description =
+    pkg.description ??
+    `Programme Omra ${pkg.durationDays} jours au départ de Tunisie — Easy2Book.`
   return {
     title: `${pkg.name} — Omra | Easy2Book`,
     description,
@@ -138,7 +141,9 @@ export default async function OmraPackageDetailPage({
   const { pkg, departures, media } = result
   const t = await getTranslations("Omra")
 
-  const label = PACKAGE_TYPE_KEYS.has(pkg.type) ? t(`packageTypes.${pkg.type}`) : pkg.type
+  const label = PACKAGE_TYPE_KEYS.has(pkg.type)
+    ? t(`packageTypes.${pkg.type}`)
+    : pkg.type
   const priceTnd = pkg.basePrice ? parseFloat(pkg.basePrice) : null
 
   const inclusions: { label: string; included: boolean }[] = [
@@ -157,7 +162,7 @@ export default async function OmraPackageDetailPage({
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <div className="bg-gradient-to-br from-emerald-900 to-emerald-700 px-4 py-10 text-white">
           <div className="mx-auto max-w-4xl">
             <Link
@@ -182,53 +187,74 @@ export default async function OmraPackageDetailPage({
             {media.length > 0 ? (
               <ProductMediaGallery
                 productName={pkg.name}
-                items={media.map((m) => ({ id: m.id, largeUrl: m.largeUrl, thumbnailUrl: m.thumbnailUrl, altText: m.altText }))}
+                items={media.map((m) => ({
+                  id: m.id,
+                  largeUrl: m.largeUrl,
+                  thumbnailUrl: m.thumbnailUrl,
+                  altText: m.altText,
+                }))}
               />
             ) : null}
 
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="mb-4 text-lg font-semibold">{t("inclusionsTitle")}</h2>
+            <section className="bg-card rounded-xl border p-5">
+              <h2 className="mb-4 text-lg font-semibold">
+                {t("inclusionsTitle")}
+              </h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {inclusions.map((item) => (
-                  <div key={item.label} className="flex items-center gap-2 text-sm">
+                  <div
+                    key={item.label}
+                    className="flex items-center gap-2 text-sm"
+                  >
                     {item.included ? (
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                     ) : (
-                      <XCircle className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                      <XCircle className="text-muted-foreground/50 h-4 w-4 shrink-0" />
                     )}
-                    <span className={item.included ? "" : "text-muted-foreground/60"}>
+                    <span
+                      className={
+                        item.included ? "" : "text-muted-foreground/60"
+                      }
+                    >
                       {item.label}
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm text-muted-foreground sm:grid-cols-4">
+              <div className="text-muted-foreground mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm sm:grid-cols-4">
                 <div className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
                   {t("daysCount", { days: pkg.durationDays })}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Plane className="h-3.5 w-3.5" />
-                  {pkg.includesFlights ? t("flightIncluded") : t("flightNotIncluded")}
+                  {pkg.includesFlights
+                    ? t("flightIncluded")
+                    : t("flightNotIncluded")}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <HotelIcon className="h-3.5 w-3.5" />
-                  {pkg.includesHotels ? t("hotelIncluded") : t("hotelNotIncluded")}
+                  {pkg.includesHotels
+                    ? t("hotelIncluded")
+                    : t("hotelNotIncluded")}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" />
-                  {t("pilgrimsRange", { min: pkg.minPilgrims, max: pkg.maxPilgrims })}
+                  {t("pilgrimsRange", {
+                    min: pkg.minPilgrims,
+                    max: pkg.maxPilgrims,
+                  })}
                 </div>
               </div>
             </section>
 
-            <section className="rounded-xl border bg-card p-5">
+            <section className="bg-card rounded-xl border p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <Calendar className="h-4.5 w-4.5" />
                 {t("departuresTitle")}
               </h2>
               {departures.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   {t("noDeparturesAvailable")}
                 </p>
               ) : (
@@ -271,13 +297,15 @@ export default async function OmraPackageDetailPage({
           </div>
 
           <aside className="lg:col-span-1">
-            <div className="sticky top-4 rounded-xl border bg-card p-5">
+            <div className="bg-card sticky top-4 rounded-xl border p-5">
               {priceTnd && (
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground">{t("startingFrom")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("startingFrom")}
+                  </p>
                   <p className="text-3xl font-bold text-emerald-700">
                     {priceTnd.toLocaleString("fr-FR")}
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">
+                    <span className="text-muted-foreground ml-1 text-sm font-normal">
                       {t("priceUnitPerPilgrim")}
                     </span>
                   </p>
@@ -285,27 +313,41 @@ export default async function OmraPackageDetailPage({
               )}
               {departures.length > 0 ? (
                 <>
-                  <Button asChild className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
+                  <Button
+                    asChild
+                    className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800"
+                  >
                     <Link href={`/omra/${pkg.id}/book`}>{t("bookOnline")}</Link>
                   </Button>
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                  <p className="text-muted-foreground mt-2 text-center text-xs">
                     {t("contactAdvisorPrefix")}{" "}
-                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-emerald-700">
+                    <a
+                      href={`tel:${CONTACT_PHONE}`}
+                      className="font-medium text-emerald-700"
+                    >
                       {CONTACT_PHONE_DISPLAY}
                     </a>
                   </p>
                 </>
               ) : (
                 <>
-                  <Button asChild className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800">
-                    <a href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}>
+                  <Button
+                    asChild
+                    className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800"
+                  >
+                    <a
+                      href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}
+                    >
                       <Phone className="h-4 w-4" />
                       {t("contactAdvisor")}
                     </a>
                   </Button>
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                  <p className="text-muted-foreground mt-2 text-center text-xs">
                     {t("orCallUs")}{" "}
-                    <a href={`tel:${CONTACT_PHONE}`} className="font-medium text-emerald-700">
+                    <a
+                      href={`tel:${CONTACT_PHONE}`}
+                      className="font-medium text-emerald-700"
+                    >
                       {CONTACT_PHONE_DISPLAY}
                     </a>
                   </p>
@@ -313,9 +355,7 @@ export default async function OmraPackageDetailPage({
               )}
               <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
-                <span>
-                  {t("trustNote")}
-                </span>
+                <span>{t("trustNote")}</span>
               </div>
             </div>
 
@@ -331,7 +371,11 @@ export default async function OmraPackageDetailPage({
         </div>
 
         <div className="mx-auto max-w-4xl px-4 pb-8">
-          <ProductReviewsSection agencyId={pkg.agencyId} module="omra" productRef={pkg.id} />
+          <ProductReviewsSection
+            agencyId={pkg.agencyId}
+            module="omra"
+            productRef={pkg.id}
+          />
         </div>
       </main>
       <Footer />

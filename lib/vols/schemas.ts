@@ -64,4 +64,6 @@ export const flightPassengerBookingSchema = z.object({
     .max(9, "Maximum 9 voyageurs par réservation"),
 })
 
-export type FlightPassengerBookingInput = z.infer<typeof flightPassengerBookingSchema>
+export type FlightPassengerBookingInput = z.infer<
+  typeof flightPassengerBookingSchema
+>

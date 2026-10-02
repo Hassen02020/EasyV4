@@ -7,7 +7,13 @@
  */
 
 import { useRouter } from "next/navigation"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface Props {
   agencies: { id: string; name: string }[]
@@ -17,7 +23,10 @@ interface Props {
 export function AgencyPicker({ agencies, selectedAgencyId }: Props) {
   const router = useRouter()
   return (
-    <Select value={selectedAgencyId} onValueChange={(v) => router.push(`/admin/journeys?agencyId=${v}`)}>
+    <Select
+      value={selectedAgencyId}
+      onValueChange={(v) => router.push(`/admin/journeys?agencyId=${v}`)}
+    >
       <SelectTrigger className="w-72">
         <SelectValue placeholder="Choisir une agence..." />
       </SelectTrigger>

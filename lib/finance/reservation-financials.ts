@@ -61,7 +61,14 @@ export interface EconomicEntitlementLineInput {
   partyType: string
   /** `agencies.id` / `supplier_nodes.id` — null pour easy2book/fournisseur externe non modélisé. */
   partyId: string | null
-  role: "seller" | "product_owner" | "supplier" | "partner" | "easy2book" | "tax_authority" | "discount"
+  role:
+    | "seller"
+    | "product_owner"
+    | "supplier"
+    | "partner"
+    | "easy2book"
+    | "tax_authority"
+    | "discount"
   qualification:
     | "supplier_cost"
     | "seller_margin"
@@ -81,7 +88,11 @@ export interface EconomicEntitlementLineInput {
    * `commercial_agreements` n'existe pas. */
   agreementId?: string | null
   ruleId?: string | null
-  cancellationTreatment?: "full_reversal" | "pro_rata_fee" | "non_refundable" | null
+  cancellationTreatment?:
+    | "full_reversal"
+    | "pro_rata_fee"
+    | "non_refundable"
+    | null
 }
 
 export interface RecordReservationFinancialsInput {
@@ -150,14 +161,18 @@ export async function recordReservationFinancials(
 ): Promise<{ commissionAmount: number }> {
   const { tx, reservationId, supplierPriceTnd, salePriceTnd } = input
   const marginAmount = salePriceTnd - supplierPriceTnd
-  const marginPercent = supplierPriceTnd > 0 ? (marginAmount / supplierPriceTnd) * 100 : 0
+  const marginPercent =
+    supplierPriceTnd > 0 ? (marginAmount / supplierPriceTnd) * 100 : 0
 
   const commissionRate = input.commissionPercent ?? 0
-  const commissionAmount = Math.round(marginAmount * (commissionRate / 100) * 100) / 100
+  const commissionAmount =
+    Math.round(marginAmount * (commissionRate / 100) * 100) / 100
 
   await tx.insert(reservationFinancials).values({
     reservationId,
-    supplierPrice: (input.supplierOriginal?.amount ?? supplierPriceTnd).toFixed(2),
+    supplierPrice: (input.supplierOriginal?.amount ?? supplierPriceTnd).toFixed(
+      2,
+    ),
     supplierCurrency: input.supplierOriginal?.currency ?? "TND",
     supplierPriceTnd: supplierPriceTnd.toFixed(2),
     salePrice: (input.saleOriginal?.amount ?? salePriceTnd).toFixed(2),
@@ -169,13 +184,16 @@ export async function recordReservationFinancials(
     commissionPercent: commissionRate.toFixed(2),
     ...(input.marginRuleId ? { marginRuleId: input.marginRuleId } : {}),
     ...(input.exchangeRate
-      ? { exchangeRate: input.exchangeRate.rate.toFixed(4), exchangeRateAt: input.exchangeRate.at }
+      ? {
+          exchangeRate: input.exchangeRate.rate.toFixed(4),
+          exchangeRateAt: input.exchangeRate.at,
+        }
       : {}),
     ...(input.appliedRate
       ? {
-          appliedExchangeRate:   input.appliedRate.appliedRate.toFixed(6),
+          appliedExchangeRate: input.appliedRate.appliedRate.toFixed(6),
           appliedExchangeRateAt: input.appliedRate.capturedAt,
-          fxPolicyId:            input.appliedRate.policyId,
+          fxPolicyId: input.appliedRate.policyId,
         }
       : {}),
   })

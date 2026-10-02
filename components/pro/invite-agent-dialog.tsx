@@ -54,7 +54,13 @@ export function InviteAgentDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setError(null)
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5">
           <UserPlus className="h-4 w-4" />
@@ -65,8 +71,9 @@ export function InviteAgentDialog() {
         <DialogHeader>
           <DialogTitle>Inviter un agent</DialogTitle>
           <DialogDescription>
-            Un email d&apos;invitation Supabase sera envoyé pour la création du mot de passe. Le compte est créé
-            avec le rôle partner_agent, rattaché à votre agence.
+            Un email d&apos;invitation Supabase sera envoyé pour la création du
+            mot de passe. Le compte est créé avec le rôle partner_agent,
+            rattaché à votre agence.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -98,7 +105,11 @@ export function InviteAgentDialog() {
           )}
           <DialogFooter>
             <Button type="submit" disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
               Envoyer l&apos;invitation
             </Button>
           </DialogFooter>

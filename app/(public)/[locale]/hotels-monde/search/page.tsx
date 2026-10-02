@@ -23,7 +23,7 @@ export default function HotelsMondeSearchPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <div className="flex-1 bg-muted/30">
+      <div className="bg-muted/30 flex-1">
         <Suspense
           fallback={
             <main className="mx-auto flex max-w-5xl items-center justify-center px-4 py-24">

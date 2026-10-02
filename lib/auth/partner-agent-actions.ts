@@ -22,7 +22,10 @@ import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { auditEvents, users } from "@/lib/db/schema"
-import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
+import {
+  createServerSupabase,
+  createServiceRoleSupabase,
+} from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "./partner-profile"
 import { getEffectivePermission } from "./permissions"
 
@@ -31,7 +34,9 @@ const inputSchema = z.object({
   status: z.enum(["active", "suspended"]),
 })
 
-export type SetPartnerAgentStatusResult = { ok: true } | { ok: false; error: string }
+export type SetPartnerAgentStatusResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function setPartnerAgentStatus(
   raw: z.infer<typeof inputSchema>,
@@ -40,7 +45,8 @@ export async function setPartnerAgentStatus(
   if (!parsed.success) return { ok: false, error: "Entrée invalide" }
   const input = parsed.data
 
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const supabase = await createServerSupabase()
   const {
@@ -53,7 +59,10 @@ export async function setPartnerAgentStatus(
     return { ok: false, error: "Réservé au propriétaire de l'agence." }
   }
   if (input.targetUserId === user.id) {
-    return { ok: false, error: "Vous ne pouvez pas changer votre propre statut." }
+    return {
+      ok: false,
+      error: "Vous ne pouvez pas changer votre propre statut.",
+    }
   }
 
   const authorized = await getEffectivePermission({
@@ -65,7 +74,8 @@ export async function setPartnerAgentStatus(
   if (!authorized) {
     return {
       ok: false,
-      error: "Vous n'êtes pas autorisé à gérer les agents de votre agence — contactez Easy2Book.",
+      error:
+        "Vous n'êtes pas autorisé à gérer les agents de votre agence — contactez Easy2Book.",
     }
   }
 
@@ -73,16 +83,36 @@ export async function setPartnerAgentStatus(
     { agencyId: profile.agency.id, userId: user.id, isSuperAdmin: false },
     async (tx) => {
       const [target] = await tx
-        .select({ id: users.id, email: users.email, role: users.role, status: users.status })
+        .select({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+        })
         .from(users)
-        .where(and(eq(users.id, input.targetUserId), eq(users.agencyId, profile.agency.id)))
+        .where(
+          and(
+            eq(users.id, input.targetUserId),
+            eq(users.agencyId, profile.agency.id),
+          ),
+        )
         .limit(1)
-      if (!target) return { ok: false as const, error: "Agent introuvable dans votre agence." }
+      if (!target)
+        return {
+          ok: false as const,
+          error: "Agent introuvable dans votre agence.",
+        }
       if (target.role !== "partner_agent") {
-        return { ok: false as const, error: "Vous ne pouvez gérer que des partner_agent." }
+        return {
+          ok: false as const,
+          error: "Vous ne pouvez gérer que des partner_agent.",
+        }
       }
 
-      await tx.update(users).set({ status: input.status }).where(eq(users.id, input.targetUserId))
+      await tx
+        .update(users)
+        .set({ status: input.status })
+        .where(eq(users.id, input.targetUserId))
 
       await tx.insert(auditEvents).values({
         agencyId: profile.agency.id,
@@ -90,7 +120,12 @@ export async function setPartnerAgentStatus(
         entityType: "user",
         entityId: input.targetUserId,
         action: "user.status_changed",
-        diff: { email: target.email, from: target.status, to: input.status, via: "partner_owner_delegation" },
+        diff: {
+          email: target.email,
+          from: target.status,
+          to: input.status,
+          via: "partner_owner_delegation",
+        },
       })
 
       return { ok: true as const }
@@ -110,7 +145,9 @@ const createAgentInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
 })
 
-export type CreatePartnerAgentResult = { ok: true; userId: string } | { ok: false; error: string }
+export type CreatePartnerAgentResult =
+  | { ok: true; userId: string }
+  | { ok: false; error: string }
 
 /**
  * Invite un nouveau partner_agent dans l'agence du partner_owner appelant —
@@ -125,11 +162,17 @@ export async function createPartnerAgent(
 ): Promise<CreatePartnerAgentResult> {
   const parsed = createAgentInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const supabase = await createServerSupabase()
   const {
@@ -151,7 +194,8 @@ export async function createPartnerAgent(
   if (!authorized) {
     return {
       ok: false,
-      error: "Vous n'êtes pas autorisé à inviter des agents pour votre agence — contactez Easy2Book.",
+      error:
+        "Vous n'êtes pas autorisé à inviter des agents pour votre agence — contactez Easy2Book.",
     }
   }
 
@@ -160,7 +204,10 @@ export async function createPartnerAgent(
     data: { name: input.name },
   })
   if (invited.error || !invited.data.user) {
-    return { ok: false, error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}` }
+    return {
+      ok: false,
+      error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}`,
+    }
   }
   const newUserId = invited.data.user.id
 
@@ -182,7 +229,12 @@ export async function createPartnerAgent(
           entityType: "user",
           entityId: newUserId,
           action: "user.created",
-          diff: { email: input.email, name: input.name, role: "partner_agent", via: "partner_owner_delegation" },
+          diff: {
+            email: input.email,
+            name: input.name,
+            role: "partner_agent",
+            via: "partner_owner_delegation",
+          },
         })
       },
     )
@@ -191,7 +243,10 @@ export async function createPartnerAgent(
     // laissé comme identité fantôme (même motif que createStaffUser).
     await admin.auth.admin.deleteUser(newUserId).catch(() => {})
     const message = err instanceof Error ? err.message : "Erreur inconnue"
-    return { ok: false, error: `Compte invité mais profil non créé (annulé) : ${message}` }
+    return {
+      ok: false,
+      error: `Compte invité mais profil non créé (annulé) : ${message}`,
+    }
   }
 
   revalidatePath("/pro/utilisateurs")

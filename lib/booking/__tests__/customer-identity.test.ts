@@ -17,16 +17,28 @@ test("emailsMatch : insensible à la casse", () => {
 })
 
 test("emailsMatch : insensible aux espaces superflus", () => {
-  assert.equal(emailsMatch("  client@example.com  ", "client@example.com"), true)
+  assert.equal(
+    emailsMatch("  client@example.com  ", "client@example.com"),
+    true,
+  )
 })
 
 test("emailsMatch : email différent → false (jamais de rattachement ambigu)", () => {
-  assert.equal(emailsMatch("client@example.com", "quelquun-dautre@example.com"), false)
+  assert.equal(
+    emailsMatch("client@example.com", "quelquun-dautre@example.com"),
+    false,
+  )
 })
 
 test("emailsMatch : correspondance PARTIELLE (alias/sous-chaîne) → false", () => {
-  assert.equal(emailsMatch("client@example.com", "client+voyage@example.com"), false)
-  assert.equal(emailsMatch("client@example.com", "client@example.com.fake.tld"), false)
+  assert.equal(
+    emailsMatch("client@example.com", "client+voyage@example.com"),
+    false,
+  )
+  assert.equal(
+    emailsMatch("client@example.com", "client@example.com.fake.tld"),
+    false,
+  )
 })
 
 test("emailsMatch : session non connectée (undefined/null) → false, jamais un rattachement guest", () => {

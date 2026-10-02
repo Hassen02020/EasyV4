@@ -8,9 +8,22 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -63,7 +76,10 @@ function ZoneForm({ onDone }: { onDone: () => void }) {
       return
     }
     startTransition(async () => {
-      const res = await createTransferZone({ name, zoneType: zoneType as "airport" | "hotel" | "city" | "station" })
+      const res = await createTransferZone({
+        name,
+        zoneType: zoneType as "airport" | "hotel" | "city" | "station",
+      })
       if (!res.ok) {
         toast.error(res.error)
         return
@@ -87,12 +103,19 @@ function ZoneForm({ onDone }: { onDone: () => void }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nouvelle zone de transfert</DialogTitle>
-          <DialogDescription>Aéroport, hôtel, ville ou gare — point de départ/arrivée possible.</DialogDescription>
+          <DialogDescription>
+            Aéroport, hôtel, ville ou gare — point de départ/arrivée possible.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="zone-name">Nom</Label>
-            <Input id="zone-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Aéroport Tunis-Carthage" />
+            <Input
+              id="zone-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Aéroport Tunis-Carthage"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Type</Label>
@@ -111,11 +134,17 @@ function ZoneForm({ onDone }: { onDone: () => void }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
           <Button onClick={submit} disabled={isPending} className="gap-1.5">
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
             Créer
           </Button>
         </DialogFooter>
@@ -124,12 +153,21 @@ function ZoneForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-function ZonesTab({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: () => void }) {
+function ZonesTab({
+  zones,
+  onDone,
+}: {
+  zones: CatalogTransferZone[]
+  onDone: () => void
+}) {
   const [isPending, startTransition] = useTransition()
 
   function toggle(zoneId: string, current: string) {
     startTransition(async () => {
-      const res = await setTransferZoneStatus(zoneId, current === "active" ? "inactive" : "active")
+      const res = await setTransferZoneStatus(
+        zoneId,
+        current === "active" ? "inactive" : "active",
+      )
       if (!res.ok) {
         toast.error(res.error)
         return
@@ -143,13 +181,17 @@ function ZonesTab({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: () 
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle className="text-base">Zones</CardTitle>
-          <CardDescription>Points de départ/arrivée disponibles pour vos transferts.</CardDescription>
+          <CardDescription>
+            Points de départ/arrivée disponibles pour vos transferts.
+          </CardDescription>
         </div>
         <ZoneForm onDone={onDone} />
       </CardHeader>
       <CardContent>
         {zones.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">Aucune zone créée pour le moment.</p>
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            Aucune zone créée pour le moment.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -164,14 +206,29 @@ function ZonesTab({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: () 
               {zones.map((z) => (
                 <TableRow key={z.id}>
                   <TableCell className="font-medium">{z.name}</TableCell>
-                  <TableCell className="text-sm capitalize">{ZONE_TYPES.find((t) => t.value === z.zoneType)?.label ?? z.zoneType}</TableCell>
+                  <TableCell className="text-sm capitalize">
+                    {ZONE_TYPES.find((t) => t.value === z.zoneType)?.label ??
+                      z.zoneType}
+                  </TableCell>
                   <TableCell>
-                    <Badge className={z.status === "active" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : ""} variant={z.status === "active" ? "default" : "outline"}>
+                    <Badge
+                      className={
+                        z.status === "active"
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                          : ""
+                      }
+                      variant={z.status === "active" ? "default" : "outline"}
+                    >
                       {z.status === "active" ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" disabled={isPending} onClick={() => toggle(z.id, z.status)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isPending}
+                      onClick={() => toggle(z.id, z.status)}
+                    >
                       {z.status === "active" ? "Désactiver" : "Activer"}
                     </Button>
                   </TableCell>
@@ -185,7 +242,13 @@ function ZonesTab({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: () 
   )
 }
 
-function PricingForm({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: () => void }) {
+function PricingForm({
+  zones,
+  onDone,
+}: {
+  zones: CatalogTransferZone[]
+  onDone: () => void
+}) {
   const [open, setOpen] = useState(false)
   const [fromZoneId, setFromZoneId] = useState("")
   const [toZoneId, setToZoneId] = useState("")
@@ -234,7 +297,9 @@ function PricingForm({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nouveau tarif de transfert</DialogTitle>
-          <DialogDescription>Prix pour un trajet + type de véhicule donné.</DialogDescription>
+          <DialogDescription>
+            Prix pour un trajet + type de véhicule donné.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -284,19 +349,39 @@ function PricingForm({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: 
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tp-price">Prix de base (DT)</Label>
-            <Input id="tp-price" type="number" min="0" step="0.001" value={basePriceTnd} onChange={(e) => setBasePriceTnd(e.target.value)} />
+            <Input
+              id="tp-price"
+              type="number"
+              min="0"
+              step="0.001"
+              value={basePriceTnd}
+              onChange={(e) => setBasePriceTnd(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="tp-night">Majoration nuit (%) — 21h-6h</Label>
-            <Input id="tp-night" type="number" min="0" max="200" value={nightSurchargePercent} onChange={(e) => setNightSurchargePercent(e.target.value)} />
+            <Input
+              id="tp-night"
+              type="number"
+              min="0"
+              max="200"
+              value={nightSurchargePercent}
+              onChange={(e) => setNightSurchargePercent(e.target.value)}
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
           <Button onClick={submit} disabled={isPending} className="gap-1.5">
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
             Créer
           </Button>
         </DialogFooter>
@@ -305,7 +390,15 @@ function PricingForm({ zones, onDone }: { zones: CatalogTransferZone[]; onDone: 
   )
 }
 
-function PricingTab({ zones, pricing, onDone }: { zones: CatalogTransferZone[]; pricing: TransferPricingRow[]; onDone: () => void }) {
+function PricingTab({
+  zones,
+  pricing,
+  onDone,
+}: {
+  zones: CatalogTransferZone[]
+  pricing: TransferPricingRow[]
+  onDone: () => void
+}) {
   const [isPending, startTransition] = useTransition()
 
   function remove(id: string) {
@@ -324,16 +417,22 @@ function PricingTab({ zones, pricing, onDone }: { zones: CatalogTransferZone[]; 
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle className="text-base">Tarifs</CardTitle>
-          <CardDescription>Un tarif par trajet (zone → zone) et type de véhicule.</CardDescription>
+          <CardDescription>
+            Un tarif par trajet (zone → zone) et type de véhicule.
+          </CardDescription>
         </div>
         <PricingForm zones={zones} onDone={onDone} />
       </CardHeader>
       <CardContent>
         {zones.filter((z) => z.status === "active").length < 2 && (
-          <p className="text-muted-foreground mb-4 text-sm">Créez au moins deux zones actives avant d&apos;ajouter un tarif.</p>
+          <p className="text-muted-foreground mb-4 text-sm">
+            Créez au moins deux zones actives avant d&apos;ajouter un tarif.
+          </p>
         )}
         {pricing.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">Aucun tarif configuré pour le moment.</p>
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            Aucun tarif configuré pour le moment.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -351,11 +450,24 @@ function PricingTab({ zones, pricing, onDone }: { zones: CatalogTransferZone[]; 
                   <TableCell className="text-sm">
                     {p.fromZoneName} → {p.toZoneName}
                   </TableCell>
-                  <TableCell className="text-sm">{VEHICLE_TYPES.find((v) => v.value === p.vehicleType)?.label ?? p.vehicleType}</TableCell>
-                  <TableCell className="tabular-nums">{p.basePriceTnd.toFixed(3)} DT</TableCell>
-                  <TableCell className="tabular-nums">{p.nightSurchargePercent}%</TableCell>
+                  <TableCell className="text-sm">
+                    {VEHICLE_TYPES.find((v) => v.value === p.vehicleType)
+                      ?.label ?? p.vehicleType}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {p.basePriceTnd.toFixed(3)} DT
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {p.nightSurchargePercent}%
+                  </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-600" disabled={isPending} onClick={() => remove(p.id)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-600 hover:text-red-600"
+                      disabled={isPending}
+                      onClick={() => remove(p.id)}
+                    >
                       Supprimer
                     </Button>
                   </TableCell>

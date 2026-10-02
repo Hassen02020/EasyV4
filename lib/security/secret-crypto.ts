@@ -14,7 +14,12 @@
  * section "CREDENTIAL SECURITY" : "Do not invent a cloud vault dependency
  * unless required").
  */
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto"
+import {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  createHash,
+} from "node:crypto"
 
 const ALGORITHM = "aes-256-gcm"
 const IV_LENGTH = 12 // recommandé pour GCM
@@ -32,7 +37,9 @@ export class SecretCryptoNotConfiguredError extends Error {
 
 function getKey(version: number): Buffer {
   if (version !== CURRENT_KEY_VERSION) {
-    throw new Error(`Version de clé de chiffrement inconnue: ${version} (seule la version ${CURRENT_KEY_VERSION} existe aujourd'hui).`)
+    throw new Error(
+      `Version de clé de chiffrement inconnue: ${version} (seule la version ${CURRENT_KEY_VERSION} existe aujourd'hui).`,
+    )
   }
   const raw = process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY
   if (!raw) throw new SecretCryptoNotConfiguredError()
@@ -66,9 +73,16 @@ export function encryptSecret(value: unknown): EncryptedSecret {
 export function decryptSecret<T = unknown>(ciphertext: string): T {
   const parts = ciphertext.split(":")
   if (parts.length !== 4 || !parts[0]?.startsWith("v")) {
-    throw new Error("Format de secret chiffré invalide (corrompu ou non émis par ce module).")
+    throw new Error(
+      "Format de secret chiffré invalide (corrompu ou non émis par ce module).",
+    )
   }
-  const [versionTag, ivB64, authTagB64, dataB64] = parts as [string, string, string, string]
+  const [versionTag, ivB64, authTagB64, dataB64] = parts as [
+    string,
+    string,
+    string,
+    string,
+  ]
   const version = Number(versionTag.slice(1))
   const key = getKey(version)
   const iv = Buffer.from(ivB64, "base64")

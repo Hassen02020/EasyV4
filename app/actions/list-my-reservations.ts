@@ -85,7 +85,9 @@ export async function getProductDetails(
         .limit(1)
       if (!row) return null
       return {
-        label: row.cityName ? `${row.hotelName} — ${row.cityName}` : row.hotelName,
+        label: row.cityName
+          ? `${row.hotelName} — ${row.cityName}`
+          : row.hotelName,
         startDate: row.checkIn,
         endDate: row.checkOut,
         travelers: row.adults + (row.childrenAges?.length ?? 0),
@@ -106,7 +108,9 @@ export async function getProductDetails(
         .limit(1)
       if (!row) return null
       return {
-        label: row.cityName ? `${row.hotelName} — ${row.cityName}` : row.hotelName,
+        label: row.cityName
+          ? `${row.hotelName} — ${row.cityName}`
+          : row.hotelName,
         startDate: row.checkIn,
         endDate: row.checkOut,
         travelers: row.adults + (row.childrenAges?.length ?? 0),
@@ -122,7 +126,10 @@ export async function getProductDetails(
           childrenAges: reservationPackage.childrenAges,
         })
         .from(reservationPackage)
-        .innerJoin(catalogPackages, eq(reservationPackage.packageId, catalogPackages.id))
+        .innerJoin(
+          catalogPackages,
+          eq(reservationPackage.packageId, catalogPackages.id),
+        )
         .where(eq(reservationPackage.reservationId, reservationId))
         .limit(1)
       if (!row) return null
@@ -143,7 +150,10 @@ export async function getProductDetails(
           seniors: reservationActivity.seniors,
         })
         .from(reservationActivity)
-        .innerJoin(catalogActivities, eq(reservationActivity.activityId, catalogActivities.id))
+        .innerJoin(
+          catalogActivities,
+          eq(reservationActivity.activityId, catalogActivities.id),
+        )
         .where(eq(reservationActivity.reservationId, reservationId))
         .limit(1)
       if (!row) return null
@@ -163,7 +173,10 @@ export async function getProductDetails(
           pilgrims: reservationOmra.pilgrims,
         })
         .from(reservationOmra)
-        .innerJoin(omraPackages, eq(reservationOmra.omraPackageId, omraPackages.id))
+        .innerJoin(
+          omraPackages,
+          eq(reservationOmra.omraPackageId, omraPackages.id),
+        )
         .where(eq(reservationOmra.reservationId, reservationId))
         .limit(1)
       if (!row) return null
@@ -193,7 +206,9 @@ export async function getProductDetails(
       return {
         label: `Vol ${row.origin} → ${row.destination}${row.pnr ? ` (PNR ${row.pnr})` : ""}`,
         startDate: departDate,
-        endDate: row.arriveAt ? row.arriveAt.toISOString().slice(0, 10) : departDate,
+        endDate: row.arriveAt
+          ? row.arriveAt.toISOString().slice(0, 10)
+          : departDate,
         travelers: row.adults + row.children,
       }
     }
@@ -288,7 +303,9 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
         // (voir lib/booking/policy-engine.ts, doc de tête).
         let cancellationPolicy: BookingSummary["cancellationPolicy"] = undefined
         if (POLICY_ENGINE_MODULES.includes(row.module)) {
-          const payload = (row.providerPayload ?? {}) as { policySnapshot?: PolicySnapshot }
+          const payload = (row.providerPayload ?? {}) as {
+            policySnapshot?: PolicySnapshot
+          }
           const policy = payload.policySnapshot?.policy ?? null
           cancellationPolicy = policy
             ? {
@@ -315,7 +332,9 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
           confirmedAt: row.confirmedAt?.toISOString() ?? null,
           cancelledAt: row.cancelledAt?.toISOString() ?? null,
           paymentExpiresAt: row.paymentExpiresAt?.toISOString() ?? null,
-          payment: lastPayment ? { method: lastPayment.method, status: lastPayment.status } : null,
+          payment: lastPayment
+            ? { method: lastPayment.method, status: lastPayment.status }
+            : null,
           onlinePaymentAvailable,
           guestAccessToken: row.guestAccessToken,
           hasInvoice: invoice != null,

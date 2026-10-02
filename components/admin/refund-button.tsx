@@ -44,12 +44,17 @@ export function RefundButton({
   const [isPending, startTransition] = useTransition()
 
   const amountTnd = amount.trim() === "" ? undefined : Number.parseFloat(amount)
-  const amountValid = amountTnd === undefined || (Number.isFinite(amountTnd) && amountTnd > 0)
+  const amountValid =
+    amountTnd === undefined || (Number.isFinite(amountTnd) && amountTnd > 0)
 
   function handleRefund() {
     setError(null)
     startTransition(async () => {
-      const result = await refundReservation({ reservationId, reason, amountTnd })
+      const result = await refundReservation({
+        reservationId,
+        reason,
+        amountTnd,
+      })
       if (!result.ok) {
         setError(result.error)
         return
@@ -64,7 +69,12 @@ export function RefundButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={disabled || refundableTnd <= 0} className="gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled || refundableTnd <= 0}
+          className="gap-1.5"
+        >
           <RotateCcw className="h-4 w-4" />
           Rembourser
         </Button>
@@ -74,12 +84,14 @@ export function RefundButton({
           <DialogTitle>Rembourser la réservation</DialogTitle>
           <DialogDescription>
             Crédite le wallet client et trace l&apos;opération. Montant vide =
-            remboursement total du solde encore remboursable ({refundableTnd.toFixed(2)} DT).
+            remboursement total du solde encore remboursable (
+            {refundableTnd.toFixed(2)} DT).
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
           <Label htmlFor="refund-amount">
-            Montant à rembourser (DT) — laisser vide pour tout ({refundableTnd.toFixed(2)} DT)
+            Montant à rembourser (DT) — laisser vide pour tout (
+            {refundableTnd.toFixed(2)} DT)
           </Label>
           <Input
             id="refund-amount"
@@ -115,7 +127,11 @@ export function RefundButton({
             className="gap-2"
             variant="destructive"
           >
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4" />
+            )}
             Confirmer le remboursement
           </Button>
         </DialogFooter>

@@ -274,7 +274,12 @@ export default async function B2CClientsPage() {
                         <B2cClientRowActions
                           client={{
                             id: client.id,
-                            civility: (client.civility as "M" | "Mme" | "Mlle" | null) ?? null,
+                            civility:
+                              (client.civility as
+                                | "M"
+                                | "Mme"
+                                | "Mlle"
+                                | null) ?? null,
                             firstName: client.firstName,
                             lastName: client.lastName,
                             email: client.email,

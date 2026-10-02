@@ -58,14 +58,23 @@ type FlightConfirmedPayload = {
 
 type DispatchResult =
   | { dispatched: true; attempts: number; eventId: string }
-  | { dispatched: false; skipped?: boolean; attempts: number; stderrLine?: string }
+  | {
+      dispatched: false
+      skipped?: boolean
+      attempts: number
+      stderrLine?: string
+    }
 
 async function dispatchFlightConfirmedReliable(
   bookingId: string,
   customerEmail: string,
   payload: FlightConfirmedPayload,
   // injectable send — throws to simulate unavailability
-  send: (id: string, name: string, data: FlightConfirmedPayload) => Promise<void>,
+  send: (
+    id: string,
+    name: string,
+    data: FlightConfirmedPayload,
+  ) => Promise<void>,
   // injectable for testing — records intended delays without actually sleeping
   recordedDelays: number[],
   // injectable stderr collector
@@ -118,7 +127,11 @@ async function dispatchFlightConfirmedReliable(
 
 async function processFlightConfirmedHandler(
   data: FlightConfirmedPayload,
-  sendEmail: (to: string, subject: string, html: string) => Promise<{ error?: string }>,
+  sendEmail: (
+    to: string,
+    subject: string,
+    html: string,
+  ) => Promise<{ error?: string }>,
 ): Promise<{ reservationId: string; sent: boolean }> {
   const { error } = await sendEmail(
     data.customerEmail,
@@ -126,7 +139,9 @@ async function processFlightConfirmedHandler(
     `<h2>Vol confirmé</h2><p>PNR/Ref: ${data.publicRef}</p>`,
   )
   if (error) {
-    throw new Error(`[process-flight-confirmed] envoi email échoué — ${error} (ref: ${data.publicRef})`)
+    throw new Error(
+      `[process-flight-confirmed] envoi email échoué — ${error} (ref: ${data.publicRef})`,
+    )
   }
   return { reservationId: data.reservationId, sent: true }
 }
@@ -151,7 +166,11 @@ const samplePayload: FlightConfirmedPayload = {
   totalTnd: 1240.5,
 }
 
-const sendOk = async (_id: string, _name: string, _data: FlightConfirmedPayload) => {}
+const sendOk = async (
+  _id: string,
+  _name: string,
+  _data: FlightConfirmedPayload,
+) => {}
 
 function sendFailN(n: number) {
   let calls = 0
@@ -169,12 +188,16 @@ const sendAlwaysFail = async () => {
 // ===========================================================================
 
 describe("G13 — Inngest Reliability", () => {
-
   test("I01 — happy path: dispatch succeeds on first attempt, no retry, no stderr", async () => {
     const delays: number[] = []
     const stderr: string[] = []
     const result = await dispatchFlightConfirmedReliable(
-      "bk-i01", "client@test.com", samplePayload, sendOk, delays, stderr,
+      "bk-i01",
+      "client@test.com",
+      samplePayload,
+      sendOk,
+      delays,
+      stderr,
     )
 
     assert.ok(result.dispatched)
@@ -187,7 +210,12 @@ describe("G13 — Inngest Reliability", () => {
     const delays: number[] = []
     const stderr: string[] = []
     const result = await dispatchFlightConfirmedReliable(
-      "bk-i02", "client@test.com", samplePayload, sendFailN(1), delays, stderr,
+      "bk-i02",
+      "client@test.com",
+      samplePayload,
+      sendFailN(1),
+      delays,
+      stderr,
     )
 
     assert.ok(result.dispatched)
@@ -199,7 +227,12 @@ describe("G13 — Inngest Reliability", () => {
   test("I03 — Inngest permanently fails → INNGEST_DISPATCH_FAILURE emitted to stderr", async () => {
     const stderr: string[] = []
     const result = await dispatchFlightConfirmedReliable(
-      "bk-i03", "client@test.com", samplePayload, sendAlwaysFail, [], stderr,
+      "bk-i03",
+      "client@test.com",
+      samplePayload,
+      sendAlwaysFail,
+      [],
+      stderr,
     )
 
     assert.equal(result.dispatched, false)
@@ -209,18 +242,34 @@ describe("G13 — Inngest Reliability", () => {
   test("I04 — permanent failure never throws (non-fatal to fulfillment)", async () => {
     const stderr: string[] = []
     await assert.doesNotReject(() =>
-      dispatchFlightConfirmedReliable("bk-i04", "x@y.com", samplePayload, sendAlwaysFail, [], stderr),
+      dispatchFlightConfirmedReliable(
+        "bk-i04",
+        "x@y.com",
+        samplePayload,
+        sendAlwaysFail,
+        [],
+        stderr,
+      ),
     )
   })
 
   test("I05 — event id = `flight.confirmed:<bookingId>` on every call (idempotency key)", async () => {
     const capturedIds: string[] = []
-    const capturingSend = async (id: string, _name: string, _data: FlightConfirmedPayload) => {
+    const capturingSend = async (
+      id: string,
+      _name: string,
+      _data: FlightConfirmedPayload,
+    ) => {
       capturedIds.push(id)
     }
 
     await dispatchFlightConfirmedReliable(
-      "bk-i05", "client@test.com", samplePayload, capturingSend, [], [],
+      "bk-i05",
+      "client@test.com",
+      samplePayload,
+      capturingSend,
+      [],
+      [],
     )
 
     assert.equal(capturedIds.length, 1)
@@ -230,18 +279,31 @@ describe("G13 — Inngest Reliability", () => {
   test("I06 — retry backoff: first retry ≥ 100ms, second retry ≥ 200ms", async () => {
     const delays: number[] = []
     await dispatchFlightConfirmedReliable(
-      "bk-i06", "client@test.com", samplePayload, sendAlwaysFail, delays, [],
+      "bk-i06",
+      "client@test.com",
+      samplePayload,
+      sendAlwaysFail,
+      delays,
+      [],
     )
 
     assert.equal(delays.length, 2, "2 retry delays for 3 attempts")
     assert.ok(delays[0] >= 100, `first delay must be ≥ 100ms, got ${delays[0]}`)
-    assert.ok(delays[1] >= 200, `second delay must be ≥ 200ms, got ${delays[1]}`)
+    assert.ok(
+      delays[1] >= 200,
+      `second delay must be ≥ 200ms, got ${delays[1]}`,
+    )
   })
 
   test("I07 — stderr fallback JSON contains tag = 'INNGEST_DISPATCH_FAILURE'", async () => {
     const stderr: string[] = []
     await dispatchFlightConfirmedReliable(
-      "bk-i07", "x@y.com", samplePayload, sendAlwaysFail, [], stderr,
+      "bk-i07",
+      "x@y.com",
+      samplePayload,
+      sendAlwaysFail,
+      [],
+      stderr,
     )
 
     const payload = JSON.parse(stderr[0]) as Record<string, unknown>
@@ -251,7 +313,12 @@ describe("G13 — Inngest Reliability", () => {
   test("I08 — stderr fallback JSON contains bookingId, event name, full payload", async () => {
     const stderr: string[] = []
     await dispatchFlightConfirmedReliable(
-      "bk-i08", "x@y.com", samplePayload, sendAlwaysFail, [], stderr,
+      "bk-i08",
+      "x@y.com",
+      samplePayload,
+      sendAlwaysFail,
+      [],
+      stderr,
     )
 
     const p = JSON.parse(stderr[0]) as Record<string, unknown>
@@ -267,20 +334,36 @@ describe("G13 — Inngest Reliability", () => {
   test("I09 — stderr fallback JSON is parseable", async () => {
     const stderr: string[] = []
     await dispatchFlightConfirmedReliable(
-      "bk-i09", "x@y.com", samplePayload, sendAlwaysFail, [], stderr,
+      "bk-i09",
+      "x@y.com",
+      samplePayload,
+      sendAlwaysFail,
+      [],
+      stderr,
     )
 
     assert.equal(stderr.length, 1)
     assert.doesNotThrow(() => JSON.parse(stderr[0]), "must be valid JSON")
     const p = JSON.parse(stderr[0]) as Record<string, unknown>
-    assert.ok(typeof p.ts === "string" && !isNaN(Date.parse(p.ts as string)), "ts must be a valid ISO date")
-    assert.ok(typeof p.error === "string" && p.error.length > 0, "error must be a non-empty string")
+    assert.ok(
+      typeof p.ts === "string" && !isNaN(Date.parse(p.ts as string)),
+      "ts must be a valid ISO date",
+    )
+    assert.ok(
+      typeof p.error === "string" && p.error.length > 0,
+      "error must be a non-empty string",
+    )
   })
 
   test("I10 — empty customerEmail → INNGEST_DISPATCH_SKIPPED logged, dispatched = false", async () => {
     const stderr: string[] = []
     const result = await dispatchFlightConfirmedReliable(
-      "bk-i10", "", samplePayload, sendOk, [], stderr,
+      "bk-i10",
+      "",
+      samplePayload,
+      sendOk,
+      [],
+      stderr,
     )
 
     assert.equal(result.dispatched, false)
@@ -320,7 +403,12 @@ describe("G13 — Inngest Reliability", () => {
 
     // Two calls for the same bookingId — once fails + once retries
     await dispatchFlightConfirmedReliable(
-      "bk-i13", "x@y.com", samplePayload, recordSend, [], [],
+      "bk-i13",
+      "x@y.com",
+      samplePayload,
+      recordSend,
+      [],
+      [],
     )
 
     // Both captured ids must be identical
@@ -333,12 +421,20 @@ describe("G13 — Inngest Reliability", () => {
   test("I14 — INNGEST_DISPATCH_SKIPPED JSON contains bookingId and reason", async () => {
     const stderr: string[] = []
     await dispatchFlightConfirmedReliable(
-      "bk-i14", "", samplePayload, sendOk, [], stderr,
+      "bk-i14",
+      "",
+      samplePayload,
+      sendOk,
+      [],
+      stderr,
     )
 
     const p = JSON.parse(stderr[0]) as Record<string, unknown>
     assert.equal(p.bookingId, "bk-i14")
-    assert.ok(typeof p.reason === "string" && p.reason.length > 0, "reason must be present")
+    assert.ok(
+      typeof p.reason === "string" && p.reason.length > 0,
+      "reason must be present",
+    )
   })
 
   test("I15 — 10 concurrent dispatches for the same bookingId all use identical event id", async () => {
@@ -350,14 +446,23 @@ describe("G13 — Inngest Reliability", () => {
     await Promise.all(
       Array.from({ length: 10 }, () =>
         dispatchFlightConfirmedReliable(
-          "bk-i15-shared", "x@y.com", samplePayload, concurrentSend, [], [],
+          "bk-i15-shared",
+          "x@y.com",
+          samplePayload,
+          concurrentSend,
+          [],
+          [],
         ),
       ),
     )
 
     assert.equal(capturedIds.length, 10, "10 calls → 10 sends")
     const uniqueIds = new Set(capturedIds)
-    assert.equal(uniqueIds.size, 1, "all 10 must carry the same idempotency key")
+    assert.equal(
+      uniqueIds.size,
+      1,
+      "all 10 must carry the same idempotency key",
+    )
     assert.equal([...uniqueIds][0], "flight.confirmed:bk-i15-shared")
   })
 })

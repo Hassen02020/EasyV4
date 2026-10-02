@@ -17,10 +17,19 @@ import { MutuelleShell } from "@/components/mutuelle-shell"
  * demande un branding par groupe. `null` = violet par défaut inchangé
  * (voir components/mutuelle-shell.tsx).
  */
-async function getMutuelleAccentColor(agencyId: string, userId: string): Promise<string | null> {
+async function getMutuelleAccentColor(
+  agencyId: string,
+  userId: string,
+): Promise<string | null> {
   try {
-    const rows = await withTenantContext({ agencyId, userId, isSuperAdmin: false }, (tx) =>
-      tx.select({ primaryColor: agencies.primaryColor }).from(agencies).where(eq(agencies.id, agencyId)).limit(1),
+    const rows = await withTenantContext(
+      { agencyId, userId, isSuperAdmin: false },
+      (tx) =>
+        tx
+          .select({ primaryColor: agencies.primaryColor })
+          .from(agencies)
+          .where(eq(agencies.id, agencyId))
+          .limit(1),
     )
     return rows[0]?.primaryColor ?? null
   } catch {
@@ -54,7 +63,11 @@ export default async function MutuelleLayout({
   const allowedRoles = ["mutuelle_director", "mutuelle_member"]
   const effectiveRole = cookieRole || profile?.role
 
-  if (!effectiveRole || !allowedRoles.includes(effectiveRole) || !profile?.mutuelleGroupId) {
+  if (
+    !effectiveRole ||
+    !allowedRoles.includes(effectiveRole) ||
+    !profile?.mutuelleGroupId
+  ) {
     // Si mauvais rôle, rediriger vers le bon espace
     if (profile?.role === "super_admin" || profile?.role === "manager") {
       redirect("/admin")

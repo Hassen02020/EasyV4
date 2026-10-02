@@ -43,11 +43,17 @@ for (const [label, path] of [
 ] as const) {
   test(`Hotel TN — ${label} : 3 lignes (external_supplier/agency-seller/easy2book), commission réelle non fabriquée`, () => {
     const src = read(path)
-    assert.match(src, /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/)
+    assert.match(
+      src,
+      /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
+    )
     assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
     assert.match(src, /role: "easy2book",\s*\n\s*qualification: "commission",/)
     // Commission réelle = même formule textuelle que recordReservationFinancials()
-    assert.match(src, /Math\.round\(marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100\) \/ 100/)
+    assert.match(
+      src,
+      /Math\.round\(\s*\n?\s*marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100,?\s*\n?\s*\) \/ 100/,
+    )
   })
 }
 
@@ -57,14 +63,29 @@ for (const [label, path] of [
 
 for (const [label, path, costVar] of [
   ["cars/actions.ts (B2B)", "lib/cars/actions.ts", "carSupplierCostTnd"],
-  ["cars/guest-booking-actions.ts (B2C)", "lib/cars/guest-booking-actions.ts", "carSupplierCostTnd"],
-  ["transfers/actions.ts", "lib/transfers/actions.ts", "transferSupplierCostTnd"],
+  [
+    "cars/guest-booking-actions.ts (B2C)",
+    "lib/cars/guest-booking-actions.ts",
+    "carSupplierCostTnd",
+  ],
+  [
+    "transfers/actions.ts",
+    "lib/transfers/actions.ts",
+    "transferSupplierCostTnd",
+  ],
 ] as const) {
   test(`Car/Transfer — ${label} : 2 lignes (agency product_owner + agency seller), pas de ligne commission fabriquée`, () => {
     const src = read(path)
-    assert.match(src, /role: "product_owner",\s*\n\s*qualification: "supplier_cost",/)
+    assert.match(
+      src,
+      /role: "product_owner",\s*\n\s*qualification: "supplier_cost",/,
+    )
     assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
-    assert.equal(src.includes('qualification: "commission"'), false, "aucune commission réelle sur ce module aujourd'hui — pas de ligne fabriquée")
+    assert.equal(
+      src.includes('qualification: "commission"'),
+      false,
+      "aucune commission réelle sur ce module aujourd'hui — pas de ligne fabriquée",
+    )
     // Σ = coût + (vente - coût) = vente : les deux montants réutilisent la
     // même variable que supplierPriceTnd, jamais un second calcul.
     assert.equal(countOccurrences(src, `amount: ${costVar},`), 1)
@@ -76,12 +97,18 @@ for (const [label, path, costVar] of [
 /* -------------------------------------------------------------------------- */
 
 for (const [label, path] of [
-  ["hotels-monde/guest-booking-actions.ts", "lib/hotels-monde/guest-booking-actions.ts"],
+  [
+    "hotels-monde/guest-booking-actions.ts",
+    "lib/hotels-monde/guest-booking-actions.ts",
+  ],
   ["vols/guest-booking-actions.ts", "lib/vols/guest-booking-actions.ts"],
 ] as const) {
   test(`Hotels-Monde/Vols — ${label} : 2 lignes (external_supplier + agency seller), pas de commission fabriquée`, () => {
     const src = read(path)
-    assert.match(src, /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/)
+    assert.match(
+      src,
+      /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
+    )
     assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
     assert.equal(src.includes('qualification: "commission"'), false)
   })
@@ -89,7 +116,10 @@ for (const [label, path] of [
 
 test("vols/flight-financials.ts : 2 lignes conditionnées à la résolution réelle de agencyId (pas de ligne si la réservation est introuvable)", () => {
   const src = read("lib/vols/flight-financials.ts")
-  assert.match(src, /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/)
+  assert.match(
+    src,
+    /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
+  )
   assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
   assert.equal(src.includes('qualification: "commission"'), false)
   assert.match(src, /economicEntitlements: reservation\s*\n\s*\? \[/)
@@ -103,12 +133,19 @@ for (const [label, path, count] of [
   ["omra/booking-actions.ts", "lib/omra/booking-actions.ts", 1],
   ["omra/guest-booking-actions.ts", "lib/omra/guest-booking-actions.ts", 1],
   ["activities/booking-actions.ts", "lib/activities/booking-actions.ts", 1],
-  ["activities/guest-booking-actions.ts", "lib/activities/guest-booking-actions.ts", 1],
+  [
+    "activities/guest-booking-actions.ts",
+    "lib/activities/guest-booking-actions.ts",
+    1,
+  ],
   ["packages/booking-actions.ts", "lib/packages/booking-actions.ts", 2],
 ] as const) {
   test(`Omra/Activities/Packages — ${label} : UNE seule ligne product_owner=agence par call site, pas de seller_margin/commission fabriqués à 0`, () => {
     const src = read(path)
-    const matches = src.match(/role: "product_owner",\s*\n\s*qualification: "owner_share",/g) ?? []
+    const matches =
+      src.match(
+        /role: "product_owner",\s*\n\s*qualification: "owner_share",/g,
+      ) ?? []
     assert.equal(matches.length, count)
     assert.equal(src.includes('qualification: "seller_margin"'), false)
     assert.equal(src.includes('qualification: "commission"'), false)
@@ -146,7 +183,15 @@ test("aucun des fichiers câblés ne modifie applyMargin/getMarginsForAgency/cre
     if (blockStart === -1) continue
     const blockEnd = src.indexOf("],", blockStart)
     const block = src.slice(blockStart, blockEnd)
-    assert.equal(block.includes("applyMargin("), false, `${f} : le bloc economicEntitlements ne doit pas appeler applyMargin()`)
-    assert.equal(block.includes("getMarginsForAgency("), false, `${f} : le bloc economicEntitlements ne doit pas appeler getMarginsForAgency()`)
+    assert.equal(
+      block.includes("applyMargin("),
+      false,
+      `${f} : le bloc economicEntitlements ne doit pas appeler applyMargin()`,
+    )
+    assert.equal(
+      block.includes("getMarginsForAgency("),
+      false,
+      `${f} : le bloc economicEntitlements ne doit pas appeler getMarginsForAgency()`,
+    )
   }
 })

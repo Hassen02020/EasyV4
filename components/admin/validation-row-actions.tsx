@@ -32,7 +32,9 @@ export function ValidationRowActions({
   publicRef,
   canValidate,
 }: ValidationRowActionsProps) {
-  const [confirmAction, setConfirmAction] = useState<"validate" | "reject" | null>(null)
+  const [confirmAction, setConfirmAction] = useState<
+    "validate" | "reject" | null
+  >(null)
 
   function handleConfirmed(action: "validate" | "reject") {
     toast.info(
@@ -111,8 +113,8 @@ export function ValidationRowActions({
         description={
           <>
             La réservation <strong>{publicRef}</strong> sera marquée comme
-            rejetée. Cette action peut nécessiter une intervention manuelle
-            pour être annulée.
+            rejetée. Cette action peut nécessiter une intervention manuelle pour
+            être annulée.
           </>
         }
         confirmLabel="Rejeter"

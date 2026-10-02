@@ -1,17 +1,34 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { PRODUCT_STATUSES, isValidProductStatus, PRODUCT_CHANNELS } from "../product-constants"
-import { packageProductSchema, packageDepartureSchema } from "../schemas/package-product"
-import { omraProductSchema, omraDepartureSchema, omraProductMetadataSchema } from "../schemas/omra-product"
-import { activityProductSchema, activitySessionSchema } from "../schemas/activity-product"
+import {
+  PRODUCT_STATUSES,
+  isValidProductStatus,
+  PRODUCT_CHANNELS,
+} from "../product-constants"
+import {
+  packageProductSchema,
+  packageDepartureSchema,
+} from "../schemas/package-product"
+import {
+  omraProductSchema,
+  omraDepartureSchema,
+  omraProductMetadataSchema,
+} from "../schemas/omra-product"
+import {
+  activityProductSchema,
+  activitySessionSchema,
+} from "../schemas/activity-product"
 
 /* -------------------------------------------------------------------------- */
 /* product-guard                                                              */
 /* -------------------------------------------------------------------------- */
 
 test("PRODUCT_STATUSES : exactement le vocabulaire demandé par la mission Phase 13", () => {
-  assert.deepEqual([...PRODUCT_STATUSES], ["draft", "published", "suspended", "archived"])
+  assert.deepEqual(
+    [...PRODUCT_STATUSES],
+    ["draft", "published", "suspended", "archived"],
+  )
 })
 
 test("isValidProductStatus : accepte les 4 statuts valides", () => {
@@ -45,15 +62,25 @@ test("packageProductSchema : accepte un produit minimal valide", () => {
 })
 
 test("packageProductSchema : refuse un titre trop court", () => {
-  assert.equal(packageProductSchema.safeParse({ ...validPackage, title: "AB" }).success, false)
+  assert.equal(
+    packageProductSchema.safeParse({ ...validPackage, title: "AB" }).success,
+    false,
+  )
 })
 
 test("packageProductSchema : refuse une liste de canaux vide", () => {
-  assert.equal(packageProductSchema.safeParse({ ...validPackage, channels: [] }).success, false)
+  assert.equal(
+    packageProductSchema.safeParse({ ...validPackage, channels: [] }).success,
+    false,
+  )
 })
 
 test("packageProductSchema : refuse un canal inconnu", () => {
-  assert.equal(packageProductSchema.safeParse({ ...validPackage, channels: ["facebook"] }).success, false)
+  assert.equal(
+    packageProductSchema.safeParse({ ...validPackage, channels: ["facebook"] })
+      .success,
+    false,
+  )
 })
 
 test("packageDepartureSchema : refuse une date de retour antérieure au départ", () => {
@@ -78,7 +105,12 @@ test("packageDepartureSchema : accepte un départ valide", () => {
 
 test("packageDepartureSchema : refuse un prix adulte négatif ou nul", () => {
   assert.equal(
-    packageDepartureSchema.safeParse({ departureDate: "2026-06-10", returnDate: "2026-06-15", adultPriceTnd: 0, totalSeats: 30 }).success,
+    packageDepartureSchema.safeParse({
+      departureDate: "2026-06-10",
+      returnDate: "2026-06-15",
+      adultPriceTnd: 0,
+      totalSeats: 30,
+    }).success,
     false,
   )
 })
@@ -110,23 +142,43 @@ test("omraProductSchema : accepte un produit minimal valide", () => {
 })
 
 test("omraProductSchema : refuse un type de programme invalide", () => {
-  assert.equal(omraProductSchema.safeParse({ ...validOmra, type: "safari" }).success, false)
+  assert.equal(
+    omraProductSchema.safeParse({ ...validOmra, type: "safari" }).success,
+    false,
+  )
 })
 
 test("omraProductSchema : refuse un prix de base non positif", () => {
-  assert.equal(omraProductSchema.safeParse({ ...validOmra, basePrice: 0 }).success, false)
+  assert.equal(
+    omraProductSchema.safeParse({ ...validOmra, basePrice: 0 }).success,
+    false,
+  )
 })
 
 test("omraProductSchema : accepte les champs riches vol/Makkah/Médine/accompagnateur", () => {
   const result = omraProductSchema.safeParse({
     ...validOmra,
     metadata: {
-      flight: { airline: "Tunisair", departureAirport: "TUN", arrivalAirport: "JED" },
+      flight: {
+        airline: "Tunisair",
+        departureAirport: "TUN",
+        arrivalAirport: "JED",
+      },
       firstDestination: "madinah",
-      makkah: { hotelName: "Swissotel Al Maqam", nights: 5, roomTypes: ["double"], mealPlan: "half_board" },
+      makkah: {
+        hotelName: "Swissotel Al Maqam",
+        nights: 5,
+        roomTypes: ["double"],
+        mealPlan: "half_board",
+      },
       madinah: { hotelName: "Dar Al Taqwa", nights: 4, roomTypes: ["double"] },
       transfers: ["airport-makkah", "makkah-madinah", "madinah-airport"],
-      accompanyingPerson: { name: "Ahmed Ben Ali", phone: "+21698000000", whatsapp: "+21698000000", role: "guide" },
+      accompanyingPerson: {
+        name: "Ahmed Ben Ali",
+        phone: "+21698000000",
+        whatsapp: "+21698000000",
+        role: "guide",
+      },
       otherServices: ["assurance voyage"],
     },
   })
@@ -138,11 +190,23 @@ test("omraProductSchema : accepte les champs riches vol/Makkah/Médine/accompagn
 })
 
 test("omraDepartureSchema : accepte un départ minimal", () => {
-  assert.equal(omraDepartureSchema.safeParse({ departureDate: "2026-03-01", totalCapacity: 45 }).success, true)
+  assert.equal(
+    omraDepartureSchema.safeParse({
+      departureDate: "2026-03-01",
+      totalCapacity: 45,
+    }).success,
+    true,
+  )
 })
 
 test("omraDepartureSchema : refuse une capacité nulle", () => {
-  assert.equal(omraDepartureSchema.safeParse({ departureDate: "2026-03-01", totalCapacity: 0 }).success, false)
+  assert.equal(
+    omraDepartureSchema.safeParse({
+      departureDate: "2026-03-01",
+      totalCapacity: 0,
+    }).success,
+    false,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -161,7 +225,11 @@ test("activityProductSchema : accepte un produit minimal valide", () => {
 })
 
 test("activityProductSchema : refuse une durée nulle", () => {
-  assert.equal(activityProductSchema.safeParse({ ...validActivity, durationMinutes: 0 }).success, false)
+  assert.equal(
+    activityProductSchema.safeParse({ ...validActivity, durationMinutes: 0 })
+      .success,
+    false,
+  )
 })
 
 test("activitySessionSchema : refuse une heure de fin avant l'heure de début", () => {

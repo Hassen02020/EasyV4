@@ -9,7 +9,15 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Search, Mail, Phone, Loader2, Link2, ExternalLink, AlertCircle } from "lucide-react"
+import {
+  Search,
+  Mail,
+  Phone,
+  Loader2,
+  Link2,
+  ExternalLink,
+  AlertCircle,
+} from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -34,11 +42,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
-import { updateLeadStatus, convertLead, searchReservationsForLeadLink } from "@/lib/admin/leads-actions"
-import type { LeadRow, LeadStatus, ReservationLinkCandidate } from "@/lib/crm/leads-core"
-import { computeLeadScore, type LeadScoreRuleMap } from "@/lib/crm/lead-scoring-core"
-import { isLeadStale, type LeadRelanceSettingsValue } from "@/lib/crm/lead-relance-core"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
+import {
+  updateLeadStatus,
+  convertLead,
+  searchReservationsForLeadLink,
+} from "@/lib/admin/leads-actions"
+import type {
+  LeadRow,
+  LeadStatus,
+  ReservationLinkCandidate,
+} from "@/lib/crm/leads-core"
+import {
+  computeLeadScore,
+  type LeadScoreRuleMap,
+} from "@/lib/crm/lead-scoring-core"
+import {
+  isLeadStale,
+  type LeadRelanceSettingsValue,
+} from "@/lib/crm/lead-relance-core"
 import { Customer360Button } from "@/components/admin/customer-360-panel"
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
@@ -155,7 +181,7 @@ function ConvertLeadDialog({
         <div className="max-h-72 space-y-2 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
           ) : candidates.length === 0 ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
@@ -173,7 +199,8 @@ function ConvertLeadDialog({
                 <div>
                   <p className="font-medium">{r.publicRef}</p>
                   <p className="text-muted-foreground text-xs">
-                    {r.customerFirstName} {r.customerLastName} — {r.customerEmail ?? r.customerPhone ?? "—"}
+                    {r.customerFirstName} {r.customerLastName} —{" "}
+                    {r.customerEmail ?? r.customerPhone ?? "—"}
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {new Date(r.createdAt).toLocaleDateString("fr-FR", {
@@ -185,8 +212,12 @@ function ConvertLeadDialog({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{parseFloat(r.tndAmount).toFixed(2)} DT</span>
-                  {confirming === r.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <span className="font-semibold">
+                    {parseFloat(r.tndAmount).toFixed(2)} DT
+                  </span>
+                  {confirming === r.id && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
                 </div>
               </button>
             ))
@@ -204,12 +235,21 @@ function scoreTone(total: number): string {
 }
 
 /** Score toujours transparent : le détail signal-par-signal est visible au survol, jamais un nombre opaque. */
-function LeadScoreCell({ lead, rules }: { lead: LeadRow; rules: LeadScoreRuleMap }) {
+function LeadScoreCell({
+  lead,
+  rules,
+}: {
+  lead: LeadRow
+  rules: LeadScoreRuleMap
+}) {
   const score = useMemo(() => computeLeadScore(lead, rules), [lead, rules])
   return (
     <HoverCard openDelay={100}>
       <HoverCardTrigger asChild>
-        <Badge variant="outline" className={`cursor-help font-semibold ${scoreTone(score.total)}`}>
+        <Badge
+          variant="outline"
+          className={`cursor-help font-semibold ${scoreTone(score.total)}`}
+        >
           {score.total}
         </Badge>
       </HoverCardTrigger>
@@ -217,9 +257,24 @@ function LeadScoreCell({ lead, rules }: { lead: LeadRow; rules: LeadScoreRuleMap
         <p className="mb-2 text-xs font-semibold">Détail du score</p>
         <ul className="space-y-1 text-xs">
           {score.breakdown.map((item) => (
-            <li key={item.signal} className="flex items-center justify-between gap-2">
-              <span className={item.matched ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
-              <span className={item.points > 0 ? "font-medium text-emerald-700" : "text-muted-foreground"}>
+            <li
+              key={item.signal}
+              className="flex items-center justify-between gap-2"
+            >
+              <span
+                className={
+                  item.matched ? "text-foreground" : "text-muted-foreground"
+                }
+              >
+                {item.label}
+              </span>
+              <span
+                className={
+                  item.points > 0
+                    ? "font-medium text-emerald-700"
+                    : "text-muted-foreground"
+                }
+              >
                 {item.matched ? `+${item.points}` : "0"}
               </span>
             </li>
@@ -233,7 +288,9 @@ function LeadScoreCell({ lead, rules }: { lead: LeadRow; rules: LeadScoreRuleMap
 function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
   const [lead, setLead] = useState(initialLead)
   const [status, setStatus] = useState<LeadStatus>(initialLead.status)
-  const [updatedAt, setUpdatedAt] = useState(() => new Date(initialLead.updatedAt))
+  const [updatedAt, setUpdatedAt] = useState(
+    () => new Date(initialLead.updatedAt),
+  )
   const [pending, setPending] = useState(false)
   const [convertOpen, setConvertOpen] = useState(false)
 
@@ -269,7 +326,9 @@ function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
     <div className="space-y-1">
       <div className="flex items-center gap-2">
         <Badge className={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Badge>
-        {pending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        {pending && (
+          <Loader2 className="text-muted-foreground h-3.5 w-3.5 animate-spin" />
+        )}
       </div>
       <Select value={status} onValueChange={handleChange} disabled={pending}>
         <SelectTrigger className="w-36">
@@ -286,7 +345,11 @@ function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
       {status !== "new" && (
         <p className="text-muted-foreground text-xs">
           Suivi le{" "}
-          {updatedAt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+          {updatedAt.toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
         </p>
       )}
       {status === "converted" && lead.reservationId && (
@@ -329,7 +392,13 @@ export function LeadsTable({
         return false
       }
       if (q) {
-        const haystack = [lead.firstName, lead.lastName, lead.email, lead.phone, lead.productLabel]
+        const haystack = [
+          lead.firstName,
+          lead.lastName,
+          lead.email,
+          lead.phone,
+          lead.productLabel,
+        ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -363,7 +432,9 @@ export function LeadsTable({
                   {STATUS_LABEL[s]}
                 </SelectItem>
               ))}
-              {relanceSettings.isEnabled && <SelectItem value="stale">À relancer</SelectItem>}
+              {relanceSettings.isEnabled && (
+                <SelectItem value="stale">À relancer</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -385,7 +456,10 @@ export function LeadsTable({
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={7}
+                    className="text-muted-foreground py-8 text-center"
+                  >
                     Aucune demande ne correspond à ces filtres.
                   </TableCell>
                 </TableRow>
@@ -410,9 +484,13 @@ export function LeadsTable({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{PRODUCT_TYPE_LABEL[lead.productType]}</Badge>
+                      <Badge variant="outline">
+                        {PRODUCT_TYPE_LABEL[lead.productType]}
+                      </Badge>
                       {lead.productLabel && (
-                        <p className="text-muted-foreground mt-1 max-w-40 truncate text-xs">{lead.productLabel}</p>
+                        <p className="text-muted-foreground mt-1 max-w-40 truncate text-xs">
+                          {lead.productLabel}
+                        </p>
                       )}
                     </TableCell>
                     <TableCell className="max-w-64 text-sm">
@@ -428,7 +506,10 @@ export function LeadsTable({
                     <TableCell>
                       <LeadStatusCell lead={lead} />
                       {isLeadStale(lead, relanceSettings) && (
-                        <Badge variant="outline" className="mt-1 gap-1 border-amber-200 bg-amber-100 text-amber-800">
+                        <Badge
+                          variant="outline"
+                          className="mt-1 gap-1 border-amber-200 bg-amber-100 text-amber-800"
+                        >
                           <AlertCircle className="h-3 w-3" /> À relancer
                         </Badge>
                       )}

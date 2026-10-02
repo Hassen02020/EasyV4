@@ -43,7 +43,10 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { users, agencies } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
-import { getAgencyPermissionGrants, getBaselinePermissions } from "@/lib/auth/permissions"
+import {
+  getAgencyPermissionGrants,
+  getBaselinePermissions,
+} from "@/lib/auth/permissions"
 import { RBAC_PERMISSIONS } from "@/lib/auth/rbac-permission-list"
 
 export const metadata: Metadata = {
@@ -108,8 +111,14 @@ async function loadStaff(agencyId: string) {
 
 async function loadAgencyName(agencyId: string): Promise<string> {
   try {
-    const [row] = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (db) =>
-      db.select({ name: agencies.name }).from(agencies).where(eq(agencies.id, agencyId)).limit(1),
+    const [row] = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) =>
+        db
+          .select({ name: agencies.name })
+          .from(agencies)
+          .where(eq(agencies.id, agencyId))
+          .limit(1),
     )
     return row?.name ?? "—"
   } catch (error) {
@@ -142,7 +151,10 @@ export default async function StaffPage() {
         profile.agencyId,
         staff.map((s) => s.id),
       )
-    : new Map<string, { permission: (typeof RBAC_PERMISSIONS)[number]; granted: boolean }[]>()
+    : new Map<
+        string,
+        { permission: (typeof RBAC_PERMISSIONS)[number]; granted: boolean }[]
+      >()
 
   const stats = {
     total: staff.length,
@@ -286,7 +298,9 @@ export default async function StaffPage() {
                             {roleConfig.label}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{agencyName}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {agencyName}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <Mail className="h-3 w-3 text-gray-400" />
@@ -319,7 +333,9 @@ export default async function StaffPage() {
                                 displayName={member.name || member.email}
                                 permissions={RBAC_PERMISSIONS}
                                 baseline={getBaselinePermissions(member.role)}
-                                initialOverrides={grantsByUser.get(member.id) ?? []}
+                                initialOverrides={
+                                  grantsByUser.get(member.id) ?? []
+                                }
                               />
                             ) : null}
                             <StaffRowActions

@@ -15,7 +15,9 @@ function hotel(overrides: Partial<NormalizedHotel>): NormalizedHotel {
 }
 
 test("matchHotels : mapping fournisseur explicite déjà partagé -> EXACT", () => {
-  const a = hotel({ supplierMappings: [{ supplier: "mygo", supplierHotelCode: "500001" }] })
+  const a = hotel({
+    supplierMappings: [{ supplier: "mygo", supplierHotelCode: "500001" }],
+  })
   const b = hotel({
     name: "Different Name Entirely",
     supplierMappings: [{ supplier: "mygo", supplierHotelCode: "500001" }],
@@ -25,7 +27,11 @@ test("matchHotels : mapping fournisseur explicite déjà partagé -> EXACT", () 
 
 test("matchHotels : coordonnées proches + nom similaire -> EXACT", () => {
   const a = hotel({ latitude: 36.9, longitude: 10.3 })
-  const b = hotel({ name: "El Mouradi Gammarth Hotel", latitude: 36.9001, longitude: 10.3001 })
+  const b = hotel({
+    name: "El Mouradi Gammarth Hotel",
+    latitude: 36.9001,
+    longitude: 10.3001,
+  })
   assert.equal(matchHotels(a, b).confidence, "EXACT")
 })
 

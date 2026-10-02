@@ -11,7 +11,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, reservationFlight, customers, agencies } from "@/lib/db/schema"
+import {
+  reservations,
+  reservationFlight,
+  customers,
+  agencies,
+} from "@/lib/db/schema"
 import { renderFlightVoucherPdf } from "@/lib/pdf/voucher-flight"
 import { isFlightVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
@@ -54,8 +59,16 @@ export async function GET(
       .from(reservations)
       .innerJoin(customers, eq(customers.id, reservations.customerId))
       .innerJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .leftJoin(reservationFlight, eq(reservationFlight.reservationId, reservations.id))
-      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
+      .leftJoin(
+        reservationFlight,
+        eq(reservationFlight.reservationId, reservations.id),
+      )
+      .where(
+        and(
+          eq(reservations.publicRef, ref),
+          eq(reservations.guestAccessToken, token),
+        ),
+      )
       .limit(1)
     return r ?? null
   })
@@ -84,24 +97,29 @@ export async function GET(
     )
   }
 
-  const firstSegment = (row.segments as Array<{ carrier?: string; flightNumber?: string }> | null)?.[0]
+  const firstSegment = (
+    row.segments as Array<{ carrier?: string; flightNumber?: string }> | null
+  )?.[0]
 
-  const pdf = await renderFlightVoucherPdf({
-    publicRef: row.publicRef,
-    customerName: `${row.customerFirstName} ${row.customerLastName}`.trim(),
-    pnr: row.pnr,
-    origin: row.origin!,
-    destination: row.destination!,
-    departAt: row.departAt!.toISOString(),
-    arriveAt: row.arriveAt ? row.arriveAt.toISOString() : null,
-    carrier: firstSegment?.carrier ?? null,
-    flightNumber: firstSegment?.flightNumber ?? null,
-    cabinClass: row.cabinClass,
-    adults: row.adults ?? 1,
-    children: row.children ?? 0,
-    totalTnd: parseFloat(row.tndAmount),
-    agencyName: row.agencyBrandName ?? row.agencyName,
-  }, locale)
+  const pdf = await renderFlightVoucherPdf(
+    {
+      publicRef: row.publicRef,
+      customerName: `${row.customerFirstName} ${row.customerLastName}`.trim(),
+      pnr: row.pnr,
+      origin: row.origin!,
+      destination: row.destination!,
+      departAt: row.departAt!.toISOString(),
+      arriveAt: row.arriveAt ? row.arriveAt.toISOString() : null,
+      carrier: firstSegment?.carrier ?? null,
+      flightNumber: firstSegment?.flightNumber ?? null,
+      cabinClass: row.cabinClass,
+      adults: row.adults ?? 1,
+      children: row.children ?? 0,
+      totalTnd: parseFloat(row.tndAmount),
+      agencyName: row.agencyBrandName ?? row.agencyName,
+    },
+    locale,
+  )
 
   return new NextResponse(Buffer.from(pdf), {
     status: 200,

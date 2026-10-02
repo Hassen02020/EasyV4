@@ -155,7 +155,9 @@ async function loadReservations(
           .limit(100)
 
         // Récupérer les clients
-        const customerIds = allReservations.map((r) => r.customerId).filter(Boolean)
+        const customerIds = allReservations
+          .map((r) => r.customerId)
+          .filter(Boolean)
         const customersData =
           customerIds.length > 0
             ? await db
@@ -195,7 +197,11 @@ async function loadReservations(
 export default async function B2CReservationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; search?: string; customerId?: string }>
+  searchParams: Promise<{
+    status?: string
+    search?: string
+    customerId?: string
+  }>
 }) {
   const { status, search, customerId } = await searchParams
 
@@ -216,19 +222,34 @@ export default async function B2CReservationsPage({
     redirect("/admin")
   }
 
-  const allReservations = await loadReservations(profile.agencyId, search, status, customerId)
+  const allReservations = await loadReservations(
+    profile.agencyId,
+    search,
+    status,
+    customerId,
+  )
 
   // Nom du client filtré (bandeau) — requête séparée : la liste peut être
   // vide (client sans réservation) et scopée à l'agence pour ne jamais
   // révéler le nom d'un client d'une autre agence via un id arbitraire.
   const filterClient = customerId
-    ? await withTenantContext({ agencyId: profile.agencyId, userId: "", isSuperAdmin: false }, (db) =>
-        db
-          .select({ firstName: customers.firstName, lastName: customers.lastName })
-          .from(customers)
-          .where(and(eq(customers.id, customerId), eq(customers.agencyId, profile.agencyId)))
-          .limit(1)
-          .then((rows) => rows[0] ?? null),
+    ? await withTenantContext(
+        { agencyId: profile.agencyId, userId: "", isSuperAdmin: false },
+        (db) =>
+          db
+            .select({
+              firstName: customers.firstName,
+              lastName: customers.lastName,
+            })
+            .from(customers)
+            .where(
+              and(
+                eq(customers.id, customerId),
+                eq(customers.agencyId, profile.agencyId),
+              ),
+            )
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
       )
     : null
 
@@ -268,7 +289,12 @@ export default async function B2CReservationsPage({
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button size="sm" className="bg-sidebar" disabled title="Pas encore disponible">
+          <Button
+            size="sm"
+            className="bg-sidebar"
+            disabled
+            title="Pas encore disponible"
+          >
             Nouvelle réservation
           </Button>
         </div>
@@ -277,9 +303,17 @@ export default async function B2CReservationsPage({
       {customerId && (
         <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm">
           <span>
-            Filtré pour <strong>{filterClient ? `${filterClient.firstName} ${filterClient.lastName}` : "ce client"}</strong>
+            Filtré pour{" "}
+            <strong>
+              {filterClient
+                ? `${filterClient.firstName} ${filterClient.lastName}`
+                : "ce client"}
+            </strong>
           </span>
-          <Link href="/admin/b2c/reservations" className="text-primary hover:underline">
+          <Link
+            href="/admin/b2c/reservations"
+            className="text-primary hover:underline"
+          >
             Retirer le filtre
           </Link>
         </div>
@@ -365,22 +399,34 @@ export default async function B2CReservationsPage({
           <Tabs defaultValue={status || "all"} className="space-y-4">
             <TabsList>
               <TabsTrigger value="all" asChild>
-                <Link href={customerId ? `/admin/b2c/reservations?customerId=${customerId}` : "/admin/b2c/reservations"}>
+                <Link
+                  href={
+                    customerId
+                      ? `/admin/b2c/reservations?customerId=${customerId}`
+                      : "/admin/b2c/reservations"
+                  }
+                >
                   Toutes
                 </Link>
               </TabsTrigger>
               <TabsTrigger value="pending" asChild>
-                <Link href={`/admin/b2c/reservations?status=pending${customerId ? `&customerId=${customerId}` : ""}`}>
+                <Link
+                  href={`/admin/b2c/reservations?status=pending${customerId ? `&customerId=${customerId}` : ""}`}
+                >
                   En attente
                 </Link>
               </TabsTrigger>
               <TabsTrigger value="confirmed" asChild>
-                <Link href={`/admin/b2c/reservations?status=confirmed${customerId ? `&customerId=${customerId}` : ""}`}>
+                <Link
+                  href={`/admin/b2c/reservations?status=confirmed${customerId ? `&customerId=${customerId}` : ""}`}
+                >
                   Confirmées
                 </Link>
               </TabsTrigger>
               <TabsTrigger value="cancelled" asChild>
-                <Link href={`/admin/b2c/reservations?status=cancelled${customerId ? `&customerId=${customerId}` : ""}`}>
+                <Link
+                  href={`/admin/b2c/reservations?status=cancelled${customerId ? `&customerId=${customerId}` : ""}`}
+                >
                   Annulées
                 </Link>
               </TabsTrigger>

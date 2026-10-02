@@ -59,7 +59,9 @@ export default async function ProHotelDetailPage({
     return (
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="bg-card shadow-e2b-soft border-border/60 rounded-2xl border p-8 text-center">
-          <p className="text-foreground text-base font-semibold">Recherche incomplète</p>
+          <p className="text-foreground text-base font-semibold">
+            Recherche incomplète
+          </p>
           <p className="text-muted-foreground mt-1 text-sm">
             Ville et dates de séjour requises pour afficher cet hôtel.
           </p>
@@ -91,7 +93,10 @@ export default async function ProHotelDetailPage({
     resolvePartnerMyGoAccess(),
     getActivePartnerMargins(),
   ])
-  const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
+  const result = await runHotelSearch(
+    q,
+    access.client ? { client: access.client } : undefined,
+  )
 
   if (!result.ok || result.dto.offers.length === 0) {
     return (
@@ -102,7 +107,9 @@ export default async function ProHotelDetailPage({
               ? "Le service hôtelier est temporairement indisponible"
               : "Cet hôtel n'est plus disponible pour ces dates"}
           </p>
-          {!result.ok && result.message && <p className="mt-1">{result.message}</p>}
+          {!result.ok && result.message && (
+            <p className="mt-1">{result.message}</p>
+          )}
           {/* PHASE 30.4 — audit : `q` (recherche déjà validée à ce stade)
               était disponible mais pas réutilisé ; "Retour aux résultats"
               renvoyait vers /pro/hotels SANS aucun paramètre, forçant

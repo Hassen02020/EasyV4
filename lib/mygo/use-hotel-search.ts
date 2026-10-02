@@ -160,7 +160,8 @@ export function useHotelSearch(): HotelSearchHookState {
     error: effectiveError,
     errorCode: effectiveErrorCode,
     degraded: state.queryString === queryString ? state.degraded : false,
-    fromStaleCache: state.queryString === queryString ? state.fromStaleCache : false,
+    fromStaleCache:
+      state.queryString === queryString ? state.fromStaleCache : false,
     queryString,
     retry: () => setRetryTick((n) => n + 1),
   }

@@ -22,14 +22,24 @@ import {
   type FlightBookingOfferSummary,
 } from "@/components/flights/flight-guest-booking-form"
 
-function parseOfferFromParams(params: URLSearchParams): FlightBookingOfferSummary | null {
+function parseOfferFromParams(
+  params: URLSearchParams,
+): FlightBookingOfferSummary | null {
   const token = params.get("token")
   const price = Number(params.get("price"))
   const origin = params.get("origin")
   const destination = params.get("destination")
   const departureAt = params.get("departureAt")
   const arrivalAt = params.get("arrivalAt")
-  if (!token || !origin || !destination || !departureAt || !arrivalAt || !Number.isFinite(price) || price <= 0) {
+  if (
+    !token ||
+    !origin ||
+    !destination ||
+    !departureAt ||
+    !arrivalAt ||
+    !Number.isFinite(price) ||
+    price <= 0
+  ) {
     return null
   }
   return {
@@ -61,9 +71,7 @@ export function FlightBookingContent() {
       <main className="mx-auto max-w-3xl px-4 py-12">
         <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
           <p className="font-semibold">{t("offerNotFoundTitle")}</p>
-          <p className="mt-1">
-            {t("offerNotFoundDesc")}
-          </p>
+          <p className="mt-1">{t("offerNotFoundDesc")}</p>
           <Button asChild variant="outline" className="mt-3">
             <Link href="/vols">{t("backToSearch")}</Link>
           </Button>
@@ -74,7 +82,9 @@ export function FlightBookingContent() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-foreground mb-6 text-xl font-bold">{t("finalizeBookingTitle")}</h1>
+      <h1 className="text-foreground mb-6 text-xl font-bold">
+        {t("finalizeBookingTitle")}
+      </h1>
       <FlightGuestBookingForm offer={offer} />
     </main>
   )

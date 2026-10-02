@@ -19,7 +19,8 @@ type DisplayMode = "SITE" | "API"
 type BookingMode = "OFFLINE" | "API" | "AUTOMATIC"
 
 function isValidModeCombo(display: DisplayMode, booking: BookingMode): boolean {
-  if (display === "SITE" && (booking === "API" || booking === "AUTOMATIC")) return false
+  if (display === "SITE" && (booking === "API" || booking === "AUTOMATIC"))
+    return false
   return true
 }
 
@@ -48,8 +49,13 @@ test("SITE + AUTOMATIC is invalid", () => {
 })
 
 // Supplier name validation
-const VALID_SUPPLIER_NAMES = ["virtual", "amadeus", "travelport", "sabre"] as const
-type SupplierName = typeof VALID_SUPPLIER_NAMES[number]
+const VALID_SUPPLIER_NAMES = [
+  "virtual",
+  "amadeus",
+  "travelport",
+  "sabre",
+] as const
+type SupplierName = (typeof VALID_SUPPLIER_NAMES)[number]
 
 function isKnownSupplier(s: string): s is SupplierName {
   return (VALID_SUPPLIER_NAMES as readonly string[]).includes(s)
@@ -68,7 +74,10 @@ test("unknown supplier is rejected", () => {
 })
 
 // displayUrl is required when displayMode = SITE
-function validateConfig(cfg: { displayMode: DisplayMode; displayUrl?: string | null }): string[] {
+function validateConfig(cfg: {
+  displayMode: DisplayMode
+  displayUrl?: string | null
+}): string[] {
   const errors: string[] = []
   if (cfg.displayMode === "SITE" && !cfg.displayUrl) {
     errors.push("displayUrl is required when displayMode is SITE")
@@ -82,7 +91,10 @@ test("SITE mode without displayUrl produces validation error", () => {
 })
 
 test("SITE mode with displayUrl is valid", () => {
-  const errs = validateConfig({ displayMode: "SITE", displayUrl: "https://gds.example.com" })
+  const errs = validateConfig({
+    displayMode: "SITE",
+    displayUrl: "https://gds.example.com",
+  })
   assert.equal(errs.length, 0)
 })
 

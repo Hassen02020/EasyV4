@@ -23,29 +23,35 @@ const BOOKING_SIZE = 2
 
 async function setupTestData() {
   const db = getDb()
-  
+
   // Créer un package de test
-  await db.insert(omraPackages).values({
-    id: PACKAGE_ID,
-    agencyId: AGENCY_ID,
-    name: "Test Package Omra",
-    type: "omra",
-    basePrice: "2500.00",
-    durationDays: 10,
-    validFrom: "2026-01-01",
-    validUntil: "2026-12-31",
-    status: "active",
-  }).onConflictDoNothing()
+  await db
+    .insert(omraPackages)
+    .values({
+      id: PACKAGE_ID,
+      agencyId: AGENCY_ID,
+      name: "Test Package Omra",
+      type: "omra",
+      basePrice: "2500.00",
+      durationDays: 10,
+      validFrom: "2026-01-01",
+      validUntil: "2026-12-31",
+      status: "active",
+    })
+    .onConflictDoNothing()
 
   // Créer un allotment avec stock initial
-  await db.insert(omraAllotments).values({
-    packageId: PACKAGE_ID,
-    departureDate: DEPARTURE_DATE,
-    totalCapacity: INITIAL_STOCK,
-    availableCount: INITIAL_STOCK,
-    overridePrice: "2500.00",
-    status: "active",
-  }).onConflictDoNothing()
+  await db
+    .insert(omraAllotments)
+    .values({
+      packageId: PACKAGE_ID,
+      departureDate: DEPARTURE_DATE,
+      totalCapacity: INITIAL_STOCK,
+      availableCount: INITIAL_STOCK,
+      overridePrice: "2500.00",
+      status: "active",
+    })
+    .onConflictDoNothing()
 
   console.log(`📦 Package + Allotment créés (stock: ${INITIAL_STOCK})`)
 }
@@ -59,10 +65,10 @@ async function getCurrentStock(): Promise<number> {
       and(
         eq(omraAllotments.packageId, PACKAGE_ID),
         eq(omraAllotments.departureDate, DEPARTURE_DATE),
-      )
+      ),
     )
     .limit(1)
-  
+
   return allotment?.count ?? 0
 }
 
@@ -82,7 +88,7 @@ async function bookOmraAtomically(): Promise<{ ok: boolean; reason?: string }> {
           and(
             eq(omraAllotments.packageId, PACKAGE_ID),
             eq(omraAllotments.departureDate, DEPARTURE_DATE),
-          )
+          ),
         )
         .for("update")
         .limit(1)
@@ -106,7 +112,7 @@ async function bookOmraAtomically(): Promise<{ ok: boolean; reason?: string }> {
           and(
             eq(omraAllotments.packageId, PACKAGE_ID),
             eq(omraAllotments.departureDate, DEPARTURE_DATE),
-          )
+          ),
         )
 
       // 3. Insérer un pèlerin de test
@@ -149,11 +155,13 @@ async function main() {
 
   // Simuler 8 réservations concurrentes (stock 10, taille 2 → max 5 réservations)
   const concurrentBookings = 8
-  console.log(`\n🚀 Lancement de ${concurrentBookings} réservations concurrentes...`)
+  console.log(
+    `\n🚀 Lancement de ${concurrentBookings} réservations concurrentes...`,
+  )
 
   const start = Date.now()
   const results = await Promise.all(
-    Array.from({ length: concurrentBookings }, () => bookOmraAtomically())
+    Array.from({ length: concurrentBookings }, () => bookOmraAtomically()),
   )
   const duration = Date.now() - start
 

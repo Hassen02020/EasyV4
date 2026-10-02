@@ -41,7 +41,9 @@ export interface CrossSellPackage {
 }
 
 /** Voyages organisés publiés dont le titre mentionne la destination. */
-export async function getCrossSellPackages(destinationSlug: string): Promise<CrossSellPackage[]> {
+export async function getCrossSellPackages(
+  destinationSlug: string,
+): Promise<CrossSellPackage[]> {
   const searchTerm = PACKAGE_DESTINATION_SEARCH_TERMS[destinationSlug]
   if (!searchTerm) return []
 
@@ -72,15 +74,25 @@ export async function getCrossSellPackages(destinationSlug: string): Promise<Cro
         .from(catalogPackageDepartures)
         .where(
           and(
-            inArray(catalogPackageDepartures.packageId, rows.map((r) => r.id)),
+            inArray(
+              catalogPackageDepartures.packageId,
+              rows.map((r) => r.id),
+            ),
             eq(catalogPackageDepartures.status, "open"),
             gte(catalogPackageDepartures.departureDate, sql`CURRENT_DATE`),
           ),
         )
         .groupBy(catalogPackageDepartures.packageId)
-      const priceByPackage = new Map(priceRows.map((r) => [r.packageId, parseFloat(r.minPrice)]))
+      const priceByPackage = new Map(
+        priceRows.map((r) => [r.packageId, parseFloat(r.minPrice)]),
+      )
 
-      const coverByPackage = await getCoverMediaForProducts(db, agencyId, "package", rows.map((p) => p.id))
+      const coverByPackage = await getCoverMediaForProducts(
+        db,
+        agencyId,
+        "package",
+        rows.map((p) => p.id),
+      )
 
       // Chantier 8 (Ranking/Recommandation) : classées par note réelle
       // décroissante (avis approuvés, lib/reviews/reviews-core.ts) — repli
@@ -101,7 +113,9 @@ export async function getCrossSellPackages(destinationSlug: string): Promise<Cro
         priceFromTnd: priceByPackage.get(pkg.id) ?? null,
       }))
       mapped.sort(
-        (a, b) => (reviewByPackage[b.id]?.average ?? 0) - (reviewByPackage[a.id]?.average ?? 0),
+        (a, b) =>
+          (reviewByPackage[b.id]?.average ?? 0) -
+          (reviewByPackage[a.id]?.average ?? 0),
       )
       return mapped
     })
@@ -120,7 +134,9 @@ export interface CrossSellActivity {
 }
 
 /** Attractions publiées dont `location` correspond au nom de la destination. */
-export async function getCrossSellActivities(destinationName: string): Promise<CrossSellActivity[]> {
+export async function getCrossSellActivities(
+  destinationName: string,
+): Promise<CrossSellActivity[]> {
   try {
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
@@ -148,15 +164,25 @@ export async function getCrossSellActivities(destinationName: string): Promise<C
         .from(catalogActivitySessions)
         .where(
           and(
-            inArray(catalogActivitySessions.activityId, rows.map((r) => r.id)),
+            inArray(
+              catalogActivitySessions.activityId,
+              rows.map((r) => r.id),
+            ),
             eq(catalogActivitySessions.status, "open"),
             gte(catalogActivitySessions.sessionDate, sql`CURRENT_DATE`),
           ),
         )
         .groupBy(catalogActivitySessions.activityId)
-      const priceByActivity = new Map(priceRows.map((r) => [r.activityId, parseFloat(r.minPrice)]))
+      const priceByActivity = new Map(
+        priceRows.map((r) => [r.activityId, parseFloat(r.minPrice)]),
+      )
 
-      const coverByActivity = await getCoverMediaForProducts(db, agencyId, "activity", rows.map((a) => a.id))
+      const coverByActivity = await getCoverMediaForProducts(
+        db,
+        agencyId,
+        "activity",
+        rows.map((a) => a.id),
+      )
 
       // Chantier 8 (Ranking/Recommandation) — voir le commentaire équivalent
       // dans getCrossSellPackages ci-dessus.
@@ -175,7 +201,9 @@ export async function getCrossSellActivities(destinationName: string): Promise<C
         priceFromTnd: priceByActivity.get(act.id) ?? null,
       }))
       mapped.sort(
-        (a, b) => (reviewByActivity[b.id]?.average ?? 0) - (reviewByActivity[a.id]?.average ?? 0),
+        (a, b) =>
+          (reviewByActivity[b.id]?.average ?? 0) -
+          (reviewByActivity[a.id]?.average ?? 0),
       )
       return mapped
     })

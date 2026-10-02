@@ -69,7 +69,7 @@ All 8 policies present, matching exactly what Phase 13.1/13.2 applied and report
 
 **None critical.** No code, schema, or data anomaly was found that would require a fix under this audit's "critical anomaly only" exception. Nothing was modified, migrated, or corrected — this pass was verification-only, as instructed.
 
-The previously-documented, already-known remaining gaps (visual tenant branding not wired into Header/Footer; cross-tenant product resale into the *public* storefront not queried yet; no margin/markup on the 3 non-hotel B2B booking actions; DNS/TLS provisioning outside codebase scope) are unchanged from the Phase 13.2 report — re-confirmed present as documented, not newly discovered, and not blockers to this GO/NO-GO decision since they were already scoped out of Phase 13/13.1/13.2 explicitly.
+The previously-documented, already-known remaining gaps (visual tenant branding not wired into Header/Footer; cross-tenant product resale into the _public_ storefront not queried yet; no margin/markup on the 3 non-hotel B2B booking actions; DNS/TLS provisioning outside codebase scope) are unchanged from the Phase 13.2 report — re-confirmed present as documented, not newly discovered, and not blockers to this GO/NO-GO decision since they were already scoped out of Phase 13/13.1/13.2 explicitly.
 
 ## 13. FINAL VERDICT
 

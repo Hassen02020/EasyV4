@@ -38,9 +38,12 @@ export default async function CommercialAgreementsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-foreground text-3xl font-bold tracking-tight">Accords commerciaux</h1>
+        <h1 className="text-foreground text-3xl font-bold tracking-tight">
+          Accords commerciaux
+        </h1>
         <p className="text-muted-foreground mt-1">
-          Qui vend / possède / fournit, rôle d&apos;Easy2Book, canal — {rows.length} accord
+          Qui vend / possède / fournit, rôle d&apos;Easy2Book, canal —{" "}
+          {rows.length} accord
           {rows.length !== 1 ? "s" : ""}. Réservé super_admin ([D-01a]).
         </p>
       </div>

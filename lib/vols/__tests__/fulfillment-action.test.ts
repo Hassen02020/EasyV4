@@ -73,10 +73,27 @@ function makeItinerary(provider = "virtual") {
         layovers: [],
       },
     ],
-    fares: [{ passengerType: "ADT", count: 1, currency: "TND", baseAmount: 400, taxAmount: 50, totalAmount: 450 }],
+    fares: [
+      {
+        passengerType: "ADT",
+        count: 1,
+        currency: "TND",
+        baseAmount: 400,
+        taxAmount: 50,
+        totalAmount: 450,
+      },
+    ],
     baggage: { cabin: true, checkedKg: 23, checkedPieces: 1 },
-    fareRules: { refundable: false, changeable: true, conditions: "Non remboursable." },
-    provider: { provider, providerOfferId: "off-001", pricingToken: "tok.abc.sig" },
+    fareRules: {
+      refundable: false,
+      changeable: true,
+      conditions: "Non remboursable.",
+    },
+    provider: {
+      provider,
+      providerOfferId: "off-001",
+      pricingToken: "tok.abc.sig",
+    },
     supplierTotalAmount: 450,
     supplierCurrency: "TND",
     availableSeats: 5,
@@ -89,7 +106,13 @@ function makeItinerary(provider = "virtual") {
 let fakeBooking: FakeBooking
 let fakeSnapshot: FakeSnapshot
 let fakeReservation: FakeReservation
-let fakePassengers: Array<{ id: string; sequence: number; firstName: string; lastName: string; passengerType: string }>
+let fakePassengers: Array<{
+  id: string
+  sequence: number
+  firstName: string
+  lastName: string
+  passengerType: string
+}>
 
 let statusTransitions: string[]
 let transactionsLogged: Array<{ type: string; status: string }>
@@ -105,7 +128,11 @@ function resetState(overrides?: Partial<FakeBooking>) {
     priceSnapshotId: "snapshot-uuid-001",
     agencyId: "agency-uuid-001",
     provider: "virtual",
-    contact: { email: "test@easy2book.tn", firstName: "Sami", lastName: "Cherif" },
+    contact: {
+      email: "test@easy2book.tn",
+      firstName: "Sami",
+      lastName: "Cherif",
+    },
     ...overrides,
   }
   fakeSnapshot = {
@@ -121,7 +148,13 @@ function resetState(overrides?: Partial<FakeBooking>) {
     customerId: null,
   }
   fakePassengers = [
-    { id: "pax-001", sequence: 1, firstName: "Sami", lastName: "Cherif", passengerType: "ADT" },
+    {
+      id: "pax-001",
+      sequence: 1,
+      firstName: "Sami",
+      lastName: "Cherif",
+      passengerType: "ADT",
+    },
   ]
   statusTransitions = []
   transactionsLogged = []
@@ -132,7 +165,12 @@ function resetState(overrides?: Partial<FakeBooking>) {
 
 // ── test helpers (inline implementations, no external deps) ──────────────────
 
-type RecheckStatus = "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR"
+type RecheckStatus =
+  | "AVAILABLE"
+  | "PRICE_CHANGED"
+  | "UNAVAILABLE"
+  | "EXPIRED"
+  | "ERROR"
 
 interface MockAdapterConfig {
   recheckStatus?: RecheckStatus
@@ -163,12 +201,25 @@ function buildFulfillmentLogic(adapterConfig: MockAdapterConfig = {}) {
   async function mockRecheck(_itinerary: unknown) {
     const status = adapterConfig.recheckStatus ?? "AVAILABLE"
     if (status === "PRICE_CHANGED") {
-      return { status, currentSupplierAmount: adapterConfig.recheckCurrentPrice ?? 504, currentSupplierCurrency: "TND" }
+      return {
+        status,
+        currentSupplierAmount: adapterConfig.recheckCurrentPrice ?? 504,
+        currentSupplierCurrency: "TND",
+      }
     }
-    return { status, currentSupplierAmount: 450, currentSupplierCurrency: "TND", itinerary: _itinerary }
+    return {
+      status,
+      currentSupplierAmount: 450,
+      currentSupplierCurrency: "TND",
+      itinerary: _itinerary,
+    }
   }
 
-  async function mockBook(_itinerary: unknown, _passengers: unknown, _contact: unknown) {
+  async function mockBook(
+    _itinerary: unknown,
+    _passengers: unknown,
+    _contact: unknown,
+  ) {
     if (adapterConfig.bookThrows) throw new Error("GDS BOOK_REJECTED")
     return { pnr: "ABCD12", supplierBookingReference: "VIRT-ABCD12" }
   }
@@ -193,18 +244,35 @@ function buildFulfillmentLogic(adapterConfig: MockAdapterConfig = {}) {
  * of this exact same sequence.
  */
 async function runFulfillment(adapterConfig: MockAdapterConfig = {}) {
-  const { mockUpdateFlightStatus, mockLogTransaction, mockRecheck, mockBook, mockIssue } =
-    buildFulfillmentLogic(adapterConfig)
+  const {
+    mockUpdateFlightStatus,
+    mockLogTransaction,
+    mockRecheck,
+    mockBook,
+    mockIssue,
+  } = buildFulfillmentLogic(adapterConfig)
 
   // Guard: PENDING only
   if (fakeBooking.status !== "PENDING") {
-    return { ok: false, error: `Ce dossier est déjà en statut ${fakeBooking.status}.`, code: "WRONG_STATUS" }
+    return {
+      ok: false,
+      error: `Ce dossier est déjà en statut ${fakeBooking.status}.`,
+      code: "WRONG_STATUS",
+    }
   }
   if (!fakeSnapshot) {
-    return { ok: false, error: "Snapshot de prix introuvable.", code: "SNAPSHOT_MISSING" }
+    return {
+      ok: false,
+      error: "Snapshot de prix introuvable.",
+      code: "SNAPSHOT_MISSING",
+    }
   }
   if (fakeBooking.provider !== "virtual") {
-    return { ok: false, error: `Adaptateur "${fakeBooking.provider}" introuvable.`, code: "NO_ADAPTER" }
+    return {
+      ok: false,
+      error: `Adaptateur "${fakeBooking.provider}" introuvable.`,
+      code: "NO_ADAPTER",
+    }
   }
 
   // Step 1: BOOKING_IN_PROGRESS
@@ -214,10 +282,21 @@ async function runFulfillment(adapterConfig: MockAdapterConfig = {}) {
   let recheckResult: Awaited<ReturnType<typeof mockRecheck>>
   try {
     recheckResult = await mockRecheck(fakeSnapshot.itinerary)
-    await mockLogTransaction(fakeBooking.id, fakeSnapshot.id, "virtual", "RECHECK",
-      recheckResult.status === "AVAILABLE" ? "SUCCESS" : "FAILURE")
+    await mockLogTransaction(
+      fakeBooking.id,
+      fakeSnapshot.id,
+      "virtual",
+      "RECHECK",
+      recheckResult.status === "AVAILABLE" ? "SUCCESS" : "FAILURE",
+    )
   } catch (err) {
-    await mockLogTransaction(fakeBooking.id, fakeSnapshot.id, "virtual", "RECHECK", "FAILURE")
+    await mockLogTransaction(
+      fakeBooking.id,
+      fakeSnapshot.id,
+      "virtual",
+      "RECHECK",
+      "FAILURE",
+    )
     await mockUpdateFlightStatus(fakeBooking.id, "FAILED")
     return { ok: false, error: "Erreur revalidation.", code: "RECHECK_ERROR" }
   }
@@ -228,18 +307,42 @@ async function runFulfillment(adapterConfig: MockAdapterConfig = {}) {
   }
   if (recheckResult.status !== "AVAILABLE") {
     await mockUpdateFlightStatus(fakeBooking.id, "FAILED")
-    return { ok: false, error: "Offre indisponible.", code: recheckResult.status }
+    return {
+      ok: false,
+      error: "Offre indisponible.",
+      code: recheckResult.status,
+    }
   }
 
   // Step 3: book
   let bookResult: Awaited<ReturnType<typeof mockBook>>
   try {
-    bookResult = await mockBook(fakeSnapshot.itinerary, fakePassengers, fakeBooking.contact)
-    await mockLogTransaction(fakeBooking.id, fakeSnapshot.id, "virtual", "BOOK", "SUCCESS")
+    bookResult = await mockBook(
+      fakeSnapshot.itinerary,
+      fakePassengers,
+      fakeBooking.contact,
+    )
+    await mockLogTransaction(
+      fakeBooking.id,
+      fakeSnapshot.id,
+      "virtual",
+      "BOOK",
+      "SUCCESS",
+    )
   } catch (err) {
-    await mockLogTransaction(fakeBooking.id, fakeSnapshot.id, "virtual", "BOOK", "FAILURE")
+    await mockLogTransaction(
+      fakeBooking.id,
+      fakeSnapshot.id,
+      "virtual",
+      "BOOK",
+      "FAILURE",
+    )
     await mockUpdateFlightStatus(fakeBooking.id, "FAILED")
-    return { ok: false, error: "La réservation fournisseur a échoué.", code: "BOOK_FAILED" }
+    return {
+      ok: false,
+      error: "La réservation fournisseur a échoué.",
+      code: "BOOK_FAILED",
+    }
   }
 
   pnrStored = bookResult.pnr
@@ -250,20 +353,41 @@ async function runFulfillment(adapterConfig: MockAdapterConfig = {}) {
   let issueResult: Awaited<ReturnType<typeof mockIssue>>
   try {
     issueResult = await mockIssue(bookResult.pnr, fakeSnapshot.itinerary)
-    await mockLogTransaction(fakeBooking.id, fakeSnapshot.id, "virtual", "ISSUE", "SUCCESS")
+    await mockLogTransaction(
+      fakeBooking.id,
+      fakeSnapshot.id,
+      "virtual",
+      "ISSUE",
+      "SUCCESS",
+    )
     for (const t of issueResult.tickets) {
       ticketsInserted.push({ ticketNumber: t.ticketNumber, status: "ISSUED" })
     }
   } catch (err) {
-    await mockLogTransaction(fakeBooking.id, fakeSnapshot.id, "virtual", "ISSUE", "FAILURE")
+    await mockLogTransaction(
+      fakeBooking.id,
+      fakeSnapshot.id,
+      "virtual",
+      "ISSUE",
+      "FAILURE",
+    )
     await mockUpdateFlightStatus(fakeBooking.id, "FAILED")
-    return { ok: false, error: "L'émission du billet a échoué.", code: "ISSUE_FAILED" }
+    return {
+      ok: false,
+      error: "L'émission du billet a échoué.",
+      code: "ISSUE_FAILED",
+    }
   }
 
   await mockUpdateFlightStatus(fakeBooking.id, "CONFIRMED")
   inngestEvents.push("booking/flight.confirmed")
 
-  return { ok: true, pnr: bookResult.pnr, publicRef: fakeReservation.publicRef, bookingId: fakeBooking.id }
+  return {
+    ok: true,
+    pnr: bookResult.pnr,
+    publicRef: fakeReservation.publicRef,
+    bookingId: fakeBooking.id,
+  }
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -289,11 +413,17 @@ describe("G8 — Flight Fulfillment", () => {
   })
 
   test("F2 — PRICE_CHANGED: recheck returns price change → status PRICE_CHANGED", async () => {
-    const result = await runFulfillment({ recheckStatus: "PRICE_CHANGED", recheckCurrentPrice: 504 })
+    const result = await runFulfillment({
+      recheckStatus: "PRICE_CHANGED",
+      recheckCurrentPrice: 504,
+    })
     assert.ok(!result.ok)
     assert.equal(result.code, "PRICE_CHANGED")
     assert.ok(statusTransitions.includes("PRICE_CHANGED"))
-    assert.ok(!statusTransitions.includes("BOOKED"), "must not proceed to booking")
+    assert.ok(
+      !statusTransitions.includes("BOOKED"),
+      "must not proceed to booking",
+    )
   })
 
   test("F3 — UNAVAILABLE: recheck returns unavailable → status FAILED", async () => {

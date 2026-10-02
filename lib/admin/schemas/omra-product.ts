@@ -77,14 +77,18 @@ export const omraProductSchema = z
     maxPilgrims: z.coerce.number().int().min(1).max(500).default(45),
     minPilgrims: z.coerce.number().int().min(1).max(500).default(20),
     metadata: omraProductMetadataSchema,
-    channels: z.array(z.enum(PRODUCT_CHANNELS)).min(1, "Au moins un canal de vente requis").default(["b2c"]),
+    channels: z
+      .array(z.enum(PRODUCT_CHANNELS))
+      .min(1, "Au moins un canal de vente requis")
+      .default(["b2c"]),
   })
   .superRefine((data, ctx) => {
     if (data.validUntil < data.validFrom) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["validUntil"],
-        message: "La date de fin de validité doit être postérieure à la date de début",
+        message:
+          "La date de fin de validité doit être postérieure à la date de début",
       })
     }
     if (data.minPilgrims > data.maxPilgrims) {
@@ -110,7 +114,8 @@ export const omraDepartureSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["bookingDeadline"],
-        message: "La date limite de réservation doit être antérieure ou égale à la date de départ",
+        message:
+          "La date limite de réservation doit être antérieure ou égale à la date de départ",
       })
     }
   })

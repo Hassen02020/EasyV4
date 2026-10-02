@@ -14,7 +14,20 @@
  *   - Transactions atomiques pour la réservation
  */
 
-import { pgTable, uuid, varchar, integer, decimal, date, timestamp, boolean, text, jsonb, index, pgEnum } from "drizzle-orm/pg-core"
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  decimal,
+  date,
+  timestamp,
+  boolean,
+  text,
+  jsonb,
+  index,
+  pgEnum,
+} from "drizzle-orm/pg-core"
 import { agencies } from "../schema"
 
 /* -------------------------------------------------------------------------- */
@@ -89,52 +102,52 @@ export const omraPackages = pgTable(
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "restrict" }),
-    
+
     /** Type de package (Omra, Hajj, Ramadan, etc.) */
     type: omraPackageType("type").notNull(),
-    
+
     /** Nom du package (ex: "Omra Ramadan 2026 - 10 jours") */
     name: varchar("name", { length: 128 }).notNull(),
-    
+
     /** Description détaillée (itinéraire, inclusions) */
     description: text("description"),
-    
+
     /** Durée en jours */
     durationDays: integer("duration_days").notNull(),
-    
+
     /** Date de début de validité du package */
     validFrom: date("valid_from").notNull(),
-    
+
     /** Date de fin de validité du package */
     validUntil: date("valid_until").notNull(),
-    
+
     /** Prix de base par pèlerin (TND) */
     basePrice: decimal("base_price", { precision: 12, scale: 3 }).notNull(),
-    
+
     /** Visa inclus dans le prix ? */
     includesVisa: boolean("includes_visa").notNull().default(true),
-    
+
     /** Vols inclus dans le prix ? */
     includesFlights: boolean("includes_flights").notNull().default(true),
-    
+
     /** Hôtels inclus dans le prix ? */
     includesHotels: boolean("includes_hotels").notNull().default(true),
-    
+
     /** Transferts aéroport/hôtel inclus ? */
     includesTransfers: boolean("includes_transfers").notNull().default(true),
-    
+
     /** Ziarat inclus ? (visites religieuses) */
     includesZiarat: boolean("includes_ziarat").notNull().default(true),
-    
+
     /** Guide spirituel accompagnateur ? */
     includesGuide: boolean("includes_guide").notNull().default(false),
-    
+
     /** Capacité maximale de pèlerins par groupe */
     maxPilgrims: integer("max_pilgrims").notNull().default(45),
-    
+
     /** Capacité minimale pour départ garanti */
     minPilgrims: integer("min_pilgrims").notNull().default(20),
-    
+
     /** Métadonnées (itinéraire détaillé, conditions) */
     metadata: jsonb("metadata"),
 
@@ -179,34 +192,34 @@ export const omraAllotments = pgTable(
     packageId: uuid("package_id")
       .notNull()
       .references(() => omraPackages.id, { onDelete: "cascade" }),
-    
+
     /** Date de départ (date du vol aller) */
     departureDate: date("departure_date").notNull(),
-    
+
     /** Capacité totale pour cette date */
     totalCapacity: integer("total_capacity").notNull(),
-    
+
     /** Places réservées (en attente paiement) */
     reservedCount: integer("reserved_count").notNull().default(0),
-    
+
     /** Places confirmées (payées) */
     confirmedCount: integer("confirmed_count").notNull().default(0),
-    
+
     /** Places bloquées (problème paiement, annulation en cours) */
     blockedCount: integer("blocked_count").notNull().default(0),
-    
+
     /** Places disponibles = total - (reserved + confirmed + blocked) */
     availableCount: integer("available_count").notNull(),
-    
+
     /** Prix spécifique pour cette date (si différent du basePrice) */
     overridePrice: decimal("override_price", { precision: 12, scale: 3 }),
-    
+
     /** Date limite de réservation pour ce départ */
     bookingDeadline: date("booking_deadline"),
-    
+
     /** Statut de l'allotement */
     status: varchar("status", { length: 16 }).notNull().default("active"),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -238,47 +251,47 @@ export const omraHotels = pgTable(
   "omra_hotels",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    
+
     /** Nom de l'hôtel */
     name: varchar("name", { length: 128 }).notNull(),
-    
+
     /** Ville : 'mecca' ou 'medina' */
     city: varchar("city", { length: 16 }).notNull(),
-    
+
     /** Catégorie (étoiles) */
     category: omraHotelCategory("category").notNull(),
-    
+
     /** Adresse complète */
     address: text("address"),
-    
+
     /** Distance à pied de la Kaaba (en mètres) */
     distanceToKaaba: integer("distance_to_kaaba"),
-    
+
     /** Distance à pied de la Mosquée du Prophète (en mètres) */
     distanceToProphetMosque: integer("distance_to_prophet_mosque"),
-    
+
     /** Services disponibles (wifi, restaurant, piscine, etc.) */
     amenities: text("amenities").array(),
-    
+
     /** URLs des photos (Supabase Storage) */
     photoUrls: text("photo_urls").array(),
-    
+
     /** Description détaillée */
     description: text("description"),
-    
+
     /** Note moyenne (1-5) */
     rating: decimal("rating", { precision: 2, scale: 1 }),
-    
+
     /** Coordonnées GPS */
     latitude: decimal("latitude", { precision: 9, scale: 6 }),
     longitude: decimal("longitude", { precision: 9, scale: 6 }),
-    
+
     /** Métadonnées supplémentaires */
     metadata: jsonb("metadata"),
-    
+
     /** Statut de l'hôtel */
     status: varchar("status", { length: 16 }).notNull().default("active"),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -310,91 +323,99 @@ export const omraPilgrims = pgTable(
   "omra_pilgrims",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    
+
     /** Réservation associée */
     reservationId: uuid("reservation_id").notNull(),
-    
+
     /** Agence */
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "restrict" }),
-    
+
     /** Informations personnelles de base */
     firstName: varchar("first_name", { length: 64 }).notNull(),
     lastName: varchar("last_name", { length: 64 }).notNull(),
     firstNameAr: varchar("first_name_ar", { length: 64 }),
     lastNameAr: varchar("last_name_ar", { length: 64 }),
-    
+
     /** Date de naissance */
     birthDate: date("birth_date").notNull(),
-    
+
     /** Lieu de naissance */
     birthPlace: varchar("birth_place", { length: 64 }),
-    
+
     /** Nationalité (code ISO 3166-1 alpha-2) */
     nationality: varchar("nationality", { length: 2 }).notNull(),
-    
+
     /** Genre */
     gender: omraGender("gender").notNull(),
-    
+
     /** Situation matrimoniale */
     maritalStatus: omraMaritalStatus("marital_status").notNull(),
-    
+
     /** Numéro de téléphone */
     phone: varchar("phone", { length: 20 }).notNull(),
-    
+
     /** Email */
     email: varchar("email", { length: 128 }),
-    
+
     /** Adresse postale */
     address: text("address"),
-    
+
     /** Ville */
     city: varchar("city", { length: 64 }),
-    
+
     /** Code postal */
     postalCode: varchar("postal_code", { length: 16 }),
-    
+
     /** Pays de résidence */
     country: varchar("country", { length: 2 }).notNull(),
-    
+
     /** --- Passeport --- */
     passportNumber: varchar("passport_number", { length: 32 }).notNull(),
     passportIssueDate: date("passport_issue_date").notNull(),
     passportExpiryDate: date("passport_expiry_date").notNull(),
-    passportIssuingCountry: varchar("passport_issuing_country", { length: 2 }).notNull(),
-    
+    passportIssuingCountry: varchar("passport_issuing_country", {
+      length: 2,
+    }).notNull(),
+
     /** --- Visa --- */
     visaStatus: omraVisaStatus("visa_status").notNull().default("pending"),
     visaNumber: varchar("visa_number", { length: 32 }),
     visaIssueDate: date("visa_issue_date"),
     visaExpiryDate: date("visa_expiry_date"),
-    
+
     /** --- Santé --- */
     bloodType: varchar("blood_type", { length: 4 }),
-    hasMedicalConditions: boolean("has_medical_conditions").notNull().default(false),
+    hasMedicalConditions: boolean("has_medical_conditions")
+      .notNull()
+      .default(false),
     medicalConditions: text("medical_conditions"),
-    requiresSpecialAssistance: boolean("requires_special_assistance").notNull().default(false),
+    requiresSpecialAssistance: boolean("requires_special_assistance")
+      .notNull()
+      .default(false),
     specialAssistanceDetails: text("special_assistance_details"),
-    
+
     /** --- Contact d'urgence --- */
     emergencyContactName: varchar("emergency_contact_name", { length: 128 }),
     emergencyContactPhone: varchar("emergency_contact_phone", { length: 20 }),
-    emergencyContactRelation: varchar("emergency_contact_relation", { length: 32 }),
-    
+    emergencyContactRelation: varchar("emergency_contact_relation", {
+      length: 32,
+    }),
+
     /** --- Chambre --- */
     roomId: uuid("room_id"),
     roomType: omraRoomType("room_type"),
-    
+
     /** --- Photo (pour badge) --- */
     photoUrl: text("photo_url"),
-    
+
     /** --- Documents (passeport scan, etc.) --- */
     passportScanUrl: text("passport_scan_url"),
-    
+
     /** Métadonnées supplémentaires */
     metadata: jsonb("metadata"),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -425,48 +446,51 @@ export const omraRoomAllocations = pgTable(
   "omra_room_allocations",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    
+
     /** Réservation associée */
     reservationId: uuid("reservation_id").notNull(),
-    
+
     /** Package */
     packageId: uuid("package_id")
       .notNull()
       .references(() => omraPackages.id, { onDelete: "cascade" }),
-    
+
     /** Hôtel */
     hotelId: uuid("hotel_id")
       .notNull()
       .references(() => omraHotels.id, { onDelete: "restrict" }),
-    
+
     /** Type de chambre */
     roomType: omraRoomType("room_type").notNull(),
-    
+
     /** Numéro de chambre (attribué par l'hôtel) */
     roomNumber: varchar("room_number", { length: 16 }),
-    
+
     /** Étage */
     floor: varchar("floor", { length: 8 }),
-    
+
     /** Capacité de la chambre */
     capacity: integer("capacity").notNull(),
-    
+
     /** Nombre de pèlerins assignés */
     occupiedCount: integer("occupied_count").notNull().default(0),
-    
+
     /** Plan repas */
     mealPlan: omraMealPlan("meal_plan").notNull().default("half_board"),
-    
+
     /** Dates de séjour dans cet hôtel */
     checkInDate: date("check_in_date").notNull(),
     checkOutDate: date("check_out_date").notNull(),
-    
+
     /** Prix par nuit pour cette chambre */
-    pricePerNight: decimal("price_per_night", { precision: 12, scale: 3 }).notNull(),
-    
+    pricePerNight: decimal("price_per_night", {
+      precision: 12,
+      scale: 3,
+    }).notNull(),
+
     /** Métadonnées */
     metadata: jsonb("metadata"),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -498,54 +522,56 @@ export const omraFlights = pgTable(
   "omra_flights",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    
+
     /** Réservation associée */
     reservationId: uuid("reservation_id").notNull(),
-    
+
     /** Package */
     packageId: uuid("package_id")
       .notNull()
       .references(() => omraPackages.id, { onDelete: "cascade" }),
-    
+
     /** Direction : 'outbound' (aller) ou 'inbound' (retour) */
     direction: varchar("direction", { length: 16 }).notNull(),
-    
+
     /** Compagnie aérienne */
     airline: varchar("airline", { length: 64 }).notNull(),
-    
+
     /** Numéro de vol */
     flightNumber: varchar("flight_number", { length: 16 }).notNull(),
-    
+
     /** Aéroport de départ (code IATA) */
     departureAirport: varchar("departure_airport", { length: 4 }).notNull(),
-    
+
     /** Aéroport d'arrivée (code IATA) */
     arrivalAirport: varchar("arrival_airport", { length: 4 }).notNull(),
-    
+
     /** Date de départ */
     departureDate: date("departure_date").notNull(),
-    
+
     /** Heure de départ */
     departureTime: varchar("departure_time", { length: 8 }).notNull(),
-    
+
     /** Date d'arrivée */
     arrivalDate: date("arrival_date").notNull(),
-    
+
     /** Heure d'arrivée */
     arrivalTime: varchar("arrival_time", { length: 8 }).notNull(),
-    
+
     /** Classe de voyage */
-    travelClass: varchar("travel_class", { length: 16 }).notNull().default("economy"),
-    
+    travelClass: varchar("travel_class", { length: 16 })
+      .notNull()
+      .default("economy"),
+
     /** Durée du vol (en minutes) */
     durationMinutes: integer("duration_minutes"),
-    
+
     /** Escales (nombre) */
     stops: integer("stops").notNull().default(0),
-    
+
     /** Métadonnées */
     metadata: jsonb("metadata"),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -32,7 +32,10 @@ import { eq, and } from "drizzle-orm"
 import { z } from "zod"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations } from "@/lib/db/schema"
-import { flightBookings, flightSupplierTransactions } from "@/lib/db/schema/flights"
+import {
+  flightBookings,
+  flightSupplierTransactions,
+} from "@/lib/db/schema/flights"
 import { updateFlightStatus } from "./flight-status-sync"
 import { finalizeFlightBookingFinancials } from "./flight-financials"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -48,7 +51,9 @@ const manualConfirmationSchema = z.object({
   operatorNote: z.string().trim().max(1000).optional(),
 })
 
-export type ManualFlightConfirmationInput = z.infer<typeof manualConfirmationSchema>
+export type ManualFlightConfirmationInput = z.infer<
+  typeof manualConfirmationSchema
+>
 
 export type ManualConfirmationResult =
   | { ok: true; publicRef: string; bookingId: string }
@@ -63,7 +68,8 @@ export async function confirmManualFlightBooking(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: "Non authentifié.", code: "UNAUTHORIZED" }
+  if (!user)
+    return { ok: false, error: "Non authentifié.", code: "UNAUTHORIZED" }
 
   const profile = await getCurrentAdminProfile(user.id)
   if (
@@ -79,11 +85,18 @@ export async function confirmManualFlightBooking(
   if (!parsed.success) {
     return {
       ok: false,
-      error: "Données de confirmation invalides : " + parsed.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Données de confirmation invalides : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
       code: "INVALID_INPUT",
     }
   }
-  const { supplierBookingRef, confirmedPrice, confirmedCurrency, operatorNote } = parsed.data
+  const {
+    supplierBookingRef,
+    confirmedPrice,
+    confirmedCurrency,
+    operatorNote,
+  } = parsed.data
 
   // ── 2. Claim atomique — copie exacte de l'Arm A de fulfillFlightBooking ────
   // Un seul des deux chemins (API ou manuel) peut gagner ce CAS pour une
@@ -131,7 +144,11 @@ export async function confirmManualFlightBooking(
         .limit(1),
     )
     if (!existingRows.length) {
-      return { ok: false, error: "Réservation de vol introuvable.", code: "NOT_FOUND" }
+      return {
+        ok: false,
+        error: "Réservation de vol introuvable.",
+        code: "NOT_FOUND",
+      }
     }
     return {
       ok: false,
@@ -182,7 +199,10 @@ export async function confirmManualFlightBooking(
   // ── 5. Point d'ancrage financier unique — jamais un deuxième si l'autre
   // chemin a déjà réussi (garanti par le CAS de l'étape 2).
   await withSystemContext((tx) =>
-    finalizeFlightBookingFinancials(tx, { reservationId, snapshotId: claimed.priceSnapshotId }),
+    finalizeFlightBookingFinancials(tx, {
+      reservationId,
+      snapshotId: claimed.priceSnapshotId,
+    }),
   )
 
   const [res] = await withSystemContext((tx) =>

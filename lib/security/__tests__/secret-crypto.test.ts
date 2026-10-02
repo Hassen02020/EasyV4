@@ -1,6 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { encryptSecret, decryptSecret, SecretCryptoNotConfiguredError, maskSecretForDisplay } from "../secret-crypto"
+import {
+  encryptSecret,
+  decryptSecret,
+  SecretCryptoNotConfiguredError,
+  maskSecretForDisplay,
+} from "../secret-crypto"
 
 const TEST_KEY = "a".repeat(64) // hex 32 octets valide
 
@@ -10,7 +15,8 @@ function withKey<T>(fn: () => T): T {
   try {
     return fn()
   } finally {
-    if (saved === undefined) delete process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY
+    if (saved === undefined)
+      delete process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY
     else process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY = saved
   }
 }
@@ -28,7 +34,10 @@ test("encrypt/decrypt : round-trip fidèle pour un objet credentials", () => {
 
 test("encrypt : le ciphertext ne contient jamais le texte en clair", () => {
   withKey(() => {
-    const { ciphertext } = encryptSecret({ login: "very-unique-marker-xyz", password: "another-unique-marker-abc" })
+    const { ciphertext } = encryptSecret({
+      login: "very-unique-marker-xyz",
+      password: "another-unique-marker-abc",
+    })
     assert.equal(ciphertext.includes("very-unique-marker-xyz"), false)
     assert.equal(ciphertext.includes("another-unique-marker-abc"), false)
   })
@@ -57,9 +66,13 @@ test("sans SUPPLIER_CREDENTIALS_ENCRYPTION_KEY configurée, échoue explicitemen
   const saved = process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY
   delete process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY
   try {
-    assert.throws(() => encryptSecret({ login: "x", password: "y" }), SecretCryptoNotConfiguredError)
+    assert.throws(
+      () => encryptSecret({ login: "x", password: "y" }),
+      SecretCryptoNotConfiguredError,
+    )
   } finally {
-    if (saved !== undefined) process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY = saved
+    if (saved !== undefined)
+      process.env.SUPPLIER_CREDENTIALS_ENCRYPTION_KEY = saved
   }
 })
 

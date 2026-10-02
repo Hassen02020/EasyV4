@@ -46,14 +46,20 @@ export default async function PartnerReservationDetailPage({
 
   if (!detail) notFound()
 
-  const voucherHref = isAdminReservationVoucherEligible(detail.module, detail.status)
+  const voucherHref = isAdminReservationVoucherEligible(
+    detail.module,
+    detail.status,
+  )
     ? `/api/pro/reservations/${detail.id}/voucher`
     : null
   const invoiceHref = `/api/pro/reservations/${detail.id}/invoice`
 
   const actions =
     detail.module === "hotel" && CANCELLABLE_STATUSES.has(detail.status) ? (
-      <CancelReservationButton reservationId={detail.id} publicRef={detail.publicRef} />
+      <CancelReservationButton
+        reservationId={detail.id}
+        publicRef={detail.publicRef}
+      />
     ) : null
 
   return (

@@ -14,7 +14,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { getMyGoClient, mapHotelSummary, MyGoAuthError, MyGoError } from "@/lib/mygo"
+import {
+  getMyGoClient,
+  mapHotelSummary,
+  MyGoAuthError,
+  MyGoError,
+} from "@/lib/mygo"
 
 export const revalidate = 86400 // 24h — même politique que /api/hotels/cities
 
@@ -54,7 +59,10 @@ function mapErrorToResponse(err: unknown): NextResponse {
     )
   }
   return NextResponse.json(
-    { error: "internal", message: err instanceof Error ? err.message : "unknown" },
+    {
+      error: "internal",
+      message: err instanceof Error ? err.message : "unknown",
+    },
     { status: 500 },
   )
 }

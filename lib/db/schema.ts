@@ -287,15 +287,21 @@ export const mutuelleGroups = pgTable(
       .notNull()
       .references(() => agencies.id, { onDelete: "restrict" }),
     /** Taux de markup unique de la convention (%), appliqué au prix agence. */
-    markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+    markupPercent: decimal("markup_percent", { precision: 5, scale: 2 })
+      .notNull()
+      .default("0"),
     /** Convention Easy2Book : bornes de validité (NULL = durée indéterminée). */
     conventionStartDate: date("convention_start_date"),
     conventionEndDate: date("convention_end_date"),
     contactEmail: varchar("contact_email", { length: 320 }),
     contactPhone: varchar("contact_phone", { length: 32 }),
     status: varchar("status", { length: 16 }).notNull().default("active"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("mutuelle_groups_slug_uniq").on(t.slug),
@@ -325,7 +331,10 @@ export const users = pgTable(
       .notNull()
       .defaultNow(),
     /** Renseigné uniquement pour role IN ('mutuelle_director','mutuelle_member') — NULL pour tout le reste. */
-    mutuelleGroupId: uuid("mutuelle_group_id").references(() => mutuelleGroups.id, { onDelete: "restrict" }),
+    mutuelleGroupId: uuid("mutuelle_group_id").references(
+      () => mutuelleGroups.id,
+      { onDelete: "restrict" },
+    ),
   },
   (t) => [
     index("users_agency_idx").on(t.agencyId),
@@ -368,8 +377,12 @@ export const mutuelleRequests = pgTable(
     directorNote: text("director_note"),
     reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("mutuelle_requests_group_idx").on(t.groupId),
@@ -390,11 +403,10 @@ export type NewMutuelleRequest = typeof mutuelleRequests.$inferInsert
 /* productType — validé côté Server Action, jamais en DB.                    */
 /* -------------------------------------------------------------------------- */
 
-export const mutuelleCatalogProductType = pgEnum("mutuelle_catalog_product_type", [
-  "package",
-  "activity",
-  "omra",
-])
+export const mutuelleCatalogProductType = pgEnum(
+  "mutuelle_catalog_product_type",
+  ["package", "activity", "omra"],
+)
 
 export const mutuelleCatalogItems = pgTable(
   "mutuelle_catalog_items",
@@ -408,10 +420,16 @@ export const mutuelleCatalogItems = pgTable(
     addedByUserId: uuid("added_by_user_id")
       .notNull()
       .references(() => users.id),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
-    uniqueIndex("mutuelle_catalog_items_uniq").on(t.groupId, t.productType, t.productId),
+    uniqueIndex("mutuelle_catalog_items_uniq").on(
+      t.groupId,
+      t.productType,
+      t.productId,
+    ),
     index("mutuelle_catalog_items_group_idx").on(t.groupId),
     index("mutuelle_catalog_items_product_idx").on(t.productType, t.productId),
   ],
@@ -741,7 +759,9 @@ export const reservationNetworkProduct = pgTable(
       .references(() => supplierNodes.id, { onDelete: "restrict" }),
     /** Quantité réservée (pas de distinction adulte/enfant au stade pilote). */
     quantity: integer("quantity").notNull().default(1),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("res_network_product_product_idx").on(t.productId),
@@ -822,7 +842,9 @@ export const economicEntitlements = pgTable(
      * base. Peut être numériquement égal à `agreementId` aujourd'hui (même
      * table source, faute de mieux) ; ce n'est pas un doublon, c'est
      * documenté ici comme attendu. */
-    ruleId: uuid("rule_id").references(() => marginRules.id, { onDelete: "set null" }),
+    ruleId: uuid("rule_id").references(() => marginRules.id, {
+      onDelete: "set null",
+    }),
 
     status: economicEntitlementStatus("status").notNull().default("pending"),
     effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
@@ -837,8 +859,12 @@ export const economicEntitlements = pgTable(
     settlementStatus: varchar("settlement_status", { length: 20 }),
     settlementRef: text("settlement_ref"),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("economic_entitlements_reservation_idx").on(t.reservationId),
@@ -889,20 +915,15 @@ export type NewEconomicEntitlement = typeof economicEntitlements.$inferInsert
  * produit »)" ; même principe étendu à owner/collector quand l'accord ne
  * vise pas une partie précise.
  */
-export const commercialAgreementEasy2bookRole = pgEnum("commercial_agreement_easy2book_role", [
-  "platform",
-  "distributor",
-  "seller",
-  "owner",
-])
+export const commercialAgreementEasy2bookRole = pgEnum(
+  "commercial_agreement_easy2book_role",
+  ["platform", "distributor", "seller", "owner"],
+)
 
-export const commercialAgreementChannel = pgEnum("commercial_agreement_channel", [
-  "b2c",
-  "b2b",
-  "network",
-  "white_label",
-  "api",
-])
+export const commercialAgreementChannel = pgEnum(
+  "commercial_agreement_channel",
+  ["b2c", "b2b", "network", "white_label", "api"],
+)
 
 export const commercialAgreementStatus = pgEnum("commercial_agreement_status", [
   "draft",
@@ -957,14 +978,30 @@ export const commercialAgreements = pgTable(
 
     createdByUserId: uuid("created_by_user_id").notNull(),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
-    index("commercial_agreements_seller_idx").on(t.sellerPartyType, t.sellerPartyId),
-    index("commercial_agreements_owner_idx").on(t.ownerPartyType, t.ownerPartyId),
-    index("commercial_agreements_supplier_idx").on(t.supplierPartyType, t.supplierPartyId),
-    index("commercial_agreements_collector_idx").on(t.collectorPartyType, t.collectorPartyId),
+    index("commercial_agreements_seller_idx").on(
+      t.sellerPartyType,
+      t.sellerPartyId,
+    ),
+    index("commercial_agreements_owner_idx").on(
+      t.ownerPartyType,
+      t.ownerPartyId,
+    ),
+    index("commercial_agreements_supplier_idx").on(
+      t.supplierPartyType,
+      t.supplierPartyId,
+    ),
+    index("commercial_agreements_collector_idx").on(
+      t.collectorPartyType,
+      t.collectorPartyId,
+    ),
     index("commercial_agreements_status_idx").on(t.status),
     index("commercial_agreements_channel_idx").on(t.channel),
   ],
@@ -1183,7 +1220,11 @@ export const permissionGrants = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("permission_grants_user_permission_uniq").on(t.agencyId, t.userId, t.permission),
+    uniqueIndex("permission_grants_user_permission_uniq").on(
+      t.agencyId,
+      t.userId,
+      t.permission,
+    ),
     index("permission_grants_agency_idx").on(t.agencyId),
     index("permission_grants_user_idx").on(t.userId),
   ],
@@ -1522,7 +1563,11 @@ export const productAuthorizations = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("product_auth_agency_product_uniq").on(t.agencyId, t.productType, t.productId),
+    uniqueIndex("product_auth_agency_product_uniq").on(
+      t.agencyId,
+      t.productType,
+      t.productId,
+    ),
     index("product_auth_product_idx").on(t.productType, t.productId),
     index("product_auth_agency_idx").on(t.agencyId),
   ],
@@ -1576,13 +1621,19 @@ export const journeys = pgTable(
       .notNull()
       .references(() => agencies.id, { onDelete: "cascade" }),
     /** Client final de l'agence (optionnel — composition possible avant identification du client). */
-    customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    customerId: uuid("customer_id").references(() => customers.id, {
+      onDelete: "set null",
+    }),
     createdByUserId: uuid("created_by_user_id").notNull(),
     title: text("title"),
     /** Dérivé de journey_lines.status par recomputeJourneyStatus() (lib/journeys/journeys-core.ts) — jamais écrit à la main ailleurs. */
     status: journeyStatus("status").notNull().default("draft"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("journeys_agency_idx").on(t.agencyId),
@@ -1603,12 +1654,20 @@ export const journeyLines = pgTable(
     payload: jsonb("payload").notNull(),
     /** Snapshot commercial non-authoritatif — le moteur réel recalcule à la confirmation. */
     priceTnd: decimal("price_tnd", { precision: 14, scale: 2 }),
-    reservationId: uuid("reservation_id").references(() => reservations.id, { onDelete: "set null" }),
+    reservationId: uuid("reservation_id").references(() => reservations.id, {
+      onDelete: "set null",
+    }),
     errorMessage: text("error_message"),
     /** Posée par la CAS pending/failed → processing (lib/journeys/journeys-core.ts) — garantit qu'un double-clic/retry n'appelle jamais deux fois le moteur réel. */
-    confirmationIdempotencyKey: varchar("confirmation_idempotency_key", { length: 100 }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    confirmationIdempotencyKey: varchar("confirmation_idempotency_key", {
+      length: 100,
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     index("journey_lines_journey_idx").on(t.journeyId),
@@ -1668,11 +1727,16 @@ export const cancellationPolicies = pgTable(
     /** Heures avant le début du service au-delà desquelles la politique ne s'applique plus telle quelle (voir `postDeadlineDescription`). `null` = aucune échéance configurée. */
     deadlineHours: integer("deadline_hours"),
     /** 0–100. `null` = aucun frais configuré (distinct de 0 explicite). */
-    cancellationFeePercent: decimal("cancellation_fee_percent", { precision: 5, scale: 2 }),
+    cancellationFeePercent: decimal("cancellation_fee_percent", {
+      precision: 5,
+      scale: 2,
+    }),
     refundAllowed: boolean("refund_allowed").notNull(),
     creditAllowed: boolean("credit_allowed").notNull(),
     nonRefundable: boolean("non_refundable").notNull().default(false),
-    requiresValidatedDocument: boolean("requires_validated_document").notNull().default(false),
+    requiresValidatedDocument: boolean("requires_validated_document")
+      .notNull()
+      .default(false),
     /** Texte libre décrivant les conditions après l'échéance — jamais un calcul automatique inventé. */
     postDeadlineDescription: text("post_deadline_description"),
     effectiveFrom: timestamp("effective_from", { withTimezone: true })
@@ -1687,7 +1751,12 @@ export const cancellationPolicies = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index("cancellation_policies_lookup_idx").on(t.agencyId, t.productType, t.productId, t.isActive),
+    index("cancellation_policies_lookup_idx").on(
+      t.agencyId,
+      t.productType,
+      t.productId,
+      t.isActive,
+    ),
     index("cancellation_policies_agency_idx").on(t.agencyId),
   ],
 )
@@ -1714,8 +1783,12 @@ export const loyaltyAccounts = pgTable(
       .references(() => customers.id, { onDelete: "cascade" }),
     pendingPoints: integer("pending_points").notNull().default(0),
     availablePoints: integer("available_points").notNull().default(0),
-    lifetimeEarnedPoints: integer("lifetime_earned_points").notNull().default(0),
-    lifetimeRedeemedPoints: integer("lifetime_redeemed_points").notNull().default(0),
+    lifetimeEarnedPoints: integer("lifetime_earned_points")
+      .notNull()
+      .default(0),
+    lifetimeRedeemedPoints: integer("lifetime_redeemed_points")
+      .notNull()
+      .default(0),
     /** Base de l'expiration après 24 mois d'inactivité. */
     lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
       .notNull()
@@ -1822,7 +1895,12 @@ export const customerFavorites = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("customer_favorites_uniq").on(t.agencyId, t.authUserId, t.itemType, t.itemRef),
+    uniqueIndex("customer_favorites_uniq").on(
+      t.agencyId,
+      t.authUserId,
+      t.itemType,
+      t.itemRef,
+    ),
     index("customer_favorites_user_idx").on(t.authUserId, t.createdAt),
     index("customer_favorites_agency_idx").on(t.agencyId),
   ],
@@ -1869,7 +1947,12 @@ export const reviews = pgTable(
   },
   (t) => [
     uniqueIndex("reviews_reservation_id_uniq").on(t.reservationId),
-    index("reviews_product_idx").on(t.agencyId, t.module, t.productRef, t.status),
+    index("reviews_product_idx").on(
+      t.agencyId,
+      t.module,
+      t.productRef,
+      t.status,
+    ),
     index("reviews_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
   ],
 )
@@ -1899,7 +1982,9 @@ export const leads = pgTable(
     phone: varchar("phone", { length: 32 }),
     message: text("message"),
     /** 'hotel' | 'omra' | 'package' | 'activity' | 'general' */
-    productType: varchar("product_type", { length: 16 }).notNull().default("general"),
+    productType: varchar("product_type", { length: 16 })
+      .notNull()
+      .default("general"),
     /** uuid produit catalogue (omra/package/activity) ou id myGo (hôtel) — texte, jamais de FK stricte (voir customerFavorites.itemRef, même raisonnement). */
     productRef: varchar("product_ref", { length: 128 }),
     /** Instantané du titre produit au moment de la demande — évite un join pour afficher la liste des leads. */
@@ -1962,7 +2047,10 @@ export const leadScoringRules = pgTable(
   },
   (t) => [
     index("lead_scoring_rules_agency_idx").on(t.agencyId),
-    uniqueIndex("lead_scoring_rules_agency_signal_uniq").on(t.agencyId, t.signal),
+    uniqueIndex("lead_scoring_rules_agency_signal_uniq").on(
+      t.agencyId,
+      t.signal,
+    ),
   ],
 )
 
@@ -1994,7 +2082,14 @@ export const leadRelanceSettings = pgTable(
   (t) => [uniqueIndex("lead_relance_settings_agency_uniq").on(t.agencyId)],
 )
 
-export const CRM_CHANNELS = ["whatsapp", "instagram", "messenger", "call", "email", "web"] as const
+export const CRM_CHANNELS = [
+  "whatsapp",
+  "instagram",
+  "messenger",
+  "call",
+  "email",
+  "web",
+] as const
 export type CrmChannel = (typeof CRM_CHANNELS)[number]
 
 /**
@@ -2017,7 +2112,9 @@ export const crmConversations = pgTable(
     contactPhone: varchar("contact_phone", { length: 32 }),
     contactExternalId: varchar("contact_external_id", { length: 128 }),
     contactName: varchar("contact_name", { length: 200 }),
-    leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    leadId: uuid("lead_id").references(() => leads.id, {
+      onDelete: "set null",
+    }),
     /** 'open' | 'closed' */
     status: varchar("status", { length: 16 }).notNull().default("open"),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
@@ -2363,9 +2460,12 @@ export const products = pgTable(
      * relâcher la contrainte NOT NULL sur une table déjà partitionnée par
      * agence.
      */
-    supplierNodeId: uuid("supplier_node_id").references(() => supplierNodes.id, {
-      onDelete: "set null",
-    }),
+    supplierNodeId: uuid("supplier_node_id").references(
+      () => supplierNodes.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     /**
      * ECON-PILOT-01 : coût fournisseur réel (HT), distinct du prix de vente.
      * `null` = pas de coût connu séparément (comportement historique
@@ -2615,16 +2715,16 @@ export const auditLogs = pgTable(
 /* -------------------------------------------------------------------------- */
 
 export const walletTopUpMethod = pgEnum("wallet_topup_method", [
-  "VIREMENT",    // Virement bancaire (STB, BNA, Attijari, BH…)
-  "MANDAT",      // Mandat postal / WafaCash / PosteNet
+  "VIREMENT", // Virement bancaire (STB, BNA, Attijari, BH…)
+  "MANDAT", // Mandat postal / WafaCash / PosteNet
   "ZITOUNA_PAY", // Rechargement instantané via Zitouna Pay gateway
-  "CASH",        // Espèces remises en agence
+  "CASH", // Espèces remises en agence
 ])
 
 export const walletTxStatus = pgEnum("wallet_tx_status", [
-  "PENDING",    // déclarée par l'agence, en attente de validation admin
-  "VALIDATED",  // validée → balance incrémentée
-  "REJECTED",   // rejetée (reçu incorrect, montant erroné…)
+  "PENDING", // déclarée par l'agence, en attente de validation admin
+  "VALIDATED", // validée → balance incrémentée
+  "REJECTED", // rejetée (reçu incorrect, montant erroné…)
 ])
 
 /**
@@ -2758,7 +2858,8 @@ export type ProductType = typeof products.$inferSelect.type
 // Catalog
 export type CatalogPackage = typeof catalogPackages.$inferSelect
 export type NewCatalogPackage = typeof catalogPackages.$inferInsert
-export type CatalogPackageDeparture = typeof catalogPackageDepartures.$inferSelect
+export type CatalogPackageDeparture =
+  typeof catalogPackageDepartures.$inferSelect
 export type CatalogActivity = typeof catalogActivities.$inferSelect
 export type CatalogActivitySession = typeof catalogActivitySessions.$inferSelect
 export type CatalogTransferZone = typeof catalogTransferZones.$inferSelect
@@ -2787,9 +2888,9 @@ export type WalletTxStatus = (typeof walletTxStatus.enumValues)[number]
 /* -------------------------------------------------------------------------- */
 
 export const yieldRuleType = pgEnum("yield_rule_type", [
-  "percent",   // prix_vente = prix_net × (1 + pct/100)
-  "fixed",     // prix_vente = prix_net + fixe
-  "combined",  // prix_vente = prix_net × (1 + pct/100) + fixe
+  "percent", // prix_vente = prix_net × (1 + pct/100)
+  "fixed", // prix_vente = prix_net + fixe
+  "combined", // prix_vente = prix_net × (1 + pct/100) + fixe
 ])
 
 export const yieldRules = pgTable(
@@ -3097,9 +3198,7 @@ export {
 /* Audit Module V6 — imported from schema/audit.ts                             */
 /* -------------------------------------------------------------------------- */
 
-export {
-  auditAction,
-} from "./schema/audit"
+export { auditAction } from "./schema/audit"
 
 /* -------------------------------------------------------------------------- */
 /* Car Rental Module — imported from schema/cars.ts                            */

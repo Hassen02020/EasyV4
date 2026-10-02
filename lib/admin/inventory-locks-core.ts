@@ -18,7 +18,10 @@ export async function listInventoryLocksCore(
     .from(inventoryLocks)
     .where(
       params.status
-        ? and(eq(inventoryLocks.agencyId, params.agencyId), eq(inventoryLocks.status, params.status))
+        ? and(
+            eq(inventoryLocks.agencyId, params.agencyId),
+            eq(inventoryLocks.status, params.status),
+          )
         : eq(inventoryLocks.agencyId, params.agencyId),
     )
     .orderBy(desc(inventoryLocks.createdAt))

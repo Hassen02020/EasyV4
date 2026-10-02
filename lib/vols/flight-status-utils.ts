@@ -15,9 +15,15 @@ export type FlightStatus =
   | "FAILED"
   | "CANCELLED"
 
-export type ReservationStatus = "pending" | "on_request" | "confirmed" | "cancelled"
+export type ReservationStatus =
+  | "pending"
+  | "on_request"
+  | "confirmed"
+  | "cancelled"
 
-export function mapFlightStatusToReservation(status: FlightStatus): ReservationStatus {
+export function mapFlightStatusToReservation(
+  status: FlightStatus,
+): ReservationStatus {
   switch (status) {
     case "PENDING":
     case "PRICE_RECHECK":

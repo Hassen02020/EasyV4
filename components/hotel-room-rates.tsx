@@ -11,7 +11,13 @@
  */
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { Check, Utensils, ShieldCheck, ShieldOff, HelpCircle } from "lucide-react"
+import {
+  Check,
+  Utensils,
+  ShieldCheck,
+  ShieldOff,
+  HelpCircle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCurrency } from "@/components/currency-context"
 
@@ -117,7 +123,9 @@ export function HotelRoomRates({
             onClick={() => selectRoom(room.key)}
             aria-pressed={selectedRoom === room.key}
             className={`hover:bg-muted/30 flex w-full items-start justify-between gap-4 px-4 py-4 text-left transition-colors ${
-              selectedRoom === room.key ? "bg-primary/5 border-l-primary border-l-4" : "border-l-4 border-l-transparent"
+              selectedRoom === room.key
+                ? "bg-primary/5 border-l-primary border-l-4"
+                : "border-l-4 border-l-transparent"
             }`}
           >
             <div className="flex min-w-0 items-start gap-3">
@@ -161,7 +169,9 @@ export function HotelRoomRates({
                     <>
                       <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                       {room.freeCancellationDate
-                        ? t("freeCancellationUntil", { date: room.freeCancellationDate })
+                        ? t("freeCancellationUntil", {
+                            date: room.freeCancellationDate,
+                          })
                         : t("freeCancellation")}
                     </>
                   ) : room.cancellation === "NON_REFUNDABLE" ? (

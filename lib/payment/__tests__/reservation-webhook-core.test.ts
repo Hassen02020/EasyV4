@@ -17,7 +17,17 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, inArray, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, payments, paymentEvents, pspWebhooks, auditEvents, walletAccounts, walletLedger } from "@/lib/db/schema"
+import {
+  agencies,
+  customers,
+  reservations,
+  payments,
+  paymentEvents,
+  pspWebhooks,
+  auditEvents,
+  walletAccounts,
+  walletLedger,
+} from "@/lib/db/schema"
 import { processReservationWebhookCore } from "../reservation-webhook-core"
 import type { NormalizedChargeEvent } from "../webhook-logic"
 
@@ -33,12 +43,16 @@ async function isDbAvailable(): Promise<boolean> {
 }
 
 let dbAvailable = false
-const skipReason = () => "Postgres local indisponible (DATABASE_URL) — voir favorites-core.test.ts pour la procédure."
+const skipReason = () =>
+  "Postgres local indisponible (DATABASE_URL) — voir favorites-core.test.ts pour la procédure."
 
 let agencyId = ""
 let customerId = ""
 
-async function makeReservation(params: { status: "pending" | "cancelled"; tndAmount: string }): Promise<string> {
+async function makeReservation(params: {
+  status: "pending" | "cancelled"
+  tndAmount: string
+}): Promise<string> {
   const [row] = await withSystemContext((tx) =>
     tx
       .insert(reservations)
@@ -58,7 +72,11 @@ async function makeReservation(params: { status: "pending" | "cancelled"; tndAmo
   return row!.id
 }
 
-async function makePendingPayment(params: { reservationId: string; pspOrderId: string; tndAmount: string }): Promise<string> {
+async function makePendingPayment(params: {
+  reservationId: string
+  pspOrderId: string
+  tndAmount: string
+}): Promise<string> {
   const [row] = await withSystemContext((tx) =>
     tx
       .insert(payments)
@@ -79,7 +97,9 @@ async function makePendingPayment(params: { reservationId: string; pspOrderId: s
   return row!.id
 }
 
-function charge(overrides: Partial<NormalizedChargeEvent> = {}): NormalizedChargeEvent {
+function charge(
+  overrides: Partial<NormalizedChargeEvent> = {},
+): NormalizedChargeEvent {
   return {
     eventId: `evt-${randomUUID()}`,
     eventType: "payment_intent.succeeded",
@@ -95,10 +115,20 @@ before(async () => {
   if (!dbAvailable) return
   agencyId = randomUUID()
   await withSystemContext(async (tx) => {
-    await tx.insert(agencies).values({ id: agencyId, slug: `pay-a-${agencyId}`, name: "Payment Test Agency", agencyType: "ota" })
+    await tx.insert(agencies).values({
+      id: agencyId,
+      slug: `pay-a-${agencyId}`,
+      name: "Payment Test Agency",
+      agencyType: "ota",
+    })
     const [c] = await tx
       .insert(customers)
-      .values({ agencyId, firstName: "Client", lastName: "Test", email: `pay-${randomUUID()}@example.com` })
+      .values({
+        agencyId,
+        firstName: "Client",
+        lastName: "Test",
+        email: `pay-${randomUUID()}@example.com`,
+      })
       .returning({ id: customers.id })
     customerId = c!.id
   })
@@ -117,10 +147,15 @@ after(async () => {
       .where(eq(walletAccounts.customerId, customerId))
     if (walletAccountRows.length > 0) {
       await tx.delete(walletLedger).where(
-        inArray(walletLedger.walletAccountId, walletAccountRows.map((r) => r.id)),
+        inArray(
+          walletLedger.walletAccountId,
+          walletAccountRows.map((r) => r.id),
+        ),
       )
     }
-    await tx.delete(walletAccounts).where(eq(walletAccounts.customerId, customerId))
+    await tx
+      .delete(walletAccounts)
+      .where(eq(walletAccounts.customerId, customerId))
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyId))
     await tx.delete(pspWebhooks).where(eq(pspWebhooks.agencyId, agencyId))
     await tx.delete(payments).where(eq(payments.agencyId, agencyId))
@@ -132,9 +167,16 @@ after(async () => {
 
 test("succeeded : capture le paiement et confirme la réservation", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "150.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "150.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "150.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "150.00",
+  })
 
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -148,17 +190,28 @@ test("succeeded : capture le paiement et confirme la réservation", async (t) =>
   )
 
   assert.equal(outcome.status, "captured_confirmed")
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "confirmed")
-  const [pay] = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const [pay] = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(pay!.status, "captured")
 })
 
 test("event_id dupliqué : deuxième appel -> duplicate, jamais retraité", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "100.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "100.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "100.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "100.00",
+  })
   const eventId = `evt-${randomUUID()}`
 
   const first = await withSystemContext((tx) =>
@@ -188,9 +241,16 @@ test("event_id dupliqué : deuxième appel -> duplicate, jamais retraité", asyn
 
 test("idempotence business-level : deuxième event_id différent pour un paiement déjà capturé -> already_processed", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "80.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "80.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "80.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "80.00",
+  })
 
   const first = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -236,9 +296,16 @@ test("référence inconnue -> no_match, rien n'est écrit", async (t) => {
 
 test("montant PSP différent du montant attendu -> mismatch, paiement marqué failed, réservation reste pending", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "200.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "200.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "200.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "200.00",
+  })
 
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -251,17 +318,28 @@ test("montant PSP différent du montant attendu -> mismatch, paiement marqué fa
     }),
   )
   assert.equal(outcome.status, "mismatch")
-  const [pay] = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const [pay] = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(pay!.status, "failed")
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "pending")
 })
 
 test("paiement refusé (failed) : payment -> failed, réservation reste pending (retryable)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "60.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "60.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "60.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "60.00",
+  })
 
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -274,17 +352,28 @@ test("paiement refusé (failed) : payment -> failed, réservation reste pending 
     }),
   )
   assert.equal(outcome.status, "payment_failed")
-  const [pay] = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const [pay] = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(pay!.status, "failed")
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "pending")
 })
 
 test("remboursement PSP sur un paiement capturé -> payment refunded, réservation refunded", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "120.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "120.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "120.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "120.00",
+  })
 
   const captured = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -308,16 +397,29 @@ test("remboursement PSP sur un paiement capturé -> payment refunded, réservati
       rawPayload: {},
     }),
   )
-  assert.deepEqual(refunded, { status: "refunded", reservationId, fullyRefunded: true })
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  assert.deepEqual(refunded, {
+    status: "refunded",
+    reservationId,
+    fullyRefunded: true,
+  })
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "refunded")
 })
 
 test("remboursement PSP sur un paiement jamais capturé (encore pending) -> refund_ignored", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "90.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "90.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "90.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "90.00",
+  })
 
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -334,9 +436,16 @@ test("remboursement PSP sur un paiement jamais capturé (encore pending) -> refu
 
 test("paiement capturé alors que la réservation a été annulée entre-temps -> captured_not_confirmable, jamais de confirmation forcée", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "cancelled", tndAmount: "70.00" })
+  const reservationId = await makeReservation({
+    status: "cancelled",
+    tndAmount: "70.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "70.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "70.00",
+  })
 
   const outcome = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -350,21 +459,35 @@ test("paiement capturé alors que la réservation a été annulée entre-temps -
   )
   assert.equal(outcome.status, "captured_not_confirmable")
   // L'argent reçu reste honnêtement tracé — jamais perdu de vue.
-  const [pay] = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const [pay] = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(pay!.status, "captured")
-  const [res] = await withSystemContext((tx) => tx.select().from(reservations).where(eq(reservations.id, reservationId)))
+  const [res] = await withSystemContext((tx) =>
+    tx.select().from(reservations).where(eq(reservations.id, reservationId)),
+  )
   assert.equal(res!.status, "cancelled") // jamais forcé à "confirmed"
   const [audit] = await withSystemContext((tx) =>
-    tx.select().from(auditEvents).where(eq(auditEvents.entityId, reservationId)),
+    tx
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.entityId, reservationId)),
   )
   assert.equal(audit!.action, "payment.psp_unreconciled")
 })
 
 test("protection double paiement : deux webhooks succeeded concurrents pour la même référence -> une seule capture", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "300.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "300.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "300.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "300.00",
+  })
 
   const [a, b] = await Promise.all([
     withSystemContext((tx) =>
@@ -393,16 +516,25 @@ test("protection double paiement : deux webhooks succeeded concurrents pour la m
   assert.deepEqual(statuses, ["already_processed", "captured_confirmed"])
 
   // Un seul paiement capturé au final — jamais deux captures pour la même référence.
-  const paymentRows = await withSystemContext((tx) => tx.select().from(payments).where(eq(payments.reservationId, reservationId)))
+  const paymentRows = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
   assert.equal(paymentRows.length, 1)
   assert.equal(paymentRows[0]!.status, "captured")
 })
 
 test("isolation B2B wallet : le webhook réservation n'écrit jamais dans payment_events avec le format wallet ni ne touche wallet_recharge_requests", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "50.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "50.00",
+  })
   const ref = `ref-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "50.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "50.00",
+  })
   const eventId = `evt-${randomUUID()}`
 
   await withSystemContext((tx) =>
@@ -416,6 +548,8 @@ test("isolation B2B wallet : le webhook réservation n'écrit jamais dans paymen
     }),
   )
 
-  const [evt] = await withSystemContext((tx) => tx.select().from(paymentEvents).where(eq(paymentEvents.eventId, eventId)))
+  const [evt] = await withSystemContext((tx) =>
+    tx.select().from(paymentEvents).where(eq(paymentEvents.eventId, eventId)),
+  )
   assert.equal(evt!.reservationId, reservationId)
 })

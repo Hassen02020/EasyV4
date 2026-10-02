@@ -19,11 +19,7 @@ import {
   getRowStyle,
   ARABIC_FONT_FAMILY,
 } from "./voucher-base"
-import {
-  getVoucherLabels,
-  isRTL,
-  formatDateForLocale,
-} from "./voucher-i18n"
+import { getVoucherLabels, isRTL, formatDateForLocale } from "./voucher-i18n"
 
 export interface VoucherData {
   publicRef: string
@@ -45,21 +41,38 @@ export interface VoucherData {
   agencyWhatsapp?: string
 }
 
-function statusLabel(s: string | undefined, labels: ReturnType<typeof getVoucherLabels>): string {
-  if (!s || s === "confirmed" || s === "completed") return labels.statusConfirmed
+function statusLabel(
+  s: string | undefined,
+  labels: ReturnType<typeof getVoucherLabels>,
+): string {
+  if (!s || s === "confirmed" || s === "completed")
+    return labels.statusConfirmed
   if (s === "pending") return labels.statusPending
   if (s === "cancelled") return labels.statusCancelled
   return s.toUpperCase()
 }
 
-function HotelVoucherDocument({ data, locale }: { data: VoucherData; locale?: string }) {
+function HotelVoucherDocument({
+  data,
+  locale,
+}: {
+  data: VoucherData
+  locale?: string
+}) {
   const lb = getVoucherLabels(locale)
   const rtl = isRTL(locale)
   const fontFamily = rtl ? ARABIC_FONT_FAMILY : undefined
 
   return (
     <Document>
-      <Page size="A4" style={rtl ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY } : baseStyles.page}>
+      <Page
+        size="A4"
+        style={
+          rtl
+            ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY }
+            : baseStyles.page
+        }
+      >
         <VoucherHeader
           title={lb.hotelTitle}
           publicRef={data.publicRef}
@@ -71,7 +84,9 @@ function HotelVoucherDocument({ data, locale }: { data: VoucherData; locale?: st
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.fullName}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.customerName}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {data.customerName}
+            </Text>
           </View>
           <View style={getRowStyle(rtl, true)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.status}</Text>
@@ -91,20 +106,29 @@ function HotelVoucherDocument({ data, locale }: { data: VoucherData; locale?: st
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.hotel}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily: fontFamily ?? "Helvetica-Bold" }}>
+            <Text
+              style={{
+                ...getCellValueStyle(rtl),
+                fontFamily: fontFamily ?? "Helvetica-Bold",
+              }}
+            >
               {data.hotelName}
             </Text>
           </View>
           {data.roomType ? (
             <View style={getRowStyle(rtl)}>
               <Text style={getCellLabelStyle(rtl)}>{lb.room}</Text>
-              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.roomType}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+                {data.roomType}
+              </Text>
             </View>
           ) : null}
           {data.boardType ? (
             <View style={getRowStyle(rtl)}>
               <Text style={getCellLabelStyle(rtl)}>{lb.board}</Text>
-              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.boardType}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+                {data.boardType}
+              </Text>
             </View>
           ) : null}
           <View style={getRowStyle(rtl)}>
@@ -127,12 +151,16 @@ function HotelVoucherDocument({ data, locale }: { data: VoucherData; locale?: st
           </View>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.adults}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.adults}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {data.adults}
+            </Text>
           </View>
           {data.children > 0 ? (
             <View style={getRowStyle(rtl, true)}>
               <Text style={getCellLabelStyle(rtl)}>{lb.children}</Text>
-              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.children}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+                {data.children}
+              </Text>
             </View>
           ) : (
             <View style={getRowStyle(rtl, true)}>
@@ -165,7 +193,12 @@ function HotelVoucherDocument({ data, locale }: { data: VoucherData; locale?: st
   )
 }
 
-export async function renderVoucherPdf(data: VoucherData, locale?: string): Promise<Uint8Array> {
-  const buffer = await renderToBuffer(<HotelVoucherDocument data={data} locale={locale} />)
+export async function renderVoucherPdf(
+  data: VoucherData,
+  locale?: string,
+): Promise<Uint8Array> {
+  const buffer = await renderToBuffer(
+    <HotelVoucherDocument data={data} locale={locale} />,
+  )
   return new Uint8Array(buffer)
 }

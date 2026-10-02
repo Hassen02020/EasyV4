@@ -9,10 +9,21 @@ import { and, eq, desc, ilike, or } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customers, leads, reservations } from "@/lib/db/schema"
 
-export const LEAD_PRODUCT_TYPES = ["hotel", "omra", "package", "activity", "general"] as const
+export const LEAD_PRODUCT_TYPES = [
+  "hotel",
+  "omra",
+  "package",
+  "activity",
+  "general",
+] as const
 export type LeadProductType = (typeof LEAD_PRODUCT_TYPES)[number]
 
-export const LEAD_STATUSES = ["new", "contacted", "converted", "closed"] as const
+export const LEAD_STATUSES = [
+  "new",
+  "contacted",
+  "converted",
+  "closed",
+] as const
 export type LeadStatus = (typeof LEAD_STATUSES)[number]
 
 export interface LeadRow {
@@ -78,7 +89,11 @@ export async function getLeadCore(
     .where(and(eq(leads.id, params.id), eq(leads.agencyId, params.agencyId)))
     .limit(1)
   if (!row) return null
-  return { ...row, productType: row.productType as LeadProductType, status: row.status as LeadStatus }
+  return {
+    ...row,
+    productType: row.productType as LeadProductType,
+    status: row.status as LeadStatus,
+  }
 }
 
 /**
@@ -95,7 +110,10 @@ export async function listLeadsCore(
     .from(leads)
     .where(
       params.status
-        ? and(eq(leads.agencyId, params.agencyId), eq(leads.status, params.status))
+        ? and(
+            eq(leads.agencyId, params.agencyId),
+            eq(leads.status, params.status),
+          )
         : eq(leads.agencyId, params.agencyId),
     )
     .orderBy(desc(leads.createdAt))
@@ -142,7 +160,14 @@ export async function updateLeadStatusCore(
 
 export type ConvertLeadResult =
   | { ok: true }
-  | { ok: false; code: "LEAD_NOT_FOUND" | "RESERVATION_NOT_FOUND" | "RESERVATION_ALREADY_LINKED"; error: string }
+  | {
+      ok: false
+      code:
+        | "LEAD_NOT_FOUND"
+        | "RESERVATION_NOT_FOUND"
+        | "RESERVATION_ALREADY_LINKED"
+      error: string
+    }
 
 /**
  * Marque un lead comme converti EN LE LIANT à une réservation réelle de la
@@ -175,7 +200,12 @@ export async function convertLeadCore(
   const [reservation] = await tx
     .select({ id: reservations.id })
     .from(reservations)
-    .where(and(eq(reservations.id, params.reservationId), eq(reservations.agencyId, params.agencyId)))
+    .where(
+      and(
+        eq(reservations.id, params.reservationId),
+        eq(reservations.agencyId, params.agencyId),
+      ),
+    )
     .limit(1)
   if (!reservation) {
     return {
@@ -195,7 +225,12 @@ export async function convertLeadCore(
   const [existingLink] = await tx
     .select({ id: leads.id })
     .from(leads)
-    .where(and(eq(leads.reservationId, params.reservationId), eq(leads.agencyId, params.agencyId)))
+    .where(
+      and(
+        eq(leads.reservationId, params.reservationId),
+        eq(leads.agencyId, params.agencyId),
+      ),
+    )
     .limit(1)
   if (existingLink && existingLink.id !== params.id) {
     return {
@@ -244,7 +279,12 @@ export interface ReservationLinkCandidate {
  */
 export async function searchReservationsForLeadLinkCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; email?: string | null; phone?: string | null; query?: string },
+  params: {
+    agencyId: string
+    email?: string | null
+    phone?: string | null
+    query?: string
+  },
 ): Promise<ReservationLinkCandidate[]> {
   const q = params.query?.trim()
 

@@ -16,8 +16,20 @@ import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Car, ShieldCheck, CreditCard, IdCard } from "lucide-react"
@@ -25,10 +37,16 @@ import { createGuestCarBooking } from "@/lib/cars/guest-booking-actions"
 import { calculateCarPrice, type CarPricingResult } from "@/lib/cars/pricing"
 import type { CarLocation, CarCategory } from "@/lib/db/schema"
 
-const INSURANCE_LEVELS: { value: "basic" | "standard" | "premium" | "full"; label: string }[] = [
+const INSURANCE_LEVELS: {
+  value: "basic" | "standard" | "premium" | "full"
+  label: string
+}[] = [
   { value: "basic", label: "Basique (responsabilité civile)" },
   { value: "standard", label: "Standard (+ dommages collision)" },
-  { value: "premium", label: "Premium (+ vol, bris de glace, assistance 24/7)" },
+  {
+    value: "premium",
+    label: "Premium (+ vol, bris de glace, assistance 24/7)",
+  },
   { value: "full", label: "Tous risques (franchise zéro)" },
 ]
 
@@ -37,9 +55,13 @@ const carBookingSchema = z.object({
   pickupLocationId: z.string().uuid("Lieu de prise en charge invalide"),
   dropoffLocationId: z.string().uuid("Lieu de retour invalide"),
   pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
-  pickupTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format heure invalide"),
+  pickupTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format heure invalide"),
   returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format date invalide"),
-  returnTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format heure invalide"),
+  returnTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format heure invalide"),
   insuranceLevel: z.enum(["basic", "standard", "premium", "full"]),
   driver: z.object({
     firstName: z.string().min(2, "Prénom requis (min 2 caractères)"),
@@ -71,7 +93,12 @@ interface CarBookingFormProps {
   prefill: CarBookingFormPrefill
 }
 
-export function CarBookingForm({ agencyId, locations, categories, prefill }: CarBookingFormProps) {
+export function CarBookingForm({
+  agencyId,
+  locations,
+  categories,
+  prefill,
+}: CarBookingFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -129,7 +156,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
       })
       if (!result) {
         setPricing(null)
-        setPricingError("Aucun tarif configuré pour cette catégorie et ce lieu.")
+        setPricingError(
+          "Aucun tarif configuré pour cette catégorie et ce lieu.",
+        )
         return
       }
       setPricing(result)
@@ -162,7 +191,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
       if (!result.ok) {
         setSubmitError(result.error)
       } else {
-        router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+        router.push(
+          `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
+        )
       }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
@@ -174,9 +205,12 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
       <div className="space-y-2">
-        <h1 className="text-sidebar text-2xl font-bold sm:text-3xl">Réservation de Voiture</h1>
+        <h1 className="text-sidebar text-2xl font-bold sm:text-3xl">
+          Réservation de Voiture
+        </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
-          Choisissez votre catégorie de véhicule et votre niveau d&apos;assurance, devis instantané.
+          Choisissez votre catégorie de véhicule et votre niveau
+          d&apos;assurance, devis instantané.
         </p>
       </div>
 
@@ -197,7 +231,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Catégorie</Label>
+                <Label className="text-sidebar text-sm font-medium">
+                  Catégorie
+                </Label>
                 <Select
                   value={watchedCategoryId}
                   onValueChange={(v) => {
@@ -226,7 +262,10 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
                 <Select
                   value={watchedInsuranceLevel}
                   onValueChange={(v) => {
-                    form.setValue("insuranceLevel", v as "basic" | "standard" | "premium" | "full")
+                    form.setValue(
+                      "insuranceLevel",
+                      v as "basic" | "standard" | "premium" | "full",
+                    )
                     updatePricing()
                   }}
                 >
@@ -246,7 +285,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Lieu de prise en charge</Label>
+                <Label className="text-sidebar text-sm font-medium">
+                  Lieu de prise en charge
+                </Label>
                 <Select
                   value={watchedPickupLocationId}
                   onValueChange={(v) => {
@@ -267,7 +308,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Lieu de retour</Label>
+                <Label className="text-sidebar text-sm font-medium">
+                  Lieu de retour
+                </Label>
                 <Select
                   value={form.watch("dropoffLocationId")}
                   onValueChange={(v) => form.setValue("dropoffLocationId", v)}
@@ -289,7 +332,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">Prise en charge</Label>
+                  <Label className="text-sidebar text-sm font-medium">
+                    Prise en charge
+                  </Label>
                   <Input
                     type="date"
                     className="rounded-lg"
@@ -301,7 +346,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">Heure</Label>
+                  <Label className="text-sidebar text-sm font-medium">
+                    Heure
+                  </Label>
                   <Input
                     type="time"
                     className="rounded-lg"
@@ -315,7 +362,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">Retour</Label>
+                  <Label className="text-sidebar text-sm font-medium">
+                    Retour
+                  </Label>
                   <Input
                     type="date"
                     className="rounded-lg"
@@ -327,7 +376,9 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">Heure</Label>
+                  <Label className="text-sidebar text-sm font-medium">
+                    Heure
+                  </Label>
                   <Input
                     type="time"
                     className="rounded-lg"
@@ -353,50 +404,101 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Prénom *</Label>
-                <Input {...form.register("driver.firstName")} placeholder="Ahmed" className="rounded-lg" />
+                <Label className="text-sidebar text-sm font-medium">
+                  Prénom *
+                </Label>
+                <Input
+                  {...form.register("driver.firstName")}
+                  placeholder="Ahmed"
+                  className="rounded-lg"
+                />
                 {form.formState.errors.driver?.firstName && (
-                  <p className="text-sm font-medium text-red-500">{form.formState.errors.driver.firstName.message}</p>
+                  <p className="text-sm font-medium text-red-500">
+                    {form.formState.errors.driver.firstName.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Nom *</Label>
-                <Input {...form.register("driver.lastName")} placeholder="Ben Ali" className="rounded-lg" />
+                <Label className="text-sidebar text-sm font-medium">
+                  Nom *
+                </Label>
+                <Input
+                  {...form.register("driver.lastName")}
+                  placeholder="Ben Ali"
+                  className="rounded-lg"
+                />
                 {form.formState.errors.driver?.lastName && (
-                  <p className="text-sm font-medium text-red-500">{form.formState.errors.driver.lastName.message}</p>
+                  <p className="text-sm font-medium text-red-500">
+                    {form.formState.errors.driver.lastName.message}
+                  </p>
                 )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Téléphone *</Label>
-                <Input {...form.register("driver.phone")} placeholder="+216 98 123 456" className="rounded-lg" />
+                <Label className="text-sidebar text-sm font-medium">
+                  Téléphone *
+                </Label>
+                <Input
+                  {...form.register("driver.phone")}
+                  placeholder="+216 98 123 456"
+                  className="rounded-lg"
+                />
                 {form.formState.errors.driver?.phone && (
-                  <p className="text-sm font-medium text-red-500">{form.formState.errors.driver.phone.message}</p>
+                  <p className="text-sm font-medium text-red-500">
+                    {form.formState.errors.driver.phone.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Email</Label>
-                <Input type="email" {...form.register("driver.email")} placeholder="email@example.com" className="rounded-lg" />
+                <Label className="text-sidebar text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  type="email"
+                  {...form.register("driver.email")}
+                  placeholder="email@example.com"
+                  className="rounded-lg"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">N° Permis de conduire *</Label>
-                <Input {...form.register("driver.licenseNumber")} placeholder="123456789" className="rounded-lg" />
+                <Label className="text-sidebar text-sm font-medium">
+                  N° Permis de conduire *
+                </Label>
+                <Input
+                  {...form.register("driver.licenseNumber")}
+                  placeholder="123456789"
+                  className="rounded-lg"
+                />
                 {form.formState.errors.driver?.licenseNumber && (
-                  <p className="text-sm font-medium text-red-500">{form.formState.errors.driver.licenseNumber.message}</p>
+                  <p className="text-sm font-medium text-red-500">
+                    {form.formState.errors.driver.licenseNumber.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Pays du permis</Label>
-                <Input {...form.register("driver.licenseCountry")} placeholder="Tunisie" className="rounded-lg" />
+                <Label className="text-sidebar text-sm font-medium">
+                  Pays du permis
+                </Label>
+                <Input
+                  {...form.register("driver.licenseCountry")}
+                  placeholder="Tunisie"
+                  className="rounded-lg"
+                />
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">Date de naissance</Label>
-                <Input type="date" {...form.register("driver.birthDate")} className="rounded-lg" />
+                <Label className="text-sidebar text-sm font-medium">
+                  Date de naissance
+                </Label>
+                <Input
+                  type="date"
+                  {...form.register("driver.birthDate")}
+                  className="rounded-lg"
+                />
               </div>
             </div>
           </CardContent>
@@ -413,34 +515,48 @@ export function CarBookingForm({ agencyId, locations, categories, prefill }: Car
             <CardHeader className="bg-sidebar/10 rounded-t-lg">
               <CardTitle className="text-sidebar flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
-                Devis — {pricing.rentalDays} jour{pricing.rentalDays > 1 ? "s" : ""}
+                Devis — {pricing.rentalDays} jour
+                {pricing.rentalDays > 1 ? "s" : ""}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
               <div className="flex items-center justify-between">
-                <span className="text-sm sm:text-base">Location ({pricing.dailyRateTnd.toFixed(3)} DT/jour)</span>
-                <span className="text-sidebar font-semibold">{pricing.baseTotalTnd.toFixed(3)} DT</span>
+                <span className="text-sm sm:text-base">
+                  Location ({pricing.dailyRateTnd.toFixed(3)} DT/jour)
+                </span>
+                <span className="text-sidebar font-semibold">
+                  {pricing.baseTotalTnd.toFixed(3)} DT
+                </span>
               </div>
               {pricing.insuranceTotalTnd > 0 && (
                 <div className="text-accent flex items-center justify-between">
                   <span className="text-sm sm:text-base">Assurance</span>
-                  <span className="font-semibold">+{pricing.insuranceTotalTnd.toFixed(3)} DT</span>
+                  <span className="font-semibold">
+                    +{pricing.insuranceTotalTnd.toFixed(3)} DT
+                  </span>
                 </div>
               )}
               {pricing.marginAmount && pricing.marginAmount > 0 && (
                 <div className="text-muted-foreground flex items-center justify-between">
-                  <span className="text-sm sm:text-base">Marge agence ({pricing.marginPercent}%)</span>
-                  <span className="font-semibold">+{pricing.marginAmount.toFixed(3)} DT</span>
+                  <span className="text-sm sm:text-base">
+                    Marge agence ({pricing.marginPercent}%)
+                  </span>
+                  <span className="font-semibold">
+                    +{pricing.marginAmount.toFixed(3)} DT
+                  </span>
                 </div>
               )}
               <Separator className="bg-sidebar/20" />
               <div className="flex items-center justify-between text-lg sm:text-xl">
                 <span className="text-sidebar font-semibold">Total TTC</span>
-                <span className="text-accent font-bold">{pricing.totalTnd.toFixed(3)} DT</span>
+                <span className="text-accent font-bold">
+                  {pricing.totalTnd.toFixed(3)} DT
+                </span>
               </div>
               {pricing.depositTnd > 0 && (
                 <p className="text-muted-foreground text-xs">
-                  Caution de {pricing.depositTnd.toFixed(3)} DT exigée à la prise en charge (non débitée maintenant).
+                  Caution de {pricing.depositTnd.toFixed(3)} DT exigée à la
+                  prise en charge (non débitée maintenant).
                 </p>
               )}
               <p className="text-muted-foreground text-sm">

@@ -18,7 +18,11 @@ import { VirtualCheckoutPanel } from "@/components/payment/virtual-checkout-pane
 
 export const dynamic = "force-dynamic"
 
-export default async function VirtualPaymentPage({ params }: { params: Promise<{ ref: string }> }) {
+export default async function VirtualPaymentPage({
+  params,
+}: {
+  params: Promise<{ ref: string }>
+}) {
   if (!isVirtualPaymentModeEnabled()) notFound()
   const { ref: paymentRef } = await params
   const session = await getVirtualPaymentSession(paymentRef)
@@ -31,9 +35,7 @@ export default async function VirtualPaymentPage({ params }: { params: Promise<{
         <Alert className="mb-6 border-amber-300 bg-amber-50 text-amber-900">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>{t("simulationEnvTitle")}</AlertTitle>
-          <AlertDescription>
-            {t("simulationEnvDesc")}
-          </AlertDescription>
+          <AlertDescription>{t("simulationEnvDesc")}</AlertDescription>
         </Alert>
 
         {session.ok ? (

@@ -42,7 +42,9 @@ export function UserRowActions({
     const next = isActive ? "suspended" : "active"
     const res = await setPlatformUserStatus({ userId, status: next })
     if (res.ok) {
-      toast.success(next === "active" ? "Utilisateur réactivé" : "Utilisateur suspendu")
+      toast.success(
+        next === "active" ? "Utilisateur réactivé" : "Utilisateur suspendu",
+      )
     } else {
       toast.error(res.error)
     }
@@ -85,13 +87,17 @@ export function UserRowActions({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         variant={isActive ? "destructive" : "default"}
-        title={isActive ? "Suspendre cet utilisateur ?" : "Réactiver cet utilisateur ?"}
+        title={
+          isActive
+            ? "Suspendre cet utilisateur ?"
+            : "Réactiver cet utilisateur ?"
+        }
         description={
           isActive ? (
             <>
               <strong>{displayName}</strong> ne pourra plus se connecter tant
-              que son compte est suspendu. Cette action peut être annulée
-              plus tard.
+              que son compte est suspendu. Cette action peut être annulée plus
+              tard.
             </>
           ) : (
             <>

@@ -23,7 +23,10 @@
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
 import { and, asc, eq, isNull } from "drizzle-orm"
-import { getRequestTenantAgencyId, resolveEffectiveAgencyId } from "@/lib/tenant/current-tenant"
+import {
+  getRequestTenantAgencyId,
+  resolveEffectiveAgencyId,
+} from "@/lib/tenant/current-tenant"
 
 /**
  * Retourne l'ID de l'agence OTA directe, ou `null` si aucune agence de ce

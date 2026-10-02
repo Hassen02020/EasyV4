@@ -24,7 +24,9 @@ export type PaymentReturnTarget =
   | { ok: true; publicRef: string; guestAccessToken: string }
   | { ok: false; error: string }
 
-export async function getPaymentReturnTarget(ref: string): Promise<PaymentReturnTarget> {
+export async function getPaymentReturnTarget(
+  ref: string,
+): Promise<PaymentReturnTarget> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
   }
@@ -45,5 +47,9 @@ export async function getPaymentReturnTarget(ref: string): Promise<PaymentReturn
     return { ok: false, error: "Paiement introuvable." }
   }
 
-  return { ok: true, publicRef: row.publicRef, guestAccessToken: row.guestAccessToken }
+  return {
+    ok: true,
+    publicRef: row.publicRef,
+    guestAccessToken: row.guestAccessToken,
+  }
 }

@@ -7,9 +7,16 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  withSystemContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { agencies, pricingMargins } from "@/lib/db/schema"
-import { upsertPricingMarginCore, listPricingMarginsCore } from "../margins-core"
+import {
+  upsertPricingMarginCore,
+  listPricingMarginsCore,
+} from "../margins-core"
 
 async function isDbAvailable(): Promise<boolean> {
   try {
@@ -52,7 +59,11 @@ after(async () => {
 
 test("upsertPricingMarginCore : crée puis met à jour (une ligne par agence+module, jamais un doublon)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctx: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
+  const ctx: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
 
   await withTenantContext(ctx, (tx) =>
     upsertPricingMarginCore(tx, {
@@ -64,7 +75,9 @@ test("upsertPricingMarginCore : crée puis met à jour (une ligne par agence+mod
     }),
   )
 
-  let rows = await withTenantContext(ctx, (tx) => listPricingMarginsCore(tx, { agencyId: agencyA }))
+  let rows = await withTenantContext(ctx, (tx) =>
+    listPricingMarginsCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(rows.length, 1)
   assert.equal(rows[0]!.marginType, "percent")
   assert.equal(Number(rows[0]!.marginValue), 12)
@@ -80,7 +93,9 @@ test("upsertPricingMarginCore : crée puis met à jour (une ligne par agence+mod
     }),
   )
 
-  rows = await withTenantContext(ctx, (tx) => listPricingMarginsCore(tx, { agencyId: agencyA }))
+  rows = await withTenantContext(ctx, (tx) =>
+    listPricingMarginsCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(rows.length, 1)
   assert.equal(rows[0]!.marginType, "fixed")
   assert.equal(Number(rows[0]!.marginValue), 25)
@@ -89,7 +104,11 @@ test("upsertPricingMarginCore : crée puis met à jour (une ligne par agence+mod
 
 test("upsertPricingMarginCore : deux modules distincts coexistent pour la même agence", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctx: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
+  const ctx: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
 
   await withTenantContext(ctx, (tx) =>
     upsertPricingMarginCore(tx, {
@@ -101,7 +120,9 @@ test("upsertPricingMarginCore : deux modules distincts coexistent pour la même 
     }),
   )
 
-  const rows = await withTenantContext(ctx, (tx) => listPricingMarginsCore(tx, { agencyId: agencyA }))
+  const rows = await withTenantContext(ctx, (tx) =>
+    listPricingMarginsCore(tx, { agencyId: agencyA }),
+  )
   const modules = rows.map((r) => r.module).sort()
   assert.deepEqual(modules, ["hotel", "transfer"])
 })

@@ -19,7 +19,13 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { acquireLock, releaseLock, refreshLock, checkLock, type InventoryRedis } from "@/lib/booking/inventory"
+import {
+  acquireLock,
+  releaseLock,
+  refreshLock,
+  checkLock,
+  type InventoryRedis,
+} from "@/lib/booking/inventory"
 
 /**
  * Faux client Redis minimal — TTL réellement honoré (pas juste stocké),
@@ -42,7 +48,11 @@ function makeMockRedis() {
     async get<T>(key: string) {
       return isLive(key) ? (store.get(key)!.value as unknown as T) : null
     },
-    async set(key: string, value: string, opts?: { ex?: number; nx?: boolean }) {
+    async set(
+      key: string,
+      value: string,
+      opts?: { ex?: number; nx?: boolean },
+    ) {
       if (opts?.nx && isLive(key)) return null // SET NX : n'écrase jamais une clé vivante
       store.set(key, {
         value,
@@ -62,7 +72,9 @@ function makeMockRedis() {
     async ttl(key: string) {
       if (!isLive(key)) return -2
       const entry = store.get(key)!
-      return entry.expiresAt === null ? -1 : Math.ceil((entry.expiresAt - Date.now()) / 1000)
+      return entry.expiresAt === null
+        ? -1
+        : Math.ceil((entry.expiresAt - Date.now()) / 1000)
     },
   }
 
@@ -85,7 +97,10 @@ const baseInput = {
 
 test("acquireLock : offre libre → verrou accordé (ok:true)", async () => {
   const { redis } = makeMockRedis()
-  const result = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const result = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   assert.equal(result.ok, true)
   if (result.ok) {
     assert.ok(result.expiresAt instanceof Date)
@@ -95,8 +110,14 @@ test("acquireLock : offre libre → verrou accordé (ok:true)", async () => {
 
 test("acquireLock : même session ré-acquiert son propre verrou (idempotent), TTL renouvelé", async () => {
   const { redis } = makeMockRedis()
-  const first = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
-  const second = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const first = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
+  const second = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   assert.equal(first.ok, true)
   assert.equal(second.ok, true)
 })
@@ -105,8 +126,14 @@ test("acquireLock : même session ré-acquiert son propre verrou (idempotent), T
 
 test("acquireLock : deux sessions concurrentes sur la même offre → une seule obtient ok:true, l'autre 'conflict'", async () => {
   const { redis } = makeMockRedis()
-  const winner = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
-  const loser = await acquireLock({ ...baseInput, sessionId: "session-b" }, redis)
+  const winner = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
+  const loser = await acquireLock(
+    { ...baseInput, sessionId: "session-b" },
+    redis,
+  )
 
   assert.equal(winner.ok, true)
   assert.equal(loser.ok, false)
@@ -117,24 +144,40 @@ test("acquireLock : deux sessions concurrentes sur la même offre → une seule 
 
 test("acquireLock : verrou expiré (TTL écoulé) → une nouvelle session peut l'acquérir", async () => {
   const { redis, expireNow } = makeMockRedis()
-  const first = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const first = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   assert.equal(first.ok, true)
   if (first.ok) expireNow(first.lockKey)
 
-  const second = await acquireLock({ ...baseInput, sessionId: "session-b" }, redis)
-  assert.equal(second.ok, true, "un verrou expiré ne doit jamais bloquer une nouvelle acquisition")
+  const second = await acquireLock(
+    { ...baseInput, sessionId: "session-b" },
+    redis,
+  )
+  assert.equal(
+    second.ok,
+    true,
+    "un verrou expiré ne doit jamais bloquer une nouvelle acquisition",
+  )
 })
 
 // --- Test 3 : verrou libéré → nouvelle acquisition possible ---------------
 
 test("releaseLock puis acquireLock : une offre libérée est immédiatement ré-acquérable par une autre session", async () => {
   const { redis } = makeMockRedis()
-  const first = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const first = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   assert.equal(first.ok, true)
 
   await releaseLock({ ...baseInput, sessionId: "session-a" }, redis)
 
-  const second = await acquireLock({ ...baseInput, sessionId: "session-b" }, redis)
+  const second = await acquireLock(
+    { ...baseInput, sessionId: "session-b" },
+    redis,
+  )
   assert.equal(second.ok, true)
 })
 
@@ -145,20 +188,33 @@ test("releaseLock : ne libère JAMAIS le verrou d'une autre session (ne supprime
   // session-b tente de libérer le verrou de session-a — ne doit rien faire.
   await releaseLock({ ...baseInput, sessionId: "session-b" }, redis)
 
-  const stillHeld = await acquireLock({ ...baseInput, sessionId: "session-c" }, redis)
-  assert.equal(stillHeld.ok, false, "le verrou de session-a doit toujours être actif")
+  const stillHeld = await acquireLock(
+    { ...baseInput, sessionId: "session-c" },
+    redis,
+  )
+  assert.equal(
+    stillHeld.ok,
+    false,
+    "le verrou de session-a doit toujours être actif",
+  )
 })
 
 // --- Fail-closed : mandat explicite Master Prompt v2 §8/§10 ---------------
 
 test("acquireLock : Redis indisponible (undefined) → ok:false, reason:'redis_unavailable', jamais un faux succès", async () => {
-  const result = await acquireLock({ ...baseInput, sessionId: "session-a" }, undefined)
+  const result = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    undefined,
+  )
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.reason, "redis_unavailable")
 })
 
 test("refreshLock : Redis indisponible → ok:false, reason:'redis_unavailable' (jamais un keep-alive fantôme)", async () => {
-  const result = await refreshLock({ ...baseInput, sessionId: "session-a" }, undefined)
+  const result = await refreshLock(
+    { ...baseInput, sessionId: "session-a" },
+    undefined,
+  )
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.reason, "redis_unavailable")
 })
@@ -168,23 +224,44 @@ test("refreshLock : Redis indisponible → ok:false, reason:'redis_unavailable' 
 test("acquireLock : même itemId, deux agences différentes → aucune collision, les deux obtiennent ok:true", async () => {
   const { redis } = makeMockRedis()
   const agencyA = await acquireLock(
-    { agencyId: "agency-a", module: "hotel", itemId: "same-offer-id", sessionId: "session-a" },
+    {
+      agencyId: "agency-a",
+      module: "hotel",
+      itemId: "same-offer-id",
+      sessionId: "session-a",
+    },
     redis,
   )
   const agencyB = await acquireLock(
-    { agencyId: "agency-b", module: "hotel", itemId: "same-offer-id", sessionId: "session-b" },
+    {
+      agencyId: "agency-b",
+      module: "hotel",
+      itemId: "same-offer-id",
+      sessionId: "session-b",
+    },
     redis,
   )
-  assert.equal(agencyA.ok, true, "l'agence A ne doit jamais être bloquée par un itemId identique appartenant à l'agence B")
+  assert.equal(
+    agencyA.ok,
+    true,
+    "l'agence A ne doit jamais être bloquée par un itemId identique appartenant à l'agence B",
+  )
   assert.equal(agencyB.ok, true)
   if (agencyA.ok && agencyB.ok) {
-    assert.notEqual(agencyA.lockKey, agencyB.lockKey, "les clés Redis de deux agences ne doivent jamais coïncider")
+    assert.notEqual(
+      agencyA.lockKey,
+      agencyB.lockKey,
+      "les clés Redis de deux agences ne doivent jamais coïncider",
+    )
   }
 })
 
 test("acquireLock : la clé Redis inclut agencyId (namespacing tenant explicite)", async () => {
   const { redis } = makeMockRedis()
-  const result = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const result = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   assert.equal(result.ok, true)
   if (result.ok) {
     assert.match(result.lockKey, new RegExp(`e2b:lock:${baseInput.agencyId}:`))
@@ -195,10 +272,23 @@ test("acquireLock : la clé Redis inclut agencyId (namespacing tenant explicite)
 
 test("checkLock : l'agence B ne voit jamais le verrou de l'agence A même sur un itemId identique", async () => {
   const { redis } = makeMockRedis()
-  await acquireLock({ agencyId: "agency-a", module: "hotel", itemId: "same-offer-id", sessionId: "session-x" }, redis)
+  await acquireLock(
+    {
+      agencyId: "agency-a",
+      module: "hotel",
+      itemId: "same-offer-id",
+      sessionId: "session-x",
+    },
+    redis,
+  )
 
   const crossTenantCheck = await checkLock(
-    { agencyId: "agency-b", module: "hotel", itemId: "same-offer-id", sessionId: "session-x" },
+    {
+      agencyId: "agency-b",
+      module: "hotel",
+      itemId: "same-offer-id",
+      sessionId: "session-x",
+    },
     redis,
   )
   assert.equal(
@@ -210,20 +300,42 @@ test("checkLock : l'agence B ne voit jamais le verrou de l'agence A même sur un
 
 test("releaseLock : l'agence B ne peut jamais libérer le verrou de l'agence A (namespacing empêche toute portée cross-tenant)", async () => {
   const { redis } = makeMockRedis()
-  await acquireLock({ agencyId: "agency-a", module: "hotel", itemId: "same-offer-id", sessionId: "session-x" }, redis)
+  await acquireLock(
+    {
+      agencyId: "agency-a",
+      module: "hotel",
+      itemId: "same-offer-id",
+      sessionId: "session-x",
+    },
+    redis,
+  )
 
   // Tentative de libération avec le même sessionId/itemId mais une AUTRE agence.
   await releaseLock(
-    { agencyId: "agency-b", module: "hotel", itemId: "same-offer-id", sessionId: "session-x" },
+    {
+      agencyId: "agency-b",
+      module: "hotel",
+      itemId: "same-offer-id",
+      sessionId: "session-x",
+    },
     redis,
   )
 
   // Le verrou de l'agence A doit être intact.
   const stillHeld = await checkLock(
-    { agencyId: "agency-a", module: "hotel", itemId: "same-offer-id", sessionId: "session-x" },
+    {
+      agencyId: "agency-a",
+      module: "hotel",
+      itemId: "same-offer-id",
+      sessionId: "session-x",
+    },
     redis,
   )
-  assert.equal(stillHeld.held, true, "releaseLock sous l'agence B ne doit jamais affecter le verrou de l'agence A")
+  assert.equal(
+    stillHeld.held,
+    true,
+    "releaseLock sous l'agence B ne doit jamais affecter le verrou de l'agence A",
+  )
 })
 
 // --- checkLock : lecture seule ---------------------------------------------
@@ -232,7 +344,10 @@ test("checkLock : session détentrice → held:true ; autre session → held:fal
   const { redis } = makeMockRedis()
   await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
 
-  const holder = await checkLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const holder = await checkLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   const other = await checkLock({ ...baseInput, sessionId: "session-b" }, redis)
 
   assert.equal(holder.held, true)
@@ -241,11 +356,21 @@ test("checkLock : session détentrice → held:true ; autre session → held:fal
 
 test("checkLock : verrou expiré → held:false", async () => {
   const { redis, expireNow } = makeMockRedis()
-  const acquired = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const acquired = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   if (acquired.ok) expireNow(acquired.lockKey)
 
-  const result = await checkLock({ ...baseInput, sessionId: "session-a" }, redis)
-  assert.equal(result.held, false, "un verrou expiré ne doit jamais être rapporté comme détenu")
+  const result = await checkLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
+  assert.equal(
+    result.held,
+    false,
+    "un verrou expiré ne doit jamais être rapporté comme détenu",
+  )
 })
 
 // --- refreshLock : keep-alive ----------------------------------------------
@@ -254,16 +379,25 @@ test("refreshLock : session détentrice → ok:true, TTL repoussé", async () =>
   const { redis } = makeMockRedis()
   await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
 
-  const refreshed = await refreshLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const refreshed = await refreshLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   assert.equal(refreshed.ok, true)
 })
 
 test("refreshLock : verrou déjà expiré → ok:false, reason:'conflict' (jamais un keep-alive sur du vide)", async () => {
   const { redis, expireNow } = makeMockRedis()
-  const acquired = await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const acquired = await acquireLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   if (acquired.ok) expireNow(acquired.lockKey)
 
-  const result = await refreshLock({ ...baseInput, sessionId: "session-a" }, redis)
+  const result = await refreshLock(
+    { ...baseInput, sessionId: "session-a" },
+    redis,
+  )
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.reason, "conflict")
 })
@@ -272,7 +406,10 @@ test("refreshLock : verrou détenu par une autre session → ok:false, reason:'c
   const { redis } = makeMockRedis()
   await acquireLock({ ...baseInput, sessionId: "session-a" }, redis)
 
-  const result = await refreshLock({ ...baseInput, sessionId: "session-b" }, redis)
+  const result = await refreshLock(
+    { ...baseInput, sessionId: "session-b" },
+    redis,
+  )
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.reason, "conflict")
 })

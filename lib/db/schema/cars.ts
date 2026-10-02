@@ -145,7 +145,9 @@ export const carCategories = pgTable(
     seats: integer("seats").notNull().default(5),
     doors: integer("doors").notNull().default(4),
     luggageCapacity: integer("luggage_capacity").notNull().default(2),
-    transmission: carTransmissionType("transmission").notNull().default("manual"),
+    transmission: carTransmissionType("transmission")
+      .notNull()
+      .default("manual"),
     fuelType: carFuelType("fuel_type").notNull().default("petrol"),
     airConditioning: boolean("air_conditioning").notNull().default(true),
     /** Âge minimum du conducteur principal pour cette catégorie. */
@@ -280,7 +282,10 @@ export const carPricingRates = pgTable(
     locationId: uuid("location_id").references(() => carLocations.id, {
       onDelete: "cascade",
     }),
-    dailyRateTnd: decimal("daily_rate_tnd", { precision: 10, scale: 3 }).notNull(),
+    dailyRateTnd: decimal("daily_rate_tnd", {
+      precision: 10,
+      scale: 3,
+    }).notNull(),
     /** Optionnel : tarif dégressif si location >= 7 jours. */
     weeklyRateTnd: decimal("weekly_rate_tnd", { precision: 10, scale: 3 }),
     minRentalDays: integer("min_rental_days").notNull().default(1),
@@ -289,7 +294,9 @@ export const carPricingRates = pgTable(
       scale: 3,
     }).default("0"),
     /** Franchise (dépôt de garantie) exigée pour cette catégorie. */
-    depositTnd: decimal("deposit_tnd", { precision: 10, scale: 3 }).default("0"),
+    depositTnd: decimal("deposit_tnd", { precision: 10, scale: 3 }).default(
+      "0",
+    ),
     /** Tarif journalier additionnel par niveau d'assurance optionnelle. */
     insuranceDailyFeeTnd: jsonb("insurance_daily_fee_tnd").$type<
       Partial<Record<"basic" | "standard" | "premium" | "full", number>>
@@ -360,9 +367,10 @@ export const reservationCar = pgTable(
     driverLicenseCountry: varchar("driver_license_country", { length: 64 }),
     driverBirthDate: date("driver_birth_date"),
     /** Conducteurs additionnels déclarés (snapshot, pas de table dédiée). */
-    extraDrivers: jsonb("extra_drivers").$type<
-      { fullName: string; licenseNumber: string }[]
-    >(),
+    extraDrivers:
+      jsonb("extra_drivers").$type<
+        { fullName: string; licenseNumber: string }[]
+      >(),
     insuranceLevel: carInsuranceLevel("insurance_level")
       .notNull()
       .default("basic"),

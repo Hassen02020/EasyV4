@@ -10,7 +10,10 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { yieldRules, type NewYieldRule } from "@/lib/db/schema"
 import { memoize, invalidate } from "@/lib/cache/redis"
-import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  resolveSessionContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
 import {
   type YieldModule,
   type YieldRuleType,

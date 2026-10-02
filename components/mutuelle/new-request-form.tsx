@@ -15,7 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { submitMutuelleRequest } from "@/lib/mutuelle/requests-actions"
 
 const MODULE_OPTIONS: { value: string; label: string }[] = [
@@ -73,7 +79,8 @@ export function NewRequestForm() {
       <CardHeader>
         <CardTitle className="text-base">Nouvelle demande</CardTitle>
         <CardDescription>
-          Décrivez votre besoin — votre directeur la validera avant transmission.
+          Décrivez votre besoin — votre directeur la validera avant
+          transmission.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -148,10 +155,16 @@ export function NewRequestForm() {
             />
           </div>
 
-          {error && <p className="text-destructive text-sm font-medium">{error}</p>}
+          {error && (
+            <p className="text-destructive text-sm font-medium">{error}</p>
+          )}
 
           <Button type="submit" disabled={isPending} className="gap-2">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
             Envoyer la demande
           </Button>
         </form>

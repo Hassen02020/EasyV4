@@ -1,11 +1,14 @@
 # Audit Report - Gestion des Erreurs
+
 **Date** : 13 Juin 2026
 **Projet** : Easy2Book V6
 
 ## 1. État Actuel - PAS DE GESTION D'ERREURS COHÉRENTE
 
 ### Problème
+
 Aucune classe d'erreur personnalisée n'existe :
+
 - Utilisation de `Error` standard
 - Messages d'erreur cryptiques
 - Pas de codes d'erreur standardisés
@@ -13,6 +16,7 @@ Aucune classe d'erreur personnalisée n'existe :
 - UX dégradée
 
 ### Exemples de Code Actuel
+
 ```typescript
 // lib/finance/wallet-service.ts
 if (!wallet) {
@@ -34,6 +38,7 @@ if (balanceAfter < -creditLimit) {
 ```
 
 ### Impact
+
 - Messages d'erreur non informatifs pour l'utilisateur
 - Difficulté de debug
 - Pas de traçabilité
@@ -41,9 +46,11 @@ if (balanceAfter < -creditLimit) {
 - UI ne peut pas afficher des messages appropriés
 
 ### Recommandation
+
 Utiliser les classes d'erreur personnalisées créées dans `lib/errors/index.ts` :
 
 **Avant :**
+
 ```typescript
 if (!wallet) {
   throw new Error("Compte wallet non trouvé pour cette agence")
@@ -51,6 +58,7 @@ if (!wallet) {
 ```
 
 **Après :**
+
 ```typescript
 import { NotFoundError } from "@/lib/errors"
 
@@ -62,18 +70,23 @@ if (!wallet) {
 ## 2. Pas de Codes d'Erreur Standardisés
 
 ### Problème
+
 Les erreurs n'ont pas de codes standardisés :
+
 - Impossible de traiter les erreurs par type
 - Difficulté de logging
 - Pas de monitoring efficace
 
 ### Impact
+
 - Difficulté de debug
 - Pas de monitoring
 - Impossible de créer des dashboards d'erreurs
 
 ### Recommandation
+
 Utiliser les codes d'erreur des classes personnalisées :
+
 - `NOT_FOUND` - Ressource non trouvée
 - `VALIDATION_ERROR` - Erreur de validation
 - `UNAUTHORIZED` - Non authentifié
@@ -90,18 +103,23 @@ Utiliser les codes d'erreur des classes personnalisées :
 ## 3. Pas de Logging Structuré
 
 ### Problème
+
 Les erreurs ne sont pas loggées de manière structurée :
+
 - `console.error` utilisé de manière basique
 - Pas de contexte additionnel
 - Pas de monitoring
 
 ### Impact
+
 - Difficulté de debug
 - Pas de monitoring
 - Impossible d'analyser les erreurs
 
 ### Recommandation
+
 Utiliser le helper `logError` créé dans `lib/errors/index.ts` :
+
 ```typescript
 import { logError, toAppError } from "@/lib/errors"
 
@@ -116,18 +134,23 @@ try {
 ## 4. Pas de Gestion des Erreurs dans l'UI
 
 ### Problème
+
 L'UI ne gère pas les erreurs de manière cohérente :
+
 - Messages d'erreur génériques
 - Pas de traduction
 - Pas de contexte pour l'utilisateur
 
 ### Impact
+
 - UX dégradée
 - Frustration utilisateur
 - Support client augmenté
 
 ### Recommandation
+
 Créer un composant de gestion des erreurs :
+
 ```typescript
 // components/error-boundary.tsx
 "use client"
@@ -186,40 +209,45 @@ export function ErrorDisplay({ error, onRetry }: ErrorDisplayProps) {
 ## 5. Pas de Gestion des Erreurs API Fournisseurs
 
 ### Problème
+
 Les erreurs des API fournisseurs ne sont pas gérées :
+
 - Erreurs XML/JSON non traitées
 - Pas de retry automatique
 - Pas de circuit breaker
 
 ### Impact
+
 - UX dégradée
 - Surcharge API fournisseurs
 - Coût accru
 
 ### Recommandation
+
 Utiliser la classe `SupplierError` et implémenter un circuit breaker :
+
 ```typescript
 import { SupplierError, toAppError } from "@/lib/errors"
 
 try {
   const response = await fetch(supplierUrl)
   const data = await response.json()
-  
+
   if (!response.ok) {
     throw new SupplierError(
       data.message || "Supplier API error",
       supplierName,
-      data.code
+      data.code,
     )
   }
 } catch (error) {
   const appError = toAppError(error)
-  
+
   if (appError instanceof SupplierError) {
     // Retry avec circuit breaker
     await circuitBreaker.execute(() => retryOperation())
   }
-  
+
   throw appError
 }
 ```
@@ -227,18 +255,23 @@ try {
 ## 6. Pas de Gestion des Erreurs de Transaction
 
 ### Problème
+
 Les erreurs de transaction Drizzle ne sont pas gérées :
+
 - Pas de rollback explicite
 - Pas de log des erreurs
 - Difficulté de debug
 
 ### Impact
+
 - Données potentiellement incohérentes
 - Difficulté de debug
 - Risque de corruption
 
 ### Recommandation
+
 Gérer les erreurs de transaction de manière explicite :
+
 ```typescript
 import { DatabaseError, toAppError, logError } from "@/lib/errors"
 
@@ -248,11 +281,11 @@ try {
   })
 } catch (error) {
   const appError = toAppError(error)
-  
+
   if (appError instanceof DatabaseError) {
     logError(appError, { context: "transaction", operation: "wallet-debit" })
   }
-  
+
   throw appError
 }
 ```
@@ -260,27 +293,32 @@ try {
 ## Plan de Migration Prioritaire
 
 ### Étape 1 : Remplacement des Erreurs Existantes (2 jours)
+
 1. Remplacer toutes les `new Error()` par les classes appropriées
 2. Commencer par les services critiques (wallet, payments, reservations)
 3. Tests
 
 ### Étape 2 : Logging Structuré (1 jour)
+
 1. Ajouter `logError` dans tous les try/catch
 2. Configurer l'envoi vers un service de monitoring (Sentry)
 3. Tests
 
 ### Étape 3 : UI Error Handling (2 jours)
+
 1. Créer le composant `ErrorDisplay`
 2. Intégrer dans tous les formulaires
 3. Ajouter des messages d'erreur traduits
 4. Tests
 
 ### Étape 4 : API Suppliers (2 jours)
+
 1. Utiliser `SupplierError` pour toutes les API fournisseurs
 2. Implémenter le circuit breaker
 3. Tests
 
 ### Étape 5 : Transaction Handling (1 jour)
+
 1. Gérer explicitement les erreurs de transaction
 2. Ajouter le logging
 3. Tests
@@ -288,6 +326,7 @@ try {
 ## Conclusion
 
 La gestion des erreurs souffre de :
+
 1. Pas de classes d'erreur personnalisées
 2. Pas de codes d'erreur standardisés
 3. Pas de logging structuré

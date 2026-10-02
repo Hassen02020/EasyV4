@@ -139,7 +139,10 @@ export default function BookingsPage() {
             </Button>
             <p className="text-muted-foreground text-center text-xs">
               {t("alreadyHaveAccountPrefix")}{" "}
-              <Link href="/compte" className="text-primary font-medium hover:underline">
+              <Link
+                href="/compte"
+                className="text-primary font-medium hover:underline"
+              >
                 {t("loginLinkText")}
               </Link>{" "}
               {t("viewAllReservationsSuffix")}

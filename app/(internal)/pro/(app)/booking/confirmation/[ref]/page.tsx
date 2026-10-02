@@ -67,8 +67,12 @@ export default async function ProBookingConfirmationPage({
   // doit jamais afficher un écran "Réservation enregistrée" fictif.
   if (!reservation && !search.total) notFound()
 
-  const total = reservation?.totalTnd ?? (search.total ? Number.parseFloat(search.total) : 0)
-  const paymentInfo = search.payment ? (PAYMENT_LABEL[search.payment] ?? null) : null
+  const total =
+    reservation?.totalTnd ??
+    (search.total ? Number.parseFloat(search.total) : 0)
+  const paymentInfo = search.payment
+    ? (PAYMENT_LABEL[search.payment] ?? null)
+    : null
   const PaymentIcon = paymentInfo?.icon ?? Wallet
 
   const createdDate = reservation
@@ -102,10 +106,12 @@ export default async function ProBookingConfirmationPage({
           <div className="mt-3 flex justify-center">
             <Badge
               variant="outline"
-              className="border-emerald-300 bg-emerald-100 text-emerald-800 text-xs"
+              className="border-emerald-300 bg-emerald-100 text-xs text-emerald-800"
             >
               <CheckCircle2 className="mr-1 h-3 w-3" />
-              {reservation.status === "pending" ? "En attente de confirmation" : reservation.status}
+              {reservation.status === "pending"
+                ? "En attente de confirmation"
+                : reservation.status}
             </Badge>
           </div>
         ) : null}
@@ -149,7 +155,9 @@ export default async function ProBookingConfirmationPage({
 
         <div className="border-border/50 bg-muted/30 mt-6 rounded-2xl border p-4">
           <div className="flex items-center justify-between">
-            <p className="text-foreground text-sm font-medium">Total TTC débité</p>
+            <p className="text-foreground text-sm font-medium">
+              Total TTC débité
+            </p>
             <p className="text-primary text-2xl font-bold tabular-nums">
               {formatTND(total)}
             </p>
@@ -171,7 +179,11 @@ export default async function ProBookingConfirmationPage({
           </Button>
           {reservation ? (
             <Button asChild variant="outline" className="flex-1 rounded-xl">
-              <a href={`/api/pro/reservations/${reservation.id}/voucher`} target="_blank" rel="noopener noreferrer">
+              <a
+                href={`/api/pro/reservations/${reservation.id}/voucher`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Download className="mr-1.5 h-4 w-4" />
                 Télécharger le voucher
               </a>

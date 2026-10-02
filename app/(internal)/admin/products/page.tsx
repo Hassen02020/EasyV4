@@ -22,25 +22,34 @@
 import { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Plus, Building2, Moon, Briefcase, Ticket, Package as PackageIcon, Share2, ShieldCheck } from "lucide-react"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Plus,
+  Building2,
+  Moon,
+  Briefcase,
+  Ticket,
+  Package as PackageIcon,
+  Share2,
+  ShieldCheck,
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { catalogPackages, catalogActivities, omraPackages } from "@/lib/db/schema"
+import {
+  catalogPackages,
+  catalogActivities,
+  omraPackages,
+} from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { ProductRowActions } from "@/components/admin/product-row-actions"
 
 export const metadata: Metadata = {
   title: "Catalogue Produits — Manager",
-  description: "Gestion du catalogue produit Omra / Voyages Organisés / Attractions",
+  description:
+    "Gestion du catalogue produit Omra / Voyages Organisés / Attractions",
 }
 
 export const dynamic = "force-dynamic"
@@ -55,10 +64,33 @@ type ProductRow = {
   channels: string[]
 }
 
-const TYPE_META: Record<ProductRow["type"], { label: string; icon: typeof Building2; color: string; editPath?: (id: string) => string }> = {
-  package: { label: "Voyages Organisés", icon: Briefcase, color: "bg-violet-500", editPath: (id) => `/admin/products/package/${id}` },
-  omra: { label: "Omra", icon: Moon, color: "bg-emerald-500", editPath: (id) => `/admin/products/omra/${id}` },
-  activity: { label: "Attractions", icon: Ticket, color: "bg-amber-500", editPath: (id) => `/admin/products/activity/${id}` },
+const TYPE_META: Record<
+  ProductRow["type"],
+  {
+    label: string
+    icon: typeof Building2
+    color: string
+    editPath?: (id: string) => string
+  }
+> = {
+  package: {
+    label: "Voyages Organisés",
+    icon: Briefcase,
+    color: "bg-violet-500",
+    editPath: (id) => `/admin/products/package/${id}`,
+  },
+  omra: {
+    label: "Omra",
+    icon: Moon,
+    color: "bg-emerald-500",
+    editPath: (id) => `/admin/products/omra/${id}`,
+  },
+  activity: {
+    label: "Attractions",
+    icon: Ticket,
+    color: "bg-amber-500",
+    editPath: (id) => `/admin/products/activity/${id}`,
+  },
 }
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
@@ -69,29 +101,73 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
 }
 
 async function getProducts(agencyId: string): Promise<ProductRow[]> {
-  return withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, async (tx) => {
-    const [packages, omra, activities] = await Promise.all([
-      tx
-        .select({ id: catalogPackages.id, title: catalogPackages.title, status: catalogPackages.status, channels: catalogPackages.channels })
-        .from(catalogPackages)
-        .where(eq(catalogPackages.agencyId, agencyId)),
-      tx
-        .select({ id: omraPackages.id, name: omraPackages.name, status: omraPackages.status, basePrice: omraPackages.basePrice, channels: omraPackages.channels })
-        .from(omraPackages)
-        .where(eq(omraPackages.agencyId, agencyId)),
-      tx
-        .select({ id: catalogActivities.id, title: catalogActivities.title, status: catalogActivities.status, location: catalogActivities.location, channels: catalogActivities.channels })
-        .from(catalogActivities)
-        .where(eq(catalogActivities.agencyId, agencyId)),
-    ])
+  return withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    async (tx) => {
+      const [packages, omra, activities] = await Promise.all([
+        tx
+          .select({
+            id: catalogPackages.id,
+            title: catalogPackages.title,
+            status: catalogPackages.status,
+            channels: catalogPackages.channels,
+          })
+          .from(catalogPackages)
+          .where(eq(catalogPackages.agencyId, agencyId)),
+        tx
+          .select({
+            id: omraPackages.id,
+            name: omraPackages.name,
+            status: omraPackages.status,
+            basePrice: omraPackages.basePrice,
+            channels: omraPackages.channels,
+          })
+          .from(omraPackages)
+          .where(eq(omraPackages.agencyId, agencyId)),
+        tx
+          .select({
+            id: catalogActivities.id,
+            title: catalogActivities.title,
+            status: catalogActivities.status,
+            location: catalogActivities.location,
+            channels: catalogActivities.channels,
+          })
+          .from(catalogActivities)
+          .where(eq(catalogActivities.agencyId, agencyId)),
+      ])
 
-    const rows: ProductRow[] = [
-      ...packages.map((p) => ({ id: p.id, name: p.title, type: "package" as const, location: null, price: null, status: p.status, channels: p.channels })),
-      ...omra.map((p) => ({ id: p.id, name: p.name, type: "omra" as const, location: null, price: p.basePrice ? parseFloat(p.basePrice) : null, status: p.status, channels: p.channels })),
-      ...activities.map((p) => ({ id: p.id, name: p.title, type: "activity" as const, location: p.location, price: null, status: p.status, channels: p.channels })),
-    ]
-    return rows
-  })
+      const rows: ProductRow[] = [
+        ...packages.map((p) => ({
+          id: p.id,
+          name: p.title,
+          type: "package" as const,
+          location: null,
+          price: null,
+          status: p.status,
+          channels: p.channels,
+        })),
+        ...omra.map((p) => ({
+          id: p.id,
+          name: p.name,
+          type: "omra" as const,
+          location: null,
+          price: p.basePrice ? parseFloat(p.basePrice) : null,
+          status: p.status,
+          channels: p.channels,
+        })),
+        ...activities.map((p) => ({
+          id: p.id,
+          name: p.title,
+          type: "activity" as const,
+          location: p.location,
+          price: null,
+          status: p.status,
+          channels: p.channels,
+        })),
+      ]
+      return rows
+    },
+  )
 }
 
 export default async function ProductsPage() {
@@ -106,11 +182,17 @@ export default async function ProductsPage() {
 
   const profile = await getCurrentAdminProfile(user.id)
   const allowedRoles = ["super_admin", "manager"]
-  if (!profile || !allowedRoles.includes(profile.role) || profile.agencyType !== "ota") {
+  if (
+    !profile ||
+    !allowedRoles.includes(profile.role) ||
+    profile.agencyType !== "ota"
+  ) {
     redirect("/admin")
   }
 
-  const products = process.env.DATABASE_URL ? await getProducts(profile.agencyId) : []
+  const products = process.env.DATABASE_URL
+    ? await getProducts(profile.agencyId)
+    : []
 
   const counts = {
     package: products.filter((p) => p.type === "package"),
@@ -122,9 +204,12 @@ export default async function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-foreground text-3xl font-bold tracking-tight">Catalogue Produits</h1>
+          <h1 className="text-foreground text-3xl font-bold tracking-tight">
+            Catalogue Produits
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Créez, publiez et gérez les produits Omra, Voyages Organisés et Attractions.
+            Créez, publiez et gérez les produits Omra, Voyages Organisés et
+            Attractions.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -163,7 +248,7 @@ export default async function ProductsPage() {
 
       {!process.env.DATABASE_URL ? (
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground p-6 text-sm">
             Base de données non configurée — impossible de charger le catalogue.
           </CardContent>
         </Card>
@@ -203,10 +288,10 @@ export default async function ProductsPage() {
         <CardContent>
           {products.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <PackageIcon className="h-8 w-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">
-                Aucun produit dans le catalogue. Créez le premier produit Omra, Voyage ou
-                Attraction avec les boutons ci-dessus.
+              <PackageIcon className="text-muted-foreground/40 h-8 w-8" />
+              <p className="text-muted-foreground text-sm">
+                Aucun produit dans le catalogue. Créez le premier produit Omra,
+                Voyage ou Attraction avec les boutons ci-dessus.
               </p>
             </div>
           ) : (
@@ -214,30 +299,52 @@ export default async function ProductsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="py-3 text-left font-medium text-gray-500">Produit</th>
-                    <th className="py-3 text-left font-medium text-gray-500">Type</th>
-                    <th className="py-3 text-right font-medium text-gray-500">Prix indicatif</th>
-                    <th className="py-3 text-center font-medium text-gray-500">Canaux</th>
-                    <th className="py-3 text-center font-medium text-gray-500">Statut</th>
-                    <th className="py-3 text-right font-medium text-gray-500">Actions</th>
+                    <th className="py-3 text-left font-medium text-gray-500">
+                      Produit
+                    </th>
+                    <th className="py-3 text-left font-medium text-gray-500">
+                      Type
+                    </th>
+                    <th className="py-3 text-right font-medium text-gray-500">
+                      Prix indicatif
+                    </th>
+                    <th className="py-3 text-center font-medium text-gray-500">
+                      Canaux
+                    </th>
+                    <th className="py-3 text-center font-medium text-gray-500">
+                      Statut
+                    </th>
+                    <th className="py-3 text-right font-medium text-gray-500">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => {
                     const meta = TYPE_META[product.type]
                     const TypeIcon = meta.icon
-                    const statusMeta = STATUS_LABEL[product.status] ?? { label: product.status, className: "bg-gray-100 text-gray-700" }
+                    const statusMeta = STATUS_LABEL[product.status] ?? {
+                      label: product.status,
+                      className: "bg-gray-100 text-gray-700",
+                    }
                     return (
-                      <tr key={`${product.type}-${product.id}`} className="border-b hover:bg-gray-50">
+                      <tr
+                        key={`${product.type}-${product.id}`}
+                        className="border-b hover:bg-gray-50"
+                      >
                         <td className="py-3">
                           <div className="flex items-center gap-3">
-                            <div className={`h-8 w-8 rounded-lg ${meta.color} flex items-center justify-center`}>
+                            <div
+                              className={`h-8 w-8 rounded-lg ${meta.color} flex items-center justify-center`}
+                            >
                               <TypeIcon className="h-4 w-4 text-white" />
                             </div>
                             <div>
                               <p className="font-medium">{product.name}</p>
                               {product.location ? (
-                                <p className="text-xs text-gray-500">{product.location}</p>
+                                <p className="text-xs text-gray-500">
+                                  {product.location}
+                                </p>
                               ) : null}
                             </div>
                           </div>
@@ -246,13 +353,17 @@ export default async function ProductsPage() {
                           <Badge variant="outline">{meta.label}</Badge>
                         </td>
                         <td className="py-3 text-right font-semibold">
-                          {product.price != null ? `${product.price.toLocaleString("fr-FR")} DT` : "—"}
+                          {product.price != null
+                            ? `${product.price.toLocaleString("fr-FR")} DT`
+                            : "—"}
                         </td>
                         <td className="py-3 text-center text-xs text-gray-500">
                           {product.channels.join(", ")}
                         </td>
                         <td className="py-3 text-center">
-                          <Badge className={statusMeta.className}>{statusMeta.label}</Badge>
+                          <Badge className={statusMeta.className}>
+                            {statusMeta.label}
+                          </Badge>
                         </td>
                         <td className="py-3 text-right">
                           <ProductRowActions

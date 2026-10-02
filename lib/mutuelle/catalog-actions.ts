@@ -49,10 +49,18 @@ async function getGroupExecutionContext(
   userId: string,
 ): Promise<{ executionAgencyId: string; markupPercent: string } | null> {
   return withTenantContext(
-    { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+    {
+      agencyId: profile.agencyId,
+      userId,
+      isSuperAdmin: false,
+      mutuelleGroupId: groupId,
+    },
     async (tx) => {
       const [group] = await tx
-        .select({ executionAgencyId: mutuelleGroups.executionAgencyId, markupPercent: mutuelleGroups.markupPercent })
+        .select({
+          executionAgencyId: mutuelleGroups.executionAgencyId,
+          markupPercent: mutuelleGroups.markupPercent,
+        })
         .from(mutuelleGroups)
         .where(eq(mutuelleGroups.id, groupId))
       return group ?? null
@@ -74,7 +82,9 @@ export interface MutuelleCatalogBrowseItem {
 }
 
 /** Catalogue publié de l'agence d'exécution du groupe + statut d'activation Mutuelle. Directeur uniquement. */
-export async function listExecutionAgencyCatalog(): Promise<MutuelleCatalogBrowseItem[]> {
+export async function listExecutionAgencyCatalog(): Promise<
+  MutuelleCatalogBrowseItem[]
+> {
   const auth = await requireMutuelleProfile("mutuelle_director")
   if (!auth.ok) return []
   const { userId, profile } = auth
@@ -84,30 +94,66 @@ export async function listExecutionAgencyCatalog(): Promise<MutuelleCatalogBrows
   if (!group) return []
 
   return withTenantContext(
-    { agencyId: group.executionAgencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+    {
+      agencyId: group.executionAgencyId,
+      userId,
+      isSuperAdmin: false,
+      mutuelleGroupId: groupId,
+    },
     async (tx) => {
       const [packages, activities, omra, enabledRows] = await Promise.all([
         tx
-          .select({ id: catalogPackages.id, title: catalogPackages.title, status: catalogPackages.status })
+          .select({
+            id: catalogPackages.id,
+            title: catalogPackages.title,
+            status: catalogPackages.status,
+          })
           .from(catalogPackages)
-          .where(and(eq(catalogPackages.agencyId, group.executionAgencyId), eq(catalogPackages.status, "published"))),
-        tx
-          .select({ id: catalogActivities.id, title: catalogActivities.title, status: catalogActivities.status })
-          .from(catalogActivities)
           .where(
-            and(eq(catalogActivities.agencyId, group.executionAgencyId), eq(catalogActivities.status, "published")),
+            and(
+              eq(catalogPackages.agencyId, group.executionAgencyId),
+              eq(catalogPackages.status, "published"),
+            ),
           ),
         tx
-          .select({ id: omraPackages.id, title: omraPackages.name, status: omraPackages.status, basePrice: omraPackages.basePrice })
-          .from(omraPackages)
-          .where(and(eq(omraPackages.agencyId, group.executionAgencyId), eq(omraPackages.status, "published"))),
+          .select({
+            id: catalogActivities.id,
+            title: catalogActivities.title,
+            status: catalogActivities.status,
+          })
+          .from(catalogActivities)
+          .where(
+            and(
+              eq(catalogActivities.agencyId, group.executionAgencyId),
+              eq(catalogActivities.status, "published"),
+            ),
+          ),
         tx
-          .select({ productType: mutuelleCatalogItems.productType, productId: mutuelleCatalogItems.productId })
+          .select({
+            id: omraPackages.id,
+            title: omraPackages.name,
+            status: omraPackages.status,
+            basePrice: omraPackages.basePrice,
+          })
+          .from(omraPackages)
+          .where(
+            and(
+              eq(omraPackages.agencyId, group.executionAgencyId),
+              eq(omraPackages.status, "published"),
+            ),
+          ),
+        tx
+          .select({
+            productType: mutuelleCatalogItems.productType,
+            productId: mutuelleCatalogItems.productId,
+          })
           .from(mutuelleCatalogItems)
           .where(eq(mutuelleCatalogItems.groupId, groupId)),
       ])
 
-      const enabledKeys = new Set(enabledRows.map((r) => `${r.productType}:${r.productId}`))
+      const enabledKeys = new Set(
+        enabledRows.map((r) => `${r.productType}:${r.productId}`),
+      )
 
       // "À partir de X DT" — agrégé depuis les départs/sessions réels futurs,
       // jamais un prix inventé (même pattern que app/(public)/[locale]/packages/page.tsx).
@@ -130,7 +176,9 @@ export async function listExecutionAgencyCatalog(): Promise<MutuelleCatalogBrows
             )
             .groupBy(catalogPackageDepartures.packageId)
         : []
-      const packagePriceMap = new Map(packagePrices.map((r) => [r.packageId, parseFloat(r.minPrice)]))
+      const packagePriceMap = new Map(
+        packagePrices.map((r) => [r.packageId, parseFloat(r.minPrice)]),
+      )
 
       const activityPrices = activities.length
         ? await tx
@@ -151,7 +199,9 @@ export async function listExecutionAgencyCatalog(): Promise<MutuelleCatalogBrows
             )
             .groupBy(catalogActivitySessions.activityId)
         : []
-      const activityPriceMap = new Map(activityPrices.map((r) => [r.activityId, parseFloat(r.minPrice)]))
+      const activityPriceMap = new Map(
+        activityPrices.map((r) => [r.activityId, parseFloat(r.minPrice)]),
+      )
 
       const items: MutuelleCatalogBrowseItem[] = [
         ...packages.map((p) => ({
@@ -195,7 +245,9 @@ const setCatalogItemSchema = z.object({
 })
 
 export type SetMutuelleCatalogItemInput = z.infer<typeof setCatalogItemSchema>
-export type SetMutuelleCatalogItemResult = { ok: true } | { ok: false; error: string }
+export type SetMutuelleCatalogItemResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function setMutuelleCatalogItem(
   raw: SetMutuelleCatalogItemInput,
@@ -216,7 +268,12 @@ export async function setMutuelleCatalogItem(
     // Le produit doit réellement appartenir au catalogue PUBLIÉ de l'agence
     // d'exécution du groupe — jamais un id arbitraire fourni côté client.
     const isValidProduct = await withTenantContext(
-      { agencyId: group.executionAgencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+      {
+        agencyId: group.executionAgencyId,
+        userId,
+        isSuperAdmin: false,
+        mutuelleGroupId: groupId,
+      },
       async (tx) => {
         if (input.productType === "package") {
           const [row] = await tx
@@ -260,17 +317,28 @@ export async function setMutuelleCatalogItem(
     if (!isValidProduct) {
       return {
         ok: false,
-        error: "Ce produit n'appartient pas au catalogue publié de l'agence d'exécution du groupe.",
+        error:
+          "Ce produit n'appartient pas au catalogue publié de l'agence d'exécution du groupe.",
       }
     }
 
     await withTenantContext(
-      { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+      {
+        agencyId: profile.agencyId,
+        userId,
+        isSuperAdmin: false,
+        mutuelleGroupId: groupId,
+      },
       async (tx) => {
         if (input.enabled) {
           await tx
             .insert(mutuelleCatalogItems)
-            .values({ groupId, productType: input.productType, productId: input.productId, addedByUserId: userId })
+            .values({
+              groupId,
+              productType: input.productType,
+              productId: input.productId,
+              addedByUserId: userId,
+            })
             .onConflictDoNothing()
           await tx.insert(auditEvents).values({
             agencyId: profile.agencyId,
@@ -308,7 +376,10 @@ export async function setMutuelleCatalogItem(
     logger.error("[mutuelle-catalog-actions] setMutuelleCatalogItem failed", {
       err: err instanceof Error ? err.message : String(err),
     })
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -327,7 +398,9 @@ export interface MutuelleCatalogMemberItem {
 }
 
 /** Catalogue restreint activé par le directeur pour le groupe du membre courant. */
-export async function listMyMutuelleCatalog(): Promise<MutuelleCatalogMemberItem[]> {
+export async function listMyMutuelleCatalog(): Promise<
+  MutuelleCatalogMemberItem[]
+> {
   const auth = await requireMutuelleProfile("mutuelle_member")
   if (!auth.ok) return []
   const { userId, profile } = auth
@@ -338,36 +411,72 @@ export async function listMyMutuelleCatalog(): Promise<MutuelleCatalogMemberItem
   const markupPercent = parseFloat(group.markupPercent)
 
   return withTenantContext(
-    { agencyId: group.executionAgencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+    {
+      agencyId: group.executionAgencyId,
+      userId,
+      isSuperAdmin: false,
+      mutuelleGroupId: groupId,
+    },
     async (tx) => {
       const enabledRows = await tx
-        .select({ productType: mutuelleCatalogItems.productType, productId: mutuelleCatalogItems.productId })
+        .select({
+          productType: mutuelleCatalogItems.productType,
+          productId: mutuelleCatalogItems.productId,
+        })
         .from(mutuelleCatalogItems)
         .where(eq(mutuelleCatalogItems.groupId, groupId))
       if (enabledRows.length === 0) return []
 
-      const packageIds = enabledRows.filter((r) => r.productType === "package").map((r) => r.productId)
-      const activityIds = enabledRows.filter((r) => r.productType === "activity").map((r) => r.productId)
-      const omraIds = enabledRows.filter((r) => r.productType === "omra").map((r) => r.productId)
+      const packageIds = enabledRows
+        .filter((r) => r.productType === "package")
+        .map((r) => r.productId)
+      const activityIds = enabledRows
+        .filter((r) => r.productType === "activity")
+        .map((r) => r.productId)
+      const omraIds = enabledRows
+        .filter((r) => r.productType === "omra")
+        .map((r) => r.productId)
 
       const [packages, activities, omra] = await Promise.all([
         packageIds.length
           ? tx
               .select({ id: catalogPackages.id, title: catalogPackages.title })
               .from(catalogPackages)
-              .where(and(inArray(catalogPackages.id, packageIds), eq(catalogPackages.status, "published")))
+              .where(
+                and(
+                  inArray(catalogPackages.id, packageIds),
+                  eq(catalogPackages.status, "published"),
+                ),
+              )
           : Promise.resolve([]),
         activityIds.length
           ? tx
-              .select({ id: catalogActivities.id, title: catalogActivities.title })
+              .select({
+                id: catalogActivities.id,
+                title: catalogActivities.title,
+              })
               .from(catalogActivities)
-              .where(and(inArray(catalogActivities.id, activityIds), eq(catalogActivities.status, "published")))
+              .where(
+                and(
+                  inArray(catalogActivities.id, activityIds),
+                  eq(catalogActivities.status, "published"),
+                ),
+              )
           : Promise.resolve([]),
         omraIds.length
           ? tx
-              .select({ id: omraPackages.id, title: omraPackages.name, basePrice: omraPackages.basePrice })
+              .select({
+                id: omraPackages.id,
+                title: omraPackages.name,
+                basePrice: omraPackages.basePrice,
+              })
               .from(omraPackages)
-              .where(and(inArray(omraPackages.id, omraIds), eq(omraPackages.status, "published")))
+              .where(
+                and(
+                  inArray(omraPackages.id, omraIds),
+                  eq(omraPackages.status, "published"),
+                ),
+              )
           : Promise.resolve([]),
       ])
 
@@ -390,7 +499,9 @@ export async function listMyMutuelleCatalog(): Promise<MutuelleCatalogMemberItem
             )
             .groupBy(catalogPackageDepartures.packageId)
         : []
-      const packagePriceMap = new Map(packagePrices.map((r) => [r.packageId, parseFloat(r.minPrice)]))
+      const packagePriceMap = new Map(
+        packagePrices.map((r) => [r.packageId, parseFloat(r.minPrice)]),
+      )
 
       const activityPrices = activities.length
         ? await tx
@@ -411,7 +522,9 @@ export async function listMyMutuelleCatalog(): Promise<MutuelleCatalogMemberItem
             )
             .groupBy(catalogActivitySessions.activityId)
         : []
-      const activityPriceMap = new Map(activityPrices.map((r) => [r.activityId, parseFloat(r.minPrice)]))
+      const activityPriceMap = new Map(
+        activityPrices.map((r) => [r.activityId, parseFloat(r.minPrice)]),
+      )
 
       function withMutuellePrice(priceFromTnd: number | null): number | null {
         if (priceFromTnd == null) return null

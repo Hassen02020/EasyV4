@@ -8,7 +8,11 @@
 import { fr, enUS, arTN } from "date-fns/locale"
 import type { Locale as DateFnsLocale } from "date-fns"
 
-const DATE_FNS_LOCALES: Record<string, DateFnsLocale> = { fr, en: enUS, ar: arTN }
+const DATE_FNS_LOCALES: Record<string, DateFnsLocale> = {
+  fr,
+  en: enUS,
+  ar: arTN,
+}
 
 /** date-fns `locale` option matching a next-intl locale (`fr`/`en`/`ar`). */
 export function getDateFnsLocale(locale: string): DateFnsLocale {

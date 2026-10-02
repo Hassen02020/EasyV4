@@ -13,14 +13,16 @@
  */
 import { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { Plug, CheckCircle, Ban, AlertTriangle, HelpCircle, Users2 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Plug,
+  CheckCircle,
+  Ban,
+  AlertTriangle,
+  HelpCircle,
+  Users2,
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -42,17 +44,41 @@ import { SupplierAccountRowActions } from "@/components/admin/suppliers/supplier
 
 export const metadata: Metadata = {
   title: "Fournisseurs hôteliers — Master Admin",
-  description: "Comptes fournisseur multi-tenant (myGo, Tunisia Bed, Cyberesa, 3T)",
+  description:
+    "Comptes fournisseur multi-tenant (myGo, Tunisia Bed, Cyberesa, 3T)",
 }
 
 export const dynamic = "force-dynamic"
 
-const STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
-  active: { label: "Actif", className: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
-  disabled: { label: "Désactivé", className: "bg-gray-100 text-gray-800", icon: Ban },
-  invalid_credentials: { label: "Identifiants invalides", className: "bg-red-100 text-red-800", icon: AlertTriangle },
-  not_configured: { label: "Non configuré", className: "bg-gray-100 text-gray-600", icon: HelpCircle },
-  error: { label: "Erreur", className: "bg-red-100 text-red-800", icon: AlertTriangle },
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; className: string; icon: typeof CheckCircle }
+> = {
+  active: {
+    label: "Actif",
+    className: "bg-emerald-100 text-emerald-800",
+    icon: CheckCircle,
+  },
+  disabled: {
+    label: "Désactivé",
+    className: "bg-gray-100 text-gray-800",
+    icon: Ban,
+  },
+  invalid_credentials: {
+    label: "Identifiants invalides",
+    className: "bg-red-100 text-red-800",
+    icon: AlertTriangle,
+  },
+  not_configured: {
+    label: "Non configuré",
+    className: "bg-gray-100 text-gray-600",
+    icon: HelpCircle,
+  },
+  error: {
+    label: "Erreur",
+    className: "bg-red-100 text-red-800",
+    icon: AlertTriangle,
+  },
 }
 
 const OWNER_TYPE_LABEL: Record<string, string> = {
@@ -82,29 +108,51 @@ export default async function SuppliersPage() {
     listAgenciesForPicker(),
   ])
 
-  const authorizationsByAccount = new Map<string, { id: string; agencyId: string; agencyName: string }[]>()
+  const authorizationsByAccount = new Map<
+    string,
+    { id: string; agencyId: string; agencyName: string }[]
+  >()
   await Promise.all(
     accounts
       .filter((a) => a.ownerType === "master")
       .map(async (a) => {
-        authorizationsByAccount.set(a.id, await listAuthorizationsForAccount(a.id))
+        authorizationsByAccount.set(
+          a.id,
+          await listAuthorizationsForAccount(a.id),
+        )
       }),
   )
 
-  const creatableSuppliers = catalog.map((s) => ({ id: s.id, code: s.code, name: s.name, documentationStatus: s.documentationStatus }))
-  const agencyPickerOptions = agencyOptions.map((a) => ({ id: a.id, name: a.name, agencyType: a.agencyType, domain: a.domain }))
+  const creatableSuppliers = catalog.map((s) => ({
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    documentationStatus: s.documentationStatus,
+  }))
+  const agencyPickerOptions = agencyOptions.map((a) => ({
+    id: a.id,
+    name: a.name,
+    agencyType: a.agencyType,
+    domain: a.domain,
+  }))
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-foreground text-3xl font-bold tracking-tight">Fournisseurs hôteliers</h1>
+          <h1 className="text-foreground text-3xl font-bold tracking-tight">
+            Fournisseurs hôteliers
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Comptes fournisseur multi-tenant — master, agences partenaires et marques blanches, chacun avec ses propres
-            identifiants chiffrés, exécutés via un unique driver par fournisseur.
+            Comptes fournisseur multi-tenant — master, agences partenaires et
+            marques blanches, chacun avec ses propres identifiants chiffrés,
+            exécutés via un unique driver par fournisseur.
           </p>
         </div>
-        <CreateSupplierAccountDialog suppliers={creatableSuppliers} agencies={agencyPickerOptions} />
+        <CreateSupplierAccountDialog
+          suppliers={creatableSuppliers}
+          agencies={agencyPickerOptions}
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -115,9 +163,12 @@ export default async function SuppliersPage() {
               <Plug className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{accounts.filter((a) => a.supplierId === s.id).length}</p>
+              <p className="text-2xl font-bold">
+                {accounts.filter((a) => a.supplierId === s.id).length}
+              </p>
               <Badge variant="outline" className="mt-1">
-                {DOC_STATUS_LABEL[s.documentationStatus] ?? s.documentationStatus}
+                {DOC_STATUS_LABEL[s.documentationStatus] ??
+                  s.documentationStatus}
               </Badge>
             </CardContent>
           </Card>
@@ -147,15 +198,21 @@ export default async function SuppliersPage() {
               <TableBody>
                 {accounts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-muted-foreground py-8 text-center">
-                      Aucun compte fournisseur configuré. Commencez par en créer un.
+                    <TableCell
+                      colSpan={9}
+                      className="text-muted-foreground py-8 text-center"
+                    >
+                      Aucun compte fournisseur configuré. Commencez par en créer
+                      un.
                     </TableCell>
                   </TableRow>
                 ) : (
                   accounts.map((a) => {
-                    const statusConfig = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.not_configured
+                    const statusConfig =
+                      STATUS_CONFIG[a.status] ?? STATUS_CONFIG.not_configured
                     const StatusIcon = statusConfig!.icon
-                    const authorizedAgencies = authorizationsByAccount.get(a.id) ?? []
+                    const authorizedAgencies =
+                      authorizationsByAccount.get(a.id) ?? []
                     return (
                       <TableRow key={a.id}>
                         <TableCell>
@@ -165,14 +222,18 @@ export default async function SuppliersPage() {
                             </div>
                             <div>
                               <p className="font-medium">{a.displayName}</p>
-                              <p className="text-muted-foreground text-xs">{a.agencyName}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {a.agencyName}
+                              </p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{a.supplierName}</Badge>
                         </TableCell>
-                        <TableCell>{OWNER_TYPE_LABEL[a.ownerType] ?? a.ownerType}</TableCell>
+                        <TableCell>
+                          {OWNER_TYPE_LABEL[a.ownerType] ?? a.ownerType}
+                        </TableCell>
                         <TableCell>
                           <Badge className={statusConfig!.className}>
                             <StatusIcon className="mr-1 h-3 w-3" />
@@ -182,7 +243,9 @@ export default async function SuppliersPage() {
                         <TableCell className="text-sm">{a.mode}</TableCell>
                         <TableCell className="text-sm">{a.priority}</TableCell>
                         <TableCell className="text-muted-foreground text-xs">
-                          {a.lastTestedAt ? new Date(a.lastTestedAt).toLocaleString("fr-FR") : "Jamais"}
+                          {a.lastTestedAt
+                            ? new Date(a.lastTestedAt).toLocaleString("fr-FR")
+                            : "Jamais"}
                           {a.lastTestStatus ? ` · ${a.lastTestStatus}` : ""}
                         </TableCell>
                         <TableCell>
@@ -192,7 +255,9 @@ export default async function SuppliersPage() {
                               {a.authorizedAgencyCount} agence(s)
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">
+                              —
+                            </span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">

@@ -42,7 +42,10 @@ export const LEAD_SCORE_SIGNAL_LABELS: Record<LeadScoreSignal, string> = {
 /** Poids neutre par défaut — égal pour les 4 signaux, éditable immédiatement. */
 export const DEFAULT_SIGNAL_POINTS = 25
 
-export type LeadScoreRuleMap = Record<LeadScoreSignal, { points: number; isActive: boolean }>
+export type LeadScoreRuleMap = Record<
+  LeadScoreSignal,
+  { points: number; isActive: boolean }
+>
 
 export function defaultLeadScoreRuleMap(): LeadScoreRuleMap {
   const map = {} as LeadScoreRuleMap
@@ -84,16 +87,26 @@ export interface LeadScore {
  * signal absent de `rules` ou désactivé (`isActive: false`) ne contribue
  * jamais au total, même s'il matche.
  */
-export function computeLeadScore(lead: LeadRow, rules: LeadScoreRuleMap): LeadScore {
-  const breakdown: LeadScoreBreakdownItem[] = LEAD_SCORE_SIGNALS.map((signal) => {
-    const rule = rules[signal]
-    // `matched` reflète le signal réel sur le lead, indépendamment de si la
-    // règle est active — un signal matché mais désactivé reste visible dans
-    // le détail (0 point), jamais masqué : c'est ça, la transparence.
-    const matched = evaluateSignal(signal, lead)
-    const points = rule?.isActive && matched ? rule.points : 0
-    return { signal, label: LEAD_SCORE_SIGNAL_LABELS[signal], points, matched }
-  })
+export function computeLeadScore(
+  lead: LeadRow,
+  rules: LeadScoreRuleMap,
+): LeadScore {
+  const breakdown: LeadScoreBreakdownItem[] = LEAD_SCORE_SIGNALS.map(
+    (signal) => {
+      const rule = rules[signal]
+      // `matched` reflète le signal réel sur le lead, indépendamment de si la
+      // règle est active — un signal matché mais désactivé reste visible dans
+      // le détail (0 point), jamais masqué : c'est ça, la transparence.
+      const matched = evaluateSignal(signal, lead)
+      const points = rule?.isActive && matched ? rule.points : 0
+      return {
+        signal,
+        label: LEAD_SCORE_SIGNAL_LABELS[signal],
+        points,
+        matched,
+      }
+    },
+  )
   const total = breakdown.reduce((sum, item) => sum + item.points, 0)
   return { total, breakdown }
 }
@@ -108,14 +121,21 @@ export async function getLeadScoreRuleMapCore(
   params: { agencyId: string },
 ): Promise<LeadScoreRuleMap> {
   const rows = await tx
-    .select({ signal: leadScoringRules.signal, points: leadScoringRules.points, isActive: leadScoringRules.isActive })
+    .select({
+      signal: leadScoringRules.signal,
+      points: leadScoringRules.points,
+      isActive: leadScoringRules.isActive,
+    })
     .from(leadScoringRules)
     .where(eq(leadScoringRules.agencyId, params.agencyId))
 
   const map = defaultLeadScoreRuleMap()
   for (const row of rows) {
     if ((LEAD_SCORE_SIGNALS as readonly string[]).includes(row.signal)) {
-      map[row.signal as LeadScoreSignal] = { points: row.points, isActive: row.isActive }
+      map[row.signal as LeadScoreSignal] = {
+        points: row.points,
+        isActive: row.isActive,
+      }
     }
   }
   return map
@@ -123,7 +143,12 @@ export async function getLeadScoreRuleMapCore(
 
 export async function upsertLeadScoreRuleCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; signal: LeadScoreSignal; points: number; isActive: boolean },
+  params: {
+    agencyId: string
+    signal: LeadScoreSignal
+    points: number
+    isActive: boolean
+  },
 ): Promise<{ id: string }> {
   const values: NewLeadScoringRule = {
     agencyId: params.agencyId,
@@ -136,7 +161,11 @@ export async function upsertLeadScoreRuleCore(
     .values(values)
     .onConflictDoUpdate({
       target: [leadScoringRules.agencyId, leadScoringRules.signal],
-      set: { points: values.points, isActive: values.isActive, updatedAt: new Date() },
+      set: {
+        points: values.points,
+        isActive: values.isActive,
+        updatedAt: new Date(),
+      },
     })
     .returning({ id: leadScoringRules.id })
   return { id: row!.id }

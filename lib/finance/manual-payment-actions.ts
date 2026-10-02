@@ -50,8 +50,15 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isTransitionAllowed } from "@/lib/admin/reservation-status"
 import { generateInvoiceForReservation } from "./invoice-actions"
 import { sendEvent } from "@/lib/inngest/client"
-import { debitCustomerWallet, recordTargetedWalletSettlement } from "./customer-wallet"
-import { getReservationPaymentSummary, TND_EPSILON, type PaymentState } from "./payment-summary"
+import {
+  debitCustomerWallet,
+  recordTargetedWalletSettlement,
+} from "./customer-wallet"
+import {
+  getReservationPaymentSummary,
+  TND_EPSILON,
+  type PaymentState,
+} from "./payment-summary"
 import { pgErrorCode } from "@/lib/db/pg-error"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import {
@@ -65,7 +72,14 @@ import {
 
 const inputSchema = z.object({
   reservationId: z.string().uuid(),
-  method: z.enum(["cash", "transfer", "deposit", "mandate", "wallet", "at_hotel"]),
+  method: z.enum([
+    "cash",
+    "transfer",
+    "deposit",
+    "mandate",
+    "wallet",
+    "at_hotel",
+  ]),
   /** Référence du règlement (n° bordereau, référence virement, mandat…). */
   reference: z.string().min(1).max(128),
   /** Montant réellement encaissé pour CETTE tentative — jamais le total de la réservation. */
@@ -117,7 +131,12 @@ export async function verifyManualPayment(
 ): Promise<VerifyManualPaymentResult> {
   const parsed = inputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -133,9 +152,14 @@ export async function verifyManualPayment(
 
   const profile = await getCurrentAdminProfile(user.id)
   if (!profile?.agencyId) {
-    return { ok: false, error: "Profil administrateur introuvable ou non lié à une agence" }
+    return {
+      ok: false,
+      error: "Profil administrateur introuvable ou non lié à une agence",
+    }
   }
-  if (!(MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
+  if (
+    !(MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]).includes(profile.role)
+  ) {
     return {
       ok: false,
       code: "UNAUTHORIZED",
@@ -149,10 +173,16 @@ export async function verifyManualPayment(
   // après la transaction pour la facture/le voucher.
   let resolvedAgencyId: string | undefined
 
-  let outcome: Extract<VerifyManualPaymentResult, { ok: true }> | Extract<VerifyManualPaymentResult, { ok: false }>
+  let outcome:
+    | Extract<VerifyManualPaymentResult, { ok: true }>
+    | Extract<VerifyManualPaymentResult, { ok: false }>
   try {
     outcome = await withTenantContext(
-      { agencyId: isSuperAdmin ? null : profile.agencyId, userId: user.id, isSuperAdmin },
+      {
+        agencyId: isSuperAdmin ? null : profile.agencyId,
+        userId: user.id,
+        isSuperAdmin,
+      },
       async (tx) => {
         // Un super_admin doit pouvoir valider un règlement manuel sur
         // N'IMPORTE QUELLE réservation (Vue consolidée /admin/reservations,
@@ -174,7 +204,10 @@ export async function verifyManualPayment(
           .where(
             isSuperAdmin
               ? eq(reservations.id, input.reservationId)
-              : and(eq(reservations.id, input.reservationId), eq(reservations.agencyId, profile.agencyId)),
+              : and(
+                  eq(reservations.id, input.reservationId),
+                  eq(reservations.agencyId, profile.agencyId),
+                ),
           )
           .for("update")
 
@@ -188,7 +221,10 @@ export async function verifyManualPayment(
         // /api/cron/expire-pending-payments n'est pas encore passé, une
         // tentative de validation après le délai flippe explicitement le
         // statut plutôt que de valider un règlement hors délai.
-        if (row.status === "pending" && isPastPaymentDeadline(row.paymentExpiresAt)) {
+        if (
+          row.status === "pending" &&
+          isPastPaymentDeadline(row.paymentExpiresAt)
+        ) {
           await tx
             .update(reservations)
             .set({ status: "expired", updatedAt: new Date() })
@@ -199,16 +235,21 @@ export async function verifyManualPayment(
             to: "expired",
             triggeredBy: user.id,
             automated: true,
-            reason: "Délai de paiement (24h) dépassé — détecté à la validation manuelle",
+            reason:
+              "Délai de paiement (24h) dépassé — détecté à la validation manuelle",
           })
           return {
             ok: false as const,
             code: "EXPIRED" as const,
-            error: "Le délai de paiement (24h) est dépassé — cette réservation est expirée et ne peut plus être validée.",
+            error:
+              "Le délai de paiement (24h) est dépassé — cette réservation est expirée et ne peut plus être validée.",
           }
         }
 
-        if (row.status !== "pending" || !isTransitionAllowed(row.status, "confirmed")) {
+        if (
+          row.status !== "pending" ||
+          !isTransitionAllowed(row.status, "confirmed")
+        ) {
           return {
             ok: false as const,
             code: "NOT_PENDING" as const,
@@ -219,7 +260,9 @@ export async function verifyManualPayment(
         // --- Solde restant calculé server-side, JAMAIS fourni par le client. ---
         const summaryBefore = await getReservationPaymentSummary({
           reservationId: row.id,
-          txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+          txOverride: tx as Parameters<
+            typeof getReservationPaymentSummary
+          >[0]["txOverride"],
         })
         if (input.amountTnd > summaryBefore.remainingTnd + TND_EPSILON) {
           return {
@@ -229,7 +272,10 @@ export async function verifyManualPayment(
           }
         }
 
-        const remainingAfter = Math.max(summaryBefore.remainingTnd - input.amountTnd, 0)
+        const remainingAfter = Math.max(
+          summaryBefore.remainingTnd - input.amountTnd,
+          0,
+        )
         const fullyPaid = remainingAfter <= TND_EPSILON
         const idempotencyKey = `manual:${row.id}:${input.method}:${input.reference}`
 
@@ -268,7 +314,8 @@ export async function verifyManualPayment(
             return {
               ok: false as const,
               code: "ALREADY_PROCESSED" as const,
-              error: "Cette tentative de règlement a déjà été capturée — aucune double validation effectuée.",
+              error:
+                "Cette tentative de règlement a déjà été capturée — aucune double validation effectuée.",
             }
           }
           throw err
@@ -284,7 +331,9 @@ export async function verifyManualPayment(
             amountTnd: input.amountTnd,
             reservationId: row.id,
             description: `Règlement manuel wallet — réservation ${row.publicRef}`,
-            txOverride: tx as Parameters<typeof debitCustomerWallet>[0]["txOverride"],
+            txOverride: tx as Parameters<
+              typeof debitCustomerWallet
+            >[0]["txOverride"],
           })
           if (!debit.ok) {
             throw new ManualWalletDebitFailedError(debit.code, debit.message)
@@ -296,7 +345,9 @@ export async function verifyManualPayment(
           // Paymee (lib/payment/reservation-webhook-core.ts). `at_hotel`
           // n'a pas de mapping (retourne `null`) : réglé directement à
           // l'hôtel, jamais un flux financier Easy2Book.
-          const rechargeMethod = toWalletRechargeMethod(input.method as ManualPaymentMethod)
+          const rechargeMethod = toWalletRechargeMethod(
+            input.method as ManualPaymentMethod,
+          )
           if (rechargeMethod) {
             const settlement = await recordTargetedWalletSettlement({
               customerId: row.customerId,
@@ -305,10 +356,15 @@ export async function verifyManualPayment(
               paymentId: capturedPaymentId,
               method: rechargeMethod,
               reference: row.publicRef,
-              txOverride: tx as Parameters<typeof recordTargetedWalletSettlement>[0]["txOverride"],
+              txOverride: tx as Parameters<
+                typeof recordTargetedWalletSettlement
+              >[0]["txOverride"],
             })
             if (!settlement.ok) {
-              throw new ManualWalletDebitFailedError(settlement.code, settlement.message)
+              throw new ManualWalletDebitFailedError(
+                settlement.code,
+                settlement.message,
+              )
             }
           }
         }
@@ -316,7 +372,11 @@ export async function verifyManualPayment(
         if (fullyPaid) {
           await tx
             .update(reservations)
-            .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+            .set({
+              status: "confirmed",
+              confirmedAt: new Date(),
+              updatedAt: new Date(),
+            })
             .where(eq(reservations.id, row.id))
           await recordReservationTransition(tx, {
             reservationId: row.id,
@@ -338,7 +398,9 @@ export async function verifyManualPayment(
             method: input.method,
             reference: input.reference,
             amountTnd: input.amountTnd.toFixed(2),
-            collectedTnd: (summaryBefore.collectedTnd + input.amountTnd).toFixed(2),
+            collectedTnd: (
+              summaryBefore.collectedTnd + input.amountTnd
+            ).toFixed(2),
             remainingTnd: remainingAfter.toFixed(2),
             fullyPaid,
           },
@@ -351,7 +413,9 @@ export async function verifyManualPayment(
           fullyPaid,
           collectedTnd: summaryBefore.collectedTnd + input.amountTnd,
           remainingTnd: remainingAfter,
-          paymentState: fullyPaid ? ("FULLY_PAID" as const) : ("PARTIALLY_PAID" as const),
+          paymentState: fullyPaid
+            ? ("FULLY_PAID" as const)
+            : ("PARTIALLY_PAID" as const),
         }
       },
     )
@@ -360,13 +424,19 @@ export async function verifyManualPayment(
       return {
         ok: false,
         code: "WALLET_INSUFFICIENT_FUNDS",
-        error: err.code === "INSUFFICIENT_FUNDS" ? "Solde wallet client insuffisant pour ce règlement." : err.message,
+        error:
+          err.code === "INSUFFICIENT_FUNDS"
+            ? "Solde wallet client insuffisant pour ce règlement."
+            : err.message,
       }
     }
     return {
       ok: false,
       code: "INTERNAL_ERROR",
-      error: err instanceof Error ? `Échec transactionnel : ${err.message}` : "Échec transactionnel inattendu.",
+      error:
+        err instanceof Error
+          ? `Échec transactionnel : ${err.message}`
+          : "Échec transactionnel inattendu.",
     }
   }
 
@@ -389,7 +459,10 @@ export async function verifyManualPayment(
       actorUserId: user.id,
     })
     if (!invoiceResult.ok) {
-      console.error("[manual-payment] génération facture échouée", invoiceResult.error)
+      console.error(
+        "[manual-payment] génération facture échouée",
+        invoiceResult.error,
+      )
     }
   } catch (err) {
     console.error(
@@ -400,7 +473,11 @@ export async function verifyManualPayment(
 
   try {
     const [detail] = await withTenantContext(
-      { agencyId: isSuperAdmin ? null : finalAgencyId, userId: user.id, isSuperAdmin },
+      {
+        agencyId: isSuperAdmin ? null : finalAgencyId,
+        userId: user.id,
+        isSuperAdmin,
+      },
       (tx) =>
         tx
           .select({
@@ -420,21 +497,29 @@ export async function verifyManualPayment(
           })
           .from(reservations)
           .innerJoin(customers, eq(customers.id, reservations.customerId))
-          .leftJoin(reservationHotel, eq(reservationHotel.reservationId, reservations.id))
+          .leftJoin(
+            reservationHotel,
+            eq(reservationHotel.reservationId, reservations.id),
+          )
           .where(eq(reservations.id, outcome.reservationId))
           .limit(1),
     )
 
     // Le handler voucher (processConfirmedBooking) n'existe que pour le
     // module hôtel — même garde que lib/booking/actions.ts/guest-actions.ts.
-    if (detail?.module === "hotel" && detail.customerEmail && detail.hotelName) {
+    if (
+      detail?.module === "hotel" &&
+      detail.customerEmail &&
+      detail.hotelName
+    ) {
       await sendEvent("booking/confirmed", {
         reservationId: outcome.reservationId,
         publicRef: outcome.publicRef,
         agencyId: finalAgencyId,
         guestAccessToken: detail.guestAccessToken,
         customerEmail: detail.customerEmail,
-        customerName: `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
+        customerName:
+          `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
         customerPhone: detail.customerPhone ?? "",
         hotelName: detail.hotelName,
         checkIn: detail.checkIn ?? "",

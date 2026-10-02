@@ -14,7 +14,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import type { Journey } from "@/lib/db/schema"
 import { createJourney } from "@/lib/journeys/journey-actions"
 
@@ -42,7 +48,10 @@ export function JourneysList({ journeys, agencyId, basePath }: Props) {
 
   function handleCreate() {
     startTransition(async () => {
-      const result = await createJourney({ agencyId, title: title || undefined })
+      const result = await createJourney({
+        agencyId,
+        title: title || undefined,
+      })
       if (!result.ok) {
         toast.error(result.error)
         return
@@ -66,9 +75,19 @@ export function JourneysList({ journeys, agencyId, basePath }: Props) {
             <DialogTitle>Nouveau Journey</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Titre (optionnel)" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <Button onClick={handleCreate} disabled={isPending} className="w-full">
-              {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            <Input
+              placeholder="Titre (optionnel)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <Button
+              onClick={handleCreate}
+              disabled={isPending}
+              className="w-full"
+            >
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Créer
             </Button>
           </div>
@@ -77,14 +96,22 @@ export function JourneysList({ journeys, agencyId, basePath }: Props) {
 
       <div className="space-y-2">
         {journeys.map((j) => (
-          <Card key={j.id} className="cursor-pointer" onClick={() => router.push(`${basePath}/${j.id}`)}>
+          <Card
+            key={j.id}
+            className="cursor-pointer"
+            onClick={() => router.push(`${basePath}/${j.id}`)}
+          >
             <CardContent className="flex items-center justify-between p-4">
               <p className="font-medium">{j.title ?? "Sans titre"}</p>
               <Badge variant="outline">{JOURNEY_STATUS_LABEL[j.status]}</Badge>
             </CardContent>
           </Card>
         ))}
-        {journeys.length === 0 ? <p className="text-sm text-muted-foreground">Aucun Journey pour le moment.</p> : null}
+        {journeys.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Aucun Journey pour le moment.
+          </p>
+        ) : null}
       </div>
     </div>
   )

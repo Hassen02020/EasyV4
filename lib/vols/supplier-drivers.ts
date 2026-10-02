@@ -12,7 +12,11 @@
 import { search as virtualSearch } from "@/lib/vols/virtual-supplier/engine"
 import type { VirtualFlightSegment } from "@/lib/vols/virtual-supplier/catalog"
 import { memoize } from "@/lib/cache/redis"
-import type { FlightOffer, FlightSearchInput, FlightSearchResult } from "@/lib/vols/client"
+import type {
+  FlightOffer,
+  FlightSearchInput,
+  FlightSearchResult,
+} from "@/lib/vols/client"
 import type { z } from "zod"
 import { FlightJourneySchema } from "@/lib/vols/client"
 
@@ -64,11 +68,15 @@ export interface FlightSupplierDriver {
   readonly name: string
   getConfigStatus(): "CONFIGURED" | "NOT_CONFIGURED"
   /** Rejette en cas d'échec — jamais un résultat vide silencieux (voir searchAcrossFlightDrivers, qui isole chaque driver). */
-  search(input: FlightSearchInput): Promise<{ offers: FlightOffer[]; searchId: string }>
+  search(
+    input: FlightSearchInput,
+  ): Promise<{ offers: FlightOffer[]; searchId: string }>
 }
 
 function isDemoMode(): boolean {
-  return !process.env.FLIGHTS_API_KEY || process.env.FLIGHTS_DEMO_MODE === "true"
+  return (
+    !process.env.FLIGHTS_API_KEY || process.env.FLIGHTS_DEMO_MODE === "true"
+  )
 }
 
 /** Fournisseur virtuel déterministe (voir virtual-supplier/engine.ts) — inchangé, juste enveloppé dans le contrat driver. */
@@ -89,7 +97,9 @@ export function createVirtualFlightDriver(): FlightSupplierDriver {
 
       const mapped: FlightOffer[] = offers.map((offer) => ({
         id: offer.offerId,
-        journeys: [buildJourneyFromLegacySegs(offer.segments, input.departureDate)],
+        journeys: [
+          buildJourneyFromLegacySegs(offer.segments, input.departureDate),
+        ],
         stops: offer.stops,
         totalDurationMinutes: offer.totalDurationMinutes,
         priceTnd: offer.priceTnd,
@@ -117,12 +127,15 @@ export function createFlightApiDriver(): FlightSupplierDriver {
     search: async (input) => {
       const cacheKey = `e2b:vols:${input.originCode}-${input.destinationCode}-${input.departureDate}-${input.adults}`
       return memoize(cacheKey, 300, async () => {
-        const url = new URL(`${process.env.FLIGHTS_API_BASE_URL}/shopping/flight-offers`)
+        const url = new URL(
+          `${process.env.FLIGHTS_API_BASE_URL}/shopping/flight-offers`,
+        )
         url.searchParams.set("originLocationCode", input.originCode)
         url.searchParams.set("destinationLocationCode", input.destinationCode)
         url.searchParams.set("departureDate", input.departureDate)
         url.searchParams.set("adults", String(input.adults))
-        if (input.children) url.searchParams.set("children", String(input.children))
+        if (input.children)
+          url.searchParams.set("children", String(input.children))
         if (input.cabin) url.searchParams.set("travelClass", input.cabin)
 
         const res = await fetch(url.toString(), {
@@ -163,10 +176,16 @@ export async function searchAcrossFlightDrivers(
 ): Promise<FlightSearchResult> {
   const configured = drivers.filter((d) => d.getConfigStatus() === "CONFIGURED")
   if (configured.length === 0) {
-    return { ok: false, error: "Aucun fournisseur vols configuré.", code: "NO_SUPPLIER_CONFIGURED" }
+    return {
+      ok: false,
+      error: "Aucun fournisseur vols configuré.",
+      code: "NO_SUPPLIER_CONFIGURED",
+    }
   }
 
-  const outcomes = await Promise.allSettled(configured.map((d) => d.search(input)))
+  const outcomes = await Promise.allSettled(
+    configured.map((d) => d.search(input)),
+  )
 
   const offers: FlightOffer[] = []
   let searchId: string | undefined

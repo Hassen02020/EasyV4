@@ -39,14 +39,25 @@
 
 import { eq, and } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { guestTenantContext, resolveMyGoAccessForTenant } from "@/lib/hotel-suppliers/tenant/live-resolution"
-import { reservations, reservationHotel, customers, auditEvents } from "@/lib/db/schema"
+import {
+  guestTenantContext,
+  resolveMyGoAccessForTenant,
+} from "@/lib/hotel-suppliers/tenant/live-resolution"
+import {
+  reservations,
+  reservationHotel,
+  customers,
+  auditEvents,
+} from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getMyGoClient } from "@/lib/mygo"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
-import { reverseEarnedPoints, reinstateRedeemedPoints } from "@/lib/loyalty/rewards-core"
+import {
+  reverseEarnedPoints,
+  reinstateRedeemedPoints,
+} from "@/lib/loyalty/rewards-core"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
@@ -68,10 +79,12 @@ export async function cancelMyHotelReservation(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user?.email) return { ok: false, error: "NOT_AUTHENTICATED", code: "NOT_AUTHENTICATED" }
+  if (!user?.email)
+    return { ok: false, error: "NOT_AUTHENTICATED", code: "NOT_AUTHENTICATED" }
 
   const tenant = await guestTenantContext()
-  if (!tenant) return { ok: false, error: "Aucune agence n'est configurée pour ce site." }
+  if (!tenant)
+    return { ok: false, error: "Aucune agence n'est configurée pour ce site." }
 
   // ---------------------------------------------------------------------
   // 1. Lecture hors verrou — appartenance vérifiée par la MÊME règle que
@@ -90,7 +103,10 @@ export async function cancelMyHotelReservation(
       })
       .from(reservations)
       .innerJoin(customers, eq(reservations.customerId, customers.id))
-      .leftJoin(reservationHotel, eq(reservationHotel.reservationId, reservations.id))
+      .leftJoin(
+        reservationHotel,
+        eq(reservationHotel.reservationId, reservations.id),
+      )
       .where(
         and(
           eq(reservations.id, reservationId),
@@ -105,8 +121,13 @@ export async function cancelMyHotelReservation(
     return row ?? null
   })
 
-  if (!preCheck) return { ok: false, error: "Réservation introuvable.", code: "NOT_FOUND" }
-  if (!CANCELLABLE_STATUSES.includes(preCheck.status as (typeof CANCELLABLE_STATUSES)[number])) {
+  if (!preCheck)
+    return { ok: false, error: "Réservation introuvable.", code: "NOT_FOUND" }
+  if (
+    !CANCELLABLE_STATUSES.includes(
+      preCheck.status as (typeof CANCELLABLE_STATUSES)[number],
+    )
+  ) {
     return {
       ok: false,
       error: `Cette réservation est déjà "${preCheck.status}" — impossible de l'annuler.`,
@@ -115,7 +136,8 @@ export async function cancelMyHotelReservation(
   if (preCheck.module !== "hotel" || !preCheck.providerBookingId) {
     return {
       ok: false,
-      error: "Annulation non disponible pour cette réservation. Contactez le support.",
+      error:
+        "Annulation non disponible pour cette réservation. Contactez le support.",
     }
   }
 
@@ -129,7 +151,9 @@ export async function cancelMyHotelReservation(
   const bookingId = Number(preCheck.providerBookingId)
   let feeTnd = 0
   try {
-    const cancellation = await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+    const cancellation = await (
+      myGoAccess.client ?? getMyGoClient()
+    ).cancelBooking({
       bookingId,
       currency: "TND",
     })
@@ -156,12 +180,20 @@ export async function cancelMyHotelReservation(
   try {
     return await withTenantContext(tenant, async (tx) => {
       const [locked] = await tx
-        .select({ status: reservations.status, tndAmount: reservations.tndAmount })
+        .select({
+          status: reservations.status,
+          tndAmount: reservations.tndAmount,
+        })
         .from(reservations)
         .where(eq(reservations.id, reservationId))
         .for("update")
 
-      if (!locked || !CANCELLABLE_STATUSES.includes(locked.status as (typeof CANCELLABLE_STATUSES)[number])) {
+      if (
+        !locked ||
+        !CANCELLABLE_STATUSES.includes(
+          locked.status as (typeof CANCELLABLE_STATUSES)[number],
+        )
+      ) {
         throw new Error("ALREADY_CANCELLED_CONCURRENTLY")
       }
 
@@ -261,10 +293,14 @@ export async function cancelMyHotelReservation(
     if (msg === "ALREADY_CANCELLED_CONCURRENTLY") {
       return {
         ok: false,
-        error: "Cette réservation vient d'être annulée par une autre action — rafraîchissez la page.",
+        error:
+          "Cette réservation vient d'être annulée par une autre action — rafraîchissez la page.",
       }
     }
-    logger.error("[cancelMyHotelReservation] transaction failed", { reservationId, err: msg })
+    logger.error("[cancelMyHotelReservation] transaction failed", {
+      reservationId,
+      err: msg,
+    })
     return {
       ok: false,
       error:

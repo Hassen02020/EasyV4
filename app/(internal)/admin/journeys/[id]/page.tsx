@@ -15,7 +15,11 @@ import { JourneyComposer } from "@/components/journeys/journey-composer"
 export const metadata = { title: "Journey | Admin" }
 export const dynamic = "force-dynamic"
 
-export default async function AdminJourneyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminJourneyDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = await params
   const supabase = await createServerSupabase()
   const {
@@ -32,7 +36,7 @@ export default async function AdminJourneyDetailPage({ params }: { params: Promi
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <Route className="h-6 w-6 text-primary" />
+        <Route className="text-primary h-6 w-6" />
         <h1 className="text-2xl font-bold">Journey</h1>
       </div>
       <JourneyComposer journey={data.journey} lines={data.lines} />

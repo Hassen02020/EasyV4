@@ -25,7 +25,9 @@ const KNOWN_SCENARIOS: readonly WorldHotelSimulationScenario[] = [
   "TIMEOUT",
 ]
 
-function normalize(raw: string | undefined | null): WorldHotelSimulationScenario {
+function normalize(
+  raw: string | undefined | null,
+): WorldHotelSimulationScenario {
   if (!raw) return "NORMAL"
   const upper = raw.toUpperCase()
   return (KNOWN_SCENARIOS as readonly string[]).includes(upper)

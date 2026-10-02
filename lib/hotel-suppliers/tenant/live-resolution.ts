@@ -43,26 +43,45 @@ export interface ResolvedMyGoAccess {
  * (lib/hotel-suppliers/tenant/resolver.ts), seul point de déchiffrement
  * légitime de tout le Hub.
  */
-export async function resolveMyGoAccessForTenant(tenantContext: TenantContext): Promise<ResolvedMyGoAccess> {
+export async function resolveMyGoAccessForTenant(
+  tenantContext: TenantContext,
+): Promise<ResolvedMyGoAccess> {
   try {
-    const resolved = await resolveSupplierAccount({ supplierCode: "mygo", tenantContext })
+    const resolved = await resolveSupplierAccount({
+      supplierCode: "mygo",
+      tenantContext,
+    })
     if (resolved.ok) {
       const config = buildMyGoConfigFromAccount(resolved.account)
-      const client = createMyGoClientForAccount(resolved.account.accountId, config)
-      return { client, driver: new MyGoDriver(client, config), accountId: resolved.account.accountId }
+      const client = createMyGoClientForAccount(
+        resolved.account.accountId,
+        config,
+      )
+      return {
+        client,
+        driver: new MyGoDriver(client, config),
+        accountId: resolved.account.accountId,
+      }
     }
   } catch (err) {
     // Résolution échouée (ex. DB indisponible) — ne jamais bloquer le
     // trafic live pour ça : repli explicite sur le compte global, journalisé.
-    logger.warn("[HotelSuppliers] Résolution du compte MyGo tenant échouée — repli sur le compte global", {
-      code: err instanceof Error ? err.constructor.name : "unknown",
-    })
+    logger.warn(
+      "[HotelSuppliers] Résolution du compte MyGo tenant échouée — repli sur le compte global",
+      {
+        code: err instanceof Error ? err.constructor.name : "unknown",
+      },
+    )
   }
   return { client: undefined, driver: createMyGoDriver(), accountId: null }
 }
 
 /** Contexte tenant pour une requête B2B authentifiée (session partenaire — `requirePartnerSession`/`getCurrentPartnerProfile`). */
-export function partnerTenantContext(agencyId: string, userId: string, isSuperAdmin: boolean): TenantContext {
+export function partnerTenantContext(
+  agencyId: string,
+  userId: string,
+  isSuperAdmin: boolean,
+): TenantContext {
   return { agencyId, userId, isSuperAdmin }
 }
 
@@ -107,17 +126,26 @@ export async function resolvePartnerMyGoAccess(): Promise<ResolvedMyGoAccess> {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return { client: undefined, driver: createMyGoDriver(), accountId: null }
+    if (!user)
+      return { client: undefined, driver: createMyGoDriver(), accountId: null }
 
     const profile = await getCurrentPartnerProfile(user.id)
-    if (!profile) return { client: undefined, driver: createMyGoDriver(), accountId: null }
+    if (!profile)
+      return { client: undefined, driver: createMyGoDriver(), accountId: null }
 
-    const tenantContext = partnerTenantContext(profile.agency.id, profile.userId, profile.role === "super_admin")
+    const tenantContext = partnerTenantContext(
+      profile.agency.id,
+      profile.userId,
+      profile.role === "super_admin",
+    )
     return resolveMyGoAccessForTenant(tenantContext)
   } catch (err) {
-    logger.warn("[HotelSuppliers] resolvePartnerMyGoAccess a échoué — repli sur le compte global", {
-      code: err instanceof Error ? err.constructor.name : "unknown",
-    })
+    logger.warn(
+      "[HotelSuppliers] resolvePartnerMyGoAccess a échoué — repli sur le compte global",
+      {
+        code: err instanceof Error ? err.constructor.name : "unknown",
+      },
+    )
     return { client: undefined, driver: createMyGoDriver(), accountId: null }
   }
 }

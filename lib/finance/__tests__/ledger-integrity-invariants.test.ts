@@ -36,25 +36,34 @@ const LEDGER_TABLES_SQL = [
 function sourceFiles(dir: string): string[] {
   const out: string[] = []
   for (const name of readdirSync(dir)) {
-    if (name === "node_modules" || name === "__tests__" || name.startsWith(".")) continue
+    if (name === "node_modules" || name === "__tests__" || name.startsWith("."))
+      continue
     const full = join(dir, name)
     if (statSync(full).isDirectory()) out.push(...sourceFiles(full))
-    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full)
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name))
+      out.push(full)
   }
   return out
 }
 
-const appSources = ["lib", "app", "components"].flatMap((d) => sourceFiles(join(ROOT, d)))
+const appSources = ["lib", "app", "components"].flatMap((d) =>
+  sourceFiles(join(ROOT, d)),
+)
 
 test("aucun .update()/.delete() Drizzle sur un ledger dans le code applicatif", () => {
   const offenders: string[] = []
   for (const file of appSources) {
     const src = readFileSync(file, "utf8")
     for (const t of LEDGER_TABLES_TS) {
-      if (new RegExp(`\\.(update|delete)\\(\\s*${t}\\s*\\)`).test(src)) offenders.push(`${file} → ${t}`)
+      if (new RegExp(`\\.(update|delete)\\(\\s*${t}\\s*\\)`).test(src))
+        offenders.push(`${file} → ${t}`)
     }
   }
-  assert.deepEqual(offenders, [], "mutation d'un ledger interdite (append-only, 0084)")
+  assert.deepEqual(
+    offenders,
+    [],
+    "mutation d'un ledger interdite (append-only, 0084)",
+  )
 })
 
 test("aucun UPDATE/DELETE/TRUNCATE SQL brut sur un ledger dans le code applicatif", () => {
@@ -62,7 +71,12 @@ test("aucun UPDATE/DELETE/TRUNCATE SQL brut sur un ledger dans le code applicati
   for (const file of appSources) {
     const src = readFileSync(file, "utf8")
     for (const t of LEDGER_TABLES_SQL) {
-      if (new RegExp(`\\b(UPDATE|DELETE\\s+FROM|TRUNCATE)\\s+(public\\.)?${t}\\b`, "i").test(src)) {
+      if (
+        new RegExp(
+          `\\b(UPDATE|DELETE\\s+FROM|TRUNCATE)\\s+(public\\.)?${t}\\b`,
+          "i",
+        ).test(src)
+      ) {
         offenders.push(`${file} → ${t}`)
       }
     }
@@ -75,7 +89,9 @@ test("aucun upsert onConflictDoUpdate sur un ledger (exigerait le privilège UPD
   for (const file of appSources) {
     const src = readFileSync(file, "utf8")
     for (const t of LEDGER_TABLES_TS) {
-      const re = new RegExp(`insert\\(\\s*${t}\\s*\\)[\\s\\S]{0,600}?onConflictDoUpdate`)
+      const re = new RegExp(
+        `insert\\(\\s*${t}\\s*\\)[\\s\\S]{0,600}?onConflictDoUpdate`,
+      )
       if (re.test(src)) offenders.push(`${file} → ${t}`)
     }
   }
@@ -83,20 +99,38 @@ test("aucun upsert onConflictDoUpdate sur un ledger (exigerait le privilège UPD
 })
 
 test("migration 0084 : REVOKE UPDATE/DELETE/TRUNCATE aux rôles runtime sur les 3 ledgers + unicité commission par réservation", () => {
-  const mig = readFileSync(join(ROOT, "drizzle/manual/0084_ledger_integrity_01.sql"), "utf8")
-  for (const t of ["wallet_ledger", "partner_credit_movements", "commission_settlement_entries"]) {
+  const mig = readFileSync(
+    join(ROOT, "drizzle/manual/0084_ledger_integrity_01.sql"),
+    "utf8",
+  )
+  for (const t of [
+    "wallet_ledger",
+    "partner_credit_movements",
+    "commission_settlement_entries",
+  ]) {
     assert.match(
       mig,
-      new RegExp(`REVOKE UPDATE, DELETE, TRUNCATE ON TABLE ${t}\\s+FROM app_runtime, anon, authenticated, service_role;`),
+      new RegExp(
+        `REVOKE UPDATE, DELETE, TRUNCATE ON TABLE ${t}\\s+FROM app_runtime, anon, authenticated, service_role;`,
+      ),
       `REVOKE manquant pour ${t}`,
     )
   }
-  assert.match(mig, /CREATE UNIQUE INDEX IF NOT EXISTS wallet_ledger_commission_per_reservation_uniq/)
-  assert.match(mig, /WHERE type = 'commission' AND category = 'commission' AND reservation_id IS NOT NULL/)
+  assert.match(
+    mig,
+    /CREATE UNIQUE INDEX IF NOT EXISTS wallet_ledger_commission_per_reservation_uniq/,
+  )
+  assert.match(
+    mig,
+    /WHERE type = 'commission' AND category = 'commission' AND reservation_id IS NOT NULL/,
+  )
 })
 
 test("migration 0092 : REVOKE UPDATE/DELETE/TRUNCATE aux rôles runtime sur economic_entitlements", () => {
-  const mig = readFileSync(join(ROOT, "drizzle/manual/0092_econ_entitlements_integrity_01.sql"), "utf8")
+  const mig = readFileSync(
+    join(ROOT, "drizzle/manual/0092_econ_entitlements_integrity_01.sql"),
+    "utf8",
+  )
   assert.match(
     mig,
     /REVOKE UPDATE, DELETE, TRUNCATE ON TABLE economic_entitlements\s+FROM app_runtime, anon, authenticated, service_role;/,

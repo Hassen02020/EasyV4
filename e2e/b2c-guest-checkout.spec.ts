@@ -12,7 +12,9 @@ import { test, expect } from "@playwright/test"
  */
 
 test.describe("B2C guest checkout — accès public sans compte partenaire", () => {
-  test("la page checkout ne redirige jamais vers une page de login partenaire", async ({ page }) => {
+  test("la page checkout ne redirige jamais vers une page de login partenaire", async ({
+    page,
+  }) => {
     // Sans session, l'accès direct au checkout avec un token invalide doit
     // rediriger vers l'accueil (draft manquant), jamais vers /pro/login.
     await page.goto("/booking/checkout")
@@ -21,7 +23,9 @@ test.describe("B2C guest checkout — accès public sans compte partenaire", () 
     expect(page.url()).not.toContain("/login")
   })
 
-  test("la page de confirmation pour une référence inconnue affiche un état 'introuvable', jamais des données fabriquées", async ({ page }) => {
+  test("la page de confirmation pour une référence inconnue affiche un état 'introuvable', jamais des données fabriquées", async ({
+    page,
+  }) => {
     // NB : le code HTTP réel de cette réponse est 200 (pas 404) — un "soft
     // 404" causé par `app/booking/loading.tsx` : ce loading.tsx couvre tout
     // le segment /booking/*, ce qui active le streaming SSR sur cette route ;
@@ -33,24 +37,36 @@ test.describe("B2C guest checkout — accès public sans compte partenaire", () 
     // vérifie donc la garantie qui compte réellement : AUCUNE donnée de
     // réservation n'est jamais affichée pour une référence inexistante.
     await page.goto("/booking/confirmation/DOES-NOT-EXIST-000")
-    await expect(page.getByText(/could not be found|page introuvable/i).first()).toBeVisible()
+    await expect(
+      page.getByText(/could not be found|page introuvable/i).first(),
+    ).toBeVisible()
     await expect(page.getByText(/Référence/i)).toHaveCount(0)
   })
 
-  test("le téléchargement de voucher hôtel pour une référence inconnue ne renvoie jamais un PDF (pas de faux succès)", async ({ request }) => {
-    const response = await request.get("/api/booking/voucher/DOES-NOT-EXIST-000")
+  test("le téléchargement de voucher hôtel pour une référence inconnue ne renvoie jamais un PDF (pas de faux succès)", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      "/api/booking/voucher/DOES-NOT-EXIST-000",
+    )
     expect(response.status()).not.toBe(200)
     expect(response.headers()["content-type"]).not.toContain("application/pdf")
   })
 
-  test("le téléchargement de voucher Omra pour une référence inconnue ne renvoie jamais un PDF", async ({ request }) => {
+  test("le téléchargement de voucher Omra pour une référence inconnue ne renvoie jamais un PDF", async ({
+    request,
+  }) => {
     const response = await request.get("/api/omra/voucher/DOES-NOT-EXIST-000")
     expect(response.status()).not.toBe(200)
     expect(response.headers()["content-type"]).not.toContain("application/pdf")
   })
 
-  test("le téléchargement de voucher Package pour une référence inconnue ne renvoie jamais un PDF", async ({ request }) => {
-    const response = await request.get("/api/packages/voucher/DOES-NOT-EXIST-000")
+  test("le téléchargement de voucher Package pour une référence inconnue ne renvoie jamais un PDF", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      "/api/packages/voucher/DOES-NOT-EXIST-000",
+    )
     expect(response.status()).not.toBe(200)
     expect(response.headers()["content-type"]).not.toContain("application/pdf")
   })

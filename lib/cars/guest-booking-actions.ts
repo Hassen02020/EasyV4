@@ -74,7 +74,10 @@ function pad(n: number, w = 6) {
   return String(n).padStart(w, "0")
 }
 
-async function nextPublicRef(tx: DrizzleTransaction, agencyId: string): Promise<string> {
+async function nextPublicRef(
+  tx: DrizzleTransaction,
+  agencyId: string,
+): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `CR-${year}-`
   const [row] = await tx
@@ -112,7 +115,9 @@ async function checkCarAvailability(
     .limit(1)
 
   if (availRow) {
-    return availRow.status === "open" && availRow.bookedUnits < availRow.totalUnits
+    return (
+      availRow.status === "open" && availRow.bookedUnits < availRow.totalUnits
+    )
   }
 
   const [fleetCount] = await tx
@@ -140,7 +145,9 @@ export async function createGuestCarBooking(
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
   }
-  if (new Date(input.dropoffAt).getTime() <= new Date(input.pickupAt).getTime()) {
+  if (
+    new Date(input.dropoffAt).getTime() <= new Date(input.pickupAt).getTime()
+  ) {
     return {
       ok: false,
       error: "La date de retour doit être après la date de prise en charge",
@@ -282,7 +289,10 @@ async function runCreateGuestCarBooking(
               paymentMethod: "transfer",
             },
           })
-          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
+          .returning({
+            id: reservations.id,
+            guestAccessToken: reservations.guestAccessToken,
+          })
 
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
@@ -307,7 +317,8 @@ async function runCreateGuestCarBooking(
         // ECON-WIRING-01 — voir lib/cars/actions.ts (chemin B2B) pour le
         // commentaire complet : agence product_owner ET seller (catalogue
         // propre, pas de fournisseur externe), pas de commission aujourd'hui.
-        const carSupplierCostTnd = pricing.baseTotalTnd + pricing.insuranceTotalTnd
+        const carSupplierCostTnd =
+          pricing.baseTotalTnd + pricing.insuranceTotalTnd
         await recordReservationFinancials({
           tx,
           reservationId,
@@ -320,7 +331,8 @@ async function runCreateGuestCarBooking(
               role: "product_owner",
               qualification: "supplier_cost",
               amount: carSupplierCostTnd,
-              basis: "tarif propre de l'agence (car_pricing_rates : base + assurance)",
+              basis:
+                "tarif propre de l'agence (car_pricing_rates : base + assurance)",
             },
             {
               partyType: "agency",
@@ -328,7 +340,8 @@ async function runCreateGuestCarBooking(
               role: "seller",
               qualification: "seller_margin",
               amount: pricing.totalTnd - carSupplierCostTnd,
-              basis: "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+              basis:
+                "marge vendeur (agence product_owner ET seller sur son propre tarif)",
             },
           ],
         })

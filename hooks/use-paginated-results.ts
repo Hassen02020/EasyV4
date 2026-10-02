@@ -66,7 +66,10 @@ export function usePaginatedResults<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey])
 
-  const pageItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const pageItems = items.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  )
 
   return { pageItems, currentPage, totalPages, setPage }
 }

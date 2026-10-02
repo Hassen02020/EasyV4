@@ -102,7 +102,11 @@ export async function cancelHotelReservation(
   )
 
   if (!preCheck) return { ok: false, error: "RESERVATION_NOT_FOUND" }
-  if (!CANCELLABLE_STATUSES.includes(preCheck.status as (typeof CANCELLABLE_STATUSES)[number])) {
+  if (
+    !CANCELLABLE_STATUSES.includes(
+      preCheck.status as (typeof CANCELLABLE_STATUSES)[number],
+    )
+  ) {
     return {
       ok: false,
       error: `Cette réservation est déjà "${preCheck.status}" — impossible de l'annuler.`,
@@ -153,7 +157,10 @@ export async function cancelHotelReservation(
       { agencyId: profile.agency.id, userId: user.id, isSuperAdmin: false },
       async (tx) => {
         const [locked] = await tx
-          .select({ status: reservations.status, tndAmount: reservations.tndAmount })
+          .select({
+            status: reservations.status,
+            tndAmount: reservations.tndAmount,
+          })
           .from(reservations)
           .where(eq(reservations.id, reservationId))
           .for("update")

@@ -9,14 +9,21 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { getReservationPaymentSummary, computePaymentState, type DrizzleLikeTx } from "../payment-summary"
+import {
+  getReservationPaymentSummary,
+  computePaymentState,
+  type DrizzleLikeTx,
+} from "../payment-summary"
 
 interface MockPayment {
   tndAmount: string
   refundedAmount: string
 }
 
-function makeTx(reservationTotalTnd: string, capturedPayments: MockPayment[]): DrizzleLikeTx {
+function makeTx(
+  reservationTotalTnd: string,
+  capturedPayments: MockPayment[],
+): DrizzleLikeTx {
   let call = 0
   return {
     select: () => ({
@@ -43,7 +50,10 @@ test("300 + 700 captured = FULLY_PAID, restant 0", async () => {
     { tndAmount: "300.00", refundedAmount: "0" },
     { tndAmount: "700.00", refundedAmount: "0" },
   ])
-  const summary = await getReservationPaymentSummary({ reservationId: "r1", txOverride: tx })
+  const summary = await getReservationPaymentSummary({
+    reservationId: "r1",
+    txOverride: tx,
+  })
   assert.equal(summary.totalTnd, 1000)
   assert.equal(summary.collectedTnd, 1000)
   assert.equal(summary.remainingTnd, 0)
@@ -55,7 +65,10 @@ test("300 + 200 captured (sur 1000) = PARTIALLY_PAID, restant 500 — calculé s
     { tndAmount: "300.00", refundedAmount: "0" },
     { tndAmount: "200.00", refundedAmount: "0" },
   ])
-  const summary = await getReservationPaymentSummary({ reservationId: "r1", txOverride: tx })
+  const summary = await getReservationPaymentSummary({
+    reservationId: "r1",
+    txOverride: tx,
+  })
   assert.equal(summary.collectedTnd, 500)
   assert.equal(summary.remainingTnd, 500) // jamais fourni par l'appelant — dérivé de total - collected
   assert.equal(summary.paymentState, "PARTIALLY_PAID")
@@ -67,7 +80,10 @@ test("Wallet + virement combinés — sommés correctement quel que soit le nomb
     { tndAmount: "200.00", refundedAmount: "0" }, // transfer
     { tndAmount: "100.00", refundedAmount: "0" }, // deposit
   ])
-  const summary = await getReservationPaymentSummary({ reservationId: "r1", txOverride: tx })
+  const summary = await getReservationPaymentSummary({
+    reservationId: "r1",
+    txOverride: tx,
+  })
   assert.equal(summary.collectedTnd, 600)
   assert.equal(summary.remainingTnd, 400) // reste PAY_AT_HOTEL, aucune ligne fictive
   assert.equal(summary.paymentState, "PARTIALLY_PAID")
@@ -75,7 +91,10 @@ test("Wallet + virement combinés — sommés correctement quel que soit le nomb
 
 test("aucun paiement capturé = UNPAID, restant = total", async () => {
   const tx = makeTx("1000.00", [])
-  const summary = await getReservationPaymentSummary({ reservationId: "r1", txOverride: tx })
+  const summary = await getReservationPaymentSummary({
+    reservationId: "r1",
+    txOverride: tx,
+  })
   assert.equal(summary.collectedTnd, 0)
   assert.equal(summary.remainingTnd, 1000)
   assert.equal(summary.paymentState, "UNPAID")
@@ -86,7 +105,10 @@ test("un remboursement partiel réduit collected sans jamais passer sous zéro",
     { tndAmount: "300.00", refundedAmount: "100.00" }, // partial_refund : net 200
     { tndAmount: "700.00", refundedAmount: "0" },
   ])
-  const summary = await getReservationPaymentSummary({ reservationId: "r1", txOverride: tx })
+  const summary = await getReservationPaymentSummary({
+    reservationId: "r1",
+    txOverride: tx,
+  })
   assert.equal(summary.collectedTnd, 900)
   assert.equal(summary.remainingTnd, 100)
   assert.equal(summary.paymentState, "PARTIALLY_PAID")
@@ -98,5 +120,7 @@ test("réservation introuvable — throw explicite, jamais un résumé fabriqué
       from: () => ({ where: async () => [] }),
     }),
   }
-  await assert.rejects(() => getReservationPaymentSummary({ reservationId: "missing", txOverride: tx }))
+  await assert.rejects(() =>
+    getReservationPaymentSummary({ reservationId: "missing", txOverride: tx }),
+  )
 })

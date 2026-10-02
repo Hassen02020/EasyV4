@@ -9,7 +9,11 @@
 import type { HotelOfferDTO } from "./types"
 import { selectBestRate } from "./best-rate"
 
-export type HotelSortMode = "recommended" | "price_asc" | "price_desc" | "best_deal"
+export type HotelSortMode =
+  | "recommended"
+  | "price_asc"
+  | "price_desc"
+  | "best_deal"
 
 export const DEFAULT_SORT_MODE: HotelSortMode = "recommended"
 
@@ -40,7 +44,10 @@ function displayPrice(offer: HotelOfferDTO, activeBoardings: string[]): number {
  * d'étoiles réel de l'hôtel. myGo n'expose aucun "prix barré"/pourcentage
  * de remise fiable — on ne fabrique donc aucune notion de rabais.
  */
-function bestDealScore(offer: HotelOfferDTO, activeBoardings: string[]): number {
+function bestDealScore(
+  offer: HotelOfferDTO,
+  activeBoardings: string[],
+): number {
   const stars = Math.max(offer.hotel.stars ?? 0, 1)
   return displayPrice(offer, activeBoardings) / stars
 }
@@ -55,15 +62,18 @@ export function sortOffers(
   switch (mode) {
     case "price_asc":
       return copy.sort(
-        (a, b) => displayPrice(a, activeBoardings) - displayPrice(b, activeBoardings),
+        (a, b) =>
+          displayPrice(a, activeBoardings) - displayPrice(b, activeBoardings),
       )
     case "price_desc":
       return copy.sort(
-        (a, b) => displayPrice(b, activeBoardings) - displayPrice(a, activeBoardings),
+        (a, b) =>
+          displayPrice(b, activeBoardings) - displayPrice(a, activeBoardings),
       )
     case "best_deal":
       return copy.sort(
-        (a, b) => bestDealScore(a, activeBoardings) - bestDealScore(b, activeBoardings),
+        (a, b) =>
+          bestDealScore(a, activeBoardings) - bestDealScore(b, activeBoardings),
       )
     case "recommended":
     default:
@@ -72,7 +82,9 @@ export function sortOffers(
       // arbitraire non expliqué.
       return copy.sort((a, b) => {
         if (a.recommended !== b.recommended) return a.recommended ? -1 : 1
-        return displayPrice(a, activeBoardings) - displayPrice(b, activeBoardings)
+        return (
+          displayPrice(a, activeBoardings) - displayPrice(b, activeBoardings)
+        )
       })
   }
 }

@@ -79,7 +79,11 @@ export const TND = {
   /** Multiplication par un pourcentage entier (ex. 10 pour 10 %). */
   pct(a: TndMoney, pct: number): TndMoney {
     // Utilise round half-up au millième
-    return { amount: BigInt(Math.round(Number(a.amount) * pct / 100)), currency: "TND", scale: 3 }
+    return {
+      amount: BigInt(Math.round((Number(a.amount) * pct) / 100)),
+      currency: "TND",
+      scale: 3,
+    }
   },
 
   /** Retourne la valeur en number (3 décimales). */
@@ -128,17 +132,17 @@ export interface PricingResult {
    * Absent pour les modules où l'agence fixe directement le prix catalogue.
    */
   margin?: {
-    net: number          // prix fournisseur HT
-    sale: number         // prix après marge (= total ici)
-    delta: number        // sale - net
-    ruleId?: string      // margin_rules.id (System B)
+    net: number // prix fournisseur HT
+    sale: number // prix après marge (= total ici)
+    delta: number // sale - net
+    ruleId?: string // margin_rules.id (System B)
     type: "percent" | "fixed"
     value: number
   }
   /** Commission Easy2Book sur la marge (absent si 0 ou module sans marge). */
   commission?: {
     amount: number
-    rate: number         // en %
+    rate: number // en %
   }
   /** Identifiant du moteur de tarification (traçabilité). */
   source: string

@@ -78,11 +78,19 @@ export async function reassignCoverAfterDelete(
   const [next] = await tx
     .select({ id: productMedia.id })
     .from(productMedia)
-    .where(and(eq(productMedia.module, module), eq(productMedia.productId, productId)))
+    .where(
+      and(
+        eq(productMedia.module, module),
+        eq(productMedia.productId, productId),
+      ),
+    )
     .orderBy(productMedia.sortOrder)
     .limit(1)
   if (next) {
-    await tx.update(productMedia).set({ isCover: true }).where(eq(productMedia.id, next.id))
+    await tx
+      .update(productMedia)
+      .set({ isCover: true })
+      .where(eq(productMedia.id, next.id))
   }
 }
 
@@ -92,9 +100,15 @@ export async function reassignCoverAfterDelete(
  * autre produit/agence injecté (mission §26 : tests sécurité). Fonction
  * pure, testable sans DB.
  */
-export function isValidReorderSet(existingIds: string[], orderedIds: string[]): boolean {
+export function isValidReorderSet(
+  existingIds: string[],
+  orderedIds: string[],
+): boolean {
   const existingSet = new Set(existingIds)
-  return orderedIds.length === existingSet.size && orderedIds.every((id) => existingSet.has(id))
+  return (
+    orderedIds.length === existingSet.size &&
+    orderedIds.every((id) => existingSet.has(id))
+  )
 }
 
 /**
@@ -113,6 +127,14 @@ export async function setCoverAtomic(
   await tx
     .update(productMedia)
     .set({ isCover: false })
-    .where(and(eq(productMedia.module, module), eq(productMedia.productId, productId)))
-  await tx.update(productMedia).set({ isCover: true }).where(eq(productMedia.id, mediaId))
+    .where(
+      and(
+        eq(productMedia.module, module),
+        eq(productMedia.productId, productId),
+      ),
+    )
+  await tx
+    .update(productMedia)
+    .set({ isCover: true })
+    .where(eq(productMedia.id, mediaId))
 }

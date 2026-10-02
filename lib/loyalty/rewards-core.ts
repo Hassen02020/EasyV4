@@ -59,11 +59,17 @@ export const POINTS_TO_TND_RATE = 100
 export const MIN_REDEMPTION_POINTS = 1000
 export const MAX_REDEMPTION_FRACTION_OF_ELIGIBLE = 0.1
 /** Omra exclu par défaut (mandat explicite) — jamais un choix déduit du code. */
-export const LOYALTY_ELIGIBLE_MODULES = ["hotel", "package", "activity"] as const
+export const LOYALTY_ELIGIBLE_MODULES = [
+  "hotel",
+  "package",
+  "activity",
+] as const
 export type LoyaltyEligibleModule = (typeof LOYALTY_ELIGIBLE_MODULES)[number]
 export const INACTIVITY_EXPIRY_MONTHS = 24
 
-export function isLoyaltyEligibleModule(module: string): module is LoyaltyEligibleModule {
+export function isLoyaltyEligibleModule(
+  module: string,
+): module is LoyaltyEligibleModule {
   return (LOYALTY_ELIGIBLE_MODULES as readonly string[]).includes(module)
 }
 
@@ -76,7 +82,9 @@ export function computeEarnedPoints(eligibleTnd: number): number {
 /** Plafond de rédemption pour une réservation dont le montant TND éligible est `eligibleTnd`. */
 export function computeMaxRedeemablePoints(eligibleTnd: number): number {
   if (!Number.isFinite(eligibleTnd) || eligibleTnd <= 0) return 0
-  return Math.floor(eligibleTnd * MAX_REDEMPTION_FRACTION_OF_ELIGIBLE * POINTS_TO_TND_RATE)
+  return Math.floor(
+    eligibleTnd * MAX_REDEMPTION_FRACTION_OF_ELIGIBLE * POINTS_TO_TND_RATE,
+  )
 }
 
 /** Équivalent TND informatif d'un nombre de points (jamais utilisé pour créditer un montant réel — voir doc de tête). */
@@ -85,7 +93,10 @@ export function pointsToTndEquivalent(points: number): number {
 }
 
 /** Un compte est expiré par inactivité si sa dernière activité date de plus de 24 mois. Pure, testable sans horloge système. */
-export function isExpiredByInactivity(lastActivityAt: Date, now: Date): boolean {
+export function isExpiredByInactivity(
+  lastActivityAt: Date,
+  now: Date,
+): boolean {
   const cutoff = new Date(now)
   cutoff.setMonth(cutoff.getMonth() - INACTIVITY_EXPIRY_MONTHS)
   return lastActivityAt.getTime() < cutoff.getTime()
@@ -126,7 +137,10 @@ export async function lockOrCreateLoyaltyAccount(
     .insert(loyaltyAccounts)
     .values({ agencyId, customerId })
     .returning()
-  if (!inserted) throw new Error("La création du compte Easy2Book Rewards n'a pas retourné de ligne.")
+  if (!inserted)
+    throw new Error(
+      "La création du compte Easy2Book Rewards n'a pas retourné de ligne.",
+    )
   return inserted
 }
 
@@ -135,7 +149,11 @@ export async function getLoyaltyAccountSummary(
   tx: DrizzleTransaction,
   customerId: string,
 ): Promise<LoyaltyAccountRow | null> {
-  const [row] = await tx.select().from(loyaltyAccounts).where(eq(loyaltyAccounts.customerId, customerId)).limit(1)
+  const [row] = await tx
+    .select()
+    .from(loyaltyAccounts)
+    .where(eq(loyaltyAccounts.customerId, customerId))
+    .limit(1)
   return row ?? null
 }
 
@@ -160,7 +178,8 @@ export const LOYALTY_LEDGER_DISPLAY_TYPES = [
   "reinstate",
   "expire",
 ] as const
-export type LoyaltyLedgerDisplayType = (typeof LOYALTY_LEDGER_DISPLAY_TYPES)[number]
+export type LoyaltyLedgerDisplayType =
+  (typeof LOYALTY_LEDGER_DISPLAY_TYPES)[number]
 
 export interface LoyaltyLedgerHistoryEntry {
   type: LoyaltyLedgerDisplayType
@@ -219,7 +238,12 @@ export async function listLoyaltyLedgerForCustomer(
 
 async function sumLedgerForReservation(
   tx: DrizzleTransaction,
-  params: { loyaltyAccountId: string; reservationId: string; bucket: "pending" | "available"; types?: string[] },
+  params: {
+    loyaltyAccountId: string
+    reservationId: string
+    bucket: "pending" | "available"
+    types?: string[]
+  },
 ): Promise<number> {
   const conditions = [
     eq(loyaltyLedger.loyaltyAccountId, params.loyaltyAccountId),
@@ -230,7 +254,9 @@ async function sumLedgerForReservation(
     .select({ points: loyaltyLedger.points, type: loyaltyLedger.type })
     .from(loyaltyLedger)
     .where(and(...conditions))
-  const filtered = params.types ? rows.filter((r) => params.types!.includes(r.type)) : rows
+  const filtered = params.types
+    ? rows.filter((r) => params.types!.includes(r.type))
+    : rows
   return filtered.reduce((sum, r) => sum + r.points, 0)
 }
 
@@ -288,20 +314,34 @@ export async function earnPendingPoints(
   },
 ): Promise<EarnPendingPointsResult> {
   if (!isLoyaltyEligibleModule(params.module)) {
-    return { ok: false, error: "Module non éligible au programme de fidélité.", code: "NOT_ELIGIBLE" }
+    return {
+      ok: false,
+      error: "Module non éligible au programme de fidélité.",
+      code: "NOT_ELIGIBLE",
+    }
   }
   const points = computeEarnedPoints(params.eligibleTnd)
   if (points <= 0) {
-    return { ok: false, error: "Aucun point à attribuer pour ce montant.", code: "NOTHING_TO_EARN" }
+    return {
+      ok: false,
+      error: "Aucun point à attribuer pour ce montant.",
+      code: "NOTHING_TO_EARN",
+    }
   }
 
   const existing = await findLedgerByIdempotencyKey(tx, params.idempotencyKey)
   if (existing) {
-    const account = await lockOrCreateLoyaltyAccount(tx, { agencyId: params.agencyId, customerId: params.customerId })
+    const account = await lockOrCreateLoyaltyAccount(tx, {
+      agencyId: params.agencyId,
+      customerId: params.customerId,
+    })
     return { ok: true, awarded: false, points, loyaltyAccountId: account.id }
   }
 
-  const account = await lockOrCreateLoyaltyAccount(tx, { agencyId: params.agencyId, customerId: params.customerId })
+  const account = await lockOrCreateLoyaltyAccount(tx, {
+    agencyId: params.agencyId,
+    customerId: params.customerId,
+  })
   const balanceBefore = account.pendingPoints
   const balanceAfter = balanceBefore + points
 
@@ -344,12 +384,21 @@ export type ConvertPendingToAvailableResult =
 
 export async function convertPendingToAvailable(
   tx: DrizzleTransaction,
-  params: { agencyId: string; customerId: string; reservationId: string; idempotencyKey: string; actorUserId?: string },
+  params: {
+    agencyId: string
+    customerId: string
+    reservationId: string
+    idempotencyKey: string
+    actorUserId?: string
+  },
 ): Promise<ConvertPendingToAvailableResult> {
   const existing = await findLedgerByIdempotencyKey(tx, params.idempotencyKey)
   if (existing) return { ok: true, converted: false, points: 0 }
 
-  const account = await lockOrCreateLoyaltyAccount(tx, { agencyId: params.agencyId, customerId: params.customerId })
+  const account = await lockOrCreateLoyaltyAccount(tx, {
+    agencyId: params.agencyId,
+    customerId: params.customerId,
+  })
 
   const netPending = await sumLedgerForReservation(tx, {
     loyaltyAccountId: account.id,
@@ -357,7 +406,11 @@ export async function convertPendingToAvailable(
     bucket: "pending",
   })
   if (netPending <= 0) {
-    return { ok: false, error: "Aucun point en attente pour cette réservation.", code: "NOTHING_PENDING" }
+    return {
+      ok: false,
+      error: "Aucun point en attente pour cette réservation.",
+      code: "NOTHING_PENDING",
+    }
   }
 
   const pendingBefore = account.pendingPoints
@@ -396,7 +449,12 @@ export async function convertPendingToAvailable(
 
   await tx
     .update(loyaltyAccounts)
-    .set({ pendingPoints: pendingAfter, availablePoints: availableAfter, lastActivityAt: new Date(), updatedAt: new Date() })
+    .set({
+      pendingPoints: pendingAfter,
+      availablePoints: availableAfter,
+      lastActivityAt: new Date(),
+      updatedAt: new Date(),
+    })
     .where(eq(loyaltyAccounts.id, account.id))
 
   return { ok: true, converted: true, points: netPending }
@@ -409,17 +467,36 @@ export async function convertPendingToAvailable(
 /*    reste effectivement disponible/en attente.                             */
 /* -------------------------------------------------------------------------- */
 
-export type ReverseEarnedPointsResult =
-  | { ok: true; reversed: boolean; pointsReversedFromPending: number; pointsReversedFromAvailable: number }
+export type ReverseEarnedPointsResult = {
+  ok: true
+  reversed: boolean
+  pointsReversedFromPending: number
+  pointsReversedFromAvailable: number
+}
 
 export async function reverseEarnedPoints(
   tx: DrizzleTransaction,
-  params: { agencyId: string; customerId: string; reservationId: string; idempotencyKey: string; actorUserId?: string },
+  params: {
+    agencyId: string
+    customerId: string
+    reservationId: string
+    idempotencyKey: string
+    actorUserId?: string
+  },
 ): Promise<ReverseEarnedPointsResult> {
   const existing = await findLedgerByIdempotencyKey(tx, params.idempotencyKey)
-  if (existing) return { ok: true, reversed: false, pointsReversedFromPending: 0, pointsReversedFromAvailable: 0 }
+  if (existing)
+    return {
+      ok: true,
+      reversed: false,
+      pointsReversedFromPending: 0,
+      pointsReversedFromAvailable: 0,
+    }
 
-  const account = await lockOrCreateLoyaltyAccount(tx, { agencyId: params.agencyId, customerId: params.customerId })
+  const account = await lockOrCreateLoyaltyAccount(tx, {
+    agencyId: params.agencyId,
+    customerId: params.customerId,
+  })
 
   const netPending = await sumLedgerForReservation(tx, {
     loyaltyAccountId: account.id,
@@ -434,11 +511,22 @@ export async function reverseEarnedPoints(
   })
   // Jamais plus que ce qui est réellement disponible sur le compte MAINTENANT
   // (une partie a pu être dépensée entre-temps via redeemPoints ailleurs).
-  const pendingToReverse = Math.max(0, Math.min(netPending, account.pendingPoints))
-  const availableToReverse = Math.max(0, Math.min(netEarnedAvailable, account.availablePoints))
+  const pendingToReverse = Math.max(
+    0,
+    Math.min(netPending, account.pendingPoints),
+  )
+  const availableToReverse = Math.max(
+    0,
+    Math.min(netEarnedAvailable, account.availablePoints),
+  )
 
   if (pendingToReverse <= 0 && availableToReverse <= 0) {
-    return { ok: true, reversed: false, pointsReversedFromPending: 0, pointsReversedFromAvailable: 0 }
+    return {
+      ok: true,
+      reversed: false,
+      pointsReversedFromPending: 0,
+      pointsReversedFromAvailable: 0,
+    }
   }
 
   let pendingAfter = account.pendingPoints
@@ -483,7 +571,12 @@ export async function reverseEarnedPoints(
 
   await tx
     .update(loyaltyAccounts)
-    .set({ pendingPoints: pendingAfter, availablePoints: availableAfter, lastActivityAt: new Date(), updatedAt: new Date() })
+    .set({
+      pendingPoints: pendingAfter,
+      availablePoints: availableAfter,
+      lastActivityAt: new Date(),
+      updatedAt: new Date(),
+    })
     .where(eq(loyaltyAccounts.id, account.id))
 
   return {
@@ -527,7 +620,9 @@ export async function redeemPoints(
       code: "BELOW_MINIMUM",
     }
   }
-  const maxPoints = computeMaxRedeemablePoints(params.targetReservationEligibleTnd)
+  const maxPoints = computeMaxRedeemablePoints(
+    params.targetReservationEligibleTnd,
+  )
   if (params.pointsToRedeem > maxPoints) {
     return {
       ok: false,
@@ -538,10 +633,17 @@ export async function redeemPoints(
 
   const existing = await findLedgerByIdempotencyKey(tx, params.idempotencyKey)
   if (existing) {
-    return { ok: true, points: params.pointsToRedeem, tndEquivalent: pointsToTndEquivalent(params.pointsToRedeem) }
+    return {
+      ok: true,
+      points: params.pointsToRedeem,
+      tndEquivalent: pointsToTndEquivalent(params.pointsToRedeem),
+    }
   }
 
-  const account = await lockOrCreateLoyaltyAccount(tx, { agencyId: params.agencyId, customerId: params.customerId })
+  const account = await lockOrCreateLoyaltyAccount(tx, {
+    agencyId: params.agencyId,
+    customerId: params.customerId,
+  })
   if (account.availablePoints < params.pointsToRedeem) {
     return {
       ok: false,
@@ -572,7 +674,10 @@ export async function redeemPoints(
     bucket: "available",
     types: ["reinstate"],
   })
-  const netAlreadyRedeemed = Math.max(0, -alreadyRedeemedNegative - alreadyReinstated)
+  const netAlreadyRedeemed = Math.max(
+    0,
+    -alreadyRedeemedNegative - alreadyReinstated,
+  )
   if (netAlreadyRedeemed + params.pointsToRedeem > maxPoints) {
     return {
       ok: false,
@@ -603,13 +708,18 @@ export async function redeemPoints(
     .update(loyaltyAccounts)
     .set({
       availablePoints: after,
-      lifetimeRedeemedPoints: account.lifetimeRedeemedPoints + params.pointsToRedeem,
+      lifetimeRedeemedPoints:
+        account.lifetimeRedeemedPoints + params.pointsToRedeem,
       lastActivityAt: new Date(),
       updatedAt: new Date(),
     })
     .where(eq(loyaltyAccounts.id, account.id))
 
-  return { ok: true, points: params.pointsToRedeem, tndEquivalent: pointsToTndEquivalent(params.pointsToRedeem) }
+  return {
+    ok: true,
+    points: params.pointsToRedeem,
+    tndEquivalent: pointsToTndEquivalent(params.pointsToRedeem),
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -618,17 +728,29 @@ export async function redeemPoints(
 /*    effectivement dépensés sur CETTE réservation, jamais plus.            */
 /* -------------------------------------------------------------------------- */
 
-export type ReinstateRedeemedPointsResult =
-  | { ok: true; reinstated: boolean; points: number }
+export type ReinstateRedeemedPointsResult = {
+  ok: true
+  reinstated: boolean
+  points: number
+}
 
 export async function reinstateRedeemedPoints(
   tx: DrizzleTransaction,
-  params: { agencyId: string; customerId: string; reservationId: string; idempotencyKey: string; actorUserId?: string },
+  params: {
+    agencyId: string
+    customerId: string
+    reservationId: string
+    idempotencyKey: string
+    actorUserId?: string
+  },
 ): Promise<ReinstateRedeemedPointsResult> {
   const existing = await findLedgerByIdempotencyKey(tx, params.idempotencyKey)
   if (existing) return { ok: true, reinstated: false, points: 0 }
 
-  const account = await lockOrCreateLoyaltyAccount(tx, { agencyId: params.agencyId, customerId: params.customerId })
+  const account = await lockOrCreateLoyaltyAccount(tx, {
+    agencyId: params.agencyId,
+    customerId: params.customerId,
+  })
 
   const redeemedForThisReservation = await sumLedgerForReservation(tx, {
     loyaltyAccountId: account.id,
@@ -644,7 +766,10 @@ export async function reinstateRedeemedPoints(
   })
   // `redeemedForThisReservation` est négatif (débit) ; on ne réinstalle que
   // ce qui n'a pas déjà été réinstallé par un appel précédent.
-  const toReinstate = Math.max(0, -redeemedForThisReservation - alreadyReinstated)
+  const toReinstate = Math.max(
+    0,
+    -redeemedForThisReservation - alreadyReinstated,
+  )
   if (toReinstate <= 0) {
     return { ok: true, reinstated: false, points: 0 }
   }
@@ -671,7 +796,10 @@ export async function reinstateRedeemedPoints(
     .update(loyaltyAccounts)
     .set({
       availablePoints: after,
-      lifetimeRedeemedPoints: Math.max(0, account.lifetimeRedeemedPoints - toReinstate),
+      lifetimeRedeemedPoints: Math.max(
+        0,
+        account.lifetimeRedeemedPoints - toReinstate,
+      ),
       lastActivityAt: new Date(),
       updatedAt: new Date(),
     })

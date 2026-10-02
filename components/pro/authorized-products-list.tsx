@@ -23,10 +23,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import type { AuthorizedProductRow } from "@/lib/b2b/authorized-products"
-import { getBookableOptionsForProduct, type BookableOption } from "@/lib/b2b/product-booking-options-actions"
+import {
+  getBookableOptionsForProduct,
+  type BookableOption,
+} from "@/lib/b2b/product-booking-options-actions"
 import { createPackageBooking } from "@/lib/packages/booking-actions"
 import { createActivityBooking } from "@/lib/activities/booking-actions"
 import { createNetworkProductBooking } from "@/lib/network/product-booking-actions"
@@ -42,13 +51,19 @@ const TYPE_LABEL: Record<AuthorizedProductRow["productType"], string> = {
  * (createNetworkProductBooking, mirror exact du pattern package/activity).
  * Pas de date/session pour ce type — géré séparément dans
  * BookingInlineForm (pas d'appel à getBookableOptionsForProduct). */
-const BOOKABLE_TYPES: AuthorizedProductRow["productType"][] = ["package", "activity", "network"]
+const BOOKABLE_TYPES: AuthorizedProductRow["productType"][] = [
+  "package",
+  "activity",
+  "network",
+]
 
 interface AuthorizedProductsListProps {
   products: AuthorizedProductRow[]
 }
 
-export function AuthorizedProductsList({ products }: AuthorizedProductsListProps) {
+export function AuthorizedProductsList({
+  products,
+}: AuthorizedProductsListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   return (
@@ -68,13 +83,21 @@ export function AuthorizedProductsList({ products }: AuthorizedProductsListProps
               </div>
               {p.productType === "omra" ? (
                 <Button variant="outline" size="sm" asChild>
-                  <a href={`/pro/produits/omra/${p.productId}`}>Voir le programme</a>
+                  <a href={`/pro/produits/omra/${p.productId}`}>
+                    Voir le programme
+                  </a>
                 </Button>
               ) : BOOKABLE_TYPES.includes(p.productType) ? (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setExpandedId(expandedId === p.authorizationId ? null : p.authorizationId)}
+                  onClick={() =>
+                    setExpandedId(
+                      expandedId === p.authorizationId
+                        ? null
+                        : p.authorizationId,
+                    )
+                  }
                 >
                   {expandedId === p.authorizationId ? (
                     <>
@@ -92,7 +115,8 @@ export function AuthorizedProductsList({ products }: AuthorizedProductsListProps
                 </Badge>
               )}
             </div>
-            {expandedId === p.authorizationId && BOOKABLE_TYPES.includes(p.productType) ? (
+            {expandedId === p.authorizationId &&
+            BOOKABLE_TYPES.includes(p.productType) ? (
               <div className="mt-4 border-t pt-4">
                 <BookingInlineForm product={p} />
               </div>
@@ -124,7 +148,10 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
 
   if (!isNetwork && options === null && !isPending && !loadError) {
     startTransition(async () => {
-      const result = await getBookableOptionsForProduct(product.productType as "package" | "activity", product.productId)
+      const result = await getBookableOptionsForProduct(
+        product.productType as "package" | "activity",
+        product.productId,
+      )
       if (!result.ok) {
         setLoadError(result.error)
         return
@@ -198,7 +225,8 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
   if (success) {
     return (
       <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
-        Réservation confirmée — référence <span className="font-semibold">{success}</span>.{" "}
+        Réservation confirmée — référence{" "}
+        <span className="font-semibold">{success}</span>.{" "}
         <button className="underline" onClick={() => router.refresh()}>
           Actualiser
         </button>
@@ -212,19 +240,26 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
 
   if (!isNetwork && options === null) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Chargement des disponibilités…
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" /> Chargement des
+        disponibilités…
       </div>
     )
   }
 
   if (!isNetwork && options !== null && options.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aucune date disponible pour ce produit actuellement.</p>
+    return (
+      <p className="text-muted-foreground text-sm">
+        Aucune date disponible pour ce produit actuellement.
+      </p>
+    )
   }
 
   return (
     <div className="space-y-4">
-      {submitError ? <p className="text-destructive text-sm">{submitError}</p> : null}
+      {submitError ? (
+        <p className="text-destructive text-sm">{submitError}</p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {!isNetwork ? (
           <div>
@@ -237,8 +272,11 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
                 {(options ?? []).map((o) => (
                   <SelectItem key={o.id} value={o.id}>
                     {new Date(o.date).toLocaleDateString("fr-FR")}
-                    {o.kind === "session" ? ` · ${o.start}–${o.end}` : ""} —{" "}
-                    {o.kind === "departure" ? o.seatsLeft : o.capacityLeft} places
+                    {o.kind === "session"
+                      ? ` · ${o.start}–${o.end}`
+                      : ""} —{" "}
+                    {o.kind === "departure" ? o.seatsLeft : o.capacityLeft}{" "}
+                    places
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -247,13 +285,31 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
         ) : null}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs">{isNetwork ? "Quantité" : "Adultes"}</Label>
-            <Input type="number" min={1} value={adults} onChange={(e) => setAdults(Math.max(1, Number(e.target.value) || 1))} className="mt-1 h-9" />
+            <Label className="text-xs">
+              {isNetwork ? "Quantité" : "Adultes"}
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              value={adults}
+              onChange={(e) =>
+                setAdults(Math.max(1, Number(e.target.value) || 1))
+              }
+              className="mt-1 h-9"
+            />
           </div>
           {!isNetwork ? (
             <div>
               <Label className="text-xs">Enfants</Label>
-              <Input type="number" min={0} value={children} onChange={(e) => setChildrenCount(Math.max(0, Number(e.target.value) || 0))} className="mt-1 h-9" />
+              <Input
+                type="number"
+                min={0}
+                value={children}
+                onChange={(e) =>
+                  setChildrenCount(Math.max(0, Number(e.target.value) || 0))
+                }
+                className="mt-1 h-9"
+              />
             </div>
           ) : null}
         </div>
@@ -282,19 +338,36 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
       <div className="grid gap-3 sm:grid-cols-4">
         <div>
           <Label className="text-xs">Prénom client *</Label>
-          <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="mt-1 h-9" />
+          <Input
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className="mt-1 h-9"
+          />
         </div>
         <div>
           <Label className="text-xs">Nom client *</Label>
-          <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="mt-1 h-9" />
+          <Input
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className="mt-1 h-9"
+          />
         </div>
         <div>
           <Label className="text-xs">Téléphone *</Label>
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1 h-9" />
+          <Input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="mt-1 h-9"
+          />
         </div>
         <div>
           <Label className="text-xs">Email</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 h-9" />
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 h-9"
+          />
         </div>
       </div>
       <Button onClick={handleSubmit} disabled={isPending} size="sm">

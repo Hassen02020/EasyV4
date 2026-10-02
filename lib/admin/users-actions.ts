@@ -31,9 +31,16 @@ import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { auditEvents, users } from "@/lib/db/schema"
-import { createServerSupabase, createServiceRoleSupabase } from "@/lib/supabase/server"
+import {
+  createServerSupabase,
+  createServiceRoleSupabase,
+} from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { ADMIN_ROLES, isAllowedIntoAdmin, type AdminRole } from "@/lib/auth/admin-gate"
+import {
+  ADMIN_ROLES,
+  isAllowedIntoAdmin,
+  type AdminRole,
+} from "@/lib/auth/admin-gate"
 import { checkNotSelfTarget, checkRoleChangeAllowed } from "./users-logic"
 
 const STAFF_MANAGE_ALLOWED_ROLES = ["super_admin", "manager"] as const
@@ -52,8 +59,13 @@ async function requireStaffManagerProfile() {
   if (!profile || !isAllowedIntoAdmin(profile.role, profile.agencyType)) {
     return { ok: false as const, error: "Profil administrateur introuvable" }
   }
-  if (!(STAFF_MANAGE_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
-    return { ok: false as const, error: "Votre rôle n'est pas autorisé à gérer le personnel." }
+  if (
+    !(STAFF_MANAGE_ALLOWED_ROLES as readonly string[]).includes(profile.role)
+  ) {
+    return {
+      ok: false as const,
+      error: "Votre rôle n'est pas autorisé à gérer le personnel.",
+    }
   }
   return { ok: true as const, user, profile }
 }
@@ -77,7 +89,12 @@ export async function createStaffUser(
 ): Promise<CreateStaffUserResult> {
   const parsed = createInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -100,13 +117,20 @@ export async function createStaffUser(
     data: { name: input.name },
   })
   if (invited.error || !invited.data.user) {
-    return { ok: false, error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}` }
+    return {
+      ok: false,
+      error: `Échec de l'invitation : ${invited.error?.message ?? "erreur inconnue"}`,
+    }
   }
   const newUserId = invited.data.user.id
 
   try {
     await withTenantContext(
-      { agencyId: profile.agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+      {
+        agencyId: profile.agencyId,
+        userId: user.id,
+        isSuperAdmin: profile.role === "super_admin",
+      },
       async (tx) => {
         await tx.insert(users).values({
           id: newUserId,
@@ -132,7 +156,10 @@ export async function createStaffUser(
     // supprime plutôt que de laisser une identité fantôme.
     await admin.auth.admin.deleteUser(newUserId).catch(() => {})
     const message = err instanceof Error ? err.message : "Erreur inconnue"
-    return { ok: false, error: `Compte invité mais profil non créé (annulé) : ${message}` }
+    return {
+      ok: false,
+      error: `Compte invité mais profil non créé (annulé) : ${message}`,
+    }
   }
 
   revalidatePath("/admin/staff")
@@ -161,20 +188,36 @@ export async function setUserStatus(
   if (!auth.ok) return { ok: false, error: auth.error }
   const { user, profile } = auth
 
-  const selfCheck = checkNotSelfTarget({ actorUserId: user.id, targetUserId: input.userId })
+  const selfCheck = checkNotSelfTarget({
+    actorUserId: user.id,
+    targetUserId: input.userId,
+  })
   if (!selfCheck.ok) return { ok: false, error: selfCheck.error }
 
   const outcome = await withTenantContext(
-    { agencyId: profile.agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+    {
+      agencyId: profile.agencyId,
+      userId: user.id,
+      isSuperAdmin: profile.role === "super_admin",
+    },
     async (tx) => {
       const [target] = await tx
         .select({ id: users.id, email: users.email, status: users.status })
         .from(users)
-        .where(and(eq(users.id, input.userId), eq(users.agencyId, profile.agencyId)))
+        .where(
+          and(eq(users.id, input.userId), eq(users.agencyId, profile.agencyId)),
+        )
         .limit(1)
-      if (!target) return { ok: false as const, error: "Utilisateur introuvable dans votre agence." }
+      if (!target)
+        return {
+          ok: false as const,
+          error: "Utilisateur introuvable dans votre agence.",
+        }
 
-      await tx.update(users).set({ status: input.status }).where(eq(users.id, input.userId))
+      await tx
+        .update(users)
+        .set({ status: input.status })
+        .where(eq(users.id, input.userId))
 
       await tx.insert(auditEvents).values({
         agencyId: profile.agencyId,
@@ -224,14 +267,24 @@ export async function setUserRole(
   if (!preCheck.ok) return { ok: false, error: preCheck.error }
 
   const outcome = await withTenantContext(
-    { agencyId: profile.agencyId, userId: user.id, isSuperAdmin: profile.role === "super_admin" },
+    {
+      agencyId: profile.agencyId,
+      userId: user.id,
+      isSuperAdmin: profile.role === "super_admin",
+    },
     async (tx) => {
       const [target] = await tx
         .select({ id: users.id, email: users.email, role: users.role })
         .from(users)
-        .where(and(eq(users.id, input.userId), eq(users.agencyId, profile.agencyId)))
+        .where(
+          and(eq(users.id, input.userId), eq(users.agencyId, profile.agencyId)),
+        )
         .limit(1)
-      if (!target) return { ok: false as const, error: "Utilisateur introuvable dans votre agence." }
+      if (!target)
+        return {
+          ok: false as const,
+          error: "Utilisateur introuvable dans votre agence.",
+        }
 
       const targetCheck = checkRoleChangeAllowed({
         actorRole: profile.role,
@@ -240,9 +293,13 @@ export async function setUserRole(
         targetCurrentRole: target.role,
         nextRole: input.role,
       })
-      if (!targetCheck.ok) return { ok: false as const, error: targetCheck.error }
+      if (!targetCheck.ok)
+        return { ok: false as const, error: targetCheck.error }
 
-      await tx.update(users).set({ role: input.role as AdminRole }).where(eq(users.id, input.userId))
+      await tx
+        .update(users)
+        .set({ role: input.role as AdminRole })
+        .where(eq(users.id, input.userId))
 
       await tx.insert(auditEvents).values({
         agencyId: profile.agencyId,
@@ -282,7 +339,9 @@ const platformStatusInputSchema = z.object({
   status: z.enum(["active", "suspended"]),
 })
 
-export type SetPlatformUserStatusResult = { ok: true } | { ok: false; error: string }
+export type SetPlatformUserStatusResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function setPlatformUserStatus(
   raw: z.infer<typeof platformStatusInputSchema>,
@@ -302,33 +361,55 @@ export async function setPlatformUserStatus(
 
   const profile = await getCurrentAdminProfile(user.id)
   if (profile?.role !== "super_admin") {
-    return { ok: false, error: "Seul un super_admin a une vue plateforme cross-agence." }
+    return {
+      ok: false,
+      error: "Seul un super_admin a une vue plateforme cross-agence.",
+    }
   }
 
-  const selfCheck = checkNotSelfTarget({ actorUserId: user.id, targetUserId: input.userId })
+  const selfCheck = checkNotSelfTarget({
+    actorUserId: user.id,
+    targetUserId: input.userId,
+  })
   if (!selfCheck.ok) return { ok: false, error: selfCheck.error }
 
   const outcome = await withTenantContext(
     { agencyId: null, userId: user.id, isSuperAdmin: true },
     async (tx) => {
       const [target] = await tx
-        .select({ id: users.id, email: users.email, role: users.role, status: users.status, agencyId: users.agencyId })
+        .select({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+          agencyId: users.agencyId,
+        })
         .from(users)
         .where(eq(users.id, input.userId))
         .limit(1)
-      if (!target) return { ok: false as const, error: "Utilisateur introuvable." }
+      if (!target)
+        return { ok: false as const, error: "Utilisateur introuvable." }
 
       if (input.status === "suspended" && target.role === "super_admin") {
         const otherActiveSuperAdmins = await tx
           .select({ id: users.id })
           .from(users)
           .where(and(eq(users.role, "super_admin"), eq(users.status, "active")))
-        if (otherActiveSuperAdmins.filter((a) => a.id !== target.id).length === 0) {
-          return { ok: false as const, error: "Impossible de suspendre le dernier super_admin actif de la plateforme." }
+        if (
+          otherActiveSuperAdmins.filter((a) => a.id !== target.id).length === 0
+        ) {
+          return {
+            ok: false as const,
+            error:
+              "Impossible de suspendre le dernier super_admin actif de la plateforme.",
+          }
         }
       }
 
-      await tx.update(users).set({ status: input.status }).where(eq(users.id, input.userId))
+      await tx
+        .update(users)
+        .set({ status: input.status })
+        .where(eq(users.id, input.userId))
 
       await tx.insert(auditEvents).values({
         agencyId: target.agencyId,

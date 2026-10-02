@@ -48,8 +48,8 @@ export interface BookResult {
 
 export interface IssueResult {
   tickets: Array<{
-    passengerRef: string   // matches passenger index or id
-    ticketNumber: string   // IATA e-ticket format: 3-digit airline code + 10 digits
+    passengerRef: string // matches passenger index or id
+    ticketNumber: string // IATA e-ticket format: 3-digit airline code + 10 digits
     eticketUrl?: string
   }>
 }

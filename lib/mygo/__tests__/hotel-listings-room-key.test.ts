@@ -17,7 +17,12 @@ test("toCardShape : room.key reste unique même quand myGo réutilise le même r
   // Reproduction exacte du fixture réel (hôtel 500041) : room.id 5900410
   // ("Chambre Familiale") apparaît identique sous 2 boardings différents.
   const offer: HotelOfferDTO = {
-    hotel: { id: 500041, name: "Virtual Hotel 041", facilities: [], themes: [] },
+    hotel: {
+      id: 500041,
+      name: "Virtual Hotel 041",
+      facilities: [],
+      themes: [],
+    },
     token: "tok",
     currency: "TND",
     fromPrice: 576,
@@ -70,7 +75,11 @@ test("toCardShape : room.key reste unique même quand myGo réutilise le même r
 
   const shape = toCardShape(offer)
   const rooms = shape.rooms ?? []
-  assert.equal(rooms.length, 2, "les 2 lignes (une par pension) doivent être présentes")
+  assert.equal(
+    rooms.length,
+    2,
+    "les 2 lignes (une par pension) doivent être présentes",
+  )
 
   // Les 2 lignes partagent le même `id` myGo (comportement fournisseur réel)…
   assert.equal(rooms[0]!.id, 5900410)

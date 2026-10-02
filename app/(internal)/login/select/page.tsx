@@ -185,7 +185,7 @@ export default function LoginSelectPage() {
                       className="py-3"
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-sidebar" />
+                        <Icon className="text-sidebar h-4 w-4" />
                         <div className="flex flex-col">
                           <span className="font-medium">{role.label}</span>
                           <span className="text-muted-foreground text-xs">

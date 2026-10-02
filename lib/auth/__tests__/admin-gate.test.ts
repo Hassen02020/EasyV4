@@ -20,7 +20,12 @@ test("OTA + super_admin → autorisé", () => {
 })
 
 test("OTA + manager/agent_resa/agent_compta/agent_excursions → autorisé", () => {
-  for (const role of ["manager", "agent_resa", "agent_compta", "agent_excursions"]) {
+  for (const role of [
+    "manager",
+    "agent_resa",
+    "agent_compta",
+    "agent_excursions",
+  ]) {
     assert.equal(isAllowedIntoAdmin(role, "ota"), true, `role=${role}`)
   }
 })

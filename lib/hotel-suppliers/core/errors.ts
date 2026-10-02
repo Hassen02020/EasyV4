@@ -18,14 +18,22 @@ export class SupplierError extends Error {
 
 export class SupplierNotConfiguredError extends SupplierError {
   constructor(supplier: string, reason = "DOCUMENTATION_REQUIRED") {
-    super(supplier, "NOT_CONFIGURED", `Fournisseur "${supplier}" non configuré (${reason}).`)
+    super(
+      supplier,
+      "NOT_CONFIGURED",
+      `Fournisseur "${supplier}" non configuré (${reason}).`,
+    )
     this.name = "SupplierNotConfiguredError"
   }
 }
 
 export class SupplierTimeoutError extends SupplierError {
   constructor(supplier: string, operation: string, timeoutMs: number) {
-    super(supplier, "TIMEOUT", `Fournisseur "${supplier}" — timeout après ${timeoutMs}ms sur ${operation}.`)
+    super(
+      supplier,
+      "TIMEOUT",
+      `Fournisseur "${supplier}" — timeout après ${timeoutMs}ms sur ${operation}.`,
+    )
     this.name = "SupplierTimeoutError"
   }
 }

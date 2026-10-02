@@ -25,68 +25,99 @@ const SHOT_DIR = "docs/audits/screenshots/journey-builder"
 test.describe("JOURNEY-BUILDER-01 — composition B2B réelle", () => {
   test.setTimeout(120_000)
 
-  test("login → créer Journey → ajouter ligne activity → confirmer → vraie réservation", async ({ page }) => {
+  test("login → créer Journey → ajouter ligne activity → confirmer → vraie réservation", async ({
+    page,
+  }) => {
     await test.step("login /pro", async () => {
       await page.goto("/pro/login")
       await page.getByLabel("Email professionnel").fill(PRO_EMAIL)
       await page.getByLabel("Mot de passe", { exact: true }).fill(PRO_PASSWORD)
-      await page.getByRole("button", { name: /Accéder à mon Espace Pro/i }).click()
+      await page
+        .getByRole("button", { name: /Accéder à mon Espace Pro/i })
+        .click()
       await page.waitForURL(/\/pro(?!\/login)/, { timeout: 15_000 })
     })
 
     await test.step("01-list — /pro/journeys, aucune route morte", async () => {
       await page.goto("/pro/journeys")
       await page.waitForLoadState("networkidle")
-      await expect(page.getByRole("button", { name: /Nouveau Journey/i })).toBeVisible()
+      await expect(
+        page.getByRole("button", { name: /Nouveau Journey/i }),
+      ).toBeVisible()
       await page.screenshot({ path: `${SHOT_DIR}/01-list.png`, fullPage: true })
     })
 
     await test.step("02-create — créer un Journey", async () => {
       await page.getByRole("button", { name: /Nouveau Journey/i }).click()
-      await page.getByPlaceholder("Titre (optionnel)").fill("E2E Journey Builder")
-      await page.screenshot({ path: `${SHOT_DIR}/02-create-dialog.png`, fullPage: true })
+      await page
+        .getByPlaceholder("Titre (optionnel)")
+        .fill("E2E Journey Builder")
+      await page.screenshot({
+        path: `${SHOT_DIR}/02-create-dialog.png`,
+        fullPage: true,
+      })
       await page.getByRole("button", { name: /^Créer$/i }).click()
       await page.waitForURL(/\/pro\/journeys\/[0-9a-f-]+$/, { timeout: 15_000 })
     })
 
     await test.step("03-compose — ajouter une ligne 'network' réelle (fixture E2E)", async () => {
       await page.waitForLoadState("networkidle")
-      await page.screenshot({ path: `${SHOT_DIR}/03-composer-empty.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/03-composer-empty.png`,
+        fullPage: true,
+      })
 
       await page.getByLabel("Module", { exact: true }).click()
       await page.getByRole("option", { name: "Produit Réseau" }).click()
 
-      await page.getByLabel("ID Produit Réseau", { exact: true }).fill(NETWORK_PRODUCT_ID)
+      await page
+        .getByLabel("ID Produit Réseau", { exact: true })
+        .fill(NETWORK_PRODUCT_ID)
       await page.getByLabel("Quantité", { exact: true }).fill("1")
       await page.getByLabel("Prénom client", { exact: true }).fill("Certif")
-      await page.getByLabel("Nom client", { exact: true }).fill("E2E-JourneyBuilder")
+      await page
+        .getByLabel("Nom client", { exact: true })
+        .fill("E2E-JourneyBuilder")
       await page.getByLabel("Téléphone", { exact: true }).fill("+21698140514")
 
       await page.getByRole("button", { name: /Ajouter au Journey/i }).click()
       await page.waitForLoadState("networkidle")
       await expect(page.getByText("Produit Réseau").first()).toBeVisible()
-      await page.screenshot({ path: `${SHOT_DIR}/04-line-added-pending.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/04-line-added-pending.png`,
+        fullPage: true,
+      })
     })
 
     await test.step("05-confirm — confirmer la ligne, vraie réservation réelle (débit compte de dépôt)", async () => {
       await page.getByRole("button", { name: /^Confirmer$/i }).click()
       await page.waitForLoadState("networkidle")
       await expect(page.getByText("Confirmée")).toBeVisible({ timeout: 20_000 })
-      await page.screenshot({ path: `${SHOT_DIR}/05-line-confirmed.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/05-line-confirmed.png`,
+        fullPage: true,
+      })
     })
 
     await test.step("06-reservations — la réservation existe réellement dans /pro/reservations", async () => {
       await page.goto("/pro/reservations")
       await page.waitForLoadState("networkidle")
-      await page.screenshot({ path: `${SHOT_DIR}/06-reservations-list.png`, fullPage: true })
+      await page.screenshot({
+        path: `${SHOT_DIR}/06-reservations-list.png`,
+        fullPage: true,
+      })
       // Une réservation réelle existe pour ce client — preuve qu'un vrai
       // enregistrement (pas une simulation) a été produit (customerName est
       // un champ générique, toujours renseigné quel que soit le module).
-      await expect(page.getByText(/E2E-JourneyBuilder/i).first()).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText(/E2E-JourneyBuilder/i).first()).toBeVisible({
+        timeout: 10_000,
+      })
     })
   })
 
-  test("après confirmation, le bouton 'Confirmer' disparaît — aucune resoumission possible depuis l'UI", async ({ page }) => {
+  test("après confirmation, le bouton 'Confirmer' disparaît — aucune resoumission possible depuis l'UI", async ({
+    page,
+  }) => {
     // La garantie d'idempotence réelle (CAS pending|failed→processing,
     // au plus un appel au moteur réel par ligne) est déjà prouvée de façon
     // déterministe contre un vrai Postgres par
@@ -102,7 +133,9 @@ test.describe("JOURNEY-BUILDER-01 — composition B2B réelle", () => {
     await page.goto("/pro/login")
     await page.getByLabel("Email professionnel").fill(PRO_EMAIL)
     await page.getByLabel("Mot de passe", { exact: true }).fill(PRO_PASSWORD)
-    await page.getByRole("button", { name: /Accéder à mon Espace Pro/i }).click()
+    await page
+      .getByRole("button", { name: /Accéder à mon Espace Pro/i })
+      .click()
     await page.waitForURL(/\/pro(?!\/login)/, { timeout: 15_000 })
 
     await page.goto("/pro/journeys")
@@ -112,7 +145,9 @@ test.describe("JOURNEY-BUILDER-01 — composition B2B réelle", () => {
 
     await page.getByLabel("Module", { exact: true }).click()
     await page.getByRole("option", { name: "Produit Réseau" }).click()
-    await page.getByLabel("ID Produit Réseau", { exact: true }).fill(NETWORK_PRODUCT_ID)
+    await page
+      .getByLabel("ID Produit Réseau", { exact: true })
+      .fill(NETWORK_PRODUCT_ID)
     await page.getByLabel("Quantité", { exact: true }).fill("1")
     await page.getByLabel("Prénom client", { exact: true }).fill("Double")
     await page.getByLabel("Nom client", { exact: true }).fill("Click-E2E")
@@ -126,7 +161,9 @@ test.describe("JOURNEY-BUILDER-01 — composition B2B réelle", () => {
 
     // Le bouton "Confirmer" a disparu — plus aucune action de resoumission
     // possible depuis cette page pour cette ligne.
-    await expect(page.getByRole("button", { name: /^Confirmer$/i })).toHaveCount(0)
+    await expect(
+      page.getByRole("button", { name: /^Confirmer$/i }),
+    ).toHaveCount(0)
     // Une seule ligne existe sur ce Journey.
     await expect(page.getByText("Produit Réseau")).toHaveCount(1)
   })

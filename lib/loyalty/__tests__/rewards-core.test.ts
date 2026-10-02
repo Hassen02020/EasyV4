@@ -11,7 +11,13 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, loyaltyAccounts, loyaltyLedger } from "@/lib/db/schema"
+import {
+  agencies,
+  customers,
+  reservations,
+  loyaltyAccounts,
+  loyaltyLedger,
+} from "@/lib/db/schema"
 import {
   earnPendingPoints,
   convertPendingToAvailable,
@@ -49,8 +55,18 @@ before(async () => {
   agencyB = randomUUID()
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, slug: `loy-a-${agencyA}`, name: "Loyalty Test Agency A", agencyType: "ota" },
-      { id: agencyB, slug: `loy-b-${agencyB}`, name: "Loyalty Test Agency B", agencyType: "ota" },
+      {
+        id: agencyA,
+        slug: `loy-a-${agencyA}`,
+        name: "Loyalty Test Agency A",
+        agencyType: "ota",
+      },
+      {
+        id: agencyB,
+        slug: `loy-b-${agencyB}`,
+        name: "Loyalty Test Agency B",
+        agencyType: "ota",
+      },
     ])
   })
 })
@@ -63,7 +79,12 @@ async function freshCustomer(agencyId: string): Promise<string> {
   return withSystemContext(async (tx) => {
     const [c] = await tx
       .insert(customers)
-      .values({ agencyId, firstName: "Loy", lastName: "Test", email: `loy-${randomUUID()}@example.com` })
+      .values({
+        agencyId,
+        firstName: "Loy",
+        lastName: "Test",
+        email: `loy-${randomUUID()}@example.com`,
+      })
       .returning({ id: customers.id })
     return c!.id
   })
@@ -74,8 +95,12 @@ after(async () => {
   await withSystemContext(async (tx) => {
     await tx.delete(loyaltyLedger).where(eq(loyaltyLedger.agencyId, agencyA))
     await tx.delete(loyaltyLedger).where(eq(loyaltyLedger.agencyId, agencyB))
-    await tx.delete(loyaltyAccounts).where(eq(loyaltyAccounts.agencyId, agencyA))
-    await tx.delete(loyaltyAccounts).where(eq(loyaltyAccounts.agencyId, agencyB))
+    await tx
+      .delete(loyaltyAccounts)
+      .where(eq(loyaltyAccounts.agencyId, agencyA))
+    await tx
+      .delete(loyaltyAccounts)
+      .where(eq(loyaltyAccounts.agencyId, agencyB))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyA))
     await tx.delete(customers).where(eq(customers.agencyId, agencyA))
     await tx.delete(customers).where(eq(customers.agencyId, agencyB))
@@ -146,7 +171,9 @@ test("earnPendingPoints : module éligible (hotel) → points crédités en pend
   assert.equal(result.awarded, true)
   assert.equal(result.points, 750)
 
-  const summary = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const summary = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(summary?.pendingPoints, 750)
   assert.equal(summary?.availablePoints, 0)
   assert.equal(summary?.lifetimeEarnedPoints, 750)
@@ -158,19 +185,45 @@ test("earnPendingPoints : idempotence — rejouer la même clé n'attribue jamai
   const reservationId = randomUUID()
   const key = `earn-pending:${reservationId}`
   const first = await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId, module: "package", eligibleTnd: 300, idempotencyKey: key }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId,
+      module: "package",
+      eligibleTnd: 300,
+      idempotencyKey: key,
+    }),
   )
   assert.equal(first.ok && first.awarded, true)
 
-  const before = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const before = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
 
   const second = await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId, module: "package", eligibleTnd: 300, idempotencyKey: key }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId,
+      module: "package",
+      eligibleTnd: 300,
+      idempotencyKey: key,
+    }),
   )
-  assert.equal(second.ok && second.awarded, false, "le second appel avec la même clé ne doit rien attribuer")
+  assert.equal(
+    second.ok && second.awarded,
+    false,
+    "le second appel avec la même clé ne doit rien attribuer",
+  )
 
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  assert.equal(after?.pendingPoints, before?.pendingPoints, "aucun double crédit")
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  assert.equal(
+    after?.pendingPoints,
+    before?.pendingPoints,
+    "aucun double crédit",
+  )
 })
 
 test("earnPendingPoints : CONCURRENCE RÉELLE — deux earn simultanés (clés différentes) ne se marchent jamais dessus", async (t) => {
@@ -178,22 +231,44 @@ test("earnPendingPoints : CONCURRENCE RÉELLE — deux earn simultanés (clés d
   const customerId = await freshCustomer(agencyA)
   const r1 = randomUUID()
   const r2 = randomUUID()
-  const before = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const before = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   const beforePending = before?.pendingPoints ?? 0
 
   const [res1, res2] = await Promise.all([
     withTenantContext(tenantA(), (tx) =>
-      earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: r1, module: "hotel", eligibleTnd: 100, idempotencyKey: `earn-pending:${r1}` }),
+      earnPendingPoints(tx, {
+        agencyId: agencyA,
+        customerId,
+        reservationId: r1,
+        module: "hotel",
+        eligibleTnd: 100,
+        idempotencyKey: `earn-pending:${r1}`,
+      }),
     ),
     withTenantContext(tenantA(), (tx) =>
-      earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: r2, module: "hotel", eligibleTnd: 200, idempotencyKey: `earn-pending:${r2}` }),
+      earnPendingPoints(tx, {
+        agencyId: agencyA,
+        customerId,
+        reservationId: r2,
+        module: "hotel",
+        eligibleTnd: 200,
+        idempotencyKey: `earn-pending:${r2}`,
+      }),
     ),
   ])
   assert.equal(res1.ok && res1.awarded, true)
   assert.equal(res2.ok && res2.awarded, true)
 
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  assert.equal(after?.pendingPoints, beforePending + 300, "les deux crédits concurrents doivent tous les deux s'appliquer, sans écrasement")
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  assert.equal(
+    after?.pendingPoints,
+    beforePending + 300,
+    "les deux crédits concurrents doivent tous les deux s'appliquer, sans écrasement",
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -206,23 +281,52 @@ test("convertPendingToAvailable : convertit exactement les points de CETTE rése
   const rConvert = randomUUID()
   const rOther = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rConvert, module: "activity", eligibleTnd: 400, idempotencyKey: `earn-pending:${rConvert}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rConvert,
+      module: "activity",
+      eligibleTnd: 400,
+      idempotencyKey: `earn-pending:${rConvert}`,
+    }),
   )
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rOther, module: "activity", eligibleTnd: 150, idempotencyKey: `earn-pending:${rOther}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rOther,
+      module: "activity",
+      eligibleTnd: 150,
+      idempotencyKey: `earn-pending:${rOther}`,
+    }),
   )
 
   const result = await withTenantContext(tenantA(), (tx) =>
-    convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rConvert, idempotencyKey: `convert:${rConvert}` }),
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rConvert,
+      idempotencyKey: `convert:${rConvert}`,
+    }),
   )
   assert.equal(result.ok, true)
   if (!result.ok) throw new Error("expected ok:true")
   assert.equal(result.converted, true)
   assert.equal(result.points, 400)
 
-  const summary = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  assert.equal(summary?.availablePoints, 400, "seuls les points de rConvert sont devenus disponibles")
-  assert.equal(summary?.pendingPoints, 150, "les points de rOther restent en attente")
+  const summary = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  assert.equal(
+    summary?.availablePoints,
+    400,
+    "seuls les points de rConvert sont devenus disponibles",
+  )
+  assert.equal(
+    summary?.pendingPoints,
+    150,
+    "les points de rOther restent en attente",
+  )
 })
 
 test("convertPendingToAvailable : idempotence — rejouer ne convertit jamais deux fois", async (t) => {
@@ -230,16 +334,41 @@ test("convertPendingToAvailable : idempotence — rejouer ne convertit jamais de
   const customerId = await freshCustomer(agencyA)
   const r = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: r, module: "hotel", eligibleTnd: 200, idempotencyKey: `earn-pending:${r}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      module: "hotel",
+      eligibleTnd: 200,
+      idempotencyKey: `earn-pending:${r}`,
+    }),
   )
   const key = `convert:${r}`
-  const first = await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: r, idempotencyKey: key }))
+  const first = await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      idempotencyKey: key,
+    }),
+  )
   assert.equal(first.ok && first.converted, true)
 
-  const before = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  const second = await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: r, idempotencyKey: key }))
+  const before = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  const second = await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      idempotencyKey: key,
+    }),
+  )
   assert.equal(second.ok && second.converted, false)
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(after?.availablePoints, before?.availablePoints)
   assert.equal(after?.pendingPoints, before?.pendingPoints)
 })
@@ -253,15 +382,31 @@ test("reverseEarnedPoints : reprend des points encore PENDING (jamais convertis)
   const customerId = await freshCustomer(agencyA)
   const r = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: r, module: "package", eligibleTnd: 600, idempotencyKey: `earn-pending:${r}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      module: "package",
+      eligibleTnd: 600,
+      idempotencyKey: `earn-pending:${r}`,
+    }),
   )
-  const result = await withTenantContext(tenantA(), (tx) => reverseEarnedPoints(tx, { agencyId: agencyA, customerId, reservationId: r, idempotencyKey: `reverse:${r}` }))
+  const result = await withTenantContext(tenantA(), (tx) =>
+    reverseEarnedPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      idempotencyKey: `reverse:${r}`,
+    }),
+  )
   assert.equal(result.ok, true)
   assert.equal(result.reversed, true)
   assert.equal(result.pointsReversedFromPending, 600)
   assert.equal(result.pointsReversedFromAvailable, 0)
 
-  const summary = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const summary = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(summary?.pendingPoints, 0)
 })
 
@@ -270,16 +415,41 @@ test("reverseEarnedPoints : reprend des points déjà AVAILABLE (post-complétio
   const customerId = await freshCustomer(agencyA)
   const r = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: r, module: "hotel", eligibleTnd: 350, idempotencyKey: `earn-pending:${r}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      module: "hotel",
+      eligibleTnd: 350,
+      idempotencyKey: `earn-pending:${r}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: r, idempotencyKey: `convert:${r}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      idempotencyKey: `convert:${r}`,
+    }),
+  )
 
-  const before = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  const result = await withTenantContext(tenantA(), (tx) => reverseEarnedPoints(tx, { agencyId: agencyA, customerId, reservationId: r, idempotencyKey: `reverse:${r}` }))
+  const before = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  const result = await withTenantContext(tenantA(), (tx) =>
+    reverseEarnedPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      idempotencyKey: `reverse:${r}`,
+    }),
+  )
   assert.equal(result.ok, true)
   assert.equal(result.pointsReversedFromAvailable, 350)
 
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(after!.availablePoints, before!.availablePoints - 350)
 })
 
@@ -288,9 +458,23 @@ test("reverseEarnedPoints : jamais un solde négatif — ne reprend que ce qui r
   const customerId = await freshCustomer(agencyA)
   const rEarn = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "activity", eligibleTnd: 2000, idempotencyKey: `earn-pending:${rEarn}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      module: "activity",
+      eligibleTnd: 2000,
+      idempotencyKey: `earn-pending:${rEarn}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `convert:${rEarn}`,
+    }),
+  )
 
   // Le client dépense une partie de ce solde disponible sur une AUTRE réservation.
   const rSpend = randomUUID()
@@ -305,16 +489,31 @@ test("reverseEarnedPoints : jamais un solde négatif — ne reprend que ce qui r
     }),
   )
 
-  const beforeReverse = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  assert.equal(beforeReverse?.availablePoints, 500, "2000 gagnés - 1500 dépensés = 500 restants")
+  const beforeReverse = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  assert.equal(
+    beforeReverse?.availablePoints,
+    500,
+    "2000 gagnés - 1500 dépensés = 500 restants",
+  )
 
-  const result = await withTenantContext(tenantA(), (tx) => reverseEarnedPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `reverse:${rEarn}` }))
+  const result = await withTenantContext(tenantA(), (tx) =>
+    reverseEarnedPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `reverse:${rEarn}`,
+    }),
+  )
   assert.equal(result.ok, true)
   // La réservation d'origine avait généré 2000 points, mais seuls 500 sont
   // encore effectivement sur le compte — jamais plus repris que ça, jamais négatif.
   assert.equal(result.pointsReversedFromAvailable, 500)
 
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(after?.availablePoints, 0)
   assert.ok(after!.availablePoints >= 0, "jamais un solde négatif")
 })
@@ -328,7 +527,14 @@ test("redeemPoints : sous le minimum (1000) → refusé", async (t) => {
   const customerId = await freshCustomer(agencyA)
   const r = randomUUID()
   const result = await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: r, targetReservationEligibleTnd: 100000, pointsToRedeem: 500, idempotencyKey: `redeem:${r}` }),
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: r,
+      targetReservationEligibleTnd: 100000,
+      pointsToRedeem: 500,
+      idempotencyKey: `redeem:${r}`,
+    }),
   )
   assert.equal(result.ok, false)
   if (result.ok) throw new Error("expected ok:false")
@@ -341,7 +547,14 @@ test("redeemPoints : au-dessus de 10% du montant éligible de la réservation ci
   const r = randomUUID()
   // 10% de 100 TND = 10 TND = 1000 points max.
   const result = await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: r, targetReservationEligibleTnd: 100, pointsToRedeem: 1500, idempotencyKey: `redeem:${r}` }),
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: r,
+      targetReservationEligibleTnd: 100,
+      pointsToRedeem: 1500,
+      idempotencyKey: `redeem:${r}`,
+    }),
   )
   assert.equal(result.ok, false)
   if (result.ok) throw new Error("expected ok:false")
@@ -353,13 +566,34 @@ test("redeemPoints : solde disponible insuffisant → refusé", async (t) => {
   const customerId = await freshCustomer(agencyA)
   const rEarn = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "hotel", eligibleTnd: 1000, idempotencyKey: `earn-pending:${rEarn}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      module: "hotel",
+      eligibleTnd: 1000,
+      idempotencyKey: `earn-pending:${rEarn}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `convert:${rEarn}`,
+    }),
+  )
 
   const rSpend = randomUUID()
   const result = await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 1000000, pointsToRedeem: 5000, idempotencyKey: `redeem:${rSpend}` }),
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 1000000,
+      pointsToRedeem: 5000,
+      idempotencyKey: `redeem:${rSpend}`,
+    }),
   )
   assert.equal(result.ok, false)
   if (result.ok) throw new Error("expected ok:false")
@@ -371,20 +605,43 @@ test("redeemPoints : succès — décrémente le solde exact, jamais un montant 
   const customerId = await freshCustomer(agencyA)
   const rEarn = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "hotel", eligibleTnd: 2000, idempotencyKey: `earn-pending:${rEarn}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      module: "hotel",
+      eligibleTnd: 2000,
+      idempotencyKey: `earn-pending:${rEarn}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `convert:${rEarn}`,
+    }),
+  )
 
   const rSpend = randomUUID()
   const result = await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 100000, pointsToRedeem: 1200, idempotencyKey: `redeem:${rSpend}` }),
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 100000,
+      pointsToRedeem: 1200,
+      idempotencyKey: `redeem:${rSpend}`,
+    }),
   )
   assert.equal(result.ok, true)
   if (!result.ok) throw new Error("expected ok:true")
   assert.equal(result.points, 1200)
   assert.equal(result.tndEquivalent, 12)
 
-  const summary = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const summary = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(summary?.availablePoints, 800)
   assert.equal(summary?.lifetimeRedeemedPoints, 1200)
 })
@@ -394,25 +651,69 @@ test("redeemPoints : idempotence — rejouer la même clé ne dépense jamais de
   const customerId = await freshCustomer(agencyA)
   const rEarn = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "hotel", eligibleTnd: 2000, idempotencyKey: `earn-pending:${rEarn}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      module: "hotel",
+      eligibleTnd: 2000,
+      idempotencyKey: `earn-pending:${rEarn}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `convert:${rEarn}`,
+    }),
+  )
 
   const rSpend = randomUUID()
   const key = `redeem:${rSpend}`
   const first = await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 100000, pointsToRedeem: 1200, idempotencyKey: key }),
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 100000,
+      pointsToRedeem: 1200,
+      idempotencyKey: key,
+    }),
   )
   assert.equal(first.ok, true)
 
-  const before = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  const second = await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 100000, pointsToRedeem: 1200, idempotencyKey: key }),
+  const before = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
   )
-  assert.equal(second.ok, true, "rejouer la même clé renvoie ok:true (résultat déjà obtenu), jamais une erreur")
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  assert.equal(after?.availablePoints, before?.availablePoints, "aucun débit supplémentaire au second appel")
-  assert.equal(after?.lifetimeRedeemedPoints, before?.lifetimeRedeemedPoints, "aucun double comptage du cumul dépensé")
+  const second = await withTenantContext(tenantA(), (tx) =>
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 100000,
+      pointsToRedeem: 1200,
+      idempotencyKey: key,
+    }),
+  )
+  assert.equal(
+    second.ok,
+    true,
+    "rejouer la même clé renvoie ok:true (résultat déjà obtenu), jamais une erreur",
+  )
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  assert.equal(
+    after?.availablePoints,
+    before?.availablePoints,
+    "aucun débit supplémentaire au second appel",
+  )
+  assert.equal(
+    after?.lifetimeRedeemedPoints,
+    before?.lifetimeRedeemedPoints,
+    "aucun double comptage du cumul dépensé",
+  )
 })
 
 test("redeemPoints : PLAFOND CUMULATIF (Phase 38E, gap confirmé) — deux rédemptions successives sous le plafond individuel mais dépassant ensemble 10% de la réservation → la seconde est refusée", async (t) => {
@@ -421,9 +722,23 @@ test("redeemPoints : PLAFOND CUMULATIF (Phase 38E, gap confirmé) — deux réde
   const rEarn = randomUUID()
   // Solde disponible large, pour isoler le test sur le plafond (pas le solde).
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "hotel", eligibleTnd: 50000, idempotencyKey: `earn-pending:${rEarn}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      module: "hotel",
+      eligibleTnd: 50000,
+      idempotencyKey: `earn-pending:${rEarn}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `convert:${rEarn}`,
+    }),
+  )
 
   // Réservation cible : 1000 TND éligibles → plafond 10% = 10000 points.
   const rSpend = randomUUID()
@@ -437,7 +752,11 @@ test("redeemPoints : PLAFOND CUMULATIF (Phase 38E, gap confirmé) — deux réde
       idempotencyKey: `redeem:${rSpend}:1`,
     }),
   )
-  assert.equal(first.ok, true, "6000 points, sous le plafond individuel de 10000 → accepté")
+  assert.equal(
+    first.ok,
+    true,
+    "6000 points, sous le plafond individuel de 10000 → accepté",
+  )
 
   // Avant le correctif : ce second appel (6000 pts, lui aussi sous le
   // plafond INDIVIDUEL de 10000) était accepté à tort — cumul réel
@@ -456,7 +775,11 @@ test("redeemPoints : PLAFOND CUMULATIF (Phase 38E, gap confirmé) — deux réde
       idempotencyKey: `redeem:${rSpend}:2`,
     }),
   )
-  assert.equal(second.ok, false, "le cumul (6000+6000=12000) dépasse le plafond de 10000 — doit être refusé")
+  assert.equal(
+    second.ok,
+    false,
+    "le cumul (6000+6000=12000) dépasse le plafond de 10000 — doit être refusé",
+  )
   if (second.ok) throw new Error("expected ok:false")
   assert.equal(second.code, "ABOVE_MAXIMUM")
 
@@ -472,10 +795,20 @@ test("redeemPoints : PLAFOND CUMULATIF (Phase 38E, gap confirmé) — deux réde
       idempotencyKey: `redeem:${rSpend}:3`,
     }),
   )
-  assert.equal(third.ok, true, "4000 points restants sous le plafond cumulatif de 10000 → accepté")
+  assert.equal(
+    third.ok,
+    true,
+    "4000 points restants sous le plafond cumulatif de 10000 → accepté",
+  )
 
-  const summary = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
-  assert.equal(summary?.lifetimeRedeemedPoints, 10000, "exactement 10000 points dépensés au total sur cette réservation, jamais plus")
+  const summary = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
+  assert.equal(
+    summary?.lifetimeRedeemedPoints,
+    10000,
+    "exactement 10000 points dépensés au total sur cette réservation, jamais plus",
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -487,23 +820,55 @@ test("reinstateRedeemedPoints : restitue exactement ce qui a été dépensé sur
   const customerId = await freshCustomer(agencyA)
   const rEarn = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "hotel", eligibleTnd: 3000, idempotencyKey: `earn-pending:${rEarn}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      module: "hotel",
+      eligibleTnd: 3000,
+      idempotencyKey: `earn-pending:${rEarn}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `convert:${rEarn}`,
+    }),
+  )
 
   const rSpend = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 100000, pointsToRedeem: 1000, idempotencyKey: `redeem:${rSpend}` }),
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 100000,
+      pointsToRedeem: 1000,
+      idempotencyKey: `redeem:${rSpend}`,
+    }),
   )
-  const afterRedeem = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const afterRedeem = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(afterRedeem?.availablePoints, 2000)
 
-  const result = await withTenantContext(tenantA(), (tx) => reinstateRedeemedPoints(tx, { agencyId: agencyA, customerId, reservationId: rSpend, idempotencyKey: `reinstate:${rSpend}` }))
+  const result = await withTenantContext(tenantA(), (tx) =>
+    reinstateRedeemedPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rSpend,
+      idempotencyKey: `reinstate:${rSpend}`,
+    }),
+  )
   assert.equal(result.ok, true)
   assert.equal(result.reinstated, true)
   assert.equal(result.points, 1000)
 
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(after?.availablePoints, 3000)
 })
 
@@ -512,22 +877,61 @@ test("reinstateRedeemedPoints : idempotence — rejouer ne restitue jamais deux 
   const customerId = await freshCustomer(agencyA)
   const rEarn = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: rEarn, module: "activity", eligibleTnd: 3000, idempotencyKey: `earn-pending:${rEarn}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      module: "activity",
+      eligibleTnd: 3000,
+      idempotencyKey: `earn-pending:${rEarn}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: rEarn, idempotencyKey: `convert:${rEarn}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rEarn,
+      idempotencyKey: `convert:${rEarn}`,
+    }),
+  )
   const rSpend = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    redeemPoints(tx, { agencyId: agencyA, customerId, targetReservationId: rSpend, targetReservationEligibleTnd: 100000, pointsToRedeem: 1000, idempotencyKey: `redeem:${rSpend}` }),
+    redeemPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      targetReservationId: rSpend,
+      targetReservationEligibleTnd: 100000,
+      pointsToRedeem: 1000,
+      idempotencyKey: `redeem:${rSpend}`,
+    }),
   )
 
   const key = `reinstate:${rSpend}`
-  const first = await withTenantContext(tenantA(), (tx) => reinstateRedeemedPoints(tx, { agencyId: agencyA, customerId, reservationId: rSpend, idempotencyKey: key }))
+  const first = await withTenantContext(tenantA(), (tx) =>
+    reinstateRedeemedPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rSpend,
+      idempotencyKey: key,
+    }),
+  )
   assert.equal(first.ok && first.reinstated, true)
-  const before = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const before = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
 
-  const second = await withTenantContext(tenantA(), (tx) => reinstateRedeemedPoints(tx, { agencyId: agencyA, customerId, reservationId: rSpend, idempotencyKey: key }))
+  const second = await withTenantContext(tenantA(), (tx) =>
+    reinstateRedeemedPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: rSpend,
+      idempotencyKey: key,
+    }),
+  )
   assert.equal(second.ok && second.reinstated, false)
-  const after = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const after = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(after?.availablePoints, before?.availablePoints)
 })
 
@@ -540,10 +944,24 @@ test("isolation tenant : le solde d'un client de l'agence A est invisible depuis
   const customerId = await freshCustomer(agencyA)
   const r = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: r, module: "hotel", eligibleTnd: 900, idempotencyKey: `earn-pending:${r}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      module: "hotel",
+      eligibleTnd: 900,
+      idempotencyKey: `earn-pending:${r}`,
+    }),
   )
-  const fromB = await withTenantContext({ agencyId: agencyB, userId: "", isSuperAdmin: false }, (tx) => getLoyaltyAccountSummary(tx, customerId))
-  assert.equal(fromB, null, "l'agence B ne doit jamais voir le compte fidélité d'un client de l'agence A")
+  const fromB = await withTenantContext(
+    { agencyId: agencyB, userId: "", isSuperAdmin: false },
+    (tx) => getLoyaltyAccountSummary(tx, customerId),
+  )
+  assert.equal(
+    fromB,
+    null,
+    "l'agence B ne doit jamais voir le compte fidélité d'un client de l'agence A",
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -555,22 +973,43 @@ test("expireInactiveAccountsForAgency : expire un compte inactif depuis plus de 
   const customerId = await freshCustomer(agencyA)
   const r = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId: r, module: "hotel", eligibleTnd: 500, idempotencyKey: `earn-pending:${r}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      module: "hotel",
+      eligibleTnd: 500,
+      idempotencyKey: `earn-pending:${r}`,
+    }),
   )
-  await withTenantContext(tenantA(), (tx) => convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId: r, idempotencyKey: `convert:${r}` }))
+  await withTenantContext(tenantA(), (tx) =>
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId: r,
+      idempotencyKey: `convert:${r}`,
+    }),
+  )
 
   // Force la dernière activité à 25 mois dans le passé (simulateur d'horloge, pas une vraie attente).
   const twentyFiveMonthsAgo = new Date()
   twentyFiveMonthsAgo.setMonth(twentyFiveMonthsAgo.getMonth() - 25)
   await withSystemContext((tx) =>
-    tx.update(loyaltyAccounts).set({ lastActivityAt: twentyFiveMonthsAgo }).where(eq(loyaltyAccounts.customerId, customerId)),
+    tx
+      .update(loyaltyAccounts)
+      .set({ lastActivityAt: twentyFiveMonthsAgo })
+      .where(eq(loyaltyAccounts.customerId, customerId)),
   )
 
-  const result = await withTenantContext(tenantA(), (tx) => expireInactiveAccountsForAgency(tx, { agencyId: agencyA }))
+  const result = await withTenantContext(tenantA(), (tx) =>
+    expireInactiveAccountsForAgency(tx, { agencyId: agencyA }),
+  )
   assert.equal(result.accountsExpired, 1)
   assert.equal(result.totalPointsExpired, 500)
 
-  const summary = await withTenantContext(tenantA(), (tx) => getLoyaltyAccountSummary(tx, customerId))
+  const summary = await withTenantContext(tenantA(), (tx) =>
+    getLoyaltyAccountSummary(tx, customerId),
+  )
   assert.equal(summary?.availablePoints, 0)
   assert.equal(summary?.pendingPoints, 0)
 })
@@ -580,9 +1019,18 @@ test("expireInactiveAccountsForAgency : n'expire jamais un compte actif récemme
   const customerId = await freshCustomer(agencyA)
   const r = randomUUID()
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId: customerId, reservationId: r, module: "hotel", eligibleTnd: 100, idempotencyKey: `earn-pending:${r}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId: customerId,
+      reservationId: r,
+      module: "hotel",
+      eligibleTnd: 100,
+      idempotencyKey: `earn-pending:${r}`,
+    }),
   )
-  const result = await withTenantContext(tenantA(), (tx) => expireInactiveAccountsForAgency(tx, { agencyId: agencyA }))
+  const result = await withTenantContext(tenantA(), (tx) =>
+    expireInactiveAccountsForAgency(tx, { agencyId: agencyA }),
+  )
   // Le compte a une activité fraîche (vient d'être créé/mis à jour) : ne doit pas apparaître.
   assert.equal(result.accountsExpired, 0)
 })
@@ -614,13 +1062,27 @@ test("listLoyaltyLedgerForCustomer : expose earn/convert/redeem/reverse avec la 
   })
 
   await withTenantContext(tenantA(), (tx) =>
-    earnPendingPoints(tx, { agencyId: agencyA, customerId, reservationId, module: "hotel", eligibleTnd: 500, idempotencyKey: `earn-pending:${reservationId}` }),
+    earnPendingPoints(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId,
+      module: "hotel",
+      eligibleTnd: 500,
+      idempotencyKey: `earn-pending:${reservationId}`,
+    }),
   )
   await withTenantContext(tenantA(), (tx) =>
-    convertPendingToAvailable(tx, { agencyId: agencyA, customerId, reservationId, idempotencyKey: `convert:${reservationId}` }),
+    convertPendingToAvailable(tx, {
+      agencyId: agencyA,
+      customerId,
+      reservationId,
+      idempotencyKey: `convert:${reservationId}`,
+    }),
   )
 
-  const history = await withTenantContext(tenantA(), (tx) => listLoyaltyLedgerForCustomer(tx, customerId, 20))
+  const history = await withTenantContext(tenantA(), (tx) =>
+    listLoyaltyLedgerForCustomer(tx, customerId, 20),
+  )
 
   // Le type de retour de `listLoyaltyLedgerForCustomer` exclut déjà
   // "convert_pending_out" par construction (LoyaltyLedgerDisplayType) — ce
@@ -633,9 +1095,16 @@ test("listLoyaltyLedgerForCustomer : expose earn/convert/redeem/reverse avec la 
     "jamais la moitié interne 'sortie' d'une conversion — déjà racontée par convert_available_in",
   )
   const earnEntry = history.find((h) => h.type === "earn_pending")
-  assert.ok(earnEntry, "l'événement earn_pending doit apparaître dans l'historique")
+  assert.ok(
+    earnEntry,
+    "l'événement earn_pending doit apparaître dans l'historique",
+  )
   assert.equal(earnEntry!.points, 500)
-  assert.equal(earnEntry!.reservationPublicRef, publicRef, "la référence publique de réservation est exposée via jointure")
+  assert.equal(
+    earnEntry!.reservationPublicRef,
+    publicRef,
+    "la référence publique de réservation est exposée via jointure",
+  )
   assert.equal(
     JSON.stringify(earnEntry).includes(reservationId),
     false,
@@ -649,7 +1118,14 @@ test("listLoyaltyLedgerForCustomer : expose earn/convert/redeem/reverse avec la 
 
   for (const key of Object.keys(earnEntry as object)) {
     assert.ok(
-      ["type", "bucket", "points", "createdAt", "reservationPublicRef", "reservationModule"].includes(key),
+      [
+        "type",
+        "bucket",
+        "points",
+        "createdAt",
+        "reservationPublicRef",
+        "reservationModule",
+      ].includes(key),
       `champ inattendu exposé côté client : ${key}`,
     )
   }

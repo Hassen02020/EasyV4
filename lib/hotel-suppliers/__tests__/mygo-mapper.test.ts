@@ -1,6 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { mapMyGoHotelSummary, mapMyGoOfferToRates, encodeMyGoSupplierToken, decodeMyGoSupplierToken } from "../mygo/mapper"
+import {
+  mapMyGoHotelSummary,
+  mapMyGoOfferToRates,
+  encodeMyGoSupplierToken,
+  decodeMyGoSupplierToken,
+} from "../mygo/mapper"
 import type { HotelOfferDTO, HotelSummaryDTO } from "@/lib/mygo/types"
 
 function summary(overrides: Partial<HotelSummaryDTO> = {}): HotelSummaryDTO {
@@ -24,11 +29,19 @@ test("mapMyGoHotelSummary : conserve le mapping fournisseur mygo et convertit le
   assert.equal(hotel.name, "El Mouradi Gammarth")
   assert.equal(hotel.latitude, 36.9)
   assert.equal(hotel.longitude, 10.3)
-  assert.deepEqual(hotel.supplierMappings, [{ supplier: "mygo", supplierHotelCode: "500001" }])
+  assert.deepEqual(hotel.supplierMappings, [
+    { supplier: "mygo", supplierHotelCode: "500001" },
+  ])
 })
 
 test("encode/decodeMyGoSupplierToken : round-trip fidèle, jamais interprété ailleurs que par ce driver", () => {
-  const input = { cityId: 1, hotelId: 500001, boardingId: 7, roomId: 42, searchToken: "abc-search-token" }
+  const input = {
+    cityId: 1,
+    hotelId: 500001,
+    boardingId: 7,
+    roomId: 42,
+    searchToken: "abc-search-token",
+  }
   const encoded = encodeMyGoSupplierToken(input)
   const decoded = decodeMyGoSupplierToken(encoded)
   assert.deepEqual(decoded, input)
@@ -58,7 +71,14 @@ test("mapMyGoOfferToRates : une offre avec 2 boardings x 1 room devient 2 Normal
                 basePrice: 400,
                 stopReservation: false,
                 notRefundable: false,
-                cancellationPolicies: [{ fees: 0, type: "PRICE", nature: "BEFORE_ARRIVAL", fromDate: "2026-09-05" }],
+                cancellationPolicies: [
+                  {
+                    fees: 0,
+                    type: "PRICE",
+                    nature: "BEFORE_ARRIVAL",
+                    fromDate: "2026-09-05",
+                  },
+                ],
               },
             ],
           },
@@ -80,7 +100,14 @@ test("mapMyGoOfferToRates : une offre avec 2 boardings x 1 room devient 2 Normal
                 basePrice: 470,
                 stopReservation: false,
                 notRefundable: true,
-                cancellationPolicies: [{ fees: 50, type: "PRICE", nature: "BEFORE_ARRIVAL", fromDate: "2026-09-01" }],
+                cancellationPolicies: [
+                  {
+                    fees: 50,
+                    type: "PRICE",
+                    nature: "BEFORE_ARRIVAL",
+                    fromDate: "2026-09-01",
+                  },
+                ],
               },
             ],
           },
@@ -122,7 +149,16 @@ test("mapMyGoOfferToRates : room bloquée (stopReservation) devient ON_REQUEST, 
           {
             adult: 2,
             child: [],
-            rooms: [{ id: 1, name: "Suite", price: 300, stopReservation: true, notRefundable: false, cancellationPolicies: [] }],
+            rooms: [
+              {
+                id: 1,
+                name: "Suite",
+                price: 300,
+                stopReservation: true,
+                notRefundable: false,
+                cancellationPolicies: [],
+              },
+            ],
           },
         ],
       },
@@ -148,7 +184,16 @@ test("mapMyGoOfferToRates : fournisseur sans info d'annulation -> UNKNOWN, jamai
           {
             adult: 2,
             child: [],
-            rooms: [{ id: 1, name: "Suite", price: 300, stopReservation: false, notRefundable: false, cancellationPolicies: [] }],
+            rooms: [
+              {
+                id: 1,
+                name: "Suite",
+                price: 300,
+                stopReservation: false,
+                notRefundable: false,
+                cancellationPolicies: [],
+              },
+            ],
           },
         ],
       },

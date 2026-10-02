@@ -13,7 +13,10 @@
 "use server"
 
 import { and, eq, isNull, lte, or, gte } from "drizzle-orm"
-import { withPublicAgencyContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  withPublicAgencyContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
 import { carPricingRates, pricingMargins } from "@/lib/db/schema"
 import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
 
@@ -81,8 +84,14 @@ export async function calculateCarPrice(
           eq(carPricingRates.agencyId, input.agencyId),
           eq(carPricingRates.categoryId, input.categoryId),
           eq(carPricingRates.isActive, true),
-          or(isNull(carPricingRates.validFrom), lte(carPricingRates.validFrom, today)),
-          or(isNull(carPricingRates.validTo), gte(carPricingRates.validTo, today)),
+          or(
+            isNull(carPricingRates.validFrom),
+            lte(carPricingRates.validFrom, today),
+          ),
+          or(
+            isNull(carPricingRates.validTo),
+            gte(carPricingRates.validTo, today),
+          ),
         ),
       ),
   )
@@ -94,7 +103,9 @@ export async function calculateCarPrice(
   if (rentalDays < rate.minRentalDays) return null
 
   const dailyRateTnd = Number(rate.dailyRateTnd)
-  const weeklyRateTnd = rate.weeklyRateTnd ? Number(rate.weeklyRateTnd) : undefined
+  const weeklyRateTnd = rate.weeklyRateTnd
+    ? Number(rate.weeklyRateTnd)
+    : undefined
 
   let baseTotalTnd: number
   if (weeklyRateTnd && rentalDays >= 7) {

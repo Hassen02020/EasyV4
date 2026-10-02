@@ -14,7 +14,11 @@
  */
 
 import { getRedis } from "@/lib/cache/redis"
-import { CircuitBreaker, type CircuitState, type CircuitOptions } from "./circuit-breaker"
+import {
+  CircuitBreaker,
+  type CircuitState,
+  type CircuitOptions,
+} from "./circuit-breaker"
 
 export class RedisCircuitBreaker {
   private readonly localFallback: CircuitBreaker
@@ -61,11 +65,10 @@ export class RedisCircuitBreaker {
     if (!redis) return
 
     try {
-      await Promise.all([
-        redis.del(this.stateKey),
-        redis.del(this.failuresKey),
-      ])
-    } catch { /* non-bloquant */ }
+      await Promise.all([redis.del(this.stateKey), redis.del(this.failuresKey)])
+    } catch {
+      /* non-bloquant */
+    }
   }
 
   /**
@@ -95,13 +98,15 @@ export class RedisCircuitBreaker {
       // Transition OPEN → HALF_OPEN gérée automatiquement par l'expiration TTL
       // (la clé state disparaît après coolDownSec → getState() retourne CLOSED,
       //  le prochain appel beforeCall() passera → HALF_OPEN implicite)
-    } catch { /* non-bloquant — état local utilisé en fallback */ }
+    } catch {
+      /* non-bloquant — état local utilisé en fallback */
+    }
   }
 }
 
 const DEFAULTS: CircuitOptions = {
   failureThreshold: 5,
-  windowMs: 60_000,   // 1 minute
+  windowMs: 60_000, // 1 minute
   coolDownMs: 120_000, // 2 minutes
 }
 
@@ -153,7 +158,10 @@ export class SyncRedisCircuitBreaker extends CircuitBreaker {
 
   override onFailure(): void {
     super.onFailure()
-    this.redis.onFailure().then(() => this.forceRefresh()).catch(() => {})
+    this.redis
+      .onFailure()
+      .then(() => this.forceRefresh())
+      .catch(() => {})
   }
 
   private scheduleRefresh() {
@@ -184,7 +192,9 @@ export class SyncRedisCircuitBreaker extends CircuitBreaker {
         ;(this as unknown as { failures: number[] }).failures = []
         ;(this as unknown as { openedAt: number | null }).openedAt = null
       }
-    } catch { /* non-bloquant */ }
+    } catch {
+      /* non-bloquant */
+    }
   }
 }
 

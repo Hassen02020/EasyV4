@@ -42,7 +42,9 @@ export interface HotelSupplierDriver {
   checkRate(request: CheckRateRequest): Promise<CheckRateResult>
   book(request: SupplierBookingRequest): Promise<SupplierBookingResult>
   getBooking(request: SupplierBookingLookup): Promise<SupplierBooking>
-  cancel(request: SupplierCancellationRequest): Promise<SupplierCancellationResult>
+  cancel(
+    request: SupplierCancellationRequest,
+  ): Promise<SupplierCancellationResult>
 
   /**
    * PHASE 27.2 — best-effort, lecture seule : retrouve une réservation créée
@@ -52,7 +54,9 @@ export interface HotelSupplierDriver {
    * interprété comme "certainement pas créée" et pourrait déclencher un
    * second BOOK dangereux.
    */
-  reconcileBooking(request: SupplierBookingReconciliationRequest): Promise<SupplierBookingReconciliationResult>
+  reconcileBooking(
+    request: SupplierBookingReconciliationRequest,
+  ): Promise<SupplierBookingReconciliationResult>
 }
 
 export type { SupplierName, SupplierRunStatus }

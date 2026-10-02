@@ -13,7 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { StarRow } from "@/components/reviews/star-row"
 import { moderateReview } from "@/lib/admin/reviews-actions"
 import type { ReviewRow, ReviewStatus } from "@/lib/reviews/reviews-core"
@@ -37,7 +44,13 @@ const MODULE_LABEL: Record<string, string> = {
   activity: "Attraction",
 }
 
-function ModerateActions({ review, onModerated }: { review: ReviewRow; onModerated: (status: ReviewStatus) => void }) {
+function ModerateActions({
+  review,
+  onModerated,
+}: {
+  review: ReviewRow
+  onModerated: (status: ReviewStatus) => void
+}) {
   const [pending, setPending] = useState(false)
 
   function handle(status: "approved" | "rejected") {
@@ -47,7 +60,9 @@ function ModerateActions({ review, onModerated }: { review: ReviewRow; onModerat
       .then((result) => {
         if (result.ok) {
           onModerated(status)
-          toast.success(status === "approved" ? "Avis approuvé." : "Avis rejeté.")
+          toast.success(
+            status === "approved" ? "Avis approuvé." : "Avis rejeté.",
+          )
         } else {
           toast.error(result.error || "Échec de la modération.")
         }
@@ -63,14 +78,24 @@ function ModerateActions({ review, onModerated }: { review: ReviewRow; onModerat
       ) : (
         <>
           {review.status !== "approved" && (
-            <Button size="sm" variant="outline" className="gap-1" onClick={() => handle("approved")}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => handle("approved")}
+            >
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
               Approuver
             </Button>
           )}
           {review.status !== "rejected" && (
-            <Button size="sm" variant="outline" className="gap-1" onClick={() => handle("rejected")}>
-              <XCircle className="h-3.5 w-3.5 text-destructive" />
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => handle("rejected")}
+            >
+              <XCircle className="text-destructive h-3.5 w-3.5" />
               Rejeter
             </Button>
           )}
@@ -80,7 +105,11 @@ function ModerateActions({ review, onModerated }: { review: ReviewRow; onModerat
   )
 }
 
-export function ReviewsModerationTable({ reviews: initial }: { reviews: ReviewRow[] }) {
+export function ReviewsModerationTable({
+  reviews: initial,
+}: {
+  reviews: ReviewRow[]
+}) {
   const [reviews, setReviews] = useState(initial)
   const [statusFilter, setStatusFilter] = useState("pending")
 
@@ -124,7 +153,10 @@ export function ReviewsModerationTable({ reviews: initial }: { reviews: ReviewRo
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground py-8 text-center">
+                  <TableCell
+                    colSpan={6}
+                    className="text-muted-foreground py-8 text-center"
+                  >
                     Aucun avis ne correspond à ce filtre.
                   </TableCell>
                 </TableRow>
@@ -132,7 +164,9 @@ export function ReviewsModerationTable({ reviews: initial }: { reviews: ReviewRo
                 filtered.map((review) => (
                   <TableRow key={review.id}>
                     <TableCell>
-                      <Badge variant="outline">{MODULE_LABEL[review.module] ?? review.module}</Badge>
+                      <Badge variant="outline">
+                        {MODULE_LABEL[review.module] ?? review.module}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <StarRow rating={review.rating} size="size-3.5" />
@@ -145,7 +179,9 @@ export function ReviewsModerationTable({ reviews: initial }: { reviews: ReviewRo
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge className={STATUS_COLOR[review.status]}>{STATUS_LABEL[review.status]}</Badge>
+                      <Badge className={STATUS_COLOR[review.status]}>
+                        {STATUS_LABEL[review.status]}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(review.createdAt).toLocaleDateString("fr-FR", {
@@ -155,7 +191,12 @@ export function ReviewsModerationTable({ reviews: initial }: { reviews: ReviewRo
                       })}
                     </TableCell>
                     <TableCell>
-                      <ModerateActions review={review} onModerated={(status) => handleModerated(review.id, status)} />
+                      <ModerateActions
+                        review={review}
+                        onModerated={(status) =>
+                          handleModerated(review.id, status)
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 ))

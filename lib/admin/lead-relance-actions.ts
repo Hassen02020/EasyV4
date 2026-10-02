@@ -25,7 +25,9 @@ interface SupportStaffContext {
   agencyId: string
 }
 
-async function assertSupportStaff(allowed: readonly string[]): Promise<SupportStaffContext> {
+async function assertSupportStaff(
+  allowed: readonly string[],
+): Promise<SupportStaffContext> {
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -51,7 +53,8 @@ export async function getLeadRelanceSettings(): Promise<GetLeadRelanceSettingsRe
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const settings = await withTenantContext(
@@ -65,7 +68,9 @@ export async function getLeadRelanceSettings(): Promise<GetLeadRelanceSettingsRe
   }
 }
 
-export type UpdateLeadRelanceSettingsResult = { ok: true } | { ok: false; error: string }
+export type UpdateLeadRelanceSettingsResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function updateLeadRelanceSettings(input: {
   thresholdDays: number
@@ -77,19 +82,26 @@ export async function updateLeadRelanceSettings(input: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
-  if (!Number.isFinite(input.thresholdDays) || input.thresholdDays < 1 || input.thresholdDays > 90) {
+  if (
+    !Number.isFinite(input.thresholdDays) ||
+    input.thresholdDays < 1 ||
+    input.thresholdDays > 90
+  ) {
     return { ok: false, error: "Délai invalide (1 à 90 jours)." }
   }
 
   try {
-    await withTenantContext({ agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false }, (tx) =>
-      upsertLeadRelanceSettingsCore(tx, {
-        agencyId: ctx.agencyId,
-        thresholdDays: Math.round(input.thresholdDays),
-        isEnabled: input.isEnabled,
-      }),
+    await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) =>
+        upsertLeadRelanceSettingsCore(tx, {
+          agencyId: ctx.agencyId,
+          thresholdDays: Math.round(input.thresholdDays),
+          isEnabled: input.isEnabled,
+        }),
     )
     revalidatePath("/admin/support")
     return { ok: true }

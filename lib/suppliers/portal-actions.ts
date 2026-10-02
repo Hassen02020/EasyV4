@@ -438,7 +438,11 @@ export async function updateSupplierNodeStatusAction(
         type: "portal",
         level: "info",
         message: `Statut du nœud changé à "${input.status}" par ${user.id}`,
-        details: { nodeId: input.nodeId, status: input.status, actorUserId: user.id },
+        details: {
+          nodeId: input.nodeId,
+          status: input.status,
+          actorUserId: user.id,
+        },
       })
 
       return { ok: true as const }

@@ -37,9 +37,9 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 ## Chantier actif
 
 ```text
-ID: AUCUN — dernier chantier clos (ECON-ENTITLEMENTS-INTEGRITY-01) le 2026-10-01, en attente d'audit+proposition pour le prochain chantier (AUDIT NEXT → PROPOSITION → STOP → GO), jamais auto-enchaîné.
-Statut: ECONOMIC-MODEL-FREEZE-01 (D-01→D-03 validés, D-04 OPEN/bloqué — PR #80 mergée `9dc2db2`), VERIFY-RUNTIME-ROLE-01, NETWORK-NODE-VISIBILITY-01, FINANCIAL-E2E-01, ECON-BREAKDOWN-01, AGREEMENT-01, ECON-WIRING-01, ECON-PILOT-01-DEPRECATE, CURRENCY-DIM-01a, CURRENCY-DIM-01b, CURRENCY-DIM-01 (plomberie générique), WALLET-RACE-CI-01 (réconcilié DONE), R6-01-DB-CONSTRAINT, CURRENCY-DIM-02, LEDGER-INTEGRITY-01 et ECON-ENTITLEMENTS-INTEGRITY-01 CLÔTURÉS (voir ci-dessous). Le câblage réel Vols/Hotels-Monde sur la plomberie devise reste un chantier séparé, bloqué tant qu'aucun fournisseur réel (RateHawk avec clés, ou un GDS Vols) n'est connecté — à reprendre à ce moment-là, sur GO explicite uniquement. Chantiers antérieurs : R1-10, R1-07, R1-02, R6-02, R1-04/05/06/08, R1-03, R2-05, R3-01, R4-03, R7-03, R7-01, PROVIDER-CONNECTIVITY-BRIDGE (P2/P3/P4, Vols), SEC-RLS-02, JOURNEY-BUILDER-01, PLATFORM-COMMISSION-NETWORK-01, CART-DRIFT-01 et NAV-FIX-01 (N/A) clôturés. Incident DEPLOY-01 résolu le 2026-09-29 (CLAUDE.md).
-Branche: aucune (main)
+ID: FORMAT-CLEANUP-01
+Statut: EN COURS (2026-10-02) — pnpm format --write exécuté (794 fichiers), CI gate activé, PR en attente de merge.
+Branche: claude/easy2book-v6-modernization-7gyb5v
 ```
 
 ### ECON-ENTITLEMENTS-INTEGRITY-01 — CLÔTURÉ (2026-10-01)
@@ -49,6 +49,7 @@ Objectif : imposer l'append-only de `economic_entitlements` au niveau privilege 
 Migration `drizzle/manual/0092_econ_entitlements_integrity_01.sql` : REVOKE UPDATE, DELETE, TRUNCATE sur `economic_entitlements` pour `app_runtime, anon, authenticated, service_role`. Aucun index (plusieurs lignes par réservation attendues et correctes). Tests statiques étendus dans `lib/finance/__tests__/ledger-integrity-invariants.test.ts` : 5/5 (economicEntitlements ajouté aux 3 tests de mutation + 1 nouveau test migration 0092).
 
 VERIFIED AGAINST REAL POSTGRES (`crygnaichvlxavvbifqi`) :
+
 - 0 ligne UPDATE/DELETE/TRUNCATE résiduelle pour les 4 rôles ✅
 - SELECT+INSERT toujours actifs pour app_runtime ✅
 
@@ -57,10 +58,12 @@ VERIFIED AGAINST REAL POSTGRES (`crygnaichvlxavvbifqi`) :
 Objectif (Audit Commercial & Revenue 01, risques R-08 et R-09) : imposer l'append-only des ledgers au niveau privilege PostgreSQL (pas seulement par convention applicative) et ajouter une contrainte d'unicité sur la commission par réservation.
 
 Implémentation :
+
 - `drizzle/manual/0084_ledger_integrity_01.sql` : REVOKE UPDATE, DELETE, TRUNCATE sur `wallet_ledger`, `partner_credit_movements`, `commission_settlement_entries` pour `app_runtime, anon, authenticated, service_role`. CREATE UNIQUE INDEX `wallet_ledger_commission_per_reservation_uniq`.
 - `lib/finance/__tests__/ledger-integrity-invariants.test.ts` : 4 tests statiques — aucun UPDATE/DELETE/TRUNCATE Drizzle ou SQL brut sur ces tables dans le code applicatif, aucun upsert `onConflictDoUpdate`, contenu du fichier 0084 vérifié.
 
 Audit REVOKE (résumé) :
+
 - Rôle applicatif = `app_runtime` (confirmé 0069). Aucun UPDATE/DELETE sur les 3 tables dans lib/, app/, components/.
 - Fonctions SECURITY DEFINER (`credit_platform_commission`, `lock_agency_for_debit`) s'exécutent en tant que `postgres` — non affectées.
 - `service_role` Supabase client = auth.admin uniquement, jamais ces tables.
@@ -69,10 +72,11 @@ Audit REVOKE (résumé) :
 Tests : 4/4 OK (node --import tsx --test). Typecheck ✅. Lint ✅ (0 errors).
 Migration appliquée en production (`crygnaichvlxavvbifqi`) le 2026-10-01 via Supabase MCP.
 VERIFIED AGAINST REAL POSTGRES :
+
 - `information_schema.role_table_grants` : 0 ligne UPDATE/DELETE/TRUNCATE pour app_runtime/anon/authenticated/service_role sur les 3 tables ✅
 - `pg_indexes` : `wallet_ledger_commission_per_reservation_uniq` présent (`USING btree (reservation_id) WHERE type='commission' AND category='commission' AND reservation_id IS NOT NULL`) ✅
 - SELECT+INSERT toujours actifs pour `app_runtime` sur les 3 tables ✅
-Commit : `40c4a78` sur branche `claude/easy2book-v6-modernization-7gyb5v`. PR #103.
+  Commit : `40c4a78` sur branche `claude/easy2book-v6-modernization-7gyb5v`. PR #103.
 
 ### CURRENCY-DIM-02 — CLÔTURÉ (2026-10-01)
 
@@ -88,7 +92,7 @@ Preuves locales : 1244 PASS / 0 FAIL (1497 total, 253 SKIP). TypeScript propre s
 
 ### R6-01-DB-CONSTRAINT — CLÔTURÉ (2026-10-01)
 
-Objectif : garde-fou au niveau base de données (trigger) empêchant une transition invalide de `reservations.status`, en complément de la validation applicative existante (`isTransitionAllowed()`/`recordReservationTransition()`, lib/admin/reservation-status*.ts). Audit reconfirmé : ces fonctions valident bien chaque transition côté application sur les 22 sites réels d'écriture, mais `recordReservationTransition()` n'effectue PAS l'UPDATE lui-même (documenté dans son propre en-tête) — rien côté Postgres n'empêchait un UPDATE direct de la contourner entièrement.
+Objectif : garde-fou au niveau base de données (trigger) empêchant une transition invalide de `reservations.status`, en complément de la validation applicative existante (`isTransitionAllowed()`/`recordReservationTransition()`, lib/admin/reservation-status\*.ts). Audit reconfirmé : ces fonctions valident bien chaque transition côté application sur les 22 sites réels d'écriture, mais `recordReservationTransition()` n'effectue PAS l'UPDATE lui-même (documenté dans son propre en-tête) — rien côté Postgres n'empêchait un UPDATE direct de la contourner entièrement.
 
 Décision de portée trouvée pendant l'audit : trigger scopé à UPDATE uniquement, jamais INSERT — tous les `.insert(reservations)` réels posent `status: "pending"`, mais plusieurs fichiers de test légitimes insèrent directement des fixtures déjà `"confirmed"` pour isoler ce qu'ils testent ; contraindre l'INSERT aurait cassé ces fixtures sans corriger quoi que ce soit dans le périmètre de ce chantier.
 
@@ -208,6 +212,7 @@ Résultat final : 32/32 PASS — 0 FAIL — 0 SKIP
 ```
 
 Les deux corrections (fichiers de test uniquement, aucun changement applicatif, conforme au périmètre des deux GO) ont été poussées sur la branche `financial-e2e-01` (PR #85) : `18cfb97` (insertion d'une vraie ligne `reservations` avant `recordLineOutcomeCore(ok:true)`, `withTenantContext`+`txOverride` séparé par bras concurrent pour `debitPartnerCredit`) puis `5bf1659` (un second gap FK trouvé au run suivant — `customers.agency_id` également `onDelete:"restrict"`, jamais nettoyé dans `after()`, même fichier, même périmètre). Re-run CI réel après chaque push, logs bruts relus directement par l'orchestrateur (pas seulement l'affirmation d'un agent) :
+
 - run 1 (avant les 2 fixes) : `27 pass / 6 fail / 0 skip`.
 - run 2 (après fix FK partiel + fix RLS complet) : `32 pass / 1 fail / 0 skip` — les deux tests de concurrence `debitPartnerCredit` passent réellement sous RLS (`app_runtime`, non-bypass) pour la première fois.
 - run 3 (après le second fix FK) : **`32 pass / 0 fail / 0 skip`** — https://github.com/Hassen02020/EasyV4/actions/runs/36752274039/job/110013608391. `typecheck`/`lint`/`test`/`build` verts, `format` rouge (dette connue, PR #63, sans rapport).
@@ -260,10 +265,12 @@ Les deux ont déjà un verrouillage pessimiste row-level correct (`lock_agency_f
 **Écart réel = tests uniquement** : `lib/pro/__tests__/booking-actions.test.ts` et `lib/finance/__tests__/customer-wallet.test.ts` n'exerçaient ces fonctions qu'avec `dbOverride`/`txOverride` mockés, en single-thread — jamais deux appels concurrents contre un Postgres réel, contrairement à `lib/journeys/__tests__/journeys-core.test.ts` (pattern CAS de Journey Builder, déjà prouvé en conditions réelles). Un script manuel préexistant (`scripts/wallet-race-test.ts`, `npm run wallet:race`) démontrait déjà le principe du verrou `FOR UPDATE`, mais sur une réimplémentation simplifiée (`tx.update(agencies)` direct, pas `set_agency_deposit_balance()`), hors suite de tests automatisée (`npm test`), sans couverture du wallet client — ne comble donc pas l'écart.
 
 **Ce qui a été ajouté** (REUSE du pattern `journeys-core.test.ts`, aucune nouvelle primitive de concurrence) :
+
 - `lib/pro/__tests__/booking-actions-concurrency.test.ts`
 - `lib/finance/__tests__/customer-wallet-concurrency.test.ts`
 
 Chaque fichier prouve, contre un Postgres réel, deux scénarios par fonction de débit (deux appels `Promise.all` dans des transactions Drizzle séparées, jamais un `txOverride` partagé) :
+
 1. **Double-spend** : deux débits concurrents dont la somme dépasse le solde → exactement un réussit, l'autre `INSUFFICIENT_FUNDS`, solde final cohérent.
 2. **Lost update** : deux débits concurrents dont la somme ne dépasse pas le solde → les deux réussissent, solde final reflète les deux (pas de lecture périmée par la seconde transaction).
 
@@ -495,14 +502,14 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 ## Phase 6 — Financial & Booking
 
-| ID    | Chantier                                                       | État audit                                                                                                                                                                                                                                                                                                                                                                                                                                   | Critère de sortie                                                 |
-| ----- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| ID    | Chantier                                                       | État audit                                                                                                                                                                                                                                                                            | Critère de sortie          |
+| ----- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | R6-01 | Machine à états transitions validées serveur                   | **DONE (2026-10-01, R6-01-DB-CONSTRAINT, PR #97)** — validation applicative (`recordReservationTransition()`/`isTransitionAllowed()`, 22 sites) ET contrainte DB réelle (trigger `reservation_status_transition_guard`, miroir exact, prouvé sur les 56 paires contre Postgres réel). | Atteint (application + DB) |
-| R6-02 | Décomposition prix stockée par booking                         | **N/A (fait, 2026-09-28)** — `recordReservationFinancials` câblé sur omra/packages/activités (6 points, `supplierPriceTnd=salePriceTnd`, marge=0 assumée par design). "cars" hors périmètre (décision produit à clarifier). PR #52 mergée.                                                                                                                                                                                                   | Atteint (cars excepté)                                            |
-| R6-03 | Séquence autoriser→réserver→capturer, échec→libérer/rembourser | **REUSE (partiel)** — VERIFIED pattern présent sur hôtels/B2B (verrou FOR UPDATE, rollback total si échec fournisseur) ; pas vérifié en détail sur tous les modules.                                                                                                                                                                                                                                                                         | À confirmer par module                                            |
-| R6-04 | Annulation/remboursement                                       | **REUSE** — VERIFIED `cancel-actions.ts`/`refund-logic.ts` avec écriture ledger tracée (millimes inclus).                                                                                                                                                                                                                                                                                                                                    | Atteint                                                           |
-| R6-05 | Settlement / rapprochement                                     | **DONE (2026-09-29)** — `commission-settlement.ts` existe et fonctionne, append-only depuis R4-03 (PR #56).                                                                                                                                                                                                                                                                                                                                  | Atteint                                                           |
-| R6-06 | Vouchers depuis le booking réel                                | **REUSE** — VERIFIED `app/api/admin/reservations/[id]/voucher`, `app/api/pro/reservations/[id]/voucher` génèrent depuis les données réelles, protégés RBAC.                                                                                                                                                                                                                                                                                  | Atteint                                                           |
+| R6-02 | Décomposition prix stockée par booking                         | **N/A (fait, 2026-09-28)** — `recordReservationFinancials` câblé sur omra/packages/activités (6 points, `supplierPriceTnd=salePriceTnd`, marge=0 assumée par design). "cars" hors périmètre (décision produit à clarifier). PR #52 mergée.                                            | Atteint (cars excepté)     |
+| R6-03 | Séquence autoriser→réserver→capturer, échec→libérer/rembourser | **REUSE (partiel)** — VERIFIED pattern présent sur hôtels/B2B (verrou FOR UPDATE, rollback total si échec fournisseur) ; pas vérifié en détail sur tous les modules.                                                                                                                  | À confirmer par module     |
+| R6-04 | Annulation/remboursement                                       | **REUSE** — VERIFIED `cancel-actions.ts`/`refund-logic.ts` avec écriture ledger tracée (millimes inclus).                                                                                                                                                                             | Atteint                    |
+| R6-05 | Settlement / rapprochement                                     | **DONE (2026-09-29)** — `commission-settlement.ts` existe et fonctionne, append-only depuis R4-03 (PR #56).                                                                                                                                                                           | Atteint                    |
+| R6-06 | Vouchers depuis le booking réel                                | **REUSE** — VERIFIED `app/api/admin/reservations/[id]/voucher`, `app/api/pro/reservations/[id]/voucher` génèrent depuis les données réelles, protégés RBAC.                                                                                                                           | Atteint                    |
 
 ---
 

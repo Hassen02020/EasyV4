@@ -69,7 +69,11 @@ export function createExchangeRateApiProvider(): ExchangeRateProvider {
     async fetchRate(from: string, to: string): Promise<ExchangeRate> {
       const apiKey = process.env.EXCHANGE_RATE_API_KEY
       if (!apiKey) {
-        throw new ExchangeRateUnavailableError(from, to, "EXCHANGE_RATE_API_KEY absent")
+        throw new ExchangeRateUnavailableError(
+          from,
+          to,
+          "EXCHANGE_RATE_API_KEY absent",
+        )
       }
 
       const url = `https://v6.exchangerate-api.com/v6/${apiKey}/pair/${from}/${to}`
@@ -77,7 +81,11 @@ export function createExchangeRateApiProvider(): ExchangeRateProvider {
       try {
         res = await fetch(url, { cache: "no-store" })
       } catch (err) {
-        throw new ExchangeRateUnavailableError(from, to, `réseau: ${String(err)}`)
+        throw new ExchangeRateUnavailableError(
+          from,
+          to,
+          `réseau: ${String(err)}`,
+        )
       }
 
       if (!res.ok) {
@@ -88,11 +96,18 @@ export function createExchangeRateApiProvider(): ExchangeRateProvider {
       try {
         body = await res.json()
       } catch {
-        throw new ExchangeRateUnavailableError(from, to, "réponse JSON invalide")
+        throw new ExchangeRateUnavailableError(
+          from,
+          to,
+          "réponse JSON invalide",
+        )
       }
 
       const data = body as Record<string, unknown>
-      if (data["result"] !== "success" || typeof data["conversion_rate"] !== "number") {
+      if (
+        data["result"] !== "success" ||
+        typeof data["conversion_rate"] !== "number"
+      ) {
         throw new ExchangeRateUnavailableError(
           from,
           to,
@@ -122,7 +137,9 @@ export function createExchangeRateApiProvider(): ExchangeRateProvider {
  * Crée un provider déterministe pour les tests.
  * rates : { "USD/TND": 3.1052, "EUR/TND": 3.3500, ... }
  */
-export function createMockProvider(rates: Record<string, number>): ExchangeRateProvider {
+export function createMockProvider(
+  rates: Record<string, number>,
+): ExchangeRateProvider {
   return {
     name: "mock",
 
@@ -130,7 +147,11 @@ export function createMockProvider(rates: Record<string, number>): ExchangeRateP
       const key = `${from}/${to}`
       const rate = rates[key]
       if (rate === undefined) {
-        throw new ExchangeRateUnavailableError(from, to, `mock: taux "${key}" absent`)
+        throw new ExchangeRateUnavailableError(
+          from,
+          to,
+          `mock: taux "${key}" absent`,
+        )
       }
       return {
         from,
@@ -153,7 +174,9 @@ let _overrideProvider: ExchangeRateProvider | null = null
  * Injecte un provider personnalisé (tests ou environnement spécifique).
  * Appeler avec null pour revenir au comportement par défaut.
  */
-export function setExchangeRateProvider(provider: ExchangeRateProvider | null): void {
+export function setExchangeRateProvider(
+  provider: ExchangeRateProvider | null,
+): void {
   _overrideProvider = provider
 }
 
@@ -161,7 +184,11 @@ function getActiveProvider(): ExchangeRateProvider {
   if (_overrideProvider) return _overrideProvider
   const name = process.env.EXCHANGE_RATE_PROVIDER ?? "exchangerate-api"
   if (name === "exchangerate-api") return createExchangeRateApiProvider()
-  throw new ExchangeRateUnavailableError("?", "?", `provider inconnu: "${name}"`)
+  throw new ExchangeRateUnavailableError(
+    "?",
+    "?",
+    `provider inconnu: "${name}"`,
+  )
 }
 
 /* -------------------------------------------------------------------------- */

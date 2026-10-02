@@ -15,9 +15,18 @@ import {
   MIN_DIMENSION_PX,
 } from "../optimize"
 
-async function makeJpeg(width: number, height: number, rgb: [number, number, number] = [100, 150, 200]) {
+async function makeJpeg(
+  width: number,
+  height: number,
+  rgb: [number, number, number] = [100, 150, 200],
+) {
   return sharp({
-    create: { width, height, channels: 3, background: { r: rgb[0], g: rgb[1], b: rgb[2] } },
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: rgb[0], g: rgb[1], b: rgb[2] },
+    },
   })
     .jpeg({ quality: 92 })
     .toBuffer()
@@ -47,56 +56,81 @@ test("validateImageBuffer : image sombre / claire -> acceptées normalement", as
 
 test("validateImageBuffer : rejette une image trop petite (< MIN_DIMENSION_PX)", async () => {
   const buf = await makeJpeg(MIN_DIMENSION_PX - 10, MIN_DIMENSION_PX - 10)
-  await assert.rejects(() => validateImageBuffer(buf, "image/jpeg"), (e: unknown) => {
-    assert.ok(e instanceof MediaValidationError)
-    assert.equal(e.code, "image_too_small")
-    return true
-  })
+  await assert.rejects(
+    () => validateImageBuffer(buf, "image/jpeg"),
+    (e: unknown) => {
+      assert.ok(e instanceof MediaValidationError)
+      assert.equal(e.code, "image_too_small")
+      return true
+    },
+  )
 })
 
 test("validateImageBuffer : rejette un fichier vide", async () => {
-  await assert.rejects(() => validateImageBuffer(Buffer.alloc(0), "image/jpeg"), (e: unknown) => {
-    assert.ok(e instanceof MediaValidationError)
-    assert.equal(e.code, "empty_file")
-    return true
-  })
+  await assert.rejects(
+    () => validateImageBuffer(Buffer.alloc(0), "image/jpeg"),
+    (e: unknown) => {
+      assert.ok(e instanceof MediaValidationError)
+      assert.equal(e.code, "empty_file")
+      return true
+    },
+  )
 })
 
 test("validateImageBuffer : rejette un mimeType non supporté", async () => {
   const buf = await makeJpeg(500, 500)
-  await assert.rejects(() => validateImageBuffer(buf, "image/gif"), (e: unknown) => {
-    assert.ok(e instanceof MediaValidationError)
-    assert.equal(e.code, "unsupported_mime_type")
-    return true
-  })
+  await assert.rejects(
+    () => validateImageBuffer(buf, "image/gif"),
+    (e: unknown) => {
+      assert.ok(e instanceof MediaValidationError)
+      assert.equal(e.code, "unsupported_mime_type")
+      return true
+    },
+  )
 })
 
 test("validateImageBuffer : rejette un contenu non-image (mission §9 — jamais confiance dans le client)", async () => {
   const fakeBuffer = Buffer.from("ceci n'est pas une image, juste du texte")
-  await assert.rejects(() => validateImageBuffer(fakeBuffer, "image/jpeg"), (e: unknown) => {
-    assert.ok(e instanceof MediaValidationError)
-    assert.equal(e.code, "corrupt_image")
-    return true
-  })
+  await assert.rejects(
+    () => validateImageBuffer(fakeBuffer, "image/jpeg"),
+    (e: unknown) => {
+      assert.ok(e instanceof MediaValidationError)
+      assert.equal(e.code, "corrupt_image")
+      return true
+    },
+  )
 })
 
 test("validateImageBuffer : rejette un contenu réel ne correspondant pas au mimeType déclaré (mime spoofing)", async () => {
-  const realPng = await sharp({ create: { width: 500, height: 500, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+  const realPng = await sharp({
+    create: {
+      width: 500,
+      height: 500,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 },
+    },
+  })
     .png()
     .toBuffer()
   // Déclaré comme jpeg alors que le contenu réel est un png.
-  await assert.rejects(() => validateImageBuffer(realPng, "image/jpeg"), (e: unknown) => {
-    assert.ok(e instanceof MediaValidationError)
-    assert.equal(e.code, "mime_mismatch")
-    return true
-  })
+  await assert.rejects(
+    () => validateImageBuffer(realPng, "image/jpeg"),
+    (e: unknown) => {
+      assert.ok(e instanceof MediaValidationError)
+      assert.equal(e.code, "mime_mismatch")
+      return true
+    },
+  )
 })
 
 test("generateMediaVariants : génère les 4 variantes avec les dimensions attendues", async () => {
   const buf = await makeJpeg(4000, 2667)
   const variants = await generateMediaVariants(buf)
 
-  assert.equal(Object.keys(variants).sort().join(","), "card,large,medium,thumbnail")
+  assert.equal(
+    Object.keys(variants).sort().join(","),
+    "card,large,medium,thumbnail",
+  )
 
   // card/thumbnail : fit "cover" -> dimensions EXACTES imposées.
   assert.equal(variants.card.width, MEDIA_VARIANT_SPECS.card.width)
@@ -113,7 +147,9 @@ test("generateMediaVariants : génère les 4 variantes avec les dimensions atten
   // Toutes les variantes doivent être significativement plus légères que
   // l'original (mission §29 : jamais servir l'original pour un usage carte).
   assert.ok(variants.card.buffer.byteLength < buf.byteLength)
-  assert.ok(variants.thumbnail.buffer.byteLength < variants.card.buffer.byteLength)
+  assert.ok(
+    variants.thumbnail.buffer.byteLength < variants.card.buffer.byteLength,
+  )
 })
 
 test("generateMediaVariants : ne suramplifie jamais une image plus petite que la cible 'inside' (mission §13, pas de pixelisation artificielle)", async () => {

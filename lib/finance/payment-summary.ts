@@ -30,7 +30,10 @@ export interface ReservationPaymentSummary {
 /** Tolérance flottante pour les comparaisons TND (2 décimales) après plusieurs additions. */
 export const TND_EPSILON = 0.005
 
-export function computePaymentState(totalTnd: number, collectedTnd: number): PaymentState {
+export function computePaymentState(
+  totalTnd: number,
+  collectedTnd: number,
+): PaymentState {
   if (collectedTnd <= TND_EPSILON) return "UNPAID"
   if (collectedTnd >= totalTnd - TND_EPSILON) return "FULLY_PAID"
   return "PARTIALLY_PAID"
@@ -69,16 +72,23 @@ export async function getReservationPaymentSummary(
     const reservationRows = (await tx
       .select({ tndAmount: reservations.tndAmount })
       .from?.(reservations)
-      .where?.(eq(reservations.id, reservationId))) as Array<{ tndAmount: string }>
+      .where?.(eq(reservations.id, reservationId))) as Array<{
+      tndAmount: string
+    }>
 
     const reservation = reservationRows?.[0]
     if (!reservation) {
-      throw new Error(`getReservationPaymentSummary: réservation "${reservationId}" introuvable.`)
+      throw new Error(
+        `getReservationPaymentSummary: réservation "${reservationId}" introuvable.`,
+      )
     }
     const totalTnd = Number.parseFloat(reservation.tndAmount)
 
     const paymentRows = (await tx
-      .select({ tndAmount: payments.tndAmount, refundedAmount: payments.refundedAmount })
+      .select({
+        tndAmount: payments.tndAmount,
+        refundedAmount: payments.refundedAmount,
+      })
       .from?.(payments)
       .where?.(
         and(
@@ -88,7 +98,10 @@ export async function getReservationPaymentSummary(
       )) as Array<{ tndAmount: string; refundedAmount: string }>
 
     const collectedTnd = (paymentRows ?? []).reduce(
-      (sum, row) => sum + (Number.parseFloat(row.tndAmount) - Number.parseFloat(row.refundedAmount)),
+      (sum, row) =>
+        sum +
+        (Number.parseFloat(row.tndAmount) -
+          Number.parseFloat(row.refundedAmount)),
       0,
     )
     const remainingTnd = Math.max(totalTnd - collectedTnd, 0)

@@ -1,6 +1,13 @@
 import { Link, redirect } from "@/i18n/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
-import { ArrowLeft, CalendarDays, Mail, MapPin, Phone, User as UserIcon } from "lucide-react"
+import {
+  ArrowLeft,
+  CalendarDays,
+  Mail,
+  MapPin,
+  Phone,
+  User as UserIcon,
+} from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
 import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
@@ -76,9 +83,13 @@ export default async function ComptePage() {
     ? result.bookings
         .filter(
           (b) =>
-            UPCOMING_STATUSES.has(b.status) && b.product && b.product.startDate >= today,
+            UPCOMING_STATUSES.has(b.status) &&
+            b.product &&
+            b.product.startDate >= today,
         )
-        .sort((a, b) => a.product!.startDate.localeCompare(b.product!.startDate))[0]
+        .sort((a, b) =>
+          a.product!.startDate.localeCompare(b.product!.startDate),
+        )[0]
     : undefined
 
   return (
@@ -87,7 +98,11 @@ export default async function ComptePage() {
       <div className="border-border border-b bg-white/70 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex items-center gap-2">
-            <Easy2BookLogo withWordmark={false} className="size-9 bg-gray-100" priority />
+            <Easy2BookLogo
+              withWordmark={false}
+              className="size-9 bg-gray-100"
+              priority
+            />
             <span className="text-base font-bold">
               <span className="text-sidebar">Easy</span>
               <span className="text-accent">2</span>
@@ -108,7 +123,9 @@ export default async function ComptePage() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-foreground text-3xl font-bold">
-              {profile?.firstName ? t("greetingWithName", { name: profile.firstName }) : t("accountTitleFallback")}
+              {profile?.firstName
+                ? t("greetingWithName", { name: profile.firstName })
+                : t("accountTitleFallback")}
             </h1>
             <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-sm">
               <Mail className="h-3.5 w-3.5" />
@@ -134,11 +151,14 @@ export default async function ComptePage() {
             </div>
             <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
               <CalendarDays className="h-4 w-4 shrink-0" />
-              {new Date(nextReservation.product.startDate).toLocaleDateString(getIntlLocale(locale), {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
+              {new Date(nextReservation.product.startDate).toLocaleDateString(
+                getIntlLocale(locale),
+                {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                },
+              )}
             </div>
           </Link>
         )}
@@ -160,7 +180,9 @@ export default async function ComptePage() {
           </div>
         )}
 
-        {favorites.ok && <CompteFavoritesCard favorites={favorites.favorites} />}
+        {favorites.ok && (
+          <CompteFavoritesCard favorites={favorites.favorites} />
+        )}
 
         {loyalty.ok ? (
           <CompteLoyaltyCard

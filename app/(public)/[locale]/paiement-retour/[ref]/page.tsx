@@ -20,7 +20,11 @@ import { getPaymentReturnTarget } from "@/lib/payment/payment-return-actions"
 
 export const dynamic = "force-dynamic"
 
-export default async function PaymentReturnPage({ params }: { params: Promise<{ ref: string }> }) {
+export default async function PaymentReturnPage({
+  params,
+}: {
+  params: Promise<{ ref: string }>
+}) {
   const { ref } = await params
   const target = await getPaymentReturnTarget(ref)
 

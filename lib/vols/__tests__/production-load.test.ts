@@ -135,12 +135,20 @@ async function runFulfillmentFull(
 
     if (recheckStatus === "PRICE_CHANGED") {
       booking.status = "PRICE_CHANGED"
-      auditLog.push({ bookingId: booking.id, type: "RECHECK", status: "FAILURE" })
+      auditLog.push({
+        bookingId: booking.id,
+        type: "RECHECK",
+        status: "FAILURE",
+      })
       return { ok: false, code: "PRICE_CHANGED" }
     }
     if (recheckStatus !== "AVAILABLE") {
       booking.status = "FAILED"
-      auditLog.push({ bookingId: booking.id, type: "RECHECK", status: "FAILURE" })
+      auditLog.push({
+        bookingId: booking.id,
+        type: "RECHECK",
+        status: "FAILURE",
+      })
       return { ok: false, code: recheckStatus }
     }
 
@@ -223,7 +231,10 @@ async function logTransactionReliable(
 // ---------------------------------------------------------------------------
 
 let _bkSeq = 0
-function makeBooking(status: BookingStatus = "PENDING", pnr: string | null = null): BookingRecord {
+function makeBooking(
+  status: BookingStatus = "PENDING",
+  pnr: string | null = null,
+): BookingRecord {
   return { id: `bk-${++_bkSeq}`, status, pnr }
 }
 
@@ -236,7 +247,6 @@ function percentile(sorted: number[], p: number): number {
 // ===========================================================================
 
 describe("G15 — Production Load", () => {
-
   // ── Scale: 1 000 sequential ─────────────────────────────────────────────────
 
   test("P01 — 1 000 sequential bookings: p50/p95/p99 no O(n²) overhead", async () => {
@@ -254,7 +264,10 @@ describe("G15 — Production Load", () => {
     const p95 = percentile(durations, 0.95)
     const p99 = percentile(durations, 0.99)
 
-    assert.ok(p99 < 50, `p99 ${p99.toFixed(2)}ms exceeds 50ms — possible O(n²) overhead`)
+    assert.ok(
+      p99 < 50,
+      `p99 ${p99.toFixed(2)}ms exceeds 50ms — possible O(n²) overhead`,
+    )
     assert.ok(p50 <= p95, "p50 must be ≤ p95")
     assert.ok(p95 <= p99, "p95 must be ≤ p99")
 
@@ -275,9 +288,19 @@ describe("G15 — Production Load", () => {
     const wallMs = performance.now() - t0
     const wins = results.filter((r) => r.ok).length
 
-    assert.equal(wins, 500, "all 500 independent concurrent bookings must succeed")
-    assert.ok(wallMs < 2000, `concurrent wall time ${wallMs.toFixed(1)}ms too high`)
-    assert.ok(results.every((r) => r.ok && !r.reissueOnly), "all must be Arm A (new bookings)")
+    assert.equal(
+      wins,
+      500,
+      "all 500 independent concurrent bookings must succeed",
+    )
+    assert.ok(
+      wallMs < 2000,
+      `concurrent wall time ${wallMs.toFixed(1)}ms too high`,
+    )
+    assert.ok(
+      results.every((r) => r.ok && !r.reissueOnly),
+      "all must be Arm A (new bookings)",
+    )
   })
 
   // ── Error budget ────────────────────────────────────────────────────────────
@@ -288,16 +311,21 @@ describe("G15 — Production Load", () => {
     const results = await Promise.all(
       Array.from({ length: N }, (_, i) => {
         const b = makeBooking()
-        const cfg: AdapterConfig = (i % 33 === 0) ? { bookThrows: true } : {}
+        const cfg: AdapterConfig = i % 33 === 0 ? { bookThrows: true } : {}
         return runFulfillmentFull(b, cfg, [])
       }),
     )
 
-    const failed = results.filter((r) => !r.ok && (r as { code: string }).code === "BOOK_FAILED").length
+    const failed = results.filter(
+      (r) => !r.ok && (r as { code: string }).code === "BOOK_FAILED",
+    ).length
     const errorRate = failed / N
 
     assert.ok(failed > 0, "injection must produce at least one failure")
-    assert.ok(errorRate <= 0.05, `error rate ${(errorRate * 100).toFixed(1)}% exceeds 5% budget`)
+    assert.ok(
+      errorRate <= 0.05,
+      `error rate ${(errorRate * 100).toFixed(1)}% exceeds 5% budget`,
+    )
 
     const won = results.filter((r) => r.ok).length
     assert.ok(won > 950, `expected >950 successes, got ${won}`)
@@ -348,9 +376,15 @@ describe("G15 — Production Load", () => {
 
     // No booking stuck in an in-progress state
     const stuck = all.filter(
-      (b) => b.status === "BOOKING_IN_PROGRESS" || b.status === "TICKETING_IN_PROGRESS",
+      (b) =>
+        b.status === "BOOKING_IN_PROGRESS" ||
+        b.status === "TICKETING_IN_PROGRESS",
     )
-    assert.equal(stuck.length, 0, "no booking stuck in-progress after full pipeline")
+    assert.equal(
+      stuck.length,
+      0,
+      "no booking stuck in-progress after full pipeline",
+    )
   })
 
   // ── Concurrent claims on same booking ──────────────────────────────────────
@@ -363,7 +397,9 @@ describe("G15 — Production Load", () => {
     )
 
     const wins = results.filter((r) => r.ok)
-    const wrong = results.filter((r) => !r.ok && (r as { code: string }).code === "WRONG_STATUS")
+    const wrong = results.filter(
+      (r) => !r.ok && (r as { code: string }).code === "WRONG_STATUS",
+    )
 
     assert.equal(wins.length, 1, "exactly 1 of 200 concurrent calls must win")
     assert.equal(wrong.length, 199, "199 must be rejected with WRONG_STATUS")
@@ -390,13 +426,21 @@ describe("G15 — Production Load", () => {
     )
 
     const burstWins = burstResults.filter((r) => r.ok).length
-    assert.equal(burstWins, 300, "all 300 burst bookings must succeed independently")
+    assert.equal(
+      burstWins,
+      300,
+      "all 300 burst bookings must succeed independently",
+    )
 
     // Baseline state must be unaffected by burst
     const baselinePnrs = baselineResults
       .filter((r) => r.ok)
       .map((r) => (r as { pnr: string }).pnr)
-    assert.equal(new Set(baselinePnrs).size, 200, "baseline PNRs must remain distinct after burst")
+    assert.equal(
+      new Set(baselinePnrs).size,
+      200,
+      "baseline PNRs must remain distinct after burst",
+    )
   })
 
   // ── Audit coverage under load ───────────────────────────────────────────────
@@ -408,21 +452,41 @@ describe("G15 — Production Load", () => {
     await Promise.all(bookings.map((b) => runFulfillmentFull(b, {}, auditLog)))
 
     // Every booking produces exactly: RECHECK:SUCCESS + BOOK:SUCCESS + ISSUE:SUCCESS
-    const bookEntries = auditLog.filter((e) => e.type === "BOOK" && e.status === "SUCCESS")
-    const issueEntries = auditLog.filter((e) => e.type === "ISSUE" && e.status === "SUCCESS")
+    const bookEntries = auditLog.filter(
+      (e) => e.type === "BOOK" && e.status === "SUCCESS",
+    )
+    const issueEntries = auditLog.filter(
+      (e) => e.type === "ISSUE" && e.status === "SUCCESS",
+    )
 
-    assert.equal(bookEntries.length, 500, "every success must have a BOOK:SUCCESS audit entry")
-    assert.equal(issueEntries.length, 500, "every success must have an ISSUE:SUCCESS audit entry")
+    assert.equal(
+      bookEntries.length,
+      500,
+      "every success must have a BOOK:SUCCESS audit entry",
+    )
+    assert.equal(
+      issueEntries.length,
+      500,
+      "every success must have an ISSUE:SUCCESS audit entry",
+    )
 
     // No duplicate entries per booking
     const bookingIdsWithBook = new Set(bookEntries.map((e) => e.bookingId))
-    assert.equal(bookingIdsWithBook.size, 500, "each booking must have exactly 1 BOOK entry")
+    assert.equal(
+      bookingIdsWithBook.size,
+      500,
+      "each booking must have exactly 1 BOOK entry",
+    )
   })
 
   // ── Audit retry (G12 pattern) ───────────────────────────────────────────────
 
   test("P09 — Audit retry: insert fails ×2 then succeeds → entry still logged", async () => {
-    const entry: AuditLogEntry = { bookingId: "bk-audit-09", type: "BOOK", status: "SUCCESS" }
+    const entry: AuditLogEntry = {
+      bookingId: "bk-audit-09",
+      type: "BOOK",
+      status: "SUCCESS",
+    }
     const logged: AuditLogEntry[] = []
     const delays: number[] = []
     const stderr: string[] = []
@@ -439,7 +503,11 @@ describe("G15 — Production Load", () => {
     assert.equal(callCount, 3, "must attempt 3 times (2 failures + 1 success)")
     assert.equal(logged.length, 1, "entry must eventually be logged")
     assert.equal(logged[0]!.bookingId, "bk-audit-09")
-    assert.equal(stderr.length, 0, "no AUDIT_FAILURE on stderr — retry succeeded")
+    assert.equal(
+      stderr.length,
+      0,
+      "no AUDIT_FAILURE on stderr — retry succeeded",
+    )
 
     // Delays must follow exponential backoff (50ms base, no actual sleep)
     assert.equal(delays.length, 2, "2 retry delays recorded")
@@ -448,7 +516,11 @@ describe("G15 — Production Load", () => {
   })
 
   test("P10 — Audit retry exhausted: 4 failures → AUDIT_FAILURE on stderr, booking unaffected", async () => {
-    const entry: AuditLogEntry = { bookingId: "bk-audit-10", type: "ISSUE", status: "FAILURE" }
+    const entry: AuditLogEntry = {
+      bookingId: "bk-audit-10",
+      type: "ISSUE",
+      status: "FAILURE",
+    }
     const delays: number[] = []
     const stderr: string[] = []
 
@@ -464,8 +536,16 @@ describe("G15 — Production Load", () => {
       "logTransactionReliable must never throw — booking must be unaffected by audit failure",
     )
 
-    assert.equal(callCount, AUDIT_MAX_ATTEMPTS, `must attempt exactly ${AUDIT_MAX_ATTEMPTS} times`)
-    assert.equal(delays.length, AUDIT_MAX_ATTEMPTS - 1, "must record N-1 retry delays")
+    assert.equal(
+      callCount,
+      AUDIT_MAX_ATTEMPTS,
+      `must attempt exactly ${AUDIT_MAX_ATTEMPTS} times`,
+    )
+    assert.equal(
+      delays.length,
+      AUDIT_MAX_ATTEMPTS - 1,
+      "must record N-1 retry delays",
+    )
 
     // AUDIT_FAILURE must appear on stderr
     assert.equal(stderr.length, 1, "exactly 1 AUDIT_FAILURE line on stderr")
@@ -473,7 +553,10 @@ describe("G15 — Production Load", () => {
     assert.equal(payload["tag"], "AUDIT_FAILURE")
     assert.equal(payload["bookingId"], "bk-audit-10")
     assert.equal(payload["type"], "ISSUE")
-    assert.ok(typeof payload["error"] === "string" && payload["error"].includes("db unavailable"))
+    assert.ok(
+      typeof payload["error"] === "string" &&
+        payload["error"].includes("db unavailable"),
+    )
   })
 
   // ── Memory stability ────────────────────────────────────────────────────────
@@ -493,7 +576,11 @@ describe("G15 — Production Load", () => {
 
     // All must be CONFIRMED (no stuck in-progress)
     const confirmed = bookings.filter((b) => b.status === "CONFIRMED").length
-    assert.equal(confirmed, 1000, "all 1 000 must be CONFIRMED — no memory state corruption")
+    assert.equal(
+      confirmed,
+      1000,
+      "all 1 000 must be CONFIRMED — no memory state corruption",
+    )
 
     // All PNRs unique (no record sharing)
     const pnrs = bookings.map((b) => b.pnr).filter(Boolean) as string[]
@@ -511,12 +598,15 @@ describe("G15 — Production Load", () => {
     const results = await Promise.all(
       Array.from({ length: N }, (_, i) => {
         const b = makeBooking()
-        const cfg: AdapterConfig = (i % 20 === 0) ? { recheckStatus: "PRICE_CHANGED" } : {}
+        const cfg: AdapterConfig =
+          i % 20 === 0 ? { recheckStatus: "PRICE_CHANGED" } : {}
         return runFulfillmentFull(b, cfg, auditLog)
       }),
     )
 
-    const priceChanged = results.filter((r) => !r.ok && (r as { code: string }).code === "PRICE_CHANGED").length
+    const priceChanged = results.filter(
+      (r) => !r.ok && (r as { code: string }).code === "PRICE_CHANGED",
+    ).length
     const succeeded = results.filter((r) => r.ok).length
 
     // Allow ±2 variance around 10 to tolerate off-by-one in divisor edge cases
@@ -528,7 +618,11 @@ describe("G15 — Production Load", () => {
 
     // PRICE_CHANGED bookings must NOT produce BOOK audit entries
     const bookEntries = auditLog.filter((e) => e.type === "BOOK")
-    assert.equal(bookEntries.length, succeeded, "BOOK entries must equal successes — price-changed must not book")
+    assert.equal(
+      bookEntries.length,
+      succeeded,
+      "BOOK entries must equal successes — price-changed must not book",
+    )
   })
 
   // ── Arm B recovery at scale ─────────────────────────────────────────────────
@@ -545,17 +639,31 @@ describe("G15 — Production Load", () => {
     const wins = results.filter((r) => r.ok)
     const reissues = wins.filter((r) => r.ok && r.reissueOnly)
 
-    assert.equal(wins.length, 100, "all 100 orphaned bookings must recover via Arm B")
-    assert.equal(reissues.length, 100, "all 100 wins must be Arm B (reissueOnly=true)")
+    assert.equal(
+      wins.length,
+      100,
+      "all 100 orphaned bookings must recover via Arm B",
+    )
+    assert.equal(
+      reissues.length,
+      100,
+      "all 100 wins must be Arm B (reissueOnly=true)",
+    )
 
     // All bookings terminal; original PNRs preserved
     const stuck = orphaned.filter(
-      (b) => b.status === "BOOKING_IN_PROGRESS" || b.status === "TICKETING_IN_PROGRESS",
+      (b) =>
+        b.status === "BOOKING_IN_PROGRESS" ||
+        b.status === "TICKETING_IN_PROGRESS",
     )
     assert.equal(stuck.length, 0, "no booking stuck in-progress")
 
     orphaned.forEach((b, i) => {
-      assert.equal(b.pnr, `ORPHAN-PNR-${i + 1}`, `booking ${b.id} must retain its original PNR`)
+      assert.equal(
+        b.pnr,
+        `ORPHAN-PNR-${i + 1}`,
+        `booking ${b.id} must retain its original PNR`,
+      )
     })
   })
 
@@ -595,14 +703,22 @@ describe("G15 — Production Load", () => {
     const arm_b = Array.from({ length: 150 }, (_, i) =>
       makeBooking("FAILED", `PROD-PNR-${i + 1}`),
     )
-    const price_changed = Array.from({ length: 100 }, () => makeBooking("PENDING"))
+    const price_changed = Array.from({ length: 100 }, () =>
+      makeBooking("PENDING"),
+    )
     const unavailable = Array.from({ length: 50 }, () => makeBooking("PENDING"))
 
     const all = [
       ...arm_a.map((b) => ({ b, cfg: {} as AdapterConfig })),
       ...arm_b.map((b) => ({ b, cfg: {} as AdapterConfig })),
-      ...price_changed.map((b) => ({ b, cfg: { recheckStatus: "PRICE_CHANGED" as const } })),
-      ...unavailable.map((b) => ({ b, cfg: { recheckStatus: "UNAVAILABLE" as const } })),
+      ...price_changed.map((b) => ({
+        b,
+        cfg: { recheckStatus: "PRICE_CHANGED" as const },
+      })),
+      ...unavailable.map((b) => ({
+        b,
+        cfg: { recheckStatus: "UNAVAILABLE" as const },
+      })),
     ]
 
     // Shuffle to interleave all types
@@ -612,33 +728,61 @@ describe("G15 — Production Load", () => {
     }
 
     const auditLog: AuditEntry[] = []
-    const results = await Promise.all(all.map(({ b, cfg }) => runFulfillmentFull(b, cfg, auditLog)))
+    const results = await Promise.all(
+      all.map(({ b, cfg }) => runFulfillmentFull(b, cfg, auditLog)),
+    )
 
     const confirmed = results.filter((r) => r.ok).length
     const armAWins = results.filter((r) => r.ok && !r.reissueOnly).length
     const armBWins = results.filter((r) => r.ok && r.reissueOnly).length
-    const priceChangedCount = results.filter((r) => !r.ok && (r as { code: string }).code === "PRICE_CHANGED").length
-    const unavailableCount = results.filter((r) => !r.ok && (r as { code: string }).code === "UNAVAILABLE").length
+    const priceChangedCount = results.filter(
+      (r) => !r.ok && (r as { code: string }).code === "PRICE_CHANGED",
+    ).length
+    const unavailableCount = results.filter(
+      (r) => !r.ok && (r as { code: string }).code === "UNAVAILABLE",
+    ).length
 
     assert.equal(confirmed, 850, "700 Arm A + 150 Arm B = 850 confirmed")
     assert.equal(armAWins, 700, "700 Arm A wins")
     assert.equal(armBWins, 150, "150 Arm B wins")
     assert.equal(priceChangedCount, 100, "100 PRICE_CHANGED")
     assert.equal(unavailableCount, 50, "50 UNAVAILABLE")
-    assert.equal(confirmed + priceChangedCount + unavailableCount, 1000, "totals must sum to 1 000")
+    assert.equal(
+      confirmed + priceChangedCount + unavailableCount,
+      1000,
+      "totals must sum to 1 000",
+    )
 
     // No stuck-in-progress across the full mix
     const allBookings = all.map(({ b }) => b)
     const stuck = allBookings.filter(
-      (b) => b.status === "BOOKING_IN_PROGRESS" || b.status === "TICKETING_IN_PROGRESS",
+      (b) =>
+        b.status === "BOOKING_IN_PROGRESS" ||
+        b.status === "TICKETING_IN_PROGRESS",
     )
-    assert.equal(stuck.length, 0, "no booking stuck in a progress state after the full mix")
+    assert.equal(
+      stuck.length,
+      0,
+      "no booking stuck in a progress state after the full mix",
+    )
 
     // Audit: every confirmed booking has BOOK + ISSUE entries
-    const bookEntries = auditLog.filter((e) => e.type === "BOOK" && e.status === "SUCCESS")
-    const issueEntries = auditLog.filter((e) => e.type === "ISSUE" && e.status === "SUCCESS")
-    assert.equal(bookEntries.length, 700, "700 BOOK:SUCCESS entries (Arm A only — Arm B skips book)")
-    assert.equal(issueEntries.length, 850, "850 ISSUE:SUCCESS entries (all confirmed bookings)")
+    const bookEntries = auditLog.filter(
+      (e) => e.type === "BOOK" && e.status === "SUCCESS",
+    )
+    const issueEntries = auditLog.filter(
+      (e) => e.type === "ISSUE" && e.status === "SUCCESS",
+    )
+    assert.equal(
+      bookEntries.length,
+      700,
+      "700 BOOK:SUCCESS entries (Arm A only — Arm B skips book)",
+    )
+    assert.equal(
+      issueEntries.length,
+      850,
+      "850 ISSUE:SUCCESS entries (all confirmed bookings)",
+    )
   })
 
   // ── Capacity measurement ────────────────────────────────────────────────────
@@ -658,9 +802,15 @@ describe("G15 — Production Load", () => {
     const bps = Math.round((wins / wallMs) * 1000)
 
     assert.equal(wins, 2000, "all 2 000 bookings must succeed")
-    assert.ok(bps >= 50_000, `throughput ${bps} bps < 50 000 bps — pipeline has unexpected bottleneck`)
-
-    ;(globalThis as Record<string, unknown>)["__g15_baseline"] = { bps, wallMs, n: 2000 }
+    assert.ok(
+      bps >= 50_000,
+      `throughput ${bps} bps < 50 000 bps — pipeline has unexpected bottleneck`,
+    )
+    ;(globalThis as Record<string, unknown>)["__g15_baseline"] = {
+      bps,
+      wallMs,
+      n: 2000,
+    }
   })
 
   test("P17 — GDS-latency throughput: 100 concurrent × 5ms → bps ≥ 5 000", async () => {
@@ -680,9 +830,16 @@ describe("G15 — Production Load", () => {
     const bps = Math.round((wins / wallMs) * 1000)
 
     assert.equal(wins, 100, "all 100 bookings must succeed")
-    assert.ok(bps >= 5_000, `GDS-latency throughput ${bps} bps < 5 000 bps (sequential fallback?)`)
-
-    ;(globalThis as Record<string, unknown>)["__g15_gds"] = { bps, wallMs, delayMs: 5, n: 100 }
+    assert.ok(
+      bps >= 5_000,
+      `GDS-latency throughput ${bps} bps < 5 000 bps (sequential fallback?)`,
+    )
+    ;(globalThis as Record<string, unknown>)["__g15_gds"] = {
+      bps,
+      wallMs,
+      delayMs: 5,
+      n: 100,
+    }
   })
 
   test("P18 — Concurrency efficiency curve: bps(500 concurrent) ≥ bps(50 concurrent) × 3", async () => {
@@ -691,21 +848,27 @@ describe("G15 — Production Load", () => {
     // scheduler and Promise overhead at extreme concurrency.
 
     // Warm-up (exclude from measurement)
-    await Promise.all(Array.from({ length: 10 }, () =>
-      runFulfillmentFull(makeBooking(), { bookDelayMs: 2 }, []),
-    ))
+    await Promise.all(
+      Array.from({ length: 10 }, () =>
+        runFulfillmentFull(makeBooking(), { bookDelayMs: 2 }, []),
+      ),
+    )
 
     // Low concurrency
     const low = Array.from({ length: 50 }, () => makeBooking())
     const t0Low = performance.now()
-    await Promise.all(low.map((b) => runFulfillmentFull(b, { bookDelayMs: 2 }, [])))
+    await Promise.all(
+      low.map((b) => runFulfillmentFull(b, { bookDelayMs: 2 }, [])),
+    )
     const wallLow = performance.now() - t0Low
     const bpsLow = Math.round((50 / wallLow) * 1000)
 
     // High concurrency
     const high = Array.from({ length: 500 }, () => makeBooking())
     const t0High = performance.now()
-    await Promise.all(high.map((b) => runFulfillmentFull(b, { bookDelayMs: 2 }, [])))
+    await Promise.all(
+      high.map((b) => runFulfillmentFull(b, { bookDelayMs: 2 }, [])),
+    )
     const wallHigh = performance.now() - t0High
     const bpsHigh = Math.round((500 / wallHigh) * 1000)
 
@@ -713,8 +876,11 @@ describe("G15 — Production Load", () => {
       bpsHigh >= bpsLow * 3,
       `concurrency efficiency too low: bps(500)=${bpsHigh} not ≥ bps(50)×3=${bpsLow * 3}`,
     )
-
-    ;(globalThis as Record<string, unknown>)["__g15_curve"] = { bpsLow, bpsHigh, ratio: (bpsHigh / bpsLow).toFixed(1) }
+    ;(globalThis as Record<string, unknown>)["__g15_curve"] = {
+      bpsLow,
+      bpsHigh,
+      ratio: (bpsHigh / bpsLow).toFixed(1),
+    }
   })
 
   test("P19 — Sustained capacity: 20 successive 100-booking batches, no throughput degradation", async () => {
@@ -733,7 +899,11 @@ describe("G15 — Production Load", () => {
       )
       wallTimes.push(performance.now() - t0)
       const wins = results.filter((r) => r.ok).length
-      assert.equal(wins, PER_WAVE, `wave ${w + 1}: all ${PER_WAVE} bookings must succeed`)
+      assert.equal(
+        wins,
+        PER_WAVE,
+        `wave ${w + 1}: all ${PER_WAVE} bookings must succeed`,
+      )
     }
 
     // No degradation: last wave ≤ 3× the first wave (absorbs JIT/GC variance)
@@ -747,9 +917,19 @@ describe("G15 — Production Load", () => {
     // Median wave time must be well-bounded
     const sorted = [...wallTimes].sort((a, b) => a - b)
     const medianMs = sorted[Math.floor(WAVES / 2)]!
-    assert.ok(medianMs < 100, `median wave time ${medianMs.toFixed(1)}ms ≥ 100ms — capacity ceiling too low`)
+    assert.ok(
+      medianMs < 100,
+      `median wave time ${medianMs.toFixed(1)}ms ≥ 100ms — capacity ceiling too low`,
+    )
 
-    const bps = Math.round(((WAVES * PER_WAVE) / wallTimes.reduce((s, t) => s + t, 0)) * 1000)
-    ;(globalThis as Record<string, unknown>)["__g15_sustained"] = { waves: WAVES, perWave: PER_WAVE, medianMs, bps }
+    const bps = Math.round(
+      ((WAVES * PER_WAVE) / wallTimes.reduce((s, t) => s + t, 0)) * 1000,
+    )
+    ;(globalThis as Record<string, unknown>)["__g15_sustained"] = {
+      waves: WAVES,
+      perWave: PER_WAVE,
+      medianMs,
+      bps,
+    }
   })
 })

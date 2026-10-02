@@ -19,7 +19,9 @@ import {
   listHotelSuppliersCatalogForAgency,
 } from "@/lib/hotel-suppliers/tenant/agency-accounts"
 
-export const metadata = { title: "Fournisseurs hôteliers | Espace Pro Easy2Book" }
+export const metadata = {
+  title: "Fournisseurs hôteliers | Espace Pro Easy2Book",
+}
 
 export const dynamic = "force-dynamic"
 
@@ -34,7 +36,9 @@ export default async function ProSuppliersPage() {
   if (!profile) redirect("/pro/login")
 
   const isValidPartnerRole =
-    profile.role === "partner_owner" || profile.role === "partner_agent" || profile.role === "super_admin"
+    profile.role === "partner_owner" ||
+    profile.role === "partner_agent" ||
+    profile.role === "super_admin"
   if (!isValidPartnerRole) {
     redirect("/pro?forbidden=suppliers")
   }
@@ -44,7 +48,8 @@ export default async function ProSuppliersPage() {
     listHotelSuppliersCatalogForAgency(),
   ])
 
-  const canManage = profile.role === "partner_owner" || profile.role === "super_admin"
+  const canManage =
+    profile.role === "partner_owner" || profile.role === "super_admin"
 
   return (
     <ProPageShell
@@ -59,7 +64,12 @@ export default async function ProSuppliersPage() {
     >
       <SupplierAccountsManager
         accounts={accounts}
-        suppliers={catalog.map((s) => ({ id: s.id, code: s.code, name: s.name, documentationStatus: s.documentationStatus }))}
+        suppliers={catalog.map((s) => ({
+          id: s.id,
+          code: s.code,
+          name: s.name,
+          documentationStatus: s.documentationStatus,
+        }))}
         canManage={canManage}
       />
     </ProPageShell>

@@ -4,7 +4,12 @@
  * TRAVELPORT_PCC are set. Supports Travelport Universal API (JSON).
  */
 
-import type { GdsAdapter, RecheckResult, BookResult, IssueResult } from "./types"
+import type {
+  GdsAdapter,
+  RecheckResult,
+  BookResult,
+  IssueResult,
+} from "./types"
 import type {
   CanonicalSearchRequest,
   CanonicalSearchResult,
@@ -24,7 +29,9 @@ export function createTravelportAdapter(): GdsAdapter {
     name: "travelport",
     getConfigStatus: () => (isConfigured() ? "CONFIGURED" : "NOT_CONFIGURED"),
 
-    async search(_request: CanonicalSearchRequest): Promise<CanonicalSearchResult> {
+    async search(
+      _request: CanonicalSearchRequest,
+    ): Promise<CanonicalSearchResult> {
       throw new Error("Travelport adapter: not yet implemented.")
     },
 
@@ -40,7 +47,10 @@ export function createTravelportAdapter(): GdsAdapter {
       throw new Error("Travelport adapter: book not yet implemented.")
     },
 
-    async issue(_pnr: string, _itinerary: CanonicalItinerary): Promise<IssueResult> {
+    async issue(
+      _pnr: string,
+      _itinerary: CanonicalItinerary,
+    ): Promise<IssueResult> {
       throw new Error("Travelport adapter: issue not yet implemented.")
     },
 

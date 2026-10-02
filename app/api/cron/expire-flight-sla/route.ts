@@ -33,47 +33,58 @@ export async function GET(req: NextRequest) {
   }
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "Base de données non configurée" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Base de données non configurée" },
+      { status: 500 },
+    )
   }
 
-  const { cancelledBookings, expiredReservations } = await withSystemContext(async (tx) => {
-    // Cancel PENDING flight bookings whose SLA window has closed
-    const cancelledRows = await tx
-      .update(flightBookings)
-      .set({ status: "CANCELLED", updatedAt: new Date() })
-      .where(
-        and(
-          eq(flightBookings.status, "PENDING"),
-          isNotNull(flightBookings.slaDeadline),
-          lt(flightBookings.slaDeadline, new Date()),
-        ),
-      )
-      .returning({
-        id: flightBookings.id,
-        reservationId: flightBookings.reservationId,
-      })
+  const { cancelledBookings, expiredReservations } = await withSystemContext(
+    async (tx) => {
+      // Cancel PENDING flight bookings whose SLA window has closed
+      const cancelledRows = await tx
+        .update(flightBookings)
+        .set({ status: "CANCELLED", updatedAt: new Date() })
+        .where(
+          and(
+            eq(flightBookings.status, "PENDING"),
+            isNotNull(flightBookings.slaDeadline),
+            lt(flightBookings.slaDeadline, new Date()),
+          ),
+        )
+        .returning({
+          id: flightBookings.id,
+          reservationId: flightBookings.reservationId,
+        })
 
-    // Expire the corresponding reservations atomically
-    const reservationIds = cancelledRows
-      .map((b) => b.reservationId)
-      .filter((id): id is string => id !== null)
+      // Expire the corresponding reservations atomically
+      const reservationIds = cancelledRows
+        .map((b) => b.reservationId)
+        .filter((id): id is string => id !== null)
 
-    const expiredRows =
-      reservationIds.length > 0
-        ? await tx
-            .update(reservations)
-            .set({ status: "expired", updatedAt: new Date() })
-            .where(
-              and(
-                inArray(reservations.id, reservationIds),
-                eq(reservations.status, "pending"),
-              ),
-            )
-            .returning({ id: reservations.id, publicRef: reservations.publicRef })
-        : []
+      const expiredRows =
+        reservationIds.length > 0
+          ? await tx
+              .update(reservations)
+              .set({ status: "expired", updatedAt: new Date() })
+              .where(
+                and(
+                  inArray(reservations.id, reservationIds),
+                  eq(reservations.status, "pending"),
+                ),
+              )
+              .returning({
+                id: reservations.id,
+                publicRef: reservations.publicRef,
+              })
+          : []
 
-    return { cancelledBookings: cancelledRows.length, expiredReservations: expiredRows }
-  })
+      return {
+        cancelledBookings: cancelledRows.length,
+        expiredReservations: expiredRows,
+      }
+    },
+  )
 
   return NextResponse.json({
     ok: true,

@@ -56,9 +56,15 @@ function minutesToIso(min: number): string {
   return `PT${h}H${m > 0 ? `${m}M` : ""}`
 }
 
-function addMinutes(dateIso: string, timeMinutesFromMidnight: number, plusDuration: number): string {
+function addMinutes(
+  dateIso: string,
+  timeMinutesFromMidnight: number,
+  plusDuration: number,
+): string {
   const base = new Date(`${dateIso}T00:00:00Z`)
-  base.setUTCMinutes(base.getUTCMinutes() + timeMinutesFromMidnight + plusDuration)
+  base.setUTCMinutes(
+    base.getUTCMinutes() + timeMinutesFromMidnight + plusDuration,
+  )
   return base.toISOString().slice(0, 16)
 }
 
@@ -82,11 +88,18 @@ export function generateOffers(input: {
   adults: number
   children: number
 }): VirtualFlightOffer[] {
-  const seed = hashSeed(`${input.origin}:${input.destination}:${input.departureDate}:${input.cabin}`)
+  const seed = hashSeed(
+    `${input.origin}:${input.destination}:${input.departureDate}:${input.cabin}`,
+  )
   const rng = mulberry32Like(seed)
   const offerCount = 3 + Math.floor(rng() * 3) // 3..5
   const basePriceTnd = 250 + Math.floor(rng() * 400) // 250..650 (avant cabine/route)
-  const cabinMultiplier = { ECONOMY: 1, PREMIUM_ECONOMY: 1.5, BUSINESS: 2.8, FIRST: 4.2 }[input.cabin]
+  const cabinMultiplier = {
+    ECONOMY: 1,
+    PREMIUM_ECONOMY: 1.5,
+    BUSINESS: 2.8,
+    FIRST: 4.2,
+  }[input.cabin]
 
   const offers: VirtualFlightOffer[] = []
   for (let i = 0; i < offerCount; i++) {
@@ -110,7 +123,9 @@ export function generateOffers(input: {
         cabin: input.cabin,
       })
     } else {
-      const hubCodes = Object.keys(HUBS).filter((h) => h !== input.origin && h !== input.destination)
+      const hubCodes = Object.keys(HUBS).filter(
+        (h) => h !== input.origin && h !== input.destination,
+      )
       const hub = hubCodes[Math.floor(rng() * hubCodes.length)] ?? "IST"
       const leg1 = Math.floor(legDurationMin * 0.55)
       const layover = 60 + Math.floor(rng() * 90)
@@ -129,8 +144,16 @@ export function generateOffers(input: {
         {
           origin: hub,
           destination: input.destination,
-          departureAt: addMinutes(input.departureDate, departTime, leg1 + layover),
-          arrivalAt: addMinutes(input.departureDate, departTime, leg1 + layover + leg2),
+          departureAt: addMinutes(
+            input.departureDate,
+            departTime,
+            leg1 + layover,
+          ),
+          arrivalAt: addMinutes(
+            input.departureDate,
+            departTime,
+            leg1 + layover + leg2,
+          ),
           carrier: carrier.code,
           flightNumber: `${carrier.code}${100 + Math.floor(rng() * 800)}`,
           durationMinutes: leg2,
@@ -139,9 +162,14 @@ export function generateOffers(input: {
       )
     }
 
-    const totalDurationMinutes = segments.reduce((s, seg) => s + seg.durationMinutes, 0)
+    const totalDurationMinutes = segments.reduce(
+      (s, seg) => s + seg.durationMinutes,
+      0,
+    )
     const stopsPenalty = stops === 0 ? 1 : 0.82 // vol direct plus cher
-    const unitPriceTnd = Math.round(basePriceTnd * cabinMultiplier * stopsPenalty * (0.9 + rng() * 0.25))
+    const unitPriceTnd = Math.round(
+      basePriceTnd * cabinMultiplier * stopsPenalty * (0.9 + rng() * 0.25),
+    )
 
     offers.push({
       offerId: `${input.origin}-${input.destination}-${input.departureDate}-${carrier.code}-${flightNumber}-${input.cabin}`,

@@ -26,7 +26,11 @@ const VOUCHER_ELIGIBLE_STATUSES = new Set(["confirmed", "completed"])
 
 export function isVoucherEligible(
   row: VoucherEligibilityInput,
-): row is VoucherEligibilityInput & { hotelName: string; checkIn: string; checkOut: string } {
+): row is VoucherEligibilityInput & {
+  hotelName: string
+  checkIn: string
+  checkOut: string
+} {
   if (row.module !== "hotel") return false
   if (!row.hotelName || !row.checkIn || !row.checkOut) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
@@ -50,7 +54,11 @@ export interface OmraVoucherEligibilityInput {
 
 export function isOmraVoucherEligible(
   row: OmraVoucherEligibilityInput,
-): row is OmraVoucherEligibilityInput & { packageName: string; departureDate: string; returnDate: string } {
+): row is OmraVoucherEligibilityInput & {
+  packageName: string
+  departureDate: string
+  returnDate: string
+} {
   if (row.module !== "omra") return false
   if (!row.packageName || !row.departureDate || !row.returnDate) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
@@ -67,7 +75,11 @@ export interface PackageVoucherEligibilityInput {
 
 export function isPackageVoucherEligible(
   row: PackageVoucherEligibilityInput,
-): row is PackageVoucherEligibilityInput & { packageName: string; departureDate: string; returnDate: string } {
+): row is PackageVoucherEligibilityInput & {
+  packageName: string
+  departureDate: string
+  returnDate: string
+} {
   if (row.module !== "package") return false
   if (!row.packageName || !row.departureDate || !row.returnDate) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
@@ -83,7 +95,10 @@ export interface ActivityVoucherEligibilityInput {
 
 export function isActivityVoucherEligible(
   row: ActivityVoucherEligibilityInput,
-): row is ActivityVoucherEligibilityInput & { activityName: string; sessionDate: string } {
+): row is ActivityVoucherEligibilityInput & {
+  activityName: string
+  sessionDate: string
+} {
   if (row.module !== "activity") return false
   if (!row.activityName || !row.sessionDate) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
@@ -100,7 +115,11 @@ export interface FlightVoucherEligibilityInput {
 
 export function isFlightVoucherEligible(
   row: FlightVoucherEligibilityInput,
-): row is FlightVoucherEligibilityInput & { origin: string; destination: string; departAt: string } {
+): row is FlightVoucherEligibilityInput & {
+  origin: string
+  destination: string
+  departAt: string
+} {
   if (row.module !== "flight") return false
   if (!row.origin || !row.destination || !row.departAt) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
@@ -125,7 +144,11 @@ export interface WorldHotelVoucherEligibilityInput {
 
 export function isWorldHotelVoucherEligible(
   row: WorldHotelVoucherEligibilityInput,
-): row is WorldHotelVoucherEligibilityInput & { hotelName: string; checkIn: string; checkOut: string } {
+): row is WorldHotelVoucherEligibilityInput & {
+  hotelName: string
+  checkIn: string
+  checkOut: string
+} {
   if (row.module !== "hotel_monde") return false
   if (!row.hotelName || !row.checkIn || !row.checkOut) return false
   return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
@@ -163,7 +186,10 @@ export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
  * écrans, préférer `isAdminReservationVoucherEligible` ci-dessous, qui
  * couvre les 6 modules réservables.
  */
-export function isHotelReservationVoucherEligible(module: string, status: string): boolean {
+export function isHotelReservationVoucherEligible(
+  module: string,
+  status: string,
+): boolean {
   return module === "hotel" && VOUCHER_ELIGIBLE_STATUSES.has(status)
 }
 
@@ -187,8 +213,13 @@ export function isHotelReservationVoucherEligible(module: string, status: string
  * n'est pas "invalide après annulation", c'est un lien resté affiché par
  * erreur (même raisonnement Phase 11 que `isVoucherEligible`).
  */
-export function isAdminReservationVoucherEligible(module: string, status: string): boolean {
-  return module in VOUCHER_ROUTE_BY_MODULE && VOUCHER_ELIGIBLE_STATUSES.has(status)
+export function isAdminReservationVoucherEligible(
+  module: string,
+  status: string,
+): boolean {
+  return (
+    module in VOUCHER_ROUTE_BY_MODULE && VOUCHER_ELIGIBLE_STATUSES.has(status)
+  )
 }
 
 /**

@@ -31,7 +31,10 @@ import {
   payments,
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
-import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  resolveSessionContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -168,278 +171,293 @@ export async function createOmraBooking(
     const result = await withTenantContext(
       { agencyId, userId: createdByUserId, isSuperAdmin: session.isSuperAdmin },
       async (tx) => {
-      /* ------------------------------------------------------------------
-       * 1. Récupérer le package (FOR UPDATE sur l'allotment)
-       * ------------------------------------------------------------------ */
-      const [pkg] = await tx
-        .select()
-        .from(omraPackages)
-        .where(eq(omraPackages.id, input.packageId))
-        .limit(1)
+        /* ------------------------------------------------------------------
+         * 1. Récupérer le package (FOR UPDATE sur l'allotment)
+         * ------------------------------------------------------------------ */
+        const [pkg] = await tx
+          .select()
+          .from(omraPackages)
+          .where(eq(omraPackages.id, input.packageId))
+          .limit(1)
 
-      if (!pkg) {
-        throw new Error("PACKAGE_NOT_FOUND")
-      }
+        if (!pkg) {
+          throw new Error("PACKAGE_NOT_FOUND")
+        }
 
-      if (pkg.status !== "published") {
-        throw new Error("PACKAGE_NOT_ACTIVE")
-      }
-      if (!pkg.channels?.includes("b2b")) {
-        throw new Error("PACKAGE_NOT_ACTIVE")
-      }
+        if (pkg.status !== "published") {
+          throw new Error("PACKAGE_NOT_ACTIVE")
+        }
+        if (!pkg.channels?.includes("b2b")) {
+          throw new Error("PACKAGE_NOT_ACTIVE")
+        }
 
-      /* ------------------------------------------------------------------
-       * 2. Récupérer l'allotment avec verrou pessimiste (FOR UPDATE)
-       * ------------------------------------------------------------------ */
-      const [allotment] = await tx
-        .select()
-        .from(omraAllotments)
-        .where(
-          and(
-            eq(omraAllotments.packageId, input.packageId),
-            eq(omraAllotments.departureDate, input.departureDate),
-          ),
-        )
-        .limit(1)
-        .for("update") // Verrou row-level pour éviter le surbooking
+        /* ------------------------------------------------------------------
+         * 2. Récupérer l'allotment avec verrou pessimiste (FOR UPDATE)
+         * ------------------------------------------------------------------ */
+        const [allotment] = await tx
+          .select()
+          .from(omraAllotments)
+          .where(
+            and(
+              eq(omraAllotments.packageId, input.packageId),
+              eq(omraAllotments.departureDate, input.departureDate),
+            ),
+          )
+          .limit(1)
+          .for("update") // Verrou row-level pour éviter le surbooking
 
-      if (!allotment) {
-        throw new Error("ALLOTMENT_NOT_FOUND")
-      }
+        if (!allotment) {
+          throw new Error("ALLOTMENT_NOT_FOUND")
+        }
 
-      if (allotment.status !== "active") {
-        throw new Error("ALLOTMENT_NOT_ACTIVE")
-      }
+        if (allotment.status !== "active") {
+          throw new Error("ALLOTMENT_NOT_ACTIVE")
+        }
 
-      /* ------------------------------------------------------------------
-       * 3. Vérifier disponibilité
-       * ------------------------------------------------------------------ */
-      const available = allotment.availableCount
-      if (available < pilgrimCount) {
-        throw new Error(`INSUFFICIENT_STOCK: ${available} places disponibles, ${pilgrimCount} demandées`)
-      }
+        /* ------------------------------------------------------------------
+         * 3. Vérifier disponibilité
+         * ------------------------------------------------------------------ */
+        const available = allotment.availableCount
+        if (available < pilgrimCount) {
+          throw new Error(
+            `INSUFFICIENT_STOCK: ${available} places disponibles, ${pilgrimCount} demandées`,
+          )
+        }
 
-      /* ------------------------------------------------------------------
-       * 4. Calculer le prix total
-       * ------------------------------------------------------------------ */
-      const pricePerPilgrim = allotment.overridePrice
-        ? parseFloat(allotment.overridePrice)
-        : parseFloat(pkg.basePrice)
-      const totalTnd = pricePerPilgrim * pilgrimCount
+        /* ------------------------------------------------------------------
+         * 4. Calculer le prix total
+         * ------------------------------------------------------------------ */
+        const pricePerPilgrim = allotment.overridePrice
+          ? parseFloat(allotment.overridePrice)
+          : parseFloat(pkg.basePrice)
+        const totalTnd = pricePerPilgrim * pilgrimCount
 
-      /* ------------------------------------------------------------------
-       * 5. Créer le client (premier pèlerin comme contact principal)
-       * ------------------------------------------------------------------ */
-      const firstPilgrim = input.pilgrims[0]
-      const [customer] = await tx
-        .insert(customers)
-        .values({
+        /* ------------------------------------------------------------------
+         * 5. Créer le client (premier pèlerin comme contact principal)
+         * ------------------------------------------------------------------ */
+        const firstPilgrim = input.pilgrims[0]
+        const [customer] = await tx
+          .insert(customers)
+          .values({
+            agencyId,
+            civility: firstPilgrim.gender === "male" ? "M" : "Mme",
+            firstName: firstPilgrim.firstName,
+            lastName: firstPilgrim.lastName,
+            email: firstPilgrim.email,
+            phone: firstPilgrim.phone,
+            civicId: firstPilgrim.passportNumber,
+            civicIdType: "passport",
+            birthDate: firstPilgrim.birthDate,
+            nationality: firstPilgrim.nationality,
+          })
+          .returning({ id: customers.id })
+
+        const customerId = customer.id
+
+        /* ------------------------------------------------------------------
+         * 6. Créer la réservation
+         * ------------------------------------------------------------------ */
+        const publicRef = await nextPublicRef(tx, agencyId)
+        const [reservation] = await tx
+          .insert(reservations)
+          .values({
+            agencyId,
+            customerId,
+            publicRef,
+            module: "omra",
+            source: "internal",
+            status: "pending",
+            originalCurrency: "TND",
+            originalAmount: String(totalTnd),
+            tndAmount: String(totalTnd),
+            depositAmount: String(totalTnd),
+            depositPaid: "0",
+            providerPayload: {
+              packageId: input.packageId,
+              departureDate: input.departureDate,
+              pilgrimCount,
+              pricePerPilgrim,
+            },
+          })
+          .returning({ id: reservations.id, publicRef: reservations.publicRef })
+
+        const reservationId = reservation.id
+
+        // Débit crédit agence dans la transaction courante (txOverride) — pas de
+        // tx imbriquée. Débite `agencies.deposit_balance` (le seul solde que
+        // les flux de rechargement réels créditent — voir lib/booking/actions.ts
+        // pour le détail de la correction).
+        const debitResult = await debitPartnerCredit({
           agencyId,
-          civility: firstPilgrim.gender === "male" ? "M" : "Mme",
-          firstName: firstPilgrim.firstName,
-          lastName: firstPilgrim.lastName,
-          email: firstPilgrim.email,
-          phone: firstPilgrim.phone,
-          civicId: firstPilgrim.passportNumber,
-          civicIdType: "passport",
-          birthDate: firstPilgrim.birthDate,
-          nationality: firstPilgrim.nationality,
+          amountTnd: totalTnd,
+          reference: publicRef,
+          description: `Réservation Omra — ${pkg.name ?? input.packageId}`,
+          createdByUserId,
+          reservationId,
+          idempotencyKey: `booking-debit:${reservationId}`,
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
         })
-        .returning({ id: customers.id })
 
-      const customerId = customer.id
+        if (!debitResult.ok) {
+          // debitPartnerCredit gère déjà le rollback via son propre FOR UPDATE
+          // Mais on throw pour rollback notre transaction
+          throw new Error(
+            debitResult.code === "INSUFFICIENT_FUNDS"
+              ? "INSUFFICIENT_BALANCE"
+              : "WALLET_DEBIT_FAILED",
+          )
+        }
 
-      /* ------------------------------------------------------------------
-       * 6. Créer la réservation
-       * ------------------------------------------------------------------ */
-      const publicRef = await nextPublicRef(tx, agencyId)
-      const [reservation] = await tx
-        .insert(reservations)
-        .values({
+        // status=confirmed + paiement — auparavant fait par walletDebitReservation.
+        await tx
+          .update(reservations)
+          .set({
+            status: "confirmed",
+            confirmedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(reservations.id, reservationId))
+
+        await recordReservationTransition(tx, {
+          reservationId,
+          from: "pending",
+          to: "confirmed",
+          triggeredBy: createdByUserId,
+          reason: "Règlement wallet B2B immédiat à la création",
+        })
+
+        await tx.insert(payments).values({
           agencyId,
-          customerId,
-          publicRef,
-          module: "omra",
-          source: "internal",
-          status: "pending",
+          reservationId,
+          psp: "manual",
+          method: "wallet",
           originalCurrency: "TND",
-          originalAmount: String(totalTnd),
-          tndAmount: String(totalTnd),
-          depositAmount: String(totalTnd),
-          depositPaid: "0",
-          providerPayload: {
+          originalAmount: totalTnd.toFixed(2),
+          tndAmount: totalTnd.toFixed(2),
+          kind: "deposit",
+          status: "captured",
+          capturedAt: new Date(),
+        })
+
+        // R6-02 (audit Phase 0) : omra n'a pas de coût net fournisseur séparé
+        // du prix de vente — l'agence fixe directement totalTnd au niveau du
+        // catalogue (lib/pro/pricing.ts:36-45, module volontairement exclu du
+        // hub de marge central). supplierPriceTnd = salePriceTnd (marge=0) :
+        // jamais un chiffre inventé, seulement pour que cette réservation
+        // compte dans le chiffre d'affaires du Dashboard Marges (auparavant
+        // invisible, la requête part d'un INNER JOIN sur reservation_financials).
+        // ECON-WIRING-01 — economic_entitlements. Aucune marge n'existe pour
+        // ce module (supplierPriceTnd = salePriceTnd, cf. commentaire R6-02
+        // ci-dessus) : une SEULE ligne product_owner=agence, pas de lignes
+        // seller_margin/commission fabriquées à 0 (règle Direction, 2026-10 —
+        // ne jamais fabriquer une ligne sans valeur économique réelle).
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "owner_share",
+              amount: totalTnd,
+              basis:
+                "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+            },
+          ],
+        })
+
+        /* ------------------------------------------------------------------
+         * 6. Insérer l'extension Omra
+         * ------------------------------------------------------------------ */
+        await tx.insert(reservationOmra).values({
+          reservationId,
+          agencyId,
+          omraPackageId: input.packageId,
+          departureDate: input.departureDate,
+          returnDate: new Date(
+            new Date(input.departureDate).getTime() +
+              pkg.durationDays * 86_400_000,
+          )
+            .toISOString()
+            .split("T")[0],
+          pilgrims: pilgrimCount,
+        })
+
+        /* ------------------------------------------------------------------
+         * 7. Insérer les fiches pèlerins
+         * ------------------------------------------------------------------ */
+        for (const pilgrim of input.pilgrims) {
+          await tx.insert(omraPilgrims).values({
+            reservationId,
+            agencyId,
+            firstName: pilgrim.firstName,
+            lastName: pilgrim.lastName,
+            firstNameAr: pilgrim.firstNameAr,
+            lastNameAr: pilgrim.lastNameAr,
+            birthDate: pilgrim.birthDate,
+            birthPlace: pilgrim.birthPlace,
+            nationality: pilgrim.nationality,
+            gender: pilgrim.gender,
+            maritalStatus: pilgrim.maritalStatus,
+            phone: pilgrim.phone,
+            email: pilgrim.email,
+            address: pilgrim.address,
+            city: pilgrim.city,
+            postalCode: pilgrim.postalCode,
+            country: pilgrim.country,
+            passportNumber: pilgrim.passportNumber,
+            passportIssueDate: pilgrim.passportIssueDate,
+            passportExpiryDate: pilgrim.passportExpiryDate,
+            passportIssuingCountry: pilgrim.passportIssuingCountry,
+            bloodType: pilgrim.bloodType,
+            hasMedicalConditions: pilgrim.hasMedicalConditions ?? false,
+            medicalConditions: pilgrim.medicalConditions,
+            requiresSpecialAssistance:
+              pilgrim.requiresSpecialAssistance ?? false,
+            specialAssistanceDetails: pilgrim.specialAssistanceDetails,
+            emergencyContactName: pilgrim.emergencyContactName,
+            emergencyContactPhone: pilgrim.emergencyContactPhone,
+            emergencyContactRelation: pilgrim.emergencyContactRelation,
+            roomType: pilgrim.roomType,
+            photoUrl: pilgrim.photoUrl,
+            passportScanUrl: pilgrim.passportScanUrl,
+          })
+        }
+
+        /* ------------------------------------------------------------------
+         * 8. Mettre à jour l'allotment (retrait de stock)
+         * ------------------------------------------------------------------ */
+        await tx
+          .update(omraAllotments)
+          .set({
+            reservedCount: allotment.reservedCount + pilgrimCount,
+            availableCount: allotment.availableCount - pilgrimCount,
+            updatedAt: new Date(),
+          })
+          .where(eq(omraAllotments.id, allotment.id))
+
+        /* ------------------------------------------------------------------
+         * 9. Log audit
+         * ------------------------------------------------------------------ */
+        await tx.insert(auditEvents).values({
+          agencyId,
+          actorUserId: createdByUserId,
+          entityType: "reservation",
+          entityId: reservationId,
+          action: "omra_booking.created",
+          diff: {
             packageId: input.packageId,
             departureDate: input.departureDate,
             pilgrimCount,
-            pricePerPilgrim,
+            totalTnd,
+            publicRef,
           },
         })
-        .returning({ id: reservations.id, publicRef: reservations.publicRef })
-
-      const reservationId = reservation.id
-
-      // Débit crédit agence dans la transaction courante (txOverride) — pas de
-      // tx imbriquée. Débite `agencies.deposit_balance` (le seul solde que
-      // les flux de rechargement réels créditent — voir lib/booking/actions.ts
-      // pour le détail de la correction).
-      const debitResult = await debitPartnerCredit({
-        agencyId,
-        amountTnd: totalTnd,
-        reference: publicRef,
-        description: `Réservation Omra — ${pkg.name ?? input.packageId}`,
-        createdByUserId,
-        reservationId,
-        idempotencyKey: `booking-debit:${reservationId}`,
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
-      })
-
-      if (!debitResult.ok) {
-        // debitPartnerCredit gère déjà le rollback via son propre FOR UPDATE
-        // Mais on throw pour rollback notre transaction
-        throw new Error(debitResult.code === "INSUFFICIENT_FUNDS" ? "INSUFFICIENT_BALANCE" : "WALLET_DEBIT_FAILED")
-      }
-
-      // status=confirmed + paiement — auparavant fait par walletDebitReservation.
-      await tx
-        .update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
-        .where(eq(reservations.id, reservationId))
-
-      await recordReservationTransition(tx, {
-        reservationId,
-        from: "pending",
-        to: "confirmed",
-        triggeredBy: createdByUserId,
-        reason: "Règlement wallet B2B immédiat à la création",
-      })
-
-      await tx.insert(payments).values({
-        agencyId,
-        reservationId,
-        psp: "manual",
-        method: "wallet",
-        originalCurrency: "TND",
-        originalAmount: totalTnd.toFixed(2),
-        tndAmount: totalTnd.toFixed(2),
-        kind: "deposit",
-        status: "captured",
-        capturedAt: new Date(),
-      })
-
-      // R6-02 (audit Phase 0) : omra n'a pas de coût net fournisseur séparé
-      // du prix de vente — l'agence fixe directement totalTnd au niveau du
-      // catalogue (lib/pro/pricing.ts:36-45, module volontairement exclu du
-      // hub de marge central). supplierPriceTnd = salePriceTnd (marge=0) :
-      // jamais un chiffre inventé, seulement pour que cette réservation
-      // compte dans le chiffre d'affaires du Dashboard Marges (auparavant
-      // invisible, la requête part d'un INNER JOIN sur reservation_financials).
-      // ECON-WIRING-01 — economic_entitlements. Aucune marge n'existe pour
-      // ce module (supplierPriceTnd = salePriceTnd, cf. commentaire R6-02
-      // ci-dessus) : une SEULE ligne product_owner=agence, pas de lignes
-      // seller_margin/commission fabriquées à 0 (règle Direction, 2026-10 —
-      // ne jamais fabriquer une ligne sans valeur économique réelle).
-      await recordReservationFinancials({
-        tx,
-        reservationId,
-        supplierPriceTnd: totalTnd,
-        salePriceTnd: totalTnd,
-        economicEntitlements: [
-          {
-            partyType: "agency",
-            partyId: agencyId,
-            role: "product_owner",
-            qualification: "owner_share",
-            amount: totalTnd,
-            basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
-          },
-        ],
-      })
-
-      /* ------------------------------------------------------------------
-       * 6. Insérer l'extension Omra
-       * ------------------------------------------------------------------ */
-      await tx.insert(reservationOmra).values({
-        reservationId,
-        agencyId,
-        omraPackageId: input.packageId,
-        departureDate: input.departureDate,
-        returnDate: new Date(
-          new Date(input.departureDate).getTime() + pkg.durationDays * 86_400_000,
-        )
-          .toISOString()
-          .split("T")[0],
-        pilgrims: pilgrimCount,
-      })
-
-      /* ------------------------------------------------------------------
-       * 7. Insérer les fiches pèlerins
-       * ------------------------------------------------------------------ */
-      for (const pilgrim of input.pilgrims) {
-        await tx.insert(omraPilgrims).values({
-          reservationId,
-          agencyId,
-          firstName: pilgrim.firstName,
-          lastName: pilgrim.lastName,
-          firstNameAr: pilgrim.firstNameAr,
-          lastNameAr: pilgrim.lastNameAr,
-          birthDate: pilgrim.birthDate,
-          birthPlace: pilgrim.birthPlace,
-          nationality: pilgrim.nationality,
-          gender: pilgrim.gender,
-          maritalStatus: pilgrim.maritalStatus,
-          phone: pilgrim.phone,
-          email: pilgrim.email,
-          address: pilgrim.address,
-          city: pilgrim.city,
-          postalCode: pilgrim.postalCode,
-          country: pilgrim.country,
-          passportNumber: pilgrim.passportNumber,
-          passportIssueDate: pilgrim.passportIssueDate,
-          passportExpiryDate: pilgrim.passportExpiryDate,
-          passportIssuingCountry: pilgrim.passportIssuingCountry,
-          bloodType: pilgrim.bloodType,
-          hasMedicalConditions: pilgrim.hasMedicalConditions ?? false,
-          medicalConditions: pilgrim.medicalConditions,
-          requiresSpecialAssistance: pilgrim.requiresSpecialAssistance ?? false,
-          specialAssistanceDetails: pilgrim.specialAssistanceDetails,
-          emergencyContactName: pilgrim.emergencyContactName,
-          emergencyContactPhone: pilgrim.emergencyContactPhone,
-          emergencyContactRelation: pilgrim.emergencyContactRelation,
-          roomType: pilgrim.roomType,
-          photoUrl: pilgrim.photoUrl,
-          passportScanUrl: pilgrim.passportScanUrl,
-        })
-      }
-
-      /* ------------------------------------------------------------------
-       * 8. Mettre à jour l'allotment (retrait de stock)
-       * ------------------------------------------------------------------ */
-      await tx
-        .update(omraAllotments)
-        .set({
-          reservedCount: allotment.reservedCount + pilgrimCount,
-          availableCount: allotment.availableCount - pilgrimCount,
-          updatedAt: new Date(),
-        })
-        .where(eq(omraAllotments.id, allotment.id))
-
-      /* ------------------------------------------------------------------
-       * 9. Log audit
-       * ------------------------------------------------------------------ */
-      await tx.insert(auditEvents).values({
-        agencyId,
-        actorUserId: createdByUserId,
-        entityType: "reservation",
-        entityId: reservationId,
-        action: "omra_booking.created",
-        diff: {
-          packageId: input.packageId,
-          departureDate: input.departureDate,
-          pilgrimCount,
-          totalTnd,
-          publicRef,
-        },
-      })
 
         return {
           reservationId,
@@ -466,7 +484,9 @@ export async function createOmraBooking(
         departureDate: input.departureDate,
         totalTnd: result.totalTnd,
         contactEmail: result.contactEmail,
-      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+      }).catch(() => {
+        /* fire-and-forget — le retry Inngest suffira */
+      })
     }
 
     // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
@@ -481,10 +501,17 @@ export async function createOmraBooking(
         console.error("[omra] génération facture échouée", invoiceResult.error)
       }
     } catch (err) {
-      console.error("[omra] génération facture échouée", err instanceof Error ? err.message : String(err))
+      console.error(
+        "[omra] génération facture échouée",
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
-    return { ok: true, reservationId: result.reservationId, publicRef: result.publicRef }
+    return {
+      ok: true,
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
@@ -492,7 +519,8 @@ export async function createOmraBooking(
       PACKAGE_NOT_ACTIVE: "Ce package n'est plus actif",
       ALLOTMENT_NOT_FOUND: "Allotement introuvable pour cette date",
       ALLOTMENT_NOT_ACTIVE: "Cet allotement n'est plus actif",
-      INSUFFICIENT_STOCK: (msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant"),
+      INSUFFICIENT_STOCK:
+        msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
     }

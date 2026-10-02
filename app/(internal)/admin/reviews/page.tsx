@@ -46,13 +46,16 @@ export default async function AdminReviewsPage() {
           Avis clients
         </h1>
         <p className="text-muted-foreground text-sm">
-          Un avis n&apos;est visible publiquement qu&apos;après approbation — jamais automatique.
+          Un avis n&apos;est visible publiquement qu&apos;après approbation —
+          jamais automatique.
         </p>
       </div>
 
       {!result.ok ? (
         <Card>
-          <CardContent className="text-destructive py-6 text-sm">{result.error}</CardContent>
+          <CardContent className="text-destructive py-6 text-sm">
+            {result.error}
+          </CardContent>
         </Card>
       ) : (
         <ReviewsModerationTable reviews={result.reviews} />

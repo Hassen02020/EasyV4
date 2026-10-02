@@ -35,30 +35,47 @@ export interface DelegationCheckInput {
  * délégables — jamais staff./admin./accounting.refunds.process, jamais un
  * autre owner/manager/super_admin, jamais une autre agence.
  */
-export function checkDelegationAllowed(input: DelegationCheckInput): DelegationCheckResult {
+export function checkDelegationAllowed(
+  input: DelegationCheckInput,
+): DelegationCheckResult {
   if (input.actorUserId === input.targetUserId) {
-    return { ok: false, error: "Vous ne pouvez pas modifier vos propres permissions." }
+    return {
+      ok: false,
+      error: "Vous ne pouvez pas modifier vos propres permissions.",
+    }
   }
 
   if (input.actorIsSuperAdmin) {
-    if (!input.targetFound) return { ok: false, error: "Utilisateur cible introuvable." }
+    if (!input.targetFound)
+      return { ok: false, error: "Utilisateur cible introuvable." }
     return { ok: true }
   }
 
   if (!input.actorHasStaffEdit) {
     return {
       ok: false,
-      error: "Vous n'êtes pas autorisé à déléguer des permissions — contactez Easy2Book.",
+      error:
+        "Vous n'êtes pas autorisé à déléguer des permissions — contactez Easy2Book.",
     }
   }
-  if (!(input.delegatablePermissions as readonly string[]).includes(input.permission)) {
-    return { ok: false, error: "Cette permission ne peut pas être déléguée à un agent." }
+  if (
+    !(input.delegatablePermissions as readonly string[]).includes(
+      input.permission,
+    )
+  ) {
+    return {
+      ok: false,
+      error: "Cette permission ne peut pas être déléguée à un agent.",
+    }
   }
   if (!input.targetFound) {
     return { ok: false, error: "Agent introuvable dans votre agence." }
   }
   if (input.targetRole !== "partner_agent") {
-    return { ok: false, error: "Vous ne pouvez déléguer des permissions qu'à un partner_agent." }
+    return {
+      ok: false,
+      error: "Vous ne pouvez déléguer des permissions qu'à un partner_agent.",
+    }
   }
   return { ok: true }
 }

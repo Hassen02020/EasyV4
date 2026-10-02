@@ -42,9 +42,13 @@ async function assertHonestlyNotConfigured(driver: HotelSupplierDriver) {
     correlationId: "test",
   })
   assert.equal(book.outcome, "DEFINITIVE_FAILURE")
-  if (book.outcome === "DEFINITIVE_FAILURE") assert.equal(book.code, "NOT_CONFIGURED")
+  if (book.outcome === "DEFINITIVE_FAILURE")
+    assert.equal(book.code, "NOT_CONFIGURED")
 
-  const cancel = await driver.cancel({ supplier: driver.supplier, supplierBookingReference: "x" })
+  const cancel = await driver.cancel({
+    supplier: driver.supplier,
+    supplierBookingReference: "x",
+  })
   assert.equal(cancel.ok, false)
   if (!cancel.ok) assert.equal(cancel.code, "NOT_CONFIGURED")
 

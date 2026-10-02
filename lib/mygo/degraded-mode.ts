@@ -22,17 +22,19 @@ import { logger } from "@/lib/logger"
 import { metrics } from "@/lib/observability/metrics"
 import type { HotelSearchInput } from "./client"
 
-export type DegradedSearchResult<T> = {
-  data: T
-  degraded: false
-  fromStaleCache: boolean
-} | {
-  data: null
-  degraded: true
-  reason: "circuit_open" | "timeout" | "upstream_error"
-  staleData?: T
-  retryAfter?: Date
-}
+export type DegradedSearchResult<T> =
+  | {
+      data: T
+      degraded: false
+      fromStaleCache: boolean
+    }
+  | {
+      data: null
+      degraded: true
+      reason: "circuit_open" | "timeout" | "upstream_error"
+      staleData?: T
+      retryAfter?: Date
+    }
 
 const STALE_TTL_SECONDS = 86_400 // 24h
 
@@ -52,8 +54,12 @@ export async function saveStaleSearchCache<T>(
   const redis = getRedis()
   if (!redis) return
   try {
-    await redis.set(staleKey(input), JSON.stringify(data), { ex: STALE_TTL_SECONDS })
-  } catch { /* non-bloquant */ }
+    await redis.set(staleKey(input), JSON.stringify(data), {
+      ex: STALE_TTL_SECONDS,
+    })
+  } catch {
+    /* non-bloquant */
+  }
 }
 
 /**
@@ -66,7 +72,9 @@ async function getStaleCache<T>(input: HotelSearchInput): Promise<T | null> {
     const raw = await redis.get<string>(staleKey(input))
     if (!raw) return null
     return JSON.parse(raw) as T
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -87,8 +95,9 @@ export async function searchWithFallback<T>(
   } catch (err) {
     const errName = err?.constructor?.name ?? "UnknownError"
     const isCircuitOpen = errName === "MyGoCircuitOpenError"
-    const reason: DegradedSearchResult<T> extends { degraded: true } ? never : string =
-      isCircuitOpen ? "circuit_open" : "upstream_error"
+    const reason: DegradedSearchResult<T> extends { degraded: true }
+      ? never
+      : string = isCircuitOpen ? "circuit_open" : "upstream_error"
 
     // Notification admin via logger (capturée par Vercel Log Drain / Sentry)
     logger.error("[mygo] Mode dégradé activé", {

@@ -14,8 +14,18 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, reservationHotel, reviews } from "@/lib/db/schema"
+import {
+  withTenantContext,
+  withSystemContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
+import {
+  agencies,
+  customers,
+  reservations,
+  reservationHotel,
+  reviews,
+} from "@/lib/db/schema"
 import {
   submitReviewCore,
   listApprovedReviewsForProductCore,
@@ -35,7 +45,8 @@ async function isDbAvailable(): Promise<boolean> {
 }
 
 let dbAvailable = false
-const skipReason = () => "Postgres local indisponible (DATABASE_URL) — voir favorites-core.test.ts pour la procédure."
+const skipReason = () =>
+  "Postgres local indisponible (DATABASE_URL) — voir favorites-core.test.ts pour la procédure."
 
 let agencyA = ""
 let agencyB = ""
@@ -105,45 +116,113 @@ before(async () => {
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, slug: `rev-a-${agencyA}`, name: "Reviews Test Agency A", agencyType: "ota" },
-      { id: agencyB, slug: `rev-b-${agencyB}`, name: "Reviews Test Agency B", agencyType: "ota" },
+      {
+        id: agencyA,
+        slug: `rev-a-${agencyA}`,
+        name: "Reviews Test Agency A",
+        agencyType: "ota",
+      },
+      {
+        id: agencyB,
+        slug: `rev-b-${agencyB}`,
+        name: "Reviews Test Agency B",
+        agencyType: "ota",
+      },
     ])
 
     const [ca1] = await tx
       .insert(customers)
-      .values({ agencyId: agencyA, authUserId: userA1, firstName: "Amine", lastName: "Ben Ali", email: emailA1 })
+      .values({
+        agencyId: agencyA,
+        authUserId: userA1,
+        firstName: "Amine",
+        lastName: "Ben Ali",
+        email: emailA1,
+      })
       .returning({ id: customers.id })
     customerA1 = ca1!.id
 
     const [ca2] = await tx
       .insert(customers)
-      .values({ agencyId: agencyA, authUserId: userA2, firstName: "Sami", lastName: "Trabelsi", email: emailA2 })
+      .values({
+        agencyId: agencyA,
+        authUserId: userA2,
+        firstName: "Sami",
+        lastName: "Trabelsi",
+        email: emailA2,
+      })
       .returning({ id: customers.id })
     customerA2 = ca2!.id
 
     const [ca3] = await tx
       .insert(customers)
-      .values({ agencyId: agencyA, firstName: "Nour", lastName: "Gharbi", email: emailA3 })
+      .values({
+        agencyId: agencyA,
+        firstName: "Nour",
+        lastName: "Gharbi",
+        email: emailA3,
+      })
       .returning({ id: customers.id })
     customerA3 = ca3!.id
 
     const [cb1] = await tx
       .insert(customers)
-      .values({ agencyId: agencyB, authUserId: userB1, firstName: "Karim", lastName: "Jlassi", email: emailB1 })
+      .values({
+        agencyId: agencyB,
+        authUserId: userB1,
+        firstName: "Karim",
+        lastName: "Jlassi",
+        email: emailB1,
+      })
       .returning({ id: customers.id })
     customerB1 = cb1!.id
   })
 
-  reservationConfirmed1 = await insertReservation({ agencyId: agencyA, customerId: customerA1, module: "hotel", status: "confirmed" })
-  reservationConfirmed2 = await insertReservation({ agencyId: agencyA, customerId: customerA2, module: "hotel", status: "confirmed" })
-  reservationConfirmed3 = await insertReservation({ agencyId: agencyA, customerId: customerA3, module: "hotel", status: "confirmed" })
-  reservationPending = await insertReservation({ agencyId: agencyA, customerId: customerA1, module: "hotel", status: "pending" })
-  reservationTransfer = await insertReservation({ agencyId: agencyA, customerId: customerA1, module: "transfer", status: "confirmed" })
-  reservationB1 = await insertReservation({ agencyId: agencyB, customerId: customerB1, module: "hotel", status: "confirmed" })
+  reservationConfirmed1 = await insertReservation({
+    agencyId: agencyA,
+    customerId: customerA1,
+    module: "hotel",
+    status: "confirmed",
+  })
+  reservationConfirmed2 = await insertReservation({
+    agencyId: agencyA,
+    customerId: customerA2,
+    module: "hotel",
+    status: "confirmed",
+  })
+  reservationConfirmed3 = await insertReservation({
+    agencyId: agencyA,
+    customerId: customerA3,
+    module: "hotel",
+    status: "confirmed",
+  })
+  reservationPending = await insertReservation({
+    agencyId: agencyA,
+    customerId: customerA1,
+    module: "hotel",
+    status: "pending",
+  })
+  reservationTransfer = await insertReservation({
+    agencyId: agencyA,
+    customerId: customerA1,
+    module: "transfer",
+    status: "confirmed",
+  })
+  reservationB1 = await insertReservation({
+    agencyId: agencyB,
+    customerId: customerB1,
+    module: "hotel",
+    status: "confirmed",
+  })
 
   await withSystemContext(async (tx) => {
     await tx.insert(reservationHotel).values(
-      [reservationConfirmed1, reservationConfirmed2, reservationConfirmed3, reservationB1].map((reservationId, i) => ({
+      [
+        reservationConfirmed1,
+        reservationConfirmed2,
+        reservationConfirmed3,
+        reservationB1,
+      ].map((reservationId, i) => ({
         reservationId,
         agencyId: i === 3 ? agencyB : agencyA,
         hotelId: HOTEL_ID,
@@ -162,8 +241,12 @@ after(async () => {
   await withSystemContext(async (tx) => {
     await tx.delete(reviews).where(eq(reviews.agencyId, agencyA))
     await tx.delete(reviews).where(eq(reviews.agencyId, agencyB))
-    await tx.delete(reservationHotel).where(eq(reservationHotel.agencyId, agencyA))
-    await tx.delete(reservationHotel).where(eq(reservationHotel.agencyId, agencyB))
+    await tx
+      .delete(reservationHotel)
+      .where(eq(reservationHotel.agencyId, agencyA))
+    await tx
+      .delete(reservationHotel)
+      .where(eq(reservationHotel.agencyId, agencyB))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyA))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyB))
     await tx.delete(customers).where(eq(customers.agencyId, agencyA))
@@ -288,7 +371,11 @@ test("submitReviewCore : succès pour customerA2 (réservation confirmée, propr
 
 test("submitReviewCore : agence B peut soumettre indépendamment (isolation tenant)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctxB: TenantContext = { agencyId: agencyB, userId: userB1, isSuperAdmin: true }
+  const ctxB: TenantContext = {
+    agencyId: agencyB,
+    userId: userB1,
+    isSuperAdmin: true,
+  }
   const result = await withTenantContext(ctxB, (tx) =>
     submitReviewCore(tx, {
       agencyId: agencyB,
@@ -304,12 +391,17 @@ test("submitReviewCore : agence B peut soumettre indépendamment (isolation tena
 
 test("listReviewsForModerationCore : isolation tenant — l'agence A ne voit jamais les avis de l'agence B", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const rowsA = await withTenantContext(ctxA(), (tx) => listReviewsForModerationCore(tx, { agencyId: agencyA }))
+  const rowsA = await withTenantContext(ctxA(), (tx) =>
+    listReviewsForModerationCore(tx, { agencyId: agencyA }),
+  )
   const rowsB = await withTenantContext(
     { agencyId: agencyB, userId: userB1, isSuperAdmin: true },
     (tx) => listReviewsForModerationCore(tx, { agencyId: agencyB }),
   )
-  assert.ok(rowsA.length >= 3, "au moins les 3 avis hôtel soumis pour l'agence A (customerA1/A2/A3)")
+  assert.ok(
+    rowsA.length >= 3,
+    "au moins les 3 avis hôtel soumis pour l'agence A (customerA1/A2/A3)",
+  )
   assert.ok(rowsA.every((r) => r.id !== undefined))
   assert.equal(rowsB.length, 1)
   assert.ok(rowsA.every((r) => r.comment !== "Avis agence B"))
@@ -327,7 +419,11 @@ test("listReviewsForModerationCore : tous les nouveaux avis démarrent 'pending'
 test("listApprovedReviewsForProductCore : ne renvoie AUCUN avis avant modération", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const summary = await withTenantContext(ctxA(), (tx) =>
-    listApprovedReviewsForProductCore(tx, { agencyId: agencyA, module: "hotel", productRef: String(HOTEL_ID) }),
+    listApprovedReviewsForProductCore(tx, {
+      agencyId: agencyA,
+      module: "hotel",
+      productRef: String(HOTEL_ID),
+    }),
   )
   assert.equal(summary.count, 0)
   assert.equal(summary.average, 0)
@@ -340,9 +436,15 @@ test("moderateReviewCore : approuver/rejeter change le statut ; isolation agence
   const pendingA = await withTenantContext(ctxA(), (tx) =>
     listReviewsForModerationCore(tx, { agencyId: agencyA, status: "pending" }),
   )
-  const reviewOnHotel1 = pendingA.find((r) => r.reservationId === reservationConfirmed1)!
-  const reviewOnHotel2 = pendingA.find((r) => r.reservationId === reservationConfirmed2)!
-  const reviewOnHotel3 = pendingA.find((r) => r.reservationId === reservationConfirmed3)!
+  const reviewOnHotel1 = pendingA.find(
+    (r) => r.reservationId === reservationConfirmed1,
+  )!
+  const reviewOnHotel2 = pendingA.find(
+    (r) => r.reservationId === reservationConfirmed2,
+  )!
+  const reviewOnHotel3 = pendingA.find(
+    (r) => r.reservationId === reservationConfirmed3,
+  )!
   assert.ok(reviewOnHotel1 && reviewOnHotel2 && reviewOnHotel3)
 
   // Une agence ne peut jamais modérer l'avis d'une autre — updated: false, statut inchangé.
@@ -359,26 +461,51 @@ test("moderateReviewCore : approuver/rejeter change le statut ; isolation agence
   assert.equal(crossAgencyAttempt.updated, false)
 
   const approve1 = await withTenantContext(ctxA(), (tx) =>
-    moderateReviewCore(tx, { agencyId: agencyA, id: reviewOnHotel1.id, status: "approved", moderatedByUserId: userA1 }),
+    moderateReviewCore(tx, {
+      agencyId: agencyA,
+      id: reviewOnHotel1.id,
+      status: "approved",
+      moderatedByUserId: userA1,
+    }),
   )
   assert.equal(approve1.updated, true)
 
   const reject2 = await withTenantContext(ctxA(), (tx) =>
-    moderateReviewCore(tx, { agencyId: agencyA, id: reviewOnHotel2.id, status: "rejected", moderatedByUserId: userA1 }),
+    moderateReviewCore(tx, {
+      agencyId: agencyA,
+      id: reviewOnHotel2.id,
+      status: "rejected",
+      moderatedByUserId: userA1,
+    }),
   )
   assert.equal(reject2.updated, true)
   // reviewOnHotel3 reste 'pending' volontairement (jamais modéré dans ce test).
 
-  const afterModeration = await withTenantContext(ctxA(), (tx) => listReviewsForModerationCore(tx, { agencyId: agencyA }))
-  assert.equal(afterModeration.find((r) => r.id === reviewOnHotel1.id)!.status, "approved")
-  assert.equal(afterModeration.find((r) => r.id === reviewOnHotel2.id)!.status, "rejected")
-  assert.equal(afterModeration.find((r) => r.id === reviewOnHotel3.id)!.status, "pending")
+  const afterModeration = await withTenantContext(ctxA(), (tx) =>
+    listReviewsForModerationCore(tx, { agencyId: agencyA }),
+  )
+  assert.equal(
+    afterModeration.find((r) => r.id === reviewOnHotel1.id)!.status,
+    "approved",
+  )
+  assert.equal(
+    afterModeration.find((r) => r.id === reviewOnHotel2.id)!.status,
+    "rejected",
+  )
+  assert.equal(
+    afterModeration.find((r) => r.id === reviewOnHotel3.id)!.status,
+    "pending",
+  )
 })
 
 test("listApprovedReviewsForProductCore : renvoie UNIQUEMENT l'avis approuvé, jamais le rejeté ni le pending", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const summary = await withTenantContext(ctxA(), (tx) =>
-    listApprovedReviewsForProductCore(tx, { agencyId: agencyA, module: "hotel", productRef: String(HOTEL_ID) }),
+    listApprovedReviewsForProductCore(tx, {
+      agencyId: agencyA,
+      module: "hotel",
+      productRef: String(HOTEL_ID),
+    }),
   )
   assert.equal(summary.count, 1)
   assert.equal(summary.average, 5)
@@ -392,7 +519,12 @@ test("listApprovedReviewsForProductCore : isolation tenant — l'agence B ne voi
   if (!dbAvailable) return void t.skip(skipReason())
   const summaryFromB = await withTenantContext(
     { agencyId: agencyB, userId: userB1, isSuperAdmin: true },
-    (tx) => listApprovedReviewsForProductCore(tx, { agencyId: agencyB, module: "hotel", productRef: String(HOTEL_ID) }),
+    (tx) =>
+      listApprovedReviewsForProductCore(tx, {
+        agencyId: agencyB,
+        module: "hotel",
+        productRef: String(HOTEL_ID),
+      }),
   )
   assert.equal(summaryFromB.count, 0)
 })

@@ -40,7 +40,10 @@ async function requireSuperAdmin() {
 
   const profile = await getCurrentAdminProfile(user.id)
   if (profile?.role !== "super_admin") {
-    return { ok: false as const, error: "Seul un super_admin peut gérer les accords commerciaux." }
+    return {
+      ok: false as const,
+      error: "Seul un super_admin peut gérer les accords commerciaux.",
+    }
   }
   return { ok: true as const, user, profile }
 }
@@ -64,7 +67,9 @@ const createAgreementSchema = z.object({
   payerRole: z.string().trim().min(1).max(50).default("customer"),
   collectorPartyType: partyType.optional(),
   collectorPartyId: z.string().uuid().optional(),
-  status: z.enum(["draft", "active", "suspended", "terminated"]).default("draft"),
+  status: z
+    .enum(["draft", "active", "suspended", "terminated"])
+    .default("draft"),
   validFrom: z.string().optional(),
   validTo: z.string().optional(),
 })
@@ -78,7 +83,12 @@ export async function createCommercialAgreement(
 ): Promise<CreateCommercialAgreementResult> {
   const parsed = createAgreementSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -128,7 +138,9 @@ export async function createCommercialAgreement(
 /* Statut                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export type SetCommercialAgreementStatusResult = { ok: true } | { ok: false; error: string }
+export type SetCommercialAgreementStatusResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function setCommercialAgreementStatus(
   agreementId: string,
@@ -139,18 +151,24 @@ export async function setCommercialAgreementStatus(
   const { user } = auth
 
   try {
-    await withTenantContext({ agencyId: null, userId: user.id, isSuperAdmin: true }, async (tx) => {
-      const [updated] = await tx
-        .update(commercialAgreements)
-        .set({ status, updatedAt: new Date() })
-        .where(eq(commercialAgreements.id, agreementId))
-        .returning({ id: commercialAgreements.id })
-      if (!updated) throw new Error("Accord introuvable")
-    })
+    await withTenantContext(
+      { agencyId: null, userId: user.id, isSuperAdmin: true },
+      async (tx) => {
+        const [updated] = await tx
+          .update(commercialAgreements)
+          .set({ status, updatedAt: new Date() })
+          .where(eq(commercialAgreements.id, agreementId))
+          .returning({ id: commercialAgreements.id })
+        if (!updated) throw new Error("Accord introuvable")
+      },
+    )
     revalidatePath("/admin/accords-commerciaux")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -180,44 +198,59 @@ export interface CommercialAgreementRow {
 /** Réservé super_admin — expose tous les accords, toutes parties confondues
  * (la lecture RLS élargie par accord-partie sert le portail agence, pas
  * cette vue admin cross-tenant). */
-export async function listCommercialAgreements(): Promise<CommercialAgreementRow[]> {
+export async function listCommercialAgreements(): Promise<
+  CommercialAgreementRow[]
+> {
   const auth = await requireSuperAdmin()
   if (!auth.ok) return []
   const { user } = auth
 
-  return withTenantContext({ agencyId: null, userId: user.id, isSuperAdmin: true }, async (tx) => {
-    const rows = await tx
-      .select({
-        id: commercialAgreements.id,
-        sellerPartyType: commercialAgreements.sellerPartyType,
-        sellerPartyId: commercialAgreements.sellerPartyId,
-        ownerPartyType: commercialAgreements.ownerPartyType,
-        ownerPartyId: commercialAgreements.ownerPartyId,
-        supplierPartyType: commercialAgreements.supplierPartyType,
-        supplierPartyId: commercialAgreements.supplierPartyId,
-        easy2bookRole: commercialAgreements.easy2bookRole,
-        channel: commercialAgreements.channel,
-        currency: commercialAgreements.currency,
-        payerRole: commercialAgreements.payerRole,
-        status: commercialAgreements.status,
-        validFrom: commercialAgreements.validFrom,
-        validTo: commercialAgreements.validTo,
-        createdAt: commercialAgreements.createdAt,
-      })
-      .from(commercialAgreements)
-      .orderBy(commercialAgreements.createdAt)
+  return withTenantContext(
+    { agencyId: null, userId: user.id, isSuperAdmin: true },
+    async (tx) => {
+      const rows = await tx
+        .select({
+          id: commercialAgreements.id,
+          sellerPartyType: commercialAgreements.sellerPartyType,
+          sellerPartyId: commercialAgreements.sellerPartyId,
+          ownerPartyType: commercialAgreements.ownerPartyType,
+          ownerPartyId: commercialAgreements.ownerPartyId,
+          supplierPartyType: commercialAgreements.supplierPartyType,
+          supplierPartyId: commercialAgreements.supplierPartyId,
+          easy2bookRole: commercialAgreements.easy2bookRole,
+          channel: commercialAgreements.channel,
+          currency: commercialAgreements.currency,
+          payerRole: commercialAgreements.payerRole,
+          status: commercialAgreements.status,
+          validFrom: commercialAgreements.validFrom,
+          validTo: commercialAgreements.validTo,
+          createdAt: commercialAgreements.createdAt,
+        })
+        .from(commercialAgreements)
+        .orderBy(commercialAgreements.createdAt)
 
-    const agencyIds = Array.from(
-      new Set(rows.filter((r) => r.sellerPartyType === "agency").map((r) => r.sellerPartyId)),
-    )
-    const agencyNames = agencyIds.length
-      ? await tx.select({ id: agencies.id, name: agencies.name }).from(agencies).where(inArray(agencies.id, agencyIds))
-      : []
-    const nameById = new Map(agencyNames.map((a) => [a.id, a.name]))
+      const agencyIds = Array.from(
+        new Set(
+          rows
+            .filter((r) => r.sellerPartyType === "agency")
+            .map((r) => r.sellerPartyId),
+        ),
+      )
+      const agencyNames = agencyIds.length
+        ? await tx
+            .select({ id: agencies.id, name: agencies.name })
+            .from(agencies)
+            .where(inArray(agencies.id, agencyIds))
+        : []
+      const nameById = new Map(agencyNames.map((a) => [a.id, a.name]))
 
-    return rows.map((r) => ({
-      ...r,
-      sellerPartyName: r.sellerPartyType === "agency" ? (nameById.get(r.sellerPartyId) ?? null) : null,
-    }))
-  })
+      return rows.map((r) => ({
+        ...r,
+        sellerPartyName:
+          r.sellerPartyType === "agency"
+            ? (nameById.get(r.sellerPartyId) ?? null)
+            : null,
+      }))
+    },
+  )
 }

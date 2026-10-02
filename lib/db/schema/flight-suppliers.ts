@@ -60,11 +60,18 @@ export const flightSupplierConfigs = pgTable(
     /** Quick kill-switch: disables API calls without changing bookingMode. */
     apiEnabled: boolean("api_enabled").notNull().default(false),
     createdByUserId: uuid("created_by_user_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
-    uniqueIndex("flight_supplier_configs_agency_supplier_uniq").on(t.agencyId, t.supplier),
+    uniqueIndex("flight_supplier_configs_agency_supplier_uniq").on(
+      t.agencyId,
+      t.supplier,
+    ),
     index("flight_supplier_configs_agency_idx").on(t.agencyId),
     index("flight_supplier_configs_active_idx").on(t.active),
   ],
@@ -80,8 +87,12 @@ export const flightSupplierCredentials = pgTable(
     ciphertext: text("ciphertext").notNull(),
     keyVersion: integer("key_version").notNull().default(1),
     updatedByUserId: uuid("updated_by_user_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [index("flight_supplier_credentials_agency_idx").on(t.agencyId)],
 )
@@ -92,5 +103,7 @@ export const flightSupplierCredentials = pgTable(
 
 export type FlightSupplierConfig = typeof flightSupplierConfigs.$inferSelect
 export type NewFlightSupplierConfig = typeof flightSupplierConfigs.$inferInsert
-export type FlightSupplierCredential = typeof flightSupplierCredentials.$inferSelect
-export type NewFlightSupplierCredential = typeof flightSupplierCredentials.$inferInsert
+export type FlightSupplierCredential =
+  typeof flightSupplierCredentials.$inferSelect
+export type NewFlightSupplierCredential =
+  typeof flightSupplierCredentials.$inferInsert

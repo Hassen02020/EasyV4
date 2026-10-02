@@ -30,7 +30,10 @@
  * ci-dessus (TND non supporté par Stripe, doc SPS jamais obtenue).
  */
 
-import { VirtualPaymentProvider, isVirtualPaymentModeEnabled } from "./virtual-payment-provider"
+import {
+  VirtualPaymentProvider,
+  isVirtualPaymentModeEnabled,
+} from "./virtual-payment-provider"
 import { PaymeePaymentProvider, isPaymeeSelected } from "./paymee-provider"
 
 export type PaymentProviderCode =
@@ -95,7 +98,10 @@ export interface PaymentProvider {
   readonly configured: boolean
   createPayment(input: CreatePaymentInput): Promise<PaymentResult>
   confirmPayment(providerPaymentId: string): Promise<PaymentResult>
-  refundPayment(providerPaymentId: string, amountTnd?: number): Promise<PaymentResult>
+  refundPayment(
+    providerPaymentId: string,
+    amountTnd?: number,
+  ): Promise<PaymentResult>
   getPaymentStatus(providerPaymentId: string): Promise<PaymentStatusResult>
 }
 

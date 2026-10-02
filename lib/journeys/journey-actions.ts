@@ -40,7 +40,10 @@
  */
 
 import { z } from "zod"
-import { resolveSessionContext, withTenantContext } from "@/lib/db/tenant-context"
+import {
+  resolveSessionContext,
+  withTenantContext,
+} from "@/lib/db/tenant-context"
 import {
   createJourneyCore,
   addJourneyLineCore,
@@ -72,17 +75,33 @@ type ActorContext =
 
 /** Pour créer/lister — une action qui a besoin de savoir POUR QUELLE agence
  * elle agit sans qu'aucun enregistrement existant ne le lui dise déjà. */
-async function resolveActorContext(explicitAgencyId?: string): Promise<ActorContext> {
+async function resolveActorContext(
+  explicitAgencyId?: string,
+): Promise<ActorContext> {
   const session = await resolveSessionContext()
   if (!session.ok) return { ok: false, error: "Non authentifié" }
   if (session.isSuperAdmin) {
     if (!explicitAgencyId) {
-      return { ok: false, error: "agencyId requis pour le staff (jamais déduit implicitement)" }
+      return {
+        ok: false,
+        error: "agencyId requis pour le staff (jamais déduit implicitement)",
+      }
     }
-    return { ok: true, agencyId: explicitAgencyId, userId: session.userId, isSuperAdmin: true }
+    return {
+      ok: true,
+      agencyId: explicitAgencyId,
+      userId: session.userId,
+      isSuperAdmin: true,
+    }
   }
-  if (!session.agencyId) return { ok: false, error: "Profil utilisateur introuvable" }
-  return { ok: true, agencyId: session.agencyId, userId: session.userId, isSuperAdmin: false }
+  if (!session.agencyId)
+    return { ok: false, error: "Profil utilisateur introuvable" }
+  return {
+    ok: true,
+    agencyId: session.agencyId,
+    userId: session.userId,
+    isSuperAdmin: false,
+  }
 }
 
 type ExistingRecordActorContext =
@@ -96,9 +115,21 @@ type ExistingRecordActorContext =
 async function resolveActorForExistingRecord(): Promise<ExistingRecordActorContext> {
   const session = await resolveSessionContext()
   if (!session.ok) return { ok: false, error: "Non authentifié" }
-  if (session.isSuperAdmin) return { ok: true, agencyId: null, userId: session.userId, isSuperAdmin: true }
-  if (!session.agencyId) return { ok: false, error: "Profil utilisateur introuvable" }
-  return { ok: true, agencyId: session.agencyId, userId: session.userId, isSuperAdmin: false }
+  if (session.isSuperAdmin)
+    return {
+      ok: true,
+      agencyId: null,
+      userId: session.userId,
+      isSuperAdmin: true,
+    }
+  if (!session.agencyId)
+    return { ok: false, error: "Profil utilisateur introuvable" }
+  return {
+    ok: true,
+    agencyId: session.agencyId,
+    userId: session.userId,
+    isSuperAdmin: false,
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -111,19 +142,32 @@ const createJourneySchema = z.object({
   title: z.string().trim().max(200).optional(),
 })
 
-export type CreateJourneyResult = { ok: true; journeyId: string } | { ok: false; error: string }
+export type CreateJourneyResult =
+  | { ok: true; journeyId: string }
+  | { ok: false; error: string }
 
-export async function createJourney(raw: z.infer<typeof createJourneySchema>): Promise<CreateJourneyResult> {
+export async function createJourney(
+  raw: z.infer<typeof createJourneySchema>,
+): Promise<CreateJourneyResult> {
   const parsed = createJourneySchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const actor = await resolveActorContext(parsed.data.agencyId)
   if (!actor.ok) return actor
 
   try {
     const journey = await withTenantContext(
-      { agencyId: actor.isSuperAdmin ? null : actor.agencyId, userId: actor.userId, isSuperAdmin: actor.isSuperAdmin },
+      {
+        agencyId: actor.isSuperAdmin ? null : actor.agencyId,
+        userId: actor.userId,
+        isSuperAdmin: actor.isSuperAdmin,
+      },
       (tx) =>
         createJourneyCore(tx, {
           agencyId: actor.agencyId,
@@ -134,7 +178,10 @@ export async function createJourney(raw: z.infer<typeof createJourneySchema>): P
     )
     return { ok: true, journeyId: journey.id }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur interne",
+    }
   }
 }
 
@@ -152,19 +199,32 @@ const addJourneyLineSchema = z.object({
   priceTnd: z.coerce.number().nonnegative().optional(),
 })
 
-export type AddJourneyLineResult = { ok: true; lineId: string } | { ok: false; error: string }
+export type AddJourneyLineResult =
+  | { ok: true; lineId: string }
+  | { ok: false; error: string }
 
-export async function addJourneyLine(raw: z.infer<typeof addJourneyLineSchema>): Promise<AddJourneyLineResult> {
+export async function addJourneyLine(
+  raw: z.infer<typeof addJourneyLineSchema>,
+): Promise<AddJourneyLineResult> {
   const parsed = addJourneyLineSchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const actor = await resolveActorForExistingRecord()
   if (!actor.ok) return actor
 
   try {
     const line = await withTenantContext(
-      { agencyId: actor.isSuperAdmin ? null : actor.agencyId, userId: actor.userId, isSuperAdmin: actor.isSuperAdmin },
+      {
+        agencyId: actor.isSuperAdmin ? null : actor.agencyId,
+        userId: actor.userId,
+        isSuperAdmin: actor.isSuperAdmin,
+      },
       (tx) =>
         addJourneyLineCore(tx, {
           journeyId: parsed.data.journeyId,
@@ -176,9 +236,14 @@ export async function addJourneyLine(raw: z.infer<typeof addJourneyLineSchema>):
     return { ok: true, lineId: line.id }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur interne"
-    if (message === "JOURNEY_NOT_FOUND") return { ok: false, error: "Journey introuvable ou non autorisé." }
+    if (message === "JOURNEY_NOT_FOUND")
+      return { ok: false, error: "Journey introuvable ou non autorisé." }
     if (message === "JOURNEY_COMPOSITION_LOCKED") {
-      return { ok: false, error: "Ce Journey a déjà une confirmation en cours ou terminée — composition verrouillée." }
+      return {
+        ok: false,
+        error:
+          "Ce Journey a déjà une confirmation en cours ou terminée — composition verrouillée.",
+      }
     }
     return { ok: false, error: message }
   }
@@ -192,27 +257,44 @@ const removeJourneyLineSchema = z.object({
   lineId: z.string().uuid(),
 })
 
-export type RemoveJourneyLineResult = { ok: true } | { ok: false; error: string }
+export type RemoveJourneyLineResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
-export async function removeJourneyLine(raw: z.infer<typeof removeJourneyLineSchema>): Promise<RemoveJourneyLineResult> {
+export async function removeJourneyLine(
+  raw: z.infer<typeof removeJourneyLineSchema>,
+): Promise<RemoveJourneyLineResult> {
   const parsed = removeJourneyLineSchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const actor = await resolveActorForExistingRecord()
   if (!actor.ok) return actor
 
   try {
     await withTenantContext(
-      { agencyId: actor.isSuperAdmin ? null : actor.agencyId, userId: actor.userId, isSuperAdmin: actor.isSuperAdmin },
+      {
+        agencyId: actor.isSuperAdmin ? null : actor.agencyId,
+        userId: actor.userId,
+        isSuperAdmin: actor.isSuperAdmin,
+      },
       (tx) => removeJourneyLineCore(tx, { lineId: parsed.data.lineId }),
     )
     return { ok: true }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur interne"
-    if (message === "LINE_NOT_FOUND") return { ok: false, error: "Ligne introuvable ou non autorisée." }
+    if (message === "LINE_NOT_FOUND")
+      return { ok: false, error: "Ligne introuvable ou non autorisée." }
     if (message === "LINE_NOT_REMOVABLE") {
-      return { ok: false, error: "Une ligne confirmée ou en cours ne peut pas être supprimée." }
+      return {
+        ok: false,
+        error: "Une ligne confirmée ou en cours ne peut pas être supprimée.",
+      }
     }
     return { ok: false, error: message }
   }
@@ -224,9 +306,14 @@ export async function removeJourneyLine(raw: z.infer<typeof removeJourneyLineSch
 /* quel et normalise sa réponse.                                            */
 /* -------------------------------------------------------------------------- */
 
-type DispatchOutcome = { ok: true; reservationId: string; priceTnd?: number } | { ok: false; error: string }
+type DispatchOutcome =
+  | { ok: true; reservationId: string; priceTnd?: number }
+  | { ok: false; error: string }
 
-async function dispatchJourneyLine(module: JourneyWiredModule, payload: unknown): Promise<DispatchOutcome> {
+async function dispatchJourneyLine(
+  module: JourneyWiredModule,
+  payload: unknown,
+): Promise<DispatchOutcome> {
   switch (module) {
     case "hotel": {
       const input = payload as Parameters<typeof createReservationFromDraft>[0]
@@ -260,14 +347,22 @@ async function dispatchJourneyLine(module: JourneyWiredModule, payload: unknown)
       const input = payload as Parameters<typeof createTransferBooking>[0]
       const result = await createTransferBooking(input)
       return result.ok
-        ? { ok: true, reservationId: result.reservationId, priceTnd: result.totalTnd }
+        ? {
+            ok: true,
+            reservationId: result.reservationId,
+            priceTnd: result.totalTnd,
+          }
         : { ok: false, error: result.error }
     }
     case "car": {
       const input = payload as Parameters<typeof createCarBooking>[0]
       const result = await createCarBooking(input)
       return result.ok
-        ? { ok: true, reservationId: result.reservationId, priceTnd: result.totalTnd }
+        ? {
+            ok: true,
+            reservationId: result.reservationId,
+            priceTnd: result.totalTnd,
+          }
         : { ok: false, error: result.error }
     }
     case "network": {
@@ -292,36 +387,70 @@ export type ConfirmJourneyLineResult =
   | { ok: true; reservationId: string; alreadyConfirmed?: boolean }
   | { ok: false; error: string; code?: string }
 
-export async function confirmJourneyLine(raw: z.infer<typeof confirmJourneyLineSchema>): Promise<ConfirmJourneyLineResult> {
+export async function confirmJourneyLine(
+  raw: z.infer<typeof confirmJourneyLineSchema>,
+): Promise<ConfirmJourneyLineResult> {
   const parsed = confirmJourneyLineSchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const actor = await resolveActorForExistingRecord()
   if (!actor.ok) return actor
-  const tenantCtx = { agencyId: actor.agencyId, userId: actor.userId, isSuperAdmin: actor.isSuperAdmin }
+  const tenantCtx = {
+    agencyId: actor.agencyId,
+    userId: actor.userId,
+    isSuperAdmin: actor.isSuperAdmin,
+  }
 
   // --- Étape 1/3 : CAS pending|failed → processing, transaction COMMITTÉE seule ---
-  const cas = await withTenantContext(tenantCtx, (tx) => casLineToProcessingCore(tx, { lineId: parsed.data.lineId }))
-  if (cas.outcome === "not_found") return { ok: false, error: "Ligne introuvable ou non autorisée." }
+  const cas = await withTenantContext(tenantCtx, (tx) =>
+    casLineToProcessingCore(tx, { lineId: parsed.data.lineId }),
+  )
+  if (cas.outcome === "not_found")
+    return { ok: false, error: "Ligne introuvable ou non autorisée." }
   if (cas.outcome === "already_processing") {
-    return { ok: false, error: "Confirmation déjà en cours pour cette ligne — réessayez dans quelques instants.", code: "ALREADY_PROCESSING" }
+    return {
+      ok: false,
+      error:
+        "Confirmation déjà en cours pour cette ligne — réessayez dans quelques instants.",
+      code: "ALREADY_PROCESSING",
+    }
   }
   if (cas.outcome === "already_confirmed") {
-    return { ok: true, reservationId: cas.line.reservationId ?? "", alreadyConfirmed: true }
+    return {
+      ok: true,
+      reservationId: cas.line.reservationId ?? "",
+      alreadyConfirmed: true,
+    }
   }
   const line = cas.line // outcome === "started"
 
   // --- Étape 2/3 : moteur réel, HORS de toute transaction ici ---
   let outcome: DispatchOutcome
   try {
-    outcome = await dispatchJourneyLine(line.module as JourneyWiredModule, line.payload)
+    outcome = await dispatchJourneyLine(
+      line.module as JourneyWiredModule,
+      line.payload,
+    )
   } catch (err) {
-    outcome = { ok: false, error: err instanceof Error ? err.message : "Erreur interne du moteur de réservation" }
+    outcome = {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Erreur interne du moteur de réservation",
+    }
   }
 
   // --- Étape 3/3 : enregistrement du résultat, transaction SÉPARÉE ---
-  await withTenantContext(tenantCtx, (tx) => recordLineOutcomeCore(tx, { lineId: line.id, outcome }))
+  await withTenantContext(tenantCtx, (tx) =>
+    recordLineOutcomeCore(tx, { lineId: line.id, outcome }),
+  )
 
   if (!outcome.ok) return { ok: false, error: outcome.error }
   return { ok: true, reservationId: outcome.reservationId }
@@ -340,21 +469,31 @@ export async function getJourney(raw: z.infer<typeof getJourneySchema>) {
   const actor = await resolveActorForExistingRecord()
   if (!actor.ok) return null
   return withTenantContext(
-    { agencyId: actor.agencyId, userId: actor.userId, isSuperAdmin: actor.isSuperAdmin },
+    {
+      agencyId: actor.agencyId,
+      userId: actor.userId,
+      isSuperAdmin: actor.isSuperAdmin,
+    },
     (tx) => getJourneyWithLinesCore(tx, { journeyId: parsed.data.journeyId }),
   )
 }
 
 const listJourneysSchema = z.object({ agencyId: z.string().uuid().optional() })
 
-export async function listMyJourneys(raw: z.infer<typeof listJourneysSchema> = {}) {
+export async function listMyJourneys(
+  raw: z.infer<typeof listJourneysSchema> = {},
+) {
   const parsed = listJourneysSchema.safeParse(raw)
   if (!parsed.success) return []
   if (!process.env.DATABASE_URL) return []
   const actor = await resolveActorContext(parsed.data.agencyId)
   if (!actor.ok) return []
   return withTenantContext(
-    { agencyId: actor.isSuperAdmin ? null : actor.agencyId, userId: actor.userId, isSuperAdmin: actor.isSuperAdmin },
+    {
+      agencyId: actor.isSuperAdmin ? null : actor.agencyId,
+      userId: actor.userId,
+      isSuperAdmin: actor.isSuperAdmin,
+    },
     (tx) => listJourneysForAgencyCore(tx, { agencyId: actor.agencyId }),
   )
 }

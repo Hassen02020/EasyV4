@@ -69,13 +69,13 @@ export function TransferSearch({ zones }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="bg-card rounded-2xl border p-6 shadow-sm">
       <h2 className="mb-6 text-xl font-semibold">{t("title")}</h2>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Car className="h-3.5 w-3.5 text-muted-foreground" />
+            <Car className="text-muted-foreground h-3.5 w-3.5" />
             {t("pickupLocationLabel")}
           </Label>
           <Select value={fromZone} onValueChange={setFromZone}>
@@ -100,7 +100,7 @@ export function TransferSearch({ zones }: Props) {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+            <ArrowRight className="text-muted-foreground h-3.5 w-3.5" />
             {t("dropoffLocationLabel")}
           </Label>
           <Select value={toZone} onValueChange={setToZone}>
@@ -121,7 +121,7 @@ export function TransferSearch({ zones }: Props) {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Car className="h-3.5 w-3.5 text-muted-foreground" />
+            <Car className="text-muted-foreground h-3.5 w-3.5" />
             {t("vehicleTypeLabel")}
           </Label>
           <Select value={vehicle} onValueChange={setVehicle}>
@@ -140,7 +140,7 @@ export function TransferSearch({ zones }: Props) {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <Users className="text-muted-foreground h-3.5 w-3.5" />
             {t("passengersCountLabel")}
           </Label>
           <Select value={pax} onValueChange={setPax}>
@@ -159,7 +159,7 @@ export function TransferSearch({ zones }: Props) {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <Calendar className="text-muted-foreground h-3.5 w-3.5" />
             {t("dateLabel")}
           </Label>
           <Input
@@ -172,7 +172,7 @@ export function TransferSearch({ zones }: Props) {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <Clock className="text-muted-foreground h-3.5 w-3.5" />
             {t("pickupTimeLabel")}
           </Label>
           <Input

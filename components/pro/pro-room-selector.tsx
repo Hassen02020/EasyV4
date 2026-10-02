@@ -65,7 +65,11 @@ interface ProRoomSelectorProps {
   }
 }
 
-export function ProRoomSelector({ hotelId, offer, searchQuery }: ProRoomSelectorProps) {
+export function ProRoomSelector({
+  hotelId,
+  offer,
+  searchQuery,
+}: ProRoomSelectorProps) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const rows = flattenRooms(offer)
@@ -120,8 +124,12 @@ export function ProRoomSelector({ hotelId, offer, searchQuery }: ProRoomSelector
               <tr className="text-muted-foreground text-xs tracking-wide uppercase">
                 <th className="px-4 py-3 text-left font-semibold">Chambre</th>
                 <th className="px-3 py-3 text-left font-semibold">Pension</th>
-                <th className="px-3 py-3 text-left font-semibold">Conditions</th>
-                <th className="px-3 py-3 text-right font-semibold">Prix agence</th>
+                <th className="px-3 py-3 text-left font-semibold">
+                  Conditions
+                </th>
+                <th className="px-3 py-3 text-right font-semibold">
+                  Prix agence
+                </th>
                 <th className="px-3 py-3 text-center font-semibold">Choisir</th>
               </tr>
             </thead>
@@ -145,24 +153,36 @@ export function ProRoomSelector({ hotelId, offer, searchQuery }: ProRoomSelector
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-1.5">
                         {row.stopReservation ? (
-                          <Badge variant="outline" className="border-destructive/40 text-destructive text-[10px]">
+                          <Badge
+                            variant="outline"
+                            className="border-destructive/40 text-destructive text-[10px]"
+                          >
                             <XCircle className="mr-1 h-3 w-3" />
                             Sur demande
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-700">
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-700"
+                          >
                             <CheckCircle2 className="mr-1 h-3 w-3" />
                             Disponible
                           </Badge>
                         )}
                         {row.freeCancellation && (
-                          <Badge variant="outline" className="border-sky-300 bg-sky-50 text-[10px] text-sky-700">
+                          <Badge
+                            variant="outline"
+                            className="border-sky-300 bg-sky-50 text-[10px] text-sky-700"
+                          >
                             <ShieldCheck className="mr-1 h-3 w-3" />
                             Annulation gratuite
                           </Badge>
                         )}
                         {row.notRefundable && (
-                          <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                          <Badge
+                            variant="outline"
+                            className="text-muted-foreground text-[10px]"
+                          >
                             Non remboursable
                           </Badge>
                         )}

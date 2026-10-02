@@ -7,7 +7,13 @@
 
 import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { X, Plus } from "lucide-react"
 import {
@@ -44,7 +50,9 @@ export function ProductAuthorizationPanel({
   authorizations,
 }: ProductAuthorizationPanelProps) {
   const [isPending, startTransition] = useTransition()
-  const [selectedAgencyId, setSelectedAgencyId] = useState(agencies[0]?.id ?? "")
+  const [selectedAgencyId, setSelectedAgencyId] = useState(
+    agencies[0]?.id ?? "",
+  )
   const [channel, setChannel] = useState<"b2b" | "white_label">("b2b")
   const [rows, setRows] = useState(authorizations.filter((a) => a.isActive))
   const [error, setError] = useState<string | null>(null)
@@ -66,7 +74,13 @@ export function ProductAuthorizationPanel({
       const agency = agencies.find((a) => a.id === selectedAgencyId)
       setRows((prev) => [
         ...prev.filter((r) => r.agencyId !== selectedAgencyId),
-        { id: result.data.id, agencyId: selectedAgencyId, agencyName: agency?.name ?? "?", channel, isActive: true },
+        {
+          id: result.data.id,
+          agencyId: selectedAgencyId,
+          agencyName: agency?.name ?? "?",
+          channel,
+          isActive: true,
+        },
       ])
     })
   }
@@ -85,7 +99,9 @@ export function ProductAuthorizationPanel({
       {error ? <p className="text-destructive text-xs">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
         {rows.length === 0 ? (
-          <span className="text-xs text-muted-foreground">Aucune agence autorisée</span>
+          <span className="text-muted-foreground text-xs">
+            Aucune agence autorisée
+          </span>
         ) : (
           rows.map((r) => (
             <Badge key={r.id} variant="outline" className="gap-1.5 pr-1">
@@ -94,7 +110,7 @@ export function ProductAuthorizationPanel({
                 type="button"
                 onClick={() => handleRevoke(r.id)}
                 disabled={isPending}
-                className="ml-1 rounded-full p-0.5 hover:bg-muted"
+                className="hover:bg-muted ml-1 rounded-full p-0.5"
                 aria-label={`Révoquer ${r.agencyName}`}
               >
                 <X className="h-3 w-3" />
@@ -116,7 +132,10 @@ export function ProductAuthorizationPanel({
             ))}
           </SelectContent>
         </Select>
-        <Select value={channel} onValueChange={(v) => setChannel(v as "b2b" | "white_label")}>
+        <Select
+          value={channel}
+          onValueChange={(v) => setChannel(v as "b2b" | "white_label")}
+        >
           <SelectTrigger className="h-8 w-[140px] text-xs">
             <SelectValue />
           </SelectTrigger>
@@ -125,7 +144,12 @@ export function ProductAuthorizationPanel({
             <SelectItem value="white_label">White Label</SelectItem>
           </SelectContent>
         </Select>
-        <Button size="sm" variant="outline" onClick={handleAuthorize} disabled={isPending || !selectedAgencyId}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleAuthorize}
+          disabled={isPending || !selectedAgencyId}
+        >
           <Plus className="mr-1 h-3.5 w-3.5" />
           Autoriser
         </Button>

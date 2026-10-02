@@ -14,7 +14,11 @@
  * un compte tenant, qui n'a précisément pas besoin de ces variables globales
  * (voir la note de migration MyGo dans le rapport final Phase 27).
  */
-import { resolveMyGoInfraDefaults, type MyGoConfig, type MyGoMode } from "@/lib/mygo/config"
+import {
+  resolveMyGoInfraDefaults,
+  type MyGoConfig,
+  type MyGoMode,
+} from "@/lib/mygo/config"
 import type { ResolvedSupplierAccount } from "../tenant/types"
 
 export interface MyGoAccountCredentials {
@@ -24,12 +28,16 @@ export interface MyGoAccountCredentials {
 
 export class MyGoAccountCredentialsInvalidError extends Error {
   constructor(accountId: string) {
-    super(`Compte MyGo ${accountId}: identifiants déchiffrés invalides (login/password manquants).`)
+    super(
+      `Compte MyGo ${accountId}: identifiants déchiffrés invalides (login/password manquants).`,
+    )
     this.name = "MyGoAccountCredentialsInvalidError"
   }
 }
 
-export function buildMyGoConfigFromAccount(resolved: ResolvedSupplierAccount): MyGoConfig {
+export function buildMyGoConfigFromAccount(
+  resolved: ResolvedSupplierAccount,
+): MyGoConfig {
   const creds = resolved.credentials as Partial<MyGoAccountCredentials>
   if (!creds.login || !creds.password) {
     throw new MyGoAccountCredentialsInvalidError(resolved.accountId)

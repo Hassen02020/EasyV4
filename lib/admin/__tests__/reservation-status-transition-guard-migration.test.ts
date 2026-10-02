@@ -10,16 +10,24 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { RESERVATION_STATUSES, isTransitionAllowed } from "../reservation-status"
+import {
+  RESERVATION_STATUSES,
+  isTransitionAllowed,
+} from "../reservation-status"
 
 const sql = readFileSync(
-  join(process.cwd(), "drizzle/manual/0090_reservation_status_transition_guard.sql"),
+  join(
+    process.cwd(),
+    "drizzle/manual/0090_reservation_status_transition_guard.sql",
+  ),
   "utf8",
 )
 
 test("la migration encode une ligne OLD.status=X pour chaque statut non-terminal, et aucune pour les statuts terminaux", () => {
   for (const from of RESERVATION_STATUSES) {
-    const hasOutgoing = RESERVATION_STATUSES.some((to) => to !== from && isTransitionAllowed(from, to))
+    const hasOutgoing = RESERVATION_STATUSES.some(
+      (to) => to !== from && isTransitionAllowed(from, to),
+    )
     const pattern = new RegExp(`OLD\\.status = '${from}'`)
     assert.equal(
       pattern.test(sql),
@@ -31,10 +39,19 @@ test("la migration encode une ligne OLD.status=X pour chaque statut non-terminal
 
 test("chaque transition autorisée par isTransitionAllowed() apparaît dans la clause OLD.status du statut source, dans la migration SQL", () => {
   for (const from of RESERVATION_STATUSES) {
-    const targets = RESERVATION_STATUSES.filter((to) => to !== from && isTransitionAllowed(from, to))
+    const targets = RESERVATION_STATUSES.filter(
+      (to) => to !== from && isTransitionAllowed(from, to),
+    )
     if (targets.length === 0) continue
-    const blockMatch = sql.match(new RegExp(`OLD\\.status = '${from}'[^)]*NEW\\.status (?:IN \\(([^)]*)\\)|= '([^']*)')`))
-    assert.ok(blockMatch, `bloc OLD.status = '${from}' introuvable dans la migration`)
+    const blockMatch = sql.match(
+      new RegExp(
+        `OLD\\.status = '${from}'[^)]*NEW\\.status (?:IN \\(([^)]*)\\)|= '([^']*)')`,
+      ),
+    )
+    assert.ok(
+      blockMatch,
+      `bloc OLD.status = '${from}' introuvable dans la migration`,
+    )
     const raw = blockMatch![1] ?? blockMatch![2] ?? ""
     const sqlTargets = raw
       .split(",")

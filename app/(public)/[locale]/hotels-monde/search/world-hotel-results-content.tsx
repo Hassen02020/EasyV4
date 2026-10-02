@@ -11,7 +11,15 @@ import { useCurrency } from "@/components/currency-context"
 import { useDestinations } from "@/hooks/use-destinations"
 import { usePaginatedResults } from "@/hooks/use-paginated-results"
 import { SearchPagination } from "@/components/search-pagination"
-import { Coffee, Info, MapPin, RefreshCw, ShieldCheck, Star, Users } from "lucide-react"
+import {
+  Coffee,
+  Info,
+  MapPin,
+  RefreshCw,
+  ShieldCheck,
+  Star,
+  Users,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -32,7 +40,10 @@ import type { WorldHotelOffer } from "@/lib/hotels-monde/client"
 
 type SortMode = "recommended" | "price_asc" | "price_desc" | "rating_desc"
 
-function sortOffers(offers: WorldHotelOffer[], mode: SortMode): WorldHotelOffer[] {
+function sortOffers(
+  offers: WorldHotelOffer[],
+  mode: SortMode,
+): WorldHotelOffer[] {
   const copy = [...offers]
   switch (mode) {
     case "price_asc":
@@ -52,7 +63,10 @@ function sortOffers(offers: WorldHotelOffer[], mode: SortMode): WorldHotelOffer[
   }
 }
 
-function formatDateHeader(dateStr: string, dateFnsLocale: DateFnsLocale): string {
+function formatDateHeader(
+  dateStr: string,
+  dateFnsLocale: DateFnsLocale,
+): string {
   try {
     return format(parseISO(dateStr), "d MMMM yyyy", { locale: dateFnsLocale })
   } catch {
@@ -60,7 +74,10 @@ function formatDateHeader(dateStr: string, dateFnsLocale: DateFnsLocale): string
   }
 }
 
-function bookingHref(offer: WorldHotelOffer, state: WorldHotelSearchState): string | null {
+function bookingHref(
+  offer: WorldHotelOffer,
+  state: WorldHotelSearchState,
+): string | null {
   if (!offer.offerToken) return null
   const params = new URLSearchParams({
     token: offer.offerToken,
@@ -81,7 +98,13 @@ function bookingHref(offer: WorldHotelOffer, state: WorldHotelSearchState): stri
   return `/hotels-monde/book?${params.toString()}`
 }
 
-function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotelSearchState }) {
+function HotelCard({
+  offer,
+  state,
+}: {
+  offer: WorldHotelOffer
+  state: WorldHotelSearchState
+}) {
   const t = useTranslations("HotelsMonde")
   const { format: formatPrice } = useCurrency()
   const href = bookingHref(offer, state)
@@ -94,9 +117,11 @@ function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotel
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-foreground text-lg font-bold">{offer.name}</span>
+              <span className="text-foreground text-lg font-bold">
+                {offer.name}
+              </span>
               {offer.stars != null && (
-                <span className="text-amber-500 inline-flex items-center gap-0.5 text-xs">
+                <span className="inline-flex items-center gap-0.5 text-xs text-amber-500">
                   {Array.from({ length: offer.stars }).map((_, i) => (
                     <Star key={i} className="h-3 w-3 fill-current" />
                   ))}
@@ -104,14 +129,23 @@ function HotelCard({ offer, state }: { offer: WorldHotelOffer; state: WorldHotel
               )}
             </div>
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span>{offer.city}, {offer.country}</span>
+              <span>
+                {offer.city}, {offer.country}
+              </span>
               {offer.distanceFromCenterKm != null && (
-                <span>{t("distanceFromCenter", { km: offer.distanceFromCenterKm })}</span>
+                <span>
+                  {t("distanceFromCenter", { km: offer.distanceFromCenterKm })}
+                </span>
               )}
               {offer.rating != null && (
-                <Badge variant="outline" className="border-success/30 bg-success/10 text-success">
+                <Badge
+                  variant="outline"
+                  className="border-success/30 bg-success/10 text-success"
+                >
                   {offer.rating.toFixed(1)}/10
-                  {offer.reviewCount != null ? ` · ${t("reviewCount", { count: offer.reviewCount })}` : ""}
+                  {offer.reviewCount != null
+                    ? ` · ${t("reviewCount", { count: offer.reviewCount })}`
+                    : ""}
                 </Badge>
               )}
               {offer.breakfastIncluded && (
@@ -176,7 +210,9 @@ function WorldHotelSearchSummary({
   const dateFnsLocale = getDateFnsLocale(locale)
   const paxLabel = t("paxSummary", { adults: state.adults, rooms: state.rooms })
   const { destinations } = useDestinations("hotels_monde_slug")
-  const matchedDestination = destinations.find((d) => d.externalId === state.destination)
+  const matchedDestination = destinations.find(
+    (d) => d.externalId === state.destination,
+  )
   return (
     <div className="mb-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -185,7 +221,8 @@ function WorldHotelSearchSummary({
             {t("hotelsInCity", { city: state.city, country: state.country })}
           </h1>
           <p className="text-muted-foreground text-sm">
-            {formatDateHeader(state.checkIn, dateFnsLocale)} → {formatDateHeader(state.checkOut, dateFnsLocale)}
+            {formatDateHeader(state.checkIn, dateFnsLocale)} →{" "}
+            {formatDateHeader(state.checkOut, dateFnsLocale)}
             {" · "}
             <span className="inline-flex items-center gap-1">
               <Users className="h-3 w-3" />
@@ -212,9 +249,7 @@ function WorldHotelSearchSummary({
       {isDemo && (
         <div className="border-border bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
-            {t("demoNotice")}
-          </p>
+          <p>{t("demoNotice")}</p>
         </div>
       )}
     </div>
@@ -226,7 +261,10 @@ export function WorldHotelResultsContent() {
   const router = useRouter()
   const t = useTranslations("HotelsMonde")
 
-  const parsed = useMemo(() => parseWorldHotelSearchParams(searchParams), [searchParams])
+  const parsed = useMemo(
+    () => parseWorldHotelSearchParams(searchParams),
+    [searchParams],
+  )
   const requestKey = parsed.ok ? JSON.stringify(parsed.state) : null
 
   // Pas de setState synchrone dans l'effet (règle react-hooks/set-state-in-effect,
@@ -251,10 +289,19 @@ export function WorldHotelResultsContent() {
           const body = (await r.json().catch(() => ({}))) as { error?: string }
           throw new Error(body.error ?? `HTTP ${r.status}`)
         }
-        return r.json() as Promise<{ ok: true; offers: WorldHotelOffer[]; searchId: string }>
+        return r.json() as Promise<{
+          ok: true
+          offers: WorldHotelOffer[]
+          searchId: string
+        }>
       })
       .then((data) => {
-        setFetchState({ requestKey, status: "success", offers: data.offers, error: null })
+        setFetchState({
+          requestKey,
+          status: "success",
+          offers: data.offers,
+          error: null,
+        })
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === "AbortError") return
@@ -291,7 +338,12 @@ export function WorldHotelResultsContent() {
   // Pagination SERP (chantier 6) — breakfastOnly/refundableOnly/sortMode ne
   // vivent qu'en state local (pas dans l'URL) : passés comme clé de remise
   // à la page 1 (voir hooks/use-paginated-results.ts).
-  const { pageItems: pagedOffers, currentPage, totalPages, setPage } = usePaginatedResults(
+  const {
+    pageItems: pagedOffers,
+    currentPage,
+    totalPages,
+    setPage,
+  } = usePaginatedResults(
     filteredSorted,
     `${breakfastOnly}|${refundableOnly}|${sortMode}`,
   )
@@ -334,7 +386,9 @@ export function WorldHotelResultsContent() {
             variant="outline"
             size="sm"
             className="mt-3 gap-2"
-            onClick={() => router.replace(`/hotels-monde/search?${searchParams.toString()}`)}
+            onClick={() =>
+              router.replace(`/hotels-monde/search?${searchParams.toString()}`)
+            }
           >
             <RefreshCw className="h-3.5 w-3.5" />
             {t("retry")}
@@ -351,7 +405,10 @@ export function WorldHotelResultsContent() {
                 checked={breakfastOnly}
                 onCheckedChange={(v) => setBreakfastOnly(v === true)}
               />
-              <label htmlFor="breakfast-only" className="cursor-pointer text-sm">
+              <label
+                htmlFor="breakfast-only"
+                className="cursor-pointer text-sm"
+              >
                 {t("breakfastIncluded")}
               </label>
             </div>
@@ -361,20 +418,32 @@ export function WorldHotelResultsContent() {
                 checked={refundableOnly}
                 onCheckedChange={(v) => setRefundableOnly(v === true)}
               />
-              <label htmlFor="refundable-only" className="cursor-pointer text-sm">
+              <label
+                htmlFor="refundable-only"
+                className="cursor-pointer text-sm"
+              >
                 {t("freeCancellation")}
               </label>
             </div>
             <div className="w-full lg:mt-2">
-              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+              <Select
+                value={sortMode}
+                onValueChange={(v) => setSortMode(v as SortMode)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="recommended">{t("sortRecommended")}</SelectItem>
+                  <SelectItem value="recommended">
+                    {t("sortRecommended")}
+                  </SelectItem>
                   <SelectItem value="price_asc">{t("sortPriceAsc")}</SelectItem>
-                  <SelectItem value="price_desc">{t("sortPriceDesc")}</SelectItem>
-                  <SelectItem value="rating_desc">{t("sortRatingDesc")}</SelectItem>
+                  <SelectItem value="price_desc">
+                    {t("sortPriceDesc")}
+                  </SelectItem>
+                  <SelectItem value="rating_desc">
+                    {t("sortRatingDesc")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -387,8 +456,18 @@ export function WorldHotelResultsContent() {
               </div>
             ) : (
               <>
-                {pagedOffers.map((offer) => <HotelCard key={offer.id} offer={offer} state={parsed.state} />)}
-                <SearchPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
+                {pagedOffers.map((offer) => (
+                  <HotelCard
+                    key={offer.id}
+                    offer={offer}
+                    state={parsed.state}
+                  />
+                ))}
+                <SearchPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
               </>
             )}
           </div>

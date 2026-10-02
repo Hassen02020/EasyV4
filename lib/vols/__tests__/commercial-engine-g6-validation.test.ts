@@ -55,17 +55,45 @@ interface FakeRule {
 
 const RULES: FakeRule[] = [
   // priority 10 — global
-  { agencyId: null, channel: null, priority: 10, productScope: null,
-    fixedFee: 5, markupRate: 0.01, currency: "TND" },
+  {
+    agencyId: null,
+    channel: null,
+    priority: 10,
+    productScope: null,
+    fixedFee: 5,
+    markupRate: 0.01,
+    currency: "TND",
+  },
   // priority 20 — agency A, all channels, all products
-  { agencyId: AGENCY_A, channel: null, priority: 20, productScope: null,
-    fixedFee: 10, markupRate: 0.02, currency: "TND" },
+  {
+    agencyId: AGENCY_A,
+    channel: null,
+    priority: 20,
+    productScope: null,
+    fixedFee: 10,
+    markupRate: 0.02,
+    currency: "TND",
+  },
   // priority 30 — agency A, ECONOMY only
-  { agencyId: AGENCY_A, channel: null, priority: 30, productScope: { cabin: "ECONOMY" },
-    fixedFee: 12, markupRate: 0.03, currency: "TND" },
+  {
+    agencyId: AGENCY_A,
+    channel: null,
+    priority: 30,
+    productScope: { cabin: "ECONOMY" },
+    fixedFee: 12,
+    markupRate: 0.03,
+    currency: "TND",
+  },
   // priority 40 — agency B, ECONOMY only
-  { agencyId: AGENCY_B, channel: null, priority: 40, productScope: { cabin: "ECONOMY" },
-    fixedFee: 18, markupRate: 0.05, currency: "TND" },
+  {
+    agencyId: AGENCY_B,
+    channel: null,
+    priority: 40,
+    productScope: { cabin: "ECONOMY" },
+    fixedFee: 18,
+    markupRate: 0.05,
+    currency: "TND",
+  },
 ]
 
 /** Simulate the priority cascade: WHERE matching, ORDER BY priority DESC, TS scope filter. */
@@ -74,12 +102,11 @@ function selectRule(
   channel: string,
   hints: ProductHints,
 ): FakeRule | null {
-  const candidates = RULES
-    .filter((r) =>
+  const candidates = RULES.filter(
+    (r) =>
       (r.agencyId === null || r.agencyId === agencyId) &&
       (r.channel === null || r.channel === channel),
-    )
-    .sort((a, b) => b.priority - a.priority)  // ORDER BY priority DESC
+  ).sort((a, b) => b.priority - a.priority) // ORDER BY priority DESC
 
   for (const r of candidates) {
     if (matchesProductScope(r.productScope, hints)) return r
@@ -92,7 +119,11 @@ test("T1 — global rule (NULL agency, NULL channel) matches any context", () =>
   // A completely unknown agency+channel should still get the global rule
   const rule = selectRule("unknown-agency", "B2C", {})
   assert.ok(rule !== null, "rule selected")
-  assert.equal(rule!.priority, 10, "global rule priority=10 used (no higher match)")
+  assert.equal(
+    rule!.priority,
+    10,
+    "global rule priority=10 used (no higher match)",
+  )
   assert.equal(rule!.fixedFee, 5)
 })
 
@@ -113,22 +144,28 @@ test("T3 — channel-specific matching: B2B context returns global (no B2B-speci
   // Agency A with no hint → priority 30 wins.
   const rule = selectRule(AGENCY_A, "B2B", {})
   assert.ok(rule !== null)
-  assert.equal(rule!.priority, 30)  // agency A + NULL channel matches B2B
+  assert.equal(rule!.priority, 30) // agency A + NULL channel matches B2B
 })
 
 // ── T4: Agency + channel compound rule ───────────────────────────────────────
 test("T4 — agency+channel compound: only NULL-channel rules apply, highest priority wins", () => {
   // Add a temporary B2C-specific rule at priority 25 for Agency A
   const b2cRule: FakeRule = {
-    agencyId: AGENCY_A, channel: "B2C", priority: 25,
-    productScope: null, fixedFee: 11, markupRate: 0.025, currency: "TND",
+    agencyId: AGENCY_A,
+    channel: "B2C",
+    priority: 25,
+    productScope: null,
+    fixedFee: 11,
+    markupRate: 0.025,
+    currency: "TND",
   }
   const localRules = [...RULES, b2cRule].sort((a, b) => b.priority - a.priority)
 
   function selectLocal(agencyId: string, channel: string, hints: ProductHints) {
-    const candidates = localRules.filter((r) =>
-      (r.agencyId === null || r.agencyId === agencyId) &&
-      (r.channel === null || r.channel === channel),
+    const candidates = localRules.filter(
+      (r) =>
+        (r.agencyId === null || r.agencyId === agencyId) &&
+        (r.channel === null || r.channel === channel),
     )
     for (const r of candidates) {
       if (matchesProductScope(r.productScope, hints)) return r
@@ -139,45 +176,73 @@ test("T4 — agency+channel compound: only NULL-channel rules apply, highest pri
   // B2C + Agency A + ECONOMY: priority 30 (scope match) beats priority 25 (b2cRule no scope)
   const rule = selectLocal(AGENCY_A, "B2C", { cabin: "ECONOMY" })
   assert.ok(rule !== null)
-  assert.equal(rule!.priority, 30, "scope rule priority 30 beats channel rule priority 25")
+  assert.equal(
+    rule!.priority,
+    30,
+    "scope rule priority 30 beats channel rule priority 25",
+  )
   assert.equal(rule!.fixedFee, 12)
 })
 
 // ── T5: Product scope match ───────────────────────────────────────────────────
 test("T5 — matchesProductScope: scope {cabin:ECONOMY} matches hint {cabin:ECONOMY}", () => {
-  assert.equal(matchesProductScope({ cabin: "ECONOMY" }, { cabin: "ECONOMY" }), true)
+  assert.equal(
+    matchesProductScope({ cabin: "ECONOMY" }, { cabin: "ECONOMY" }),
+    true,
+  )
 })
 
 test("T5b — matchesProductScope: NULL scope matches any hint", () => {
-  assert.equal(matchesProductScope(null, { cabin: "BUSINESS", airline: "TU" }), true)
+  assert.equal(
+    matchesProductScope(null, { cabin: "BUSINESS", airline: "TU" }),
+    true,
+  )
 })
 
 test("T5c — matchesProductScope: partial scope — only defined fields checked", () => {
   // Scope specifies origin only; destination not in scope → should match
   assert.equal(
-    matchesProductScope({ origin: "TUN" }, { origin: "TUN", destination: "CDG" }),
+    matchesProductScope(
+      { origin: "TUN" },
+      { origin: "TUN", destination: "CDG" },
+    ),
     true,
   )
 })
 
 // ── T6: Product scope mismatch ────────────────────────────────────────────────
 test("T6 — matchesProductScope: scope {cabin:BUSINESS} rejects hint {cabin:ECONOMY}", () => {
-  assert.equal(matchesProductScope({ cabin: "BUSINESS" }, { cabin: "ECONOMY" }), false)
+  assert.equal(
+    matchesProductScope({ cabin: "BUSINESS" }, { cabin: "ECONOMY" }),
+    false,
+  )
 })
 
 test("T6b — Agency B + ECONOMY scope: not used for Agency A context", () => {
   // Agency B rule (priority 40) is highest overall but excluded because agencyId=B
   const rule = selectRule(AGENCY_A, "B2C", { cabin: "ECONOMY" })
   assert.ok(rule !== null)
-  assert.notEqual(rule!.agencyId, AGENCY_B, "Agency B rule must NOT be selected for Agency A")
-  assert.equal(rule!.priority, 30, "Agency A + ECONOMY rule wins at priority 30")
+  assert.notEqual(
+    rule!.agencyId,
+    AGENCY_B,
+    "Agency B rule must NOT be selected for Agency A",
+  )
+  assert.equal(
+    rule!.priority,
+    30,
+    "Agency A + ECONOMY rule wins at priority 30",
+  )
 })
 
 // ── T7: Priority conflict — highest wins ──────────────────────────────────────
 test("T7 — priority conflict: Agency B + ECONOMY context → priority 40 wins", () => {
   const rule = selectRule(AGENCY_B, "B2C", { cabin: "ECONOMY" })
   assert.ok(rule !== null)
-  assert.equal(rule!.priority, 40, "Agency B ECONOMY rule priority=40 should win")
+  assert.equal(
+    rule!.priority,
+    40,
+    "Agency B ECONOMY rule priority=40 should win",
+  )
   assert.equal(rule!.fixedFee, 18)
   assert.equal(rule!.markupRate, 0.05)
 })
@@ -186,27 +251,44 @@ test("T7b — Agency B, no ECONOMY hint → falls back to global (Agency B has n
   // Agency B only has scope={cabin:ECONOMY}; without that hint it falls to global priority 10
   const rule = selectRule(AGENCY_B, "B2C", { cabin: "BUSINESS" })
   assert.ok(rule !== null)
-  assert.equal(rule!.priority, 10, "global rule priority=10 is the only match for Agency B + BUSINESS")
+  assert.equal(
+    rule!.priority,
+    10,
+    "global rule priority=10 is the only match for Agency B + BUSINESS",
+  )
 })
 
 // ── T8: Same-priority deterministic ──────────────────────────────────────────
 test("T8 — same-priority: first in list (stable sort) wins", () => {
   const tie1: FakeRule = {
-    agencyId: null, channel: null, priority: 50, productScope: { cabin: "ECONOMY" },
-    fixedFee: 100, markupRate: 0.10, currency: "TND",
+    agencyId: null,
+    channel: null,
+    priority: 50,
+    productScope: { cabin: "ECONOMY" },
+    fixedFee: 100,
+    markupRate: 0.1,
+    currency: "TND",
   }
   const tie2: FakeRule = {
-    agencyId: null, channel: null, priority: 50, productScope: null,
-    fixedFee: 200, markupRate: 0.20, currency: "TND",
+    agencyId: null,
+    channel: null,
+    priority: 50,
+    productScope: null,
+    fixedFee: 200,
+    markupRate: 0.2,
+    currency: "TND",
   }
   // tie1 comes before tie2 in the list → at equal priority the loop picks the first match
   const candidates = [tie1, tie2]
     .filter(() => true)
-    .sort((a, b) => b.priority - a.priority)  // stable: original order preserved for equal keys
+    .sort((a, b) => b.priority - a.priority) // stable: original order preserved for equal keys
 
   let selected: FakeRule | null = null
   for (const r of candidates) {
-    if (matchesProductScope(r.productScope, { cabin: "ECONOMY" })) { selected = r; break }
+    if (matchesProductScope(r.productScope, { cabin: "ECONOMY" })) {
+      selected = r
+      break
+    }
   }
   assert.ok(selected !== null)
   assert.equal(selected!.fixedFee, 100, "tie1 (first in list) wins")
@@ -214,7 +296,12 @@ test("T8 — same-priority: first in list (stable sort) wins", () => {
 
 // ── T9: min_markup floor ──────────────────────────────────────────────────────
 test("T9 — min_markup floor: computed markup below min is raised to min", () => {
-  const rules: CommercialRules = { fixedFee: 10, markupRate: 0.01, minMarkup: 50, currency: "TND" }
+  const rules: CommercialRules = {
+    fixedFee: 10,
+    markupRate: 0.01,
+    minMarkup: 50,
+    currency: "TND",
+  }
   // 100 * 0.01 = 1 → below minMarkup=50 → clamped to 50
   const result = computeCommercialResult(100, "TND", rules)
   assert.equal(result.markup, 50, "markup raised to minMarkup floor")
@@ -222,7 +309,12 @@ test("T9 — min_markup floor: computed markup below min is raised to min", () =
 })
 
 test("T9b — min_markup: when computed markup already above min, min not applied", () => {
-  const rules: CommercialRules = { fixedFee: 10, markupRate: 0.10, minMarkup: 5, currency: "TND" }
+  const rules: CommercialRules = {
+    fixedFee: 10,
+    markupRate: 0.1,
+    minMarkup: 5,
+    currency: "TND",
+  }
   // 1000 * 0.10 = 100 → above minMarkup=5 → no clamp
   const result = computeCommercialResult(1000, "TND", rules)
   assert.equal(result.markup, 100)
@@ -231,7 +323,12 @@ test("T9b — min_markup: when computed markup already above min, min not applie
 
 // ── T10: max_markup ceiling ───────────────────────────────────────────────────
 test("T10 — max_markup ceiling: computed markup above max is capped at max", () => {
-  const rules: CommercialRules = { fixedFee: 10, markupRate: 0.20, maxMarkup: 30, currency: "TND" }
+  const rules: CommercialRules = {
+    fixedFee: 10,
+    markupRate: 0.2,
+    maxMarkup: 30,
+    currency: "TND",
+  }
   // 1000 * 0.20 = 200 → above maxMarkup=30 → clamped to 30
   const result = computeCommercialResult(1000, "TND", rules)
   assert.equal(result.markup, 30, "markup capped at maxMarkup ceiling")
@@ -239,9 +336,14 @@ test("T10 — max_markup ceiling: computed markup above max is capped at max", (
 })
 
 test("T10b — max_markup: when computed markup below max, max not applied", () => {
-  const rules: CommercialRules = { fixedFee: 5, markupRate: 0.02, maxMarkup: 1000, currency: "TND" }
+  const rules: CommercialRules = {
+    fixedFee: 5,
+    markupRate: 0.02,
+    maxMarkup: 1000,
+    currency: "TND",
+  }
   const result = computeCommercialResult(500, "TND", rules)
-  assert.equal(result.markup, 10)  // 500 * 0.02 = 10 << 1000
+  assert.equal(result.markup, 10) // 500 * 0.02 = 10 << 1000
   assert.equal(result.sellingAmount, 515)
 })
 
@@ -250,7 +352,11 @@ test("T11 — when DB rule resolved, env fallback defaults are NOT used", () => 
   // Simulate a DB rule with different rates than env defaults (B2C env: fee=15, markup=0.04).
   // CURRENCY-DIM-01b : currency doit matcher supplierCurrency (TND) — ce
   // test porte sur la résolution de règle, pas sur la conversion de devise.
-  const dbRule: CommercialRules = { fixedFee: 99, markupRate: 0.99, currency: "TND" }
+  const dbRule: CommercialRules = {
+    fixedFee: 99,
+    markupRate: 0.99,
+    currency: "TND",
+  }
   const result = computeCommercialResult(1000, "TND", dbRule)
   // If env fallback were used, fee would be 15 and markup would be 40
   assert.notEqual(result.fee, 15, "env default fee=15 must NOT be used")
@@ -262,7 +368,12 @@ test("T11 — when DB rule resolved, env fallback defaults are NOT used", () => 
 // ── T12: No DB rule → env fallback ───────────────────────────────────────────
 test("T12 — no DB rule → env fallback used (DB unavailable in test env)", async () => {
   // DB is not running in test env — applyCommercialEngine silently falls through to env
-  const result = await applyCommercialEngine(1000, "TND", "any-agency-id", "B2C")
+  const result = await applyCommercialEngine(
+    1000,
+    "TND",
+    "any-agency-id",
+    "B2C",
+  )
   // Env defaults: fee=15, markupRate=0.04
   assert.equal(result.fee, 15, "env fallback fee=15")
   assert.equal(result.markup, 40, "env fallback markup=1000*0.04=40")
@@ -272,17 +383,28 @@ test("T12 — no DB rule → env fallback used (DB unavailable in test env)", as
 
 // ── T13: No double markup ─────────────────────────────────────────────────────
 test("T13 — no double markup: sellingAmount = supplierAmount + fee + markup (exactly once)", () => {
-  const rules: CommercialRules = { fixedFee: 15, markupRate: 0.04, currency: "TND" }
+  const rules: CommercialRules = {
+    fixedFee: 15,
+    markupRate: 0.04,
+    currency: "TND",
+  }
   const result = computeCommercialResult(1000, "TND", rules)
 
   assert.equal(result.fee, 15)
   assert.equal(result.markup, 40)
-  assert.equal(result.supplierAmount + result.fee + result.markup, result.sellingAmount,
-    "sellingAmount = supplierAmount + fee + markup")
+  assert.equal(
+    result.supplierAmount + result.fee + result.markup,
+    result.sellingAmount,
+    "sellingAmount = supplierAmount + fee + markup",
+  )
 
   // Confirm markup is applied only once (not twice)
   const naiveDouble = result.supplierAmount + result.fee + result.markup * 2
-  assert.notEqual(result.sellingAmount, naiveDouble, "markup must NOT be applied twice")
+  assert.notEqual(
+    result.sellingAmount,
+    naiveDouble,
+    "markup must NOT be applied twice",
+  )
 })
 
 // ── T14: PriceSnapshot sellingAmount ─────────────────────────────────────────
@@ -292,14 +414,22 @@ test("T14 — PriceSnapshot sellingAmount equals computeCommercialResult", () =>
   // and stores: sellingAmount: String(commercial.sellingAmount)
   // So the snapshot's sellingAmount is directly the CommercialResult.sellingAmount.
 
-  const rules: CommercialRules = { fixedFee: 20, markupRate: 0.05, currency: "TND" }
+  const rules: CommercialRules = {
+    fixedFee: 20,
+    markupRate: 0.05,
+    currency: "TND",
+  }
   const commercial = computeCommercialResult(800, "TND", rules)
 
   // Simulate what price-snapshot.ts stores and then reads back:
   const storedAsString = String(commercial.sellingAmount)
   const readBack = Number(storedAsString)
 
-  assert.equal(readBack, commercial.sellingAmount, "round-trip through String/Number is lossless")
+  assert.equal(
+    readBack,
+    commercial.sellingAmount,
+    "round-trip through String/Number is lossless",
+  )
   assert.equal(commercial.sellingAmount, 860, "800 + 20 + 40")
 })
 
@@ -327,7 +457,14 @@ test("T15 — API response schema: supplier fields absent from offer objects", (
   }
 
   // Prove the sensitive keys are not present
-  const sensitiveKeys = ["supplierAmount", "supplierCurrency", "fee", "markup", "agencyId", "ruleId"]
+  const sensitiveKeys = [
+    "supplierAmount",
+    "supplierCurrency",
+    "fee",
+    "markup",
+    "agencyId",
+    "ruleId",
+  ]
   for (const key of sensitiveKeys) {
     assert.ok(
       !(key in exampleApiOffer),
@@ -339,7 +476,10 @@ test("T15 — API response schema: supplier fields absent from offer objects", (
   assert.ok("snapshotId" in exampleApiOffer, "snapshotId present")
   assert.ok("sellingAmount" in exampleApiOffer, "sellingAmount present")
   assert.ok("journeys" in exampleApiOffer, "journeys present")
-  assert.ok(!("segments" in exampleApiOffer), "'segments' must be absent (use journeys)")
+  assert.ok(
+    !("segments" in exampleApiOffer),
+    "'segments' must be absent (use journeys)",
+  )
 })
 
 // ── Migration 0065 SQL verification ──────────────────────────────────────────
@@ -354,8 +494,14 @@ test("Migration 0065 — SQL contains all required changes", async () => {
   const sql = readFileSync(sqlPath, "utf-8")
 
   // Nullable columns
-  assert.ok(sql.includes("ALTER COLUMN agency_id DROP NOT NULL"), "agency_id made nullable")
-  assert.ok(sql.includes("ALTER COLUMN channel   DROP NOT NULL"), "channel made nullable")
+  assert.ok(
+    sql.includes("ALTER COLUMN agency_id DROP NOT NULL"),
+    "agency_id made nullable",
+  )
+  assert.ok(
+    sql.includes("ALTER COLUMN channel   DROP NOT NULL"),
+    "channel made nullable",
+  )
 
   // New columns
   assert.ok(sql.includes("priority"), "priority column added")

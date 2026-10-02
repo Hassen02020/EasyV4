@@ -54,7 +54,10 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic"
 
-const TND_FORMAT = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const TND_FORMAT = new Intl.NumberFormat("fr-FR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
 
 const PAYMENT_METHODS: Record<string, { label: string; color: string }> = {
   card: { label: "Carte", color: "bg-blue-100 text-blue-800" },
@@ -92,12 +95,15 @@ export default async function AccountingPage() {
   const isSuperAdmin = profile.role === "super_admin"
   const scopeAgencyId = isSuperAdmin ? null : profile.agencyId
 
-  const [stats, recentPayments, recentInvoices, monthlyReport] = await Promise.all([
-    loadAccountingStats(scopeAgencyId, isSuperAdmin),
-    loadRecentPayments(scopeAgencyId, isSuperAdmin, 10),
-    listAdminInvoices(scopeAgencyId, user.id, isSuperAdmin).then((rows) => rows.slice(0, 10)),
-    loadMonthlyRevenueReport(scopeAgencyId, isSuperAdmin),
-  ])
+  const [stats, recentPayments, recentInvoices, monthlyReport] =
+    await Promise.all([
+      loadAccountingStats(scopeAgencyId, isSuperAdmin),
+      loadRecentPayments(scopeAgencyId, isSuperAdmin, 10),
+      listAdminInvoices(scopeAgencyId, user.id, isSuperAdmin).then((rows) =>
+        rows.slice(0, 10),
+      ),
+      loadMonthlyRevenueReport(scopeAgencyId, isSuperAdmin),
+    ])
 
   return (
     <div className="space-y-6">
@@ -108,7 +114,8 @@ export default async function AccountingPage() {
             Comptabilité
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gestion financière et suivi des paiements — {isSuperAdmin ? "toutes agences" : "votre agence"}
+            Gestion financière et suivi des paiements —{" "}
+            {isSuperAdmin ? "toutes agences" : "votre agence"}
           </p>
         </div>
       </div>
@@ -130,7 +137,9 @@ export default async function AccountingPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Encaissé Ce Mois</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Encaissé Ce Mois
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -177,12 +186,16 @@ export default async function AccountingPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Derniers Paiements</CardTitle>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/admin/finance/pending-payments">Paiements en attente</Link>
+                <Link href="/admin/finance/pending-payments">
+                  Paiements en attente
+                </Link>
               </Button>
             </CardHeader>
             <CardContent>
               {recentPayments.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">Aucun paiement encaissé récemment.</p>
+                <p className="text-muted-foreground py-8 text-center text-sm">
+                  Aucun paiement encaissé récemment.
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -199,23 +212,39 @@ export default async function AccountingPage() {
                     <TableBody>
                       {recentPayments.map((payment) => (
                         <TableRow key={payment.id}>
-                          <TableCell className="font-mono text-sm">{payment.publicRef}</TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {payment.publicRef}
+                          </TableCell>
                           <TableCell>{payment.customerName}</TableCell>
                           <TableCell className="font-semibold">
                             {TND_FORMAT.format(payment.tndAmount)} DT
                           </TableCell>
                           <TableCell>
-                            <Badge className={PAYMENT_METHODS[payment.method]?.color || "bg-gray-100"}>
-                              {PAYMENT_METHODS[payment.method]?.label || payment.method}
+                            <Badge
+                              className={
+                                PAYMENT_METHODS[payment.method]?.color ||
+                                "bg-gray-100"
+                              }
+                            >
+                              {PAYMENT_METHODS[payment.method]?.label ||
+                                payment.method}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge className={STATUS_COLORS[payment.status] || "bg-gray-100"}>
+                            <Badge
+                              className={
+                                STATUS_COLORS[payment.status] || "bg-gray-100"
+                              }
+                            >
                               {payment.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-gray-500">
-                            {payment.capturedAt ? new Date(payment.capturedAt).toLocaleDateString("fr-FR") : "—"}
+                            {payment.capturedAt
+                              ? new Date(payment.capturedAt).toLocaleDateString(
+                                  "fr-FR",
+                                )
+                              : "—"}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -237,7 +266,9 @@ export default async function AccountingPage() {
             </CardHeader>
             <CardContent>
               {recentInvoices.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">Aucune facture.</p>
+                <p className="text-muted-foreground py-8 text-center text-sm">
+                  Aucune facture.
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -253,17 +284,30 @@ export default async function AccountingPage() {
                     <TableBody>
                       {recentInvoices.map((invoice) => (
                         <TableRow key={invoice.id}>
-                          <TableCell className="font-mono text-sm">{invoice.invoiceNumber}</TableCell>
-                          {isSuperAdmin ? <TableCell>{invoice.agencyName ?? "—"}</TableCell> : null}
+                          <TableCell className="font-mono text-sm">
+                            {invoice.invoiceNumber}
+                          </TableCell>
+                          {isSuperAdmin ? (
+                            <TableCell>{invoice.agencyName ?? "—"}</TableCell>
+                          ) : null}
                           <TableCell className="font-semibold">
-                            {TND_FORMAT.format(Number.parseFloat(invoice.totalTtc))} DT
+                            {TND_FORMAT.format(
+                              Number.parseFloat(invoice.totalTtc),
+                            )}{" "}
+                            DT
                           </TableCell>
                           <TableCell>
-                            <Badge className={STATUS_COLORS[invoice.status] || "bg-gray-100"}>
+                            <Badge
+                              className={
+                                STATUS_COLORS[invoice.status] || "bg-gray-100"
+                              }
+                            >
                               {invoice.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-gray-500">{invoice.validationDate ?? "—"}</TableCell>
+                          <TableCell className="text-sm text-gray-500">
+                            {invoice.validationDate ?? "—"}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -301,7 +345,9 @@ export default async function AccountingPage() {
                 <CreditCard className="h-4 w-4" />
                 Chiffre d&apos;affaires — 3 derniers mois
               </CardTitle>
-              <CardDescription>Encaissé net (paiements capturés, remboursements déduits).</CardDescription>
+              <CardDescription>
+                Encaissé net (paiements capturés, remboursements déduits).
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {monthlyReport.length === 0 ? (
@@ -315,9 +361,15 @@ export default async function AccountingPage() {
                       key={m.monthLabel}
                       className="flex items-center justify-between rounded-md border px-4 py-3"
                     >
-                      <span className="font-medium capitalize">{m.monthLabel}</span>
-                      <span className="text-muted-foreground text-sm">{m.paymentsCount} paiement(s)</span>
-                      <span className="font-semibold">{TND_FORMAT.format(m.revenueTnd)} DT</span>
+                      <span className="font-medium capitalize">
+                        {m.monthLabel}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        {m.paymentsCount} paiement(s)
+                      </span>
+                      <span className="font-semibold">
+                        {TND_FORMAT.format(m.revenueTnd)} DT
+                      </span>
                     </div>
                   ))}
                 </div>

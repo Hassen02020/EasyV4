@@ -142,14 +142,19 @@ function makeMockDb(opts: MockOptions): {
       update: () => ({
         set: () => ({
           where: () => {
-            throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
+            throw new Error(
+              "tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()",
+            )
           },
         }),
       }),
       execute: async (query: unknown) => {
         executeCallCount += 1
         if (executeCallCount === 1) {
-          journal.push({ kind: "SELECT_FOR_UPDATE", payload: { strength: "update" } })
+          journal.push({
+            kind: "SELECT_FOR_UPDATE",
+            payload: { strength: "update" },
+          })
           if (!opts.agencyExists) return []
           return [
             {
@@ -379,7 +384,10 @@ test("debitPartnerCredit : tolérance absente du mock (défaut '0.000') — comp
 
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
-  assert.equal(journal.find((j) => j.kind === "INSERT_MOVEMENT"), undefined)
+  assert.equal(
+    journal.find((j) => j.kind === "INSERT_MOVEMENT"),
+    undefined,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -574,15 +582,26 @@ test("debitPartnerCredit : avec txOverride, s'exécute DANS la transaction fourn
     update: () => ({
       set: () => ({
         where: () => {
-          throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
+          throw new Error(
+            "tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()",
+          )
         },
       }),
     }),
     execute: async () => {
       executeCallCount += 1
       if (executeCallCount === 1) {
-        journal.push({ kind: "SELECT_FOR_UPDATE", payload: { strength: "update" } })
-        return [{ id: "agency-uuid-test", depositBalance: "5000.000", reservationTolerance: "0.000" }]
+        journal.push({
+          kind: "SELECT_FOR_UPDATE",
+          payload: { strength: "update" },
+        })
+        return [
+          {
+            id: "agency-uuid-test",
+            depositBalance: "5000.000",
+            reservationTolerance: "0.000",
+          },
+        ]
       }
       journal.push({ kind: "UPDATE_BALANCE" })
       return undefined
@@ -627,13 +646,21 @@ test("debitPartnerCredit : txOverride propage un solde insuffisant sans muter qu
     update: () => ({
       set: () => ({
         where: () => {
-          throw new Error("tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()")
+          throw new Error(
+            "tx.update(agencies) ne doit plus être appelé — voir set_agency_deposit_balance()",
+          )
         },
       }),
     }),
     execute: async () => {
       journal.push({ kind: "SELECT_FOR_UPDATE" })
-      return [{ id: "agency-uuid-test", depositBalance: "50.000", reservationTolerance: "0.000" }]
+      return [
+        {
+          id: "agency-uuid-test",
+          depositBalance: "50.000",
+          reservationTolerance: "0.000",
+        },
+      ]
     },
   }
 
@@ -665,7 +692,8 @@ function makeMockRedis() {
   const store = new Map<string, string>()
   return {
     redis: {
-      get: async <T>(key: string) => (store.has(key) ? (store.get(key) as T) : null),
+      get: async <T>(key: string) =>
+        store.has(key) ? (store.get(key) as T) : null,
       set: async (key: string, value: string) => {
         store.set(key, value)
       },

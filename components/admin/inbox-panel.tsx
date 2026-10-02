@@ -16,7 +16,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { listConversations, getConversationThread, sendReply } from "@/lib/admin/inbox-actions"
+import {
+  listConversations,
+  getConversationThread,
+  sendReply,
+} from "@/lib/admin/inbox-actions"
 import type { ConversationRow, MessageRow } from "@/lib/crm/inbox-core"
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -30,15 +34,24 @@ const CHANNEL_LABEL: Record<string, string> = {
 
 function formatTime(d: Date | string | null): string {
   if (!d) return "—"
-  return new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+  return new Date(d).toLocaleString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }
 
 export function InboxPanel() {
-  const [conversations, setConversations] = useState<ConversationRow[] | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [thread, setThread] = useState<{ conversation: ConversationRow; messages: MessageRow[]; canReply: boolean } | null>(
+  const [conversations, setConversations] = useState<ConversationRow[] | null>(
     null,
   )
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [thread, setThread] = useState<{
+    conversation: ConversationRow
+    messages: MessageRow[]
+    canReply: boolean
+  } | null>(null)
   const [threadLoading, setThreadLoading] = useState(false)
   const [replyText, setReplyText] = useState("")
   const [sending, setSending] = useState(false)
@@ -104,8 +117,9 @@ export function InboxPanel() {
           Inbox omnicanal
         </CardTitle>
         <p className="text-muted-foreground text-xs">
-          WhatsApp est le seul canal réellement connecté aujourd&apos;hui — Instagram, Messenger et Appel
-          apparaîtront ici une fois leurs credentials configurés (App Review Meta / téléphonie).
+          WhatsApp est le seul canal réellement connecté aujourd&apos;hui —
+          Instagram, Messenger et Appel apparaîtront ici une fois leurs
+          credentials configurés (App Review Meta / téléphonie).
         </p>
       </CardHeader>
       <CardContent>
@@ -116,7 +130,9 @@ export function InboxPanel() {
                 <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
               </div>
             ) : conversations.length === 0 ? (
-              <p className="text-muted-foreground p-4 text-center text-xs">Aucune conversation pour le moment.</p>
+              <p className="text-muted-foreground p-4 text-center text-xs">
+                Aucune conversation pour le moment.
+              </p>
             ) : (
               conversations.map((c) => (
                 <button
@@ -128,15 +144,21 @@ export function InboxPanel() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{c.contactName || c.contactPhone || "Contact"}</span>
+                    <span className="font-medium">
+                      {c.contactName || c.contactPhone || "Contact"}
+                    </span>
                     <Badge variant="outline" className="shrink-0 text-[10px]">
                       {CHANNEL_LABEL[c.channel] ?? c.channel}
                     </Badge>
                   </div>
                   {c.lastMessagePreview && (
-                    <p className="text-muted-foreground mt-1 line-clamp-1">{c.lastMessagePreview}</p>
+                    <p className="text-muted-foreground mt-1 line-clamp-1">
+                      {c.lastMessagePreview}
+                    </p>
                   )}
-                  <p className="text-muted-foreground mt-1">{formatTime(c.lastMessageAt)}</p>
+                  <p className="text-muted-foreground mt-1">
+                    {formatTime(c.lastMessageAt)}
+                  </p>
                 </button>
               ))
             )}
@@ -155,7 +177,9 @@ export function InboxPanel() {
               <div className="flex h-full flex-col">
                 <div className="max-h-64 flex-1 space-y-2 overflow-y-auto p-3">
                   {thread.messages.length === 0 ? (
-                    <p className="text-muted-foreground text-center text-xs">Aucun message.</p>
+                    <p className="text-muted-foreground text-center text-xs">
+                      Aucun message.
+                    </p>
                   ) : (
                     thread.messages.map((m) => (
                       <div
@@ -167,7 +191,9 @@ export function InboxPanel() {
                         }`}
                       >
                         <p>{m.body}</p>
-                        <p className="text-muted-foreground mt-1 text-[10px]">{formatTime(m.createdAt)}</p>
+                        <p className="text-muted-foreground mt-1 text-[10px]">
+                          {formatTime(m.createdAt)}
+                        </p>
                       </div>
                     ))
                   )}
@@ -181,8 +207,16 @@ export function InboxPanel() {
                         placeholder="Répondre…"
                         className="h-16 text-xs"
                       />
-                      <Button size="sm" onClick={handleSend} disabled={sending || !replyText.trim()}>
-                        {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      <Button
+                        size="sm"
+                        onClick={handleSend}
+                        disabled={sending || !replyText.trim()}
+                      >
+                        {sending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5" />
+                        )}
                       </Button>
                     </div>
                   ) : (

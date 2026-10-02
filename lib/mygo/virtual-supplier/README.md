@@ -81,7 +81,7 @@ starts, not inside the simulated supplier.
 
 - **Multi-room booking**: `BookingCreationResponse.Rooms` and the virtual
   engine both support an array of rooms per booking, matching the myGo
-  contract. But the *real app* (`lib/booking/hotel-provider-booking.ts`)
+  contract. But the _real app_ (`lib/booking/hotel-provider-booking.ts`)
   only ever constructs a single-element `rooms` array today — the search UI
   doesn't yet let a user pick more than one room's occupancy. Testing
   "2 rooms, different occupancy" end-to-end would be testing a capability

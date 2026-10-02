@@ -19,11 +19,17 @@ const baseHotelRow = {
 }
 
 test("isVoucherEligible : true pour une réservation hôtel confirmée", () => {
-  assert.equal(isVoucherEligible({ ...baseHotelRow, status: "confirmed" }), true)
+  assert.equal(
+    isVoucherEligible({ ...baseHotelRow, status: "confirmed" }),
+    true,
+  )
 })
 
 test("isVoucherEligible : true pour un séjour terminé (completed)", () => {
-  assert.equal(isVoucherEligible({ ...baseHotelRow, status: "completed" }), true)
+  assert.equal(
+    isVoucherEligible({ ...baseHotelRow, status: "completed" }),
+    true,
+  )
 })
 
 test("isVoucherEligible : false pour une réservation encore pending (pas de faux voucher)", () => {
@@ -31,27 +37,48 @@ test("isVoucherEligible : false pour une réservation encore pending (pas de fau
 })
 
 test("isVoucherEligible : false pour une réservation on_request", () => {
-  assert.equal(isVoucherEligible({ ...baseHotelRow, status: "on_request" }), false)
+  assert.equal(
+    isVoucherEligible({ ...baseHotelRow, status: "on_request" }),
+    false,
+  )
 })
 
 test("isVoucherEligible : false pour une réservation annulée", () => {
-  assert.equal(isVoucherEligible({ ...baseHotelRow, status: "cancelled" }), false)
+  assert.equal(
+    isVoucherEligible({ ...baseHotelRow, status: "cancelled" }),
+    false,
+  )
 })
 
 test("isVoucherEligible : false pour une réservation remboursée", () => {
-  assert.equal(isVoucherEligible({ ...baseHotelRow, status: "refunded" }), false)
+  assert.equal(
+    isVoucherEligible({ ...baseHotelRow, status: "refunded" }),
+    false,
+  )
 })
 
 test("isVoucherEligible : false pour un module non-hôtel même confirmé", () => {
   assert.equal(
-    isVoucherEligible({ module: "transfer", status: "confirmed", hotelName: null, checkIn: null, checkOut: null }),
+    isVoucherEligible({
+      module: "transfer",
+      status: "confirmed",
+      hotelName: null,
+      checkIn: null,
+      checkOut: null,
+    }),
     false,
   )
 })
 
 test("isVoucherEligible : false si les données de séjour sont incomplètes", () => {
   assert.equal(
-    isVoucherEligible({ module: "hotel", status: "confirmed", hotelName: null, checkIn: "2026-09-10", checkOut: "2026-09-13" }),
+    isVoucherEligible({
+      module: "hotel",
+      status: "confirmed",
+      hotelName: null,
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-13",
+    }),
     false,
   )
 })
@@ -68,35 +95,62 @@ const baseOmraRow = {
 }
 
 test("isOmraVoucherEligible : true pour une réservation Omra confirmée", () => {
-  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "confirmed" }), true)
+  assert.equal(
+    isOmraVoucherEligible({ ...baseOmraRow, status: "confirmed" }),
+    true,
+  )
 })
 
 test("isOmraVoucherEligible : true pour un séjour Omra terminé (completed)", () => {
-  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "completed" }), true)
+  assert.equal(
+    isOmraVoucherEligible({ ...baseOmraRow, status: "completed" }),
+    true,
+  )
 })
 
 test("isOmraVoucherEligible : false pour une réservation Omra encore pending (pas de faux voucher)", () => {
-  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "pending" }), false)
+  assert.equal(
+    isOmraVoucherEligible({ ...baseOmraRow, status: "pending" }),
+    false,
+  )
 })
 
 test("isOmraVoucherEligible : false pour une réservation Omra annulée", () => {
-  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "cancelled" }), false)
+  assert.equal(
+    isOmraVoucherEligible({ ...baseOmraRow, status: "cancelled" }),
+    false,
+  )
 })
 
 test("isOmraVoucherEligible : false pour une réservation Omra remboursée", () => {
-  assert.equal(isOmraVoucherEligible({ ...baseOmraRow, status: "refunded" }), false)
+  assert.equal(
+    isOmraVoucherEligible({ ...baseOmraRow, status: "refunded" }),
+    false,
+  )
 })
 
 test("isOmraVoucherEligible : false pour un module non-omra même confirmé", () => {
   assert.equal(
-    isOmraVoucherEligible({ module: "hotel", status: "confirmed", packageName: null, departureDate: null, returnDate: null }),
+    isOmraVoucherEligible({
+      module: "hotel",
+      status: "confirmed",
+      packageName: null,
+      departureDate: null,
+      returnDate: null,
+    }),
     false,
   )
 })
 
 test("isOmraVoucherEligible : false si les données de séjour Omra sont incomplètes", () => {
   assert.equal(
-    isOmraVoucherEligible({ module: "omra", status: "confirmed", packageName: null, departureDate: "2026-03-01", returnDate: "2026-03-11" }),
+    isOmraVoucherEligible({
+      module: "omra",
+      status: "confirmed",
+      packageName: null,
+      departureDate: "2026-03-01",
+      returnDate: "2026-03-11",
+    }),
     false,
   )
 })
@@ -113,35 +167,62 @@ const basePackageRow = {
 }
 
 test("isPackageVoucherEligible : true pour une réservation Package confirmée", () => {
-  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "confirmed" }), true)
+  assert.equal(
+    isPackageVoucherEligible({ ...basePackageRow, status: "confirmed" }),
+    true,
+  )
 })
 
 test("isPackageVoucherEligible : true pour un voyage terminé (completed)", () => {
-  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "completed" }), true)
+  assert.equal(
+    isPackageVoucherEligible({ ...basePackageRow, status: "completed" }),
+    true,
+  )
 })
 
 test("isPackageVoucherEligible : false pour une réservation encore pending", () => {
-  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "pending" }), false)
+  assert.equal(
+    isPackageVoucherEligible({ ...basePackageRow, status: "pending" }),
+    false,
+  )
 })
 
 test("isPackageVoucherEligible : false pour une réservation annulée", () => {
-  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "cancelled" }), false)
+  assert.equal(
+    isPackageVoucherEligible({ ...basePackageRow, status: "cancelled" }),
+    false,
+  )
 })
 
 test("isPackageVoucherEligible : false pour une réservation remboursée", () => {
-  assert.equal(isPackageVoucherEligible({ ...basePackageRow, status: "refunded" }), false)
+  assert.equal(
+    isPackageVoucherEligible({ ...basePackageRow, status: "refunded" }),
+    false,
+  )
 })
 
 test("isPackageVoucherEligible : false pour un module non-package même confirmé", () => {
   assert.equal(
-    isPackageVoucherEligible({ module: "omra", status: "confirmed", packageName: null, departureDate: null, returnDate: null }),
+    isPackageVoucherEligible({
+      module: "omra",
+      status: "confirmed",
+      packageName: null,
+      departureDate: null,
+      returnDate: null,
+    }),
     false,
   )
 })
 
 test("isPackageVoucherEligible : false si les données de voyage sont incomplètes", () => {
   assert.equal(
-    isPackageVoucherEligible({ module: "package", status: "confirmed", packageName: null, departureDate: "2026-05-01", returnDate: "2026-05-06" }),
+    isPackageVoucherEligible({
+      module: "package",
+      status: "confirmed",
+      packageName: null,
+      departureDate: "2026-05-01",
+      returnDate: "2026-05-06",
+    }),
     false,
   )
 })
@@ -219,35 +300,62 @@ const baseWorldHotelRow = {
 }
 
 test("isWorldHotelVoucherEligible : true pour une réservation Hôtel Monde confirmée", () => {
-  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "confirmed" }), true)
+  assert.equal(
+    isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "confirmed" }),
+    true,
+  )
 })
 
 test("isWorldHotelVoucherEligible : true pour un séjour Hôtel Monde terminé (completed)", () => {
-  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "completed" }), true)
+  assert.equal(
+    isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "completed" }),
+    true,
+  )
 })
 
 test("isWorldHotelVoucherEligible : false pour une réservation encore pending (pas de faux voucher)", () => {
-  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "pending" }), false)
+  assert.equal(
+    isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "pending" }),
+    false,
+  )
 })
 
 test("isWorldHotelVoucherEligible : false pour une réservation annulée", () => {
-  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "cancelled" }), false)
+  assert.equal(
+    isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "cancelled" }),
+    false,
+  )
 })
 
 test("isWorldHotelVoucherEligible : false pour une réservation remboursée", () => {
-  assert.equal(isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "refunded" }), false)
+  assert.equal(
+    isWorldHotelVoucherEligible({ ...baseWorldHotelRow, status: "refunded" }),
+    false,
+  )
 })
 
 test("isWorldHotelVoucherEligible : false pour le module hotel (Hôtels Tunisie) même confirmé — jamais confondu malgré la table partagée", () => {
   assert.equal(
-    isWorldHotelVoucherEligible({ module: "hotel", status: "confirmed", hotelName: "X", checkIn: "2027-01-01", checkOut: "2027-01-02" }),
+    isWorldHotelVoucherEligible({
+      module: "hotel",
+      status: "confirmed",
+      hotelName: "X",
+      checkIn: "2027-01-01",
+      checkOut: "2027-01-02",
+    }),
     false,
   )
 })
 
 test("isWorldHotelVoucherEligible : false si les données de séjour sont incomplètes", () => {
   assert.equal(
-    isWorldHotelVoucherEligible({ module: "hotel_monde", status: "confirmed", hotelName: null, checkIn: "2027-03-15", checkOut: "2027-03-18" }),
+    isWorldHotelVoucherEligible({
+      module: "hotel_monde",
+      status: "confirmed",
+      hotelName: null,
+      checkIn: "2027-03-15",
+      checkOut: "2027-03-18",
+    }),
     false,
   )
 })
@@ -281,7 +389,10 @@ test("isHotelReservationVoucherEligible : false pour hôtel encore pending (pas 
 test("isHotelReservationVoucherEligible : false pour un module non-hôtel même confirmé (scopée au seul module hôtel par design)", () => {
   assert.equal(isHotelReservationVoucherEligible("omra", "confirmed"), false)
   assert.equal(isHotelReservationVoucherEligible("package", "confirmed"), false)
-  assert.equal(isHotelReservationVoucherEligible("activity", "confirmed"), false)
+  assert.equal(
+    isHotelReservationVoucherEligible("activity", "confirmed"),
+    false,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -292,20 +403,53 @@ test("isHotelReservationVoucherEligible : false pour un module non-hôtel même 
 /* -------------------------------------------------------------------------- */
 
 test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, confirmé", () => {
-  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
-    assert.equal(isAdminReservationVoucherEligible(mod, "confirmed"), true, `module=${mod}`)
+  for (const mod of [
+    "hotel",
+    "omra",
+    "package",
+    "activity",
+    "flight",
+    "hotel_monde",
+  ]) {
+    assert.equal(
+      isAdminReservationVoucherEligible(mod, "confirmed"),
+      true,
+      `module=${mod}`,
+    )
   }
 })
 
 test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, completed", () => {
-  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
-    assert.equal(isAdminReservationVoucherEligible(mod, "completed"), true, `module=${mod}`)
+  for (const mod of [
+    "hotel",
+    "omra",
+    "package",
+    "activity",
+    "flight",
+    "hotel_monde",
+  ]) {
+    assert.equal(
+      isAdminReservationVoucherEligible(mod, "completed"),
+      true,
+      `module=${mod}`,
+    )
   }
 })
 
 test("isAdminReservationVoucherEligible : false pour un statut pending, quel que soit le module", () => {
-  for (const mod of ["hotel", "omra", "package", "activity", "flight", "hotel_monde"]) {
-    assert.equal(isAdminReservationVoucherEligible(mod, "pending"), false, `module=${mod}`)
+  for (const mod of [
+    "hotel",
+    "omra",
+    "package",
+    "activity",
+    "flight",
+    "hotel_monde",
+  ]) {
+    assert.equal(
+      isAdminReservationVoucherEligible(mod, "pending"),
+      false,
+      `module=${mod}`,
+    )
   }
 })
 
@@ -315,6 +459,9 @@ test("isAdminReservationVoucherEligible : false pour cancelled/refunded (voucher
 })
 
 test("isAdminReservationVoucherEligible : false pour un module sans route voucher (transfert/voiture)", () => {
-  assert.equal(isAdminReservationVoucherEligible("transfer", "confirmed"), false)
+  assert.equal(
+    isAdminReservationVoucherEligible("transfer", "confirmed"),
+    false,
+  )
   assert.equal(isAdminReservationVoucherEligible("car", "confirmed"), false)
 })

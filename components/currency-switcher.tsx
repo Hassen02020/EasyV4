@@ -15,7 +15,9 @@ interface CurrencySwitcherProps {
   variant?: "desktop" | "mobile"
 }
 
-export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps) {
+export function CurrencySwitcher({
+  variant = "desktop",
+}: CurrencySwitcherProps) {
   const { currency, setCurrency, meta } = useCurrency()
 
   if (variant === "mobile") {
@@ -32,7 +34,7 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
         className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
         aria-label={`Changer devise de ${currency} vers ${next}`}
       >
-        <Wallet className="size-5 text-sidebar" aria-hidden="true" />
+        <Wallet className="text-sidebar size-5" aria-hidden="true" />
         <span className="flex-1 text-left">Devise</span>
         <span className="text-sidebar font-semibold">{currency}</span>
       </button>
@@ -45,10 +47,10 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 text-sm font-medium hover:bg-sidebar/10"
+          className="hover:bg-sidebar/10 gap-1.5 text-sm font-medium"
           aria-label="Changer de devise"
         >
-          <Wallet className="size-4 text-sidebar" aria-hidden="true" />
+          <Wallet className="text-sidebar size-4" aria-hidden="true" />
           <span className="hidden sm:inline">Devise</span>
           <span className="text-sidebar font-semibold">{currency}</span>
           <ChevronDown className="size-3 opacity-50" aria-hidden="true" />
@@ -66,10 +68,12 @@ export function CurrencySwitcher({ variant = "desktop" }: CurrencySwitcherProps)
               <span className="flex items-center gap-2">
                 <span aria-hidden="true">{m.flag}</span>
                 <span className="font-medium">{c}</span>
-                <span className="text-muted-foreground text-xs">— {m.label}</span>
+                <span className="text-muted-foreground text-xs">
+                  — {m.label}
+                </span>
               </span>
               {c === currency && (
-                <Check className="size-3.5 text-sidebar" aria-hidden="true" />
+                <Check className="text-sidebar size-3.5" aria-hidden="true" />
               )}
             </DropdownMenuItem>
           )

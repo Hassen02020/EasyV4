@@ -43,7 +43,9 @@ export function scrubValue(key: string, value: unknown): unknown {
   return value
 }
 
-function scrubContext(context?: ErrorContext): Record<string, unknown> | undefined {
+function scrubContext(
+  context?: ErrorContext,
+): Record<string, unknown> | undefined {
   if (!context) return undefined
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(context)) {
@@ -52,7 +54,9 @@ function scrubContext(context?: ErrorContext): Record<string, unknown> | undefin
   return out
 }
 
-let sentryModulePromise: Promise<typeof import("@sentry/nextjs") | null> | null = null
+let sentryModulePromise: Promise<
+  typeof import("@sentry/nextjs") | null
+> | null = null
 
 function loadSentry() {
   if (!sentryModulePromise) {
@@ -81,7 +85,8 @@ export function captureError(error: unknown, context?: ErrorContext): void {
         },
         extra: {
           ...scrubbed,
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorType:
+            error instanceof Error ? error.constructor.name : typeof error,
         },
       })
     })

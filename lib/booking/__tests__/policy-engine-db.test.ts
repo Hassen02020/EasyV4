@@ -52,8 +52,18 @@ before(async () => {
   agencyB = randomUUID()
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, slug: `pe-a-${agencyA}`, name: "Policy Engine Test Agency A", agencyType: "ota" },
-      { id: agencyB, slug: `pe-b-${agencyB}`, name: "Policy Engine Test Agency B", agencyType: "ota" },
+      {
+        id: agencyA,
+        slug: `pe-a-${agencyA}`,
+        name: "Policy Engine Test Agency A",
+        agencyType: "ota",
+      },
+      {
+        id: agencyB,
+        slug: `pe-b-${agencyB}`,
+        name: "Policy Engine Test Agency B",
+        agencyType: "ota",
+      },
     ])
   })
 })
@@ -61,8 +71,12 @@ before(async () => {
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
-    await tx.delete(cancellationPolicies).where(eq(cancellationPolicies.agencyId, agencyA))
-    await tx.delete(cancellationPolicies).where(eq(cancellationPolicies.agencyId, agencyB))
+    await tx
+      .delete(cancellationPolicies)
+      .where(eq(cancellationPolicies.agencyId, agencyA))
+    await tx
+      .delete(cancellationPolicies)
+      .where(eq(cancellationPolicies.agencyId, agencyB))
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyA))
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyB))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
@@ -73,8 +87,14 @@ after(async () => {
 test("resolveCancellationPolicy : aucune politique publiée → null, jamais une valeur inventée", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const productId = randomUUID()
-  const result = await withTenantContext({ agencyId: agencyA, userId: "", isSuperAdmin: false }, (tx) =>
-    resolveCancellationPolicy(tx, { agencyId: agencyA, productType: "package", productId }),
+  const result = await withTenantContext(
+    { agencyId: agencyA, userId: "", isSuperAdmin: false },
+    (tx) =>
+      resolveCancellationPolicy(tx, {
+        agencyId: agencyA,
+        productType: "package",
+        productId,
+      }),
   )
   assert.equal(result, null)
 })
@@ -91,8 +111,14 @@ test("resolveCancellationPolicy : politique par défaut agence (productId=null) 
     cancellationFeePercent: 10,
   })
   const productId = randomUUID()
-  const result = await withTenantContext({ agencyId: agencyA, userId: "", isSuperAdmin: false }, (tx) =>
-    resolveCancellationPolicy(tx, { agencyId: agencyA, productType: "omra", productId }),
+  const result = await withTenantContext(
+    { agencyId: agencyA, userId: "", isSuperAdmin: false },
+    (tx) =>
+      resolveCancellationPolicy(tx, {
+        agencyId: agencyA,
+        productType: "omra",
+        productId,
+      }),
   )
   assert.ok(result)
   assert.equal(result!.productId, null)
@@ -121,16 +147,28 @@ test("resolveCancellationPolicy : politique spécifique à un produit prime sur 
     cancellationFeePercent: 0,
   })
 
-  const specific = await withTenantContext({ agencyId: agencyA, userId: "", isSuperAdmin: false }, (tx) =>
-    resolveCancellationPolicy(tx, { agencyId: agencyA, productType: "activity", productId: specificProductId }),
+  const specific = await withTenantContext(
+    { agencyId: agencyA, userId: "", isSuperAdmin: false },
+    (tx) =>
+      resolveCancellationPolicy(tx, {
+        agencyId: agencyA,
+        productType: "activity",
+        productId: specificProductId,
+      }),
   )
   assert.ok(specific)
   assert.equal(specific!.productId, specificProductId)
   assert.equal(specific!.cancellationFeePercent, 0)
 
   const otherProductId = randomUUID()
-  const fallback = await withTenantContext({ agencyId: agencyA, userId: "", isSuperAdmin: false }, (tx) =>
-    resolveCancellationPolicy(tx, { agencyId: agencyA, productType: "activity", productId: otherProductId }),
+  const fallback = await withTenantContext(
+    { agencyId: agencyA, userId: "", isSuperAdmin: false },
+    (tx) =>
+      resolveCancellationPolicy(tx, {
+        agencyId: agencyA,
+        productType: "activity",
+        productId: otherProductId,
+      }),
   )
   assert.ok(fallback)
   assert.equal(fallback!.productId, null)
@@ -160,23 +198,51 @@ test("publishCancellationPolicyForAgency : versionnement — jamais un UPDATE, l
     cancellationFeePercent: 15,
   })
   assert.equal(v2.version, 2)
-  assert.notEqual(v2.id, v1.id, "une nouvelle ligne est insérée, jamais un UPDATE de la précédente")
+  assert.notEqual(
+    v2.id,
+    v1.id,
+    "une nouvelle ligne est insérée, jamais un UPDATE de la précédente",
+  )
 
   const all = await listCancellationPoliciesForAgency(agencyA)
-  const rowsForProduct = all.filter((r) => r.productId === productId && r.productType === "package")
+  const rowsForProduct = all.filter(
+    (r) => r.productId === productId && r.productType === "package",
+  )
   assert.equal(rowsForProduct.length, 2, "les deux versions restent en base")
   const active = rowsForProduct.filter((r) => r.isActive)
-  assert.equal(active.length, 1, "une seule ligne active à la fois pour la même cible")
+  assert.equal(
+    active.length,
+    1,
+    "une seule ligne active à la fois pour la même cible",
+  )
   assert.equal(active[0]!.version, 2)
   const oldVersion = rowsForProduct.find((r) => r.version === 1)
   assert.ok(oldVersion)
-  assert.equal(oldVersion!.isActive, false, "l'ancienne version reste en base mais désactivée")
-  assert.equal(oldVersion!.cancellable, false, "le contenu de l'ancienne version n'est jamais modifié rétroactivement")
-
-  const resolved = await withTenantContext({ agencyId: agencyA, userId: "", isSuperAdmin: false }, (tx) =>
-    resolveCancellationPolicy(tx, { agencyId: agencyA, productType: "package", productId }),
+  assert.equal(
+    oldVersion!.isActive,
+    false,
+    "l'ancienne version reste en base mais désactivée",
   )
-  assert.equal(resolved!.version, 2, "la résolution retourne toujours la dernière version active")
+  assert.equal(
+    oldVersion!.cancellable,
+    false,
+    "le contenu de l'ancienne version n'est jamais modifié rétroactivement",
+  )
+
+  const resolved = await withTenantContext(
+    { agencyId: agencyA, userId: "", isSuperAdmin: false },
+    (tx) =>
+      resolveCancellationPolicy(tx, {
+        agencyId: agencyA,
+        productType: "package",
+        productId,
+      }),
+  )
+  assert.equal(
+    resolved!.version,
+    2,
+    "la résolution retourne toujours la dernière version active",
+  )
 })
 
 test("deactivateCancellationPolicyForAgency : désactive sans supprimer — le produit retombe sur le défaut agence (ou aucune politique)", async (t) => {
@@ -194,8 +260,14 @@ test("deactivateCancellationPolicyForAgency : désactive sans supprimer — le p
 
   await deactivateCancellationPolicyForAgency(agencyA, userId, published.id)
 
-  const resolved = await withTenantContext({ agencyId: agencyA, userId: "", isSuperAdmin: false }, (tx) =>
-    resolveCancellationPolicy(tx, { agencyId: agencyA, productType: "omra", productId }),
+  const resolved = await withTenantContext(
+    { agencyId: agencyA, userId: "", isSuperAdmin: false },
+    (tx) =>
+      resolveCancellationPolicy(tx, {
+        agencyId: agencyA,
+        productType: "omra",
+        productId,
+      }),
   )
   // Un défaut agence "omra" a été publié dans un test précédent — la
   // désactivation de la politique spécifique fait donc retomber sur lui,
@@ -221,10 +293,20 @@ test("isolation tenant : une politique publiée pour l'agence A est invisible po
     cancellationFeePercent: 25,
   })
 
-  const resolvedFromB = await withTenantContext({ agencyId: agencyB, userId: "", isSuperAdmin: false }, (tx) =>
-    resolveCancellationPolicy(tx, { agencyId: agencyB, productType: "package", productId }),
+  const resolvedFromB = await withTenantContext(
+    { agencyId: agencyB, userId: "", isSuperAdmin: false },
+    (tx) =>
+      resolveCancellationPolicy(tx, {
+        agencyId: agencyB,
+        productType: "package",
+        productId,
+      }),
   )
-  assert.equal(resolvedFromB, null, "l'agence B ne voit jamais une politique publiée par l'agence A")
+  assert.equal(
+    resolvedFromB,
+    null,
+    "l'agence B ne voit jamais une politique publiée par l'agence A",
+  )
 
   const listB = await listCancellationPoliciesForAgency(agencyB)
   assert.equal(listB.filter((r) => r.productId === productId).length, 0)
@@ -290,8 +372,14 @@ test("cancellation_policies : le CHECK en base rejette aussi un pourcentage nég
 
 test("cancellation_policies : RLS force row level security est activé (Phase 38A, gap de cohérence confirmé)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const [row] = await withSystemContext((tx) =>
-    tx.execute(sql`select relforcerowsecurity from pg_class where relname = 'cancellation_policies'`),
-  ) as unknown as Array<{ relforcerowsecurity: boolean }>
-  assert.equal(row?.relforcerowsecurity, true, "cancellation_policies doit avoir FORCE ROW LEVEL SECURITY, comme les tables tenant-scopées sœurs")
+  const [row] = (await withSystemContext((tx) =>
+    tx.execute(
+      sql`select relforcerowsecurity from pg_class where relname = 'cancellation_policies'`,
+    ),
+  )) as unknown as Array<{ relforcerowsecurity: boolean }>
+  assert.equal(
+    row?.relforcerowsecurity,
+    true,
+    "cancellation_policies doit avoir FORCE ROW LEVEL SECURITY, comme les tables tenant-scopées sœurs",
+  )
 })

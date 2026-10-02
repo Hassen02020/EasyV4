@@ -22,7 +22,10 @@
 
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { withTenantContext, resolveSessionContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  resolveSessionContext,
+} from "@/lib/db/tenant-context"
 import type * as schema from "@/lib/db/schema"
 import { wallets } from "@/lib/db/schema"
 
@@ -70,5 +73,8 @@ export async function getWalletBalance(): Promise<
     { agencyId, userId: session.userId, isSuperAdmin: session.isSuperAdmin },
     (db) => getOrCreateWallet(db as Db, agencyId),
   )
-  return { ok: true, data: { balance: wallet.balance, currency: wallet.currency } }
+  return {
+    ok: true,
+    data: { balance: wallet.balance, currency: wallet.currency },
+  }
 }

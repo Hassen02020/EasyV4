@@ -15,7 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { reviewMutuelleRequest, type MutuelleRequestRow } from "@/lib/mutuelle/requests-actions"
+import {
+  reviewMutuelleRequest,
+  type MutuelleRequestRow,
+} from "@/lib/mutuelle/requests-actions"
 
 const MODULE_LABELS: Record<string, string> = {
   hotel: "Hôtel Tunisie",
@@ -29,9 +32,18 @@ const MODULE_LABELS: Record<string, string> = {
 }
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  pending: { label: "En attente", className: "bg-amber-100 text-amber-700 hover:bg-amber-100" },
-  approved: { label: "Approuvée", className: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" },
-  rejected: { label: "Refusée", className: "bg-red-100 text-red-700 hover:bg-red-100" },
+  pending: {
+    label: "En attente",
+    className: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+  },
+  approved: {
+    label: "Approuvée",
+    className: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+  },
+  rejected: {
+    label: "Refusée",
+    className: "bg-red-100 text-red-700 hover:bg-red-100",
+  },
 }
 
 function formatDate(d: string) {
@@ -46,12 +58,18 @@ function ReviewRow({ request }: { request: MutuelleRequestRow }) {
 
   function decide(decision: "approved" | "rejected") {
     startTransition(async () => {
-      const result = await reviewMutuelleRequest({ requestId: request.id, decision, directorNote: note || undefined })
+      const result = await reviewMutuelleRequest({
+        requestId: request.id,
+        decision,
+        directorNote: note || undefined,
+      })
       if (!result.ok) {
         toast.error(result.error)
         return
       }
-      toast.success(decision === "approved" ? "Demande approuvée." : "Demande refusée.")
+      toast.success(
+        decision === "approved" ? "Demande approuvée." : "Demande refusée.",
+      )
       setShowNote(null)
       setNote("")
       router.refresh()
@@ -69,11 +87,23 @@ function ReviewRow({ request }: { request: MutuelleRequestRow }) {
           disabled={isPending}
         />
         <div className="flex gap-2">
-          <Button size="sm" disabled={isPending} onClick={() => decide(showNote)} className="gap-1.5">
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          <Button
+            size="sm"
+            disabled={isPending}
+            onClick={() => decide(showNote)}
+            className="gap-1.5"
+          >
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
             Confirmer
           </Button>
-          <Button size="sm" variant="ghost" disabled={isPending} onClick={() => setShowNote(null)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={isPending}
+            onClick={() => setShowNote(null)}
+          >
             Annuler
           </Button>
         </div>
@@ -133,7 +163,9 @@ export function RequestsTable({
             <TableHead>Dates</TableHead>
             <TableHead>Pax</TableHead>
             <TableHead>Statut</TableHead>
-            {role === "mutuelle_director" && <TableHead className="text-right">Action</TableHead>}
+            {role === "mutuelle_director" && (
+              <TableHead className="text-right">Action</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -143,19 +175,28 @@ export function RequestsTable({
               <TableRow key={r.id}>
                 {role === "mutuelle_director" && (
                   <TableCell className="text-sm">
-                    <p className="font-medium">{r.memberName ?? r.memberEmail}</p>
-                    <p className="text-muted-foreground text-xs">{r.memberEmail}</p>
+                    <p className="font-medium">
+                      {r.memberName ?? r.memberEmail}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {r.memberEmail}
+                    </p>
                   </TableCell>
                 )}
-                <TableCell className="text-sm">{MODULE_LABELS[r.module] ?? r.module}</TableCell>
+                <TableCell className="text-sm">
+                  {MODULE_LABELS[r.module] ?? r.module}
+                </TableCell>
                 <TableCell className="max-w-xs text-sm">
                   <p className="line-clamp-2">{r.description}</p>
                   {r.directorNote && (
-                    <p className="text-muted-foreground mt-1 text-xs italic">Note : {r.directorNote}</p>
+                    <p className="text-muted-foreground mt-1 text-xs italic">
+                      Note : {r.directorNote}
+                    </p>
                   )}
                 </TableCell>
                 <TableCell className="text-sm whitespace-nowrap">
-                  {formatDate(r.travelStartDate)} – {formatDate(r.travelEndDate)}
+                  {formatDate(r.travelStartDate)} –{" "}
+                  {formatDate(r.travelEndDate)}
                 </TableCell>
                 <TableCell className="text-sm">{r.paxCount}</TableCell>
                 <TableCell>

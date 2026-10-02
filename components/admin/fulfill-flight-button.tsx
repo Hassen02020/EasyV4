@@ -23,10 +23,17 @@ interface Props {
 export function FulfillFlightButton({ reservationId }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ pnr?: string; error?: string } | null>(null)
+  const [result, setResult] = useState<{ pnr?: string; error?: string } | null>(
+    null,
+  )
 
   async function handleFulfill() {
-    if (!confirm("Lancer le traitement GDS pour ce dossier ? (recheck prix → réservation → émission billet)")) return
+    if (
+      !confirm(
+        "Lancer le traitement GDS pour ce dossier ? (recheck prix → réservation → émission billet)",
+      )
+    )
+      return
     setLoading(true)
     setResult(null)
     try {
@@ -49,10 +56,14 @@ export function FulfillFlightButton({ reservationId }: Props) {
       <Button
         onClick={handleFulfill}
         disabled={loading}
-        className="bg-sky-700 hover:bg-sky-800 text-white"
+        className="bg-sky-700 text-white hover:bg-sky-800"
         size="sm"
       >
-        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
+        {loading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Ticket className="mr-2 h-4 w-4" />
+        )}
         {loading ? "Traitement GDS en cours…" : "Émettre le billet"}
       </Button>
 

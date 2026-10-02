@@ -12,5 +12,9 @@
  */
 
 export function normalizeHost(host: string): string {
-  return host.trim().toLowerCase().replace(/^www\./, "").replace(/:\d+$/, "")
+  return host
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, "")
+    .replace(/:\d+$/, "")
 }

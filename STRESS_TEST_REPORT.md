@@ -34,13 +34,13 @@ const lockedRows = await tx
 
 ### Scénario de Test
 
-| Paramètre | Valeur |
-|-----------|--------|
-| Solde initial | 200.00 TND |
-| Montant débit | 50.00 TND |
-| Concurrency | 5 débits simultanés |
-| Attendu | 4 succès, 1 échec (solde insuffisant) |
-| Solde final attendu | 0.00 TND |
+| Paramètre           | Valeur                                |
+| ------------------- | ------------------------------------- |
+| Solde initial       | 200.00 TND                            |
+| Montant débit       | 50.00 TND                             |
+| Concurrency         | 5 débits simultanés                   |
+| Attendu             | 4 succès, 1 échec (solde insuffisant) |
+| Solde final attendu | 0.00 TND                              |
 
 ### Mécanismes Anti-Race
 
@@ -86,13 +86,13 @@ const [allotment] = await tx
 
 ### Scénario de Test
 
-| Paramètre | Valeur |
-|-----------|--------|
-| Stock initial allotment | 10 places |
-| Taille réservation | 2 pèlerins |
-| Concurrency | 8 réservations simultanées |
-| Attendu | 5 succès, 3 échecs (stock épuisé) |
-| Stock final attendu | 0 places |
+| Paramètre               | Valeur                            |
+| ----------------------- | --------------------------------- |
+| Stock initial allotment | 10 places                         |
+| Taille réservation      | 2 pèlerins                        |
+| Concurrency             | 8 réservations simultanées        |
+| Attendu                 | 5 succès, 3 échecs (stock épuisé) |
+| Stock final attendu     | 0 places                          |
 
 ### Mécanismes Anti-Surbooking
 
@@ -142,13 +142,13 @@ if (!debitResult.ok) {
 
 ### Scénario de Test
 
-| Paramètre | Valeur |
-|-----------|--------|
-| Solde wallet initial | 100.00 TND |
-| Prix transfert | 25.00 TND |
-| Concurrency | 5 réservations simultanées |
-| Attendu | 4 succès, 1 échec (solde insuffisant) |
-| Solde final attendu | 0.00 TND |
+| Paramètre            | Valeur                                |
+| -------------------- | ------------------------------------- |
+| Solde wallet initial | 100.00 TND                            |
+| Prix transfert       | 25.00 TND                             |
+| Concurrency          | 5 réservations simultanées            |
+| Attendu              | 4 succès, 1 échec (solde insuffisant) |
+| Solde final attendu  | 0.00 TND                              |
 
 ### Mécanismes Anti-Race
 
@@ -166,19 +166,19 @@ if (!debitResult.ok) {
 
 ### Points de Verrouillage (FOR UPDATE)
 
-| Table | Verrou | Module | Purpose |
-|-------|--------|--------|---------|
-| `agencies` | `depositBalance` | Wallet | Anti double-débit |
-| `omra_allotments` | `availableCount` | Omra | Anti-surbooking |
-| `wallets` | `balance` | Wallet | Anti double-débit |
+| Table             | Verrou           | Module | Purpose           |
+| ----------------- | ---------------- | ------ | ----------------- |
+| `agencies`        | `depositBalance` | Wallet | Anti double-débit |
+| `omra_allotments` | `availableCount` | Omra   | Anti-surbooking   |
+| `wallets`         | `balance`        | Wallet | Anti double-débit |
 
 ### Points de Transaction Atomique
 
-| Module | Opérations atomiques |
-|--------|---------------------|
-| Wallet | SELECT FOR UPDATE + UPDATE balance + INSERT movement |
-| Omra | SELECT FOR UPDATE allotment + debit wallet + INSERT reservation + INSERT pilgrims + UPDATE allotment |
-| Transferts | Calcul prix + INSERT customer + INSERT reservation + debit wallet + INSERT extension |
+| Module     | Opérations atomiques                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| Wallet     | SELECT FOR UPDATE + UPDATE balance + INSERT movement                                                 |
+| Omra       | SELECT FOR UPDATE allotment + debit wallet + INSERT reservation + INSERT pilgrims + UPDATE allotment |
+| Transferts | Calcul prix + INSERT customer + INSERT reservation + debit wallet + INSERT extension                 |
 
 ---
 

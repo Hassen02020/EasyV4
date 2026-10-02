@@ -22,7 +22,10 @@ import { join } from "node:path"
 
 const ROOT = process.cwd()
 const actionsSrc = readFileSync(join(ROOT, "lib/cars/actions.ts"), "utf8")
-const guestActionsSrc = readFileSync(join(ROOT, "lib/cars/guest-booking-actions.ts"), "utf8")
+const guestActionsSrc = readFileSync(
+  join(ROOT, "lib/cars/guest-booking-actions.ts"),
+  "utf8",
+)
 
 function countOccurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
@@ -40,11 +43,17 @@ test("actions.ts : importe recordReservationFinancials depuis lib/finance/reserv
 })
 
 test("actions.ts : appelle recordReservationFinancials exactement une fois, avec le split coût/prix réel de calculateCarPrice (jamais un recalcul)", () => {
-  assert.equal(countOccurrences(actionsSrc, "await recordReservationFinancials("), 1)
+  assert.equal(
+    countOccurrences(actionsSrc, "await recordReservationFinancials("),
+    1,
+  )
   // ECON-WIRING-01 : le split réel est maintenant capturé dans une variable
   // (carSupplierCostTnd), réutilisée telle quelle pour supplierPriceTnd ET
   // pour la ligne economic_entitlements product_owner — jamais un recalcul.
-  assert.match(actionsSrc, /const carSupplierCostTnd = pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/)
+  assert.match(
+    actionsSrc,
+    /const carSupplierCostTnd =\s*\n?\s*pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/,
+  )
   assert.match(actionsSrc, /supplierPriceTnd:\s*carSupplierCostTnd,/)
   assert.match(actionsSrc, /salePriceTnd:\s*pricing\.totalTnd,/)
 })
@@ -52,9 +61,13 @@ test("actions.ts : appelle recordReservationFinancials exactement une fois, avec
 test("actions.ts : recordReservationFinancials est appelé DANS la transaction (avant sa fermeture), APRÈS le débit wallet", () => {
   const debitIdx = actionsSrc.indexOf("await debitPartnerCredit(")
   const financialsIdx = actionsSrc.indexOf("await recordReservationFinancials(")
-  const reservationCarIdx = actionsSrc.indexOf("await tx.insert(reservationCar)")
+  const reservationCarIdx = actionsSrc.indexOf(
+    "await tx.insert(reservationCar)",
+  )
   assert.ok(
-    debitIdx > 0 && financialsIdx > debitIdx && financialsIdx < reservationCarIdx,
+    debitIdx > 0 &&
+      financialsIdx > debitIdx &&
+      financialsIdx < reservationCarIdx,
     "ordre attendu : debit -> recordReservationFinancials -> insert reservationCar, tout dans runInTenantContext",
   )
 })
@@ -79,18 +92,30 @@ test("guest-booking-actions.ts : importe recordReservationFinancials depuis lib/
 })
 
 test("guest-booking-actions.ts : appelle recordReservationFinancials exactement une fois, avec le split coût/prix réel de calculateCarPrice (jamais un recalcul)", () => {
-  assert.equal(countOccurrences(guestActionsSrc, "await recordReservationFinancials("), 1)
-  assert.match(guestActionsSrc, /const carSupplierCostTnd = pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/)
+  assert.equal(
+    countOccurrences(guestActionsSrc, "await recordReservationFinancials("),
+    1,
+  )
+  assert.match(
+    guestActionsSrc,
+    /const carSupplierCostTnd =\s*\n?\s*pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/,
+  )
   assert.match(guestActionsSrc, /supplierPriceTnd:\s*carSupplierCostTnd,/)
   assert.match(guestActionsSrc, /salePriceTnd:\s*pricing\.totalTnd,/)
 })
 
 test("guest-booking-actions.ts : recordReservationFinancials est appelé DANS la transaction (avant sa fermeture), APRÈS l'insertion du paiement", () => {
   const paymentIdx = guestActionsSrc.indexOf("await tx.insert(payments)")
-  const financialsIdx = guestActionsSrc.indexOf("await recordReservationFinancials(")
-  const reservationCarIdx = guestActionsSrc.indexOf("await tx.insert(reservationCar)")
+  const financialsIdx = guestActionsSrc.indexOf(
+    "await recordReservationFinancials(",
+  )
+  const reservationCarIdx = guestActionsSrc.indexOf(
+    "await tx.insert(reservationCar)",
+  )
   assert.ok(
-    paymentIdx > 0 && financialsIdx > paymentIdx && financialsIdx < reservationCarIdx,
+    paymentIdx > 0 &&
+      financialsIdx > paymentIdx &&
+      financialsIdx < reservationCarIdx,
     "ordre attendu : insert payments -> recordReservationFinancials -> insert reservationCar, tout dans withTenantContext",
   )
 })

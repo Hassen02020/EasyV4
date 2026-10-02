@@ -53,7 +53,9 @@ export interface ResolvedTenant {
  * agence n'a ce domaine enregistré (cas normal pour Easy2Book B2C et pour
  * tout partenaire B2B classique — `domain` reste NULL pour eux).
  */
-export async function resolveTenantByDomain(host: string): Promise<ResolvedTenant | null> {
+export async function resolveTenantByDomain(
+  host: string,
+): Promise<ResolvedTenant | null> {
   const normalized = normalizeHost(host)
   if (!normalized) return null
   if (!process.env.DATABASE_URL) return null

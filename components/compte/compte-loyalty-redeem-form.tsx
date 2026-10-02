@@ -32,7 +32,9 @@ export function CompteLoyaltyRedeemForm({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [reservationId, setReservationId] = useState(reservations[0]?.id ?? "")
-  const [points, setPoints] = useState(String(Math.min(MIN_REDEMPTION_POINTS, availablePoints)))
+  const [points, setPoints] = useState(
+    String(Math.min(MIN_REDEMPTION_POINTS, availablePoints)),
+  )
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -65,7 +67,12 @@ export function CompteLoyaltyRedeemForm({
         setError(result.error)
         return
       }
-      setSuccess(t("redeemSuccess", { points: result.points, tnd: result.tndEquivalent.toFixed(2) }))
+      setSuccess(
+        t("redeemSuccess", {
+          points: result.points,
+          tnd: result.tndEquivalent.toFixed(2),
+        }),
+      )
       router.refresh()
     } catch {
       setError(t("genericError"))
@@ -110,8 +117,17 @@ export function CompteLoyaltyRedeemForm({
           disabled={pending}
           className="h-8 w-28 text-xs"
         />
-        <Button type="submit" size="sm" disabled={pending} className="h-8 text-xs">
-          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("confirmButton")}
+        <Button
+          type="submit"
+          size="sm"
+          disabled={pending}
+          className="h-8 text-xs"
+        >
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            t("confirmButton")
+          )}
         </Button>
         <button
           type="button"

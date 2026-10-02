@@ -48,34 +48,34 @@ export async function loadPartnerDashboard(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
         Promise.all([
-      db
-        .select({
-          cnt: count(reservations.id),
-          sumTnd: sql<string>`COALESCE(SUM(${reservations.tndAmount}::numeric), 0)`,
-        })
-        .from(reservations)
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            gte(reservations.createdAt, since),
-          ),
-        ),
+          db
+            .select({
+              cnt: count(reservations.id),
+              sumTnd: sql<string>`COALESCE(SUM(${reservations.tndAmount}::numeric), 0)`,
+            })
+            .from(reservations)
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                gte(reservations.createdAt, since),
+              ),
+            ),
 
-      db
-        .select({ cnt: count(reservations.id) })
-        .from(reservations)
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            sql`${reservations.status} IN ('pending','on_request')`,
-          ),
-        ),
+          db
+            .select({ cnt: count(reservations.id) })
+            .from(reservations)
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                sql`${reservations.status} IN ('pending','on_request')`,
+              ),
+            ),
 
-      db
-        .select({ depositBalance: agencies.depositBalance })
-        .from(agencies)
-        .where(eq(agencies.id, agencyId))
-        .limit(1),
+          db
+            .select({ depositBalance: agencies.depositBalance })
+            .from(agencies)
+            .where(eq(agencies.id, agencyId))
+            .limit(1),
         ]),
     )
 

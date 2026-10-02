@@ -20,29 +20,39 @@ test("aucune ligne remboursable — NO_CAPTURED_PAYMENT", () => {
 })
 
 test("remboursement total (amountTnd omis) — consomme tout le montant remboursable", () => {
-  const rows: RefundableRow[] = [{ id: "p1", tndAmount: "1000.00", refundedAmount: "0" }]
+  const rows: RefundableRow[] = [
+    { id: "p1", tndAmount: "1000.00", refundedAmount: "0" },
+  ]
   const result = allocateRefund(rows, undefined, EPSILON)
   assert.equal(result.ok, true)
   if (result.ok) {
     assert.equal(result.requestedTnd, 1000)
     assert.equal(result.fullyRefunded, true)
-    assert.deepEqual(result.updates, [{ id: "p1", newRefundedAmount: 1000, newStatus: "refunded" }])
+    assert.deepEqual(result.updates, [
+      { id: "p1", newRefundedAmount: 1000, newStatus: "refunded" },
+    ])
   }
 })
 
 test("remboursement partiel (300 sur 1000) — ligne reste partial_refund, réservation pas fullyRefunded", () => {
-  const rows: RefundableRow[] = [{ id: "p1", tndAmount: "1000.00", refundedAmount: "0" }]
+  const rows: RefundableRow[] = [
+    { id: "p1", tndAmount: "1000.00", refundedAmount: "0" },
+  ]
   const result = allocateRefund(rows, 300, EPSILON)
   assert.equal(result.ok, true)
   if (result.ok) {
     assert.equal(result.requestedTnd, 300)
     assert.equal(result.fullyRefunded, false)
-    assert.deepEqual(result.updates, [{ id: "p1", newRefundedAmount: 300, newStatus: "partial_refund" }])
+    assert.deepEqual(result.updates, [
+      { id: "p1", newRefundedAmount: 300, newStatus: "partial_refund" },
+    ])
   }
 })
 
 test("remboursement > montant capturé — AMOUNT_EXCEEDS_CAPTURED, aucune mise à jour proposée", () => {
-  const rows: RefundableRow[] = [{ id: "p1", tndAmount: "1000.00", refundedAmount: "0" }]
+  const rows: RefundableRow[] = [
+    { id: "p1", tndAmount: "1000.00", refundedAmount: "0" },
+  ]
   const result = allocateRefund(rows, 1000.5, EPSILON)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "AMOUNT_EXCEEDS_CAPTURED")
@@ -81,17 +91,23 @@ test("remboursement exact du total remboursable multi-lignes — fullyRefunded t
 })
 
 test("une ligne déjà partiellement remboursée — une nouvelle demande dans la limite du restant remboursable réussit", () => {
-  const rows: RefundableRow[] = [{ id: "p1", tndAmount: "300.00", refundedAmount: "100.00" }]
+  const rows: RefundableRow[] = [
+    { id: "p1", tndAmount: "300.00", refundedAmount: "100.00" },
+  ]
   const result = allocateRefund(rows, 150, EPSILON)
   assert.equal(result.ok, true)
   if (result.ok) {
     assert.equal(result.totalRefundableTnd, 200)
-    assert.deepEqual(result.updates, [{ id: "p1", newRefundedAmount: 250, newStatus: "partial_refund" }])
+    assert.deepEqual(result.updates, [
+      { id: "p1", newRefundedAmount: 250, newStatus: "partial_refund" },
+    ])
   }
 })
 
 test("une ligne déjà partiellement remboursée — dépasser le restant remboursable (200) est rejeté", () => {
-  const rows: RefundableRow[] = [{ id: "p1", tndAmount: "300.00", refundedAmount: "100.00" }]
+  const rows: RefundableRow[] = [
+    { id: "p1", tndAmount: "300.00", refundedAmount: "100.00" },
+  ]
   const result = allocateRefund(rows, 250, EPSILON)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "AMOUNT_EXCEEDS_CAPTURED")
@@ -105,12 +121,16 @@ test("ligne déjà intégralement remboursée exclue de l'allocation (rowRefunda
   const result = allocateRefund(rows, 200, EPSILON)
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.deepEqual(result.updates, [{ id: "still-captured", newRefundedAmount: 200, newStatus: "refunded" }])
+    assert.deepEqual(result.updates, [
+      { id: "still-captured", newRefundedAmount: 200, newStatus: "refunded" },
+    ])
   }
 })
 
 test("toutes les lignes déjà remboursées — NO_CAPTURED_PAYMENT (totalRefundableTnd sous l'epsilon)", () => {
-  const rows: RefundableRow[] = [{ id: "p1", tndAmount: "300.00", refundedAmount: "300.00" }]
+  const rows: RefundableRow[] = [
+    { id: "p1", tndAmount: "300.00", refundedAmount: "300.00" },
+  ]
   const result = allocateRefund(rows, 10, EPSILON)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "NO_CAPTURED_PAYMENT")

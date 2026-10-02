@@ -91,13 +91,24 @@ export type ProductScope = {
 } | null
 
 /** Exported for unit testing. Pure — no I/O. */
-export function matchesProductScope(scope: ProductScope, hints: ProductHints): boolean {
+export function matchesProductScope(
+  scope: ProductScope,
+  hints: ProductHints,
+): boolean {
   if (!scope) return true // NULL scope = matches all
   if (scope.cabin && hints.cabin && scope.cabin !== hints.cabin) return false
-  if (scope.provider && hints.provider && scope.provider !== hints.provider) return false
-  if (scope.origin && hints.origin && scope.origin !== hints.origin) return false
-  if (scope.destination && hints.destination && scope.destination !== hints.destination) return false
-  if (scope.airline && hints.airline && scope.airline !== hints.airline) return false
+  if (scope.provider && hints.provider && scope.provider !== hints.provider)
+    return false
+  if (scope.origin && hints.origin && scope.origin !== hints.origin)
+    return false
+  if (
+    scope.destination &&
+    hints.destination &&
+    scope.destination !== hints.destination
+  )
+    return false
+  if (scope.airline && hints.airline && scope.airline !== hints.airline)
+    return false
   return true
 }
 
@@ -127,9 +138,15 @@ async function findBestCommercialRule(
         .where(
           and(
             // NULL agency_id = global rule (matches any partner)
-            or(isNull(flightCommercialRules.agencyId), eq(flightCommercialRules.agencyId, agencyId)),
+            or(
+              isNull(flightCommercialRules.agencyId),
+              eq(flightCommercialRules.agencyId, agencyId),
+            ),
             // NULL channel = global rule (matches any channel)
-            or(isNull(flightCommercialRules.channel), eq(flightCommercialRules.channel, channel)),
+            or(
+              isNull(flightCommercialRules.channel),
+              eq(flightCommercialRules.channel, channel),
+            ),
             eq(flightCommercialRules.isActive, true),
             or(
               isNull(flightCommercialRules.validFrom),
@@ -227,7 +244,10 @@ export function computeCommercialResult(
   rules: CommercialRules,
 ): CommercialResult {
   if (supplierCurrency !== rules.currency) {
-    throw new UnsupportedCommercialCurrencyMismatchError(supplierCurrency, rules.currency)
+    throw new UnsupportedCommercialCurrencyMismatchError(
+      supplierCurrency,
+      rules.currency,
+    )
   }
 
   const fee = Math.round(rules.fixedFee * 1000) / 1000

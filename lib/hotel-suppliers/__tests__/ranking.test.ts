@@ -23,9 +23,16 @@ function rate(overrides: Partial<NormalizedRate>): NormalizedRate {
 }
 
 test("rankOffers LOWEST_PRICE : trie strictement par prix de vente croissant", () => {
-  const rates = [rate({ supplier: "mygo", sellingPrice: 420 }), rate({ supplier: "cyberesa", sellingPrice: 405 }), rate({ supplier: "3t", sellingPrice: 430 })]
+  const rates = [
+    rate({ supplier: "mygo", sellingPrice: 420 }),
+    rate({ supplier: "cyberesa", sellingPrice: 405 }),
+    rate({ supplier: "3t", sellingPrice: 430 }),
+  ]
   const ranked = rankOffers(rates, { strategy: "LOWEST_PRICE" })
-  assert.deepEqual(ranked.map((r) => r.sellingPrice), [405, 420, 430])
+  assert.deepEqual(
+    ranked.map((r) => r.sellingPrice),
+    [405, 420, 430],
+  )
 })
 
 test("rankOffers BEST_MARGIN : favorise la marge (sellingPrice - netPrice) la plus haute", () => {
@@ -38,14 +45,28 @@ test("rankOffers BEST_MARGIN : favorise la marge (sellingPrice - netPrice) la pl
 })
 
 test("rankOffers PREFERRED_SUPPLIER : respecte l'ordre de préférence explicite", () => {
-  const rates = [rate({ supplier: "mygo", sellingPrice: 400 }), rate({ supplier: "3t", sellingPrice: 400 })]
-  const ranked = rankOffers(rates, { strategy: "PREFERRED_SUPPLIER", preferredSupplierOrder: ["3t", "mygo"] })
+  const rates = [
+    rate({ supplier: "mygo", sellingPrice: 400 }),
+    rate({ supplier: "3t", sellingPrice: 400 }),
+  ]
+  const ranked = rankOffers(rates, {
+    strategy: "PREFERRED_SUPPLIER",
+    preferredSupplierOrder: ["3t", "mygo"],
+  })
   assert.equal(ranked[0].supplier, "3t")
 })
 
 test("rankOffers BEST_VALUE : une offre remboursable gratuite bat une offre moins chère non remboursable", () => {
-  const cheap = rate({ supplier: "mygo", sellingPrice: 400, cancellationPolicy: { type: "NON_REFUNDABLE" } })
-  const flexible = rate({ supplier: "cyberesa", sellingPrice: 410, cancellationPolicy: { type: "FREE_CANCELLATION" } })
+  const cheap = rate({
+    supplier: "mygo",
+    sellingPrice: 400,
+    cancellationPolicy: { type: "NON_REFUNDABLE" },
+  })
+  const flexible = rate({
+    supplier: "cyberesa",
+    sellingPrice: 410,
+    cancellationPolicy: { type: "FREE_CANCELLATION" },
+  })
   const ranked = rankOffers([cheap, flexible], { strategy: "BEST_VALUE" })
   assert.equal(ranked[0].supplier, "cyberesa")
 })

@@ -10,7 +10,10 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { attemptCardPayment, generateGuestPaymentReference } from "../guest-card-payment"
+import {
+  attemptCardPayment,
+  generateGuestPaymentReference,
+} from "../guest-card-payment"
 import type { PaymentProvider, PaymentResult } from "@/lib/payment/provider"
 
 const BASE_INPUT = {
@@ -21,7 +24,10 @@ const BASE_INPUT = {
   customerEmail: "client@example.com",
 }
 
-function makeProvider(behavior: { result?: PaymentResult; throws?: Error }): PaymentProvider {
+function makeProvider(behavior: {
+  result?: PaymentResult
+  throws?: Error
+}): PaymentProvider {
   return {
     name: "fake",
     configured: true,
@@ -43,19 +49,31 @@ function makeProvider(behavior: { result?: PaymentResult; throws?: Error }): Pay
 
 test("attemptCardPayment : succès — pas de compensation, résultat propagé tel quel", async () => {
   let compensateCalled = false
-  const provider = makeProvider({ result: { ok: true, providerPaymentId: "pi_test", status: "succeeded" } })
+  const provider = makeProvider({
+    result: { ok: true, providerPaymentId: "pi_test", status: "succeeded" },
+  })
 
   const result = await attemptCardPayment(provider, BASE_INPUT, async () => {
     compensateCalled = true
   })
 
-  assert.deepEqual(result, { ok: true, providerPaymentId: "pi_test", status: "succeeded" })
-  assert.equal(compensateCalled, false, "aucune compensation myGo ne doit avoir lieu sur un succès")
+  assert.deepEqual(result, {
+    ok: true,
+    providerPaymentId: "pi_test",
+    status: "succeeded",
+  })
+  assert.equal(
+    compensateCalled,
+    false,
+    "aucune compensation myGo ne doit avoir lieu sur un succès",
+  )
 })
 
 test("attemptCardPayment : échec propre du provider — compensation déclenchée, résultat propagé", async () => {
   let compensateCalled = false
-  const provider = makeProvider({ result: { ok: false, code: "PAYMENT_DECLINED", message: "Carte refusée" } })
+  const provider = makeProvider({
+    result: { ok: false, code: "PAYMENT_DECLINED", message: "Carte refusée" },
+  })
 
   const result = await attemptCardPayment(provider, BASE_INPUT, async () => {
     compensateCalled = true
@@ -63,12 +81,18 @@ test("attemptCardPayment : échec propre du provider — compensation déclench�
 
   assert.equal(result.ok, false)
   assert.equal(result.code, "PAYMENT_DECLINED")
-  assert.equal(compensateCalled, true, "la réservation myGo doit être compensée sur un échec de paiement")
+  assert.equal(
+    compensateCalled,
+    true,
+    "la réservation myGo doit être compensée sur un échec de paiement",
+  )
 })
 
 test("attemptCardPayment : le provider LÈVE une exception (timeout réseau) — compensation quand même déclenchée, jamais d'exception qui s'échappe", async () => {
   let compensateCalled = false
-  const provider = makeProvider({ throws: new Error("fetch failed: ETIMEDOUT") })
+  const provider = makeProvider({
+    throws: new Error("fetch failed: ETIMEDOUT"),
+  })
 
   const result = await attemptCardPayment(provider, BASE_INPUT, async () => {
     compensateCalled = true
@@ -77,18 +101,28 @@ test("attemptCardPayment : le provider LÈVE une exception (timeout réseau) —
   assert.equal(result.ok, false)
   assert.equal(result.code, "PROVIDER_ERROR")
   assert.match(result.message ?? "", /ETIMEDOUT/)
-  assert.equal(compensateCalled, true, "un timeout provider doit compenser myGo exactement comme un échec propre")
+  assert.equal(
+    compensateCalled,
+    true,
+    "un timeout provider doit compenser myGo exactement comme un échec propre",
+  )
 })
 
 test("attemptCardPayment : un échec de compensation (myGo indisponible) ne masque jamais l'échec du paiement d'origine", async () => {
-  const provider = makeProvider({ result: { ok: false, code: "PAYMENT_DECLINED", message: "Carte refusée" } })
+  const provider = makeProvider({
+    result: { ok: false, code: "PAYMENT_DECLINED", message: "Carte refusée" },
+  })
 
   const result = await attemptCardPayment(provider, BASE_INPUT, async () => {
     throw new Error("myGo cancelBooking indisponible")
   })
 
   assert.equal(result.ok, false)
-  assert.equal(result.code, "PAYMENT_DECLINED", "le code d'échec du paiement d'origine doit rester intact")
+  assert.equal(
+    result.code,
+    "PAYMENT_DECLINED",
+    "le code d'échec du paiement d'origine doit rester intact",
+  )
 })
 
 test("attemptCardPayment : un échec de compensation après une exception provider ne masque pas non plus PROVIDER_ERROR", async () => {

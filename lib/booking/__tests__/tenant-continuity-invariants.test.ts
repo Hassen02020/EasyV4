@@ -27,38 +27,84 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const actionsSrc = readFileSync(join(process.cwd(), "lib/booking/actions.ts"), "utf8")
-const guestActionsSrc = readFileSync(join(process.cwd(), "lib/booking/guest-actions.ts"), "utf8")
+const actionsSrc = readFileSync(
+  join(process.cwd(), "lib/booking/actions.ts"),
+  "utf8",
+)
+const guestActionsSrc = readFileSync(
+  join(process.cwd(), "lib/booking/guest-actions.ts"),
+  "utf8",
+)
 
 function countOccurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
 }
 
+function normalizeCode(s: string): string {
+  return s
+    .replace(/\s+/g, " ")
+    .replace(/,\s*\)/g, ")")
+    .replace(/,\s*\}/g, "}")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/\{\s+/g, "{")
+    .replace(/\s+\}/g, "}")
+}
+
 test("lib/booking/actions.ts : confirmHotelWithProvider() est appelée avec le compte tenant résolu (myGoAccess), jamais sans 3e argument", () => {
-  assert.equal(countOccurrences(actionsSrc, "confirmHotelWithProvider(draft, traveler, myGoAccess)"), 1)
+  assert.equal(
+    countOccurrences(
+      normalizeCode(actionsSrc),
+      "confirmHotelWithProvider(draft, traveler, myGoAccess)",
+    ),
+    1,
+  )
 })
 
 test("lib/booking/actions.ts : resolveMyGoAccessForTenant() n'est appelée qu'UNE SEULE FOIS dans createReservationFromDraft", () => {
-  assert.equal(countOccurrences(actionsSrc, "await resolveMyGoAccessForTenant("), 1)
+  assert.equal(
+    countOccurrences(actionsSrc, "await resolveMyGoAccessForTenant("),
+    1,
+  )
 })
 
 test("lib/booking/actions.ts : confirmHotelWithProvider() utilise le client tenant résolu (access.client), avec repli explicite global uniquement si non configuré", () => {
-  assert.equal(countOccurrences(actionsSrc, "const client = access.client ?? getMyGoClient()"), 1)
+  assert.equal(
+    countOccurrences(
+      actionsSrc,
+      "const client = access.client ?? getMyGoClient()",
+    ),
+    1,
+  )
 })
 
 test("lib/booking/actions.ts : les 2 sites de compensation (conflit idempotence B2B, catch général) annulent via myGoAccess.client — MÊME compte que la création, jamais un client re-résolu", () => {
   assert.equal(
-    countOccurrences(actionsSrc, "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })"),
+    countOccurrences(
+      normalizeCode(actionsSrc),
+      normalizeCode(
+        "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })",
+      ),
+    ),
     2,
   )
 })
 
 test("lib/booking/guest-actions.ts : confirmHotelWithProvider() est appelée avec le compte tenant résolu (myGoAccess), jamais sans 3e argument", () => {
-  assert.equal(countOccurrences(guestActionsSrc, "confirmHotelWithProvider(draft, traveler, myGoAccess)"), 1)
+  assert.equal(
+    countOccurrences(
+      normalizeCode(guestActionsSrc),
+      "confirmHotelWithProvider(draft, traveler, myGoAccess)",
+    ),
+    1,
+  )
 })
 
 test("lib/booking/guest-actions.ts : resolveMyGoAccessForTenant() n'est appelée qu'UNE SEULE FOIS dans runCreateGuestReservation", () => {
-  assert.equal(countOccurrences(guestActionsSrc, "resolveMyGoAccessForTenant("), 1)
+  assert.equal(
+    countOccurrences(guestActionsSrc, "resolveMyGoAccessForTenant("),
+    1,
+  )
 })
 
 test("lib/booking/guest-actions.ts : les 4 sites de compensation (drift de prix CART-DRIFT-01, hold carte, conflit idempotence, catch général) annulent tous via myGoAccess.client — MÊME compte que la création", () => {
@@ -67,7 +113,12 @@ test("lib/booking/guest-actions.ts : les 4 sites de compensation (drift de prix 
   // panier) compense le hold myGo exactement comme les 3 autres rejets déjà
   // couverts ici — jamais un second client/compte re-résolu.
   assert.equal(
-    countOccurrences(guestActionsSrc, "(myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })"),
+    countOccurrences(
+      normalizeCode(guestActionsSrc),
+      normalizeCode(
+        "(myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })",
+      ),
+    ),
     4,
   )
 })

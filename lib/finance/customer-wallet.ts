@@ -62,7 +62,11 @@ import { getDb } from "@/lib/db/client"
 import { toMillimes } from "@/lib/finance/millimes"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { getRedis } from "@/lib/cache/redis"
-import { walletAccounts, walletLedger, type NewWalletLedger } from "@/lib/db/schema"
+import {
+  walletAccounts,
+  walletLedger,
+  type NewWalletLedger,
+} from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
 /* Types — mêmes formes que lib/pro/booking-actions.ts, testables sans I/O    */
@@ -134,7 +138,11 @@ export type DebitCustomerWalletInput = {
  * un solde déjà disponible) ni PARTNER_GUARANTEE (mécanisme B2B distinct —
  * `agencies.deposit_balance`/`partner_credit_movements`, jamais ce module).
  */
-export type WalletRechargeMethod = "online_card" | "cash" | "bank_transfer" | "bank_deposit"
+export type WalletRechargeMethod =
+  | "online_card"
+  | "cash"
+  | "bank_transfer"
+  | "bank_deposit"
 
 export type CreditCustomerWalletInput = {
   customerId: string
@@ -168,7 +176,11 @@ export type WalletMovementSuccess = {
 
 export type WalletMovementFailure = {
   ok: false
-  code: "INVALID_AMOUNT" | "INSUFFICIENT_FUNDS" | "DATABASE_NOT_CONFIGURED" | "INTERNAL_ERROR"
+  code:
+    | "INVALID_AMOUNT"
+    | "INSUFFICIENT_FUNDS"
+    | "DATABASE_NOT_CONFIGURED"
+    | "INTERNAL_ERROR"
   message: string
   details?: Record<string, string | number>
 }
@@ -194,9 +206,17 @@ async function lockOrCreateCustomerWallet(
   await tx.execute(sql`select set_config('app.is_super_admin', 'true', true)`)
 
   const selectChain = tx
-    .select({ id: walletAccounts.id, currentBalance: walletAccounts.currentBalance })
+    .select({
+      id: walletAccounts.id,
+      currentBalance: walletAccounts.currentBalance,
+    })
     .from?.(walletAccounts)
-    .where?.(and(eq(walletAccounts.customerId, customerId), eq(walletAccounts.type, "credit")))
+    .where?.(
+      and(
+        eq(walletAccounts.customerId, customerId),
+        eq(walletAccounts.type, "credit"),
+      ),
+    )
   const locked = (await selectChain?.for?.("update")) as
     | Array<{ id: string; currentBalance: string }>
     | undefined
@@ -211,12 +231,15 @@ async function lockOrCreateCustomerWallet(
       currentBalance: "0",
       name: "Solde client",
     })
-    .returning?.({ id: walletAccounts.id, currentBalance: walletAccounts.currentBalance })) as
-    | Array<{ id: string; currentBalance: string }>
-    | undefined
+    .returning?.({
+      id: walletAccounts.id,
+      currentBalance: walletAccounts.currentBalance,
+    })) as Array<{ id: string; currentBalance: string }> | undefined
 
   if (!inserted?.[0]) {
-    throw new Error("La création du compte wallet client n'a pas retourné d'id.")
+    throw new Error(
+      "La création du compte wallet client n'a pas retourné d'id.",
+    )
   }
   return inserted[0]
 }
@@ -234,11 +257,16 @@ export async function debitCustomerWallet(
     return {
       ok: false,
       code: "INVALID_AMOUNT",
-      message: "Le montant à débiter doit être strictement positif (centime minimum 0.01 DT).",
+      message:
+        "Le montant à débiter doit être strictement positif (centime minimum 0.01 DT).",
     }
   }
   if (!process.env.DATABASE_URL && !input.dbOverride && !input.txOverride) {
-    return { ok: false, code: "DATABASE_NOT_CONFIGURED", message: "Base de données non configurée." }
+    return {
+      ok: false,
+      code: "DATABASE_NOT_CONFIGURED",
+      message: "Base de données non configurée.",
+    }
   }
 
   const run = async (tx: DrizzleLikeTx): Promise<WalletMovementResult> => {
@@ -282,7 +310,10 @@ export async function debitCustomerWallet(
         ok: false,
         code: "INSUFFICIENT_FUNDS",
         message: `Solde insuffisant : disponible ${formatTnd(balanceBefore)} DT, demandé ${formatTnd(input.amountTnd)} DT.`,
-        details: { availableTnd: formatTnd(balanceBefore), requestedTnd: formatTnd(input.amountTnd) },
+        details: {
+          availableTnd: formatTnd(balanceBefore),
+          requestedTnd: formatTnd(input.amountTnd),
+        },
       }
     }
 
@@ -317,7 +348,9 @@ export async function debitCustomerWallet(
       inserted = (await tx
         .insert(walletLedger)
         .values?.(ledgerInsert)
-        .returning?.({ id: walletLedger.id })) as Array<{ id: string }> | undefined
+        .returning?.({ id: walletLedger.id })) as
+        | Array<{ id: string }>
+        | undefined
     } catch (insertErr) {
       const isUniqueViolation =
         insertErr instanceof Error &&
@@ -353,7 +386,10 @@ export async function debitCustomerWallet(
       }
     }
     const ledgerId = inserted?.[0]?.id
-    if (!ledgerId) throw new Error("L'insertion du mouvement de débit n'a pas retourné d'id.")
+    if (!ledgerId)
+      throw new Error(
+        "L'insertion du mouvement de débit n'a pas retourné d'id.",
+      )
 
     await tx
       .update(walletAccounts)
@@ -371,9 +407,13 @@ export async function debitCustomerWallet(
     if (input.idempotencyKey) {
       const redis = input.redisOverride ?? getRedis()
       if (redis) {
-        await redis.set(`e2b:idem:customer-wallet-debit:${input.idempotencyKey}`, JSON.stringify(success), {
-          ex: 86_400,
-        })
+        await redis.set(
+          `e2b:idem:customer-wallet-debit:${input.idempotencyKey}`,
+          JSON.stringify(success),
+          {
+            ex: 86_400,
+          },
+        )
       }
     }
     return success
@@ -383,7 +423,9 @@ export async function debitCustomerWallet(
     if (input.idempotencyKey && !input.txOverride) {
       const redis = input.redisOverride ?? getRedis()
       if (redis) {
-        const cached = await redis.get<string>(`e2b:idem:customer-wallet-debit:${input.idempotencyKey}`)
+        const cached = await redis.get<string>(
+          `e2b:idem:customer-wallet-debit:${input.idempotencyKey}`,
+        )
         if (cached) {
           try {
             return JSON.parse(cached) as WalletMovementResult
@@ -400,7 +442,10 @@ export async function debitCustomerWallet(
     return {
       ok: false,
       code: "INTERNAL_ERROR",
-      message: err instanceof Error ? `Échec transactionnel : ${err.message}` : "Échec transactionnel inattendu.",
+      message:
+        err instanceof Error
+          ? `Échec transactionnel : ${err.message}`
+          : "Échec transactionnel inattendu.",
     }
   }
 }
@@ -418,11 +463,16 @@ export async function creditCustomerWallet(
     return {
       ok: false,
       code: "INVALID_AMOUNT",
-      message: "Le montant à créditer doit être strictement positif (centime minimum 0.01 DT).",
+      message:
+        "Le montant à créditer doit être strictement positif (centime minimum 0.01 DT).",
     }
   }
   if (!process.env.DATABASE_URL && !input.dbOverride && !input.txOverride) {
-    return { ok: false, code: "DATABASE_NOT_CONFIGURED", message: "Base de données non configurée." }
+    return {
+      ok: false,
+      code: "DATABASE_NOT_CONFIGURED",
+      message: "Base de données non configurée.",
+    }
   }
 
   const run = async (tx: DrizzleLikeTx): Promise<WalletMovementResult> => {
@@ -440,7 +490,12 @@ export async function creditCustomerWallet(
       description: input.description,
       reservationId: input.reservationId,
       paymentId: input.paymentId,
-      category: input.source === "refund" ? "refund" : input.source === "adjustment" ? "adjustment" : "recharge",
+      category:
+        input.source === "refund"
+          ? "refund"
+          : input.source === "adjustment"
+            ? "adjustment"
+            : "recharge",
       metadata: { paymentMethod: input.source },
       // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
       amountMillimes: toMillimes(input.amountTnd),
@@ -450,9 +505,14 @@ export async function creditCustomerWallet(
     const inserted = (await tx
       .insert(walletLedger)
       .values?.(ledgerInsert)
-      .returning?.({ id: walletLedger.id })) as Array<{ id: string }> | undefined
+      .returning?.({ id: walletLedger.id })) as
+      | Array<{ id: string }>
+      | undefined
     const ledgerId = inserted?.[0]?.id
-    if (!ledgerId) throw new Error("L'insertion du mouvement de crédit n'a pas retourné d'id.")
+    if (!ledgerId)
+      throw new Error(
+        "L'insertion du mouvement de crédit n'a pas retourné d'id.",
+      )
 
     await tx
       .update(walletAccounts)
@@ -476,7 +536,10 @@ export async function creditCustomerWallet(
     return {
       ok: false,
       code: "INTERNAL_ERROR",
-      message: err instanceof Error ? `Échec transactionnel : ${err.message}` : "Échec transactionnel inattendu.",
+      message:
+        err instanceof Error
+          ? `Échec transactionnel : ${err.message}`
+          : "Échec transactionnel inattendu.",
     }
   }
 }
@@ -551,13 +614,21 @@ export async function recordTargetedWalletSettlement(
  * `agency_id IS NULL`, et renvoyait silencieusement 0 même avec un solde
  * réel non nul (trouvé en Phase 14.3, live contre une vraie DB Postgres).
  */
-export async function getCustomerWalletBalance(customerId: string): Promise<number> {
+export async function getCustomerWalletBalance(
+  customerId: string,
+): Promise<number> {
   if (!process.env.DATABASE_URL) return 0
   const [wallet] = await withSystemContext((tx) =>
     tx
       .select({ currentBalance: walletAccounts.currentBalance })
       .from(walletAccounts)
-      .where(and(eq(walletAccounts.customerId, customerId), eq(walletAccounts.type, "credit"), isNull(walletAccounts.agencyId)))
+      .where(
+        and(
+          eq(walletAccounts.customerId, customerId),
+          eq(walletAccounts.type, "credit"),
+          isNull(walletAccounts.agencyId),
+        ),
+      )
       .limit(1),
   )
   return wallet ? parseTnd(wallet.currentBalance) : 0

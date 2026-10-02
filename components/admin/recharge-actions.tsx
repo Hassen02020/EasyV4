@@ -99,7 +99,12 @@ export function AdminRechargeActions({
       {/* Reject */}
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogTrigger asChild>
-          <Button size="sm" variant="destructive" disabled={isPending} className="gap-1">
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={isPending}
+            className="gap-1"
+          >
             <XCircle className="h-3 w-3" />
             Refuser
           </Button>

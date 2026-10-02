@@ -36,32 +36,32 @@ Trois règles non négociables :
 1. **Le produit ne détermine pas l'économie.** `produit + vendeur + propriétaire + fournisseur + canal + accord → règle → breakdown`.
    Le module hôtel est identique dans les modèles A à E ; seul l'accord change.
 2. **Le logiciel connaît le droit ; l'accord qualifie le droit.** « Commission », « platform fee », « revenue share »… sont
-   une *qualification* d'un droit économique, pas des moteurs distincts.
+   une _qualification_ d'un droit économique, pas des moteurs distincts.
 3. **Aucun montant historique n'est réécrit.** Toute correction, annulation ou conversion est un événement compensatoire.
 
 Séparation des couches (jamais synonymes) :
 
-| Couche | Question | Porteur actuel dans le code |
-| --- | --- | --- |
-| Commercial | Qu'avons-nous vendu ? | `reservations` + extensions par module |
-| Economic | Qui a droit à quoi ? | `reservation_financials` (partiel) → `economic_entitlements` (à créer) |
-| Money | Quel argent a bougé ? | `payments`, `partner_credit_movements`, `wallet_ledger` |
-| Settlement | Qui doit payer qui ? | `commission_settlements` (interne seulement) |
-| Reconciliation | Tout concorde ? | `lib/finance/reconciliation.ts` |
-| Accounting | Comment chacun comptabilise ? | `journal_entries` / `journal_lines` (existent, **0 écrivain**) |
+| Couche         | Question                      | Porteur actuel dans le code                                            |
+| -------------- | ----------------------------- | ---------------------------------------------------------------------- |
+| Commercial     | Qu'avons-nous vendu ?         | `reservations` + extensions par module                                 |
+| Economic       | Qui a droit à quoi ?          | `reservation_financials` (partiel) → `economic_entitlements` (à créer) |
+| Money          | Quel argent a bougé ?         | `payments`, `partner_credit_movements`, `wallet_ledger`                |
+| Settlement     | Qui doit payer qui ?          | `commission_settlements` (interne seulement)                           |
+| Reconciliation | Tout concorde ?               | `lib/finance/reconciliation.ts`                                        |
+| Accounting     | Comment chacun comptabilise ? | `journal_entries` / `journal_lines` (existent, **0 écrivain**)         |
 
 ---
 
 ## 1. Acteurs et rôles
 
-| Rôle | Définition | Qui peut l'occuper |
-| --- | --- | --- |
-| `customer` | paie le prix client | voyageur, entreprise, agence (achat pour compte propre) |
-| `seller` | fait la vente au client, porte la relation client | agence B2B, agence White Label, Easy2Book (B2C) |
-| `product_owner` | possède l'offre commerciale (catalogue, prix, conditions) | Easy2Book, une agence, un partenaire |
-| `supplier` | fournit la prestation physique | hôtel, myGo, compagnie, nœud fournisseur Network, DMC |
-| `partner` | autre ayant droit prévu par l'accord (apporteur, WL, affilié) | tout acteur signataire |
-| `easy2book` | infrastructure, distributeur, vendeur ou propriétaire selon l'accord | Easy2Book |
+| Rôle            | Définition                                                           | Qui peut l'occuper                                      |
+| --------------- | -------------------------------------------------------------------- | ------------------------------------------------------- |
+| `customer`      | paie le prix client                                                  | voyageur, entreprise, agence (achat pour compte propre) |
+| `seller`        | fait la vente au client, porte la relation client                    | agence B2B, agence White Label, Easy2Book (B2C)         |
+| `product_owner` | possède l'offre commerciale (catalogue, prix, conditions)            | Easy2Book, une agence, un partenaire                    |
+| `supplier`      | fournit la prestation physique                                       | hôtel, myGo, compagnie, nœud fournisseur Network, DMC   |
+| `partner`       | autre ayant droit prévu par l'accord (apporteur, WL, affilié)        | tout acteur signataire                                  |
+| `easy2book`     | infrastructure, distributeur, vendeur ou propriétaire selon l'accord | Easy2Book                                               |
 
 Un même acteur peut cumuler plusieurs rôles dans une transaction (ex. B2C Easy2Book : `seller` + `product_owner`).
 Easy2Book peut être **plateforme, distributeur, vendeur ou propriétaire** — sans quatre moteurs financiers : c'est le rôle
@@ -77,17 +77,17 @@ réservation.
 
 Un accord répond, pour un périmètre donné, à neuf questions :
 
-| Question | Champ proposé |
-| --- | --- |
-| Qui vend ? | `seller_party` |
-| Qui possède ? | `owner_party` |
-| Qui fournit ? | `supplier_party` (ou « tout fournisseur du produit ») |
-| Qui gagne ? | lignes de règle par rôle |
-| Qui paie ? | `payer_role` (en général `customer`, parfois `seller` pour le net) |
-| Qui encaisse ? | `collector_party` (Easy2Book, vendeur, PSP du vendeur) |
-| Combien ? | base + taux / montant fixe par rôle |
-| Quand ? | fait générateur du droit (confirmation, voyage, fin de séjour) |
-| Sous quelle règle ? | `rule_id`, priorité, validité |
+| Question            | Champ proposé                                                      |
+| ------------------- | ------------------------------------------------------------------ |
+| Qui vend ?          | `seller_party`                                                     |
+| Qui possède ?       | `owner_party`                                                      |
+| Qui fournit ?       | `supplier_party` (ou « tout fournisseur du produit »)              |
+| Qui gagne ?         | lignes de règle par rôle                                           |
+| Qui paie ?          | `payer_role` (en général `customer`, parfois `seller` pour le net) |
+| Qui encaisse ?      | `collector_party` (Easy2Book, vendeur, PSP du vendeur)             |
+| Combien ?           | base + taux / montant fixe par rôle                                |
+| Quand ?             | fait générateur du droit (confirmation, voyage, fin de séjour)     |
+| Sous quelle règle ? | `rule_id`, priorité, validité                                      |
 
 Périmètre d'un accord : parties + canal (`b2c`, `b2b`, `network`, `white_label`, `api`) + filtres existants de
 `margin_rules` (`supplier_id`, `product_type`, `destination`, seuils de prix, validité, priorité).
@@ -102,11 +102,11 @@ part d'Easy2Book. Aujourd'hui le taux vit dans une ligne `margin_rules` rattach�
 
 **[D-01b] Base de calcul du droit Easy2Book** — une seule base par accord :
 
-| Option | Formule | Avantage | Limite |
-| --- | --- | --- | --- |
-| 1. Sur la marge du vendeur | `(vente − coût) × taux` | déjà codé (`recordReservationFinancials`) | 0 quand marge = 0 (Omra, Packages, Activités) |
-| 2. Sur le coût fournisseur | `coût × taux`, intégré au net vu par le vendeur | le vendeur voit un net « tout compris » | nécessite un net fournisseur réel |
-| 3. Frais sur prix net | `net × taux` ou fixe, ligne distincte | fonctionne pour tous les modules et le réseau | nouvelle ligne visible pour le vendeur |
+| Option                     | Formule                                         | Avantage                                      | Limite                                        |
+| -------------------------- | ----------------------------------------------- | --------------------------------------------- | --------------------------------------------- |
+| 1. Sur la marge du vendeur | `(vente − coût) × taux`                         | déjà codé (`recordReservationFinancials`)     | 0 quand marge = 0 (Omra, Packages, Activités) |
+| 2. Sur le coût fournisseur | `coût × taux`, intégré au net vu par le vendeur | le vendeur voit un net « tout compris »       | nécessite un net fournisseur réel             |
+| 3. Frais sur prix net      | `net × taux` ou fixe, ligne distincte           | fonctionne pour tous les modules et le réseau | nouvelle ligne visible pour le vendeur        |
 
 Proposition : **option 3 comme défaut réseau**, option 1 conservée pour les accords historiques Hôtel TN.
 La Direction tranche.
@@ -120,20 +120,20 @@ prestation (check-in, départ) pour que l'annulation avant prestation se traite 
 
 ### 3.1 Champs
 
-| Champ | Contenu |
-| --- | --- |
-| `reservation_id` | commande d'origine (en-tête : `reservation_financials`) |
-| `party_type`, `party_id` | acteur ayant droit (`agencies.id`, `supplier_nodes.id`, fournisseur externe, Easy2Book) |
-| `role` | `seller` · `product_owner` · `supplier` · `partner` · `easy2book` · `tax_authority` · `discount` |
-| `qualification` | `supplier_cost` · `seller_margin` · `owner_share` · `commission` · `platform_fee` · `distribution_fee` · `revenue_share` · `service_fee` · `tax` · `discount` |
-| `amount`, `currency` | montant économique figé à la confirmation |
-| `basis` | base de calcul et valeur (ex. `net × 5 %`) |
-| `agreement_id`, `rule_id` | origine du droit |
-| `status` | `pending` → `earned` → `settleable` → `settled` ; ou `compensated` |
-| `effective_at` | date d'effet |
-| `cancellation_treatment` | `full_reversal` · `pro_rata_fee` · `non_refundable` |
-| `compensates_id` | pour une ligne compensatoire : la ligne qu'elle corrige |
-| `settlement_status`, `settlement_ref` | position de règlement |
+| Champ                                 | Contenu                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reservation_id`                      | commande d'origine (en-tête : `reservation_financials`)                                                                                                       |
+| `party_type`, `party_id`              | acteur ayant droit (`agencies.id`, `supplier_nodes.id`, fournisseur externe, Easy2Book)                                                                       |
+| `role`                                | `seller` · `product_owner` · `supplier` · `partner` · `easy2book` · `tax_authority` · `discount`                                                              |
+| `qualification`                       | `supplier_cost` · `seller_margin` · `owner_share` · `commission` · `platform_fee` · `distribution_fee` · `revenue_share` · `service_fee` · `tax` · `discount` |
+| `amount`, `currency`                  | montant économique figé à la confirmation                                                                                                                     |
+| `basis`                               | base de calcul et valeur (ex. `net × 5 %`)                                                                                                                    |
+| `agreement_id`, `rule_id`             | origine du droit                                                                                                                                              |
+| `status`                              | `pending` → `earned` → `settleable` → `settled` ; ou `compensated`                                                                                            |
+| `effective_at`                        | date d'effet                                                                                                                                                  |
+| `cancellation_treatment`              | `full_reversal` · `pro_rata_fee` · `non_refundable`                                                                                                           |
+| `compensates_id`                      | pour une ligne compensatoire : la ligne qu'elle corrige                                                                                                       |
+| `settlement_status`, `settlement_ref` | position de règlement                                                                                                                                         |
 
 ### 3.2 Invariants
 
@@ -168,12 +168,12 @@ Variante prévue par l'accord (Easy2Book conserve 30 de frais de service) :
 
 **[D-02a] Traitement par rôle en cas d'annulation** — proposition par défaut :
 
-| Rôle | Annulation gratuite | Annulation avec frais fournisseur |
-| --- | --- | --- |
-| `supplier` | compensation totale | garde les frais facturés |
-| `seller` | compensation totale | selon accord ; défaut : compensation totale |
+| Rôle            | Annulation gratuite | Annulation avec frais fournisseur           |
+| --------------- | ------------------- | ------------------------------------------- |
+| `supplier`      | compensation totale | garde les frais facturés                    |
+| `seller`        | compensation totale | selon accord ; défaut : compensation totale |
 | `product_owner` | compensation totale | selon accord ; défaut : compensation totale |
-| `easy2book` | compensation totale | selon accord ; défaut : compensation totale |
+| `easy2book`     | compensation totale | selon accord ; défaut : compensation totale |
 
 Remplace l'ancien chantier COMMISSION-REVERSAL-01 : pas de `reverseCommission()` isolé.
 Garde-fou jusqu'à l'implémentation : **aucune règle de commission activée en production** (état actuel : 0 règle).
@@ -203,14 +203,14 @@ ORDER CONFIRMED
 
 À conserver séparément, sur l'en-tête et sur chaque droit :
 
-| Dimension | Existe déjà |
-| --- | --- |
-| montant / devise d'origine | `reservations.original_amount/original_currency` |
-| montant / devise d'affichage | non |
-| montant / devise économique | `reservation_financials.sale_currency` (toujours écrit `TND`) |
-| montant / devise de settlement | non |
-| montant / devise comptable (par livre) | non |
-| taux, source, horodatage | `reservation_financials.exchange_rate/exchange_rate_at` (jamais renseignés), table `exchange_rates` (aucun lecteur) |
+| Dimension                              | Existe déjà                                                                                                         |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| montant / devise d'origine             | `reservations.original_amount/original_currency`                                                                    |
+| montant / devise d'affichage           | non                                                                                                                 |
+| montant / devise économique            | `reservation_financials.sale_currency` (toujours écrit `TND`)                                                       |
+| montant / devise de settlement         | non                                                                                                                 |
+| montant / devise comptable (par livre) | non                                                                                                                 |
+| taux, source, horodatage               | `reservation_financials.exchange_rate/exchange_rate_at` (jamais renseignés), table `exchange_rates` (aucun lecteur) |
 
 Règle : une conversion ultérieure crée une nouvelle valeur datée ; elle ne réécrit jamais le montant d'origine.
 
@@ -290,17 +290,17 @@ Aujourd'hui : runtime WL réel (domaine, branding, `product_authorizations`), au
 
 ## 9. Ce que ce modèle réutilise (aucun nouveau moteur)
 
-| Existant | Rôle dans le modèle |
-| --- | --- |
-| `applyMargin()` / `getMarginsForAgency()` | calcul du prix client (inchangé) |
-| `margin_rules` | règles d'accord (+ `agreement_id`) |
-| `reservation_financials` | en-tête économique figé |
-| `recordReservationFinancials()` | unique écrivain des droits |
-| `debitPartnerCredit` / `debitCustomerWallet` | money events (inchangés) |
-| `commission_settlements` / `_entries` | settlement par contrepartie (étendu) |
-| `reconciliation.ts` | contrôles Σ droits = Σ mouvements = Σ settlements |
-| `journal_entries` / `journal_lines` | livre Easy2Book uniquement |
-| `exchange_rates` | taux datés |
+| Existant                                     | Rôle dans le modèle                               |
+| -------------------------------------------- | ------------------------------------------------- |
+| `applyMargin()` / `getMarginsForAgency()`    | calcul du prix client (inchangé)                  |
+| `margin_rules`                               | règles d'accord (+ `agreement_id`)                |
+| `reservation_financials`                     | en-tête économique figé                           |
+| `recordReservationFinancials()`              | unique écrivain des droits                        |
+| `debitPartnerCredit` / `debitCustomerWallet` | money events (inchangés)                          |
+| `commission_settlements` / `_entries`        | settlement par contrepartie (étendu)              |
+| `reconciliation.ts`                          | contrôles Σ droits = Σ mouvements = Σ settlements |
+| `journal_entries` / `journal_lines`          | livre Easy2Book uniquement                        |
+| `exchange_rates`                             | taux datés                                        |
 
 Seules tables nouvelles au cœur : `commercial_agreements`, `economic_entitlements`.
 

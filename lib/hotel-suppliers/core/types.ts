@@ -11,7 +11,11 @@
 export const SUPPLIER_NAMES = ["mygo", "tunisia-bed", "cyberesa", "3t"] as const
 export type SupplierName = (typeof SUPPLIER_NAMES)[number]
 
-export type SupplierRunStatus = "SUCCESS" | "TIMEOUT" | "ERROR" | "NOT_CONFIGURED"
+export type SupplierRunStatus =
+  | "SUCCESS"
+  | "TIMEOUT"
+  | "ERROR"
+  | "NOT_CONFIGURED"
 
 export interface HotelSearchRequest {
   destinationId: string
@@ -182,7 +186,11 @@ export type CheckRateResult =
     }
   | {
       ok: false
-      code: "RATE_CHANGED" | "NO_AVAILABILITY" | "SUPPLIER_ERROR" | "NOT_CONFIGURED"
+      code:
+        | "RATE_CHANGED"
+        | "NO_AVAILABILITY"
+        | "SUPPLIER_ERROR"
+        | "NOT_CONFIGURED"
       message: string
       /** Présent uniquement pour RATE_CHANGED — le nouveau prix fournisseur autoritaire. */
       newRate?: NormalizedRate
@@ -215,7 +223,12 @@ export type SupplierBookingResult =
   | {
       /** Refus définitif — jamais réessayé en aveugle, mais un NOUVEAU CheckRate/BOOK explicite reste possible si l'utilisateur relance. */
       outcome: "DEFINITIVE_FAILURE"
-      code: "RATE_CHANGED" | "NO_AVAILABILITY" | "SUPPLIER_ERROR" | "AUTH_ERROR" | "NOT_CONFIGURED"
+      code:
+        | "RATE_CHANGED"
+        | "NO_AVAILABILITY"
+        | "SUPPLIER_ERROR"
+        | "AUTH_ERROR"
+        | "NOT_CONFIGURED"
       message: string
     }
   | {
@@ -273,6 +286,11 @@ export type SupplierCancellationResult =
     }
   | {
       ok: false
-      code: "SUPPLIER_ERROR" | "AUTH_ERROR" | "TIMEOUT" | "NOT_CONFIGURED" | "NOT_FOUND"
+      code:
+        | "SUPPLIER_ERROR"
+        | "AUTH_ERROR"
+        | "TIMEOUT"
+        | "NOT_CONFIGURED"
+        | "NOT_FOUND"
       message: string
     }

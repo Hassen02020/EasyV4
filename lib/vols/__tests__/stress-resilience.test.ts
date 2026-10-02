@@ -61,7 +61,12 @@ interface ReservationRecord {
   originalAmount: string
 }
 
-type RecheckStatus = "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR"
+type RecheckStatus =
+  | "AVAILABLE"
+  | "PRICE_CHANGED"
+  | "UNAVAILABLE"
+  | "EXPIRED"
+  | "ERROR"
 
 interface AdapterConfig {
   recheckStatus?: RecheckStatus
@@ -71,7 +76,10 @@ interface AdapterConfig {
   bookDelayMs?: number
 }
 
-interface AuditEntry { type: string; status: string }
+interface AuditEntry {
+  type: string
+  status: string
+}
 
 // ─── Fulfillment simulation ────────────────────────────────────────────────────
 
@@ -148,7 +156,10 @@ async function runFulfillmentCAS(
     await new Promise<void>((r) => setTimeout(r, adapter.bookDelayMs))
   }
 
-  auditLog.push({ type: "RECHECK", status: recheckStatus === "AVAILABLE" ? "SUCCESS" : "FAILURE" })
+  auditLog.push({
+    type: "RECHECK",
+    status: recheckStatus === "AVAILABLE" ? "SUCCESS" : "FAILURE",
+  })
 
   if (recheckStatus === "PRICE_CHANGED") {
     booking.status = "PRICE_CHANGED"
@@ -226,7 +237,9 @@ function makeSnapshot(overrides?: Partial<SnapshotRecord>): SnapshotRecord {
 // ─── Test suites ───────────────────────────────────────────────────────────────
 
 describe("G9 — Stress & Resilience", () => {
-  beforeEach(() => { _bookingSeq = 0 })
+  beforeEach(() => {
+    _bookingSeq = 0
+  })
 
   // ── Concurrency ────────────────────────────────────────────────────────────
 
@@ -268,10 +281,20 @@ describe("G9 — Stress & Resilience", () => {
     )
 
     const winners = results.filter((r) => r.ok)
-    assert.equal(winners.length, 1, `Expected exactly 1 winner (CAS), got ${winners.length}`)
+    assert.equal(
+      winners.length,
+      1,
+      `Expected exactly 1 winner (CAS), got ${winners.length}`,
+    )
 
-    const wrongStatus = results.filter((r) => !r.ok && r.code === "WRONG_STATUS")
-    assert.equal(wrongStatus.length, 49, "49 calls should be rejected with WRONG_STATUS")
+    const wrongStatus = results.filter(
+      (r) => !r.ok && r.code === "WRONG_STATUS",
+    )
+    assert.equal(
+      wrongStatus.length,
+      49,
+      "49 calls should be rejected with WRONG_STATUS",
+    )
 
     const confirmedCount = statusLog.filter((s) => s === "CONFIRMED").length
     assert.equal(confirmedCount, 1, "Exactly one CONFIRMED transition")
@@ -286,7 +309,11 @@ describe("G9 — Stress & Resilience", () => {
     )
 
     const winners = results.filter((r) => r.ok)
-    assert.equal(winners.length, 50, "All 50 independent bookings should succeed")
+    assert.equal(
+      winners.length,
+      50,
+      "All 50 independent bookings should succeed",
+    )
   })
 
   // ── Supplier failure scenarios ─────────────────────────────────────────────
@@ -295,7 +322,12 @@ describe("G9 — Stress & Resilience", () => {
     const booking = makeBooking()
     const statusLog: string[] = []
     // Simulate timeout by using UNAVAILABLE (virtual engine returns this on TIMEOUT)
-    const result = await runFulfillmentCAS(booking, { recheckStatus: "UNAVAILABLE" }, statusLog, [])
+    const result = await runFulfillmentCAS(
+      booking,
+      { recheckStatus: "UNAVAILABLE" },
+      statusLog,
+      [],
+    )
     assert.ok(!result.ok)
     assert.equal(result.code, "UNAVAILABLE")
     assert.ok(statusLog.includes("FAILED"))
@@ -305,7 +337,12 @@ describe("G9 — Stress & Resilience", () => {
   test("S05 — BOOKING_REJECTED: book() throws → FAILED, PNR never stored", async () => {
     const booking = makeBooking()
     const statusLog: string[] = []
-    const result = await runFulfillmentCAS(booking, { bookThrows: true }, statusLog, [])
+    const result = await runFulfillmentCAS(
+      booking,
+      { bookThrows: true },
+      statusLog,
+      [],
+    )
     assert.ok(!result.ok)
     assert.equal(result.code, "BOOK_FAILED")
     assert.ok(statusLog.includes("FAILED"))
@@ -316,7 +353,12 @@ describe("G9 — Stress & Resilience", () => {
     const booking = makeBooking()
     const statusLog: string[] = []
     const auditLog: AuditEntry[] = []
-    const result = await runFulfillmentCAS(booking, { recheckStatus: "UNAVAILABLE" }, statusLog, auditLog)
+    const result = await runFulfillmentCAS(
+      booking,
+      { recheckStatus: "UNAVAILABLE" },
+      statusLog,
+      auditLog,
+    )
     assert.ok(!result.ok)
     assert.equal(result.code, "UNAVAILABLE")
     assert.ok(statusLog.includes("FAILED"))
@@ -328,7 +370,12 @@ describe("G9 — Stress & Resilience", () => {
     const booking = makeBooking()
     const statusLog: string[] = []
     const auditLog: AuditEntry[] = []
-    const result = await runFulfillmentCAS(booking, { recheckStatus: "PRICE_CHANGED" }, statusLog, auditLog)
+    const result = await runFulfillmentCAS(
+      booking,
+      { recheckStatus: "PRICE_CHANGED" },
+      statusLog,
+      auditLog,
+    )
     assert.ok(!result.ok)
     assert.equal(result.code, "PRICE_CHANGED")
     assert.ok(statusLog.includes("PRICE_CHANGED"))
@@ -340,7 +387,12 @@ describe("G9 — Stress & Resilience", () => {
   test("S08 — recheck() throws → FAILED", async () => {
     const booking = makeBooking()
     const statusLog: string[] = []
-    const result = await runFulfillmentCAS(booking, { recheckThrows: true }, statusLog, [])
+    const result = await runFulfillmentCAS(
+      booking,
+      { recheckThrows: true },
+      statusLog,
+      [],
+    )
     assert.ok(!result.ok)
     assert.equal(result.code, "RECHECK_ERROR")
     assert.ok(statusLog.includes("FAILED"))
@@ -349,22 +401,41 @@ describe("G9 — Stress & Resilience", () => {
   test("S09 — book() throws → PNR null, status FAILED", async () => {
     const booking = makeBooking()
     const statusLog: string[] = []
-    const result = await runFulfillmentCAS(booking, { bookThrows: true }, statusLog, [])
+    const result = await runFulfillmentCAS(
+      booking,
+      { bookThrows: true },
+      statusLog,
+      [],
+    )
     assert.ok(!result.ok)
     assert.equal(result.code, "BOOK_FAILED")
     assert.equal(booking.pnr, null)
-    assert.ok(!statusLog.includes("TICKETING_IN_PROGRESS"), "Must not reach issuing")
+    assert.ok(
+      !statusLog.includes("TICKETING_IN_PROGRESS"),
+      "Must not reach issuing",
+    )
   })
 
   test("S10 — issue() throws → PNR stored (book succeeded), status FAILED", async () => {
     const booking = makeBooking()
     const statusLog: string[] = []
-    const result = await runFulfillmentCAS(booking, { issueThrows: true }, statusLog, [])
+    const result = await runFulfillmentCAS(
+      booking,
+      { issueThrows: true },
+      statusLog,
+      [],
+    )
     assert.ok(!result.ok)
     assert.equal(result.code, "ISSUE_FAILED")
     // book() succeeded → PNR was stored before issue() was attempted
-    assert.ok(booking.pnr !== null, "PNR should be stored even when issue() fails")
-    assert.ok(statusLog.includes("BOOKED"), "Must have reached BOOKED before failing")
+    assert.ok(
+      booking.pnr !== null,
+      "PNR should be stored even when issue() fails",
+    )
+    assert.ok(
+      statusLog.includes("BOOKED"),
+      "Must have reached BOOKED before failing",
+    )
     assert.ok(statusLog.includes("FAILED"))
     assert.ok(!statusLog.includes("CONFIRMED"))
   })
@@ -385,7 +456,11 @@ describe("G9 — Stress & Resilience", () => {
     const r2 = await runFulfillmentCAS(booking, {}, statusLog, [])
     assert.ok(!r2.ok)
     assert.equal(r2.code, "WRONG_STATUS")
-    assert.equal(booking.status, statusBefore, "Status must not change on rejected retry")
+    assert.equal(
+      booking.status,
+      statusBefore,
+      "Status must not change on rejected retry",
+    )
   })
 
   // ── Price integrity ────────────────────────────────────────────────────────
@@ -400,7 +475,11 @@ describe("G9 — Stress & Resilience", () => {
     // The server always uses snapshot.sellingAmount for the reservation amount.
     const serverAmount = snapshot.sellingAmount
     assert.equal(serverAmount, "450.000")
-    assert.notEqual(serverAmount, clientClaimedPrice, "Server must use snapshot price, not client input")
+    assert.notEqual(
+      serverAmount,
+      clientClaimedPrice,
+      "Server must use snapshot price, not client input",
+    )
   })
 
   test("S13 — Snapshot USED guard: second booking attempt with same snapshot", () => {
@@ -409,7 +488,11 @@ describe("G9 — Stress & Resilience", () => {
     // creation are in one transaction, so a snapshot can only be claimed once.
     const snap = makeSnapshot({ status: "USED" })
     const isEligible = snap.status === "ACTIVE"
-    assert.equal(isEligible, false, "USED snapshot must not be accepted for a new booking")
+    assert.equal(
+      isEligible,
+      false,
+      "USED snapshot must not be accepted for a new booking",
+    )
   })
 
   test("S13b — Snapshot CAS: 50 concurrent booking requests → exactly 1 booking created", async () => {
@@ -419,9 +502,13 @@ describe("G9 — Stress & Resilience", () => {
     let snapshotStatus: "ACTIVE" | "USED" | "EXPIRED" = "ACTIVE"
     let bookingsCreated = 0
 
-    async function requestBookingWithSnapshotCAS(): Promise<{ ok: boolean; code?: string }> {
+    async function requestBookingWithSnapshotCAS(): Promise<{
+      ok: boolean
+      code?: string
+    }> {
       // Atomic CAS: only one caller can flip ACTIVE → USED
-      if (snapshotStatus !== "ACTIVE") return { ok: false, code: "SNAPSHOT_EXPIRED" }
+      if (snapshotStatus !== "ACTIVE")
+        return { ok: false, code: "SNAPSHOT_EXPIRED" }
       snapshotStatus = "USED"
       // Booking creation (always succeeds for this test)
       bookingsCreated++
@@ -433,10 +520,16 @@ describe("G9 — Stress & Resilience", () => {
     )
 
     const wins = results.filter((r) => r.ok)
-    const expired = results.filter((r) => !r.ok && r.code === "SNAPSHOT_EXPIRED")
+    const expired = results.filter(
+      (r) => !r.ok && r.code === "SNAPSHOT_EXPIRED",
+    )
 
     assert.equal(wins.length, 1, "Exactly 1 booking created from one snapshot")
-    assert.equal(expired.length, 49, "49 requests rejected with SNAPSHOT_EXPIRED")
+    assert.equal(
+      expired.length,
+      49,
+      "49 requests rejected with SNAPSHOT_EXPIRED",
+    )
     assert.equal(bookingsCreated, 1, "bookingsCreated must be 1")
     assert.equal(snapshotStatus, "USED", "Snapshot is USED after claim")
   })
@@ -473,12 +566,20 @@ describe("G9 — Stress & Resilience", () => {
 
     // In-process mocks are sub-millisecond; real targets would be DB-bound.
     // We assert that the logic itself has no accidental O(n) overhead.
-    assert.ok(p99 < 50, `p99 ${p99.toFixed(2)}ms too high — logic has quadratic overhead`)
+    assert.ok(
+      p99 < 50,
+      `p99 ${p99.toFixed(2)}ms too high — logic has quadratic overhead`,
+    )
     assert.ok(p50 < p95, "p50 must be ≤ p95")
     assert.ok(p95 < p99 || p95 === p99, "p95 must be ≤ p99")
 
     // Expose metrics for the report artifact
-    ;(globalThis as Record<string, unknown>)["__g9_sequential"] = { p50, p95, p99, n: 200 }
+    ;(globalThis as Record<string, unknown>)["__g9_sequential"] = {
+      p50,
+      p95,
+      p99,
+      n: 200,
+    }
   })
 
   test("S16 — Concurrent throughput: 50 simultaneous independent bookings", async () => {
@@ -491,17 +592,29 @@ describe("G9 — Stress & Resilience", () => {
 
     const wallMs = performance.now() - t0
     const successCount = results.filter((r) => r.ok).length
-    assert.equal(successCount, 50, "All 50 concurrent independent bookings should succeed")
+    assert.equal(
+      successCount,
+      50,
+      "All 50 concurrent independent bookings should succeed",
+    )
 
     // Each booking is independent — no contention expected.
-    assert.ok(wallMs < 500, `Concurrent wall time ${wallMs.toFixed(1)}ms too high`)
-    ;(globalThis as Record<string, unknown>)["__g9_concurrent"] = { wallMs, n: 50 }
+    assert.ok(
+      wallMs < 500,
+      `Concurrent wall time ${wallMs.toFixed(1)}ms too high`,
+    )
+    ;(globalThis as Record<string, unknown>)["__g9_concurrent"] = {
+      wallMs,
+      n: 50,
+    }
   })
 
   test("S17 — Mixed batch: 30 OK + 10 PRICE_CHANGED + 10 FAILED (book throws)", async () => {
     const configs: AdapterConfig[] = [
       ...Array.from({ length: 30 }, () => ({})),
-      ...Array.from({ length: 10 }, () => ({ recheckStatus: "PRICE_CHANGED" as const })),
+      ...Array.from({ length: 10 }, () => ({
+        recheckStatus: "PRICE_CHANGED" as const,
+      })),
       ...Array.from({ length: 10 }, () => ({ bookThrows: true })),
     ]
 
@@ -510,8 +623,12 @@ describe("G9 — Stress & Resilience", () => {
     )
 
     const ok = results.filter((r) => r.ok).length
-    const priceChanged = results.filter((r) => !r.ok && r.code === "PRICE_CHANGED").length
-    const bookFailed = results.filter((r) => !r.ok && r.code === "BOOK_FAILED").length
+    const priceChanged = results.filter(
+      (r) => !r.ok && r.code === "PRICE_CHANGED",
+    ).length
+    const bookFailed = results.filter(
+      (r) => !r.ok && r.code === "BOOK_FAILED",
+    ).length
 
     assert.equal(ok, 30)
     assert.equal(priceChanged, 10)
@@ -524,12 +641,12 @@ describe("G9 — Stress & Resilience", () => {
     const terminalStates = new Set<string>()
 
     const scenarios: AdapterConfig[] = [
-      {},                                     // → CONFIRMED
-      { recheckStatus: "PRICE_CHANGED" },     // → PRICE_CHANGED
-      { recheckStatus: "UNAVAILABLE" },       // → FAILED (unavailable)
-      { recheckThrows: true },                // → FAILED (recheck error)
-      { bookThrows: true },                   // → FAILED (book error)
-      { issueThrows: true },                  // → FAILED (issue error)
+      {}, // → CONFIRMED
+      { recheckStatus: "PRICE_CHANGED" }, // → PRICE_CHANGED
+      { recheckStatus: "UNAVAILABLE" }, // → FAILED (unavailable)
+      { recheckThrows: true }, // → FAILED (recheck error)
+      { bookThrows: true }, // → FAILED (book error)
+      { issueThrows: true }, // → FAILED (issue error)
     ]
 
     for (const cfg of scenarios) {
@@ -560,20 +677,31 @@ describe("G9 — Stress & Resilience", () => {
       "reservations",
       "customers",
     ]
-    const financialTables = ["payments", "wallet_transactions", "partner_credit_movements"]
+    const financialTables = [
+      "payments",
+      "wallet_transactions",
+      "partner_credit_movements",
+    ]
 
     const overlap = fulfillmentTables.filter((t) => financialTables.includes(t))
-    assert.equal(overlap.length, 0, `Fulfillment must not touch financial tables: ${overlap.join(", ")}`)
+    assert.equal(
+      overlap.length,
+      0,
+      `Fulfillment must not touch financial tables: ${overlap.join(", ")}`,
+    )
   })
 
   test("S20 — Transaction log: every GDS call produces an audit entry", async () => {
     const scenarios: Array<{ cfg: AdapterConfig; expectedTypes: string[] }> = [
-      { cfg: {},                              expectedTypes: ["RECHECK", "BOOK", "ISSUE"] },
+      { cfg: {}, expectedTypes: ["RECHECK", "BOOK", "ISSUE"] },
       { cfg: { recheckStatus: "PRICE_CHANGED" }, expectedTypes: ["RECHECK"] },
       { cfg: { recheckStatus: "UNAVAILABLE" }, expectedTypes: ["RECHECK"] },
-      { cfg: { recheckThrows: true },         expectedTypes: ["RECHECK"] },
-      { cfg: { bookThrows: true },            expectedTypes: ["RECHECK", "BOOK"] },
-      { cfg: { issueThrows: true },           expectedTypes: ["RECHECK", "BOOK", "ISSUE"] },
+      { cfg: { recheckThrows: true }, expectedTypes: ["RECHECK"] },
+      { cfg: { bookThrows: true }, expectedTypes: ["RECHECK", "BOOK"] },
+      {
+        cfg: { issueThrows: true },
+        expectedTypes: ["RECHECK", "BOOK", "ISSUE"],
+      },
     ]
 
     for (const { cfg, expectedTypes } of scenarios) {

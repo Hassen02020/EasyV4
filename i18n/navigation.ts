@@ -10,5 +10,11 @@ import { routing } from "./routing"
  * `/ar`). Ne pas utiliser dans le périmètre back-office (`app/(internal)/**`),
  * qui n'est jamais enveloppé par `NextIntlClientProvider`.
  */
-export const { Link, redirect, permanentRedirect, useRouter, usePathname, getPathname } =
-  createNavigation(routing)
+export const {
+  Link,
+  redirect,
+  permanentRedirect,
+  useRouter,
+  usePathname,
+  getPathname,
+} = createNavigation(routing)

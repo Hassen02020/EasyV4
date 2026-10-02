@@ -108,15 +108,23 @@ export async function loadAdminReservationsPage(
   agencyId: string,
   limit = 25,
   cursor?: Cursor | null,
-  filters?: { status?: string | null; module?: string | null; search?: string | null },
+  filters?: {
+    status?: string | null
+    module?: string | null
+    search?: string | null
+  },
 ): Promise<CursorPageResult> {
   if (!process.env.DATABASE_URL) return EMPTY_PAGE
 
   try {
     const conditions = [
       eq(reservations.agencyId, agencyId),
-      filters?.status ? eq(reservations.status, filters.status as "pending") : undefined,
-      filters?.module ? eq(reservations.module, filters.module as "hotel") : undefined,
+      filters?.status
+        ? eq(reservations.status, filters.status as "pending")
+        : undefined,
+      filters?.module
+        ? eq(reservations.module, filters.module as "hotel")
+        : undefined,
       buildSearchCondition(filters?.search),
       cursor
         ? or(
@@ -133,46 +141,51 @@ export async function loadAdminReservationsPage(
     const rows = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
-    db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        agencyId: reservations.agencyId,
-        agencyName: sql<string | null>`COALESCE(${agencies.brandName}, ${agencies.name})`,
-        module: reservations.module,
-        status: reservations.status,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        phone: customers.phone,
-        originalCurrency: reservations.originalCurrency,
-        originalAmount: reservations.originalAmount,
-        tndAmount: reservations.tndAmount,
-        depositAmount: reservations.depositAmount,
-        createdAt: reservations.createdAt,
-        cancelledAt: reservations.cancelledAt,
-        flightOrigin: sql<string | null>`(
+        db
+          .select({
+            id: reservations.id,
+            publicRef: reservations.publicRef,
+            agencyId: reservations.agencyId,
+            agencyName: sql<
+              string | null
+            >`COALESCE(${agencies.brandName}, ${agencies.name})`,
+            module: reservations.module,
+            status: reservations.status,
+            firstName: customers.firstName,
+            lastName: customers.lastName,
+            email: customers.email,
+            phone: customers.phone,
+            originalCurrency: reservations.originalCurrency,
+            originalAmount: reservations.originalAmount,
+            tndAmount: reservations.tndAmount,
+            depositAmount: reservations.depositAmount,
+            createdAt: reservations.createdAt,
+            cancelledAt: reservations.cancelledAt,
+            flightOrigin: sql<string | null>`(
           SELECT origin
           FROM flight_booking_segments
           WHERE booking_id = ${flightBookings.id}
           ORDER BY sequence ASC
           LIMIT 1
         )`,
-        flightDestination: sql<string | null>`(
+            flightDestination: sql<string | null>`(
           SELECT destination
           FROM flight_booking_segments
           WHERE booking_id = ${flightBookings.id}
           ORDER BY sequence ASC
           LIMIT 1
         )`,
-      })
-      .from(reservations)
-      .leftJoin(customers, eq(customers.id, reservations.customerId))
-      .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .leftJoin(flightBookings, eq(flightBookings.reservationId, reservations.id))
-      .where(where!)
-      .orderBy(desc(reservations.createdAt))
-      .limit(limit + 1),
+          })
+          .from(reservations)
+          .leftJoin(customers, eq(customers.id, reservations.customerId))
+          .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
+          .leftJoin(
+            flightBookings,
+            eq(flightBookings.reservationId, reservations.id),
+          )
+          .where(where!)
+          .orderBy(desc(reservations.createdAt))
+          .limit(limit + 1),
     )
 
     const hasMore = rows.length > limit
@@ -195,7 +208,9 @@ export async function loadAdminReservationsPage(
     }
   } catch (error) {
     const { logger } = await import("@/lib/logger")
-    logger.error("loadAdminReservationsPage failed", { code: error instanceof Error ? error.constructor.name : "unknown" })
+    logger.error("loadAdminReservationsPage failed", {
+      code: error instanceof Error ? error.constructor.name : "unknown",
+    })
     return EMPTY_PAGE
   }
 }
@@ -271,7 +286,9 @@ export async function loadAllReservations(
   try {
     const conditions = [
       opts.agencyId ? eq(reservations.agencyId, opts.agencyId) : undefined,
-      opts.status ? eq(reservations.status, opts.status as "pending") : undefined,
+      opts.status
+        ? eq(reservations.status, opts.status as "pending")
+        : undefined,
       opts.module ? eq(reservations.module, opts.module as "hotel") : undefined,
       buildSearchCondition(opts.search),
       opts.since ? gte(reservations.createdAt, opts.since) : undefined,
@@ -286,53 +303,61 @@ export async function loadAllReservations(
         : undefined,
     ].filter(Boolean)
 
-    const where = conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined
+    const where =
+      conditions.length > 0
+        ? and(...(conditions as Parameters<typeof and>))
+        : undefined
 
     // Vue cross-agence (super_admin) : pas scopée à une seule agence, donc
     // is_super_admin=true est nécessaire pour que RLS l'autorise.
     const rows = await withTenantContext(
       { agencyId: opts.agencyId ?? null, userId: "", isSuperAdmin: true },
       (db) =>
-    db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        agencyId: reservations.agencyId,
-        agencyName: sql<string | null>`COALESCE(${agencies.brandName}, ${agencies.name})`,
-        module: reservations.module,
-        status: reservations.status,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        email: customers.email,
-        phone: customers.phone,
-        originalCurrency: reservations.originalCurrency,
-        originalAmount: reservations.originalAmount,
-        tndAmount: reservations.tndAmount,
-        depositAmount: reservations.depositAmount,
-        createdAt: reservations.createdAt,
-        cancelledAt: reservations.cancelledAt,
-        flightOrigin: sql<string | null>`(
+        db
+          .select({
+            id: reservations.id,
+            publicRef: reservations.publicRef,
+            agencyId: reservations.agencyId,
+            agencyName: sql<
+              string | null
+            >`COALESCE(${agencies.brandName}, ${agencies.name})`,
+            module: reservations.module,
+            status: reservations.status,
+            firstName: customers.firstName,
+            lastName: customers.lastName,
+            email: customers.email,
+            phone: customers.phone,
+            originalCurrency: reservations.originalCurrency,
+            originalAmount: reservations.originalAmount,
+            tndAmount: reservations.tndAmount,
+            depositAmount: reservations.depositAmount,
+            createdAt: reservations.createdAt,
+            cancelledAt: reservations.cancelledAt,
+            flightOrigin: sql<string | null>`(
           SELECT origin
           FROM flight_booking_segments
           WHERE booking_id = ${flightBookings.id}
           ORDER BY sequence ASC
           LIMIT 1
         )`,
-        flightDestination: sql<string | null>`(
+            flightDestination: sql<string | null>`(
           SELECT destination
           FROM flight_booking_segments
           WHERE booking_id = ${flightBookings.id}
           ORDER BY sequence ASC
           LIMIT 1
         )`,
-      })
-      .from(reservations)
-      .leftJoin(customers, eq(customers.id, reservations.customerId))
-      .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .leftJoin(flightBookings, eq(flightBookings.reservationId, reservations.id))
-      .where(where)
-      .orderBy(desc(reservations.createdAt))
-      .limit(limit + 1),
+          })
+          .from(reservations)
+          .leftJoin(customers, eq(customers.id, reservations.customerId))
+          .leftJoin(agencies, eq(agencies.id, reservations.agencyId))
+          .leftJoin(
+            flightBookings,
+            eq(flightBookings.reservationId, reservations.id),
+          )
+          .where(where)
+          .orderBy(desc(reservations.createdAt))
+          .limit(limit + 1),
     )
 
     const hasMore = rows.length > limit
@@ -340,7 +365,10 @@ export async function loadAllReservations(
     const lastRow = pageRows[pageRows.length - 1]
     const nextCursor: string | null =
       hasMore && lastRow
-        ? encodeCursor({ createdAt: lastRow.createdAt.toISOString(), id: lastRow.id })
+        ? encodeCursor({
+            createdAt: lastRow.createdAt.toISOString(),
+            id: lastRow.id,
+          })
         : null
 
     return { available: true, rows: pageRows.map(mapRow), nextCursor, hasMore }

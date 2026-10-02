@@ -1179,5 +1179,14 @@
     "crossSellActivitiesHeading": "أنشطة ورحلات",
     "crossSellDurationDays": "{days, plural, one {# يوم} other {# أيام}}",
     "crossSellDurationMinutes": "{minutes} د"
+  },
+  "MarketSignals": {
+    "heading": "أخبار واتجاهات",
+    "source": "عرض المصدر",
+    "confidence": {
+      "HIGH": "موثوقية عالية",
+      "MEDIUM": "موثوقية متوسطة",
+      "LOW": "موثوقية منخفضة"
+    }
   }
 }

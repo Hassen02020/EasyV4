@@ -1179,5 +1179,14 @@
     "crossSellActivitiesHeading": "Activités & excursions",
     "crossSellDurationDays": "{days, plural, one {# jour} other {# jours}}",
     "crossSellDurationMinutes": "{minutes} min"
+  },
+  "MarketSignals": {
+    "heading": "Actualités & tendances",
+    "source": "Voir la source",
+    "confidence": {
+      "HIGH": "Fiabilité élevée",
+      "MEDIUM": "Fiabilité moyenne",
+      "LOW": "Fiabilité faible"
+    }
   }
 }

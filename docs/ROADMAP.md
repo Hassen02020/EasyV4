@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — FORMAT-CLEANUP-01 CLÔTURÉ. Attente du prochain GO.
+Aucun — PR #106 mergée (R8-01, R8-02, VOLS-DISPLAY-FIX-01). Attente du prochain GO.
 
 ### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
 
@@ -56,11 +56,12 @@ Résultat:
 ### VOLS-DISPLAY-FIX-01
 
 ```text
-IMPLEMENTED  — commit ee50ed1 (2026-10-02)
-TESTED       — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
-PREVIEW      — pending (Vercel preview auto-triggered on push, non validé visuellement)
-VISUAL QA    — pending
-MERGE        — pending (PR #106, en attente de MERGE GO explicite)
+IMPLEMENTED       — commit ee50ed1 (2026-10-02)
+TESTED            — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
+PREVIEW           — pending (non validé visuellement — VISUAL QA requis)
+VISUAL QA         — pending
+MERGED            — main · commit 560307f (PR #106, 2026-10-02)
+PRODUCTION-VERIFIED — pending (déploiement Vercel easy2book-new sur 560307f attendu)
 ```
 
 Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.

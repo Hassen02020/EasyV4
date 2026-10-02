@@ -36,7 +36,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — PR #106 mergée (R8-01, R8-02, VOLS-DISPLAY-FIX-01). Attente du prochain GO.
+Aucun — DEPLOY-CRON-01 clos (2026-10-02). VISUAL-AUDIT-01 en attente de validation manuelle par l'utilisateur.
+
+### DEPLOY-CRON-01 — CLÔTURÉ (2026-10-02)
+
+```text
+OBJECTIF:  Débloquer tous les déploiements Vercel easy2book-new (cron_jobs_limits_reached)
+CAUSE:     vercel.json ligne 29 — /api/cron/expire-flight-sla avait "0 * * * *" (horaire)
+           Hobby plan = crons quotidiens max → chaque déploiement échouait
+FIX:       "0 * * * *" → "0 0 * * *" (minuit UTC, quotidien)
+COMMIT:    45111da7df5ed0a12a6aae8b8f5164462a97a309 (main, 2026-10-02)
+RÉSULTAT:  Déploiement dpl_GVqwRudxAkkiaypKAR8sPr7qSTZg — state: READY, target: production
+           SHA 45111da inclut tous les fixes PR #106 (R8-01, R8-02, VOLS-DISPLAY-FIX-01)
+           GitHub auto-deploy ré-opérationnel
+```
 
 ### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
 
@@ -61,7 +74,10 @@ TESTED            — typecheck PASS · lint PASS · aucune migration DB · aucu
 PREVIEW           — pending (non validé visuellement — VISUAL QA requis)
 VISUAL QA         — pending
 MERGED            — main · commit 560307f (PR #106, 2026-10-02)
-PRODUCTION-VERIFIED — pending (déploiement Vercel easy2book-new sur 560307f attendu)
+PRODUCTION-VERIFIED — pending validation visuelle manuelle (réseau container bloqué)
+                       Déploiement READY : dpl_GVqwRudxAkkiaypKAR8sPr7qSTZg, SHA 45111da (2026-10-02)
+                       URL : https://easy2book-new.vercel.app/fr/vols/search?origin=TUN&destination=CDG&departureDate=2026-10-15&adults=1&cabin=ECONOMY&tripType=ONE_WAY
+                       Vérifier : "TK 252" (pas "TK TK252") · durée "4h19" (pas "NaNh")
 ```
 
 Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.

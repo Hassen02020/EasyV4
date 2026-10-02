@@ -142,7 +142,7 @@ function TabPills({
 }: {
   activeTab: TabId
   onSelect: (id: TabId) => void
-  visibleTabs: typeof tabsConfig
+  visibleTabs: Array<(typeof tabsConfig)[number]>
   className?: string
 }) {
   const t = useTranslations("Common")

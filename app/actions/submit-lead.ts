@@ -19,6 +19,7 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { rateLimit } from "@/lib/rate-limit"
 import { LEAD_PRODUCT_TYPES, createLeadCore } from "@/lib/crm/leads-core"
+import { sendEvent } from "@/lib/inngest/client"
 
 const inputSchema = z
   .object({
@@ -79,7 +80,7 @@ export async function submitLead(
   }
 
   try {
-    await withTenantContext(
+    const { id: leadId } = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: true },
       (tx) =>
         createLeadCore(tx, {
@@ -95,6 +96,23 @@ export async function submitLead(
           sourcePage: parsed.data.sourcePage,
         }),
     )
+
+    // Notification en arrière-plan — erreur Inngest silencieuse (lead déjà persisté)
+    await sendEvent("crm/lead.created", {
+      leadId,
+      agencyId,
+      firstName: parsed.data.firstName,
+      lastName: parsed.data.lastName || null,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      message: parsed.data.message || null,
+      productType: parsed.data.productType,
+      productLabel: parsed.data.productLabel || null,
+      sourcePage: parsed.data.sourcePage,
+    }).catch((err) => {
+      console.error("[submitLead] inngest event failed (non-fatal)", err)
+    })
+
     return { ok: true }
   } catch (err) {
     console.error("[submitLead]", err)

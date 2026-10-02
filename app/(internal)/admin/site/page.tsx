@@ -135,6 +135,7 @@ export default async function PublicSiteAdminPage() {
           {promotions.map((promotion) => (
             <form key={promotion.id} action={savePublicPromotion} className="border-border grid gap-3 rounded-lg border p-4 md:grid-cols-2">
               <input type="hidden" name="id" value={promotion.id} />
+              <input type="hidden" name="sortOrder" value={String(promotions.indexOf(promotion) * 10 + 10)} />
               <label className="space-y-1 text-sm">
                 <span>Titre</span>
                 <input name="title" defaultValue={promotion.title} className="border-border bg-background w-full rounded-md border px-3 py-2" />
@@ -162,6 +163,10 @@ export default async function PublicSiteAdminPage() {
               <label className="space-y-1 text-sm">
                 <span>Drapeau</span>
                 <input name="flag" defaultValue={promotion.flag ?? ""} className="border-border bg-background w-full rounded-md border px-3 py-2" />
+              </label>
+              <label className="flex items-center gap-2 pb-2 text-sm">
+                <input type="checkbox" name="enabled" defaultChecked />
+                Actif
               </label>
               <div className="flex items-end">
                 <button className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-semibold">Enregistrer</button>

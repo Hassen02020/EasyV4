@@ -36,7 +36,42 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R9-02 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — R9-03 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### R9-03 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R9-03
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/r9-03-development-projects-ui
+Commit: à venir
+
+Fichiers créés/modifiés:
+  - lib/market/development-projects-queries.ts :
+    getLatestDevelopmentProjects(limit, db?) · DEVELOPMENT_PROJECTS_PAGE_SIZE = 4
+  - components/development-projects-section.tsx : Server Component async
+    badge status (valeur libre du champ status) + badge confidence i18n
+    localisation + description + lien source
+    JAMAIS de CTA réservation — commentaire explicite dans le JSX (R9-03)
+    return null si table vide
+  - messages/fr.json, en.json, ar.json : clé DevelopmentProjects
+    (heading "Prochainement", badge "Annoncé", notBookable, source,
+    confidence LOW/MEDIUM/HIGH) — zéro texte en dur JSX
+  - app/(public)/[locale]/page.tsx : <DevelopmentProjectsSection />
+    avant MarketSignalsSection
+
+Tests:
+  - lib/market/__tests__/development-projects-queries.test.ts : 5 tests
+  - pnpm test : 1297 PASS / 0 FAIL / 253 SKIP
+  - pnpm typecheck : 0 erreur · pnpm lint : 0 erreur · format:check ✅
+
+DÉCISION : pas de table waitlist DB (différé Phase 10) — le CTA
+  "Pas encore réservable" est un label informatif. Aucun flux réservation
+  n'est exposé pour les projets annoncés.
+
+VISUAL QA: NOT VERIFIED — section visible uniquement si des lignes
+  existent dans development_projects (table vide en prod actuellement).
+```
 
 ### R9-02 — CLÔTURÉ (2026-10-02)
 

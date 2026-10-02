@@ -1180,6 +1180,17 @@
     "crossSellDurationDays": "{days, plural, one {# day} other {# days}}",
     "crossSellDurationMinutes": "{minutes} min"
   },
+  "DevelopmentProjects": {
+    "heading": "Coming Soon",
+    "badge": "Announced",
+    "source": "Source",
+    "notBookable": "Not yet bookable",
+    "confidence": {
+      "HIGH": "High confidence",
+      "MEDIUM": "Medium confidence",
+      "LOW": "Low confidence"
+    }
+  },
   "MarketSignals": {
     "heading": "News & Trends",
     "source": "View source",

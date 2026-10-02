@@ -1180,6 +1180,17 @@
     "crossSellDurationDays": "{days, plural, one {# يوم} other {# أيام}}",
     "crossSellDurationMinutes": "{minutes} د"
   },
+  "DevelopmentProjects": {
+    "heading": "قريباً",
+    "badge": "معلن",
+    "source": "المصدر",
+    "notBookable": "غير قابل للحجز بعد",
+    "confidence": {
+      "HIGH": "موثوقية عالية",
+      "MEDIUM": "موثوقية متوسطة",
+      "LOW": "موثوقية منخفضة"
+    }
+  },
   "MarketSignals": {
     "heading": "أخبار واتجاهات",
     "source": "عرض المصدر",

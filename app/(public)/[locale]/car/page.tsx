@@ -22,6 +22,7 @@ import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { CarSearch } from "@/components/car/car-search"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { carLocations, carCategories } from "@/lib/db/schema"
@@ -92,6 +93,8 @@ export default async function CarPage({
   const { locations, categories } = await getCatalog()
   const t = await getTranslations("Car")
 
+  const visual = await getPublicModuleVisual("car")
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -99,7 +102,7 @@ export default async function CarPage({
         <ModuleHero
           Icon={Car}
           gradient="from-red-900 to-red-700"
-          imageUrl="https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

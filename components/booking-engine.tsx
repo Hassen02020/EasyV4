@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "@/i18n/navigation"
+import { Link, useRouter } from "@/i18n/navigation"
 
 import { useState } from "react"
 
@@ -17,6 +17,9 @@ import {
   Clock,
   Search,
   Compass,
+  Plane,
+  Navigation,
+  Car,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -84,22 +87,25 @@ const HotelsTunisieSearch = dynamic(
  * /attractions/[slug]/book) — plus de raison de l'exclure ici.
  */
 const tabsConfig = [
-  { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2 },
-  { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe },
-  { id: "omraty", labelKey: "tabOmraty", icon: Moon },
-  { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase },
-  { id: "attractions", labelKey: "tabAttractions", icon: Compass },
+  { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2, href: "/hotels" },
+  { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe, href: "/hotels-monde" },
+  { id: "omraty", labelKey: "tabOmraty", icon: Moon, href: "/omra" },
+  { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase, href: "/packages" },
+  { id: "attractions", labelKey: "tabAttractions", icon: Compass, href: "/attractions" },
+  { id: "vols", labelKey: "tabVols", icon: Plane, href: "/vols" },
+  { id: "transferts", labelKey: "tabTransferts", icon: Navigation, href: "/transferts" },
+  { id: "car", labelKey: "tabCar", icon: Car, href: "/car" },
 ] as const
 
 type TabId = (typeof tabsConfig)[number]["id"]
+type PublicModuleVisual = { moduleSlug: string; enabled: boolean; sortOrder: number; heroImageUrl: string | null }
 
 // Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
 
-const HERO_BG_URL =
-  "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
-
 /** Rend le formulaire du module actif — partagé par la carte flottante desktop et le bottom-sheet mobile. */
 function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
+  const t = useTranslations("Common")
+  const tHome = useTranslations("Home")
   switch (activeTab) {
     case "hotels-tunisie":
       return <HotelsTunisieSearch />
@@ -111,6 +117,19 @@ function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
       return <VoyagesOrganisesForm />
     case "attractions":
       return <AttractionsForm />
+    case "vols":
+    case "transferts":
+    case "car": {
+      const config = tabsConfig.find((tab) => tab.id === activeTab)!
+      return (
+        <div className="flex flex-col items-center gap-4 py-3 text-center">
+          <p className="text-muted-foreground text-sm">{tHome("mobileTriggerSubtitle")}</p>
+          <Button asChild size="lg" className="from-primary to-accent bg-gradient-to-r text-white">
+            <Link href={config.href}>Ouvrir {t(config.labelKey)}</Link>
+          </Button>
+        </div>
+      )
+    }
   }
 }
 
@@ -118,10 +137,12 @@ function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
 function TabPills({
   activeTab,
   onSelect,
+  visibleTabs,
   className,
 }: {
   activeTab: TabId
   onSelect: (id: TabId) => void
+  visibleTabs: Array<(typeof tabsConfig)[number]>
   className?: string
 }) {
   const t = useTranslations("Common")
@@ -134,7 +155,7 @@ function TabPills({
         className,
       )}
     >
-      {tabsConfig.map((tab) => {
+      {visibleTabs.map((tab) => {
         const Icon = tab.icon
         const isActive = activeTab === tab.id
 
@@ -161,13 +182,18 @@ function TabPills({
   )
 }
 
-export function BookingEngine() {
-  const [activeTab, setActiveTab] = useState<TabId>("hotels-tunisie")
+export function BookingEngine({ heroImageUrl, modules = [] }: { heroImageUrl?: string | null; modules?: PublicModuleVisual[] }) {
+  const enabledModules = modules.filter((module) => module.enabled).sort((a, b) => a.sortOrder - b.sortOrder)
+  const visibleTabs = tabsConfig.filter((tab) => enabledModules.some((module) => module.moduleSlug === tab.id))
+  const firstTab = visibleTabs[0]?.id ?? "hotels-tunisie"
+  const [activeTab, setActiveTab] = useState<TabId>(firstTab)
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useTranslations("Common")
   const tHome = useTranslations("Home")
 
   const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
+  const activeModule = enabledModules.find((module) => module.moduleSlug === activeTab)
+  const activeHeroImageUrl = activeModule?.heroImageUrl ?? heroImageUrl
   const ActiveIcon = activeTabConfig.icon
 
   return (
@@ -175,7 +201,7 @@ export function BookingEngine() {
       {/* Hero background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url('${HERO_BG_URL}')` }}
+        style={activeHeroImageUrl ? { backgroundImage: `url('${activeHeroImageUrl}')` } : undefined}
       >
         <div className="from-sidebar/85 via-sidebar/35 to-background absolute inset-0 bg-gradient-to-b" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
@@ -201,7 +227,7 @@ export function BookingEngine() {
           style={{ animationDelay: "80ms" }}
         >
           <div className="flex items-center justify-between gap-3 px-1.5 pt-1.5 pb-2">
-            <TabPills activeTab={activeTab} onSelect={setActiveTab} />
+            <TabPills activeTab={activeTab} onSelect={setActiveTab} visibleTabs={visibleTabs} />
           </div>
 
           <div className="rounded-[1.4rem] bg-white/60 p-5 sm:p-6">
@@ -247,6 +273,7 @@ export function BookingEngine() {
                 <TabPills
                   activeTab={activeTab}
                   onSelect={setActiveTab}
+                  visibleTabs={visibleTabs}
                   className="flex-1"
                 />
                 <DrawerClose asChild>

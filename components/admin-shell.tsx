@@ -206,6 +206,11 @@ const managerNavItems: NavItem[] = [
     icon: Star,
     href: "/admin/reviews",
   },
+  {
+    title: "Site public",
+    icon: Settings,
+    href: "/admin/site",
+  },
 ]
 
 const technicalNavItems: NavItem[] = [

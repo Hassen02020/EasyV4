@@ -24,6 +24,7 @@
 import { sql } from "drizzle-orm"
 import { marginRules, marginType, walletTxType } from "./schema/financials"
 import { supplierNodes } from "./schema/supplier-portal"
+import { publicSiteSettings, publicModuleVisuals, publicPromotions } from "./schema/public-site"
 import {
   bigint,
   boolean,

@@ -1,5 +1,6 @@
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 import { FooterClient } from "@/components/footer-client"
+import { getPublicSiteConfig } from "@/lib/public/site-content"
 
 /**
  * Server wrapper : résout le tenant White Label (proxy.ts → getRequestTenantInfo(),
@@ -9,10 +10,17 @@ import { FooterClient } from "@/components/footer-client"
  */
 export async function Footer() {
   const tenant = await getRequestTenantInfo()
+  const site = await getPublicSiteConfig()
   return (
     <FooterClient
       brandName={tenant?.brandName ?? null}
-      logoUrl={tenant?.logoUrl ?? null}
+      logoUrl={tenant?.logoUrl ?? site?.logoUrl ?? null}
+      contactEmail={site?.contactEmail ?? null}
+      contactPhone={site?.contactPhone ?? null}
+      address={site?.address ?? null}
+      facebookUrl={site?.facebookUrl ?? null}
+      instagramUrl={site?.instagramUrl ?? null}
+      tiktokUrl={site?.tiktokUrl ?? null}
     />
   )
 }

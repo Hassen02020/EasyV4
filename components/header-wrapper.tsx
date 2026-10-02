@@ -2,6 +2,7 @@ import { getLocale } from "next-intl/server"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 import { Header } from "@/components/header"
+import { getPublicSiteConfig } from "@/lib/public/site-content"
 import type { Locale } from "@/lib/locale"
 
 export async function HeaderWrapper() {
@@ -11,12 +12,14 @@ export async function HeaderWrapper() {
     data: { user },
   } = await supabase.auth.getUser()
   const tenant = await getRequestTenantInfo()
+  const site = await getPublicSiteConfig()
   return (
     <Header
       currentLocale={locale}
       isLoggedIn={!!user}
       brandName={tenant?.brandName ?? null}
-      logoUrl={tenant?.logoUrl ?? null}
+      logoUrl={tenant?.logoUrl ?? site?.logoUrl ?? null}
+      contactPhone={site?.contactPhone ?? null}
     />
   )
 }

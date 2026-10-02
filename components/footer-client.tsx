@@ -42,32 +42,31 @@ function TikTokIcon({ className }: { className?: string }) {
   )
 }
 
-const socialLinks = [
-  {
-    icon: Facebook,
-    href: "https://www.facebook.com/Easy2Bookplateforme",
-    label: "Facebook",
-  },
-  {
-    icon: Instagram,
-    href: "https://www.instagram.com/easy2book.2025",
-    label: "Instagram",
-  },
-  { icon: TikTokIcon, href: "https://tiktok.com/@easy2book", label: "TikTok" },
-]
 
 interface FooterClientProps {
   /** Logo d'agence White Label résolu côté serveur par components/footer.tsx (proxy.ts → getRequestTenantInfo()) ; absent = logo Easy2Book par défaut. */
   logoUrl?: string | null
   /** Nom d'agence White Label ; absent = branding Easy2Book par défaut. */
   brandName?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  address?: string | null
+  facebookUrl?: string | null
+  instagramUrl?: string | null
+  tiktokUrl?: string | null
 }
 
-export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
+export function FooterClient({ logoUrl, brandName, contactEmail, contactPhone, address, facebookUrl, instagramUrl, tiktokUrl }: FooterClientProps) {
   const t = useTranslations("Common")
   const copyrightText = brandName
     ? t("copyright").replace("Easy2Book", brandName)
     : t("copyright")
+  const socialLinks = [
+    { icon: Facebook, href: facebookUrl, label: "Facebook" },
+    { icon: Instagram, href: instagramUrl, label: "Instagram" },
+    { icon: TikTokIcon, href: tiktokUrl, label: "TikTok" },
+  ].filter((social) => social.href)
+
   const trustBadges = [
     {
       icon: trustBadgeIcons[0],
@@ -77,7 +76,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
     {
       icon: trustBadgeIcons[1],
       title: t("supportLocal"),
-      description: "+216 98 140 514",
+      description: contactPhone ?? "—",
     },
     {
       icon: trustBadgeIcons[2],
@@ -87,7 +86,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
     {
       icon: trustBadgeIcons[3],
       title: t("agencePhysique"),
-      description: t("atunis"),
+      description: address ?? t("atunis"),
     },
   ]
   return (
@@ -163,7 +162,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                   return (
                     <a
                       key={index}
-                      href={social.href}
+                      href={social.href!}
                       aria-label={social.label}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -209,16 +208,25 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                 <li className="flex items-center gap-2">
                   <Phone className="text-accent size-4" />
                   <a
-                    href="tel:+21698140514"
+                    href={contactPhone ? `tel:${contactPhone.replace(/[^+\\d]/g, "")}` : undefined}
                     className="font-medium transition-colors hover:text-white"
                   >
-                    +216 98 140 514
+                    {contactPhone ?? "—"}
+                  </a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-accent text-sm">@</span>
+                  <a
+                    href={contactEmail ? `mailto:${contactEmail}` : undefined}
+                    className="font-medium transition-colors hover:text-white"
+                  >
+                    {contactEmail ?? "—"}
                   </a>
                 </li>
                 <li className="flex items-center gap-2">
                   <WhatsAppIcon className="text-accent size-4" />
                   <a
-                    href="https://wa.me/21698140514"
+                    href={contactPhone ? `https://wa.me/${contactPhone.replace(/\D/g, "")}` : undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-medium transition-colors hover:text-white"
@@ -228,7 +236,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                 </li>
                 <li className="flex items-center gap-2">
                   <Building2 className="text-accent size-4" />
-                  <span>Tunis, Tunisie</span>
+                  <span>{address ?? "—"}</span>
                 </li>
               </ul>
             </div>

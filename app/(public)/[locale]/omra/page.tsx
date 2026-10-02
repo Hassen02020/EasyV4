@@ -9,6 +9,7 @@ import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { OmraSearch } from "@/components/omra/omra-search"
 import { OmraPackageList } from "@/components/omra/omra-package-list"
 import { CatalogPagination } from "@/components/catalog-pagination"
@@ -196,6 +197,8 @@ export default async function OmraPage({
   const tCommon = await getTranslations("Common")
   const locale = await getLocale()
 
+  const visual = await getPublicModuleVisual("omraty")
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -203,7 +206,7 @@ export default async function OmraPage({
         <ModuleHero
           Icon={Moon}
           gradient="from-emerald-900 to-emerald-700"
-          imageUrl="https://images.unsplash.com/photo-1564769625905-50e93615e769?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

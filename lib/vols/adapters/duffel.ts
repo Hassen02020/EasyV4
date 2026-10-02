@@ -141,8 +141,8 @@ interface DuffelOrder {
 interface DuffelPricingToken {
   offerId: string
   passengerIds: string[]
-  originalAmount: number    // pre-conversion Duffel amount (e.g. EUR/USD)
-  originalCurrency: string  // pre-conversion Duffel currency (e.g. "EUR", "USD")
+  originalAmount: number // pre-conversion Duffel amount (e.g. EUR/USD)
+  originalCurrency: string // pre-conversion Duffel currency (e.g. "EUR", "USD")
 }
 
 // ---------------------------------------------------------------------------
@@ -632,7 +632,9 @@ export function createDuffelAdapter(): GdsAdapter {
               {
                 type: "balance",
                 // Pay Duffel in their original currency (EUR/USD), not TND
-                amount: String(token.originalAmount ?? itinerary.supplierTotalAmount),
+                amount: String(
+                  token.originalAmount ?? itinerary.supplierTotalAmount,
+                ),
                 currency: token.originalCurrency ?? itinerary.supplierCurrency,
               },
             ],

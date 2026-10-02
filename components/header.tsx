@@ -20,6 +20,7 @@ interface HeaderProps {
   brandName?: string | null
   /** Logo d'agence White Label ; absent = logo Easy2Book par défaut. */
   logoUrl?: string | null
+  contactPhone?: string | null
 }
 
 export function Header({
@@ -27,6 +28,7 @@ export function Header({
   isLoggedIn,
   brandName,
   logoUrl,
+  contactPhone,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [loggedIn, setLoggedIn] = useState(!!isLoggedIn)
@@ -100,7 +102,7 @@ export function Header({
               className="gap-1.5 text-sm font-medium"
               asChild
             >
-              <Link href="tel:+21698140514">
+              <Link href={contactPhone ? `tel:${contactPhone.replace(/[^+\d]/g, "")}` : undefined}>
                 <HelpCircle className="size-4" />
                 {t("help")}
               </Link>
@@ -153,7 +155,7 @@ export function Header({
             <LanguageSwitcher currentLocale={currentLocale} variant="mobile" />
             <CurrencySwitcher variant="mobile" />
             <Link
-              href="tel:+21698140514"
+              href={contactPhone ? `tel:${contactPhone.replace(/[^+\d]/g, "")}` : undefined}
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >

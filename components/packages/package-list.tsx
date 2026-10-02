@@ -45,7 +45,7 @@ function PackageCard({ pkg }: { pkg: PackageWithPrice }) {
           </div>
         )}
         {pkg.durationDays && (
-          <Badge className="absolute top-3 left-3 bg-black/60 text-white">
+          <Badge className="absolute top-3 start-3 bg-black/60 text-white">
             {t("durationBadge", {
               days: pkg.durationDays,
               nights: pkg.durationNights ?? pkg.durationDays - 1,

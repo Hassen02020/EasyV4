@@ -261,7 +261,7 @@ export function JourneyComposer({ journey, lines }: Props) {
             {JOURNEY_STATUS_LABEL[journey.status]}
           </Badge>
         </div>
-        <div className="text-right">
+        <div className="text-end">
           <p className="text-muted-foreground text-xs">
             Total commercial (snapshot)
           </p>

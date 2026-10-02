@@ -780,7 +780,7 @@ export function HotelListings({
             <button
               type="button"
               onClick={() => setShowMap(false)}
-              className="bg-card absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium shadow-lg lg:hidden"
+              className="bg-card absolute top-4 start-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium shadow-lg lg:hidden"
             >
               <ListIcon className="size-4" />
               {t("backToListButton")}

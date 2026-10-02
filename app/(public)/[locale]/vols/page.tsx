@@ -18,6 +18,7 @@ import { getLocale, getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { FlightSearch } from "@/components/vols/flight-search"
 import {
   parseFlightSearchParams,
@@ -78,6 +79,8 @@ export default async function VolsPage({
   }
   const t = await getTranslations("Vols")
 
+  const visual = await getPublicModuleVisual("vols")
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -85,7 +88,7 @@ export default async function VolsPage({
         <ModuleHero
           Icon={Plane}
           gradient="from-sky-900 to-sky-700"
-          imageUrl="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

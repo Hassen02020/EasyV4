@@ -24,6 +24,8 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { paginateOffset } from "@/lib/admin/pagination"
+import { getSiteContactInfo } from "@/lib/tenant/site-config"
+import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 
 export const dynamic = "force-dynamic"
 
@@ -190,8 +192,12 @@ export default async function OmraPage({
   searchParams: Promise<SearchFilters>
 }) {
   const filters = await searchParams
-  const { packages, totalCount, currentPage, totalPages } =
-    await getActivePackages(filters)
+  const tenant = await getRequestTenantInfo()
+  const [{ packages, totalCount, currentPage, totalPages }, contact] =
+    await Promise.all([
+      getActivePackages(filters),
+      getSiteContactInfo(tenant?.agencyId ?? null),
+    ])
   const t = await getTranslations("Omra")
   const tCommon = await getTranslations("Common")
   const locale = await getLocale()
@@ -224,7 +230,11 @@ export default async function OmraPage({
               </div>
             }
           >
-            <OmraPackageList packages={packages} totalCount={totalCount} />
+            <OmraPackageList
+              packages={packages}
+              totalCount={totalCount}
+              supportPhone={contact?.contactPhone ?? null}
+            />
           </Suspense>
           <CatalogPagination
             currentPage={currentPage}

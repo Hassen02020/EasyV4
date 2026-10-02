@@ -184,6 +184,14 @@ export const agencies = pgTable(
     logoUrl: text("logo_url"),
     /** Couleur d'accent White Label (`#RRGGBB`) — surcharge `--primary` sur le storefront public de cette agence, sinon la teinte corail par défaut. */
     primaryColor: varchar("primary_color", { length: 7 }),
+    /** Numéro WhatsApp de l'agence (format international sans +, ex. "21698140514"). */
+    whatsappNumber: varchar("whatsapp_number", { length: 32 }),
+    /** URL page Facebook de l'agence. */
+    facebookUrl: text("facebook_url"),
+    /** URL profil Instagram de l'agence. */
+    instagramUrl: text("instagram_url"),
+    /** URL profil TikTok de l'agence. */
+    tiktokUrl: text("tiktok_url"),
     /** Langue par défaut (fr/en/ar/tr). */
     defaultLanguage: varchar("default_language", { length: 4 })
       .notNull()

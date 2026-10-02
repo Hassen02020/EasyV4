@@ -57,6 +57,10 @@ export type PartnerProfile = {
     maskCredit: boolean
     depositBalance: string
     creditLowThreshold: string
+    whatsappNumber: string | null
+    facebookUrl: string | null
+    instagramUrl: string | null
+    tiktokUrl: string | null
   }
 }
 
@@ -134,6 +138,10 @@ export async function getCurrentPartnerProfile(
           maskCredit: agency.maskCredit ?? false,
           depositBalance: agency.depositBalance ?? "0",
           creditLowThreshold: agency.creditLowThreshold ?? "100.00",
+          whatsappNumber: agency.whatsappNumber ?? null,
+          facebookUrl: agency.facebookUrl ?? null,
+          instagramUrl: agency.instagramUrl ?? null,
+          tiktokUrl: agency.tiktokUrl ?? null,
         },
       }
     }
@@ -184,6 +192,10 @@ export async function getCurrentPartnerProfile(
         maskCredit: partnerAgency.maskCredit,
         depositBalance: partnerAgency.depositBalance,
         creditLowThreshold: partnerAgency.creditLowThreshold,
+        whatsappNumber: partnerAgency.whatsappNumber ?? null,
+        facebookUrl: partnerAgency.facebookUrl ?? null,
+        instagramUrl: partnerAgency.instagramUrl ?? null,
+        tiktokUrl: partnerAgency.tiktokUrl ?? null,
       },
     }
   } catch (error) {

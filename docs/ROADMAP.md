@@ -36,7 +36,34 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R8-06 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — SITE-CONFIG-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### SITE-CONFIG-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: SITE-CONFIG-01
+Statut: CLÔTURÉ (2026-10-02) — TESTED / READY FOR PRODUCTION — NOT YET MERGED
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: c511f15
+```
+
+**Objectif** : Rendre administrables les informations de contact (téléphone, WhatsApp) et réseaux sociaux (Facebook, Instagram, TikTok) via la table `agencies`. Supprimer tout numéro hardcodé (`+21698140514`) du code.
+
+**Périmètre** :
+- Migration 0097 : `ADD COLUMN whatsapp_number, facebook_url, instagram_url, tiktok_url` sur `agencies`
+- Nouveau `lib/tenant/site-config.ts` : `getSiteContactInfo(agencyId?)` via `withSystemContext`
+- Header + Footer : contactPhone, whatsappNumber, facebookUrl, instagramUrl, tiktokUrl depuis DB
+- Pages bookings / compte / omra (list + detail) / packages (detail) : supportPhone depuis DB
+- B2B `/pro/etablissement` : formulaire étendu avec 4 champs sociaux + Server Action + core
+
+**Preuves** :
+- `grep -r "21698140514" components/ app/` → 0 occurrence fonctionnelle (3 occurrences doc/placeholder acceptables)
+- `npx tsc --noEmit` → 0 erreur
+- `npx eslint <fichiers modifiés>` → 0 erreur
+
+**Visual QA** : NOT VERIFIED — validation en Preview Vercel requise (local DB indisponible dans l'environnement cloud).
+
+**Migration DB** : À appliquer en production via `mcp__Supabase__apply_migration` sur GO explicite.
 
 ### R8-06 — CLÔTURÉ (2026-10-02)
 
@@ -49,6 +76,34 @@ Aucun — R8-06 CLÔTURÉ (2026-10-02). Attente du prochain GO.
 **Preuves** : `grep -r "bg-gray-100\|bg-gray-50\|text-gray-\|border-gray-200" components/ app/` → 0 résultat hors exceptions. `npx tsc --noEmit` → 0 erreur.
 
 **Visual QA** : NOT VERIFIED — nécessite validation dark/light mode en Preview avant déploiement Production.
+
+---
+
+### CRM-NOTIFY-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: CRM-NOTIFY-01
+Statut: CLÔTURÉ (2026-10-02)
+PR: #115 — squash merge → main (commit 335c685)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+```
+
+**Objectif** : Notification email automatique à l'agence dès qu'un visiteur soumet le formulaire "Être rappelé" / "Demander un devis".
+
+**Fichiers créés/modifiés** :
+- `lib/inngest/client.ts` — type event `crm/lead.created`
+- `lib/inngest/functions/process-new-lead.ts` — nouvelle fonction Inngest (créée)
+- `lib/inngest/functions/index.ts` — export barrel
+- `app/api/inngest/route.ts` — enregistrement dans `serve()`
+- `app/actions/submit-lead.ts` — émission `sendEvent` non-fatale après `createLeadCore`
+- `lib/inngest/__tests__/process-new-lead.test.ts` — 10 invariants statiques N01–N10
+
+**Preuves** :
+- 10/10 tests PASS · tsc 0 erreur · lint 0 erreur · format ✅
+- Pas de throw sur email agence absent — `{ success: false, reason: "no_agency_email" }`
+- `.catch()` sur `sendEvent` — lead toujours persisté si Inngest indisponible
+
+**NOT VERIFIED** : réception email réelle — nécessite `RESEND_API_KEY` + Inngest actif en preview/prod.
 
 ---
 

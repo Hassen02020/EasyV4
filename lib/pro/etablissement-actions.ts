@@ -59,14 +59,30 @@ const schema = z.object({
   defaultLanguage: z.enum(["fr", "ar", "en", "tr"]),
   defaultCurrency: z.enum(["TND", "EUR", "USD", "DZD"]),
   maskCredit: z.boolean(),
+  whatsappNumber: z.string().trim().max(32).optional().default(""),
+  facebookUrl: z
+    .union([z.literal(""), z.string().trim().url().max(2048)])
+    .optional()
+    .default(""),
+  instagramUrl: z
+    .union([z.literal(""), z.string().trim().url().max(2048)])
+    .optional()
+    .default(""),
+  tiktokUrl: z
+    .union([z.literal(""), z.string().trim().url().max(2048)])
+    .optional()
+    .default(""),
 })
 
 export type UpdateEtablissementInput = Omit<
   z.infer<typeof schema>,
-  "defaultLanguage" | "defaultCurrency"
+  "defaultLanguage" | "defaultCurrency" | "facebookUrl" | "instagramUrl" | "tiktokUrl"
 > & {
   defaultLanguage: string
   defaultCurrency: string
+  facebookUrl: string
+  instagramUrl: string
+  tiktokUrl: string
 }
 export type UpdateEtablissementResult =
   | { ok: true }
@@ -114,6 +130,10 @@ export async function updateMyAgencyProfile(
           defaultLanguage: parsed.data.defaultLanguage,
           defaultCurrency: parsed.data.defaultCurrency,
           maskCredit: parsed.data.maskCredit,
+          whatsappNumber: parsed.data.whatsappNumber,
+          facebookUrl: parsed.data.facebookUrl ?? "",
+          instagramUrl: parsed.data.instagramUrl ?? "",
+          tiktokUrl: parsed.data.tiktokUrl ?? "",
         }),
     )
     if (!result.updated) return { ok: false, error: "Agence introuvable." }

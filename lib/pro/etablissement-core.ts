@@ -30,6 +30,10 @@ export interface UpdateAgencyProfileParams {
   defaultLanguage: string
   defaultCurrency: string
   maskCredit: boolean
+  whatsappNumber: string
+  facebookUrl: string
+  instagramUrl: string
+  tiktokUrl: string
 }
 
 export async function updateAgencyProfileCore(
@@ -51,6 +55,10 @@ export async function updateAgencyProfileCore(
       defaultLanguage: params.defaultLanguage,
       defaultCurrency: params.defaultCurrency,
       maskCredit: params.maskCredit,
+      whatsappNumber: params.whatsappNumber || null,
+      facebookUrl: params.facebookUrl || null,
+      instagramUrl: params.instagramUrl || null,
+      tiktokUrl: params.tiktokUrl || null,
       updatedAt: new Date(),
     })
     .where(eq(agencies.id, params.agencyId))

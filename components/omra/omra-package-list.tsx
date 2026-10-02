@@ -18,6 +18,7 @@ interface Props {
   /** Total réel (avant pagination, chantier 6) — distinct de packages.length,
    * qui ne porte que la page courante. */
   totalCount: number
+  supportPhone?: string | null
 }
 
 const PACKAGE_TYPE_KEYS = new Set(["omra", "hajj", "ramadan", "umrah_plus"])
@@ -128,7 +129,7 @@ function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
   )
 }
 
-export function OmraPackageList({ packages, totalCount }: Props) {
+export function OmraPackageList({ packages, totalCount, supportPhone }: Props) {
   const t = useTranslations("Omra")
   if (packages.length === 0) {
     return (
@@ -138,13 +139,18 @@ export function OmraPackageList({ packages, totalCount }: Props) {
         </div>
         <h3 className="mb-2 text-lg font-semibold">{t("emptyTitle")}</h3>
         <p className="text-muted-foreground text-sm">
-          {t("emptyDescriptionPrefix")}{" "}
-          <a
-            href="tel:+21698140514"
-            className="font-medium text-emerald-700 underline"
-          >
-            +216 98 140 514
-          </a>
+          {t("emptyDescriptionPrefix")}
+          {supportPhone && (
+            <>
+              {" "}
+              <a
+                href={`tel:${supportPhone}`}
+                className="font-medium text-emerald-700 underline"
+              >
+                {supportPhone}
+              </a>
+            </>
+          )}
           .
         </p>
       </div>

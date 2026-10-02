@@ -1,0 +1,91 @@
+import { Building2, MapPin, ExternalLink } from "lucide-react"
+import { getTranslations } from "next-intl/server"
+import { getLatestDevelopmentProjects } from "@/lib/market/development-projects-queries"
+import type { DevelopmentProject } from "@/lib/db/schema"
+
+const CONFIDENCE_CLASSES: Record<DevelopmentProject["confidence"], string> = {
+  HIGH: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+  MEDIUM:
+    "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+  LOW: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+}
+
+export async function DevelopmentProjectsSection() {
+  const [projects, t] = await Promise.all([
+    getLatestDevelopmentProjects(),
+    getTranslations("DevelopmentProjects"),
+  ])
+
+  if (projects.length === 0) return null
+
+  return (
+    <section className="py-12">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="mb-8 flex items-center gap-3">
+          <Building2 className="h-6 w-6 text-violet-600" />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            {t("heading")}
+          </h2>
+          <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+            {t("badge")}
+          </span>
+        </div>
+
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {projects.map((project) => (
+            <li
+              key={project.id}
+              className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span
+                  className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${CONFIDENCE_CLASSES[project.confidence]}`}
+                >
+                  {t(`confidence.${project.confidence}`)}
+                </span>
+                {project.status && (
+                  <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+                    {project.status}
+                  </span>
+                )}
+              </div>
+
+              <p className="leading-snug font-semibold text-slate-900 dark:text-white">
+                {project.name}
+              </p>
+
+              {project.location && (
+                <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {project.location}
+                </p>
+              )}
+
+              {project.description && (
+                <p className="line-clamp-2 flex-1 text-xs text-slate-500 dark:text-slate-400">
+                  {project.description}
+                </p>
+              )}
+
+              {/* JAMAIS de CTA réservation — projet non encore réservable (R9-03) */}
+              <div className="mt-auto flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-violet-600 dark:text-violet-400">
+                  {t("notBookable")}
+                </p>
+                <a
+                  href={project.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-slate-500 hover:underline dark:text-slate-400"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {t("source")}
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}

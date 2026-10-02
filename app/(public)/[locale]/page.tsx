@@ -3,6 +3,7 @@ import { BookingEngine } from "@/components/booking-engine"
 import { FlashOffers } from "@/components/flash-offers"
 import { OmratySection } from "@/components/omraty-section"
 import { MarketSignalsSection } from "@/components/market-signals-section"
+import { DevelopmentProjectsSection } from "@/components/development-projects-section"
 import { Footer } from "@/components/footer"
 
 export const dynamic = "force-dynamic"
@@ -15,6 +16,7 @@ export default function Home() {
         <BookingEngine />
         <FlashOffers />
         <OmratySection />
+        <DevelopmentProjectsSection />
         <MarketSignalsSection />
       </main>
       <Footer />

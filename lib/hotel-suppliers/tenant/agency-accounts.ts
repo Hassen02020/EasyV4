@@ -272,15 +272,13 @@ export async function rotateOwnSupplierCredentials(
           })
           .where(eq(hotelSupplierCredentials.accountId, accountId))
       } else {
-        await tx
-          .insert(hotelSupplierCredentials)
-          .values({
-            accountId,
-            agencyId: ctx.agencyId,
-            ciphertext: cred.ciphertext,
-            keyVersion: cred.keyVersion,
-            updatedByUserId: ctx.userId,
-          })
+        await tx.insert(hotelSupplierCredentials).values({
+          accountId,
+          agencyId: ctx.agencyId,
+          ciphertext: cred.ciphertext,
+          keyVersion: cred.keyVersion,
+          updatedByUserId: ctx.userId,
+        })
       }
       await tx
         .update(hotelSupplierAccounts)

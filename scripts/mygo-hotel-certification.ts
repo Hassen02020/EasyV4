@@ -823,9 +823,7 @@ async function getWalletLedgerEntry(reservationId: string) {
 /* Scenario helpers                                                             */
 /* -------------------------------------------------------------------------- */
 
-async function doSearch(
-  client: MyGoClient,
-): Promise<{
+async function doSearch(client: MyGoClient): Promise<{
   token: string
   hotelId: number
   cityId: number

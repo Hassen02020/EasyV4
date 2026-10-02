@@ -223,9 +223,7 @@ export async function convertRateHawkAmountToTnd(
  * statique hôtels) pour résoudre nom/étoiles/photo par id d'hôtel. Retourne
  * délibérément `null` tant que ce n'est pas fait — jamais un nom inventé.
  */
-async function resolveHotelStaticInfo(
-  _hotelId: string,
-): Promise<{
+async function resolveHotelStaticInfo(_hotelId: string): Promise<{
   name: string
   stars: number | null
   thumbnailUrl: string | null

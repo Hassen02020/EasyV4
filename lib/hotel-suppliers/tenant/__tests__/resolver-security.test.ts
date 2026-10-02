@@ -156,14 +156,12 @@ async function setupFixtures() {
       })
       .returning({ id: hotelSupplierAccounts.id })
     accountOwnedByA = owned!.id
-    await tx
-      .insert(hotelSupplierCredentials)
-      .values({
-        accountId: accountOwnedByA,
-        agencyId: agencyA,
-        ciphertext: cred.ciphertext,
-        keyVersion: cred.keyVersion,
-      })
+    await tx.insert(hotelSupplierCredentials).values({
+      accountId: accountOwnedByA,
+      agencyId: agencyA,
+      ciphertext: cred.ciphertext,
+      keyVersion: cred.keyVersion,
+    })
 
     const [shared] = await tx
       .insert(hotelSupplierAccounts)
@@ -177,14 +175,12 @@ async function setupFixtures() {
       })
       .returning({ id: hotelSupplierAccounts.id })
     accountSharedByA = shared!.id
-    await tx
-      .insert(hotelSupplierCredentials)
-      .values({
-        accountId: accountSharedByA,
-        agencyId: agencyA,
-        ciphertext: cred.ciphertext,
-        keyVersion: cred.keyVersion,
-      })
+    await tx.insert(hotelSupplierCredentials).values({
+      accountId: accountSharedByA,
+      agencyId: agencyA,
+      ciphertext: cred.ciphertext,
+      keyVersion: cred.keyVersion,
+    })
 
     const [disabledShared] = await tx
       .insert(hotelSupplierAccounts)
@@ -198,14 +194,12 @@ async function setupFixtures() {
       })
       .returning({ id: hotelSupplierAccounts.id })
     accountDisabledSharedByA = disabledShared!.id
-    await tx
-      .insert(hotelSupplierCredentials)
-      .values({
-        accountId: accountDisabledSharedByA,
-        agencyId: agencyA,
-        ciphertext: cred.ciphertext,
-        keyVersion: cred.keyVersion,
-      })
+    await tx.insert(hotelSupplierCredentials).values({
+      accountId: accountDisabledSharedByA,
+      agencyId: agencyA,
+      ciphertext: cred.ciphertext,
+      keyVersion: cred.keyVersion,
+    })
   })
 
   await withSystemContext(async (tx) => {
@@ -470,13 +464,11 @@ test("14. Seul super_admin peut écrire dans hotel_suppliers (définitions) — 
   let inserted = false
   try {
     await withTenantContext(ctx.a(), async (tx) => {
-      await tx
-        .insert(hotelSuppliers)
-        .values({
-          code: `HACK_${randomUUID().slice(0, 8)}`,
-          name: "hack",
-          driver: "stub",
-        })
+      await tx.insert(hotelSuppliers).values({
+        code: `HACK_${randomUUID().slice(0, 8)}`,
+        name: "hack",
+        driver: "stub",
+      })
     })
     inserted = true
   } catch {

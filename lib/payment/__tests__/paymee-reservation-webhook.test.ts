@@ -157,14 +157,12 @@ before(async () => {
   if (!dbAvailable) return
   agencyId = randomUUID()
   await withSystemContext(async (tx) => {
-    await tx
-      .insert(agencies)
-      .values({
-        id: agencyId,
-        slug: `pmee-a-${agencyId}`,
-        name: "Paymee Test Agency",
-        agencyType: "ota",
-      })
+    await tx.insert(agencies).values({
+      id: agencyId,
+      slug: `pmee-a-${agencyId}`,
+      name: "Paymee Test Agency",
+      agencyType: "ota",
+    })
     const [c] = await tx
       .insert(customers)
       .values({

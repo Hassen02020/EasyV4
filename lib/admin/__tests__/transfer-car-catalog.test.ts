@@ -116,23 +116,19 @@ before(async () => {
     })
 
     // Catalogue Voitures — agence A seulement, avec un tarif actif + un inactif.
-    await tx
-      .insert(carLocations)
-      .values({
-        id: locationA,
-        agencyId: agencyA,
-        name: "Comptoir Test A",
-        locationType: "airport",
-        city: "Test City",
-      })
-    await tx
-      .insert(carCategories)
-      .values({
-        id: categoryA,
-        agencyId: agencyA,
-        code: `TST-${categoryA.slice(0, 6)}`,
-        name: "Catégorie Test",
-      })
+    await tx.insert(carLocations).values({
+      id: locationA,
+      agencyId: agencyA,
+      name: "Comptoir Test A",
+      locationType: "airport",
+      city: "Test City",
+    })
+    await tx.insert(carCategories).values({
+      id: categoryA,
+      agencyId: agencyA,
+      code: `TST-${categoryA.slice(0, 6)}`,
+      name: "Catégorie Test",
+    })
     await tx.insert(carPricingRates).values([
       {
         agencyId: agencyA,

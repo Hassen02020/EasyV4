@@ -83,9 +83,7 @@ const ADMIN_ROUTES = /^\/admin(\/|$)/
  * (id/brand_name/domain/status) — jamais `deposit_balance`, `matricule_fiscale`
  * ou toute autre colonne agence sensible.
  */
-async function resolveTenantForHost(
-  host: string | null,
-): Promise<{
+async function resolveTenantForHost(host: string | null): Promise<{
   agencyId: string
   domain: string
   brandName: string | null

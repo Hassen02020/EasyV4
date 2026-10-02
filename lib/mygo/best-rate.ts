@@ -21,9 +21,7 @@ export interface BestRateSelection {
   basePrice?: number
 }
 
-function flattenRooms(
-  offer: HotelOfferDTO,
-): {
+function flattenRooms(offer: HotelOfferDTO): {
   boardingName: string
   price: number
   basePrice?: number

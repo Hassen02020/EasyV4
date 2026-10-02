@@ -91,14 +91,12 @@ test("2. destinations_city_has_parent_check rejette un pays avec parent_id", asy
   )
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx
-        .insert(destinations)
-        .values({
-          type: "country",
-          slug: slug("tn-child"),
-          name: "Tunisie enfant",
-          parentId: tn!.id,
-        }),
+      tx.insert(destinations).values({
+        type: "country",
+        slug: slug("tn-child"),
+        name: "Tunisie enfant",
+        parentId: tn!.id,
+      }),
     ),
   )
 })
@@ -137,13 +135,11 @@ test("4. destinations_slug_uniq rejette un slug dupliqué", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx
-        .insert(destinations)
-        .values({
-          type: "country",
-          slug: slug("tunisie"),
-          name: "Tunisie bis",
-        }),
+      tx.insert(destinations).values({
+        type: "country",
+        slug: slug("tunisie"),
+        name: "Tunisie bis",
+      }),
     ),
   )
 })
@@ -152,14 +148,12 @@ test("5. destinations_country_code_uniq rejette un country_code dupliqué (type=
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx
-        .insert(destinations)
-        .values({
-          type: "country",
-          slug: slug("tunisie2"),
-          name: "Tunisie 2",
-          countryCode: FAKE_COUNTRY_CODE,
-        }),
+      tx.insert(destinations).values({
+        type: "country",
+        slug: slug("tunisie2"),
+        name: "Tunisie 2",
+        countryCode: FAKE_COUNTRY_CODE,
+      }),
     ),
   )
 })
@@ -173,13 +167,11 @@ test("6. destination_external_refs_module_external_uniq rejette une correspondan
   )
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx
-        .insert(destinationExternalRefs)
-        .values({
-          destinationId: countryId,
-          module: "mygo_city",
-          externalId: "10",
-        }),
+      tx.insert(destinationExternalRefs).values({
+        destinationId: countryId,
+        module: "mygo_city",
+        externalId: "10",
+      }),
     ),
   )
 })
@@ -188,13 +180,11 @@ test("7. destination_external_refs_module_check rejette un module hors liste fer
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx
-        .insert(destinationExternalRefs)
-        .values({
-          destinationId: cityId,
-          module: "bogus_module",
-          externalId: "99",
-        }),
+      tx.insert(destinationExternalRefs).values({
+        destinationId: cityId,
+        module: "bogus_module",
+        externalId: "99",
+      }),
     ),
   )
 })
@@ -249,13 +239,11 @@ test("11. RLS — une session authentifiée non super_admin ne peut jamais écri
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withTenantContext(nonAdminCtx(), (tx) =>
-      tx
-        .insert(destinations)
-        .values({
-          type: "country",
-          slug: slug("forbidden"),
-          name: "Forbidden",
-        }),
+      tx.insert(destinations).values({
+        type: "country",
+        slug: slug("forbidden"),
+        name: "Forbidden",
+      }),
     ),
   )
 })

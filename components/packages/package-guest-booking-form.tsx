@@ -69,9 +69,7 @@ interface PackageGuestBookingFormProps {
   defaultDepartureId?: string
 }
 
-function getMethods(
-  t: ReturnType<typeof useTranslations>,
-): {
+function getMethods(t: ReturnType<typeof useTranslations>): {
   key: GuestPaymentMethod
   label: string
   desc: string

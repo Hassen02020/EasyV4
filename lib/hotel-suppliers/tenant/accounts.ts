@@ -439,13 +439,11 @@ export async function authorizeAgencyForAccount(
           ),
         )
       if (existing) return
-      await tx
-        .insert(hotelSupplierAuthorizations)
-        .values({
-          accountId,
-          authorizedAgencyId,
-          authorizedByUserId: ctx.userId,
-        })
+      await tx.insert(hotelSupplierAuthorizations).values({
+        accountId,
+        authorizedAgencyId,
+        authorizedByUserId: ctx.userId,
+      })
       await logSupplierAudit(tx, {
         agencyId: ctx.agencyId,
         actorUserId: ctx.userId,

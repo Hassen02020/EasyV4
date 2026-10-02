@@ -47,7 +47,9 @@ export default defineConfig({
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {
-    command: "npm run dev",
+    // CI: build must run first (pnpm build), then start serves the .next dir.
+    // Local: pnpm dev with reuse of an already-running server.
+    command: process.env.CI ? "pnpm start" : "pnpm dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
   },

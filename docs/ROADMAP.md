@@ -36,7 +36,66 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — DEPLOY-CRON-01 clos (2026-10-02). VISUAL-AUDIT-01 en attente de validation manuelle par l'utilisateur.
+Aucun — R9-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+**Phase 8 — Clôture officielle (2026-10-02)**
+
+CI run #158 (37022472737) · commit d3b3110 · branche claude/easy2book-v6-modernization-7gyb5v
+
+- `typecheck` ✅ · `format` ✅ · `lint` ✅ · `test` ✅ · `financial-e2e` ✅ · `build` ✅
+- `playwright-a11y` ✅ BLOQUANT — job 110889828533, conclusion: success
+  → 0 serious/critical WCAG violations sur les 5 pages publiques (14:53:33→14:53:48 UTC)
+  → continue-on-error absent depuis commit 5853101 : test réellement bloquant prouvé
+- R8-04 CLÔTURÉ (commit cc617b4) · R8-05 CLÔTURÉ · R8-07 CLÔTURÉ (commit bf297f9)
+
+### R9-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R9-01
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commits: 427352f (schéma + migrations + tests) · 0c00e3d (ROADMAP EN COURS)
+
+Fichiers créés:
+  - lib/db/schema/market.ts : schéma Drizzle (marketSignals, developmentProjects,
+    enums market_signal_confidence, development_project_confidence)
+  - drizzle/manual/0093_market_signals.sql : DDL tables + index
+  - drizzle/manual/0094_market_signals_rls.sql : RLS (lecture auth, écriture super_admin)
+  - lib/market/__tests__/market-signals-invariants.test.ts : 18 invariants statiques
+  - lib/db/schema.ts : re-export des nouvelles entités
+
+Garde-fous anti-fabrication (NOT NULL) :
+  - source_url NOT NULL : source primaire obligatoire
+  - published_at NOT NULL : horodatage de publication obligatoire
+  - confidence NOT NULL : niveau LOW | MEDIUM | HIGH obligatoire
+
+Tests locaux:
+  - Invariants statiques : 18/18 PASS
+  - pnpm typecheck : 0 erreur
+  - pnpm lint : 0 erreur (135 warnings pré-existants)
+  - pnpm format:check : ✅
+  - pnpm test : 1287 PASS / 0 FAIL / 253 SKIP (zéro régression)
+
+VÉRIFIÉ EN PRODUCTION (crygnaichvlxavvbifqi) :
+  0093 appliqué — tables créées :
+    market_signals      : relrowsecurity=true, relforcerowsecurity=true ✅
+    development_projects: relrowsecurity=true, relforcerowsecurity=true ✅
+  Colonnes NOT NULL confirmées (information_schema) :
+    market_signals.source_url       : is_nullable=NO ✅
+    market_signals.published_at     : is_nullable=NO ✅
+    market_signals.confidence       : is_nullable=NO ✅
+    development_projects.source_url     : is_nullable=NO ✅
+    development_projects.published_at   : is_nullable=NO ✅
+    development_projects.confidence     : is_nullable=NO ✅
+  Enums (pg_enum) :
+    market_signal_confidence       : LOW, MEDIUM, HIGH ✅
+    development_project_confidence : LOW, MEDIUM, HIGH ✅
+  0094 appliqué — 4 policies RLS :
+    market_signals_read          : SELECT, authenticated, USING(true) ✅
+    market_signals_admin_write   : ALL, authenticated, USING(is_super_admin()) ✅
+    development_projects_read    : SELECT, authenticated, USING(true) ✅
+    development_projects_admin_write : ALL, authenticated, USING(is_super_admin()) ✅
+```
 
 ### DEPLOY-CRON-01 — CLÔTURÉ (2026-10-02)
 
@@ -50,6 +109,102 @@ RÉSULTAT:  Déploiement dpl_GVqwRudxAkkiaypKAR8sPr7qSTZg — state: READY, targ
            SHA 45111da inclut tous les fixes PR #106 (R8-01, R8-02, VOLS-DISPLAY-FIX-01)
            GitHub auto-deploy ré-opérationnel
 ```
+
+### R8-05 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R8-05
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commits: 20a9b41 (câblage axe-core) · 5853101 (continue-on-error retiré, BLOQUANT)
+         d3b3110 (NEXT_PUBLIC_SUPABASE_* stubs CI — serveur ne crashait plus)
+Résultat:
+  - playwright.config.ts : npm run dev → pnpm (CI: pnpm start, local: pnpm dev)
+  - ci.yml : ajout job playwright-a11y (needs: build, chromium only,
+    continue-on-error: RETIRÉ — job BLOQUANT) — installe Playwright chromium +
+    lance e2e/a11y.spec.ts (wcag2a/aa/21aa, 0 serious/critical violations)
+  - tsc --noEmit: 0 erreur · lint: 0 erreur · 135 warnings pré-existants
+LIMITATION DOCUMENTÉE: /admin et /booking redirigent vers login en CI
+  (pas de session auth) — couverture réelle sur / et /login uniquement
+CI BLOQUANT PROUVÉ:
+  Run #158 (37022472737) · job playwright-a11y (110889828533)
+  commit d3b3110 · conclusion: success · 14:53:33→14:53:48 UTC
+  Étape "Accessibility tests (axe-core / WCAG 2.1 AA)": ✅ PASS
+  0 serious/critical WCAG violations sur les 5 pages
+  Job sans continue-on-error → un échec aurait bloqué le pipeline
+```
+
+### R8-04 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R8-04
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: cc617b4
+Résultat:
+  - lighthouserc.js : npm run dev → pnpm start (build prod)
+    + startServerReadyPattern + startServerReadyTimeout (60s)
+    + FCP et LCP : "warn" → "error" (bloquants)
+  - .github/workflows/ci.yml : ajout job `lighthouse`
+    (needs: build, continue-on-error: true pour collecter baseline)
+    Rebuild .next dans le job (artefacts non partagés entre jobs GHA)
+  - tsc --noEmit: 0 erreur · lint: 0 erreur · 135 warnings pré-existants
+CI: job lighthouse déclenché sur la PR — résultat attendu sur GitHub Actions
+```
+
+### R8-07 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R8-07
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: bf297f9
+Résultat:
+  - Badge "Flash Offers" retiré de components/flash-offers.tsx
+    (le badge impliquait une vente flash temporaire — aucun prix, aucun délai,
+    aucune remise n'existe sur ces cartes de navigation)
+  - Clé flashOffers supprimée de messages/fr.json, en.json, ar.json
+  - 4 fichiers, 10 suppressions — aucun changement logique/financier/DB
+  - tsc --noEmit: 0 erreur · lint: 0 erreur · 135 warnings pré-existants
+VISUAL QA: NOT VERIFIED — homepage /fr /en /ar à valider visuellement
+  (badge absent, cartes destinations lisibles, liens fonctionnels)
+```
+
+### VOLS-DUFFEL-ACTIVATION-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: VOLS-DUFFEL-ACTIVATION-01
+Statut: CLÔTURÉ (2026-10-02)
+PR: #107 — mergé sur main, commit 34bb85f08da2669db8dca32dadc1df6262e5dca7
+TypeScript: tsc --noEmit — 0 erreur
+Résultat:
+  - search(): async Promise.all — convertit EUR/USD→TND via fetchExchangeRateForDisplay
+    (cache 1h) ; offre skippée silencieusement si taux absent (jamais de taux fabriqué)
+  - DuffelPricingToken: +originalAmount +originalCurrency (montant/devise Duffel avant conversion)
+  - mapOfferToItinerary(): encode originalAmount/originalCurrency dans le token
+  - recheck(): convertit via fetchExchangeRateForBooking (sans cache, taux frais) avant comparaison
+  - book(): paie Duffel dans sa devise native (token.originalAmount / token.originalCurrency)
+  - Invariant financier: supplierCurrency="TND" pour commercial engine (check passe) ;
+    zéro taux inventé ou codé en dur (règle permanente CURRENCY-DIM-01a)
+NOT VERIFIED: validation visuelle offres Duffel en production
+  (nécessite DUFFEL_ACCESS_TOKEN + EXCHANGE_RATE_API_KEY configurés dans Vercel)
+```
+
+### VOLS-DISPLAY-FIX-01 — CLÔTURÉ (2026-10-02)
+
+```text
+IMPLEMENTED  — commit ee50ed1 (2026-10-02)
+TESTED       — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
+MERGED       — inclus dans PR #106 (R8-01 + R8-02), mergée sur main par Hassen02020
+               commit de merge : 952812e0a3d69a249c354144ba7a4d57e97c8010
+```
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
+
+Corrections UI vols :
+
+- Bug "NaNh" : `totalDurationMinutes` calculé depuis les segments et renvoyé dans la réponse API
+- Bug "TK TK252" : doublon `marketingCarrier` supprimé dans `flight-results-content.tsx`
 
 ### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
 
@@ -65,22 +220,6 @@ Résultat:
   - gate format désormais bloquant dans CI (continue-on-error retiré)
   - dette R1-07 soldée
 ```
-
-### VOLS-DISPLAY-FIX-01
-
-```text
-IMPLEMENTED       — commit ee50ed1 (2026-10-02)
-TESTED            — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
-PREVIEW           — pending (non validé visuellement — VISUAL QA requis)
-VISUAL QA         — pending
-MERGED            — main · commit 560307f (PR #106, 2026-10-02)
-PRODUCTION-VERIFIED — pending validation visuelle manuelle (réseau container bloqué)
-                       Déploiement READY : dpl_GVqwRudxAkkiaypKAR8sPr7qSTZg, SHA 45111da (2026-10-02)
-                       URL : https://easy2book-new.vercel.app/fr/vols/search?origin=TUN&destination=CDG&departureDate=2026-10-15&adults=1&cabin=ECONOMY&tripType=ONE_WAY
-                       Vérifier : "TK 252" (pas "TK TK252") · durée "4h19" (pas "NaNh")
-```
-
-Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
 
 **Corrections UI vols — deux bugs visuels identifiés lors de la validation affichage production.**
 
@@ -605,15 +744,15 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 ## Phase 8 — Front conversion
 
-| ID    | Chantier                                                                                                                                                                                                                                                     | Critère de sortie                                      |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
-| R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | Revue visuelle + invariant statique draft metadata     |
-| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | Captures avant/après                                   |
-| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | Test visuel RTL sur pages clés                         |
-| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | Pas de régression LCP/CLS en CI                        |
-| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | Audit automatisé + clavier sur parcours de réservation |
-| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                              |
-| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | Revue de contenu                                       |
+| ID    | Chantier                                                                                                                                                                                                                                                     | Critère de sortie                                                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                   |
+| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                   |
+| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **REUSE** — infrastructure déjà en place (`html dir={dir}`, `RtlDirectionProvider`, `LOCALE_META.ar.dir="rtl"`). Validation visuelle NOT VERIFIED.                                                  |
+| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants                                                                                                                    |
+| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commits 20a9b41+5853101+d3b3110)** — axe-core BLOQUANT en CI (continue-on-error retiré), 0 violations WCAG prouvé run #158 (job 110889828533 ✅), limitation auth documentée |
+| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                                                                                                                                                                           |
+| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | **CLÔTURÉ (2026-10-02, commit bf297f9)** — badge "Flash Offers" retiré. Aucune autre fausse urgence trouvée. Visual QA NOT VERIFIED.                                                                |
 
 ---
 

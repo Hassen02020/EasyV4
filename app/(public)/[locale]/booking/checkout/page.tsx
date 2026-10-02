@@ -189,7 +189,9 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
                 </CardContent>
               </Card>
 
-              <Suspense fallback={<Skeleton className="h-48 w-full rounded-2xl" />}>
+              <Suspense
+                fallback={<Skeleton className="h-48 w-full rounded-2xl" />}
+              >
                 <CheckoutForm token={token!} />
               </Suspense>
             </div>

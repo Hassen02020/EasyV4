@@ -28,6 +28,7 @@ function optionalText(value: string, max: number): string | null {
 
 export async function savePublicSiteSettings(formData: FormData) {
   const ctx = await assertProductManager()
+  const logoUrl = optionalUrl(clean(formData.get("logoUrl")))
   const heroImageUrl = optionalUrl(clean(formData.get("heroImageUrl")))
   const facebookUrl = optionalUrl(clean(formData.get("facebookUrl")))
   const instagramUrl = optionalUrl(clean(formData.get("instagramUrl")))
@@ -46,6 +47,7 @@ export async function savePublicSiteSettings(formData: FormData) {
       await tx
         .update(agencies)
         .set({
+          logoUrl,
           contactEmail: optionalText(contactEmail, 320),
           contactPhone: optionalText(contactPhone, 32),
           address: optionalText(address, 2000),

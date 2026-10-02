@@ -185,6 +185,11 @@ export async function GET(req: NextRequest) {
           provider: itinerary.provider.provider,
           // G7: ancillary catalog for this offer — client sends back only ancillaryIds
           ancillaries: itinerary.ancillaries ?? [],
+          totalDurationMinutes: itinerary.journeys.reduce(
+            (sum, j) =>
+              sum + j.segments.reduce((s, seg) => s + seg.durationMinutes, 0),
+            0,
+          ),
         }
       } catch (err) {
         console.error("[vols/search] Failed to create snapshot:", err)

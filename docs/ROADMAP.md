@@ -36,7 +36,39 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R9-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — R9-02 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### R9-02 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R9-02
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/r9-02-market-signals-ui
+Commit: 51bda0b
+
+Fichiers créés/modifiés:
+  - lib/market/queries.ts : getLatestMarketSignals(limit, db?)
+    ORDER BY published_at DESC · SIGNALS_PAGE_SIZE = 6 (constante nommée)
+    dependency injection pour testabilité
+  - components/market-signals-section.tsx : Server Component async
+    badge confidence i18n · date publiée · titre · résumé · lien source
+    return null si table vide (section invisible sans données)
+  - messages/fr.json, en.json, ar.json : clé MarketSignals
+    (heading · source · confidence LOW/MEDIUM/HIGH) — zéro texte en dur JSX
+  - app/(public)/[locale]/page.tsx : <MarketSignalsSection /> après OmratySection
+
+Tests:
+  - lib/market/__tests__/market-signals-queries.test.ts : 5 tests
+    (SIGNALS_PAGE_SIZE=6, vide→[], limite défaut, limite explicite, rows<limit)
+  - pnpm test : 1292 PASS / 0 FAIL / 253 SKIP
+  - pnpm typecheck : 0 erreur
+  - pnpm lint : 0 erreur (135 warnings pré-existants)
+  - pnpm format:check : ✅
+
+VISUAL QA: NOT VERIFIED — section visible uniquement si des lignes
+  existent dans market_signals (table vide en prod actuellement)
+  À valider après insertion manuelle d'un signal de test.
+```
 
 **Phase 8 — Clôture officielle (2026-10-02)**
 

@@ -1,6 +1,7 @@
 import { Building2, MapPin, ExternalLink } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 import { getLatestDevelopmentProjects } from "@/lib/market/development-projects-queries"
+import { WaitlistButton } from "@/components/waitlist-button"
 import type { DevelopmentProject } from "@/lib/db/schema"
 
 const CONFIDENCE_CLASSES: Record<DevelopmentProject["confidence"], string> = {
@@ -67,11 +68,8 @@ export async function DevelopmentProjectsSection() {
                 </p>
               )}
 
-              {/* JAMAIS de CTA réservation — projet non encore réservable (R9-03) */}
               <div className="mt-auto flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-violet-600 dark:text-violet-400">
-                  {t("notBookable")}
-                </p>
+                <WaitlistButton projectId={project.id} />
                 <a
                   href={project.sourceUrl}
                   target="_blank"

@@ -20,6 +20,8 @@ interface HeaderProps {
   brandName?: string | null
   /** Logo d'agence White Label ; absent = logo Easy2Book par défaut. */
   logoUrl?: string | null
+  /** Téléphone de contact résolu depuis la BDD par HeaderWrapper ; absent = lien désactivé. */
+  contactPhone?: string | null
 }
 
 export function Header({
@@ -27,6 +29,7 @@ export function Header({
   isLoggedIn,
   brandName,
   logoUrl,
+  contactPhone,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [loggedIn, setLoggedIn] = useState(!!isLoggedIn)
@@ -94,17 +97,19 @@ export function Header({
 
             <CurrencySwitcher variant="desktop" />
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-sm font-medium"
-              asChild
-            >
-              <Link href="tel:+21698140514">
-                <HelpCircle className="size-4" />
-                {t("help")}
-              </Link>
-            </Button>
+            {contactPhone && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-sm font-medium"
+                asChild
+              >
+                <Link href={`tel:${contactPhone.startsWith("+") ? "" : "+"}${contactPhone}`}>
+                  <HelpCircle className="size-4" />
+                  {t("help")}
+                </Link>
+              </Button>
+            )}
 
             <Link
               href="/bookings"
@@ -152,14 +157,16 @@ export function Header({
           <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4">
             <LanguageSwitcher currentLocale={currentLocale} variant="mobile" />
             <CurrencySwitcher variant="mobile" />
-            <Link
-              href="tel:+21698140514"
-              className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <HelpCircle className="text-sidebar size-5" />
-              <span>{t("help")}</span>
-            </Link>
+            {contactPhone && (
+              <Link
+                href={`tel:${contactPhone.startsWith("+") ? "" : "+"}${contactPhone}`}
+                className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <HelpCircle className="text-sidebar size-5" />
+                <span>{t("help")}</span>
+              </Link>
+            )}
             <Link
               href="/bookings"
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"

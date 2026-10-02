@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { omraAllotments, omraPackages } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getSiteContactInfo } from "@/lib/tenant/site-config"
 import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 import { ProductReviewsSection } from "@/components/reviews/product-reviews-section"
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
@@ -46,9 +47,6 @@ import { getProductMedia } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 const PACKAGE_TYPE_KEYS = new Set(["omra", "hajj", "ramadan", "umrah_plus"])
-
-const CONTACT_PHONE = "+21698140514"
-const CONTACT_PHONE_DISPLAY = "+216 98 140 514"
 
 function formatDate(d: string | Date | null): string {
   if (!d) return "—"
@@ -136,9 +134,16 @@ export default async function OmraPackageDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const result = await getPackageWithDepartures(id)
+  const [result, contact] = await Promise.all([
+    getPackageWithDepartures(id),
+    getSiteContactInfo(),
+  ])
   if (!result) notFound()
   const { pkg, departures, media } = result
+  const contactPhone = contact?.contactPhone ?? null
+  const waNumber =
+    contact?.whatsappNumber ||
+    (contactPhone ? contactPhone.replace("+", "") : null)
   const t = await getTranslations("Omra")
 
   const label = PACKAGE_TYPE_KEYS.has(pkg.type)
@@ -319,38 +324,44 @@ export default async function OmraPackageDetailPage({
                   >
                     <Link href={`/omra/${pkg.id}/book`}>{t("bookOnline")}</Link>
                   </Button>
-                  <p className="text-muted-foreground mt-2 text-center text-xs">
-                    {t("contactAdvisorPrefix")}{" "}
-                    <a
-                      href={`tel:${CONTACT_PHONE}`}
-                      className="font-medium text-emerald-700"
-                    >
-                      {CONTACT_PHONE_DISPLAY}
-                    </a>
-                  </p>
+                  {contactPhone && (
+                    <p className="text-muted-foreground mt-2 text-center text-xs">
+                      {t("contactAdvisorPrefix")}{" "}
+                      <a
+                        href={`tel:${contactPhone}`}
+                        className="font-medium text-emerald-700"
+                      >
+                        {contactPhone}
+                      </a>
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
-                  <Button
-                    asChild
-                    className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800"
-                  >
-                    <a
-                      href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}
+                  {waNumber && (
+                    <Button
+                      asChild
+                      className="w-full gap-2 bg-emerald-700 hover:bg-emerald-800"
                     >
-                      <Phone className="h-4 w-4" />
-                      {t("contactAdvisor")}
-                    </a>
-                  </Button>
-                  <p className="text-muted-foreground mt-2 text-center text-xs">
-                    {t("orCallUs")}{" "}
-                    <a
-                      href={`tel:${CONTACT_PHONE}`}
-                      className="font-medium text-emerald-700"
-                    >
-                      {CONTACT_PHONE_DISPLAY}
-                    </a>
-                  </p>
+                      <a
+                        href={`https://wa.me/${waNumber}?text=${contactMessage}`}
+                      >
+                        <Phone className="h-4 w-4" />
+                        {t("contactAdvisor")}
+                      </a>
+                    </Button>
+                  )}
+                  {contactPhone && (
+                    <p className="text-muted-foreground mt-2 text-center text-xs">
+                      {t("orCallUs")}{" "}
+                      <a
+                        href={`tel:${contactPhone}`}
+                        className="font-medium text-emerald-700"
+                      >
+                        {contactPhone}
+                      </a>
+                    </p>
+                  )}
                 </>
               )}
               <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">

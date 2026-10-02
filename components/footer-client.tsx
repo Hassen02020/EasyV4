@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { Link } from "@/i18n/navigation"
 import {
   ShieldCheck,
@@ -42,32 +43,58 @@ function TikTokIcon({ className }: { className?: string }) {
   )
 }
 
-const socialLinks = [
-  {
-    icon: Facebook,
-    href: "https://www.facebook.com/Easy2Bookplateforme",
-    label: "Facebook",
-  },
-  {
-    icon: Instagram,
-    href: "https://www.instagram.com/easy2book.2025",
-    label: "Instagram",
-  },
-  { icon: TikTokIcon, href: "https://tiktok.com/@easy2book", label: "TikTok" },
-]
-
 interface FooterClientProps {
   /** Logo d'agence White Label résolu côté serveur par components/footer.tsx (proxy.ts → getRequestTenantInfo()) ; absent = logo Easy2Book par défaut. */
   logoUrl?: string | null
   /** Nom d'agence White Label ; absent = branding Easy2Book par défaut. */
   brandName?: string | null
+  /** Téléphone de contact — résolu depuis la BDD. */
+  contactPhone?: string | null
+  /** Numéro WhatsApp (format international sans +, ex. "21698140514"). */
+  whatsappNumber?: string | null
+  /** URL page Facebook de l'agence. */
+  facebookUrl?: string | null
+  /** URL profil Instagram de l'agence. */
+  instagramUrl?: string | null
+  /** URL profil TikTok de l'agence. */
+  tiktokUrl?: string | null
+  /** Adresse physique de l'agence. */
+  address?: string | null
 }
 
-export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
+export function FooterClient({
+  logoUrl,
+  brandName,
+  contactPhone,
+  whatsappNumber,
+  facebookUrl,
+  instagramUrl,
+  tiktokUrl,
+  address,
+}: FooterClientProps) {
   const t = useTranslations("Common")
   const copyrightText = brandName
     ? t("copyright").replace("Easy2Book", brandName)
     : t("copyright")
+
+  // Liens réseaux sociaux — uniquement ceux configurés dans la BDD
+  const socialLinks = [
+    facebookUrl && { icon: Facebook, href: facebookUrl, label: "Facebook" },
+    instagramUrl && {
+      icon: Instagram,
+      href: instagramUrl,
+      label: "Instagram",
+    },
+    tiktokUrl && { icon: TikTokIcon, href: tiktokUrl, label: "TikTok" },
+  ].filter(Boolean) as { icon: React.ElementType; href: string; label: string }[]
+
+  // Numéro formaté pour affichage (téléphone)
+  const formattedPhone = contactPhone
+    ? contactPhone.startsWith("+")
+      ? contactPhone
+      : `+${contactPhone}`
+    : null
+
   const trustBadges = [
     {
       icon: trustBadgeIcons[0],
@@ -77,7 +104,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
     {
       icon: trustBadgeIcons[1],
       title: t("supportLocal"),
-      description: "+216 98 140 514",
+      description: formattedPhone ?? "—",
     },
     {
       icon: trustBadgeIcons[2],
@@ -156,24 +183,26 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
               <p className="max-w-xs text-sm text-white/70">
                 {t("footerTagline")}
               </p>
-              {/* Social Links */}
-              <div className="flex items-center gap-3 pt-2">
-                {socialLinks.map((social, index) => {
-                  const Icon = social.icon
-                  return (
-                    <a
-                      key={index}
-                      href={social.href}
-                      aria-label={social.label}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:bg-accent flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors"
-                    >
-                      <Icon className="size-4" />
-                    </a>
-                  )
-                })}
-              </div>
+              {/* Social Links — affichés uniquement si configurés dans la BDD */}
+              {socialLinks.length > 0 && (
+                <div className="flex items-center gap-3 pt-2">
+                  {socialLinks.map((social, index) => {
+                    const Icon = social.icon
+                    return (
+                      <a
+                        key={index}
+                        href={social.href}
+                        aria-label={social.label}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:bg-accent flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors"
+                      >
+                        <Icon className="size-4" />
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Quick Links */}
@@ -206,30 +235,36 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
             <div className="space-y-4">
               <h4 className="text-accent font-semibold">Contact</h4>
               <ul className="space-y-3 text-sm text-white/70">
-                <li className="flex items-center gap-2">
-                  <Phone className="text-accent size-4" />
-                  <a
-                    href="tel:+21698140514"
-                    className="font-medium transition-colors hover:text-white"
-                  >
-                    +216 98 140 514
-                  </a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <WhatsAppIcon className="text-accent size-4" />
-                  <a
-                    href="https://wa.me/21698140514"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium transition-colors hover:text-white"
-                  >
-                    WhatsApp Business
-                  </a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Building2 className="text-accent size-4" />
-                  <span>Tunis, Tunisie</span>
-                </li>
+                {formattedPhone && (
+                  <li className="flex items-center gap-2">
+                    <Phone className="text-accent size-4" />
+                    <a
+                      href={`tel:${formattedPhone}`}
+                      className="font-medium transition-colors hover:text-white"
+                    >
+                      {formattedPhone}
+                    </a>
+                  </li>
+                )}
+                {whatsappNumber && (
+                  <li className="flex items-center gap-2">
+                    <WhatsAppIcon className="text-accent size-4" />
+                    <a
+                      href={`https://wa.me/${whatsappNumber.replace(/^\+/, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium transition-colors hover:text-white"
+                    >
+                      WhatsApp Business
+                    </a>
+                  </li>
+                )}
+                {address && (
+                  <li className="flex items-center gap-2">
+                    <Building2 className="text-accent size-4" />
+                    <span>{address}</span>
+                  </li>
+                )}
               </ul>
             </div>
           </div>

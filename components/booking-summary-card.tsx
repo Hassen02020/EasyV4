@@ -213,9 +213,11 @@ interface BookingCardProps {
     rating: number,
     comment: string,
   ) => Promise<{ ok: boolean; error?: string }>
+  /** Téléphone de support résolu depuis la BDD ; absent = lien désactivé. */
+  supportPhone?: string | null
 }
 
-export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
+export function BookingCard({ booking, onCancel, onReview, supportPhone }: BookingCardProps) {
   const t = useTranslations("Common")
   const locale = useLocale()
   const MODULE_LABELS: Record<string, string> = {
@@ -754,14 +756,17 @@ export function BookingCard({ booking, onCancel, onReview }: BookingCardProps) {
           (booking.status === "pending" || booking.status === "on_request") && (
             <p className="text-muted-foreground text-xs">
               {t.rich("cancelSoonAvailableNotice", {
-                phoneLink: (chunks) => (
-                  <a
-                    href="tel:+21698140514"
-                    className="text-primary hover:underline"
-                  >
-                    {chunks}
-                  </a>
-                ),
+                phoneLink: (chunks) =>
+                  supportPhone ? (
+                    <a
+                      href={`tel:${supportPhone.startsWith("+") ? "" : "+"}${supportPhone}`}
+                      className="text-primary hover:underline"
+                    >
+                      {chunks}
+                    </a>
+                  ) : (
+                    <span>{chunks}</span>
+                  ),
               })}
             </p>
           )}

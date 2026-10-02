@@ -26,8 +26,10 @@ const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
 
 export function CompteReservationList({
   bookings,
+  supportPhone,
 }: {
   bookings: BookingSummary[]
+  supportPhone?: string | null
 }) {
   const router = useRouter()
 
@@ -75,6 +77,7 @@ export function CompteReservationList({
             booking={booking}
             onCancel={(id) => handleCancel(id, booking.module)}
             onReview={handleReview}
+            supportPhone={supportPhone}
           />
         </div>
       ))}

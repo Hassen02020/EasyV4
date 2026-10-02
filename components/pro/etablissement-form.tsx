@@ -14,6 +14,7 @@ import {
   EyeOff,
   Save,
   Loader2,
+  Link2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -43,6 +44,10 @@ export type EtablissementInitial = {
   defaultLanguage: string
   defaultCurrency: string
   maskCredit: boolean
+  whatsappNumber: string
+  facebookUrl: string
+  instagramUrl: string
+  tiktokUrl: string
 }
 
 /** Format Tunisien attendu : XXXXXXXX/X/X/XXX */
@@ -86,6 +91,13 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
       next.matriculeFiscale = "Format attendu : 1399210Z/A/M/002"
     if (state.primaryColor && !HEX_COLOR_REGEX.test(state.primaryColor.trim()))
       next.primaryColor = "Format attendu : #RRGGBB"
+    const URL_RE = /^https?:\/\/.+/
+    if (state.facebookUrl && !URL_RE.test(state.facebookUrl.trim()))
+      next.facebookUrl = "URL invalide (doit commencer par https://)"
+    if (state.instagramUrl && !URL_RE.test(state.instagramUrl.trim()))
+      next.instagramUrl = "URL invalide (doit commencer par https://)"
+    if (state.tiktokUrl && !URL_RE.test(state.tiktokUrl.trim()))
+      next.tiktokUrl = "URL invalide (doit commencer par https://)"
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -166,6 +178,38 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
             placeholder="Rue, code postal, ville"
           />
         </div>
+        <Field
+          icon={Phone}
+          label="WhatsApp (numéro international)"
+          value={state.whatsappNumber}
+          onChange={(v) => update("whatsappNumber", v)}
+          placeholder="21698140514"
+          hint="Format international sans +, ex. 21698140514"
+        />
+        <Field
+          icon={Link2}
+          label="Facebook (URL)"
+          value={state.facebookUrl}
+          onChange={(v) => update("facebookUrl", v)}
+          placeholder="https://www.facebook.com/…"
+          error={errors.facebookUrl}
+        />
+        <Field
+          icon={Link2}
+          label="Instagram (URL)"
+          value={state.instagramUrl}
+          onChange={(v) => update("instagramUrl", v)}
+          placeholder="https://www.instagram.com/…"
+          error={errors.instagramUrl}
+        />
+        <Field
+          icon={Link2}
+          label="TikTok (URL)"
+          value={state.tiktokUrl}
+          onChange={(v) => update("tiktokUrl", v)}
+          placeholder="https://tiktok.com/@…"
+          error={errors.tiktokUrl}
+        />
         <Field
           icon={Building2}
           label="Logo (URL)"

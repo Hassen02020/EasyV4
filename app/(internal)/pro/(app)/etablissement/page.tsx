@@ -21,6 +21,10 @@ const FALLBACK = {
   defaultLanguage: "fr",
   defaultCurrency: "TND",
   maskCredit: false,
+  whatsappNumber: "",
+  facebookUrl: "",
+  instagramUrl: "",
+  tiktokUrl: "",
 }
 
 export default async function ProEtablissementPage() {
@@ -47,6 +51,10 @@ export default async function ProEtablissementPage() {
           defaultLanguage: profile.agency.defaultLanguage,
           defaultCurrency: profile.agency.defaultCurrency,
           maskCredit: profile.agency.maskCredit,
+          whatsappNumber: profile.agency.whatsappNumber ?? "",
+          facebookUrl: profile.agency.facebookUrl ?? "",
+          instagramUrl: profile.agency.instagramUrl ?? "",
+          tiktokUrl: profile.agency.tiktokUrl ?? "",
         }
       }
     }

@@ -45,9 +45,7 @@ import { ProductReviewsSection } from "@/components/reviews/product-reviews-sect
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
-
-const CONTACT_PHONE = "+21698140514"
-const CONTACT_PHONE_DISPLAY = "+216 98 140 514"
+import { getSiteContactInfo } from "@/lib/tenant/site-config"
 
 function formatDate(d: string | Date | null): string {
   if (!d) return "—"
@@ -164,9 +162,16 @@ export default async function PackageDetailPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const result = await getPackageWithDepartures(slug)
+  const [result, contact] = await Promise.all([
+    getPackageWithDepartures(slug),
+    getSiteContactInfo(),
+  ])
   if (!result) notFound()
   const { pkg, departures, media } = result
+  const contactPhone = contact?.contactPhone ?? null
+  const waNumber =
+    contact?.whatsappNumber ||
+    (contactPhone ? contactPhone.replace("+", "") : null)
   const t = await getTranslations("Packages")
 
   const itinerary = parseItinerary(pkg.itinerary)
@@ -410,38 +415,44 @@ export default async function PackageDetailPage({
                       {t("bookOnline")}
                     </Link>
                   </Button>
-                  <p className="text-muted-foreground mt-2 text-center text-xs">
-                    {t("contactAdvisorPrefix")}{" "}
-                    <a
-                      href={`tel:${CONTACT_PHONE}`}
-                      className="font-medium text-violet-700"
-                    >
-                      {CONTACT_PHONE_DISPLAY}
-                    </a>
-                  </p>
+                  {contactPhone && (
+                    <p className="text-muted-foreground mt-2 text-center text-xs">
+                      {t("contactAdvisorPrefix")}{" "}
+                      <a
+                        href={`tel:${contactPhone}`}
+                        className="font-medium text-violet-700"
+                      >
+                        {contactPhone}
+                      </a>
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
-                  <Button
-                    asChild
-                    className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
-                  >
-                    <a
-                      href={`https://wa.me/${CONTACT_PHONE.replace("+", "")}?text=${contactMessage}`}
+                  {waNumber && (
+                    <Button
+                      asChild
+                      className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
                     >
-                      <Phone className="h-4 w-4" />
-                      {t("contactAdvisor")}
-                    </a>
-                  </Button>
-                  <p className="text-muted-foreground mt-2 text-center text-xs">
-                    {t("orCallUs")}{" "}
-                    <a
-                      href={`tel:${CONTACT_PHONE}`}
-                      className="font-medium text-violet-700"
-                    >
-                      {CONTACT_PHONE_DISPLAY}
-                    </a>
-                  </p>
+                      <a
+                        href={`https://wa.me/${waNumber}?text=${contactMessage}`}
+                      >
+                        <Phone className="h-4 w-4" />
+                        {t("contactAdvisor")}
+                      </a>
+                    </Button>
+                  )}
+                  {contactPhone && (
+                    <p className="text-muted-foreground mt-2 text-center text-xs">
+                      {t("orCallUs")}{" "}
+                      <a
+                        href={`tel:${contactPhone}`}
+                        className="font-medium text-violet-700"
+                      >
+                        {contactPhone}
+                      </a>
+                    </p>
+                  )}
                 </>
               )}
             </div>

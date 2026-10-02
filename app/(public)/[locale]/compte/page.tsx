@@ -13,6 +13,8 @@ import { listMyReservations } from "@/app/actions/list-my-reservations"
 import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
 import { getMyLoyaltyHistory } from "@/app/actions/get-my-loyalty-history"
 import { listMyFavorites } from "@/app/actions/list-my-favorites"
+import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
+import { getSiteContactInfo } from "@/lib/tenant/site-config"
 import { CompteReservationList } from "@/components/compte/compte-reservation-list"
 import { CompteLoyaltyCard } from "@/components/compte/compte-loyalty-card"
 import { CompteFavoritesCard } from "@/components/compte/compte-favorites-card"
@@ -48,12 +50,15 @@ export default async function ComptePage() {
   const t = await getTranslations("Compte")
   const tc = await getTranslations("Common")
 
-  const [result, loyalty, loyaltyHistory, favorites] = await Promise.all([
-    listMyReservations(),
-    getMyLoyaltySummary(),
-    getMyLoyaltyHistory(),
-    listMyFavorites(),
-  ])
+  const tenant = await getRequestTenantInfo()
+  const [result, loyalty, loyaltyHistory, favorites, contact] =
+    await Promise.all([
+      listMyReservations(),
+      getMyLoyaltySummary(),
+      getMyLoyaltyHistory(),
+      listMyFavorites(),
+      getSiteContactInfo(tenant?.agencyId ?? null),
+    ])
 
   const NON_REDEEMABLE_STATUSES = new Set(["cancelled", "refunded", "expired"])
   const eligibleReservations = result.ok
@@ -219,7 +224,10 @@ export default async function ComptePage() {
             </Link>
           </div>
         ) : (
-          <CompteReservationList bookings={result.bookings} />
+          <CompteReservationList
+            bookings={result.bookings}
+            supportPhone={contact?.contactPhone ?? null}
+          />
         )}
       </div>
     </div>

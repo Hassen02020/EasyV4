@@ -12,7 +12,6 @@ export const publicSiteSettings = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     agencyId: uuid("agency_id")
-      .notNull()
       .notNull(),
     heroImageUrl: text("hero_image_url"),
     facebookUrl: text("facebook_url"),
@@ -33,8 +32,7 @@ export const publicModuleVisuals = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     agencyId: uuid("agency_id")
-      .notNull()
-      .references(() => agencies.id, { onDelete: "cascade" }),
+      .notNull(),
     moduleSlug: varchar("module_slug", { length: 64 }).notNull(),
     enabled: boolean("enabled").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),

@@ -53,7 +53,7 @@ export default function BookingsPage() {
           <Link href="/" className="flex items-center gap-2">
             <Easy2BookLogo
               withWordmark={false}
-              className="size-9 bg-gray-100"
+              className="size-9 bg-muted"
               priority
             />
             <span className="text-base font-bold">

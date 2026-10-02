@@ -223,7 +223,7 @@ export default async function AccountingPage() {
                             <Badge
                               className={
                                 PAYMENT_METHODS[payment.method]?.color ||
-                                "bg-gray-100"
+                                "bg-muted"
                               }
                             >
                               {PAYMENT_METHODS[payment.method]?.label ||
@@ -233,13 +233,13 @@ export default async function AccountingPage() {
                           <TableCell>
                             <Badge
                               className={
-                                STATUS_COLORS[payment.status] || "bg-gray-100"
+                                STATUS_COLORS[payment.status] || "bg-muted"
                               }
                             >
                               {payment.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-gray-500">
+                          <TableCell className="text-sm text-muted-foreground">
                             {payment.capturedAt
                               ? new Date(payment.capturedAt).toLocaleDateString(
                                   "fr-FR",
@@ -299,13 +299,13 @@ export default async function AccountingPage() {
                           <TableCell>
                             <Badge
                               className={
-                                STATUS_COLORS[invoice.status] || "bg-gray-100"
+                                STATUS_COLORS[invoice.status] || "bg-muted"
                               }
                             >
                               {invoice.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-gray-500">
+                          <TableCell className="text-sm text-muted-foreground">
                             {invoice.validationDate ?? "—"}
                           </TableCell>
                         </TableRow>

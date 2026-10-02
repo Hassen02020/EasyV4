@@ -133,7 +133,7 @@ const columns: ColumnDef<FinanceMovementRow>[] = [
     cell: ({ row }) => {
       const meta = MOVEMENT_META[row.original.movementType] ?? {
         label: row.original.movementType,
-        className: "border-gray-300 bg-gray-100 text-gray-700",
+        className: "border-border bg-muted text-muted-foreground",
         icon: RefreshCw,
       }
       const Icon = meta.icon

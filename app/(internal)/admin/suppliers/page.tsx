@@ -61,7 +61,7 @@ const STATUS_CONFIG: Record<
   },
   disabled: {
     label: "Désactivé",
-    className: "bg-gray-100 text-gray-800",
+    className: "bg-muted text-muted-foreground",
     icon: Ban,
   },
   invalid_credentials: {
@@ -71,7 +71,7 @@ const STATUS_CONFIG: Record<
   },
   not_configured: {
     label: "Non configuré",
-    className: "bg-gray-100 text-gray-600",
+    className: "bg-muted text-muted-foreground",
     icon: HelpCircle,
   },
   error: {

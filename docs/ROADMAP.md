@@ -36,7 +36,21 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R11-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — R8-06 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### R8-06 — CLÔTURÉ (2026-10-02)
+
+**Périmètre** : Consolidation design system — remplacement des couleurs Tailwind hardcodées (`bg-gray-*`, `text-gray-*`, `border-gray-*`, `bg-white` sémantique) par les tokens CSS shadcn/ui (`bg-muted`, `text-muted-foreground`, `bg-card`, `border-border`, `text-foreground`).
+
+**Fichiers modifiés** : 21 fichiers — `components/admin/` (6 tables), `components/` racine (6 sections/cards), `components/pro/` (2), `components/omra/` (1), `app/(internal)/admin/` (11 pages), `app/(public)/` (2 pages).
+
+**Exceptions documentées (intentionnel)** : `booking-engine.tsx` glassmorphism (`bg-white/90`, `/60`, `/95` sur image hero), `omra-package-list.tsx` (`bg-white/20` badge sur image), `module-hero.tsx` (`bg-white/15` backdrop blur), `footer-client.tsx` (logos d'agence sur fond sidebar dark + badges paiement VISA/Mastercard).
+
+**Preuves** : `grep -r "bg-gray-100\|bg-gray-50\|text-gray-\|border-gray-200" components/ app/` → 0 résultat hors exceptions. `npx tsc --noEmit` → 0 erreur.
+
+**Visual QA** : NOT VERIFIED — nécessite validation dark/light mode en Preview avant déploiement Production.
+
+---
 
 ### R11-01 — CLÔTURÉ (2026-10-02)
 
@@ -945,7 +959,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **REUSE** — infrastructure déjà en place (`html dir={dir}`, `RtlDirectionProvider`, `LOCALE_META.ar.dir="rtl"`). Validation visuelle NOT VERIFIED.                                                  |
 | R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants                                                                                                                    |
 | R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commits 20a9b41+5853101+d3b3110)** — axe-core BLOQUANT en CI (continue-on-error retiré), 0 violations WCAG prouvé run #158 (job 110889828533 ✅), limitation auth documentée |
-| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                                                                                                                                                                           |
+| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | **CLÔTURÉ (2026-10-02)** — 21 fichiers convertis aux tokens CSS shadcn. 0 bg-gray-*/text-gray-* hors exceptions glassmorphism documentées. tsc ✅. Visual QA NOT VERIFIED.                        |
 | R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | **CLÔTURÉ (2026-10-02, commit bf297f9)** — badge "Flash Offers" retiré. Aucune autre fausse urgence trouvée. Visual QA NOT VERIFIED.                                                                |
 
 ---
@@ -954,10 +968,10 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 | ID    | Chantier                                                                     | Critère de sortie                                                                   |
 | ----- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| R9-01 | Modèles `MarketSignal` et `DevelopmentProject` (EXTEND si équivalent existe) | Champs `source_url`, `published_at`, `confidence` obligatoires                      |
-| R9-02 | Rubrique « Actualités & tendances » sourcée et datée                         | Aucun chiffre en dur dans le code                                                   |
-| R9-03 | Section « Prochainement » (`ANNONCÉ`) avec liste d'attente                   | Un projet n'est jamais réservable tant que supply/pricing/booking ne sont pas réels |
-| R9-04 | Mise en avant des destinations en croissance **avec inventaire réel**        | CTA → produits réservables uniquement                                               |
+| R9-01 | Modèles `MarketSignal` et `DevelopmentProject` (EXTEND si équivalent existe) | **CLÔTURÉ** — `lib/db/schema/market.ts`, migrations 0093/0094 appliquées en production. source_url/published_at/confidence NOT NULL.       |
+| R9-02 | Rubrique « Actualités & tendances » sourcée et datée                         | **CLÔTURÉ** — `components/market-signals-section.tsx` + `lib/market/market-signals-queries.ts`. Aucun chiffre en dur.                      |
+| R9-03 | Section « Prochainement » (`ANNONCÉ`) avec liste d'attente                   | **CLÔTURÉ** — `components/development-projects-section.tsx` + table `development_project_waitlist` (migration 0096). Jamais réservable.    |
+| R9-04 | Mise en avant des destinations en croissance **avec inventaire réel**        | **CLÔTURÉ** — `components/featured-destinations-section.tsx` + colonnes `is_featured`/`display_order` (migration 0095). CTA conditionnel.  |
 
 ---
 

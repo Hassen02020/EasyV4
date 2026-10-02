@@ -192,14 +192,14 @@ export default async function B2CClientsPage() {
       <Card>
         <CardHeader className="pb-3">
           <div className="relative max-w-sm">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher un client..." className="pl-9" />
           </div>
         </CardHeader>
         <CardContent>
           {clients.length === 0 ? (
             <div className="py-12 text-center">
-              <Users className="mx-auto h-12 w-12 text-gray-300" />
+              <Users className="mx-auto h-12 w-12 text-muted-foreground" />
               <p className="text-muted-foreground mt-4">Aucun client trouvé</p>
             </div>
           ) : (
@@ -220,15 +220,15 @@ export default async function B2CClientsPage() {
                     <TableRow key={client.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                            <User className="h-4 w-4 text-gray-600" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                            <User className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <div>
                             <p className="font-medium">
                               {client.firstName} {client.lastName}
                             </p>
                             {client.civicId && (
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-muted-foreground">
                                 CIN: {client.civicId}
                               </p>
                             )}
@@ -238,12 +238,12 @@ export default async function B2CClientsPage() {
                       <TableCell>
                         <div className="space-y-1">
                           <div className="flex items-center gap-1 text-sm">
-                            <Mail className="h-3 w-3 text-gray-400" />
+                            <Mail className="h-3 w-3 text-muted-foreground" />
                             {client.email}
                           </div>
                           {client.phone && (
                             <div className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3 text-gray-400" />
+                              <Phone className="h-3 w-3 text-muted-foreground" />
                               {client.phone}
                             </div>
                           )}
@@ -251,7 +251,7 @@ export default async function B2CClientsPage() {
                       </TableCell>
                       <TableCell>
                         <p className="text-sm">{client.city || "—"}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           {client.country || "—"}
                         </p>
                       </TableCell>
@@ -267,7 +267,7 @@ export default async function B2CClientsPage() {
                           {client.reservationCount !== 1 ? "s" : ""}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-muted-foreground">
                         {new Date(client.createdAt).toLocaleDateString("fr-FR")}
                       </TableCell>
                       <TableCell className="text-right">

@@ -60,7 +60,7 @@ const STATUS_CONFIG: Record<
   },
   cancelled: {
     label: "Annulé",
-    color: "bg-gray-100 text-gray-800",
+    color: "bg-muted text-muted-foreground",
     icon: XCircle,
   },
 }
@@ -124,7 +124,7 @@ export function ValidationsFilterableTable({
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Rechercher une réservation..."
               className="pl-9"
@@ -195,7 +195,7 @@ export function ValidationsFilterableTable({
                   const StatusIcon = statusConfig.icon
 
                   return (
-                    <TableRow key={reservation.id} className="hover:bg-gray-50">
+                    <TableRow key={reservation.id} className="hover:bg-muted/50">
                       <TableCell className="font-mono text-sm">
                         {reservation.publicRef}
                       </TableCell>
@@ -206,7 +206,7 @@ export function ValidationsFilterableTable({
                               ? `${customer.firstName} ${customer.lastName}`
                               : "—"}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             {customer?.email}
                           </p>
                         </div>
@@ -224,10 +224,10 @@ export function ValidationsFilterableTable({
                           {statusConfig.label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-muted-foreground">
                         {validation?.currentStep || "initial"}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-muted-foreground">
                         {new Date(
                           validation?.submittedAt ?? reservation.createdAt,
                         ).toLocaleDateString("fr-FR")}

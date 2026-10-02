@@ -206,7 +206,7 @@ export default async function B2CClientProfilePage({
                   className="flex items-center justify-between py-3"
                 >
                   <div className="flex items-center gap-3">
-                    <code className="rounded bg-gray-100 px-2 py-1 font-mono text-xs">
+                    <code className="rounded bg-muted px-2 py-1 font-mono text-xs">
                       {r.publicRef}
                     </code>
                     <Badge variant="secondary">

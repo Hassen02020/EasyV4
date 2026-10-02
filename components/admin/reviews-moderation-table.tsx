@@ -34,7 +34,7 @@ const STATUS_LABEL: Record<ReviewStatus, string> = {
 const STATUS_COLOR: Record<ReviewStatus, string> = {
   pending: "bg-amber-100 text-amber-800",
   approved: "bg-emerald-100 text-emerald-800",
-  rejected: "bg-gray-100 text-gray-600",
+  rejected: "bg-muted text-muted-foreground",
 }
 
 const MODULE_LABEL: Record<string, string> = {

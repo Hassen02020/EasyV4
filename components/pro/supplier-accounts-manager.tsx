@@ -69,14 +69,14 @@ interface SupplierOption {
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   active: { label: "Actif", className: "bg-emerald-100 text-emerald-800" },
-  disabled: { label: "Désactivé", className: "bg-gray-100 text-gray-800" },
+  disabled: { label: "Désactivé", className: "bg-muted text-muted-foreground" },
   invalid_credentials: {
     label: "Identifiants invalides",
     className: "bg-red-100 text-red-800",
   },
   not_configured: {
     label: "Non configuré",
-    className: "bg-gray-100 text-gray-600",
+    className: "bg-muted text-muted-foreground",
   },
   error: { label: "Erreur", className: "bg-red-100 text-red-800" },
 }

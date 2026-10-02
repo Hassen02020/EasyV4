@@ -78,7 +78,7 @@ const STATUS_COLOR: Record<LeadStatus, string> = {
   new: "bg-amber-100 text-amber-800",
   contacted: "bg-blue-100 text-blue-800",
   converted: "bg-emerald-100 text-emerald-800",
-  closed: "bg-gray-100 text-gray-800",
+  closed: "bg-muted text-muted-foreground",
 }
 
 const PRODUCT_TYPE_LABEL: Record<LeadRow["productType"], string> = {
@@ -163,7 +163,7 @@ function ConvertLeadDialog({
         </p>
 
         <div className="relative">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Réf. réservation, nom, email, téléphone…"
             className="pl-9"
@@ -231,7 +231,7 @@ function ConvertLeadDialog({
 function scoreTone(total: number): string {
   if (total >= 75) return "bg-emerald-100 text-emerald-800 border-emerald-200"
   if (total >= 50) return "bg-amber-100 text-amber-800 border-amber-200"
-  return "bg-gray-100 text-gray-700 border-gray-200"
+  return "bg-muted text-muted-foreground border-border"
 }
 
 /** Score toujours transparent : le détail signal-par-signal est visible au survol, jamais un nombre opaque. */
@@ -413,7 +413,7 @@ export function LeadsTable({
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Rechercher un contact..."
               className="pl-9"
@@ -465,7 +465,7 @@ export function LeadsTable({
                 </TableRow>
               ) : (
                 filtered.map((lead) => (
-                  <TableRow key={lead.id} className="hover:bg-gray-50">
+                  <TableRow key={lead.id} className="hover:bg-muted/50">
                     <TableCell>
                       <p className="font-medium">
                         {lead.firstName} {lead.lastName ?? ""}

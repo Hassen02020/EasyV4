@@ -286,3 +286,29 @@ jobs:
         run: pnpm build
       - name: Lighthouse CI
         run: pnpm dlx @lhci/cli autorun
+
+  # R8-05 : Playwright axe-core — bloque sur toute violation WCAG
+  # serious/critical. Chromium uniquement pour la vitesse. Pages /admin et
+  # /booking redirigent vers login en CI (pas d'auth) : coverage réelle sur
+  # / et /login ; documenté, pas masqué. continue-on-error: true pour
+  # baseline — à durcir après validation.
+  playwright-a11y:
+    runs-on: ubuntu-latest
+    needs: [build]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build (production)
+        run: pnpm build
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chromium --with-deps
+      - name: Accessibility tests (axe-core / WCAG 2.1 AA)
+        run: pnpm exec playwright test e2e/a11y.spec.ts --project chromium

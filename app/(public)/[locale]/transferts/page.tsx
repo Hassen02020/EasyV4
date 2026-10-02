@@ -9,6 +9,7 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { TransferSearch } from "@/components/transfer/transfer-search"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { catalogTransferZones } from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
@@ -56,6 +57,8 @@ export default async function TransfertsPage() {
   const zones = await getZones()
   const t = await getTranslations("Transferts")
 
+  const visual = await getPublicModuleVisual("transferts")
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -63,7 +66,7 @@ export default async function TransfertsPage() {
         <ModuleHero
           Icon={Navigation}
           gradient="from-slate-900 to-slate-700"
-          imageUrl="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

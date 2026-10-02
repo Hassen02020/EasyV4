@@ -61,9 +61,7 @@ export const publicPromotions = pgTable(
   "public_promotions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    agencyId: uuid("agency_id")
-      .notNull()
-      .references(() => agencies.id, { onDelete: "cascade" }),
+    agencyId: uuid("agency_id").notNull(),
     title: varchar("title", { length: 200 }).notNull(),
     subtitle: varchar("subtitle", { length: 300 }),
     destination: varchar("destination", { length: 120 }).notNull(),

@@ -1,4 +1,4 @@
-import { getPublicSiteConfig } from "@/lib/public/site-content"
+import { getPublicModuleVisuals, getPublicSiteConfig } from "@/lib/public/site-content"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { BookingEngine } from "@/components/booking-engine"
 import { FlashOffers } from "@/components/flash-offers"
@@ -11,12 +11,12 @@ import { Footer } from "@/components/footer"
 export const dynamic = "force-dynamic"
 
 export default async function Home() {
-  const site = await getPublicSiteConfig()
+  const [site, modules] = await Promise.all([getPublicSiteConfig(), getPublicModuleVisuals()])
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <BookingEngine heroImageUrl={site?.heroImageUrl} />
+        <BookingEngine heroImageUrl={site?.heroImageUrl} modules={modules} />
         <FlashOffers />
         <OmratySection />
         <FeaturedDestinationsSection />

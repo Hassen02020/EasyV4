@@ -40,6 +40,19 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 Aucun chantier actif — attente du prochain GO.
 ```
 
+### VOLS-DISPLAY-FIX-01 — CLÔTURÉ (2026-10-02)
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
+
+**Corrections UI vols — deux bugs visuels identifiés lors de la validation affichage production.**
+
+- **Bug 1 — "NaNh" durée** : `app/api/vols/search/route.ts` ne renvoyait pas `totalDurationMinutes` dans la réponse offre. Le schéma client Zod (`FlightOffer`) requiert ce champ — absent = NaN → "NaNh". Corrigé : champ calculé depuis `segments[i].durationMinutes` sommé sur tous les segments de tous les journeys.
+- **Bug 2 — "TK TK252"** : `flight-results-content.tsx` ligne 145 affichait `marketingCarrier` deux fois en JSX (doublon de variable). Corrigé : suppression de la seconde occurrence.
+
+Validation : build + typecheck locaux corrects (aucun changement logique métier, pas de migration DB, pas de changement financier).
+
+**NOT YET DEPLOYED** (même branche/PR que R8-01/R8-02, non mergée sur `main`).
+
 ### R8-02 — CLÔTURÉ (2026-10-02)
 
 Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `a57d5e3`.

@@ -36,7 +36,42 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — FORMAT-CLEANUP-01 CLÔTURÉ. Attente du prochain GO.
+Aucun — VOLS-DUFFEL-ACTIVATION-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### VOLS-DUFFEL-ACTIVATION-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: VOLS-DUFFEL-ACTIVATION-01
+Statut: CLÔTURÉ (2026-10-02)
+PR: #107 — mergé sur main, commit 34bb85f08da2669db8dca32dadc1df6262e5dca7
+TypeScript: tsc --noEmit — 0 erreur
+Résultat:
+  - search(): async Promise.all — convertit EUR/USD→TND via fetchExchangeRateForDisplay
+    (cache 1h) ; offre skippée silencieusement si taux absent (jamais de taux fabriqué)
+  - DuffelPricingToken: +originalAmount +originalCurrency (montant/devise Duffel avant conversion)
+  - mapOfferToItinerary(): encode originalAmount/originalCurrency dans le token
+  - recheck(): convertit via fetchExchangeRateForBooking (sans cache, taux frais) avant comparaison
+  - book(): paie Duffel dans sa devise native (token.originalAmount / token.originalCurrency)
+  - Invariant financier: supplierCurrency="TND" pour commercial engine (check passe) ;
+    zéro taux inventé ou codé en dur (règle permanente CURRENCY-DIM-01a)
+NOT VERIFIED: validation visuelle offres Duffel en production
+  (nécessite DUFFEL_ACCESS_TOKEN + EXCHANGE_RATE_API_KEY configurés dans Vercel)
+```
+
+### VOLS-DISPLAY-FIX-01 — CLÔTURÉ (2026-10-02)
+
+```text
+IMPLEMENTED  — commit ee50ed1 (2026-10-02)
+TESTED       — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
+MERGED       — inclus dans PR #106 (R8-01 + R8-02), mergée sur main par Hassen02020
+               commit de merge : 952812e0a3d69a249c354144ba7a4d57e97c8010
+```
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
+
+Corrections UI vols :
+- Bug "NaNh" : `totalDurationMinutes` calculé depuis les segments et renvoyé dans la réponse API
+- Bug "TK TK252" : doublon `marketingCarrier` supprimé dans `flight-results-content.tsx`
 
 ### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
 
@@ -52,18 +87,6 @@ Résultat:
   - gate format désormais bloquant dans CI (continue-on-error retiré)
   - dette R1-07 soldée
 ```
-
-### VOLS-DISPLAY-FIX-01
-
-```text
-IMPLEMENTED  — commit ee50ed1 (2026-10-02)
-TESTED       — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
-PREVIEW      — pending (Vercel preview auto-triggered on push, non validé visuellement)
-VISUAL QA    — pending
-MERGE        — pending (PR #106, en attente de MERGE GO explicite)
-```
-
-Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
 
 **Corrections UI vols — deux bugs visuels identifiés lors de la validation affichage production.**
 

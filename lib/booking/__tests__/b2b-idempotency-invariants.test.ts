@@ -44,17 +44,15 @@ test("createReservationFromDraft : accepte un idempotencyKey (optionnel — dér
 test("createReservationFromDraft : dérive une clé déterministe (sha256 de draft+traveler validés) quand l'appelant n'en fournit pas", () => {
   assert.match(
     actionsSrc,
-    /const idempotencyKey =\s*\n\s*input\.idempotencyKey \?\?\s*\n\s*createHash\("sha256"\)\.update\(JSON\.stringify\(\{ draft, traveler \}\)\)\.digest\("hex"\)/,
+    /const idempotencyKey =\s*\n\s*input\.idempotencyKey \?\?\s*\n\s*createHash\("sha256"\)\s*\n\s*\.update\(JSON\.stringify\(\{ draft, traveler \}\)\)\s*\n\s*\.digest\("hex"\)/,
   )
 })
 
 test("createReservationFromDraft : vérifie le backstop DB (findReservationByCheckoutIdempotencyKey) AVANT tout appel fournisseur myGo — jamais un second hold pour la même soumission", () => {
   const backstopIdx = actionsSrc.indexOf(
-    "findReservationByCheckoutIdempotencyKey(agencyId, idempotencyKey)",
+    "findReservationByCheckoutIdempotencyKey(",
   )
-  const providerCallIdx = actionsSrc.indexOf(
-    "confirmHotelWithProvider(draft, traveler, myGoAccess)",
-  )
+  const providerCallIdx = actionsSrc.indexOf("await confirmHotelWithProvider(")
   assert.ok(backstopIdx > 0, "le backstop doit exister")
   assert.ok(providerCallIdx > 0, "l'appel fournisseur doit exister")
   assert.ok(
@@ -83,7 +81,7 @@ test("createReservationFromDraft : l'insert reservations tourne dans une sous-tr
 
 test("createReservationFromDraft : en cas de conflit (course gagnée par une autre requête), compense le hold myGo redondant PUIS renvoie la réservation gagnante — jamais une simple erreur générique masquant un succès réel", () => {
   const conflictBlockMatch = actionsSrc.match(
-    /if \(result\.conflict\) \{[\s\S]{0,900}?findReservationByCheckoutIdempotencyKey\(agencyId, idempotencyKey\)[\s\S]{0,200}?\}/,
+    /if \(result\.conflict\) \{[\s\S]{0,900}?findReservationByCheckoutIdempotencyKey\([\s\S]{0,60}?agencyId,[\s\S]{0,60}?idempotencyKey[\s\S]{0,400}?\}/,
   )
   assert.ok(
     conflictBlockMatch,

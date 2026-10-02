@@ -29,7 +29,7 @@ test("createNetworkProductBooking : résolution de session RÉELLE (resolveSessi
 test("COMMERCIAL-CONVERGENCE-01 : utilise le moteur de marge RÉEL et configurable (getMarginsForAgency/applyMargin, module 'network') — jamais margin-calculator.ts (marginRules sans aucun chemin d'écriture), jamais supplierPriceTnd = salePriceTnd", () => {
   assert.match(
     src,
-    /const networkMarginRule = \(await getMarginsForAgency\(agencyId, createdByUserId\)\)\.network/,
+    /const networkMarginRule = \(\s*\n?\s*await getMarginsForAgency\(agencyId, createdByUserId\)\s*\n?\s*\)\.network/,
   )
   assert.match(
     src,
@@ -53,7 +53,7 @@ test("COMMERCIAL-CONVERGENCE-01 : la marge est calculée AVANT la transaction de
 test("createNetworkProductBooking : débit du crédit partenaire DANS la même transaction (txOverride), idempotencyKey liée à la réservation", () => {
   assert.match(
     src,
-    /txOverride: tx as Parameters<typeof debitPartnerCredit>\[0\]\["txOverride"\]/,
+    /txOverride: tx as Parameters<\s*\n?\s*typeof debitPartnerCredit\s*\n?\s*>\[0\]\["txOverride"\]/,
   )
   assert.match(src, /idempotencyKey: `booking-debit:\$\{reservationId\}`/)
 })
@@ -145,7 +145,7 @@ test("ECON-BREAKDOWN-01 : la ligne 'seller_margin' est nette de commission, et l
     "utf8",
   )
   const callSiteFormula =
-    /Math\.round\(marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100\) \/ 100/
+    /Math\.round\(\s*\n?\s*marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100,?\s*\n?\s*\) \/ 100/
   const financialsFormula =
     /Math\.round\(marginAmount \* \(commissionRate \/ 100\) \* 100\) \/ 100/
   assert.match(

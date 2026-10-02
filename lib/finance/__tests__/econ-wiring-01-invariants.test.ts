@@ -52,7 +52,7 @@ for (const [label, path] of [
     // Commission réelle = même formule textuelle que recordReservationFinancials()
     assert.match(
       src,
-      /Math\.round\(marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100\) \/ 100/,
+      /Math\.round\(\s*\n?\s*marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100,?\s*\n?\s*\) \/ 100/,
     )
   })
 }

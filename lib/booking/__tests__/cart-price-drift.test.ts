@@ -108,7 +108,7 @@ test("createGuestReservationFromDraft : un rejet PRICE_CHANGED compense le hold 
   )
   assert.match(
     driftBlock,
-    /cancelBooking\(\{ bookingId: myGoBooking\.bookingId \}\)/,
+    /cancelBooking\(\{[\s\S]{0,40}?bookingId: myGoBooking\.bookingId[\s\S]{0,10}?\}\)/,
   )
   assert.match(driftBlock, /releaseInventoryLock\(\)/)
   assert.match(driftBlock, /code:\s*"PRICE_CHANGED"/)
@@ -205,7 +205,7 @@ test("cart-view : envoie expectedTotalTnd pour les 3 modules (hôtel/package/act
 test("cart-view : la clé d'idempotence hôtel inclut priceTnd (clé fraîche après mise à jour du prix affiché)", () => {
   assert.match(
     cartViewSrc,
-    /JSON\.stringify\(\{ draft: line\.draft, traveler: line\.traveler, method, priceTnd: line\.priceTnd \}\)/,
+    /JSON\.stringify\(\{[\s\S]{0,150}?draft: line\.draft,[\s\S]{0,150}?traveler: line\.traveler,[\s\S]{0,150}?method,[\s\S]{0,150}?priceTnd: line\.priceTnd,?[\s\S]{0,20}?\}\)/,
   )
 })
 

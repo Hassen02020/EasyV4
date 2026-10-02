@@ -52,7 +52,7 @@ test("actions.ts : appelle recordReservationFinancials exactement une fois, avec
   // pour la ligne economic_entitlements product_owner — jamais un recalcul.
   assert.match(
     actionsSrc,
-    /const carSupplierCostTnd = pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/,
+    /const carSupplierCostTnd =\s*\n?\s*pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/,
   )
   assert.match(actionsSrc, /supplierPriceTnd:\s*carSupplierCostTnd,/)
   assert.match(actionsSrc, /salePriceTnd:\s*pricing\.totalTnd,/)
@@ -98,7 +98,7 @@ test("guest-booking-actions.ts : appelle recordReservationFinancials exactement 
   )
   assert.match(
     guestActionsSrc,
-    /const carSupplierCostTnd = pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/,
+    /const carSupplierCostTnd =\s*\n?\s*pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/,
   )
   assert.match(guestActionsSrc, /supplierPriceTnd:\s*carSupplierCostTnd,/)
   assert.match(guestActionsSrc, /salePriceTnd:\s*pricing\.totalTnd,/)

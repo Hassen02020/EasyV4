@@ -40,10 +40,21 @@ function countOccurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
 }
 
+function normalizeCode(s: string): string {
+  return s
+    .replace(/\s+/g, " ")
+    .replace(/,\s*\)/g, ")")
+    .replace(/,\s*\}/g, "}")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/\{\s+/g, "{")
+    .replace(/\s+\}/g, "}")
+}
+
 test("lib/booking/actions.ts : confirmHotelWithProvider() est appelée avec le compte tenant résolu (myGoAccess), jamais sans 3e argument", () => {
   assert.equal(
     countOccurrences(
-      actionsSrc,
+      normalizeCode(actionsSrc),
       "confirmHotelWithProvider(draft, traveler, myGoAccess)",
     ),
     1,
@@ -70,8 +81,10 @@ test("lib/booking/actions.ts : confirmHotelWithProvider() utilise le client tena
 test("lib/booking/actions.ts : les 2 sites de compensation (conflit idempotence B2B, catch général) annulent via myGoAccess.client — MÊME compte que la création, jamais un client re-résolu", () => {
   assert.equal(
     countOccurrences(
-      actionsSrc,
-      "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })",
+      normalizeCode(actionsSrc),
+      normalizeCode(
+        "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })",
+      ),
     ),
     2,
   )
@@ -80,7 +93,7 @@ test("lib/booking/actions.ts : les 2 sites de compensation (conflit idempotence 
 test("lib/booking/guest-actions.ts : confirmHotelWithProvider() est appelée avec le compte tenant résolu (myGoAccess), jamais sans 3e argument", () => {
   assert.equal(
     countOccurrences(
-      guestActionsSrc,
+      normalizeCode(guestActionsSrc),
       "confirmHotelWithProvider(draft, traveler, myGoAccess)",
     ),
     1,
@@ -101,8 +114,10 @@ test("lib/booking/guest-actions.ts : les 4 sites de compensation (drift de prix 
   // couverts ici — jamais un second client/compte re-résolu.
   assert.equal(
     countOccurrences(
-      guestActionsSrc,
-      "(myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })",
+      normalizeCode(guestActionsSrc),
+      normalizeCode(
+        "(myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })",
+      ),
     ),
     4,
   )

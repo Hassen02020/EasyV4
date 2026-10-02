@@ -36,7 +36,48 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R9-04 CLÔTURÉ (2026-10-02). Phase 9 terminée. Attente du prochain GO.
+Aucun — R10-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### R10-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R10-01
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: a46a650
+
+Fichiers créés/modifiés:
+  - drizzle/manual/0096_development_project_waitlist.sql :
+    CREATE TABLE development_project_waitlist
+    (id, project_id FK→development_projects CASCADE, email, locale, created_at)
+    UNIQUE (project_id, email) — idempotent
+    INDEX development_project_waitlist_project_id_idx
+  - lib/db/schema/market.ts : table developmentProjectWaitlist + types
+  - lib/db/schema.ts : re-export developmentProjectWaitlist + types
+  - lib/market/waitlist-actions.ts :
+    submitWaitlistEntry(rawData) — server action, zod validation
+    _insertWaitlistEntry(data, db?) — helper testable (DI), email lowercase, onConflictDoNothing
+  - lib/market/__tests__/waitlist-actions.test.ts : 6 tests
+  - components/waitlist-button.tsx :
+    Client Component — idle → open (email input) → loading → success | error
+    states: idle/open/loading/success/error
+  - components/development-projects-section.tsx :
+    remplace <p>{t("notBookable")}</p> par <WaitlistButton projectId={project.id} />
+  - messages/fr.json, en.json, ar.json :
+    DevelopmentProjects.waitlist (cta, placeholder, submit, success, error)
+
+Tests:
+  - 6 tests waitlist PASS
+  - pnpm test : 1308 PASS / 0 FAIL (G15 flaky pre-existant exclu)
+  - pnpm typecheck : 0 erreur
+  - pnpm lint : 0 erreur R10-01
+  - format:check ✅
+
+VISUAL QA: NOT VERIFIED — DevelopmentProjects invisible sans données en DB.
+Migration DB: NON ENCORE APPLIQUÉE EN PRODUCTION.
+  À appliquer sur GO séparé : psql "$DATABASE_DIRECT_URL" -f
+  drizzle/manual/0096_development_project_waitlist.sql
+```
 
 ### R9-04 — CLÔTURÉ (2026-10-02)
 

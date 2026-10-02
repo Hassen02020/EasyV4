@@ -155,7 +155,7 @@ export function Header({
             <LanguageSwitcher currentLocale={currentLocale} variant="mobile" />
             <CurrencySwitcher variant="mobile" />
             <Link
-              href={contactPhone ? `tel:${contactPhone.replace(/[^+\d]/g, "")}` : undefined}
+              href={contactPhone ? `tel:${contactPhone.replace(/[^+\d]/g, "")}` : "/" }
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >

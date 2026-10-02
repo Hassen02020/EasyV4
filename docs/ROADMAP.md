@@ -53,7 +53,15 @@ Résultat:
   - dette R1-07 soldée
 ```
 
-### VOLS-DISPLAY-FIX-01 — CLÔTURÉ (2026-10-02)
+### VOLS-DISPLAY-FIX-01
+
+```text
+IMPLEMENTED  — commit ee50ed1 (2026-10-02)
+TESTED       — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
+PREVIEW      — pending (Vercel preview auto-triggered on push, non validé visuellement)
+VISUAL QA    — pending
+MERGE        — pending (PR #106, en attente de MERGE GO explicite)
+```
 
 Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
 
@@ -61,10 +69,6 @@ Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
 
 - **Bug 1 — "NaNh" durée** : `app/api/vols/search/route.ts` ne renvoyait pas `totalDurationMinutes` dans la réponse offre. Le schéma client Zod (`FlightOffer`) requiert ce champ — absent = NaN → "NaNh". Corrigé : champ calculé depuis `segments[i].durationMinutes` sommé sur tous les segments de tous les journeys.
 - **Bug 2 — "TK TK252"** : `flight-results-content.tsx` ligne 145 affichait `marketingCarrier` deux fois en JSX (doublon de variable). Corrigé : suppression de la seconde occurrence.
-
-Validation : build + typecheck locaux corrects (aucun changement logique métier, pas de migration DB, pas de changement financier).
-
-**NOT YET DEPLOYED** (même branche/PR que R8-01/R8-02, non mergée sur `main`).
 
 ### R8-02 — CLÔTURÉ (2026-10-02)
 

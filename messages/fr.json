@@ -1194,6 +1194,13 @@
       "HIGH": "Fiabilité élevée",
       "MEDIUM": "Fiabilité moyenne",
       "LOW": "Fiabilité faible"
+    },
+    "waitlist": {
+      "cta": "M'alerter à l'ouverture",
+      "placeholder": "votre@email.com",
+      "submit": "Valider",
+      "success": "Vous serez alerté",
+      "error": "Une erreur est survenue"
     }
   },
   "MarketSignals": {

@@ -16,6 +16,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core"
 
@@ -110,3 +111,34 @@ export const developmentProjects = pgTable(
 
 export type DevelopmentProject = typeof developmentProjects.$inferSelect
 export type NewDevelopmentProject = typeof developmentProjects.$inferInsert
+
+/* -------------------------------------------------------------------------- */
+/* development_project_waitlist                                                */
+/* -------------------------------------------------------------------------- */
+
+export const developmentProjectWaitlist = pgTable(
+  "development_project_waitlist",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => developmentProjects.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    locale: text("locale").notNull().default("fr"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("development_project_waitlist_project_email_uidx").on(
+      t.projectId,
+      t.email,
+    ),
+    index("development_project_waitlist_project_id_idx").on(t.projectId),
+  ],
+)
+
+export type DevelopmentProjectWaitlistEntry =
+  typeof developmentProjectWaitlist.$inferSelect
+export type NewDevelopmentProjectWaitlistEntry =
+  typeof developmentProjectWaitlist.$inferInsert

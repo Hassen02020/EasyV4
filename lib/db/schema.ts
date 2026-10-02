@@ -3319,8 +3319,11 @@ export {
   developmentProjectConfidence,
   marketSignals,
   developmentProjects,
+  developmentProjectWaitlist,
   type MarketSignal,
   type NewMarketSignal,
   type DevelopmentProject,
   type NewDevelopmentProject,
+  type DevelopmentProjectWaitlistEntry,
+  type NewDevelopmentProjectWaitlistEntry,
 } from "./schema/market"

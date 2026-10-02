@@ -102,7 +102,7 @@ export function Header({
               className="gap-1.5 text-sm font-medium"
               asChild
             >
-              <Link href={contactPhone ? `tel:${contactPhone.replace(/[^+\d]/g, "")}` : undefined}>
+              <Link href={contactPhone ? `tel:${contactPhone.replace(/[^+\d]/g, "")}` : "/"}>
                 <HelpCircle className="size-4" />
                 {t("help")}
               </Link>

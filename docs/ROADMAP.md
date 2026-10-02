@@ -97,6 +97,19 @@ VÉRIFIÉ EN PRODUCTION (crygnaichvlxavvbifqi) :
     development_projects_admin_write : ALL, authenticated, USING(is_super_admin()) ✅
 ```
 
+### DEPLOY-CRON-01 — CLÔTURÉ (2026-10-02)
+
+```text
+OBJECTIF:  Débloquer tous les déploiements Vercel easy2book-new (cron_jobs_limits_reached)
+CAUSE:     vercel.json ligne 29 — /api/cron/expire-flight-sla avait "0 * * * *" (horaire)
+           Hobby plan = crons quotidiens max → chaque déploiement échouait
+FIX:       "0 * * * *" → "0 0 * * *" (minuit UTC, quotidien)
+COMMIT:    45111da7df5ed0a12a6aae8b8f5164462a97a309 (main, 2026-10-02)
+RÉSULTAT:  Déploiement dpl_GVqwRudxAkkiaypKAR8sPr7qSTZg — state: READY, target: production
+           SHA 45111da inclut tous les fixes PR #106 (R8-01, R8-02, VOLS-DISPLAY-FIX-01)
+           GitHub auto-deploy ré-opérationnel
+```
+
 ### R8-05 — CLÔTURÉ (2026-10-02)
 
 ```text

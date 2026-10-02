@@ -37,6 +37,7 @@ import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { paginateOffset } from "@/lib/admin/pagination"
 import { MapPin, Clock, Compass, ChevronRight } from "lucide-react"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 
 export const dynamic = "force-dynamic"
 
@@ -204,7 +205,7 @@ export default async function AttractionsPage({
         <ModuleHero
           Icon={Compass}
           gradient="from-amber-900 to-amber-700"
-          imageUrl="https://images.unsplash.com/photo-1531761535209-180857e963b9?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}
@@ -240,7 +241,9 @@ export default async function AttractionsPage({
                 // Fallback mission §23 : Media System en priorité, sinon
                 // coverImage (legacy), sinon dégradé de marque (mission §33).
                 const coverImage = a.coverMediaUrl || a.coverImage
-                return (
+                const visual = await getPublicModuleVisual("attractions")
+
+  return (
                   <Link
                     key={a.id}
                     href={`/attractions/${a.slug}`}

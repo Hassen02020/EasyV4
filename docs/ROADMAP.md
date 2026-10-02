@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-R9-01 EN COURS (2026-10-02) — migration DB locale prête, attente GO production.
+Aucun — R9-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
 
 **Phase 8 — Clôture officielle (2026-10-02)**
 
@@ -48,13 +48,13 @@ CI run #158 (37022472737) · commit d3b3110 · branche claude/easy2book-v6-moder
   → continue-on-error absent depuis commit 5853101 : test réellement bloquant prouvé
 - R8-04 CLÔTURÉ (commit cc617b4) · R8-05 CLÔTURÉ · R8-07 CLÔTURÉ (commit bf297f9)
 
-### R9-01 — EN COURS (2026-10-02) — ATTENTE GO PRODUCTION DB
+### R9-01 — CLÔTURÉ (2026-10-02)
 
 ```text
 ID: R9-01
-Statut: IMPLÉMENTÉ · TESTÉ · CI EN COURS · PRODUCTION DB : attente GO explicite
+Statut: CLÔTURÉ (2026-10-02)
 Branche: claude/easy2book-v6-modernization-7gyb5v
-Commit: 427352f
+Commits: 427352f (schéma + migrations + tests) · 0c00e3d (ROADMAP EN COURS)
 
 Fichiers créés:
   - lib/db/schema/market.ts : schéma Drizzle (marketSignals, developmentProjects,
@@ -76,9 +76,25 @@ Tests locaux:
   - pnpm format:check : ✅
   - pnpm test : 1287 PASS / 0 FAIL / 253 SKIP (zéro régression)
 
-NOT APPLIED TO PRODUCTION : migration à appliquer sur GO explicite
-  Cible : crygnaichvlxavvbifqi (Supabase prod)
-  Vérification requise : tables créées, RLS activée, NOT NULL confirmés
+VÉRIFIÉ EN PRODUCTION (crygnaichvlxavvbifqi) :
+  0093 appliqué — tables créées :
+    market_signals      : relrowsecurity=true, relforcerowsecurity=true ✅
+    development_projects: relrowsecurity=true, relforcerowsecurity=true ✅
+  Colonnes NOT NULL confirmées (information_schema) :
+    market_signals.source_url       : is_nullable=NO ✅
+    market_signals.published_at     : is_nullable=NO ✅
+    market_signals.confidence       : is_nullable=NO ✅
+    development_projects.source_url     : is_nullable=NO ✅
+    development_projects.published_at   : is_nullable=NO ✅
+    development_projects.confidence     : is_nullable=NO ✅
+  Enums (pg_enum) :
+    market_signal_confidence       : LOW, MEDIUM, HIGH ✅
+    development_project_confidence : LOW, MEDIUM, HIGH ✅
+  0094 appliqué — 4 policies RLS :
+    market_signals_read          : SELECT, authenticated, USING(true) ✅
+    market_signals_admin_write   : ALL, authenticated, USING(is_super_admin()) ✅
+    development_projects_read    : SELECT, authenticated, USING(true) ✅
+    development_projects_admin_write : ALL, authenticated, USING(is_super_admin()) ✅
 ```
 
 ### R8-05 — CLÔTURÉ (2026-10-02)

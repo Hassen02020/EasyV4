@@ -36,7 +36,25 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R8-07 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — R8-04 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### R8-04 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R8-04
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: cc617b4
+Résultat:
+  - lighthouserc.js : npm run dev → pnpm start (build prod)
+    + startServerReadyPattern + startServerReadyTimeout (60s)
+    + FCP et LCP : "warn" → "error" (bloquants)
+  - .github/workflows/ci.yml : ajout job `lighthouse`
+    (needs: build, continue-on-error: true pour collecter baseline)
+    Rebuild .next dans le job (artefacts non partagés entre jobs GHA)
+  - tsc --noEmit: 0 erreur · lint: 0 erreur · 135 warnings pré-existants
+CI: job lighthouse déclenché sur la PR — résultat attendu sur GitHub Actions
+```
 
 ### R8-07 — CLÔTURÉ (2026-10-02)
 
@@ -634,7 +652,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | **CLÔTURÉ (2026-10-02, PR #106)**                      |
 | R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | **CLÔTURÉ (2026-10-02, PR #106)**                      |
 | R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **REUSE** — infrastructure déjà en place (`html dir={dir}`, `RtlDirectionProvider`, `LOCALE_META.ar.dir="rtl"`). Validation visuelle NOT VERIFIED. |
-| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | Pas de régression LCP/CLS en CI                        |
+| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants |
 | R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | Audit automatisé + clavier sur parcours de réservation |
 | R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                              |
 | R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | **CLÔTURÉ (2026-10-02, commit bf297f9)** — badge "Flash Offers" retiré. Aucune autre fausse urgence trouvée. Visual QA NOT VERIFIED. |

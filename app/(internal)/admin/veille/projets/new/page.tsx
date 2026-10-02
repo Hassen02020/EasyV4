@@ -48,14 +48,16 @@ export default async function NewDevelopmentProjectPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6 p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/admin/veille/projets">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold">Nouveau projet de développement</h1>
+        <h1 className="text-2xl font-semibold">
+          Nouveau projet de développement
+        </h1>
       </div>
 
       <form action={handleCreate} className="space-y-4">

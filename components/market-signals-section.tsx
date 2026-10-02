@@ -23,16 +23,14 @@ export async function MarketSignalsSection() {
       <div className="mx-auto max-w-7xl px-4">
         <div className="mb-8 flex items-center gap-3">
           <TrendingUp className="h-6 w-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-foreground">
-            {t("heading")}
-          </h2>
+          <h2 className="text-foreground text-2xl font-bold">{t("heading")}</h2>
         </div>
 
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {signals.map((signal) => (
             <li
               key={signal.id}
-              className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm"
+              className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm"
             >
               <div className="flex items-start justify-between gap-2">
                 <span
@@ -42,7 +40,7 @@ export async function MarketSignalsSection() {
                 </span>
                 <time
                   dateTime={signal.publishedAt.toISOString()}
-                  className="shrink-0 text-xs text-muted-foreground"
+                  className="text-muted-foreground shrink-0 text-xs"
                 >
                   {signal.publishedAt.toLocaleDateString("fr-FR", {
                     day: "numeric",
@@ -52,12 +50,12 @@ export async function MarketSignalsSection() {
                 </time>
               </div>
 
-              <p className="flex-1 text-sm leading-snug font-medium text-foreground">
+              <p className="text-foreground flex-1 text-sm leading-snug font-medium">
                 {signal.title}
               </p>
 
               {signal.summary && (
-                <p className="line-clamp-2 text-xs text-muted-foreground">
+                <p className="text-muted-foreground line-clamp-2 text-xs">
                   {signal.summary}
                 </p>
               )}

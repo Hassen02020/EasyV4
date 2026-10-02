@@ -45,10 +45,10 @@ export default async function FeaturedDestinationsAdminPage() {
   const notFeatured = allDestinations.filter((d) => !d.isFeatured)
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold">Destinations en vedette</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-1 text-sm">
           {featured.length} destination{featured.length !== 1 ? "s" : ""} mise
           {featured.length !== 1 ? "s" : ""} en avant sur la page d&apos;accueil
         </p>
@@ -56,10 +56,10 @@ export default async function FeaturedDestinationsAdminPage() {
 
       {featured.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
             En vedette
           </h2>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -74,7 +74,7 @@ export default async function FeaturedDestinationsAdminPage() {
                   <TableRow key={d.id}>
                     <TableCell className="font-medium">
                       <span className="flex items-center gap-2">
-                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                        <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                         {d.name}
                       </span>
                     </TableCell>
@@ -91,7 +91,7 @@ export default async function FeaturedDestinationsAdminPage() {
                             displayOrder: Number(formData.get("order")) || 0,
                           })
                         }}
-                        className="flex gap-2 items-center"
+                        className="flex items-center gap-2"
                       >
                         <Input
                           name="order"
@@ -99,7 +99,7 @@ export default async function FeaturedDestinationsAdminPage() {
                           min={0}
                           max={9999}
                           defaultValue={d.displayOrder}
-                          className="w-20 h-8"
+                          className="h-8 w-20"
                         />
                         <Button size="sm" variant="outline" type="submit">
                           OK
@@ -132,10 +132,10 @@ export default async function FeaturedDestinationsAdminPage() {
 
       {notFeatured.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
             Non mises en avant
           </h2>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -176,7 +176,7 @@ export default async function FeaturedDestinationsAdminPage() {
       )}
 
       {allDestinations.length === 0 && (
-        <div className="border rounded-lg p-12 text-center text-muted-foreground">
+        <div className="text-muted-foreground rounded-lg border p-12 text-center">
           Aucune destination active trouvée.
         </div>
       )}

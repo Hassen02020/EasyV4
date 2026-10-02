@@ -239,7 +239,7 @@ export default async function AccountingPage() {
                               {payment.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-muted-foreground text-sm">
                             {payment.capturedAt
                               ? new Date(payment.capturedAt).toLocaleDateString(
                                   "fr-FR",
@@ -305,7 +305,7 @@ export default async function AccountingPage() {
                               {invoice.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-muted-foreground text-sm">
                             {invoice.validationDate ?? "—"}
                           </TableCell>
                         </TableRow>

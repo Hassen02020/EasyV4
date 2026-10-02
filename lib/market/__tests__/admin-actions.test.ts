@@ -162,6 +162,9 @@ test("R11-01 — les 5 actions requises sont exportées", () => {
     "deleteDevelopmentProject",
   ]
   for (const fn of exports) {
-    assert.ok(SRC.includes(`export async function ${fn}`), `${fn} doit être export`)
+    assert.ok(
+      SRC.includes(`export async function ${fn}`),
+      `${fn} doit être export`,
+    )
   }
 })

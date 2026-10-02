@@ -236,7 +236,7 @@ export default async function UsersManagementPage() {
         <CardContent>
           {allUsers.length === 0 ? (
             <div className="py-12 text-center">
-              <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+              <Users className="text-muted-foreground mx-auto h-12 w-12" />
               <p className="text-muted-foreground mt-4">
                 Aucun utilisateur trouvé. Créez le premier utilisateur.
               </p>
@@ -271,7 +271,7 @@ export default async function UsersManagementPage() {
                       <TableRow key={user.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                            <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full">
                               <span className="text-xs font-semibold">
                                 {user.name?.charAt(0).toUpperCase() ||
                                   user.email.charAt(0).toUpperCase()}

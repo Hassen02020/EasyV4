@@ -91,6 +91,21 @@ export type Events = {
       contactEmail: string
     }
   }
+  /** Lead CRM créé — déclenche notification email à l'agence. */
+  "crm/lead.created": {
+    data: {
+      leadId: string
+      agencyId: string
+      firstName: string
+      lastName: string | null
+      email: string | null
+      phone: string | null
+      message: string | null
+      productType: string
+      productLabel: string | null
+      sourcePage: string
+    }
+  }
 }
 
 export const inngest = new Inngest({ id: "easy2book" })

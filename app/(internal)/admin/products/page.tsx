@@ -97,7 +97,10 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   draft: { label: "Brouillon", className: "bg-muted text-muted-foreground" },
   published: { label: "Publié", className: "bg-emerald-100 text-emerald-800" },
   suspended: { label: "Suspendu", className: "bg-amber-100 text-amber-800" },
-  archived: { label: "Archivé", className: "bg-gray-200 text-muted-foreground" },
+  archived: {
+    label: "Archivé",
+    className: "bg-gray-200 text-muted-foreground",
+  },
 }
 
 async function getProducts(agencyId: string): Promise<ProductRow[]> {
@@ -265,7 +268,7 @@ export default async function ProductsPage() {
               <div className={`h-1 ${meta.color}`} />
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <Icon className="h-5 w-5 text-muted-foreground" />
+                  <Icon className="text-muted-foreground h-5 w-5" />
                   <Badge variant="outline">
                     {published}/{rows.length} publiés
                   </Badge>
@@ -274,7 +277,7 @@ export default async function ProductsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{rows.length}</p>
-                <p className="text-xs text-muted-foreground">produits</p>
+                <p className="text-muted-foreground text-xs">produits</p>
               </CardContent>
             </Card>
           )
@@ -299,22 +302,22 @@ export default async function ProductsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="py-3 text-left font-medium text-muted-foreground">
+                    <th className="text-muted-foreground py-3 text-left font-medium">
                       Produit
                     </th>
-                    <th className="py-3 text-left font-medium text-muted-foreground">
+                    <th className="text-muted-foreground py-3 text-left font-medium">
                       Type
                     </th>
-                    <th className="py-3 text-right font-medium text-muted-foreground">
+                    <th className="text-muted-foreground py-3 text-right font-medium">
                       Prix indicatif
                     </th>
-                    <th className="py-3 text-center font-medium text-muted-foreground">
+                    <th className="text-muted-foreground py-3 text-center font-medium">
                       Canaux
                     </th>
-                    <th className="py-3 text-center font-medium text-muted-foreground">
+                    <th className="text-muted-foreground py-3 text-center font-medium">
                       Statut
                     </th>
-                    <th className="py-3 text-right font-medium text-muted-foreground">
+                    <th className="text-muted-foreground py-3 text-right font-medium">
                       Actions
                     </th>
                   </tr>
@@ -330,7 +333,7 @@ export default async function ProductsPage() {
                     return (
                       <tr
                         key={`${product.type}-${product.id}`}
-                        className="border-b hover:bg-muted/50"
+                        className="hover:bg-muted/50 border-b"
                       >
                         <td className="py-3">
                           <div className="flex items-center gap-3">
@@ -342,7 +345,7 @@ export default async function ProductsPage() {
                             <div>
                               <p className="font-medium">{product.name}</p>
                               {product.location ? (
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-muted-foreground text-xs">
                                   {product.location}
                                 </p>
                               ) : null}
@@ -357,7 +360,7 @@ export default async function ProductsPage() {
                             ? `${product.price.toLocaleString("fr-FR")} DT`
                             : "—"}
                         </td>
-                        <td className="py-3 text-center text-xs text-muted-foreground">
+                        <td className="text-muted-foreground py-3 text-center text-xs">
                           {product.channels.join(", ")}
                         </td>
                         <td className="py-3 text-center">

@@ -161,9 +161,7 @@ export async function deleteDevelopmentProject(
   if (!auth.ok) return auth
 
   const db = getDb()
-  await db
-    .delete(developmentProjects)
-    .where(eq(developmentProjects.id, id))
+  await db.delete(developmentProjects).where(eq(developmentProjects.id, id))
 
   revalidatePath("/admin/veille/projets")
   revalidatePath("/[locale]", "layout")

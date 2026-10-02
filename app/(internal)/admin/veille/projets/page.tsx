@@ -46,32 +46,32 @@ export default async function DevelopmentProjectsPage() {
     .limit(100)
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Projets de développement</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             {projects.length} projet{projects.length !== 1 ? "s" : ""}{" "}
             enregistré{projects.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Button asChild>
           <Link href="/admin/veille/projets/new">
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Nouveau projet
           </Link>
         </Button>
       </div>
 
       {projects.length === 0 ? (
-        <div className="border rounded-lg p-12 text-center text-muted-foreground">
+        <div className="text-muted-foreground rounded-lg border p-12 text-center">
           Aucun projet enregistré.{" "}
           <Link href="/admin/veille/projets/new" className="underline">
             Créer le premier
           </Link>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -87,7 +87,7 @@ export default async function DevelopmentProjectsPage() {
             <TableBody>
               {projects.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium max-w-xs truncate">
+                  <TableCell className="max-w-xs truncate font-medium">
                     {p.name}
                   </TableCell>
                   <TableCell>{p.location ?? "—"}</TableCell>
@@ -102,7 +102,7 @@ export default async function DevelopmentProjectsPage() {
                     {new Date(p.publishedAt).toLocaleDateString("fr-FR")}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1 justify-end">
+                    <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" asChild>
                         <a
                           href={p.sourceUrl}
@@ -133,7 +133,7 @@ export default async function DevelopmentProjectsPage() {
                           type="submit"
                           title="Supprimer"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="text-destructive h-4 w-4" />
                         </Button>
                       </form>
                     </div>

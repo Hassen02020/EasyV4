@@ -61,7 +61,7 @@ export default async function SandboxPage() {
   const zones = await getActiveZones()
 
   return (
-    <div className="min-h-screen bg-muted/50">
+    <div className="bg-muted/50 min-h-screen">
       {/* Faux Header avec WalletStatus */}
       <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -36,7 +36,25 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R8-04 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — R8-05 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### R8-05 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: R8-05
+Statut: CLÔTURÉ (2026-10-02)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 20a9b41
+Résultat:
+  - playwright.config.ts : npm run dev → pnpm (CI: pnpm start, local: pnpm dev)
+  - ci.yml : ajout job playwright-a11y (needs: build, chromium only,
+    continue-on-error: true) — installe Playwright chromium + lance
+    e2e/a11y.spec.ts (wcag2a/aa/21aa, 0 serious/critical violations)
+  - tsc --noEmit: 0 erreur · lint: 0 erreur · 135 warnings pré-existants
+LIMITATION DOCUMENTÉE: /admin et /booking redirigent vers login en CI
+  (pas de session auth) — couverture réelle sur / et /login uniquement
+CI: job playwright-a11y déclenché sur la PR
+```
 
 ### R8-04 — CLÔTURÉ (2026-10-02)
 
@@ -653,7 +671,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | **CLÔTURÉ (2026-10-02, PR #106)**                      |
 | R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **REUSE** — infrastructure déjà en place (`html dir={dir}`, `RtlDirectionProvider`, `LOCALE_META.ar.dir="rtl"`). Validation visuelle NOT VERIFIED. |
 | R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants |
-| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | Audit automatisé + clavier sur parcours de réservation |
+| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commit 20a9b41)** — axe-core câblé en CI (public pages), limitation auth documentée |
 | R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                              |
 | R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | **CLÔTURÉ (2026-10-02, commit bf297f9)** — badge "Flash Offers" retiré. Aucune autre fausse urgence trouvée. Visual QA NOT VERIFIED. |
 

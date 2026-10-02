@@ -74,8 +74,8 @@ CREATE POLICY public_site_settings_read ON public_site_settings
 DROP POLICY IF EXISTS public_site_settings_write ON public_site_settings;
 CREATE POLICY public_site_settings_write ON public_site_settings
   FOR ALL TO authenticated
-  USING (is_super_admin())
-  WITH CHECK (is_super_admin());
+  USING (agency_id = current_agency_id() OR is_super_admin())
+  WITH CHECK (agency_id = current_agency_id() OR is_super_admin());
 
 DROP POLICY IF EXISTS public_module_visuals_read ON public_module_visuals;
 CREATE POLICY public_module_visuals_read ON public_module_visuals

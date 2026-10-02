@@ -4,8 +4,8 @@ Mission : améliorer l'UX du moteur de recherche hôtel (search → résultats �
 filtres → tri → fiche hôtel) au niveau des standards OTA modernes (référence
 fonctionnelle VoyaGo, aucun code/design copié), **sans** toucher au connecteur
 MyGo, au booking engine, au wallet, ni au pricing existant. Principe suivi :
-*ne pas reconstruire ce qui fonctionne, améliorer ce qui est faible, réutiliser
-avant de créer, mesurer avant de modifier.*
+_ne pas reconstruire ce qui fonctionne, améliorer ce qui est faible, réutiliser
+avant de créer, mesurer avant de modifier._
 
 ---
 
@@ -94,15 +94,15 @@ uniquement côté page, jamais transmis à l'API.
 
 ## 4. Filtres — liste exacte
 
-| Filtre | Base réelle | Combinaison |
-|---|---|---|
-| Étoiles | `hotel.stars` (myGo `Category.Star`) | multi-select, OR entre étoiles |
-| Type de pension | `boardings[].name` réels de l'offre | multi-select, OR entre pensions |
-| Équipements | `hotel.facilities[].title` réels | multi-select, AND (doit avoir tous) |
-| Prix | `fromPrice` min/max réels des résultats | slider [min,max] |
-| Hôtel recommandé | `offer.recommended` (flag myGo) | booléen |
-| Annulation gratuite | policy `BEFORE_ARRIVAL` avec `fees=0` | booléen |
-| Disponible seulement | au moins une chambre `!stopReservation` | booléen |
+| Filtre               | Base réelle                             | Combinaison                         |
+| -------------------- | --------------------------------------- | ----------------------------------- |
+| Étoiles              | `hotel.stars` (myGo `Category.Star`)    | multi-select, OR entre étoiles      |
+| Type de pension      | `boardings[].name` réels de l'offre     | multi-select, OR entre pensions     |
+| Équipements          | `hotel.facilities[].title` réels        | multi-select, AND (doit avoir tous) |
+| Prix                 | `fromPrice` min/max réels des résultats | slider [min,max]                    |
+| Hôtel recommandé     | `offer.recommended` (flag myGo)         | booléen                             |
+| Annulation gratuite  | policy `BEFORE_ARRIVAL` avec `fees=0`   | booléen                             |
+| Disponible seulement | au moins une chambre `!stopReservation` | booléen                             |
 
 Tous les filtres actifs se combinent en **ET** (`applyFilters`). Aucun
 filtre n'est affiché s'il n'a aucune donnée réelle derrière (ex. la section
@@ -125,12 +125,12 @@ chaque changement (`useMemo` sur `allOffers`).
 
 ## 6. Tri — liste exacte et formules documentées
 
-| Mode | Formule | Notes |
-|---|---|---|
-| Recommandé (défaut) | `recommended` d'abord, puis prix croissant | 2 critères réels, jamais de score opaque |
-| Prix croissant | `fromPrice` ascendant | — |
-| Prix décroissant | `fromPrice` descendant | — |
-| Meilleur rapport qualité/prix | `fromPrice / max(stars, 1)` ascendant | myGo n'expose aucun prix barré/rabais fiable — donc aucune notion de remise fabriquée ; formule volontairement simple et documentée dans `lib/mygo/sort.ts` |
+| Mode                          | Formule                                    | Notes                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recommandé (défaut)           | `recommended` d'abord, puis prix croissant | 2 critères réels, jamais de score opaque                                                                                                                    |
+| Prix croissant                | `fromPrice` ascendant                      | —                                                                                                                                                           |
+| Prix décroissant              | `fromPrice` descendant                     | —                                                                                                                                                           |
+| Meilleur rapport qualité/prix | `fromPrice / max(stars, 1)` ascendant      | myGo n'expose aucun prix barré/rabais fiable — donc aucune notion de remise fabriquée ; formule volontairement simple et documentée dans `lib/mygo/sort.ts` |
 
 Pas de mode "Meilleure note" : aucune donnée de notation utilisateur réelle
 n'existe dans le DTO myGo (`hotel.note` existe mais n'est pas une note
@@ -199,6 +199,7 @@ tous verts (0 erreur TypeScript, 0 erreur lint, **214/214 tests passent dont
 23 nouveaux**, build production réussi, 76 routes générées).
 
 Nouveaux tests (purs, `node:test`) :
+
 - `lib/mygo/__tests__/sort.test.ts` (7) — chaque mode de tri, non-mutation.
 - `lib/mygo/__tests__/best-rate.test.ts` (5) — Best Rate Engine sans filtre,
   avec filtre simple/multiple, repli si aucune correspondance, offre vide.
@@ -214,11 +215,12 @@ Nouveaux tests (purs, `node:test`) :
 fictifs ni par un bypass de Supabase Auth) : `/api/hotels/search` est de
 toute façon protégée par `requirePartnerSession` (401/500 selon
 configuration), donc le scénario E2E complet
-*Accueil → Hôtels → Hammamet → dates → 2 adultes → Recherche → Résultats →
+_Accueil → Hôtels → Hammamet → dates → 2 adultes → Recherche → Résultats →
 4 étoiles → All Inclusive → Annulation gratuite → Prix croissant → Hôtel →
-Chambre → booking existant* n'a **pas pu être exécuté de bout en bout avec
+Chambre → booking existant_ n'a **pas pu être exécuté de bout en bout avec
 de vraies données myGo** dans cet environnement. Ce qui a été vérifié
 concrètement :
+
 - Le shell de la page se rend sans exception JS à 390px et 1440px.
 - Les Filter Chips et le "Effacer tous les filtres" se rendent correctement
   depuis l'URL (`f_stars=4` → chip "4 étoiles" visible).
@@ -240,6 +242,7 @@ rejouer le scénario ci-dessus.
 ## 12. Fichiers modifiés
 
 **Nouveaux** :
+
 - `lib/mygo/sort.ts` — Sort Engine.
 - `lib/mygo/best-rate.ts` — Best Rate Engine.
 - `lib/mygo/room-split.ts` — répartition multi-chambres (pur, testable).
@@ -247,6 +250,7 @@ rejouer le scénario ci-dessus.
 - `lib/mygo/__tests__/sort.test.ts`, `best-rate.test.ts`, `room-split.test.ts`.
 
 **Modifiés** :
+
 - `lib/mygo/facets.ts` — encode/décode URL des filtres (`filtersToSearchParams`/
   `filtersFromSearchParams`), `FILTER_URL_KEYS`.
 - `lib/mygo/use-hotel-search.ts` — transmission du paramètre `rooms`,
@@ -311,8 +315,8 @@ booking engine, explicitement hors périmètre).
    (`applyMarginsToHotel`/`applyMarginsToOffers`, `lib/pro/pricing.ts`),
    entièrement déconnectées du moteur myGo réel utilisé par
    `/hotels/search`. Les réservations issues de ce flux (`components/pro/
-   booking-travelers-form.tsx`) ne contiennent aucun `myGoToken/cityId/
-   boardingId/roomId` dans leurs métadonnées — `confirmHotelWithProvider()`
+booking-travelers-form.tsx`) ne contiennent aucun `myGoToken/cityId/
+boardingId/roomId` dans leurs métadonnées — `confirmHotelWithProvider()`
    retournerait `{attempted:false}` et ne confirmerait jamais réellement
    la réservation auprès de myGo pour ce flux. **Non corrigé dans cette
    mission** : le corriger toucherait le booking engine et le pricing,

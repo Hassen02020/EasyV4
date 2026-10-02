@@ -8,7 +8,11 @@
  * dernière erreur), sans jamais prétendre fonctionner : chaque méthode
  * renvoie explicitement NOT_CONFIGURED, jamais un résultat fabriqué.
  */
-import type { HotelSupplierDriver, SupplierSearchResult, SupplierHotelDetails } from "./supplier"
+import type {
+  HotelSupplierDriver,
+  SupplierSearchResult,
+  SupplierHotelDetails,
+} from "./supplier"
 import type {
   HotelSearchRequest,
   HotelDetailsRequest,
@@ -43,16 +47,33 @@ export function createDocumentationRequiredDriver(
       return Promise.reject(notConfigured())
     },
     checkRate(_request: CheckRateRequest): Promise<CheckRateResult> {
-      return Promise.resolve({ ok: false, code: "NOT_CONFIGURED", message: reason })
+      return Promise.resolve({
+        ok: false,
+        code: "NOT_CONFIGURED",
+        message: reason,
+      })
     },
     book(_request: SupplierBookingRequest): Promise<SupplierBookingResult> {
-      return Promise.resolve({ outcome: "DEFINITIVE_FAILURE", code: "NOT_CONFIGURED", message: reason })
+      return Promise.resolve({
+        outcome: "DEFINITIVE_FAILURE",
+        code: "NOT_CONFIGURED",
+        message: reason,
+      })
     },
     getBooking(request: SupplierBookingLookup): Promise<SupplierBooking> {
-      return Promise.resolve({ supplierBookingReference: request.supplierBookingReference, state: "UNKNOWN" })
+      return Promise.resolve({
+        supplierBookingReference: request.supplierBookingReference,
+        state: "UNKNOWN",
+      })
     },
-    cancel(_request: SupplierCancellationRequest): Promise<SupplierCancellationResult> {
-      return Promise.resolve({ ok: false, code: "NOT_CONFIGURED", message: reason })
+    cancel(
+      _request: SupplierCancellationRequest,
+    ): Promise<SupplierCancellationResult> {
+      return Promise.resolve({
+        ok: false,
+        code: "NOT_CONFIGURED",
+        message: reason,
+      })
     },
     // Pas de paramètre déclaré (au lieu de `_request: SupplierBookingReconciliationRequest`,
     // le style des autres méthodes ci-dessus) — TypeScript accepte qu'une

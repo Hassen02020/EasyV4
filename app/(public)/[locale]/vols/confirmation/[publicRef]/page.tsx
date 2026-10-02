@@ -17,13 +17,19 @@ interface Props {
   searchParams: Promise<{ token?: string }>
 }
 
-export default async function FlightConfirmationLegacyPage({ params, searchParams }: Props) {
+export default async function FlightConfirmationLegacyPage({
+  params,
+  searchParams,
+}: Props) {
   const { publicRef } = await params
   const { token } = await searchParams
   const locale = await getLocale()
 
   if (token) {
-    redirect({ href: `/booking/confirmation/${publicRef}?token=${token}`, locale })
+    redirect({
+      href: `/booking/confirmation/${publicRef}?token=${token}`,
+      locale,
+    })
   }
   redirect({ href: "/vols", locale })
 }

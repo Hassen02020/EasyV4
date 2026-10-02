@@ -13,7 +13,16 @@
  * Ne jamais utiliser connectivityLevel comme proxy de qualité commerciale.
  */
 
-import { pgEnum, pgTable, uuid, varchar, text, boolean, timestamp, jsonb } from "drizzle-orm/pg-core"
+import {
+  pgEnum,
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  boolean,
+  timestamp,
+  jsonb,
+} from "drizzle-orm/pg-core"
 
 export const supplierType = pgEnum("supplier_type", [
   "mygo",
@@ -58,13 +67,10 @@ export const supplierConnectivityLevel = pgEnum("supplier_connectivity_level", [
  * Certification commerciale du fournisseur — dimension QUALITÉ uniquement.
  * Indépendante du niveau de connectivité.
  */
-export const supplierCertificationStatus = pgEnum("supplier_certification_status", [
-  "registered",
-  "verified",
-  "connected",
-  "certified",
-  "premium_partner",
-])
+export const supplierCertificationStatus = pgEnum(
+  "supplier_certification_status",
+  ["registered", "verified", "connected", "certified", "premium_partner"],
+)
 
 export const suppliers = pgTable(
   "suppliers",
@@ -73,31 +79,35 @@ export const suppliers = pgTable(
     name: varchar("name", { length: 200 }).notNull(),
     type: supplierType("type").notNull(),
     status: supplierStatus("status").notNull().default("inactive"),
-    
+
     // Configuration API
     apiUrl: text("api_url"),
     apiKey: text("api_key"),
     apiSecret: text("api_secret"),
     apiUsername: text("api_username"),
     apiPassword: text("api_password"),
-    
+
     // Configuration XML
     xmlEndpoint: text("xml_endpoint"),
     xmlNamespace: text("xml_namespace"),
     xmlVersion: varchar("xml_version", { length: 20 }),
-    
+
     // Configuration spécifique
     config: jsonb("config").$type<Record<string, unknown>>(),
-    
+
     // Métadonnées
     logoUrl: text("logo_url"),
     website: text("website"),
     supportEmail: varchar("support_email", { length: 320 }),
     supportPhone: varchar("support_phone", { length: 32 }),
-    
+
     // Connectivity Ladder (Phase 34)
-    connectivityLevel: supplierConnectivityLevel("connectivity_level").notNull().default("l0_manual"),
-    certificationStatus: supplierCertificationStatus("certification_status").notNull().default("registered"),
+    connectivityLevel: supplierConnectivityLevel("connectivity_level")
+      .notNull()
+      .default("l0_manual"),
+    certificationStatus: supplierCertificationStatus("certification_status")
+      .notNull()
+      .default("registered"),
 
     // Synchronisation
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
@@ -105,8 +115,12 @@ export const suppliers = pgTable(
     autoSync: boolean("auto_sync").notNull().default(false),
 
     // Timestamps
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     // Index pour les requêtes fréquentes
@@ -122,15 +136,17 @@ export const supplierModules = pgTable(
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => suppliers.id, { onDelete: "cascade" }),
-    
+
     // Modules disponibles
     module: varchar("module", { length: 50 }).notNull(), // hotel, flight, package, transfer, omra
     enabled: boolean("enabled").notNull().default(true),
-    
+
     // Configuration spécifique au module
     config: jsonb("config").$type<Record<string, unknown>>(),
-    
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "supplier_modules_supplier_idx", on: t.supplierId },
@@ -145,19 +161,21 @@ export const supplierLogs = pgTable(
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => suppliers.id, { onDelete: "cascade" }),
-    
+
     // Type de log
     type: varchar("type", { length: 50 }).notNull(), // sync, booking, cancellation, error
     level: varchar("level", { length: 20 }).notNull(), // info, warning, error
-    
+
     // Détails
     message: text("message").notNull(),
     details: jsonb("details").$type<Record<string, unknown>>(),
-    
+
     // Performance
     duration: varchar("duration", { length: 20 }), // 500ms, 2.5s
-    
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "supplier_logs_supplier_idx", on: t.supplierId },
@@ -174,5 +192,7 @@ export type NewSupplierModule = typeof supplierModules.$inferInsert
 export type SupplierLog = typeof supplierLogs.$inferSelect
 export type NewSupplierLog = typeof supplierLogs.$inferInsert
 
-export type SupplierConnectivityLevel = (typeof supplierConnectivityLevel.enumValues)[number]
-export type SupplierCertificationStatus = (typeof supplierCertificationStatus.enumValues)[number]
+export type SupplierConnectivityLevel =
+  (typeof supplierConnectivityLevel.enumValues)[number]
+export type SupplierCertificationStatus =
+  (typeof supplierCertificationStatus.enumValues)[number]

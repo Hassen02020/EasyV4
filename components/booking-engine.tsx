@@ -51,7 +51,11 @@ import { useTranslations, useLocale } from "next-intl"
 
 import { cn } from "@/lib/utils"
 
-import { FIELD_SHELL, FIELD_INPUT_RESET, FieldLabel } from "@/components/search-field"
+import {
+  FIELD_SHELL,
+  FIELD_INPUT_RESET,
+  FieldLabel,
+} from "@/components/search-field"
 
 import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
@@ -173,7 +177,7 @@ export function BookingEngine() {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url('${HERO_BG_URL}')` }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-sidebar/85 via-sidebar/35 to-background" />
+        <div className="from-sidebar/85 via-sidebar/35 to-background absolute inset-0 bg-gradient-to-b" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
       </div>
 
@@ -193,7 +197,7 @@ export function BookingEngine() {
 
         {/* Desktop / tablet : carte flottante en glassmorphism */}
         <div
-          className="e2b-fade-in-up hidden rounded-[1.75rem] border border-white/40 bg-white/90 p-2.5 shadow-e2b-elevated backdrop-blur-2xl lg:block"
+          className="e2b-fade-in-up shadow-e2b-elevated hidden rounded-[1.75rem] border border-white/40 bg-white/90 p-2.5 backdrop-blur-2xl lg:block"
           style={{ animationDelay: "80ms" }}
         >
           <div className="flex items-center justify-between gap-3 px-1.5 pt-1.5 pb-2">
@@ -234,10 +238,12 @@ export function BookingEngine() {
 
             <DrawerContent className="max-h-[92vh] rounded-t-[1.75rem]">
               <DrawerTitle className="sr-only">
-                {tHome("searchDrawerTitle", { tab: t(activeTabConfig.labelKey) })}
+                {tHome("searchDrawerTitle", {
+                  tab: t(activeTabConfig.labelKey),
+                })}
               </DrawerTitle>
 
-              <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 pt-1 pb-3">
+              <div className="border-border/60 flex items-center justify-between gap-3 border-b px-4 pt-1 pb-3">
                 <TabPills
                   activeTab={activeTab}
                   onSelect={setActiveTab}
@@ -342,11 +348,7 @@ function CounterRow({
   )
 }
 
-function SearchSubmit({
-  children,
-}: {
-  children?: React.ReactNode
-}) {
+function SearchSubmit({ children }: { children?: React.ReactNode }) {
   const t = useTranslations("Common")
   return (
     <Button
@@ -450,7 +452,7 @@ function HotelsMondeForm() {
             </button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-72 space-y-4 rounded-2xl p-5 shadow-e2b-elevated"
+            className="shadow-e2b-elevated w-72 space-y-4 rounded-2xl p-5"
             align="start"
           >
             <CounterRow
@@ -510,7 +512,9 @@ function OmratyForm() {
         <div className={FIELD_SHELL}>
           <FieldLabel icon={Moon}>{t("programmeLabel")}</FieldLabel>
           <Select value={programme} onValueChange={setProgramme}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
               <SelectValue placeholder={tOmra("allProgrammes")} />
             </SelectTrigger>
 
@@ -525,9 +529,13 @@ function OmratyForm() {
         </div>
 
         <div className={FIELD_SHELL}>
-          <FieldLabel icon={CalendarDays}>{t("departureMonthLabel")}</FieldLabel>
+          <FieldLabel icon={CalendarDays}>
+            {t("departureMonthLabel")}
+          </FieldLabel>
           <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
               <SelectValue placeholder={tOmra("allMonths")} />
             </SelectTrigger>
 
@@ -584,7 +592,9 @@ function VoyagesOrganisesForm() {
         <div className={FIELD_SHELL}>
           <FieldLabel icon={Clock}>{t("durationLabel")}</FieldLabel>
           <Select value={duration} onValueChange={setDuration}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
               <SelectValue placeholder={tPackages("allDurations")} />
             </SelectTrigger>
 
@@ -601,7 +611,9 @@ function VoyagesOrganisesForm() {
         <div className={FIELD_SHELL}>
           <FieldLabel icon={Users}>{t("travelersLabel")}</FieldLabel>
           <Select value={travelers} onValueChange={setTravelers}>
-            <SelectTrigger className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
               <SelectValue placeholder={t("travelersLabel")} />
             </SelectTrigger>
 

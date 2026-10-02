@@ -11,11 +11,19 @@ export const activityProductSchema = z.object({
   shortDescription: z.string().trim().max(500).optional().or(z.literal("")),
   longDescription: z.string().trim().max(5000).optional().or(z.literal("")),
   durationMinutes: z.coerce.number().int().min(1).max(2880),
-  coverImage: z.string().trim().url("URL image invalide").optional().or(z.literal("")),
+  coverImage: z
+    .string()
+    .trim()
+    .url("URL image invalide")
+    .optional()
+    .or(z.literal("")),
   galleryUrls: z.array(z.string().trim().url()).max(30).default([]),
   inclusions: z.array(z.string().trim().min(1)).max(40).default([]),
   exclusions: z.array(z.string().trim().min(1)).max(40).default([]),
-  channels: z.array(z.enum(PRODUCT_CHANNELS)).min(1, "Au moins un canal de vente requis").default(["b2c"]),
+  channels: z
+    .array(z.enum(PRODUCT_CHANNELS))
+    .min(1, "Au moins un canal de vente requis")
+    .default(["b2c"]),
 })
 
 export type ActivityProductInput = z.infer<typeof activityProductSchema>
@@ -32,7 +40,11 @@ export const activitySessionSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.sessionEnd <= data.sessionStart) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sessionEnd"], message: "L'heure de fin doit suivre l'heure de début" })
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sessionEnd"],
+        message: "L'heure de fin doit suivre l'heure de début",
+      })
     }
   })
 

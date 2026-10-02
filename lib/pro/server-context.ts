@@ -50,7 +50,12 @@ export async function invalidateMarginsCache(agencyId: string): Promise<void> {
  * fusionnée avec les valeurs par défaut afin que chaque module ait une
  * règle, même si la BDD n'a pas (encore) la ligne.
  */
-const MARGIN_MODULES = new Set<string>(["hotel", "flight", "transfer", "network"])
+const MARGIN_MODULES = new Set<string>([
+  "hotel",
+  "flight",
+  "transfer",
+  "network",
+])
 
 export async function getMarginsForAgency(
   agencyId: string | null | undefined,
@@ -59,86 +64,105 @@ export async function getMarginsForAgency(
   if (!agencyId || !process.env.DATABASE_URL) return { ...DEFAULT_MARGINS }
 
   try {
-    return await withCache(marginsCacheKey(agencyId), MARGINS_CACHE_TTL, async () => {
-      // System A — pricing_margins (primary, UI-managed per module)
-      const pmRows = await withTenantContext(
-        { agencyId, userId, isSuperAdmin: false },
-        (db) =>
-          db
-            .select({
-              module: pricingMargins.module,
-              marginType: pricingMargins.marginType,
-              marginValue: pricingMargins.marginValue,
-              isActive: pricingMargins.isActive,
-            })
-            .from(pricingMargins)
-            .where(and(eq(pricingMargins.agencyId, agencyId), eq(pricingMargins.isActive, true))),
-      )
-
-      // System B — margin_rules, module-level only (supplierId/destination/price context is NULL).
-      // These are the only rules that are meaningful without a live booking context and therefore
-      // the only ones we can safely fold into the agency MarginMap used for SERP pricing.
-      // Ordered descending by priority so the first match per productType wins.
-      const nowIso = new Date().toISOString()
-      const mrRows = await withTenantContext(
-        { agencyId, userId, isSuperAdmin: false },
-        (db) =>
-          db
-            .select({
-              id: marginRules.id,
-              productType: marginRules.productType,
-              type: marginRules.type,
-              percentValue: marginRules.percentValue,
-              fixedValue: marginRules.fixedValue,
-              commissionPercent: marginRules.commissionPercent,
-            })
-            .from(marginRules)
-            .where(
-              and(
-                eq(marginRules.agencyId, agencyId),
-                eq(marginRules.isActive, true),
-                isNull(marginRules.supplierId),
-                isNull(marginRules.destination),
-                isNull(marginRules.minPrice),
-                isNull(marginRules.maxPrice),
-                or(isNull(marginRules.validFrom), lte(marginRules.validFrom, nowIso)),
-                or(isNull(marginRules.validTo), gte(marginRules.validTo, nowIso)),
+    return await withCache(
+      marginsCacheKey(agencyId),
+      MARGINS_CACHE_TTL,
+      async () => {
+        // System A — pricing_margins (primary, UI-managed per module)
+        const pmRows = await withTenantContext(
+          { agencyId, userId, isSuperAdmin: false },
+          (db) =>
+            db
+              .select({
+                module: pricingMargins.module,
+                marginType: pricingMargins.marginType,
+                marginValue: pricingMargins.marginValue,
+                isActive: pricingMargins.isActive,
+              })
+              .from(pricingMargins)
+              .where(
+                and(
+                  eq(pricingMargins.agencyId, agencyId),
+                  eq(pricingMargins.isActive, true),
+                ),
               ),
-            )
-            .orderBy(desc(marginRules.priority)),
-      )
+        )
 
-      // Build map from System A (baseline)
-      const map: MarginMap = { ...DEFAULT_MARGINS }
-      for (const row of pmRows) {
-        map[row.module as MarginModule] = {
-          marginType: row.marginType as MarginRule["marginType"],
-          marginValue: Number.parseFloat(row.marginValue ?? "0"),
-          isActive: row.isActive,
+        // System B — margin_rules, module-level only (supplierId/destination/price context is NULL).
+        // These are the only rules that are meaningful without a live booking context and therefore
+        // the only ones we can safely fold into the agency MarginMap used for SERP pricing.
+        // Ordered descending by priority so the first match per productType wins.
+        const nowIso = new Date().toISOString()
+        const mrRows = await withTenantContext(
+          { agencyId, userId, isSuperAdmin: false },
+          (db) =>
+            db
+              .select({
+                id: marginRules.id,
+                productType: marginRules.productType,
+                type: marginRules.type,
+                percentValue: marginRules.percentValue,
+                fixedValue: marginRules.fixedValue,
+                commissionPercent: marginRules.commissionPercent,
+              })
+              .from(marginRules)
+              .where(
+                and(
+                  eq(marginRules.agencyId, agencyId),
+                  eq(marginRules.isActive, true),
+                  isNull(marginRules.supplierId),
+                  isNull(marginRules.destination),
+                  isNull(marginRules.minPrice),
+                  isNull(marginRules.maxPrice),
+                  or(
+                    isNull(marginRules.validFrom),
+                    lte(marginRules.validFrom, nowIso),
+                  ),
+                  or(
+                    isNull(marginRules.validTo),
+                    gte(marginRules.validTo, nowIso),
+                  ),
+                ),
+              )
+              .orderBy(desc(marginRules.priority)),
+        )
+
+        // Build map from System A (baseline)
+        const map: MarginMap = { ...DEFAULT_MARGINS }
+        for (const row of pmRows) {
+          map[row.module as MarginModule] = {
+            marginType: row.marginType as MarginRule["marginType"],
+            marginValue: Number.parseFloat(row.marginValue ?? "0"),
+            isActive: row.isActive,
+          }
         }
-      }
 
-      // Override with System B where a module-level rule is configured.
-      // highest-priority rule per productType wins (rows already sorted desc).
-      // For hybrid rules the percent side is used — fixed component requires a
-      // live price and cannot be previewed without a booking context.
-      const seenModules = new Set<string>()
-      for (const row of mrRows) {
-        const mod = row.productType
-        if (!mod || !MARGIN_MODULES.has(mod) || seenModules.has(mod)) continue
-        seenModules.add(mod)
-        const isFixed = row.type === "fixed"
-        map[mod as MarginModule] = {
-          marginType: isFixed ? "fixed" : "percent",
-          marginValue: Number.parseFloat((isFixed ? row.fixedValue : row.percentValue) ?? "0"),
-          isActive: true,
-          commissionPercent: row.commissionPercent ? Number.parseFloat(row.commissionPercent) : undefined,
-          ruleId: row.id,
+        // Override with System B where a module-level rule is configured.
+        // highest-priority rule per productType wins (rows already sorted desc).
+        // For hybrid rules the percent side is used — fixed component requires a
+        // live price and cannot be previewed without a booking context.
+        const seenModules = new Set<string>()
+        for (const row of mrRows) {
+          const mod = row.productType
+          if (!mod || !MARGIN_MODULES.has(mod) || seenModules.has(mod)) continue
+          seenModules.add(mod)
+          const isFixed = row.type === "fixed"
+          map[mod as MarginModule] = {
+            marginType: isFixed ? "fixed" : "percent",
+            marginValue: Number.parseFloat(
+              (isFixed ? row.fixedValue : row.percentValue) ?? "0",
+            ),
+            isActive: true,
+            commissionPercent: row.commissionPercent
+              ? Number.parseFloat(row.commissionPercent)
+              : undefined,
+            ruleId: row.id,
+          }
         }
-      }
 
-      return map
-    })
+        return map
+      },
+    )
   } catch (err) {
     logger.error("[server-context] getMarginsForAgency failed", {
       agencyId,
@@ -165,7 +189,9 @@ export async function getActivePartnerMargins(): Promise<MarginMap> {
     if (!profile) return { ...DEFAULT_MARGINS }
     return await getMarginsForAgency(profile.agency.id, user.id)
   } catch (err) {
-    logger.error("[server-context] getActivePartnerMargins failed", { code: err instanceof Error ? err.constructor.name : "unknown" })
+    logger.error("[server-context] getActivePartnerMargins failed", {
+      code: err instanceof Error ? err.constructor.name : "unknown",
+    })
     return { ...DEFAULT_MARGINS }
   }
 }

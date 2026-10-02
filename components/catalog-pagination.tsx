@@ -34,7 +34,12 @@ interface CatalogPaginationProps {
   labels: CatalogPaginationLabels
 }
 
-export function CatalogPagination({ currentPage, totalPages, buildHref, labels }: CatalogPaginationProps) {
+export function CatalogPagination({
+  currentPage,
+  totalPages,
+  buildHref,
+  labels,
+}: CatalogPaginationProps) {
   if (totalPages <= 1) return null
   const pages = buildPageWindow(currentPage, totalPages)
 
@@ -47,7 +52,9 @@ export function CatalogPagination({ currentPage, totalPages, buildHref, labels }
             label={labels.previous}
             ariaLabel={labels.previousAria}
             aria-disabled={currentPage === 1}
-            className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+            className={
+              currentPage === 1 ? "pointer-events-none opacity-50" : undefined
+            }
           />
         </PaginationItem>
         {pages.map((p, i) =>
@@ -57,7 +64,11 @@ export function CatalogPagination({ currentPage, totalPages, buildHref, labels }
             </PaginationItem>
           ) : (
             <PaginationItem key={p}>
-              <PaginationLink href={buildHref(p)} isActive={p === currentPage} aria-label={labels.goToPage(p)}>
+              <PaginationLink
+                href={buildHref(p)}
+                isActive={p === currentPage}
+                aria-label={labels.goToPage(p)}
+              >
                 {p}
               </PaginationLink>
             </PaginationItem>
@@ -65,11 +76,17 @@ export function CatalogPagination({ currentPage, totalPages, buildHref, labels }
         )}
         <PaginationItem>
           <PaginationNext
-            href={currentPage < totalPages ? buildHref(currentPage + 1) : undefined}
+            href={
+              currentPage < totalPages ? buildHref(currentPage + 1) : undefined
+            }
             label={labels.next}
             ariaLabel={labels.nextAria}
             aria-disabled={currentPage === totalPages}
-            className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
+            className={
+              currentPage === totalPages
+                ? "pointer-events-none opacity-50"
+                : undefined
+            }
           />
         </PaginationItem>
       </PaginationContent>

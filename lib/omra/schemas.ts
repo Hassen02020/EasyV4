@@ -28,11 +28,17 @@ export const omraPilgrimSchema = z.object({
   address: z.string().trim().optional().or(z.literal("")),
   city: z.string().trim().optional().or(z.literal("")),
   postalCode: z.string().trim().optional().or(z.literal("")),
-  country: z.string().trim().length(2, "Code pays de résidence requis (ex: TN)"),
+  country: z
+    .string()
+    .trim()
+    .length(2, "Code pays de résidence requis (ex: TN)"),
   passportNumber: z.string().trim().min(6, "Numéro passeport requis"),
   passportIssueDate: z.string().regex(isoDate, "Format date invalide"),
   passportExpiryDate: z.string().regex(isoDate, "Format date invalide"),
-  passportIssuingCountry: z.string().trim().length(2, "Code pays émetteur requis"),
+  passportIssuingCountry: z
+    .string()
+    .trim()
+    .length(2, "Code pays émetteur requis"),
   bloodType: z.string().trim().optional().or(z.literal("")),
   hasMedicalConditions: z.boolean().default(false),
   medicalConditions: z.string().trim().optional().or(z.literal("")),
@@ -47,27 +53,28 @@ export const omraPilgrimSchema = z.object({
 export type OmraPilgrimFormInput = z.infer<typeof omraPilgrimSchema>
 
 /** Le premier pèlerin sert de contact principal — un email est requis pour lui. */
-export const omraGuestBookingSchema = z.object({
-  packageId: z.string().uuid("Package invalide"),
-  departureDate: z.string().regex(isoDate, "Date de départ invalide"),
-  pilgrims: z
-    .array(omraPilgrimSchema)
-    .min(1, "Au moins un pèlerin requis")
-    .max(100, "Maximum 100 pèlerins"),
-  // Coché par le client s'il a vu et accepté la politique d'annulation
-  // affichée avant validation (voir lib/booking/policy-engine.ts). `false`
-  // par défaut : n'a de sens que si une politique existe réellement pour ce
-  // package — absence de politique = rien à accepter, jamais bloquant.
-  policyAccepted: z.boolean().optional().default(false),
-})
-.superRefine((data, ctx) => {
-  if (!data.pilgrims[0]?.email) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["pilgrims", 0, "email"],
-      message: "Un email est requis pour le contact principal du groupe",
-    })
-  }
-})
+export const omraGuestBookingSchema = z
+  .object({
+    packageId: z.string().uuid("Package invalide"),
+    departureDate: z.string().regex(isoDate, "Date de départ invalide"),
+    pilgrims: z
+      .array(omraPilgrimSchema)
+      .min(1, "Au moins un pèlerin requis")
+      .max(100, "Maximum 100 pèlerins"),
+    // Coché par le client s'il a vu et accepté la politique d'annulation
+    // affichée avant validation (voir lib/booking/policy-engine.ts). `false`
+    // par défaut : n'a de sens que si une politique existe réellement pour ce
+    // package — absence de politique = rien à accepter, jamais bloquant.
+    policyAccepted: z.boolean().optional().default(false),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.pilgrims[0]?.email) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pilgrims", 0, "email"],
+        message: "Un email est requis pour le contact principal du groupe",
+      })
+    }
+  })
 
 export type OmraGuestBookingInput = z.infer<typeof omraGuestBookingSchema>

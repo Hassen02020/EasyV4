@@ -34,7 +34,7 @@ export default async function HotelsMondeePage({
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30">
+      <main className="bg-muted/30 flex-1">
         <ModuleHero
           Icon={Globe}
           gradient="from-indigo-900 to-indigo-700"

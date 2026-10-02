@@ -15,8 +15,14 @@
  * dans le schéma mais jamais écrite par aucun flux réel (confirmé par grep).
  */
 
-import { reservationStatusHistory, reservationTransition } from "@/lib/db/schema"
-import { isTransitionAllowed, type ReservationStatus } from "./reservation-status"
+import {
+  reservationStatusHistory,
+  reservationTransition,
+} from "@/lib/db/schema"
+import {
+  isTransitionAllowed,
+  type ReservationStatus,
+} from "./reservation-status"
 import type { DrizzleTransaction } from "@/lib/db/client"
 
 type TransitionLabel = (typeof reservationTransition.enumValues)[number]
@@ -26,7 +32,9 @@ type TransitionLabel = (typeof reservationTransition.enumValues)[number]
  * code (voir audit chantier-49A). `no_show` n'a aucun point d'écriture
  * réel dans le dépôt (confirmé par grep) — volontairement absent ici.
  */
-const TRANSITION_LABEL_BY_TARGET: Partial<Record<ReservationStatus, TransitionLabel>> = {
+const TRANSITION_LABEL_BY_TARGET: Partial<
+  Record<ReservationStatus, TransitionLabel>
+> = {
   pending: "create",
   confirmed: "payment_success",
   on_request: "await_provider",

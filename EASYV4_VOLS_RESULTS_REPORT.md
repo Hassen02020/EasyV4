@@ -156,6 +156,7 @@ Scénarios manuels exécutés (dev server + Playwright/curl), sur `/vols` et
 10. **Desktop (1440px)** : mise en page vérifiée par capture d'écran.
 
 Gates automatisés :
+
 - `pnpm typecheck` : 0 erreur.
 - `pnpm lint` : 0 erreur (avertissements restants tous pré-existants et
   sans rapport avec ce chantier).

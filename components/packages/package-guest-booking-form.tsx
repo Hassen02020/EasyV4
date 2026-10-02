@@ -22,15 +22,32 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Users, Calendar, CreditCard, Banknote, Wallet, ShoppingCart } from "lucide-react"
+import {
+  Loader2,
+  Users,
+  Calendar,
+  CreditCard,
+  Banknote,
+  Wallet,
+  ShoppingCart,
+} from "lucide-react"
 import { createGuestPackageBooking } from "@/lib/packages/booking-actions"
-import { packageGuestBookingSchema, type PackageGuestBookingInput } from "@/lib/packages/schemas"
+import {
+  packageGuestBookingSchema,
+  type PackageGuestBookingInput,
+} from "@/lib/packages/schemas"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
@@ -54,11 +71,31 @@ interface PackageGuestBookingFormProps {
 
 function getMethods(
   t: ReturnType<typeof useTranslations>,
-): { key: GuestPaymentMethod; label: string; desc: string; icon: typeof CreditCard }[] {
+): {
+  key: GuestPaymentMethod
+  label: string
+  desc: string
+  icon: typeof CreditCard
+}[] {
   return [
-    { key: "card", label: t("paymentCardLabel"), desc: t("paymentCardDesc"), icon: CreditCard },
-    { key: "transfer", label: t("paymentTransferLabel"), desc: t("paymentTransferDesc"), icon: Banknote },
-    { key: "cash", label: t("paymentCashLabel"), desc: t("paymentCashDesc"), icon: Wallet },
+    {
+      key: "card",
+      label: t("paymentCardLabel"),
+      desc: t("paymentCardDesc"),
+      icon: CreditCard,
+    },
+    {
+      key: "transfer",
+      label: t("paymentTransferLabel"),
+      desc: t("paymentTransferDesc"),
+      icon: Banknote,
+    },
+    {
+      key: "cash",
+      label: t("paymentCashLabel"),
+      desc: t("paymentCashDesc"),
+      icon: Wallet,
+    },
   ]
 }
 
@@ -78,7 +115,9 @@ export function PackageGuestBookingForm({
   const [method, setMethod] = useState<GuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
   const [policyAccepted, setPolicyAccepted] = useState(false)
-  const [resolvedPolicy, setResolvedPolicy] = useState<ResolvedPolicy | null | undefined>(undefined)
+  const [resolvedPolicy, setResolvedPolicy] = useState<
+    ResolvedPolicy | null | undefined
+  >(undefined)
 
   const form = useForm<PackageGuestBookingInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,12 +142,23 @@ export function PackageGuestBookingForm({
     },
   })
 
-  const watchedDepartureId = useWatch({ control: form.control, name: "departureId" })
+  const watchedDepartureId = useWatch({
+    control: form.control,
+    name: "departureId",
+  })
   const watchedAdults = useWatch({ control: form.control, name: "adults" }) ?? 1
-  const watchedChildren = useWatch({ control: form.control, name: "children" }) ?? 0
-  const watchedChildrenAges = useWatch({ control: form.control, name: "childrenAges" }) ?? []
-  const watchedCivicIdType = useWatch({ control: form.control, name: "traveler.civicIdType" })
-  const watchedCivility = useWatch({ control: form.control, name: "traveler.civility" })
+  const watchedChildren =
+    useWatch({ control: form.control, name: "children" }) ?? 0
+  const watchedChildrenAges =
+    useWatch({ control: form.control, name: "childrenAges" }) ?? []
+  const watchedCivicIdType = useWatch({
+    control: form.control,
+    name: "traveler.civicIdType",
+  })
+  const watchedCivility = useWatch({
+    control: form.control,
+    name: "traveler.civility",
+  })
 
   const selectedDeparture = departures.find((d) => d.id === watchedDepartureId)
   const adultPrice = selectedDeparture?.adultPriceTnd ?? 0
@@ -142,13 +192,18 @@ export function PackageGuestBookingForm({
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      const result = await createGuestPackageBooking({ booking: { ...data, policyAccepted }, paymentMethod: method })
+      const result = await createGuestPackageBooking({
+        booking: { ...data, policyAccepted },
+        paymentMethod: method,
+      })
       if (!result.ok) {
         setSubmitError(result.error)
         setIsSubmitting(false)
         return
       }
-      router.push(`/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`)
+      router.push(
+        `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
+      )
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : t("unknownError"))
       setIsSubmitting(false)
@@ -188,7 +243,10 @@ export function PackageGuestBookingForm({
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">{packageTitle}</p>
-            <Select value={watchedDepartureId} onValueChange={(v) => form.setValue("departureId", v)}>
+            <Select
+              value={watchedDepartureId}
+              onValueChange={(v) => form.setValue("departureId", v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder={t("chooseDate")} />
               </SelectTrigger>
@@ -196,15 +254,23 @@ export function PackageGuestBookingForm({
                 {departures.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     <div className="flex items-center justify-between gap-4">
-                      <span>{new Date(d.departureDate).toLocaleDateString("fr-FR")}</span>
-                      <Badge variant={d.seatsLeft > 5 ? "default" : "destructive"}>{t("seatsAvailable", { count: d.seatsLeft })}</Badge>
+                      <span>
+                        {new Date(d.departureDate).toLocaleDateString("fr-FR")}
+                      </span>
+                      <Badge
+                        variant={d.seatsLeft > 5 ? "default" : "destructive"}
+                      >
+                        {t("seatsAvailable", { count: d.seatsLeft })}
+                      </Badge>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {form.formState.errors.departureId ? (
-              <p className="text-destructive text-sm">{form.formState.errors.departureId.message}</p>
+              <p className="text-destructive text-sm">
+                {form.formState.errors.departureId.message}
+              </p>
             ) : null}
           </CardContent>
         </Card>
@@ -227,7 +293,9 @@ export function PackageGuestBookingForm({
                   {...form.register("adults", { valueAsNumber: true })}
                 />
                 {form.formState.errors.adults ? (
-                  <p className="text-destructive text-sm">{form.formState.errors.adults.message}</p>
+                  <p className="text-destructive text-sm">
+                    {form.formState.errors.adults.message}
+                  </p>
                 ) : null}
               </div>
               <div className="space-y-2">
@@ -237,7 +305,9 @@ export function PackageGuestBookingForm({
                   min={0}
                   max={20}
                   value={watchedChildren}
-                  onChange={(e) => setChildrenCount(Math.max(0, Number(e.target.value) || 0))}
+                  onChange={(e) =>
+                    setChildrenCount(Math.max(0, Number(e.target.value) || 0))
+                  }
                 />
               </div>
             </div>
@@ -274,7 +344,12 @@ export function PackageGuestBookingForm({
                 <Label>{t("civilityLabel")}</Label>
                 <Select
                   value={watchedCivility}
-                  onValueChange={(v) => form.setValue("traveler.civility", v as "M" | "Mme" | "Mlle")}
+                  onValueChange={(v) =>
+                    form.setValue(
+                      "traveler.civility",
+                      v as "M" | "Mme" | "Mlle",
+                    )
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -288,32 +363,58 @@ export function PackageGuestBookingForm({
               </div>
               <div>
                 <Label>{t("firstNameLabel")}</Label>
-                <Input {...form.register("traveler.firstName")} className="mt-1" placeholder="Hassen" />
+                <Input
+                  {...form.register("traveler.firstName")}
+                  className="mt-1"
+                  placeholder="Hassen"
+                />
                 {form.formState.errors.traveler?.firstName ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.firstName.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.firstName.message}
+                  </p>
                 ) : null}
               </div>
               <div>
                 <Label>{t("lastNameLabel")}</Label>
-                <Input {...form.register("traveler.lastName")} className="mt-1" placeholder="Tarhouni" />
+                <Input
+                  {...form.register("traveler.lastName")}
+                  className="mt-1"
+                  placeholder="Tarhouni"
+                />
                 {form.formState.errors.traveler?.lastName ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.lastName.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.lastName.message}
+                  </p>
                 ) : null}
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>{t("emailLabel")}</Label>
-                <Input type="email" {...form.register("traveler.email")} className="mt-1" placeholder="vous@email.tn" />
+                <Input
+                  type="email"
+                  {...form.register("traveler.email")}
+                  className="mt-1"
+                  placeholder="vous@email.tn"
+                />
                 {form.formState.errors.traveler?.email ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.email.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.email.message}
+                  </p>
                 ) : null}
               </div>
               <div>
                 <Label>{t("phoneLabel")}</Label>
-                <Input type="tel" {...form.register("traveler.phone")} className="mt-1" placeholder="+216 98 140 514" />
+                <Input
+                  type="tel"
+                  {...form.register("traveler.phone")}
+                  className="mt-1"
+                  placeholder="+216 98 140 514"
+                />
                 {form.formState.errors.traveler?.phone ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.phone.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.phone.message}
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -322,22 +423,42 @@ export function PackageGuestBookingForm({
                 <Label>{t("idTypeLabel")}</Label>
                 <Select
                   value={watchedCivicIdType}
-                  onValueChange={(v) => form.setValue("traveler.civicIdType", v as "cin" | "passport")}
+                  onValueChange={(v) =>
+                    form.setValue(
+                      "traveler.civicIdType",
+                      v as "cin" | "passport",
+                    )
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cin">{t("idType.cin")}</SelectItem>
-                    <SelectItem value="passport">{t("idType.passport")}</SelectItem>
+                    <SelectItem value="passport">
+                      {t("idType.passport")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="sm:col-span-2">
-                <Label>{t("idNumberLabel", { type: watchedCivicIdType === "cin" ? t("idTypeShort.cin") : t("idTypeShort.passport") })}</Label>
-                <Input {...form.register("traveler.civicId")} className="mt-1" placeholder="12345678" />
+                <Label>
+                  {t("idNumberLabel", {
+                    type:
+                      watchedCivicIdType === "cin"
+                        ? t("idTypeShort.cin")
+                        : t("idTypeShort.passport"),
+                  })}
+                </Label>
+                <Input
+                  {...form.register("traveler.civicId")}
+                  className="mt-1"
+                  placeholder="12345678"
+                />
                 {form.formState.errors.traveler?.civicId ? (
-                  <p className="text-destructive mt-1 text-xs">{form.formState.errors.traveler.civicId.message}</p>
+                  <p className="text-destructive mt-1 text-xs">
+                    {form.formState.errors.traveler.civicId.message}
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -368,27 +489,42 @@ export function PackageGuestBookingForm({
                   onClick={() => setMethod(m.key)}
                   className={
                     "flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-all " +
-                    (active ? "border-sidebar bg-sidebar/5 shadow-sm" : "border-border hover:border-foreground/30")
+                    (active
+                      ? "border-sidebar bg-sidebar/5 shadow-sm"
+                      : "border-border hover:border-foreground/30")
                   }
                 >
                   <span
                     className={
                       "mt-0.5 inline-flex size-9 items-center justify-center rounded-md " +
-                      (active ? "bg-sidebar text-white" : "bg-muted text-muted-foreground")
+                      (active
+                        ? "bg-sidebar text-white"
+                        : "bg-muted text-muted-foreground")
                     }
                   >
                     <Icon className="size-5" />
                   </span>
                   <span className="flex-1">
-                    <span className="block text-sm font-semibold">{m.label}</span>
-                    <span className="text-muted-foreground text-xs">{m.desc}</span>
+                    <span className="block text-sm font-semibold">
+                      {m.label}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {m.desc}
+                    </span>
                   </span>
                 </button>
               )
             })}
             <div className="flex items-start gap-2 pt-2">
-              <Checkbox id="cgv-package" checked={acceptCgv} onCheckedChange={(v) => setAcceptCgv(Boolean(v))} />
-              <Label htmlFor="cgv-package" className="text-muted-foreground text-sm leading-snug">
+              <Checkbox
+                id="cgv-package"
+                checked={acceptCgv}
+                onCheckedChange={(v) => setAcceptCgv(Boolean(v))}
+              />
+              <Label
+                htmlFor="cgv-package"
+                className="text-muted-foreground text-sm leading-snug"
+              >
                 {t("acceptCgv")}
               </Label>
             </div>
@@ -404,19 +540,29 @@ export function PackageGuestBookingForm({
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm">{t("adultsSummary", { n: watchedAdults })}</span>
-              <span className="font-medium">{(adultPrice * watchedAdults).toFixed(3)} DT</span>
+              <span className="text-sm">
+                {t("adultsSummary", { n: watchedAdults })}
+              </span>
+              <span className="font-medium">
+                {(adultPrice * watchedAdults).toFixed(3)} DT
+              </span>
             </div>
             {watchedChildren > 0 ? (
               <div className="flex items-center justify-between">
-                <span className="text-sm">{t("childrenSummary", { n: watchedChildren })}</span>
-                <span className="font-medium">{(childPrice * watchedChildren).toFixed(3)} DT</span>
+                <span className="text-sm">
+                  {t("childrenSummary", { n: watchedChildren })}
+                </span>
+                <span className="font-medium">
+                  {(childPrice * watchedChildren).toFixed(3)} DT
+                </span>
               </div>
             ) : null}
             <Separator />
             <div className="flex items-center justify-between text-lg">
               <span className="font-semibold">{t("totalTtc")}</span>
-              <span className="font-bold text-violet-700">{totalPrice.toFixed(3)} DT</span>
+              <span className="font-bold text-violet-700">
+                {totalPrice.toFixed(3)} DT
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -437,7 +583,12 @@ export function PackageGuestBookingForm({
             type="submit"
             size="lg"
             className="w-full sm:flex-1"
-            disabled={isSubmitting || !watchedDepartureId || !acceptCgv || policyAcceptanceRequired}
+            disabled={
+              isSubmitting ||
+              !watchedDepartureId ||
+              !acceptCgv ||
+              policyAcceptanceRequired
+            }
           >
             {isSubmitting ? (
               <>

@@ -4,8 +4,17 @@
  * universel du Hub. C'est la SEULE couche qui connaît le nom "myGo" côté
  * normalisation.
  */
-import type { HotelOfferDTO, HotelSummaryDTO, RoomOfferDTO } from "@/lib/mygo/types"
-import type { NormalizedHotel, NormalizedRate, NormalizedCancellationPolicy, CancellationPolicyType } from "../core/types"
+import type {
+  HotelOfferDTO,
+  HotelSummaryDTO,
+  RoomOfferDTO,
+} from "@/lib/mygo/types"
+import type {
+  NormalizedHotel,
+  NormalizedRate,
+  NormalizedCancellationPolicy,
+  CancellationPolicyType,
+} from "../core/types"
 
 function toCancellationPolicyType(room: RoomOfferDTO): CancellationPolicyType {
   if (room.notRefundable) return "NON_REFUNDABLE"
@@ -14,12 +23,13 @@ function toCancellationPolicyType(room: RoomOfferDTO): CancellationPolicyType {
   return hasFees ? "PARTIAL_PENALTY" : "FREE_CANCELLATION"
 }
 
-function toCancellationPolicy(room: RoomOfferDTO): NormalizedCancellationPolicy {
+function toCancellationPolicy(
+  room: RoomOfferDTO,
+): NormalizedCancellationPolicy {
   const type = toCancellationPolicyType(room)
-  const worst = room.cancellationPolicies.reduce<(typeof room.cancellationPolicies)[number] | null>(
-    (acc, p) => (acc == null || p.fees > acc.fees ? p : acc),
-    null,
-  )
+  const worst = room.cancellationPolicies.reduce<
+    (typeof room.cancellationPolicies)[number] | null
+  >((acc, p) => (acc == null || p.fees > acc.fees ? p : acc), null)
   return {
     type,
     deadline: worst?.fromDate,
@@ -38,7 +48,9 @@ export function mapMyGoHotelSummary(hotel: HotelSummaryDTO): NormalizedHotel {
     stars: hotel.stars,
     images: hotel.image ? [hotel.image] : [],
     facilities: hotel.facilities.map((f) => f.title),
-    supplierMappings: [{ supplier: "mygo", supplierHotelCode: String(hotel.id) }],
+    supplierMappings: [
+      { supplier: "mygo", supplierHotelCode: String(hotel.id) },
+    ],
   }
 }
 

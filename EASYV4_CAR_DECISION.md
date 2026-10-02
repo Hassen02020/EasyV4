@@ -22,14 +22,14 @@ L'audit précédent classait Car "❌ Aucun. `lib/db/schema/cars.ts` existe
 mais n'est référencé par aucun code de requête." En creusant ce fichier
 pour cette phase, la réalité est plus nuancée :
 
-| Couche | État |
-|---|---|
-| Formulaire homepage + `/car` (`CarForm`/`CarSearch`) | Existe, pousse vers `/car/search?...` — **route inexistante, 404 systématique** |
-| Schéma DB (`lib/db/schema/cars.ts`) | **Complet et migré** : `car_locations`, `car_categories`, `car_fleet_vehicles`, `car_availability`, `car_pricing_rates`, `reservation_car` (migration `drizzle/0010_car_rental_module.sql`) |
-| RLS | **Déjà écrites** (`drizzle/manual/0011_car_rental_rls.sql`) |
-| `reservation_module` enum | `'car'` déjà présent (`lib/db/schema.ts:91`) |
-| Code applicatif (requêtes, actions, routes) | **Zéro** — confirmé par recherche : aucune des tables `car_*` n'est référencée en dehors de leur propre fichier de définition |
-| UI admin/pro pour peupler le catalogue | **Inexistante** — aucune page ne permet de créer un `car_location`, une `car_category` ou un `car_pricing_rate` |
+| Couche                                               | État                                                                                                                                                                                        |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Formulaire homepage + `/car` (`CarForm`/`CarSearch`) | Existe, pousse vers `/car/search?...` — **route inexistante, 404 systématique**                                                                                                             |
+| Schéma DB (`lib/db/schema/cars.ts`)                  | **Complet et migré** : `car_locations`, `car_categories`, `car_fleet_vehicles`, `car_availability`, `car_pricing_rates`, `reservation_car` (migration `drizzle/0010_car_rental_module.sql`) |
+| RLS                                                  | **Déjà écrites** (`drizzle/manual/0011_car_rental_rls.sql`)                                                                                                                                 |
+| `reservation_module` enum                            | `'car'` déjà présent (`lib/db/schema.ts:91`)                                                                                                                                                |
+| Code applicatif (requêtes, actions, routes)          | **Zéro** — confirmé par recherche : aucune des tables `car_*` n'est référencée en dehors de leur propre fichier de définition                                                               |
+| UI admin/pro pour peupler le catalogue               | **Inexistante** — aucune page ne permet de créer un `car_location`, une `car_category` ou un `car_pricing_rate`                                                                             |
 
 Autrement dit : la couche donnée est **prête à 100%**, la couche
 application est à **0%**. C'est l'inverse de Hôtels Monde (voir

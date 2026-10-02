@@ -20,7 +20,12 @@
  */
 
 import { siteOrigin } from "@/lib/mygo/config"
-import type { CreatePaymentInput, PaymentProvider, PaymentResult, PaymentStatusResult } from "./provider"
+import type {
+  CreatePaymentInput,
+  PaymentProvider,
+  PaymentResult,
+  PaymentStatusResult,
+} from "./provider"
 
 export function isPaymeeSelected(): boolean {
   return process.env.PAYMENT_PROVIDER === "paymee"
@@ -29,7 +34,9 @@ export function isPaymeeSelected(): boolean {
 export type PaymeeEnvironment = "sandbox" | "production"
 
 export function getPaymeeEnvironment(): PaymeeEnvironment {
-  return process.env.PAYMEE_ENVIRONMENT === "production" ? "production" : "sandbox"
+  return process.env.PAYMEE_ENVIRONMENT === "production"
+    ? "production"
+    : "sandbox"
 }
 
 /** URL de base — override explicite (`PAYMEE_BASE_URL`) sinon dérivée de
@@ -37,7 +44,9 @@ export function getPaymeeEnvironment(): PaymeeEnvironment {
 export function resolvePaymeeBaseUrl(): string {
   const override = process.env.PAYMEE_BASE_URL
   if (override) return override.replace(/\/$/, "")
-  return getPaymeeEnvironment() === "production" ? "https://app.paymee.tn" : "https://sandbox.paymee.tn"
+  return getPaymeeEnvironment() === "production"
+    ? "https://app.paymee.tn"
+    : "https://sandbox.paymee.tn"
 }
 
 /** URL publique du webhook — override explicite sinon dérivée de
@@ -60,7 +69,9 @@ function resolveReturnUrl(reference: string): string {
 function normalizePaymeePhone(raw: string | undefined): string {
   if (!raw) return ""
   const digits = raw.replace(/\D/g, "")
-  return digits.startsWith("216") && digits.length > 8 ? digits.slice(3) : digits
+  return digits.startsWith("216") && digits.length > 8
+    ? digits.slice(3)
+    : digits
 }
 
 interface PaymeeCreateResponseData {
@@ -164,18 +175,29 @@ export class PaymeePaymentProvider implements PaymentProvider {
     }
 
     if (!response.ok) {
-      const message = json && typeof json === "object" && "message" in json ? String((json as { message: unknown }).message) : null
+      const message =
+        json && typeof json === "object" && "message" in json
+          ? String((json as { message: unknown }).message)
+          : null
       return {
         ok: false,
         code: "PROVIDER_ERROR",
-        message: message ?? `Échec de création du paiement Paymee (HTTP ${response.status}).`,
+        message:
+          message ??
+          `Échec de création du paiement Paymee (HTTP ${response.status}).`,
       }
     }
 
     if (!isValidCreateResponse(json)) {
-      const declined = json && typeof json === "object" && "status" in json && (json as { status: unknown }).status === false
+      const declined =
+        json &&
+        typeof json === "object" &&
+        "status" in json &&
+        (json as { status: unknown }).status === false
       const message =
-        json && typeof json === "object" && "message" in json ? String((json as { message: unknown }).message) : null
+        json && typeof json === "object" && "message" in json
+          ? String((json as { message: unknown }).message)
+          : null
       return {
         ok: false,
         code: declined ? "PAYMENT_DECLINED" : "PROVIDER_ERROR",

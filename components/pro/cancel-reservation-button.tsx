@@ -61,13 +61,15 @@ export function CancelReservationButton({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Annuler la réservation {publicRef} ?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Annuler la réservation {publicRef} ?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             L&apos;annulation sera transmise immédiatement à myGo. Des frais
             d&apos;annulation peuvent s&apos;appliquer selon la politique de
-            l&apos;hôtel ; le solde restant (montant payé moins frais
-            éventuels) sera automatiquement recrédité sur le wallet de
-            l&apos;agence. Cette action est irréversible.
+            l&apos;hôtel ; le solde restant (montant payé moins frais éventuels)
+            sera automatiquement recrédité sur le wallet de l&apos;agence. Cette
+            action est irréversible.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

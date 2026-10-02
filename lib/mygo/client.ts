@@ -22,7 +22,10 @@ import {
   MyGoTimeoutError,
 } from "./errors"
 import { CircuitBreaker } from "./circuit-breaker"
-import { SyncRedisCircuitBreaker, getSharedSyncRedisCircuitBreaker } from "./circuit-breaker-redis"
+import {
+  SyncRedisCircuitBreaker,
+  getSharedSyncRedisCircuitBreaker,
+} from "./circuit-breaker-redis"
 import { memoize } from "./cache"
 import {
   HotelDetailResponse,
@@ -73,7 +76,12 @@ export interface CreateBookingRoomInput {
   boardingId: number
   view?: number[]
   supplement?: number[]
-  adults: { civility?: string; name: string; surname: string; holder?: boolean }[]
+  adults: {
+    civility?: string
+    name: string
+    surname: string
+    holder?: boolean
+  }[]
   children?: { name: string; surname: string; age: number }[]
 }
 
@@ -156,7 +164,9 @@ export class MyGoClient {
   }
 
   private cacheKey(suffix: string): string {
-    return this.cacheNamespace ? `mygo:${this.cacheNamespace}:${suffix}` : `mygo:${suffix}`
+    return this.cacheNamespace
+      ? `mygo:${this.cacheNamespace}:${suffix}`
+      : `mygo:${suffix}`
   }
 
   // -------------------------------------------------------------------------
@@ -421,12 +431,9 @@ export class MyGoClient {
         ...(filters.state ? { State: filters.state } : {}),
       }
     }
-    const raw = await this.callOnce(
-      "BookingList",
-      body,
-      BookingListResponse,
-      { retryable: true },
-    )
+    const raw = await this.callOnce("BookingList", body, BookingListResponse, {
+      retryable: true,
+    })
     return raw.BookingDetail ?? []
   }
 
@@ -531,7 +538,9 @@ export class MyGoClient {
             attempt,
             error: redactPii(err.message),
             zodIssues: err.issues,
-            rawResponse: redactPii(JSON.stringify(rawJson) ?? "undefined").slice(0, 4000),
+            rawResponse: redactPii(
+              JSON.stringify(rawJson) ?? "undefined",
+            ).slice(0, 4000),
           })
           throw err
         }
@@ -542,7 +551,10 @@ export class MyGoClient {
           err instanceof MyGoApiError ||
           isCircuitErr
         ) {
-          timer.end({ attempt, error: redactPii(err instanceof Error ? err.message : String(err)) })
+          timer.end({
+            attempt,
+            error: redactPii(err instanceof Error ? err.message : String(err)),
+          })
           throw err
         }
 
@@ -551,7 +563,11 @@ export class MyGoClient {
         const isLast = !retryable || attempt === cfg.maxRetries
         if (isLast) {
           this.breaker.onFailure()
-          timer.end({ attempt, error: redactPii(err instanceof Error ? err.message : String(err)), final: true })
+          timer.end({
+            attempt,
+            error: redactPii(err instanceof Error ? err.message : String(err)),
+            final: true,
+          })
           throw err
         }
         const backoffMs = Math.min(8000, 500 * 2 ** attempt)
@@ -617,9 +633,12 @@ export class MyGoClient {
  */
 function redactPii(msg: string): string {
   return msg
-    .replace(/[\w.+-]+@[\w-]+\.[a-z]{2,}/gi, "[email]")       // emails
-    .replace(/\+?[\d][\d\s().\-]{7,14}[\d]/g, "[phone]")        // téléphones
-    .replace(/(Password|password|pwd|token|secret)[=:\s]+\S+/gi, "$1=[redacted]") // credentials
+    .replace(/[\w.+-]+@[\w-]+\.[a-z]{2,}/gi, "[email]") // emails
+    .replace(/\+?[\d][\d\s().\-]{7,14}[\d]/g, "[phone]") // téléphones
+    .replace(
+      /(Password|password|pwd|token|secret)[=:\s]+\S+/gi,
+      "$1=[redacted]",
+    ) // credentials
 }
 
 /** Fast deterministic hash of an object — stable across runs. */
@@ -645,7 +664,10 @@ export function getMyGoClient(): MyGoClient {
  * circuit pour les autres comptes (y compris le compte global `MYGO_*`).
  * `getMyGoClient()` (singleton existant) reste totalement inchangé.
  */
-export function createMyGoClientForAccount(accountId: string, config: MyGoConfig): MyGoClient {
+export function createMyGoClientForAccount(
+  accountId: string,
+  config: MyGoConfig,
+): MyGoClient {
   const breaker = new SyncRedisCircuitBreaker(`mygo:${accountId}`, {
     failureThreshold: 5,
     windowMs: 60_000,

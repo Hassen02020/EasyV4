@@ -243,7 +243,10 @@ export function BookingTravelersForm({
                     <Select
                       value={mainTraveler.civility}
                       onValueChange={(v) =>
-                        setMainTraveler((p) => ({ ...p, civility: v as "M" | "Mme" | "Mlle" }))
+                        setMainTraveler((p) => ({
+                          ...p,
+                          civility: v as "M" | "Mme" | "Mlle",
+                        }))
                       }
                     >
                       <SelectTrigger className="mt-1 h-9">
@@ -257,24 +260,34 @@ export function BookingTravelersForm({
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="main-first" className="text-xs">Prénom *</Label>
+                    <Label htmlFor="main-first" className="text-xs">
+                      Prénom *
+                    </Label>
                     <Input
                       id="main-first"
                       value={mainTraveler.firstName}
                       onChange={(e) =>
-                        setMainTraveler((p) => ({ ...p, firstName: e.target.value }))
+                        setMainTraveler((p) => ({
+                          ...p,
+                          firstName: e.target.value,
+                        }))
                       }
                       placeholder="Prénom"
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="main-last" className="text-xs">Nom *</Label>
+                    <Label htmlFor="main-last" className="text-xs">
+                      Nom *
+                    </Label>
                     <Input
                       id="main-last"
                       value={mainTraveler.lastName}
                       onChange={(e) =>
-                        setMainTraveler((p) => ({ ...p, lastName: e.target.value }))
+                        setMainTraveler((p) => ({
+                          ...p,
+                          lastName: e.target.value,
+                        }))
                       }
                       placeholder="Nom"
                       className="mt-1"
@@ -284,26 +297,36 @@ export function BookingTravelersForm({
                 {/* Email + Téléphone */}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="main-email" className="text-xs">Email *</Label>
+                    <Label htmlFor="main-email" className="text-xs">
+                      Email *
+                    </Label>
                     <Input
                       id="main-email"
                       type="email"
                       value={mainTraveler.email}
                       onChange={(e) =>
-                        setMainTraveler((p) => ({ ...p, email: e.target.value }))
+                        setMainTraveler((p) => ({
+                          ...p,
+                          email: e.target.value,
+                        }))
                       }
                       placeholder="exemple@email.com"
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="main-phone" className="text-xs">Téléphone *</Label>
+                    <Label htmlFor="main-phone" className="text-xs">
+                      Téléphone *
+                    </Label>
                     <Input
                       id="main-phone"
                       type="tel"
                       value={mainTraveler.phone}
                       onChange={(e) =>
-                        setMainTraveler((p) => ({ ...p, phone: e.target.value }))
+                        setMainTraveler((p) => ({
+                          ...p,
+                          phone: e.target.value,
+                        }))
                       }
                       placeholder="+216 98 000 000"
                       className="mt-1"
@@ -317,7 +340,10 @@ export function BookingTravelersForm({
                     <Select
                       value={mainTraveler.civicIdType}
                       onValueChange={(v) =>
-                        setMainTraveler((p) => ({ ...p, civicIdType: v as "cin" | "passport" }))
+                        setMainTraveler((p) => ({
+                          ...p,
+                          civicIdType: v as "cin" | "passport",
+                        }))
                       }
                     >
                       <SelectTrigger className="mt-1 h-9">
@@ -331,15 +357,24 @@ export function BookingTravelersForm({
                   </div>
                   <div>
                     <Label htmlFor="main-civic" className="text-xs">
-                      {mainTraveler.civicIdType === "cin" ? "N° CIN (8 chiffres) *" : "N° Passeport *"}
+                      {mainTraveler.civicIdType === "cin"
+                        ? "N° CIN (8 chiffres) *"
+                        : "N° Passeport *"}
                     </Label>
                     <Input
                       id="main-civic"
                       value={mainTraveler.civicId}
                       onChange={(e) =>
-                        setMainTraveler((p) => ({ ...p, civicId: e.target.value }))
+                        setMainTraveler((p) => ({
+                          ...p,
+                          civicId: e.target.value,
+                        }))
                       }
-                      placeholder={mainTraveler.civicIdType === "cin" ? "12345678" : "AB1234567"}
+                      placeholder={
+                        mainTraveler.civicIdType === "cin"
+                          ? "12345678"
+                          : "AB1234567"
+                      }
                       className="mt-1"
                     />
                   </div>
@@ -359,7 +394,9 @@ export function BookingTravelersForm({
                 </p>
                 <div className="grid gap-2 md:grid-cols-2">
                   <div>
-                    <Label htmlFor={`first-${idx + 1}`} className="text-xs">Prénom</Label>
+                    <Label htmlFor={`first-${idx + 1}`} className="text-xs">
+                      Prénom
+                    </Label>
                     <Input
                       id={`first-${idx + 1}`}
                       value={t.firstName}
@@ -371,7 +408,9 @@ export function BookingTravelersForm({
                     />
                   </div>
                   <div>
-                    <Label htmlFor={`last-${idx + 1}`} className="text-xs">Nom</Label>
+                    <Label htmlFor={`last-${idx + 1}`} className="text-xs">
+                      Nom
+                    </Label>
                     <Input
                       id={`last-${idx + 1}`}
                       value={t.lastName}

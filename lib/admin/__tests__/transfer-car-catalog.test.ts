@@ -75,14 +75,36 @@ before(async () => {
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values([
-      { id: agencyA, slug: `tcc-a-${agencyA}`, name: "Transfer/Car Test Agency A", agencyType: "ota" },
-      { id: agencyB, slug: `tcc-b-${agencyB}`, name: "Transfer/Car Test Agency B", agencyType: "ota" },
+      {
+        id: agencyA,
+        slug: `tcc-a-${agencyA}`,
+        name: "Transfer/Car Test Agency A",
+        agencyType: "ota",
+      },
+      {
+        id: agencyB,
+        slug: `tcc-b-${agencyB}`,
+        name: "Transfer/Car Test Agency B",
+        agencyType: "ota",
+      },
     ])
 
     // Catalogue Transferts — agence A seulement.
     await tx.insert(catalogTransferZones).values([
-      { id: zoneAirportA, agencyId: agencyA, name: "Aéroport Test A", zoneType: "airport", status: "active" },
-      { id: zoneCityA, agencyId: agencyA, name: "Ville Test A", zoneType: "city", status: "active" },
+      {
+        id: zoneAirportA,
+        agencyId: agencyA,
+        name: "Aéroport Test A",
+        zoneType: "airport",
+        status: "active",
+      },
+      {
+        id: zoneCityA,
+        agencyId: agencyA,
+        name: "Ville Test A",
+        zoneType: "city",
+        status: "active",
+      },
     ])
     await tx.insert(catalogTransferPricing).values({
       agencyId: agencyA,
@@ -94,8 +116,23 @@ before(async () => {
     })
 
     // Catalogue Voitures — agence A seulement, avec un tarif actif + un inactif.
-    await tx.insert(carLocations).values({ id: locationA, agencyId: agencyA, name: "Comptoir Test A", locationType: "airport", city: "Test City" })
-    await tx.insert(carCategories).values({ id: categoryA, agencyId: agencyA, code: `TST-${categoryA.slice(0, 6)}`, name: "Catégorie Test" })
+    await tx
+      .insert(carLocations)
+      .values({
+        id: locationA,
+        agencyId: agencyA,
+        name: "Comptoir Test A",
+        locationType: "airport",
+        city: "Test City",
+      })
+    await tx
+      .insert(carCategories)
+      .values({
+        id: categoryA,
+        agencyId: agencyA,
+        code: `TST-${categoryA.slice(0, 6)}`,
+        name: "Catégorie Test",
+      })
     await tx.insert(carPricingRates).values([
       {
         agencyId: agencyA,
@@ -123,11 +160,17 @@ before(async () => {
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
-    await tx.delete(carPricingRates).where(eq(carPricingRates.agencyId, agencyA))
+    await tx
+      .delete(carPricingRates)
+      .where(eq(carPricingRates.agencyId, agencyA))
     await tx.delete(carCategories).where(eq(carCategories.agencyId, agencyA))
     await tx.delete(carLocations).where(eq(carLocations.agencyId, agencyA))
-    await tx.delete(catalogTransferPricing).where(eq(catalogTransferPricing.agencyId, agencyA))
-    await tx.delete(catalogTransferZones).where(eq(catalogTransferZones.agencyId, agencyA))
+    await tx
+      .delete(catalogTransferPricing)
+      .where(eq(catalogTransferPricing.agencyId, agencyA))
+    await tx
+      .delete(catalogTransferZones)
+      .where(eq(catalogTransferZones.agencyId, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyB))
   })
@@ -142,20 +185,44 @@ test("catalog_transfer_zones : une agence B ne voit jamais les zones actives de 
   // Reproduit exactement la requête de app/(public)/[locale]/transferts/page.tsx
   // après correctif (avant, aucun filtre agencyId n'existait).
   const rowsForB = await withSystemContext((db) =>
-    db.select().from(catalogTransferZones).where(and(eq(catalogTransferZones.agencyId, agencyB), eq(catalogTransferZones.status, "active"))),
+    db
+      .select()
+      .from(catalogTransferZones)
+      .where(
+        and(
+          eq(catalogTransferZones.agencyId, agencyB),
+          eq(catalogTransferZones.status, "active"),
+        ),
+      ),
   )
-  assert.equal(rowsForB.length, 0, "agence B ne doit voir aucune zone de l'agence A")
+  assert.equal(
+    rowsForB.length,
+    0,
+    "agence B ne doit voir aucune zone de l'agence A",
+  )
 
   const rowsForA = await withSystemContext((db) =>
-    db.select().from(catalogTransferZones).where(and(eq(catalogTransferZones.agencyId, agencyA), eq(catalogTransferZones.status, "active"))),
+    db
+      .select()
+      .from(catalogTransferZones)
+      .where(
+        and(
+          eq(catalogTransferZones.agencyId, agencyA),
+          eq(catalogTransferZones.status, "active"),
+        ),
+      ),
   )
   assert.equal(rowsForA.length, 2, "agence A voit bien ses 2 zones actives")
 })
 
 test("car_locations/car_categories : une agence B ne voit jamais le catalogue de l'agence A", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const locationsForB = await withSystemContext((db) => db.select().from(carLocations).where(eq(carLocations.agencyId, agencyB)))
-  const categoriesForB = await withSystemContext((db) => db.select().from(carCategories).where(eq(carCategories.agencyId, agencyB)))
+  const locationsForB = await withSystemContext((db) =>
+    db.select().from(carLocations).where(eq(carLocations.agencyId, agencyB)),
+  )
+  const categoriesForB = await withSystemContext((db) =>
+    db.select().from(carCategories).where(eq(carCategories.agencyId, agencyB)),
+  )
   assert.equal(locationsForB.length, 0)
   assert.equal(categoriesForB.length, 0)
 })
@@ -176,7 +243,11 @@ test("calculateTransferPrice() résout un prix réel depuis un tarif créé via 
   })
   assert.ok(result, "un tarif doit être résolu")
   assert.equal(result!.basePriceTnd, 50)
-  assert.equal(result!.nightSurchargeAmount, 0, "14h n'est pas dans la plage de nuit (21h-6h)")
+  assert.equal(
+    result!.nightSurchargeAmount,
+    0,
+    "14h n'est pas dans la plage de nuit (21h-6h)",
+  )
   assert.equal(result!.totalTnd, 50)
 })
 
@@ -244,7 +315,10 @@ test("calculateCarPrice() ignore un tarif désactivé (isActive=false, tel que b
   // Une fois le SEUL tarif actif désactivé, plus aucun prix ne doit être
   // inventé — reproduit exactement ce que fait setCarPricingRateActive(id, false).
   await withSystemContext((db) =>
-    db.update(carPricingRates).set({ isActive: false }).where(eq(carPricingRates.categoryId, categoryA)),
+    db
+      .update(carPricingRates)
+      .set({ isActive: false })
+      .where(eq(carPricingRates.categoryId, categoryA)),
   )
   const afterDeactivation = await calculateCarPrice({
     categoryId: categoryA,

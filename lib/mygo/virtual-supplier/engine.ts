@@ -26,7 +26,12 @@ import {
   reserve,
   release,
 } from "./inventory-store"
-import { issueToken, newSearchId, validateToken, matchesBookingContext } from "./tokens"
+import {
+  issueToken,
+  newSearchId,
+  validateToken,
+  matchesBookingContext,
+} from "./tokens"
 import { getScenario, SIMULATED_TIMEOUT_DELAY_MS } from "./scenarios"
 import {
   createBookingRecord,
@@ -49,7 +54,12 @@ const BOARDING_MULTIPLIER: Record<string, number> = {
   ALL: 1.9,
 }
 
-function nightlyPrice(room: VirtualRoomType, boardingCode: string, adults: number, children: number): number {
+function nightlyPrice(
+  room: VirtualRoomType,
+  boardingCode: string,
+  adults: number,
+  children: number,
+): number {
   const multiplier = BOARDING_MULTIPLIER[boardingCode] ?? 1.2
   const base = room.basePrice * multiplier
   const extraAdults = Math.max(0, adults - 2) * 15
@@ -57,8 +67,18 @@ function nightlyPrice(room: VirtualRoomType, boardingCode: string, adults: numbe
   return base + extraAdults + extraChildren
 }
 
-function computeTotal(room: VirtualRoomType, boardingCode: string, nights: number, adults: number, children: number): number {
-  return Math.round(nightlyPrice(room, boardingCode, adults, children) * nights * 1000) / 1000
+function computeTotal(
+  room: VirtualRoomType,
+  boardingCode: string,
+  nights: number,
+  adults: number,
+  children: number,
+): number {
+  return (
+    Math.round(
+      nightlyPrice(room, boardingCode, adults, children) * nights * 1000,
+    ) / 1000
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +137,10 @@ export function handleListCurrency() {
 }
 
 export function handleListTag() {
-  return { ListTag: VIRTUAL_TAGS.map((t) => ({ Id: t.id, Title: t.title })), ...NO_ERROR }
+  return {
+    ListTag: VIRTUAL_TAGS.map((t) => ({ Id: t.id, Title: t.title })),
+    ...NO_ERROR,
+  }
 }
 
 function hotelSummaryJson(h: VirtualHotel) {
@@ -182,8 +205,17 @@ interface SearchRoomRequest {
 export function handleHotelSearch(body: unknown) {
   const b = body as {
     SearchDetails?: {
-      BookingDetails?: { CheckIn?: string; CheckOut?: string; City?: number; Hotel?: number }
-      Filters?: { OnlyAvailable?: boolean; Category?: number[]; Keywords?: string }
+      BookingDetails?: {
+        CheckIn?: string
+        CheckOut?: string
+        City?: number
+        Hotel?: number
+      }
+      Filters?: {
+        OnlyAvailable?: boolean
+        Category?: number[]
+        Keywords?: string
+      }
       Rooms?: SearchRoomRequest[]
     }
   }
@@ -192,7 +224,9 @@ export function handleHotelSearch(body: unknown) {
   const checkIn = details?.BookingDetails?.CheckIn
   const checkOut = details?.BookingDetails?.CheckOut
   const hotelFilter = details?.BookingDetails?.Hotel
-  const roomRequests = details?.Rooms?.length ? details.Rooms : [{ Adult: 2, Child: [] }]
+  const roomRequests = details?.Rooms?.length
+    ? details.Rooms
+    : [{ Adult: 2, Child: [] }]
   const onlyAvailable = details?.Filters?.OnlyAvailable ?? true
 
   if (!cityId || !checkIn || !checkOut) {
@@ -215,7 +249,11 @@ export function handleHotelSearch(body: unknown) {
           const adults = rr.Adult
           const children = rr.Child ?? []
           const roomsOut = hotel.rooms
-            .filter((r) => r.maxAdults >= adults && r.maxOccupancy >= adults + children.length)
+            .filter(
+              (r) =>
+                r.maxAdults >= adults &&
+                r.maxOccupancy >= adults + children.length,
+            )
             .map((room) => {
               const avail =
                 scenario === "NO_AVAILABILITY"
@@ -232,7 +270,13 @@ export function handleHotelSearch(body: unknown) {
                 Name: room.name,
                 Photo: hotel.image,
                 Quantity: avail,
-                Price: computeTotal(room, boarding.code, nights, adults, children.length),
+                Price: computeTotal(
+                  room,
+                  boarding.code,
+                  nights,
+                  adults,
+                  children.length,
+                ),
                 StopReservation: stopReservation,
                 OnRequest: availabilityLevel(avail) === "LIMITED",
                 NotRefundable: false,
@@ -296,7 +340,15 @@ export function handleHotelSearch(body: unknown) {
 interface BookingRoomRequest {
   Id: number
   Boarding: number
-  Pax?: { Adult?: { Civility?: string; Name: string; Surname: string; Holder?: boolean }[]; Child?: { Name: string; Surname: string; Age: number }[] }
+  Pax?: {
+    Adult?: {
+      Civility?: string
+      Name: string
+      Surname: string
+      Holder?: boolean
+    }[]
+    Child?: { Name: string; Surname: string; Age: number }[]
+  }
 }
 
 export async function handleBookingCreation(body: unknown): Promise<{
@@ -321,8 +373,18 @@ export async function handleBookingCreation(body: unknown): Promise<{
   const hb = b.HotelBooking
   const scenario = getScenario()
 
-  if (!hb?.Token || !hb.City || !hb.Hotel || !hb.CheckIn || !hb.CheckOut || !hb.Rooms?.length) {
-    return { status: 200, json: errorMessage(400, "Missing mandatory HotelBooking fields") }
+  if (
+    !hb?.Token ||
+    !hb.City ||
+    !hb.Hotel ||
+    !hb.CheckIn ||
+    !hb.CheckOut ||
+    !hb.Rooms?.length
+  ) {
+    return {
+      status: 200,
+      json: errorMessage(400, "Missing mandatory HotelBooking fields"),
+    }
   }
 
   // --- Token ---
@@ -339,8 +401,19 @@ export async function handleBookingCreation(body: unknown): Promise<{
           : "Malformed token"
     return { status: 200, json: errorMessage(410, desc) }
   }
-  if (!matchesBookingContext(tokenCheck.payload, { hotelId: hb.Hotel, cityId: hb.City })) {
-    return { status: 200, json: errorMessage(409, "Token does not match requested Hotel/City (room from another search)") }
+  if (
+    !matchesBookingContext(tokenCheck.payload, {
+      hotelId: hb.Hotel,
+      cityId: hb.City,
+    })
+  ) {
+    return {
+      status: 200,
+      json: errorMessage(
+        409,
+        "Token does not match requested Hotel/City (room from another search)",
+      ),
+    }
   }
 
   // --- Hôtel / Room / Boarding existence ---
@@ -351,17 +424,29 @@ export async function handleBookingCreation(body: unknown): Promise<{
   const found = findRoom(hb.Hotel, roomReq.Id)
   const boarding = findBoarding(roomReq.Boarding)
   if (!found || !boarding) {
-    return { status: 200, json: errorMessage(422, "Unknown room/boarding for this hotel") }
+    return {
+      status: 200,
+      json: errorMessage(422, "Unknown room/boarding for this hotel"),
+    }
   }
 
   if (scenario === "BOOKING_REJECTED") {
-    return { status: 200, json: errorMessage(500, "Booking rejected by supplier") }
+    return {
+      status: 200,
+      json: errorMessage(500, "Booking rejected by supplier"),
+    }
   }
   if (scenario === "PRICE_CHANGED") {
-    return { status: 200, json: errorMessage(409, "Price has changed since search, please refresh") }
+    return {
+      status: 200,
+      json: errorMessage(409, "Price has changed since search, please refresh"),
+    }
   }
   if (scenario === "NO_AVAILABILITY") {
-    return { status: 200, json: errorMessage(409, "No availability for this room anymore") }
+    return {
+      status: 200,
+      json: errorMessage(409, "No availability for this room anymore"),
+    }
   }
   if (scenario === "TIMEOUT") {
     // Contrairement à TIMEOUT_AFTER_ACCEPT : aucune mutation n'a eu lieu côté
@@ -374,19 +459,36 @@ export async function handleBookingCreation(body: unknown): Promise<{
   const children = roomReq.Pax?.Child?.length ?? 0
   const nights = Math.max(1, nightsBetween(hb.CheckIn, hb.CheckOut).length)
 
-  const reserveResult = await reserve(hb.Hotel, roomReq.Id, hb.CheckIn, hb.CheckOut, 1)
+  const reserveResult = await reserve(
+    hb.Hotel,
+    roomReq.Id,
+    hb.CheckIn,
+    hb.CheckOut,
+    1,
+  )
   if (!reserveResult.ok) {
     return {
       status: 200,
-      json: errorMessage(409, `No availability: ${reserveResult.unavailableNights?.join(", ")}`),
+      json: errorMessage(
+        409,
+        `No availability: ${reserveResult.unavailableNights?.join(", ")}`,
+      ),
     }
   }
 
-  const totalPrice = computeTotal(found.room, boarding.code, nights, adults, children)
+  const totalPrice = computeTotal(
+    found.room,
+    boarding.code,
+    nights,
+    adults,
+    children,
+  )
   const currency =
     scenario === "CURRENCY_MISMATCH" ? "EUR" : (hb.Currency ?? "TND")
-  const confirmedHotelId = scenario === "HOTEL_ID_MISMATCH" ? hb.Hotel + 1 : hb.Hotel
-  const confirmedRoomId = scenario === "ROOM_CHANGED" ? roomReq.Id + 1 : roomReq.Id
+  const confirmedHotelId =
+    scenario === "HOTEL_ID_MISMATCH" ? hb.Hotel + 1 : hb.Hotel
+  const confirmedRoomId =
+    scenario === "ROOM_CHANGED" ? roomReq.Id + 1 : roomReq.Id
 
   const record = createBookingRecord({
     hotelId: confirmedHotelId,
@@ -425,7 +527,12 @@ export async function handleBookingCreation(body: unknown): Promise<{
         View: [],
         Supplement: [],
         CancellationPolicy: [
-          { Fees: 100, Type: "PERCENT", Nature: "BEFORE_ARRIVAL", FromDate: hb.CheckIn },
+          {
+            Fees: 100,
+            Type: "PERCENT",
+            Nature: "BEFORE_ARRIVAL",
+            FromDate: hb.CheckIn,
+          },
         ],
         NotRefundable: false,
         Pax: roomReq.Pax ?? {},
@@ -448,7 +555,11 @@ export async function handleBookingCreation(body: unknown): Promise<{
     // La réservation existe déjà dans le ledger (créée ci-dessus) — seule la
     // RÉPONSE HTTP est retardée, exactement le cas ambigu réel. Le test doit
     // configurer MYGO_TIMEOUT_MS < SIMULATED_TIMEOUT_DELAY_MS pour observer le timeout client.
-    return { status: 200, json: responseJson, delayMs: SIMULATED_TIMEOUT_DELAY_MS }
+    return {
+      status: 200,
+      json: responseJson,
+      delayMs: SIMULATED_TIMEOUT_DELAY_MS,
+    }
   }
 
   return { status: 200, json: responseJson }
@@ -463,22 +574,37 @@ export async function handleBookingCancellation(body: unknown): Promise<{
   json: unknown
 }> {
   if (!validCredential(body)) return { status: 200, json: AUTH_ERROR }
-  const b = body as { Booking?: number; PreCancelled?: boolean; Currency?: string }
+  const b = body as {
+    Booking?: number
+    PreCancelled?: boolean
+    Currency?: string
+  }
   const scenario = getScenario()
 
-  if (!b.Booking) return { status: 200, json: errorMessage(400, "Missing Booking id") }
+  if (!b.Booking)
+    return { status: 200, json: errorMessage(400, "Missing Booking id") }
 
   const record = findBookingById(b.Booking)
-  if (!record) return { status: 200, json: errorMessage(404, "Unknown booking reference") }
+  if (!record)
+    return { status: 200, json: errorMessage(404, "Unknown booking reference") }
 
   if (scenario === "CANCEL_FAILED") {
-    return { status: 200, json: errorMessage(500, "Cancellation rejected by supplier") }
+    return {
+      status: 200,
+      json: errorMessage(500, "Cancellation rejected by supplier"),
+    }
   }
 
   const alreadyCancelled = record.state === "Cancelled"
   const updated = cancelBookingRecord(b.Booking)!
   if (!b.PreCancelled) {
-    await release(record.hotelId, record.roomId, record.checkIn, record.checkOut, 1)
+    await release(
+      record.hotelId,
+      record.roomId,
+      record.checkIn,
+      record.checkOut,
+      1,
+    )
   }
 
   return {
@@ -501,7 +627,13 @@ export async function handleBookingCancellation(body: unknown): Promise<{
 
 export function handleBookingList(body: unknown) {
   const b = body as {
-    Filters?: { Booking?: number; Hotel?: number; FromDate?: string; ToDate?: string; State?: StoredBooking["state"] }
+    Filters?: {
+      Booking?: number
+      Hotel?: number
+      FromDate?: string
+      ToDate?: string
+      State?: StoredBooking["state"]
+    }
   }
   const records = listBookingRecords({
     booking: b.Filters?.Booking,
@@ -513,14 +645,22 @@ export function handleBookingList(body: unknown) {
   return {
     BookingDetail: records.map((r) => ({
       Id: r.id,
-      Hotel: { Id: r.hotelId, Name: r.hotelName, City: { Id: r.cityId, Name: r.cityName } },
+      Hotel: {
+        Id: r.hotelId,
+        Name: r.hotelName,
+        City: { Id: r.cityId, Name: r.cityName },
+      },
       CheckIn: r.checkIn,
       CheckOut: r.checkOut,
       Rooms: [
         {
           Id: r.roomId,
           Name: r.roomName,
-          Boarding: { Id: r.boardingId, Code: r.boardingCode, Name: r.boardingName },
+          Boarding: {
+            Id: r.boardingId,
+            Code: r.boardingCode,
+            Name: r.boardingName,
+          },
         },
       ],
       Source: 1,

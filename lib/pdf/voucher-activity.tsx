@@ -18,11 +18,7 @@ import {
   getRowStyle,
   ARABIC_FONT_FAMILY,
 } from "./voucher-base"
-import {
-  getVoucherLabels,
-  isRTL,
-  formatDateForLocale,
-} from "./voucher-i18n"
+import { getVoucherLabels, isRTL, formatDateForLocale } from "./voucher-i18n"
 
 export interface ActivityVoucherData {
   publicRef: string
@@ -38,14 +34,27 @@ export interface ActivityVoucherData {
   agencyPhone?: string
 }
 
-function ActivityVoucherDocument({ data, locale }: { data: ActivityVoucherData; locale?: string }) {
+function ActivityVoucherDocument({
+  data,
+  locale,
+}: {
+  data: ActivityVoucherData
+  locale?: string
+}) {
   const lb = getVoucherLabels(locale)
   const rtl = isRTL(locale)
   const fontFamily = rtl ? ARABIC_FONT_FAMILY : undefined
 
   return (
     <Document>
-      <Page size="A4" style={rtl ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY } : baseStyles.page}>
+      <Page
+        size="A4"
+        style={
+          rtl
+            ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY }
+            : baseStyles.page
+        }
+      >
         <VoucherHeader
           title={lb.activityTitle}
           publicRef={data.publicRef}
@@ -57,7 +66,9 @@ function ActivityVoucherDocument({ data, locale }: { data: ActivityVoucherData; 
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.fullName}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.customerName}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {data.customerName}
+            </Text>
           </View>
           <View style={getRowStyle(rtl, true)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.status}</Text>
@@ -77,7 +88,12 @@ function ActivityVoucherDocument({ data, locale }: { data: ActivityVoucherData; 
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.activityLabel}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily: fontFamily ?? "Helvetica-Bold" }}>
+            <Text
+              style={{
+                ...getCellValueStyle(rtl),
+                fontFamily: fontFamily ?? "Helvetica-Bold",
+              }}
+            >
               {data.activityName}
             </Text>
           </View>
@@ -87,7 +103,7 @@ function ActivityVoucherDocument({ data, locale }: { data: ActivityVoucherData; 
               {formatDateForLocale(data.sessionDate, locale)}
             </Text>
           </View>
-          {(data.sessionStart || data.sessionEnd) ? (
+          {data.sessionStart || data.sessionEnd ? (
             <View style={getRowStyle(rtl)}>
               <Text style={getCellLabelStyle(rtl)}>{lb.schedule}</Text>
               <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
@@ -97,12 +113,16 @@ function ActivityVoucherDocument({ data, locale }: { data: ActivityVoucherData; 
           ) : null}
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.adults}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.adults}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {data.adults}
+            </Text>
           </View>
           {data.children > 0 ? (
             <View style={getRowStyle(rtl, true)}>
               <Text style={getCellLabelStyle(rtl)}>{lb.children}</Text>
-              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.children}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+                {data.children}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -120,7 +140,12 @@ function ActivityVoucherDocument({ data, locale }: { data: ActivityVoucherData; 
   )
 }
 
-export async function renderActivityVoucherPdf(data: ActivityVoucherData, locale?: string): Promise<Uint8Array> {
-  const buffer = await renderToBuffer(<ActivityVoucherDocument data={data} locale={locale} />)
+export async function renderActivityVoucherPdf(
+  data: ActivityVoucherData,
+  locale?: string,
+): Promise<Uint8Array> {
+  const buffer = await renderToBuffer(
+    <ActivityVoucherDocument data={data} locale={locale} />,
+  )
   return new Uint8Array(buffer)
 }

@@ -10,13 +10,21 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { REVIEW_MODULES, listApprovedReviewsForProductCore, type ReviewModule } from "@/lib/reviews/reviews-core"
+import {
+  REVIEW_MODULES,
+  listApprovedReviewsForProductCore,
+  type ReviewModule,
+} from "@/lib/reviews/reviews-core"
 
 export async function GET(request: NextRequest) {
   const moduleParam = request.nextUrl.searchParams.get("module")
   const productRef = request.nextUrl.searchParams.get("productRef")
 
-  if (!moduleParam || !(REVIEW_MODULES as readonly string[]).includes(moduleParam) || !productRef) {
+  if (
+    !moduleParam ||
+    !(REVIEW_MODULES as readonly string[]).includes(moduleParam) ||
+    !productRef
+  ) {
     return NextResponse.json({ error: "Invalid parameters" }, { status: 400 })
   }
 
@@ -26,7 +34,11 @@ export async function GET(request: NextRequest) {
   }
 
   const summary = await withPublicAgencyContext(agencyId, (db) =>
-    listApprovedReviewsForProductCore(db, { agencyId, module: moduleParam as ReviewModule, productRef }),
+    listApprovedReviewsForProductCore(db, {
+      agencyId,
+      module: moduleParam as ReviewModule,
+      productRef,
+    }),
   )
 
   return NextResponse.json(summary)

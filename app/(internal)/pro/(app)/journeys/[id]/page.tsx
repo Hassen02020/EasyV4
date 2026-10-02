@@ -15,7 +15,11 @@ import { JourneyComposer } from "@/components/journeys/journey-composer"
 export const metadata = { title: "Journey | Espace Pro Easy2Book" }
 export const dynamic = "force-dynamic"
 
-export default async function ProJourneyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProJourneyDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = await params
   const supabase = await createServerSupabase()
   const {
@@ -30,7 +34,12 @@ export default async function ProJourneyDetailPage({ params }: { params: Promise
   if (!data) notFound()
 
   return (
-    <ProPageShell icon={Route} title="Journey" iconTone="accent" description="Composition et confirmation ligne par ligne.">
+    <ProPageShell
+      icon={Route}
+      title="Journey"
+      iconTone="accent"
+      description="Composition et confirmation ligne par ligne."
+    >
       <JourneyComposer journey={data.journey} lines={data.lines} />
     </ProPageShell>
   )

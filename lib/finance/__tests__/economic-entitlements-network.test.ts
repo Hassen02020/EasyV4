@@ -44,7 +44,11 @@ import { randomUUID } from "node:crypto"
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { asc, eq, sql } from "drizzle-orm"
-import { withSystemContext, withTenantContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withSystemContext,
+  withTenantContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import {
   agencies,
   customers,
@@ -108,7 +112,11 @@ before(async () => {
   // createNetworkProductBooking réel) pour que la RLS WITH CHECK de
   // `reservations`/`reservation_financials`/`economic_entitlements` soit
   // exercée normalement, pas contournée par withSystemContext.
-  const ctxA: TenantContext = { agencyId: agencyA, userId: randomUUID(), isSuperAdmin: false }
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
   reservationId = await withTenantContext(ctxA, async (tx) => {
     const [r] = await tx
       .insert(reservations)
@@ -131,8 +139,12 @@ before(async () => {
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
-    await tx.delete(economicEntitlements).where(eq(economicEntitlements.reservationId, reservationId))
-    await tx.delete(reservationFinancials).where(eq(reservationFinancials.reservationId, reservationId))
+    await tx
+      .delete(economicEntitlements)
+      .where(eq(economicEntitlements.reservationId, reservationId))
+    await tx
+      .delete(reservationFinancials)
+      .where(eq(reservationFinancials.reservationId, reservationId))
     await tx.delete(reservations).where(eq(reservations.id, reservationId))
     await tx.delete(customers).where(eq(customers.id, customerId))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
@@ -154,7 +166,11 @@ test("Network/TND reference case : recordReservationFinancials écrit reservatio
     Math.round(marginAmountTnd * (commissionPercent / 100) * 100) / 100 // 14
   const supplierNodeId = randomUUID()
 
-  const ctxA: TenantContext = { agencyId: agencyA, userId: randomUUID(), isSuperAdmin: false }
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
 
   const { commissionAmount } = await withTenantContext(ctxA, (tx) =>
     recordReservationFinancials({
@@ -194,7 +210,10 @@ test("Network/TND reference case : recordReservationFinancials écrit reservatio
   assert.equal(commissionAmount, commissionAmountExpected)
 
   const [financials] = await withSystemContext((tx) =>
-    tx.select().from(reservationFinancials).where(eq(reservationFinancials.reservationId, reservationId)),
+    tx
+      .select()
+      .from(reservationFinancials)
+      .where(eq(reservationFinancials.reservationId, reservationId)),
   )
   assert.ok(financials, "reservation_financials doit avoir une ligne")
   assert.equal(Number(financials!.salePriceTnd), totalTnd)
@@ -206,7 +225,11 @@ test("Network/TND reference case : recordReservationFinancials écrit reservatio
       .where(eq(economicEntitlements.reservationId, reservationId))
       .orderBy(asc(economicEntitlements.qualification)),
   )
-  assert.equal(rows.length, 3, "exactement 3 lignes (supplier/seller/easy2book)")
+  assert.equal(
+    rows.length,
+    3,
+    "exactement 3 lignes (supplier/seller/easy2book)",
+  )
 
   const sum = rows.reduce((acc, r) => acc + Number(r.amount), 0)
   // Σ des lignes == sale_price_tnd EXACTEMENT (même devise, même valeur
@@ -215,11 +238,17 @@ test("Network/TND reference case : recordReservationFinancials écrit reservatio
 
   for (const r of rows) {
     assert.equal(r.status, "earned")
-    assert.equal(r.currency, "TND", "Network/TND reference case : toutes les lignes en TND")
+    assert.equal(
+      r.currency,
+      "TND",
+      "Network/TND reference case : toutes les lignes en TND",
+    )
     assert.ok(r.effectiveAt, "effectiveAt doit être renseigné")
   }
 
-  const byQualification = Object.fromEntries(rows.map((r) => [r.qualification, r]))
+  const byQualification = Object.fromEntries(
+    rows.map((r) => [r.qualification, r]),
+  )
   assert.equal(Number(byQualification["supplier_cost"]!.amount), costPriceTnd)
   assert.equal(byQualification["supplier_cost"]!.role, "supplier")
   assert.equal(byQualification["supplier_cost"]!.partyType, "supplier_node")
@@ -232,7 +261,10 @@ test("Network/TND reference case : recordReservationFinancials écrit reservatio
   assert.equal(byQualification["seller_margin"]!.role, "seller")
   assert.equal(byQualification["seller_margin"]!.partyId, agencyA)
 
-  assert.equal(Number(byQualification["commission"]!.amount), commissionAmountExpected)
+  assert.equal(
+    Number(byQualification["commission"]!.amount),
+    commissionAmountExpected,
+  )
   assert.equal(byQualification["commission"]!.role, "easy2book")
   assert.equal(byQualification["commission"]!.partyId, null)
 })
@@ -240,22 +272,51 @@ test("Network/TND reference case : recordReservationFinancials écrit reservatio
 test("RLS economic_entitlements_tenant_isolation : une agence tierce (agencyB) ne voit AUCUNE ligne ; super_admin les voit toutes — même pattern que reservation_financials/reservation_network_product", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctxB: TenantContext = { agencyId: agencyB, userId: randomUUID(), isSuperAdmin: false }
+  const ctxB: TenantContext = {
+    agencyId: agencyB,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
   const rowsAsB = await withTenantContext(ctxB, (tx) =>
-    tx.select().from(economicEntitlements).where(eq(economicEntitlements.reservationId, reservationId)),
+    tx
+      .select()
+      .from(economicEntitlements)
+      .where(eq(economicEntitlements.reservationId, reservationId)),
   )
-  assert.equal(rowsAsB.length, 0, "agencyB ne doit voir aucune ligne d'une réservation d'agencyA")
+  assert.equal(
+    rowsAsB.length,
+    0,
+    "agencyB ne doit voir aucune ligne d'une réservation d'agencyA",
+  )
 
-  const ctxA: TenantContext = { agencyId: agencyA, userId: randomUUID(), isSuperAdmin: false }
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
   const rowsAsA = await withTenantContext(ctxA, (tx) =>
-    tx.select().from(economicEntitlements).where(eq(economicEntitlements.reservationId, reservationId)),
+    tx
+      .select()
+      .from(economicEntitlements)
+      .where(eq(economicEntitlements.reservationId, reservationId)),
   )
-  assert.equal(rowsAsA.length, 3, "agencyA (propriétaire de la réservation) doit voir ses 3 lignes")
+  assert.equal(
+    rowsAsA.length,
+    3,
+    "agencyA (propriétaire de la réservation) doit voir ses 3 lignes",
+  )
 
   const rowsAsSuperAdmin = await withSystemContext((tx) =>
-    tx.select().from(economicEntitlements).where(eq(economicEntitlements.reservationId, reservationId)),
+    tx
+      .select()
+      .from(economicEntitlements)
+      .where(eq(economicEntitlements.reservationId, reservationId)),
   )
-  assert.equal(rowsAsSuperAdmin.length, 3, "super_admin doit voir toutes les lignes, quelle que soit l'agence")
+  assert.equal(
+    rowsAsSuperAdmin.length,
+    3,
+    "super_admin doit voir toutes les lignes, quelle que soit l'agence",
+  )
 })
 
 /**
@@ -276,21 +337,30 @@ test("RLS economic_entitlements_tenant_isolation : une agence tierce (agencyB) n
 function sourceFiles(dir: string): string[] {
   const out: string[] = []
   for (const name of readdirSync(dir)) {
-    if (name === "node_modules" || name === "__tests__" || name.startsWith(".")) continue
+    if (name === "node_modules" || name === "__tests__" || name.startsWith("."))
+      continue
     const full = join(dir, name)
     if (statSync(full).isDirectory()) out.push(...sourceFiles(full))
-    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full)
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name))
+      out.push(full)
   }
   return out
 }
 
 test("append-only APPLICATIF (limite : pas de REVOKE DB, voir commentaire ci-dessus) : aucun .update()/.delete() Drizzle sur economicEntitlements dans le code applicatif", () => {
   const ROOT = process.cwd()
-  const appSources = ["lib", "app", "components"].flatMap((d) => sourceFiles(join(ROOT, d)))
+  const appSources = ["lib", "app", "components"].flatMap((d) =>
+    sourceFiles(join(ROOT, d)),
+  )
   const offenders: string[] = []
   for (const file of appSources) {
     const src = readFileSync(file, "utf8")
-    if (/\.(update|delete)\(\s*economicEntitlements\s*\)/.test(src)) offenders.push(file)
+    if (/\.(update|delete)\(\s*economicEntitlements\s*\)/.test(src))
+      offenders.push(file)
   }
-  assert.deepEqual(offenders, [], "mutation de economic_entitlements interdite (append-only par convention, ECON-BREAKDOWN-01)")
+  assert.deepEqual(
+    offenders,
+    [],
+    "mutation de economic_entitlements interdite (append-only par convention, ECON-BREAKDOWN-01)",
+  )
 })

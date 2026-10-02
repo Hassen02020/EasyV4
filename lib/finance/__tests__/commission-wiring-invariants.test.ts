@@ -25,21 +25,36 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const actionsSrc       = readFileSync(join(ROOT, "lib/booking/actions.ts"), "utf8")
-const guestActionsSrc  = readFileSync(join(ROOT, "lib/booking/guest-actions.ts"), "utf8")
-const migrationSrc     = readFileSync(join(ROOT, "drizzle/manual/0066_commission_wallet_settlement.sql"), "utf8")
-const settlementSrc    = readFileSync(join(ROOT, "lib/finance/commission-settlement.ts"), "utf8")
+const actionsSrc = readFileSync(join(ROOT, "lib/booking/actions.ts"), "utf8")
+const guestActionsSrc = readFileSync(
+  join(ROOT, "lib/booking/guest-actions.ts"),
+  "utf8",
+)
+const migrationSrc = readFileSync(
+  join(ROOT, "drizzle/manual/0066_commission_wallet_settlement.sql"),
+  "utf8",
+)
+const settlementSrc = readFileSync(
+  join(ROOT, "lib/finance/commission-settlement.ts"),
+  "utf8",
+)
 
 /* -------------------------------------------------------------------------- */
 /* Import wiring                                                                */
 /* -------------------------------------------------------------------------- */
 
 test("actions.ts : importe creditPlatformCommission depuis lib/finance/platform-commission", () => {
-  assert.match(actionsSrc, /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/)
+  assert.match(
+    actionsSrc,
+    /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+  )
 })
 
 test("guest-actions.ts : importe creditPlatformCommission depuis lib/finance/platform-commission", () => {
-  assert.match(guestActionsSrc, /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/)
+  assert.match(
+    guestActionsSrc,
+    /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -47,11 +62,17 @@ test("guest-actions.ts : importe creditPlatformCommission depuis lib/finance/pla
 /* -------------------------------------------------------------------------- */
 
 test("actions.ts : destructure { commissionAmount } depuis recordReservationFinancials", () => {
-  assert.match(actionsSrc, /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/)
+  assert.match(
+    actionsSrc,
+    /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/,
+  )
 })
 
 test("guest-actions.ts : destructure { commissionAmount } depuis recordReservationFinancials", () => {
-  assert.match(guestActionsSrc, /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/)
+  assert.match(
+    guestActionsSrc,
+    /const\s*\{\s*commissionAmount\s*\}\s*=\s*await\s+recordReservationFinancials\(/,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -72,7 +93,9 @@ test("guest-actions.ts : creditPlatformCommission description inclut publicRef",
 
 test("migration 0066 : GRANT EXECUTE sur credit_platform_commission n'inclut PAS authenticated", () => {
   // Extrait la ligne GRANT pour cette fonction
-  const grantMatch = migrationSrc.match(/GRANT EXECUTE ON FUNCTION credit_platform_commission[^\n;]+(?:TO[^\n;]+)?/i)
+  const grantMatch = migrationSrc.match(
+    /GRANT EXECUTE ON FUNCTION credit_platform_commission[^\n;]+(?:TO[^\n;]+)?/i,
+  )
   assert.ok(grantMatch, "La ligne GRANT doit exister")
   assert.equal(
     grantMatch[0].toLowerCase().includes("authenticated"),
@@ -117,14 +140,35 @@ test("commission-settlement.ts : markSettlementPaid passe status à 'paid'", () 
 
 // Modules qui appellent recordReservationFinancials DIRECTEMENT
 const DIRECT_WIRING_FILES: Array<{ label: string; path: string }> = [
-  { label: "vols/guest-booking-actions.ts",           path: "lib/vols/guest-booking-actions.ts" },
-  { label: "transfers/guest-booking-actions.ts",      path: "lib/transfers/guest-booking-actions.ts" },
-  { label: "transfers/actions.ts",                    path: "lib/transfers/actions.ts" },
-  { label: "activities/guest-booking-actions.ts",     path: "lib/activities/guest-booking-actions.ts" },
-  { label: "omra/guest-booking-actions.ts",           path: "lib/omra/guest-booking-actions.ts" },
-  { label: "packages/booking-actions.ts",             path: "lib/packages/booking-actions.ts" },
-  { label: "cars/guest-booking-actions.ts",           path: "lib/cars/guest-booking-actions.ts" },
-  { label: "hotels-monde/guest-booking-actions.ts",   path: "lib/hotels-monde/guest-booking-actions.ts" },
+  {
+    label: "vols/guest-booking-actions.ts",
+    path: "lib/vols/guest-booking-actions.ts",
+  },
+  {
+    label: "transfers/guest-booking-actions.ts",
+    path: "lib/transfers/guest-booking-actions.ts",
+  },
+  { label: "transfers/actions.ts", path: "lib/transfers/actions.ts" },
+  {
+    label: "activities/guest-booking-actions.ts",
+    path: "lib/activities/guest-booking-actions.ts",
+  },
+  {
+    label: "omra/guest-booking-actions.ts",
+    path: "lib/omra/guest-booking-actions.ts",
+  },
+  {
+    label: "packages/booking-actions.ts",
+    path: "lib/packages/booking-actions.ts",
+  },
+  {
+    label: "cars/guest-booking-actions.ts",
+    path: "lib/cars/guest-booking-actions.ts",
+  },
+  {
+    label: "hotels-monde/guest-booking-actions.ts",
+    path: "lib/hotels-monde/guest-booking-actions.ts",
+  },
 ]
 
 for (const { label, path } of DIRECT_WIRING_FILES) {
@@ -144,9 +188,9 @@ for (const { label, path } of DIRECT_WIRING_FILES) {
       /recordReservationFinancials\(\s*\{/,
       `${label} doit appeler recordReservationFinancials({}...)`,
     )
-    assert.match(src, /reservationId/,   `${label} : passe reservationId`)
+    assert.match(src, /reservationId/, `${label} : passe reservationId`)
     assert.match(src, /supplierPriceTnd/, `${label} : passe supplierPriceTnd`)
-    assert.match(src, /salePriceTnd/,     `${label} : passe salePriceTnd`)
+    assert.match(src, /salePriceTnd/, `${label} : passe salePriceTnd`)
   })
 }
 
@@ -155,7 +199,10 @@ for (const { label, path } of DIRECT_WIRING_FILES) {
 // recordReservationFinancials — l'ancrage financier est toujours garanti mais
 // via le wrapper, pas via un import direct dans fulfillment-action.ts.
 {
-  const fulfillmentSrc = readFileSync(join(ROOT, "lib/vols/fulfillment-action.ts"), "utf8")
+  const fulfillmentSrc = readFileSync(
+    join(ROOT, "lib/vols/fulfillment-action.ts"),
+    "utf8",
+  )
   test("Chantier 62 — vols/fulfillment-action.ts : délègue à finalizeFlightBookingFinancials (PROVIDER-CONNECTIVITY-BRIDGE)", () => {
     assert.match(
       fulfillmentSrc,

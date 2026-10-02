@@ -45,7 +45,11 @@ test("normalizeStripeEvent : accepte amount_tnd numérique", () => {
 
 test("normalizeStripeEvent : rejette un payload malformé (champ manquant)", () => {
   assert.equal(
-    normalizeStripeEvent({ id: "evt_1", type: "payment_intent.succeeded", data: { object: { id: "pi_1" } } }),
+    normalizeStripeEvent({
+      id: "evt_1",
+      type: "payment_intent.succeeded",
+      data: { object: { id: "pi_1" } },
+    }),
     null,
   )
 })
@@ -55,7 +59,9 @@ test("normalizeStripeEvent : rejette amount_tnd non numérique", () => {
     normalizeStripeEvent({
       id: "evt_1",
       type: "payment_intent.succeeded",
-      data: { object: { id: "pi_1", amount_tnd: "not-a-number", currency: "TND" } },
+      data: {
+        object: { id: "pi_1", amount_tnd: "not-a-number", currency: "TND" },
+      },
     }),
     null,
   )
@@ -69,7 +75,12 @@ test("normalizeStripeEvent : rejette un objet complètement différent", () => {
 
 test("normalizeSpsEvent : parse un payload form-urlencoded valide", () => {
   const event = normalizeSpsEvent(
-    { transaction_id: "sps_tx_1", amount: "75.500", currency: "TND", seal: "ignored" },
+    {
+      transaction_id: "sps_tx_1",
+      amount: "75.500",
+      currency: "TND",
+      seal: "ignored",
+    },
     "sps.payment.captured",
   )
   assert.ok(event)
@@ -79,14 +90,29 @@ test("normalizeSpsEvent : parse un payload form-urlencoded valide", () => {
 })
 
 test("normalizeSpsEvent : rejette un payload incomplet", () => {
-  assert.equal(normalizeSpsEvent({ transaction_id: "sps_tx_1" }, "sps.payment.captured"), null)
-  assert.equal(normalizeSpsEvent({ amount: "abc", transaction_id: "x", currency: "TND" }, "sps.payment.captured"), null)
+  assert.equal(
+    normalizeSpsEvent({ transaction_id: "sps_tx_1" }, "sps.payment.captured"),
+    null,
+  )
+  assert.equal(
+    normalizeSpsEvent(
+      { amount: "abc", transaction_id: "x", currency: "TND" },
+      "sps.payment.captured",
+    ),
+    null,
+  )
 })
 
 test("matchesPendingRecharge : accepte quand référence/devise/montant correspondent", () => {
   const result = matchesPendingRecharge(
     { amount: "150.000", paymentReference: "pi_abc" },
-    { eventId: "evt_1", eventType: "payment_intent.succeeded", providerRef: "pi_abc", amountTnd: 150, currency: "TND" },
+    {
+      eventId: "evt_1",
+      eventType: "payment_intent.succeeded",
+      providerRef: "pi_abc",
+      amountTnd: 150,
+      currency: "TND",
+    },
   )
   assert.deepEqual(result, { ok: true })
 })
@@ -94,7 +120,13 @@ test("matchesPendingRecharge : accepte quand référence/devise/montant correspo
 test("matchesPendingRecharge : rejette une référence PSP différente (anti-usurpation)", () => {
   const result = matchesPendingRecharge(
     { amount: "150.000", paymentReference: "pi_abc" },
-    { eventId: "evt_1", eventType: "payment_intent.succeeded", providerRef: "pi_OTHER", amountTnd: 150, currency: "TND" },
+    {
+      eventId: "evt_1",
+      eventType: "payment_intent.succeeded",
+      providerRef: "pi_OTHER",
+      amountTnd: 150,
+      currency: "TND",
+    },
   )
   assert.deepEqual(result, { ok: false, reason: "REFERENCE_MISMATCH" })
 })
@@ -102,7 +134,13 @@ test("matchesPendingRecharge : rejette une référence PSP différente (anti-usu
 test("matchesPendingRecharge : rejette une demande sans paymentReference posé", () => {
   const result = matchesPendingRecharge(
     { amount: "150.000", paymentReference: null },
-    { eventId: "evt_1", eventType: "payment_intent.succeeded", providerRef: "pi_abc", amountTnd: 150, currency: "TND" },
+    {
+      eventId: "evt_1",
+      eventType: "payment_intent.succeeded",
+      providerRef: "pi_abc",
+      amountTnd: 150,
+      currency: "TND",
+    },
   )
   assert.deepEqual(result, { ok: false, reason: "REFERENCE_MISMATCH" })
 })
@@ -110,7 +148,13 @@ test("matchesPendingRecharge : rejette une demande sans paymentReference posé",
 test("matchesPendingRecharge : rejette une devise différente de TND", () => {
   const result = matchesPendingRecharge(
     { amount: "150.000", paymentReference: "pi_abc" },
-    { eventId: "evt_1", eventType: "payment_intent.succeeded", providerRef: "pi_abc", amountTnd: 150, currency: "EUR" },
+    {
+      eventId: "evt_1",
+      eventType: "payment_intent.succeeded",
+      providerRef: "pi_abc",
+      amountTnd: 150,
+      currency: "EUR",
+    },
   )
   assert.deepEqual(result, { ok: false, reason: "CURRENCY_MISMATCH" })
 })
@@ -118,7 +162,13 @@ test("matchesPendingRecharge : rejette une devise différente de TND", () => {
 test("matchesPendingRecharge : rejette un montant PSP différent du montant demandé (anti-tampering)", () => {
   const result = matchesPendingRecharge(
     { amount: "150.000", paymentReference: "pi_abc" },
-    { eventId: "evt_1", eventType: "payment_intent.succeeded", providerRef: "pi_abc", amountTnd: 1, currency: "TND" },
+    {
+      eventId: "evt_1",
+      eventType: "payment_intent.succeeded",
+      providerRef: "pi_abc",
+      amountTnd: 1,
+      currency: "TND",
+    },
   )
   assert.deepEqual(result, { ok: false, reason: "AMOUNT_MISMATCH" })
 })
@@ -126,7 +176,13 @@ test("matchesPendingRecharge : rejette un montant PSP différent du montant dema
 test("matchesPendingRecharge : tolère l'arrondi flottant sous le millime", () => {
   const result = matchesPendingRecharge(
     { amount: "150.000", paymentReference: "pi_abc" },
-    { eventId: "evt_1", eventType: "payment_intent.succeeded", providerRef: "pi_abc", amountTnd: 150.0001, currency: "TND" },
+    {
+      eventId: "evt_1",
+      eventType: "payment_intent.succeeded",
+      providerRef: "pi_abc",
+      amountTnd: 150.0001,
+      currency: "TND",
+    },
   )
   assert.deepEqual(result, { ok: true })
 })
@@ -148,7 +204,14 @@ test("normalizePaymeeEvent : retombe sur `amount` quand `received_amount` est ab
 
 test("normalizePaymeeEvent : préfère `received_amount` à `amount` quand les deux sont présents (règle comptable la plus défensive — voir avertissement de fichier)", () => {
   const charge = normalizePaymeeEvent(
-    { token: "tok_2", order_id: "order_2", amount: 150, received_amount: 145.5, cost: 4.5, payment_id: "pmt_2" },
+    {
+      token: "tok_2",
+      order_id: "order_2",
+      amount: 150,
+      received_amount: 145.5,
+      cost: 4.5,
+      payment_id: "pmt_2",
+    },
     "paymee.payment.success",
   )
   assert.ok(charge)
@@ -157,18 +220,39 @@ test("normalizePaymeeEvent : préfère `received_amount` à `amount` quand les d
 
 test("normalizePaymeeEvent : `received_amount` inférieur au montant attendu fait échouer la corrélation stricte (jamais une confirmation en trop)", () => {
   const charge = normalizePaymeeEvent(
-    { token: "tok_3", order_id: "order_3", amount: 150, received_amount: 145.5 },
+    {
+      token: "tok_3",
+      order_id: "order_3",
+      amount: 150,
+      received_amount: 145.5,
+    },
     "paymee.payment.success",
   )
   assert.ok(charge)
   const match = matchesPendingPayment(
-    { pspOrderId: "order_3", originalAmount: "150.00", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_3",
+      originalAmount: "150.00",
+      originalCurrency: "TND",
+    },
     charge!,
   )
   assert.deepEqual(match, { ok: false, reason: "AMOUNT_MISMATCH" })
 })
 
 test("normalizePaymeeEvent : token ou order_id manquant -> null", () => {
-  assert.equal(normalizePaymeeEvent({ order_id: "order_1", amount: 150 }, "paymee.payment.success"), null)
-  assert.equal(normalizePaymeeEvent({ token: "tok_1", amount: 150 }, "paymee.payment.success"), null)
+  assert.equal(
+    normalizePaymeeEvent(
+      { order_id: "order_1", amount: 150 },
+      "paymee.payment.success",
+    ),
+    null,
+  )
+  assert.equal(
+    normalizePaymeeEvent(
+      { token: "tok_1", amount: 150 },
+      "paymee.payment.success",
+    ),
+    null,
+  )
 })

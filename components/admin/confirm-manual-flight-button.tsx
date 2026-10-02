@@ -80,7 +80,13 @@ export function ConfirmManualFlightButton({ reservationId }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setError(null) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v)
+        if (!v) setError(null)
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <ClipboardCheck className="mr-2 h-4 w-4" />
@@ -89,17 +95,22 @@ export function ConfirmManualFlightButton({ reservationId }: Props) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Confirmation manuelle — réservation fournisseur B2B</DialogTitle>
+          <DialogTitle>
+            Confirmation manuelle — réservation fournisseur B2B
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            À utiliser uniquement après confirmation réelle du fournisseur (portail B2B, téléphone,
-            email professionnel). Ne cochez pas cette étape sur une simple disponibilité non vérifiée.
+          <p className="text-muted-foreground text-sm">
+            À utiliser uniquement après confirmation réelle du fournisseur
+            (portail B2B, téléphone, email professionnel). Ne cochez pas cette
+            étape sur une simple disponibilité non vérifiée.
           </p>
 
           <div className="space-y-1">
-            <Label htmlFor="supplierBookingRef">Référence réservation fournisseur *</Label>
+            <Label htmlFor="supplierBookingRef">
+              Référence réservation fournisseur *
+            </Label>
             <Input
               id="supplierBookingRef"
               value={supplierBookingRef}
@@ -126,7 +137,9 @@ export function ConfirmManualFlightButton({ reservationId }: Props) {
               <Input
                 id="confirmedCurrency"
                 value={confirmedCurrency}
-                onChange={(e) => setConfirmedCurrency(e.target.value.toUpperCase())}
+                onChange={(e) =>
+                  setConfirmedCurrency(e.target.value.toUpperCase())
+                }
                 maxLength={3}
                 disabled={loading}
               />
@@ -152,7 +165,11 @@ export function ConfirmManualFlightButton({ reservationId }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={loading}>
+          <Button
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            disabled={loading}
+          >
             Annuler
           </Button>
           <Button onClick={handleConfirm} disabled={loading}>

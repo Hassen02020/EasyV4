@@ -7,10 +7,7 @@ import { BookingTravelersForm } from "@/components/pro/booking-travelers-form"
 import { ProBookingTravelersForm } from "@/components/pro/pro-booking-travelers-form"
 import { buildBookingContext } from "@/lib/pro/booking-context"
 import { getActivePartnerMargins } from "@/lib/pro/server-context"
-import {
-  HotelSearchQuerySchema,
-  runHotelSearch,
-} from "@/lib/mygo/search-core"
+import { HotelSearchQuerySchema, runHotelSearch } from "@/lib/mygo/search-core"
 import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
 import { computePriceBreakdown } from "@/lib/booking/pricing"
 import { matchSelectedRoom } from "@/lib/booking/room-match"
@@ -65,11 +62,18 @@ function UnavailableState({
           Cette chambre n&apos;est plus disponible au tarif sélectionné
         </p>
         <p className="mt-1">
-          Le prix ou la disponibilité ont changé depuis votre recherche.
-          Merci de choisir une nouvelle chambre.
+          Le prix ou la disponibilité ont changé depuis votre recherche. Merci
+          de choisir une nouvelle chambre.
         </p>
         <Button asChild variant="outline" className="mt-4 rounded-xl">
-          <Link href={buildUnavailableRoomBackHref(hotelId, { cityId, checkin, checkout, adults })}>
+          <Link
+            href={buildUnavailableRoomBackHref(hotelId, {
+              cityId,
+              checkin,
+              checkout,
+              adults,
+            })}
+          >
             Retour aux chambres
           </Link>
         </Button>
@@ -138,12 +142,17 @@ export default async function ProBookingTravelersPage({
       resolvePartnerMyGoAccess(),
       getActivePartnerMargins(),
     ])
-    const result = await runHotelSearch(q, access.client ? { client: access.client } : undefined)
+    const result = await runHotelSearch(
+      q,
+      access.client ? { client: access.client } : undefined,
+    )
 
     const rawOffer = result.ok ? result.dto.offers[0] : null
     const boardingIdNum = Number(search.boardingId)
     const roomIdNum = Number(search.roomId)
-    const matchedRoom = rawOffer ? matchSelectedRoom(rawOffer, boardingIdNum, roomIdNum) : null
+    const matchedRoom = rawOffer
+      ? matchSelectedRoom(rawOffer, boardingIdNum, roomIdNum)
+      : null
 
     if (!rawOffer || !matchedRoom) {
       return (
@@ -189,7 +198,9 @@ export default async function ProBookingTravelersPage({
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
         <div className="mb-4 flex items-center justify-between">
           <Button asChild variant="ghost" size="sm" className="rounded-xl">
-            <Link href={`/pro/hotels/${search.hotelId}?cityId=${q.cityId}&checkin=${q.checkin}&checkout=${q.checkout}&adults=${q.adults}`}>
+            <Link
+              href={`/pro/hotels/${search.hotelId}?cityId=${q.cityId}&checkin=${q.checkin}&checkout=${q.checkout}&adults=${q.adults}`}
+            >
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Retour aux chambres
             </Link>

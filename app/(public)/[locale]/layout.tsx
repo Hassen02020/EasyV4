@@ -58,7 +58,11 @@ export default async function LocaleLayout({
     <NextIntlClientProvider locale={locale}>
       <RtlDirectionProvider dir={dir}>
         <CurrencyProvider locale={locale}>
-          <RootShell lang={locale} dir={dir} primaryColor={tenant?.primaryColor}>
+          <RootShell
+            lang={locale}
+            dir={dir}
+            primaryColor={tenant?.primaryColor}
+          >
             {children}
           </RootShell>
         </CurrencyProvider>

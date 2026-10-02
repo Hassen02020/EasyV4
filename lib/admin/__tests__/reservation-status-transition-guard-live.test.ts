@@ -20,7 +20,11 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withSystemContext, withTenantContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withSystemContext,
+  withTenantContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { agencies, customers, reservations } from "@/lib/db/schema"
 import {
   RESERVATION_STATUSES,
@@ -80,7 +84,11 @@ after(async () => {
 test("trigger reservation_status_transition_guard : miroir exact de isTransitionAllowed() sur les 56 paires (FROM, TO) possibles", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctx: TenantContext = { agencyId, userId: randomUUID(), isSuperAdmin: false }
+  const ctx: TenantContext = {
+    agencyId,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
 
   await withTenantContext(ctx, async (tx) => {
     for (const from of RESERVATION_STATUSES) {
@@ -116,7 +124,10 @@ test("trigger reservation_status_transition_guard : miroir exact de isTransition
               })
               .returning({ id: reservations.id })
 
-            await tx2.update(reservations).set({ status: to }).where(eq(reservations.id, row!.id))
+            await tx2
+              .update(reservations)
+              .set({ status: to })
+              .where(eq(reservations.id, row!.id))
 
             const [after] = await tx2
               .select({ status: reservations.status })
@@ -134,7 +145,10 @@ test("trigger reservation_status_transition_guard : miroir exact de isTransition
           )
         } else {
           await assert.rejects(runPair, (err: unknown) => {
-            const message = err instanceof Error && err.cause instanceof Error ? err.cause.message : ""
+            const message =
+              err instanceof Error && err.cause instanceof Error
+                ? err.cause.message
+                : ""
             assert.match(
               message,
               /reservation_status_transition_invalid/,

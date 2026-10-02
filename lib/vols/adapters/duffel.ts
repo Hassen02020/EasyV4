@@ -21,7 +21,12 @@
  * Payment: Duffel "balance" type (requires Duffel credit balance on account).
  */
 
-import type { GdsAdapter, RecheckResult, BookResult, IssueResult } from "./types"
+import type {
+  GdsAdapter,
+  RecheckResult,
+  BookResult,
+  IssueResult,
+} from "./types"
 import type {
   CanonicalSearchRequest,
   CanonicalSearchResult,
@@ -80,8 +85,16 @@ interface DuffelOfferPassenger {
 }
 
 interface DuffelConditions {
-  refund_before_departure?: { allowed: boolean; penalty_amount?: string; penalty_currency?: string }
-  change_before_departure?: { allowed: boolean; penalty_amount?: string; penalty_currency?: string }
+  refund_before_departure?: {
+    allowed: boolean
+    penalty_amount?: string
+    penalty_currency?: string
+  }
+  change_before_departure?: {
+    allowed: boolean
+    penalty_amount?: string
+    penalty_currency?: string
+  }
 }
 
 interface DuffelOffer {
@@ -135,7 +148,10 @@ function isDemoMode(): boolean {
   return !getToken() || process.env.FLIGHTS_DEMO_MODE === "true"
 }
 
-async function duffelFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function duffelFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const token = getToken()
   if (!token) throw new Error("DUFFEL_ACCESS_TOKEN manquant")
 
@@ -153,19 +169,23 @@ async function duffelFetch<T>(path: string, options: RequestInit = {}): Promise<
   if (!resp.ok) {
     let errMsg = `Duffel API ${resp.status} ${resp.statusText}`
     try {
-      const body = await resp.json() as { errors?: Array<{ message: string }> }
+      const body = (await resp.json()) as {
+        errors?: Array<{ message: string }>
+      }
       errMsg = body.errors?.[0]?.message ?? errMsg
-    } catch { /* ignore parse error */ }
+    } catch {
+      /* ignore parse error */
+    }
     throw new Error(errMsg)
   }
 
-  const body = await resp.json() as { data: T }
+  const body = (await resp.json()) as { data: T }
   return body.data
 }
 
 function parseIsoDuration(iso: string): number {
   const m = /PT(?:(\d+)H)?(?:(\d+)M)?/.exec(iso)
-  return (Number(m?.[1] ?? 0) * 60) + Number(m?.[2] ?? 0)
+  return Number(m?.[1] ?? 0) * 60 + Number(m?.[2] ?? 0)
 }
 
 function toCabinClass(duffelCabin: string): CabinClass {
@@ -188,10 +208,14 @@ function fromCabinClass(cabin: CabinClass): string {
   return map[cabin]
 }
 
-function parsePricingToken(token: string | undefined): DuffelPricingToken | null {
+function parsePricingToken(
+  token: string | undefined,
+): DuffelPricingToken | null {
   if (!token) return null
   try {
-    return JSON.parse(Buffer.from(token, "base64url").toString()) as DuffelPricingToken
+    return JSON.parse(
+      Buffer.from(token, "base64url").toString(),
+    ) as DuffelPricingToken
   } catch {
     return null
   }
@@ -210,23 +234,25 @@ function mapOfferToItinerary(
   request: CanonicalSearchRequest,
 ): CanonicalItinerary {
   const journeys: Journey[] = offer.slices.map((slice): Journey => {
-    const segments: CanonicalSegment[] = slice.segments.map((seg): CanonicalSegment => {
-      const cabin = toCabinClass(seg.passengers[0]?.cabin_class ?? "economy")
-      return {
-        origin: seg.origin.iata_code,
-        destination: seg.destination.iata_code,
-        departure: seg.departing_at,
-        arrival: seg.arriving_at,
-        marketingCarrier: seg.marketing_carrier.iata_code,
-        operatingCarrier: seg.operating_carrier.iata_code,
-        marketingFlightNumber: seg.marketing_carrier_flight_number,
-        operatingFlightNumber: seg.operating_carrier_flight_number,
-        durationMinutes: parseIsoDuration(seg.duration),
-        stops: seg.stops.length,
-        equipment: seg.aircraft?.iata_code,
-        cabin,
-      }
-    })
+    const segments: CanonicalSegment[] = slice.segments.map(
+      (seg): CanonicalSegment => {
+        const cabin = toCabinClass(seg.passengers[0]?.cabin_class ?? "economy")
+        return {
+          origin: seg.origin.iata_code,
+          destination: seg.destination.iata_code,
+          departure: seg.departing_at,
+          arrival: seg.arriving_at,
+          marketingCarrier: seg.marketing_carrier.iata_code,
+          operatingCarrier: seg.operating_carrier.iata_code,
+          marketingFlightNumber: seg.marketing_carrier_flight_number,
+          operatingFlightNumber: seg.operating_carrier_flight_number,
+          durationMinutes: parseIsoDuration(seg.duration),
+          stops: seg.stops.length,
+          equipment: seg.aircraft?.iata_code,
+          cabin,
+        }
+      },
+    )
 
     return {
       origin: slice.origin.iata_code,
@@ -240,7 +266,9 @@ function mapOfferToItinerary(
   // Build fares — one per passenger type
   const adultPax = offer.passengers.filter((p) => p.type === "adult")
   const childPax = offer.passengers.filter((p) => p.type === "child")
-  const infantPax = offer.passengers.filter((p) => p.type === "infant_without_seat")
+  const infantPax = offer.passengers.filter(
+    (p) => p.type === "infant_without_seat",
+  )
   const totalPax = offer.passengers.length || 1
 
   const totalAmount = Number(offer.total_amount)
@@ -286,7 +314,8 @@ function mapOfferToItinerary(
 
   // Baggage — take from first adult passenger in first segment
   const firstPassenger = offer.slices[0]?.segments[0]?.passengers[0]
-  const checkedBaggages = firstPassenger?.baggages.filter((b) => b.type === "checked") ?? []
+  const checkedBaggages =
+    firstPassenger?.baggages.filter((b) => b.type === "checked") ?? []
   const baggage: CanonicalBaggage = {
     cabin: true,
     checkedPieces: checkedBaggages.reduce((n, b) => n + b.quantity, 0) || 0,
@@ -336,14 +365,25 @@ export function createDuffelAdapter(): GdsAdapter {
       return isDemoMode() ? "NOT_CONFIGURED" : "CONFIGURED"
     },
 
-    async search(request: CanonicalSearchRequest): Promise<CanonicalSearchResult> {
+    async search(
+      request: CanonicalSearchRequest,
+    ): Promise<CanonicalSearchResult> {
       const passengers: Array<{ type: string; age?: number }> = [
         ...Array.from({ length: request.adults }, () => ({ type: "adult" })),
-        ...Array.from({ length: request.children }, () => ({ type: "child", age: 8 })),
-        ...Array.from({ length: request.infants }, () => ({ type: "infant_without_seat" })),
+        ...Array.from({ length: request.children }, () => ({
+          type: "child",
+          age: 8,
+        })),
+        ...Array.from({ length: request.infants }, () => ({
+          type: "infant_without_seat",
+        })),
       ]
 
-      let slices: Array<{ origin: string; destination: string; departure_date: string }>
+      let slices: Array<{
+        origin: string
+        destination: string
+        departure_date: string
+      }>
 
       if (request.tripType === "MULTI_CITY" && request.segments?.length) {
         slices = request.segments.map((seg) => ({
@@ -353,12 +393,24 @@ export function createDuffelAdapter(): GdsAdapter {
         }))
       } else if (request.tripType === "ROUND_TRIP" && request.returnDate) {
         slices = [
-          { origin: request.origin, destination: request.destination, departure_date: request.departureDate },
-          { origin: request.destination, destination: request.origin, departure_date: request.returnDate },
+          {
+            origin: request.origin,
+            destination: request.destination,
+            departure_date: request.departureDate,
+          },
+          {
+            origin: request.destination,
+            destination: request.origin,
+            departure_date: request.returnDate,
+          },
         ]
       } else {
         slices = [
-          { origin: request.origin, destination: request.destination, departure_date: request.departureDate },
+          {
+            origin: request.origin,
+            destination: request.destination,
+            departure_date: request.departureDate,
+          },
         ]
       }
 
@@ -391,7 +443,8 @@ export function createDuffelAdapter(): GdsAdapter {
           // CURRENCY-DIM-01a : exclude any offer not in TND — never a fabricated conversion
           if (offer.total_currency !== "TND") return false
           // Exclude expired offers
-          if (offer.expires_at && new Date(offer.expires_at) <= new Date()) return false
+          if (offer.expires_at && new Date(offer.expires_at) <= new Date())
+            return false
           return true
         })
         .map((offer) => mapOfferToItinerary(offer, request))
@@ -405,7 +458,8 @@ export function createDuffelAdapter(): GdsAdapter {
 
     async recheck(itinerary: CanonicalItinerary): Promise<RecheckResult> {
       const token = parsePricingToken(itinerary.provider.pricingToken)
-      if (!token) return { status: "ERROR", error: "pricingToken Duffel manquant" }
+      if (!token)
+        return { status: "ERROR", error: "pricingToken Duffel manquant" }
 
       let offer: DuffelOffer
       try {
@@ -414,11 +468,17 @@ export function createDuffelAdapter(): GdsAdapter {
         if (err instanceof Error && err.message.includes("422")) {
           return { status: "EXPIRED" }
         }
-        return { status: "ERROR", error: err instanceof Error ? err.message : String(err) }
+        return {
+          status: "ERROR",
+          error: err instanceof Error ? err.message : String(err),
+        }
       }
 
       if (offer.total_currency !== "TND") {
-        return { status: "ERROR", error: `Devise Duffel inattendue (${offer.total_currency})` }
+        return {
+          status: "ERROR",
+          error: `Devise Duffel inattendue (${offer.total_currency})`,
+        }
       }
 
       const currentAmount = Number(offer.total_amount)
@@ -447,7 +507,11 @@ export function createDuffelAdapter(): GdsAdapter {
       const token = parsePricingToken(itinerary.provider.pricingToken)
       if (!token) throw new Error("pricingToken Duffel manquant")
 
-      const contactObj = contact as { email?: string; firstName?: string; lastName?: string }
+      const contactObj = contact as {
+        email?: string
+        firstName?: string
+        lastName?: string
+      }
       const paxRows = passengers as Array<{
         firstName: string
         lastName: string
@@ -461,7 +525,10 @@ export function createDuffelAdapter(): GdsAdapter {
 
       const duffelPassengers = paxRows.map((pax, index) => {
         const duffelId = token.passengerIds[index]
-        if (!duffelId) throw new Error(`Passenger ID Duffel manquant pour passager index ${index}`)
+        if (!duffelId)
+          throw new Error(
+            `Passenger ID Duffel manquant pour passager index ${index}`,
+          )
 
         const paxData: Record<string, unknown> = {
           id: duffelId,
@@ -514,7 +581,10 @@ export function createDuffelAdapter(): GdsAdapter {
       }
     },
 
-    async issue(pnr: string, _itinerary: CanonicalItinerary): Promise<IssueResult> {
+    async issue(
+      pnr: string,
+      _itinerary: CanonicalItinerary,
+    ): Promise<IssueResult> {
       // pnr = order.id ("ord_...") stored by book()
       const order = await duffelFetch<DuffelOrder>(`/air/orders/${pnr}`)
 

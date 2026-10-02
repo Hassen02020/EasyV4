@@ -13,7 +13,10 @@
 
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { createServerSupabase } from "@/lib/supabase/server"
-import { cancelPolicyReservationCore, type CancelPolicyReservationResult } from "./policy-cancel-core"
+import {
+  cancelPolicyReservationCore,
+  type CancelPolicyReservationResult,
+} from "./policy-cancel-core"
 
 export async function cancelMyPolicyReservation(
   reservationId: string,
@@ -26,10 +29,16 @@ export async function cancelMyPolicyReservation(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user?.email) return { ok: false, error: "NOT_AUTHENTICATED", code: "NOT_AUTHENTICATED" }
+  if (!user?.email)
+    return { ok: false, error: "NOT_AUTHENTICATED", code: "NOT_AUTHENTICATED" }
 
   const tenant = await guestTenantContext()
-  if (!tenant) return { ok: false, error: "Aucune agence n'est configurée pour ce site." }
+  if (!tenant)
+    return { ok: false, error: "Aucune agence n'est configurée pour ce site." }
 
-  return cancelPolicyReservationCore(tenant, { authUserId: user.id, verifiedEmail: user.email }, reservationId)
+  return cancelPolicyReservationCore(
+    tenant,
+    { authUserId: user.id, verifiedEmail: user.email },
+    reservationId,
+  )
 }

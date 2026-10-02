@@ -41,7 +41,9 @@ const schema = z.object({
     .max(32)
     .optional()
     .default("")
-    .refine((v) => !v || MATRICULE_REGEX.test(v), { message: "Format attendu : 1399210Z/A/M/002" }),
+    .refine((v) => !v || MATRICULE_REGEX.test(v), {
+      message: "Format attendu : 1399210Z/A/M/002",
+    }),
   registreCommerce: z.string().trim().max(64).optional().default(""),
   address: z.string().trim().max(2000).optional().default(""),
   logoUrl: z.string().trim().max(2048).optional().default(""),
@@ -51,24 +53,37 @@ const schema = z.object({
     .max(7)
     .optional()
     .default("")
-    .refine((v) => !v || HEX_COLOR_REGEX.test(v), { message: "Couleur invalide — format attendu : #RRGGBB" }),
+    .refine((v) => !v || HEX_COLOR_REGEX.test(v), {
+      message: "Couleur invalide — format attendu : #RRGGBB",
+    }),
   defaultLanguage: z.enum(["fr", "ar", "en", "tr"]),
   defaultCurrency: z.enum(["TND", "EUR", "USD", "DZD"]),
   maskCredit: z.boolean(),
 })
 
-export type UpdateEtablissementInput = Omit<z.infer<typeof schema>, "defaultLanguage" | "defaultCurrency"> & {
+export type UpdateEtablissementInput = Omit<
+  z.infer<typeof schema>,
+  "defaultLanguage" | "defaultCurrency"
+> & {
   defaultLanguage: string
   defaultCurrency: string
 }
-export type UpdateEtablissementResult = { ok: true } | { ok: false; error: string }
+export type UpdateEtablissementResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
-export async function updateMyAgencyProfile(input: UpdateEtablissementInput): Promise<UpdateEtablissementResult> {
+export async function updateMyAgencyProfile(
+  input: UpdateEtablissementInput,
+): Promise<UpdateEtablissementResult> {
   const parsed = schema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Service temporairement indisponible." }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Service temporairement indisponible." }
 
   const supabase = await createServerSupabase()
   const {
@@ -77,26 +92,29 @@ export async function updateMyAgencyProfile(input: UpdateEtablissementInput): Pr
   if (!user) return { ok: false, error: "Session expirée — reconnectez-vous." }
 
   const profile = await getCurrentPartnerProfile(user.id)
-  if (!profile?.agency?.id) return { ok: false, error: "Profil partenaire introuvable." }
+  if (!profile?.agency?.id)
+    return { ok: false, error: "Profil partenaire introuvable." }
   const agencyId = profile.agency.id
 
   try {
-    const result = await withTenantContext({ agencyId, userId: user.id, isSuperAdmin: false }, (tx) =>
-      updateAgencyProfileCore(tx, {
-        agencyId,
-        brandName: parsed.data.name,
-        contactEmail: parsed.data.contactEmail,
-        contactPhone: parsed.data.contactPhone,
-        fax: parsed.data.fax,
-        matriculeFiscale: parsed.data.matriculeFiscale,
-        registreCommerce: parsed.data.registreCommerce,
-        address: parsed.data.address,
-        logoUrl: parsed.data.logoUrl,
-        primaryColor: parsed.data.primaryColor,
-        defaultLanguage: parsed.data.defaultLanguage,
-        defaultCurrency: parsed.data.defaultCurrency,
-        maskCredit: parsed.data.maskCredit,
-      }),
+    const result = await withTenantContext(
+      { agencyId, userId: user.id, isSuperAdmin: false },
+      (tx) =>
+        updateAgencyProfileCore(tx, {
+          agencyId,
+          brandName: parsed.data.name,
+          contactEmail: parsed.data.contactEmail,
+          contactPhone: parsed.data.contactPhone,
+          fax: parsed.data.fax,
+          matriculeFiscale: parsed.data.matriculeFiscale,
+          registreCommerce: parsed.data.registreCommerce,
+          address: parsed.data.address,
+          logoUrl: parsed.data.logoUrl,
+          primaryColor: parsed.data.primaryColor,
+          defaultLanguage: parsed.data.defaultLanguage,
+          defaultCurrency: parsed.data.defaultCurrency,
+          maskCredit: parsed.data.maskCredit,
+        }),
     )
     if (!result.updated) return { ok: false, error: "Agence introuvable." }
     revalidatePath("/pro/etablissement")

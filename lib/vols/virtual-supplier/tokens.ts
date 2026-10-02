@@ -9,7 +9,8 @@
 import { createHmac, randomUUID } from "node:crypto"
 
 const SECRET =
-  process.env.VIRTUAL_FLIGHTS_TOKEN_SECRET ?? "virtual-flights-dev-secret-not-for-prod"
+  process.env.VIRTUAL_FLIGHTS_TOKEN_SECRET ??
+  "virtual-flights-dev-secret-not-for-prod"
 
 const TOKEN_TTL_MS = 15 * 60_000 // 15 min — même fenêtre que le Virtual MyGo Supplier
 
@@ -48,7 +49,11 @@ export function issueOfferToken(
   input: Omit<FlightOfferTokenPayload, "issuedAt" | "expiresAt">,
 ): string {
   const now = Date.now()
-  const payload: FlightOfferTokenPayload = { ...input, issuedAt: now, expiresAt: now + TOKEN_TTL_MS }
+  const payload: FlightOfferTokenPayload = {
+    ...input,
+    issuedAt: now,
+    expiresAt: now + TOKEN_TTL_MS,
+  }
   const encoded = b64url(JSON.stringify(payload))
   return `${encoded}.${sign(encoded)}`
 }
@@ -64,7 +69,10 @@ export function validateOfferToken(token: string): TokenValidationResult {
   if (sig !== sign(encoded)) return { ok: false, reason: "TAMPERED" }
   let payload: FlightOfferTokenPayload
   try {
-    const json = Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8")
+    const json = Buffer.from(
+      encoded.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64",
+    ).toString("utf-8")
     payload = JSON.parse(json) as FlightOfferTokenPayload
   } catch {
     return { ok: false, reason: "MALFORMED" }

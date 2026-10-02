@@ -25,11 +25,20 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { TND_EPSILON } from "@/lib/finance/payment-summary"
-import { isTransitionAllowed, type ReservationStatus } from "@/lib/admin/reservation-status"
+import {
+  isTransitionAllowed,
+  type ReservationStatus,
+} from "@/lib/admin/reservation-status"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { matchesPendingPayment } from "@/lib/payment/reservation-payment-logic"
-import { classifyEventType, type NormalizedChargeEvent } from "@/lib/payment/webhook-logic"
-import { creditCustomerWallet, recordTargetedWalletSettlement } from "@/lib/finance/customer-wallet"
+import {
+  classifyEventType,
+  type NormalizedChargeEvent,
+} from "@/lib/payment/webhook-logic"
+import {
+  creditCustomerWallet,
+  recordTargetedWalletSettlement,
+} from "@/lib/finance/customer-wallet"
 
 export type WebhookOutcome =
   | { status: "duplicate" }
@@ -38,7 +47,12 @@ export type WebhookOutcome =
   | { status: "already_processed" }
   | { status: "mismatch"; reason: string }
   | { status: "payment_failed"; reservationId: string }
-  | { status: "captured_confirmed"; reservationId: string; publicRef: string; agencyId: string }
+  | {
+      status: "captured_confirmed"
+      reservationId: string
+      publicRef: string
+      agencyId: string
+    }
   | { status: "captured_not_confirmable"; reservationId: string }
   | { status: "refunded"; reservationId: string; fullyRefunded: boolean }
   | { status: "refund_ignored" }
@@ -64,7 +78,8 @@ export async function processReservationWebhookCore(
   tx: DrizzleTransaction,
   input: ProcessReservationWebhookInput,
 ): Promise<WebhookOutcome> {
-  const { provider, eventId, eventType, charge, signatureOk, rawPayload } = input
+  const { provider, eventId, eventType, charge, signatureOk, rawPayload } =
+    input
 
   /* --- Idempotence event-level — INSERT ON CONFLICT DO NOTHING --- */
   const inserted = await tx
@@ -141,7 +156,10 @@ export async function processReservationWebhookCore(
 
     const alreadyRefunded = Number.parseFloat(payment.refundedAmount)
     const capturedTnd = Number.parseFloat(payment.tndAmount)
-    const newRefundedAmount = Math.min(alreadyRefunded + charge.amountTnd, capturedTnd)
+    const newRefundedAmount = Math.min(
+      alreadyRefunded + charge.amountTnd,
+      capturedTnd,
+    )
     const fullyRefunded = capturedTnd - newRefundedAmount <= TND_EPSILON
 
     await tx
@@ -154,7 +172,11 @@ export async function processReservationWebhookCore(
       })
       .where(eq(payments.id, payment.id))
 
-    if (fullyRefunded && reservation && isTransitionAllowed(reservation.status, "refunded")) {
+    if (
+      fullyRefunded &&
+      reservation &&
+      isTransitionAllowed(reservation.status, "refunded")
+    ) {
       await tx
         .update(reservations)
         .set({ status: "refunded", updatedAt: new Date() })
@@ -177,7 +199,11 @@ export async function processReservationWebhookCore(
       processedAt: new Date(),
     })
 
-    return { status: "refunded", reservationId: payment.reservationId, fullyRefunded }
+    return {
+      status: "refunded",
+      reservationId: payment.reservationId,
+      fullyRefunded,
+    }
   }
 
   /* --- Idempotence business-level : déjà traité (capturé/échoué) --- */
@@ -256,7 +282,11 @@ export async function processReservationWebhookCore(
     processedAt: new Date(),
   })
 
-  if (!reservation || reservation.status !== "pending" || !isTransitionAllowed(reservation.status, "confirmed")) {
+  if (
+    !reservation ||
+    reservation.status !== "pending" ||
+    !isTransitionAllowed(reservation.status, "confirmed")
+  ) {
     // Paiement reçu mais réservation non confirmable (expirée par le cron
     // entre-temps, déjà annulée...) — jamais une confirmation forcée, jamais
     // une perte de trace du paiement réel. Signalé pour réconciliation
@@ -273,10 +303,14 @@ export async function processReservationWebhookCore(
         paymentId: payment.id,
         description: `Paiement en ligne capturé — réservation ${reservation.publicRef} non confirmable (réconciliation manuelle requise)`,
         source: "online_card",
-        txOverride: tx as Parameters<typeof creditCustomerWallet>[0]["txOverride"],
+        txOverride: tx as Parameters<
+          typeof creditCustomerWallet
+        >[0]["txOverride"],
       })
       if (!credit.ok) {
-        throw new Error(`Échec crédit wallet (réconciliation) : ${credit.message}`)
+        throw new Error(
+          `Échec crédit wallet (réconciliation) : ${credit.message}`,
+        )
       }
     }
 
@@ -293,7 +327,10 @@ export async function processReservationWebhookCore(
         amountTnd: payment.tndAmount,
       },
     })
-    return { status: "captured_not_confirmable", reservationId: payment.reservationId }
+    return {
+      status: "captured_not_confirmable",
+      reservationId: payment.reservationId,
+    }
   }
 
   // L'argent reçu recharge le wallet client puis le règle aussitôt pour
@@ -306,15 +343,23 @@ export async function processReservationWebhookCore(
     paymentId: payment.id,
     method: "online_card",
     reference: reservation.publicRef,
-    txOverride: tx as Parameters<typeof recordTargetedWalletSettlement>[0]["txOverride"],
+    txOverride: tx as Parameters<
+      typeof recordTargetedWalletSettlement
+    >[0]["txOverride"],
   })
   if (!settlement.ok) {
-    throw new Error(`Échec règlement wallet (carte/Paymee) : ${settlement.message}`)
+    throw new Error(
+      `Échec règlement wallet (carte/Paymee) : ${settlement.message}`,
+    )
   }
 
   await tx
     .update(reservations)
-    .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+    .set({
+      status: "confirmed",
+      confirmedAt: new Date(),
+      updatedAt: new Date(),
+    })
     .where(eq(reservations.id, reservation.id))
 
   await recordReservationTransition(tx, {
@@ -386,7 +431,10 @@ export async function loadConfirmedBookingDetail(
     })
     .from(reservations)
     .innerJoin(customers, eq(customers.id, reservations.customerId))
-    .leftJoin(reservationHotel, eq(reservationHotel.reservationId, reservations.id))
+    .leftJoin(
+      reservationHotel,
+      eq(reservationHotel.reservationId, reservations.id),
+    )
     .where(eq(reservations.id, reservationId))
     .limit(1)
 
@@ -396,7 +444,8 @@ export async function loadConfirmedBookingDetail(
     totalTnd: Number.parseFloat(detail.tndAmount),
     guestAccessToken: detail.guestAccessToken,
     customerEmail: detail.customerEmail,
-    customerName: `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
+    customerName:
+      `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
     customerPhone: detail.customerPhone,
     hotelName: detail.hotelName,
     checkIn: detail.checkIn,

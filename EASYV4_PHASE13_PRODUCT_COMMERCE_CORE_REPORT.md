@@ -9,17 +9,18 @@ Commits this phase: `82085a3`, `57f28d1`, `3b5fb9a`, `387f0fd`, `d83fab8`, `86f9
 
 Before writing anything, the repo was searched for a pre-existing product/catalog pattern rather than assuming none existed. Finding: **three separate but structurally identical triads already exist**:
 
-| Domain | Catalog table | Sub-table (dates/stock) | Booking/reservation table |
-|---|---|---|---|
-| Voyages Organisés | `catalog_packages` | `catalog_package_departures` | `reservation_package` (via `bookings`) |
-| Attractions | `catalog_activities` | `catalog_activity_sessions` | (none — no booking engine exists yet) |
-| Omra | `omra_packages` | `omra_allotments` | `bookings` (Phase 11 B2B) + guest path (Phase 12 B2C) |
+| Domain            | Catalog table        | Sub-table (dates/stock)      | Booking/reservation table                             |
+| ----------------- | -------------------- | ---------------------------- | ----------------------------------------------------- |
+| Voyages Organisés | `catalog_packages`   | `catalog_package_departures` | `reservation_package` (via `bookings`)                |
+| Attractions       | `catalog_activities` | `catalog_activity_sessions`  | (none — no booking engine exists yet)                 |
+| Omra              | `omra_packages`      | `omra_allotments`            | `bookings` (Phase 11 B2B) + guest path (Phase 12 B2C) |
 
 This triad **is** the de-facto Product / ProductType / ProductConfiguration architecture the mission asked for — the "product" is the catalog row, the "configuration" is dates + capacity + price on the sub-table, and "type" is which triad it belongs to. Hotel Tunisia was confirmed untouched and out of scope (its own MyGo/XML provider architecture, `hotel_bookings`, unrelated to this triad).
 
 ## 2. Product architecture selected
 
-**No new unified `products` table was created.** The three existing triads were kept as three separate tables, unified only at the *behavioural* level:
+**No new unified `products` table was created.** The three existing triads were kept as three separate tables, unified only at the _behavioural_ level:
+
 - One shared status vocabulary (`draft` / `published` / `suspended` / `archived`) instead of each table inventing its own.
 - One shared `channels text[]` column (`b2c` / `b2b` / `white_label`) on all three catalog tables.
 - One shared admin authorization guard (`assertProductManager()`) and one shared constants file (`product-constants.ts`) used by all three admin action sets.
@@ -29,6 +30,7 @@ This directly satisfies "Prefer Product + ProductType + ProductConfiguration whe
 ## 3. Database changes (migration 0022_product_lifecycle_channels.sql)
 
 Applied to production project `vqhuptgjhoornteibbpj` via Supabase MCP. Additive and backward-compatible:
+
 - `UPDATE` renames existing `status = 'active'` rows to `'published'` on `catalog_packages`, `catalog_activities`, `omra_packages` (verified via live query: **all three tables were completely empty, 0 rows**, before this ran — no real data was migrated, only the schema/default changed).
 - `ALTER COLUMN status SET DEFAULT 'draft'` on `omra_packages` (the other two already defaulted to `draft`).
 - `ALTER TABLE ... ADD COLUMN channels text[] NOT NULL DEFAULT '{b2c}'` on all three tables.
@@ -43,6 +45,7 @@ Rollback strategy: both changes are reversible with a single down-migration (`UP
 ## 5. Master Admin Product Catalog
 
 Real, built at `app/admin/products/page.tsx`. Not a mock:
+
 - Fetches live rows from `catalogPackages`, `omraPackages`, `catalogActivities` via `withTenantContext` scoped to the logged-in admin's own `agencyId`.
 - Real per-type counts, real status/channel badges.
 - Row actions (`components/admin/product-row-actions.tsx`): Modifier / Dupliquer / Publier / Suspendre / Archiver, each calling a real server action, not a client-only state toggle.

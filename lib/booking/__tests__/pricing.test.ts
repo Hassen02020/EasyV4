@@ -1,6 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { computePriceBreakdown, convertFromTnd, formatMoney, priceDrifted } from "../pricing"
+import {
+  computePriceBreakdown,
+  convertFromTnd,
+  formatMoney,
+  priceDrifted,
+} from "../pricing"
 
 test("pricing: 2 adultes seuls — TVA 19%, acompte 30%", () => {
   const r = computePriceBreakdown({ unitPriceTnd: 100, adults: 2 })

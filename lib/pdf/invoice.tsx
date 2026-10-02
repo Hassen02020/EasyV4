@@ -57,7 +57,12 @@ const colors = {
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: "Helvetica", fontSize: 10, color: "#1f2937" },
+  page: {
+    padding: 40,
+    fontFamily: "Helvetica",
+    fontSize: 10,
+    color: "#1f2937",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -68,9 +73,24 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 20, fontFamily: "Helvetica-Bold", color: colors.primary },
   subtitle: { fontSize: 9, color: colors.muted, marginTop: 2 },
-  refBox: { backgroundColor: colors.bg, padding: 10, borderRadius: 4, alignItems: "flex-end" },
-  refLabel: { fontSize: 8, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.5 },
-  refValue: { fontSize: 14, fontFamily: "Helvetica-Bold", color: colors.primary, marginTop: 2 },
+  refBox: {
+    backgroundColor: colors.bg,
+    padding: 10,
+    borderRadius: 4,
+    alignItems: "flex-end",
+  },
+  refLabel: {
+    fontSize: 8,
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  refValue: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primary,
+    marginTop: 2,
+  },
   sectionTitle: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
@@ -80,13 +100,32 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  table: { marginTop: 4, border: `1px solid ${colors.border}`, borderRadius: 4 },
-  row: { flexDirection: "row", borderBottom: `1px solid ${colors.border}`, minHeight: 28 },
+  table: {
+    marginTop: 4,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 4,
+  },
+  row: {
+    flexDirection: "row",
+    borderBottom: `1px solid ${colors.border}`,
+    minHeight: 28,
+  },
   rowLast: { flexDirection: "row", minHeight: 28 },
-  cellLabel: { width: "40%", padding: 8, backgroundColor: colors.bg, fontSize: 9, color: colors.muted, fontFamily: "Helvetica-Bold" },
+  cellLabel: {
+    width: "40%",
+    padding: 8,
+    backgroundColor: colors.bg,
+    fontSize: 9,
+    color: colors.muted,
+    fontFamily: "Helvetica-Bold",
+  },
   cellValue: { width: "60%", padding: 8, fontSize: 10 },
   totalsBox: { marginTop: 16, alignSelf: "flex-end", width: "50%" },
-  totalsRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
+  totalsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
   totalsLabel: { fontSize: 9, color: colors.muted },
   totalsValue: { fontSize: 9, fontFamily: "Helvetica-Bold" },
   grandTotalRow: {
@@ -97,12 +136,40 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 12,
   },
-  grandTotalLabel: { fontSize: 11, color: "#ffffff", fontFamily: "Helvetica-Bold" },
-  grandTotalValue: { fontSize: 14, color: "#ffffff", fontFamily: "Helvetica-Bold" },
-  paymentBox: { marginTop: 16, padding: 12, borderRadius: 4, border: `2px solid ${colors.accent}` },
-  paymentBoxUnpaid: { marginTop: 16, padding: 12, borderRadius: 4, border: `2px solid #b45309` },
-  paymentText: { fontSize: 11, fontFamily: "Helvetica-Bold", color: colors.accent, textTransform: "uppercase" },
-  paymentTextUnpaid: { fontSize: 11, fontFamily: "Helvetica-Bold", color: "#b45309", textTransform: "uppercase" },
+  grandTotalLabel: {
+    fontSize: 11,
+    color: "#ffffff",
+    fontFamily: "Helvetica-Bold",
+  },
+  grandTotalValue: {
+    fontSize: 14,
+    color: "#ffffff",
+    fontFamily: "Helvetica-Bold",
+  },
+  paymentBox: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 4,
+    border: `2px solid ${colors.accent}`,
+  },
+  paymentBoxUnpaid: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 4,
+    border: `2px solid #b45309`,
+  },
+  paymentText: {
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    color: colors.accent,
+    textTransform: "uppercase",
+  },
+  paymentTextUnpaid: {
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    color: "#b45309",
+    textTransform: "uppercase",
+  },
   footer: {
     position: "absolute",
     bottom: 30,
@@ -118,11 +185,18 @@ const styles = StyleSheet.create({
 
 function formatDate(iso: string): string {
   const d = new Date(iso)
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+  return d.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
 }
 
 function formatTnd(v: number): string {
-  return v.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return v.toLocaleString("fr-FR", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
 }
 
 const PAYMENT_STATE_LABEL: Record<InvoiceData["paymentState"], string> = {
@@ -141,7 +215,9 @@ function InvoiceDocument({ data }: { data: InvoiceData }) {
             <Text style={styles.brand}>{data.agencyName}</Text>
             <Text style={styles.subtitle}>Facture</Text>
             {data.agencyMatriculeFiscale ? (
-              <Text style={styles.subtitle}>MF : {data.agencyMatriculeFiscale}</Text>
+              <Text style={styles.subtitle}>
+                MF : {data.agencyMatriculeFiscale}
+              </Text>
             ) : null}
           </View>
           <View style={styles.refBox}>
@@ -174,7 +250,9 @@ function InvoiceDocument({ data }: { data: InvoiceData }) {
           </View>
           <View style={styles.rowLast}>
             <Text style={styles.cellLabel}>Date</Text>
-            <Text style={styles.cellValue}>{formatDate(data.validationDate)}</Text>
+            <Text style={styles.cellValue}>
+              {formatDate(data.validationDate)}
+            </Text>
           </View>
         </View>
 
@@ -185,26 +263,37 @@ function InvoiceDocument({ data }: { data: InvoiceData }) {
           </View>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>TVA</Text>
-            <Text style={styles.totalsValue}>{formatTnd(data.totalTva)} DT</Text>
+            <Text style={styles.totalsValue}>
+              {formatTnd(data.totalTva)} DT
+            </Text>
           </View>
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>Total TTC</Text>
-            <Text style={styles.grandTotalValue}>{formatTnd(data.totalTtc)} DT</Text>
+            <Text style={styles.grandTotalValue}>
+              {formatTnd(data.totalTtc)} DT
+            </Text>
           </View>
         </View>
 
         <View style={isFullyPaid ? styles.paymentBox : styles.paymentBoxUnpaid}>
-          <Text style={isFullyPaid ? styles.paymentText : styles.paymentTextUnpaid}>
+          <Text
+            style={isFullyPaid ? styles.paymentText : styles.paymentTextUnpaid}
+          >
             {PAYMENT_STATE_LABEL[data.paymentState]}
           </Text>
           <Text style={{ fontSize: 9, marginTop: 4, color: colors.muted }}>
-            Encaissé : {formatTnd(data.collectedTnd)} DT — Restant : {formatTnd(data.remainingTnd)} DT
+            Encaissé : {formatTnd(data.collectedTnd)} DT — Restant :{" "}
+            {formatTnd(data.remainingTnd)} DT
           </Text>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>{data.agencyAddress ?? data.agencyName}</Text>
-          <Text style={styles.footerText}>Généré le {new Date().toLocaleDateString("fr-FR")}</Text>
+          <Text style={styles.footerText}>
+            {data.agencyAddress ?? data.agencyName}
+          </Text>
+          <Text style={styles.footerText}>
+            Généré le {new Date().toLocaleDateString("fr-FR")}
+          </Text>
         </View>
       </Page>
     </Document>

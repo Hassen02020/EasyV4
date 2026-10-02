@@ -44,7 +44,10 @@ import {
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import type { TravelerInput } from "@/lib/booking/schemas"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
-import { resolveCancellationPolicy, buildPolicySnapshot } from "@/lib/booking/policy-engine"
+import {
+  resolveCancellationPolicy,
+  buildPolicySnapshot,
+} from "@/lib/booking/policy-engine"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -87,7 +90,9 @@ function isPastBookingDeadline(session: {
 }): boolean {
   const now = new Date()
   if (session.bookingDeadline) return now >= session.bookingDeadline
-  const sessionStartsAt = new Date(`${session.sessionDate}T${session.sessionStart}:00`)
+  const sessionStartsAt = new Date(
+    `${session.sessionDate}T${session.sessionStart}:00`,
+  )
   return now >= sessionStartsAt
 }
 
@@ -105,11 +110,16 @@ export async function createGuestActivityBooking(input: {
   if (!parsed.success) {
     return {
       ok: false,
-      error: "Réservation invalide : " + parsed.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Réservation invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
     }
   }
   if (!["card", "transfer", "cash"].includes(input.paymentMethod)) {
-    return { ok: false, error: "Mode de paiement invalide pour une réservation en ligne." }
+    return {
+      ok: false,
+      error: "Mode de paiement invalide pour une réservation en ligne.",
+    }
   }
 
   const { createHash } = await import("node:crypto")
@@ -130,10 +140,17 @@ export async function createGuestActivityBooking(input: {
     .digest("hex")
 
   // PHASE "CUSTOMER RESERVATION LINK" — voir lib/booking/customer-identity.ts.
-  const linkedAuthUserId = await resolveLinkedAuthUserId(parsed.data.traveler.email)
+  const linkedAuthUserId = await resolveLinkedAuthUserId(
+    parsed.data.traveler.email,
+  )
 
   return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestActivityBooking(parsed.data, input.paymentMethod, linkedAuthUserId, input.expectedTotalTnd),
+    runCreateGuestActivityBooking(
+      parsed.data,
+      input.paymentMethod,
+      linkedAuthUserId,
+      input.expectedTotalTnd,
+    ),
   )
 }
 
@@ -145,7 +162,10 @@ async function runCreateGuestActivityBooking(
 ): Promise<CreateGuestActivityBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
-    return { ok: false, error: "Aucune agence de vente directe n'est configurée pour le moment." }
+    return {
+      ok: false,
+      error: "Aucune agence de vente directe n'est configurée pour le moment.",
+    }
   }
 
   const traveler: TravelerInput = booking.traveler
@@ -159,13 +179,23 @@ async function runCreateGuestActivityBooking(
         const [activity] = await tx
           .select()
           .from(catalogActivities)
-          .where(and(eq(catalogActivities.id, booking.activityId), eq(catalogActivities.agencyId, agencyId)))
+          .where(
+            and(
+              eq(catalogActivities.id, booking.activityId),
+              eq(catalogActivities.agencyId, agencyId),
+            ),
+          )
           .limit(1)
         if (!activity) throw new Error("ACTIVITY_NOT_FOUND")
-        if (activity.status !== "published") throw new Error("ACTIVITY_NOT_ACTIVE")
-        if (!activity.channels?.includes("b2c")) throw new Error("ACTIVITY_NOT_ACTIVE")
+        if (activity.status !== "published")
+          throw new Error("ACTIVITY_NOT_ACTIVE")
+        if (!activity.channels?.includes("b2c"))
+          throw new Error("ACTIVITY_NOT_ACTIVE")
 
-        const ageError = validateChildAgesAgainstTariffRules(activity.tariffRules, booking.childrenAges)
+        const ageError = validateChildAgesAgainstTariffRules(
+          activity.tariffRules,
+          booking.childrenAges,
+        )
         if (ageError) throw new Error(`CHILD_AGE_INVALID: ${ageError}`)
 
         // --- 2. Session (verrou FOR UPDATE, capacité/prix/deadline 100% serveur) ---
@@ -182,15 +212,20 @@ async function runCreateGuestActivityBooking(
           .for("update")
         if (!session) throw new Error("SESSION_NOT_FOUND")
         if (session.status !== "open") throw new Error("SESSION_NOT_OPEN")
-        if (isPastBookingDeadline(session)) throw new Error("BOOKING_DEADLINE_PASSED")
+        if (isPastBookingDeadline(session))
+          throw new Error("BOOKING_DEADLINE_PASSED")
 
         const capacityLeft = session.capacity - session.booked
         if (capacityLeft < paxCount) {
-          throw new Error(`INSUFFICIENT_STOCK: ${capacityLeft} places disponibles, ${paxCount} demandées`)
+          throw new Error(
+            `INSUFFICIENT_STOCK: ${capacityLeft} places disponibles, ${paxCount} demandées`,
+          )
         }
 
         const unitPriceTnd = parseFloat(session.adultPriceTnd)
-        const unitChildPriceTnd = session.childPriceTnd ? parseFloat(session.childPriceTnd) : undefined
+        const unitChildPriceTnd = session.childPriceTnd
+          ? parseFloat(session.childPriceTnd)
+          : undefined
         const breakdown = computePriceBreakdown({
           unitPriceTnd,
           adults: booking.adults,
@@ -219,7 +254,10 @@ async function runCreateGuestActivityBooking(
           productType: "activity",
           productId: booking.activityId,
         })
-        const policySnapshot = buildPolicySnapshot(resolvedPolicy, booking.policyAccepted)
+        const policySnapshot = buildPolicySnapshot(
+          resolvedPolicy,
+          booking.policyAccepted,
+        )
 
         // --- 3. Règlement (card = paiement réel immédiat, jamais de faux succès) ---
         if (paymentMethod === "card") {
@@ -232,7 +270,10 @@ async function runCreateGuestActivityBooking(
             customerEmail: traveler.email,
           })
           if (!paymentResult.ok) {
-            throw new PaymentRejected(paymentResult.message ?? "Le paiement n'a pas pu être traité.", paymentResult.code)
+            throw new PaymentRejected(
+              paymentResult.message ?? "Le paiement n'a pas pu être traité.",
+              paymentResult.code,
+            )
           }
         }
         const isImmediatelyPaid = paymentMethod === "card"
@@ -288,18 +329,30 @@ async function runCreateGuestActivityBooking(
               policySnapshot,
             },
           })
-          .returning({ id: reservations.id, guestAccessToken: reservations.guestAccessToken })
+          .returning({
+            id: reservations.id,
+            guestAccessToken: reservations.guestAccessToken,
+          })
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
         // Données financières (Break 4 — Chantier 62)
         // Activité : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
-        await recordReservationFinancials({ tx, reservationId, supplierPriceTnd: totalTnd, salePriceTnd: totalTnd })
+        await recordReservationFinancials({
+          tx,
+          reservationId,
+          supplierPriceTnd: totalTnd,
+          salePriceTnd: totalTnd,
+        })
 
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
-            .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+            .set({
+              status: "confirmed",
+              confirmedAt: new Date(),
+              updatedAt: new Date(),
+            })
             .where(eq(reservations.id, reservationId))
 
           await recordReservationTransition(tx, {
@@ -341,7 +394,8 @@ async function runCreateGuestActivityBooking(
               role: "product_owner",
               qualification: "owner_share",
               amount: totalTnd,
-              basis: "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+              basis:
+                "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
             },
           ],
         })
@@ -352,7 +406,9 @@ async function runCreateGuestActivityBooking(
         if (isImmediatelyPaid) {
           const rewardsSummary = await getReservationPaymentSummary({
             reservationId,
-            txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+            txOverride: tx as Parameters<
+              typeof getReservationPaymentSummary
+            >[0]["txOverride"],
           })
           await earnPendingPoints(tx, {
             agencyId,
@@ -389,14 +445,24 @@ async function runCreateGuestActivityBooking(
           entityType: "reservation",
           entityId: reservationId,
           action: "activity_booking.created",
-          diff: { activityId: booking.activityId, sessionId: booking.sessionId, paxCount, totalTnd, publicRef, via: "b2c_guest", paymentMethod },
+          diff: {
+            activityId: booking.activityId,
+            sessionId: booking.sessionId,
+            paxCount,
+            totalTnd,
+            publicRef,
+            via: "b2c_guest",
+            paymentMethod,
+          },
         })
 
         return {
           reservationId,
           publicRef,
           guestAccessToken,
-          status: (isImmediatelyPaid ? "confirmed" : "pending") as "confirmed" | "pending",
+          status: (isImmediatelyPaid ? "confirmed" : "pending") as
+            | "confirmed"
+            | "pending",
         }
       },
     )
@@ -414,10 +480,16 @@ async function runCreateGuestActivityBooking(
           actorUserId: "",
         })
         if (!invoiceResult.ok) {
-          console.error("[activity-guest] génération facture échouée", invoiceResult.error)
+          console.error(
+            "[activity-guest] génération facture échouée",
+            invoiceResult.error,
+          )
         }
       } catch (err) {
-        console.error("[activity-guest] génération facture échouée", err instanceof Error ? err.message : String(err))
+        console.error(
+          "[activity-guest] génération facture échouée",
+          err instanceof Error ? err.message : String(err),
+        )
       }
     }
 
@@ -444,18 +516,31 @@ async function runCreateGuestActivityBooking(
     const codes: Record<string, string> = {
       ACTIVITY_NOT_FOUND: "Attraction introuvable",
       ACTIVITY_NOT_ACTIVE: "Cette attraction n'est plus disponible",
-      CHILD_AGE_INVALID: msg.match(/CHILD_AGE_INVALID: (.+)/)?.[1] ?? "Âge enfant invalide pour cette attraction",
+      CHILD_AGE_INVALID:
+        msg.match(/CHILD_AGE_INVALID: (.+)/)?.[1] ??
+        "Âge enfant invalide pour cette attraction",
       SESSION_NOT_FOUND: "Session introuvable pour cette attraction",
       SESSION_NOT_OPEN: "Cette session n'est plus ouverte à la réservation",
-      BOOKING_DEADLINE_PASSED: "La date limite de réservation pour cette session est dépassée",
-      INSUFFICIENT_STOCK: msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Places insuffisantes",
+      BOOKING_DEADLINE_PASSED:
+        "La date limite de réservation pour cette session est dépassée",
+      INSUFFICIENT_STOCK:
+        msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Places insuffisantes",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
-    return { ok: false, error: code ? codes[code] : "Erreur interne lors de la création de la réservation.", code: code ?? "INTERNAL_ERROR" }
+    return {
+      ok: false,
+      error: code
+        ? codes[code]
+        : "Erreur interne lors de la création de la réservation.",
+      code: code ?? "INTERNAL_ERROR",
+    }
   }
 }
 
-async function nextActivityPublicRef(tx: DrizzleTransaction, agencyId: string): Promise<string> {
+async function nextActivityPublicRef(
+  tx: DrizzleTransaction,
+  agencyId: string,
+): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `AT-${year}-`
   const [row] = await tx

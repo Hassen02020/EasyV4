@@ -18,11 +18,11 @@ marquée comme nécessitant un feu vert dédié et prudent.
 
 ## 1. Supplier Hub multi-fournisseur
 
-| Module | État réel |
-|---|---|
-| Hôtels Tunisie | Hub complet, multi-fournisseur, orchestration parallèle avec isolation par timeout (`lib/hotel-suppliers/**`, Phase 28) |
-| Hôtels Monde / Vols | Fondation minimale posée au chantier 7 (`lib/hotels-monde/supplier-drivers.ts`, `lib/vols/supplier-drivers.ts`) — driver registry + `Promise.allSettled`, mais un seul driver réellement CONFIGURED aujourd'hui (mode démo ou stub API réel, mutuellement exclusifs) |
-| Car / Transferts | **Pas un produit "fournisseur externe" du tout** — vérifié : `lib/cars/pricing.ts` et `lib/transfers/pricing.ts` calculent un prix depuis `car_pricing_rates`/tarifs propres à l'agence (flotte/service détenu par Easy2Book lui-même), aucun `client.ts` ni concept de supplier driver. La vision "Supplier Hub" ne s'applique pas à ces deux modules — ce sont des produits à inventaire propre, pas des produits à approvisionner. |
+| Module              | État réel                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hôtels Tunisie      | Hub complet, multi-fournisseur, orchestration parallèle avec isolation par timeout (`lib/hotel-suppliers/**`, Phase 28)                                                                                                                                                                                                                                                                                                               |
+| Hôtels Monde / Vols | Fondation minimale posée au chantier 7 (`lib/hotels-monde/supplier-drivers.ts`, `lib/vols/supplier-drivers.ts`) — driver registry + `Promise.allSettled`, mais un seul driver réellement CONFIGURED aujourd'hui (mode démo ou stub API réel, mutuellement exclusifs)                                                                                                                                                                  |
+| Car / Transferts    | **Pas un produit "fournisseur externe" du tout** — vérifié : `lib/cars/pricing.ts` et `lib/transfers/pricing.ts` calculent un prix depuis `car_pricing_rates`/tarifs propres à l'agence (flotte/service détenu par Easy2Book lui-même), aucun `client.ts` ni concept de supplier driver. La vision "Supplier Hub" ne s'applique pas à ces deux modules — ce sont des produits à inventaire propre, pas des produits à approvisionner. |
 
 **Conclusion** : le Supplier Hub existe déjà là où il a un sens (Hôtels), et sa
 fondation multi-fournisseur est posée là où un futur fournisseur est plausible
@@ -47,15 +47,16 @@ sciemment deux chemins séparés — jamais fusionnés, par choix documenté dan
 commentaires de `customer-wallet.ts`.
 
 **Gaps réels vs la vision "multi-canal"** :
-- Aucun champ *channel* sur une transaction (`payments`, `wallet_ledger`,
+
+- Aucun champ _channel_ sur une transaction (`payments`, `wallet_ledger`,
   `partner_credit_movements`) — le seul `channels` qui existe est au niveau
-  *produit* (`b2c`/`b2b`/`white_label`), pas au niveau transaction financière.
+  _produit_ (`b2c`/`b2b`/`white_label`), pas au niveau transaction financière.
 - `journal_entry_status` (enum draft/posted/reversed) existe dans le schéma mais
   **aucune table `journal_entries` ne l'utilise** — scaffolding mort, pas une
   fonctionnalité partielle.
 - Aucun wallet/solde pour "mutuelle" — n'existe nulle part.
 
-Toucher ce périmètre pour ajouter un tag *channel* aux transactions financières
+Toucher ce périmètre pour ajouter un tag _channel_ aux transactions financières
 impliquerait de modifier des fichiers du moteur certifié — **explicitement hors
 périmètre sans feu vert dédié et une analyse de risque séparée**, indépendamment de
 cet audit.
@@ -109,12 +110,12 @@ logo, si un vrai partenaire White-Label devait onboarder demain.
 
 ## Pistes concrètes, actionnables sans données inventées
 
-| Piste | Nature | Touche le moteur certifié ? |
-|---|---|---|
-| A. Approfondir le branding White-Label (thème/couleur par agence, au-delà du logo) | Additif, UI + colonne(s) sur `agencies` | Non |
-| B. Câbler un vrai deuxième provider CRM | Bloqué — nécessite un choix business (quel outil réel) | Non, mais hors code pur |
-| C. Ajouter un champ *channel* aux transactions financières | Architecture | **Oui — nécessite feu vert dédié séparé, hors de cette discipline "un chantier à la fois" standard** |
-| D. Construire le portail Mutuelle réel (au-delà du placeholder) | Nécessite de définir le modèle métier mutuelle (quelles données, quel flux) — pas déductible du code existant | Non, mais nécessite vos specs métier d'abord |
+| Piste                                                                              | Nature                                                                                                        | Touche le moteur certifié ?                                                                          |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| A. Approfondir le branding White-Label (thème/couleur par agence, au-delà du logo) | Additif, UI + colonne(s) sur `agencies`                                                                       | Non                                                                                                  |
+| B. Câbler un vrai deuxième provider CRM                                            | Bloqué — nécessite un choix business (quel outil réel)                                                        | Non, mais hors code pur                                                                              |
+| C. Ajouter un champ _channel_ aux transactions financières                         | Architecture                                                                                                  | **Oui — nécessite feu vert dédié séparé, hors de cette discipline "un chantier à la fois" standard** |
+| D. Construire le portail Mutuelle réel (au-delà du placeholder)                    | Nécessite de définir le modèle métier mutuelle (quelles données, quel flux) — pas déductible du code existant | Non, mais nécessite vos specs métier d'abord                                                         |
 
 Aucune de ces pistes n'est un audit-only "faux problème" comme l'étaient
 Multi-supplier Hub (chantier 7) ou Ranking (chantier 8) — chacune nécessite soit une

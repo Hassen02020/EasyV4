@@ -21,15 +21,22 @@ import {
   hotelSupplierAuthorizations,
   hotelSupplierCredentials,
 } from "@/lib/db/schema"
-import { encryptSecret, maskSecretForDisplay } from "@/lib/security/secret-crypto"
+import {
+  encryptSecret,
+  maskSecretForDisplay,
+} from "@/lib/security/secret-crypto"
 import { logSupplierAudit, assertNoSecretLeak } from "./audit"
 import { resolveSupplierAccount } from "./resolver"
 import { SUPPLIER_NAMES, type SupplierName } from "../core/types"
 import { logger } from "@/lib/logger"
 
-export type SupplierAccountActionResult = { ok: true } | { ok: false; error: string }
+export type SupplierAccountActionResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
-async function requireSuperAdminContext(): Promise<TenantContext & { agencyId: string }> {
+async function requireSuperAdminContext(): Promise<
+  TenantContext & { agencyId: string }
+> {
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -48,14 +55,21 @@ async function requireSuperAdminContext(): Promise<TenantContext & { agencyId: s
 
 export async function listHotelSuppliersCatalog() {
   const ctx = await requireSuperAdminContext()
-  return withTenantContext(ctx, (tx) => tx.select().from(hotelSuppliers).orderBy(hotelSuppliers.code))
+  return withTenantContext(ctx, (tx) =>
+    tx.select().from(hotelSuppliers).orderBy(hotelSuppliers.code),
+  )
 }
 
 export async function listAgenciesForPicker() {
   const ctx = await requireSuperAdminContext()
   return withTenantContext(ctx, (tx) =>
     tx
-      .select({ id: agencies.id, name: agencies.name, agencyType: agencies.agencyType, domain: agencies.domain })
+      .select({
+        id: agencies.id,
+        name: agencies.name,
+        agencyType: agencies.agencyType,
+        domain: agencies.domain,
+      })
       .from(agencies)
       .orderBy(agencies.name),
   )
@@ -84,7 +98,9 @@ export interface AdminSupplierAccountRow {
 }
 
 /** Vue complète pour le Master Admin — TOUS les comptes de TOUTES les agences (super_admin voit tout par RLS). Jamais de credentials en clair. */
-export async function listAllSupplierAccounts(): Promise<AdminSupplierAccountRow[]> {
+export async function listAllSupplierAccounts(): Promise<
+  AdminSupplierAccountRow[]
+> {
   const ctx = await requireSuperAdminContext()
   return withTenantContext(ctx, async (tx) => {
     const rows = await tx
@@ -95,16 +111,24 @@ export async function listAllSupplierAccounts(): Promise<AdminSupplierAccountRow
         agencyName: agencies.name,
       })
       .from(hotelSupplierAccounts)
-      .innerJoin(hotelSuppliers, eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId))
+      .innerJoin(
+        hotelSuppliers,
+        eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId),
+      )
       .innerJoin(agencies, eq(agencies.id, hotelSupplierAccounts.agencyId))
       .orderBy(desc(hotelSupplierAccounts.createdAt))
 
-    const credRows = await tx.select({ accountId: hotelSupplierCredentials.accountId }).from(hotelSupplierCredentials)
+    const credRows = await tx
+      .select({ accountId: hotelSupplierCredentials.accountId })
+      .from(hotelSupplierCredentials)
     const withCreds = new Set(credRows.map((r) => r.accountId))
 
-    const authRows = await tx.select({ accountId: hotelSupplierAuthorizations.accountId }).from(hotelSupplierAuthorizations)
+    const authRows = await tx
+      .select({ accountId: hotelSupplierAuthorizations.accountId })
+      .from(hotelSupplierAuthorizations)
     const authCounts = new Map<string, number>()
-    for (const r of authRows) authCounts.set(r.accountId, (authCounts.get(r.accountId) ?? 0) + 1)
+    for (const r of authRows)
+      authCounts.set(r.accountId, (authCounts.get(r.accountId) ?? 0) + 1)
 
     return rows.map((r) => ({
       id: r.account.id,
@@ -134,9 +158,16 @@ export async function listAuthorizationsForAccount(accountId: string) {
   const ctx = await requireSuperAdminContext()
   return withTenantContext(ctx, (tx) =>
     tx
-      .select({ id: hotelSupplierAuthorizations.id, agencyId: agencies.id, agencyName: agencies.name })
+      .select({
+        id: hotelSupplierAuthorizations.id,
+        agencyId: agencies.id,
+        agencyName: agencies.name,
+      })
       .from(hotelSupplierAuthorizations)
-      .innerJoin(agencies, eq(agencies.id, hotelSupplierAuthorizations.authorizedAgencyId))
+      .innerJoin(
+        agencies,
+        eq(agencies.id, hotelSupplierAuthorizations.authorizedAgencyId),
+      )
       .where(eq(hotelSupplierAuthorizations.accountId, accountId)),
   )
 }
@@ -145,7 +176,10 @@ export async function listAuthorizationsForAccount(accountId: string) {
 // Écriture
 // ---------------------------------------------------------------------------
 
-function deriveOwnerType(agencyType: string, domain: string | null): "master" | "agency" | "whitelabel" {
+function deriveOwnerType(
+  agencyType: string,
+  domain: string | null,
+): "master" | "agency" | "whitelabel" {
   if (agencyType !== "ota") return "agency"
   return domain ? "whitelabel" : "master"
 }
@@ -161,11 +195,20 @@ export interface CreateSupplierAccountInput {
   password: string
 }
 
-export async function createSupplierAccount(input: CreateSupplierAccountInput): Promise<SupplierAccountActionResult> {
+export async function createSupplierAccount(
+  input: CreateSupplierAccountInput,
+): Promise<SupplierAccountActionResult> {
   const ctx = await requireSuperAdminContext()
   try {
-    if (!input.displayName.trim() || !input.login.trim() || !input.password.trim()) {
-      return { ok: false, error: "Champs requis manquants (nom, login, mot de passe)." }
+    if (
+      !input.displayName.trim() ||
+      !input.login.trim() ||
+      !input.password.trim()
+    ) {
+      return {
+        ok: false,
+        error: "Champs requis manquants (nom, login, mot de passe).",
+      }
     }
     const accountId = await withTenantContext(ctx, async (tx) => {
       const [ownerAgency] = await tx
@@ -173,7 +216,10 @@ export async function createSupplierAccount(input: CreateSupplierAccountInput): 
         .from(agencies)
         .where(eq(agencies.id, input.ownerAgencyId))
       if (!ownerAgency) throw new Error("AGENCY_NOT_FOUND")
-      const ownerType = deriveOwnerType(ownerAgency.agencyType, ownerAgency.domain)
+      const ownerType = deriveOwnerType(
+        ownerAgency.agencyType,
+        ownerAgency.domain,
+      )
 
       const [account] = await tx
         .insert(hotelSupplierAccounts)
@@ -191,7 +237,10 @@ export async function createSupplierAccount(input: CreateSupplierAccountInput): 
         .returning({ id: hotelSupplierAccounts.id })
       const id = account!.id
 
-      const cred = encryptSecret({ login: input.login.trim(), password: input.password })
+      const cred = encryptSecret({
+        login: input.login.trim(),
+        password: input.password,
+      })
       await tx.insert(hotelSupplierCredentials).values({
         accountId: id,
         agencyId: input.ownerAgencyId,
@@ -200,17 +249,37 @@ export async function createSupplierAccount(input: CreateSupplierAccountInput): 
         updatedByUserId: ctx.userId,
       })
 
-      const diff = { supplierId: input.supplierId, ownerType, agencyId: input.ownerAgencyId, displayName: input.displayName, mode: input.mode }
+      const diff = {
+        supplierId: input.supplierId,
+        ownerType,
+        agencyId: input.ownerAgencyId,
+        displayName: input.displayName,
+        mode: input.mode,
+      }
       assertNoSecretLeak(diff)
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_ACCOUNT_CREATED", accountId: id, diff })
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_ACCOUNT_CREATED",
+        accountId: id,
+        diff,
+      })
       return id
     })
-    logger.info("[HotelSuppliers] Compte fournisseur créé", { accountId, supplierId: input.supplierId })
+    logger.info("[HotelSuppliers] Compte fournisseur créé", {
+      accountId,
+      supplierId: input.supplierId,
+    })
     revalidatePath("/admin/suppliers")
     return { ok: true }
   } catch (err) {
-    logger.error("[HotelSuppliers] Échec création compte", { code: err instanceof Error ? err.constructor.name : "unknown" })
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    logger.error("[HotelSuppliers] Échec création compte", {
+      code: err instanceof Error ? err.constructor.name : "unknown",
+    })
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -222,33 +291,54 @@ export interface UpdateSupplierAccountInput {
   isDefault?: boolean
 }
 
-export async function updateSupplierAccount(input: UpdateSupplierAccountInput): Promise<SupplierAccountActionResult> {
+export async function updateSupplierAccount(
+  input: UpdateSupplierAccountInput,
+): Promise<SupplierAccountActionResult> {
   const ctx = await requireSuperAdminContext()
   try {
     await withTenantContext(ctx, async (tx) => {
       const patch: Record<string, unknown> = { updatedAt: new Date() }
-      if (input.displayName !== undefined) patch.displayName = input.displayName.trim()
+      if (input.displayName !== undefined)
+        patch.displayName = input.displayName.trim()
       if (input.priority !== undefined) patch.priority = input.priority
       if (input.timeoutMs !== undefined) patch.timeoutMs = input.timeoutMs
       if (input.isDefault !== undefined) patch.isDefault = input.isDefault
 
-      await tx.update(hotelSupplierAccounts).set(patch).where(eq(hotelSupplierAccounts.id, input.accountId))
+      await tx
+        .update(hotelSupplierAccounts)
+        .set(patch)
+        .where(eq(hotelSupplierAccounts.id, input.accountId))
       const diff = { ...patch, updatedAt: undefined }
       assertNoSecretLeak(diff)
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_ACCOUNT_UPDATED", accountId: input.accountId, diff })
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_ACCOUNT_UPDATED",
+        accountId: input.accountId,
+        diff,
+      })
     })
     revalidatePath("/admin/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-export async function setSupplierAccountStatus(accountId: string, status: "active" | "disabled"): Promise<SupplierAccountActionResult> {
+export async function setSupplierAccountStatus(
+  accountId: string,
+  status: "active" | "disabled",
+): Promise<SupplierAccountActionResult> {
   const ctx = await requireSuperAdminContext()
   try {
     await withTenantContext(ctx, async (tx) => {
-      await tx.update(hotelSupplierAccounts).set({ status, updatedAt: new Date() }).where(eq(hotelSupplierAccounts.id, accountId))
+      await tx
+        .update(hotelSupplierAccounts)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(hotelSupplierAccounts.id, accountId))
       await logSupplierAudit(tx, {
         agencyId: ctx.agencyId,
         actorUserId: ctx.userId,
@@ -260,23 +350,42 @@ export async function setSupplierAccountStatus(accountId: string, status: "activ
     revalidatePath("/admin/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-export async function rotateSupplierCredentials(accountId: string, login: string, password: string): Promise<SupplierAccountActionResult> {
+export async function rotateSupplierCredentials(
+  accountId: string,
+  login: string,
+  password: string,
+): Promise<SupplierAccountActionResult> {
   const ctx = await requireSuperAdminContext()
   try {
-    if (!login.trim() || !password.trim()) return { ok: false, error: "Login et mot de passe requis." }
+    if (!login.trim() || !password.trim())
+      return { ok: false, error: "Login et mot de passe requis." }
     await withTenantContext(ctx, async (tx) => {
-      const [account] = await tx.select({ agencyId: hotelSupplierAccounts.agencyId }).from(hotelSupplierAccounts).where(eq(hotelSupplierAccounts.id, accountId))
+      const [account] = await tx
+        .select({ agencyId: hotelSupplierAccounts.agencyId })
+        .from(hotelSupplierAccounts)
+        .where(eq(hotelSupplierAccounts.id, accountId))
       if (!account) throw new Error("ACCOUNT_NOT_FOUND")
       const cred = encryptSecret({ login: login.trim(), password })
-      const existing = await tx.select({ id: hotelSupplierCredentials.id }).from(hotelSupplierCredentials).where(eq(hotelSupplierCredentials.accountId, accountId))
+      const existing = await tx
+        .select({ id: hotelSupplierCredentials.id })
+        .from(hotelSupplierCredentials)
+        .where(eq(hotelSupplierCredentials.accountId, accountId))
       if (existing.length > 0) {
         await tx
           .update(hotelSupplierCredentials)
-          .set({ ciphertext: cred.ciphertext, keyVersion: cred.keyVersion, updatedByUserId: ctx.userId, updatedAt: new Date() })
+          .set({
+            ciphertext: cred.ciphertext,
+            keyVersion: cred.keyVersion,
+            updatedByUserId: ctx.userId,
+            updatedAt: new Date(),
+          })
           .where(eq(hotelSupplierCredentials.accountId, accountId))
       } else {
         await tx.insert(hotelSupplierCredentials).values({
@@ -288,48 +397,106 @@ export async function rotateSupplierCredentials(accountId: string, login: string
         })
       }
       // Une rotation de credentials invalide tout statut "invalid_credentials"/"error" précédent — à re-vérifier via testSupplierConnection.
-      await tx.update(hotelSupplierAccounts).set({ status: "active", updatedAt: new Date() }).where(eq(hotelSupplierAccounts.id, accountId))
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_CREDENTIALS_ROTATED", accountId, diff: { rotated: true } })
+      await tx
+        .update(hotelSupplierAccounts)
+        .set({ status: "active", updatedAt: new Date() })
+        .where(eq(hotelSupplierAccounts.id, accountId))
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_CREDENTIALS_ROTATED",
+        accountId,
+        diff: { rotated: true },
+      })
     })
     revalidatePath("/admin/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-export async function authorizeAgencyForAccount(accountId: string, authorizedAgencyId: string): Promise<SupplierAccountActionResult> {
+export async function authorizeAgencyForAccount(
+  accountId: string,
+  authorizedAgencyId: string,
+): Promise<SupplierAccountActionResult> {
   const ctx = await requireSuperAdminContext()
   try {
     await withTenantContext(ctx, async (tx) => {
       const [existing] = await tx
         .select({ id: hotelSupplierAuthorizations.id })
         .from(hotelSupplierAuthorizations)
-        .where(and(eq(hotelSupplierAuthorizations.accountId, accountId), eq(hotelSupplierAuthorizations.authorizedAgencyId, authorizedAgencyId)))
+        .where(
+          and(
+            eq(hotelSupplierAuthorizations.accountId, accountId),
+            eq(
+              hotelSupplierAuthorizations.authorizedAgencyId,
+              authorizedAgencyId,
+            ),
+          ),
+        )
       if (existing) return
-      await tx.insert(hotelSupplierAuthorizations).values({ accountId, authorizedAgencyId, authorizedByUserId: ctx.userId })
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_AUTHORIZED", accountId, diff: { authorizedAgencyId } })
+      await tx
+        .insert(hotelSupplierAuthorizations)
+        .values({
+          accountId,
+          authorizedAgencyId,
+          authorizedByUserId: ctx.userId,
+        })
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_AUTHORIZED",
+        accountId,
+        diff: { authorizedAgencyId },
+      })
     })
     revalidatePath("/admin/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-export async function revokeAgencyAuthorization(accountId: string, authorizedAgencyId: string): Promise<SupplierAccountActionResult> {
+export async function revokeAgencyAuthorization(
+  accountId: string,
+  authorizedAgencyId: string,
+): Promise<SupplierAccountActionResult> {
   const ctx = await requireSuperAdminContext()
   try {
     await withTenantContext(ctx, async (tx) => {
       await tx
         .delete(hotelSupplierAuthorizations)
-        .where(and(eq(hotelSupplierAuthorizations.accountId, accountId), eq(hotelSupplierAuthorizations.authorizedAgencyId, authorizedAgencyId)))
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_UNAUTHORIZED", accountId, diff: { authorizedAgencyId } })
+        .where(
+          and(
+            eq(hotelSupplierAuthorizations.accountId, accountId),
+            eq(
+              hotelSupplierAuthorizations.authorizedAgencyId,
+              authorizedAgencyId,
+            ),
+          ),
+        )
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_UNAUTHORIZED",
+        accountId,
+        diff: { authorizedAgencyId },
+      })
     })
     revalidatePath("/admin/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -339,7 +506,9 @@ export async function revokeAgencyAuthorization(accountId: string, authorizedAge
  * pure, déjà utilisée en production, aucun effet de bord). Les autres
  * fournisseurs sont `NOT_CONFIGURED` (Phase 26/27) — jamais simulé.
  */
-export async function testSupplierConnection(accountId: string): Promise<SupplierAccountActionResult> {
+export async function testSupplierConnection(
+  accountId: string,
+): Promise<SupplierAccountActionResult> {
   const ctx = await requireSuperAdminContext()
   const startedAt = Date.now()
   try {
@@ -347,16 +516,28 @@ export async function testSupplierConnection(accountId: string): Promise<Supplie
       tx
         .select({ supplierCode: hotelSuppliers.code })
         .from(hotelSupplierAccounts)
-        .innerJoin(hotelSuppliers, eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId))
+        .innerJoin(
+          hotelSuppliers,
+          eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId),
+        )
         .where(eq(hotelSupplierAccounts.id, accountId)),
     )
     if (!accountRow) return { ok: false, error: "Compte introuvable." }
-    if (!(SUPPLIER_NAMES as readonly string[]).includes(accountRow.supplierCode)) {
-      return { ok: false, error: `Code fournisseur inconnu du Hub: ${accountRow.supplierCode}` }
+    if (
+      !(SUPPLIER_NAMES as readonly string[]).includes(accountRow.supplierCode)
+    ) {
+      return {
+        ok: false,
+        error: `Code fournisseur inconnu du Hub: ${accountRow.supplierCode}`,
+      }
     }
     const supplierCode = accountRow.supplierCode as SupplierName
 
-    const resolved = await resolveSupplierAccount({ supplierCode, tenantContext: ctx, requestedAccountId: accountId })
+    const resolved = await resolveSupplierAccount({
+      supplierCode,
+      tenantContext: ctx,
+      requestedAccountId: accountId,
+    })
     if (!resolved.ok) {
       await recordTestResult(ctx, accountId, "error", resolved.reason)
       return { ok: false, error: resolved.message }
@@ -366,9 +547,13 @@ export async function testSupplierConnection(accountId: string): Promise<Supplie
     let errorCode: string | undefined
     if (accountRow.supplierCode === "mygo") {
       try {
-        const { buildMyGoConfigFromAccount } = await import("../mygo/account-config")
+        const { buildMyGoConfigFromAccount } =
+          await import("../mygo/account-config")
         const { createMyGoClientForAccount } = await import("@/lib/mygo/client")
-        const client = createMyGoClientForAccount(accountId, buildMyGoConfigFromAccount(resolved.account))
+        const client = createMyGoClientForAccount(
+          accountId,
+          buildMyGoConfigFromAccount(resolved.account),
+        )
         // `listCities` : lecture pure statique déjà utilisée en production
         // (aucun effet de bord), authentifiée avec les mêmes Credential que
         // tout autre appel — un login/mot de passe invalide y échoue
@@ -385,16 +570,36 @@ export async function testSupplierConnection(accountId: string): Promise<Supplie
     }
 
     const elapsedMs = Date.now() - startedAt
-    await recordTestResult(ctx, accountId, testOk ? "success" : "failure", errorCode)
-    logger.info("[HotelSuppliers] Test de connexion", { accountId, supplierCode: accountRow.supplierCode, ok: testOk, elapsedMs })
+    await recordTestResult(
+      ctx,
+      accountId,
+      testOk ? "success" : "failure",
+      errorCode,
+    )
+    logger.info("[HotelSuppliers] Test de connexion", {
+      accountId,
+      supplierCode: accountRow.supplierCode,
+      ok: testOk,
+      elapsedMs,
+    })
     revalidatePath("/admin/suppliers")
-    return testOk ? { ok: true } : { ok: false, error: errorCode ?? "Échec du test de connexion." }
+    return testOk
+      ? { ok: true }
+      : { ok: false, error: errorCode ?? "Échec du test de connexion." }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-async function recordTestResult(ctx: TenantContext & { agencyId: string }, accountId: string, status: "success" | "failure" | "error", errorCode?: string) {
+async function recordTestResult(
+  ctx: TenantContext & { agencyId: string },
+  accountId: string,
+  status: "success" | "failure" | "error",
+  errorCode?: string,
+) {
   await withTenantContext(ctx, async (tx) => {
     await tx
       .update(hotelSupplierAccounts)
@@ -402,9 +607,17 @@ async function recordTestResult(ctx: TenantContext & { agencyId: string }, accou
         lastTestedAt: new Date(),
         lastTestStatus: status,
         lastTestErrorCode: errorCode ?? null,
-        ...(status === "failure" ? { status: "invalid_credentials" as const } : {}),
+        ...(status === "failure"
+          ? { status: "invalid_credentials" as const }
+          : {}),
       })
       .where(eq(hotelSupplierAccounts.id, accountId))
-    await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_CONNECTION_TESTED", accountId, diff: { status, errorCode } })
+    await logSupplierAudit(tx, {
+      agencyId: ctx.agencyId,
+      actorUserId: ctx.userId,
+      action: "SUPPLIER_CONNECTION_TESTED",
+      accountId,
+      diff: { status, errorCode },
+    })
   })
 }

@@ -142,23 +142,39 @@ test("debitPartnerCredit : deux débits concurrents dont la somme dépasse le so
   // débits dans LA MÊME transaction, ce qui les sérialiserait et invaliderait
   // la preuve de concurrence réelle que ce test doit apporter.
   const [resultA, resultB] = await Promise.all([
-    withTenantContext({ agencyId: doubleSpendAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
-      debitPartnerCredit({
+    withTenantContext(
+      {
         agencyId: doubleSpendAgencyId,
-        amountTnd: 60,
-        reference: `WALLET-RACE-DS-A-${randomUUID().slice(0, 8)}`,
-        description: "WALLET-RACE-CI-01 — bras A",
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
-      }),
+        userId: randomUUID(),
+        isSuperAdmin: false,
+      },
+      (tx) =>
+        debitPartnerCredit({
+          agencyId: doubleSpendAgencyId,
+          amountTnd: 60,
+          reference: `WALLET-RACE-DS-A-${randomUUID().slice(0, 8)}`,
+          description: "WALLET-RACE-CI-01 — bras A",
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
+        }),
     ),
-    withTenantContext({ agencyId: doubleSpendAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
-      debitPartnerCredit({
+    withTenantContext(
+      {
         agencyId: doubleSpendAgencyId,
-        amountTnd: 60,
-        reference: `WALLET-RACE-DS-B-${randomUUID().slice(0, 8)}`,
-        description: "WALLET-RACE-CI-01 — bras B",
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
-      }),
+        userId: randomUUID(),
+        isSuperAdmin: false,
+      },
+      (tx) =>
+        debitPartnerCredit({
+          agencyId: doubleSpendAgencyId,
+          amountTnd: 60,
+          reference: `WALLET-RACE-DS-B-${randomUUID().slice(0, 8)}`,
+          description: "WALLET-RACE-CI-01 — bras B",
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
+        }),
     ),
   ])
 
@@ -202,23 +218,39 @@ test("debitPartnerCredit : deux débits concurrents dont la somme NE dépasse PA
   // "lost update" où la seconde transaction lirait le solde AVANT le
   // commit de la première et écraserait son résultat).
   const [resultA, resultB] = await Promise.all([
-    withTenantContext({ agencyId: lostUpdateAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
-      debitPartnerCredit({
+    withTenantContext(
+      {
         agencyId: lostUpdateAgencyId,
-        amountTnd: 40,
-        reference: `WALLET-RACE-LU-A-${randomUUID().slice(0, 8)}`,
-        description: "WALLET-RACE-CI-01 — bras A",
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
-      }),
+        userId: randomUUID(),
+        isSuperAdmin: false,
+      },
+      (tx) =>
+        debitPartnerCredit({
+          agencyId: lostUpdateAgencyId,
+          amountTnd: 40,
+          reference: `WALLET-RACE-LU-A-${randomUUID().slice(0, 8)}`,
+          description: "WALLET-RACE-CI-01 — bras A",
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
+        }),
     ),
-    withTenantContext({ agencyId: lostUpdateAgencyId, userId: randomUUID(), isSuperAdmin: false }, (tx) =>
-      debitPartnerCredit({
+    withTenantContext(
+      {
         agencyId: lostUpdateAgencyId,
-        amountTnd: 40,
-        reference: `WALLET-RACE-LU-B-${randomUUID().slice(0, 8)}`,
-        description: "WALLET-RACE-CI-01 — bras B",
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
-      }),
+        userId: randomUUID(),
+        isSuperAdmin: false,
+      },
+      (tx) =>
+        debitPartnerCredit({
+          agencyId: lostUpdateAgencyId,
+          amountTnd: 40,
+          reference: `WALLET-RACE-LU-B-${randomUUID().slice(0, 8)}`,
+          description: "WALLET-RACE-CI-01 — bras B",
+          txOverride: tx as Parameters<
+            typeof debitPartnerCredit
+          >[0]["txOverride"],
+        }),
     ),
   ])
 

@@ -5,44 +5,65 @@
 ### 1. marginType vs marginTypeV6
 
 **Ancien (schema.ts) :**
+
 ```typescript
 export const marginType = pgEnum("margin_type", ["percent", "fixed"])
 ```
+
 - Utilisé dans : `pricingMargins` table
 - Valeurs : "percent", "fixed"
 
 **Nouveau (financials.ts) :**
+
 ```typescript
-export const marginTypeV6 = pgEnum("margin_type_v6", ["percent", "fixed", "hybrid"])
+export const marginTypeV6 = pgEnum("margin_type_v6", [
+  "percent",
+  "fixed",
+  "hybrid",
+])
 ```
+
 - Utilisé dans : `marginRules` table
 - Valeurs : "percent", "fixed", "hybrid"
 
 **Décision :** Conserver `marginTypeV6` et renommer en `marginType`
+
 - Valeurs compatibles (percent, fixed)
 - Ajout de "hybrid" pour les règles hybrides (% + fixe)
 
 ### 2. walletTxType vs walletTxTypeV6
 
 **Ancien (schema.ts) :**
+
 ```typescript
 export const walletTxType = pgEnum("wallet_tx_type", [
-  "CREDIT", "DEBIT", "REFUND", "ADJUSTMENT"
+  "CREDIT",
+  "DEBIT",
+  "REFUND",
+  "ADJUSTMENT",
 ])
 ```
+
 - Utilisé dans : `walletTransactions` table
 - Valeurs : MAJUSCULES
 
 **Nouveau (financials.ts) :**
+
 ```typescript
 export const walletTxTypeV6 = pgEnum("wallet_tx_type_v6", [
-  "credit", "debit", "refund", "adjustment", "commission"
+  "credit",
+  "debit",
+  "refund",
+  "adjustment",
+  "commission",
 ])
 ```
+
 - Utilisé dans : `walletLedger` table
 - Valeurs : minuscules + "commission"
 
 **Décision :** Conserver `walletTxTypeV6` et renommer en `walletTxType`
+
 - Conversion MAJUSCULES → minuscules nécessaire
 - Ajout de "commission" pour les commissions Easy2Book
 
@@ -60,8 +81,8 @@ ALTER TYPE margin_type ADD VALUE IF NOT EXISTS 'hybrid';
 CREATE TYPE wallet_tx_type_new AS ENUM ('credit', 'debit', 'refund', 'adjustment', 'commission');
 
 -- 2. Convertir les données existantes
-ALTER TABLE wallet_transactions 
-  ALTER COLUMN type TYPE wallet_tx_type_new 
+ALTER TABLE wallet_transactions
+  ALTER COLUMN type TYPE wallet_tx_type_new
   USING CASE type
     WHEN 'CREDIT' THEN 'credit'::wallet_tx_type_new
     WHEN 'DEBIT' THEN 'debit'::wallet_tx_type_new

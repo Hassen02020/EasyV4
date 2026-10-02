@@ -21,7 +21,10 @@ import {
   createMockProvider,
   ExchangeRateUnavailableError,
 } from "@/lib/finance/exchange-rate"
-import type { WorldHotelOffer, WorldHotelSearchInput } from "@/lib/hotels-monde/client"
+import type {
+  WorldHotelOffer,
+  WorldHotelSearchInput,
+} from "@/lib/hotels-monde/client"
 
 test("CURRENCY-DIM-01a : convertRateHawkAmountToTnd lève ExchangeRateUnavailableError si provider échoue — jamais un taux inventé", async () => {
   setExchangeRateProvider(createMockProvider({}))
@@ -103,13 +106,26 @@ function fakeDriver(
 test("searchAcrossWorldHotelDrivers — un seul driver CONFIGURED renvoie ses offres", async () => {
   const calls: string[] = []
   const drivers = [
-    fakeDriver("virtual", "CONFIGURED", { offers: [fakeOffer("v1")], searchId: "s1" }, calls),
-    fakeDriver("api", "NOT_CONFIGURED", { offers: [fakeOffer("a1")], searchId: "s2" }, calls),
+    fakeDriver(
+      "virtual",
+      "CONFIGURED",
+      { offers: [fakeOffer("v1")], searchId: "s1" },
+      calls,
+    ),
+    fakeDriver(
+      "api",
+      "NOT_CONFIGURED",
+      { offers: [fakeOffer("a1")], searchId: "s2" },
+      calls,
+    ),
   ]
   const result = await searchAcrossWorldHotelDrivers(drivers, INPUT)
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.deepEqual(result.offers.map((o) => o.id), ["v1"])
+    assert.deepEqual(
+      result.offers.map((o) => o.id),
+      ["v1"],
+    )
     assert.equal(result.searchId, "s1")
   }
   // Le driver NOT_CONFIGURED n'est jamais appelé.
@@ -119,35 +135,52 @@ test("searchAcrossWorldHotelDrivers — un seul driver CONFIGURED renvoie ses of
 test("searchAcrossWorldHotelDrivers — fusionne les offres de plusieurs drivers CONFIGURED", async () => {
   const calls: string[] = []
   const drivers = [
-    fakeDriver("virtual", "CONFIGURED", { offers: [fakeOffer("v1")], searchId: "s1" }, calls),
-    fakeDriver("api", "CONFIGURED", { offers: [fakeOffer("a1")], searchId: "s2" }, calls),
+    fakeDriver(
+      "virtual",
+      "CONFIGURED",
+      { offers: [fakeOffer("v1")], searchId: "s1" },
+      calls,
+    ),
+    fakeDriver(
+      "api",
+      "CONFIGURED",
+      { offers: [fakeOffer("a1")], searchId: "s2" },
+      calls,
+    ),
   ]
   const result = await searchAcrossWorldHotelDrivers(drivers, INPUT)
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.deepEqual(
-      result.offers.map((o) => o.id).sort(),
-      ["a1", "v1"],
-    )
+    assert.deepEqual(result.offers.map((o) => o.id).sort(), ["a1", "v1"])
   }
 })
 
 test("searchAcrossWorldHotelDrivers — isole un driver en échec, garde les résultats des autres", async () => {
   const calls: string[] = []
   const drivers = [
-    fakeDriver("virtual", "CONFIGURED", { offers: [fakeOffer("v1")], searchId: "s1" }, calls),
+    fakeDriver(
+      "virtual",
+      "CONFIGURED",
+      { offers: [fakeOffer("v1")], searchId: "s1" },
+      calls,
+    ),
     fakeDriver("api", "CONFIGURED", new Error("API en panne"), calls),
   ]
   const result = await searchAcrossWorldHotelDrivers(drivers, INPUT)
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.deepEqual(result.offers.map((o) => o.id), ["v1"])
+    assert.deepEqual(
+      result.offers.map((o) => o.id),
+      ["v1"],
+    )
   }
 })
 
 test("searchAcrossWorldHotelDrivers — tous les drivers CONFIGURED échouent → ok:false", async () => {
   const calls: string[] = []
-  const drivers = [fakeDriver("virtual", "CONFIGURED", new Error("panne totale"), calls)]
+  const drivers = [
+    fakeDriver("virtual", "CONFIGURED", new Error("panne totale"), calls),
+  ]
   const result = await searchAcrossWorldHotelDrivers(drivers, INPUT)
   assert.equal(result.ok, false)
   if (!result.ok) {
@@ -158,7 +191,14 @@ test("searchAcrossWorldHotelDrivers — tous les drivers CONFIGURED échouent �
 
 test("searchAcrossWorldHotelDrivers — aucun driver CONFIGURED → NO_SUPPLIER_CONFIGURED", async () => {
   const calls: string[] = []
-  const drivers = [fakeDriver("virtual", "NOT_CONFIGURED", { offers: [], searchId: "s" }, calls)]
+  const drivers = [
+    fakeDriver(
+      "virtual",
+      "NOT_CONFIGURED",
+      { offers: [], searchId: "s" },
+      calls,
+    ),
+  ]
   const result = await searchAcrossWorldHotelDrivers(drivers, INPUT)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "NO_SUPPLIER_CONFIGURED")
@@ -173,16 +213,25 @@ test("virtual/ratehawk drivers réels — mutuellement exclusifs via RATEHAWK_KE
     delete process.env.RATEHAWK_KEY_ID
     delete process.env.RATEHAWK_API_KEY
     delete process.env.WORLD_HOTELS_DEMO_MODE
-    assert.equal(createVirtualWorldHotelDriver().getConfigStatus(), "CONFIGURED")
+    assert.equal(
+      createVirtualWorldHotelDriver().getConfigStatus(),
+      "CONFIGURED",
+    )
     assert.equal(createRateHawkDriver().getConfigStatus(), "NOT_CONFIGURED")
 
     process.env.RATEHAWK_KEY_ID = "fake-key-id"
     process.env.RATEHAWK_API_KEY = "fake-api-key"
-    assert.equal(createVirtualWorldHotelDriver().getConfigStatus(), "NOT_CONFIGURED")
+    assert.equal(
+      createVirtualWorldHotelDriver().getConfigStatus(),
+      "NOT_CONFIGURED",
+    )
     assert.equal(createRateHawkDriver().getConfigStatus(), "CONFIGURED")
 
     process.env.WORLD_HOTELS_DEMO_MODE = "true"
-    assert.equal(createVirtualWorldHotelDriver().getConfigStatus(), "CONFIGURED")
+    assert.equal(
+      createVirtualWorldHotelDriver().getConfigStatus(),
+      "CONFIGURED",
+    )
     assert.equal(createRateHawkDriver().getConfigStatus(), "NOT_CONFIGURED")
   } finally {
     if (prevKeyId === undefined) delete process.env.RATEHAWK_KEY_ID

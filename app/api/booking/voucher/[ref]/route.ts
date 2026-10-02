@@ -19,7 +19,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { reservations, reservationHotel, customers, agencies } from "@/lib/db/schema"
+import {
+  reservations,
+  reservationHotel,
+  customers,
+  agencies,
+} from "@/lib/db/schema"
 import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
 import { isVoucherEligible } from "@/lib/pro/voucher-eligibility"
 
@@ -59,8 +64,16 @@ export async function GET(
       .from(reservations)
       .innerJoin(customers, eq(customers.id, reservations.customerId))
       .innerJoin(agencies, eq(agencies.id, reservations.agencyId))
-      .leftJoin(reservationHotel, eq(reservationHotel.reservationId, reservations.id))
-      .where(and(eq(reservations.publicRef, ref), eq(reservations.guestAccessToken, token)))
+      .leftJoin(
+        reservationHotel,
+        eq(reservationHotel.reservationId, reservations.id),
+      )
+      .where(
+        and(
+          eq(reservations.publicRef, ref),
+          eq(reservations.guestAccessToken, token),
+        ),
+      )
       .limit(1)
     return r ?? null
   })
@@ -81,18 +94,21 @@ export async function GET(
     )
   }
 
-  const pdf = await renderVoucherPdf({
-    publicRef: row.publicRef,
-    customerName: `${row.customerFirstName} ${row.customerLastName}`.trim(),
-    hotelName: row.hotelName,
-    checkIn: row.checkIn,
-    checkOut: row.checkOut,
-    nights: row.nights ?? 1,
-    adults: row.adults ?? 1,
-    children: row.childrenAges?.length ?? 0,
-    totalTnd: parseFloat(row.tndAmount),
-    agencyName: row.agencyBrandName ?? row.agencyName,
-  }, locale)
+  const pdf = await renderVoucherPdf(
+    {
+      publicRef: row.publicRef,
+      customerName: `${row.customerFirstName} ${row.customerLastName}`.trim(),
+      hotelName: row.hotelName,
+      checkIn: row.checkIn,
+      checkOut: row.checkOut,
+      nights: row.nights ?? 1,
+      adults: row.adults ?? 1,
+      children: row.childrenAges?.length ?? 0,
+      totalTnd: parseFloat(row.tndAmount),
+      agencyName: row.agencyBrandName ?? row.agencyName,
+    },
+    locale,
+  )
 
   return new NextResponse(Buffer.from(pdf), {
     status: 200,

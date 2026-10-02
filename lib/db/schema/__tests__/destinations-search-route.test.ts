@@ -106,9 +106,13 @@ test("6. external_id renvoyé, jamais l'UUID interne — external_id reste un sl
   if (!dbAvailable) return void t.skip(skipReason())
   const res = await callSearch("iata")
   const body = (await res.json()) as { destinations: DestinationRow[] }
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const uuidRe =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   for (const d of body.destinations) {
-    assert.ok(!uuidRe.test(d.externalId), `externalId '${d.externalId}' ne doit pas être un UUID`)
+    assert.ok(
+      !uuidRe.test(d.externalId),
+      `externalId '${d.externalId}' ne doit pas être un UUID`,
+    )
   }
 })
 
@@ -118,7 +122,12 @@ test("7. une correspondance désactivée (is_active=false) disparaît de la list
     tx
       .update(destinationExternalRefs)
       .set({ isActive: false })
-      .where(and(eq(destinationExternalRefs.module, "packages_slug"), eq(destinationExternalRefs.externalId, "casablanca"))),
+      .where(
+        and(
+          eq(destinationExternalRefs.module, "packages_slug"),
+          eq(destinationExternalRefs.externalId, "casablanca"),
+        ),
+      ),
   )
   try {
     const res = await callSearch("packages_slug")
@@ -130,8 +139,12 @@ test("7. une correspondance désactivée (is_active=false) disparaît de la list
       tx
         .update(destinationExternalRefs)
         .set({ isActive: true })
-        .where(and(eq(destinationExternalRefs.module, "packages_slug"), eq(destinationExternalRefs.externalId, "casablanca"))),
+        .where(
+          and(
+            eq(destinationExternalRefs.module, "packages_slug"),
+            eq(destinationExternalRefs.externalId, "casablanca"),
+          ),
+        ),
     )
   }
 })
-

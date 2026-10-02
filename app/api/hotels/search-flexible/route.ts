@@ -21,17 +21,30 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { HotelSearchQuerySchema, validateSearchDateRange } from "@/lib/mygo/search-core"
+import {
+  HotelSearchQuerySchema,
+  validateSearchDateRange,
+} from "@/lib/mygo/search-core"
 import { rateLimit } from "@/lib/rate-limit"
-import { resolveMyGoAccessForTenant, guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
-import { runFlexibleHotelSearch, MAX_FLEX_DAYS } from "@/lib/hotel-suppliers/flexible-search"
+import {
+  resolveMyGoAccessForTenant,
+  guestTenantContext,
+} from "@/lib/hotel-suppliers/tenant/live-resolution"
+import {
+  runFlexibleHotelSearch,
+  MAX_FLEX_DAYS,
+} from "@/lib/hotel-suppliers/flexible-search"
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous"
   const limit = await rateLimit(`hotels:search-flexible:${ip}`)
   if (!limit.ok) {
     return NextResponse.json(
-      { error: "rate_limited", retryAfter: Math.ceil((limit.reset - Date.now()) / 1000) },
+      {
+        error: "rate_limited",
+        retryAfter: Math.ceil((limit.reset - Date.now()) / 1000),
+      },
       {
         status: 429,
         headers: {
@@ -44,22 +57,34 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url)
-  const parsed = HotelSearchQuerySchema.safeParse(Object.fromEntries(searchParams))
+  const parsed = HotelSearchQuerySchema.safeParse(
+    Object.fromEntries(searchParams),
+  )
   if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_query", issues: parsed.error.issues }, { status: 400 })
+    return NextResponse.json(
+      { error: "invalid_query", issues: parsed.error.issues },
+      { status: 400 },
+    )
   }
 
   const q = parsed.data
   const dateCheck = validateSearchDateRange(q.checkin, q.checkout)
   if (!dateCheck.ok) {
-    return NextResponse.json({ error: dateCheck.error, message: dateCheck.message }, { status: 400 })
+    return NextResponse.json(
+      { error: dateCheck.error, message: dateCheck.message },
+      { status: 400 },
+    )
   }
 
   const flexDaysRaw = Number.parseInt(searchParams.get("flexDays") ?? "0", 10)
-  const flexDays = Number.isFinite(flexDaysRaw) ? Math.max(0, Math.min(MAX_FLEX_DAYS, flexDaysRaw)) : 0
+  const flexDays = Number.isFinite(flexDaysRaw)
+    ? Math.max(0, Math.min(MAX_FLEX_DAYS, flexDaysRaw))
+    : 0
 
   const tenantContext = await guestTenantContext()
-  const access = tenantContext ? await resolveMyGoAccessForTenant(tenantContext) : undefined
+  const access = tenantContext
+    ? await resolveMyGoAccessForTenant(tenantContext)
+    : undefined
 
   const result = await runFlexibleHotelSearch(q, flexDays, access)
   return NextResponse.json(result, {

@@ -11,26 +11,38 @@
  */
 export const EDITORIAL_VISUALS = {
   home: "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop",
-  hotelsTunisie: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=2400&q=80&auto=format&fit=crop",
-  hotelsMonde: "https://images.unsplash.com/photo-1759960967682-963d31993f63?auto=format&fit=crop&fm=jpg&q=60&w=2400",
+  hotelsTunisie:
+    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=2400&q=80&auto=format&fit=crop",
+  hotelsMonde:
+    "https://images.unsplash.com/photo-1759960967682-963d31993f63?auto=format&fit=crop&fm=jpg&q=60&w=2400",
   omra: "https://images.unsplash.com/photo-1633546707050-88e2b545831c?auto=format&fit=crop&fm=jpg&q=60&w=2400",
-  packages: "https://images.unsplash.com/photo-1736354485341-d165463e0133?auto=format&fit=crop&fm=jpg&q=60&w=2400",
-  attractions: "https://images.unsplash.com/photo-1770712858088-e53cebfeb7e1?auto=format&fit=crop&fm=jpg&q=60&w=2400",
-  flights: "https://images.unsplash.com/photo-1767868277770-d8cb69800992?auto=format&fit=crop&fm=jpg&q=60&w=2400",
+  packages:
+    "https://images.unsplash.com/photo-1736354485341-d165463e0133?auto=format&fit=crop&fm=jpg&q=60&w=2400",
+  attractions:
+    "https://images.unsplash.com/photo-1770712858088-e53cebfeb7e1?auto=format&fit=crop&fm=jpg&q=60&w=2400",
+  flights:
+    "https://images.unsplash.com/photo-1767868277770-d8cb69800992?auto=format&fit=crop&fm=jpg&q=60&w=2400",
   car: "https://images.unsplash.com/photo-1720628909048-a3ce1716033d?auto=format&fit=crop&fm=jpg&q=60&w=2400",
-  transfers: "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop",
-  tunisiaCoast: "https://images.unsplash.com/photo-1633936476249-c5a807e46fd4?auto=format&fit=crop&fm=jpg&q=60&w=1600",
-  desert: "https://images.unsplash.com/photo-1736354485341-d165463e0133?auto=format&fit=crop&fm=jpg&q=60&w=1600",
-  carthage: "https://images.unsplash.com/photo-1770712858088-e53cebfeb7e1?auto=format&fit=crop&fm=jpg&q=60&w=1600",
-  istanbul: "https://images.unsplash.com/photo-1759960967682-963d31993f63?auto=format&fit=crop&fm=jpg&q=60&w=1600",
+  transfers:
+    "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop",
+  tunisiaCoast:
+    "https://images.unsplash.com/photo-1633936476249-c5a807e46fd4?auto=format&fit=crop&fm=jpg&q=60&w=1600",
+  desert:
+    "https://images.unsplash.com/photo-1736354485341-d165463e0133?auto=format&fit=crop&fm=jpg&q=60&w=1600",
+  carthage:
+    "https://images.unsplash.com/photo-1770712858088-e53cebfeb7e1?auto=format&fit=crop&fm=jpg&q=60&w=1600",
+  istanbul:
+    "https://images.unsplash.com/photo-1759960967682-963d31993f63?auto=format&fit=crop&fm=jpg&q=60&w=1600",
 } as const
 
 function isPlaceholderImage(value: string | null | undefined): boolean {
   if (!value) return true
   const normalized = value.trim().toLowerCase()
-  return normalized.startsWith("data:image/svg+xml")
-    || normalized.includes("/placeholder.")
-    || normalized.includes("placeholder-image")
+  return (
+    normalized.startsWith("data:image/svg+xml") ||
+    normalized.includes("/placeholder.") ||
+    normalized.includes("placeholder-image")
+  )
 }
 
 /**

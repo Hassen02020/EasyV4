@@ -22,7 +22,9 @@ const STATUS_MAP: Record<string, PartnerInvoice["status"]> = {
 
 export default async function ProInvoicesPage() {
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect("/pro/login")
 
   const profile = await getCurrentPartnerProfile(user.id)

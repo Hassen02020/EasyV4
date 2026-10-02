@@ -6,26 +6,34 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { createDuffelAdapter } from "@/lib/vols/adapters/duffel"
-import type { CanonicalItinerary, CanonicalSearchRequest } from "@/lib/vols/canonical"
+import type {
+  CanonicalItinerary,
+  CanonicalSearchRequest,
+} from "@/lib/vols/canonical"
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function encodePricingToken(data: { offerId: string; passengerIds: string[] }): string {
+function encodePricingToken(data: {
+  offerId: string
+  passengerIds: string[]
+}): string {
   return Buffer.from(JSON.stringify(data)).toString("base64url")
 }
 
-function makeOffer(overrides: Partial<{
-  id: string
-  total_amount: string
-  total_currency: string
-  base_amount: string
-  tax_amount: string
-  available_seats: number | null
-  conditions: Record<string, unknown>
-  expires_at: string
-}> = {}) {
+function makeOffer(
+  overrides: Partial<{
+    id: string
+    total_amount: string
+    total_currency: string
+    base_amount: string
+    tax_amount: string
+    available_seats: number | null
+    conditions: Record<string, unknown>
+    expires_at: string
+  }> = {},
+) {
   return {
     id: overrides.id ?? "off_test123",
     total_amount: overrides.total_amount ?? "310.52",
@@ -33,10 +41,15 @@ function makeOffer(overrides: Partial<{
     base_amount: overrides.base_amount ?? "280.00",
     tax_amount: overrides.tax_amount ?? "30.52",
     available_seats: overrides.available_seats ?? 5,
-    expires_at: overrides.expires_at ?? new Date(Date.now() + 3_600_000).toISOString(),
+    expires_at:
+      overrides.expires_at ?? new Date(Date.now() + 3_600_000).toISOString(),
     conditions: overrides.conditions ?? {
       refund_before_departure: { allowed: false },
-      change_before_departure: { allowed: true, penalty_amount: "50.00", penalty_currency: "TND" },
+      change_before_departure: {
+        allowed: true,
+        penalty_amount: "50.00",
+        penalty_currency: "TND",
+      },
     },
     slices: [
       {
@@ -71,7 +84,9 @@ function makeOffer(overrides: Partial<{
   }
 }
 
-function mockFetch(responses: Array<{ ok: boolean; data?: unknown; errors?: unknown[] }>) {
+function mockFetch(
+  responses: Array<{ ok: boolean; data?: unknown; errors?: unknown[] }>,
+) {
   let callIndex = 0
   const saved = globalThis.fetch
   globalThis.fetch = async (_url: unknown, _init?: unknown) => {
@@ -82,12 +97,15 @@ function mockFetch(responses: Array<{ ok: boolean; data?: unknown; errors?: unkn
       status: resp.ok ? 200 : 422,
       statusText: resp.ok ? "OK" : "Unprocessable Entity",
       json: async () => {
-        if (!resp.ok) return { errors: resp.errors ?? [{ message: "mock error" }] }
+        if (!resp.ok)
+          return { errors: resp.errors ?? [{ message: "mock error" }] }
         return { data: resp.data }
       },
     } as Response
   }
-  return () => { globalThis.fetch = saved }
+  return () => {
+    globalThis.fetch = saved
+  }
 }
 
 const BASE_REQUEST: CanonicalSearchRequest = {
@@ -102,7 +120,10 @@ const BASE_REQUEST: CanonicalSearchRequest = {
   currency: "TND",
 }
 
-function makeItineraryFromOffer(offerId = "off_test123", passengerIds = ["pas_0aaa"]): CanonicalItinerary {
+function makeItineraryFromOffer(
+  offerId = "off_test123",
+  passengerIds = ["pas_0aaa"],
+): CanonicalItinerary {
   return {
     tripType: "ONE_WAY",
     journeys: [
@@ -127,7 +148,16 @@ function makeItineraryFromOffer(offerId = "off_test123", passengerIds = ["pas_0a
         layovers: [],
       },
     ],
-    fares: [{ currency: "TND", baseAmount: 280, taxAmount: 30.52, totalAmount: 310.52, passengerType: "ADT", count: 1 }],
+    fares: [
+      {
+        currency: "TND",
+        baseAmount: 280,
+        taxAmount: 30.52,
+        totalAmount: 310.52,
+        passengerType: "ADT",
+        count: 1,
+      },
+    ],
     baggage: { cabin: true, checkedPieces: 1 },
     fareRules: { refundable: false, changeable: true },
     provider: {
@@ -196,7 +226,9 @@ test("T1 — getConfigStatus : NOT_CONFIGURED si FLIGHTS_DEMO_MODE=true même av
 
 test("T2 — search() : mappe offre Duffel → CanonicalItinerary TND", async () => {
   process.env.DUFFEL_ACCESS_TOKEN = "duffel_test_fake_key"
-  const restore = mockFetch([{ ok: true, data: { id: "orq_1", offers: [makeOffer()] } }])
+  const restore = mockFetch([
+    { ok: true, data: { id: "orq_1", offers: [makeOffer()] } },
+  ])
   try {
     const result = await createDuffelAdapter().search(BASE_REQUEST)
     assert.equal(result.ok, true)
@@ -248,7 +280,9 @@ test("T2 — search() : exclut offres non-TND (CURRENCY-DIM-01a)", async () => {
 
 test("T2 — search() : retourne ok:false si Duffel échoue", async () => {
   process.env.DUFFEL_ACCESS_TOKEN = "duffel_test_fake_key"
-  const restore = mockFetch([{ ok: false, errors: [{ message: "Service indisponible" }] }])
+  const restore = mockFetch([
+    { ok: false, errors: [{ message: "Service indisponible" }] },
+  ])
   try {
     const result = await createDuffelAdapter().search(BASE_REQUEST)
     assert.equal(result.ok, false)
@@ -279,7 +313,9 @@ test("T3 — recheck() : AVAILABLE si prix inchangé", async () => {
 
 test("T3 — recheck() : PRICE_CHANGED si montant différent", async () => {
   process.env.DUFFEL_ACCESS_TOKEN = "duffel_test_fake_key"
-  const restore = mockFetch([{ ok: true, data: makeOffer({ total_amount: "350.00" }) }])
+  const restore = mockFetch([
+    { ok: true, data: makeOffer({ total_amount: "350.00" }) },
+  ])
   try {
     const result = await createDuffelAdapter().recheck(makeItineraryFromOffer())
     assert.equal(result.status, "PRICE_CHANGED")
@@ -320,10 +356,24 @@ test("T4 — book() : crée un Order et renvoie pnr=order.id", async () => {
   ])
   try {
     const passengers = [
-      { firstName: "Ahmed", lastName: "Ben Ali", birthDate: "1990-05-15", passengerType: "ADT", sequence: 1 },
+      {
+        firstName: "Ahmed",
+        lastName: "Ben Ali",
+        birthDate: "1990-05-15",
+        passengerType: "ADT",
+        sequence: 1,
+      },
     ]
-    const contact = { email: "ahmed@example.com", firstName: "Ahmed", lastName: "Ben Ali" }
-    const result = await createDuffelAdapter().book(makeItineraryFromOffer(), passengers, contact)
+    const contact = {
+      email: "ahmed@example.com",
+      firstName: "Ahmed",
+      lastName: "Ben Ali",
+    }
+    const result = await createDuffelAdapter().book(
+      makeItineraryFromOffer(),
+      passengers,
+      contact,
+    )
     assert.equal(result.pnr, "ord_abc")
     assert.equal(result.supplierBookingReference, "XYZ123")
   } finally {
@@ -345,16 +395,27 @@ test("T5 — issue() : extrait e-tickets de l'Order", async () => {
         id: "ord_abc",
         booking_reference: "XYZ123",
         documents: [
-          { type: "electronic_ticket", passenger_id: "pas_0aaa", unique_identifier: "2281234567890", url: "https://e-ticket.example.com/1" },
+          {
+            type: "electronic_ticket",
+            passenger_id: "pas_0aaa",
+            unique_identifier: "2281234567890",
+            url: "https://e-ticket.example.com/1",
+          },
         ],
       },
     },
   ])
   try {
-    const result = await createDuffelAdapter().issue("ord_abc", makeItineraryFromOffer())
+    const result = await createDuffelAdapter().issue(
+      "ord_abc",
+      makeItineraryFromOffer(),
+    )
     assert.equal(result.tickets.length, 1)
     assert.equal(result.tickets[0]!.ticketNumber, "2281234567890")
-    assert.equal(result.tickets[0]!.eticketUrl, "https://e-ticket.example.com/1")
+    assert.equal(
+      result.tickets[0]!.eticketUrl,
+      "https://e-ticket.example.com/1",
+    )
   } finally {
     restore()
     delete process.env.DUFFEL_ACCESS_TOKEN

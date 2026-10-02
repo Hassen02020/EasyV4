@@ -85,10 +85,7 @@ test("applyMarginToHotelOffer : marque le prix de chaque chambre et fromPrice, i
       {
         pax: [
           {
-            rooms: [
-              { price: 250 },
-              { price: 380 },
-            ],
+            rooms: [{ price: 250 }, { price: 380 }],
           },
         ],
       },
@@ -109,7 +106,10 @@ test("applyMarginToHotelOffer : marge inactive laisse les prix inchangés", () =
     ...DEFAULT_MARGINS,
     hotel: { marginType: "percent", marginValue: 10, isActive: false },
   }
-  const offer = { fromPrice: 250, boardings: [{ pax: [{ rooms: [{ price: 250 }] }] }] }
+  const offer = {
+    fromPrice: 250,
+    boardings: [{ pax: [{ rooms: [{ price: 250 }] }] }],
+  }
   const marked = applyMarginToHotelOffer(offer, margins)
   assert.equal(marked.fromPrice, 250)
   assert.equal(marked.boardings[0]!.pax[0]!.rooms[0]!.price, 250)

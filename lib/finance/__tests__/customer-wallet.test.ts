@@ -23,7 +23,15 @@ import {
   type DrizzleLikeTx,
 } from "../customer-wallet"
 
-type OpKind = "TX_BEGIN" | "SET_RLS_BYPASS" | "SELECT_FOR_UPDATE" | "INSERT_WALLET" | "INSERT_LEDGER" | "UPDATE_BALANCE" | "TX_COMMIT" | "TX_ROLLBACK"
+type OpKind =
+  | "TX_BEGIN"
+  | "SET_RLS_BYPASS"
+  | "SELECT_FOR_UPDATE"
+  | "INSERT_WALLET"
+  | "INSERT_LEDGER"
+  | "UPDATE_BALANCE"
+  | "TX_COMMIT"
+  | "TX_ROLLBACK"
 type OpEvent = { kind: OpKind; payload?: Record<string, unknown> }
 
 type MockOptions = {
@@ -32,16 +40,26 @@ type MockOptions = {
   ledgerInsertReturnsId?: string | null
 }
 
-function makeMockDb(opts: MockOptions): { db: DrizzleLikeDb; journal: OpEvent[] } {
+function makeMockDb(opts: MockOptions): {
+  db: DrizzleLikeDb
+  journal: OpEvent[]
+} {
   const journal: OpEvent[] = []
   let insertCallCount = 0
 
   const db = {
-    transaction: async <T>(callback: (tx: ReturnType<typeof makeTx>) => Promise<T>) => {
+    transaction: async <T>(
+      callback: (tx: ReturnType<typeof makeTx>) => Promise<T>,
+    ) => {
       journal.push({ kind: "TX_BEGIN" })
       try {
         const out = await callback(makeTx())
-        if (typeof out === "object" && out !== null && "ok" in out && (out as { ok: boolean }).ok === false) {
+        if (
+          typeof out === "object" &&
+          out !== null &&
+          "ok" in out &&
+          (out as { ok: boolean }).ok === false
+        ) {
           journal.push({ kind: "TX_ROLLBACK" })
         } else {
           journal.push({ kind: "TX_COMMIT" })
@@ -64,9 +82,17 @@ function makeMockDb(opts: MockOptions): { db: DrizzleLikeDb; journal: OpEvent[] 
         from: () => ({
           where: () => ({
             for: async (...forArgs: unknown[]) => {
-              journal.push({ kind: "SELECT_FOR_UPDATE", payload: { strength: forArgs[0] } })
+              journal.push({
+                kind: "SELECT_FOR_UPDATE",
+                payload: { strength: forArgs[0] },
+              })
               if (opts.existingBalance === null) return []
-              return [{ id: "wallet-account-uuid-test", currentBalance: opts.existingBalance }]
+              return [
+                {
+                  id: "wallet-account-uuid-test",
+                  currentBalance: opts.existingBalance,
+                },
+              ]
             },
           }),
         }),
@@ -90,7 +116,10 @@ function makeMockDb(opts: MockOptions): { db: DrizzleLikeDb; journal: OpEvent[] 
       update: () => ({
         set: (...args: unknown[]) => ({
           where: async () => {
-            journal.push({ kind: "UPDATE_BALANCE", payload: (args[0] ?? {}) as Record<string, unknown> })
+            journal.push({
+              kind: "UPDATE_BALANCE",
+              payload: (args[0] ?? {}) as Record<string, unknown>,
+            })
             return []
           },
         }),
@@ -103,7 +132,8 @@ function makeMockDb(opts: MockOptions): { db: DrizzleLikeDb; journal: OpEvent[] 
 
 function ensureDatabaseUrl() {
   if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_only_for_mocks"
+    process.env.DATABASE_URL =
+      "postgresql://test:test@localhost:5432/test_only_for_mocks"
   }
 }
 
@@ -151,14 +181,17 @@ test("debitCustomerWallet : succès avec solde suffisant, ordre des opérations"
     assert.equal(result.balanceBefore, "500.00")
     assert.equal(result.balanceAfter, "300.50")
   }
-  assert.deepEqual(journal.map((j) => j.kind), [
-    "TX_BEGIN",
-    "SET_RLS_BYPASS",
-    "SELECT_FOR_UPDATE",
-    "INSERT_LEDGER",
-    "UPDATE_BALANCE",
-    "TX_COMMIT",
-  ])
+  assert.deepEqual(
+    journal.map((j) => j.kind),
+    [
+      "TX_BEGIN",
+      "SET_RLS_BYPASS",
+      "SELECT_FOR_UPDATE",
+      "INSERT_LEDGER",
+      "UPDATE_BALANCE",
+      "TX_COMMIT",
+    ],
+  )
   const lockOp = journal.find((j) => j.kind === "SELECT_FOR_UPDATE")
   assert.equal(lockOp?.payload?.strength, "update")
   const ledgerOp = journal.find((j) => j.kind === "INSERT_LEDGER")
@@ -179,7 +212,10 @@ test("debitCustomerWallet : refuse si solde insuffisant (rollback, aucun débit)
 
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
-  assert.deepEqual(journal.map((j) => j.kind), ["TX_BEGIN", "SET_RLS_BYPASS", "SELECT_FOR_UPDATE", "TX_ROLLBACK"])
+  assert.deepEqual(
+    journal.map((j) => j.kind),
+    ["TX_BEGIN", "SET_RLS_BYPASS", "SELECT_FOR_UPDATE", "TX_ROLLBACK"],
+  )
 })
 
 test("debitCustomerWallet : crée le compte wallet client au premier débit (jamais de découvert)", async () => {
@@ -196,7 +232,16 @@ test("debitCustomerWallet : crée le compte wallet client au premier débit (jam
   // Aucun solde préexistant (0) < 10 demandé → insuffisant, jamais de découvert
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "INSUFFICIENT_FUNDS")
-  assert.deepEqual(journal.map((j) => j.kind), ["TX_BEGIN", "SET_RLS_BYPASS", "SELECT_FOR_UPDATE", "INSERT_WALLET", "TX_ROLLBACK"])
+  assert.deepEqual(
+    journal.map((j) => j.kind),
+    [
+      "TX_BEGIN",
+      "SET_RLS_BYPASS",
+      "SELECT_FOR_UPDATE",
+      "INSERT_WALLET",
+      "TX_ROLLBACK",
+    ],
+  )
 })
 
 test("debitCustomerWallet : rejette un montant invalide avant toute I/O", async () => {
@@ -218,7 +263,8 @@ test("debitCustomerWallet : idempotence — une deuxième soumission avec la mê
   const { db } = makeMockDb({ existingBalance: "500.00" })
   const cache = new Map<string, string>()
   const redisOverride = {
-    get: async <T>(key: string) => (cache.has(key) ? (JSON.parse(cache.get(key)!) as T) : null),
+    get: async <T>(key: string) =>
+      cache.has(key) ? (JSON.parse(cache.get(key)!) as T) : null,
     set: async (key: string, value: string) => {
       cache.set(key, value)
     },
@@ -272,14 +318,17 @@ test("creditCustomerWallet : crédite un remboursement, ordre des opérations", 
     assert.equal(result.balanceBefore, "0.00")
     assert.equal(result.balanceAfter, "250.00")
   }
-  assert.deepEqual(journal.map((j) => j.kind), [
-    "TX_BEGIN",
-    "SET_RLS_BYPASS",
-    "SELECT_FOR_UPDATE",
-    "INSERT_LEDGER",
-    "UPDATE_BALANCE",
-    "TX_COMMIT",
-  ])
+  assert.deepEqual(
+    journal.map((j) => j.kind),
+    [
+      "TX_BEGIN",
+      "SET_RLS_BYPASS",
+      "SELECT_FOR_UPDATE",
+      "INSERT_LEDGER",
+      "UPDATE_BALANCE",
+      "TX_COMMIT",
+    ],
+  )
   const ledgerOp = journal.find((j) => j.kind === "INSERT_LEDGER")
   assert.equal(ledgerOp?.payload?.type, "credit")
 })
@@ -324,7 +373,11 @@ test("getCustomerWalletBalance : renvoie 0 sans DATABASE_URL (jamais de solde in
  * débit) qui doivent voir l'état laissé par la précédente, exactement comme
  * une vraie transaction Postgres.
  */
-function makeStatefulMockTx(initialBalance: string): { tx: DrizzleLikeTx; journal: OpEvent[]; getBalance: () => string } {
+function makeStatefulMockTx(initialBalance: string): {
+  tx: DrizzleLikeTx
+  journal: OpEvent[]
+  getBalance: () => string
+} {
   let balance = initialBalance
   const journal: OpEvent[] = []
 
@@ -341,7 +394,9 @@ function makeStatefulMockTx(initialBalance: string): { tx: DrizzleLikeTx; journa
               ({
                 for: async () => {
                   journal.push({ kind: "SELECT_FOR_UPDATE" })
-                  return [{ id: "wallet-account-uuid-test", currentBalance: balance }]
+                  return [
+                    { id: "wallet-account-uuid-test", currentBalance: balance },
+                  ]
                 },
               }) as unknown as ReturnType<DrizzleLikeTx["select"]>,
           }) as unknown as ReturnType<DrizzleLikeTx["select"]>,
@@ -399,12 +454,19 @@ test("recordTargetedWalletSettlement : crédit puis débit du même montant — 
   assert.equal(ledgerOps.length, 2, "un mouvement crédit + un mouvement débit")
   assert.equal(ledgerOps[0]?.payload?.type, "credit")
   assert.equal(ledgerOps[0]?.payload?.category, "recharge")
-  assert.deepEqual(ledgerOps[0]?.payload?.metadata, { paymentMethod: "online_card" })
+  assert.deepEqual(ledgerOps[0]?.payload?.metadata, {
+    paymentMethod: "online_card",
+  })
   assert.equal(ledgerOps[1]?.payload?.type, "debit")
   assert.equal(ledgerOps[1]?.payload?.category, "booking")
 })
 
-for (const method of ["online_card", "cash", "bank_transfer", "bank_deposit"] as const) {
+for (const method of [
+  "online_card",
+  "cash",
+  "bank_transfer",
+  "bank_deposit",
+] as const) {
   test(`recordTargetedWalletSettlement : tague correctement la méthode "${method}" dans le ledger`, async () => {
     ensureDatabaseUrl()
     const { tx, journal } = makeStatefulMockTx("0.00")
@@ -419,7 +481,9 @@ for (const method of ["online_card", "cash", "bank_transfer", "bank_deposit"] as
     })
 
     assert.equal(result.ok, true)
-    const creditOp = journal.find((j) => j.kind === "INSERT_LEDGER" && j.payload?.type === "credit")
+    const creditOp = journal.find(
+      (j) => j.kind === "INSERT_LEDGER" && j.payload?.type === "credit",
+    )
     assert.deepEqual(creditOp?.payload?.metadata, { paymentMethod: method })
   })
 }

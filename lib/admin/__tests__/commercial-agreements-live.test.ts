@@ -26,7 +26,11 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withSystemContext, withTenantContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withSystemContext,
+  withTenantContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { agencies, commercialAgreements } from "@/lib/db/schema"
 import { marginRules } from "@/lib/db/schema/financials"
 
@@ -81,7 +85,9 @@ after(async () => {
       await tx.delete(marginRules).where(eq(marginRules.id, id))
     }
     for (const id of createdAgreementIds) {
-      await tx.delete(commercialAgreements).where(eq(commercialAgreements.id, id))
+      await tx
+        .delete(commercialAgreements)
+        .where(eq(commercialAgreements.id, id))
     }
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyB))
@@ -91,7 +97,11 @@ after(async () => {
 test("commercial_agreements : un super_admin PEUT créer un accord (RLS commercial_agreements_admin_write)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctxSuperAdmin: TenantContext = { agencyId: null, userId: randomUUID(), isSuperAdmin: true }
+  const ctxSuperAdmin: TenantContext = {
+    agencyId: null,
+    userId: randomUUID(),
+    isSuperAdmin: true,
+  }
   const agreementId = await withTenantContext(ctxSuperAdmin, async (tx) => {
     const [row] = await tx
       .insert(commercialAgreements)
@@ -111,7 +121,10 @@ test("commercial_agreements : un super_admin PEUT créer un accord (RLS commerci
   createdAgreementIds.push(agreementId)
 
   const [row] = await withSystemContext((tx) =>
-    tx.select().from(commercialAgreements).where(eq(commercialAgreements.id, agreementId)),
+    tx
+      .select()
+      .from(commercialAgreements)
+      .where(eq(commercialAgreements.id, agreementId)),
   )
   assert.ok(row, "l'accord doit exister en base")
   assert.equal(row!.sellerPartyType, "agency")
@@ -123,7 +136,11 @@ test("commercial_agreements : un super_admin PEUT créer un accord (RLS commerci
 test("commercial_agreements : une agence (non super_admin) NE PEUT PAS créer un accord, même pour elle-même — [D-01a], RLS rejette", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctxAgencyA: TenantContext = { agencyId: agencyA, userId: randomUUID(), isSuperAdmin: false }
+  const ctxAgencyA: TenantContext = {
+    agencyId: agencyA,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
 
   await assert.rejects(
     () =>
@@ -145,7 +162,10 @@ test("commercial_agreements : une agence (non super_admin) NE PEUT PAS créer un
       // params: ..." — the actual RLS text ("new row violates row-level
       // security policy") lives on `.cause.message`, not on the outer
       // error's `.message`, so a plain regex against `err` never matches.
-      const causeMessage = err instanceof Error && err.cause instanceof Error ? err.cause.message : ""
+      const causeMessage =
+        err instanceof Error && err.cause instanceof Error
+          ? err.cause.message
+          : ""
       assert.match(causeMessage, /row-level security|new row violates/i)
       return true
     },
@@ -156,7 +176,11 @@ test("commercial_agreements : une agence (non super_admin) NE PEUT PAS créer un
 test("commercial_agreements : une agence (non super_admin) NE PEUT PAS modifier un accord existant, même en lecture d'une ligne qu'elle voit — [D-01a]", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctxSuperAdmin: TenantContext = { agencyId: null, userId: randomUUID(), isSuperAdmin: true }
+  const ctxSuperAdmin: TenantContext = {
+    agencyId: null,
+    userId: randomUUID(),
+    isSuperAdmin: true,
+  }
   const agreementId = await withTenantContext(ctxSuperAdmin, async (tx) => {
     const [row] = await tx
       .insert(commercialAgreements)
@@ -177,11 +201,22 @@ test("commercial_agreements : une agence (non super_admin) NE PEUT PAS modifier 
 
   // agencyA est la seller_party de cet accord : la policy de LECTURE élargie
   // doit lui permettre de le voir...
-  const ctxAgencyA: TenantContext = { agencyId: agencyA, userId: randomUUID(), isSuperAdmin: false }
+  const ctxAgencyA: TenantContext = {
+    agencyId: agencyA,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
   const visible = await withTenantContext(ctxAgencyA, (tx) =>
-    tx.select().from(commercialAgreements).where(eq(commercialAgreements.id, agreementId)),
+    tx
+      .select()
+      .from(commercialAgreements)
+      .where(eq(commercialAgreements.id, agreementId)),
   )
-  assert.equal(visible.length, 1, "agencyA (seller_party) doit voir l'accord en lecture")
+  assert.equal(
+    visible.length,
+    1,
+    "agencyA (seller_party) doit voir l'accord en lecture",
+  )
 
   // ...mais ne doit JAMAIS pouvoir le modifier, même étant partie prenante.
   const updateResult = await withTenantContext(ctxAgencyA, (tx) =>
@@ -191,18 +226,33 @@ test("commercial_agreements : une agence (non super_admin) NE PEUT PAS modifier 
       .where(eq(commercialAgreements.id, agreementId))
       .returning({ id: commercialAgreements.id }),
   )
-  assert.equal(updateResult.length, 0, "UPDATE par une agence, même seller_party, doit être silencieusement filtré par RLS (0 ligne affectée)")
+  assert.equal(
+    updateResult.length,
+    0,
+    "UPDATE par une agence, même seller_party, doit être silencieusement filtré par RLS (0 ligne affectée)",
+  )
 
   const [stillDraft] = await withSystemContext((tx) =>
-    tx.select().from(commercialAgreements).where(eq(commercialAgreements.id, agreementId)),
+    tx
+      .select()
+      .from(commercialAgreements)
+      .where(eq(commercialAgreements.id, agreementId)),
   )
-  assert.equal(stillDraft!.status, "draft", "le statut ne doit pas avoir changé")
+  assert.equal(
+    stillDraft!.status,
+    "draft",
+    "le statut ne doit pas avoir changé",
+  )
 })
 
 test("commercial_agreements : une agence tierce (agencyB, non partie prenante) ne voit AUCUN accord d'agencyA", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctxSuperAdmin: TenantContext = { agencyId: null, userId: randomUUID(), isSuperAdmin: true }
+  const ctxSuperAdmin: TenantContext = {
+    agencyId: null,
+    userId: randomUUID(),
+    isSuperAdmin: true,
+  }
   const agreementId = await withTenantContext(ctxSuperAdmin, async (tx) => {
     const [row] = await tx
       .insert(commercialAgreements)
@@ -221,17 +271,32 @@ test("commercial_agreements : une agence tierce (agencyB, non partie prenante) n
   })
   createdAgreementIds.push(agreementId)
 
-  const ctxAgencyB: TenantContext = { agencyId: agencyB, userId: randomUUID(), isSuperAdmin: false }
+  const ctxAgencyB: TenantContext = {
+    agencyId: agencyB,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
   const rowsAsB = await withTenantContext(ctxAgencyB, (tx) =>
-    tx.select().from(commercialAgreements).where(eq(commercialAgreements.id, agreementId)),
+    tx
+      .select()
+      .from(commercialAgreements)
+      .where(eq(commercialAgreements.id, agreementId)),
   )
-  assert.equal(rowsAsB.length, 0, "agencyB n'est partie prenante d'aucun rôle de cet accord : 0 ligne visible")
+  assert.equal(
+    rowsAsB.length,
+    0,
+    "agencyB n'est partie prenante d'aucun rôle de cet accord : 0 ligne visible",
+  )
 })
 
 test("margin_rules.agreement_id : FK vivante vers commercial_agreements, colonne invisible à getMarginsForAgency()/applyMargin() — fixture nettoyée, PAS un accord réel", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctxSuperAdmin: TenantContext = { agencyId: null, userId: randomUUID(), isSuperAdmin: true }
+  const ctxSuperAdmin: TenantContext = {
+    agencyId: null,
+    userId: randomUUID(),
+    isSuperAdmin: true,
+  }
   const agreementId = await withTenantContext(ctxSuperAdmin, async (tx) => {
     const [row] = await tx
       .insert(commercialAgreements)
@@ -275,16 +340,31 @@ test("margin_rules.agreement_id : FK vivante vers commercial_agreements, colonne
   const [linked] = await withSystemContext((tx) =>
     tx.select().from(marginRules).where(eq(marginRules.id, marginRuleId)),
   )
-  assert.equal(linked!.agreementId, agreementId, "margin_rules.agreement_id doit pointer vers le vrai commercial_agreements.id")
+  assert.equal(
+    linked!.agreementId,
+    agreementId,
+    "margin_rules.agreement_id doit pointer vers le vrai commercial_agreements.id",
+  )
 
   // Preuve ON DELETE SET NULL : supprimer l'accord ne doit PAS supprimer la
   // règle de marge, seulement détacher le lien.
-  await withSystemContext((tx) => tx.delete(commercialAgreements).where(eq(commercialAgreements.id, agreementId)))
+  await withSystemContext((tx) =>
+    tx
+      .delete(commercialAgreements)
+      .where(eq(commercialAgreements.id, agreementId)),
+  )
   createdAgreementIds = createdAgreementIds.filter((id) => id !== agreementId)
 
   const [afterDelete] = await withSystemContext((tx) =>
     tx.select().from(marginRules).where(eq(marginRules.id, marginRuleId)),
   )
-  assert.ok(afterDelete, "la ligne margin_rules doit survivre à la suppression de l'accord")
-  assert.equal(afterDelete!.agreementId, null, "ON DELETE SET NULL doit avoir détaché agreement_id")
+  assert.ok(
+    afterDelete,
+    "la ligne margin_rules doit survivre à la suppression de l'accord",
+  )
+  assert.equal(
+    afterDelete!.agreementId,
+    null,
+    "ON DELETE SET NULL doit avoir détaché agreement_id",
+  )
 })

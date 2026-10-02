@@ -10,11 +10,20 @@ import { test, expect } from "@playwright/test"
 
 const PAGES = [
   { name: "home", url: "/" },
-  { name: "hotels-tunisie-search", url: "/hotels/search?cityId=1&checkin=2026-09-10&checkout=2026-09-13&adults=2" },
+  {
+    name: "hotels-tunisie-search",
+    url: "/hotels/search?cityId=1&checkin=2026-09-10&checkout=2026-09-13&adults=2",
+  },
   { name: "hotels-monde", url: "/hotels-monde" },
-  { name: "hotels-monde-search", url: "/hotels-monde/search?destination=paris&checkIn=2026-09-10&checkOut=2026-09-13&adults=2&rooms=1" },
+  {
+    name: "hotels-monde-search",
+    url: "/hotels-monde/search?destination=paris&checkIn=2026-09-10&checkOut=2026-09-13&adults=2&rooms=1",
+  },
   { name: "vols", url: "/vols" },
-  { name: "vols-search", url: "/vols/search?origin=TUN&destination=IST&departureDate=2026-09-10&adults=1&cabin=ECONOMY" },
+  {
+    name: "vols-search",
+    url: "/vols/search?origin=TUN&destination=IST&departureDate=2026-09-10&adults=1&cabin=ECONOMY",
+  },
   { name: "car", url: "/car" },
 ]
 

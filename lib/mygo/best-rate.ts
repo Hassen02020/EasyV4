@@ -23,7 +23,12 @@ export interface BestRateSelection {
 
 function flattenRooms(
   offer: HotelOfferDTO,
-): { boardingName: string; price: number; basePrice?: number; stopReservation: boolean }[] {
+): {
+  boardingName: string
+  price: number
+  basePrice?: number
+  stopReservation: boolean
+}[] {
   return offer.boardings.flatMap((b) =>
     b.pax.flatMap((p) =>
       p.rooms.map((r) => ({

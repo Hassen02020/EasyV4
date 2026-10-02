@@ -29,7 +29,10 @@ test("listAuthorizedProductsForAgency : traite le type 'network' comme les 3 typ
 
 test("DISTRIBUTION-02 : BOOKABLE_TYPES inclut 'network' — createNetworkProductBooking existe désormais et est bien câblé dans handleSubmit", () => {
   const constIdx = listComponentSrc.indexOf("const BOOKABLE_TYPES")
-  const arrayLine = listComponentSrc.slice(constIdx, listComponentSrc.indexOf("\n", constIdx))
+  const arrayLine = listComponentSrc.slice(
+    constIdx,
+    listComponentSrc.indexOf("\n", constIdx),
+  )
   assert.match(arrayLine, /\["package", "activity", "network"\]/)
   assert.match(listComponentSrc, /await createNetworkProductBooking\(/)
 })

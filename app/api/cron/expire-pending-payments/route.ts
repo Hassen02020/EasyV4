@@ -27,14 +27,20 @@ export async function GET(req: NextRequest) {
   // silencieusement (401) à chaque exécution automatique. x-cron-secret/
   // ?secret= restent supportés pour un déclencheur externe (cron-job.org).
   const bearer = req.headers.get("authorization")?.replace("Bearer ", "")
-  const secret = bearer ?? req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
+  const secret =
+    bearer ??
+    req.headers.get("x-cron-secret") ??
+    req.nextUrl.searchParams.get("secret")
 
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "Base de données non configurée" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Base de données non configurée" },
+      { status: 500 },
+    )
   }
 
   const { expired, paymentsFailed } = await withSystemContext(async (tx) => {

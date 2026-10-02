@@ -64,7 +64,8 @@ export function cancelBookingRecord(
   if (record.state !== "Cancelled") {
     record.state = "Cancelled"
     record.cancelledAt = nowMyGoFormat()
-    record.fee = Math.round(((record.totalPrice * feePercent) / 100) * 1000) / 1000
+    record.fee =
+      Math.round(((record.totalPrice * feePercent) / 100) * 1000) / 1000
   }
   return record
 }
@@ -77,13 +78,17 @@ export interface BookingListFilters {
   state?: StoredBookingState
 }
 
-export function listBookingRecords(filters: BookingListFilters = {}): StoredBooking[] {
+export function listBookingRecords(
+  filters: BookingListFilters = {},
+): StoredBooking[] {
   return bookings.filter((b) => {
     if (filters.booking != null && b.id !== filters.booking) return false
     if (filters.hotel != null && b.hotelId !== filters.hotel) return false
     if (filters.state && b.state !== filters.state) return false
-    if (filters.fromDate && b.createdAt.slice(0, 10) < filters.fromDate) return false
-    if (filters.toDate && b.createdAt.slice(0, 10) > filters.toDate) return false
+    if (filters.fromDate && b.createdAt.slice(0, 10) < filters.fromDate)
+      return false
+    if (filters.toDate && b.createdAt.slice(0, 10) > filters.toDate)
+      return false
     return true
   })
 }

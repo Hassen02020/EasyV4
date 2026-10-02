@@ -28,7 +28,8 @@ async function requireSuperAdmin() {
   } = await supabase.auth.getUser()
   if (!user) return { user: null, error: "NOT_AUTHENTICATED" as const }
   const profile = await getCurrentAdminProfile(user.id)
-  if (profile?.role !== "super_admin") return { user: null, error: "FORBIDDEN" as const }
+  if (profile?.role !== "super_admin")
+    return { user: null, error: "FORBIDDEN" as const }
   return { user, error: null }
 }
 
@@ -48,7 +49,11 @@ export async function triggerCommissionSettlement(
   const start = new Date(periodStart)
   const end = new Date(periodEnd)
   if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
-    return { ok: false, error: "Période invalide — la date de fin doit être postérieure à la date de début." }
+    return {
+      ok: false,
+      error:
+        "Période invalide — la date de fin doit être postérieure à la date de début.",
+    }
   }
 
   try {
@@ -62,7 +67,10 @@ export async function triggerCommissionSettlement(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes("commission_settlements_period_uniq")) {
-      return { ok: false, error: "Un settlement existe déjà pour cette période exacte." }
+      return {
+        ok: false,
+        error: "Un settlement existe déjà pour cette période exacte.",
+      }
     }
     return { ok: false, error: "Erreur settlement : " + msg }
   }
@@ -71,7 +79,9 @@ export async function triggerCommissionSettlement(
 /**
  * Passe un settlement de 'pending' → 'paid' après virement réel effectué.
  */
-export async function confirmSettlementPaid(settlementId: string): Promise<SettlementActionResult> {
+export async function confirmSettlementPaid(
+  settlementId: string,
+): Promise<SettlementActionResult> {
   const { user, error } = await requireSuperAdmin()
   if (!user) return { ok: false, error }
 

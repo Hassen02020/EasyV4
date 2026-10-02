@@ -19,7 +19,10 @@ import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution
 import { customers } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { ownedByCurrentCustomer } from "@/lib/booking/customer-identity"
-import { listLoyaltyLedgerForCustomer, type LoyaltyLedgerHistoryEntry } from "@/lib/loyalty/rewards-core"
+import {
+  listLoyaltyLedgerForCustomer,
+  type LoyaltyLedgerHistoryEntry,
+} from "@/lib/loyalty/rewards-core"
 
 const MAX_HISTORY_ENTRIES = 20
 
@@ -69,7 +72,11 @@ export async function getMyLoyaltyHistory(): Promise<MyLoyaltyHistoryResult> {
 
       const all: LoyaltyLedgerHistoryEntry[] = []
       for (const { id: customerId } of ownedCustomers) {
-        const rows = await listLoyaltyLedgerForCustomer(tx, customerId, MAX_HISTORY_ENTRIES)
+        const rows = await listLoyaltyLedgerForCustomer(
+          tx,
+          customerId,
+          MAX_HISTORY_ENTRIES,
+        )
         all.push(...rows)
       }
       all.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())

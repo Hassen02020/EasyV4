@@ -36,12 +36,27 @@ import {
 import { AuditTimeline } from "@/components/admin/audit-timeline"
 import type { ReservationDetail } from "@/lib/booking/reservation-detail"
 
-const TND_FORMAT = new Intl.NumberFormat("fr-TN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const TND_FORMAT = new Intl.NumberFormat("fr-TN", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
 
-const PAYMENT_STATE_LABEL: Record<string, { label: string; className: string }> = {
-  UNPAID: { label: "Non payé", className: "border-destructive/40 bg-destructive/15 text-destructive" },
-  PARTIALLY_PAID: { label: "Partiellement payé", className: "border-warning/40 bg-warning/15 text-warning-foreground" },
-  FULLY_PAID: { label: "Payé intégralement", className: "border-success/40 bg-success/15 text-success-foreground" },
+const PAYMENT_STATE_LABEL: Record<
+  string,
+  { label: string; className: string }
+> = {
+  UNPAID: {
+    label: "Non payé",
+    className: "border-destructive/40 bg-destructive/15 text-destructive",
+  },
+  PARTIALLY_PAID: {
+    label: "Partiellement payé",
+    className: "border-warning/40 bg-warning/15 text-warning-foreground",
+  },
+  FULLY_PAID: {
+    label: "Payé intégralement",
+    className: "border-success/40 bg-success/15 text-success-foreground",
+  },
 }
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
@@ -64,7 +79,10 @@ const MODULE_LABEL: Record<string, string> = {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—"
-  return new Date(iso).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })
+  return new Date(iso).toLocaleString("fr-FR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  })
 }
 
 function formatDay(iso: string | null): string {
@@ -86,21 +104,31 @@ export function ReservationDetailView({
   voucherHref?: string | null
   invoiceHref?: string | null
 }) {
-  const paymentState = PAYMENT_STATE_LABEL[detail.paymentSummary.paymentState] ?? PAYMENT_STATE_LABEL.UNPAID
+  const paymentState =
+    PAYMENT_STATE_LABEL[detail.paymentSummary.paymentState] ??
+    PAYMENT_STATE_LABEL.UNPAID
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-foreground text-2xl font-bold tracking-tight">{detail.publicRef}</h1>
-            <Badge variant="outline">{MODULE_LABEL[detail.module] ?? detail.module}</Badge>
+            <h1 className="text-foreground text-2xl font-bold tracking-tight">
+              {detail.publicRef}
+            </h1>
+            <Badge variant="outline">
+              {MODULE_LABEL[detail.module] ?? detail.module}
+            </Badge>
             <Badge variant="outline">{detail.status}</Badge>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
             Créée le {formatDate(detail.createdAt)}
-            {detail.confirmedAt ? ` · Confirmée le ${formatDate(detail.confirmedAt)}` : ""}
-            {detail.cancelledAt ? ` · Annulée le ${formatDate(detail.cancelledAt)}` : ""}
+            {detail.confirmedAt
+              ? ` · Confirmée le ${formatDate(detail.confirmedAt)}`
+              : ""}
+            {detail.cancelledAt
+              ? ` · Annulée le ${formatDate(detail.cancelledAt)}`
+              : ""}
           </p>
         </div>
         {actions ? <div className="flex gap-2">{actions}</div> : null}
@@ -110,34 +138,50 @@ export function ReservationDetailView({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">Total</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Total
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{TND_FORMAT.format(detail.paymentSummary.totalTnd)} DT</p>
+            <p className="text-2xl font-bold">
+              {TND_FORMAT.format(detail.paymentSummary.totalTnd)} DT
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">Encaissé</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Encaissé
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-emerald-600">{TND_FORMAT.format(detail.paymentSummary.collectedTnd)} DT</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {TND_FORMAT.format(detail.paymentSummary.collectedTnd)} DT
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">Restant</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Restant
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-amber-600">{TND_FORMAT.format(detail.paymentSummary.remainingTnd)} DT</p>
+            <p className="text-2xl font-bold text-amber-600">
+              {TND_FORMAT.format(detail.paymentSummary.remainingTnd)} DT
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">État du paiement</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              État du paiement
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge className={paymentState.className}>{paymentState.label}</Badge>
+            <Badge className={paymentState.className}>
+              {paymentState.label}
+            </Badge>
           </CardContent>
         </Card>
       </div>
@@ -151,8 +195,12 @@ export function ReservationDetailView({
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p className="font-medium">{detail.customer.name}</p>
-            <p className="text-muted-foreground">{detail.customer.email ?? "—"}</p>
-            <p className="text-muted-foreground">{detail.customer.phone ?? "—"}</p>
+            <p className="text-muted-foreground">
+              {detail.customer.email ?? "—"}
+            </p>
+            <p className="text-muted-foreground">
+              {detail.customer.phone ?? "—"}
+            </p>
           </CardContent>
         </Card>
 
@@ -166,7 +214,9 @@ export function ReservationDetailView({
             <CardContent className="space-y-1 text-sm">
               <p className="font-medium">{detail.agency.name}</p>
               <p className="text-muted-foreground">
-                {detail.agency.agencyType === "ota" ? "Easy2Book (OTA)" : "Agence partenaire B2B"}
+                {detail.agency.agencyType === "ota"
+                  ? "Easy2Book (OTA)"
+                  : "Agence partenaire B2B"}
               </p>
             </CardContent>
           </Card>
@@ -181,10 +231,14 @@ export function ReservationDetailView({
           <CardContent className="space-y-1 text-sm">
             {detail.moduleDetail ? (
               <>
-                <p className="font-medium">{detail.moduleDetail.supplierLabel}</p>
+                <p className="font-medium">
+                  {detail.moduleDetail.supplierLabel}
+                </p>
                 <p className="text-muted-foreground">
                   {formatDay(detail.moduleDetail.startDate)}
-                  {detail.moduleDetail.endDate ? ` → ${formatDay(detail.moduleDetail.endDate)}` : ""}
+                  {detail.moduleDetail.endDate
+                    ? ` → ${formatDay(detail.moduleDetail.endDate)}`
+                    : ""}
                 </p>
                 {detail.moduleDetail.providerBookingId ? (
                   <p className="text-muted-foreground font-mono text-xs">
@@ -193,7 +247,9 @@ export function ReservationDetailView({
                 ) : null}
               </>
             ) : (
-              <p className="text-muted-foreground">Aucun détail spécifique disponible pour ce module.</p>
+              <p className="text-muted-foreground">
+                Aucun détail spécifique disponible pour ce module.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -208,36 +264,59 @@ export function ReservationDetailView({
             <CardContent className="space-y-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-muted-foreground">Statut GDS :</span>
-                <Badge variant="outline" className="font-mono">{detail.flightDetail.bookingStatus}</Badge>
+                <Badge variant="outline" className="font-mono">
+                  {detail.flightDetail.bookingStatus}
+                </Badge>
                 {detail.flightDetail.pnr ? (
-                  <span className="font-mono text-xs">PNR : <strong>{detail.flightDetail.pnr}</strong></span>
+                  <span className="font-mono text-xs">
+                    PNR : <strong>{detail.flightDetail.pnr}</strong>
+                  </span>
                 ) : null}
               </div>
               {/* PROVIDER-CONNECTIVITY-BRIDGE (P4) — traçabilité fournisseur/canal, absente jusqu'ici de toute UI staff. */}
-              {(detail.flightDetail.provider || detail.flightDetail.fulfillmentMode || detail.flightDetail.supplierBookingRef) ? (
+              {detail.flightDetail.provider ||
+              detail.flightDetail.fulfillmentMode ||
+              detail.flightDetail.supplierBookingRef ? (
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   {detail.flightDetail.provider ? (
-                    <span className="text-muted-foreground">Fournisseur : <strong className="text-foreground font-mono">{detail.flightDetail.provider}</strong></span>
+                    <span className="text-muted-foreground">
+                      Fournisseur :{" "}
+                      <strong className="text-foreground font-mono">
+                        {detail.flightDetail.provider}
+                      </strong>
+                    </span>
                   ) : null}
                   {detail.flightDetail.fulfillmentMode ? (
                     <Badge variant="secondary" className="font-mono">
-                      {detail.flightDetail.fulfillmentMode === "b2b_offline" ? "B2B offline" : "API directe"}
+                      {detail.flightDetail.fulfillmentMode === "b2b_offline"
+                        ? "B2B offline"
+                        : "API directe"}
                     </Badge>
                   ) : null}
                   {detail.flightDetail.supplierBookingRef ? (
-                    <span className="text-muted-foreground">Réf. fournisseur : <strong className="text-foreground font-mono">{detail.flightDetail.supplierBookingRef}</strong></span>
+                    <span className="text-muted-foreground">
+                      Réf. fournisseur :{" "}
+                      <strong className="text-foreground font-mono">
+                        {detail.flightDetail.supplierBookingRef}
+                      </strong>
+                    </span>
                   ) : null}
                 </div>
               ) : null}
               {detail.flightDetail.slaDeadline ? (
                 <p className="text-muted-foreground">
-                  Délai d&apos;émission : <span className="font-medium text-foreground">{formatDate(detail.flightDetail.slaDeadline)}</span>
+                  Délai d&apos;émission :{" "}
+                  <span className="text-foreground font-medium">
+                    {formatDate(detail.flightDetail.slaDeadline)}
+                  </span>
                 </p>
               ) : null}
               {detail.flightDetail.opsNotes ? (
                 <Alert variant="destructive" className="py-2">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">{detail.flightDetail.opsNotes}</AlertDescription>
+                  <AlertDescription className="text-xs">
+                    {detail.flightDetail.opsNotes}
+                  </AlertDescription>
                 </Alert>
               ) : null}
               {detail.flightDetail.passengers.length > 0 ? (
@@ -261,13 +340,23 @@ export function ReservationDetailView({
                         {detail.flightDetail.passengers.map((pax) => (
                           <TableRow key={pax.sequence}>
                             <TableCell>
-                              <Badge variant="outline" className="text-[10px]">{pax.passengerType}</Badge>
+                              <Badge variant="outline" className="text-[10px]">
+                                {pax.passengerType}
+                              </Badge>
                             </TableCell>
-                            <TableCell className="font-medium uppercase">{pax.lastName}</TableCell>
+                            <TableCell className="font-medium uppercase">
+                              {pax.lastName}
+                            </TableCell>
                             <TableCell>{pax.firstName}</TableCell>
-                            <TableCell className="font-mono text-xs">{pax.nationality ?? "—"}</TableCell>
-                            <TableCell className="font-mono text-xs">{pax.passportNumber ?? "—"}</TableCell>
-                            <TableCell className="tabular-nums text-xs">{pax.passportExpiry ?? "—"}</TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {pax.nationality ?? "—"}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {pax.passportNumber ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-xs tabular-nums">
+                              {pax.passportExpiry ?? "—"}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -295,17 +384,35 @@ export function ReservationDetailView({
                       <TableBody>
                         {detail.flightDetail.segments.map((seg) => (
                           <TableRow key={seg.sequence}>
-                            <TableCell className="tabular-nums">{seg.sequence}</TableCell>
+                            <TableCell className="tabular-nums">
+                              {seg.sequence}
+                            </TableCell>
                             <TableCell className="font-mono text-xs font-semibold">
                               {seg.origin} → {seg.destination}
                             </TableCell>
-                            <TableCell className="tabular-nums text-xs">{formatDate(seg.departure)}</TableCell>
-                            <TableCell className="tabular-nums text-xs">{formatDate(seg.arrival)}</TableCell>
-                            <TableCell className="font-mono text-xs">
-                              {seg.airline}{seg.flightNumber}
-                              {seg.durationMin ? <span className="text-muted-foreground ml-1">({Math.floor(seg.durationMin / 60)}h{String(seg.durationMin % 60).padStart(2, "0")})</span> : null}
+                            <TableCell className="text-xs tabular-nums">
+                              {formatDate(seg.departure)}
                             </TableCell>
-                            <TableCell className="text-xs">{seg.cabin}</TableCell>
+                            <TableCell className="text-xs tabular-nums">
+                              {formatDate(seg.arrival)}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {seg.airline}
+                              {seg.flightNumber}
+                              {seg.durationMin ? (
+                                <span className="text-muted-foreground ml-1">
+                                  ({Math.floor(seg.durationMin / 60)}h
+                                  {String(seg.durationMin % 60).padStart(
+                                    2,
+                                    "0",
+                                  )}
+                                  )
+                                </span>
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {seg.cabin}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -329,7 +436,9 @@ export function ReservationDetailView({
                       <TableBody>
                         {detail.flightDetail.tickets.map((tk) => (
                           <TableRow key={tk.ticketNumber}>
-                            <TableCell className="font-mono text-xs">{tk.ticketNumber}</TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {tk.ticketNumber}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline">{tk.status}</Badge>
                             </TableCell>
@@ -355,13 +464,19 @@ export function ReservationDetailView({
               Facture :{" "}
               {detail.invoice ? (
                 <span className="font-medium">
-                  {detail.invoice.invoiceNumber} ({detail.invoice.status}, {TND_FORMAT.format(detail.invoice.totalTtc)} DT)
+                  {detail.invoice.invoiceNumber} ({detail.invoice.status},{" "}
+                  {TND_FORMAT.format(detail.invoice.totalTtc)} DT)
                 </span>
               ) : (
-                <span className="text-muted-foreground">Aucune facture générée</span>
+                <span className="text-muted-foreground">
+                  Aucune facture générée
+                </span>
               )}
               {detail.invoice && invoiceHref ? (
-                <Link href={invoiceHref} className="text-primary inline-flex items-center gap-1 font-medium underline">
+                <Link
+                  href={invoiceHref}
+                  className="text-primary inline-flex items-center gap-1 font-medium underline"
+                >
                   <Download className="h-3.5 w-3.5" /> Télécharger
                 </Link>
               ) : null}
@@ -369,11 +484,16 @@ export function ReservationDetailView({
             <p className="flex items-center gap-2">
               Voucher :{" "}
               {voucherHref ? (
-                <Link href={voucherHref} className="text-primary inline-flex items-center gap-1 font-medium underline">
+                <Link
+                  href={voucherHref}
+                  className="text-primary inline-flex items-center gap-1 font-medium underline"
+                >
                   <Download className="h-3.5 w-3.5" /> Télécharger
                 </Link>
               ) : (
-                <span className="text-muted-foreground">Non disponible pour ce module/statut</span>
+                <span className="text-muted-foreground">
+                  Non disponible pour ce module/statut
+                </span>
               )}
             </p>
           </CardContent>
@@ -388,7 +508,9 @@ export function ReservationDetailView({
         </CardHeader>
         <CardContent>
           {detail.payments.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">Aucun paiement encaissé pour le moment.</p>
+            <p className="text-muted-foreground py-6 text-center text-sm">
+              Aucun paiement encaissé pour le moment.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -404,15 +526,23 @@ export function ReservationDetailView({
                 <TableBody>
                   {detail.payments.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell>{PAYMENT_METHOD_LABEL[p.method] ?? p.method}</TableCell>
+                      <TableCell>
+                        {PAYMENT_METHOD_LABEL[p.method] ?? p.method}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{p.status}</Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium">{TND_FORMAT.format(p.tndAmount)} DT</TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {p.refundedAmount > 0 ? `${TND_FORMAT.format(p.refundedAmount)} DT` : "—"}
+                      <TableCell className="text-right font-medium">
+                        {TND_FORMAT.format(p.tndAmount)} DT
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{formatDate(p.capturedAt)}</TableCell>
+                      <TableCell className="text-muted-foreground text-right">
+                        {p.refundedAmount > 0
+                          ? `${TND_FORMAT.format(p.refundedAmount)} DT`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {formatDate(p.capturedAt)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

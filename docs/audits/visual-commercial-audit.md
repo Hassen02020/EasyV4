@@ -42,9 +42,9 @@ image n'est encore renseignée en base (jamais une image générique/fictive).
 ### 2. Bannière "fournisseur simulé" visible par le client final (Vols, Hôtels Monde) — ✅ CORRIGÉ
 
 **Problème** : sur les pages de résultats Vols et Hôtels Monde, un encadré jaune bien visible dit
-littéralement *"Fournisseur de vols simulé. La connexion à un GDS réel (Amadeus/Sabre) n'est pas
+littéralement _"Fournisseur de vols simulé. La connexion à un GDS réel (Amadeus/Sabre) n'est pas
 encore configurée — ces compagnies, horaires et prix sont générés, pas une disponibilité de marché
-réelle."* (même message pour les hôtels avec Expedia/Booking). Ce texte, écrit pour un auditeur
+réelle."_ (même message pour les hôtels avec Expedia/Booking). Ce texte, écrit pour un auditeur
 technique, est actuellement affiché tel quel à un client qui recherche un vol ou un hôtel.
 **Impact** : c'est la phrase la plus destructrice de confiance possible sur une page de vente — elle
 dit explicitement au client "les prix et disponibilités que vous voyez ne sont pas réels". Combinée
@@ -63,8 +63,8 @@ l'autre sens (facturer un client réel pour un vol/hôtel qui n'existe pas, sans
 une pratique commerciale trompeuse — hors de question). Le correctif retenu reformule le message en
 langage client (plus de jargon "GDS/Amadeus/Sabre"/"pas une disponibilité de marché réelle"), le
 raccourcit, et remplace le traitement visuel "alerte" (fond ambre, texte gras en rouge) par un
-encadré neutre et discret : *"Offres de démonstration — la réservation est entièrement
-fonctionnelle, la connexion à nos compagnies/partenaires est en cours de finalisation."* Toujours
+encadré neutre et discret : _"Offres de démonstration — la réservation est entièrement
+fonctionnelle, la connexion à nos compagnies/partenaires est en cours de finalisation."_ Toujours
 honnête, plus jamais alarmant. Vérifié en navigateur réel après rebuild — voir
 `docs/audits/screenshots/corrections/vols-before.png` / `vols-after.png` et
 `hotels-monde-before.png` / `hotels-monde-after.png`.
@@ -181,33 +181,33 @@ actuellement simulé, une fois le point 2 traité le badge redevient valable par
 
 ## Grille par critère (les 5 modules recertifiés)
 
-| Critère | Constat |
-|---|---|
-| 🎨 Design | Propre, cohérent en typographie/espacement, mais visuellement "maquette" plutôt que "produit fini" — l'absence totale de photo (constat 1/6) est la cause principale. Pas de defect de mise en page observé (aucun élément cassé/chevauché sur les captures desktop). |
-| 🧭 Compréhension | Bonne — hiérarchie titre/sous-titre/formulaire de recherche claire sur toutes les pages hero, labels de champs explicites. Aucun écran ambigu observé. |
-| 💰 Prix | ✅ Depuis correction : visible sur les 5 modules (Omraty/Vols/Hôtels Monde l'avaient déjà ; Voyages organisés et Attractions ne l'avaient pas du tout — corrigé, voir constat 4). |
-| 🔴 CTA | ✅ Depuis correction : bouton plein cohérent sur les 5 modules (Voyages organisés/Attractions étaient en style outline ou sans bouton du tout — corrigé, voir constat 3). |
-| 🖼️ Images | Absentes partout (constat 1) — le point faible le plus sévère de cet audit, transverse aux 5 modules. Non corrigé ce cycle (nécessite une décision sur la source des photos, voir §Suite). |
-| 🛡️ Confiance | Bloc de réassurance (paiement sécurisé, support local, agence physique) présent partout — bon réflexe. La bannière "fournisseur simulé" (constat 2) a été reformulée en langage client, ton neutre — ✅ corrigé. |
-| 📱 Mobile | Non vérifiable ce cycle (constat 7) — aucune capture mobile disponible, à ne pas certifier tant qu'aucune preuve n'existe. |
-| 🛒 Conversion | Trois freins concrets identifiés : absence d'image (1), CTA affaibli sur 2 modules (3), absence de signal d'urgence exploitable (5). Le frein le plus lourd reste l'image, avant même le CTA. |
-| ✨ Premium | Palette de couleurs et typographie déjà de niveau correct (pas de faute de goût), mais l'absence de photographie tire nettement l'ensemble vers le bas comparé à une OTA moderne (Booking/GetYourGuide/Expedia) où chaque carte et chaque hero est une photo. |
-| 🇹🇳 Easy2Book | Identité de marque cohérente et répétée sur toutes les pages (logo, avion stylisé, palette bleu marine/orange, "Votre partenaire de confiance..." en footer) — élément le plus solide de cet audit, rien à corriger ici. |
+| Critère          | Constat                                                                                                                                                                                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🎨 Design        | Propre, cohérent en typographie/espacement, mais visuellement "maquette" plutôt que "produit fini" — l'absence totale de photo (constat 1/6) est la cause principale. Pas de defect de mise en page observé (aucun élément cassé/chevauché sur les captures desktop). |
+| 🧭 Compréhension | Bonne — hiérarchie titre/sous-titre/formulaire de recherche claire sur toutes les pages hero, labels de champs explicites. Aucun écran ambigu observé.                                                                                                                |
+| 💰 Prix          | ✅ Depuis correction : visible sur les 5 modules (Omraty/Vols/Hôtels Monde l'avaient déjà ; Voyages organisés et Attractions ne l'avaient pas du tout — corrigé, voir constat 4).                                                                                     |
+| 🔴 CTA           | ✅ Depuis correction : bouton plein cohérent sur les 5 modules (Voyages organisés/Attractions étaient en style outline ou sans bouton du tout — corrigé, voir constat 3).                                                                                             |
+| 🖼️ Images        | Absentes partout (constat 1) — le point faible le plus sévère de cet audit, transverse aux 5 modules. Non corrigé ce cycle (nécessite une décision sur la source des photos, voir §Suite).                                                                            |
+| 🛡️ Confiance     | Bloc de réassurance (paiement sécurisé, support local, agence physique) présent partout — bon réflexe. La bannière "fournisseur simulé" (constat 2) a été reformulée en langage client, ton neutre — ✅ corrigé.                                                      |
+| 📱 Mobile        | Non vérifiable ce cycle (constat 7) — aucune capture mobile disponible, à ne pas certifier tant qu'aucune preuve n'existe.                                                                                                                                            |
+| 🛒 Conversion    | Trois freins concrets identifiés : absence d'image (1), CTA affaibli sur 2 modules (3), absence de signal d'urgence exploitable (5). Le frein le plus lourd reste l'image, avant même le CTA.                                                                         |
+| ✨ Premium       | Palette de couleurs et typographie déjà de niveau correct (pas de faute de goût), mais l'absence de photographie tire nettement l'ensemble vers le bas comparé à une OTA moderne (Booking/GetYourGuide/Expedia) où chaque carte et chaque hero est une photo.         |
+| 🇹🇳 Easy2Book     | Identité de marque cohérente et répétée sur toutes les pages (logo, avion stylisé, palette bleu marine/orange, "Votre partenaire de confiance..." en footer) — élément le plus solide de cet audit, rien à corriger ici.                                              |
 
 ---
 
 ## Synthèse priorisée (ordre de traitement recommandé)
 
-| # | Constat | Priorité | Modules touchés | Statut |
-|---|---|---|---|---|
-| 2 | Bannière "fournisseur simulé" visible client | **P0 confiance** | Vols, Hôtels Monde | ✅ Corrigé |
-| 1 | Aucune photo produit (cartes + hero) | **P0 conversion** | Les 5 modules | Omraty : câblage ✅ corrigé (aucune colonne n'existait). Vraies photos (5 modules) : 🔴 bloqué — accès réseau externe refusé depuis ce sandbox, voir §Suite |
-| 3 | CTA outline/absent plus faible sur 2 modules | P1 conversion | Voyages organisés, Attractions | ✅ Corrigé |
-| 4 | Prix absent des cartes (Attractions ET Voyages organisés) | P1 conversion | Voyages organisés, Attractions | ✅ Corrigé |
-| 6 | Hero sans photographie | P1 premium/conversion | Les 5 modules | ⏳ Décision requise, voir §Suite |
-| 8 | Badge "Disponibilité Réelle" contredit | P1 confiance | Vols, Hôtels Monde | Atténué (constat 2 corrigé — la contradiction textuelle explicite a disparu) |
-| 7 | Mobile non vérifié ce cycle | P1 preuve manquante | Les 5 modules | Non traité |
-| 5 | Pas de signal d'urgence (places restantes) | P2 conversion | Omraty, Voyages organisés | Non traité |
+| #   | Constat                                                   | Priorité              | Modules touchés                | Statut                                                                                                                                                      |
+| --- | --------------------------------------------------------- | --------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2   | Bannière "fournisseur simulé" visible client              | **P0 confiance**      | Vols, Hôtels Monde             | ✅ Corrigé                                                                                                                                                  |
+| 1   | Aucune photo produit (cartes + hero)                      | **P0 conversion**     | Les 5 modules                  | Omraty : câblage ✅ corrigé (aucune colonne n'existait). Vraies photos (5 modules) : 🔴 bloqué — accès réseau externe refusé depuis ce sandbox, voir §Suite |
+| 3   | CTA outline/absent plus faible sur 2 modules              | P1 conversion         | Voyages organisés, Attractions | ✅ Corrigé                                                                                                                                                  |
+| 4   | Prix absent des cartes (Attractions ET Voyages organisés) | P1 conversion         | Voyages organisés, Attractions | ✅ Corrigé                                                                                                                                                  |
+| 6   | Hero sans photographie                                    | P1 premium/conversion | Les 5 modules                  | ⏳ Décision requise, voir §Suite                                                                                                                            |
+| 8   | Badge "Disponibilité Réelle" contredit                    | P1 confiance          | Vols, Hôtels Monde             | Atténué (constat 2 corrigé — la contradiction textuelle explicite a disparu)                                                                                |
+| 7   | Mobile non vérifié ce cycle                               | P1 preuve manquante   | Les 5 modules                  | Non traité                                                                                                                                                  |
+| 5   | Pas de signal d'urgence (places restantes)                | P2 conversion         | Omraty, Voyages organisés      | Non traité                                                                                                                                                  |
 
 ## Suite — ce qui reste, et pourquoi
 
@@ -245,6 +245,7 @@ remplacé un placeholder honnête par une image brisée, présentée à tort com
 aussi été contraire à la règle "aucune capture fictive" qui encadre tout ce cycle.
 
 **Ce qu'il faut pour débloquer, concrètement** — un de ces trois chemins :
+
 1. Vous fournissez de vraies photos (fichiers), que je place dans `public/` et référence en local —
    zéro dépendance réseau, entièrement vérifiable par capture réelle dans ce sandbox.
 2. Vous confirmez que `images.unsplash.com` (ou un autre CDN) est bien accessible depuis
@@ -305,8 +306,8 @@ utilisé en production.
 
 ---
 
-*Sections marquées ✅ CORRIGÉ : implémentées, vérifiées en navigateur réel (rebuild + Playwright),
+_Sections marquées ✅ CORRIGÉ : implémentées, vérifiées en navigateur réel (rebuild + Playwright),
 preuve DB (`psql`), preuve avant/après dans `docs/audits/screenshots/corrections/`. Le reste de ce
 document ne modifie aucun composant. Chaque correction restante doit être validée
 individuellement avant implémentation, suivant la boucle capture → audit → correction → nouvelle
-capture.*
+capture._

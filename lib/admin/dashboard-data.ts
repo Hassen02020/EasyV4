@@ -89,88 +89,88 @@ export async function loadDashboardData(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
         Promise.all([
-      db
-        .select({
-          totalTnd: sql<string>`COALESCE(SUM(${reservations.tndAmount}), '0')`,
-        })
-        .from(reservations)
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            gte(reservations.createdAt, startOfMonth),
-          ),
-        ),
-      db
-        .select({ value: count() })
-        .from(reservations)
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            gte(reservations.createdAt, startOfToday),
-          ),
-        ),
-      db
-        .select({ value: count() })
-        .from(auditEvents)
-        .where(
-          and(
-            eq(auditEvents.agencyId, agencyId),
-            eq(auditEvents.entityType, "api_error"),
-            gte(auditEvents.createdAt, last24h),
-          ),
-        ),
-      db
-        .select({ value: count() })
-        .from(customers)
-        .where(eq(customers.agencyId, agencyId)),
-      db
-        .select({
-          id: reservations.id,
-          reference: reservations.publicRef,
-          firstName: customers.firstName,
-          lastName: customers.lastName,
-          module: reservations.module,
-          tndAmount: reservations.tndAmount,
-          currency: reservations.originalCurrency,
-          status: reservations.status,
-          createdAt: reservations.createdAt,
-        })
-        .from(reservations)
-        .leftJoin(customers, eq(customers.id, reservations.customerId))
-        .where(eq(reservations.agencyId, agencyId))
-        .orderBy(desc(reservations.createdAt))
-        .limit(5),
-      db
-        .select({
-          module: reservations.module,
-          value: count(),
-        })
-        .from(reservations)
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            gte(reservations.createdAt, startOfMonth),
-          ),
-        )
-        .groupBy(reservations.module),
-      db
-        .select({
-          id: auditEvents.id,
-          entityId: auditEvents.entityId,
-          action: auditEvents.action,
-          diff: auditEvents.diff,
-          createdAt: auditEvents.createdAt,
-        })
-        .from(auditEvents)
-        .where(
-          and(
-            eq(auditEvents.agencyId, agencyId),
-            eq(auditEvents.entityType, "api_error"),
-            gte(auditEvents.createdAt, last24h),
-          ),
-        )
-        .orderBy(desc(auditEvents.createdAt))
-        .limit(5),
+          db
+            .select({
+              totalTnd: sql<string>`COALESCE(SUM(${reservations.tndAmount}), '0')`,
+            })
+            .from(reservations)
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                gte(reservations.createdAt, startOfMonth),
+              ),
+            ),
+          db
+            .select({ value: count() })
+            .from(reservations)
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                gte(reservations.createdAt, startOfToday),
+              ),
+            ),
+          db
+            .select({ value: count() })
+            .from(auditEvents)
+            .where(
+              and(
+                eq(auditEvents.agencyId, agencyId),
+                eq(auditEvents.entityType, "api_error"),
+                gte(auditEvents.createdAt, last24h),
+              ),
+            ),
+          db
+            .select({ value: count() })
+            .from(customers)
+            .where(eq(customers.agencyId, agencyId)),
+          db
+            .select({
+              id: reservations.id,
+              reference: reservations.publicRef,
+              firstName: customers.firstName,
+              lastName: customers.lastName,
+              module: reservations.module,
+              tndAmount: reservations.tndAmount,
+              currency: reservations.originalCurrency,
+              status: reservations.status,
+              createdAt: reservations.createdAt,
+            })
+            .from(reservations)
+            .leftJoin(customers, eq(customers.id, reservations.customerId))
+            .where(eq(reservations.agencyId, agencyId))
+            .orderBy(desc(reservations.createdAt))
+            .limit(5),
+          db
+            .select({
+              module: reservations.module,
+              value: count(),
+            })
+            .from(reservations)
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                gte(reservations.createdAt, startOfMonth),
+              ),
+            )
+            .groupBy(reservations.module),
+          db
+            .select({
+              id: auditEvents.id,
+              entityId: auditEvents.entityId,
+              action: auditEvents.action,
+              diff: auditEvents.diff,
+              createdAt: auditEvents.createdAt,
+            })
+            .from(auditEvents)
+            .where(
+              and(
+                eq(auditEvents.agencyId, agencyId),
+                eq(auditEvents.entityType, "api_error"),
+                gte(auditEvents.createdAt, last24h),
+              ),
+            )
+            .orderBy(desc(auditEvents.createdAt))
+            .limit(5),
         ]),
     )
 

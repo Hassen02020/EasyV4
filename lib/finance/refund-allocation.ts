@@ -51,7 +51,9 @@ export function allocateRefund(
   epsilon: number,
 ): RefundAllocationResult {
   const totalRefundableTnd = refundableRows.reduce(
-    (sum, r) => sum + (Number.parseFloat(r.tndAmount) - Number.parseFloat(r.refundedAmount)),
+    (sum, r) =>
+      sum +
+      (Number.parseFloat(r.tndAmount) - Number.parseFloat(r.refundedAmount)),
     0,
   )
 
@@ -59,7 +61,8 @@ export function allocateRefund(
     return {
       ok: false,
       code: "NO_CAPTURED_PAYMENT",
-      error: "Aucun paiement capturé trouvé pour cette réservation — rien à rembourser.",
+      error:
+        "Aucun paiement capturé trouvé pour cette réservation — rien à rembourser.",
     }
   }
 

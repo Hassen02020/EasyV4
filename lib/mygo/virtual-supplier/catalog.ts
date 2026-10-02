@@ -40,7 +40,13 @@ export const VIRTUAL_CITIES: VirtualCity[] = [
   { id: 22, name: "Kebili", region: "Djerid", lat: 33.7, lng: 8.97 },
   { id: 23, name: "Ksar Ghilane", region: "Djerid", lat: 32.99, lng: 9.63 },
   { id: 31, name: "Ain Drahem", region: "Nord", lat: 36.78, lng: 8.68 },
-  { id: 32, name: "Tunis", region: "Tunis et Côtes de Carthage", lat: 36.81, lng: 10.18 },
+  {
+    id: 32,
+    name: "Tunis",
+    region: "Tunis et Côtes de Carthage",
+    lat: 36.81,
+    lng: 10.18,
+  },
   { id: 33, name: "Tabarka", region: "Tabarka", lat: 36.95, lng: 8.76 },
   { id: 34, name: "Sousse", region: "Sahel", lat: 35.83, lng: 10.64 },
   { id: 35, name: "Mahdia", region: "Sahel", lat: 35.5, lng: 11.06 },
@@ -58,7 +64,13 @@ export const VIRTUAL_CITIES: VirtualCity[] = [
   { id: 73, name: "Matmata", region: "Sud", lat: 33.54, lng: 9.97 },
   { id: 74, name: "Sidi Bouzid", region: "Centre", lat: 35.04, lng: 9.48 },
   { id: 75, name: "Nefta", region: "Djerid", lat: 33.87, lng: 7.88 },
-  { id: 76, name: "Mednenine", region: "Djerba & Zarzis", lat: 33.35, lng: 10.5 },
+  {
+    id: 76,
+    name: "Mednenine",
+    region: "Djerba & Zarzis",
+    lat: 33.35,
+    lng: 10.5,
+  },
   { id: 6482, name: "El Jem", region: "Sahel", lat: 35.3, lng: 10.71 },
   { id: 6483, name: "Kerkennah", region: "Sfax", lat: 34.7, lng: 11.2 },
   { id: 6484, name: "Nefza", region: "Nord-ouest", lat: 37.08, lng: 9.13 },
@@ -82,9 +94,20 @@ export interface VirtualBoarding {
 
 export const VIRTUAL_BOARDINGS: VirtualBoarding[] = [
   { id: 3, code: "LS", name: "Logement Simple", description: null },
-  { id: 4, code: "LPD", name: "Logement Petit Déjeuner", description: "Logement + Petit déjeuner" },
+  {
+    id: 4,
+    code: "LPD",
+    name: "Logement Petit Déjeuner",
+    description: "Logement + Petit déjeuner",
+  },
   { id: 5, code: "DP", name: "Demi Pension", description: null },
-  { id: 6, code: "PC", name: "Pension Complète", description: "Petit déjeuner + Dîner (1er service) + Déjeuner (dernier service)" },
+  {
+    id: 6,
+    code: "PC",
+    name: "Pension Complète",
+    description:
+      "Petit déjeuner + Dîner (1er service) + Déjeuner (dernier service)",
+  },
   { id: 7, code: "ALL", name: "All Inclusive", description: null },
 ]
 
@@ -120,12 +143,48 @@ export interface VirtualRoomType {
 }
 
 const ROOM_TEMPLATES: Omit<VirtualRoomType, "id">[] = [
-  { name: "Chambre Single", maxAdults: 1, maxChildren: 0, maxOccupancy: 1, basePrice: 80 },
-  { name: "Chambre Double", maxAdults: 2, maxChildren: 1, maxOccupancy: 3, basePrice: 120 },
-  { name: "Chambre Twin", maxAdults: 2, maxChildren: 1, maxOccupancy: 3, basePrice: 125 },
-  { name: "Chambre Triple", maxAdults: 3, maxChildren: 1, maxOccupancy: 4, basePrice: 165 },
-  { name: "Chambre Familiale", maxAdults: 2, maxChildren: 3, maxOccupancy: 5, basePrice: 210 },
-  { name: "Suite", maxAdults: 2, maxChildren: 2, maxOccupancy: 4, basePrice: 320 },
+  {
+    name: "Chambre Single",
+    maxAdults: 1,
+    maxChildren: 0,
+    maxOccupancy: 1,
+    basePrice: 80,
+  },
+  {
+    name: "Chambre Double",
+    maxAdults: 2,
+    maxChildren: 1,
+    maxOccupancy: 3,
+    basePrice: 120,
+  },
+  {
+    name: "Chambre Twin",
+    maxAdults: 2,
+    maxChildren: 1,
+    maxOccupancy: 3,
+    basePrice: 125,
+  },
+  {
+    name: "Chambre Triple",
+    maxAdults: 3,
+    maxChildren: 1,
+    maxOccupancy: 4,
+    basePrice: 165,
+  },
+  {
+    name: "Chambre Familiale",
+    maxAdults: 2,
+    maxChildren: 3,
+    maxOccupancy: 5,
+    basePrice: 210,
+  },
+  {
+    name: "Suite",
+    maxAdults: 2,
+    maxChildren: 2,
+    maxOccupancy: 4,
+    basePrice: 320,
+  },
 ]
 
 const FACILITIES_POOL = [
@@ -141,7 +200,14 @@ const FACILITIES_POOL = [
   { title: "Club enfants", category: "Famille" },
 ]
 
-const THEME_POOL = ["Famille", "Affaires", "Romantique", "Charme", "Tourisme", "Détente"]
+const THEME_POOL = [
+  "Famille",
+  "Affaires",
+  "Romantique",
+  "Charme",
+  "Tourisme",
+  "Détente",
+]
 
 const PLACEHOLDER_IMG =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop"

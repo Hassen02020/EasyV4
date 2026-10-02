@@ -33,7 +33,11 @@ async function getData() {
       async (db) => {
         const [agenciesList, marginsList] = await Promise.all([
           db
-            .select({ id: agencies.id, name: agencies.name, type: agencies.agencyType })
+            .select({
+              id: agencies.id,
+              name: agencies.name,
+              type: agencies.agencyType,
+            })
             .from(agencies)
             .where(eq(agencies.agencyType, "partner"))
             .orderBy(agencies.name),
@@ -70,21 +74,27 @@ export default async function MargesPage() {
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h1 className="text-2xl font-bold">Gestion des Marges</h1>
-          <p className="text-sm text-muted-foreground">
-            Configurez les marges de vente par module et par agence partenaire — appliquées en temps réel au
-            prix affiché (lib/pro/pricing.ts::applyMargin).
+          <p className="text-muted-foreground text-sm">
+            Configurez les marges de vente par module et par agence partenaire —
+            appliquées en temps réel au prix affiché
+            (lib/pro/pricing.ts::applyMargin).
           </p>
         </div>
         <Link
           href="/admin/analytics/margins"
-          className="shrink-0 text-sm font-medium text-primary hover:underline"
+          className="text-primary shrink-0 text-sm font-medium hover:underline"
         >
           Voir les analytics de marge →
         </Link>
       </div>
 
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-muted" />}>
-        <PricingMarginsManager agencies={agenciesList} initialMargins={margins} />
+      <Suspense
+        fallback={<div className="bg-muted h-64 animate-pulse rounded-xl" />}
+      >
+        <PricingMarginsManager
+          agencies={agenciesList}
+          initialMargins={margins}
+        />
       </Suspense>
     </div>
   )

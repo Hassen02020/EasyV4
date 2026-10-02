@@ -23,14 +23,24 @@ import {
   type WorldHotelBookingOfferSummary,
 } from "@/components/hotels-monde/world-hotel-guest-booking-form"
 
-function parseOfferFromParams(params: URLSearchParams): WorldHotelBookingOfferSummary | null {
+function parseOfferFromParams(
+  params: URLSearchParams,
+): WorldHotelBookingOfferSummary | null {
   const token = params.get("token")
   const price = Number(params.get("price"))
   const name = params.get("name")
   const city = params.get("city")
   const checkIn = params.get("checkIn")
   const checkOut = params.get("checkOut")
-  if (!token || !name || !city || !checkIn || !checkOut || !Number.isFinite(price) || price <= 0) {
+  if (
+    !token ||
+    !name ||
+    !city ||
+    !checkIn ||
+    !checkOut ||
+    !Number.isFinite(price) ||
+    price <= 0
+  ) {
     return null
   }
   return {
@@ -61,9 +71,7 @@ export function WorldHotelBookingContent() {
       <main className="mx-auto max-w-3xl px-4 py-12">
         <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
           <p className="font-semibold">{t("offerNotFoundTitle")}</p>
-          <p className="mt-1">
-            {t("offerNotFoundDesc")}
-          </p>
+          <p className="mt-1">{t("offerNotFoundDesc")}</p>
           <Button asChild variant="outline" className="mt-3">
             <Link href="/hotels-monde">{t("backToSearch")}</Link>
           </Button>
@@ -74,7 +82,9 @@ export function WorldHotelBookingContent() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-foreground mb-6 text-xl font-bold">{t("finalizeBookingTitle")}</h1>
+      <h1 className="text-foreground mb-6 text-xl font-bold">
+        {t("finalizeBookingTitle")}
+      </h1>
       <WorldHotelGuestBookingForm offer={offer} />
     </main>
   )

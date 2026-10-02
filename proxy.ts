@@ -85,7 +85,13 @@ const ADMIN_ROUTES = /^\/admin(\/|$)/
  */
 async function resolveTenantForHost(
   host: string | null,
-): Promise<{ agencyId: string; domain: string; brandName: string | null; logoUrl: string | null; primaryColor: string | null } | null> {
+): Promise<{
+  agencyId: string
+  domain: string
+  brandName: string | null
+  logoUrl: string | null
+  primaryColor: string | null
+} | null> {
   if (!host) return null
   const normalized = normalizeHost(host)
   if (!normalized) return null
@@ -102,13 +108,21 @@ async function resolveTenantForHost(
           primaryColor: agencies.primaryColor,
         })
         .from(agencies)
-        .where(and(eq(agencies.domain, normalized), eq(agencies.status, "active")))
+        .where(
+          and(eq(agencies.domain, normalized), eq(agencies.status, "active")),
+        )
         .limit(1)
         .then((rows) => rows[0]),
     )
 
     if (!data || !data.domain) return null
-    return { agencyId: data.id, domain: data.domain, brandName: data.brandName, logoUrl: data.logoUrl, primaryColor: data.primaryColor }
+    return {
+      agencyId: data.id,
+      domain: data.domain,
+      brandName: data.brandName,
+      logoUrl: data.logoUrl,
+      primaryColor: data.primaryColor,
+    }
   } catch {
     // Panne BDD/config manquante : on ne bloque jamais le storefront par
     // défaut pour une erreur de résolution tenant — retombe simplement sur
@@ -137,9 +151,12 @@ export async function proxy(request: NextRequest) {
     if (tenant) {
       request.headers.set(TENANT_AGENCY_ID_HEADER, tenant.agencyId)
       request.headers.set(TENANT_DOMAIN_HEADER, tenant.domain)
-      if (tenant.brandName) request.headers.set(TENANT_BRAND_NAME_HEADER, tenant.brandName)
-      if (tenant.logoUrl) request.headers.set(TENANT_LOGO_URL_HEADER, tenant.logoUrl)
-      if (tenant.primaryColor) request.headers.set(TENANT_PRIMARY_COLOR_HEADER, tenant.primaryColor)
+      if (tenant.brandName)
+        request.headers.set(TENANT_BRAND_NAME_HEADER, tenant.brandName)
+      if (tenant.logoUrl)
+        request.headers.set(TENANT_LOGO_URL_HEADER, tenant.logoUrl)
+      if (tenant.primaryColor)
+        request.headers.set(TENANT_PRIMARY_COLOR_HEADER, tenant.primaryColor)
     }
   }
 
@@ -176,7 +193,9 @@ export async function proxy(request: NextRequest) {
   // Vérification RBAC pour routes admin
   if (ADMIN_ROUTES.test(pathname)) {
     const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) {
       const loginUrl = new URL("/login", request.url)

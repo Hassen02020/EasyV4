@@ -80,7 +80,11 @@ describe("exchange-rate module", () => {
     // Deuxième appel — doit utiliser le cache
     await fetchExchangeRateForDisplay("EUR", "TND", 3600)
 
-    assert.strictEqual(spy.count, 1, "fetchRate doit être appelé une seule fois dans le TTL")
+    assert.strictEqual(
+      spy.count,
+      1,
+      "fetchRate doit être appelé une seule fois dans le TTL",
+    )
   })
 
   test("3. fetchExchangeRateForBooking appelle toujours le provider (pas de cache)", async () => {
@@ -89,7 +93,13 @@ describe("exchange-rate module", () => {
       name: `mock-booking-${Date.now()}`,
       async fetchRate(from: string, to: string) {
         spy.count++
-        return { from, to, rate: 3.1052, source: "mock", capturedAt: new Date() }
+        return {
+          from,
+          to,
+          rate: 3.1052,
+          source: "mock",
+          capturedAt: new Date(),
+        }
       },
     }
     setExchangeRateProvider(uniqueProvider)
@@ -97,14 +107,22 @@ describe("exchange-rate module", () => {
     await fetchExchangeRateForBooking("USD", "TND")
     await fetchExchangeRateForBooking("USD", "TND")
 
-    assert.strictEqual(spy.count, 2, "fetchRate doit être appelé à chaque booking")
+    assert.strictEqual(
+      spy.count,
+      2,
+      "fetchRate doit être appelé à chaque booking",
+    )
   })
 
   test("4a. fetchExchangeRateForDisplay lève ExchangeRateUnavailableError si provider échoue", async () => {
     const failingProvider = {
       name: "failing",
       async fetchRate(from: string, to: string): Promise<never> {
-        throw new ExchangeRateUnavailableError(from, to, "provider simulé en erreur")
+        throw new ExchangeRateUnavailableError(
+          from,
+          to,
+          "provider simulé en erreur",
+        )
       },
     }
     setExchangeRateProvider(failingProvider)
@@ -119,7 +137,11 @@ describe("exchange-rate module", () => {
     const failingProvider = {
       name: "failing-booking",
       async fetchRate(from: string, to: string): Promise<never> {
-        throw new ExchangeRateUnavailableError(from, to, "provider simulé en erreur booking")
+        throw new ExchangeRateUnavailableError(
+          from,
+          to,
+          "provider simulé en erreur booking",
+        )
       },
     }
     setExchangeRateProvider(failingProvider)

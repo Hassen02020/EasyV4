@@ -18,11 +18,7 @@ import {
   getRowStyle,
   ARABIC_FONT_FAMILY,
 } from "./voucher-base"
-import {
-  getVoucherLabels,
-  isRTL,
-  formatDateForLocale,
-} from "./voucher-i18n"
+import { getVoucherLabels, isRTL, formatDateForLocale } from "./voucher-i18n"
 
 export interface OmraVoucherData {
   publicRef: string
@@ -36,14 +32,27 @@ export interface OmraVoucherData {
   agencyPhone?: string
 }
 
-function OmraVoucherDocument({ data, locale }: { data: OmraVoucherData; locale?: string }) {
+function OmraVoucherDocument({
+  data,
+  locale,
+}: {
+  data: OmraVoucherData
+  locale?: string
+}) {
   const lb = getVoucherLabels(locale)
   const rtl = isRTL(locale)
   const fontFamily = rtl ? ARABIC_FONT_FAMILY : undefined
 
   return (
     <Document>
-      <Page size="A4" style={rtl ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY } : baseStyles.page}>
+      <Page
+        size="A4"
+        style={
+          rtl
+            ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY }
+            : baseStyles.page
+        }
+      >
         <VoucherHeader
           title={lb.omraTitle}
           publicRef={data.publicRef}
@@ -55,7 +64,9 @@ function OmraVoucherDocument({ data, locale }: { data: OmraVoucherData; locale?:
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.fullName}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.customerName}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {data.customerName}
+            </Text>
           </View>
           <View style={getRowStyle(rtl, true)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.status}</Text>
@@ -75,7 +86,12 @@ function OmraVoucherDocument({ data, locale }: { data: OmraVoucherData; locale?:
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.packageLabel}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily: fontFamily ?? "Helvetica-Bold" }}>
+            <Text
+              style={{
+                ...getCellValueStyle(rtl),
+                fontFamily: fontFamily ?? "Helvetica-Bold",
+              }}
+            >
               {data.packageName}
             </Text>
           </View>
@@ -112,7 +128,12 @@ function OmraVoucherDocument({ data, locale }: { data: OmraVoucherData; locale?:
   )
 }
 
-export async function renderOmraVoucherPdf(data: OmraVoucherData, locale?: string): Promise<Uint8Array> {
-  const buffer = await renderToBuffer(<OmraVoucherDocument data={data} locale={locale} />)
+export async function renderOmraVoucherPdf(
+  data: OmraVoucherData,
+  locale?: string,
+): Promise<Uint8Array> {
+  const buffer = await renderToBuffer(
+    <OmraVoucherDocument data={data} locale={locale} />,
+  )
   return new Uint8Array(buffer)
 }

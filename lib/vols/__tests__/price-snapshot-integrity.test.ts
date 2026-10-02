@@ -136,7 +136,11 @@ async function createPriceSnapshot(
   agencyId: string,
 ): Promise<MockSnapshot> {
   const rules = { fixedFee: 15, markupRate: 0.04, currency: "TND" }
-  const commercial = computeCommercialResult(supplierAmount, supplierCurrency, rules)
+  const commercial = computeCommercialResult(
+    supplierAmount,
+    supplierCurrency,
+    rules,
+  )
   const snap: MockSnapshot = {
     id: `snap-${++snapshotIdCounter}`,
     agencyId,
@@ -161,7 +165,6 @@ async function createPriceSnapshot(
 // ===========================================================================
 
 describe("G10 — PriceSnapshot Integrity", () => {
-
   // ── Commercial engine arithmetic ────────────────────────────────────────────
 
   test("P01 — B2C price arithmetic: sellingAmount = supplier + fee + markup", () => {
@@ -238,7 +241,11 @@ describe("G10 — PriceSnapshot Integrity", () => {
     const expired = { ids: [] as string[] }
     const result = getPriceSnapshot(db, expired, db[0].id)
     assert.equal(result, null)
-    assert.equal(expired.ids.length, 0, "Auto-expire must not fire for USED snapshot")
+    assert.equal(
+      expired.ids.length,
+      0,
+      "Auto-expire must not fire for USED snapshot",
+    )
   })
 
   test("P07 — getPriceSnapshot: EXPIRED snapshot → null", () => {
@@ -255,8 +262,15 @@ describe("G10 — PriceSnapshot Integrity", () => {
 
     const result = getPriceSnapshot(db, expired, db[0].id)
     assert.equal(result, null)
-    assert.equal(db[0].status, "EXPIRED", "Past-TTL ACTIVE snapshot must transition to EXPIRED")
-    assert.ok(expired.ids.includes(db[0].id), "Auto-expire must record the affected snapshot ID")
+    assert.equal(
+      db[0].status,
+      "EXPIRED",
+      "Past-TTL ACTIVE snapshot must transition to EXPIRED",
+    )
+    assert.ok(
+      expired.ids.includes(db[0].id),
+      "Auto-expire must record the affected snapshot ID",
+    )
   })
 
   // ── markSnapshotUsed CAS ─────────────────────────────────────────────────────
@@ -272,7 +286,11 @@ describe("G10 — PriceSnapshot Integrity", () => {
     const db = [makeSnap({ status: "EXPIRED" })]
     const claimed = markSnapshotUsed(db, db[0].id)
     assert.equal(claimed, false, "EXPIRED snapshot must not be claimed")
-    assert.equal(db[0].status, "EXPIRED", "EXPIRED must not be downgraded to USED")
+    assert.equal(
+      db[0].status,
+      "EXPIRED",
+      "EXPIRED must not be downgraded to USED",
+    )
   })
 
   test("P11 — markSnapshotUsed idempotence: INVALIDATED → status unchanged", () => {
@@ -289,8 +307,8 @@ describe("G10 — PriceSnapshot Integrity", () => {
     const future = new Date(Date.now() + 15 * 60 * 1000)
 
     const db: MockSnapshot[] = [
-      makeSnap({ status: "ACTIVE", expiresAt: past }),   // should expire
-      makeSnap({ status: "ACTIVE", expiresAt: past }),   // should expire
+      makeSnap({ status: "ACTIVE", expiresAt: past }), // should expire
+      makeSnap({ status: "ACTIVE", expiresAt: past }), // should expire
       makeSnap({ status: "ACTIVE", expiresAt: future }), // should NOT expire
     ]
 
@@ -298,7 +316,11 @@ describe("G10 — PriceSnapshot Integrity", () => {
     assert.equal(count, 2)
     assert.equal(db[0].status, "EXPIRED")
     assert.equal(db[1].status, "EXPIRED")
-    assert.equal(db[2].status, "ACTIVE", "Future ACTIVE snapshot must remain ACTIVE")
+    assert.equal(
+      db[2].status,
+      "ACTIVE",
+      "Future ACTIVE snapshot must remain ACTIVE",
+    )
   })
 
   test("P13 — expireStaleSnapshots: USED/INVALIDATED rows untouched", () => {
@@ -383,7 +405,11 @@ describe("G10 — PriceSnapshot Integrity", () => {
 
     const ids = snaps.map((s) => s.id)
     const unique = new Set(ids)
-    assert.equal(unique.size, 50, `Expected 50 unique snapshot IDs, got ${unique.size}`)
+    assert.equal(
+      unique.size,
+      50,
+      `Expected 50 unique snapshot IDs, got ${unique.size}`,
+    )
     assert.equal(db.length, 50)
   })
 
@@ -396,7 +422,11 @@ describe("G10 — PriceSnapshot Integrity", () => {
       const db = [makeSnap({ status })]
       const original = db[0].status
       markSnapshotUsed(db, db[0].id)
-      assert.equal(db[0].status, original, `Terminal status ${status} must not be overwritten`)
+      assert.equal(
+        db[0].status,
+        original,
+        `Terminal status ${status} must not be overwritten`,
+      )
     }
   })
 
@@ -435,7 +465,11 @@ describe("G10 — PriceSnapshot Integrity", () => {
 
     // The booking pipeline must use snap.sellingAmount, not recalculate from itinerary
     const amountUsedForBooking = snap.sellingAmount
-    assert.equal(amountUsedForBooking, "431.000", "Price must come from stored fields, not itinerary re-derivation")
+    assert.equal(
+      amountUsedForBooking,
+      "431.000",
+      "Price must come from stored fields, not itinerary re-derivation",
+    )
     assert.notEqual(amountUsedForBooking, "999.000")
   })
 })

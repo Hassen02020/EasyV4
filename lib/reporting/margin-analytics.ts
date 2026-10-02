@@ -71,7 +71,10 @@ async function requireAdminAgencyId(): Promise<string> {
 }
 
 /** Récupère les KPIs de marge pour une période — agence résolue serveur. */
-export async function getMarginKPIs(startDate: Date, endDate: Date): Promise<MarginKPIs> {
+export async function getMarginKPIs(
+  startDate: Date,
+  endDate: Date,
+): Promise<MarginKPIs> {
   const agencyId = await requireAdminAgencyId()
   return getMarginKPIsCore(agencyId, startDate, endDate)
 }

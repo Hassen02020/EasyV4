@@ -20,16 +20,22 @@ export const metadata = { title: "Journeys | Admin" }
 export const dynamic = "force-dynamic"
 
 async function getAgencies() {
-  return withTenantContext({ agencyId: null, userId: "", isSuperAdmin: true }, (tx) =>
-    tx
-      .select({ id: agencies.id, name: agencies.name })
-      .from(agencies)
-      .where(eq(agencies.agencyType, "partner"))
-      .orderBy(agencies.name),
+  return withTenantContext(
+    { agencyId: null, userId: "", isSuperAdmin: true },
+    (tx) =>
+      tx
+        .select({ id: agencies.id, name: agencies.name })
+        .from(agencies)
+        .where(eq(agencies.agencyType, "partner"))
+        .orderBy(agencies.name),
   )
 }
 
-export default async function AdminJourneysPage({ searchParams }: { searchParams: Promise<{ agencyId?: string }> }) {
+export default async function AdminJourneysPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ agencyId?: string }>
+}) {
   const { agencyId } = await searchParams
   const supabase = await createServerSupabase()
   const {
@@ -46,19 +52,27 @@ export default async function AdminJourneysPage({ searchParams }: { searchParams
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <Route className="h-6 w-6 text-primary" />
+        <Route className="text-primary h-6 w-6" />
         <div>
           <h1 className="text-2xl font-bold">Journeys</h1>
-          <p className="text-sm text-muted-foreground">Composez ou assistez une agence — même moteur que /pro/journeys.</p>
+          <p className="text-muted-foreground text-sm">
+            Composez ou assistez une agence — même moteur que /pro/journeys.
+          </p>
         </div>
       </div>
 
       <AgencyPicker agencies={agenciesList} selectedAgencyId={agencyId} />
 
       {agencyId ? (
-        <JourneysList journeys={journeys} agencyId={agencyId} basePath="/admin/journeys" />
+        <JourneysList
+          journeys={journeys}
+          agencyId={agencyId}
+          basePath="/admin/journeys"
+        />
       ) : (
-        <p className="text-sm text-muted-foreground">Choisissez une agence pour voir/composer ses Journeys.</p>
+        <p className="text-muted-foreground text-sm">
+          Choisissez une agence pour voir/composer ses Journeys.
+        </p>
       )}
     </div>
   )

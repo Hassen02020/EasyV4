@@ -53,7 +53,11 @@ export interface ReviewRow {
 }
 
 function toReviewRow(r: typeof reviews.$inferSelect): ReviewRow {
-  return { ...r, module: r.module as ReviewModule, status: r.status as ReviewStatus }
+  return {
+    ...r,
+    module: r.module as ReviewModule,
+    status: r.status as ReviewStatus,
+  }
 }
 
 export type SubmitReviewResult =
@@ -146,16 +150,23 @@ export async function submitReviewCore(
     .limit(1)
 
   if (!reservation) {
-    return { ok: false, code: "RESERVATION_NOT_FOUND", error: "Réservation introuvable." }
+    return {
+      ok: false,
+      code: "RESERVATION_NOT_FOUND",
+      error: "Réservation introuvable.",
+    }
   }
   if (
     !(REVIEW_MODULES as readonly string[]).includes(reservation.module) ||
-    !(REVIEWABLE_RESERVATION_STATUSES as readonly string[]).includes(reservation.status)
+    !(REVIEWABLE_RESERVATION_STATUSES as readonly string[]).includes(
+      reservation.status,
+    )
   ) {
     return {
       ok: false,
       code: "NOT_ELIGIBLE",
-      error: "Cette réservation n'est pas éligible à un avis (module ou statut non pris en charge).",
+      error:
+        "Cette réservation n'est pas éligible à un avis (module ou statut non pris en charge).",
     }
   }
 
@@ -169,12 +180,24 @@ export async function submitReviewCore(
     .where(eq(reviews.reservationId, params.reservationId))
     .limit(1)
   if (existing) {
-    return { ok: false, code: "ALREADY_REVIEWED", error: "Vous avez déjà laissé un avis pour cette réservation." }
+    return {
+      ok: false,
+      code: "ALREADY_REVIEWED",
+      error: "Vous avez déjà laissé un avis pour cette réservation.",
+    }
   }
 
-  const productRef = await resolveProductRef(tx, params.reservationId, reservation.module)
+  const productRef = await resolveProductRef(
+    tx,
+    params.reservationId,
+    reservation.module,
+  )
   if (!productRef) {
-    return { ok: false, code: "NOT_ELIGIBLE", error: "Produit introuvable pour cette réservation." }
+    return {
+      ok: false,
+      code: "NOT_ELIGIBLE",
+      error: "Produit introuvable pour cette réservation.",
+    }
   }
 
   const [inserted] = await tx
@@ -217,7 +240,12 @@ export interface ProductReviewSummary {
  */
 export async function listApprovedReviewsForProductCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; module: ReviewModule; productRef: string; limit?: number },
+  params: {
+    agencyId: string
+    module: ReviewModule
+    productRef: string
+    limit?: number
+  },
 ): Promise<ProductReviewSummary> {
   const whereClause = and(
     eq(reviews.agencyId, params.agencyId),
@@ -254,7 +282,8 @@ export async function listApprovedReviewsForProductCore(
       rating: r.rating,
       comment: r.comment,
       createdAt: r.createdAt,
-      reviewerDisplayName: `${r.firstName} ${r.lastName?.charAt(0) ?? ""}.`.trim(),
+      reviewerDisplayName:
+        `${r.firstName} ${r.lastName?.charAt(0) ?? ""}.`.trim(),
     })),
   }
 }
@@ -313,7 +342,10 @@ export async function listReviewsForModerationCore(
     .from(reviews)
     .where(
       params.status
-        ? and(eq(reviews.agencyId, params.agencyId), eq(reviews.status, params.status))
+        ? and(
+            eq(reviews.agencyId, params.agencyId),
+            eq(reviews.status, params.status),
+          )
         : eq(reviews.agencyId, params.agencyId),
     )
     .orderBy(desc(reviews.createdAt))
@@ -323,7 +355,12 @@ export async function listReviewsForModerationCore(
 
 export async function moderateReviewCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; id: string; status: Exclude<ReviewStatus, "pending">; moderatedByUserId: string },
+  params: {
+    agencyId: string
+    id: string
+    status: Exclude<ReviewStatus, "pending">
+    moderatedByUserId: string
+  },
 ): Promise<{ updated: boolean }> {
   const updated = await tx
     .update(reviews)
@@ -333,7 +370,9 @@ export async function moderateReviewCore(
       moderatedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(and(eq(reviews.id, params.id), eq(reviews.agencyId, params.agencyId)))
+    .where(
+      and(eq(reviews.id, params.id), eq(reviews.agencyId, params.agencyId)),
+    )
     .returning({ id: reviews.id })
   return { updated: updated.length > 0 }
 }

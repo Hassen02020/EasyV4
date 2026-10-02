@@ -46,7 +46,8 @@ export interface RoomOffer {
 function defaultArrangement(capacity: number): RoomArrangement {
   return {
     id: `cap-${capacity}`,
-    label: capacity === 1 ? "Single" : capacity === 2 ? "Double" : `×${capacity}`,
+    label:
+      capacity === 1 ? "Single" : capacity === 2 ? "Double" : `×${capacity}`,
     maxAdults: capacity,
     maxChildren: Math.max(0, capacity - 1),
   }

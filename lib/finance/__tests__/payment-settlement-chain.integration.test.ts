@@ -43,7 +43,10 @@ import {
 } from "@/lib/db/schema"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { PLATFORM_COMMISSION_WALLET_ID } from "@/lib/finance/platform-commission"
-import { settleCommissions, markSettlementPaid } from "@/lib/finance/commission-settlement"
+import {
+  settleCommissions,
+  markSettlementPaid,
+} from "@/lib/finance/commission-settlement"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 
 /* -------------------------------------------------------------------------- */
@@ -52,7 +55,9 @@ import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 
 async function isDbAvailable(): Promise<boolean> {
   try {
-    await withSystemContext(async (tx) => { await tx.execute(sql`select 1`) })
+    await withSystemContext(async (tx) => {
+      await tx.execute(sql`select 1`)
+    })
     return true
   } catch {
     return false
@@ -66,25 +71,25 @@ const skip = () => "PostgreSQL indisponible (DATABASE_URL)."
 /* Fixtures                                                                    */
 /* -------------------------------------------------------------------------- */
 
-let agencyId    = ""
-let customerId  = ""
+let agencyId = ""
+let customerId = ""
 let reservationId = ""
 
 // Period for settlement tests — far future to avoid collisions with production data
 const PERIOD_START = new Date("2098-01-01T00:00:00Z")
-const PERIOD_END   = new Date("2098-12-31T23:59:59Z")
+const PERIOD_END = new Date("2098-12-31T23:59:59Z")
 
 // Track created IDs for cleanup
-let walletAccountId   = ""
-let walletLedgerIdComm = ""  // direct commission entry for settlement test
+let walletAccountId = ""
+let walletLedgerIdComm = "" // direct commission entry for settlement test
 
 before(async () => {
   dbAvailable = await isDbAvailable()
   if (!dbAvailable) return
 
-  agencyId     = randomUUID()
-  customerId   = randomUUID()
-  reservationId  = randomUUID()
+  agencyId = randomUUID()
+  customerId = randomUUID()
+  reservationId = randomUUID()
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values({
@@ -184,9 +189,12 @@ after(async () => {
       WHERE reservation_id = ${reservationId}::uuid
          OR wallet_account_id = ${walletAccountId}::uuid
     `)
-    await tx.delete(walletAccounts).where(eq(walletAccounts.id, walletAccountId))
+    await tx
+      .delete(walletAccounts)
+      .where(eq(walletAccounts.id, walletAccountId))
     await tx.delete(payments).where(eq(payments.reservationId, reservationId))
-    await tx.delete(reservationFinancials)
+    await tx
+      .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
     await tx.delete(customers).where(eq(customers.agencyId, agencyId))
@@ -198,152 +206,163 @@ after(async () => {
 /* Test 1 — Payment recording : INSERT payments (status='captured')           */
 /* -------------------------------------------------------------------------- */
 
-test(
-  "payments : INSERT avec status=captured, captured_at renseigné, idempotency_key unique",
-  async (t) => {
-    if (!dbAvailable) return void t.skip(skip())
+test("payments : INSERT avec status=captured, captured_at renseigné, idempotency_key unique", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
 
-    const paymentId = randomUUID()
-    const idemKey = `cert64-${randomUUID()}`
+  const paymentId = randomUUID()
+  const idemKey = `cert64-${randomUUID()}`
 
-    await withSystemContext(async (tx) => {
-      await tx.insert(payments).values({
-        id: paymentId,
-        agencyId,
-        reservationId,
-        psp: "manual",
-        method: "cash",
-        originalCurrency: "TND",
-        originalAmount: "1000.00",
-        tndAmount: "1000.00",
-        kind: "deposit",
-        status: "captured",
-        capturedAt: new Date(),
-        idempotencyKey: idemKey,
-      })
+  await withSystemContext(async (tx) => {
+    await tx.insert(payments).values({
+      id: paymentId,
+      agencyId,
+      reservationId,
+      psp: "manual",
+      method: "cash",
+      originalCurrency: "TND",
+      originalAmount: "1000.00",
+      tndAmount: "1000.00",
+      kind: "deposit",
+      status: "captured",
+      capturedAt: new Date(),
+      idempotencyKey: idemKey,
     })
+  })
 
-    const rows = await withSystemContext((tx) =>
-      tx.select().from(payments).where(eq(payments.id, paymentId))
-    )
+  const rows = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.id, paymentId)),
+  )
 
-    assert.equal(rows.length, 1, "exactement 1 paiement enregistré")
-    const p = rows[0]!
-    assert.equal(p.status,     "captured", "statut capturé")
-    assert.equal(p.agencyId,   agencyId,   "agencyId correct")
-    assert.equal(p.reservationId, reservationId, "reservationId correct")
-    assert.equal(p.tndAmount,  "1000.00",  "montant TND correct")
-    assert.ok(p.capturedAt instanceof Date, "capturedAt renseigné")
-    assert.equal(p.idempotencyKey, idemKey, "idempotency_key stockée")
+  assert.equal(rows.length, 1, "exactement 1 paiement enregistré")
+  const p = rows[0]!
+  assert.equal(p.status, "captured", "statut capturé")
+  assert.equal(p.agencyId, agencyId, "agencyId correct")
+  assert.equal(p.reservationId, reservationId, "reservationId correct")
+  assert.equal(p.tndAmount, "1000.00", "montant TND correct")
+  assert.ok(p.capturedAt instanceof Date, "capturedAt renseigné")
+  assert.equal(p.idempotencyKey, idemKey, "idempotency_key stockée")
 
-    // Double-capture avec la MÊME clé → contrainte UNIQUE PARTIAL doit rejeter
-    await assert.rejects(
-      async () => {
-        await withSystemContext(async (tx) => {
-          await tx.insert(payments).values({
-            agencyId,
-            reservationId,
-            psp: "manual",
-            method: "cash",
-            originalCurrency: "TND",
-            originalAmount: "1000.00",
-            tndAmount: "1000.00",
-            status: "captured",
-            capturedAt: new Date(),
-            idempotencyKey: idemKey,   // même clé → UNIQUE violation
-          })
+  // Double-capture avec la MÊME clé → contrainte UNIQUE PARTIAL doit rejeter
+  await assert.rejects(
+    async () => {
+      await withSystemContext(async (tx) => {
+        await tx.insert(payments).values({
+          agencyId,
+          reservationId,
+          psp: "manual",
+          method: "cash",
+          originalCurrency: "TND",
+          originalAmount: "1000.00",
+          tndAmount: "1000.00",
+          status: "captured",
+          capturedAt: new Date(),
+          idempotencyKey: idemKey, // même clé → UNIQUE violation
         })
-      },
-      (err: unknown) => {
-        const msg    = (err as { message?: string }).message ?? ""
-        const pgCode = (err as { cause?: { code?: string } }).cause?.code
-          ?? (err as { code?: string }).code
-        assert.ok(
-          msg.includes("Failed query") || pgCode === "23505",
-          `Attendu UNIQUE violation — obtenu: code=${pgCode}, msg=${msg}`,
-        )
-        return true
-      },
-      "double-capture avec même idempotency_key doit être rejetée",
-    )
-  },
-)
+      })
+    },
+    (err: unknown) => {
+      const msg = (err as { message?: string }).message ?? ""
+      const pgCode =
+        (err as { cause?: { code?: string } }).cause?.code ??
+        (err as { code?: string }).code
+      assert.ok(
+        msg.includes("Failed query") || pgCode === "23505",
+        `Attendu UNIQUE violation — obtenu: code=${pgCode}, msg=${msg}`,
+      )
+      return true
+    },
+    "double-capture avec même idempotency_key doit être rejetée",
+  )
+})
 
 /* -------------------------------------------------------------------------- */
 /* Test 2 — B2C customer wallet : debitCustomerWallet                         */
 /* -------------------------------------------------------------------------- */
 
-test(
-  "debitCustomerWallet : débite wallet_accounts et crée un wallet_ledger de type debit",
-  async (t) => {
-    if (!dbAvailable) return void t.skip(skip())
+test("debitCustomerWallet : débite wallet_accounts et crée un wallet_ledger de type debit", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
 
-    // debitCustomerWallet with txOverride from withSystemContext (admin context)
-    // It calls SET LOCAL app.is_super_admin = 'true' internally — works in any tx
-    let result: Awaited<ReturnType<typeof debitCustomerWallet>> | undefined
+  // debitCustomerWallet with txOverride from withSystemContext (admin context)
+  // It calls SET LOCAL app.is_super_admin = 'true' internally — works in any tx
+  let result: Awaited<ReturnType<typeof debitCustomerWallet>> | undefined
 
-    await withSystemContext(async (tx) => {
-      result = await debitCustomerWallet({
-        customerId,
-        amountTnd: 500,
-        reservationId,
-        description: "Cert64 — débit réservation CERT64-HOTEL-001",
-        txOverride: tx as unknown as Parameters<typeof debitCustomerWallet>[0]["txOverride"],
-      })
+  await withSystemContext(async (tx) => {
+    result = await debitCustomerWallet({
+      customerId,
+      amountTnd: 500,
+      reservationId,
+      description: "Cert64 — débit réservation CERT64-HOTEL-001",
+      txOverride: tx as unknown as Parameters<
+        typeof debitCustomerWallet
+      >[0]["txOverride"],
     })
+  })
 
-    assert.ok(result?.ok === true, `debitCustomerWallet échoué : ${JSON.stringify(result)}`)
-    if (!result?.ok) return
-    // TypeScript can't narrow `result` through the closure assignment above —
-    // re-bind to a typed constant to carry the discriminated union forward.
-    const successResult = result as import("../customer-wallet").WalletMovementSuccess
+  assert.ok(
+    result?.ok === true,
+    `debitCustomerWallet échoué : ${JSON.stringify(result)}`,
+  )
+  if (!result?.ok) return
+  // TypeScript can't narrow `result` through the closure assignment above —
+  // re-bind to a typed constant to carry the discriminated union forward.
+  const successResult =
+    result as import("../customer-wallet").WalletMovementSuccess
 
-    assert.equal(successResult.balanceBefore, "1000.00", "solde avant = 1000 TND")
-    assert.equal(successResult.balanceAfter,  "500.00",  "solde après = 500 TND")
+  assert.equal(successResult.balanceBefore, "1000.00", "solde avant = 1000 TND")
+  assert.equal(successResult.balanceAfter, "500.00", "solde après = 500 TND")
 
-    // Vérifier le mouvement dans wallet_ledger
-    const entries = await withSystemContext((tx) =>
-      tx.select().from(walletLedger).where(eq(walletLedger.id, successResult.ledgerId))
-    )
-    assert.equal(entries.length, 1, "exactement 1 ligne ledger créée")
-    const e = entries[0]!
-    assert.equal(e.type,         "debit",   "type=debit")
-    assert.equal(e.amount,       "500.00",  "montant 500 TND")
-    assert.equal(e.balanceBefore, "1000.00", "balance_before stockée")
-    assert.equal(e.balanceAfter,  "500.00",  "balance_after stockée")
-    assert.equal(e.category,      "booking", "category=booking")
+  // Vérifier le mouvement dans wallet_ledger
+  const entries = await withSystemContext((tx) =>
+    tx
+      .select()
+      .from(walletLedger)
+      .where(eq(walletLedger.id, successResult.ledgerId)),
+  )
+  assert.equal(entries.length, 1, "exactement 1 ligne ledger créée")
+  const e = entries[0]!
+  assert.equal(e.type, "debit", "type=debit")
+  assert.equal(e.amount, "500.00", "montant 500 TND")
+  assert.equal(e.balanceBefore, "1000.00", "balance_before stockée")
+  assert.equal(e.balanceAfter, "500.00", "balance_after stockée")
+  assert.equal(e.category, "booking", "category=booking")
 
-    // Vérifier la mise à jour du solde dans wallet_accounts
-    const [acc] = await withSystemContext((tx) =>
-      tx.select({ bal: walletAccounts.currentBalance })
-        .from(walletAccounts)
-        .where(eq(walletAccounts.id, successResult.walletAccountId))
-    )
-    assert.equal(acc?.bal, "500.00", "wallet_accounts.current_balance mis à jour à 500 TND")
-  },
-)
+  // Vérifier la mise à jour du solde dans wallet_accounts
+  const [acc] = await withSystemContext((tx) =>
+    tx
+      .select({ bal: walletAccounts.currentBalance })
+      .from(walletAccounts)
+      .where(eq(walletAccounts.id, successResult.walletAccountId)),
+  )
+  assert.equal(
+    acc?.bal,
+    "500.00",
+    "wallet_accounts.current_balance mis à jour à 500 TND",
+  )
+})
 
-test(
-  "debitCustomerWallet : INSUFFICIENT_FUNDS si montant > solde",
-  async (t) => {
-    if (!dbAvailable) return void t.skip(skip())
+test("debitCustomerWallet : INSUFFICIENT_FUNDS si montant > solde", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
 
-    // Solde actuel = 500 TND (après test précédent) — on demande 9999
-    let result: Awaited<ReturnType<typeof debitCustomerWallet>> | undefined
-    await withSystemContext(async (tx) => {
-      result = await debitCustomerWallet({
-        customerId,
-        amountTnd: 9999,
-        description: "Cert64 — débit volontairement trop élevé",
-        txOverride: tx as unknown as Parameters<typeof debitCustomerWallet>[0]["txOverride"],
-      })
+  // Solde actuel = 500 TND (après test précédent) — on demande 9999
+  let result: Awaited<ReturnType<typeof debitCustomerWallet>> | undefined
+  await withSystemContext(async (tx) => {
+    result = await debitCustomerWallet({
+      customerId,
+      amountTnd: 9999,
+      description: "Cert64 — débit volontairement trop élevé",
+      txOverride: tx as unknown as Parameters<
+        typeof debitCustomerWallet
+      >[0]["txOverride"],
     })
+  })
 
-    assert.ok(result?.ok === false, "debitCustomerWallet doit échouer avec INSUFFICIENT_FUNDS")
-    if (result?.ok !== false) return
-    assert.equal(result.code, "INSUFFICIENT_FUNDS", "code INSUFFICIENT_FUNDS")
-  },
-)
+  assert.ok(
+    result?.ok === false,
+    "debitCustomerWallet doit échouer avec INSUFFICIENT_FUNDS",
+  )
+  if (result?.ok !== false) return
+  assert.equal(result.code, "INSUFFICIENT_FUNDS", "code INSUFFICIENT_FUNDS")
+})
 
 /* -------------------------------------------------------------------------- */
 /* Test 3 — Commission settlement : settleCommissions                         */
@@ -351,193 +370,200 @@ test(
 
 let settlementId = ""
 
-test(
-  "settleCommissions : agrège les commissions non settlées et crée commission_settlements (status=pending)",
-  async (t) => {
-    if (!dbAvailable) return void t.skip(skip())
+test("settleCommissions : agrège les commissions non settlées et crée commission_settlements (status=pending)", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
 
-    const result = await settleCommissions(
-      PERIOD_START,
-      PERIOD_END,
-      "cert64-admin",
-      "Certification Chantier 64 — test settlement",
-    )
+  const result = await settleCommissions(
+    PERIOD_START,
+    PERIOD_END,
+    "cert64-admin",
+    "Certification Chantier 64 — test settlement",
+  )
 
-    assert.ok(result.settlementId,    "settlementId retourné")
-    assert.equal(result.status,       "pending",  "status=pending à la création")
-    assert.ok(result.entryCount >= 1, "au moins 1 entrée commission settlée")
-    assert.ok(result.totalAmount > 0, "totalAmount > 0")
+  assert.ok(result.settlementId, "settlementId retourné")
+  assert.equal(result.status, "pending", "status=pending à la création")
+  assert.ok(result.entryCount >= 1, "au moins 1 entrée commission settlée")
+  assert.ok(result.totalAmount > 0, "totalAmount > 0")
 
-    settlementId = result.settlementId
+  settlementId = result.settlementId
 
-    // Vérifier la ligne commission_settlements en base
-    const rows = await withSystemContext((tx) =>
-      tx.select().from(commissionSettlements)
-        .where(eq(commissionSettlements.id, settlementId))
-    )
-    assert.equal(rows.length, 1, "1 ligne commission_settlements créée")
-    const s = rows[0]!
-    assert.equal(s.status,           "pending", "status=pending en base")
-    assert.equal(s.ledgerEntryCount,  result.entryCount, "ledger_entry_count cohérent")
-    assert.equal(s.settledBy,         "cert64-admin", "settled_by renseigné")
+  // Vérifier la ligne commission_settlements en base
+  const rows = await withSystemContext((tx) =>
+    tx
+      .select()
+      .from(commissionSettlements)
+      .where(eq(commissionSettlements.id, settlementId)),
+  )
+  assert.equal(rows.length, 1, "1 ligne commission_settlements créée")
+  const s = rows[0]!
+  assert.equal(s.status, "pending", "status=pending en base")
+  assert.equal(
+    s.ledgerEntryCount,
+    result.entryCount,
+    "ledger_entry_count cohérent",
+  )
+  assert.equal(s.settledBy, "cert64-admin", "settled_by renseigné")
 
-    // Vérifier que les entrées wallet_ledger sont marquées settled_at
-    const ledgerEntry = await withSystemContext((tx) =>
-      tx.select({ settledAt: walletLedger.settledAt, settlementId: walletLedger.settlementId })
-        .from(walletLedger)
-        .where(eq(walletLedger.id, walletLedgerIdComm))
-    )
-    assert.ok(
-      ledgerEntry[0]?.settledAt != null,
-      "wallet_ledger.settled_at renseigné après settlement",
-    )
-    assert.equal(
-      ledgerEntry[0]?.settlementId,
-      settlementId,
-      "wallet_ledger.settlement_id = settlement créé",
-    )
-  },
-)
+  // Vérifier que les entrées wallet_ledger sont marquées settled_at
+  const ledgerEntry = await withSystemContext((tx) =>
+    tx
+      .select({
+        settledAt: walletLedger.settledAt,
+        settlementId: walletLedger.settlementId,
+      })
+      .from(walletLedger)
+      .where(eq(walletLedger.id, walletLedgerIdComm)),
+  )
+  assert.ok(
+    ledgerEntry[0]?.settledAt != null,
+    "wallet_ledger.settled_at renseigné après settlement",
+  )
+  assert.equal(
+    ledgerEntry[0]?.settlementId,
+    settlementId,
+    "wallet_ledger.settlement_id = settlement créé",
+  )
+})
 
 /* -------------------------------------------------------------------------- */
 /* Test 4 — markSettlementPaid : pending → paid                               */
 /* -------------------------------------------------------------------------- */
 
-test(
-  "markSettlementPaid : passe le settlement de pending → paid avec settled_at",
-  async (t) => {
-    if (!dbAvailable) return void t.skip(skip())
-    if (!settlementId) return void t.skip("Test 3 n'a pas créé de settlement — skip")
+test("markSettlementPaid : passe le settlement de pending → paid avec settled_at", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  if (!settlementId)
+    return void t.skip("Test 3 n'a pas créé de settlement — skip")
 
-    await markSettlementPaid(settlementId, "cert64-tresorier")
+  await markSettlementPaid(settlementId, "cert64-tresorier")
 
-    const rows = await withSystemContext((tx) =>
-      tx.select().from(commissionSettlements)
-        .where(eq(commissionSettlements.id, settlementId))
-    )
-    assert.equal(rows.length, 1, "settlement toujours présent")
-    const s = rows[0]!
-    assert.equal(s.status,    "paid", "status=paid après markSettlementPaid")
-    assert.ok(s.settledAt != null,   "settled_at renseigné")
-    assert.equal(s.settledBy, "cert64-tresorier", "settled_by mis à jour")
-  },
-)
+  const rows = await withSystemContext((tx) =>
+    tx
+      .select()
+      .from(commissionSettlements)
+      .where(eq(commissionSettlements.id, settlementId)),
+  )
+  assert.equal(rows.length, 1, "settlement toujours présent")
+  const s = rows[0]!
+  assert.equal(s.status, "paid", "status=paid après markSettlementPaid")
+  assert.ok(s.settledAt != null, "settled_at renseigné")
+  assert.equal(s.settledBy, "cert64-tresorier", "settled_by mis à jour")
+})
 
 /* -------------------------------------------------------------------------- */
 /* Test 5 — Idempotence : deuxième settleCommissions même période             */
 /* -------------------------------------------------------------------------- */
 
-test(
-  "settleCommissions : UNIQUE INDEX bloque un deuxième settlement sur la même période",
-  async (t) => {
-    if (!dbAvailable) return void t.skip(skip())
-    if (!settlementId) return void t.skip("Test 3 n'a pas créé de settlement — skip")
+test("settleCommissions : UNIQUE INDEX bloque un deuxième settlement sur la même période", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  if (!settlementId)
+    return void t.skip("Test 3 n'a pas créé de settlement — skip")
 
-    await assert.rejects(
-      async () => {
-        await settleCommissions(
-          PERIOD_START,
-          PERIOD_END,
-          "cert64-admin-retry",
-        )
-      },
-      (err: unknown) => {
-        const msg    = (err as { message?: string }).message ?? ""
-        const pgCode = (err as { cause?: { code?: string } }).cause?.code
-          ?? (err as { code?: string }).code
-        assert.ok(
-          msg.includes("Failed query") || pgCode === "23505",
-          `Attendu UNIQUE violation — obtenu: code=${pgCode}, msg=${msg}`,
-        )
-        return true
-      },
-      "un deuxième INSERT commission_settlements sur la même période doit être rejeté",
-    )
-  },
-)
+  await assert.rejects(
+    async () => {
+      await settleCommissions(PERIOD_START, PERIOD_END, "cert64-admin-retry")
+    },
+    (err: unknown) => {
+      const msg = (err as { message?: string }).message ?? ""
+      const pgCode =
+        (err as { cause?: { code?: string } }).cause?.code ??
+        (err as { code?: string }).code
+      assert.ok(
+        msg.includes("Failed query") || pgCode === "23505",
+        `Attendu UNIQUE violation — obtenu: code=${pgCode}, msg=${msg}`,
+      )
+      return true
+    },
+    "un deuxième INSERT commission_settlements sur la même période doit être rejeté",
+  )
+})
 
 /* -------------------------------------------------------------------------- */
 /* Test 6 — Rollback : exception dans withSystemContext annule tout           */
 /* -------------------------------------------------------------------------- */
 
-test(
-  "withSystemContext rollback : une exception annule tous les INSERTs intermédiaires",
-  async (t) => {
-    if (!dbAvailable) return void t.skip(skip())
+test("withSystemContext rollback : une exception annule tous les INSERTs intermédiaires", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
 
-    const rollbackReservationId = randomUUID()
+  const rollbackReservationId = randomUUID()
 
-    // Essayer d'insérer une réservation + reservation_financials, puis throw
-    await assert.rejects(
-      async () => {
-        await withSystemContext(async (tx) => {
-          await tx.insert(reservations).values({
-            id: rollbackReservationId,
-            agencyId,
-            publicRef: "CERT64-ROLLBACK-001",
-            customerId,
-            module: "hotel",
-            source: "manual",
-            status: "pending",
-            originalCurrency: "TND",
-            originalAmount: "999.00",
-            tndAmount: "999.00",
-          })
-
-          await recordReservationFinancials({
-            tx,
-            reservationId: rollbackReservationId,
-            supplierPriceTnd: 800,
-            salePriceTnd: 999,
-          })
-
-          // Forcer un rollback
-          throw new Error("CERT64_ROLLBACK_TEST")
+  // Essayer d'insérer une réservation + reservation_financials, puis throw
+  await assert.rejects(
+    async () => {
+      await withSystemContext(async (tx) => {
+        await tx.insert(reservations).values({
+          id: rollbackReservationId,
+          agencyId,
+          publicRef: "CERT64-ROLLBACK-001",
+          customerId,
+          module: "hotel",
+          source: "manual",
+          status: "pending",
+          originalCurrency: "TND",
+          originalAmount: "999.00",
+          tndAmount: "999.00",
         })
-      },
-      (err: unknown) => {
-        assert.equal(
-          (err as { message?: string }).message,
-          "CERT64_ROLLBACK_TEST",
-          "l'erreur lancée est bien propagée",
-        )
-        return true
-      },
-    )
 
-    // Vérifier qu'aucun enregistrement partiel n'a été écrit
-    const resRows = await withSystemContext((tx) =>
-      tx.select().from(reservations)
-        .where(eq(reservations.id, rollbackReservationId))
-    )
-    assert.equal(resRows.length, 0, "reservation non persistée après rollback")
+        await recordReservationFinancials({
+          tx,
+          reservationId: rollbackReservationId,
+          supplierPriceTnd: 800,
+          salePriceTnd: 999,
+        })
 
-    const finRows = await withSystemContext((tx) =>
-      tx.select().from(reservationFinancials)
-        .where(eq(reservationFinancials.reservationId, rollbackReservationId))
-    )
-    assert.equal(finRows.length, 0, "reservation_financials non persistée après rollback")
-  },
-)
+        // Forcer un rollback
+        throw new Error("CERT64_ROLLBACK_TEST")
+      })
+    },
+    (err: unknown) => {
+      assert.equal(
+        (err as { message?: string }).message,
+        "CERT64_ROLLBACK_TEST",
+        "l'erreur lancée est bien propagée",
+      )
+      return true
+    },
+  )
+
+  // Vérifier qu'aucun enregistrement partiel n'a été écrit
+  const resRows = await withSystemContext((tx) =>
+    tx
+      .select()
+      .from(reservations)
+      .where(eq(reservations.id, rollbackReservationId)),
+  )
+  assert.equal(resRows.length, 0, "reservation non persistée après rollback")
+
+  const finRows = await withSystemContext((tx) =>
+    tx
+      .select()
+      .from(reservationFinancials)
+      .where(eq(reservationFinancials.reservationId, rollbackReservationId)),
+  )
+  assert.equal(
+    finRows.length,
+    0,
+    "reservation_financials non persistée après rollback",
+  )
+})
 
 /* -------------------------------------------------------------------------- */
 /* Gap documenté — Supplier Reconciliation                                    */
 /* -------------------------------------------------------------------------- */
 
-test(
-  "GAP DOCUMENTÉ : supplier reconciliation n'est pas implémenté (roadmap uniquement)",
-  async (t) => {
-    // Ce test documente explicitement l'absence de la fonctionnalité.
-    // Référence : lib/db/schema/suppliers.ts — commentaire L5 connectivity
-    // mentionne "reconciliation SLA" comme roadmap future, pas un module existant.
-    // Aucune table supplier_invoice, supplier_reconciliation ni
-    // supplier_settlement n'existe dans les migrations actuelles.
-    const GAP_DOCUMENTED = true
-    assert.ok(GAP_DOCUMENTED, "supplier reconciliation = GAP documenté, pas encore implémenté")
-    t.diagnostic(
-      "Supplier reconciliation non implémenté. " +
+test("GAP DOCUMENTÉ : supplier reconciliation n'est pas implémenté (roadmap uniquement)", async (t) => {
+  // Ce test documente explicitement l'absence de la fonctionnalité.
+  // Référence : lib/db/schema/suppliers.ts — commentaire L5 connectivity
+  // mentionne "reconciliation SLA" comme roadmap future, pas un module existant.
+  // Aucune table supplier_invoice, supplier_reconciliation ni
+  // supplier_settlement n'existe dans les migrations actuelles.
+  const GAP_DOCUMENTED = true
+  assert.ok(
+    GAP_DOCUMENTED,
+    "supplier reconciliation = GAP documenté, pas encore implémenté",
+  )
+  t.diagnostic(
+    "Supplier reconciliation non implémenté. " +
       "Voir lib/db/schema/suppliers.ts commentaire L5 connectivity. " +
       "À implémenter dans un Chantier dédié avant certification complète.",
-    )
-  },
-)
+  )
+})

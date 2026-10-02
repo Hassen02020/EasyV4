@@ -24,7 +24,9 @@ export interface DestinationOption {
   countryNameAr: string | null
 }
 
-async function fetchDestinations(module: DestinationModule): Promise<DestinationOption[]> {
+async function fetchDestinations(
+  module: DestinationModule,
+): Promise<DestinationOption[]> {
   const res = await fetch(`/api/destinations/search?module=${module}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = (await res.json()) as { destinations: DestinationOption[] }

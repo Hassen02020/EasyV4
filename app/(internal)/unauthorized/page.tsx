@@ -21,9 +21,9 @@ export default function UnauthorizedPage() {
           Accès non autorisé
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Votre compte n&apos;a pas les droits nécessaires pour accéder à
-          cette page, ou a été suspendu. Contactez votre administrateur si
-          vous pensez qu&apos;il s&apos;agit d&apos;une erreur.
+          Votre compte n&apos;a pas les droits nécessaires pour accéder à cette
+          page, ou a été suspendu. Contactez votre administrateur si vous pensez
+          qu&apos;il s&apos;agit d&apos;une erreur.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <Button asChild>

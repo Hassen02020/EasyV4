@@ -77,11 +77,7 @@ export interface DataTableProps<TData, TValue> {
 /* Icône de tri réutilisable                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function SortIcon({
-  direction,
-}: {
-  direction: "asc" | "desc" | false
-}) {
+export function SortIcon({ direction }: { direction: "asc" | "desc" | false }) {
   if (direction === "asc")
     return <ArrowUp className="ml-1.5 inline h-3.5 w-3.5 shrink-0" />
   if (direction === "desc")
@@ -106,8 +102,9 @@ export function DataTable<TData, TValue>({
   className,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] =
-    React.useState<ColumnFiltersState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    [],
+  )
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
@@ -140,13 +137,12 @@ export function DataTable<TData, TValue>({
       <div className="flex flex-wrap items-center gap-2">
         {searchColumn && (
           <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-            <Search className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
             <Input
               placeholder={searchPlaceholder}
               value={
-                (table
-                  .getColumn(searchColumn)
-                  ?.getFilterValue() as string) ?? ""
+                (table.getColumn(searchColumn)?.getFilterValue() as string) ??
+                ""
               }
               onChange={(e) =>
                 table.getColumn(searchColumn)?.setFilterValue(e.target.value)
@@ -207,7 +203,10 @@ export function DataTable<TData, TValue>({
                         )}
                         <SortIcon
                           direction={
-                            header.column.getIsSorted() as "asc" | "desc" | false
+                            header.column.getIsSorted() as
+                              | "asc"
+                              | "desc"
+                              | false
                           }
                         />
                       </button>

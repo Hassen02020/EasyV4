@@ -8,10 +8,7 @@
  */
 
 import { redirect } from "next/navigation"
-import {
-  AdminShell,
-  type AdminShellUser,
-} from "@/components/admin-shell"
+import { AdminShell, type AdminShellUser } from "@/components/admin-shell"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAdminRole, isAllowedIntoAdmin } from "@/lib/auth/admin-gate"

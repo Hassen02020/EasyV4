@@ -26,8 +26,14 @@ import { eq } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { flightPriceSnapshots } from "@/lib/db/schema/flights"
 import { reservations } from "@/lib/db/schema"
-import { recordReservationFinancials, type RecordReservationFinancialsInput } from "@/lib/finance/reservation-financials"
-import { fetchExchangeRateForBooking, ExchangeRateUnavailableError } from "@/lib/finance/exchange-rate"
+import {
+  recordReservationFinancials,
+  type RecordReservationFinancialsInput,
+} from "@/lib/finance/reservation-financials"
+import {
+  fetchExchangeRateForBooking,
+  ExchangeRateUnavailableError,
+} from "@/lib/finance/exchange-rate"
 import {
   getActiveFxPolicy,
   applyFxCorrection,
@@ -75,16 +81,30 @@ export async function finalizeFlightBookingFinancials(
   let bankFeeTnd = 0
 
   if (supplierCurrency !== "TND") {
-    const referenceRate = await fetchExchangeRateForBooking(supplierCurrency, "TND")
-    const policy       = await getActiveFxPolicy()
-    const applied      = applyFxCorrection(referenceRate, policy)
+    const referenceRate = await fetchExchangeRateForBooking(
+      supplierCurrency,
+      "TND",
+    )
+    const policy = await getActiveFxPolicy()
+    const applied = applyFxCorrection(referenceRate, policy)
 
-    supplierPriceTnd = Math.round(supplierOriginalAmount * applied.appliedRate * 100) / 100
-    bankFeeTnd       = computeBankFeeContribution(supplierOriginalAmount, applied.appliedRate, policy)
+    supplierPriceTnd =
+      Math.round(supplierOriginalAmount * applied.appliedRate * 100) / 100
+    bankFeeTnd = computeBankFeeContribution(
+      supplierOriginalAmount,
+      applied.appliedRate,
+      policy,
+    )
 
-    financialExtra.supplierOriginal = { amount: supplierOriginalAmount, currency: supplierCurrency }
-    financialExtra.exchangeRate     = { rate: referenceRate.rate, at: referenceRate.capturedAt }
-    financialExtra.appliedRate      = applied
+    financialExtra.supplierOriginal = {
+      amount: supplierOriginalAmount,
+      currency: supplierCurrency,
+    }
+    financialExtra.exchangeRate = {
+      rate: referenceRate.rate,
+      at: referenceRate.capturedAt,
+    }
+    financialExtra.appliedRate = applied
   }
 
   // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe (API
@@ -112,7 +132,8 @@ export async function finalizeFlightBookingFinancials(
             role: "supplier",
             qualification: "supplier_cost",
             amount: supplierPriceTnd,
-            basis: "coût fournisseur réel figé au moment de la recherche (flight_price_snapshots.supplier_amount)",
+            basis:
+              "coût fournisseur réel figé au moment de la recherche (flight_price_snapshots.supplier_amount)",
           },
           {
             partyType: "agency",
@@ -120,7 +141,8 @@ export async function finalizeFlightBookingFinancials(
             role: "seller",
             qualification: "seller_margin",
             amount: salePriceTnd - supplierPriceTnd,
-            basis: "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
+            basis:
+              "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
           },
           // CURRENCY-DIM-02 : estimation proratisée du frais bancaire FX, uniquement
           // si supplierCurrency ≠ TND et si la politique FX définit un frais > 0.

@@ -132,7 +132,10 @@ export const destinationExternalRefs = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("destination_external_refs_module_external_uniq").on(t.module, t.externalId),
+    uniqueIndex("destination_external_refs_module_external_uniq").on(
+      t.module,
+      t.externalId,
+    ),
     index("destination_external_refs_destination_idx").on(t.destinationId),
     index("destination_external_refs_module_idx").on(t.module, t.isActive),
   ],
@@ -141,4 +144,5 @@ export const destinationExternalRefs = pgTable(
 export type Destination = typeof destinations.$inferSelect
 export type NewDestination = typeof destinations.$inferInsert
 export type DestinationExternalRef = typeof destinationExternalRefs.$inferSelect
-export type NewDestinationExternalRef = typeof destinationExternalRefs.$inferInsert
+export type NewDestinationExternalRef =
+  typeof destinationExternalRefs.$inferInsert

@@ -46,7 +46,9 @@ import type { ResolvedMyGoAccess } from "./tenant/live-resolution"
  * n'est réservable, jamais 0 pour une offre qui a réellement des chambres.
  * `undefined` quand aucune offre n'a de prix exploitable (jamais fabriqué).
  */
-export function lowestDisplayPrice(offers: HotelOfferDTO[]): number | undefined {
+export function lowestDisplayPrice(
+  offers: HotelOfferDTO[],
+): number | undefined {
   const prices = offers
     .map((o) => selectBestRate(o)?.price ?? o.fromPrice)
     .filter((p) => p > 0)
@@ -93,7 +95,11 @@ export function generateFlexibleDateCandidates(
   const clampedFlex = Math.max(0, Math.min(MAX_FLEX_DAYS, Math.round(flexDays)))
   const checkinMs = Date.parse(`${checkin}T00:00:00Z`)
   const checkoutMs = Date.parse(`${checkout}T00:00:00Z`)
-  if (!Number.isFinite(checkinMs) || !Number.isFinite(checkoutMs) || checkoutMs <= checkinMs) {
+  if (
+    !Number.isFinite(checkinMs) ||
+    !Number.isFinite(checkoutMs) ||
+    checkoutMs <= checkinMs
+  ) {
     return []
   }
   const nightsMs = checkoutMs - checkinMs
@@ -112,9 +118,18 @@ export function generateFlexibleDateCandidates(
     const candCheckoutMs = candCheckinMs + nightsMs
     const candCheckin = toIsoDate(candCheckinMs)
     const candCheckout = toIsoDate(candCheckoutMs)
-    const validation = validateSearchDateRange(candCheckin, candCheckout, opts.maxNights, now)
+    const validation = validateSearchDateRange(
+      candCheckin,
+      candCheckout,
+      opts.maxNights,
+      now,
+    )
     if (!validation.ok) continue
-    candidates.push({ checkin: candCheckin, checkout: candCheckout, offsetDays: offset })
+    candidates.push({
+      checkin: candCheckin,
+      checkout: candCheckout,
+      offsetDays: offset,
+    })
   }
   return candidates
 }
@@ -152,11 +167,19 @@ export async function runFlexibleHotelSearch(
   correlationId?: string,
 ): Promise<FlexibleSearchResult> {
   const clampedFlex = Math.max(0, Math.min(MAX_FLEX_DAYS, Math.round(flexDays)))
-  const candidates = generateFlexibleDateCandidates(q.checkin, q.checkout, clampedFlex)
+  const candidates = generateFlexibleDateCandidates(
+    q.checkin,
+    q.checkout,
+    clampedFlex,
+  )
 
   const settled = await Promise.allSettled(
     candidates.map((c) =>
-      runSearchThroughHub({ ...q, checkin: c.checkin, checkout: c.checkout }, access, correlationId),
+      runSearchThroughHub(
+        { ...q, checkin: c.checkin, checkout: c.checkout },
+        access,
+        correlationId,
+      ),
     ),
   )
 
@@ -173,7 +196,12 @@ export async function runFlexibleHotelSearch(
     }
     const { runResult } = s.value
     if (!runResult.ok) {
-      return { ...c, ok: false, error: runResult.error, message: runResult.message }
+      return {
+        ...c,
+        ok: false,
+        error: runResult.error,
+        message: runResult.message,
+      }
     }
     const offers = runResult.dto.offers
     if (offers.length === 0) {

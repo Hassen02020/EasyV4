@@ -14,7 +14,7 @@ import dynamicImport from "next/dynamic"
 import { Suspense } from "react"
 import { getIntlLocale } from "@/lib/i18n-date"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 const CheckoutForm = dynamicImport(() =>
   import("@/components/booking/checkout-form").then((m) => m.CheckoutForm),
@@ -22,11 +22,7 @@ const CheckoutForm = dynamicImport(() =>
 
 type SP = { [k: string]: string | string[] | undefined }
 
-async function CheckoutContent({
-  searchParams,
-}: {
-  searchParams: SP
-}) {
+async function CheckoutContent({ searchParams }: { searchParams: SP }) {
   const token = typeof searchParams.d === "string" ? searchParams.d : undefined
   const payload = decodeDraft(token)
   const locale = await getLocale()
@@ -109,9 +105,7 @@ async function CheckoutContent({
           <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
             {t("checkoutTitle")}
           </h1>
-          <p className="text-muted-foreground mb-6">
-            {t("checkoutSubtitle")}
-          </p>
+          <p className="text-muted-foreground mb-6">{t("checkoutSubtitle")}</p>
           <BookingSteps current={3} />
 
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -121,12 +115,20 @@ async function CheckoutContent({
                   <Badge variant="secondary">
                     {MODULE_LABEL[draft.module] ?? draft.module}
                   </Badge>
-                  <h2 className="text-lg font-semibold break-words">{draft.offerLabel}</h2>
+                  <h2 className="text-lg font-semibold break-words">
+                    {draft.offerLabel}
+                  </h2>
                   <Separator />
                   <dl className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
-                    <Row k={t("departureLabel")} v={formatDate(draft.startDate, locale)} />
+                    <Row
+                      k={t("departureLabel")}
+                      v={formatDate(draft.startDate, locale)}
+                    />
                     {draft.endDate ? (
-                      <Row k={t("returnLabel")} v={formatDate(draft.endDate, locale)} />
+                      <Row
+                        k={t("returnLabel")}
+                        v={formatDate(draft.endDate, locale)}
+                      />
                     ) : null}
                     <Row
                       k={tc("voyageurs")}
@@ -155,7 +157,11 @@ async function CheckoutContent({
                     <Row k={t("emailLabel")} v={traveler.email} />
                     <Row k={t("phoneLabel")} v={traveler.phone} />
                     <Row
-                      k={traveler.civicIdType === "cin" ? t("cinLabel") : t("passportLabel")}
+                      k={
+                        traveler.civicIdType === "cin"
+                          ? t("cinLabel")
+                          : t("passportLabel")
+                      }
                       v={traveler.civicId}
                     />
                   </dl>
@@ -173,7 +179,10 @@ async function CheckoutContent({
                   <h3 className="text-sm font-semibold tracking-wide uppercase">
                     {t("totalToPay")}
                   </h3>
-                  <Row2 k={t("subtotal")} v={formatMoney(breakdown.subtotalTnd)} />
+                  <Row2
+                    k={t("subtotal")}
+                    v={formatMoney(breakdown.subtotalTnd)}
+                  />
                   <Row2 k={t("vat")} v={formatMoney(breakdown.vatTnd)} />
                   {breakdown.serviceFeeTnd > 0 ? (
                     <Row2

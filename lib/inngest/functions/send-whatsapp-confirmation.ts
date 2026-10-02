@@ -49,7 +49,9 @@ export const sendWhatsAppConfirmation = inngest.createFunction(
       if (outcome.outcome === "failed") {
         // Échec réel (pas already_sent/skipped, déjà terminaux) → throw
         // pour déclencher le retry Inngest.
-        throw new Error(`WhatsApp send failed: ${outcome.code} — ${outcome.message}`)
+        throw new Error(
+          `WhatsApp send failed: ${outcome.code} — ${outcome.message}`,
+        )
       }
 
       return outcome

@@ -230,7 +230,9 @@ export async function createTransferBooking(
         createdByUserId,
         reservationId,
         idempotencyKey: `booking-debit:${reservationId}`,
-        txOverride: tx as Parameters<typeof debitPartnerCredit>[0]["txOverride"],
+        txOverride: tx as Parameters<
+          typeof debitPartnerCredit
+        >[0]["txOverride"],
       })
 
       if (!debitResult.ok) {
@@ -244,7 +246,11 @@ export async function createTransferBooking(
       // status=confirmed + paiement — auparavant fait par walletDebitReservation.
       await tx
         .update(reservations)
-        .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+        .set({
+          status: "confirmed",
+          confirmedAt: new Date(),
+          updatedAt: new Date(),
+        })
         .where(eq(reservations.id, reservationId))
 
       await recordReservationTransition(tx, {
@@ -278,7 +284,8 @@ export async function createTransferBooking(
       // fournisseur externe modélisé : coût attribué à l'agence en tant que
       // "product_owner", jamais "external_supplier" (voir lib/cars/actions.ts
       // pour le commentaire complet). Aucune commission aujourd'hui.
-      const transferSupplierCostTnd = pricing.basePriceTnd + pricing.nightSurchargeAmount
+      const transferSupplierCostTnd =
+        pricing.basePriceTnd + pricing.nightSurchargeAmount
       await recordReservationFinancials({
         tx,
         reservationId,
@@ -299,7 +306,8 @@ export async function createTransferBooking(
             role: "seller",
             qualification: "seller_margin",
             amount: pricing.totalTnd - transferSupplierCostTnd,
-            basis: "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+            basis:
+              "marge vendeur (agence product_owner ET seller sur son propre tarif)",
           },
         ],
       })
@@ -380,7 +388,9 @@ export async function createTransferBooking(
         pickupAt: `${input.pickupDate}T${input.pickupTime}:00`,
         vehicleType: input.vehicleType,
         totalTnd: outcome.result.totalTnd,
-      }).catch(() => { /* fire-and-forget — le retry Inngest suffira */ })
+      }).catch(() => {
+        /* fire-and-forget — le retry Inngest suffira */
+      })
     }
 
     // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
@@ -392,10 +402,16 @@ export async function createTransferBooking(
         actorUserId: outcome.result.createdByUserId,
       })
       if (!invoiceResult.ok) {
-        console.error("[transfers] génération facture échouée", invoiceResult.error)
+        console.error(
+          "[transfers] génération facture échouée",
+          invoiceResult.error,
+        )
       }
     } catch (err) {
-      console.error("[transfers] génération facture échouée", err instanceof Error ? err.message : String(err))
+      console.error(
+        "[transfers] génération facture échouée",
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
     return {

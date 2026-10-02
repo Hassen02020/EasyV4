@@ -181,7 +181,11 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
             <input
               type="color"
               id="primary-color"
-              value={HEX_COLOR_REGEX.test(state.primaryColor) ? state.primaryColor : "#c2410c"}
+              value={
+                HEX_COLOR_REGEX.test(state.primaryColor)
+                  ? state.primaryColor
+                  : "#c2410c"
+              }
               onChange={(e) => update("primaryColor", e.target.value)}
               className="border-border h-9 w-11 shrink-0 rounded-md border p-0.5"
               aria-label="Sélectionner la couleur d'accent"
@@ -195,10 +199,13 @@ export function EtablissementForm({ initial }: EtablissementFormProps) {
             />
           </div>
           {errors.primaryColor ? (
-            <p className="text-destructive mt-1 text-xs">{errors.primaryColor}</p>
+            <p className="text-destructive mt-1 text-xs">
+              {errors.primaryColor}
+            </p>
           ) : (
             <p className="text-muted-foreground mt-1 text-xs">
-              Remplace la couleur des boutons/liens sur votre storefront public. Vide = teinte Easy2Book par défaut.
+              Remplace la couleur des boutons/liens sur votre storefront public.
+              Vide = teinte Easy2Book par défaut.
             </p>
           )}
         </div>

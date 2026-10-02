@@ -75,7 +75,11 @@ test("SÉCURITÉ — omraGuestBookingSchema : un prix client injecté est ignor�
   assert.equal(result.success, true, "le reste du payload reste valide")
   if (result.success) {
     const parsed = result.data as Record<string, unknown>
-    assert.equal("totalTnd" in parsed, false, "le schéma ne doit exposer aucun champ prix")
+    assert.equal(
+      "totalTnd" in parsed,
+      false,
+      "le schéma ne doit exposer aucun champ prix",
+    )
     assert.equal("pricePerPilgrim" in parsed, false)
     assert.equal("unitPriceTnd" in parsed, false)
   }
@@ -92,14 +96,21 @@ test("SÉCURITÉ — packageGuestBookingSchema : un prix client injecté est ign
   assert.equal(result.success, true)
   if (result.success) {
     const parsed = result.data as Record<string, unknown>
-    assert.equal("totalTnd" in parsed, false, "le schéma ne doit exposer aucun champ prix")
+    assert.equal(
+      "totalTnd" in parsed,
+      false,
+      "le schéma ne doit exposer aucun champ prix",
+    )
     assert.equal("adultPriceTnd" in parsed, false)
     assert.equal("childPriceTnd" in parsed, false)
   }
 })
 
 test("SÉCURITÉ — omraGuestBookingSchema : aucun champ agencyId n'est accepté (résolution serveur uniquement)", () => {
-  const forged = { ...validOmraBooking, agencyId: "00000000-0000-0000-0000-000000000099" }
+  const forged = {
+    ...validOmraBooking,
+    agencyId: "00000000-0000-0000-0000-000000000099",
+  }
   const result = omraGuestBookingSchema.safeParse(forged)
   assert.equal(result.success, true)
   if (result.success) {
@@ -108,7 +119,10 @@ test("SÉCURITÉ — omraGuestBookingSchema : aucun champ agencyId n'est accept�
 })
 
 test("SÉCURITÉ — packageGuestBookingSchema : aucun champ agencyId n'est accepté (résolution serveur uniquement)", () => {
-  const forged = { ...validPackageBooking, agencyId: "00000000-0000-0000-0000-000000000099" }
+  const forged = {
+    ...validPackageBooking,
+    agencyId: "00000000-0000-0000-0000-000000000099",
+  }
   const result = packageGuestBookingSchema.safeParse(forged)
   assert.equal(result.success, true)
   if (result.success) {

@@ -28,7 +28,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ConfirmActionDialog } from "@/components/admin/confirm-action-dialog"
-import { MoreHorizontal, Eye, XCircle, CheckCircle2, Shield, Loader2 } from "lucide-react"
+import {
+  MoreHorizontal,
+  Eye,
+  XCircle,
+  CheckCircle2,
+  Shield,
+  Loader2,
+} from "lucide-react"
 import { setUserStatus, setUserRole } from "@/lib/admin/users-actions"
 import { ADMIN_ROLES, type AdminRole } from "@/lib/auth/admin-gate"
 
@@ -60,7 +67,9 @@ export function StaffRowActions({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
   const [nextRole, setNextRole] = useState<AdminRole>(
-    (ADMIN_ROLES as readonly string[]).includes(role) ? (role as AdminRole) : "agent_resa",
+    (ADMIN_ROLES as readonly string[]).includes(role)
+      ? (role as AdminRole)
+      : "agent_resa",
   )
   const [isPending, startTransition] = useTransition()
   const isActive = status === "active"
@@ -76,7 +85,9 @@ export function StaffRowActions({
         toast.error(result.error)
         return
       }
-      toast.success(isActive ? `${displayName} suspendu.` : `${displayName} réactivé.`)
+      toast.success(
+        isActive ? `${displayName} suspendu.` : `${displayName} réactivé.`,
+      )
       router.refresh()
     })
   }
@@ -104,7 +115,11 @@ export function StaffRowActions({
             aria-label={`Actions pour ${displayName}`}
             disabled={isPending}
           >
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreHorizontal className="h-4 w-4" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -151,8 +166,8 @@ export function StaffRowActions({
           isActive ? (
             <>
               <strong>{displayName}</strong> ne pourra plus se connecter tant
-              que son compte est suspendu. Cette action peut être annulée
-              plus tard.
+              que son compte est suspendu. Cette action peut être annulée plus
+              tard.
             </>
           ) : (
             <>
@@ -170,10 +185,14 @@ export function StaffRowActions({
           <DialogHeader>
             <DialogTitle>Modifier le rôle de {displayName}</DialogTitle>
             <DialogDescription>
-              Le rôle détermine les pages et actions accessibles à cet agent dans le back-office.
+              Le rôle détermine les pages et actions accessibles à cet agent
+              dans le back-office.
             </DialogDescription>
           </DialogHeader>
-          <Select value={nextRole} onValueChange={(v) => setNextRole(v as AdminRole)}>
+          <Select
+            value={nextRole}
+            onValueChange={(v) => setNextRole(v as AdminRole)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -187,7 +206,11 @@ export function StaffRowActions({
           </Select>
           <DialogFooter>
             <Button onClick={handleSaveRole} disabled={isPending}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Enregistrer"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -15,11 +15,11 @@ toucher à Hotel Tunisia/MyGo/XML.
 Avant tout code, audit complet du schéma + grep exhaustif du repo pour localiser **tous**
 les systèmes qui portent le nom "wallet" :
 
-| Système | Table(s) | Statut réel trouvé |
-|---|---|---|
-| **Wallet B2B (agence)** | `agencies.deposit_balance` + `partner_credit_movements` | **Le seul moteur réellement en production.** Utilisé par `debitPartnerCredit` (`lib/pro/booking-actions.ts`) et `creditRechargeRequest` (`lib/finance/wallet-credit.ts`, déclenché par le webhook PSP pour les recharges B2B). Verrou `SELECT...FOR UPDATE` + idempotence Redis + RPC `SECURITY DEFINER` `set_agency_deposit_balance()`. **Non touché dans cette phase.** |
-| `wallets` / `wallet_transactions` | — | **Mort, déjà identifié comme tel** par une phase antérieure (commentaire explicite dans `lib/booking/actions.ts` : ancien moteur qui débitait une colonne qu'aucun flux de recharge réel ne peut créditer, corrigé en unifiant sur `agencies.deposit_balance`). Non réutilisé. |
-| `wallet_accounts` / `wallet_ledger` | `lib/db/schema/financials.ts` | **100% code mort avant cette phase** — zéro appelant réel dans toute l'application (les seuls fichiers qui les référençaient, `lib/finance/wallet-service.ts`, `lib/repositories/wallet-repository.ts`, `lib/booking/workflow-pipeline.ts`, ne sont eux-mêmes importés par rien). Bien conçu (double-entrée, types credit/debit/escrow/commission) mais jamais branché. |
+| Système                             | Table(s)                                                | Statut réel trouvé                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Wallet B2B (agence)**             | `agencies.deposit_balance` + `partner_credit_movements` | **Le seul moteur réellement en production.** Utilisé par `debitPartnerCredit` (`lib/pro/booking-actions.ts`) et `creditRechargeRequest` (`lib/finance/wallet-credit.ts`, déclenché par le webhook PSP pour les recharges B2B). Verrou `SELECT...FOR UPDATE` + idempotence Redis + RPC `SECURITY DEFINER` `set_agency_deposit_balance()`. **Non touché dans cette phase.** |
+| `wallets` / `wallet_transactions`   | —                                                       | **Mort, déjà identifié comme tel** par une phase antérieure (commentaire explicite dans `lib/booking/actions.ts` : ancien moteur qui débitait une colonne qu'aucun flux de recharge réel ne peut créditer, corrigé en unifiant sur `agencies.deposit_balance`). Non réutilisé.                                                                                            |
+| `wallet_accounts` / `wallet_ledger` | `lib/db/schema/financials.ts`                           | **100% code mort avant cette phase** — zéro appelant réel dans toute l'application (les seuls fichiers qui les référençaient, `lib/finance/wallet-service.ts`, `lib/repositories/wallet-repository.ts`, `lib/booking/workflow-pipeline.ts`, ne sont eux-mêmes importés par rien). Bien conçu (double-entrée, types credit/debit/escrow/commission) mais jamais branché.   |
 
 **Décision d'architecture** : réactiver `wallet_accounts`/`wallet_ledger` comme le nouveau
 **Wallet Client (B2C)**, plutôt qu'inventer une 4ᵉ table. Le moteur B2B réel n'est jamais
@@ -27,6 +27,7 @@ modifié — conforme à "DO NOT rewrite existing engines" et à "Do not create 
 payment/wallet engines".
 
 Autres éléments réels confirmés à l'audit :
+
 - `lib/payment/provider.ts` : `NotConfiguredPaymentProvider` — stub volontairement honnête,
   aucun adaptateur Stripe/SPS réel nulle part dans le repo (TND non supporté par Stripe,
   pas de contrat API SPS vérifié).
@@ -149,7 +150,7 @@ n'est pas modifiée par cette phase.
 `lib/finance/manual-payment-actions.ts` — `verifyManualPayment()` :
 
 1. RBAC : `MANUAL_PAYMENT_ALLOWED_ROLES = ["super_admin","manager","agent_resa",
-   "agent_compta"]` (exclut explicitement `agent_excursions` et les rôles partenaires B2B).
+"agent_compta"]` (exclut explicitement `agent_excursions` et les rôles partenaires B2B).
 2. Verrou ligne réservation (`SELECT...FOR UPDATE`).
 3. Vérification d'expiration paresseuse et serveur-autoritaire : si `payment_expires_at`
    est dépassé, bascule en `expired` même si le cron n'est pas encore passé — impossible
@@ -189,7 +190,7 @@ n'est simulé nulle part dans le code ajouté.
 - `payment_expires_at` posé à la création pour `cash`/`transfer` uniquement.
 - `app/api/cron/expire-pending-payments/route.ts` (nouveau, miroir exact du pattern
   `CRON_SECRET` de `/api/cron/cleanup`) : `UPDATE reservations SET status='expired' WHERE
-  status='pending' AND payment_expires_at < now()`.
+status='pending' AND payment_expires_at < now()`.
 - Défense en profondeur : `verifyManualPayment` revérifie l'expiration lui-même (paresseux,
   serveur-autoritaire) même si le cron n'a pas encore tourné.
 - `expired` est terminal dans la state machine : pas de paiement possible, pas de
@@ -223,6 +224,7 @@ testée unitairement (`isPastPaymentDeadline`) mais pas exercée en conditions r
 Nouveaux tests (`lib/finance/__tests__/customer-wallet.test.ts`,
 `lib/finance/__tests__/manual-payment-logic.test.ts`) couvrent, avec le même pattern de DB
 mockée éprouvé que `debitPartnerCredit` (déjà en production) :
+
 - Débit wallet réussi / solde insuffisant (rejeté, jamais de solde négatif) / montant
   invalide / idempotence via cache Redis / création paresseuse de compte.
 - Crédit wallet (remboursement) réussi / montant invalide.
@@ -235,6 +237,7 @@ mockée éprouvé que `debitPartnerCredit` (déjà en production) :
 - State machine : `expired` terminal, aucune transition non-`pending` ne mène à `expired`.
 
 **Ce qui N'A PAS été testé, honnêtement** :
+
 - Aucune exécution contre une vraie base de données, un vrai Redis, ou une vraie session
   staff/client dans cet environnement — `DATABASE_URL` reste structurellement
   indisponible ici (confirmé à nouveau, comme en Phase 14.1/14.2 : Supabase Management API

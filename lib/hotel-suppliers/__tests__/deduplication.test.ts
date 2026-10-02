@@ -44,16 +44,38 @@ test("deduplicateHotels : le même hôtel via 2 fournisseurs devient UN groupe, 
     supplierMappings: [{ supplier: "cyberesa", supplierHotelCode: "CYB-42" }],
   }
   const rates = [
-    rate({ hotelId: "h-mygo", supplier: "mygo", supplierHotelCode: "500001", sellingPrice: 420 }),
-    rate({ hotelId: "h-cyberesa", supplier: "cyberesa", supplierHotelCode: "CYB-42", sellingPrice: 405 }),
+    rate({
+      hotelId: "h-mygo",
+      supplier: "mygo",
+      supplierHotelCode: "500001",
+      sellingPrice: 420,
+    }),
+    rate({
+      hotelId: "h-cyberesa",
+      supplier: "cyberesa",
+      supplierHotelCode: "CYB-42",
+      sellingPrice: 405,
+    }),
   ]
 
   const groups = deduplicateHotels([mygoHotel, cyberesaHotel], rates)
 
   assert.equal(groups.length, 1, "un seul groupe visible côté client")
-  assert.equal(groups[0].members.length, 2, "les 2 hôtels fournisseur restent membres du groupe")
-  assert.equal(groups[0].rates.length, 2, "les 2 offres restent présentes et traçables")
-  assert.equal(groups[0].fromPrice, 405, "le prix affiché est le plus bas des offres du groupe")
+  assert.equal(
+    groups[0].members.length,
+    2,
+    "les 2 hôtels fournisseur restent membres du groupe",
+  )
+  assert.equal(
+    groups[0].rates.length,
+    2,
+    "les 2 offres restent présentes et traçables",
+  )
+  assert.equal(
+    groups[0].fromPrice,
+    405,
+    "le prix affiché est le plus bas des offres du groupe",
+  )
 })
 
 test("deduplicateHotels : hôtels non liés restent des groupes distincts", () => {

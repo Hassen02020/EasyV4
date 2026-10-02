@@ -7,17 +7,16 @@
 import { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { Clock, CheckCircle, XCircle, FileText } from "lucide-react"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ValidationsFilterableTable } from "@/components/admin/validations-filterable-table"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { reservations, reservationValidations, customers } from "@/lib/db/schema"
+import {
+  reservations,
+  reservationValidations,
+  customers,
+} from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
 
 export const metadata: Metadata = {
@@ -57,7 +56,10 @@ export default async function ValidationsPage() {
           customer: customers,
         })
         .from(reservations)
-        .leftJoin(reservationValidations, eq(reservations.id, reservationValidations.reservationId))
+        .leftJoin(
+          reservationValidations,
+          eq(reservations.id, reservationValidations.reservationId),
+        )
         .leftJoin(customers, eq(reservations.customerId, customers.id))
         .where(eq(reservations.agencyId, profile.agencyId))
         .orderBy(desc(reservations.createdAt))
@@ -87,7 +89,10 @@ export default async function ValidationsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-amber-600">
-              {validationList.filter((v) => v.validation?.status === "pending").length}
+              {
+                validationList.filter((v) => v.validation?.status === "pending")
+                  .length
+              }
             </p>
           </CardContent>
         </Card>
@@ -98,7 +103,11 @@ export default async function ValidationsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-emerald-600">
-              {validationList.filter((v) => v.validation?.status === "approved").length}
+              {
+                validationList.filter(
+                  (v) => v.validation?.status === "approved",
+                ).length
+              }
             </p>
           </CardContent>
         </Card>
@@ -109,7 +118,11 @@ export default async function ValidationsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-600">
-              {validationList.filter((v) => v.validation?.status === "rejected").length}
+              {
+                validationList.filter(
+                  (v) => v.validation?.status === "rejected",
+                ).length
+              }
             </p>
           </CardContent>
         </Card>

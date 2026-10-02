@@ -56,7 +56,10 @@ async function withLock<T>(k: string, fn: () => T | Promise<T>): Promise<T> {
 }
 
 /** Réserve `quantity` sièges sur l'offre, atomiquement. */
-export async function reserve(offerKey: string, quantity: number): Promise<boolean> {
+export async function reserve(
+  offerKey: string,
+  quantity: number,
+): Promise<boolean> {
   return withLock(offerKey, () => {
     const avail = currentAvailability(offerKey)
     if (avail < quantity) return false
@@ -66,7 +69,10 @@ export async function reserve(offerKey: string, quantity: number): Promise<boole
 }
 
 /** Restitue l'inventaire (annulation) — symétrique de `reserve`. */
-export async function release(offerKey: string, quantity: number): Promise<void> {
+export async function release(
+  offerKey: string,
+  quantity: number,
+): Promise<void> {
   await withLock(offerKey, () => {
     deltas.set(offerKey, (deltas.get(offerKey) ?? 0) + quantity)
   })

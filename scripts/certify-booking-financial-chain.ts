@@ -25,12 +25,26 @@ import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
 import type { DrizzleLikeTx } from "@/lib/pro/booking-actions"
-import { agencies, customers, reservations, reservationFinancials } from "@/lib/db/schema"
+import {
+  agencies,
+  customers,
+  reservations,
+  reservationFinancials,
+} from "@/lib/db/schema"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
-import { creditPlatformCommission, PLATFORM_COMMISSION_WALLET_ID } from "@/lib/finance/platform-commission"
+import {
+  creditPlatformCommission,
+  PLATFORM_COMMISSION_WALLET_ID,
+} from "@/lib/finance/platform-commission"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
-import { getMarginKPIsCore, getMarginByProductTypeCore } from "@/lib/reporting/margin-analytics-core"
-import { settleCommissions, markSettlementPaid } from "@/lib/finance/commission-settlement"
+import {
+  getMarginKPIsCore,
+  getMarginByProductTypeCore,
+} from "@/lib/reporting/margin-analytics-core"
+import {
+  settleCommissions,
+  markSettlementPaid,
+} from "@/lib/finance/commission-settlement"
 import { payments, walletLedger, commissionSettlements } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
@@ -38,26 +52,35 @@ import { payments, walletLedger, commissionSettlements } from "@/lib/db/schema"
 /* -------------------------------------------------------------------------- */
 
 const GREEN = "\x1b[32m"
-const RED   = "\x1b[31m"
+const RED = "\x1b[31m"
 const AMBER = "\x1b[33m"
-const BOLD  = "\x1b[1m"
+const BOLD = "\x1b[1m"
 const RESET = "\x1b[0m"
 
-function ok(msg: string)   { console.log(`  ${GREEN}✓${RESET} ${msg}`) }
-function fail(msg: string) { console.error(`  ${RED}✗${RESET} ${msg}`); process.exitCode = 1 }
-function warn(msg: string) { console.warn(`  ${AMBER}⚠${RESET} ${msg}`) }
-function section(title: string) { console.log(`\n${BOLD}── ${title}${RESET}`) }
+function ok(msg: string) {
+  console.log(`  ${GREEN}✓${RESET} ${msg}`)
+}
+function fail(msg: string) {
+  console.error(`  ${RED}✗${RESET} ${msg}`)
+  process.exitCode = 1
+}
+function warn(msg: string) {
+  console.warn(`  ${AMBER}⚠${RESET} ${msg}`)
+}
+function section(title: string) {
+  console.log(`\n${BOLD}── ${title}${RESET}`)
+}
 
 /* -------------------------------------------------------------------------- */
 /* Fixtures                                                                    */
 /* -------------------------------------------------------------------------- */
 
-const agencyId     = randomUUID()
-const customerId   = randomUUID()
-const reservationId  = randomUUID()
-const reservationId2 = randomUUID()   // vol, 0% marge
+const agencyId = randomUUID()
+const customerId = randomUUID()
+const reservationId = randomUUID()
+const reservationId2 = randomUUID() // vol, 0% marge
 const START = new Date("2000-01-01T00:00:00Z")
-const END   = new Date("2099-12-31T23:59:59Z")
+const END = new Date("2099-12-31T23:59:59Z")
 
 async function setup() {
   section("Setup — fixtures de test")
@@ -74,7 +97,7 @@ async function setup() {
       id: customerId,
       agencyId,
       firstName: "Cert63",
-      lastName:  "Test",
+      lastName: "Test",
       email: `cert63-${agencyId.slice(0, 8)}@test.invalid`,
     })
     await tx.insert(reservations).values([
@@ -140,34 +163,42 @@ async function stepFinancials() {
 
   // Vérification DB
   const [hotelRow] = await withSystemContext((tx) =>
-    tx.select().from(reservationFinancials)
-      .where(eq(reservationFinancials.reservationId, reservationId))
+    tx
+      .select()
+      .from(reservationFinancials)
+      .where(eq(reservationFinancials.reservationId, reservationId)),
   )
   const [flightRow] = await withSystemContext((tx) =>
-    tx.select().from(reservationFinancials)
-      .where(eq(reservationFinancials.reservationId, reservationId2))
+    tx
+      .select()
+      .from(reservationFinancials)
+      .where(eq(reservationFinancials.reservationId, reservationId2)),
   )
 
   if (!hotelRow || !flightRow) {
-    fail("reservation_financials vide — recordReservationFinancials n'a pas écrit")
+    fail(
+      "reservation_financials vide — recordReservationFinancials n'a pas écrit",
+    )
     return
   }
 
   ok(`Hôtel   → reservation_financials écrit AUTOMATIQUEMENT`)
-  ok(`        supplier=${hotelRow.supplierPriceTnd}  sale=${hotelRow.salePriceTnd}  margin=${hotelRow.marginAmount} (${hotelRow.marginPercent}%)  commission=${hotelRow.commissionAmount}`)
+  ok(
+    `        supplier=${hotelRow.supplierPriceTnd}  sale=${hotelRow.salePriceTnd}  margin=${hotelRow.marginAmount} (${hotelRow.marginPercent}%)  commission=${hotelRow.commissionAmount}`,
+  )
 
   if (hotelRow.marginAmount !== "100.00")
     fail(`marginAmount attendu 100.00 — obtenu ${hotelRow.marginAmount}`)
-  else
-    ok(`        marginAmount = 100.00 TND ✓`)
+  else ok(`        marginAmount = 100.00 TND ✓`)
 
   if (hotelRow.commissionAmount !== "10.00")
     fail(`commissionAmount attendu 10.00 — obtenu ${hotelRow.commissionAmount}`)
-  else
-    ok(`        commissionAmount = 10.00 TND ✓`)
+  else ok(`        commissionAmount = 10.00 TND ✓`)
 
   ok(`Vol     → reservation_financials écrit (marge=0 — prix catalogue B2C)`)
-  ok(`        supplier=${flightRow.supplierPriceTnd}  sale=${flightRow.salePriceTnd}  margin=${flightRow.marginAmount} ✓`)
+  ok(
+    `        supplier=${flightRow.supplierPriceTnd}  sale=${flightRow.salePriceTnd}  margin=${flightRow.marginAmount} ✓`,
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -193,18 +224,25 @@ async function stepCommission() {
         SELECT amount::text, category FROM wallet_ledger
         WHERE reservation_id = ${reservationId}::uuid AND category = 'commission'
         LIMIT 1
-      `)
+      `),
     )
-    const rows = (ledger as { rows?: Array<Record<string, unknown>> }).rows
-      ?? (ledger as Array<Record<string, unknown>>)
+    const rows =
+      (ledger as { rows?: Array<Record<string, unknown>> }).rows ??
+      (ledger as Array<Record<string, unknown>>)
     if (rows.length > 0) {
-      ok(`wallet_ledger commission → amount=${rows[0]!.amount} category=${rows[0]!.category}`)
+      ok(
+        `wallet_ledger commission → amount=${rows[0]!.amount} category=${rows[0]!.category}`,
+      )
     } else {
-      warn("wallet_ledger vide pour commission — credit_platform_commission() SQL peut être absent")
+      warn(
+        "wallet_ledger vide pour commission — credit_platform_commission() SQL peut être absent",
+      )
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    warn(`creditPlatformCommission a levé une erreur (fonctions SQL absentes ?) : ${msg}`)
+    warn(
+      `creditPlatformCommission a levé une erreur (fonctions SQL absentes ?) : ${msg}`,
+    )
   }
 }
 
@@ -216,7 +254,8 @@ async function stepAnalytics() {
   section("Étape 3 — Confirmation + getMarginKPIsCore")
 
   await withSystemContext(async (tx) => {
-    await tx.update(reservations)
+    await tx
+      .update(reservations)
       .set({ status: "confirmed", confirmedAt: new Date() })
       .where(eq(reservations.agencyId, agencyId))
   })
@@ -227,33 +266,51 @@ async function stepAnalytics() {
 
   console.log()
   console.log(`  Réservations confirmées : ${kpis.confirmedReservations}`)
-  console.log(`  CA total                : ${kpis.totalRevenueTnd.toFixed(2)} TND`)
-  console.log(`  Marge totale            : ${kpis.totalMarginTnd.toFixed(2)} TND`)
-  console.log(`  Commission totale       : ${kpis.totalCommission.toFixed(2)} TND`)
-  console.log(`  Marge moy %             : ${kpis.averageMarginPercent.toFixed(2)} %`)
+  console.log(
+    `  CA total                : ${kpis.totalRevenueTnd.toFixed(2)} TND`,
+  )
+  console.log(
+    `  Marge totale            : ${kpis.totalMarginTnd.toFixed(2)} TND`,
+  )
+  console.log(
+    `  Commission totale       : ${kpis.totalCommission.toFixed(2)} TND`,
+  )
+  console.log(
+    `  Marge moy %             : ${kpis.averageMarginPercent.toFixed(2)} %`,
+  )
   console.log()
 
   for (const row of byType) {
     console.log(
       `  ${row.productType.padEnd(14)} CA=${row.totalRevenue.toFixed(2).padStart(9)}  ` +
-      `margin=${row.totalMargin.toFixed(2).padStart(8)}  ${row.marginPercent.toFixed(2).padStart(6)}%  n=${row.reservationCount}`
+        `margin=${row.totalMargin.toFixed(2).padStart(8)}  ${row.marginPercent.toFixed(2).padStart(6)}%  n=${row.reservationCount}`,
     )
   }
 
-  if (kpis.confirmedReservations >= 2) ok("Réservations correctement comptabilisées")
-  else fail(`Attendu ≥2 réservations confirmées — obtenu ${kpis.confirmedReservations}`)
+  if (kpis.confirmedReservations >= 2)
+    ok("Réservations correctement comptabilisées")
+  else
+    fail(
+      `Attendu ≥2 réservations confirmées — obtenu ${kpis.confirmedReservations}`,
+    )
 
   if (kpis.totalMarginTnd >= 100) ok("Marge ≥ 100 TND (hôtel test)")
   else fail(`Marge insuffisante : ${kpis.totalMarginTnd}`)
 
-  const hotelType = byType.find(r => r.productType === "hotel")
-  const flightType = byType.find(r => r.productType === "flight")
+  const hotelType = byType.find((r) => r.productType === "hotel")
+  const flightType = byType.find((r) => r.productType === "flight")
 
-  if (hotelType)  ok(`Hôtel  visible dans analytics → marge ${hotelType.marginPercent.toFixed(2)}%`)
-  else             fail("Module hotel absent du getMarginByProductTypeCore")
+  if (hotelType)
+    ok(
+      `Hôtel  visible dans analytics → marge ${hotelType.marginPercent.toFixed(2)}%`,
+    )
+  else fail("Module hotel absent du getMarginByProductTypeCore")
 
-  if (flightType) ok(`Vol    visible dans analytics → marge ${flightType.marginPercent.toFixed(2)}% (catalogue, 0% attendu)`)
-  else             fail("Module flight absent du getMarginByProductTypeCore")
+  if (flightType)
+    ok(
+      `Vol    visible dans analytics → marge ${flightType.marginPercent.toFixed(2)}% (catalogue, 0% attendu)`,
+    )
+  else fail("Module flight absent du getMarginByProductTypeCore")
 }
 
 /* -------------------------------------------------------------------------- */
@@ -265,25 +322,30 @@ async function stepWallet() {
 
   // withTenantContext + txOverride = même chemin que le booking B2B réel
   let result: Awaited<ReturnType<typeof debitPartnerCredit>> | undefined
-  await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, async (tx) => {
-    result = await debitPartnerCredit({
-      agencyId,
-      amountTnd: 1000,
-      reference: "CERT63-HOTEL-001",
-      description: "Certification 63 — hôtel CERT63-HOTEL-001",
-      reservationId,
-      txOverride: tx as unknown as DrizzleLikeTx,
-    })
-  })
+  await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    async (tx) => {
+      result = await debitPartnerCredit({
+        agencyId,
+        amountTnd: 1000,
+        reference: "CERT63-HOTEL-001",
+        description: "Certification 63 — hôtel CERT63-HOTEL-001",
+        reservationId,
+        txOverride: tx as unknown as DrizzleLikeTx,
+      })
+    },
+  )
 
   if (!result || !result.ok) {
-    const code    = result?.code    ?? "UNKNOWN"
+    const code = result?.code ?? "UNKNOWN"
     const message = result?.message ?? "résultat indéfini"
     if (
       code === "DATABASE_NOT_CONFIGURED" ||
       /does not exist|function|lock_agency_for_debit/i.test(message)
     ) {
-      warn(`debitPartnerCredit — fonctions SQL SECURITY DEFINER absentes : ${message}`)
+      warn(
+        `debitPartnerCredit — fonctions SQL SECURITY DEFINER absentes : ${message}`,
+      )
       warn("Ce step est optionnel en CI sans migrations complètes")
       return
     }
@@ -291,17 +353,26 @@ async function stepWallet() {
     return
   }
 
-  ok(`debitPartnerCredit → solde avant=${result.balanceBefore}  après=${result.balanceAfter}`)
-  ok(`partner_credit_movements créé (movementId=${result.movementId.slice(0, 8)}…)`)
+  ok(
+    `debitPartnerCredit → solde avant=${result.balanceBefore}  après=${result.balanceAfter}`,
+  )
+  ok(
+    `partner_credit_movements créé (movementId=${result.movementId.slice(0, 8)}…)`,
+  )
 
   const [ag] = await withSystemContext((tx) =>
-    tx.select({ bal: agencies.depositBalance }).from(agencies)
-      .where(eq(agencies.id, agencyId))
+    tx
+      .select({ bal: agencies.depositBalance })
+      .from(agencies)
+      .where(eq(agencies.id, agencyId)),
   )
   ok(`agencies.deposit_balance = ${ag?.bal} TND (était 50 000 TND avant débit)`)
 
   if (Number(ag?.bal ?? 50000) < 50000) ok("Solde correctement diminué ✓")
-  else fail("Solde n'a pas diminué — debitPartnerCredit n'a pas mis à jour agencies")
+  else
+    fail(
+      "Solde n'a pas diminué — debitPartnerCredit n'a pas mis à jour agencies",
+    )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -310,7 +381,7 @@ async function stepWallet() {
 
 // Far-future period unique to this run (avoids collisions with real data)
 const SETTLE_PERIOD_START = new Date("2098-06-01T00:00:00Z")
-const SETTLE_PERIOD_END   = new Date("2098-06-30T23:59:59Z")
+const SETTLE_PERIOD_END = new Date("2098-06-30T23:59:59Z")
 
 let certSettlementId = ""
 
@@ -320,17 +391,20 @@ async function stepSettlement() {
   // Insert a test commission entry dated inside our far-future period
   let commLedgerId = ""
   await withSystemContext(async (tx) => {
-    const ins = await tx.insert(walletLedger).values({
-      walletAccountId: PLATFORM_COMMISSION_WALLET_ID,
-      type: "credit",
-      status: "completed",
-      amount: "10.00",
-      balanceBefore: "0.00",
-      balanceAfter: "10.00",
-      description: `Commission CERT63-HOTEL-001 (settlement test)`,
-      category: "commission",
-      reservationId,
-    }).returning({ id: walletLedger.id })
+    const ins = await tx
+      .insert(walletLedger)
+      .values({
+        walletAccountId: PLATFORM_COMMISSION_WALLET_ID,
+        type: "credit",
+        status: "completed",
+        amount: "10.00",
+        balanceBefore: "0.00",
+        balanceAfter: "10.00",
+        description: `Commission CERT63-HOTEL-001 (settlement test)`,
+        category: "commission",
+        reservationId,
+      })
+      .returning({ id: walletLedger.id })
     commLedgerId = (ins as Array<{ id: string }>)[0]!.id
     // Backdate into test period
     await tx.execute(sql`
@@ -338,7 +412,9 @@ async function stepSettlement() {
       WHERE id = ${commLedgerId}::uuid
     `)
   })
-  ok(`Entrée commission test créée dans wallet_ledger (id=${commLedgerId.slice(0, 8)}…)`)
+  ok(
+    `Entrée commission test créée dans wallet_ledger (id=${commLedgerId.slice(0, 8)}…)`,
+  )
 
   try {
     const result = await settleCommissions(
@@ -349,16 +425,25 @@ async function stepSettlement() {
     )
     certSettlementId = result.settlementId
 
-    ok(`settleCommissions → settlementId=${result.settlementId.slice(0, 8)}…  status=${result.status}`)
-    ok(`  totalAmount=${result.totalAmount} TND  entryCount=${result.entryCount}`)
+    ok(
+      `settleCommissions → settlementId=${result.settlementId.slice(0, 8)}…  status=${result.status}`,
+    )
+    ok(
+      `  totalAmount=${result.totalAmount} TND  entryCount=${result.entryCount}`,
+    )
 
     if (result.entryCount >= 1) ok("Au moins 1 entrée commission settlée ✓")
     else fail("Aucune entrée commission trouvée pour le settlement")
 
     // Vérifier wallet_ledger settled_at
     const ledger = await withSystemContext((tx) =>
-      tx.select({ settledAt: walletLedger.settledAt, settlementId: walletLedger.settlementId })
-        .from(walletLedger).where(eq(walletLedger.id, commLedgerId))
+      tx
+        .select({
+          settledAt: walletLedger.settledAt,
+          settlementId: walletLedger.settlementId,
+        })
+        .from(walletLedger)
+        .where(eq(walletLedger.id, commLedgerId)),
     )
     if (ledger[0]?.settledAt != null) {
       ok("wallet_ledger.settled_at renseigné ✓")
@@ -371,18 +456,25 @@ async function stepSettlement() {
     await markSettlementPaid(certSettlementId, "cert63-tresorier")
 
     const rows = await withSystemContext((tx) =>
-      tx.select({ status: commissionSettlements.status, settledAt: commissionSettlements.settledAt })
-        .from(commissionSettlements).where(eq(commissionSettlements.id, certSettlementId))
+      tx
+        .select({
+          status: commissionSettlements.status,
+          settledAt: commissionSettlements.settledAt,
+        })
+        .from(commissionSettlements)
+        .where(eq(commissionSettlements.id, certSettlementId)),
     )
     if (rows[0]?.status === "paid") ok("commission_settlements.status = paid ✓")
     else fail(`status attendu 'paid' — obtenu ${rows[0]?.status}`)
-    if (rows[0]?.settledAt != null) ok("commission_settlements.settled_at renseigné ✓")
+    if (rows[0]?.settledAt != null)
+      ok("commission_settlements.settled_at renseigné ✓")
     else fail("settled_at NULL après markSettlementPaid")
-
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     warn(`stepSettlement a levé une erreur : ${msg}`)
-    warn("Vérifier que wallet_accounts contient l'entrée PLATFORM_COMMISSION_WALLET_ID (migration 0066)")
+    warn(
+      "Vérifier que wallet_accounts contient l'entrée PLATFORM_COMMISSION_WALLET_ID (migration 0066)",
+    )
   }
 }
 
@@ -391,7 +483,9 @@ async function stepSettlement() {
 /* -------------------------------------------------------------------------- */
 
 async function stepSettlementIdempotence() {
-  section("Étape 6 — Idempotence : deuxième settleCommissions même période → UNIQUE violation")
+  section(
+    "Étape 6 — Idempotence : deuxième settleCommissions même période → UNIQUE violation",
+  )
   if (!certSettlementId) {
     warn("Étape 5 n'a pas créé de settlement — skip idempotence")
     return
@@ -402,15 +496,20 @@ async function stepSettlementIdempotence() {
       SETTLE_PERIOD_END,
       "cert63-retry",
     )
-    fail("Deuxième settleCommissions aurait dû être rejeté par UNIQUE INDEX (period_start, period_end)")
+    fail(
+      "Deuxième settleCommissions aurait dû être rejeté par UNIQUE INDEX (period_start, period_end)",
+    )
   } catch (e: unknown) {
-    const msg    = (e as { message?: string }).message ?? ""
-    const pgCode = (e as { cause?: { code?: string } }).cause?.code
-      ?? (e as { code?: string }).code
+    const msg = (e as { message?: string }).message ?? ""
+    const pgCode =
+      (e as { cause?: { code?: string } }).cause?.code ??
+      (e as { code?: string }).code
     if (msg.includes("Failed query") || pgCode === "23505") {
       ok("UNIQUE violation correctement levée sur double-settlement ✓")
     } else {
-      warn(`Exception inattendue (pas une UNIQUE violation) : code=${pgCode}, msg=${msg}`)
+      warn(
+        `Exception inattendue (pas une UNIQUE violation) : code=${pgCode}, msg=${msg}`,
+      )
     }
   }
 }
@@ -420,7 +519,9 @@ async function stepSettlementIdempotence() {
 /* -------------------------------------------------------------------------- */
 
 async function stepRollback() {
-  section("Étape 7 — Rollback : exception dans withSystemContext annule tous les INSERTs")
+  section(
+    "Étape 7 — Rollback : exception dans withSystemContext annule tous les INSERTs",
+  )
 
   const rollbackResId = randomUUID()
   try {
@@ -444,11 +545,16 @@ async function stepRollback() {
   }
 
   const [res] = await withSystemContext((tx) =>
-    tx.select({ id: reservations.id }).from(reservations)
-      .where(eq(reservations.id, rollbackResId))
+    tx
+      .select({ id: reservations.id })
+      .from(reservations)
+      .where(eq(reservations.id, rollbackResId)),
   )
   if (!res) ok("Rollback correct — aucun enregistrement partiel en base ✓")
-  else fail("Rollback raté — reservation insérée malgré l'exception dans la transaction")
+  else
+    fail(
+      "Rollback raté — reservation insérée malgré l'exception dans la transaction",
+    )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -464,9 +570,11 @@ async function cleanup() {
       WHERE period_start >= ${SETTLE_PERIOD_START.toISOString().split("T")[0]}
         AND period_end <= ${SETTLE_PERIOD_END.toISOString().split("T")[0]}
     `)
-    await tx.delete(reservationFinancials)
+    await tx
+      .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))
-    await tx.delete(reservationFinancials)
+    await tx
+      .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId2))
     await tx.execute(sql`
       DELETE FROM wallet_ledger WHERE reservation_id IN (${reservationId}::uuid, ${reservationId2}::uuid)
@@ -486,12 +594,18 @@ async function cleanup() {
 /* -------------------------------------------------------------------------- */
 
 async function main() {
-  console.log(`${BOLD}=== Certification Chantier 63/64 — Booking → Financials → Wallet → Settlement ===${RESET}`)
+  console.log(
+    `${BOLD}=== Certification Chantier 63/64 — Booking → Financials → Wallet → Settlement ===${RESET}`,
+  )
   console.log(`Agence test : ${agencyId}`)
   console.log(`Date        : ${new Date().toISOString()}`)
   console.log()
-  console.log(`${AMBER}Gap documenté :${RESET} Supplier reconciliation n'est pas implémenté`)
-  console.log(`  (lib/db/schema/suppliers.ts — roadmap L5 connectivity uniquement)`)
+  console.log(
+    `${AMBER}Gap documenté :${RESET} Supplier reconciliation n'est pas implémenté`,
+  )
+  console.log(
+    `  (lib/db/schema/suppliers.ts — roadmap L5 connectivity uniquement)`,
+  )
 
   try {
     await setup()
@@ -510,18 +624,32 @@ async function main() {
 
   const code = process.exitCode ?? 0
   if (code === 0) {
-    console.log(`\n${GREEN}${BOLD}✓ Certification Chantier 63/64 RÉUSSIE${RESET}`)
-    console.log("  Le Financial Puzzle est réellement branché au moteur commercial.")
-    console.log("  reservation_financials → wallet → settlement : chaîne complète certifiée.")
-    console.log("  rollback transactionnel : aucune écriture partielle possible.")
-    console.log(`  ${AMBER}Gap ouvert :${RESET} supplier reconciliation (Chantier futur).`)
+    console.log(
+      `\n${GREEN}${BOLD}✓ Certification Chantier 63/64 RÉUSSIE${RESET}`,
+    )
+    console.log(
+      "  Le Financial Puzzle est réellement branché au moteur commercial.",
+    )
+    console.log(
+      "  reservation_financials → wallet → settlement : chaîne complète certifiée.",
+    )
+    console.log(
+      "  rollback transactionnel : aucune écriture partielle possible.",
+    )
+    console.log(
+      `  ${AMBER}Gap ouvert :${RESET} supplier reconciliation (Chantier futur).`,
+    )
   } else {
-    console.error(`\n${RED}${BOLD}✗ Certification Chantier 63/64 ÉCHOUÉE${RESET}`)
+    console.error(
+      `\n${RED}${BOLD}✗ Certification Chantier 63/64 ÉCHOUÉE${RESET}`,
+    )
     console.error("  Voir les ✗ ci-dessus pour les assertions manquantes.")
   }
 }
 
-main().catch((e) => {
-  console.error(`${RED}Erreur fatale :${RESET}`, e)
-  process.exit(1)
-}).finally(() => process.exit(process.exitCode ?? 0))
+main()
+  .catch((e) => {
+    console.error(`${RED}Erreur fatale :${RESET}`, e)
+    process.exit(1)
+  })
+  .finally(() => process.exit(process.exitCode ?? 0))

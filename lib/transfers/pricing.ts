@@ -24,7 +24,8 @@ import { applyMargin } from "@/lib/pro/pricing"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 
 /** Type union des valeurs possibles pour un véhicule de transfert. */
-export type TransferVehicleType = (typeof transferVehicleType.enumValues)[number]
+export type TransferVehicleType =
+  (typeof transferVehicleType.enumValues)[number]
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */

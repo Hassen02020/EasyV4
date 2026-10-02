@@ -12,7 +12,12 @@ import type { SupplierName } from "../core/types"
 import type { TenantContext } from "@/lib/db/tenant-context"
 
 export type SupplierAccountOwnerType = "master" | "agency" | "whitelabel"
-export type SupplierAccountStatus = "active" | "disabled" | "invalid_credentials" | "not_configured" | "error"
+export type SupplierAccountStatus =
+  | "active"
+  | "disabled"
+  | "invalid_credentials"
+  | "not_configured"
+  | "error"
 
 export interface ResolveSupplierAccountParams {
   supplierCode: SupplierName

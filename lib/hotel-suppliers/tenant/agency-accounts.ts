@@ -29,13 +29,18 @@ import {
   hotelSupplierAccounts,
   hotelSupplierCredentials,
 } from "@/lib/db/schema"
-import { encryptSecret, maskSecretForDisplay } from "@/lib/security/secret-crypto"
+import {
+  encryptSecret,
+  maskSecretForDisplay,
+} from "@/lib/security/secret-crypto"
 import { logSupplierAudit, assertNoSecretLeak } from "./audit"
 import { resolveSupplierAccount } from "./resolver"
 import { SUPPLIER_NAMES } from "../core/types"
 import { logger } from "@/lib/logger"
 
-export type AgencySupplierActionResult = { ok: true } | { ok: false; error: string }
+export type AgencySupplierActionResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 interface AgencyActorContext {
   ctx: TenantContext & { agencyId: string }
@@ -51,12 +56,20 @@ async function requireAgencyActorContext(): Promise<AgencyActorContext> {
 
   const profile = await getCurrentPartnerProfile(user.id)
   if (!profile) throw new Error("FORBIDDEN")
-  const isValidRole = profile.role === "partner_owner" || profile.role === "partner_agent" || profile.role === "super_admin"
+  const isValidRole =
+    profile.role === "partner_owner" ||
+    profile.role === "partner_agent" ||
+    profile.role === "super_admin"
   if (!isValidRole) throw new Error("FORBIDDEN")
 
   return {
-    ctx: { agencyId: profile.agency.id, userId: profile.userId, isSuperAdmin: profile.role === "super_admin" },
-    canManage: profile.role === "partner_owner" || profile.role === "super_admin",
+    ctx: {
+      agencyId: profile.agency.id,
+      userId: profile.userId,
+      isSuperAdmin: profile.role === "super_admin",
+    },
+    canManage:
+      profile.role === "partner_owner" || profile.role === "super_admin",
   }
 }
 
@@ -79,7 +92,9 @@ export interface AgencySupplierAccountRow {
 }
 
 /** RLS filtre déjà : comptes de sa propre agence + comptes partagés explicitement autorisés pour elle. Aucun filtre applicatif nécessaire. */
-export async function listAgencyVisibleSupplierAccounts(): Promise<AgencySupplierAccountRow[]> {
+export async function listAgencyVisibleSupplierAccounts(): Promise<
+  AgencySupplierAccountRow[]
+> {
   const { ctx } = await requireAgencyActorContext()
   return withTenantContext(ctx, async (tx) => {
     const rows = await tx
@@ -89,10 +104,15 @@ export async function listAgencyVisibleSupplierAccounts(): Promise<AgencySupplie
         supplierName: hotelSuppliers.name,
       })
       .from(hotelSupplierAccounts)
-      .innerJoin(hotelSuppliers, eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId))
+      .innerJoin(
+        hotelSuppliers,
+        eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId),
+      )
       .orderBy(hotelSupplierAccounts.priority)
 
-    const credRows = await tx.select({ accountId: hotelSupplierCredentials.accountId }).from(hotelSupplierCredentials)
+    const credRows = await tx
+      .select({ accountId: hotelSupplierCredentials.accountId })
+      .from(hotelSupplierCredentials)
     const withCreds = new Set(credRows.map((r) => r.accountId))
 
     return rows.map((r) => ({
@@ -117,7 +137,9 @@ export async function listAgencyVisibleSupplierAccounts(): Promise<AgencySupplie
 
 export async function listHotelSuppliersCatalogForAgency() {
   const { ctx } = await requireAgencyActorContext()
-  return withTenantContext(ctx, (tx) => tx.select().from(hotelSuppliers).orderBy(hotelSuppliers.code))
+  return withTenantContext(ctx, (tx) =>
+    tx.select().from(hotelSuppliers).orderBy(hotelSuppliers.code),
+  )
 }
 
 export interface CreateOwnSupplierAccountInput {
@@ -129,12 +151,22 @@ export interface CreateOwnSupplierAccountInput {
   password: string
 }
 
-export async function createOwnSupplierAccount(input: CreateOwnSupplierAccountInput): Promise<AgencySupplierActionResult> {
+export async function createOwnSupplierAccount(
+  input: CreateOwnSupplierAccountInput,
+): Promise<AgencySupplierActionResult> {
   const { ctx, canManage } = await requireAgencyActorContext()
-  if (!canManage) return { ok: false, error: "Réservé au propriétaire de l'agence." }
+  if (!canManage)
+    return { ok: false, error: "Réservé au propriétaire de l'agence." }
   try {
-    if (!input.displayName.trim() || !input.login.trim() || !input.password.trim()) {
-      return { ok: false, error: "Champs requis manquants (nom, login, mot de passe)." }
+    if (
+      !input.displayName.trim() ||
+      !input.login.trim() ||
+      !input.password.trim()
+    ) {
+      return {
+        ok: false,
+        error: "Champs requis manquants (nom, login, mot de passe).",
+      }
     }
     await withTenantContext(ctx, async (tx) => {
       const [account] = await tx
@@ -155,7 +187,10 @@ export async function createOwnSupplierAccount(input: CreateOwnSupplierAccountIn
         .returning({ id: hotelSupplierAccounts.id })
       const id = account!.id
 
-      const cred = encryptSecret({ login: input.login.trim(), password: input.password })
+      const cred = encryptSecret({
+        login: input.login.trim(),
+        password: input.password,
+      })
       await tx.insert(hotelSupplierCredentials).values({
         accountId: id,
         agencyId: ctx.agencyId,
@@ -164,62 +199,126 @@ export async function createOwnSupplierAccount(input: CreateOwnSupplierAccountIn
         updatedByUserId: ctx.userId,
       })
 
-      const diff = { supplierId: input.supplierId, displayName: input.displayName, mode: input.mode }
+      const diff = {
+        supplierId: input.supplierId,
+        displayName: input.displayName,
+        mode: input.mode,
+      }
       assertNoSecretLeak(diff)
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_ACCOUNT_CREATED", accountId: id, diff })
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_ACCOUNT_CREATED",
+        accountId: id,
+        diff,
+      })
     })
     revalidatePath("/pro/suppliers")
     return { ok: true }
   } catch (err) {
-    logger.error("[HotelSuppliers][Agency] Échec création compte", { code: err instanceof Error ? err.constructor.name : "unknown" })
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    logger.error("[HotelSuppliers][Agency] Échec création compte", {
+      code: err instanceof Error ? err.constructor.name : "unknown",
+    })
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-async function assertOwnsAccount(ctx: TenantContext & { agencyId: string }, accountId: string): Promise<boolean> {
+async function assertOwnsAccount(
+  ctx: TenantContext & { agencyId: string },
+  accountId: string,
+): Promise<boolean> {
   return withTenantContext(ctx, async (tx) => {
-    const [row] = await tx.select({ agencyId: hotelSupplierAccounts.agencyId }).from(hotelSupplierAccounts).where(eq(hotelSupplierAccounts.id, accountId))
+    const [row] = await tx
+      .select({ agencyId: hotelSupplierAccounts.agencyId })
+      .from(hotelSupplierAccounts)
+      .where(eq(hotelSupplierAccounts.id, accountId))
     return !!row && row.agencyId === ctx.agencyId
   })
 }
 
-export async function rotateOwnSupplierCredentials(accountId: string, login: string, password: string): Promise<AgencySupplierActionResult> {
+export async function rotateOwnSupplierCredentials(
+  accountId: string,
+  login: string,
+  password: string,
+): Promise<AgencySupplierActionResult> {
   const { ctx, canManage } = await requireAgencyActorContext()
-  if (!canManage) return { ok: false, error: "Réservé au propriétaire de l'agence." }
+  if (!canManage)
+    return { ok: false, error: "Réservé au propriétaire de l'agence." }
   try {
-    if (!login.trim() || !password.trim()) return { ok: false, error: "Login et mot de passe requis." }
+    if (!login.trim() || !password.trim())
+      return { ok: false, error: "Login et mot de passe requis." }
     // Défense en profondeur : ne jamais dépendre uniquement du silence RLS
     // (une écriture hors scope affecterait 0 ligne, pas une erreur explicite).
-    if (!(await assertOwnsAccount(ctx, accountId))) return { ok: false, error: "Ce compte ne vous appartient pas." }
+    if (!(await assertOwnsAccount(ctx, accountId)))
+      return { ok: false, error: "Ce compte ne vous appartient pas." }
 
     await withTenantContext(ctx, async (tx) => {
       const cred = encryptSecret({ login: login.trim(), password })
-      const existing = await tx.select({ id: hotelSupplierCredentials.id }).from(hotelSupplierCredentials).where(eq(hotelSupplierCredentials.accountId, accountId))
+      const existing = await tx
+        .select({ id: hotelSupplierCredentials.id })
+        .from(hotelSupplierCredentials)
+        .where(eq(hotelSupplierCredentials.accountId, accountId))
       if (existing.length > 0) {
         await tx
           .update(hotelSupplierCredentials)
-          .set({ ciphertext: cred.ciphertext, keyVersion: cred.keyVersion, updatedByUserId: ctx.userId, updatedAt: new Date() })
+          .set({
+            ciphertext: cred.ciphertext,
+            keyVersion: cred.keyVersion,
+            updatedByUserId: ctx.userId,
+            updatedAt: new Date(),
+          })
           .where(eq(hotelSupplierCredentials.accountId, accountId))
       } else {
-        await tx.insert(hotelSupplierCredentials).values({ accountId, agencyId: ctx.agencyId, ciphertext: cred.ciphertext, keyVersion: cred.keyVersion, updatedByUserId: ctx.userId })
+        await tx
+          .insert(hotelSupplierCredentials)
+          .values({
+            accountId,
+            agencyId: ctx.agencyId,
+            ciphertext: cred.ciphertext,
+            keyVersion: cred.keyVersion,
+            updatedByUserId: ctx.userId,
+          })
       }
-      await tx.update(hotelSupplierAccounts).set({ status: "active", updatedAt: new Date() }).where(eq(hotelSupplierAccounts.id, accountId))
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_CREDENTIALS_ROTATED", accountId, diff: { rotated: true } })
+      await tx
+        .update(hotelSupplierAccounts)
+        .set({ status: "active", updatedAt: new Date() })
+        .where(eq(hotelSupplierAccounts.id, accountId))
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_CREDENTIALS_ROTATED",
+        accountId,
+        diff: { rotated: true },
+      })
     })
     revalidatePath("/pro/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-export async function setOwnSupplierAccountStatus(accountId: string, status: "active" | "disabled"): Promise<AgencySupplierActionResult> {
+export async function setOwnSupplierAccountStatus(
+  accountId: string,
+  status: "active" | "disabled",
+): Promise<AgencySupplierActionResult> {
   const { ctx, canManage } = await requireAgencyActorContext()
-  if (!canManage) return { ok: false, error: "Réservé au propriétaire de l'agence." }
+  if (!canManage)
+    return { ok: false, error: "Réservé au propriétaire de l'agence." }
   try {
-    if (!(await assertOwnsAccount(ctx, accountId))) return { ok: false, error: "Ce compte ne vous appartient pas." }
+    if (!(await assertOwnsAccount(ctx, accountId)))
+      return { ok: false, error: "Ce compte ne vous appartient pas." }
     await withTenantContext(ctx, async (tx) => {
-      await tx.update(hotelSupplierAccounts).set({ status, updatedAt: new Date() }).where(eq(hotelSupplierAccounts.id, accountId))
+      await tx
+        .update(hotelSupplierAccounts)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(hotelSupplierAccounts.id, accountId))
       await logSupplierAudit(tx, {
         agencyId: ctx.agencyId,
         actorUserId: ctx.userId,
@@ -231,13 +330,20 @@ export async function setOwnSupplierAccountStatus(accountId: string, status: "ac
     revalidatePath("/pro/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
-export async function updateOwnSupplierAccountPriority(accountId: string, priority: number): Promise<AgencySupplierActionResult> {
+export async function updateOwnSupplierAccountPriority(
+  accountId: string,
+  priority: number,
+): Promise<AgencySupplierActionResult> {
   const { ctx, canManage } = await requireAgencyActorContext()
-  if (!canManage) return { ok: false, error: "Réservé au propriétaire de l'agence." }
+  if (!canManage)
+    return { ok: false, error: "Réservé au propriétaire de l'agence." }
   try {
     // La priorité peut être réglée par l'agence même sur un compte MASTER
     // partagé qu'elle utilise (ordre d'essai propre à SON contexte de
@@ -247,32 +353,56 @@ export async function updateOwnSupplierAccountPriority(accountId: string, priori
     // un compte qui ne lui appartient pas (RLS l'empêcherait de toute façon —
     // write policy = agency_id = current_agency_id()), cette action reste
     // limitée aux comptes propres, comme les autres actions d'écriture.
-    if (!(await assertOwnsAccount(ctx, accountId))) return { ok: false, error: "Ce compte ne vous appartient pas." }
+    if (!(await assertOwnsAccount(ctx, accountId)))
+      return { ok: false, error: "Ce compte ne vous appartient pas." }
     await withTenantContext(ctx, async (tx) => {
-      await tx.update(hotelSupplierAccounts).set({ priority, updatedAt: new Date() }).where(eq(hotelSupplierAccounts.id, accountId))
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_ACCOUNT_UPDATED", accountId, diff: { priority } })
+      await tx
+        .update(hotelSupplierAccounts)
+        .set({ priority, updatedAt: new Date() })
+        .where(eq(hotelSupplierAccounts.id, accountId))
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_ACCOUNT_UPDATED",
+        accountId,
+        diff: { priority },
+      })
     })
     revalidatePath("/pro/suppliers")
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
 /** Même opération de test que le Master Admin (lecture pure `listCities`) — disponible en lecture pour owner ET agent. */
-export async function testOwnSupplierConnection(accountId: string): Promise<AgencySupplierActionResult> {
+export async function testOwnSupplierConnection(
+  accountId: string,
+): Promise<AgencySupplierActionResult> {
   const { ctx } = await requireAgencyActorContext()
   try {
     const [accountRow] = await withTenantContext(ctx, (tx) =>
       tx
         .select({ supplierCode: hotelSuppliers.code })
         .from(hotelSupplierAccounts)
-        .innerJoin(hotelSuppliers, eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId))
+        .innerJoin(
+          hotelSuppliers,
+          eq(hotelSuppliers.id, hotelSupplierAccounts.supplierId),
+        )
         .where(eq(hotelSupplierAccounts.id, accountId)),
     )
-    if (!accountRow) return { ok: false, error: "Compte introuvable ou inaccessible." }
-    if (!(SUPPLIER_NAMES as readonly string[]).includes(accountRow.supplierCode)) {
-      return { ok: false, error: `Fournisseur non pris en charge par le Hub: ${accountRow.supplierCode}` }
+    if (!accountRow)
+      return { ok: false, error: "Compte introuvable ou inaccessible." }
+    if (
+      !(SUPPLIER_NAMES as readonly string[]).includes(accountRow.supplierCode)
+    ) {
+      return {
+        ok: false,
+        error: `Fournisseur non pris en charge par le Hub: ${accountRow.supplierCode}`,
+      }
     }
 
     const resolved = await resolveSupplierAccount({
@@ -286,9 +416,13 @@ export async function testOwnSupplierConnection(accountId: string): Promise<Agen
     let errorCode: string | undefined
     if (accountRow.supplierCode === "mygo") {
       try {
-        const { buildMyGoConfigFromAccount } = await import("../mygo/account-config")
+        const { buildMyGoConfigFromAccount } =
+          await import("../mygo/account-config")
         const { createMyGoClientForAccount } = await import("@/lib/mygo/client")
-        await createMyGoClientForAccount(accountId, buildMyGoConfigFromAccount(resolved.account)).listCities()
+        await createMyGoClientForAccount(
+          accountId,
+          buildMyGoConfigFromAccount(resolved.account),
+        ).listCities()
         testOk = true
       } catch (err) {
         errorCode = err instanceof Error ? err.constructor.name : "UNKNOWN"
@@ -307,11 +441,22 @@ export async function testOwnSupplierConnection(accountId: string): Promise<Agen
           ...(!testOk ? { status: "invalid_credentials" as const } : {}),
         })
         .where(eq(hotelSupplierAccounts.id, accountId))
-      await logSupplierAudit(tx, { agencyId: ctx.agencyId, actorUserId: ctx.userId, action: "SUPPLIER_CONNECTION_TESTED", accountId, diff: { status: testOk ? "success" : "failure", errorCode } })
+      await logSupplierAudit(tx, {
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: "SUPPLIER_CONNECTION_TESTED",
+        accountId,
+        diff: { status: testOk ? "success" : "failure", errorCode },
+      })
     })
     revalidatePath("/pro/suppliers")
-    return testOk ? { ok: true } : { ok: false, error: errorCode ?? "Échec du test de connexion." }
+    return testOk
+      ? { ok: true }
+      : { ok: false, error: errorCode ?? "Échec du test de connexion." }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }

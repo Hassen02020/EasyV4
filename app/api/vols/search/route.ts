@@ -16,7 +16,11 @@ import { createPriceSnapshot } from "@/lib/vols/price-snapshot"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { flightSearches } from "@/lib/db/schema/flights"
-import type { CanonicalSearchRequest, TripType, SearchPreferences } from "@/lib/vols/canonical"
+import type {
+  CanonicalSearchRequest,
+  TripType,
+  SearchPreferences,
+} from "@/lib/vols/canonical"
 
 export const runtime = "nodejs"
 export const revalidate = 0
@@ -25,12 +29,17 @@ const SearchSchema = z.object({
   origin: z.string().min(3).max(3).toUpperCase(),
   destination: z.string().min(3).max(3).toUpperCase(),
   departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  returnDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   tripType: z.enum(["ONE_WAY", "ROUND_TRIP", "MULTI_CITY"]).default("ONE_WAY"),
   adults: z.coerce.number().int().min(1).max(9).default(1),
   children: z.coerce.number().int().min(0).max(8).default(0),
   infants: z.coerce.number().int().min(0).max(4).default(0),
-  cabin: z.enum(["ECONOMY", "PREMIUM_ECONOMY", "BUSINESS", "FIRST"]).default("ECONOMY"),
+  cabin: z
+    .enum(["ECONOMY", "PREMIUM_ECONOMY", "BUSINESS", "FIRST"])
+    .default("ECONOMY"),
   currency: z.string().length(3).default("TND"),
   segments: z.string().optional(), // JSON-encoded CanonicalSearchSegment[] for MULTI_CITY
   // Search preferences (JSON-encoded SearchPreferences)
@@ -38,7 +47,8 @@ const SearchSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "anon"
+  const ip =
+    req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "anon"
   const rl = await rateLimit(`vols:search:${ip}`)
   if (!rl.ok) {
     return NextResponse.json({ error: "Trop de requêtes" }, { status: 429 })
@@ -65,7 +75,10 @@ export async function GET(req: NextRequest) {
 
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
-    return NextResponse.json({ error: "Configuration agence manquante." }, { status: 500 })
+    return NextResponse.json(
+      { error: "Configuration agence manquante." },
+      { status: 500 },
+    )
   }
 
   // Parse multi-city segments if provided
@@ -137,7 +150,10 @@ export async function GET(req: NextRequest) {
   // Run orchestrator
   const result = await orchestrateSearch(request)
   if (!result.ok) {
-    return NextResponse.json({ error: result.error, code: result.code }, { status: 502 })
+    return NextResponse.json(
+      { error: result.error, code: result.code },
+      { status: 502 },
+    )
   }
 
   // Create price snapshots for each itinerary

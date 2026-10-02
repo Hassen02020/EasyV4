@@ -7,7 +7,11 @@
 
 import { strict as assert } from "node:assert"
 import { test } from "node:test"
-import { buildPolicySnapshot, evaluateCancellation, type ResolvedPolicy } from "../policy-engine"
+import {
+  buildPolicySnapshot,
+  evaluateCancellation,
+  type ResolvedPolicy,
+} from "../policy-engine"
 
 function makePolicy(overrides: Partial<ResolvedPolicy> = {}): ResolvedPolicy {
   return {
@@ -66,14 +70,20 @@ test("evaluateCancellation : cancellable=false → refusé explicitement", () =>
 })
 
 test("evaluateCancellation : nonRefundable=true → refusé même si cancellable=true", () => {
-  const snap = buildPolicySnapshot(makePolicy({ cancellable: true, nonRefundable: true }), true)
+  const snap = buildPolicySnapshot(
+    makePolicy({ cancellable: true, nonRefundable: true }),
+    true,
+  )
   const outcome = evaluateCancellation(snap, 1000)
   assert.equal(outcome.allowed, false)
   assert.ok(outcome.reason?.includes("non remboursable"))
 })
 
 test("evaluateCancellation : aucun frais configuré (null) → crédit intégral, jamais un pourcentage inventé", () => {
-  const snap = buildPolicySnapshot(makePolicy({ cancellationFeePercent: null }), true)
+  const snap = buildPolicySnapshot(
+    makePolicy({ cancellationFeePercent: null }),
+    true,
+  )
   const outcome = evaluateCancellation(snap, 1000)
   assert.equal(outcome.allowed, true)
   assert.equal(outcome.creditableTnd, 1000)
@@ -81,7 +91,10 @@ test("evaluateCancellation : aucun frais configuré (null) → crédit intégral
 })
 
 test("evaluateCancellation : frais explicitement configuré à 20% → crédit réduit en conséquence", () => {
-  const snap = buildPolicySnapshot(makePolicy({ cancellationFeePercent: 20 }), true)
+  const snap = buildPolicySnapshot(
+    makePolicy({ cancellationFeePercent: 20 }),
+    true,
+  )
   const outcome = evaluateCancellation(snap, 1000)
   assert.equal(outcome.allowed, true)
   assert.equal(outcome.creditableTnd, 800)
@@ -89,7 +102,10 @@ test("evaluateCancellation : frais explicitement configuré à 20% → crédit r
 })
 
 test("evaluateCancellation : frais explicitement configuré à 0 (distinct de null) → crédit intégral, calcul honnête", () => {
-  const snap = buildPolicySnapshot(makePolicy({ cancellationFeePercent: 0 }), true)
+  const snap = buildPolicySnapshot(
+    makePolicy({ cancellationFeePercent: 0 }),
+    true,
+  )
   const outcome = evaluateCancellation(snap, 1000)
   assert.equal(outcome.allowed, true)
   assert.equal(outcome.creditableTnd, 1000)
@@ -97,14 +113,20 @@ test("evaluateCancellation : frais explicitement configuré à 0 (distinct de nu
 })
 
 test("evaluateCancellation : ni remboursement ni crédit autorisés → annulation acceptée mais montant 0", () => {
-  const snap = buildPolicySnapshot(makePolicy({ refundAllowed: false, creditAllowed: false }), true)
+  const snap = buildPolicySnapshot(
+    makePolicy({ refundAllowed: false, creditAllowed: false }),
+    true,
+  )
   const outcome = evaluateCancellation(snap, 1000)
   assert.equal(outcome.allowed, true)
   assert.equal(outcome.creditableTnd, 0)
 })
 
 test("evaluateCancellation : frais 100% → crédit jamais négatif", () => {
-  const snap = buildPolicySnapshot(makePolicy({ cancellationFeePercent: 100 }), true)
+  const snap = buildPolicySnapshot(
+    makePolicy({ cancellationFeePercent: 100 }),
+    true,
+  )
   const outcome = evaluateCancellation(snap, 1000)
   assert.equal(outcome.creditableTnd, 0)
 })

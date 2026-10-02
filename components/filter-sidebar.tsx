@@ -19,7 +19,14 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import { ArrowUpDown, Check, ChevronDown, SlidersHorizontal, Star, X } from "lucide-react"
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  SlidersHorizontal,
+  Star,
+  X,
+} from "lucide-react"
 import type { HotelFacets, HotelFilterState } from "@/lib/mygo/facets"
 import { countActiveFilters, EMPTY_FILTER_STATE } from "@/lib/mygo/facets"
 import { SORT_OPTIONS, type HotelSortMode } from "@/lib/mygo/sort"
@@ -481,7 +488,8 @@ export function FilterChips({
     chips.push({
       key: `star-${s}`,
       label: labels.starsLabel(s),
-      onRemove: () => onChange({ ...state, stars: state.stars.filter((x) => x !== s) }),
+      onRemove: () =>
+        onChange({ ...state, stars: state.stars.filter((x) => x !== s) }),
     })
   }
   for (const b of state.boardings) {
@@ -489,7 +497,10 @@ export function FilterChips({
       key: `board-${b}`,
       label: b,
       onRemove: () =>
-        onChange({ ...state, boardings: state.boardings.filter((x) => x !== b) }),
+        onChange({
+          ...state,
+          boardings: state.boardings.filter((x) => x !== b),
+        }),
     })
   }
   for (const f of state.facilities) {
@@ -497,20 +508,25 @@ export function FilterChips({
       key: `fac-${f}`,
       label: f,
       onRemove: () =>
-        onChange({ ...state, facilities: state.facilities.filter((x) => x !== f) }),
+        onChange({
+          ...state,
+          facilities: state.facilities.filter((x) => x !== f),
+        }),
     })
   }
   for (const th of state.themes) {
     chips.push({
       key: `theme-${th}`,
       label: th,
-      onRemove: () => onChange({ ...state, themes: state.themes.filter((x) => x !== th) }),
+      onRemove: () =>
+        onChange({ ...state, themes: state.themes.filter((x) => x !== th) }),
     })
   }
   if (
     state.priceRange &&
     facets &&
-    (state.priceRange[0] > facets.priceMin || state.priceRange[1] < facets.priceMax)
+    (state.priceRange[0] > facets.priceMin ||
+      state.priceRange[1] < facets.priceMax)
   ) {
     chips.push({
       key: "price",
@@ -622,7 +638,12 @@ export function MobileFilterSortBar({
     <div className="mb-4 flex gap-2 lg:hidden">
       <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DrawerTrigger asChild>
-          <Button variant="outline" size="sm" className="flex-1 gap-2" disabled={disabled}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-2"
+            disabled={disabled}
+          >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             {labels.filtersButton}
             {activeCount > 0 && (

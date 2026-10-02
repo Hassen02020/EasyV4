@@ -14,7 +14,11 @@ import { getProductMedia } from "@/lib/media/query"
 
 export const dynamic = "force-dynamic"
 
-export default async function EditOmraProductPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditOmraProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = await params
   const supabase = await createServerSupabase()
   const {
@@ -22,7 +26,11 @@ export default async function EditOmraProductPage({ params }: { params: Promise<
   } = await supabase.auth.getUser()
   if (!user) redirect(`/login?next=/admin/products/omra/${id}`)
   const profile = await getCurrentAdminProfile(user.id)
-  if (!profile || !["super_admin", "manager"].includes(profile.role) || profile.agencyType !== "ota") {
+  if (
+    !profile ||
+    !["super_admin", "manager"].includes(profile.role) ||
+    profile.agencyType !== "ota"
+  ) {
     redirect("/admin")
   }
 
@@ -32,7 +40,12 @@ export default async function EditOmraProductPage({ params }: { params: Promise<
       const [product] = await tx
         .select()
         .from(omraPackages)
-        .where(and(eq(omraPackages.id, id), eq(omraPackages.agencyId, profile.agencyId)))
+        .where(
+          and(
+            eq(omraPackages.id, id),
+            eq(omraPackages.agencyId, profile.agencyId),
+          ),
+        )
         .limit(1)
       if (!product) return null
       const allotments = await tx
@@ -46,11 +59,16 @@ export default async function EditOmraProductPage({ params }: { params: Promise<
   )
   if (!result) notFound()
   const { product, allotments, media } = result
-  const metadataParsed = omraProductMetadataSchema.safeParse(product.metadata ?? {})
+  const metadataParsed = omraProductMetadataSchema.safeParse(
+    product.metadata ?? {},
+  )
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Link href="/admin/products" className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm">
+      <Link
+        href="/admin/products"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
+      >
         <ArrowLeft className="size-4" />
         Retour au catalogue
       </Link>
@@ -106,8 +124,12 @@ export default async function EditOmraProductPage({ params }: { params: Promise<
           includesGuide: product.includesGuide,
           maxPilgrims: product.maxPilgrims,
           minPilgrims: product.minPilgrims,
-          metadata: metadataParsed.success ? metadataParsed.data : omraProductMetadataSchema.parse({}),
-          channels: (product.channels as ("b2c" | "b2b" | "white_label")[]) ?? ["b2c"],
+          metadata: metadataParsed.success
+            ? metadataParsed.data
+            : omraProductMetadataSchema.parse({}),
+          channels: (product.channels as ("b2c" | "b2b" | "white_label")[]) ?? [
+            "b2c",
+          ],
         }}
       />
     </div>

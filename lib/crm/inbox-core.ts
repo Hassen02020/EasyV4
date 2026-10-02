@@ -49,7 +49,9 @@ export interface MessageRow {
   createdAt: Date
 }
 
-function toConversationRow(r: typeof crmConversations.$inferSelect): ConversationRow {
+function toConversationRow(
+  r: typeof crmConversations.$inferSelect,
+): ConversationRow {
   return {
     ...r,
     channel: r.channel as CrmChannel,
@@ -68,7 +70,11 @@ function toMessageRow(r: typeof crmMessages.$inferSelect): MessageRow {
  */
 export async function listConversationsCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; channel?: CrmChannel; status?: ConversationStatus },
+  params: {
+    agencyId: string
+    channel?: CrmChannel
+    status?: ConversationStatus
+  },
 ): Promise<ConversationRow[]> {
   const clauses = [eq(crmConversations.agencyId, params.agencyId)]
   if (params.channel) clauses.push(eq(crmConversations.channel, params.channel))
@@ -104,11 +110,17 @@ export async function getConversationWithMessagesCore(
     .select()
     .from(crmMessages)
     .where(
-      and(eq(crmMessages.conversationId, params.conversationId), eq(crmMessages.agencyId, params.agencyId)),
+      and(
+        eq(crmMessages.conversationId, params.conversationId),
+        eq(crmMessages.agencyId, params.agencyId),
+      ),
     )
     .orderBy(asc(crmMessages.createdAt))
 
-  return { conversation: toConversationRow(conversation), messages: messages.map(toMessageRow) }
+  return {
+    conversation: toConversationRow(conversation),
+    messages: messages.map(toMessageRow),
+  }
 }
 
 const MESSAGE_PREVIEW_LENGTH = 200
@@ -170,7 +182,12 @@ export async function upsertConversationForInboundCore(
     const [matchingLead] = await tx
       .select({ id: leads.id })
       .from(leads)
-      .where(and(eq(leads.agencyId, params.agencyId), eq(leads.phone, params.contactPhone)))
+      .where(
+        and(
+          eq(leads.agencyId, params.agencyId),
+          eq(leads.phone, params.contactPhone),
+        ),
+      )
       .orderBy(desc(leads.createdAt))
       .limit(1)
 
@@ -264,7 +281,12 @@ export async function appendOutboundMessageCore(
       lastMessagePreview: params.body.slice(0, MESSAGE_PREVIEW_LENGTH),
       updatedAt: now,
     })
-    .where(and(eq(crmConversations.id, params.conversationId), eq(crmConversations.agencyId, params.agencyId)))
+    .where(
+      and(
+        eq(crmConversations.id, params.conversationId),
+        eq(crmConversations.agencyId, params.agencyId),
+      ),
+    )
 
   return { id: inserted!.id }
 }
@@ -282,7 +304,10 @@ export function canSendSessionMessage(
   now: Date = new Date(),
 ): boolean {
   if (!conversation.lastInboundAt) return false
-  return now.getTime() - conversation.lastInboundAt.getTime() < WHATSAPP_SESSION_WINDOW_MS
+  return (
+    now.getTime() - conversation.lastInboundAt.getTime() <
+    WHATSAPP_SESSION_WINDOW_MS
+  )
 }
 
 /** Conversations sans conversation ouverte pour un canal non branché — jamais fabriqué, juste absent. */

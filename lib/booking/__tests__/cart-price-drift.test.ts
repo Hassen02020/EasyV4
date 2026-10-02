@@ -44,10 +44,22 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const guestActionsSrc = readFileSync(join(process.cwd(), "lib/booking/guest-actions.ts"), "utf8")
-const packageActionsSrc = readFileSync(join(process.cwd(), "lib/packages/booking-actions.ts"), "utf8")
-const activityActionsSrc = readFileSync(join(process.cwd(), "lib/activities/guest-booking-actions.ts"), "utf8")
-const cartViewSrc = readFileSync(join(process.cwd(), "components/cart/cart-view.tsx"), "utf8")
+const guestActionsSrc = readFileSync(
+  join(process.cwd(), "lib/booking/guest-actions.ts"),
+  "utf8",
+)
+const packageActionsSrc = readFileSync(
+  join(process.cwd(), "lib/packages/booking-actions.ts"),
+  "utf8",
+)
+const activityActionsSrc = readFileSync(
+  join(process.cwd(), "lib/activities/guest-booking-actions.ts"),
+  "utf8",
+)
+const cartViewSrc = readFileSync(
+  join(process.cwd(), "components/cart/cart-view.tsx"),
+  "utf8",
+)
 
 function idx(src: string, needle: string): number {
   const i = src.indexOf(needle)
@@ -62,23 +74,42 @@ test("createGuestReservationFromDraft : accepte expectedTotalTnd optionnel", () 
 })
 
 test("createGuestReservationFromDraft : priceDrifted() vérifié AVANT toute tentative de paiement carte", () => {
-  const driftIdx = idx(guestActionsSrc, "priceDrifted(expectedTotalTnd, breakdown.totalTnd)")
+  const driftIdx = idx(
+    guestActionsSrc,
+    "priceDrifted(expectedTotalTnd, breakdown.totalTnd)",
+  )
   const cardPaymentIdx = idx(guestActionsSrc, "attemptCardPayment(")
-  assert.ok(driftIdx < cardPaymentIdx, "la garde anti-drift doit s'exécuter avant toute tentative de paiement carte")
+  assert.ok(
+    driftIdx < cardPaymentIdx,
+    "la garde anti-drift doit s'exécuter avant toute tentative de paiement carte",
+  )
 })
 
 test("createGuestReservationFromDraft : priceDrifted() vérifié AVANT toute écriture (INSERT reservations)", () => {
-  const driftIdx = idx(guestActionsSrc, "priceDrifted(expectedTotalTnd, breakdown.totalTnd)")
+  const driftIdx = idx(
+    guestActionsSrc,
+    "priceDrifted(expectedTotalTnd, breakdown.totalTnd)",
+  )
   const insertIdx = idx(guestActionsSrc, ".insert(reservations)")
-  assert.ok(driftIdx < insertIdx, "la garde anti-drift doit s'exécuter avant toute écriture réservation")
+  assert.ok(
+    driftIdx < insertIdx,
+    "la garde anti-drift doit s'exécuter avant toute écriture réservation",
+  )
 })
 
 test("createGuestReservationFromDraft : un rejet PRICE_CHANGED compense le hold myGo et libère le verrou d'inventaire (comme les autres rejets)", () => {
   const driftBlock = guestActionsSrc.slice(
-    guestActionsSrc.indexOf("priceDrifted(expectedTotalTnd, breakdown.totalTnd)"),
-    guestActionsSrc.indexOf("priceDrifted(expectedTotalTnd, breakdown.totalTnd)") + 900,
+    guestActionsSrc.indexOf(
+      "priceDrifted(expectedTotalTnd, breakdown.totalTnd)",
+    ),
+    guestActionsSrc.indexOf(
+      "priceDrifted(expectedTotalTnd, breakdown.totalTnd)",
+    ) + 900,
   )
-  assert.match(driftBlock, /cancelBooking\(\{ bookingId: myGoBooking\.bookingId \}\)/)
+  assert.match(
+    driftBlock,
+    /cancelBooking\(\{ bookingId: myGoBooking\.bookingId \}\)/,
+  )
   assert.match(driftBlock, /releaseInventoryLock\(\)/)
   assert.match(driftBlock, /code:\s*"PRICE_CHANGED"/)
   assert.match(driftBlock, /currentTotalTnd:\s*breakdown\.totalTnd/)
@@ -88,15 +119,27 @@ test("createGuestReservationFromDraft : un rejet PRICE_CHANGED compense le hold 
 
 test("createGuestPackageBooking : accepte expectedTotalTnd optionnel, inclus dans la clé d'idempotence", () => {
   assert.match(packageActionsSrc, /expectedTotalTnd\?: number/)
-  assert.match(packageActionsSrc, /expectedTotalTnd:\s*input\.expectedTotalTnd\s*\?\?\s*null/)
+  assert.match(
+    packageActionsSrc,
+    /expectedTotalTnd:\s*input\.expectedTotalTnd\s*\?\?\s*null/,
+  )
 })
 
 test("createGuestPackageBooking : priceDrifted() vérifié AVANT toute tentative de paiement carte et avant l'INSERT reservations", () => {
-  const driftIdx = idx(packageActionsSrc, "priceDrifted(expectedTotalTnd, totalTnd)")
+  const driftIdx = idx(
+    packageActionsSrc,
+    "priceDrifted(expectedTotalTnd, totalTnd)",
+  )
   const paymentIdx = idx(packageActionsSrc, 'paymentMethod === "card"')
   const insertIdx = idx(packageActionsSrc, ".insert(reservations)")
-  assert.ok(driftIdx < paymentIdx, "la garde anti-drift doit s'exécuter avant toute tentative de paiement carte")
-  assert.ok(driftIdx < insertIdx, "la garde anti-drift doit s'exécuter avant toute écriture réservation")
+  assert.ok(
+    driftIdx < paymentIdx,
+    "la garde anti-drift doit s'exécuter avant toute tentative de paiement carte",
+  )
+  assert.ok(
+    driftIdx < insertIdx,
+    "la garde anti-drift doit s'exécuter avant toute écriture réservation",
+  )
 })
 
 test("createGuestPackageBooking : un rejet PRICE_CHANGED renvoie le code et le nouveau total, jamais une charge silencieuse", () => {
@@ -111,15 +154,27 @@ test("createGuestPackageBooking : un rejet PRICE_CHANGED renvoie le code et le n
 
 test("createGuestActivityBooking : accepte expectedTotalTnd optionnel, inclus dans la clé d'idempotence", () => {
   assert.match(activityActionsSrc, /expectedTotalTnd\?: number/)
-  assert.match(activityActionsSrc, /expectedTotalTnd:\s*input\.expectedTotalTnd\s*\?\?\s*null/)
+  assert.match(
+    activityActionsSrc,
+    /expectedTotalTnd:\s*input\.expectedTotalTnd\s*\?\?\s*null/,
+  )
 })
 
 test("createGuestActivityBooking : priceDrifted() vérifié AVANT toute tentative de paiement carte et avant l'INSERT reservations", () => {
-  const driftIdx = idx(activityActionsSrc, "priceDrifted(expectedTotalTnd, totalTnd)")
+  const driftIdx = idx(
+    activityActionsSrc,
+    "priceDrifted(expectedTotalTnd, totalTnd)",
+  )
   const paymentIdx = idx(activityActionsSrc, 'paymentMethod === "card"')
   const insertIdx = idx(activityActionsSrc, ".insert(reservations)")
-  assert.ok(driftIdx < paymentIdx, "la garde anti-drift doit s'exécuter avant toute tentative de paiement carte")
-  assert.ok(driftIdx < insertIdx, "la garde anti-drift doit s'exécuter avant toute écriture réservation")
+  assert.ok(
+    driftIdx < paymentIdx,
+    "la garde anti-drift doit s'exécuter avant toute tentative de paiement carte",
+  )
+  assert.ok(
+    driftIdx < insertIdx,
+    "la garde anti-drift doit s'exécuter avant toute écriture réservation",
+  )
 })
 
 test("createGuestActivityBooking : un rejet PRICE_CHANGED renvoie le code et le nouveau total, jamais une charge silencieuse", () => {
@@ -138,21 +193,43 @@ test("createGuestActivityBooking : un rejet PRICE_CHANGED renvoie le code et le 
 // masquant.
 
 test("cart-view : envoie expectedTotalTnd pour les 3 modules (hôtel/package/activité)", () => {
-  const occurrences = cartViewSrc.split("expectedTotalTnd: line.priceTnd").length - 1
-  assert.equal(occurrences, 3, "les 3 branches module (hotel/package/activity) doivent envoyer expectedTotalTnd")
+  const occurrences =
+    cartViewSrc.split("expectedTotalTnd: line.priceTnd").length - 1
+  assert.equal(
+    occurrences,
+    3,
+    "les 3 branches module (hotel/package/activity) doivent envoyer expectedTotalTnd",
+  )
 })
 
 test("cart-view : la clé d'idempotence hôtel inclut priceTnd (clé fraîche après mise à jour du prix affiché)", () => {
-  assert.match(cartViewSrc, /JSON\.stringify\(\{ draft: line\.draft, traveler: line\.traveler, method, priceTnd: line\.priceTnd \}\)/)
+  assert.match(
+    cartViewSrc,
+    /JSON\.stringify\(\{ draft: line\.draft, traveler: line\.traveler, method, priceTnd: line\.priceTnd \}\)/,
+  )
 })
 
 test("cart-view : un rejet PRICE_CHANGED met à jour le prix affiché de la ligne (cart.updatePrice), jamais silencieusement ignoré", () => {
-  const occurrences = cartViewSrc.split('result.code === "PRICE_CHANGED"').length - 1
-  assert.equal(occurrences, 3, "les 3 branches module doivent gérer PRICE_CHANGED")
-  assert.match(cartViewSrc, /cart\.updatePrice\(line\.id, result\.currentTotalTnd\)/)
+  const occurrences =
+    cartViewSrc.split('result.code === "PRICE_CHANGED"').length - 1
+  assert.equal(
+    occurrences,
+    3,
+    "les 3 branches module doivent gérer PRICE_CHANGED",
+  )
+  assert.match(
+    cartViewSrc,
+    /cart\.updatePrice\(line\.id, result\.currentTotalTnd\)/,
+  )
 })
 
 test("lib/cart/cart-store.ts : updateCartLinePrice ne modifie que l'affichage local, jamais utilisé comme source de charge", () => {
-  const storeSrc = readFileSync(join(process.cwd(), "lib/cart/cart-store.ts"), "utf8")
-  assert.match(storeSrc, /export function updateCartLinePrice\(id: string, priceTnd: number\)/)
+  const storeSrc = readFileSync(
+    join(process.cwd(), "lib/cart/cart-store.ts"),
+    "utf8",
+  )
+  assert.match(
+    storeSrc,
+    /export function updateCartLinePrice\(id: string, priceTnd: number\)/,
+  )
 })

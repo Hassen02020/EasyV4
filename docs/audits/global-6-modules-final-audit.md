@@ -5,12 +5,12 @@ mock GoTrue, `next build` + `next start` — production build réel, pas `next d
 
 ## 1. Gates de code — fresh run, HEAD actuel
 
-| Gate | Résultat |
-|---|---|
-| `tsc --noEmit` | ✅ 0 erreur |
-| `eslint .` | ✅ 0 erreur (74 warnings pré-existants, non bloquants, aucun nouveau) |
+| Gate                         | Résultat                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| `tsc --noEmit`               | ✅ 0 erreur                                                                                      |
+| `eslint .`                   | ✅ 0 erreur (74 warnings pré-existants, non bloquants, aucun nouveau)                            |
 | `pnpm test` (suite complète) | ✅ **742/742** tests passés, 0 échec (147 skipped — DB-mode hors périmètre local sans DB dédiée) |
-| `pnpm build` | ✅ succès, toutes les routes générées, 0 régression |
+| `pnpm build`                 | ✅ succès, toutes les routes générées, 0 régression                                              |
 
 ## 2. Certification navigateur réelle — batch run des 6 specs "Dashboard Operations"
 
@@ -18,14 +18,14 @@ Les 6 specs `e2e/dashboard-operations-*-lifecycle.spec.ts` ont été exécutées
 run**, contre le même serveur `next start` fraîchement (re)construit depuis HEAD — pas des runs
 individuels dans des sessions séparées comme lors des cycles précédents.
 
-| Module | Résultat | Réf. créée | Preuve DB (`psql`, statut final) |
-|---|---|---|---|
-| Attractions | ✅ PASS (11.2s) | `AT-2026-000002` | `activity`, `refunded`, 101.15 TND |
-| Vols | ✅ PASS (9.2s) | `FL-2026-000003` | `flight`, `refunded`, 382.00 TND |
-| Hôtels Monde | ✅ PASS (10.0s) | `WH-2026-000003` | `hotel_monde`, `refunded`, 1647.00 TND |
-| Omraty | ✅ PASS (9.7s) | `OM-2026-000003` | `omra`, `refunded`, 4500.00 TND |
-| Voyages organisés | ✅ PASS (9.7s) | `PK-2026-000002` | `package`, `refunded`, 1725.50 TND |
-| Hôtels Tunisie (myGo) | ⚠️ NON RE-EXÉCUTABLE ce cycle | — | voir §3 |
+| Module                | Résultat                      | Réf. créée       | Preuve DB (`psql`, statut final)       |
+| --------------------- | ----------------------------- | ---------------- | -------------------------------------- |
+| Attractions           | ✅ PASS (11.2s)               | `AT-2026-000002` | `activity`, `refunded`, 101.15 TND     |
+| Vols                  | ✅ PASS (9.2s)                | `FL-2026-000003` | `flight`, `refunded`, 382.00 TND       |
+| Hôtels Monde          | ✅ PASS (10.0s)               | `WH-2026-000003` | `hotel_monde`, `refunded`, 1647.00 TND |
+| Omraty                | ✅ PASS (9.7s)                | `OM-2026-000003` | `omra`, `refunded`, 4500.00 TND        |
+| Voyages organisés     | ✅ PASS (9.7s)                | `PK-2026-000002` | `package`, `refunded`, 1725.50 TND     |
+| Hôtels Tunisie (myGo) | ⚠️ NON RE-EXÉCUTABLE ce cycle | —                | voir §3                                |
 
 **5/6 confirmés en direct ce cycle**, cycle complet créer→rechercher→valider→modifier→annuler,
 navigateur réel, chaque réservation vérifiée `psql` en état terminal `refunded` cohérent.
@@ -63,7 +63,7 @@ documentées dans `e2e-certification-report.md` (Baseline section 2, cycle "Dash
 section 3ter — réservation `TG-2026-001254`, cycle complet créer→rechercher→valider→modifier→annuler
 avec preuve DB/audit à chaque étape, plus permissions/isolation cross-agence). Ces preuves ont été
 obtenues alors que ce garde-fou de production n'empêchait pas encore le test (garde-fou ajouté
-*pendant* cette même série de cycles, sur une infra où le conflit `next start`/`MYGO_MODE=virtual`
+_pendant_ cette même série de cycles, sur une infra où le conflit `next start`/`MYGO_MODE=virtual`
 n'avait pas encore été percuté).
 
 **Recommandation pour un futur cycle** : soit lever le blocage `next dev` dans le sandbox (cause encore
@@ -74,14 +74,14 @@ production).
 
 ## 4. Synthèse — état réel des 6 modules à cette date
 
-| Module | Fournisseur | Certifié navigateur (preuve DB) | Date de la dernière preuve |
-|---|---|---|---|
-| Hôtels Tunisie | Virtual MyGo Supplier | 🟢 Oui (cycles antérieurs, réf. `TG-2026-001254`) | Non re-vérifiable ce cycle (§3), aucune régression connue |
-| Omraty | Inventaire interne | 🟢 Oui | Ce cycle — `OM-2026-000003` |
-| Voyages organisés | Inventaire interne | 🟢 Oui | Ce cycle — `PK-2026-000002` |
-| Attractions | Inventaire interne | 🟢 Oui | Ce cycle — `AT-2026-000002` |
-| Vols | Virtual Flight Supplier | 🟢 Oui | Ce cycle — `FL-2026-000003` |
-| Hôtels Monde | Virtual World Hotel Supplier | 🟢 Oui | Ce cycle — `WH-2026-000003` |
+| Module            | Fournisseur                  | Certifié navigateur (preuve DB)                   | Date de la dernière preuve                                |
+| ----------------- | ---------------------------- | ------------------------------------------------- | --------------------------------------------------------- |
+| Hôtels Tunisie    | Virtual MyGo Supplier        | 🟢 Oui (cycles antérieurs, réf. `TG-2026-001254`) | Non re-vérifiable ce cycle (§3), aucune régression connue |
+| Omraty            | Inventaire interne           | 🟢 Oui                                            | Ce cycle — `OM-2026-000003`                               |
+| Voyages organisés | Inventaire interne           | 🟢 Oui                                            | Ce cycle — `PK-2026-000002`                               |
+| Attractions       | Inventaire interne           | 🟢 Oui                                            | Ce cycle — `AT-2026-000002`                               |
+| Vols              | Virtual Flight Supplier      | 🟢 Oui                                            | Ce cycle — `FL-2026-000003`                               |
+| Hôtels Monde      | Virtual World Hotel Supplier | 🟢 Oui                                            | Ce cycle — `WH-2026-000003`                               |
 
 Les 6 modules ont une réservation réelle de bout en bout. 5 ont été re-confirmés en navigateur réel
 dans CE cycle précis ; le 6ème (Hôtels Tunisie) reste certifié par preuve antérieure documentée, non

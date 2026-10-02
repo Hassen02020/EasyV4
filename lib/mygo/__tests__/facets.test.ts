@@ -205,8 +205,20 @@ test("applyFilters: filtre par facility (AND — toutes doivent être présentes
 
 test("applyFilters: filtre par thème (OR — au moins un thème coché présent, comme boardings)", () => {
   const offers = [
-    makeOffer({ id: 1, name: "A", stars: 4, price: 500, themes: ["Romantique"] }),
-    makeOffer({ id: 2, name: "B", stars: 5, price: 1200, themes: ["Famille", "Détente"] }),
+    makeOffer({
+      id: 1,
+      name: "A",
+      stars: 4,
+      price: 500,
+      themes: ["Romantique"],
+    }),
+    makeOffer({
+      id: 2,
+      name: "B",
+      stars: 5,
+      price: 1200,
+      themes: ["Famille", "Détente"],
+    }),
     makeOffer({ id: 3, name: "C", stars: 4, price: 800, themes: ["Affaires"] }),
   ]
   const filters: HotelFilterState = {
@@ -219,8 +231,20 @@ test("applyFilters: filtre par thème (OR — au moins un thème coché présent
 
 test("computeFacets: agrège les thèmes distincts par offre avec leur compte", () => {
   const offers = [
-    makeOffer({ id: 1, name: "A", stars: 4, price: 500, themes: ["Romantique", "Charme"] }),
-    makeOffer({ id: 2, name: "B", stars: 5, price: 1200, themes: ["Romantique"] }),
+    makeOffer({
+      id: 1,
+      name: "A",
+      stars: 4,
+      price: 500,
+      themes: ["Romantique", "Charme"],
+    }),
+    makeOffer({
+      id: 2,
+      name: "B",
+      stars: 5,
+      price: 1200,
+      themes: ["Romantique"],
+    }),
     makeOffer({ id: 3, name: "C", stars: 4, price: 800, themes: [] }),
   ]
   const facets = computeFacets(offers)
@@ -364,10 +388,16 @@ test("countActiveFilters : compte chaque valeur cochée individuellement", () =>
 })
 
 test("countActiveFilters : plage de prix comptée seulement si resserrée par rapport aux facets", () => {
-  const atDefault: HotelFilterState = { ...EMPTY_FILTER_STATE, priceRange: [100, 900] }
+  const atDefault: HotelFilterState = {
+    ...EMPTY_FILTER_STATE,
+    priceRange: [100, 900],
+  }
   assert.equal(countActiveFilters(atDefault, SAMPLE_FACETS), 0)
 
-  const narrowed: HotelFilterState = { ...EMPTY_FILTER_STATE, priceRange: [200, 800] }
+  const narrowed: HotelFilterState = {
+    ...EMPTY_FILTER_STATE,
+    priceRange: [200, 800],
+  }
   assert.equal(countActiveFilters(narrowed, SAMPLE_FACETS), 1)
 
   // Sans facets connus (chargement), on ne peut pas savoir si la plage est

@@ -37,7 +37,8 @@ export interface RecordCancellationFinancialsInput {
 export async function recordCancellationFinancials(
   input: RecordCancellationFinancialsInput,
 ): Promise<void> {
-  const { tx, reservationId, cancellationFeeTnd, refundAmountTnd, reason } = input
+  const { tx, reservationId, cancellationFeeTnd, refundAmountTnd, reason } =
+    input
   const cancelledAt = input.cancelledAt ?? new Date()
 
   await tx

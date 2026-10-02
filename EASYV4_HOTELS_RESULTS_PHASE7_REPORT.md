@@ -177,14 +177,14 @@ utilisé comme compte à rebours artificiel dans l'UI actuelle.
 **Pricing/sécurité prix (§18/§31 du plan mission)** : tracé
 `MyGoClient.searchHotels` → `mapHotelOffer`/`lowestPrice` → `HotelOfferDTO.
 fromPrice` → card → tri/facets → détail. Confirmé qu'aucun champ
-prix/markup/commission/agency_id/wallet_id n'est lu depuis la requête
+prix/markup/commission/agency*id/wallet_id n'est lu depuis la requête
 cliente à aucune étape (`HotelSearchQuerySchema`, `lib/mygo/search-core.ts`,
 relu explicitement — commentaire de tête du fichier confirme cette
 frontière). Le frontend ne peut décider ni du prix fournisseur, ni d'un
 markup, ni d'un impact wallet — tout ça reste côté backend
 (`lib/booking/pricing.ts`, non touché). `MYGO_LOGIN`/`MYGO_PASSWORD` : grep
 explicite sur tout `app/`/`components/`/`lib/mygo/` — jamais renvoyés dans
-une réponse HTTP, jamais dans une variable `NEXT_PUBLIC_*`, uniquement lus
+une réponse HTTP, jamais dans une variable `NEXT_PUBLIC*\*`, uniquement lus
 côté serveur dans `lib/mygo/config.ts`/`client.ts`.
 
 ## M. B2C
@@ -211,13 +211,13 @@ vérité B2B — `/hotels/search` réel vs `/pro/hotels` fixture).
 
 Architecture actuelle, différences, gaps connus — résumé :
 
-| | B2C (`/hotels/search`) | B2B (`/pro/hotels`) |
-|---|---|---|
-| Moteur | myGo réel (`search-core.ts` partagé) | Fixture (`hotels-fixture.ts`) |
-| Session | Aucune | `requirePartnerSession` |
+|                     | B2C (`/hotels/search`)                                   | B2B (`/pro/hotels`)                                                          |
+| ------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Moteur              | myGo réel (`search-core.ts` partagé)                     | Fixture (`hotels-fixture.ts`)                                                |
+| Session             | Aucune                                                   | `requirePartnerSession`                                                      |
 | Composants partagés | `filter-sidebar.tsx`, `hotel-listings.tsx`, `lib/mygo/*` | Composants `components/pro/*` distincts, aucun composant partagé avec le B2C |
-| Pricing | `fromPrice` myGo, aucune marge à ce niveau | `applyMarginsToHotel`/`applyMarginsToOffers` (marge agence) |
-| Booking réel | Oui (`myGoToken` transmis) | Non — `confirmHotelWithProvider()` retournerait `{attempted:false}` |
+| Pricing             | `fromPrice` myGo, aucune marge à ce niveau               | `applyMarginsToHotel`/`applyMarginsToOffers` (marge agence)                  |
+| Booking réel        | Oui (`myGoToken` transmis)                               | Non — `confirmHotelWithProvider()` retournerait `{attempted:false}`          |
 
 ## O. Mobile Vaul
 
@@ -256,6 +256,7 @@ zéro résultat — un problème fournisseur ne devient jamais silencieusement
 renvoyé (rien à voir avec les filtres), sans aucune action proposée.
 Corrigé — différencié via `totalCount` (déjà disponible, avant filtrage)
 vs `offers.length` (après filtrage) :
+
 - `totalCount === 0` (myGo n'a rien renvoyé) → "Aucun hôtel disponible pour
   cette recherche" + lien réel "Modifier la recherche" vers `/` (aucune
   page `/hotels` dédiée formulaire+landing n'existe, confirmé avant de
@@ -322,7 +323,7 @@ Scénario complet exécuté (Playwright, fixture démo `cityId=10`, 70 hôtels
 réels — pas de `MYGO_LOGIN`/Supabase dans ce sandbox, cf. §AA) :
 
 - Homepage-style deep link → `/hotels/search?cityId=10&checkin=...&
-  checkout=...&adults=2&children=4,9&city=Hammamet` → résultats affichés
+checkout=...&adults=2&children=4,9&city=Hammamet` → résultats affichés
   ("70 hôtels à Hammamet"), aucun débordement horizontal à 390px avec les
   âges enfants dans l'URL.
 - Filtre 4 étoiles → coché, appliqué.
@@ -380,13 +381,13 @@ en amont de l'affichage/tri, jamais dans le chemin de réservation.
 
 ## AA. Remaining Risks (classification P0-P3)
 
-| # | Sévérité | Risque |
-|---|---|---|
-| 1 | 🟠 P1 | `/pro/hotels` sur données fixture, déconnecté du moteur myGo réel — nécessite une décision produit avant correctif (booking + pricing B2B), non pris ici (§N). |
-| 2 | 🟡 P2 | Cache myGo non partitionné par tenant (§S) — pas de fuite de prix détectée, à durcir si une tarification différenciée par agence est introduite au niveau recherche. |
-| 3 | 🟡 P2 | Pas de pagination — aucune preuve de volume la justifiant (§R), décision volontairement différée. |
-| 4 | 🟢 P3 | Mode "Meilleure note" absent du Sort Engine — myGo n'a pas de notation utilisateur fiable, fabriquer ce tri aurait été un mensonge d'UI (§J). |
-| 5 | 🔵 BLOCKED | Validation E2E avec vraies offres myGo (§V) — nécessite `MYGO_LOGIN`/Supabase, indisponibles dans ce sandbox. |
+| #   | Sévérité   | Risque                                                                                                                                                               |
+| --- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 🟠 P1      | `/pro/hotels` sur données fixture, déconnecté du moteur myGo réel — nécessite une décision produit avant correctif (booking + pricing B2B), non pris ici (§N).       |
+| 2   | 🟡 P2      | Cache myGo non partitionné par tenant (§S) — pas de fuite de prix détectée, à durcir si une tarification différenciée par agence est introduite au niveau recherche. |
+| 3   | 🟡 P2      | Pas de pagination — aucune preuve de volume la justifiant (§R), décision volontairement différée.                                                                    |
+| 4   | 🟢 P3      | Mode "Meilleure note" absent du Sort Engine — myGo n'a pas de notation utilisateur fiable, fabriquer ce tri aurait été un mensonge d'UI (§J).                        |
+| 5   | 🔵 BLOCKED | Validation E2E avec vraies offres myGo (§V) — nécessite `MYGO_LOGIN`/Supabase, indisponibles dans ce sandbox.                                                        |
 
 ## AB. Phase 8 Recommendations
 

@@ -52,7 +52,9 @@ export async function orchestrateSearch(
   request: CanonicalSearchRequest,
   adapters: GdsAdapter[] = getDefaultAdapters(),
 ): Promise<CanonicalSearchResult> {
-  const configured = adapters.filter((a) => a.getConfigStatus() === "CONFIGURED")
+  const configured = adapters.filter(
+    (a) => a.getConfigStatus() === "CONFIGURED",
+  )
   if (configured.length === 0) {
     return {
       ok: false,
@@ -63,7 +65,9 @@ export async function orchestrateSearch(
 
   const outcomes = await Promise.allSettled(
     configured.map((adapter) =>
-      adapter.search(request).then((result) => ({ adapter: adapter.name, result })),
+      adapter
+        .search(request)
+        .then((result) => ({ adapter: adapter.name, result })),
     ),
   )
 
@@ -84,7 +88,10 @@ export async function orchestrateSearch(
         console.warn(`[orchestrator] adapter failed:`, result.error)
       }
     } else {
-      lastError = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason)
+      lastError =
+        outcome.reason instanceof Error
+          ? outcome.reason.message
+          : String(outcome.reason)
       console.warn(`[orchestrator] adapter rejected:`, lastError)
     }
   }

@@ -43,11 +43,11 @@ nouvelle table, aucune donnée inventée.
 `catalog_activities.location` est un champ texte libre (pas de FK). Données
 réelles locales (3 activités publiées) :
 
-| title | location | correspond à une ville du modèle canonique ? |
-|---|---|---|
-| Excursion Sidi Bou Saïd & Carthage | Tunis | oui — `tunis` |
-| Jeep Safari Djerba | Djerba | oui — `djerba` |
-| Safari Désert Douz | Douz | non — Douz n'est pas une ville seedée |
+| title                              | location | correspond à une ville du modèle canonique ? |
+| ---------------------------------- | -------- | -------------------------------------------- |
+| Excursion Sidi Bou Saïd & Carthage | Tunis    | oui — `tunis`                                |
+| Jeep Safari Djerba                 | Djerba   | oui — `djerba`                               |
+| Safari Désert Douz                 | Douz     | non — Douz n'est pas une ville seedée        |
 
 Aucune table `destination_external_refs` dédiée aux activités n'existe.
 `location` matche déjà le nom exact de 2 destinations sur 3 (comparaison
@@ -98,6 +98,7 @@ elles-mêmes.
 
 Pas pour Packages (déjà couvert par `packages_slug`). Pour Attractions,
 deux options réelles :
+
 - **(a)** Comparaison directe `ILIKE(catalog_activities.location, destinations.name)`
   — zéro migration, réutilise le champ déjà là, cohérent avec le
   mécanisme de recherche `/attractions?q=` déjà en prod.
@@ -120,10 +121,10 @@ déjà leurs villes enfants). Le cross-sell s'ajoute sous la section
 
 ## Résumé
 
-| Module | Cross-sell sur fiche ville ? | Mécanisme |
-|---|---|---|
-| Packages | Oui | `ILIKE(title)` sur les 8 clés `packages_slug` déjà seedées (réutilise la requête de `/packages`) |
-| Attractions | Oui | `ILIKE(location, destination.name)` |
-| Omra | Non | Aucune destination Omra dans le modèle canonique |
-| Hôtels Monde / Vols | Non (déjà couvert chantier 4) | Dates obligatoires — lien de recherche uniquement, pas de carte prix |
-| FlashOffers (accueil) | Non | Hors périmètre (page d'accueil, item 5 chantier 4 non-approuvé) |
+| Module                | Cross-sell sur fiche ville ?  | Mécanisme                                                                                        |
+| --------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| Packages              | Oui                           | `ILIKE(title)` sur les 8 clés `packages_slug` déjà seedées (réutilise la requête de `/packages`) |
+| Attractions           | Oui                           | `ILIKE(location, destination.name)`                                                              |
+| Omra                  | Non                           | Aucune destination Omra dans le modèle canonique                                                 |
+| Hôtels Monde / Vols   | Non (déjà couvert chantier 4) | Dates obligatoires — lien de recherche uniquement, pas de carte prix                             |
+| FlashOffers (accueil) | Non                           | Hors périmètre (page d'accueil, item 5 chantier 4 non-approuvé)                                  |

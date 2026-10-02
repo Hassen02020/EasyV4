@@ -12,13 +12,16 @@
 import { Metadata } from "next"
 import Link from "next/link"
 import { redirect, notFound } from "next/navigation"
-import { ArrowLeft, Mail, Phone, MapPin, IdCard, Calendar, ShoppingBag } from "lucide-react"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  IdCard,
+  Calendar,
+  ShoppingBag,
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { B2cClientRowActions } from "@/components/admin/b2c-client-row-actions"
@@ -44,30 +47,40 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 async function loadClientProfile(agencyId: string, clientId: string) {
-  return withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, async (db) => {
-    const [client] = await db
-      .select()
-      .from(customers)
-      .where(and(eq(customers.id, clientId), eq(customers.agencyId, agencyId)))
-      .limit(1)
-    if (!client) return null
+  return withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    async (db) => {
+      const [client] = await db
+        .select()
+        .from(customers)
+        .where(
+          and(eq(customers.id, clientId), eq(customers.agencyId, agencyId)),
+        )
+        .limit(1)
+      if (!client) return null
 
-    const clientReservations = await db
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        module: reservations.module,
-        status: reservations.status,
-        tndAmount: reservations.tndAmount,
-        createdAt: reservations.createdAt,
-      })
-      .from(reservations)
-      .where(and(eq(reservations.agencyId, agencyId), eq(reservations.customerId, clientId)))
-      .orderBy(desc(reservations.createdAt))
-      .limit(20)
+      const clientReservations = await db
+        .select({
+          id: reservations.id,
+          publicRef: reservations.publicRef,
+          module: reservations.module,
+          status: reservations.status,
+          tndAmount: reservations.tndAmount,
+          createdAt: reservations.createdAt,
+        })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            eq(reservations.customerId, clientId),
+          ),
+        )
+        .orderBy(desc(reservations.createdAt))
+        .limit(20)
 
-    return { client, clientReservations }
-  })
+      return { client, clientReservations }
+    },
+  )
 }
 
 export default async function B2CClientProfilePage({
@@ -107,7 +120,10 @@ export default async function B2CClientProfilePage({
               {client.civility ? `${client.civility} ` : ""}
               {client.firstName} {client.lastName}
             </h1>
-            <p className="text-muted-foreground text-sm">Client depuis le {new Date(client.createdAt).toLocaleDateString("fr-FR")}</p>
+            <p className="text-muted-foreground text-sm">
+              Client depuis le{" "}
+              {new Date(client.createdAt).toLocaleDateString("fr-FR")}
+            </p>
           </div>
         </div>
         <B2cClientRowActions
@@ -156,11 +172,13 @@ export default async function B2CClientProfilePage({
           <CardContent className="space-y-3 text-sm">
             <div className="flex items-center gap-2">
               <ShoppingBag className="text-muted-foreground h-4 w-4" />
-              {clientReservations.length} réservation{clientReservations.length !== 1 ? "s" : ""} (20 plus récentes)
+              {clientReservations.length} réservation
+              {clientReservations.length !== 1 ? "s" : ""} (20 plus récentes)
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="text-muted-foreground h-4 w-4" />
-              Inscrit le {new Date(client.createdAt).toLocaleDateString("fr-FR")}
+              Inscrit le{" "}
+              {new Date(client.createdAt).toLocaleDateString("fr-FR")}
             </div>
           </CardContent>
         </Card>
@@ -170,24 +188,45 @@ export default async function B2CClientProfilePage({
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Réservations récentes</CardTitle>
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/admin/b2c/reservations?customerId=${client.id}`}>Voir toutes les réservations</Link>
+            <Link href={`/admin/b2c/reservations?customerId=${client.id}`}>
+              Voir toutes les réservations
+            </Link>
           </Button>
         </CardHeader>
         <CardContent>
           {clientReservations.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center text-sm">Aucune réservation pour ce client.</p>
+            <p className="text-muted-foreground py-8 text-center text-sm">
+              Aucune réservation pour ce client.
+            </p>
           ) : (
             <ul className="divide-y">
               {clientReservations.map((r) => (
-                <li key={r.id} className="flex items-center justify-between py-3">
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between py-3"
+                >
                   <div className="flex items-center gap-3">
-                    <code className="rounded bg-gray-100 px-2 py-1 font-mono text-xs">{r.publicRef}</code>
-                    <Badge variant="secondary">{STATUS_LABELS[r.status] || r.status}</Badge>
+                    <code className="rounded bg-gray-100 px-2 py-1 font-mono text-xs">
+                      {r.publicRef}
+                    </code>
+                    <Badge variant="secondary">
+                      {STATUS_LABELS[r.status] || r.status}
+                    </Badge>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="font-medium">{parseFloat(r.tndAmount as string).toLocaleString("fr-FR")} DT</span>
-                    <span className="text-muted-foreground">{new Date(r.createdAt).toLocaleDateString("fr-FR")}</span>
-                    <Link href={`/admin/reservations/${r.id}`} className="text-primary hover:underline">
+                    <span className="font-medium">
+                      {parseFloat(r.tndAmount as string).toLocaleString(
+                        "fr-FR",
+                      )}{" "}
+                      DT
+                    </span>
+                    <span className="text-muted-foreground">
+                      {new Date(r.createdAt).toLocaleDateString("fr-FR")}
+                    </span>
+                    <Link
+                      href={`/admin/reservations/${r.id}`}
+                      className="text-primary hover:underline"
+                    >
                       Détails
                     </Link>
                   </div>

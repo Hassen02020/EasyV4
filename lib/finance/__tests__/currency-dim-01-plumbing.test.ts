@@ -22,8 +22,17 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withSystemContext, withTenantContext, type TenantContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, reservationFinancials } from "@/lib/db/schema"
+import {
+  withSystemContext,
+  withTenantContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
+import {
+  agencies,
+  customers,
+  reservations,
+  reservationFinancials,
+} from "@/lib/db/schema"
 import { recordReservationFinancials } from "../reservation-financials"
 
 async function isDbAvailable(): Promise<boolean> {
@@ -67,37 +76,42 @@ before(async () => {
     })
   })
 
-  const ctx: TenantContext = { agencyId, userId: randomUUID(), isSuperAdmin: false }
-  ;[reservationIdNoCurrency, reservationIdWithCurrency] = await withTenantContext(ctx, async (tx) => {
-    const rows = await tx
-      .insert(reservations)
-      .values([
-        {
-          agencyId,
-          publicRef: `CD01-A-${randomUUID().slice(0, 8)}`,
-          customerId,
-          module: "hotel",
-          source: "internal",
-          status: "confirmed",
-          originalCurrency: "TND",
-          originalAmount: "100.00",
-          tndAmount: "100.00",
-        },
-        {
-          agencyId,
-          publicRef: `CD01-B-${randomUUID().slice(0, 8)}`,
-          customerId,
-          module: "hotel",
-          source: "internal",
-          status: "confirmed",
-          originalCurrency: "EUR",
-          originalAmount: "30.00",
-          tndAmount: "100.00",
-        },
-      ])
-      .returning({ id: reservations.id })
-    return rows.map((r) => r.id)
-  })
+  const ctx: TenantContext = {
+    agencyId,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
+  ;[reservationIdNoCurrency, reservationIdWithCurrency] =
+    await withTenantContext(ctx, async (tx) => {
+      const rows = await tx
+        .insert(reservations)
+        .values([
+          {
+            agencyId,
+            publicRef: `CD01-A-${randomUUID().slice(0, 8)}`,
+            customerId,
+            module: "hotel",
+            source: "internal",
+            status: "confirmed",
+            originalCurrency: "TND",
+            originalAmount: "100.00",
+            tndAmount: "100.00",
+          },
+          {
+            agencyId,
+            publicRef: `CD01-B-${randomUUID().slice(0, 8)}`,
+            customerId,
+            module: "hotel",
+            source: "internal",
+            status: "confirmed",
+            originalCurrency: "EUR",
+            originalAmount: "30.00",
+            tndAmount: "100.00",
+          },
+        ])
+        .returning({ id: reservations.id })
+      return rows.map((r) => r.id)
+    })
 })
 
 after(async () => {
@@ -109,8 +123,12 @@ after(async () => {
     await tx
       .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationIdWithCurrency))
-    await tx.delete(reservations).where(eq(reservations.id, reservationIdNoCurrency))
-    await tx.delete(reservations).where(eq(reservations.id, reservationIdWithCurrency))
+    await tx
+      .delete(reservations)
+      .where(eq(reservations.id, reservationIdNoCurrency))
+    await tx
+      .delete(reservations)
+      .where(eq(reservations.id, reservationIdWithCurrency))
     await tx.delete(customers).where(eq(customers.id, customerId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
@@ -119,7 +137,11 @@ after(async () => {
 test("sans supplierOriginal/saleOriginal/exchangeRate : comportement STRICTEMENT inchangé (supplier_currency/sale_currency='TND', exchange_rate/exchange_rate_at = défauts)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
 
-  const ctx: TenantContext = { agencyId, userId: randomUUID(), isSuperAdmin: false }
+  const ctx: TenantContext = {
+    agencyId,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
   await withTenantContext(ctx, (tx) =>
     recordReservationFinancials({
       tx,
@@ -140,7 +162,11 @@ test("sans supplierOriginal/saleOriginal/exchangeRate : comportement STRICTEMENT
   assert.equal(row!.saleCurrency, "TND")
   assert.equal(row!.supplierPrice, "80.00")
   assert.equal(row!.salePrice, "100.00")
-  assert.equal(row!.exchangeRate, "1.000000", "valeur par défaut du schéma, jamais écrasée quand absent")
+  assert.equal(
+    row!.exchangeRate,
+    "1.000000",
+    "valeur par défaut du schéma, jamais écrasée quand absent",
+  )
   assert.equal(row!.exchangeRateAt, null)
 })
 
@@ -149,7 +175,11 @@ test("avec supplierOriginal/saleOriginal/exchangeRate réels fournis : persisté
 
   const exchangeRateAt = new Date("2026-10-01T12:00:00Z")
 
-  const ctx: TenantContext = { agencyId, userId: randomUUID(), isSuperAdmin: false }
+  const ctx: TenantContext = {
+    agencyId,
+    userId: randomUUID(),
+    isSuperAdmin: false,
+  }
   await withTenantContext(ctx, (tx) =>
     recordReservationFinancials({
       tx,
@@ -166,12 +196,18 @@ test("avec supplierOriginal/saleOriginal/exchangeRate réels fournis : persisté
     tx
       .select()
       .from(reservationFinancials)
-      .where(eq(reservationFinancials.reservationId, reservationIdWithCurrency)),
+      .where(
+        eq(reservationFinancials.reservationId, reservationIdWithCurrency),
+      ),
   )
   assert.ok(row, "la ligne reservation_financials doit exister")
   assert.equal(row!.supplierCurrency, "EUR")
   assert.equal(row!.supplierPrice, "30.00")
-  assert.equal(row!.supplierPriceTnd, "100.00", "le montant TND reste celui fourni, jamais recalculé ici")
+  assert.equal(
+    row!.supplierPriceTnd,
+    "100.00",
+    "le montant TND reste celui fourni, jamais recalculé ici",
+  )
   assert.equal(row!.saleCurrency, "TND")
   assert.equal(row!.exchangeRate, "3.333300")
   assert.equal(row!.exchangeRateAt?.toISOString(), exchangeRateAt.toISOString())

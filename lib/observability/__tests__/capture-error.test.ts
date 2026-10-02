@@ -21,7 +21,10 @@ test("scrubValue : masque un numéro de téléphone en ne gardant que les 2 dern
 
 test("scrubValue : laisse passer une valeur non sensible inchangée", () => {
   assert.equal(scrubValue("reservationId", "r-123"), "r-123")
-  assert.equal(scrubValue("operation", "manual-payment.verify"), "manual-payment.verify")
+  assert.equal(
+    scrubValue("operation", "manual-payment.verify"),
+    "manual-payment.verify",
+  )
 })
 
 test("scrubValue : ne confond pas un UUID (non numérique) avec un téléphone", () => {
@@ -33,7 +36,9 @@ test("captureError : ne lève jamais, même sans SENTRY_DSN configuré (comporte
   const previous = process.env.SENTRY_DSN
   delete process.env.SENTRY_DSN
   try {
-    assert.doesNotThrow(() => captureError(new Error("test"), { operation: "test" }))
+    assert.doesNotThrow(() =>
+      captureError(new Error("test"), { operation: "test" }),
+    )
   } finally {
     if (previous !== undefined) process.env.SENTRY_DSN = previous
   }

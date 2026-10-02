@@ -25,10 +25,19 @@
 import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { catalogPackages, catalogPackageDepartures, auditEvents } from "@/lib/db/schema"
+import {
+  catalogPackages,
+  catalogPackageDepartures,
+  auditEvents,
+} from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 import { isValidProductStatus } from "./product-constants"
-import { packageProductSchema, packageDepartureSchema, type PackageProductInput, type PackageDepartureInput } from "./schemas/package-product"
+import {
+  packageProductSchema,
+  packageDepartureSchema,
+  type PackageProductInput,
+  type PackageDepartureInput,
+} from "./schemas/package-product"
 
 export type ProductActionResult<T = { id: string }> =
   | { ok: true; data: T }
@@ -48,18 +57,24 @@ function slugify(title: string): string {
 /* Create / Update                                                            */
 /* -------------------------------------------------------------------------- */
 
-export async function createPackageProduct(input: PackageProductInput): Promise<ProductActionResult> {
+export async function createPackageProduct(
+  input: PackageProductInput,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const parsed = packageProductSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
 
@@ -106,7 +121,10 @@ export async function createPackageProduct(input: PackageProductInput): Promise<
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -120,11 +138,15 @@ export async function updatePackageProduct(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   const parsed = packageProductSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
 
@@ -151,7 +173,12 @@ export async function updatePackageProduct(
             channels: data.channels,
             updatedAt: new Date(),
           })
-          .where(and(eq(catalogPackages.id, productId), eq(catalogPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogPackages.id, productId),
+              eq(catalogPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .returning({ id: catalogPackages.id })
 
         if (!updated) throw new Error("PRODUCT_NOT_FOUND")
@@ -169,7 +196,10 @@ export async function updatePackageProduct(
     revalidatePath("/admin/products")
     return { ok: true, data: { id: productId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -187,8 +217,10 @@ export async function setPackageProductStatus(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!isValidProductStatus(status)) return { ok: false, error: "Statut invalide" }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!isValidProductStatus(status))
+    return { ok: false, error: "Statut invalide" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     await withTenantContext(
@@ -197,7 +229,12 @@ export async function setPackageProductStatus(
         const [updated] = await tx
           .update(catalogPackages)
           .set({ status, updatedAt: new Date() })
-          .where(and(eq(catalogPackages.id, productId), eq(catalogPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogPackages.id, productId),
+              eq(catalogPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .returning({ id: catalogPackages.id })
         if (!updated) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -214,7 +251,10 @@ export async function setPackageProductStatus(
     revalidatePath("/admin/products")
     return { ok: true, data: { id: productId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -222,14 +262,17 @@ export async function setPackageProductStatus(
 /* Duplicate — configuration uniquement, jamais les réservations              */
 /* -------------------------------------------------------------------------- */
 
-export async function duplicatePackageProduct(productId: string): Promise<ProductActionResult> {
+export async function duplicatePackageProduct(
+  productId: string,
+): Promise<ProductActionResult> {
   let ctx
   try {
     ctx = await assertProductManager()
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const result = await withTenantContext(
@@ -238,7 +281,12 @@ export async function duplicatePackageProduct(productId: string): Promise<Produc
         const [original] = await tx
           .select()
           .from(catalogPackages)
-          .where(and(eq(catalogPackages.id, productId), eq(catalogPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogPackages.id, productId),
+              eq(catalogPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!original) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -284,7 +332,10 @@ export async function duplicatePackageProduct(productId: string): Promise<Produc
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -304,10 +355,14 @@ export async function createPackageDeparture(
   }
   const parsed = packageDepartureSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error: parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const data = parsed.data
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     const result = await withTenantContext(
@@ -316,7 +371,12 @@ export async function createPackageDeparture(
         const [product] = await tx
           .select({ id: catalogPackages.id })
           .from(catalogPackages)
-          .where(and(eq(catalogPackages.id, productId), eq(catalogPackages.agencyId, ctx.agencyId)))
+          .where(
+            and(
+              eq(catalogPackages.id, productId),
+              eq(catalogPackages.agencyId, ctx.agencyId),
+            ),
+          )
           .limit(1)
         if (!product) throw new Error("PRODUCT_NOT_FOUND")
 
@@ -328,7 +388,10 @@ export async function createPackageDeparture(
             departureDate: data.departureDate,
             returnDate: data.returnDate,
             adultPriceTnd: data.adultPriceTnd.toFixed(2),
-            childPriceTnd: data.childPriceTnd != null ? data.childPriceTnd.toFixed(2) : undefined,
+            childPriceTnd:
+              data.childPriceTnd != null
+                ? data.childPriceTnd.toFixed(2)
+                : undefined,
             depositPercent: data.depositPercent,
             totalSeats: data.totalSeats,
             bookedSeats: 0,
@@ -351,7 +414,10 @@ export async function createPackageDeparture(
     revalidatePath("/admin/products")
     return { ok: true, data: result }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }
 
@@ -365,7 +431,8 @@ export async function setPackageDepartureStatus(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
   }
-  if (!process.env.DATABASE_URL) return { ok: false, error: "Base de données non configurée" }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
 
   try {
     await withTenantContext(
@@ -387,6 +454,9 @@ export async function setPackageDepartureStatus(
     revalidatePath("/admin/products")
     return { ok: true, data: { id: departureId } }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur interne" }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur interne",
+    }
   }
 }

@@ -13,17 +13,45 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Edit, MoreHorizontal, Copy, Send, PauseCircle, Archive } from "lucide-react"
-import { setPackageProductStatus, duplicatePackageProduct } from "@/lib/admin/packages-actions"
-import { setOmraProductStatus, duplicateOmraProduct } from "@/lib/admin/omra-product-actions"
-import { setActivityProductStatus, duplicateActivityProduct } from "@/lib/admin/activities-actions"
+import {
+  Edit,
+  MoreHorizontal,
+  Copy,
+  Send,
+  PauseCircle,
+  Archive,
+} from "lucide-react"
+import {
+  setPackageProductStatus,
+  duplicatePackageProduct,
+} from "@/lib/admin/packages-actions"
+import {
+  setOmraProductStatus,
+  duplicateOmraProduct,
+} from "@/lib/admin/omra-product-actions"
+import {
+  setActivityProductStatus,
+  duplicateActivityProduct,
+} from "@/lib/admin/activities-actions"
 
 type ProductType = "package" | "omra" | "activity"
 
-const ACTIONS: Record<ProductType, { setStatus: typeof setPackageProductStatus; duplicate: typeof duplicatePackageProduct }> = {
-  package: { setStatus: setPackageProductStatus, duplicate: duplicatePackageProduct },
+const ACTIONS: Record<
+  ProductType,
+  {
+    setStatus: typeof setPackageProductStatus
+    duplicate: typeof duplicatePackageProduct
+  }
+> = {
+  package: {
+    setStatus: setPackageProductStatus,
+    duplicate: duplicatePackageProduct,
+  },
   omra: { setStatus: setOmraProductStatus, duplicate: duplicateOmraProduct },
-  activity: { setStatus: setActivityProductStatus, duplicate: duplicateActivityProduct },
+  activity: {
+    setStatus: setActivityProductStatus,
+    duplicate: duplicateActivityProduct,
+  },
 }
 
 export function ProductRowActions({
@@ -71,7 +99,12 @@ export function ProductRowActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Actions pour ${name}`} disabled={isPending}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Actions pour ${name}`}
+          disabled={isPending}
+        >
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -91,19 +124,28 @@ export function ProductRowActions({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {status !== "published" ? (
-          <DropdownMenuItem onClick={() => handleSetStatus("published")} className="text-emerald-600">
+          <DropdownMenuItem
+            onClick={() => handleSetStatus("published")}
+            className="text-emerald-600"
+          >
             <Send className="mr-2 h-4 w-4" />
             Publier
           </DropdownMenuItem>
         ) : null}
         {status !== "suspended" && status !== "archived" ? (
-          <DropdownMenuItem onClick={() => handleSetStatus("suspended")} className="text-amber-600">
+          <DropdownMenuItem
+            onClick={() => handleSetStatus("suspended")}
+            className="text-amber-600"
+          >
             <PauseCircle className="mr-2 h-4 w-4" />
             Suspendre
           </DropdownMenuItem>
         ) : null}
         {status !== "archived" ? (
-          <DropdownMenuItem onClick={() => handleSetStatus("archived")} className="text-gray-600">
+          <DropdownMenuItem
+            onClick={() => handleSetStatus("archived")}
+            className="text-gray-600"
+          >
             <Archive className="mr-2 h-4 w-4" />
             Archiver
           </DropdownMenuItem>

@@ -24,5 +24,8 @@ test("normalizeHost : met en minuscules", () => {
 })
 
 test("normalizeHost : ne retire pas un www. au milieu du domaine", () => {
-  assert.equal(normalizeHost("voyages-www.exemple.tn"), "voyages-www.exemple.tn")
+  assert.equal(
+    normalizeHost("voyages-www.exemple.tn"),
+    "voyages-www.exemple.tn",
+  )
 })

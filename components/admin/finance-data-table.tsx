@@ -140,7 +140,10 @@ const columns: ColumnDef<FinanceMovementRow>[] = [
       return (
         <Badge
           variant="outline"
-          className={cn("inline-flex items-center gap-1 font-medium", meta.className)}
+          className={cn(
+            "inline-flex items-center gap-1 font-medium",
+            meta.className,
+          )}
         >
           <Icon className="h-3 w-3" />
           {meta.label}
@@ -179,9 +182,7 @@ const columns: ColumnDef<FinanceMovementRow>[] = [
     accessorKey: "reference",
     header: "Référence",
     cell: ({ row }) => (
-      <span className="font-mono text-xs">
-        {row.original.reference ?? "—"}
-      </span>
+      <span className="font-mono text-xs">{row.original.reference ?? "—"}</span>
     ),
   },
   {

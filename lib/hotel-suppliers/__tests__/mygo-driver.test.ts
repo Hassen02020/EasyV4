@@ -7,8 +7,17 @@ import { MyGoDriver } from "../mygo/driver"
 import { encodeMyGoSupplierToken } from "../mygo/mapper"
 import type { MyGoClient } from "@/lib/mygo/client"
 import type { MyGoConfig } from "@/lib/mygo/config"
-import type { BookingConfirmationDTO, BookingCancellationDTO } from "@/lib/mygo/types"
-import { MyGoAuthError, MyGoTimeoutError, MyGoNetworkError, MyGoSchemaError, MyGoApiError } from "@/lib/mygo"
+import type {
+  BookingConfirmationDTO,
+  BookingCancellationDTO,
+} from "@/lib/mygo/types"
+import {
+  MyGoAuthError,
+  MyGoTimeoutError,
+  MyGoNetworkError,
+  MyGoSchemaError,
+  MyGoApiError,
+} from "@/lib/mygo"
 
 /**
  * lib/mygo/config.ts::getMyGoConfig() met en cache son résultat au niveau
@@ -56,7 +65,9 @@ test("MyGoDriver.search : repasse stars/onlyAvailable de la requête (PHASE 28 �
     staticDataTtlSeconds: 86400,
     searchTtlSeconds: 300,
   }
-  let capturedInput: { filters?: { categories?: number[]; onlyAvailable?: boolean } } | undefined
+  let capturedInput:
+    | { filters?: { categories?: number[]; onlyAvailable?: boolean } }
+    | undefined
   const client = {
     searchHotels: async (input: unknown) => {
       capturedInput = input as typeof capturedInput
@@ -79,13 +90,19 @@ test("MyGoDriver.search : repasse stars/onlyAvailable de la requête (PHASE 28 �
   assert.equal(capturedInput?.filters?.onlyAvailable, false)
 })
 
-function runInIsolatedProcess(env: Record<string, string | undefined>): { status: string; isVirtual: boolean } {
+function runInIsolatedProcess(env: Record<string, string | undefined>): {
+  status: string
+  isVirtual: boolean
+} {
   // Écrit un vrai fichier temporaire exécuté par tsx dans un process neuf
   // (importer le driver et imprimer son état en JSON sur stdout) — seule
   // façon fiable de contourner le cache module-level existant de
   // lib/mygo/config.ts sans le modifier. Écrit DANS le projet (pas /tmp)
   // pour que tsx résolve les alias "@/..." via le tsconfig.json du dépôt.
-  const tmpFile = join(process.cwd(), `.p26-mygo-config-check-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`)
+  const tmpFile = join(
+    process.cwd(),
+    `.p26-mygo-config-check-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`,
+  )
   writeFileSync(
     tmpFile,
     `
@@ -108,13 +125,21 @@ process.stdout.write(JSON.stringify({ status: driver.getConfigStatus(), isVirtua
 }
 
 test("MyGoDriver.getConfigStatus (process isolé) : mode live sans MYGO_LOGIN/MYGO_PASSWORD -> NOT_CONFIGURED", () => {
-  const result = runInIsolatedProcess({ MYGO_MODE: "live", MYGO_LOGIN: "", MYGO_PASSWORD: "" })
+  const result = runInIsolatedProcess({
+    MYGO_MODE: "live",
+    MYGO_LOGIN: "",
+    MYGO_PASSWORD: "",
+  })
   assert.equal(result.status, "NOT_CONFIGURED")
   assert.equal(result.isVirtual, false)
 })
 
 test("MyGoDriver.getConfigStatus (process isolé) : mode live avec credentials présents -> CONFIGURED, mode réel jamais confondu avec virtuel", () => {
-  const result = runInIsolatedProcess({ MYGO_MODE: "live", MYGO_LOGIN: "real-login", MYGO_PASSWORD: "real-password" })
+  const result = runInIsolatedProcess({
+    MYGO_MODE: "live",
+    MYGO_LOGIN: "real-login",
+    MYGO_PASSWORD: "real-password",
+  })
   assert.equal(result.status, "CONFIGURED")
   assert.equal(result.isVirtual, false)
 })
@@ -137,7 +162,13 @@ const TEST_CONFIG: MyGoConfig = {
   searchTtlSeconds: 300,
 }
 
-const TEST_TOKEN = encodeMyGoSupplierToken({ cityId: 10, hotelId: 555, boardingId: 2, roomId: 99, searchToken: "search-tok" })
+const TEST_TOKEN = encodeMyGoSupplierToken({
+  cityId: 10,
+  hotelId: 555,
+  boardingId: 2,
+  roomId: 99,
+  searchToken: "search-tok",
+})
 
 function mockClient(overrides: Partial<MyGoClient> = {}): MyGoClient {
   return {
@@ -182,7 +213,11 @@ test("MyGoDriver.checkRate : utilise confirmation.totalPrice (jamais .atHotel) c
 })
 
 test("MyGoDriver.checkRate : indisponibilité fournisseur -> code NO_AVAILABILITY normalisé, jamais une exception brute", async () => {
-  const client = mockClient({ createBooking: async () => { throw new Error("No availability for this room") } })
+  const client = mockClient({
+    createBooking: async () => {
+      throw new Error("No availability for this room")
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.checkRate({
@@ -252,7 +287,11 @@ test("MyGoDriver.book : utilise confirmation.totalPrice comme confirmedNetPrice 
 })
 
 test("MyGoDriver.book : erreur d'authentification fournisseur -> DEFINITIVE_FAILURE/AUTH_ERROR, jamais AMBIGUOUS (Phase 27.2)", async () => {
-  const client = mockClient({ createBooking: async () => { throw new MyGoAuthError("Authentication failed") } })
+  const client = mockClient({
+    createBooking: async () => {
+      throw new MyGoAuthError("Authentication failed")
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.book({
@@ -270,11 +309,16 @@ test("MyGoDriver.book : erreur d'authentification fournisseur -> DEFINITIVE_FAIL
   })
 
   assert.equal(result.outcome, "DEFINITIVE_FAILURE")
-  if (result.outcome === "DEFINITIVE_FAILURE") assert.equal(result.code, "AUTH_ERROR")
+  if (result.outcome === "DEFINITIVE_FAILURE")
+    assert.equal(result.code, "AUTH_ERROR")
 })
 
 test("MyGoDriver.book : timeout fournisseur -> AMBIGUOUS/TIMEOUT — jamais un échec définitif, réservation peut-être créée (Phase 27.2)", async () => {
-  const client = mockClient({ createBooking: async () => { throw new MyGoTimeoutError(5000) } })
+  const client = mockClient({
+    createBooking: async () => {
+      throw new MyGoTimeoutError(5000)
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.book({
@@ -320,7 +364,11 @@ test("MyGoDriver.book : un timeout AMBIGUOUS n'appelle createBooking qu'UNE SEUL
   })
 
   assert.equal(result.outcome, "AMBIGUOUS")
-  assert.equal(createBookingCalls, 1, "book() ne doit JAMAIS retenter createBooking lui-même après un état ambigu")
+  assert.equal(
+    createBookingCalls,
+    1,
+    "book() ne doit JAMAIS retenter createBooking lui-même après un état ambigu",
+  )
 })
 
 test("MyGoDriver.book : un résultat SUCCESS ne contient AUCUN champ credential/config — surface exactement le contrat Hub (Phase 27.2)", async () => {
@@ -351,12 +399,23 @@ test("MyGoDriver.book : un résultat SUCCESS ne contient AUCUN champ credential/
 
   assert.deepEqual(
     new Set(Object.keys(result)),
-    new Set(["outcome", "supplierBookingReference", "confirmedNetPrice", "currency", "state", "hotelId"]),
+    new Set([
+      "outcome",
+      "supplierBookingReference",
+      "confirmedNetPrice",
+      "currency",
+      "state",
+      "hotelId",
+    ]),
   )
 })
 
 test("MyGoDriver.book : erreur réseau fournisseur -> AMBIGUOUS/NETWORK_ERROR (Phase 27.2)", async () => {
-  const client = mockClient({ createBooking: async () => { throw new MyGoNetworkError("ECONNRESET") } })
+  const client = mockClient({
+    createBooking: async () => {
+      throw new MyGoNetworkError("ECONNRESET")
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.book({
@@ -378,7 +437,11 @@ test("MyGoDriver.book : erreur réseau fournisseur -> AMBIGUOUS/NETWORK_ERROR (P
 })
 
 test("MyGoDriver.book : réponse malformée fournisseur -> AMBIGUOUS/MALFORMED_RESPONSE, jamais classé comme définitif (Phase 27.2)", async () => {
-  const client = mockClient({ createBooking: async () => { throw new MyGoSchemaError("createBooking", ["totalPrice manquant"]) } })
+  const client = mockClient({
+    createBooking: async () => {
+      throw new MyGoSchemaError("createBooking", ["totalPrice manquant"])
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.book({
@@ -396,11 +459,20 @@ test("MyGoDriver.book : réponse malformée fournisseur -> AMBIGUOUS/MALFORMED_R
   })
 
   assert.equal(result.outcome, "AMBIGUOUS")
-  if (result.outcome === "AMBIGUOUS") assert.equal(result.code, "MALFORMED_RESPONSE")
+  if (result.outcome === "AMBIGUOUS")
+    assert.equal(result.code, "MALFORMED_RESPONSE")
 })
 
 test("MyGoDriver.book : indisponibilité fournisseur -> DEFINITIVE_FAILURE/NO_AVAILABILITY, jamais ambigu (Phase 27.2)", async () => {
-  const client = mockClient({ createBooking: async () => { throw new MyGoApiError("createBooking", 400, "No availability for this room") } })
+  const client = mockClient({
+    createBooking: async () => {
+      throw new MyGoApiError(
+        "createBooking",
+        400,
+        "No availability for this room",
+      )
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.book({
@@ -418,7 +490,8 @@ test("MyGoDriver.book : indisponibilité fournisseur -> DEFINITIVE_FAILURE/NO_AV
   })
 
   assert.equal(result.outcome, "DEFINITIVE_FAILURE")
-  if (result.outcome === "DEFINITIVE_FAILURE") assert.equal(result.code, "NO_AVAILABILITY")
+  if (result.outcome === "DEFINITIVE_FAILURE")
+    assert.equal(result.code, "NO_AVAILABILITY")
 })
 
 test("MyGoDriver.reconcileBooking : une seule réservation correspondante récente -> FOUND, jamais un second BOOK nécessaire (Phase 27.2)", async () => {
@@ -469,7 +542,11 @@ test("MyGoDriver.reconcileBooking : aucune réservation correspondante -> NOT_FO
 })
 
 test("MyGoDriver.reconcileBooking : BookingList elle-même inaccessible -> STILL_AMBIGUOUS, jamais un faux NOT_FOUND (Phase 27.2)", async () => {
-  const client = mockClient({ listBookings: async () => { throw new MyGoNetworkError("ECONNRESET") } })
+  const client = mockClient({
+    listBookings: async () => {
+      throw new MyGoNetworkError("ECONNRESET")
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
   const result = await driver.reconcileBooking({
@@ -483,11 +560,19 @@ test("MyGoDriver.reconcileBooking : BookingList elle-même inaccessible -> STILL
 })
 
 test("MyGoDriver.cancel : mappe fee/currency/bookingId correctement vers SupplierCancellationResult", async () => {
-  const cancellation: BookingCancellationDTO = { bookingId: 42, fee: 25.5, currency: "TND", preCancelled: false }
+  const cancellation: BookingCancellationDTO = {
+    bookingId: 42,
+    fee: 25.5,
+    currency: "TND",
+    preCancelled: false,
+  }
   const client = mockClient({ cancelBooking: async () => cancellation })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
-  const result = await driver.cancel({ supplier: "mygo", supplierBookingReference: "42" })
+  const result = await driver.cancel({
+    supplier: "mygo",
+    supplierBookingReference: "42",
+  })
 
   assert.equal(result.ok, true)
   if (result.ok) {
@@ -505,10 +590,17 @@ test("MyGoDriver.cancel : timeout fournisseur -> code TIMEOUT normalisé", async
       this.name = "MyGoTimeoutError"
     }
   }
-  const client = mockClient({ cancelBooking: async () => { throw new MyGoTimeoutError() } })
+  const client = mockClient({
+    cancelBooking: async () => {
+      throw new MyGoTimeoutError()
+    },
+  })
   const driver = new MyGoDriver(client, TEST_CONFIG)
 
-  const result = await driver.cancel({ supplier: "mygo", supplierBookingReference: "42" })
+  const result = await driver.cancel({
+    supplier: "mygo",
+    supplierBookingReference: "42",
+  })
 
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "TIMEOUT")

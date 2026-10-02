@@ -34,7 +34,10 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { FIELD_SHELL, FieldLabel } from "@/components/search-field"
-import { useDestinations, type DestinationModule } from "@/hooks/use-destinations"
+import {
+  useDestinations,
+  type DestinationModule,
+} from "@/hooks/use-destinations"
 import { cn } from "@/lib/utils"
 
 export interface DestinationAutocompleteProps {
@@ -80,7 +83,12 @@ export function DestinationAutocomplete({
           externalId: d.externalId,
           displayName: localizedName(locale, d.name, d.nameEn, d.nameAr),
           displayCountry: d.countryName
-            ? localizedName(locale, d.countryName, d.countryNameEn, d.countryNameAr)
+            ? localizedName(
+                locale,
+                d.countryName,
+                d.countryNameEn,
+                d.countryNameAr,
+              )
             : null,
         })),
     [destinations, excludeExternalId, locale],

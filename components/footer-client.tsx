@@ -99,8 +99,8 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
             const Icon = badge.icon
             return (
               <div key={index} className="flex items-center gap-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sidebar/10">
-                  <Icon className="size-5 text-sidebar" />
+                <div className="bg-sidebar/10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full">
+                  <Icon className="text-sidebar size-5" />
                 </div>
                 <div>
                   <p className="text-foreground text-sm font-semibold">
@@ -117,7 +117,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
       </div>
 
       {/* Main Footer Content */}
-      <div className="border-border border-t bg-sidebar text-white">
+      <div className="border-border bg-sidebar border-t text-white">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {/* Brand */}
@@ -142,7 +142,9 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                   />
                 )}
                 {brandName ? (
-                  <span className="text-lg font-bold text-white">{brandName}</span>
+                  <span className="text-lg font-bold text-white">
+                    {brandName}
+                  </span>
                 ) : (
                   <span className="text-lg font-bold">
                     <span className="text-white">Easy</span>
@@ -165,7 +167,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                       aria-label={social.label}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-accent"
+                      className="hover:bg-accent flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors"
                     >
                       <Icon className="size-4" />
                     </a>
@@ -176,9 +178,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
 
             {/* Quick Links */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-accent">
-                {t("nosServices")}
-              </h4>
+              <h4 className="text-accent font-semibold">{t("nosServices")}</h4>
               <ul className="space-y-2 text-sm text-white/70">
                 {(
                   [
@@ -191,7 +191,10 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                   ] as const
                 ).map(({ key, href }) => (
                   <li key={key}>
-                    <Link href={href} className="transition-colors hover:text-white">
+                    <Link
+                      href={href}
+                      className="transition-colors hover:text-white"
+                    >
                       {t(key)}
                     </Link>
                   </li>
@@ -201,10 +204,10 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
 
             {/* Contact */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-accent">Contact</h4>
+              <h4 className="text-accent font-semibold">Contact</h4>
               <ul className="space-y-3 text-sm text-white/70">
                 <li className="flex items-center gap-2">
-                  <Phone className="size-4 text-accent" />
+                  <Phone className="text-accent size-4" />
                   <a
                     href="tel:+21698140514"
                     className="font-medium transition-colors hover:text-white"
@@ -213,7 +216,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                   </a>
                 </li>
                 <li className="flex items-center gap-2">
-                  <WhatsAppIcon className="size-4 text-accent" />
+                  <WhatsAppIcon className="text-accent size-4" />
                   <a
                     href="https://wa.me/21698140514"
                     target="_blank"
@@ -224,7 +227,7 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
                   </a>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Building2 className="size-4 text-accent" />
+                  <Building2 className="text-accent size-4" />
                   <span>Tunis, Tunisie</span>
                 </li>
               </ul>
@@ -239,13 +242,19 @@ export function FooterClient({ logoUrl, brandName }: FooterClientProps) {
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             {/* Links */}
             <div className="flex items-center gap-4 text-xs text-white/60 sm:gap-6 sm:text-sm">
-              <Link href="/mentions-legales" className="transition-colors hover:text-white">
+              <Link
+                href="/mentions-legales"
+                className="transition-colors hover:text-white"
+              >
                 {t("mentionsLegales")}
               </Link>
               <Link href="/cgv" className="transition-colors hover:text-white">
                 {t("cgv")}
               </Link>
-              <Link href="/politique-confidentialite" className="transition-colors hover:text-white">
+              <Link
+                href="/politique-confidentialite"
+                className="transition-colors hover:text-white"
+              >
                 {t("politique")}
               </Link>
             </div>

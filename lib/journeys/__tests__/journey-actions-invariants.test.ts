@@ -12,7 +12,10 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const src = readFileSync(join(process.cwd(), "lib/journeys/journey-actions.ts"), "utf8")
+const src = readFileSync(
+  join(process.cwd(), "lib/journeys/journey-actions.ts"),
+  "utf8",
+)
 
 function countOccurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
@@ -24,7 +27,10 @@ test("resolveActorContext : un agencyId fourni par un utilisateur agence normal 
   assert.match(fnSrc, /if \(!session\.agencyId\)/)
   assert.match(fnSrc, /agencyId: session\.agencyId/)
   // Le paramètre explicite n'est utilisé QUE dans la branche isSuperAdmin.
-  const superAdminBranch = fnSrc.slice(fnSrc.indexOf("if (session.isSuperAdmin)"), fnSrc.indexOf("if (!session.agencyId)"))
+  const superAdminBranch = fnSrc.slice(
+    fnSrc.indexOf("if (session.isSuperAdmin)"),
+    fnSrc.indexOf("if (!session.agencyId)"),
+  )
   assert.match(superAdminBranch, /explicitAgencyId/)
 })
 
@@ -49,7 +55,15 @@ test("confirmJourneyLine : 3 transactions SÉPARÉES (CAS, dispatch hors transac
 test("dispatchJourneyLine : couvre exactement les 7 modules câblés en V1 (hotel/package/omra/activity/transfer/car/network) — jamais vols/hotel_monde (async/guest-only, hors périmètre documenté)", () => {
   const fnIdx = src.indexOf("async function dispatchJourneyLine")
   const fnSrc = src.slice(fnIdx, src.indexOf("\n}\n", fnIdx))
-  for (const m of ["hotel", "package", "omra", "activity", "transfer", "car", "network"]) {
+  for (const m of [
+    "hotel",
+    "package",
+    "omra",
+    "activity",
+    "transfer",
+    "car",
+    "network",
+  ]) {
     assert.match(fnSrc, new RegExp(`case "${m}":`))
   }
   assert.equal(fnSrc.includes('case "vols"'), false)

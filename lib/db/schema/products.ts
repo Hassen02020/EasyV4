@@ -47,16 +47,16 @@ export const productType = pgEnum("product_type", [
 ])
 
 export const productStatus = pgEnum("product_status", [
-  "draft",       // Brouillon
-  "active",      // Actif - visible et réservable
-  "inactive",    // Désactivé
-  "archived",    // Archivé
-  "out_of_stock",// Plus de disponibilité
+  "draft", // Brouillon
+  "active", // Actif - visible et réservable
+  "inactive", // Désactivé
+  "archived", // Archivé
+  "out_of_stock", // Plus de disponibilité
 ])
 
 export const inventoryStatus = pgEnum("inventory_status", [
   "available",
-  "limited",  // < 10% restant
+  "limited", // < 10% restant
   "on_request",
   "sold_out",
 ])
@@ -78,12 +78,12 @@ export const products = pgTable(
 
     // Références fournisseur
     supplierCode: varchar("supplier_code", { length: 100 }), // Code produit fournisseur
-    supplierRef: varchar("supplier_ref", { length: 200 }),   // Référence unique fournisseur
+    supplierRef: varchar("supplier_ref", { length: 200 }), // Référence unique fournisseur
 
     // Informations produit
     name: varchar("name", { length: 300 }).notNull(),
-    nameAr: varchar("name_ar", { length: 300 }),             // Traduction arabe
-    nameEn: varchar("name_en", { length: 300 }),             // Traduction anglaise
+    nameAr: varchar("name_ar", { length: 300 }), // Traduction arabe
+    nameEn: varchar("name_en", { length: 300 }), // Traduction anglaise
     description: text("description"),
     descriptionAr: text("description_ar"),
     descriptionEn: text("description_en"),
@@ -91,7 +91,7 @@ export const products = pgTable(
     // Localisation
     city: varchar("city", { length: 100 }),
     country: varchar("country", { length: 100 }),
-    countryCode: varchar("country_code", { length: 3 }),   // ISO 3166-1 alpha-2/3
+    countryCode: varchar("country_code", { length: 3 }), // ISO 3166-1 alpha-2/3
     coordinates: jsonb("coordinates").$type<{ lat: number; lng: number }>(),
     address: text("address"),
 
@@ -103,7 +103,7 @@ export const products = pgTable(
     // Disponibilité
     availableFrom: date("available_from"),
     availableTo: date("available_to"),
-    minNights: integer("min_nights"),   // Pour hôtels
+    minNights: integer("min_nights"), // Pour hôtels
     maxNights: integer("max_nights"),
     minPersons: integer("min_persons").default(1),
     maxPersons: integer("max_persons"),
@@ -124,8 +124,12 @@ export const products = pgTable(
     totalBookings: integer("total_bookings").notNull().default(0),
     averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "products_agency_idx", on: t.agencyId },
@@ -149,13 +153,13 @@ export const productInventory = pgTable(
       .references(() => products.id, { onDelete: "cascade" }),
 
     // Fenêtre de disponibilité
-    date: date("date").notNull(),              // Date spécifique (hôtels, transferts)
-    endDate: date("end_date"),                 // Pour packages (date de début → fin)
+    date: date("date").notNull(), // Date spécifique (hôtels, transferts)
+    endDate: date("end_date"), // Pour packages (date de début → fin)
 
     // Stock
     totalCapacity: integer("total_capacity").notNull(),
     available: integer("available").notNull().default(0),
-    onHold: integer("on_hold").notNull().default(0),    // Réservations en cours de paiement
+    onHold: integer("on_hold").notNull().default(0), // Réservations en cours de paiement
     confirmed: integer("confirmed").notNull().default(0), // Réservées et confirmées
 
     // Tarif de cette période (peut varier)
@@ -169,8 +173,12 @@ export const productInventory = pgTable(
     supplierStock: integer("supplier_stock"),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("product_inventory_product_date_idx").on(t.productId, t.date),
@@ -195,18 +203,18 @@ export const apiLogs = pgTable(
     // hotel, flight, package, transfer, omra
 
     // Requête envoyée
-    requestPayload: text("request_payload"),    // XML/JSON envoyé
+    requestPayload: text("request_payload"), // XML/JSON envoyé
     requestHeaders: jsonb("request_headers").$type<Record<string, string>>(),
     requestUrl: text("request_url"),
     requestMethod: varchar("request_method", { length: 10 }),
 
     // Réponse reçue
-    responsePayload: text("response_payload"),  // XML/JSON reçu
+    responsePayload: text("response_payload"), // XML/JSON reçu
     responseHeaders: jsonb("response_headers").$type<Record<string, string>>(),
     statusCode: integer("status_code"),
 
     // Performance
-    durationMs: integer("duration_ms"),         // Temps de réponse en millisecondes
+    durationMs: integer("duration_ms"), // Temps de réponse en millisecondes
     success: boolean("success").notNull().default(false),
 
     // Erreur
@@ -217,12 +225,14 @@ export const apiLogs = pgTable(
     // Corrélation
     reservationId: uuid("reservation_id"),
     productId: uuid("product_id"),
-    sessionId: varchar("session_id", { length: 100 }),  // Session de recherche
+    sessionId: varchar("session_id", { length: 100 }), // Session de recherche
 
     // Environnement
     environment: varchar("environment", { length: 20 }).default("production"),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     { name: "api_logs_supplier_idx", on: t.supplierId },

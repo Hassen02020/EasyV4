@@ -25,14 +25,20 @@ test.describe("Header — i18n + RTL (desktop)", () => {
       await setLocale(page, locale)
       await page.waitForLoadState("networkidle")
 
-      const dir = await page.evaluate(() => document.documentElement.getAttribute("dir"))
-      const lang = await page.evaluate(() => document.documentElement.getAttribute("lang"))
+      const dir = await page.evaluate(() =>
+        document.documentElement.getAttribute("dir"),
+      )
+      const lang = await page.evaluate(() =>
+        document.documentElement.getAttribute("lang"),
+      )
       expect(lang).toBe(locale)
 
       if (locale === "ar") {
         expect(dir, "html[dir] doit être 'rtl' en arabe").toBe("rtl")
       } else {
-        expect(dir, `html[dir] ne doit pas être 'rtl' en ${locale}`).not.toBe("rtl")
+        expect(dir, `html[dir] ne doit pas être 'rtl' en ${locale}`).not.toBe(
+          "rtl",
+        )
       }
 
       await expect(page.locator("header")).toBeVisible()
@@ -64,23 +70,30 @@ test.describe("Footer — i18n (desktop)", () => {
 test.describe("Header/Footer — mobile 390px", () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test("Header mobile — hamburger ouvre le menu, pas d'overflow", async ({ page }) => {
+  test("Header mobile — hamburger ouvre le menu, pas d'overflow", async ({
+    page,
+  }) => {
     await setLocale(page, "fr")
     await page.waitForLoadState("networkidle")
-    await page.screenshot({ path: "docs/audits/screenshots/nav-audit/header-mobile-closed.png" })
+    await page.screenshot({
+      path: "docs/audits/screenshots/nav-audit/header-mobile-closed.png",
+    })
 
     const menuButton = page.getByRole("button", { name: /toggle menu/i })
     await menuButton.click()
     await expect(page.getByRole("link", { name: "Aide" })).toBeVisible()
-    await page.screenshot({ path: "docs/audits/screenshots/nav-audit/header-mobile-open.png" })
+    await page.screenshot({
+      path: "docs/audits/screenshots/nav-audit/header-mobile-open.png",
+    })
 
     const overflow = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
     }))
-    expect(overflow.scrollWidth, `scrollWidth=${overflow.scrollWidth} clientWidth=${overflow.clientWidth}`).toBeLessThanOrEqual(
-      overflow.clientWidth + 1,
-    )
+    expect(
+      overflow.scrollWidth,
+      `scrollWidth=${overflow.scrollWidth} clientWidth=${overflow.clientWidth}`,
+    ).toBeLessThanOrEqual(overflow.clientWidth + 1)
   })
 
   test("Footer mobile — pas d'overflow horizontal", async ({ page }) => {
@@ -88,7 +101,9 @@ test.describe("Header/Footer — mobile 390px", () => {
     await page.waitForLoadState("networkidle")
     const footer = page.locator("footer")
     await footer.scrollIntoViewIfNeeded()
-    await footer.screenshot({ path: "docs/audits/screenshots/nav-audit/footer-mobile.png" })
+    await footer.screenshot({
+      path: "docs/audits/screenshots/nav-audit/footer-mobile.png",
+    })
     const overflow = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
@@ -100,7 +115,9 @@ test.describe("Header/Footer — mobile 390px", () => {
 test.describe("Currency switcher — persistance", () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test("TND -> EUR -> USD -> TND persiste après navigation et refresh", async ({ page }) => {
+  test("TND -> EUR -> USD -> TND persiste après navigation et refresh", async ({
+    page,
+  }) => {
     await page.goto("/fr")
     await page.waitForLoadState("networkidle")
 
@@ -113,7 +130,9 @@ test.describe("Currency switcher — persistance", () => {
     await trigger.click()
     await page.getByRole("menuitem", { name: /^EUR/ }).click()
     await expect.poll(readCurrency).toBe("EUR")
-    await page.screenshot({ path: "docs/audits/screenshots/nav-audit/currency-eur.png" })
+    await page.screenshot({
+      path: "docs/audits/screenshots/nav-audit/currency-eur.png",
+    })
 
     // Persistance après navigation interne
     await page.goto("/fr/omra")
@@ -123,7 +142,9 @@ test.describe("Currency switcher — persistance", () => {
     await page.getByRole("button", { name: /changer de devise/i }).click()
     await page.getByRole("menuitem", { name: /^USD/ }).click()
     await expect.poll(readCurrency).toBe("USD")
-    await page.screenshot({ path: "docs/audits/screenshots/nav-audit/currency-usd.png" })
+    await page.screenshot({
+      path: "docs/audits/screenshots/nav-audit/currency-usd.png",
+    })
 
     // Persistance après refresh complet
     await page.reload()
@@ -144,43 +165,80 @@ test.describe("Currency switcher — persistance", () => {
 test.describe("Header/Footer — liens internes, aucun 404/500", () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test("tous les liens internes du Header répondent 200/3xx", async ({ page, request }) => {
+  test("tous les liens internes du Header répondent 200/3xx", async ({
+    page,
+    request,
+  }) => {
     await page.goto("/fr")
     await page.waitForLoadState("networkidle")
-    const hrefs = await page.locator("header a[href]").evaluateAll((els) =>
-      els.map((el) => (el as HTMLAnchorElement).getAttribute("href")).filter((h): h is string => !!h),
+    const hrefs = await page
+      .locator("header a[href]")
+      .evaluateAll((els) =>
+        els
+          .map((el) => (el as HTMLAnchorElement).getAttribute("href"))
+          .filter((h): h is string => !!h),
+      )
+    const internal = [...new Set(hrefs)].filter(
+      (h) => h.startsWith("/") && !h.startsWith("//"),
     )
-    const internal = [...new Set(hrefs)].filter((h) => h.startsWith("/") && !h.startsWith("//"))
-    expect(internal.length, "le Header doit contenir au moins un lien interne").toBeGreaterThan(0)
+    expect(
+      internal.length,
+      "le Header doit contenir au moins un lien interne",
+    ).toBeGreaterThan(0)
     for (const href of internal) {
       const res = await request.get(href, { maxRedirects: 5 })
-      expect(res.status(), `Header link ${href} -> HTTP ${res.status()}`).toBeLessThan(400)
+      expect(
+        res.status(),
+        `Header link ${href} -> HTTP ${res.status()}`,
+      ).toBeLessThan(400)
     }
   })
 
-  test("tous les liens internes du Footer répondent 200/3xx", async ({ page, request }) => {
+  test("tous les liens internes du Footer répondent 200/3xx", async ({
+    page,
+    request,
+  }) => {
     await page.goto("/fr")
     await page.waitForLoadState("networkidle")
-    const hrefs = await page.locator("footer a[href]").evaluateAll((els) =>
-      els.map((el) => (el as HTMLAnchorElement).getAttribute("href")).filter((h): h is string => !!h),
+    const hrefs = await page
+      .locator("footer a[href]")
+      .evaluateAll((els) =>
+        els
+          .map((el) => (el as HTMLAnchorElement).getAttribute("href"))
+          .filter((h): h is string => !!h),
+      )
+    const internal = [...new Set(hrefs)].filter(
+      (h) => h.startsWith("/") && !h.startsWith("//"),
     )
-    const internal = [...new Set(hrefs)].filter((h) => h.startsWith("/") && !h.startsWith("//"))
-    expect(internal.length, "le Footer doit contenir au moins un lien interne").toBeGreaterThan(0)
+    expect(
+      internal.length,
+      "le Footer doit contenir au moins un lien interne",
+    ).toBeGreaterThan(0)
     for (const href of internal) {
       const res = await request.get(href, { maxRedirects: 5 })
-      expect(res.status(), `Footer link ${href} -> HTTP ${res.status()}`).toBeLessThan(400)
+      expect(
+        res.status(),
+        `Footer link ${href} -> HTTP ${res.status()}`,
+      ).toBeLessThan(400)
     }
   })
 
-  test("aucun lien Header/Footer ne pointe vers href=\"#\" ou href vide", async ({ page }) => {
+  test('aucun lien Header/Footer ne pointe vers href="#" ou href vide', async ({
+    page,
+  }) => {
     await page.goto("/fr")
     await page.waitForLoadState("networkidle")
-    const badHrefs = await page.locator("header a[href], footer a[href]").evaluateAll((els) =>
-      els
-        .map((el) => (el as HTMLAnchorElement).getAttribute("href"))
-        .filter((h) => h === "#" || h === ""),
-    )
-    expect(badHrefs, `liens morts trouvés: ${JSON.stringify(badHrefs)}`).toHaveLength(0)
+    const badHrefs = await page
+      .locator("header a[href], footer a[href]")
+      .evaluateAll((els) =>
+        els
+          .map((el) => (el as HTMLAnchorElement).getAttribute("href"))
+          .filter((h) => h === "#" || h === ""),
+      )
+    expect(
+      badHrefs,
+      `liens morts trouvés: ${JSON.stringify(badHrefs)}`,
+    ).toHaveLength(0)
   })
 })
 
@@ -188,10 +246,14 @@ test.describe("Search — cohérence locale", () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
   for (const locale of ["fr", "en", "ar"] as const) {
-    test(`page d'accueil (moteur de recherche) en ${locale}`, async ({ page }) => {
+    test(`page d'accueil (moteur de recherche) en ${locale}`, async ({
+      page,
+    }) => {
       await setLocale(page, locale)
       await page.waitForLoadState("networkidle")
-      await page.screenshot({ path: `docs/audits/screenshots/nav-audit/search-${locale}.png` })
+      await page.screenshot({
+        path: `docs/audits/screenshots/nav-audit/search-${locale}.png`,
+      })
     })
   }
 })
@@ -227,14 +289,21 @@ test.describe("Routing next-intl — cas limites (lot 5)", () => {
   // qui vérifie la négociation elle-même.
   test.use({ locale: "fr-FR" })
 
-  test("/ (sans préfixe) redirige vers la locale par défaut /fr", async ({ page }) => {
+  test("/ (sans préfixe) redirige vers la locale par défaut /fr", async ({
+    page,
+  }) => {
     const response = await page.goto("/", { waitUntil: "networkidle" })
     expect(response?.status()).toBeLessThan(400)
     expect(new URL(page.url()).pathname).toBe("/fr")
-    expect(await page.evaluate(() => document.documentElement.getAttribute("lang"))).toBe("fr")
+    expect(
+      await page.evaluate(() => document.documentElement.getAttribute("lang")),
+    ).toBe("fr")
   })
 
-  test("/ négocie la locale depuis Accept-Language quand fourni", async ({ request, baseURL }) => {
+  test("/ négocie la locale depuis Accept-Language quand fourni", async ({
+    request,
+    baseURL,
+  }) => {
     // Requête HTTP directe (pas de `page.goto`) : évite tout Accept-Language
     // implicite posé par le profil Chromium par défaut de la machine, qui
     // peut entrer en conflit avec un header explicite côté contexte
@@ -256,7 +325,9 @@ test.describe("Routing next-intl — cas limites (lot 5)", () => {
     expect(arResponse.headers()["location"]).toBe("/ar")
   })
 
-  test("segment de locale invalide (/xx/omra) ne résout jamais en page valide (404)", async ({ page }) => {
+  test("segment de locale invalide (/xx/omra) ne résout jamais en page valide (404)", async ({
+    page,
+  }) => {
     const response = await page.goto("/xx/omra", { waitUntil: "networkidle" })
     // La navigation traverse une redirection intermédiaire (`/fr/xx/omra`,
     // voir commentaire de describe ci-dessus) avant d'atterrir sur le 404 —
@@ -266,8 +337,12 @@ test.describe("Routing next-intl — cas limites (lot 5)", () => {
     await expect(page.getByText(/404/)).toBeVisible()
   })
 
-  test("route inconnue sous un préfixe de locale valide (/fr/ceci-nexiste-pas) → 404", async ({ page }) => {
-    const response = await page.goto("/fr/ceci-nexiste-pas", { waitUntil: "networkidle" })
+  test("route inconnue sous un préfixe de locale valide (/fr/ceci-nexiste-pas) → 404", async ({
+    page,
+  }) => {
+    const response = await page.goto("/fr/ceci-nexiste-pas", {
+      waitUntil: "networkidle",
+    })
     expect(response?.status()).toBe(404)
   })
 })
@@ -285,17 +360,24 @@ test.describe("alternates.languages — balises hreflang réelles (lot 5)", () =
    */
   const cases: Array<{ name: string; path: string }> = [
     { name: "page statique (/omra)", path: "/fr/omra" },
-    { name: "page dynamique (packages/[slug])", path: "/fr/packages/istanbul-decouverte" },
+    {
+      name: "page dynamique (packages/[slug])",
+      path: "/fr/packages/istanbul-decouverte",
+    },
     { name: "gap comblé (hotels/search)", path: "/fr/hotels/search" },
   ]
 
   for (const { name, path } of cases) {
-    test(`${name} — <link rel="alternate" hreflang> pour fr/en/ar présents`, async ({ page }) => {
+    test(`${name} — <link rel="alternate" hreflang> pour fr/en/ar présents`, async ({
+      page,
+    }) => {
       const response = await page.goto(path, { waitUntil: "networkidle" })
       expect(response?.status(), `${path} doit répondre 200`).toBe(200)
 
       const alternates = await page.evaluate(() =>
-        Array.from(document.querySelectorAll('link[rel="alternate"][hreflang]')).map((el) => ({
+        Array.from(
+          document.querySelectorAll('link[rel="alternate"][hreflang]'),
+        ).map((el) => ({
           hreflang: el.getAttribute("hreflang"),
           href: el.getAttribute("href"),
         })),
@@ -303,12 +385,21 @@ test.describe("alternates.languages — balises hreflang réelles (lot 5)", () =
 
       for (const locale of ["fr", "en", "ar"] as const) {
         const entry = alternates.find((a) => a.hreflang === locale)
-        expect(entry, `${path} : aucune balise hreflang="${locale}" trouvée (trouvé: ${JSON.stringify(alternates)})`).toBeTruthy()
-        expect(entry?.href, `${path} hreflang=${locale} doit pointer vers /${locale}/...`).toContain(`/${locale}/`)
+        expect(
+          entry,
+          `${path} : aucune balise hreflang="${locale}" trouvée (trouvé: ${JSON.stringify(alternates)})`,
+        ).toBeTruthy()
+        expect(
+          entry?.href,
+          `${path} hreflang=${locale} doit pointer vers /${locale}/...`,
+        ).toContain(`/${locale}/`)
       }
 
       const xDefault = alternates.find((a) => a.hreflang === "x-default")
-      expect(xDefault, `${path} doit avoir un hreflang="x-default"`).toBeTruthy()
+      expect(
+        xDefault,
+        `${path} doit avoir un hreflang="x-default"`,
+      ).toBeTruthy()
     })
   }
 })

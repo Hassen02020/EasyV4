@@ -29,25 +29,29 @@ import type { ExchangeRate } from "./exchange-rate"
 /* Types                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export type CorrectionMode = "NONE" | "PERCENTAGE" | "FIXED_SPREAD" | "FIXED_RATE"
-export type BankFeeMode    = "NONE" | "FIXED" | "PERCENTAGE" | "MIN_MAX"
+export type CorrectionMode =
+  | "NONE"
+  | "PERCENTAGE"
+  | "FIXED_SPREAD"
+  | "FIXED_RATE"
+export type BankFeeMode = "NONE" | "FIXED" | "PERCENTAGE" | "MIN_MAX"
 
 export interface FxPolicy {
-  id:             string
-  version:        number
-  effectiveFrom:  Date
-  effectiveTo:    Date | null
-  correctionMode:  CorrectionMode
+  id: string
+  version: number
+  effectiveFrom: Date
+  effectiveTo: Date | null
+  correctionMode: CorrectionMode
   correctionValue: number
-  bankFeeMode:     BankFeeMode
-  bankFeeFixed:    number | null
-  bankFeePercent:  number | null
-  bankFeeMin:      number | null
-  bankFeeMax:      number | null
+  bankFeeMode: BankFeeMode
+  bankFeeFixed: number | null
+  bankFeePercent: number | null
+  bankFeeMin: number | null
+  bankFeeMax: number | null
   bankFeeCurrency: string
-  note:            string | null
-  createdBy:       string
-  createdAt:       Date
+  note: string | null
+  createdBy: string
+  createdAt: Date
 }
 
 /**
@@ -56,14 +60,14 @@ export interface FxPolicy {
  * `reservation_financials.fx_policy_id`.
  */
 export interface AppliedRate {
-  from:              string
-  to:                string
-  referenceRate:     number
-  appliedRate:       number
+  from: string
+  to: string
+  referenceRate: number
+  appliedRate: number
   correctionApplied: number
-  policyId:          string
-  policyVersion:     number
-  capturedAt:        Date
+  policyId: string
+  policyVersion: number
+  capturedAt: Date
 }
 
 /* -------------------------------------------------------------------------- */
@@ -105,7 +109,7 @@ export async function getActiveFxPolicy(): Promise<FxPolicy> {
   if (_overridePolicy) return _overridePolicy
 
   const now = new Date()
-  const db  = getDb()
+  const db = getDb()
 
   const rows = await db
     .select()
@@ -129,23 +133,27 @@ export async function getActiveFxPolicy(): Promise<FxPolicy> {
   return rowToPolicy(active)
 }
 
-function rowToPolicy(row: typeof fxPolicies.$inferSelect): FxPolicy { // eslint-disable-line
+function rowToPolicy(row: typeof fxPolicies.$inferSelect): FxPolicy {
+  // eslint-disable-line
   return {
-    id:             row.id,
-    version:        row.version,
-    effectiveFrom:  new Date(row.effectiveFrom as unknown as string),
-    effectiveTo:    row.effectiveTo ? new Date(row.effectiveTo as unknown as string) : null,
-    correctionMode:  row.correctionMode as CorrectionMode,
+    id: row.id,
+    version: row.version,
+    effectiveFrom: new Date(row.effectiveFrom as unknown as string),
+    effectiveTo: row.effectiveTo
+      ? new Date(row.effectiveTo as unknown as string)
+      : null,
+    correctionMode: row.correctionMode as CorrectionMode,
     correctionValue: Number(row.correctionValue),
-    bankFeeMode:     row.bankFeeMode as BankFeeMode,
-    bankFeeFixed:    row.bankFeeFixed  != null ? Number(row.bankFeeFixed)  : null,
-    bankFeePercent:  row.bankFeePercent != null ? Number(row.bankFeePercent) : null,
-    bankFeeMin:      row.bankFeeMin    != null ? Number(row.bankFeeMin)    : null,
-    bankFeeMax:      row.bankFeeMax    != null ? Number(row.bankFeeMax)    : null,
+    bankFeeMode: row.bankFeeMode as BankFeeMode,
+    bankFeeFixed: row.bankFeeFixed != null ? Number(row.bankFeeFixed) : null,
+    bankFeePercent:
+      row.bankFeePercent != null ? Number(row.bankFeePercent) : null,
+    bankFeeMin: row.bankFeeMin != null ? Number(row.bankFeeMin) : null,
+    bankFeeMax: row.bankFeeMax != null ? Number(row.bankFeeMax) : null,
     bankFeeCurrency: row.bankFeeCurrency,
-    note:            row.note ?? null,
-    createdBy:       row.createdBy,
-    createdAt:       new Date(row.createdAt as unknown as string),
+    note: row.note ?? null,
+    createdBy: row.createdBy,
+    createdAt: new Date(row.createdAt as unknown as string),
   }
 }
 
@@ -193,17 +201,18 @@ export function applyFxCorrection(
   }
 
   const rounded = Math.round(applied * 1_000_000) / 1_000_000
-  const correction = Math.round((rounded - referenceRate.rate) * 1_000_000) / 1_000_000
+  const correction =
+    Math.round((rounded - referenceRate.rate) * 1_000_000) / 1_000_000
 
   return {
-    from:              referenceRate.from,
-    to:                referenceRate.to,
-    referenceRate:     referenceRate.rate,
-    appliedRate:       rounded,
+    from: referenceRate.from,
+    to: referenceRate.to,
+    referenceRate: referenceRate.rate,
+    appliedRate: rounded,
     correctionApplied: correction,
-    policyId:          policy.id,
-    policyVersion:     policy.version,
-    capturedAt:        referenceRate.capturedAt,
+    policyId: policy.id,
+    policyVersion: policy.version,
+    capturedAt: referenceRate.capturedAt,
   }
 }
 

@@ -85,7 +85,11 @@ export interface ReleaseLockInput {
 
 export type LockResult =
   | { ok: true; expiresAt: Date; lockKey: string }
-  | { ok: false; reason: "conflict" | "redis_unavailable" | "error"; message: string }
+  | {
+      ok: false
+      reason: "conflict" | "redis_unavailable" | "error"
+      message: string
+    }
 
 /**
  * Même contrat que `GuestIdempotencyRedis` (lib/booking/guest-idempotency.ts)
@@ -95,7 +99,11 @@ export type LockResult =
  */
 export interface InventoryRedis {
   get: <T>(key: string) => Promise<T | null>
-  set: (key: string, value: string, opts?: { ex?: number; nx?: boolean }) => Promise<unknown>
+  set: (
+    key: string,
+    value: string,
+    opts?: { ex?: number; nx?: boolean },
+  ) => Promise<unknown>
   expire: (key: string, seconds: number) => Promise<unknown>
   del: (key: string) => Promise<unknown>
   ttl: (key: string) => Promise<number>
@@ -112,7 +120,11 @@ export interface InventoryRedis {
  * jamais un simple nice-to-have : `agencyId` vient toujours du contexte
  * serveur déjà résolu par l'appelant, jamais d'une valeur cliente.
  */
-function buildItemKey(agencyId: string, module: LockModule, itemId: string): string {
+function buildItemKey(
+  agencyId: string,
+  module: LockModule,
+  itemId: string,
+): string {
   return `e2b:lock:${agencyId}:${module}:${itemId}`
 }
 
@@ -155,19 +167,28 @@ export async function acquireLock(
   if (!redis) {
     void metrics.slo("inventory", false)
     void metrics.incr("inventory.lock.redis_unavailable")
-    logger.warn("[inventory] acquireLock refusé — Redis indisponible (fail-closed)", {
-      module: input.module,
-      itemId: input.itemId,
-    })
+    logger.warn(
+      "[inventory] acquireLock refusé — Redis indisponible (fail-closed)",
+      {
+        module: input.module,
+        itemId: input.itemId,
+      },
+    )
     return {
       ok: false,
       reason: "redis_unavailable",
-      message: "Le service de verrouillage est temporairement indisponible. Veuillez réessayer.",
+      message:
+        "Le service de verrouillage est temporairement indisponible. Veuillez réessayer.",
     }
   }
 
   const itemKey = buildItemKey(input.agencyId, input.module, input.itemId)
-  const auditKey = buildAuditKey(input.agencyId, input.module, input.itemId, input.sessionId)
+  const auditKey = buildAuditKey(
+    input.agencyId,
+    input.module,
+    input.itemId,
+    input.sessionId,
+  )
   const expiresAt = new Date(Date.now() + LOCK_TTL_SECONDS * 1000)
 
   // Vérifie d'abord si CETTE session tient déjà le verrou (idempotent)
@@ -177,13 +198,17 @@ export async function acquireLock(
     return {
       ok: false,
       reason: "conflict",
-      message: "Cette offre est en cours de réservation par un autre utilisateur.",
+      message:
+        "Cette offre est en cours de réservation par un autre utilisateur.",
     }
   }
 
   // SET NX EX : atomique O(1) — pose le verrou si absent, ignore si déjà notre session
   if (current === null) {
-    await redis.set(itemKey, input.sessionId, { ex: LOCK_TTL_SECONDS, nx: true })
+    await redis.set(itemKey, input.sessionId, {
+      ex: LOCK_TTL_SECONDS,
+      nx: true,
+    })
   } else {
     // Renouvelle le TTL pour la même session
     await redis.expire(itemKey, LOCK_TTL_SECONDS)
@@ -212,7 +237,11 @@ export async function acquireLock(
         }),
     )
   } catch (err) {
-    logger.warn("[inventory] Trace DB acquireLock échouée", { err: String(err), module: input.module, itemId: input.itemId })
+    logger.warn("[inventory] Trace DB acquireLock échouée", {
+      err: String(err),
+      module: input.module,
+      itemId: input.itemId,
+    })
   }
 
   void metrics.timing("inventory.latency_ms", Date.now() - t0)
@@ -234,7 +263,12 @@ export async function releaseLock(
   redisOverride?: InventoryRedis,
 ): Promise<void> {
   const itemKey = buildItemKey(input.agencyId, input.module, input.itemId)
-  const auditKey = buildAuditKey(input.agencyId, input.module, input.itemId, input.sessionId)
+  const auditKey = buildAuditKey(
+    input.agencyId,
+    input.module,
+    input.itemId,
+    input.sessionId,
+  )
   const redis = redisOverride ?? getRedis()
 
   if (redis) {
@@ -261,7 +295,11 @@ export async function releaseLock(
         ),
     )
   } catch (err) {
-    logger.warn("[inventory] Trace DB releaseLock échouée", { err: String(err), module: input.module, itemId: input.itemId })
+    logger.warn("[inventory] Trace DB releaseLock échouée", {
+      err: String(err),
+      module: input.module,
+      itemId: input.itemId,
+    })
   }
 }
 
@@ -283,27 +321,44 @@ export async function refreshLock(
   // sans Redis masquerait la perte de toute exclusivité réelle.
   if (!redis) {
     void metrics.incr("inventory.lock.redis_unavailable")
-    logger.warn("[inventory] refreshLock refusé — Redis indisponible (fail-closed)", {
-      module: input.module,
-      itemId: input.itemId,
-    })
+    logger.warn(
+      "[inventory] refreshLock refusé — Redis indisponible (fail-closed)",
+      {
+        module: input.module,
+        itemId: input.itemId,
+      },
+    )
     return {
       ok: false,
       reason: "redis_unavailable",
-      message: "Le service de verrouillage est temporairement indisponible. Veuillez réessayer.",
+      message:
+        "Le service de verrouillage est temporairement indisponible. Veuillez réessayer.",
     }
   }
 
   const itemKey = buildItemKey(input.agencyId, input.module, input.itemId)
-  const auditKey = buildAuditKey(input.agencyId, input.module, input.itemId, input.sessionId)
+  const auditKey = buildAuditKey(
+    input.agencyId,
+    input.module,
+    input.itemId,
+    input.sessionId,
+  )
   const expiresAt = new Date(Date.now() + LOCK_REFRESH_SECONDS * 1000)
 
   const current = await redis.get<string>(itemKey)
   if (!current) {
-    return { ok: false, reason: "conflict", message: "Verrou expiré — relancer la recherche." }
+    return {
+      ok: false,
+      reason: "conflict",
+      message: "Verrou expiré — relancer la recherche.",
+    }
   }
   if (current !== input.sessionId) {
-    return { ok: false, reason: "conflict", message: "Ce verrou appartient à une autre session." }
+    return {
+      ok: false,
+      reason: "conflict",
+      message: "Ce verrou appartient à une autre session.",
+    }
   }
   await redis.expire(itemKey, LOCK_REFRESH_SECONDS)
 
@@ -320,7 +375,11 @@ export async function refreshLock(
         ),
     )
   } catch (err) {
-    logger.warn("[inventory] Trace DB refreshLock échouée", { err: String(err), module: input.module, itemId: input.itemId })
+    logger.warn("[inventory] Trace DB refreshLock échouée", {
+      err: String(err),
+      module: input.module,
+      itemId: input.itemId,
+    })
   }
 
   return { ok: true, expiresAt, lockKey: itemKey }
@@ -339,7 +398,12 @@ export async function checkLock(
 ): Promise<{ held: boolean; expiresAt?: Date }> {
   const redis = redisOverride ?? getRedis()
   const itemKey = buildItemKey(input.agencyId, input.module, input.itemId)
-  const auditKey = buildAuditKey(input.agencyId, input.module, input.itemId, input.sessionId)
+  const auditKey = buildAuditKey(
+    input.agencyId,
+    input.module,
+    input.itemId,
+    input.sessionId,
+  )
 
   if (redis) {
     const [current, ttl] = await Promise.all([
@@ -369,7 +433,11 @@ export async function checkLock(
       return { held: true, expiresAt: lock.expiresAt }
     }
   } catch (err) {
-    logger.warn("[inventory] Fallback DB checkLock échoué", { err: String(err), module: input.module, itemId: input.itemId })
+    logger.warn("[inventory] Fallback DB checkLock échoué", {
+      err: String(err),
+      module: input.module,
+      itemId: input.itemId,
+    })
   }
 
   return { held: false }

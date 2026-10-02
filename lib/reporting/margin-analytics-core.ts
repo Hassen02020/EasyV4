@@ -109,70 +109,80 @@ export interface TopMarginReservation {
 export async function getMarginKPIsCore(
   agencyId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<MarginKPIs> {
-  const [results, cancellationResults, previousResults] = await withTenantContext(
-    { agencyId, userId: "", isSuperAdmin: false },
-    (db) => {
-      const previousPeriodStart = new Date(
-        startDate.getTime() - (endDate.getTime() - startDate.getTime())
-      )
-      return Promise.all([
-        // KPIs réservations confirmées (non annulées)
-        db
-          .select({
-            totalRevenue: sql<number>`SUM(sale_price_tnd)`,
-            totalCost: sql<number>`SUM(supplier_price_tnd)`,
-            totalMargin: sql<number>`SUM(margin_amount)`,
-            totalCommission: sql<number>`SUM(commission_amount)`,
-            totalReservations: sql<number>`COUNT(*)`,
-          })
-          .from(reservationFinancials)
-          .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-          .where(
-            and(
-              eq(reservations.agencyId, agencyId),
-              gte(reservations.createdAt, startDate),
-              lte(reservations.createdAt, endDate),
-              eq(reservations.status, "confirmed"),
+  const [results, cancellationResults, previousResults] =
+    await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (db) => {
+        const previousPeriodStart = new Date(
+          startDate.getTime() - (endDate.getTime() - startDate.getTime()),
+        )
+        return Promise.all([
+          // KPIs réservations confirmées (non annulées)
+          db
+            .select({
+              totalRevenue: sql<number>`SUM(sale_price_tnd)`,
+              totalCost: sql<number>`SUM(supplier_price_tnd)`,
+              totalMargin: sql<number>`SUM(margin_amount)`,
+              totalCommission: sql<number>`SUM(commission_amount)`,
+              totalReservations: sql<number>`COUNT(*)`,
+            })
+            .from(reservationFinancials)
+            .innerJoin(
+              reservations,
+              eq(reservationFinancials.reservationId, reservations.id),
+            )
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                gte(reservations.createdAt, startDate),
+                lte(reservations.createdAt, endDate),
+                eq(reservations.status, "confirmed"),
+              ),
             ),
-          ),
 
-        // KPIs annulations (39) — frais retenus + remboursements effectifs
-        db
-          .select({
-            cancelledCount: sql<number>`COUNT(*)`,
-            totalCancellationFees: sql<number>`COALESCE(SUM(${reservationFinancials.cancellationFee}), 0)`,
-            totalRefunded: sql<number>`COALESCE(SUM(${reservationFinancials.refundAmount}), 0)`,
-          })
-          .from(reservationFinancials)
-          .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-          .where(
-            and(
-              eq(reservations.agencyId, agencyId),
-              gte(reservations.createdAt, startDate),
-              lte(reservations.createdAt, endDate),
-              eq(reservations.status, "cancelled"),
-              sql`${reservationFinancials.cancelledAt} IS NOT NULL`,
+          // KPIs annulations (39) — frais retenus + remboursements effectifs
+          db
+            .select({
+              cancelledCount: sql<number>`COUNT(*)`,
+              totalCancellationFees: sql<number>`COALESCE(SUM(${reservationFinancials.cancellationFee}), 0)`,
+              totalRefunded: sql<number>`COALESCE(SUM(${reservationFinancials.refundAmount}), 0)`,
+            })
+            .from(reservationFinancials)
+            .innerJoin(
+              reservations,
+              eq(reservationFinancials.reservationId, reservations.id),
+            )
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                gte(reservations.createdAt, startDate),
+                lte(reservations.createdAt, endDate),
+                eq(reservations.status, "cancelled"),
+                sql`${reservationFinancials.cancelledAt} IS NOT NULL`,
+              ),
             ),
-          ),
 
-        // Marge période précédente (tendance)
-        db
-          .select({ totalMargin: sql<number>`SUM(margin_amount)` })
-          .from(reservationFinancials)
-          .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
-          .where(
-            and(
-              eq(reservations.agencyId, agencyId),
-              gte(reservations.createdAt, previousPeriodStart),
-              lte(reservations.createdAt, startDate),
-              eq(reservations.status, "confirmed"),
+          // Marge période précédente (tendance)
+          db
+            .select({ totalMargin: sql<number>`SUM(margin_amount)` })
+            .from(reservationFinancials)
+            .innerJoin(
+              reservations,
+              eq(reservationFinancials.reservationId, reservations.id),
+            )
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                gte(reservations.createdAt, previousPeriodStart),
+                lte(reservations.createdAt, startDate),
+                eq(reservations.status, "confirmed"),
+              ),
             ),
-          ),
-      ])
-    },
-  )
+        ])
+      },
+    )
 
   const data = results[0] || {
     totalRevenue: 0,
@@ -188,14 +198,18 @@ export async function getMarginKPIsCore(
   const totalCommission = Number(data.totalCommission) || 0
   const totalReservations = Number(data.totalReservations) || 0
   const cancelledCount = Number(cancellationResults[0]?.cancelledCount) || 0
-  const totalCancellationFees = Number(cancellationResults[0]?.totalCancellationFees) || 0
+  const totalCancellationFees =
+    Number(cancellationResults[0]?.totalCancellationFees) || 0
   const totalRefunded = Number(cancellationResults[0]?.totalRefunded) || 0
 
-  const averageMarginPercent = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0
+  const averageMarginPercent =
+    totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0
 
   const previousMargin = Number(previousResults[0]?.totalMargin) || 0
   const marginTrendPercent =
-    previousMargin > 0 ? ((totalMargin - previousMargin) / previousMargin) * 100 : 0
+    previousMargin > 0
+      ? ((totalMargin - previousMargin) / previousMargin) * 100
+      : 0
   const marginTrend =
     marginTrendPercent > 5 ? "up" : marginTrendPercent < -5 ? "down" : "stable"
 
@@ -231,7 +245,7 @@ export async function getMarginKPIsCore(
 export async function getMarginBySupplierCore(
   agencyId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<MarginBySupplier[]> {
   const results = await withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },
@@ -244,14 +258,17 @@ export async function getMarginBySupplierCore(
           reservationCount: sql<number>`COUNT(*)`,
         })
         .from(reservationFinancials)
-        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .innerJoin(
+          reservations,
+          eq(reservationFinancials.reservationId, reservations.id),
+        )
         .where(
           and(
             eq(reservations.agencyId, agencyId),
             gte(reservations.createdAt, startDate),
             lte(reservations.createdAt, endDate),
-            eq(reservations.status, "confirmed")
-          )
+            eq(reservations.status, "confirmed"),
+          ),
         )
         .groupBy(reservations.module)
         .orderBy(desc(sql`SUM(${reservationFinancials.marginAmount})`)),
@@ -276,7 +293,7 @@ export async function getMarginBySupplierCore(
 export async function getMarginByProductTypeCore(
   agencyId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<MarginByProductType[]> {
   const results = await withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },
@@ -289,14 +306,17 @@ export async function getMarginByProductTypeCore(
           reservationCount: sql<number>`COUNT(*)`,
         })
         .from(reservationFinancials)
-        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .innerJoin(
+          reservations,
+          eq(reservationFinancials.reservationId, reservations.id),
+        )
         .where(
           and(
             eq(reservations.agencyId, agencyId),
             gte(reservations.createdAt, startDate),
             lte(reservations.createdAt, endDate),
-            eq(reservations.status, "confirmed")
-          )
+            eq(reservations.status, "confirmed"),
+          ),
         )
         .groupBy(reservations.module)
         .orderBy(desc(sql`SUM(margin_amount)`)),
@@ -321,7 +341,7 @@ export async function getTopMarginReservationsCore(
   agencyId: string,
   startDate: Date,
   endDate: Date,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<TopMarginReservation[]> {
   const results = await withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },
@@ -337,14 +357,17 @@ export async function getTopMarginReservationsCore(
           createdAt: reservations.createdAt,
         })
         .from(reservationFinancials)
-        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .innerJoin(
+          reservations,
+          eq(reservationFinancials.reservationId, reservations.id),
+        )
         .where(
           and(
             eq(reservations.agencyId, agencyId),
             gte(reservations.createdAt, startDate),
             lte(reservations.createdAt, endDate),
-            eq(reservations.status, "confirmed")
-          )
+            eq(reservations.status, "confirmed"),
+          ),
         )
         .orderBy(desc(reservationFinancials.marginAmount))
         .limit(limit),
@@ -367,7 +390,7 @@ export async function getTopMarginReservationsCore(
 export async function getMarginEvolutionCore(
   agencyId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<Array<{ date: string; margin: number; revenue: number }>> {
   const results = await withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },
@@ -379,14 +402,17 @@ export async function getMarginEvolutionCore(
           revenue: sql<number>`SUM(sale_price_tnd)`,
         })
         .from(reservationFinancials)
-        .innerJoin(reservations, eq(reservationFinancials.reservationId, reservations.id))
+        .innerJoin(
+          reservations,
+          eq(reservationFinancials.reservationId, reservations.id),
+        )
         .where(
           and(
             eq(reservations.agencyId, agencyId),
             gte(reservations.createdAt, startDate),
             lte(reservations.createdAt, endDate),
-            eq(reservations.status, "confirmed")
-          )
+            eq(reservations.status, "confirmed"),
+          ),
         )
         .groupBy(sql`DATE(reservations.created_at)`)
         .orderBy(sql`DATE(reservations.created_at)`),
@@ -413,7 +439,7 @@ export async function getActiveMarginRulesCore(agencyId: string) {
           eq(marginRules.agencyId, agencyId),
           eq(marginRules.isActive, true),
           sql`(${marginRules.validFrom} IS NULL OR ${marginRules.validFrom} <= ${now})`,
-          sql`(${marginRules.validTo} IS NULL OR ${marginRules.validTo} >= ${now})`
+          sql`(${marginRules.validTo} IS NULL OR ${marginRules.validTo} >= ${now})`,
         ),
         orderBy: (marginRules, { desc }) => [desc(marginRules.priority)],
       }),
@@ -431,7 +457,7 @@ export async function getActiveMarginRulesCore(agencyId: string) {
  */
 export async function getRecentWalletTransactionsCore(
   agencyId: string,
-  limit: number = 20
+  limit: number = 20,
 ) {
   return withTenantContext(
     { agencyId, userId: "", isSuperAdmin: false },

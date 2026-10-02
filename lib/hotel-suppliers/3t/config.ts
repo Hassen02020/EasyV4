@@ -51,7 +51,7 @@ export const THREE_T_BASE_URL = "https://btob.3t.tn"
 export function isThreeTConfigured(): boolean {
   return Boolean(
     process.env.THREET_API_KEY &&
-      process.env.THREET_LOGIN &&
-      process.env.THREET_PASSWORD,
+    process.env.THREET_LOGIN &&
+    process.env.THREET_PASSWORD,
   )
 }

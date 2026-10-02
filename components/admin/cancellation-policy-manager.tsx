@@ -22,7 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { publishCancellationPolicy, deactivateCancellationPolicy } from "@/lib/admin/cancellation-policy-actions"
+import {
+  publishCancellationPolicy,
+  deactivateCancellationPolicy,
+} from "@/lib/admin/cancellation-policy-actions"
 import type { CancellationPolicyRow } from "@/lib/admin/cancellation-policy-core"
 import type { PolicyProductType } from "@/lib/booking/policy-engine"
 
@@ -83,7 +86,8 @@ export function CancellationPolicyManager({
   }
 
   async function refresh() {
-    const { listCancellationPolicies } = await import("@/lib/admin/cancellation-policy-actions")
+    const { listCancellationPolicies } =
+      await import("@/lib/admin/cancellation-policy-actions")
     const result = await listCancellationPolicies()
     if (result.ok) setPolicies(result.data)
   }
@@ -110,8 +114,9 @@ export function CancellationPolicyManager({
       {groups.length === 0 ? (
         <Card>
           <CardContent className="text-muted-foreground p-6 text-sm">
-            Aucune politique publiée pour l&apos;instant — les réservations Omra/Package/Activity
-            afficheront honnêtement &quot;Politique non définie&quot; jusqu&apos;à publication.
+            Aucune politique publiée pour l&apos;instant — les réservations
+            Omra/Package/Activity afficheront honnêtement &quot;Politique non
+            définie&quot; jusqu&apos;à publication.
           </CardContent>
         </Card>
       ) : (
@@ -121,7 +126,8 @@ export function CancellationPolicyManager({
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base">
-                    {TYPE_LABEL[current.productType]} — {productName(current.productType, current.productId)}
+                    {TYPE_LABEL[current.productType]} —{" "}
+                    {productName(current.productType, current.productId)}
                   </CardTitle>
                   <p className="text-muted-foreground mt-1 text-xs">
                     Version {current.version}
@@ -130,18 +136,32 @@ export function CancellationPolicyManager({
                 </div>
                 <div className="flex items-center gap-2">
                   {current.isActive ? (
-                    <Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700">
+                    <Badge
+                      variant="outline"
+                      className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700"
+                    >
                       <ShieldCheck className="h-3 w-3" /> Active
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-muted-foreground gap-1">
+                    <Badge
+                      variant="outline"
+                      className="text-muted-foreground gap-1"
+                    >
                       <ShieldOff className="h-3 w-3" /> Inactive
                     </Badge>
                   )}
                   {current.isActive && (
-                    <DeactivateButton policyId={current.id} onDone={() => void refresh()} />
+                    <DeactivateButton
+                      policyId={current.id}
+                      onDone={() => void refresh()}
+                    />
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => toggleHistory(key)} className="gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleHistory(key)}
+                    className="gap-1.5"
+                  >
                     <History className="h-3.5 w-3.5" />
                     {versions.length} version{versions.length > 1 ? "s" : ""}
                   </Button>
@@ -154,8 +174,13 @@ export function CancellationPolicyManager({
                     {versions
                       .filter((v) => v.id !== current.id)
                       .map((v) => (
-                        <div key={v.id} className="text-muted-foreground rounded-md border p-2 text-xs">
-                          <p className="mb-1 font-medium">Version {v.version} (historique)</p>
+                        <div
+                          key={v.id}
+                          className="text-muted-foreground rounded-md border p-2 text-xs"
+                        >
+                          <p className="mb-1 font-medium">
+                            Version {v.version} (historique)
+                          </p>
                           <PolicySummary policy={v} compact />
                         </div>
                       ))}
@@ -170,25 +195,58 @@ export function CancellationPolicyManager({
   )
 }
 
-function PolicySummary({ policy, compact }: { policy: CancellationPolicyRow; compact?: boolean }) {
+function PolicySummary({
+  policy,
+  compact,
+}: {
+  policy: CancellationPolicyRow
+  compact?: boolean
+}) {
   return (
-    <ul className={compact ? "space-y-0.5" : "grid grid-cols-1 gap-1.5 sm:grid-cols-2"}>
+    <ul
+      className={
+        compact ? "space-y-0.5" : "grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+      }
+    >
       <li>Annulable : {policy.cancellable ? "Oui" : "Non"}</li>
       <li>Modifiable : {policy.modifiable ? "Oui" : "Non"}</li>
-      <li>Délai : {policy.deadlineHours != null ? `${policy.deadlineHours} h avant le service` : "Non défini"}</li>
-      <li>Frais d&apos;annulation : {policy.cancellationFeePercent != null ? `${policy.cancellationFeePercent}%` : "Non défini"}</li>
+      <li>
+        Délai :{" "}
+        {policy.deadlineHours != null
+          ? `${policy.deadlineHours} h avant le service`
+          : "Non défini"}
+      </li>
+      <li>
+        Frais d&apos;annulation :{" "}
+        {policy.cancellationFeePercent != null
+          ? `${policy.cancellationFeePercent}%`
+          : "Non défini"}
+      </li>
       <li>Remboursement autorisé : {policy.refundAllowed ? "Oui" : "Non"}</li>
-      <li>Crédit Easy2Book autorisé : {policy.creditAllowed ? "Oui" : "Non"}</li>
+      <li>
+        Crédit Easy2Book autorisé : {policy.creditAllowed ? "Oui" : "Non"}
+      </li>
       <li>Non remboursable : {policy.nonRefundable ? "Oui" : "Non"}</li>
-      <li>Document validé requis : {policy.requiresValidatedDocument ? "Oui" : "Non"}</li>
+      <li>
+        Document validé requis :{" "}
+        {policy.requiresValidatedDocument ? "Oui" : "Non"}
+      </li>
       {policy.postDeadlineDescription && (
-        <li className="sm:col-span-2">Après échéance : {policy.postDeadlineDescription}</li>
+        <li className="sm:col-span-2">
+          Après échéance : {policy.postDeadlineDescription}
+        </li>
       )}
     </ul>
   )
 }
 
-function DeactivateButton({ policyId, onDone }: { policyId: string; onDone: () => void }) {
+function DeactivateButton({
+  policyId,
+  onDone,
+}: {
+  policyId: string
+  onDone: () => void
+}) {
   const [pending, startTransition] = useTransition()
   return (
     <Button
@@ -202,7 +260,11 @@ function DeactivateButton({ policyId, onDone }: { policyId: string; onDone: () =
         })
       }
     >
-      {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Désactiver"}
+      {pending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        "Désactiver"
+      )}
     </Button>
   )
 }
@@ -223,7 +285,8 @@ function PublishPolicyForm({
   const [refundAllowed, setRefundAllowed] = useState(true)
   const [creditAllowed, setCreditAllowed] = useState(true)
   const [nonRefundable, setNonRefundable] = useState(false)
-  const [requiresValidatedDocument, setRequiresValidatedDocument] = useState(false)
+  const [requiresValidatedDocument, setRequiresValidatedDocument] =
+    useState(false)
   const [postDeadlineDescription, setPostDeadlineDescription] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -239,8 +302,10 @@ function PublishPolicyForm({
         productId: targetProductId === "__default__" ? null : targetProductId,
         cancellable,
         modifiable,
-        deadlineHours: deadlineHours.trim() === "" ? null : Number(deadlineHours),
-        cancellationFeePercent: feePercent.trim() === "" ? null : Number(feePercent),
+        deadlineHours:
+          deadlineHours.trim() === "" ? null : Number(deadlineHours),
+        cancellationFeePercent:
+          feePercent.trim() === "" ? null : Number(feePercent),
         refundAllowed,
         creditAllowed,
         nonRefundable,
@@ -258,15 +323,25 @@ function PublishPolicyForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Publier une nouvelle version</CardTitle>
+        <CardTitle className="text-base">
+          Publier une nouvelle version
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Type de produit</Label>
-              <Select value={productType} onValueChange={(v) => { setProductType(v as PolicyProductType); setTargetProductId("__default__") }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={productType}
+                onValueChange={(v) => {
+                  setProductType(v as PolicyProductType)
+                  setTargetProductId("__default__")
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="omra">Omra</SelectItem>
                   <SelectItem value="package">Voyage Organisé</SelectItem>
@@ -276,12 +351,21 @@ function PublishPolicyForm({
             </div>
             <div className="space-y-2">
               <Label>Cible</Label>
-              <Select value={targetProductId} onValueChange={setTargetProductId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={targetProductId}
+                onValueChange={setTargetProductId}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__default__">Politique par défaut (tout le type)</SelectItem>
+                  <SelectItem value="__default__">
+                    Politique par défaut (tout le type)
+                  </SelectItem>
                   {productsForType.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -290,45 +374,86 @@ function PublishPolicyForm({
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={cancellable} onCheckedChange={(v) => setCancellable(Boolean(v))} />
+              <Checkbox
+                checked={cancellable}
+                onCheckedChange={(v) => setCancellable(Boolean(v))}
+              />
               Annulable
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={modifiable} onCheckedChange={(v) => setModifiable(Boolean(v))} />
+              <Checkbox
+                checked={modifiable}
+                onCheckedChange={(v) => setModifiable(Boolean(v))}
+              />
               Modifiable
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={refundAllowed} onCheckedChange={(v) => setRefundAllowed(Boolean(v))} />
+              <Checkbox
+                checked={refundAllowed}
+                onCheckedChange={(v) => setRefundAllowed(Boolean(v))}
+              />
               Remboursement autorisé
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={creditAllowed} onCheckedChange={(v) => setCreditAllowed(Boolean(v))} />
+              <Checkbox
+                checked={creditAllowed}
+                onCheckedChange={(v) => setCreditAllowed(Boolean(v))}
+              />
               Crédit Easy2Book autorisé
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={nonRefundable} onCheckedChange={(v) => setNonRefundable(Boolean(v))} />
+              <Checkbox
+                checked={nonRefundable}
+                onCheckedChange={(v) => setNonRefundable(Boolean(v))}
+              />
               Non remboursable
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={requiresValidatedDocument} onCheckedChange={(v) => setRequiresValidatedDocument(Boolean(v))} />
+              <Checkbox
+                checked={requiresValidatedDocument}
+                onCheckedChange={(v) =>
+                  setRequiresValidatedDocument(Boolean(v))
+                }
+              />
               Document validé requis
             </label>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Délai avant le service (heures) — laisser vide si non défini</Label>
-              <Input type="number" min={0} value={deadlineHours} onChange={(e) => setDeadlineHours(e.target.value)} placeholder="Non défini" />
+              <Label>
+                Délai avant le service (heures) — laisser vide si non défini
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                value={deadlineHours}
+                onChange={(e) => setDeadlineHours(e.target.value)}
+                placeholder="Non défini"
+              />
             </div>
             <div className="space-y-2">
-              <Label>Frais d&apos;annulation (%) — laisser vide si non défini</Label>
-              <Input type="number" min={0} max={100} value={feePercent} onChange={(e) => setFeePercent(e.target.value)} placeholder="Non défini" />
+              <Label>
+                Frais d&apos;annulation (%) — laisser vide si non défini
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={feePercent}
+                onChange={(e) => setFeePercent(e.target.value)}
+                placeholder="Non défini"
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>Conditions après échéance (texte libre, optionnel)</Label>
-            <Textarea value={postDeadlineDescription} onChange={(e) => setPostDeadlineDescription(e.target.value)} rows={2} />
+            <Textarea
+              value={postDeadlineDescription}
+              onChange={(e) => setPostDeadlineDescription(e.target.value)}
+              rows={2}
+            />
           </div>
 
           {error && <p className="text-destructive text-sm">{error}</p>}

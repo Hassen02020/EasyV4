@@ -24,19 +24,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   createCommercialAgreement,
   setCommercialAgreementStatus,
   type CommercialAgreementRow,
 } from "@/lib/admin/commercial-agreements-actions"
 
-const PARTY_TYPES = ["agency", "supplier_node", "easy2book", "external"] as const
+const PARTY_TYPES = [
+  "agency",
+  "supplier_node",
+  "easy2book",
+  "external",
+] as const
 const EASY2BOOK_ROLES = ["platform", "distributor", "seller", "owner"] as const
 const CHANNELS = ["b2c", "b2b", "network", "white_label", "api"] as const
 const STATUSES = ["draft", "active", "suspended", "terminated"] as const
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+const STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
   draft: "outline",
   active: "default",
   suspended: "secondary",
@@ -78,14 +93,24 @@ function PartySelect({
         </Select>
       </div>
       <div className="space-y-1">
-        <Label>{label} — id (uuid){required ? " *" : ""}</Label>
-        <Input value={id} onChange={(e) => setId(e.target.value)} placeholder="uuid" />
+        <Label>
+          {label} — id (uuid){required ? " *" : ""}
+        </Label>
+        <Input
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+          placeholder="uuid"
+        />
       </div>
     </div>
   )
 }
 
-export function CommercialAgreementsManager({ initial }: { initial: CommercialAgreementRow[] }) {
+export function CommercialAgreementsManager({
+  initial,
+}: {
+  initial: CommercialAgreementRow[]
+}) {
   const [rows, setRows] = React.useState(initial)
   const [loading, setLoading] = React.useState(false)
 
@@ -114,9 +139,13 @@ export function CommercialAgreementsManager({ initial }: { initial: CommercialAg
       const res = await createCommercialAgreement({
         sellerPartyType: sellerPartyType as (typeof PARTY_TYPES)[number],
         sellerPartyId,
-        ownerPartyType: (ownerPartyType || undefined) as (typeof PARTY_TYPES)[number] | undefined,
+        ownerPartyType: (ownerPartyType || undefined) as
+          | (typeof PARTY_TYPES)[number]
+          | undefined,
         ownerPartyId: ownerPartyId || undefined,
-        supplierPartyType: (supplierPartyType || undefined) as (typeof PARTY_TYPES)[number] | undefined,
+        supplierPartyType: (supplierPartyType || undefined) as
+          | (typeof PARTY_TYPES)[number]
+          | undefined,
         supplierPartyId: supplierPartyId || undefined,
         easy2bookRole: easy2bookRole as (typeof EASY2BOOK_ROLES)[number],
         channel: channel as (typeof CHANNELS)[number],
@@ -140,9 +169,14 @@ export function CommercialAgreementsManager({ initial }: { initial: CommercialAg
   }
 
   async function handleStatusChange(id: string, next: string) {
-    const res = await setCommercialAgreementStatus(id, next as (typeof STATUSES)[number])
+    const res = await setCommercialAgreementStatus(
+      id,
+      next as (typeof STATUSES)[number],
+    )
     if (res.ok) {
-      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: next } : r)))
+      setRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: next } : r)),
+      )
       toast.success("Statut mis à jour")
     } else {
       toast.error(res.error)
@@ -213,11 +247,18 @@ export function CommercialAgreementsManager({ initial }: { initial: CommercialAg
               </div>
               <div className="space-y-1">
                 <Label>Devise</Label>
-                <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
+                <Input
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                  maxLength={3}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Qui paie (payer_role)</Label>
-                <Input value={payerRole} onChange={(e) => setPayerRole(e.target.value)} />
+                <Input
+                  value={payerRole}
+                  onChange={(e) => setPayerRole(e.target.value)}
+                />
               </div>
             </div>
 
@@ -239,11 +280,19 @@ export function CommercialAgreementsManager({ initial }: { initial: CommercialAg
               </div>
               <div className="space-y-1">
                 <Label>Valide à partir de</Label>
-                <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+                <Input
+                  type="date"
+                  value={validFrom}
+                  onChange={(e) => setValidFrom(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Valide jusqu&apos;à</Label>
-                <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
+                <Input
+                  type="date"
+                  value={validTo}
+                  onChange={(e) => setValidTo(e.target.value)}
+                />
               </div>
             </div>
 
@@ -274,7 +323,10 @@ export function CommercialAgreementsManager({ initial }: { initial: CommercialAg
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-muted-foreground text-center">
+                  <TableCell
+                    colSpan={7}
+                    className="text-muted-foreground text-center"
+                  >
                     Aucun accord commercial pour l&apos;instant.
                   </TableCell>
                 </TableRow>
@@ -283,17 +335,26 @@ export function CommercialAgreementsManager({ initial }: { initial: CommercialAg
                 <TableRow key={r.id}>
                   <TableCell>
                     {r.sellerPartyName ?? r.sellerPartyId}
-                    <span className="text-muted-foreground ml-1 text-xs">({r.sellerPartyType})</span>
+                    <span className="text-muted-foreground ml-1 text-xs">
+                      ({r.sellerPartyType})
+                    </span>
                   </TableCell>
                   <TableCell>{r.easy2bookRole}</TableCell>
                   <TableCell>{r.channel}</TableCell>
                   <TableCell>{r.currency}</TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[r.status] ?? "outline"}>{r.status}</Badge>
+                    <Badge variant={STATUS_VARIANT[r.status] ?? "outline"}>
+                      {r.status}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{new Date(r.createdAt).toLocaleDateString("fr-TN")}</TableCell>
                   <TableCell>
-                    <Select value={r.status} onValueChange={(v) => handleStatusChange(r.id, v)}>
+                    {new Date(r.createdAt).toLocaleDateString("fr-TN")}
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={r.status}
+                      onValueChange={(v) => handleStatusChange(r.id, v)}
+                    >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>

@@ -17,7 +17,8 @@ import { sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 
 /** UUID du compte wallet platform Easy2Book (migration 0066, idempotent). */
-export const PLATFORM_COMMISSION_WALLET_ID = "00000000-e2b0-0000-0000-000000000001"
+export const PLATFORM_COMMISSION_WALLET_ID =
+  "00000000-e2b0-0000-0000-000000000001"
 
 export async function creditPlatformCommission(
   tx: DrizzleTransaction,

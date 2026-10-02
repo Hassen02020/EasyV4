@@ -10,7 +10,14 @@ import { getDateFnsLocale } from "@/lib/i18n-date"
 import { useCurrency } from "@/components/currency-context"
 import { usePaginatedResults } from "@/hooks/use-paginated-results"
 import { SearchPagination } from "@/components/search-pagination"
-import { ArrowRight, Info, Luggage, Plane, RefreshCw, Users } from "lucide-react"
+import {
+  ArrowRight,
+  Info,
+  Luggage,
+  Plane,
+  RefreshCw,
+  Users,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -29,7 +36,12 @@ import {
   type FlightSearchState,
 } from "@/lib/vols/search-state"
 import type { FlightOffer } from "@/lib/vols/client"
-import { applyFilters, sortOffers, type SortMode, type FlightFilters } from "@/lib/vols/filter-engine"
+import {
+  applyFilters,
+  sortOffers,
+  type SortMode,
+  type FlightFilters,
+} from "@/lib/vols/filter-engine"
 
 function formatMinutes(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60)
@@ -45,9 +57,14 @@ function formatTime(iso: string): string {
   }
 }
 
-function formatDateHeader(dateStr: string, dateFnsLocale: DateFnsLocale): string {
+function formatDateHeader(
+  dateStr: string,
+  dateFnsLocale: DateFnsLocale,
+): string {
   try {
-    return format(parseISO(dateStr), "EEEE d MMMM yyyy", { locale: dateFnsLocale })
+    return format(parseISO(dateStr), "EEEE d MMMM yyyy", {
+      locale: dateFnsLocale,
+    })
   } catch {
     return dateStr
   }
@@ -95,16 +112,22 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
               <ArrowRight className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
               <span className="text-foreground text-lg font-bold tabular-nums">
                 {isRoundTrip
-                  ? formatTime(firstJourney!.segments[firstJourney!.segments.length - 1].arrival)
+                  ? formatTime(
+                      firstJourney!.segments[firstJourney!.segments.length - 1]
+                        .arrival,
+                    )
                   : formatTime(lastSegment.arrival)}
               </span>
               <span className="text-muted-foreground text-sm">
-                {firstSegment.origin} → {isRoundTrip ? firstJourney!.destination : lastSegment.destination}
+                {firstSegment.origin} →{" "}
+                {isRoundTrip
+                  ? firstJourney!.destination
+                  : lastSegment.destination}
               </span>
             </div>
             {/* Return leg */}
             {isRoundTrip && lastJourney && (
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="mt-0.5 flex items-center gap-2">
                 <span className="text-foreground/80 text-sm font-semibold tabular-nums">
                   {formatTime(lastJourney.segments[0].departure)}
                 </span>
@@ -118,9 +141,16 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
               </div>
             )}
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span>{firstSegment.marketingCarrier} {firstSegment.marketingCarrier}{firstSegment.marketingFlightNumber}</span>
+              <span>
+                {firstSegment.marketingCarrier} {firstSegment.marketingCarrier}
+                {firstSegment.marketingFlightNumber}
+              </span>
               <span>{formatMinutes(offer.totalDurationMinutes)}</span>
-              <span>{stops === 0 ? t("directFlight") : t("stopsCount", { count: stops })}</span>
+              <span>
+                {stops === 0
+                  ? t("directFlight")
+                  : t("stopsCount", { count: stops })}
+              </span>
               {offer.baggageKg != null && (
                 <span className="inline-flex items-center gap-1">
                   <Luggage className="h-3 w-3" />
@@ -128,7 +158,10 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
                 </span>
               )}
               {offer.refundable && (
-                <Badge variant="outline" className="border-success/30 bg-success/10 text-success">
+                <Badge
+                  variant="outline"
+                  className="border-success/30 bg-success/10 text-success"
+                >
                   {t("refundableBadge")}
                 </Badge>
               )}
@@ -172,7 +205,10 @@ function FlightSearchSummary({
   const dateFnsLocale = getDateFnsLocale(locale)
   const paxLabel =
     state.children > 0
-      ? t("paxAdultsChildren", { adults: state.adults, children: state.children })
+      ? t("paxAdultsChildren", {
+          adults: state.adults,
+          children: state.children,
+        })
       : t("paxAdultsOnly", { n: state.adults })
   return (
     <div className="mb-4 space-y-3">
@@ -183,7 +219,9 @@ function FlightSearchSummary({
           </h1>
           <p className="text-muted-foreground text-sm">
             {formatDateHeader(state.departureDate, dateFnsLocale)}
-            {state.returnDate ? ` · ${t("returnTrip", { date: formatDateHeader(state.returnDate, dateFnsLocale) })}` : ` · ${t("oneWayTrip")}`}
+            {state.returnDate
+              ? ` · ${t("returnTrip", { date: formatDateHeader(state.returnDate, dateFnsLocale) })}`
+              : ` · ${t("oneWayTrip")}`}
             {" · "}
             <span className="inline-flex items-center gap-1">
               <Users className="h-3 w-3" />
@@ -194,7 +232,9 @@ function FlightSearchSummary({
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/vols?origin=${state.origin}&destination=${state.destination}&cabin=${state.cabin}&adults=${state.adults}`}>
+          <Link
+            href={`/vols?origin=${state.origin}&destination=${state.destination}&cabin=${state.cabin}&adults=${state.adults}`}
+          >
             {t("modifySearch")}
           </Link>
         </Button>
@@ -202,9 +242,7 @@ function FlightSearchSummary({
       {isDemo && (
         <div className="border-border bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
-            {t("demoNotice")}
-          </p>
+          <p>{t("demoNotice")}</p>
         </div>
       )}
     </div>
@@ -216,7 +254,10 @@ export function FlightResultsContent() {
   const router = useRouter()
   const t = useTranslations("Vols")
 
-  const parsed = useMemo(() => parseFlightSearchParams(searchParams), [searchParams])
+  const parsed = useMemo(
+    () => parseFlightSearchParams(searchParams),
+    [searchParams],
+  )
   const requestKey = parsed.ok ? JSON.stringify(parsed.state) : null
 
   const [fetchState, setFetchState] = useState<{
@@ -240,10 +281,19 @@ export function FlightResultsContent() {
           const body = (await r.json().catch(() => ({}))) as { error?: string }
           throw new Error(body.error ?? `HTTP ${r.status}`)
         }
-        return r.json() as Promise<{ ok: true; offers: FlightOffer[]; searchId: string }>
+        return r.json() as Promise<{
+          ok: true
+          offers: FlightOffer[]
+          searchId: string
+        }>
       })
       .then((data) => {
-        setFetchState({ requestKey, status: "success", offers: data.offers, error: null })
+        setFetchState({
+          requestKey,
+          status: "success",
+          offers: data.offers,
+          error: null,
+        })
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === "AbortError") return
@@ -281,7 +331,12 @@ export function FlightResultsContent() {
     return sortOffers(filtered, sortMode)
   }, [offers, filters, sortMode])
 
-  const { pageItems: pagedOffers, currentPage, totalPages, setPage } = usePaginatedResults(
+  const {
+    pageItems: pagedOffers,
+    currentPage,
+    totalPages,
+    setPage,
+  } = usePaginatedResults(
     filteredSorted,
     `${directOnly}|${refundableOnly}|${sortMode}`,
   )
@@ -324,7 +379,9 @@ export function FlightResultsContent() {
             variant="outline"
             size="sm"
             className="mt-3 gap-2"
-            onClick={() => router.replace(`/vols/search?${searchParams.toString()}`)}
+            onClick={() =>
+              router.replace(`/vols/search?${searchParams.toString()}`)
+            }
           >
             <RefreshCw className="h-3.5 w-3.5" />
             {t("retry")}
@@ -351,20 +408,32 @@ export function FlightResultsContent() {
                 checked={refundableOnly}
                 onCheckedChange={(v) => setRefundableOnly(v === true)}
               />
-              <label htmlFor="refundable-only" className="cursor-pointer text-sm">
+              <label
+                htmlFor="refundable-only"
+                className="cursor-pointer text-sm"
+              >
                 {t("refundableOnlyFilter")}
               </label>
             </div>
             <div className="w-full lg:mt-2">
-              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+              <Select
+                value={sortMode}
+                onValueChange={(v) => setSortMode(v as SortMode)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="recommended">{t("sortRecommended")}</SelectItem>
+                  <SelectItem value="recommended">
+                    {t("sortRecommended")}
+                  </SelectItem>
                   <SelectItem value="price_asc">{t("sortPriceAsc")}</SelectItem>
-                  <SelectItem value="price_desc">{t("sortPriceDesc")}</SelectItem>
-                  <SelectItem value="duration_asc">{t("sortDurationAsc")}</SelectItem>
+                  <SelectItem value="price_desc">
+                    {t("sortPriceDesc")}
+                  </SelectItem>
+                  <SelectItem value="duration_asc">
+                    {t("sortDurationAsc")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -377,8 +446,14 @@ export function FlightResultsContent() {
               </div>
             ) : (
               <>
-                {pagedOffers.map((offer) => <FlightCard key={offer.id} offer={offer} />)}
-                <SearchPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
+                {pagedOffers.map((offer) => (
+                  <FlightCard key={offer.id} offer={offer} />
+                ))}
+                <SearchPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
               </>
             )}
           </div>

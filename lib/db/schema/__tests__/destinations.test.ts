@@ -13,7 +13,11 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  withSystemContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { getDb } from "@/lib/db/client"
 import { destinations, destinationExternalRefs } from "@/lib/db/schema"
 
@@ -53,7 +57,9 @@ let cityId = ""
 
 async function cleanup() {
   await withSystemContext(async (tx) => {
-    await tx.delete(destinations).where(sql`${destinations.slug} like ${`d54-${RUN}-%`}`)
+    await tx
+      .delete(destinations)
+      .where(sql`${destinations.slug} like ${`d54-${RUN}-%`}`)
   })
 }
 
@@ -68,7 +74,9 @@ test("1. destinations_city_has_parent_check rejette une ville sans parent_id", a
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx.insert(destinations).values({ type: "city", slug: slug("orphan-city"), name: "Orphan" }),
+      tx
+        .insert(destinations)
+        .values({ type: "city", slug: slug("orphan-city"), name: "Orphan" }),
     ),
   )
 })
@@ -76,11 +84,21 @@ test("1. destinations_city_has_parent_check rejette une ville sans parent_id", a
 test("2. destinations_city_has_parent_check rejette un pays avec parent_id", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const [tn] = await withSystemContext((tx) =>
-    tx.insert(destinations).values({ type: "country", slug: slug("tn-tmp2"), name: "Tunisie" }).returning({ id: destinations.id }),
+    tx
+      .insert(destinations)
+      .values({ type: "country", slug: slug("tn-tmp2"), name: "Tunisie" })
+      .returning({ id: destinations.id }),
   )
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx.insert(destinations).values({ type: "country", slug: slug("tn-child"), name: "Tunisie enfant", parentId: tn!.id }),
+      tx
+        .insert(destinations)
+        .values({
+          type: "country",
+          slug: slug("tn-child"),
+          name: "Tunisie enfant",
+          parentId: tn!.id,
+        }),
     ),
   )
 })
@@ -90,14 +108,25 @@ test("3. Un pays sans parent et une ville avec parent sont acceptés (mise en pl
   const [country] = await withSystemContext((tx) =>
     tx
       .insert(destinations)
-      .values({ type: "country", slug: slug("tunisie"), name: "Tunisie", countryCode: FAKE_COUNTRY_CODE })
+      .values({
+        type: "country",
+        slug: slug("tunisie"),
+        name: "Tunisie",
+        countryCode: FAKE_COUNTRY_CODE,
+      })
       .returning({ id: destinations.id }),
   )
   countryId = country!.id
   const [city] = await withSystemContext((tx) =>
     tx
       .insert(destinations)
-      .values({ type: "city", slug: slug("hammamet"), name: "Hammamet", parentId: countryId, region: "Cap Bon" })
+      .values({
+        type: "city",
+        slug: slug("hammamet"),
+        name: "Hammamet",
+        parentId: countryId,
+        region: "Cap Bon",
+      })
       .returning({ id: destinations.id }),
   )
   cityId = city!.id
@@ -108,7 +137,13 @@ test("4. destinations_slug_uniq rejette un slug dupliqué", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx.insert(destinations).values({ type: "country", slug: slug("tunisie"), name: "Tunisie bis" }),
+      tx
+        .insert(destinations)
+        .values({
+          type: "country",
+          slug: slug("tunisie"),
+          name: "Tunisie bis",
+        }),
     ),
   )
 })
@@ -117,7 +152,14 @@ test("5. destinations_country_code_uniq rejette un country_code dupliqué (type=
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx.insert(destinations).values({ type: "country", slug: slug("tunisie2"), name: "Tunisie 2", countryCode: FAKE_COUNTRY_CODE }),
+      tx
+        .insert(destinations)
+        .values({
+          type: "country",
+          slug: slug("tunisie2"),
+          name: "Tunisie 2",
+          countryCode: FAKE_COUNTRY_CODE,
+        }),
     ),
   )
 })
@@ -125,11 +167,19 @@ test("5. destinations_country_code_uniq rejette un country_code dupliqué (type=
 test("6. destination_external_refs_module_external_uniq rejette une correspondance (module, external_id) dupliquée", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   await withSystemContext((tx) =>
-    tx.insert(destinationExternalRefs).values({ destinationId: cityId, module: "mygo_city", externalId: "10" }),
+    tx
+      .insert(destinationExternalRefs)
+      .values({ destinationId: cityId, module: "mygo_city", externalId: "10" }),
   )
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx.insert(destinationExternalRefs).values({ destinationId: countryId, module: "mygo_city", externalId: "10" }),
+      tx
+        .insert(destinationExternalRefs)
+        .values({
+          destinationId: countryId,
+          module: "mygo_city",
+          externalId: "10",
+        }),
     ),
   )
 })
@@ -138,7 +188,13 @@ test("7. destination_external_refs_module_check rejette un module hors liste fer
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withSystemContext((tx) =>
-      tx.insert(destinationExternalRefs).values({ destinationId: cityId, module: "bogus_module", externalId: "99" }),
+      tx
+        .insert(destinationExternalRefs)
+        .values({
+          destinationId: cityId,
+          module: "bogus_module",
+          externalId: "99",
+        }),
     ),
   )
 })
@@ -148,15 +204,27 @@ test("8. Supprimer une destination supprime en cascade ses external_refs", async
   const [tmp] = await withSystemContext((tx) =>
     tx
       .insert(destinations)
-      .values({ type: "city", slug: slug("cascade-city"), name: "Cascade City", parentId: countryId })
+      .values({
+        type: "city",
+        slug: slug("cascade-city"),
+        name: "Cascade City",
+        parentId: countryId,
+      })
       .returning({ id: destinations.id }),
   )
   await withSystemContext((tx) =>
-    tx.insert(destinationExternalRefs).values({ destinationId: tmp!.id, module: "iata", externalId: "CSC" }),
+    tx
+      .insert(destinationExternalRefs)
+      .values({ destinationId: tmp!.id, module: "iata", externalId: "CSC" }),
   )
-  await withSystemContext((tx) => tx.delete(destinations).where(eq(destinations.id, tmp!.id)))
+  await withSystemContext((tx) =>
+    tx.delete(destinations).where(eq(destinations.id, tmp!.id)),
+  )
   const remaining = await withSystemContext((tx) =>
-    tx.select().from(destinationExternalRefs).where(eq(destinationExternalRefs.destinationId, tmp!.id)),
+    tx
+      .select()
+      .from(destinationExternalRefs)
+      .where(eq(destinationExternalRefs.destinationId, tmp!.id)),
   )
   assert.equal(remaining.length, 0)
 })
@@ -181,7 +249,13 @@ test("11. RLS — une session authentifiée non super_admin ne peut jamais écri
   if (!dbAvailable) return void t.skip(skipReason())
   await assert.rejects(() =>
     withTenantContext(nonAdminCtx(), (tx) =>
-      tx.insert(destinations).values({ type: "country", slug: slug("forbidden"), name: "Forbidden" }),
+      tx
+        .insert(destinations)
+        .values({
+          type: "country",
+          slug: slug("forbidden"),
+          name: "Forbidden",
+        }),
     ),
   )
 })

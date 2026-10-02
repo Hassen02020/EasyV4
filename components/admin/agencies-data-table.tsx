@@ -67,7 +67,10 @@ export interface AgencyRow {
 
 const STATUS_CONFIG: Record<
   string,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+  {
+    label: string
+    variant: "default" | "secondary" | "destructive" | "outline"
+  }
 > = {
   active: { label: "Active", variant: "default" },
   suspended: { label: "Suspendue", variant: "destructive" },
@@ -96,7 +99,9 @@ function RechargeDialog({
   const [note, setNote] = React.useState("")
   const [loading, setLoading] = React.useState(false)
 
-  const [tolerance, setTolerance] = React.useState(String(agency.reservationTolerance))
+  const [tolerance, setTolerance] = React.useState(
+    String(agency.reservationTolerance),
+  )
   const [toleranceLoading, setToleranceLoading] = React.useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -108,7 +113,11 @@ function RechargeDialog({
     }
     setLoading(true)
     try {
-      const res = await adminRechargeWallet(agency.id, parsed, note || undefined)
+      const res = await adminRechargeWallet(
+        agency.id,
+        parsed,
+        note || undefined,
+      )
       if (res.ok) {
         toast.success(
           `${parsed.toLocaleString("fr-FR")} DT rechargés sur ${agency.brandName ?? agency.name}`,
@@ -137,7 +146,9 @@ function RechargeDialog({
     try {
       const res = await setAgencyReservationTolerance(agency.id, parsed)
       if (res.ok) {
-        toast.success(`Tolérance de réservation mise à jour : ${parsed.toLocaleString("fr-FR")} DT`)
+        toast.success(
+          `Tolérance de réservation mise à jour : ${parsed.toLocaleString("fr-FR")} DT`,
+        )
       } else {
         toast.error(res.error)
       }
@@ -210,8 +221,8 @@ function RechargeDialog({
             </Label>
             <p className="text-muted-foreground text-xs">
               L&apos;agence peut confirmer une réservation même si son solde
-              devient temporairement négatif, dans cette limite (0 = comportement
-              actuel, solde jamais négatif).
+              devient temporairement négatif, dans cette limite (0 =
+              comportement actuel, solde jamais négatif).
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -223,7 +234,11 @@ function RechargeDialog({
                 value={tolerance}
                 onChange={(e) => setTolerance(e.target.value)}
               />
-              <Button type="submit" variant="outline" disabled={toleranceLoading}>
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={toleranceLoading}
+              >
                 {toleranceLoading ? "…" : "Enregistrer"}
               </Button>
             </div>
@@ -248,16 +263,16 @@ function buildColumns(
       header: "Agence",
       cell: ({ row }) => {
         const agency = row.original
-        const initials = (agency.brandName ?? agency.name).charAt(0).toUpperCase()
+        const initials = (agency.brandName ?? agency.name)
+          .charAt(0)
+          .toUpperCase()
         return (
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700">
               {initials}
             </div>
             <div>
-              <p className="font-medium">
-                {agency.brandName ?? agency.name}
-              </p>
+              <p className="font-medium">{agency.brandName ?? agency.name}</p>
               <p className="text-muted-foreground text-xs">{agency.slug}</p>
             </div>
           </div>
@@ -428,8 +443,9 @@ function AgencyTypeFilter({
 /* -------------------------------------------------------------------------- */
 
 export function AgenciesDataTable({ data }: { data: AgencyRow[] }) {
-  const [rechargeTarget, setRechargeTarget] =
-    React.useState<AgencyRow | null>(null)
+  const [rechargeTarget, setRechargeTarget] = React.useState<AgencyRow | null>(
+    null,
+  )
   const [typeFilter, setTypeFilter] = React.useState("all")
 
   const filteredData = React.useMemo(

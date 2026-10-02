@@ -18,11 +18,7 @@ import {
   getRowStyle,
   ARABIC_FONT_FAMILY,
 } from "./voucher-base"
-import {
-  getVoucherLabels,
-  isRTL,
-  formatDateForLocale,
-} from "./voucher-i18n"
+import { getVoucherLabels, isRTL, formatDateForLocale } from "./voucher-i18n"
 
 export interface PackageVoucherData {
   publicRef: string
@@ -37,14 +33,27 @@ export interface PackageVoucherData {
   agencyPhone?: string
 }
 
-function PackageVoucherDocument({ data, locale }: { data: PackageVoucherData; locale?: string }) {
+function PackageVoucherDocument({
+  data,
+  locale,
+}: {
+  data: PackageVoucherData
+  locale?: string
+}) {
   const lb = getVoucherLabels(locale)
   const rtl = isRTL(locale)
   const fontFamily = rtl ? ARABIC_FONT_FAMILY : undefined
 
   return (
     <Document>
-      <Page size="A4" style={rtl ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY } : baseStyles.page}>
+      <Page
+        size="A4"
+        style={
+          rtl
+            ? { ...baseStyles.page, fontFamily: ARABIC_FONT_FAMILY }
+            : baseStyles.page
+        }
+      >
         <VoucherHeader
           title={lb.packageTitle}
           publicRef={data.publicRef}
@@ -56,7 +65,9 @@ function PackageVoucherDocument({ data, locale }: { data: PackageVoucherData; lo
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.fullName}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.customerName}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {data.customerName}
+            </Text>
           </View>
           <View style={getRowStyle(rtl, true)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.status}</Text>
@@ -76,7 +87,12 @@ function PackageVoucherDocument({ data, locale }: { data: PackageVoucherData; lo
         <View style={baseStyles.table}>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.packageLabel}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily: fontFamily ?? "Helvetica-Bold" }}>
+            <Text
+              style={{
+                ...getCellValueStyle(rtl),
+                fontFamily: fontFamily ?? "Helvetica-Bold",
+              }}
+            >
               {data.packageName}
             </Text>
           </View>
@@ -94,12 +110,16 @@ function PackageVoucherDocument({ data, locale }: { data: PackageVoucherData; lo
           </View>
           <View style={getRowStyle(rtl)}>
             <Text style={getCellLabelStyle(rtl)}>{lb.adults}</Text>
-            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.adults}</Text>
+            <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+              {data.adults}
+            </Text>
           </View>
           {data.children > 0 ? (
             <View style={getRowStyle(rtl, true)}>
               <Text style={getCellLabelStyle(rtl)}>{lb.children}</Text>
-              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>{data.children}</Text>
+              <Text style={{ ...getCellValueStyle(rtl), fontFamily }}>
+                {data.children}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -117,7 +137,12 @@ function PackageVoucherDocument({ data, locale }: { data: PackageVoucherData; lo
   )
 }
 
-export async function renderPackageVoucherPdf(data: PackageVoucherData, locale?: string): Promise<Uint8Array> {
-  const buffer = await renderToBuffer(<PackageVoucherDocument data={data} locale={locale} />)
+export async function renderPackageVoucherPdf(
+  data: PackageVoucherData,
+  locale?: string,
+): Promise<Uint8Array> {
+  const buffer = await renderToBuffer(
+    <PackageVoucherDocument data={data} locale={locale} />,
+  )
   return new Uint8Array(buffer)
 }

@@ -23,7 +23,11 @@
  *  - NOT_WIRED   : rien de fonctionnel derrière l'entrée du module.
  */
 
-export type ModuleCapabilityStatus = "REAL" | "DEMO" | "SEARCH_ONLY" | "NOT_WIRED"
+export type ModuleCapabilityStatus =
+  | "REAL"
+  | "DEMO"
+  | "SEARCH_ONLY"
+  | "NOT_WIRED"
 
 export interface ModuleCapability {
   label: string
@@ -45,14 +49,14 @@ export const MODULE_CAPABILITIES: Record<string, ModuleCapability> = {
   hotelsMonde: {
     label: "Hôtels Monde",
     status: "DEMO",
-    note: "Booking réel (paiement/DB/confirmation, lib/hotels-monde/guest-booking-actions.ts), mais fournisseur de recherche/inventaire simulé (isDemoMode, driver \"virtual\").",
+    note: 'Booking réel (paiement/DB/confirmation, lib/hotels-monde/guest-booking-actions.ts), mais fournisseur de recherche/inventaire simulé (isDemoMode, driver "virtual").',
     bookingActionFile: "lib/hotels-monde/guest-booking-actions.ts",
     demoSupplierFile: "lib/hotels-monde/supplier-drivers.ts",
   },
   vols: {
     label: "Vols",
     status: "DEMO",
-    note: "Même schéma que Hôtels Monde : booking réel (lib/vols/guest-booking-actions.ts), fournisseur de recherche simulé (isDemoMode, driver \"virtual\").",
+    note: 'Même schéma que Hôtels Monde : booking réel (lib/vols/guest-booking-actions.ts), fournisseur de recherche simulé (isDemoMode, driver "virtual").',
     bookingActionFile: "lib/vols/guest-booking-actions.ts",
     demoSupplierFile: "lib/vols/supplier-drivers.ts",
   },

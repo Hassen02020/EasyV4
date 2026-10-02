@@ -29,7 +29,11 @@ import { useEffect, useId, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { getDateFnsLocale } from "@/lib/i18n-date"
 import { calculateNights, todayLocal } from "@/lib/hotels/date-utils"
@@ -109,11 +113,15 @@ export function DateRangePicker({
           <div className="flex items-center gap-4 text-sm">
             <div className="flex-1">
               <p className="text-muted-foreground text-xs">{t("checkIn")}</p>
-              <p className="font-medium">{checkIn ? format(checkIn, "dd/MM/yyyy") : "—"}</p>
+              <p className="font-medium">
+                {checkIn ? format(checkIn, "dd/MM/yyyy") : "—"}
+              </p>
             </div>
             <div className="flex-1">
               <p className="text-muted-foreground text-xs">{t("checkOut")}</p>
-              <p className="font-medium">{checkOut ? format(checkOut, "dd/MM/yyyy") : "—"}</p>
+              <p className="font-medium">
+                {checkOut ? format(checkOut, "dd/MM/yyyy") : "—"}
+              </p>
             </div>
             {nights > 0 && (
               <div className="text-primary text-xs font-semibold whitespace-nowrap">

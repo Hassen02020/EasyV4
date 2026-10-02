@@ -20,21 +20,29 @@ export async function GET(req: NextRequest) {
   // Authorization: Bearer — en-tête posé automatiquement par Vercel Cron ;
   // x-cron-secret/?secret= restent supportés pour un déclencheur externe.
   const bearer = req.headers.get("authorization")?.replace("Bearer ", "")
-  const secret = bearer ?? req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
+  const secret =
+    bearer ??
+    req.headers.get("x-cron-secret") ??
+    req.nextUrl.searchParams.get("secret")
 
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "Base de données non configurée" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Base de données non configurée" },
+      { status: 500 },
+    )
   }
 
   const result = await withSystemContext(async (tx) => {
     const agencyRows = await tx
       .selectDistinct({ agencyId: loyaltyAccounts.agencyId })
       .from(loyaltyAccounts)
-      .where(sql`${loyaltyAccounts.pendingPoints} > 0 or ${loyaltyAccounts.availablePoints} > 0`)
+      .where(
+        sql`${loyaltyAccounts.pendingPoints} > 0 or ${loyaltyAccounts.availablePoints} > 0`,
+      )
 
     let accountsExpired = 0
     let totalPointsExpired = 0
@@ -43,7 +51,11 @@ export async function GET(req: NextRequest) {
       accountsExpired += outcome.accountsExpired
       totalPointsExpired += outcome.totalPointsExpired
     }
-    return { agenciesScanned: agencyRows.length, accountsExpired, totalPointsExpired }
+    return {
+      agenciesScanned: agencyRows.length,
+      accountsExpired,
+      totalPointsExpired,
+    }
   })
 
   return NextResponse.json({

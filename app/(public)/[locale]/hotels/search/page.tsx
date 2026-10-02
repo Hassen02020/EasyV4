@@ -8,7 +8,11 @@ import { format, parseISO } from "date-fns"
 import type { Locale } from "date-fns"
 import { getDateFnsLocale } from "@/lib/i18n-date"
 import { SearchHeader } from "@/components/search-header"
-import { FilterSidebar, FilterChips, MobileFilterSortBar } from "@/components/filter-sidebar"
+import {
+  FilterSidebar,
+  FilterChips,
+  MobileFilterSortBar,
+} from "@/components/filter-sidebar"
 import { HotelListings } from "@/components/hotel-listings"
 import { useHotelSearch } from "@/lib/mygo/use-hotel-search"
 import {
@@ -33,7 +37,10 @@ import { SearchPagination } from "@/components/search-pagination"
 import { encodeDraft } from "@/lib/booking/draft-store"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FlexibleDateSearch } from "@/components/flexible-date-search"
-import { applyFlexDaysToParams, applyFlexibleCandidateToParams } from "@/lib/mygo/use-flexible-hotel-search"
+import {
+  applyFlexDaysToParams,
+  applyFlexibleCandidateToParams,
+} from "@/lib/mygo/use-flexible-hotel-search"
 
 interface BookingData {
   id: number
@@ -171,9 +178,16 @@ function HotelSearchContent() {
   // et repasser en mode "Exactes" (flexDays=0) — ça redéclenche la
   // recherche CLASSIQUE (useHotelSearch) pour CES dates précises, jamais
   // une réservation construite depuis le résumé de comparaison flexible.
-  const selectFlexibleCandidate = (candidateCheckin: string, candidateCheckout: string) => {
+  const selectFlexibleCandidate = (
+    candidateCheckin: string,
+    candidateCheckout: string,
+  ) => {
     setFlexDaysState(0)
-    const params = applyFlexibleCandidateToParams(searchParams, candidateCheckin, candidateCheckout)
+    const params = applyFlexibleCandidateToParams(
+      searchParams,
+      candidateCheckin,
+      candidateCheckout,
+    )
     router.replace(`/hotels/search?${params.toString()}`, { scroll: false })
   }
 
@@ -183,9 +197,18 @@ function HotelSearchContent() {
   const adultsStr = searchParams.get("adults") ?? "2"
   const adults = Number(adultsStr)
   const childrenStr = searchParams.get("children")
-  const children = childrenStr?.split(",").map(s => parseInt(s, 10)).filter(n => n > 0).length ?? 0
+  const children =
+    childrenStr
+      ?.split(",")
+      .map((s) => parseInt(s, 10))
+      .filter((n) => n > 0).length ?? 0
 
-  const dateRange = formatDateRange(checkin, checkout, dateFnsLocale, t("selectDates"))
+  const dateRange = formatDateRange(
+    checkin,
+    checkout,
+    dateFnsLocale,
+    t("selectDates"),
+  )
   const paxLabel =
     children > 0
       ? `${t("paxAdultsCount", { n: adults })}, ${t("paxChildrenCount", { n: children })}`
@@ -218,7 +241,12 @@ function HotelSearchContent() {
   // ?page=N dans l'URL ; filtres/tri sont déjà dans l'URL (updateFilters/
   // updateSort), donc la remise à la page 1 est automatique sans clé
   // supplémentaire (voir hooks/use-paginated-results.ts).
-  const { pageItems: pagedOffers, currentPage, totalPages, setPage } = usePaginatedResults(sortedOffers)
+  const {
+    pageItems: pagedOffers,
+    currentPage,
+    totalPages,
+    setPage,
+  } = usePaginatedResults(sortedOffers)
 
   // Chaîne de requête complète actuelle — transmise telle quelle à la fiche
   // hôtel (destination, dates, occupation, filtres, tri…) pour que "Voir
@@ -319,7 +347,11 @@ function HotelSearchContent() {
               />
               {status === "success" && sortedOffers.length > 0 && (
                 <div className="hidden lg:block">
-                  <SortSelect value={sortMode} onChange={updateSort} labels={sortSelectLabels} />
+                  <SortSelect
+                    value={sortMode}
+                    onChange={updateSort}
+                    labels={sortSelectLabels}
+                  />
                 </div>
               )}
             </div>

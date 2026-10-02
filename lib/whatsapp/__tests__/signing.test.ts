@@ -3,7 +3,9 @@ import assert from "node:assert/strict"
 import { computeWhatsAppSignature, verifyWhatsAppSignature } from "../signing"
 
 const SECRET = "test-app-secret"
-const PAYLOAD = Buffer.from(JSON.stringify({ object: "whatsapp_business_account", entry: [] }))
+const PAYLOAD = Buffer.from(
+  JSON.stringify({ object: "whatsapp_business_account", entry: [] }),
+)
 
 test("verifyWhatsAppSignature : signature correctement calculée → true", () => {
   const sig = `sha256=${computeWhatsAppSignature(PAYLOAD, SECRET)}`
@@ -30,5 +32,8 @@ test("verifyWhatsAppSignature : schéma inattendu (pas 'sha256=') → false", ()
 })
 
 test("verifyWhatsAppSignature : hex malformé → false, jamais une exception", () => {
-  assert.equal(verifyWhatsAppSignature(PAYLOAD, "sha256=not-hex-!!", SECRET), false)
+  assert.equal(
+    verifyWhatsAppSignature(PAYLOAD, "sha256=not-hex-!!", SECRET),
+    false,
+  )
 })

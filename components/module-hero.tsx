@@ -24,7 +24,9 @@ export function ModuleHero({
   children,
 }: ModuleHeroProps) {
   return (
-    <div className={cn("relative overflow-hidden px-4 py-12 text-white", gradient)}>
+    <div
+      className={cn("relative overflow-hidden px-4 py-12 text-white", gradient)}
+    >
       {imageUrl ? (
         <>
           <div
@@ -33,7 +35,13 @@ export function ModuleHero({
             style={{ backgroundImage: `url("${imageUrl}")` }}
           />
           <div aria-hidden="true" className="absolute inset-0 bg-black/45" />
-          <div aria-hidden="true" className={cn("absolute inset-0 bg-gradient-to-br opacity-75", gradient)} />
+          <div
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-0 bg-gradient-to-br opacity-75",
+              gradient,
+            )}
+          />
         </>
       ) : null}
 
@@ -46,7 +54,12 @@ export function ModuleHero({
         </p>
         <h1 className="mb-4 text-3xl font-bold md:text-4xl">{title}</h1>
         {subtitle ? (
-          <p className={cn("mx-auto max-w-2xl text-white/80", children && "mb-6")}>
+          <p
+            className={cn(
+              "mx-auto max-w-2xl text-white/80",
+              children && "mb-6",
+            )}
+          >
             {subtitle}
           </p>
         ) : null}

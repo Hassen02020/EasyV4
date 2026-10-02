@@ -41,17 +41,30 @@ export function deduplicateHotels(
     if (target) {
       target.members.push({ hotel, confidence: bestConfidence })
     } else {
-      groups.push({ hotel, members: [{ hotel, confidence: "EXACT" }], rates: [], fromPrice: null })
+      groups.push({
+        hotel,
+        members: [{ hotel, confidence: "EXACT" }],
+        rates: [],
+        fromPrice: null,
+      })
     }
   }
 
   for (const group of groups) {
-    const memberHotelIds = new Set(group.members.map((m) => m.hotel.id).filter(Boolean))
+    const memberHotelIds = new Set(
+      group.members.map((m) => m.hotel.id).filter(Boolean),
+    )
     const memberCodes = new Set(
-      group.members.flatMap((m) => m.hotel.supplierMappings.map((sm) => `${sm.supplier}:${sm.supplierHotelCode}`)),
+      group.members.flatMap((m) =>
+        m.hotel.supplierMappings.map(
+          (sm) => `${sm.supplier}:${sm.supplierHotelCode}`,
+        ),
+      ),
     )
     group.rates = rates.filter(
-      (r) => memberHotelIds.has(r.hotelId) || memberCodes.has(`${r.supplier}:${r.supplierHotelCode}`),
+      (r) =>
+        memberHotelIds.has(r.hotelId) ||
+        memberCodes.has(`${r.supplier}:${r.supplierHotelCode}`),
     )
     group.fromPrice = group.rates.length
       ? Math.min(...group.rates.map((r) => r.sellingPrice))

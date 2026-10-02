@@ -49,5 +49,9 @@ test("createMemoryRateLimiter : la fenêtre expirée réinitialise le compteur",
   assert.equal(first.ok, true)
   await new Promise((r) => setTimeout(r, 20))
   const second = await limiter("client-e")
-  assert.equal(second.ok, true, "après expiration de la fenêtre, une nouvelle requête doit être autorisée")
+  assert.equal(
+    second.ok,
+    true,
+    "après expiration de la fenêtre, une nouvelle requête doit être autorisée",
+  )
 })

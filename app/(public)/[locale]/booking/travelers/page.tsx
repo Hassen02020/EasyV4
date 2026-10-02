@@ -7,7 +7,7 @@ import { decodeDraft } from "@/lib/booking/draft-store"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import dynamicImport from "next/dynamic"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 const TravelersForm = dynamicImport(() =>
   import("@/components/booking/travelers-form").then((m) => m.TravelersForm),

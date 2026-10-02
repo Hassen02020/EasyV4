@@ -30,36 +30,65 @@ import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const actionsSrc = readFileSync(join(ROOT, "lib/admin/commercial-agreements-actions.ts"), "utf8")
-const mutuelleActionsSrc = readFileSync(join(ROOT, "lib/admin/mutuelle-groups-actions.ts"), "utf8")
+const actionsSrc = readFileSync(
+  join(ROOT, "lib/admin/commercial-agreements-actions.ts"),
+  "utf8",
+)
+const mutuelleActionsSrc = readFileSync(
+  join(ROOT, "lib/admin/mutuelle-groups-actions.ts"),
+  "utf8",
+)
 const pricingSrc = readFileSync(join(ROOT, "lib/pro/pricing.ts"), "utf8")
-const serverContextSrc = readFileSync(join(ROOT, "lib/pro/server-context.ts"), "utf8")
-const migration0087 = readFileSync(join(ROOT, "drizzle/manual/0087_agreement_01.sql"), "utf8")
-const migration0088 = readFileSync(join(ROOT, "drizzle/manual/0088_agreement_01_rls.sql"), "utf8")
-const migration0089 = readFileSync(join(ROOT, "drizzle/manual/0089_agreement_01_margin_rules_link.sql"), "utf8")
+const serverContextSrc = readFileSync(
+  join(ROOT, "lib/pro/server-context.ts"),
+  "utf8",
+)
+const migration0087 = readFileSync(
+  join(ROOT, "drizzle/manual/0087_agreement_01.sql"),
+  "utf8",
+)
+const migration0088 = readFileSync(
+  join(ROOT, "drizzle/manual/0088_agreement_01_rls.sql"),
+  "utf8",
+)
+const migration0089 = readFileSync(
+  join(ROOT, "drizzle/manual/0089_agreement_01_margin_rules_link.sql"),
+  "utf8",
+)
 
 /* -------------------------------------------------------------------------- */
 /* Pattern requireSuperAdmin() réutilisé, pas inventé                          */
 /* -------------------------------------------------------------------------- */
 
-test("commercial-agreements-actions.ts : définit requireSuperAdmin() avec la même forme que mutuelle-groups-actions.ts (profile?.role !== \"super_admin\")", () => {
+test('commercial-agreements-actions.ts : définit requireSuperAdmin() avec la même forme que mutuelle-groups-actions.ts (profile?.role !== "super_admin")', () => {
   assert.match(actionsSrc, /async function requireSuperAdmin\(\)/)
   assert.match(actionsSrc, /profile\?\.role !== "super_admin"/)
   assert.match(mutuelleActionsSrc, /profile\?\.role !== "super_admin"/)
 })
 
 test("commercial-agreements-actions.ts : requireSuperAdmin() relit le profil via getCurrentAdminProfile (auth réelle, pas un rôle passé en paramètre)", () => {
-  assert.match(actionsSrc, /import\s*\{\s*getCurrentAdminProfile\s*\}\s*from\s*["']@\/lib\/auth\/profile["']/)
+  assert.match(
+    actionsSrc,
+    /import\s*\{\s*getCurrentAdminProfile\s*\}\s*from\s*["']@\/lib\/auth\/profile["']/,
+  )
   assert.match(actionsSrc, /getCurrentAdminProfile\(user\.id\)/)
 })
 
 test("commercial-agreements-actions.ts : les 3 actions exportées appellent requireSuperAdmin() avant toute opération DB", () => {
-  const fns = ["createCommercialAgreement", "setCommercialAgreementStatus", "listCommercialAgreements"]
+  const fns = [
+    "createCommercialAgreement",
+    "setCommercialAgreementStatus",
+    "listCommercialAgreements",
+  ]
   for (const fn of fns) {
     const idx = actionsSrc.indexOf(`export async function ${fn}`)
     assert.ok(idx >= 0, `${fn} doit être exporté`)
     const body = actionsSrc.slice(idx, idx + 700)
-    assert.match(body, /await requireSuperAdmin\(\)/, `${fn} doit appeler requireSuperAdmin() tôt dans son corps`)
+    assert.match(
+      body,
+      /await requireSuperAdmin\(\)/,
+      `${fn} doit appeler requireSuperAdmin() tôt dans son corps`,
+    )
   }
 })
 
@@ -71,7 +100,10 @@ test("0088_agreement_01_rls.sql : policy d'écriture = is_super_admin() seul (FO
   const writePolicyMatch = migration0088.match(
     /CREATE POLICY "commercial_agreements_admin_write"[\s\S]*?WITH CHECK \(([\s\S]*?)\);/,
   )
-  assert.ok(writePolicyMatch, "la policy commercial_agreements_admin_write doit exister")
+  assert.ok(
+    writePolicyMatch,
+    "la policy commercial_agreements_admin_write doit exister",
+  )
   const check = writePolicyMatch![1]!
   assert.match(check, /is_super_admin\(\)/)
   assert.doesNotMatch(
@@ -82,19 +114,35 @@ test("0088_agreement_01_rls.sql : policy d'écriture = is_super_admin() seul (FO
 })
 
 test("0088_agreement_01_rls.sql : FORCE ROW LEVEL SECURITY appliqué (s'applique aussi au propriétaire de la table)", () => {
-  assert.match(migration0088, /ALTER TABLE commercial_agreements FORCE ROW LEVEL SECURITY;/)
+  assert.match(
+    migration0088,
+    /ALTER TABLE commercial_agreements FORCE ROW LEVEL SECURITY;/,
+  )
 })
 
 test("0087_agreement_01.sql : idempotent (CREATE TABLE IF NOT EXISTS, CREATE TYPE protégé par exception, CREATE INDEX IF NOT EXISTS)", () => {
-  assert.match(migration0087, /CREATE TABLE IF NOT EXISTS commercial_agreements/)
+  assert.match(
+    migration0087,
+    /CREATE TABLE IF NOT EXISTS commercial_agreements/,
+  )
   assert.match(migration0087, /WHEN duplicate_object THEN NULL/)
   assert.match(migration0087, /CREATE INDEX IF NOT EXISTS/)
 })
 
 test("0089_agreement_01_margin_rules_link.sql : ADD COLUMN IF NOT EXISTS, FK ON DELETE SET NULL, aucune donnée existante modifiée (pas d'UPDATE)", () => {
-  assert.match(migration0089, /ALTER TABLE margin_rules ADD COLUMN IF NOT EXISTS agreement_id uuid;/)
-  assert.match(migration0089, /REFERENCES commercial_agreements\(id\) ON DELETE SET NULL/)
-  assert.doesNotMatch(migration0089, /UPDATE margin_rules/i, "purement additif : aucun UPDATE sur des lignes margin_rules existantes")
+  assert.match(
+    migration0089,
+    /ALTER TABLE margin_rules ADD COLUMN IF NOT EXISTS agreement_id uuid;/,
+  )
+  assert.match(
+    migration0089,
+    /REFERENCES commercial_agreements\(id\) ON DELETE SET NULL/,
+  )
+  assert.doesNotMatch(
+    migration0089,
+    /UPDATE margin_rules/i,
+    "purement additif : aucun UPDATE sur des lignes margin_rules existantes",
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -122,17 +170,21 @@ function sourceFiles(dir: string): string[] {
     return out
   }
   for (const name of entries) {
-    if (name === "node_modules" || name === "__tests__" || name.startsWith(".")) continue
+    if (name === "node_modules" || name === "__tests__" || name.startsWith("."))
+      continue
     const full = join(dir, name)
     if (statSync(full).isDirectory()) out.push(...sourceFiles(full))
-    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full)
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name))
+      out.push(full)
   }
   return out
 }
 
 test("aucun code applicatif NON-test n'insère un commercial_agreements ou un margin_rules réel en dehors de lib/admin/commercial-agreements-actions.ts (create, super_admin-gated) et de reservation-financials.ts/product-booking-actions.ts (déjà audités, inchangés par ce chantier)", () => {
   const ROOT2 = process.cwd()
-  const appSources = ["lib", "app", "components"].flatMap((d) => sourceFiles(join(ROOT2, d)))
+  const appSources = ["lib", "app", "components"].flatMap((d) =>
+    sourceFiles(join(ROOT2, d)),
+  )
   const allowlist = new Set([
     join(ROOT2, "lib/admin/commercial-agreements-actions.ts"),
   ])
@@ -142,5 +194,9 @@ test("aucun code applicatif NON-test n'insère un commercial_agreements ou un ma
     const src = readFileSync(file, "utf8")
     if (/\.insert\(\s*commercialAgreements\s*\)/.test(src)) offenders.push(file)
   }
-  assert.deepEqual(offenders, [], "seule commercial-agreements-actions.ts (super_admin-gated) doit insérer commercial_agreements")
+  assert.deepEqual(
+    offenders,
+    [],
+    "seule commercial-agreements-actions.ts (super_admin-gated) doit insérer commercial_agreements",
+  )
 })

@@ -83,7 +83,10 @@ test("sortOffers best_deal : favorise un prix bas ramené aux étoiles (fromPric
 })
 
 test("sortOffers ne mute pas le tableau d'entrée", () => {
-  const offers = [makeOffer({ id: 1, price: 200 }), makeOffer({ id: 2, price: 100 })]
+  const offers = [
+    makeOffer({ id: 1, price: 200 }),
+    makeOffer({ id: 2, price: 100 }),
+  ]
   const original = [...offers]
   sortOffers(offers, "price_asc")
   assert.deepEqual(offers, original)

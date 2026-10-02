@@ -7,7 +7,11 @@ import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { withTenantContext, withSystemContext, type TenantContext } from "@/lib/db/tenant-context"
+import {
+  withTenantContext,
+  withSystemContext,
+  type TenantContext,
+} from "@/lib/db/tenant-context"
 import { agencies, leadScoringRules } from "@/lib/db/schema"
 import type { LeadRow } from "../leads-core"
 import {
@@ -57,13 +61,19 @@ test("computeLeadScore : les 4 signaux matchés → somme des 4 points par défa
   })
   const score = computeLeadScore(lead, defaultLeadScoreRuleMap())
   assert.equal(score.total, DEFAULT_SIGNAL_POINTS * 4)
-  assert.ok(score.breakdown.every((b) => b.matched && b.points === DEFAULT_SIGNAL_POINTS))
+  assert.ok(
+    score.breakdown.every(
+      (b) => b.matched && b.points === DEFAULT_SIGNAL_POINTS,
+    ),
+  )
 })
 
 test("computeLeadScore : contact_complete exige email ET téléphone, pas un seul", () => {
   const emailOnly = makeLead({ email: "a@example.com" })
   const score = computeLeadScore(emailOnly, defaultLeadScoreRuleMap())
-  const contactItem = score.breakdown.find((b) => b.signal === "contact_complete")!
+  const contactItem = score.breakdown.find(
+    (b) => b.signal === "contact_complete",
+  )!
   assert.equal(contactItem.matched, false)
 })
 
@@ -82,7 +92,10 @@ test("computeLeadScore : poids configurable — un signal à 0 point n'ajoute ri
   const rules = defaultLeadScoreRuleMap()
   rules.specific_product = { points: 0, isActive: true }
   const score = computeLeadScore(lead, rules)
-  assert.equal(score.breakdown.find((b) => b.signal === "specific_product")!.points, 0)
+  assert.equal(
+    score.breakdown.find((b) => b.signal === "specific_product")!.points,
+    0,
+  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -123,33 +136,59 @@ before(async () => {
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
-    await tx.delete(leadScoringRules).where(eq(leadScoringRules.agencyId, agencyA))
+    await tx
+      .delete(leadScoringRules)
+      .where(eq(leadScoringRules.agencyId, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
   })
 })
 
 test("getLeadScoreRuleMapCore : sans rien configuré, retourne les défauts pour les 4 signaux", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctx: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
-  const rules = await withTenantContext(ctx, (tx) => getLeadScoreRuleMapCore(tx, { agencyId: agencyA }))
+  const ctx: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+  const rules = await withTenantContext(ctx, (tx) =>
+    getLeadScoreRuleMapCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(rules.contact_complete.points, DEFAULT_SIGNAL_POINTS)
   assert.equal(rules.has_message.isActive, true)
 })
 
 test("upsertLeadScoreRuleCore : crée puis met à jour (une ligne par agence+signal)", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const ctx: TenantContext = { agencyId: agencyA, userId: "", isSuperAdmin: true }
+  const ctx: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
 
   await withTenantContext(ctx, (tx) =>
-    upsertLeadScoreRuleCore(tx, { agencyId: agencyA, signal: "has_message", points: 50, isActive: true }),
+    upsertLeadScoreRuleCore(tx, {
+      agencyId: agencyA,
+      signal: "has_message",
+      points: 50,
+      isActive: true,
+    }),
   )
-  let rules = await withTenantContext(ctx, (tx) => getLeadScoreRuleMapCore(tx, { agencyId: agencyA }))
+  let rules = await withTenantContext(ctx, (tx) =>
+    getLeadScoreRuleMapCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(rules.has_message.points, 50)
 
   await withTenantContext(ctx, (tx) =>
-    upsertLeadScoreRuleCore(tx, { agencyId: agencyA, signal: "has_message", points: 0, isActive: false }),
+    upsertLeadScoreRuleCore(tx, {
+      agencyId: agencyA,
+      signal: "has_message",
+      points: 0,
+      isActive: false,
+    }),
   )
-  rules = await withTenantContext(ctx, (tx) => getLeadScoreRuleMapCore(tx, { agencyId: agencyA }))
+  rules = await withTenantContext(ctx, (tx) =>
+    getLeadScoreRuleMapCore(tx, { agencyId: agencyA }),
+  )
   assert.equal(rules.has_message.points, 0)
   assert.equal(rules.has_message.isActive, false)
 })

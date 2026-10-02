@@ -27,7 +27,15 @@ import {
   payments,
   walletTransactions,
 } from "@/lib/db/schema"
-import { userRole, agencyType, reservationStatus, paymentStatus, paymentMethod, walletTxType, walletTxStatus } from "@/lib/db/schema"
+import {
+  userRole,
+  agencyType,
+  reservationStatus,
+  paymentStatus,
+  paymentMethod,
+  walletTxType,
+  walletTxStatus,
+} from "@/lib/db/schema"
 import { randomInt } from "crypto"
 import type { reservationModule } from "@/lib/db/schema"
 
@@ -36,41 +44,112 @@ import type { reservationModule } from "@/lib/db/schema"
 // -------------------------------------------------------------------
 
 const AGENCY_NAMES = [
-  "Tunisie Voyages", "Atlas Travel", "Carthage Tours", "Sahara Explorer",
-  "Mediterranean Holidays", "North Africa Travel", "Djerba Dreams",
-  "Hammamet Holidays", "Sousse Sun", "Monastir Magic", "Gabes Gateway",
-  "Bizerte Beach", "Kairouan Knights", "Tozeur Treasures", "Tataouine Tours",
-  "El Jem Excursions", "Kerkennah Keys", "Mahdia Moments", "Nabeul Nature",
-  "Zarzis Zen", "Sfax Spirit", "Gafsa Gateway", "Kasserine Comfort",
-  "Jendouba Journeys", "Le Kef Legends", "Siliana Springs", "Béja Breaks",
-  "Ariana Adventures", "Ben Arous Bliss", "Manouba Memories", "Tunis Travels",
+  "Tunisie Voyages",
+  "Atlas Travel",
+  "Carthage Tours",
+  "Sahara Explorer",
+  "Mediterranean Holidays",
+  "North Africa Travel",
+  "Djerba Dreams",
+  "Hammamet Holidays",
+  "Sousse Sun",
+  "Monastir Magic",
+  "Gabes Gateway",
+  "Bizerte Beach",
+  "Kairouan Knights",
+  "Tozeur Treasures",
+  "Tataouine Tours",
+  "El Jem Excursions",
+  "Kerkennah Keys",
+  "Mahdia Moments",
+  "Nabeul Nature",
+  "Zarzis Zen",
+  "Sfax Spirit",
+  "Gafsa Gateway",
+  "Kasserine Comfort",
+  "Jendouba Journeys",
+  "Le Kef Legends",
+  "Siliana Springs",
+  "Béja Breaks",
+  "Ariana Adventures",
+  "Ben Arous Bliss",
+  "Manouba Memories",
+  "Tunis Travels",
 ]
 
 const CUSTOMER_NAMES = [
-  "Ahmed Ben Ali", "Fatma Trabelsi", "Mohamed Bouazizi", "Amira Kaddour",
-  "Youssef Haddad", "Leila Masmoudi", "Karim Ben Salem", "Samia Gharbi",
-  "Omar Jaziri", "Nadia Bouchoucha", "Rami Tounsi", "Hela Ayari",
-  "Walid Ben Yahia", "Ines Driss", "Maher Mekki", "Rim Sassi",
-  "Nabil Chahed", "Sana Gueddana", "Hamdi Zouari", "Kaouther Belaid",
+  "Ahmed Ben Ali",
+  "Fatma Trabelsi",
+  "Mohamed Bouazizi",
+  "Amira Kaddour",
+  "Youssef Haddad",
+  "Leila Masmoudi",
+  "Karim Ben Salem",
+  "Samia Gharbi",
+  "Omar Jaziri",
+  "Nadia Bouchoucha",
+  "Rami Tounsi",
+  "Hela Ayari",
+  "Walid Ben Yahia",
+  "Ines Driss",
+  "Maher Mekki",
+  "Rim Sassi",
+  "Nabil Chahed",
+  "Sana Gueddana",
+  "Hamdi Zouari",
+  "Kaouther Belaid",
 ]
 
 const HOTEL_NAMES = [
-  "Marhaba Beach", "Hasdrubal Thalassa", "Vincci Marillia", "Sentido Djerba Beach",
-  "Radisson Blu Resort", "El Mouradi Hammamet", "Iberostar Averroes", "Royal Thalassa Monastir",
-  "Sheraton Sousse", "Mövenpick Resort", "Concorde Green Park", "El Mouradi Mahdia",
-  "Ramada Plaza", "Azur Beach", "Palmyra Beach", "Ksar Hammamet",
+  "Marhaba Beach",
+  "Hasdrubal Thalassa",
+  "Vincci Marillia",
+  "Sentido Djerba Beach",
+  "Radisson Blu Resort",
+  "El Mouradi Hammamet",
+  "Iberostar Averroes",
+  "Royal Thalassa Monastir",
+  "Sheraton Sousse",
+  "Mövenpick Resort",
+  "Concorde Green Park",
+  "El Mouradi Mahdia",
+  "Ramada Plaza",
+  "Azur Beach",
+  "Palmyra Beach",
+  "Ksar Hammamet",
 ]
 
-const CITIES = ["Tunis", "Hammamet", "Sousse", "Djerba", "Monastir", "Mahdia", "Nabeul", "Tozeur"]
+const CITIES = [
+  "Tunis",
+  "Hammamet",
+  "Sousse",
+  "Djerba",
+  "Monastir",
+  "Mahdia",
+  "Nabeul",
+  "Tozeur",
+]
 
-const MODULES: ("hotel" | "flight" | "package" | "transfer" | "omra")[] = ["hotel", "flight", "package", "transfer", "omra"]
+const MODULES: ("hotel" | "flight" | "package" | "transfer" | "omra")[] = [
+  "hotel",
+  "flight",
+  "package",
+  "transfer",
+  "omra",
+]
 
 function randomChoice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
 function randomEmail(name: string): string {
-  const domains = ["gmail.com", "yahoo.fr", "hotmail.com", "outlook.com", "example.tn"]
+  const domains = [
+    "gmail.com",
+    "yahoo.fr",
+    "hotmail.com",
+    "outlook.com",
+    "example.tn",
+  ]
   const cleanName = name.toLowerCase().replace(/\s+/g, ".")
   return `${cleanName}.${randomInt(100, 999)}@${randomChoice(domains)}`
 }
@@ -80,7 +159,9 @@ function randomPhone(): string {
 }
 
 function randomDate(start: Date, end: Date): Date {
-  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+  return new Date(
+    start.getTime() + Math.random() * (end.getTime() - start.getTime()),
+  )
 }
 
 function generateId(): string {
@@ -102,7 +183,10 @@ async function generateAgencies(count: number) {
 
   for (let i = 0; i < count; i++) {
     const name = `${AGENCY_NAMES[i % AGENCY_NAMES.length]} ${i + 1}`
-    const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+    const slug = name
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
     const agencyId = generateId()
 
     agencyData.push({
@@ -199,7 +283,7 @@ async function generateCustomers(agencyData: any[], count: number) {
 async function generateReservations(
   agencyData: any[],
   customerData: any[],
-  count: number
+  count: number,
 ) {
   console.log(`📋 Génération de ${count} réservations...`)
   const db = getDb()
@@ -218,7 +302,9 @@ async function generateReservations(
     const module = randomChoice(MODULES)
     const status = randomChoice(["confirmed", "pending", "cancelled"] as const)
     const checkIn = randomDate(new Date(2024, 0, 1), new Date(2025, 11, 31))
-    const checkOut = new Date(checkIn.getTime() + randomInt(1, 14) * 24 * 60 * 60 * 1000)
+    const checkOut = new Date(
+      checkIn.getTime() + randomInt(1, 14) * 24 * 60 * 60 * 1000,
+    )
     const totalAmount = randomAmount(500, 5000)
 
     const reservationId = generateId()
@@ -259,19 +345,30 @@ async function generateReservations(
         reservationExtensions.flight.push({
           id: generateId(),
           reservationId,
-          airline: randomChoice(["Tunisair", "Air France", "Lufthansa", "Turkish Airlines"]),
+          airline: randomChoice([
+            "Tunisair",
+            "Air France",
+            "Lufthansa",
+            "Turkish Airlines",
+          ]),
           flightNumber: `TU${randomInt(100, 999)}`,
           departureAirport: "TUN",
           arrivalAirport: randomChoice(["CDG", "LHR", "FRA", "IST", "DXB"]),
           departureTime: checkIn,
-          arrivalTime: new Date(checkIn.getTime() + randomInt(2, 5) * 60 * 60 * 1000),
+          arrivalTime: new Date(
+            checkIn.getTime() + randomInt(2, 5) * 60 * 60 * 1000,
+          ),
         })
         break
       case "package":
         reservationExtensions.package.push({
           id: generateId(),
           reservationId,
-          packageName: randomChoice(["Tunisie Discovery", "Sahara Adventure", "Coastal Paradise"]),
+          packageName: randomChoice([
+            "Tunisie Discovery",
+            "Sahara Adventure",
+            "Coastal Paradise",
+          ]),
           duration: randomInt(3, 10),
           includes: randomChoice(["flight", "hotel", "both"]),
         })
@@ -371,7 +468,11 @@ async function generateWalletCredits(agencyData: any[]) {
         agencyId: agency.id,
         amount,
         type: randomChoice(["credit", "debit"] as const),
-        description: randomChoice(["Recharge initiale", "Recharge mensuelle", "Ajustement"]),
+        description: randomChoice([
+          "Recharge initiale",
+          "Recharge mensuelle",
+          "Ajustement",
+        ]),
         createdAt: randomDate(new Date(2024, 0, 1), new Date()),
       })
     }
@@ -392,7 +493,11 @@ async function main() {
     const agencyData = await generateAgencies(150)
     await generateUsers(agencyData)
     const customerData = await generateCustomers(agencyData, 300)
-    const reservationData = await generateReservations(agencyData, customerData, 200)
+    const reservationData = await generateReservations(
+      agencyData,
+      customerData,
+      200,
+    )
     await generatePayments(reservationData)
     await generateWalletCredits(agencyData)
 

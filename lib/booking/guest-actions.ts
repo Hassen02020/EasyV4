@@ -52,7 +52,11 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import type { BookingDraft, TravelerInput } from "./schemas"
-import { bookingDraftSchema, travelerSchemaWithIdRule, paymentMethodSchema } from "./schemas"
+import {
+  bookingDraftSchema,
+  travelerSchemaWithIdRule,
+  paymentMethodSchema,
+} from "./schemas"
 import { computePriceBreakdown, priceDrifted } from "./pricing"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
@@ -64,20 +68,35 @@ import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { getMyGoClient } from "@/lib/mygo"
-import { resolveMyGoAccessForTenant, type ResolvedMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import {
+  resolveMyGoAccessForTenant,
+  type ResolvedMyGoAccess,
+} from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { ONLINE_PAYMENT_WINDOW_MS } from "@/lib/payment/reservation-payment-logic"
-import { attemptCardPayment, generateGuestPaymentReference } from "./guest-card-payment"
+import {
+  attemptCardPayment,
+  generateGuestPaymentReference,
+} from "./guest-card-payment"
 import { withGuestIdempotency } from "./guest-idempotency"
 import { pgErrorCode } from "@/lib/db/pg-error"
-import { resolveLinkedAuthUserId, resolveOrCreateLinkedCustomer } from "./customer-identity"
+import {
+  resolveLinkedAuthUserId,
+  resolveOrCreateLinkedCustomer,
+} from "./customer-identity"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 
-export type GuestPaymentMethod = "card" | "wallet" | "transfer" | "bank_deposit" | "cash" | "at_hotel"
+export type GuestPaymentMethod =
+  | "card"
+  | "wallet"
+  | "transfer"
+  | "bank_deposit"
+  | "cash"
+  | "at_hotel"
 
 /** Délai de règlement manuel (cash/virement) avant expiration automatique — Wallet/Payment Core. */
 const MANUAL_PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -145,26 +164,35 @@ export async function createGuestReservationFromDraft(input: {
   if (!draftParse.success) {
     return {
       ok: false,
-      error: "Brouillon invalide : " + draftParse.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Brouillon invalide : " +
+        draftParse.error.errors.map((e) => e.message).join(", "),
     }
   }
   const travelerParse = travelerSchemaWithIdRule.safeParse(input.traveler)
   if (!travelerParse.success) {
     return {
       ok: false,
-      error: "Voyageur invalide : " + travelerParse.error.errors.map((e) => e.message).join(", "),
+      error:
+        "Voyageur invalide : " +
+        travelerParse.error.errors.map((e) => e.message).join(", "),
     }
   }
   const methodParse = paymentMethodSchema.safeParse(input.paymentMethod)
   if (!methodParse.success) {
-    return { ok: false, error: "Mode de paiement invalide pour une réservation en ligne." }
+    return {
+      ok: false,
+      error: "Mode de paiement invalide pour une réservation en ligne.",
+    }
   }
 
   // PHASE "CUSTOMER RESERVATION LINK" — résolu AVANT la transaction (I/O
   // Supabase). `null` pour tout visiteur non connecté, ou dont l'email de
   // session ne correspond pas exactement à l'email voyageur saisi — voir
   // lib/booking/customer-identity.ts (jamais un rattachement ambigu).
-  const linkedAuthUserId = await resolveLinkedAuthUserId(travelerParse.data.email)
+  const linkedAuthUserId = await resolveLinkedAuthUserId(
+    travelerParse.data.email,
+  )
 
   return withGuestIdempotency(input.idempotencyKey, () =>
     runCreateGuestReservation(
@@ -188,17 +216,24 @@ async function findReservationByGuestIdempotencyKey(
   agencyId: string,
   idempotencyKey: string,
 ): Promise<CreateGuestReservationResult | null> {
-  const rows = await withTenantContext({ agencyId, userId: "", isSuperAdmin: false }, (tx) =>
-    tx
-      .select({
-        id: reservations.id,
-        publicRef: reservations.publicRef,
-        guestAccessToken: reservations.guestAccessToken,
-        status: reservations.status,
-      })
-      .from(reservations)
-      .where(and(eq(reservations.agencyId, agencyId), eq(reservations.guestIdempotencyKey, idempotencyKey)))
-      .limit(1),
+  const rows = await withTenantContext(
+    { agencyId, userId: "", isSuperAdmin: false },
+    (tx) =>
+      tx
+        .select({
+          id: reservations.id,
+          publicRef: reservations.publicRef,
+          guestAccessToken: reservations.guestAccessToken,
+          status: reservations.status,
+        })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.agencyId, agencyId),
+            eq(reservations.guestIdempotencyKey, idempotencyKey),
+          ),
+        )
+        .limit(1),
   )
   const row = rows[0]
   if (!row) return null
@@ -221,7 +256,10 @@ async function runCreateGuestReservation(
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
-    return { ok: false, error: "Aucune agence de vente directe n'est configurée pour le moment." }
+    return {
+      ok: false,
+      error: "Aucune agence de vente directe n'est configurée pour le moment.",
+    }
   }
   // PHASE 27.2 — compte fournisseur myGo de L'AGENCE OTA DIRECTE (jamais le
   // client global `MYGO_*` tant qu'un compte tenant est configuré pour
@@ -243,7 +281,10 @@ async function runCreateGuestReservation(
   // retrouve directement la réservation déjà créée, AVANT tout appel
   // fournisseur (myGo) ou tentative de paiement — jamais un second hold
   // myGo ni un second débit pour la même soumission.
-  const existingByKey = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
+  const existingByKey = await findReservationByGuestIdempotencyKey(
+    agencyId,
+    idempotencyKey,
+  )
   if (existingByKey) return existingByKey
 
   // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
@@ -289,13 +330,21 @@ async function runCreateGuestReservation(
   // Même garde que le correctif P0 Phase 11 (lib/booking/actions.ts) : sans
   // confirmation fournisseur valide, aucun prix n'est jamais calculé ni
   // débité, quel que soit le module ou le mode de paiement.
-  const providerConfirmation = await confirmHotelWithProvider(draft, traveler, myGoAccess)
+  const providerConfirmation = await confirmHotelWithProvider(
+    draft,
+    traveler,
+    myGoAccess,
+  )
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
     await releaseInventoryLock()
     return { ok: false, error: providerConfirmation.error }
   }
-  const myGoBooking = providerConfirmation.attempted ? providerConfirmation.booking : null
-  const providerMeta = providerConfirmation.attempted ? providerConfirmation.providerMeta : null
+  const myGoBooking = providerConfirmation.attempted
+    ? providerConfirmation.booking
+    : null
+  const providerMeta = providerConfirmation.attempted
+    ? providerConfirmation.providerMeta
+    : null
   if (!myGoBooking) {
     await releaseInventoryLock()
     return {
@@ -329,7 +378,9 @@ async function runCreateGuestReservation(
   // aux autres rejets ci-dessus.
   if (priceDrifted(expectedTotalTnd, breakdown.totalTnd)) {
     try {
-      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+        bookingId: myGoBooking.bookingId,
+      })
     } catch {
       /* best effort — un hold myGo redondant sans réservation locale associée
        * n'a aucun impact financier/paiement côté Easy2Book. */
@@ -347,7 +398,10 @@ async function runCreateGuestReservation(
   const hotelEndDate = draft.endDate ? new Date(draft.endDate) : hotelStartDate
   const hotelNights = Math.max(
     1,
-    Math.round((hotelEndDate.getTime() - hotelStartDate.getTime()) / (1000 * 60 * 60 * 24)),
+    Math.round(
+      (hotelEndDate.getTime() - hotelStartDate.getTime()) /
+        (1000 * 60 * 60 * 24),
+    ),
   )
 
   // --- Paiement en ligne carte ---
@@ -368,7 +422,10 @@ async function runCreateGuestReservation(
   //    PENDING corrélé par `pspOrderId`, jamais confirmée ici : seul le
   //    webhook signé (app/api/payment/reservation-webhook/route.ts) confirme.
   const cardPaymentReference = generateGuestPaymentReference()
-  let cardRedirect: { url: string; psp: "sps" | "stripe" | "manual" | "virtual" | "paymee" } | null = null
+  let cardRedirect: {
+    url: string
+    psp: "sps" | "stripe" | "manual" | "virtual" | "paymee"
+  } | null = null
   if (paymentMethod === "card") {
     const paymentResult = await attemptCardPayment(
       getPaymentProvider(),
@@ -383,7 +440,10 @@ async function runCreateGuestReservation(
         customerPhone: traveler.phone,
       },
       // PHASE 27.2 — même compte tenant que celui qui a créé le hold.
-      () => (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId }),
+      () =>
+        (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+          bookingId: myGoBooking.bookingId,
+        }),
     )
     if (!paymentResult.ok) {
       // Compensation fournisseur déjà déclenchée par attemptCardPayment
@@ -395,8 +455,14 @@ async function runCreateGuestReservation(
         code: paymentResult.code,
       }
     }
-    if (paymentResult.status === "requires_action" && paymentResult.redirectUrl) {
-      cardRedirect = { url: paymentResult.redirectUrl, psp: paymentResult.psp ?? "manual" }
+    if (
+      paymentResult.status === "requires_action" &&
+      paymentResult.redirectUrl
+    ) {
+      cardRedirect = {
+        url: paymentResult.redirectUrl,
+        psp: paymentResult.psp ?? "manual",
+      }
     }
     // Sinon (`status: "succeeded"`) : comportement historique — aucun
     // adaptateur réel ne confirme ainsi aujourd'hui, cette branche n'est
@@ -447,13 +513,19 @@ async function runCreateGuestReservation(
         // le staff (verifyManualPayment, method déjà supporté) ou une
         // annulation manuelle explicite.
         const paymentExpiresAt =
-          paymentMethod === "transfer" || paymentMethod === "bank_deposit" || paymentMethod === "cash"
+          paymentMethod === "transfer" ||
+          paymentMethod === "bank_deposit" ||
+          paymentMethod === "cash"
             ? new Date(Date.now() + MANUAL_PAYMENT_WINDOW_MS)
             : cardRedirect
               ? new Date(Date.now() + ONLINE_PAYMENT_WINDOW_MS)
               : null
 
-        let inserted: { id: string; publicRef: string; guestAccessToken: string }[]
+        let inserted: {
+          id: string
+          publicRef: string
+          guestAccessToken: string
+        }[]
         try {
           // Savepoint (transaction imbriquée) : si l'INSERT échoue sur le
           // conflit d'unicité, seul ce sous-bloc est annulé. Sans savepoint,
@@ -518,7 +590,10 @@ async function runCreateGuestReservation(
           agencyId,
           providerBookingId: String(myGoBooking.bookingId),
           providerToken: providerMeta?.myGoToken,
-          hotelId: myGoBooking.hotelId ?? providerMeta?.hotelId ?? (Number(draft.offerId) || 0),
+          hotelId:
+            myGoBooking.hotelId ??
+            providerMeta?.hotelId ??
+            (Number(draft.offerId) || 0),
           hotelName: myGoBooking.hotelName ?? draft.offerLabel,
           cityId: providerMeta?.cityId,
           checkIn: draft.startDate,
@@ -530,8 +605,12 @@ async function runCreateGuestReservation(
           boardName: confirmedRoom?.boardingName,
           rooms: myGoBooking.rooms,
           methodPayment: myGoBooking.atHotel ? 10 : undefined,
-          atHotelAmount: myGoBooking.atHotel != null ? String(myGoBooking.atHotel) : undefined,
-          cancellationPolicies: confirmedRoom?.cancellationPolicies ?? undefined,
+          atHotelAmount:
+            myGoBooking.atHotel != null
+              ? String(myGoBooking.atHotel)
+              : undefined,
+          cancellationPolicies:
+            confirmedRoom?.cancellationPolicies ?? undefined,
         })
 
         await tx.insert(auditEvents).values({
@@ -539,7 +618,13 @@ async function runCreateGuestReservation(
           entityType: "reservation",
           entityId: reservationId,
           action: "reservation.created",
-          diff: { module: draft.module, publicRef, total: breakdown.totalTnd, via: "b2c_guest", paymentMethod },
+          diff: {
+            module: draft.module,
+            publicRef,
+            total: breakdown.totalTnd,
+            via: "b2c_guest",
+            paymentMethod,
+          },
         })
 
         // Coût fournisseur ↔ prix agence — alimente le Dashboard Marges
@@ -551,9 +636,12 @@ async function runCreateGuestReservation(
           // pour le commentaire complet : même formule dupliquée que
           // recordReservationFinancials(), fournisseur myGo non modélisé.
           const marginAmountTnd = agencyPrice - myGoBooking.totalPrice
-          const commissionRateForEntitlements = hotelMarginRule.commissionPercent ?? 0
+          const commissionRateForEntitlements =
+            hotelMarginRule.commissionPercent ?? 0
           const commissionAmountForEntitlements =
-            Math.round(marginAmountTnd * (commissionRateForEntitlements / 100) * 100) / 100
+            Math.round(
+              marginAmountTnd * (commissionRateForEntitlements / 100) * 100,
+            ) / 100
 
           const { commissionAmount } = await recordReservationFinancials({
             tx,
@@ -622,7 +710,9 @@ async function runCreateGuestReservation(
             amountTnd: breakdown.totalTnd,
             reservationId,
             description: `Réservation ${draft.module} — ${draft.offerLabel}`,
-            txOverride: tx as Parameters<typeof debitCustomerWallet>[0]["txOverride"],
+            txOverride: tx as Parameters<
+              typeof debitCustomerWallet
+            >[0]["txOverride"],
           })
           if (!debit.ok) {
             throw new WalletDebitFailedError(debit.code, debit.message)
@@ -633,7 +723,11 @@ async function runCreateGuestReservation(
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
-            .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+            .set({
+              status: "confirmed",
+              confirmedAt: new Date(),
+              updatedAt: new Date(),
+            })
             .where(eq(reservations.id, reservationId))
 
           await recordReservationTransition(tx, {
@@ -664,7 +758,9 @@ async function runCreateGuestReservation(
           // réservation confirmée derrière.
           const rewardsSummary = await getReservationPaymentSummary({
             reservationId,
-            txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+            txOverride: tx as Parameters<
+              typeof getReservationPaymentSummary
+            >[0]["txOverride"],
           })
           await earnPendingPoints(tx, {
             agencyId,
@@ -712,7 +808,8 @@ async function runCreateGuestReservation(
             // différé prouvé par une référence). La distinction guest-facing
             // reste visible dans `wallet_ledger.metadata.paymentMethod` posée
             // par le staff à la vérification (verifyManualPayment).
-            method: paymentMethod === "bank_deposit" ? "transfer" : paymentMethod,
+            method:
+              paymentMethod === "bank_deposit" ? "transfer" : paymentMethod,
             originalCurrency: "TND",
             originalAmount: breakdown.totalTnd.toFixed(2),
             tndAmount: breakdown.totalTnd.toFixed(2),
@@ -721,7 +818,9 @@ async function runCreateGuestReservation(
           })
         }
 
-        const finalStatus: "confirmed" | "pending" = isImmediatelyPaid ? "confirmed" : "pending"
+        const finalStatus: "confirmed" | "pending" = isImmediatelyPaid
+          ? "confirmed"
+          : "pending"
         return {
           reservationId,
           publicRef,
@@ -741,7 +840,9 @@ async function runCreateGuestReservation(
       // effort, même logique que le catch général plus bas) puis renvoie le
       // résultat de la réservation gagnante, jamais une erreur générique.
       try {
-        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+        await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+          bookingId: myGoBooking.bookingId,
+        })
       } catch {
         /* best effort — un hold myGo redondant sans réservation locale associée
          * n'a aucun impact financier/paiement côté Easy2Book. */
@@ -751,11 +852,15 @@ async function runCreateGuestReservation(
       // "confirmed" — la réservation confirmée appartient à l'autre requête,
       // qui aura elle-même libéré/confirmé son propre verrou).
       await releaseInventoryLock()
-      const winner = await findReservationByGuestIdempotencyKey(agencyId, idempotencyKey)
+      const winner = await findReservationByGuestIdempotencyKey(
+        agencyId,
+        idempotencyKey,
+      )
       if (winner) return winner
       return {
         ok: false,
-        error: "Cette réservation est en cours de traitement par une autre requête — réessayez dans quelques secondes.",
+        error:
+          "Cette réservation est en cours de traitement par une autre requête — réessayez dans quelques secondes.",
       }
     }
 
@@ -796,7 +901,10 @@ async function runCreateGuestReservation(
           actorUserId: "",
         })
         if (!invoiceResult.ok) {
-          console.error("[guest-booking] génération facture échouée", invoiceResult.error)
+          console.error(
+            "[guest-booking] génération facture échouée",
+            invoiceResult.error,
+          )
         }
       } catch (err) {
         console.error(
@@ -820,7 +928,9 @@ async function runCreateGuestReservation(
   } catch (err) {
     let compensationNote = ""
     try {
-      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+        bookingId: myGoBooking.bookingId,
+      })
     } catch {
       compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
     }
@@ -844,7 +954,8 @@ async function runCreateGuestReservation(
     return {
       ok: false,
       error:
-        "Erreur interne lors de la création de la réservation." + compensationNote,
+        "Erreur interne lors de la création de la réservation." +
+        compensationNote,
     }
   }
 }

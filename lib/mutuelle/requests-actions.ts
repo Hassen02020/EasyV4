@@ -24,14 +24,22 @@ import { revalidatePath } from "next/cache"
 import { and, desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { mutuelleRequests, auditEvents, reservationModule, users } from "@/lib/db/schema"
+import {
+  mutuelleRequests,
+  auditEvents,
+  reservationModule,
+  users,
+} from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile, type AdminProfile } from "@/lib/auth/profile"
 import { logger } from "@/lib/logger"
 
 export async function requireMutuelleProfile(
   expectedRole: "mutuelle_member" | "mutuelle_director",
-): Promise<{ ok: true; userId: string; profile: AdminProfile } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; userId: string; profile: AdminProfile }
+  | { ok: false; error: string }
+> {
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -69,19 +77,29 @@ const submitInputSchema = z.object({
 })
 
 export type SubmitMutuelleRequestInput = z.infer<typeof submitInputSchema>
-export type SubmitMutuelleRequestResult = { ok: true; id: string } | { ok: false; error: string }
+export type SubmitMutuelleRequestResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string }
 
 export async function submitMutuelleRequest(
   raw: SubmitMutuelleRequestInput,
 ): Promise<SubmitMutuelleRequestResult> {
   const parsed = submitInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
   if (input.travelEndDate < input.travelStartDate) {
-    return { ok: false, error: "La date de retour doit être après la date de départ." }
+    return {
+      ok: false,
+      error: "La date de retour doit être après la date de départ.",
+    }
   }
 
   const auth = await requireMutuelleProfile("mutuelle_member")
@@ -97,7 +115,12 @@ export async function submitMutuelleRequest(
     // `mutuelle_requests` lui-même n'est jamais scopé par cette agence — sa
     // propre RLS utilise exclusivement `current_mutuelle_group_id()`.
     const requestId = await withTenantContext(
-      { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+      {
+        agencyId: profile.agencyId,
+        userId,
+        isSuperAdmin: false,
+        mutuelleGroupId: groupId,
+      },
       async (tx) => {
         const [created] = await tx
           .insert(mutuelleRequests)
@@ -118,7 +141,11 @@ export async function submitMutuelleRequest(
           entityType: "mutuelle_request",
           entityId: created.id,
           action: "mutuelle_request.submitted",
-          diff: { module: input.module, travelStartDate: input.travelStartDate, travelEndDate: input.travelEndDate },
+          diff: {
+            module: input.module,
+            travelStartDate: input.travelStartDate,
+            travelEndDate: input.travelEndDate,
+          },
         })
 
         return created.id
@@ -131,7 +158,10 @@ export async function submitMutuelleRequest(
     logger.error("[mutuelle-requests-actions] submitMutuelleRequest failed", {
       err: err instanceof Error ? err.message : String(err),
     })
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }
 
@@ -163,7 +193,12 @@ export async function listMyMutuelleRequests(): Promise<MutuelleRequestRow[]> {
   const groupId = profile.mutuelleGroupId!
 
   return withTenantContext(
-    { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+    {
+      agencyId: profile.agencyId,
+      userId,
+      isSuperAdmin: false,
+      mutuelleGroupId: groupId,
+    },
     async (tx) => {
       const rows = await tx
         .select({
@@ -183,7 +218,12 @@ export async function listMyMutuelleRequests(): Promise<MutuelleRequestRow[]> {
         })
         .from(mutuelleRequests)
         .innerJoin(users, eq(users.id, mutuelleRequests.memberUserId))
-        .where(and(eq(mutuelleRequests.groupId, groupId), eq(mutuelleRequests.memberUserId, userId)))
+        .where(
+          and(
+            eq(mutuelleRequests.groupId, groupId),
+            eq(mutuelleRequests.memberUserId, userId),
+          ),
+        )
         .orderBy(desc(mutuelleRequests.createdAt))
       return rows
     },
@@ -191,14 +231,21 @@ export async function listMyMutuelleRequests(): Promise<MutuelleRequestRow[]> {
 }
 
 /** Toutes les demandes du groupe (vue directeur — file d'attente + historique). */
-export async function listGroupMutuelleRequests(): Promise<MutuelleRequestRow[]> {
+export async function listGroupMutuelleRequests(): Promise<
+  MutuelleRequestRow[]
+> {
   const auth = await requireMutuelleProfile("mutuelle_director")
   if (!auth.ok) return []
   const { userId, profile } = auth
   const groupId = profile.mutuelleGroupId!
 
   return withTenantContext(
-    { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+    {
+      agencyId: profile.agencyId,
+      userId,
+      isSuperAdmin: false,
+      mutuelleGroupId: groupId,
+    },
     async (tx) => {
       const rows = await tx
         .select({
@@ -236,14 +283,21 @@ const reviewInputSchema = z.object({
 })
 
 export type ReviewMutuelleRequestInput = z.infer<typeof reviewInputSchema>
-export type ReviewMutuelleRequestResult = { ok: true } | { ok: false; error: string }
+export type ReviewMutuelleRequestResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export async function reviewMutuelleRequest(
   raw: ReviewMutuelleRequestInput,
 ): Promise<ReviewMutuelleRequestResult> {
   const parsed = reviewInputSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Entrée invalide : " + parsed.error.errors.map((e) => e.message).join(", ") }
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
   }
   const input = parsed.data
 
@@ -254,22 +308,37 @@ export async function reviewMutuelleRequest(
 
   try {
     return await withTenantContext(
-      { agencyId: profile.agencyId, userId, isSuperAdmin: false, mutuelleGroupId: groupId },
+      {
+        agencyId: profile.agencyId,
+        userId,
+        isSuperAdmin: false,
+        mutuelleGroupId: groupId,
+      },
       async (tx) => {
         // Verrou + re-vérification du statut DANS la transaction — anti
         // double-validation concurrente (même garde que
         // validateRechargeRequest/refundReservation ailleurs dans ce projet).
         const [locked] = await tx
-          .select({ id: mutuelleRequests.id, groupId: mutuelleRequests.groupId, status: mutuelleRequests.status })
+          .select({
+            id: mutuelleRequests.id,
+            groupId: mutuelleRequests.groupId,
+            status: mutuelleRequests.status,
+          })
           .from(mutuelleRequests)
           .where(eq(mutuelleRequests.id, input.requestId))
           .for("update")
 
         if (!locked || locked.groupId !== groupId) {
-          return { ok: false as const, error: "Demande introuvable dans votre groupe." }
+          return {
+            ok: false as const,
+            error: "Demande introuvable dans votre groupe.",
+          }
         }
         if (locked.status !== "pending") {
-          return { ok: false as const, error: `Cette demande est déjà "${locked.status}".` }
+          return {
+            ok: false as const,
+            error: `Cette demande est déjà "${locked.status}".`,
+          }
         }
 
         await tx
@@ -288,8 +357,14 @@ export async function reviewMutuelleRequest(
           actorUserId: userId,
           entityType: "mutuelle_request",
           entityId: input.requestId,
-          action: input.decision === "approved" ? "mutuelle_request.approved" : "mutuelle_request.rejected",
-          diff: { decision: input.decision, directorNote: input.directorNote ?? null },
+          action:
+            input.decision === "approved"
+              ? "mutuelle_request.approved"
+              : "mutuelle_request.rejected",
+          diff: {
+            decision: input.decision,
+            directorNote: input.directorNote ?? null,
+          },
         })
 
         return { ok: true as const }
@@ -302,6 +377,9 @@ export async function reviewMutuelleRequest(
     logger.error("[mutuelle-requests-actions] reviewMutuelleRequest failed", {
       err: err instanceof Error ? err.message : String(err),
     })
-    return { ok: false, error: err instanceof Error ? err.message : "Erreur inconnue" }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    }
   }
 }

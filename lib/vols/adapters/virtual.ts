@@ -5,7 +5,12 @@
  * Builds proper Journey/Layover structures for the canonical model.
  */
 
-import type { GdsAdapter, RecheckResult, BookResult, IssueResult } from "./types"
+import type {
+  GdsAdapter,
+  RecheckResult,
+  BookResult,
+  IssueResult,
+} from "./types"
 import type {
   CanonicalSearchRequest,
   CanonicalSearchResult,
@@ -23,8 +28,9 @@ import type { Cabin } from "@/lib/vols/virtual-supplier/catalog"
 
 function isDemoMode(): boolean {
   return (
-    !process.env.FLIGHTS_API_KEY && !process.env.DUFFEL_ACCESS_TOKEN
-  ) || process.env.FLIGHTS_DEMO_MODE === "true"
+    (!process.env.FLIGHTS_API_KEY && !process.env.DUFFEL_ACCESS_TOKEN) ||
+    process.env.FLIGHTS_DEMO_MODE === "true"
+  )
 }
 
 function parsePricingToken(token: string): {
@@ -61,18 +67,20 @@ function buildSegments(
   }>,
   cabinClass: CanonicalSegment["cabin"],
 ): CanonicalSegment[] {
-  return rawSegs.map((seg): CanonicalSegment => ({
-    origin: seg.origin,
-    destination: seg.destination,
-    departure: seg.departureAt,
-    arrival: seg.arrivalAt,
-    marketingCarrier: seg.carrier,
-    operatingCarrier: seg.carrier,
-    marketingFlightNumber: seg.flightNumber.replace(/^[A-Z]{2}/, ""),
-    durationMinutes: seg.durationMinutes,
-    stops: 0,
-    cabin: cabinClass,
-  }))
+  return rawSegs.map(
+    (seg): CanonicalSegment => ({
+      origin: seg.origin,
+      destination: seg.destination,
+      departure: seg.departureAt,
+      arrival: seg.arrivalAt,
+      marketingCarrier: seg.carrier,
+      operatingCarrier: seg.carrier,
+      marketingFlightNumber: seg.flightNumber.replace(/^[A-Z]{2}/, ""),
+      durationMinutes: seg.durationMinutes,
+      stops: 0,
+      cabin: cabinClass,
+    }),
+  )
 }
 
 function buildJourney(segments: CanonicalSegment[]): Journey {
@@ -90,7 +98,10 @@ function buildJourney(segments: CanonicalSegment[]): Journey {
  * Prices are fixed demo values; the authoritative amount lives here (server-side),
  * never in the browser.
  */
-function buildVirtualAncillaries(offerId: string, includedBaggageKg: number): Ancillary[] {
+function buildVirtualAncillaries(
+  offerId: string,
+  includedBaggageKg: number,
+): Ancillary[] {
   const seed = offerId.charCodeAt(0) % 3
   const ancillaries: Ancillary[] = []
 
@@ -156,7 +167,9 @@ export function createVirtualGdsAdapter(): GdsAdapter {
     name: "virtual",
     getConfigStatus: () => (isDemoMode() ? "CONFIGURED" : "NOT_CONFIGURED"),
 
-    async search(request: CanonicalSearchRequest): Promise<CanonicalSearchResult> {
+    async search(
+      request: CanonicalSearchRequest,
+    ): Promise<CanonicalSearchResult> {
       const cabinClass = request.cabin as Cabin
 
       // ── Outbound leg ────────────────────────────────────────────────────────
@@ -184,74 +197,87 @@ export function createVirtualGdsAdapter(): GdsAdapter {
         returnOffers = offers
       }
 
-      const itineraries: CanonicalItinerary[] = outboundOffers.map((offer, i) => {
-        const outboundSegments = buildSegments(offer.segments, cabinClass)
-        const outboundJourney = buildJourney(outboundSegments)
+      const itineraries: CanonicalItinerary[] = outboundOffers.map(
+        (offer, i) => {
+          const outboundSegments = buildSegments(offer.segments, cabinClass)
+          const outboundJourney = buildJourney(outboundSegments)
 
-        const journeys: Journey[] = [outboundJourney]
+          const journeys: Journey[] = [outboundJourney]
 
-        // Pair with a return offer (round-robin if lengths differ)
-        if (request.tripType === "ROUND_TRIP" && returnOffers.length > 0) {
-          const returnOffer = returnOffers[i % returnOffers.length]!
-          const returnSegments = buildSegments(returnOffer.segments, cabinClass)
-          journeys.push(buildJourney(returnSegments))
-        }
+          // Pair with a return offer (round-robin if lengths differ)
+          if (request.tripType === "ROUND_TRIP" && returnOffers.length > 0) {
+            const returnOffer = returnOffers[i % returnOffers.length]!
+            const returnSegments = buildSegments(
+              returnOffer.segments,
+              cabinClass,
+            )
+            journeys.push(buildJourney(returnSegments))
+          }
 
-        const totalPriceTnd =
-          request.tripType === "ROUND_TRIP" && returnOffers.length > 0
-            ? offer.priceTnd + (returnOffers[i % returnOffers.length]?.priceTnd ?? 0)
-            : offer.priceTnd
+          const totalPriceTnd =
+            request.tripType === "ROUND_TRIP" && returnOffers.length > 0
+              ? offer.priceTnd +
+                (returnOffers[i % returnOffers.length]?.priceTnd ?? 0)
+              : offer.priceTnd
 
-        return {
-          tripType: request.tripType,
-          journeys,
-          fares: [
-            {
-              currency: "TND",
-              baseAmount: Math.round(totalPriceTnd * 0.85),
-              taxAmount: Math.round(totalPriceTnd * 0.15),
-              totalAmount: Math.round(totalPriceTnd / (request.adults + Math.max(request.children, 1))),
-              passengerType: "ADT",
-              count: request.adults,
+          return {
+            tripType: request.tripType,
+            journeys,
+            fares: [
+              {
+                currency: "TND",
+                baseAmount: Math.round(totalPriceTnd * 0.85),
+                taxAmount: Math.round(totalPriceTnd * 0.15),
+                totalAmount: Math.round(
+                  totalPriceTnd /
+                    (request.adults + Math.max(request.children, 1)),
+                ),
+                passengerType: "ADT",
+                count: request.adults,
+              },
+              ...(request.children > 0
+                ? [
+                    {
+                      currency: "TND",
+                      baseAmount: Math.round(totalPriceTnd * 0.85 * 0.75),
+                      taxAmount: Math.round(totalPriceTnd * 0.15 * 0.75),
+                      totalAmount: Math.round(
+                        (totalPriceTnd * 0.75) /
+                          (request.adults + request.children),
+                      ),
+                      passengerType: "CHD" as const,
+                      count: request.children,
+                    },
+                  ]
+                : []),
+            ],
+            baggage: {
+              cabin: true,
+              checkedKg: offer.baggageKg ?? 0,
+              checkedPieces: offer.baggageKg && offer.baggageKg > 0 ? 1 : 0,
             },
-            ...(request.children > 0
-              ? [
-                  {
-                    currency: "TND",
-                    baseAmount: Math.round(totalPriceTnd * 0.85 * 0.75),
-                    taxAmount: Math.round(totalPriceTnd * 0.15 * 0.75),
-                    totalAmount: Math.round(
-                      (totalPriceTnd * 0.75) / (request.adults + request.children),
-                    ),
-                    passengerType: "CHD" as const,
-                    count: request.children,
-                  },
-                ]
-              : []),
-          ],
-          baggage: {
-            cabin: true,
-            checkedKg: offer.baggageKg ?? 0,
-            checkedPieces: offer.baggageKg && offer.baggageKg > 0 ? 1 : 0,
-          },
-          fareRules: {
-            refundable: offer.refundable,
-            changeable: true,
-            conditions: offer.refundable
-              ? "Remboursable avec frais de dossier de 50 TND."
-              : "Non remboursable.",
-          },
-          provider: {
-            provider: "virtual",
-            providerOfferId: offer.offerId,
-            pricingToken: offer.token,
-          },
-          supplierTotalAmount: totalPriceTnd,
-          supplierCurrency: "TND",
-          availableSeats: offer.availableSeats,
-          ancillaries: buildVirtualAncillaries(offer.offerId, offer.baggageKg ?? 0),
-        }
-      })
+            fareRules: {
+              refundable: offer.refundable,
+              changeable: true,
+              conditions: offer.refundable
+                ? "Remboursable avec frais de dossier de 50 TND."
+                : "Non remboursable.",
+            },
+            provider: {
+              provider: "virtual",
+              providerOfferId: offer.offerId,
+              pricingToken: offer.token,
+            },
+            supplierTotalAmount: totalPriceTnd,
+            supplierCurrency: "TND",
+            availableSeats: offer.availableSeats,
+            ancillaries: buildVirtualAncillaries(
+              offer.offerId,
+              offer.baggageKg ?? 0,
+            ),
+          }
+        },
+      )
 
       return { ok: true, itineraries, searchId }
     },
@@ -322,7 +348,10 @@ export function createVirtualGdsAdapter(): GdsAdapter {
       }
     },
 
-    async issue(pnr: string, _itinerary: CanonicalItinerary): Promise<IssueResult> {
+    async issue(
+      pnr: string,
+      _itinerary: CanonicalItinerary,
+    ): Promise<IssueResult> {
       return {
         tickets: [
           {

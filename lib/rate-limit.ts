@@ -48,7 +48,10 @@ function getUpstashLimiter(): Ratelimit | null {
 /* In-memory fallback (dev / CI — 1 instance uniquement)                     */
 /* -------------------------------------------------------------------------- */
 
-interface Bucket { count: number; reset: number }
+interface Bucket {
+  count: number
+  reset: number
+}
 const store = new Map<string, Bucket>()
 
 function cleanup() {
@@ -74,7 +77,12 @@ export function createMemoryRateLimiter(
     }
 
     if (bucket.count >= maxRequests) {
-      return { ok: false, limit: maxRequests, remaining: 0, reset: bucket.reset }
+      return {
+        ok: false,
+        limit: maxRequests,
+        remaining: 0,
+        reset: bucket.reset,
+      }
     }
 
     bucket.count += 1
@@ -106,7 +114,8 @@ export async function rateLimit(
   const upstash = getUpstashLimiter()
   if (upstash) {
     try {
-      const { success, limit, remaining, reset } = await upstash.limit(identifier)
+      const { success, limit, remaining, reset } =
+        await upstash.limit(identifier)
       return { ok: success, limit, remaining, reset }
     } catch (err) {
       // Panne/timeout Upstash (pas "non configuré" — Redis est bien
@@ -116,7 +125,10 @@ export async function rateLimit(
       // route entière (500) pour toute recherche tant que Redis ne répond
       // pas. Mêmes principes de dégradation gracieuse que `withGuestIdempotency`
       // et `memoize`/`memoizeSWR` (lib/cache/redis.ts) en cas d'absence Redis.
-      console.error(`[rateLimit] Upstash indisponible pour "${identifier}", échec ouvert :`, err)
+      console.error(
+        `[rateLimit] Upstash indisponible pour "${identifier}", échec ouvert :`,
+        err,
+      )
       return { ok: true, limit: 0, remaining: 0, reset: Date.now() }
     }
   }

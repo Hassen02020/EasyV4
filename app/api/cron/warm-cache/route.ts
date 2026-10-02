@@ -25,14 +25,14 @@ export const maxDuration = 60 // Vercel Pro: 60s max pour un cron
 
 /* Villes phares à précharger (IDs MyGo — Tunisie) */
 const WARM_CITY_IDS = [
-  1,   // Tunis
-  2,   // Sousse
-  3,   // Monastir
-  4,   // Hammamet
-  5,   // Djerba
-  6,   // Tabarka
-  7,   // Tozeur
-  8,   // Mahdia
+  1, // Tunis
+  2, // Sousse
+  3, // Monastir
+  4, // Hammamet
+  5, // Djerba
+  6, // Tabarka
+  7, // Tozeur
+  8, // Mahdia
 ]
 
 /* Paramètres de recherche pour le warm-up (demain + 2 nuits, 2 adultes) */
@@ -64,15 +64,18 @@ export async function GET(request: NextRequest) {
   }
 
   const client = new MyGoClient()
-  const results: Record<string, { ok: boolean; count?: number; error?: string }> = {}
+  const results: Record<
+    string,
+    { ok: boolean; count?: number; error?: string }
+  > = {}
   const t0 = Date.now()
 
   /* --- 1. Données statiques --- */
   for (const [name, fn] of [
-    ["cities",    () => client.listCities()],
+    ["cities", () => client.listCities()],
     ["boardings", () => client.listBoardings()],
-    ["currencies",() => client.listCurrencies()],
-    ["tags",      () => client.listTags()],
+    ["currencies", () => client.listCurrencies()],
+    ["tags", () => client.listTags()],
   ] as const) {
     try {
       const data = await fn()

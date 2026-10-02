@@ -19,9 +19,13 @@ import { removeFavoriteCore } from "@/lib/favorites/favorites-core"
 
 const inputSchema = z.object({ id: z.string().uuid() })
 
-export type RemoveFavoriteResult = { ok: true; removed: boolean } | { ok: false; error: string; code?: string }
+export type RemoveFavoriteResult =
+  | { ok: true; removed: boolean }
+  | { ok: false; error: string; code?: string }
 
-export async function removeFavorite(raw: { id: string }): Promise<RemoveFavoriteResult> {
+export async function removeFavorite(raw: {
+  id: string
+}): Promise<RemoveFavoriteResult> {
   const parsed = inputSchema.safeParse(raw)
   if (!parsed.success) {
     return { ok: false, error: "Entrée invalide." }
@@ -36,7 +40,11 @@ export async function removeFavorite(raw: { id: string }): Promise<RemoveFavorit
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { ok: false, error: "Session expirée — reconnectez-vous.", code: "NOT_AUTHENTICATED" }
+    return {
+      ok: false,
+      error: "Session expirée — reconnectez-vous.",
+      code: "NOT_AUTHENTICATED",
+    }
   }
 
   const tenant = await guestTenantContext()
@@ -46,7 +54,11 @@ export async function removeFavorite(raw: { id: string }): Promise<RemoveFavorit
 
   try {
     const result = await withTenantContext(tenant, (tx) =>
-      removeFavoriteCore(tx, { agencyId: tenant.agencyId!, authUserId: user.id, id: parsed.data.id }),
+      removeFavoriteCore(tx, {
+        agencyId: tenant.agencyId!,
+        authUserId: user.id,
+        id: parsed.data.id,
+      }),
     )
     return { ok: true, removed: result.removed }
   } catch (err) {

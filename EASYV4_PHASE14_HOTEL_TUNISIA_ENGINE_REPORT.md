@@ -43,7 +43,7 @@ No commit touches `lib/mygo/search-core.ts`, `lib/booking/*`, `lib/finance/*`, R
 
 ## 3. Occupancy model
 
-`RoomOccupancy { adults, children, childAges: ChildAge[] }` (per room) was already the real model, already driving a fully-built `GuestOccupancyPicker` component matching the mission's exact example ("Room 1: 2 adults, 2 children: 7,3 years… / Room 2…"). What was missing was a baby/child *display* distinction (MyGo itself only ever sees one `childAges[]` array per room — it has no baby concept):
+`RoomOccupancy { adults, children, childAges: ChildAge[] }` (per room) was already the real model, already driving a fully-built `GuestOccupancyPicker` component matching the mission's exact example ("Room 1: 2 adults, 2 children: 7,3 years… / Room 2…"). What was missing was a baby/child _display_ distinction (MyGo itself only ever sees one `childAges[]` array per room — it has no baby concept):
 
 - `BABY_MAX_AGE = 2`, `isBaby(age)` — pure UI-only classification, never sent to the provider as a separate field.
 - `OccupancySummary.totalBabies` / `totalBigKids` — derived counts for display (e.g. "2 Chambres, 4 Adultes, 1 Enfant, 1 Bébé").
@@ -86,6 +86,7 @@ Unchanged (`hotel-card.tsx`'s room list, `RoomOption`, `onBook`). Provider room/
 ## 10. B2C
 
 `hotels-tunisie-search.tsx` (commit 4/`89c5a0c`) rewritten to:
+
 - Collect true per-room occupancy via `GuestOccupancyPicker` + `hotelSearchReducer`, replacing the previous aggregate-adults-then-estimate-split (`splitIntoRooms`) approach.
 - Build its query entirely through `toHotelSearchParams` (no duplicated query-building logic left in the component).
 - Support hotel-direct search (`destinationMode: "city" | "hotel"`) via the new `useHotels`/`/api/hotels/list`.
@@ -94,6 +95,7 @@ Unchanged (`hotel-card.tsx`'s room list, `RoomOption`, `onBook`). Provider room/
 ## 11. B2B
 
 Two things were needed, both in `components/pro/pro-search-bar.tsx`:
+
 - **Real bug fix.** The B2B form already collected true per-room state (`adults`/`children`/`childrenAges` via `updateRoom`/`addRoom`/`removeRoom`) but discarded it when building the query: `params.set("rooms", String(rooms.length))` sent a bare count (e.g. `"2"`), which `decodeRoomsParam` (consumed by `HotelSearchQuerySchema` in `lib/mygo/search-core.ts`, the same engine B2C uses) parses as a single room with 2 adults — silently losing every additional room and all child ages. Fixed to encode via `encodeRoomsParam`, the same compact format B2C now produces.
 - Agency isolation, authorized pricing (`applyMarginToHotelOffer`), wallet rules, and RLS are untouched — only query-string construction changed in a client component; no server action, pricing, or RLS code was touched. `app/pro/(app)/hotels/page.tsx` (the B2B SERP), `lib/pro/pricing.ts`, and `lib/pro/server-context.ts` show zero diff on this branch.
 - Provider cost / OTA margin were never exposed to the client before this phase and remain server-side only.
@@ -108,13 +110,13 @@ Two things were needed, both in `components/pro/pro-search-bar.tsx`:
 
 Baseline was 366 (Phase 13.2/14 GO report). This branch adds:
 
-| File | New tests |
-|---|---|
-| `lib/hotel-search/__tests__/reducer.test.ts` | 15 |
-| `lib/hotel-search/__tests__/validation.test.ts` | 22 |
-| `lib/hotel-search/__tests__/api-mapper.test.ts` | 6 |
-| `lib/hotel-search/__tests__/cancellation.test.ts` | 7 |
-| **Total new** | **50** |
+| File                                              | New tests |
+| ------------------------------------------------- | --------- |
+| `lib/hotel-search/__tests__/reducer.test.ts`      | 15        |
+| `lib/hotel-search/__tests__/validation.test.ts`   | 22        |
+| `lib/hotel-search/__tests__/api-mapper.test.ts`   | 6         |
+| `lib/hotel-search/__tests__/cancellation.test.ts` | 7         |
+| **Total new**                                     | **50**    |
 
 **416/416 tests pass** (366 + 50). Coverage against the mission's explicit list: single/multiple rooms, adults, children, child ages, babies (`reducer.test.ts`), invalid occupancy (`validation.test.ts`), nights calculation (`validation.test.ts`, `api-mapper.test.ts::nightsFor`), provider mapping / room encoding (`api-mapper.test.ts`, pre-existing `room-split.test.ts`), normalized results (pre-existing `mappers.test.ts`, `search-core.test.ts`), filters (pre-existing `facets.test.ts`), sorting (pre-existing `sort.test.ts`), price protection / best-rate (pre-existing `best-rate.test.ts`), honest cancellation status (`cancellation.test.ts`, new this phase). Revalidation and booking-creation regression are covered by pre-existing Phase 11/12 suites (`lib/pro/__tests__/booking-actions.test.ts` and related), untouched and still green. B2C is covered by the `hotel-search` module tests above; B2B has no dedicated new test beyond reusing the already-tested `encodeRoomsParam` correctly (the fix itself is a one-line usage correction, not new logic).
 

@@ -25,7 +25,19 @@
  */
 
 import "dotenv/config"
-import { eq, and, gt, sql, asc, isNull, gte, lte, inArray, isNotNull, lt } from "drizzle-orm"
+import {
+  eq,
+  and,
+  gt,
+  sql,
+  asc,
+  isNull,
+  gte,
+  lte,
+  inArray,
+  isNotNull,
+  lt,
+} from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   reservations,
@@ -38,7 +50,10 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
-import { creditPlatformCommission, PLATFORM_COMMISSION_WALLET_ID } from "@/lib/finance/platform-commission"
+import {
+  creditPlatformCommission,
+  PLATFORM_COMMISSION_WALLET_ID,
+} from "@/lib/finance/platform-commission"
 import { renderFlightVoucherPdf } from "@/lib/pdf/voucher-flight"
 import {
   flightBookings,
@@ -49,7 +64,10 @@ import {
   flightTickets,
 } from "@/lib/db/schema/flights"
 import { createPriceSnapshot } from "@/lib/vols/price-snapshot"
-import { setScenario, resetScenario } from "@/lib/vols/virtual-supplier/scenarios"
+import {
+  setScenario,
+  resetScenario,
+} from "@/lib/vols/virtual-supplier/scenarios"
 import type { FlightSimulationScenario } from "@/lib/vols/virtual-supplier/scenarios"
 import { createVirtualGdsAdapter } from "@/lib/vols/adapters/virtual"
 import { flattenSegments } from "@/lib/vols/canonical"
@@ -204,7 +222,12 @@ async function searchAndSnapshot(agencyId: string) {
 async function createBookingRequest(
   agencyId: string,
   snapshotId: string,
-): Promise<{ bookingId: string; reservationId: string; publicRef: string; snapshotId: string }> {
+): Promise<{
+  bookingId: string
+  reservationId: string
+  publicRef: string
+  snapshotId: string
+}> {
   return withSystemContext(async (tx) => {
     // Atomically claim snapshot (CAS: ACTIVE → USED)
     const snapRows = await tx
@@ -223,7 +246,8 @@ async function createBookingRequest(
         sellingAmount: flightPriceSnapshots.sellingAmount,
         sellingCurrency: flightPriceSnapshots.sellingCurrency,
       })
-    if (!snapRows.length) throw new Error("Snapshot expired, already claimed, or not found")
+    if (!snapRows.length)
+      throw new Error("Snapshot expired, already claimed, or not found")
 
     const snap = snapRows[0]!
     const itinerary = snap.itinerary as unknown as CanonicalItinerary
@@ -233,7 +257,12 @@ async function createBookingRequest(
     const existing = await tx
       .select({ id: customers.id })
       .from(customers)
-      .where(and(eq(customers.agencyId, agencyId), eq(customers.email, CONTACT.email)))
+      .where(
+        and(
+          eq(customers.agencyId, agencyId),
+          eq(customers.email, CONTACT.email),
+        ),
+      )
       .limit(1)
     if (existing[0]) {
       customerId = existing[0].id
@@ -275,7 +304,8 @@ async function createBookingRequest(
         originalAmount: snap.sellingAmount,
         tndAmount: snap.sellingAmount,
         providerPayload: {
-          offerLabel: origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
+          offerLabel:
+            origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
           startDate: firstSeg?.departure ?? null,
           channel: "b2c_guest",
           paymentMethod: null,
@@ -362,12 +392,17 @@ async function recordFlightFinancials(
 ): Promise<void> {
   const snapRows = await withSystemContext((tx) =>
     tx
-      .select({ supplierAmount: flightPriceSnapshots.supplierAmount, sellingAmount: flightPriceSnapshots.sellingAmount })
+      .select({
+        supplierAmount: flightPriceSnapshots.supplierAmount,
+        sellingAmount: flightPriceSnapshots.sellingAmount,
+      })
       .from(flightPriceSnapshots)
       .where(eq(flightPriceSnapshots.id, snapshotId))
       .limit(1),
   )
-  const snap = (snapRows as Array<{ supplierAmount: string; sellingAmount: string }>)[0]
+  const snap = (
+    snapRows as Array<{ supplierAmount: string; sellingAmount: string }>
+  )[0]
   if (!snap) throw new Error(`Snapshot not found: ${snapshotId}`)
 
   const supplierPriceTnd = parseFloat(snap.supplierAmount)
@@ -379,7 +414,8 @@ async function recordFlightFinancials(
       .from(reservations)
       .where(eq(reservations.id, reservationId))
       .limit(1)
-    const publicRef = (resRows as Array<{ publicRef: string }>)[0]?.publicRef ?? reservationId
+    const publicRef =
+      (resRows as Array<{ publicRef: string }>)[0]?.publicRef ?? reservationId
 
     const { commissionAmount } = await recordReservationFinancials({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -412,7 +448,11 @@ async function recordFlightFinancials(
 
     await tx
       .update(payments)
-      .set({ status: "captured", capturedAt: new Date(), updatedAt: new Date() })
+      .set({
+        status: "captured",
+        capturedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(payments.reservationId, reservationId))
   })
 }
@@ -448,10 +488,23 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
         .set({ status: "on_request", updatedAt: new Date() })
         .where(eq(reservations.id, reservationId))
     }
-    return (rows as Array<{ id: string; priceSnapshotId: string | null; contact: unknown }>)[0] ?? null
+    return (
+      (
+        rows as Array<{
+          id: string
+          priceSnapshotId: string | null
+          contact: unknown
+        }>
+      )[0] ?? null
+    )
   })
 
-  if (!claimed) return { ok: false, error: "No PENDING booking found", code: "WRONG_STATUS" }
+  if (!claimed)
+    return {
+      ok: false,
+      error: "No PENDING booking found",
+      code: "WRONG_STATUS",
+    }
 
   const bookingId = claimed.id
   const snapshotId = claimed.priceSnapshotId
@@ -464,8 +517,9 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
       .where(eq(flightPriceSnapshots.id, snapshotId!))
       .limit(1),
   )
-  const snapshot = (snapRows as typeof flightPriceSnapshots.$inferSelect[])[0]
-  if (!snapshot) return { ok: false, error: "Snapshot missing", code: "SNAPSHOT_MISSING" }
+  const snapshot = (snapRows as (typeof flightPriceSnapshots.$inferSelect)[])[0]
+  if (!snapshot)
+    return { ok: false, error: "Snapshot missing", code: "SNAPSHOT_MISSING" }
 
   const itinerary = snapshot.itinerary as unknown as CanonicalItinerary
 
@@ -476,7 +530,7 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
       .from(flightBookingPassengers)
       .where(eq(flightBookingPassengers.bookingId, bookingId))
       .orderBy(flightBookingPassengers.sequence),
-  )) as typeof flightBookingPassengers.$inferSelect[]
+  )) as (typeof flightBookingPassengers.$inferSelect)[]
 
   const contact = claimed.contact as { email?: string }
   const adapter = createVirtualGdsAdapter()
@@ -489,7 +543,16 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     recheckMs = Date.now() - recheckMs
   } catch (err) {
     recheckMs = Date.now() - recheckMs
-    await logTx(bookingId, snapshotId, snapshot.provider, "RECHECK", "FAILURE", {}, { error: String(err) }, recheckMs)
+    await logTx(
+      bookingId,
+      snapshotId,
+      snapshot.provider,
+      "RECHECK",
+      "FAILURE",
+      {},
+      { error: String(err) },
+      recheckMs,
+    )
     await updateFlightStatus(bookingId, "FAILED")
     return { ok: false, error: "Recheck error", code: "RECHECK_ERROR" }
   }
@@ -509,7 +572,12 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     tx
       .update(flightBookings)
       .set({
-        lastRecheckStatus: recheckResult.status as "AVAILABLE" | "PRICE_CHANGED" | "UNAVAILABLE" | "EXPIRED" | "ERROR",
+        lastRecheckStatus: recheckResult.status as
+          | "AVAILABLE"
+          | "PRICE_CHANGED"
+          | "UNAVAILABLE"
+          | "EXPIRED"
+          | "ERROR",
         lastRecheckAt: new Date(),
         updatedAt: new Date(),
       })
@@ -518,7 +586,11 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
 
   if (recheckResult.status === "PRICE_CHANGED") {
     await updateFlightStatus(bookingId, "PRICE_CHANGED")
-    return { ok: false, error: "Price changed at recheck", code: "PRICE_CHANGED" }
+    return {
+      ok: false,
+      error: "Price changed at recheck",
+      code: "PRICE_CHANGED",
+    }
   }
   if (recheckResult.status !== "AVAILABLE") {
     await updateFlightStatus(bookingId, "FAILED")
@@ -533,7 +605,16 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     bookMs = Date.now() - bookMs
   } catch (err) {
     bookMs = Date.now() - bookMs
-    await logTx(bookingId, snapshotId, snapshot.provider, "BOOK", "FAILURE", {}, { error: String(err) }, bookMs)
+    await logTx(
+      bookingId,
+      snapshotId,
+      snapshot.provider,
+      "BOOK",
+      "FAILURE",
+      {},
+      { error: String(err) },
+      bookMs,
+    )
     await updateFlightStatus(bookingId, "FAILED")
     return { ok: false, error: String(err), code: "BOOK_FAILED" }
   }
@@ -545,7 +626,10 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     "BOOK",
     "SUCCESS",
     {},
-    { pnr: bookResult.pnr, supplierBookingReference: bookResult.supplierBookingReference },
+    {
+      pnr: bookResult.pnr,
+      supplierBookingReference: bookResult.supplierBookingReference,
+    },
     bookMs,
   )
 
@@ -571,14 +655,41 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
     issueMs = Date.now() - issueMs
   } catch (err) {
     issueMs = Date.now() - issueMs
-    await logTx(bookingId, snapshotId, snapshot.provider, "ISSUE", "FAILURE", {}, { error: String(err) }, issueMs)
+    await logTx(
+      bookingId,
+      snapshotId,
+      snapshot.provider,
+      "ISSUE",
+      "FAILURE",
+      {},
+      { error: String(err) },
+      issueMs,
+    )
     // Best-effort cancel to avoid orphaned PNR
     const cancelMs0 = Date.now()
     try {
       await adapter.cancel(bookResult.pnr, itinerary)
-      await logTx(bookingId, snapshotId, snapshot.provider, "CANCEL", "SUCCESS", { pnr: bookResult.pnr }, {}, Date.now() - cancelMs0)
+      await logTx(
+        bookingId,
+        snapshotId,
+        snapshot.provider,
+        "CANCEL",
+        "SUCCESS",
+        { pnr: bookResult.pnr },
+        {},
+        Date.now() - cancelMs0,
+      )
     } catch (cancelErr) {
-      await logTx(bookingId, snapshotId, snapshot.provider, "CANCEL", "FAILURE", { pnr: bookResult.pnr }, { error: String(cancelErr) }, Date.now() - cancelMs0)
+      await logTx(
+        bookingId,
+        snapshotId,
+        snapshot.provider,
+        "CANCEL",
+        "FAILURE",
+        { pnr: bookResult.pnr },
+        { error: String(cancelErr) },
+        Date.now() - cancelMs0,
+      )
     }
     await updateFlightStatus(bookingId, "FAILED")
     return { ok: false, error: "Issue failed", code: "ISSUE_FAILED" }
@@ -622,7 +733,9 @@ async function runFulfillment(reservationId: string): Promise<FulfillOutcome> {
 // DB verification helpers
 // ---------------------------------------------------------------------------
 
-async function getFlightBookingStatus(reservationId: string): Promise<string | null> {
+async function getFlightBookingStatus(
+  reservationId: string,
+): Promise<string | null> {
   const rows = await withSystemContext((tx) =>
     tx
       .select({ status: flightBookings.status, pnr: flightBookings.pnr })
@@ -630,10 +743,14 @@ async function getFlightBookingStatus(reservationId: string): Promise<string | n
       .where(eq(flightBookings.reservationId, reservationId))
       .limit(1),
   )
-  return (rows as Array<{ status: string; pnr: string | null }>)[0]?.status ?? null
+  return (
+    (rows as Array<{ status: string; pnr: string | null }>)[0]?.status ?? null
+  )
 }
 
-async function getReservationStatus(reservationId: string): Promise<string | null> {
+async function getReservationStatus(
+  reservationId: string,
+): Promise<string | null> {
   const rows = await withSystemContext((tx) =>
     tx
       .select({ status: reservations.status })
@@ -646,20 +763,33 @@ async function getReservationStatus(reservationId: string): Promise<string | nul
 
 async function getAgencyBalance(agencyId: string): Promise<number> {
   const rows = await withSystemContext((tx) =>
-    tx.select({ depositBalance: agencies.depositBalance }).from(agencies).where(eq(agencies.id, agencyId)).limit(1),
+    tx
+      .select({ depositBalance: agencies.depositBalance })
+      .from(agencies)
+      .where(eq(agencies.id, agencyId))
+      .limit(1),
   )
-  return parseFloat((rows as Array<{ depositBalance: string }>)[0]?.depositBalance ?? "0")
+  return parseFloat(
+    (rows as Array<{ depositBalance: string }>)[0]?.depositBalance ?? "0",
+  )
 }
 
 async function getPaymentRow(reservationId: string) {
   const rows = await withSystemContext((tx) =>
     tx
-      .select({ id: payments.id, status: payments.status, tndAmount: payments.tndAmount })
+      .select({
+        id: payments.id,
+        status: payments.status,
+        tndAmount: payments.tndAmount,
+      })
       .from(payments)
       .where(eq(payments.reservationId, reservationId))
       .limit(1),
   )
-  return (rows as Array<{ id: string; status: string; tndAmount: string }>)[0] ?? null
+  return (
+    (rows as Array<{ id: string; status: string; tndAmount: string }>)[0] ??
+    null
+  )
 }
 
 async function getFlightFinancials(reservationId: string) {
@@ -676,12 +806,20 @@ async function getFlightFinancials(reservationId: string) {
 async function getFlightWalletLedgerEntry(reservationId: string) {
   const rows = await withSystemContext((tx) =>
     tx
-      .select({ id: walletLedger.id, amount: walletLedger.amount, category: walletLedger.category })
+      .select({
+        id: walletLedger.id,
+        amount: walletLedger.amount,
+        category: walletLedger.category,
+      })
       .from(walletLedger)
       .where(eq(walletLedger.reservationId, reservationId))
       .limit(1),
   )
-  return (rows as Array<{ id: string; amount: string; category: string | null }>)[0] ?? null
+  return (
+    (
+      rows as Array<{ id: string; amount: string; category: string | null }>
+    )[0] ?? null
+  )
 }
 
 async function getTicketCount(reservationId: string): Promise<number> {
@@ -735,11 +873,19 @@ function assert(condition: boolean, message: string): void {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log("\n╔══════════════════════════════════════════════════════════════╗")
-  console.log("║  Flight E2E Certification — Chantier 46                      ║")
-  console.log("╚══════════════════════════════════════════════════════════════╝\n")
+  console.log(
+    "\n╔══════════════════════════════════════════════════════════════╗",
+  )
+  console.log(
+    "║  Flight E2E Certification — Chantier 46                      ║",
+  )
+  console.log(
+    "╚══════════════════════════════════════════════════════════════╝\n",
+  )
 
-  console.log(`  DB      : ${(process.env.DATABASE_URL ?? "").replace(/:[^:@]+@/, ":***@") || "(from .env.local)"}`)
+  console.log(
+    `  DB      : ${(process.env.DATABASE_URL ?? "").replace(/:[^:@]+@/, ":***@") || "(from .env.local)"}`,
+  )
 
   // Create a dedicated cert agency with sufficient deposit balance
   const certSlug = `cert-flight-${Date.now()}`
@@ -759,184 +905,230 @@ async function main(): Promise<void> {
   console.log("")
 
   // ── S1: NORMAL ──────────────────────────────────────────────────────────────
-  await scenario("S1 NORMAL — full happy path → CONFIRMED + ticket issued", async () => {
-    resetScenario()
-    const { snapshot, itinerary } = await searchAndSnapshot(agencyId)
-    const { reservationId, publicRef, snapshotId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S1 NORMAL — full happy path → CONFIRMED + ticket issued",
+    async () => {
+      resetScenario()
+      const { snapshot, itinerary } = await searchAndSnapshot(agencyId)
+      const { reservationId, publicRef, snapshotId } =
+        await createBookingRequest(agencyId, snapshot.snapshotId)
 
-    // Payment row created at booking-request time
-    const payRow = await getPaymentRow(reservationId)
-    assert(!!payRow, "Expected payments row to exist after createBookingRequest")
-    assert(payRow!.status === "pending", `Expected payment status=pending, got ${payRow?.status}`)
+      // Payment row created at booking-request time
+      const payRow = await getPaymentRow(reservationId)
+      assert(
+        !!payRow,
+        "Expected payments row to exist after createBookingRequest",
+      )
+      assert(
+        payRow!.status === "pending",
+        `Expected payment status=pending, got ${payRow?.status}`,
+      )
 
-    const result = await runFulfillment(reservationId)
-    assert(result.ok === true, `Expected ok=true, got ok=${result.ok} code=${(result as { code?: string }).code} ${(result as { error?: string }).error}`)
-    assert(!!(result as { pnr?: string }).pnr, "Expected PNR to be set")
+      const result = await runFulfillment(reservationId)
+      assert(
+        result.ok === true,
+        `Expected ok=true, got ok=${result.ok} code=${(result as { code?: string }).code} ${(result as { error?: string }).error}`,
+      )
+      assert(!!(result as { pnr?: string }).pnr, "Expected PNR to be set")
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "CONFIRMED", `Expected flight_bookings.status=CONFIRMED, got ${flightStatus}`)
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "CONFIRMED",
+        `Expected flight_bookings.status=CONFIRMED, got ${flightStatus}`,
+      )
 
-    const resStatus = await getReservationStatus(reservationId)
-    assert(resStatus === "confirmed", `Expected reservations.status=confirmed, got ${resStatus}`)
+      const resStatus = await getReservationStatus(reservationId)
+      assert(
+        resStatus === "confirmed",
+        `Expected reservations.status=confirmed, got ${resStatus}`,
+      )
 
-    const ticketCount = await getTicketCount(reservationId)
-    assert(ticketCount >= 1, `Expected at least 1 ticket, got ${ticketCount}`)
+      const ticketCount = await getTicketCount(reservationId)
+      assert(ticketCount >= 1, `Expected at least 1 ticket, got ${ticketCount}`)
 
-    // Financial capture (manual step — not in production pipeline yet)
-    const balanceBefore = await getAgencyBalance(agencyId)
-    await recordFlightFinancials(agencyId, reservationId, snapshotId)
+      // Financial capture (manual step — not in production pipeline yet)
+      const balanceBefore = await getAgencyBalance(agencyId)
+      await recordFlightFinancials(agencyId, reservationId, snapshotId)
 
-    const payRowAfter = await getPaymentRow(reservationId)
-    assert(payRowAfter?.status === "captured", `Expected payment captured, got ${payRowAfter?.status}`)
+      const payRowAfter = await getPaymentRow(reservationId)
+      assert(
+        payRowAfter?.status === "captured",
+        `Expected payment captured, got ${payRowAfter?.status}`,
+      )
 
-    const fin = await getFlightFinancials(reservationId)
-    assert(!!fin, "Expected reservationFinancials row after recordFlightFinancials")
-    assert(parseFloat(fin!.supplierPriceTnd!) > 0, "Expected supplierPriceTnd > 0")
+      const fin = await getFlightFinancials(reservationId)
+      assert(
+        !!fin,
+        "Expected reservationFinancials row after recordFlightFinancials",
+      )
+      assert(
+        parseFloat(fin!.supplierPriceTnd!) > 0,
+        "Expected supplierPriceTnd > 0",
+      )
 
-    const walletEntry = await getFlightWalletLedgerEntry(reservationId)
-    assert(!!walletEntry && walletEntry.category === "commission", `Expected walletLedger commission entry, got category=${walletEntry?.category}`)
+      const walletEntry = await getFlightWalletLedgerEntry(reservationId)
+      assert(
+        !!walletEntry && walletEntry.category === "commission",
+        `Expected walletLedger commission entry, got category=${walletEntry?.category}`,
+      )
 
-    const balanceAfter = await getAgencyBalance(agencyId)
-    assert(balanceBefore > balanceAfter, `Expected agency balance debited: before=${balanceBefore} after=${balanceAfter}`)
+      const balanceAfter = await getAgencyBalance(agencyId)
+      assert(
+        balanceBefore > balanceAfter,
+        `Expected agency balance debited: before=${balanceBefore} after=${balanceAfter}`,
+      )
 
-    // Voucher PDF
-    const itin = itinerary as { journeys?: Array<{ segments: Array<{ origin: string; destination: string; departure: string; arrival: string; marketingCarrier: string; marketingFlightNumber: string }> }> }
-    const firstSeg = itin.journeys?.[0]?.segments?.[0]
-    const lastJourney = itin.journeys?.[itin.journeys.length - 1]
-    const lastSeg = lastJourney?.segments?.[lastJourney.segments.length - 1]
-    const voucherBuf = await renderFlightVoucherPdf({
-      publicRef,
-      customerName: `${CONTACT.firstName} ${CONTACT.lastName}`,
-      pnr: (result as { pnr: string }).pnr,
-      origin: firstSeg?.origin ?? "TUN",
-      destination: lastSeg?.destination ?? "CDG",
-      departAt: firstSeg?.departure ?? "",
-      arriveAt: lastSeg?.arrival ?? null,
-      carrier: firstSeg?.marketingCarrier ?? null,
-      flightNumber: firstSeg ? `${firstSeg.marketingCarrier}${firstSeg.marketingFlightNumber}` : null,
-      cabinClass: "ECONOMY",
-      adults: 1,
-      children: 0,
-      totalTnd: parseFloat(fin!.salePriceTnd!),
-      agencyName: "Flight Certification Agency",
-    }, "fr")
-    assert(voucherBuf.length > 1000, `Expected voucher PDF > 1000 bytes, got ${voucherBuf.length}`)
+      // Voucher PDF
+      const itin = itinerary as {
+        journeys?: Array<{
+          segments: Array<{
+            origin: string
+            destination: string
+            departure: string
+            arrival: string
+            marketingCarrier: string
+            marketingFlightNumber: string
+          }>
+        }>
+      }
+      const firstSeg = itin.journeys?.[0]?.segments?.[0]
+      const lastJourney = itin.journeys?.[itin.journeys.length - 1]
+      const lastSeg = lastJourney?.segments?.[lastJourney.segments.length - 1]
+      const voucherBuf = await renderFlightVoucherPdf(
+        {
+          publicRef,
+          customerName: `${CONTACT.firstName} ${CONTACT.lastName}`,
+          pnr: (result as { pnr: string }).pnr,
+          origin: firstSeg?.origin ?? "TUN",
+          destination: lastSeg?.destination ?? "CDG",
+          departAt: firstSeg?.departure ?? "",
+          arriveAt: lastSeg?.arrival ?? null,
+          carrier: firstSeg?.marketingCarrier ?? null,
+          flightNumber: firstSeg
+            ? `${firstSeg.marketingCarrier}${firstSeg.marketingFlightNumber}`
+            : null,
+          cabinClass: "ECONOMY",
+          adults: 1,
+          children: 0,
+          totalTnd: parseFloat(fin!.salePriceTnd!),
+          agencyName: "Flight Certification Agency",
+        },
+        "fr",
+      )
+      assert(
+        voucherBuf.length > 1000,
+        `Expected voucher PDF > 1000 bytes, got ${voucherBuf.length}`,
+      )
 
-    const okResult = result as { ok: true; pnr: string }
-    console.log(`        publicRef=${publicRef}  pnr=${okResult.pnr}  tickets=${ticketCount}  fin=OK  voucher=${voucherBuf.length}b`)
-  })
+      const okResult = result as { ok: true; pnr: string }
+      console.log(
+        `        publicRef=${publicRef}  pnr=${okResult.pnr}  tickets=${ticketCount}  fin=OK  voucher=${voucherBuf.length}b`,
+      )
+    },
+  )
 
   // ── S2: PRICE_CHANGED ────────────────────────────────────────────────────────
-  await scenario("S2 PRICE_CHANGED — virtual book() rejects +12% → FAILED(BOOK_FAILED)", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S2 PRICE_CHANGED — virtual book() rejects +12% → FAILED(BOOK_FAILED)",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    setScenario("PRICE_CHANGED" as FlightSimulationScenario)
-    const result = await runFulfillment(reservationId)
-    resetScenario()
+      setScenario("PRICE_CHANGED" as FlightSimulationScenario)
+      const result = await runFulfillment(reservationId)
+      resetScenario()
 
-    assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
-    assert(
-      (result as { code?: string }).code === "BOOK_FAILED",
-      `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
-    )
+      assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
+      assert(
+        (result as { code?: string }).code === "BOOK_FAILED",
+        `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
+      )
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "FAILED", `Expected flight_bookings.status=FAILED, got ${flightStatus}`)
-  })
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "FAILED",
+        `Expected flight_bookings.status=FAILED, got ${flightStatus}`,
+      )
+    },
+  )
 
   // ── S3: SOLD_OUT ─────────────────────────────────────────────────────────────
-  await scenario("S3 SOLD_OUT — virtual book() forces sold-out → FAILED(BOOK_FAILED)", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S3 SOLD_OUT — virtual book() forces sold-out → FAILED(BOOK_FAILED)",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    setScenario("SOLD_OUT" as FlightSimulationScenario)
-    const result = await runFulfillment(reservationId)
-    resetScenario()
+      setScenario("SOLD_OUT" as FlightSimulationScenario)
+      const result = await runFulfillment(reservationId)
+      resetScenario()
 
-    assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
-    assert(
-      (result as { code?: string }).code === "BOOK_FAILED",
-      `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
-    )
+      assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
+      assert(
+        (result as { code?: string }).code === "BOOK_FAILED",
+        `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
+      )
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "FAILED", `Expected flight_bookings.status=FAILED, got ${flightStatus}`)
-  })
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "FAILED",
+        `Expected flight_bookings.status=FAILED, got ${flightStatus}`,
+      )
+    },
+  )
 
   // ── S4: BOOKING_REJECTED ─────────────────────────────────────────────────────
-  await scenario("S4 BOOKING_REJECTED — provider refuses booking → FAILED(BOOK_FAILED)", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S4 BOOKING_REJECTED — provider refuses booking → FAILED(BOOK_FAILED)",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    setScenario("BOOKING_REJECTED" as FlightSimulationScenario)
-    const result = await runFulfillment(reservationId)
-    resetScenario()
+      setScenario("BOOKING_REJECTED" as FlightSimulationScenario)
+      const result = await runFulfillment(reservationId)
+      resetScenario()
 
-    assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
-    assert(
-      (result as { code?: string }).code === "BOOK_FAILED",
-      `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
-    )
+      assert(result.ok === false, `Expected ok=false, got ok=${result.ok}`)
+      assert(
+        (result as { code?: string }).code === "BOOK_FAILED",
+        `Expected code=BOOK_FAILED, got ${(result as { code?: string }).code}`,
+      )
 
-    const flightStatus = await getFlightBookingStatus(reservationId)
-    assert(flightStatus === "FAILED", `Expected flight_bookings.status=FAILED, got ${flightStatus}`)
-  })
+      const flightStatus = await getFlightBookingStatus(reservationId)
+      assert(
+        flightStatus === "FAILED",
+        `Expected flight_bookings.status=FAILED, got ${flightStatus}`,
+      )
+    },
+  )
 
   // ── S5: Settlement ─────────────────────────────────────────────────────────
-  await scenario("S5 SETTLEMENT — commission walletLedger entries settled into commissionSettlements", async () => {
-    const periodStart = new Date(Date.now() - 86_400_000 * 30)
-    const periodEnd = new Date()
-    const settledBy = "00000000-0000-0000-0000-000000000001" // system
+  await scenario(
+    "S5 SETTLEMENT — commission walletLedger entries settled into commissionSettlements",
+    async () => {
+      const periodStart = new Date(Date.now() - 86_400_000 * 30)
+      const periodEnd = new Date()
+      const settledBy = "00000000-0000-0000-0000-000000000001" // system
 
-    const settlementResult = await withSystemContext(async (tx) => {
-      const [summary] = await tx
-        .select({
-          totalAmount: sql<number>`COALESCE(SUM(${walletLedger.amount}), 0)`,
-          entryCount: sql<number>`COUNT(*)`,
-        })
-        .from(walletLedger)
-        .where(
-          and(
-            eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
-            eq(walletLedger.category, "commission"),
-            isNull(walletLedger.settledAt),
-            gte(walletLedger.createdAt, periodStart),
-            lte(walletLedger.createdAt, periodEnd),
-          ),
-        )
-
-      const totalAmount = Number(summary?.totalAmount) || 0
-      const entryCount = Number(summary?.entryCount) || 0
-
-      const [settlement] = await tx
-        .insert(commissionSettlements)
-        .values({
-          periodStart: periodStart.toISOString().split("T")[0]!,
-          periodEnd: periodEnd.toISOString().split("T")[0]!,
-          totalAmount: totalAmount.toFixed(2),
-          ledgerEntryCount: entryCount,
-          status: "pending",
-          settledBy,
-        })
-        .onConflictDoUpdate({
-          target: [commissionSettlements.periodStart, commissionSettlements.periodEnd],
-          set: {
-            totalAmount: totalAmount.toFixed(2),
-            ledgerEntryCount: entryCount,
-            settledBy,
-            updatedAt: new Date(),
-          },
-        })
-        .returning({ id: commissionSettlements.id })
-
-      if (entryCount > 0) {
-        await tx
-          .update(walletLedger)
-          .set({ settledAt: new Date(), settlementId: settlement!.id })
+      const settlementResult = await withSystemContext(async (tx) => {
+        const [summary] = await tx
+          .select({
+            totalAmount: sql<number>`COALESCE(SUM(${walletLedger.amount}), 0)`,
+            entryCount: sql<number>`COUNT(*)`,
+          })
+          .from(walletLedger)
           .where(
             and(
               eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
@@ -946,112 +1138,215 @@ async function main(): Promise<void> {
               lte(walletLedger.createdAt, periodEnd),
             ),
           )
-      }
 
-      return { id: settlement!.id, totalAmount, entryCount }
-    })
+        const totalAmount = Number(summary?.totalAmount) || 0
+        const entryCount = Number(summary?.entryCount) || 0
 
-    assert(!!settlementResult.id, "Expected commissionSettlements row created")
-    assert(settlementResult.totalAmount > 0, `Expected totalAmount > 0, got ${settlementResult.totalAmount}`)
-    assert(settlementResult.entryCount > 0, `Expected entryCount > 0, got ${settlementResult.entryCount}`)
-    console.log(`        settlementId=${settlementResult.id}  total=${settlementResult.totalAmount.toFixed(3)}  entries=${settlementResult.entryCount}`)
-  })
+        const [settlement] = await tx
+          .insert(commissionSettlements)
+          .values({
+            periodStart: periodStart.toISOString().split("T")[0]!,
+            periodEnd: periodEnd.toISOString().split("T")[0]!,
+            totalAmount: totalAmount.toFixed(2),
+            ledgerEntryCount: entryCount,
+            status: "pending",
+            settledBy,
+          })
+          .onConflictDoUpdate({
+            target: [
+              commissionSettlements.periodStart,
+              commissionSettlements.periodEnd,
+            ],
+            set: {
+              totalAmount: totalAmount.toFixed(2),
+              ledgerEntryCount: entryCount,
+              settledBy,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({ id: commissionSettlements.id })
+
+        if (entryCount > 0) {
+          await tx
+            .update(walletLedger)
+            .set({ settledAt: new Date(), settlementId: settlement!.id })
+            .where(
+              and(
+                eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
+                eq(walletLedger.category, "commission"),
+                isNull(walletLedger.settledAt),
+                gte(walletLedger.createdAt, periodStart),
+                lte(walletLedger.createdAt, periodEnd),
+              ),
+            )
+        }
+
+        return { id: settlement!.id, totalAmount, entryCount }
+      })
+
+      assert(
+        !!settlementResult.id,
+        "Expected commissionSettlements row created",
+      )
+      assert(
+        settlementResult.totalAmount > 0,
+        `Expected totalAmount > 0, got ${settlementResult.totalAmount}`,
+      )
+      assert(
+        settlementResult.entryCount > 0,
+        `Expected entryCount > 0, got ${settlementResult.entryCount}`,
+      )
+      console.log(
+        `        settlementId=${settlementResult.id}  total=${settlementResult.totalAmount.toFixed(3)}  entries=${settlementResult.entryCount}`,
+      )
+    },
+  )
 
   // ── S6: Idempotence ──────────────────────────────────────────────────────────
-  await scenario("S6 IDEMPOTENCE — duplicate fulfillment on CONFIRMED booking → WRONG_STATUS", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { reservationId } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S6 IDEMPOTENCE — duplicate fulfillment on CONFIRMED booking → WRONG_STATUS",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { reservationId } = await createBookingRequest(
+        agencyId,
+        snapshot.snapshotId,
+      )
 
-    // First fulfillment → CONFIRMED
-    const first = await runFulfillment(reservationId)
-    assert(first.ok === true, `First fulfillment should succeed, got ok=${first.ok}`)
+      // First fulfillment → CONFIRMED
+      const first = await runFulfillment(reservationId)
+      assert(
+        first.ok === true,
+        `First fulfillment should succeed, got ok=${first.ok}`,
+      )
 
-    // Second fulfillment on already-CONFIRMED booking → should fail
-    const second = await runFulfillment(reservationId)
-    assert(second.ok === false, `Second fulfillment should fail, got ok=${second.ok}`)
-    assert(
-      (second as { code?: string }).code === "WRONG_STATUS",
-      `Expected code=WRONG_STATUS, got ${(second as { code?: string }).code}`,
-    )
-    console.log(`        idempotence guard: ok=false code=${(second as { code?: string }).code}`)
-  })
+      // Second fulfillment on already-CONFIRMED booking → should fail
+      const second = await runFulfillment(reservationId)
+      assert(
+        second.ok === false,
+        `Second fulfillment should fail, got ok=${second.ok}`,
+      )
+      assert(
+        (second as { code?: string }).code === "WRONG_STATUS",
+        `Expected code=WRONG_STATUS, got ${(second as { code?: string }).code}`,
+      )
+      console.log(
+        `        idempotence guard: ok=false code=${(second as { code?: string }).code}`,
+      )
+    },
+  )
 
   // ── S7: SLA expiry cron ──────────────────────────────────────────────────────
-  await scenario("S7 SLA_EXPIRY — PENDING booking past slaDeadline → CANCELLED + reservation expired", async () => {
-    resetScenario()
-    const { snapshot } = await searchAndSnapshot(agencyId)
-    const { bookingId, reservationId, publicRef } = await createBookingRequest(agencyId, snapshot.snapshotId)
+  await scenario(
+    "S7 SLA_EXPIRY — PENDING booking past slaDeadline → CANCELLED + reservation expired",
+    async () => {
+      resetScenario()
+      const { snapshot } = await searchAndSnapshot(agencyId)
+      const { bookingId, reservationId, publicRef } =
+        await createBookingRequest(agencyId, snapshot.snapshotId)
 
-    // Back-date slaDeadline to 1 second ago to simulate an expired SLA window
-    const expiredDeadline = new Date(Date.now() - 1000)
-    await withSystemContext(async (tx) => {
-      await tx
-        .update(flightBookings)
-        .set({ slaDeadline: expiredDeadline, updatedAt: new Date() })
-        .where(eq(flightBookings.id, bookingId))
-    })
+      // Back-date slaDeadline to 1 second ago to simulate an expired SLA window
+      const expiredDeadline = new Date(Date.now() - 1000)
+      await withSystemContext(async (tx) => {
+        await tx
+          .update(flightBookings)
+          .set({ slaDeadline: expiredDeadline, updatedAt: new Date() })
+          .where(eq(flightBookings.id, bookingId))
+      })
 
-    // Run the SLA enforcement logic (same SQL as /api/cron/expire-flight-sla)
-    const { cancelledCount, expiredCount } = await withSystemContext(async (tx) => {
-      const cancelledRows = await tx
-        .update(flightBookings)
-        .set({ status: "CANCELLED", updatedAt: new Date() })
-        .where(
-          and(
-            eq(flightBookings.status, "PENDING"),
-            isNotNull(flightBookings.slaDeadline),
-            lt(flightBookings.slaDeadline, new Date()),
-          ),
-        )
-        .returning({ id: flightBookings.id, reservationId: flightBookings.reservationId })
+      // Run the SLA enforcement logic (same SQL as /api/cron/expire-flight-sla)
+      const { cancelledCount, expiredCount } = await withSystemContext(
+        async (tx) => {
+          const cancelledRows = await tx
+            .update(flightBookings)
+            .set({ status: "CANCELLED", updatedAt: new Date() })
+            .where(
+              and(
+                eq(flightBookings.status, "PENDING"),
+                isNotNull(flightBookings.slaDeadline),
+                lt(flightBookings.slaDeadline, new Date()),
+              ),
+            )
+            .returning({
+              id: flightBookings.id,
+              reservationId: flightBookings.reservationId,
+            })
 
-      const resIds = cancelledRows
-        .map((b) => b.reservationId)
-        .filter((id): id is string => id !== null)
+          const resIds = cancelledRows
+            .map((b) => b.reservationId)
+            .filter((id): id is string => id !== null)
 
-      const expiredRows =
-        resIds.length > 0
-          ? await tx
-              .update(reservations)
-              .set({ status: "expired", updatedAt: new Date() })
-              .where(
-                and(
-                  inArray(reservations.id, resIds),
-                  eq(reservations.status, "pending"),
-                ),
-              )
-              .returning({ id: reservations.id })
-          : []
+          const expiredRows =
+            resIds.length > 0
+              ? await tx
+                  .update(reservations)
+                  .set({ status: "expired", updatedAt: new Date() })
+                  .where(
+                    and(
+                      inArray(reservations.id, resIds),
+                      eq(reservations.status, "pending"),
+                    ),
+                  )
+                  .returning({ id: reservations.id })
+              : []
 
-      return { cancelledCount: cancelledRows.length, expiredCount: expiredRows.length }
-    })
+          return {
+            cancelledCount: cancelledRows.length,
+            expiredCount: expiredRows.length,
+          }
+        },
+      )
 
-    assert(cancelledCount >= 1, `Expected at least 1 CANCELLED booking, got ${cancelledCount}`)
-    assert(expiredCount >= 1, `Expected at least 1 expired reservation, got ${expiredCount}`)
+      assert(
+        cancelledCount >= 1,
+        `Expected at least 1 CANCELLED booking, got ${cancelledCount}`,
+      )
+      assert(
+        expiredCount >= 1,
+        `Expected at least 1 expired reservation, got ${expiredCount}`,
+      )
 
-    // Verify DB state for our specific booking/reservation
-    const [fbRow] = await withSystemContext(async (tx) =>
-      tx.select({ status: flightBookings.status }).from(flightBookings).where(eq(flightBookings.id, bookingId)),
-    )
-    assert(fbRow?.status === "CANCELLED", `Expected flight_booking CANCELLED, got ${fbRow?.status}`)
+      // Verify DB state for our specific booking/reservation
+      const [fbRow] = await withSystemContext(async (tx) =>
+        tx
+          .select({ status: flightBookings.status })
+          .from(flightBookings)
+          .where(eq(flightBookings.id, bookingId)),
+      )
+      assert(
+        fbRow?.status === "CANCELLED",
+        `Expected flight_booking CANCELLED, got ${fbRow?.status}`,
+      )
 
-    const [resRow] = await withSystemContext(async (tx) =>
-      tx.select({ status: reservations.status }).from(reservations).where(eq(reservations.id, reservationId)),
-    )
-    assert(resRow?.status === "expired", `Expected reservation expired, got ${resRow?.status}`)
+      const [resRow] = await withSystemContext(async (tx) =>
+        tx
+          .select({ status: reservations.status })
+          .from(reservations)
+          .where(eq(reservations.id, reservationId)),
+      )
+      assert(
+        resRow?.status === "expired",
+        `Expected reservation expired, got ${resRow?.status}`,
+      )
 
-    console.log(`        bookingId=${bookingId}  publicRef=${publicRef}`)
-    console.log(`        flight_booking.status=CANCELLED  reservation.status=expired ✓`)
-  })
+      console.log(`        bookingId=${bookingId}  publicRef=${publicRef}`)
+      console.log(
+        `        flight_booking.status=CANCELLED  reservation.status=expired ✓`,
+      )
+    },
+  )
 
   // ── Summary ──────────────────────────────────────────────────────────────────
-  console.log("\n──────────────────────────────────────────────────────────────")
+  console.log(
+    "\n──────────────────────────────────────────────────────────────",
+  )
   results.forEach((r) => console.log(`  ${r}`))
   console.log(`\n  ${passed} passed, ${failed} failed out of 7 scenarios\n`)
 
   // Cert agency left in DB for inspection (never delete financial transactions)
-  console.log(`  [teardown] Cert agency ${agencyId} conservée pour inspection (slug=${certSlug})`)
+  console.log(
+    `  [teardown] Cert agency ${agencyId} conservée pour inspection (slug=${certSlug})`,
+  )
 
   if (failed > 0) {
     console.log("  \x1b[31mCERTIFICATION FAILED\x1b[0m\n")

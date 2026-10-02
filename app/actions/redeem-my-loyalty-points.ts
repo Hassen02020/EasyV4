@@ -73,7 +73,11 @@ export async function redeemMyLoyaltyPoints(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user?.email) {
-    return { ok: false, error: "Session expirée — reconnectez-vous.", code: "NOT_AUTHENTICATED" }
+    return {
+      ok: false,
+      error: "Session expirée — reconnectez-vous.",
+      code: "NOT_AUTHENTICATED",
+    }
   }
 
   const tenant = await guestTenantContext()
@@ -100,7 +104,11 @@ export async function redeemMyLoyaltyPoints(
         .limit(1)
 
       if (!row) {
-        return { ok: false, error: "Réservation introuvable.", code: "NOT_FOUND" }
+        return {
+          ok: false,
+          error: "Réservation introuvable.",
+          code: "NOT_FOUND",
+        }
       }
 
       // Montant éligible recalculé serveur, net de tout remboursement déjà
@@ -109,7 +117,9 @@ export async function redeemMyLoyaltyPoints(
       // rewards-core.ts).
       const paymentSummary = await getReservationPaymentSummary({
         reservationId,
-        txOverride: tx as Parameters<typeof getReservationPaymentSummary>[0]["txOverride"],
+        txOverride: tx as Parameters<
+          typeof getReservationPaymentSummary
+        >[0]["txOverride"],
       })
 
       const result = await redeemPoints(tx, {
@@ -125,7 +135,11 @@ export async function redeemMyLoyaltyPoints(
       if (!result.ok) {
         return { ok: false, error: result.error, code: result.code }
       }
-      return { ok: true, points: result.points, tndEquivalent: result.tndEquivalent }
+      return {
+        ok: true,
+        points: result.points,
+        tndEquivalent: result.tndEquivalent,
+      }
     })
   } catch (err) {
     console.error("[redeemMyLoyaltyPoints]", err)

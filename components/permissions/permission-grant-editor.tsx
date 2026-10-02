@@ -45,7 +45,9 @@ const CATEGORY_LABEL: Record<string, string> = {
   admin: "Administration",
 }
 
-function groupByCategory(permissions: readonly Permission[]): [string, Permission[]][] {
+function groupByCategory(
+  permissions: readonly Permission[],
+): [string, Permission[]][] {
   const groups = new Map<string, Permission[]>()
   for (const p of permissions) {
     const category = p.split(".")[0]
@@ -90,13 +92,20 @@ export function PermissionGrantEditor({
   const baselineSet = new Set(baseline)
   const groups = groupByCategory(permissions)
 
-  function mutate(permission: Permission, action: "grant" | "revoke" | "reset") {
+  function mutate(
+    permission: Permission,
+    action: "grant" | "revoke" | "reset",
+  ) {
     setPending(permission)
     startTransition(async () => {
       const result =
         action === "reset"
           ? await removeDelegatedPermission({ targetUserId, permission })
-          : await setDelegatedPermission({ targetUserId, permission, granted: action === "grant" })
+          : await setDelegatedPermission({
+              targetUserId,
+              permission,
+              granted: action === "grant",
+            })
       setPending(null)
       if (!result.ok) {
         toast.error(result.error)
@@ -131,7 +140,8 @@ export function PermissionGrantEditor({
         <DialogHeader>
           <DialogTitle>Permissions de {displayName}</DialogTitle>
           <DialogDescription>
-            « Base » = comportement du rôle. Un override est une exception explicite pour cet utilisateur uniquement.
+            « Base » = comportement du rôle. Un override est une exception
+            explicite pour cet utilisateur uniquement.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -144,7 +154,9 @@ export function PermissionGrantEditor({
                 {perms.map((permission) => {
                   const override = overrides.get(permission)
                   const hasOverride = override !== undefined
-                  const effective = hasOverride ? override : baselineSet.has(permission)
+                  const effective = hasOverride
+                    ? override
+                    : baselineSet.has(permission)
                   const isPending = pending === permission
 
                   return (
@@ -163,7 +175,9 @@ export function PermissionGrantEditor({
                                 : "border-destructive/40 bg-destructive/10 text-destructive text-[10px]"
                             }
                           >
-                            {override ? "Accordé (override)" : "Révoqué (override)"}
+                            {override
+                              ? "Accordé (override)"
+                              : "Révoqué (override)"}
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px]">

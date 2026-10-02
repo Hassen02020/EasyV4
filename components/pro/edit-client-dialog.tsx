@@ -40,7 +40,13 @@ export function EditClientDialog({ client }: { client: PartnerClient }) {
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      const result = await updatePartnerClient({ customerId: client.id, firstName, lastName, email, phone })
+      const result = await updatePartnerClient({
+        customerId: client.id,
+        firstName,
+        lastName,
+        email,
+        phone,
+      })
       if (!result.ok) {
         setError(result.error)
         return
@@ -52,9 +58,20 @@ export function EditClientDialog({ client }: { client: PartnerClient }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setError(null)
+      }}
+    >
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Modifier ${client.name}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          aria-label={`Modifier ${client.name}`}
+        >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>
@@ -111,7 +128,11 @@ export function EditClientDialog({ client }: { client: PartnerClient }) {
           )}
           <DialogFooter>
             <Button type="submit" disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Pencil className="h-4 w-4" />
+              )}
               Enregistrer
             </Button>
           </DialogFooter>

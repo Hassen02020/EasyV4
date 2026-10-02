@@ -2,7 +2,13 @@
 
 import * as React from "react"
 import { type ColumnDef } from "@tanstack/react-table"
-import { Building2, MoreHorizontal, PauseCircle, PlayCircle, UserPlus } from "lucide-react"
+import {
+  Building2,
+  MoreHorizontal,
+  PauseCircle,
+  PlayCircle,
+  UserPlus,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { DataTable } from "@/components/ui/data-table"
@@ -45,7 +51,10 @@ interface AgencyOption {
   name: string
 }
 
-const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "destructive" }
+> = {
   active: { label: "Actif", variant: "default" },
   suspended: { label: "Suspendu", variant: "destructive" },
 }
@@ -129,7 +138,12 @@ function CreateGroupDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="mg-name">Nom *</Label>
-              <Input id="mg-name" value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input
+                id="mg-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mg-slug">Slug *</Label>
@@ -144,7 +158,10 @@ function CreateGroupDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Agence d&apos;exécution *</Label>
-            <Select value={executionAgencyId} onValueChange={setExecutionAgencyId}>
+            <Select
+              value={executionAgencyId}
+              onValueChange={setExecutionAgencyId}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner une agence" />
               </SelectTrigger>
@@ -201,7 +218,11 @@ function CreateGroupDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mg-phone">Téléphone</Label>
-              <Input id="mg-phone" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+              <Input
+                id="mg-phone"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -233,14 +254,21 @@ function InviteUserDialog({
 }) {
   const [email, setEmail] = React.useState("")
   const [name, setName] = React.useState("")
-  const [role, setRole] = React.useState<"mutuelle_director" | "mutuelle_member">("mutuelle_member")
+  const [role, setRole] = React.useState<
+    "mutuelle_director" | "mutuelle_member"
+  >("mutuelle_member")
   const [loading, setLoading] = React.useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await inviteMutuelleUser({ groupId: group.id, email, name, role })
+      const res = await inviteMutuelleUser({
+        groupId: group.id,
+        email,
+        name,
+        role,
+      })
       if (res.ok) {
         toast.success(`Invitation envoyée à ${email}`)
         setEmail("")
@@ -272,21 +300,39 @@ function InviteUserDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="mu-email">Email</Label>
-            <Input id="mu-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input
+              id="mu-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mu-name">Nom</Label>
-            <Input id="mu-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            <Input
+              id="mu-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Rôle</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
+            <Select
+              value={role}
+              onValueChange={(v) => setRole(v as typeof role)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="mutuelle_director">Directeur (valide les demandes)</SelectItem>
-                <SelectItem value="mutuelle_member">Membre (soumet des demandes)</SelectItem>
+                <SelectItem value="mutuelle_director">
+                  Directeur (valide les demandes)
+                </SelectItem>
+                <SelectItem value="mutuelle_member">
+                  Membre (soumet des demandes)
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -339,18 +385,27 @@ function buildColumns(
     {
       accessorKey: "markupPercent",
       header: "Markup",
-      cell: ({ row }) => <span className="tabular-nums">{row.original.markupPercent.toFixed(1)}%</span>,
+      cell: ({ row }) => (
+        <span className="tabular-nums">
+          {row.original.markupPercent.toFixed(1)}%
+        </span>
+      ),
     },
     {
       accessorKey: "memberCount",
       header: "Membres",
-      cell: ({ row }) => <span className="tabular-nums">{row.original.memberCount}</span>,
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.original.memberCount}</span>
+      ),
     },
     {
       accessorKey: "status",
       header: "Statut",
       cell: ({ row }) => {
-        const cfg = STATUS_CONFIG[row.original.status] ?? { label: row.original.status, variant: "secondary" as const }
+        const cfg = STATUS_CONFIG[row.original.status] ?? {
+          label: row.original.status,
+          variant: "secondary" as const,
+        }
         return <Badge variant={cfg.variant}>{cfg.label}</Badge>
       },
     },
@@ -378,12 +433,18 @@ function buildColumns(
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {group.status === "active" ? (
-                  <DropdownMenuItem onClick={() => onToggleStatus(group)} className="text-red-600 focus:text-red-600">
+                  <DropdownMenuItem
+                    onClick={() => onToggleStatus(group)}
+                    className="text-red-600 focus:text-red-600"
+                  >
                     <PauseCircle className="mr-2 h-4 w-4" />
                     Suspendre
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={() => onToggleStatus(group)} className="text-green-600 focus:text-green-600">
+                  <DropdownMenuItem
+                    onClick={() => onToggleStatus(group)}
+                    className="text-green-600 focus:text-green-600"
+                  >
                     <PlayCircle className="mr-2 h-4 w-4" />
                     Activer
                   </DropdownMenuItem>
@@ -409,15 +470,22 @@ export function MutuelleGroupsDataTable({
   agencyOptions: AgencyOption[]
 }) {
   const [createOpen, setCreateOpen] = React.useState(false)
-  const [inviteTarget, setInviteTarget] = React.useState<MutuelleGroupRow | null>(null)
+  const [inviteTarget, setInviteTarget] =
+    React.useState<MutuelleGroupRow | null>(null)
 
   async function handleToggleStatus(group: MutuelleGroupRow) {
     const next = group.status === "active" ? "suspended" : "active"
-    const toastId = toast.loading(next === "active" ? `Activation de ${group.name}…` : `Suspension de ${group.name}…`)
+    const toastId = toast.loading(
+      next === "active"
+        ? `Activation de ${group.name}…`
+        : `Suspension de ${group.name}…`,
+    )
     try {
       const res = await setMutuelleGroupStatus(group.id, next)
       if (res.ok) {
-        toast.success(next === "active" ? "Groupe activé" : "Groupe suspendu", { id: toastId })
+        toast.success(next === "active" ? "Groupe activé" : "Groupe suspendu", {
+          id: toastId,
+        })
       } else {
         toast.error(res.error, { id: toastId })
       }
@@ -426,7 +494,10 @@ export function MutuelleGroupsDataTable({
     }
   }
 
-  const columns = React.useMemo(() => buildColumns(setInviteTarget, handleToggleStatus), [])
+  const columns = React.useMemo(
+    () => buildColumns(setInviteTarget, handleToggleStatus),
+    [],
+  )
 
   return (
     <>
@@ -443,10 +514,18 @@ export function MutuelleGroupsDataTable({
         }
       />
 
-      <CreateGroupDialog agencyOptions={agencyOptions} open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateGroupDialog
+        agencyOptions={agencyOptions}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
 
       {inviteTarget && (
-        <InviteUserDialog group={inviteTarget} open={!!inviteTarget} onClose={() => setInviteTarget(null)} />
+        <InviteUserDialog
+          group={inviteTarget}
+          open={!!inviteTarget}
+          onClose={() => setInviteTarget(null)}
+        />
       )}
     </>
   )

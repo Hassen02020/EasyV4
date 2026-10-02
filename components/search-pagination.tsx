@@ -25,7 +25,11 @@ interface SearchPaginationProps {
   onPageChange: (page: number) => void
 }
 
-export function SearchPagination({ currentPage, totalPages, onPageChange }: SearchPaginationProps) {
+export function SearchPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: SearchPaginationProps) {
   const t = useTranslations("Common")
   if (totalPages <= 1) return null
   const pages = buildPageWindow(currentPage, totalPages)
@@ -39,7 +43,9 @@ export function SearchPagination({ currentPage, totalPages, onPageChange }: Sear
             label={t("paginationPrevious")}
             ariaLabel={t("paginationPreviousAria")}
             aria-disabled={currentPage === 1}
-            className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+            className={
+              currentPage === 1 ? "pointer-events-none opacity-50" : undefined
+            }
             onClick={(e) => {
               e.preventDefault()
               if (currentPage > 1) onPageChange(currentPage - 1)
@@ -73,7 +79,11 @@ export function SearchPagination({ currentPage, totalPages, onPageChange }: Sear
             label={t("paginationNext")}
             ariaLabel={t("paginationNextAria")}
             aria-disabled={currentPage === totalPages}
-            className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
+            className={
+              currentPage === totalPages
+                ? "pointer-events-none opacity-50"
+                : undefined
+            }
             onClick={(e) => {
               e.preventDefault()
               if (currentPage < totalPages) onPageChange(currentPage + 1)

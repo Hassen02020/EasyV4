@@ -61,7 +61,9 @@ export async function loadPartnerReservations(
   try {
     const where = and(
       eq(reservations.agencyId, agencyId),
-      opts.status ? eq(reservations.status, opts.status as "pending") : undefined,
+      opts.status
+        ? eq(reservations.status, opts.status as "pending")
+        : undefined,
       opts.module ? eq(reservations.module, opts.module as "hotel") : undefined,
       opts.cursor
         ? lt(reservations.createdAt, new Date(opts.cursor))
@@ -72,71 +74,69 @@ export async function loadPartnerReservations(
       { agencyId, userId: "", isSuperAdmin: false },
       (db) =>
         Promise.all([
-      db
-        .select({
-          id: reservations.id,
-          publicRef: reservations.publicRef,
-          module: reservations.module,
-          status: reservations.status,
-          tndAmount: reservations.tndAmount,
-          createdAt: reservations.createdAt,
-          customerFirstName: customers.firstName,
-          customerLastName: customers.lastName,
-          customerEmail: customers.email,
-          hotelName: reservationHotel.hotelName,
-          checkIn: reservationHotel.checkIn,
-          checkOut: reservationHotel.checkOut,
-          flightOrigin: sql<string | null>`(
+          db
+            .select({
+              id: reservations.id,
+              publicRef: reservations.publicRef,
+              module: reservations.module,
+              status: reservations.status,
+              tndAmount: reservations.tndAmount,
+              createdAt: reservations.createdAt,
+              customerFirstName: customers.firstName,
+              customerLastName: customers.lastName,
+              customerEmail: customers.email,
+              hotelName: reservationHotel.hotelName,
+              checkIn: reservationHotel.checkIn,
+              checkOut: reservationHotel.checkOut,
+              flightOrigin: sql<string | null>`(
             SELECT origin
             FROM flight_booking_segments
             WHERE booking_id = ${flightBookings.id}
             ORDER BY sequence ASC
             LIMIT 1
           )`,
-          flightDestination: sql<string | null>`(
+              flightDestination: sql<string | null>`(
             SELECT destination
             FROM flight_booking_segments
             WHERE booking_id = ${flightBookings.id}
             ORDER BY sequence ASC
             LIMIT 1
           )`,
-        })
-        .from(reservations)
-        .leftJoin(customers, eq(reservations.customerId, customers.id))
-        .leftJoin(
-          reservationHotel,
-          eq(reservationHotel.reservationId, reservations.id),
-        )
-        .leftJoin(
-          flightBookings,
-          eq(flightBookings.reservationId, reservations.id),
-        )
-        .where(where)
-        .orderBy(desc(reservations.createdAt))
-        .limit(PAGE_SIZE + 1),
+            })
+            .from(reservations)
+            .leftJoin(customers, eq(reservations.customerId, customers.id))
+            .leftJoin(
+              reservationHotel,
+              eq(reservationHotel.reservationId, reservations.id),
+            )
+            .leftJoin(
+              flightBookings,
+              eq(flightBookings.reservationId, reservations.id),
+            )
+            .where(where)
+            .orderBy(desc(reservations.createdAt))
+            .limit(PAGE_SIZE + 1),
 
-      db
-        .select({ total: sql<number>`COUNT(*)::int` })
-        .from(reservations)
-        .where(
-          and(
-            eq(reservations.agencyId, agencyId),
-            opts.status
-              ? eq(reservations.status, opts.status as "pending")
-              : undefined,
-            opts.module
-              ? eq(reservations.module, opts.module as "hotel")
-              : undefined,
-          ),
-        ),
+          db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(reservations)
+            .where(
+              and(
+                eq(reservations.agencyId, agencyId),
+                opts.status
+                  ? eq(reservations.status, opts.status as "pending")
+                  : undefined,
+                opts.module
+                  ? eq(reservations.module, opts.module as "hotel")
+                  : undefined,
+              ),
+            ),
         ]),
     )
 
     const hasMore = rows.length > PAGE_SIZE
     const pageRows = hasMore ? rows.slice(0, PAGE_SIZE) : rows
-    const nextCursor = hasMore
-      ? pageRows.at(-1)!.createdAt.toISOString()
-      : null
+    const nextCursor = hasMore ? pageRows.at(-1)!.createdAt.toISOString() : null
 
     const mapped: PartnerReservationRow[] = pageRows.map((r) => ({
       id: r.id,

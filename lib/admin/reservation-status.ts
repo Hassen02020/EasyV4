@@ -79,4 +79,8 @@ export function getAllowedTransitions(
  * `REFUND_ALLOWED_ROLES`) pour être la même source de vérité des deux
  * côtés — page ET action — au lieu d'un doublon qui pouvait diverger.
  */
-export const RESERVATION_STATUS_ALLOWED_ROLES = ["super_admin", "manager", "agent_resa"] as const
+export const RESERVATION_STATUS_ALLOWED_ROLES = [
+  "super_admin",
+  "manager",
+  "agent_resa",
+] as const

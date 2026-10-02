@@ -22,6 +22,10 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export default function HotelsSearchLayout({ children }: { children: React.ReactNode }) {
+export default function HotelsSearchLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return children
 }

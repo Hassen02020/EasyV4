@@ -36,7 +36,35 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — SITE-CONFIG-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — BRAND-ADMIN-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### BRAND-ADMIN-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: BRAND-ADMIN-01
+Statut: CLÔTURÉ (2026-10-02) — MERGED (PR #118, squash 296a16c sur main)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 01f4fb1
+```
+
+**Objectif** : Permettre au super_admin de gérer l'identité et les coordonnées du Brand Owner Easy2Book depuis `/admin/brand`, en écrivant dans l'agence OTA (`agencyType='ota'`, `domain IS NULL`).
+
+**Périmètre** :
+- `lib/admin/brand-actions.ts` — Server Actions `getOtaBrandInitial` + `updateOtaBrand`. agencyId résolu côté serveur. Vérifie `role=super_admin`. Écrit uniquement les colonnes de marque/contact/social.
+- `components/admin/brand-form.tsx` — Formulaire client (brandName, logo, couleur, email, téléphone, adresse, WhatsApp, Facebook, Instagram, TikTok).
+- `app/(internal)/admin/brand/page.tsx` — Page Server Component.
+- `components/admin-shell.tsx` — Lien "Marque Easy2Book" (icône `Palette`) + breadcrumb.
+
+**Preuves** :
+- `npx tsc --noEmit` → 0 erreur source
+- `npx eslint <fichiers>` → 0 warning
+- PR #118 mergée, squash `296a16c` sur `main`
+
+**DB** : Aucune migration — colonnes déjà présentes via 0097 (SITE-CONFIG-01).
+
+**Visual QA** : NOT VERIFIED — validation en Preview Vercel requise (local DB indisponible dans l'environnement cloud).
+
+---
 
 ### SITE-CONFIG-01 — CLÔTURÉ (2026-10-02)
 

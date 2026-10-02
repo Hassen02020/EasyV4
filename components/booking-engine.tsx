@@ -104,6 +104,8 @@ type PublicModuleVisual = { moduleSlug: string; enabled: boolean; sortOrder: num
 
 /** Rend le formulaire du module actif — partagé par la carte flottante desktop et le bottom-sheet mobile. */
 function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
+  const t = useTranslations("Common")
+  const tHome = useTranslations("Home")
   switch (activeTab) {
     case "hotels-tunisie":
       return <HotelsTunisieSearch />
@@ -121,9 +123,9 @@ function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
       const config = tabsConfig.find((tab) => tab.id === activeTab)!
       return (
         <div className="flex flex-col items-center gap-4 py-3 text-center">
-          <p className="text-muted-foreground text-sm">{useTranslations("Home")("mobileTriggerSubtitle")}</p>
+          <p className="text-muted-foreground text-sm">{tHome("mobileTriggerSubtitle")}</p>
           <Button asChild size="lg" className="from-primary to-accent bg-gradient-to-r text-white">
-            <Link href={config.href}>Ouvrir {useTranslations("Common")(config.labelKey)}</Link>
+            <Link href={config.href}>Ouvrir {t(config.labelKey)}</Link>
           </Button>
         </div>
       )

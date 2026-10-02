@@ -8,6 +8,7 @@ import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { PackageSearch } from "@/components/packages/package-search"
 import { PackageList } from "@/components/packages/package-list"
 import { CatalogPagination } from "@/components/catalog-pagination"
@@ -257,6 +258,8 @@ export default async function PackagesPage({
   const tCommon = await getTranslations("Common")
   const locale = await getLocale()
 
+  const visual = await getPublicModuleVisual("voyages-organises")
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -264,7 +267,7 @@ export default async function PackagesPage({
         <ModuleHero
           Icon={Briefcase}
           gradient="from-violet-900 to-violet-700"
-          imageUrl="https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

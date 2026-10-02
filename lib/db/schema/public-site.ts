@@ -1,5 +1,4 @@
-import { boolean, decimal, index, integer, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core"
-import { agencies } from "../schema"
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core"
 
 /**
  * Public visual/content configuration.
@@ -14,7 +13,7 @@ export const publicSiteSettings = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     agencyId: uuid("agency_id")
       .notNull()
-      .references(() => agencies.id, { onDelete: "cascade" }),
+      .notNull(),
     heroImageUrl: text("hero_image_url"),
     facebookUrl: text("facebook_url"),
     instagramUrl: text("instagram_url"),

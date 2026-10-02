@@ -1180,6 +1180,11 @@
     "crossSellDurationDays": "{days, plural, one {# day} other {# days}}",
     "crossSellDurationMinutes": "{minutes} min"
   },
+  "FeaturedDestinations": {
+    "heading": "Featured Destinations",
+    "cta": "Book Now",
+    "comingSoon": "Coming soon"
+  },
   "DevelopmentProjects": {
     "heading": "Coming Soon",
     "badge": "Announced",

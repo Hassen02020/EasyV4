@@ -2,8 +2,9 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { BookingEngine } from "@/components/booking-engine"
 import { FlashOffers } from "@/components/flash-offers"
 import { OmratySection } from "@/components/omraty-section"
-import { MarketSignalsSection } from "@/components/market-signals-section"
+import { FeaturedDestinationsSection } from "@/components/featured-destinations-section"
 import { DevelopmentProjectsSection } from "@/components/development-projects-section"
+import { MarketSignalsSection } from "@/components/market-signals-section"
 import { Footer } from "@/components/footer"
 
 export const dynamic = "force-dynamic"
@@ -16,6 +17,7 @@ export default function Home() {
         <BookingEngine />
         <FlashOffers />
         <OmratySection />
+        <FeaturedDestinationsSection />
         <DevelopmentProjectsSection />
         <MarketSignalsSection />
       </main>

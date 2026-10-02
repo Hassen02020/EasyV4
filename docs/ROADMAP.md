@@ -53,6 +53,56 @@ Résultat:
   - dette R1-07 soldée
 ```
 
+### VOLS-DISPLAY-FIX-01
+
+```text
+IMPLEMENTED  — commit ee50ed1 (2026-10-02)
+TESTED       — typecheck PASS · lint PASS · aucune migration DB · aucun changement financier
+PREVIEW      — pending (Vercel preview auto-triggered on push, non validé visuellement)
+VISUAL QA    — pending
+MERGE        — pending (PR #106, en attente de MERGE GO explicite)
+```
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `ee50ed1`.
+
+**Corrections UI vols — deux bugs visuels identifiés lors de la validation affichage production.**
+
+- **Bug 1 — "NaNh" durée** : `app/api/vols/search/route.ts` ne renvoyait pas `totalDurationMinutes` dans la réponse offre. Le schéma client Zod (`FlightOffer`) requiert ce champ — absent = NaN → "NaNh". Corrigé : champ calculé depuis `segments[i].durationMinutes` sommé sur tous les segments de tous les journeys.
+- **Bug 2 — "TK TK252"** : `flight-results-content.tsx` ligne 145 affichait `marketingCarrier` deux fois en JSX (doublon de variable). Corrigé : suppression de la seconde occurrence.
+
+### R8-02 — CLÔTURÉ (2026-10-02)
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `a57d5e3`.
+
+**Parcours complet — skeletons, error boundaries, Suspense fallbacks.**
+
+- `confirmation/[ref]/loading.tsx` : skeleton route-segment (5 Skeleton blocks : BookingSteps + header + card + détails + bouton).
+- `checkout/error.tsx` : error boundary checkout — reset + lien "Rechercher un hôtel" + "Retour à l'accueil".
+- `confirmation/[ref]/error.tsx` : error boundary confirmation — reset + "Retour à l'accueil" ; message rassurant "réservation enregistrée".
+- `checkout/page.tsx` : outer Suspense → `<CheckoutLoading />` ; inner Suspense (CheckoutForm) → `<Skeleton className="h-48 w-full rounded-2xl" />` ; suppression du `getTranslations` inutilisé dans `CheckoutPage`.
+- Validation : `pnpm typecheck` ✓ · `pnpm lint` 0 erreurs (135 warnings pré-existants) · 4 fichiers, 117 insertions.
+
+**NOT YET DEPLOYED** (dans la même PR que R8-01, non mergée sur `main`).
+
+### R8-01 — CLÔTURÉ (2026-10-02)
+
+Branche : `claude/easy2book-v6-modernization-7gyb5v` · commit `31726bd`.
+
+**Transparence tarifaire hôtel — durée séjour + politique d'annulation.**
+
+- SERP : `hotel-card.tsx` affiche "X nuits · à partir de" quand les dates sont connues (clé `Hotels.nightsFromPrice` FR/EN/AR). Prix SERP confirmé HT (TVA 19% ajoutée au checkout) — aucun label "TTC" incorrect.
+- Transmission : `hotel-listings.tsx` et `hotels/[id]/page.tsx` transmettent `hasFreeCancellation` + `freeCancellationDate` dans `draft.metadata` depuis les deux points d'entrée hôtel.
+- Checkout : `CancellationPolicyDisplay` étendu avec prop optionnelle `hotelCancellation` (bypass DB, informatif, sans case à cocher) ; `checkout/page.tsx` l'utilise pour les brouillons hôtel — composant existant réutilisé, aucun nouveau composant.
+- Tests : 20 invariants statiques dans `lib/booking/__tests__/r8-01-hotel-transparency-invariants.test.ts`, tous verts.
+- Validation : `pnpm format --check` ✓ · `pnpm typecheck` ✓ · `pnpm lint` 0 erreurs · `pnpm test` 1522 tests, 0 échecs.
+- Périmètre strict : aucun changement pricing/financials/booking/payment/DB, aucun R8-02/R8-04/R8-05.
+
+**NOT YET DEPLOYED** (PR non mergée sur `main`).
+
+### FORMAT-CLEANUP-01 — CLÔTURÉ (2026-10-02)
+
+794 fichiers reformatés via `pnpm format --write`. CI Prettier gate activé (blocking). 7 fichiers de tests statiques mis à jour pour tolérance au formatage automatique. PR #105 mergée (commit `75177c5`). Build vert, 0 régression.
+
 ### ECON-ENTITLEMENTS-INTEGRITY-01 — CLÔTURÉ (2026-10-01)
 
 Objectif : imposer l'append-only de `economic_entitlements` au niveau privilege PostgreSQL (même risque R-08 que LEDGER-INTEGRITY-01, appliqué à cette table).
@@ -538,15 +588,15 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 ## Phase 8 — Front conversion
 
-| ID    | Chantier                                                                             | Critère de sortie                                      |
-| ----- | ------------------------------------------------------------------------------------ | ------------------------------------------------------ |
-| R8-01 | Prix total TTC dès la liste, devise claire, conditions d'annulation avant paiement   | Revue visuelle + test E2E prix liste = prix checkout   |
-| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif               | Captures avant/après                                   |
-| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                  | Test visuel RTL sur pages clés                         |
-| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante             | Pas de régression LCP/CLS en CI                        |
-| R8-05 | Accessibilité WCAG 2.2 AA                                                            | Audit automatisé + clavier sur parcours de réservation |
-| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0 | Un seul jeu de composants                              |
-| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                | Revue de contenu                                       |
+| ID    | Chantier                                                                                                                                                                                                                                                     | Critère de sortie                                      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | Revue visuelle + invariant statique draft metadata     |
+| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | Captures avant/après                                   |
+| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | Test visuel RTL sur pages clés                         |
+| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | Pas de régression LCP/CLS en CI                        |
+| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | Audit automatisé + clavier sur parcours de réservation |
+| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                              |
+| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | Revue de contenu                                       |
 
 ---
 

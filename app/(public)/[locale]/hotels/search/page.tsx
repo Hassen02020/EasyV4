@@ -62,6 +62,8 @@ interface BookingData {
   boardingCode: string
   roomId: number
   priceToken?: string
+  hasFreeCancellation: boolean
+  freeCancellationDate?: string
 }
 
 function formatDateRange(
@@ -293,6 +295,11 @@ function HotelSearchContent() {
           // lib/booking/price-token.ts), revérifié par /booking/checkout
           // avant tout affichage financier.
           priceToken: hotelData.priceToken,
+          // Politique d'annulation de la chambre sélectionnée — affichée
+          // en lecture seule sur la page checkout avant tout paiement
+          // (transparence tarifaire). Non utilisé pour la logique de réservation.
+          hasFreeCancellation: hotelData.hasFreeCancellation,
+          freeCancellationDate: hotelData.freeCancellationDate,
         },
       },
     })

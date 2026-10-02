@@ -142,7 +142,7 @@ function FlightCard({ offer }: { offer: FlightOffer }) {
             )}
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span>
-                {firstSegment.marketingCarrier} {firstSegment.marketingCarrier}
+                {firstSegment.marketingCarrier}{" "}
                 {firstSegment.marketingFlightNumber}
               </span>
               <span>{formatMinutes(offer.totalDurationMinutes)}</span>

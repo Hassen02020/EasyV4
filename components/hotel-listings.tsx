@@ -54,6 +54,9 @@ interface BookingData {
   boardingCode: string
   roomId: number
   priceToken?: string
+  /** Politique d'annulation de la chambre sélectionnée — transmis dans le brouillon pour affichage avant paiement. */
+  hasFreeCancellation: boolean
+  freeCancellationDate?: string
 }
 
 // RoomOption réutilisé tel quel depuis components/hotel-room-rates.tsx —
@@ -102,6 +105,8 @@ export interface CardHotelShape {
    * s'applique — jamais une phrase générique de remplissage.
    */
   whyChoose: WhyChooseReason | null
+  /** Nombre de nuits du séjour — `undefined` si les dates ne sont pas connues (ex. recherche sans dates). Permet d'afficher "X nuits · à partir de" plutôt que le prix brut seul. */
+  nights?: number
   /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
   pricePerNight?: number
   /** Token myGo de l'offre (HotelSearch) — à renvoyer dans BookingCreation. */
@@ -284,6 +289,7 @@ export function toCardShape(
     // diverger (ex. sur la prise en compte des chambres stopReservation).
     hasFreeCancellation: hasFreeCancellation(offer),
     whyChoose,
+    nights: nights && nights > 0 ? nights : undefined,
     pricePerNight:
       nights && nights > 0 ? Math.round(displayPrice / nights) : undefined,
     myGoToken: offer.token,
@@ -518,6 +524,8 @@ export function HotelListings({
       boardingCode: room.boardingCode,
       roomId: room.id,
       priceToken: room.priceToken,
+      hasFreeCancellation: room.cancellation === "FREE",
+      freeCancellationDate: room.freeCancellationDate,
     })
   }
 

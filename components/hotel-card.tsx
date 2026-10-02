@@ -49,6 +49,8 @@ interface HotelCardProps {
     hasFreeCancellation?: boolean
     /** PHASE 33 — "Pourquoi ce choix ?", une seule raison réelle la plus pertinente (voir toCardShape). `null`/absent si aucun constat ne s'applique. */
     whyChoose?: WhyChooseReason | null
+    /** Nombre de nuits du séjour — permet d'afficher "X nuits · à partir de" plutôt que le prix brut seul (transparence tarifaire R8-01). */
+    nights?: number
     /** Prix/nuit dérivé de `discountedPrice / nights` — `undefined` si le nombre de nuits n'est pas connu (pas de dates valides). */
     pricePerNight?: number
     /** Avis clients approuvés agrégés — absents tant qu'aucun avis n'existe. */
@@ -361,7 +363,9 @@ export function HotelCard({
 
             <div className="text-right">
               <p className="text-muted-foreground mb-1 text-xs">
-                {t("startingFrom")}
+                {hotel.nights != null
+                  ? t("nightsFromPrice", { n: hotel.nights })
+                  : t("startingFrom")}
               </p>
               <div className="flex items-baseline justify-end gap-1.5">
                 {hotel.discountPercent > 0 && (

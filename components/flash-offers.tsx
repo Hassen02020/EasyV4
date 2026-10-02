@@ -3,7 +3,6 @@
 import Image from "next/image"
 import { Link } from "@/i18n/navigation"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
 
 /**
@@ -66,12 +65,6 @@ export function FlashOffers() {
                   fill
                   className="object-cover"
                 />
-                <Badge
-                  variant="secondary"
-                  className="bg-sidebar text-sidebar-foreground absolute top-3 left-3 font-medium"
-                >
-                  {t("flashOffers")}
-                </Badge>
               </div>
 
               {/* Content */}

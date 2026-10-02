@@ -14,6 +14,8 @@ import { BookingSteps } from "@/components/booking/booking-steps"
 import dynamicImport from "next/dynamic"
 import { Suspense } from "react"
 import { getIntlLocale } from "@/lib/i18n-date"
+import { Skeleton } from "@/components/ui/skeleton"
+import CheckoutLoading from "./loading"
 
 export const dynamic = "force-dynamic"
 
@@ -187,7 +189,7 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
                 </CardContent>
               </Card>
 
-              <Suspense fallback={<div>{t("loadingForm")}</div>}>
+              <Suspense fallback={<Skeleton className="h-48 w-full rounded-2xl" />}>
                 <CheckoutForm token={token!} />
               </Suspense>
             </div>
@@ -238,9 +240,8 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<SP>
 }) {
-  const t = await getTranslations("Booking")
   return (
-    <Suspense fallback={<div>{t("loadingGeneric")}</div>}>
+    <Suspense fallback={<CheckoutLoading />}>
       <CheckoutContent searchParams={await searchParams} />
     </Suspense>
   )

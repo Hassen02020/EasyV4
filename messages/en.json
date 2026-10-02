@@ -1194,6 +1194,13 @@
       "HIGH": "High confidence",
       "MEDIUM": "Medium confidence",
       "LOW": "Low confidence"
+    },
+    "waitlist": {
+      "cta": "Alert me at launch",
+      "placeholder": "your@email.com",
+      "submit": "Submit",
+      "success": "You will be notified",
+      "error": "Something went wrong"
     }
   },
   "MarketSignals": {

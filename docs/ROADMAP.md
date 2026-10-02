@@ -36,7 +36,34 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CRM-NOTIFY-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — SITE-CONFIG-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+
+### SITE-CONFIG-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: SITE-CONFIG-01
+Statut: CLÔTURÉ (2026-10-02) — TESTED / READY FOR PRODUCTION — NOT YET MERGED
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: c511f15
+```
+
+**Objectif** : Rendre administrables les informations de contact (téléphone, WhatsApp) et réseaux sociaux (Facebook, Instagram, TikTok) via la table `agencies`. Supprimer tout numéro hardcodé (`+21698140514`) du code.
+
+**Périmètre** :
+- Migration 0097 : `ADD COLUMN whatsapp_number, facebook_url, instagram_url, tiktok_url` sur `agencies`
+- Nouveau `lib/tenant/site-config.ts` : `getSiteContactInfo(agencyId?)` via `withSystemContext`
+- Header + Footer : contactPhone, whatsappNumber, facebookUrl, instagramUrl, tiktokUrl depuis DB
+- Pages bookings / compte / omra (list + detail) / packages (detail) : supportPhone depuis DB
+- B2B `/pro/etablissement` : formulaire étendu avec 4 champs sociaux + Server Action + core
+
+**Preuves** :
+- `grep -r "21698140514" components/ app/` → 0 occurrence fonctionnelle (3 occurrences doc/placeholder acceptables)
+- `npx tsc --noEmit` → 0 erreur
+- `npx eslint <fichiers modifiés>` → 0 erreur
+
+**Visual QA** : NOT VERIFIED — validation en Preview Vercel requise (local DB indisponible dans l'environnement cloud).
+
+**Migration DB** : À appliquer en production via `mcp__Supabase__apply_migration` sur GO explicite.
 
 ### R8-06 — CLÔTURÉ (2026-10-02)
 

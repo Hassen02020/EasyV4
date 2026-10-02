@@ -37,6 +37,15 @@ export default async function PublicSiteAdminPage() {
         <h2 className="mb-4 text-lg font-semibold">Identité, Hero principal & contact</h2>
         <form action={savePublicSiteSettings} className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm md:col-span-2">
+            <span>Logo public — URL image</span>
+            <input
+              name="logoUrl"
+              defaultValue={site?.logoUrl ?? ""}
+              placeholder="https://..."
+              className="border-border bg-background w-full rounded-md border px-3 py-2"
+            />
+          </label>
+          <label className="space-y-1 text-sm md:col-span-2">
             <span>Hero principal — URL image</span>
             <input
               name="heroImageUrl"

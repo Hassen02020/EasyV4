@@ -13,10 +13,16 @@
  *   BookResult.pnr                   = order.id ("ord_...") — used for issue/cancel
  *   BookResult.supplierBookingReference = order.booking_reference (6-char IATA locator)
  *
- * Currency discipline (CURRENCY-DIM-01a) :
- *   Always requests TND via currency param in OfferRequest.
- *   If Duffel returns an offer with total_currency ≠ TND despite the request,
- *   that offer is excluded silently — never a fabricated conversion.
+ * Currency discipline (CURRENCY-DIM-01a — superseded 2026-10-02) :
+ *   Requests TND via currency param in OfferRequest.
+ *   Duffel ignores the currency hint and returns EUR/USD in practice.
+ *   Fix: convert EUR/USD → TND at search time using the real exchange-rate
+ *   module (fetchExchangeRateForDisplay, display-grade cache). If the rate is
+ *   unavailable (missing EXCHANGE_RATE_API_KEY or network error), the offer is
+ *   skipped silently — never a fabricated conversion.
+ *   The original Duffel currency + amount are preserved in pricingToken so
+ *   book() pays Duffel in their required currency (EUR/USD), while the
+ *   canonical itinerary exposes TND for the commercial engine.
  *
  * Payment: Duffel "balance" type (requires Duffel credit balance on account).
  */
@@ -39,6 +45,10 @@ import type {
   CabinClass,
 } from "../canonical"
 import { computeLayovers } from "../canonical"
+import {
+  fetchExchangeRateForDisplay,
+  fetchExchangeRateForBooking,
+} from "@/lib/finance/exchange-rate"
 
 // ---------------------------------------------------------------------------
 // Duffel inline types (minimal — only fields we use)
@@ -131,6 +141,8 @@ interface DuffelOrder {
 interface DuffelPricingToken {
   offerId: string
   passengerIds: string[]
+  originalAmount: number    // pre-conversion Duffel amount (e.g. EUR/USD)
+  originalCurrency: string  // pre-conversion Duffel currency (e.g. "EUR", "USD")
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +244,8 @@ function encodePricingToken(data: DuffelPricingToken): string {
 function mapOfferToItinerary(
   offer: DuffelOffer,
   request: CanonicalSearchRequest,
+  originalAmount?: number,
+  originalCurrency?: string,
 ): CanonicalItinerary {
   const journeys: Journey[] = offer.slices.map((slice): Journey => {
     const segments: CanonicalSegment[] = slice.segments.map(
@@ -334,6 +348,8 @@ function mapOfferToItinerary(
   const pricingToken = encodePricingToken({
     offerId: offer.id,
     passengerIds: offer.passengers.map((p) => p.id),
+    originalAmount: originalAmount ?? Number(offer.total_amount),
+    originalCurrency: originalCurrency ?? offer.total_currency,
   })
 
   return {
@@ -438,16 +454,53 @@ export function createDuffelAdapter(): GdsAdapter {
         }
       }
 
-      const itineraries = offerRequest.offers
-        .filter((offer) => {
-          // CURRENCY-DIM-01a : exclude any offer not in TND — never a fabricated conversion
-          if (offer.total_currency !== "TND") return false
-          // Exclude expired offers
-          if (offer.expires_at && new Date(offer.expires_at) <= new Date())
-            return false
-          return true
-        })
-        .map((offer) => mapOfferToItinerary(offer, request))
+      // Filter expired offers first (sync)
+      const nonExpiredOffers = offerRequest.offers.filter(
+        (offer) =>
+          !(offer.expires_at && new Date(offer.expires_at) <= new Date()),
+      )
+
+      // Convert non-TND offers to TND using real exchange rate (async, fail-safe)
+      const itineraries = (
+        await Promise.all(
+          nonExpiredOffers.map(
+            async (offer): Promise<CanonicalItinerary | null> => {
+              if (offer.total_currency === "TND") {
+                return mapOfferToItinerary(offer, request)
+              }
+              // Non-TND: convert to TND using display-grade cached rate
+              // If rate unavailable — skip offer silently, never fabricate
+              try {
+                const { rate } = await fetchExchangeRateForDisplay(
+                  offer.total_currency,
+                  "TND",
+                )
+                const convertedOffer: DuffelOffer = {
+                  ...offer,
+                  total_amount: String(
+                    Math.round(Number(offer.total_amount) * rate * 1000) / 1000,
+                  ),
+                  base_amount: String(
+                    Math.round(Number(offer.base_amount) * rate * 1000) / 1000,
+                  ),
+                  tax_amount: String(
+                    Math.round(Number(offer.tax_amount) * rate * 1000) / 1000,
+                  ),
+                  total_currency: "TND",
+                }
+                return mapOfferToItinerary(
+                  convertedOffer,
+                  request,
+                  Number(offer.total_amount),
+                  offer.total_currency,
+                )
+              } catch {
+                return null
+              }
+            },
+          ),
+        )
+      ).filter((it): it is CanonicalItinerary => it !== null)
 
       return {
         ok: true,
@@ -474,28 +527,40 @@ export function createDuffelAdapter(): GdsAdapter {
         }
       }
 
-      if (offer.total_currency !== "TND") {
-        return {
-          status: "ERROR",
-          error: `Devise Duffel inattendue (${offer.total_currency})`,
+      // Convert non-TND recheck price to TND using fresh (no-cache) booking rate
+      let currentAmountTnd: number
+      if (offer.total_currency === "TND") {
+        currentAmountTnd = Number(offer.total_amount)
+      } else {
+        try {
+          const { rate } = await fetchExchangeRateForBooking(
+            offer.total_currency,
+            "TND",
+          )
+          currentAmountTnd =
+            Math.round(Number(offer.total_amount) * rate * 1000) / 1000
+        } catch {
+          return {
+            status: "ERROR",
+            error: `Taux de change indisponible pour ${offer.total_currency}`,
+          }
         }
       }
 
-      const currentAmount = Number(offer.total_amount)
-      const originalAmount = itinerary.supplierTotalAmount
+      const originalAmountTnd = itinerary.supplierTotalAmount
 
-      if (Math.abs(currentAmount - originalAmount) > 0.01) {
+      if (Math.abs(currentAmountTnd - originalAmountTnd) > 0.01) {
         return {
           status: "PRICE_CHANGED",
-          currentSupplierAmount: currentAmount,
-          currentSupplierCurrency: offer.total_currency,
+          currentSupplierAmount: currentAmountTnd,
+          currentSupplierCurrency: "TND",
         }
       }
 
       return {
         status: "AVAILABLE",
-        currentSupplierAmount: currentAmount,
-        currentSupplierCurrency: offer.total_currency,
+        currentSupplierAmount: currentAmountTnd,
+        currentSupplierCurrency: "TND",
       }
     },
 
@@ -566,8 +631,9 @@ export function createDuffelAdapter(): GdsAdapter {
             payments: [
               {
                 type: "balance",
-                amount: String(itinerary.supplierTotalAmount),
-                currency: itinerary.supplierCurrency,
+                // Pay Duffel in their original currency (EUR/USD), not TND
+                amount: String(token.originalAmount ?? itinerary.supplierTotalAmount),
+                currency: token.originalCurrency ?? itinerary.supplierCurrency,
               },
             ],
           },

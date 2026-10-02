@@ -36,7 +36,16 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R8-05 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — Phase 8 CLÔTURÉE (2026-10-02). Attente du prochain GO.
+
+**Phase 8 — Clôture officielle (2026-10-02)**
+
+CI run #158 (37022472737) · commit d3b3110 · branche claude/easy2book-v6-modernization-7gyb5v
+- `typecheck` ✅ · `format` ✅ · `lint` ✅ · `test` ✅ · `financial-e2e` ✅ · `build` ✅
+- `playwright-a11y` ✅ BLOQUANT — job 110889828533, conclusion: success
+  → 0 serious/critical WCAG violations sur les 5 pages publiques (14:53:33→14:53:48 UTC)
+  → continue-on-error absent depuis commit 5853101 : test réellement bloquant prouvé
+- R8-04 CLÔTURÉ (commit cc617b4) · R8-05 CLÔTURÉ · R8-07 CLÔTURÉ (commit bf297f9)
 
 ### R8-05 — CLÔTURÉ (2026-10-02)
 
@@ -44,16 +53,22 @@ Aucun — R8-05 CLÔTURÉ (2026-10-02). Attente du prochain GO.
 ID: R8-05
 Statut: CLÔTURÉ (2026-10-02)
 Branche: claude/easy2book-v6-modernization-7gyb5v
-Commit: 20a9b41
+Commits: 20a9b41 (câblage axe-core) · 5853101 (continue-on-error retiré, BLOQUANT)
+         d3b3110 (NEXT_PUBLIC_SUPABASE_* stubs CI — serveur ne crashait plus)
 Résultat:
   - playwright.config.ts : npm run dev → pnpm (CI: pnpm start, local: pnpm dev)
   - ci.yml : ajout job playwright-a11y (needs: build, chromium only,
-    continue-on-error: true) — installe Playwright chromium + lance
-    e2e/a11y.spec.ts (wcag2a/aa/21aa, 0 serious/critical violations)
+    continue-on-error: RETIRÉ — job BLOQUANT) — installe Playwright chromium +
+    lance e2e/a11y.spec.ts (wcag2a/aa/21aa, 0 serious/critical violations)
   - tsc --noEmit: 0 erreur · lint: 0 erreur · 135 warnings pré-existants
 LIMITATION DOCUMENTÉE: /admin et /booking redirigent vers login en CI
   (pas de session auth) — couverture réelle sur / et /login uniquement
-CI: job playwright-a11y déclenché sur la PR
+CI BLOQUANT PROUVÉ:
+  Run #158 (37022472737) · job playwright-a11y (110889828533)
+  commit d3b3110 · conclusion: success · 14:53:33→14:53:48 UTC
+  Étape "Accessibility tests (axe-core / WCAG 2.1 AA)": ✅ PASS
+  0 serious/critical WCAG violations sur les 5 pages
+  Job sans continue-on-error → un échec aurait bloqué le pipeline
 ```
 
 ### R8-04 — CLÔTURÉ (2026-10-02)
@@ -672,7 +687,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                  |
 | R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **REUSE** — infrastructure déjà en place (`html dir={dir}`, `RtlDirectionProvider`, `LOCALE_META.ar.dir="rtl"`). Validation visuelle NOT VERIFIED. |
 | R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants                                                                   |
-| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commit 20a9b41)** — axe-core câblé en CI (public pages), limitation auth documentée                                         |
+| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commits 20a9b41+5853101+d3b3110)** — axe-core BLOQUANT en CI (continue-on-error retiré), 0 violations WCAG prouvé run #158 (job 110889828533 ✅), limitation auth documentée |
 | R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | Un seul jeu de composants                                                                                                                          |
 | R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | **CLÔTURÉ (2026-10-02, commit bf297f9)** — badge "Flash Offers" retiré. Aucune autre fausse urgence trouvée. Visual QA NOT VERIFIED.               |
 

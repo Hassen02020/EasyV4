@@ -36,7 +36,35 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — PR-PILOTE-MERGE-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — CHANNEL-MARGINS-UI-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### CHANNEL-MARGINS-UI-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CHANNEL-MARGINS-UI-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: f64372d
+
+Fichiers modifiés:
+  - lib/pro/margins-actions.ts : channel (direct/b2b/white_label/api) ajouté
+    à MarginInputSchema (optionnel, propagé à AdminMarginActionInput)
+  - components/admin/pricing-margins-manager.tsx :
+    · CHANNEL_LABELS map (Direct / B2B / White Label / API)
+    · sélecteur "Canal de distribution" dans le formulaire (défaut: direct)
+    · colonne "Canal" (Badge outline) dans le tableau
+    · findIndex et handleToggle corrigés pour la clé (agency, module, channel)
+  - lib/pro/__tests__/channel-margins-invariants.test.ts (nouveau) : 5 tests
+
+DB: AUCUN CHANGEMENT — schéma complet depuis 0101 (branche + index multi-canal)
+Tests: 5/5 PASS (node:test, 0 imports @/) · tsc 0 erreur · lint 0 erreur
+Visual QA: login redirect confirmé (Playwright) · dialog et colonne Canal
+  NOT VERIFIED sur session authentifiée (local DB indisponible en cloud)
+
+⚠️ Rappel : DROP INDEX pricing_margins_agency_module_uniq toujours en attente
+   (Supabase Studio). Bloque l'insertion de 2 marges distinctes par canal pour
+   le même (agency_id, module). Table vide en production — aucun risque data.
+```
 
 ### PR-PILOTE-MERGE-01 — CLÔTURÉ (2026-10-03)
 

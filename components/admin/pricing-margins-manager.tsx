@@ -44,6 +44,10 @@ import {
   type AdminMarginActionInput,
 } from "@/lib/pro/margins-actions"
 import type { PricingMargin } from "@/lib/db/schema"
+import {
+  DISTRIBUTION_CHANNELS,
+  type DistributionChannel,
+} from "@/lib/types/tenant"
 
 interface Agency {
   id: string
@@ -68,12 +72,20 @@ const ALL_MODULES = Object.keys(
   MODULE_LABELS,
 ) as AdminMarginActionInput["module"][]
 
+const CHANNEL_LABELS: Record<DistributionChannel, string> = {
+  direct: "Direct",
+  b2b: "B2B",
+  white_label: "White Label",
+  api: "API",
+}
+
 const EMPTY_FORM: AdminMarginActionInput = {
   agencyId: "",
   module: "hotel",
   marginType: "percent",
   marginValue: 10,
   isActive: true,
+  channel: "direct",
 }
 
 export function PricingMarginsManager({ agencies, initialMargins }: Props) {
@@ -111,8 +123,12 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
       toast.success("Marge enregistrée.")
       setDialogOpen(false)
       setMargins((prev) => {
+        const formChannel = form.channel ?? "direct"
         const idx = prev.findIndex(
-          (m) => m.agencyId === form.agencyId && m.module === form.module,
+          (m) =>
+            m.agencyId === form.agencyId &&
+            m.module === form.module &&
+            (m.channel ?? "direct") === formChannel,
         )
         const updated: PricingMargin = {
           id: idx >= 0 ? prev[idx]!.id : result.id,
@@ -122,7 +138,7 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
           marginValue: String(form.marginValue),
           isActive: form.isActive,
           notes: idx >= 0 ? prev[idx]!.notes : null,
-          channel: idx >= 0 ? prev[idx]!.channel : "direct",
+          channel: formChannel,
           createdAt: idx >= 0 ? prev[idx]!.createdAt : new Date(),
           updatedAt: new Date(),
         }
@@ -144,6 +160,7 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
         marginType: margin.marginType as "percent" | "fixed",
         marginValue: Number.parseFloat(margin.marginValue),
         isActive: !margin.isActive,
+        channel: (margin.channel ?? "direct") as DistributionChannel,
       })
       if (!result.ok) {
         toast.error(result.error)
@@ -237,13 +254,13 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Type de marge</Label>
+                  <Label>Canal de distribution</Label>
                   <Select
-                    value={form.marginType}
+                    value={form.channel ?? "direct"}
                     onValueChange={(v) =>
                       setForm((f) => ({
                         ...f,
-                        marginType: v as "percent" | "fixed",
+                        channel: v as DistributionChannel,
                       }))
                     }
                   >
@@ -251,11 +268,35 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="percent">% du prix net</SelectItem>
-                      <SelectItem value="fixed">Montant fixe TND</SelectItem>
+                      {DISTRIBUTION_CHANNELS.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {CHANNEL_LABELS[c]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Type de marge</Label>
+                <Select
+                  value={form.marginType}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      marginType: v as "percent" | "fixed",
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percent">% du prix net</SelectItem>
+                    <SelectItem value="fixed">Montant fixe TND</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
@@ -315,6 +356,7 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
             <TableRow>
               <TableHead>Agence</TableHead>
               <TableHead>Module</TableHead>
+              <TableHead>Canal</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">Valeur</TableHead>
               <TableHead>Statut</TableHead>
@@ -325,7 +367,7 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
             {displayed.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-muted-foreground py-12 text-center"
                 >
                   <Percent className="mx-auto mb-2 h-8 w-8 opacity-30" />
@@ -346,6 +388,13 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                   </TableCell>
                   <TableCell>
                     {MODULE_LABELS[margin.module] ?? margin.module}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="font-mono text-xs">
+                      {CHANNEL_LABELS[
+                        (margin.channel ?? "direct") as DistributionChannel
+                      ] ?? margin.channel ?? "direct"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {margin.marginType === "percent"

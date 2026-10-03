@@ -38,6 +38,7 @@ const MarginInputSchema = z.object({
   marginType: z.enum(["percent", "fixed"]),
   marginValue: z.coerce.number().min(0).max(1000),
   isActive: z.boolean(),
+  channel: z.enum(["direct", "b2b", "white_label", "api"]).optional(),
 })
 
 export type MarginActionInput = z.infer<typeof MarginInputSchema>

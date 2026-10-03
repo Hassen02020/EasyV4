@@ -25,6 +25,7 @@ import { and, eq } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { pricingMargins, type NewPricingMargin } from "@/lib/db/schema"
 import type { MarginModule } from "./pricing"
+import type { DistributionChannel } from "@/lib/types/tenant"
 
 export interface UpsertPricingMarginParams {
   agencyId: string
@@ -32,6 +33,7 @@ export interface UpsertPricingMarginParams {
   marginType: "percent" | "fixed"
   marginValue: number
   isActive: boolean
+  channel?: DistributionChannel
 }
 
 export async function upsertPricingMarginCore(
@@ -44,13 +46,14 @@ export async function upsertPricingMarginCore(
     marginType: params.marginType,
     marginValue: params.marginValue.toFixed(2),
     isActive: params.isActive,
+    channel: params.channel ?? "direct",
   }
 
   const [row] = await tx
     .insert(pricingMargins)
     .values(values)
     .onConflictDoUpdate({
-      target: [pricingMargins.agencyId, pricingMargins.module],
+      target: [pricingMargins.agencyId, pricingMargins.module, pricingMargins.channel],
       set: {
         marginType: values.marginType,
         marginValue: values.marginValue,

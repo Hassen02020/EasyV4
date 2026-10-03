@@ -1530,6 +1530,9 @@ export const pricingMargins = pgTable(
     marginValue: decimal("margin_value", { precision: 10, scale: 2 }).notNull(),
     isActive: boolean("is_active").notNull().default(true),
     notes: text("notes"),
+    /** Canal de distribution — CHANNEL-DIM-01. 'direct' = vente directe OTA
+     * (défaut), 'b2b' = revente partenaire, 'white_label' = marque blanche. */
+    channel: varchar("channel", { length: 16 }).notNull().default("direct"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1539,19 +1542,25 @@ export const pricingMargins = pgTable(
   },
   (t) => [
     index("pricing_margins_agency_idx").on(t.agencyId),
-    uniqueIndex("pricing_margins_agency_module_uniq").on(t.agencyId, t.module),
+    uniqueIndex("pricing_margins_agency_module_channel_uniq").on(
+      t.agencyId,
+      t.module,
+      t.channel,
+    ),
   ],
 )
 
-/** Type de produit autorisé — mêmes 3 valeurs que les triads catalogue Phase 13. */
+/** Type de produit autorisé pour la revente B2B / White Label. */
 export const authorizedProductType = pgEnum("authorized_product_type", [
   "package",
   "omra",
   "activity",
-  /** DISTRIBUTION-01 : produit canonique `products` (Network, ECON-PILOT-01) —
-   * même mécanisme d'autorisation B2B/White Label que les 3 valeurs
-   * historiques, pas un nouveau moteur de distribution. */
+  /** DISTRIBUTION-01 : produit canonique `products` (Network, ECON-PILOT-01). */
   "network",
+  /** DISTRIB-EXTEND-01 : location de voiture (module 'car'). */
+  "car",
+  /** DISTRIB-EXTEND-01 : transfert aéroport/hôtel (module 'transfer'). */
+  "transfer",
 ])
 
 /**

@@ -45,6 +45,8 @@ const TYPE_LABEL: Record<AuthorizedProductRow["productType"], string> = {
   omra: "Omra",
   activity: "Attraction",
   network: "Réseau",
+  car: "Voiture",
+  transfer: "Transfert",
 }
 
 /** DISTRIBUTION-02 : un Network Product est désormais réservable en B2B

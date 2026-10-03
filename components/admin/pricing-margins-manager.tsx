@@ -122,6 +122,7 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
           marginValue: String(form.marginValue),
           isActive: form.isActive,
           notes: idx >= 0 ? prev[idx]!.notes : null,
+          channel: idx >= 0 ? prev[idx]!.channel : "direct",
           createdAt: idx >= 0 ? prev[idx]!.createdAt : new Date(),
           updatedAt: new Date(),
         }

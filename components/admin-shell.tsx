@@ -35,6 +35,7 @@ import {
   MapPin,
   BarChart2,
   Palette,
+  Landmark,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -218,6 +219,11 @@ const technicalNavItems: NavItem[] = [
 ]
 
 const superAdminNavItems: NavItem[] = [
+  {
+    title: "Politique FX",
+    icon: Landmark,
+    href: "/admin/fx-policy",
+  },
   {
     title: "Marque Easy2Book",
     icon: Palette,

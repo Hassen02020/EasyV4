@@ -36,7 +36,33 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CRM-PIPELINE-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — CRM-NOTES-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### CRM-NOTES-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-NOTES-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 19811dd
+
+Fichiers créés/modifiés:
+  - lib/crm/leads-core.ts : updateLeadNotesCore() — UPDATE leads SET staff_notes
+    sans changement de statut, scopé agencyId
+  - lib/admin/leads-actions.ts : updateLeadNotes() Server Action autonome
+  - components/admin/lead-pipeline.tsx : StaffNotesWidget inline dans LeadCard —
+    toggle collapsable, textarea 2000 chars, preview quand fermé
+  - components/admin/customer-360-panel.tsx : section "Note interne" en lecture
+    (pre-wrap, fond amber) dans Vue 360 si staffNotes non null
+  - lib/crm/__tests__/lead-notes-invariants.test.ts : 5 tests (new file)
+
+DB: AUCUN CHANGEMENT — colonne staff_notes TEXT déjà présente (migration 0043)
+
+Tests: 5/5 PASS
+Typecheck: 0 erreur
+Lint: 0 erreur
+Visual QA: NOT VERIFIED — nécessite session staff sur /admin/support en production
+```
 
 ### BRAND-ADMIN-01 — CLÔTURÉ (2026-10-02)
 

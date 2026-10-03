@@ -29,11 +29,7 @@ export type ProductOwnerType =
  * - 'white_label' : vente sous une marque blanche (domaine propre du tenant)
  * - 'api'         : accès programmatique (futur — distribution via API publique)
  */
-export type DistributionChannel =
-  | "direct"
-  | "b2b"
-  | "white_label"
-  | "api"
+export type DistributionChannel = "direct" | "b2b" | "white_label" | "api"
 
 /** Valeurs de canal connues — pour validation et itération. */
 export const DISTRIBUTION_CHANNELS: readonly DistributionChannel[] = [

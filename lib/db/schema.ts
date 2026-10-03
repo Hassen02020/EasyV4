@@ -1234,7 +1234,8 @@ export const notificationIdempotency = pgTable(
   ],
 )
 
-export type NotificationIdempotency = typeof notificationIdempotency.$inferSelect
+export type NotificationIdempotency =
+  typeof notificationIdempotency.$inferSelect
 export type NewNotificationIdempotency =
   typeof notificationIdempotency.$inferInsert
 

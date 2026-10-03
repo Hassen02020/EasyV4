@@ -26,7 +26,8 @@ import {
 import type { LeadRow } from "@/lib/crm/leads-core"
 
 function getResend() {
-  if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured")
+  if (!process.env.RESEND_API_KEY)
+    throw new Error("RESEND_API_KEY not configured")
   return new Resend(process.env.RESEND_API_KEY)
 }
 
@@ -127,14 +128,12 @@ export const notifyStaleLeads = inngest.createFunction(
             isEnabled: leadRelanceSettings.isEnabled,
           })
           .from(leadRelanceSettings)
-          .innerJoin(
-            agencies,
-            eq(leadRelanceSettings.agencyId, agencies.id),
-          )
+          .innerJoin(agencies, eq(leadRelanceSettings.agencyId, agencies.id))
           .where(eq(leadRelanceSettings.isEnabled, true)),
       )
 
-      if (rows.length === 0) return { skipped: true, reason: "no_agencies_with_relance_enabled" }
+      if (rows.length === 0)
+        return { skipped: true, reason: "no_agencies_with_relance_enabled" }
 
       const resend = getResend()
       const results: Array<{
@@ -197,7 +196,11 @@ export const notifyStaleLeads = inngest.createFunction(
             agencyId: row.agencyId,
             error: error.message,
           })
-          results.push({ agencyId: row.agencyId, outcome: "email_failed", count })
+          results.push({
+            agencyId: row.agencyId,
+            outcome: "email_failed",
+            count,
+          })
         } else {
           results.push({ agencyId: row.agencyId, outcome: "sent", count })
         }

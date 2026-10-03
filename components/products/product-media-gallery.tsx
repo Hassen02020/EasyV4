@@ -89,7 +89,7 @@ export function ProductMediaGallery({
           type="button"
           size="icon"
           variant="secondary"
-          className="absolute top-3 end-3 z-10 size-8 opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute end-3 top-3 z-10 size-8 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={() => setFullscreen(true)}
           aria-label="Plein écran"
         >

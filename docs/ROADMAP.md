@@ -48,11 +48,11 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 **Ce qui a été fait** :
 
-| Migration | Nom | Application | `supabase_migrations` version |
-|---|---|---|---|
-| 0091 | `fx_policy` | ✅ appliqué (sans policy `profiles`) | `20261003211453` |
-| 0098 | `fx_policy_rls_fix` | ✅ appliqué (`is_super_admin()`) | `20261003212128` |
-| 0099 | `notification_idempotency` | ✅ appliqué | `20261003212242` |
+| Migration | Nom                        | Application                          | `supabase_migrations` version |
+| --------- | -------------------------- | ------------------------------------ | ----------------------------- |
+| 0091      | `fx_policy`                | ✅ appliqué (sans policy `profiles`) | `20261003211453`              |
+| 0098      | `fx_policy_rls_fix`        | ✅ appliqué (`is_super_admin()`)     | `20261003212128`              |
+| 0099      | `notification_idempotency` | ✅ appliqué                          | `20261003212242`              |
 
 **Vérification production** :
 
@@ -80,6 +80,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Problème résolu** : toute offre `supplierCurrency ≠ TND` levait `UnsupportedCommercialCurrencyMismatchError` dans `computeCommercialResult()` et était silencieusement filtrée — aucun vol Duffel réel ne s'affichait jamais.
 
 **Ce qui a été fait** :
+
 - `applyCommercialEngine()` (`lib/vols/commercial-engine.ts`) : pré-conversion FX avec taux d'affichage mis en cache (`fetchExchangeRateForDisplay`) avant d'appeler `computeCommercialResult()` — préserve montant + devise originaux dans `supplierOriginalAmount` / `supplierOriginalCurrency`
 - `createPriceSnapshot()` (`lib/vols/price-snapshot.ts`) : stocke les 2 nouvelles colonnes nullable dans le snapshot
 - `finalizeFlightBookingFinancials()` (`lib/vols/flight-financials.ts`) : bloc FX activé — re-demande un taux frais au booking (`fetchExchangeRateForBooking`, D2 Option B) sur les snapshots où `supplierOriginalCurrency ≠ NULL`
@@ -89,12 +90,12 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - `lib/finance/__tests__/fx-policy.test.ts` FX-POLICY-14 mis à jour pour la nouvelle condition `originalCurrency !== "TND"`
 
 **Preuves** :
+
 - PR #122 ouverte et mergée sur `main` — SHA squash `6960031e63ba3258ace6cb28829d687c01e63b36`
 - CI #190 : `typecheck` ✅ · `lint` ✅ · `test` ✅ · `build` ✅ · `financial-e2e` ✅ (échecs `format`/`playwright-a11y`/`lighthouse` pré-existants sur cette branche, non causés par ce chantier)
 - Migration 0103 appliquée en production Supabase `crygnaichvlxavvbifqi` — colonnes vérifiées : `supplier_original_amount` (numeric, nullable) + `supplier_original_currency` (character varying, nullable) ✅
 
 **Statut** : CLÔTURÉ (2026-10-03) — MERGED (PR #122, squash `6960031e` sur main) + MIGRATION 0103 APPLIQUÉE EN PRODUCTION
-
 
 ---
 
@@ -105,6 +106,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **État audit** : CREATE (aucun code existant dans `app/` pour `fx_policies`)
 
 **Ce qui a été fait** :
+
 - `lib/finance/fx-policy-actions.ts` : server actions `createFxPolicy`, `deactivateFxPolicy`, `listFxPolicies` — guard super_admin, version auto-incrémentée, validation métier
 - `components/admin/fx-policy-manager.tsx` : client component — liste des politiques, formulaire création (4 correctionModes × 3 bankFeeModes), bouton désactiver, badge alerte critique si 0 politiques actives
 - `app/(internal)/admin/fx-policy/page.tsx` : Server Component — guard super_admin, affiche alerte fail-closed si 0 politiques actives
@@ -113,6 +115,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - Fix Turbopack : suppression `export type { CorrectionMode, BankFeeMode }` depuis `"use server"` (types importés directement depuis `@/lib/finance/fx-policy` dans le composant client)
 
 **Preuves** :
+
 - TypeScript `tsc --noEmit` : ✅ aucune erreur
 - Tests `fx-policy.test.ts` : 16/16 pass ✅ (total suite 1390 pass, 0 fail)
 - Build Vercel Preview : ✅ state=success (commit `b44727e`)
@@ -123,7 +126,6 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-
 ### DB-UNBLOCK-01 — CLÔTURÉ (2026-10-03)
 
 **Objectif** : supprimer l'ancien index `pricing_margins_agency_module_uniq` (UNIQUE sur `agency_id, module`) qui bloquait les inserts multi-canal, et valider que l'invariant `UNIQUE(agency_id, module, channel)` est bien en place.
@@ -131,12 +133,14 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **État audit** : FIX (correction DB production uniquement)
 
 **Ce qui a été fait** :
+
 - `DROP INDEX pricing_margins_agency_module_uniq` appliqué manuellement en production Supabase (l'index n'existait plus dans le schéma Drizzle depuis la migration `0101_pricing_margins_channel.sql` — la commande `DROP INDEX IF EXISTS` dans cette migration avait échoué lors de l'apply automatique).
 - Invariant vérifié dans `lib/db/schema.ts:1545` : `uniqueIndex("pricing_margins_agency_module_channel_uniq").on(t.agencyId, t.module, t.channel)` ✅
 - Preuve production : 3 index restants sur `pricing_margins` — `pricing_margins_pkey`, `pricing_margins_agency_idx`, `pricing_margins_agency_module_channel_uniq` — ancien index absent ✅
 - Correction bogue pré-existant `import.meta.dirname` → `__dirname` dans `lib/pro/__tests__/margins-complete-invariants.test.ts:14`
 
 **Tests** :
+
 - `margins-complete-invariants.test.ts` : 9/9 pass ✅
 - `channel-margins-invariants.test.ts` : 5/5 pass ✅
 - `channel-apply-invariants.test.ts` : 10/10 pass ✅
@@ -153,6 +157,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **État audit** : FIX + EXTEND
 
 **Ce qui a été fait** :
+
 - `lib/pro/pricing.ts` : `MarginModule` étendu avec `"car"` ; `DEFAULT_MARGINS.car = { percent, 0, isActive: false }` (dormant)
 - `lib/pro/server-context.ts` : `"car"` ajouté à `MARGIN_MODULES`
 - `lib/cars/pricing.ts` : remplace requête directe `pricingMargins` par `getMarginsForAgency(agencyId, undefined, channel ?? "direct")` ; `CarPricingInput` + champ optionnel `channel?: DistributionChannel` ; imports `pricingMargins`/`withTenantContext` supprimés
@@ -174,6 +179,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **État audit** : EXTEND — l'infrastructure canal était complète (param, cache, filtre DB) mais aucun call site ne passait le 3e argument.
 
 **Ce qui a été fait** :
+
 - Ajout de `resolvePartnerChannel(profile: PartnerProfile): DistributionChannel` dans `lib/pro/server-context.ts` (exportée)
 - Mise à jour de `getActivePartnerMargins()` → passe `resolvePartnerChannel(profile)` en 3e arg
 - 3 call sites B2B → `channel="b2b"` : `lib/booking/actions.ts`, `lib/transfers/pricing.ts`, `lib/network/product-booking-actions.ts`
@@ -225,13 +231,13 @@ PR: #119 — mergée squash, commit f1ab2c6d sur main
 
 **Migrations appliquées en production (Supabase `crygnaichvlxavvbifqi`) :**
 
-| Migration | Résultat |
-|---|---|
-| `0100_authorized_product_type_extend` | ✅ APPLIED — ADD VALUE 'car'/'transfer' à authorized_product_type |
-| `0101_pricing_margins_channel` (ADD COLUMN) | ✅ APPLIED — colonne `channel VARCHAR(16) DEFAULT 'direct'` ajoutée |
-| `0101_pricing_margins_channel` (DROP old index) | ❌ NOT APPLIED — `DROP INDEX pricing_margins_agency_module_uniq` refusé par le MCP Supabase. À exécuter manuellement via Supabase Studio SQL editor : `DROP INDEX pricing_margins_agency_module_uniq;` |
-| `0101_pricing_margins_channel` (CREATE new index) | ✅ APPLIED — `pricing_margins_agency_module_channel_uniq` sur (agency_id, module, channel) |
-| `0102_pricing_margins_guardrail` | ✅ APPLIED — CHECK constraints `margin_value >= 0` et `<= 10000` |
+| Migration                                         | Résultat                                                                                                                                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0100_authorized_product_type_extend`             | ✅ APPLIED — ADD VALUE 'car'/'transfer' à authorized_product_type                                                                                                                                      |
+| `0101_pricing_margins_channel` (ADD COLUMN)       | ✅ APPLIED — colonne `channel VARCHAR(16) DEFAULT 'direct'` ajoutée                                                                                                                                    |
+| `0101_pricing_margins_channel` (DROP old index)   | ❌ NOT APPLIED — `DROP INDEX pricing_margins_agency_module_uniq` refusé par le MCP Supabase. À exécuter manuellement via Supabase Studio SQL editor : `DROP INDEX pricing_margins_agency_module_uniq;` |
+| `0101_pricing_margins_channel` (CREATE new index) | ✅ APPLIED — `pricing_margins_agency_module_channel_uniq` sur (agency_id, module, channel)                                                                                                             |
+| `0102_pricing_margins_guardrail`                  | ✅ APPLIED — CHECK constraints `margin_value >= 0` et `<= 10000`                                                                                                                                       |
 
 **⚠️ Action manuelle requise** : tant que `pricing_margins_agency_module_uniq` (sur agency_id+module sans channel) n'est pas supprimé, il est impossible d'insérer deux marges différentes par canal pour le même module d'une agence. `pricing_margins` est vide en production (0 lignes) — aucune donnée à risque.
 
@@ -402,12 +408,14 @@ Commit: 01f4fb1
 **Objectif** : Permettre au super_admin de gérer l'identité et les coordonnées du Brand Owner Easy2Book depuis `/admin/brand`, en écrivant dans l'agence OTA (`agencyType='ota'`, `domain IS NULL`).
 
 **Périmètre** :
+
 - `lib/admin/brand-actions.ts` — Server Actions `getOtaBrandInitial` + `updateOtaBrand`. agencyId résolu côté serveur. Vérifie `role=super_admin`. Écrit uniquement les colonnes de marque/contact/social.
 - `components/admin/brand-form.tsx` — Formulaire client (brandName, logo, couleur, email, téléphone, adresse, WhatsApp, Facebook, Instagram, TikTok).
 - `app/(internal)/admin/brand/page.tsx` — Page Server Component.
 - `components/admin-shell.tsx` — Lien "Marque Easy2Book" (icône `Palette`) + breadcrumb.
 
 **Preuves** :
+
 - `npx tsc --noEmit` → 0 erreur source
 - `npx eslint <fichiers>` → 0 warning
 - PR #118 mergée, squash `296a16c` sur `main`
@@ -430,6 +438,7 @@ Commit: c511f15
 **Objectif** : Rendre administrables les informations de contact (téléphone, WhatsApp) et réseaux sociaux (Facebook, Instagram, TikTok) via la table `agencies`. Supprimer tout numéro hardcodé (`+21698140514`) du code.
 
 **Périmètre** :
+
 - Migration 0097 : `ADD COLUMN whatsapp_number, facebook_url, instagram_url, tiktok_url` sur `agencies`
 - Nouveau `lib/tenant/site-config.ts` : `getSiteContactInfo(agencyId?)` via `withSystemContext`
 - Header + Footer : contactPhone, whatsappNumber, facebookUrl, instagramUrl, tiktokUrl depuis DB
@@ -437,6 +446,7 @@ Commit: c511f15
 - B2B `/pro/etablissement` : formulaire étendu avec 4 champs sociaux + Server Action + core
 
 **Preuves** :
+
 - `grep -r "21698140514" components/ app/` → 0 occurrence fonctionnelle (3 occurrences doc/placeholder acceptables)
 - `npx tsc --noEmit` → 0 erreur
 - `npx eslint <fichiers modifiés>` → 0 erreur
@@ -471,6 +481,7 @@ Branche: claude/easy2book-v6-modernization-7gyb5v
 **Objectif** : Notification email automatique à l'agence dès qu'un visiteur soumet le formulaire "Être rappelé" / "Demander un devis".
 
 **Fichiers créés/modifiés** :
+
 - `lib/inngest/client.ts` — type event `crm/lead.created`
 - `lib/inngest/functions/process-new-lead.ts` — nouvelle fonction Inngest (créée)
 - `lib/inngest/functions/index.ts` — export barrel
@@ -479,6 +490,7 @@ Branche: claude/easy2book-v6-modernization-7gyb5v
 - `lib/inngest/__tests__/process-new-lead.test.ts` — 10 invariants statiques N01–N10
 
 **Preuves** :
+
 - 10/10 tests PASS · tsc 0 erreur · lint 0 erreur · format ✅
 - Pas de throw sur email agence absent — `{ success: false, reason: "no_agency_email" }`
 - `.catch()` sur `sendEvent` — lead toujours persisté si Inngest indisponible
@@ -1387,15 +1399,15 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 
 ## Phase 8 — Front conversion
 
-| ID    | Chantier                                                                                                                                                                                                                                                     | Critère de sortie                                                                                                                                                                                   |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                   |
-| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                   |
+| ID    | Chantier                                                                                                                                                                                                                                                     | Critère de sortie                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **CLÔTURÉ (2026-10-02, commit a5c14f0)** — 9 composants corrigés (11 changements) : propriétés physiques left/right/pl/pr remplacées par les propriétés logiques start/end/ps/pe/text-start/text-end. Infrastructure RTL validée (html dir, RtlDirectionProvider, formatCurrency ar-TN, date-fns arTN). Screenshots Playwright : dir="rtl" sur /ar/cgv ✅, dir="ltr" sur /fr/cgv ✅, dir="rtl" sur /ar/compte/connexion ✅. tsc 0 erreurs ✅, pnpm build ✅. |
-| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants                                                                                                                    |
-| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commits 20a9b41+5853101+d3b3110)** — axe-core BLOQUANT en CI (continue-on-error retiré), 0 violations WCAG prouvé run #158 (job 110889828533 ✅), limitation auth documentée |
-| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | **CLÔTURÉ (2026-10-02)** — 21 fichiers convertis aux tokens CSS shadcn. 0 bg-gray-_/text-gray-_ hors exceptions glassmorphism documentées. tsc ✅. Visual QA NOT VERIFIED.                          |
-| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | **CLÔTURÉ (2026-10-02, commit bf297f9)** — badge "Flash Offers" retiré. Aucune autre fausse urgence trouvée. Visual QA NOT VERIFIED.                                                                |
+| R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants                                                                                                                                                                                                                                                                                                                                                                             |
+| R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commits 20a9b41+5853101+d3b3110)** — axe-core BLOQUANT en CI (continue-on-error retiré), 0 violations WCAG prouvé run #158 (job 110889828533 ✅), limitation auth documentée                                                                                                                                                                                                                                                          |
+| R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | **CLÔTURÉ (2026-10-02)** — 21 fichiers convertis aux tokens CSS shadcn. 0 bg-gray-_/text-gray-_ hors exceptions glassmorphism documentées. tsc ✅. Visual QA NOT VERIFIED.                                                                                                                                                                                                                                                                                   |
+| R8-07 | Zéro fausse urgence, preuve sociale uniquement réelle                                                                                                                                                                                                        | **CLÔTURÉ (2026-10-02, commit bf297f9)** — badge "Flash Offers" retiré. Aucune autre fausse urgence trouvée. Visual QA NOT VERIFIED.                                                                                                                                                                                                                                                                                                                         |
 
 ---
 

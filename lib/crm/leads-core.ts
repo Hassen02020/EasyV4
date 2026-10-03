@@ -274,7 +274,10 @@ export async function convertLeadCore(
 
 export type AutoConvertLeadOutcome =
   | { outcome: "converted"; leadId: string }
-  | { outcome: "skipped"; reason: "no_match" | "ambiguous" | "already_linked" | "no_criteria" }
+  | {
+      outcome: "skipped"
+      reason: "no_match" | "ambiguous" | "already_linked" | "no_criteria"
+    }
 
 /**
  * Conversion automatique (système) d'un lead sur confirmation de réservation.
@@ -310,17 +313,19 @@ export async function autoConvertLeadCore(
     .limit(1)
   if (alreadyLinked) return { outcome: "skipped", reason: "already_linked" }
 
-  const emailClause =
-    params.customerEmail ? eq(leads.email, params.customerEmail) : undefined
-  const phoneClause =
-    params.customerPhone ? eq(leads.phone, params.customerPhone) : undefined
+  const emailClause = params.customerEmail
+    ? eq(leads.email, params.customerEmail)
+    : undefined
+  const phoneClause = params.customerPhone
+    ? eq(leads.phone, params.customerPhone)
+    : undefined
   if (!emailClause && !phoneClause)
     return { outcome: "skipped", reason: "no_criteria" }
 
   const contactMatch =
     emailClause && phoneClause
       ? or(emailClause, phoneClause)
-      : emailClause ?? phoneClause
+      : (emailClause ?? phoneClause)
 
   // Limit 3 to detect ambiguity without scanning the whole table
   const candidates = await tx

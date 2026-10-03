@@ -97,7 +97,7 @@ export function LoginForm({ redirectTo }: LoginFormProps = {}) {
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
-          <Mail className="text-muted-foreground absolute top-1/2 start-3 h-4 w-4 -translate-y-1/2" />
+          <Mail className="text-muted-foreground absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           <Input
             id="email"
             type="email"
@@ -115,7 +115,7 @@ export function LoginForm({ redirectTo }: LoginFormProps = {}) {
       <div className="space-y-2">
         <Label htmlFor="password">Mot de passe</Label>
         <div className="relative">
-          <Lock className="text-muted-foreground absolute top-1/2 start-3 h-4 w-4 -translate-y-1/2" />
+          <Lock className="text-muted-foreground absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           <Input
             id="password"
             type="password"

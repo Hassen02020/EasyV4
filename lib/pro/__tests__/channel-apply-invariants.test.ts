@@ -52,7 +52,10 @@ test("hotels-monde/guest-booking-actions.ts : getMarginsForAgency passe channel=
 
 test("api/hotels/search-public : getMarginsForAgency passe channel='direct'", () => {
   const src = read("app/api/hotels/search-public/route.ts")
-  assert.match(src, /getMarginsForAgency\(tenantContext\?\.agencyId \?\? null, undefined, "direct"\)/)
+  assert.match(
+    src,
+    /getMarginsForAgency\(tenantContext\?\.agencyId \?\? null, undefined, "direct"\)/,
+  )
 })
 
 test("api/hotels-monde/search : getMarginsForAgency passe channel='direct'", () => {
@@ -67,5 +70,8 @@ test("server-context.ts : resolvePartnerChannel exportée", () => {
 
 test("server-context.ts : getActivePartnerMargins passe resolvePartnerChannel(profile)", () => {
   const src = read("lib/pro/server-context.ts")
-  assert.match(src, /getMarginsForAgency\(profile\.agency\.id, user\.id, resolvePartnerChannel\(profile\)\)/)
+  assert.match(
+    src,
+    /getMarginsForAgency\(profile\.agency\.id, user\.id, resolvePartnerChannel\(profile\)\)/,
+  )
 })

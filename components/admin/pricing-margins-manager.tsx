@@ -394,7 +394,9 @@ export function PricingMarginsManager({ agencies, initialMargins }: Props) {
                     <Badge variant="outline" className="font-mono text-xs">
                       {CHANNEL_LABELS[
                         (margin.channel ?? "direct") as DistributionChannel
-                      ] ?? margin.channel ?? "direct"}
+                      ] ??
+                        margin.channel ??
+                        "direct"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">

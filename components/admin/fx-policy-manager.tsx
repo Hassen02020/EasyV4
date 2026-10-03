@@ -33,7 +33,11 @@ import {
   deactivateFxPolicy,
   type CreateFxPolicyInput,
 } from "@/lib/finance/fx-policy-actions"
-import type { FxPolicy, CorrectionMode, BankFeeMode } from "@/lib/finance/fx-policy"
+import type {
+  FxPolicy,
+  CorrectionMode,
+  BankFeeMode,
+} from "@/lib/finance/fx-policy"
 
 const CORRECTION_MODE_LABELS: Record<CorrectionMode, string> = {
   NONE: "Aucune correction (taux mid-market)",
@@ -73,8 +77,7 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
   const [showForm, setShowForm] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const [correctionMode, setCorrectionMode] =
-    useState<CorrectionMode>("NONE")
+  const [correctionMode, setCorrectionMode] = useState<CorrectionMode>("NONE")
   const [correctionValue, setCorrectionValue] = useState("0")
   const [bankFeeMode, setBankFeeMode] = useState<BankFeeMode>("NONE")
   const [bankFeeFixed, setBankFeeFixed] = useState("")
@@ -130,9 +133,7 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
       }
       toast.success("Politique désactivée")
       setPolicies((prev) =>
-        prev.map((p) =>
-          p.id === id ? { ...p, effectiveTo: new Date() } : p,
-        ),
+        prev.map((p) => (p.id === id ? { ...p, effectiveTo: new Date() } : p)),
       )
     })
   }
@@ -146,7 +147,7 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
         <div className="flex items-center gap-3">
           <span className="text-muted-foreground text-sm">
             {policies.length} politique{policies.length !== 1 ? "s" : ""} —{" "}
-            <span className="text-emerald-600 font-medium">
+            <span className="font-medium text-emerald-600">
               {activeCount} active{activeCount !== 1 ? "s" : ""}
             </span>
           </span>
@@ -177,12 +178,12 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
 
       {/* Formulaire création */}
       {showForm && (
-        <div className="bg-muted/30 border rounded-lg p-5 space-y-5">
+        <div className="bg-muted/30 space-y-5 rounded-lg border p-5">
           <h2 className="font-semibold">Créer une nouvelle politique FX</h2>
 
           {/* Correction du taux */}
           <fieldset className="space-y-3">
-            <legend className="text-sm font-medium mb-2">
+            <legend className="mb-2 text-sm font-medium">
               Correction du taux de référence
             </legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -231,7 +232,7 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
 
           {/* Frais bancaire */}
           <fieldset className="space-y-3">
-            <legend className="text-sm font-medium mb-2">
+            <legend className="mb-2 text-sm font-medium">
               Frais bancaire FX
             </legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -339,13 +340,13 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
 
       {/* Liste */}
       {policies.length === 0 ? (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-6 text-center">
+        <div className="bg-destructive/10 border-destructive/30 rounded-lg border p-6 text-center">
           <p className="text-destructive font-semibold">
             Aucune politique FX en base
           </p>
-          <p className="text-muted-foreground text-sm mt-1">
-            Créez une politique pour débloquer les confirmations de vol
-            non-TND (Duffel EUR/USD).
+          <p className="text-muted-foreground mt-1 text-sm">
+            Créez une politique pour débloquer les confirmations de vol non-TND
+            (Duffel EUR/USD).
           </p>
         </div>
       ) : (
@@ -363,12 +364,12 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-semibold text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-sm font-semibold">
                         v{policy.version}
                       </span>
                       {active ? (
-                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
+                        <Badge className="border-emerald-300 bg-emerald-100 text-xs text-emerald-800">
                           <CheckCircle2 className="mr-1 h-3 w-3" />
                           Active
                         </Badge>
@@ -379,7 +380,7 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
                         </Badge>
                       )}
                     </div>
-                    <div className="text-sm space-y-0.5">
+                    <div className="space-y-0.5 text-sm">
                       <p>
                         <span className="text-muted-foreground">
                           Correction :{" "}
@@ -414,14 +415,14 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
                             </span>
                           )}
                         {policy.bankFeeMode === "MIN_MAX" && (
-                          <span className="ml-1 text-muted-foreground">
+                          <span className="text-muted-foreground ml-1">
                             [{policy.bankFeeMin ?? "−"} –{" "}
                             {policy.bankFeeMax ?? "∞"} TND]
                           </span>
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
                       <Clock className="h-3 w-3" />
                       <span>depuis {fmt(policy.effectiveFrom)}</span>
                       {policy.effectiveTo && (
@@ -429,7 +430,7 @@ export function FxPolicyManager({ initial }: FxPolicyManagerProps) {
                       )}
                     </div>
                     {policy.note && (
-                      <p className="text-xs text-muted-foreground italic mt-1">
+                      <p className="text-muted-foreground mt-1 text-xs italic">
                         {policy.note}
                       </p>
                     )}

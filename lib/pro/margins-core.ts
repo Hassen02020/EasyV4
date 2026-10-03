@@ -58,7 +58,11 @@ export async function upsertPricingMarginCore(
     .insert(pricingMargins)
     .values(values)
     .onConflictDoUpdate({
-      target: [pricingMargins.agencyId, pricingMargins.module, pricingMargins.channel],
+      target: [
+        pricingMargins.agencyId,
+        pricingMargins.module,
+        pricingMargins.channel,
+      ],
       set: {
         marginType: values.marginType,
         marginValue: values.marginValue,

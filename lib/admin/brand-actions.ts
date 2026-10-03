@@ -19,7 +19,14 @@ const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
 
 const brandSchema = z.object({
   brandName: z.string().trim().min(1).max(200),
-  contactEmail: z.string().trim().email().max(320).or(z.literal("")).optional().default(""),
+  contactEmail: z
+    .string()
+    .trim()
+    .email()
+    .max(320)
+    .or(z.literal(""))
+    .optional()
+    .default(""),
   contactPhone: z.string().trim().max(32).optional().default(""),
   address: z.string().trim().max(2000).optional().default(""),
   logoUrl: z.string().trim().max(2048).optional().default(""),
@@ -63,11 +70,15 @@ export type BrandInitial = {
   tiktokUrl: string
 }
 
-async function assertSuperAdmin(): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+async function assertSuperAdmin(): Promise<
+  { ok: true; userId: string } | { ok: false; error: string }
+> {
   if (!process.env.DATABASE_URL)
     return { ok: false, error: "Service temporairement indisponible." }
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: "Session expirée — reconnectez-vous." }
 
   const { data: profile } = await supabase
@@ -143,7 +154,10 @@ export async function updateOtaBrand(input: BrandInput): Promise<BrandResult> {
 
   const parsed = brandSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Entrée invalide." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Entrée invalide.",
+    }
   }
 
   const agencyId = await resolveOtaAgencyId()

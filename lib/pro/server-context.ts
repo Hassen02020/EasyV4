@@ -15,7 +15,10 @@ import "server-only"
 import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm"
 
 import { createServerSupabase } from "@/lib/supabase/server"
-import { getCurrentPartnerProfile, type PartnerProfile } from "@/lib/auth/partner-profile"
+import {
+  getCurrentPartnerProfile,
+  type PartnerProfile,
+} from "@/lib/auth/partner-profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { marginRules, pricingMargins } from "@/lib/db/schema"
 import { withCache } from "@/lib/cache/redis"
@@ -33,9 +36,12 @@ import type { DistributionChannel } from "@/lib/types/tenant"
  * Tous les accès via le portail /pro (partner_owner, partner_agent, simulation
  * super_admin) correspondent au canal "b2b".
  */
-export function resolvePartnerChannel(profile: PartnerProfile): DistributionChannel {
+export function resolvePartnerChannel(
+  profile: PartnerProfile,
+): DistributionChannel {
   if (profile.isAdminPreview) return "b2b"
-  if (profile.role === "partner_owner" || profile.role === "partner_agent") return "b2b"
+  if (profile.role === "partner_owner" || profile.role === "partner_agent")
+    return "b2b"
   return "direct"
 }
 
@@ -55,8 +61,15 @@ export async function invalidateMarginsCache(agencyId: string): Promise<void> {
   const { getRedis } = await import("@/lib/cache/redis")
   const redis = getRedis()
   if (!redis) return
-  const channels: DistributionChannel[] = ["direct", "b2b", "white_label", "api"]
-  await Promise.all(channels.map((ch) => redis.del(marginsCacheKey(agencyId, ch))))
+  const channels: DistributionChannel[] = [
+    "direct",
+    "b2b",
+    "white_label",
+    "api",
+  ]
+  await Promise.all(
+    channels.map((ch) => redis.del(marginsCacheKey(agencyId, ch))),
+  )
 }
 
 /**
@@ -204,7 +217,11 @@ export async function getActivePartnerMargins(): Promise<MarginMap> {
     if (!user) return { ...DEFAULT_MARGINS }
     const profile = await getCurrentPartnerProfile(user.id)
     if (!profile) return { ...DEFAULT_MARGINS }
-    return await getMarginsForAgency(profile.agency.id, user.id, resolvePartnerChannel(profile))
+    return await getMarginsForAgency(
+      profile.agency.id,
+      user.id,
+      resolvePartnerChannel(profile),
+    )
   } catch (err) {
     logger.error("[server-context] getActivePartnerMargins failed", {
       code: err instanceof Error ? err.constructor.name : "unknown",

@@ -125,7 +125,11 @@ export async function GET(req: NextRequest) {
     // réservation (myGoBooking.totalPrice), donc aucune perte de la
     // vérification anti-fraude existante.
     const typedBody = body as { offers: HotelOfferDTO[] }
-    const margins = await getMarginsForAgency(tenantContext?.agencyId ?? null, undefined, "direct")
+    const margins = await getMarginsForAgency(
+      tenantContext?.agencyId ?? null,
+      undefined,
+      "direct",
+    )
     typedBody.offers = typedBody.offers.map((offer) =>
       applyMarginToHotelOffer(offer, margins),
     )

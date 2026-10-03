@@ -17,7 +17,13 @@ import { productAuthorizations, agencies } from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 import type { ProductActionResult } from "./packages-actions"
 
-type AuthorizedProductType = "package" | "omra" | "activity" | "network" | "car" | "transfer"
+type AuthorizedProductType =
+  | "package"
+  | "omra"
+  | "activity"
+  | "network"
+  | "car"
+  | "transfer"
 
 export interface PartnerAgencyOption {
   id: string

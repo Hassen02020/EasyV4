@@ -36,7 +36,93 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CRM-STATS-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — CRM-AUTO-CONV-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### CRM-AUTO-CONV-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-AUTO-CONV-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 26cec9b
+
+Fichiers créés/modifiés:
+  - lib/crm/leads-core.ts : autoConvertLeadCore() — correspond email/phone du client,
+    statuts new/contacted, sans reservationId existant ; convertit si exactement 1 match ;
+    skip silencieux si 0 ou ≥2 (ambiguïté → staff manuel)
+  - lib/inngest/functions/auto-convert-lead.ts (nouveau) — Inngest function sur
+    booking/confirmed, idempotente via notification_idempotency(reservationId,
+    'lead.auto_converted'), audit trail dans auditEvents, onFailure → Sentry
+  - lib/inngest/functions/index.ts : export barrel mis à jour
+
+DB: AUCUN CHANGEMENT de schéma — utilise notification_idempotency + auditEvents existants
+Tests: tsc --noEmit 0 erreur · lint 0 erreur
+NOT VERIFIED: déclenchement réel Inngest (nécessite INNGEST_SIGNING_KEY + booking/confirmed
+  émis en preview/prod)
+```
+
+### MARGIN-GUARDRAIL-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: MARGIN-GUARDRAIL-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 70cc7da
+
+Fichiers créés/modifiés:
+  - lib/pro/margins-core.ts : guards applicatifs margin_value >= 0 et <= 10000
+  - drizzle/manual/0102_pricing_margins_guardrail.sql : CHECK constraints DB
+    pricing_margins_margin_value_positive (>= 0) + pricing_margins_margin_value_max (<= 10000)
+
+DB: migration 0102 à appliquer (CHECK constraints idempotentes)
+Tests: tsc 0 erreur · lint 0 erreur
+```
+
+### YIELD-DEPRECATE-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: YIELD-DEPRECATE-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: ea53024
+
+Fichiers supprimés:
+  - lib/yield/math.ts (130 lignes) — zéro appelant confirmé
+  - lib/yield/actions.ts (130 lignes) — zéro appelant confirmé
+Fichiers modifiés:
+  - lib/db/schema.ts : header yieldRules marqué @deprecated
+  - lib/__tests__/tenant-isolation-certification.test.ts : note ajoutée
+
+DB: table yield_rules conservée (RLS cert) — AUCUNE migration
+Tests: tsc 0 erreur · lint 0 erreur
+```
+
+### Phase 1 (PILOTE) — CLÔTURÉ (2026-10-03)
+
+```text
+ID: TENANT-TYPES-01 / DISTRIB-EXTEND-01 / CHANNEL-DIM-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 0e5f0fc
+
+Fichiers créés/modifiés:
+  - lib/types/tenant.ts (nouveau) : BookingActorType, ProductOwnerType,
+    DistributionChannel, DISTRIBUTION_CHANNELS
+  - lib/db/schema.ts : authorizedProductType étendu ('car', 'transfer') +
+    pricingMargins.channel VARCHAR(16) NOT NULL DEFAULT 'direct' +
+    index unique (agency_id, module, channel)
+  - lib/pro/server-context.ts : getMarginsForAgency() 3e param channel +
+    invalidateMarginsCache vide les 4 canaux
+  - lib/pro/margins-core.ts : UpsertPricingMarginParams.channel? +
+    conflict target (agencyId, module, channel)
+  - components/admin/pricing-margins-manager.tsx : channel: "direct" default
+  - components/pro/authorized-products-list.tsx : car/transfer labels
+  - drizzle/manual/0100_authorized_product_type_extend.sql : ADD VALUE 'car'/'transfer'
+  - drizzle/manual/0101_pricing_margins_channel.sql : ADD COLUMN channel + index
+
+DB: migrations 0100 + 0101 à appliquer
+Tests: tsc 0 erreur · lint 0 erreur
+```
 
 ### CRM-STATS-01 — CLÔTURÉ (2026-10-03)
 

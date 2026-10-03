@@ -11,7 +11,7 @@ import { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { Headphones } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LeadsTable } from "@/components/admin/leads-table"
+import { LeadsViewTabs } from "@/components/admin/leads-view-tabs"
 import { LeadScoringSettings } from "@/components/admin/lead-scoring-settings"
 import { LeadRelanceSettings } from "@/components/admin/lead-relance-settings"
 import { InboxPanel } from "@/components/admin/inbox-panel"
@@ -86,14 +86,8 @@ export default async function SupportPage() {
             {result.error}
           </CardContent>
         </Card>
-      ) : result.leads.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-10 text-center text-sm">
-            Aucune demande de contact pour le moment.
-          </CardContent>
-        </Card>
       ) : (
-        <LeadsTable
+        <LeadsViewTabs
           leads={result.leads}
           scoreRules={scoreRules}
           relanceSettings={relanceSettings}

@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — R8-03 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — CRM-PIPELINE-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
 
 ### BRAND-ADMIN-01 — CLÔTURÉ (2026-10-02)
 
@@ -1055,6 +1055,31 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R9-02 | Rubrique « Actualités & tendances » sourcée et datée                         | **CLÔTURÉ** — `components/market-signals-section.tsx` + `lib/market/market-signals-queries.ts`. Aucun chiffre en dur.                     |
 | R9-03 | Section « Prochainement » (`ANNONCÉ`) avec liste d'attente                   | **CLÔTURÉ** — `components/development-projects-section.tsx` + table `development_project_waitlist` (migration 0096). Jamais réservable.   |
 | R9-04 | Mise en avant des destinations en croissance **avec inventaire réel**        | **CLÔTURÉ** — `components/featured-destinations-section.tsx` + colonnes `is_featured`/`display_order` (migration 0095). CTA conditionnel. |
+
+---
+
+### CRM-PIPELINE-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-PIPELINE-01
+OBJECTIF: Vue Kanban 4 colonnes (Nouveau → Contacté → Converti → Clos) sur /admin/support,
+  complémentaire à la vue Tableau existante (LeadsTable). Toggle Tableau / Pipeline.
+ÉTAT AUDIT: EXTEND — aucune DB, aucune nouvelle Server Action ; réutilise
+  updateLeadStatus, convertLead, searchReservationsForLeadLink, LeadRow, LeadStatus,
+  computeLeadScore, isLeadStale, Customer360Button déjà existants.
+FICHIERS CRÉÉS:
+  - components/admin/lead-pipeline.tsx (ScoreDots, ConvertDialog, LeadCard, LeadPipeline)
+  - components/admin/leads-view-tabs.tsx (toggle Tableau/Pipeline, Client Component)
+  - lib/crm/__tests__/lead-pipeline-invariants.test.ts (5 tests node:test, 5/5 pass)
+FICHIERS MODIFIÉS:
+  - app/(internal)/admin/support/page.tsx (utilise LeadsViewTabs au lieu de LeadsTable)
+CHANGEMENTS DB: aucun
+TESTS: 5/5 invariants pipeline verts (node --test)
+BUILD: tsc --noEmit propre ; dev server démarre ; /admin/support → redirect login OK
+PREUVE VISUELLE: screenshot Playwright — login redirect confirmé
+```
+
+**CLÔTURÉ (2026-10-03, branche claude/easy2book-v6-modernization-7gyb5v)**
 
 ---
 

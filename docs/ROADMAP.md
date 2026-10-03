@@ -36,7 +36,27 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CHANNEL-MARGINS-UI-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — DISTRIB-CHANNEL-APPLY-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### DISTRIB-CHANNEL-APPLY-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : câbler le canal de distribution sur tous les call sites de `getMarginsForAgency()`.
+
+**État audit** : EXTEND — l'infrastructure canal était complète (param, cache, filtre DB) mais aucun call site ne passait le 3e argument.
+
+**Ce qui a été fait** :
+- Ajout de `resolvePartnerChannel(profile: PartnerProfile): DistributionChannel` dans `lib/pro/server-context.ts` (exportée)
+- Mise à jour de `getActivePartnerMargins()` → passe `resolvePartnerChannel(profile)` en 3e arg
+- 3 call sites B2B → `channel="b2b"` : `lib/booking/actions.ts`, `lib/transfers/pricing.ts`, `lib/network/product-booking-actions.ts`
+- 5 call sites invités/public → `channel="direct"` : `lib/booking/guest-actions.ts`, `lib/vols/guest-booking-actions.ts`, `lib/hotels-monde/guest-booking-actions.ts`, `app/api/hotels/search-public/route.ts`, `app/api/hotels-monde/search/route.ts`
+- Nouveau fichier `lib/pro/__tests__/channel-apply-invariants.test.ts` (10 invariants statiques)
+- Mise à jour regex dans `lib/network/__tests__/product-booking-actions-invariants.test.ts`
+
+**Tests** : 23/23 pass · TSC : 0 erreur · ESLint : 0 erreur (1 warning pre-existant dans actions.ts)
+**Commit** : `9b503a1`
+**NOT VERIFIED** : déploiement production (pipeline main → Vercel)
+
+---
 
 ### CHANNEL-MARGINS-UI-01 — CLÔTURÉ (2026-10-03)
 

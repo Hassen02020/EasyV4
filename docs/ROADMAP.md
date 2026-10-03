@@ -36,7 +36,29 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CRM-RELANCE-CRON-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — PR-PILOTE-MERGE-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### PR-PILOTE-MERGE-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: PR-PILOTE-MERGE-01
+Statut: CLÔTURÉ (2026-10-03)
+PR: #119 — mergée squash, commit f1ab2c6d sur main
+```
+
+**Migrations appliquées en production (Supabase `crygnaichvlxavvbifqi`) :**
+
+| Migration | Résultat |
+|---|---|
+| `0100_authorized_product_type_extend` | ✅ APPLIED — ADD VALUE 'car'/'transfer' à authorized_product_type |
+| `0101_pricing_margins_channel` (ADD COLUMN) | ✅ APPLIED — colonne `channel VARCHAR(16) DEFAULT 'direct'` ajoutée |
+| `0101_pricing_margins_channel` (DROP old index) | ❌ NOT APPLIED — `DROP INDEX pricing_margins_agency_module_uniq` refusé par le MCP Supabase. À exécuter manuellement via Supabase Studio SQL editor : `DROP INDEX pricing_margins_agency_module_uniq;` |
+| `0101_pricing_margins_channel` (CREATE new index) | ✅ APPLIED — `pricing_margins_agency_module_channel_uniq` sur (agency_id, module, channel) |
+| `0102_pricing_margins_guardrail` | ✅ APPLIED — CHECK constraints `margin_value >= 0` et `<= 10000` |
+
+**⚠️ Action manuelle requise** : tant que `pricing_margins_agency_module_uniq` (sur agency_id+module sans channel) n'est pas supprimé, il est impossible d'insérer deux marges différentes par canal pour le même module d'une agence. `pricing_margins` est vide en production (0 lignes) — aucune donnée à risque.
+
+---
 
 ### CRM-RELANCE-CRON-01 — CLÔTURÉ (2026-10-03)
 

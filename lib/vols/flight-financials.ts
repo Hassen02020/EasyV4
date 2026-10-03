@@ -52,6 +52,8 @@ export async function finalizeFlightBookingFinancials(
       supplierAmount: flightPriceSnapshots.supplierAmount,
       sellingAmount: flightPriceSnapshots.sellingAmount,
       supplierCurrency: flightPriceSnapshots.supplierCurrency,
+      supplierOriginalAmount: flightPriceSnapshots.supplierOriginalAmount,
+      supplierOriginalCurrency: flightPriceSnapshots.supplierOriginalCurrency,
     })
     .from(flightPriceSnapshots)
     .where(eq(flightPriceSnapshots.id, input.snapshotId))
@@ -59,46 +61,51 @@ export async function finalizeFlightBookingFinancials(
 
   if (!snapshot) return
 
-  const supplierOriginalAmount = Number(snapshot.supplierAmount)
+  // supplierAmount is already in TND (post-conversion by commercial engine).
+  // For FX bookings, the original pre-conversion amount is in supplierOriginalAmount.
+  const supplierPriceTndBase = Number(snapshot.supplierAmount)
   const salePriceTnd = Number(snapshot.sellingAmount)
-  const supplierCurrency = snapshot.supplierCurrency ?? "TND"
 
-  // CURRENCY-DIM-01 + CURRENCY-DIM-02 : si le fournisseur facture dans une
-  // devise ≠ TND, on obtient :
-  //   1. Le taux de référence mid-market (fetchExchangeRateForBooking — D2 Option B)
-  //   2. La politique FX active (getActiveFxPolicy — CURRENCY-DIM-02)
-  //   3. Le taux appliqué = référence + correction banque (applyFxCorrection)
-  //   4. Le frais bancaire proratisé (computeBankFeeContribution)
+  // CURRENCY-DIM-01 + CURRENCY-DIM-02 : si le fournisseur facturait dans une
+  // devise ≠ TND (ex. EUR Duffel), supplier_original_amount et
+  // supplier_original_currency sont présents (non NULL). On re-demande un taux
+  // frais au booking (D2 Option B) pour l'ancrage financier réel.
   //
   // Fail-closed sur les deux : ExchangeRateUnavailableError ou
   // FxPolicyUnavailableError remontent tels quels → booking annulé proprement.
-  //
-  // Aujourd'hui supplierCurrency est toujours "TND" (commercial engine
-  // bloque les autres devises via UnsupportedCommercialCurrencyMismatchError)
-  // — ce bloc est inerte mais câblé pour Duffel et tout futur GDS.
-  let supplierPriceTnd = supplierOriginalAmount
+  let supplierPriceTnd = supplierPriceTndBase
   const financialExtra: Partial<RecordReservationFinancialsInput> = {}
   let bankFeeTnd = 0
 
-  if (supplierCurrency !== "TND") {
+  const originalAmount =
+    snapshot.supplierOriginalAmount !== null
+      ? Number(snapshot.supplierOriginalAmount)
+      : null
+  const originalCurrency = snapshot.supplierOriginalCurrency ?? null
+
+  if (
+    originalCurrency !== null &&
+    originalCurrency !== "TND" &&
+    originalAmount !== null
+  ) {
     const referenceRate = await fetchExchangeRateForBooking(
-      supplierCurrency,
+      originalCurrency,
       "TND",
     )
     const policy = await getActiveFxPolicy()
     const applied = applyFxCorrection(referenceRate, policy)
 
     supplierPriceTnd =
-      Math.round(supplierOriginalAmount * applied.appliedRate * 100) / 100
+      Math.round(originalAmount * applied.appliedRate * 100) / 100
     bankFeeTnd = computeBankFeeContribution(
-      supplierOriginalAmount,
+      originalAmount,
       applied.appliedRate,
       policy,
     )
 
     financialExtra.supplierOriginal = {
-      amount: supplierOriginalAmount,
-      currency: supplierCurrency,
+      amount: originalAmount,
+      currency: originalCurrency,
     }
     financialExtra.exchangeRate = {
       rate: referenceRate.rate,

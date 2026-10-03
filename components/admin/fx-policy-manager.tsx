@@ -31,11 +31,9 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   createFxPolicy,
   deactivateFxPolicy,
-  type CorrectionMode,
-  type BankFeeMode,
   type CreateFxPolicyInput,
 } from "@/lib/finance/fx-policy-actions"
-import type { FxPolicy } from "@/lib/finance/fx-policy"
+import type { FxPolicy, CorrectionMode, BankFeeMode } from "@/lib/finance/fx-policy"
 
 const CORRECTION_MODE_LABELS: Record<CorrectionMode, string> = {
   NONE: "Aucune correction (taux mid-market)",

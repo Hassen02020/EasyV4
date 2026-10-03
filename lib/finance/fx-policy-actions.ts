@@ -19,8 +19,6 @@ import { getDb } from "@/lib/db/client"
 import { fxPolicies } from "@/lib/db/schema/financials"
 import type { CorrectionMode, BankFeeMode, FxPolicy } from "./fx-policy"
 
-export type { CorrectionMode, BankFeeMode }
-
 export interface CreateFxPolicyInput {
   correctionMode: CorrectionMode
   correctionValue: number

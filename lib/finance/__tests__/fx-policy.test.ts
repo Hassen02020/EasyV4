@@ -287,9 +287,14 @@ test("FX-POLICY-14 — flight-financials.ts : politique FX uniquement dans le bl
     join(process.cwd(), "lib/vols/flight-financials.ts"),
     "utf8",
   )
-  // getActiveFxPolicy doit être DANS le bloc conditionnel `if (supplierCurrency !== "TND")`
+  // CURRENCY-DIM-01 : la condition a été remplacée par une vérification des colonnes
+  // supplierOriginalCurrency/supplierOriginalAmount (les devises non-TND y sont stockées).
+  // L'invariant reste : getActiveFxPolicy ne doit être appelée QUE dans le bloc non-TND.
+  // On cherche le bloc conditionnel qui contient "originalCurrency !== \"TND\"".
   const block =
-    src.match(/if\s*\(supplierCurrency !== "TND"\)\s*\{([\s\S]*?)\}/)?.[1] ?? ""
+    src.match(
+      /if\s*\([^)]*originalCurrency[^)]*!== "TND"[^)]*\)\s*\{([\s\S]*?)\}/,
+    )?.[1] ?? ""
   assert.match(
     block,
     /getActiveFxPolicy/,

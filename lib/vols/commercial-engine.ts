@@ -17,6 +17,7 @@
 import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { flightCommercialRules } from "@/lib/db/schema/flights"
+import { fetchExchangeRateForDisplay } from "@/lib/finance/exchange-rate"
 
 export type DistributionChannel = "B2C" | "B2B" | "PARTNER" | "WHITE_LABEL"
 
@@ -43,6 +44,10 @@ export interface CommercialResult {
   markup: number
   sellingAmount: number
   sellingCurrency: string
+  /** CURRENCY-DIM-01: montant fournisseur avant conversion FX (null = déjà en TND) */
+  supplierOriginalAmount?: number
+  /** CURRENCY-DIM-01: devise fournisseur avant conversion FX (null = déjà en TND) */
+  supplierOriginalCurrency?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -273,6 +278,12 @@ export function computeCommercialResult(
 /**
  * Apply commercial rules to a supplier price.
  * All amounts are rounded to 3 decimal places (TND standard).
+ *
+ * CURRENCY-DIM-01: if supplierCurrency ≠ rules.currency (e.g. EUR vs TND),
+ * fetches a cached display-time FX rate and pre-converts the supplier amount
+ * before calling computeCommercialResult(). The original amount and currency
+ * are preserved in the result for booking-time FX anchoring (D2 Option B).
+ * Fail-closed: ExchangeRateUnavailableError propagates to caller if no rate.
  */
 export async function applyCommercialEngine(
   supplierAmount: number,
@@ -282,5 +293,24 @@ export async function applyCommercialEngine(
   hints: ProductHints = {},
 ): Promise<CommercialResult> {
   const rules = await getCommercialRules(agencyId, channel, hints)
+
+  if (supplierCurrency !== rules.currency) {
+    const rate = await fetchExchangeRateForDisplay(
+      supplierCurrency,
+      rules.currency,
+    )
+    const convertedAmount = Math.round(supplierAmount * rate.rate * 1000) / 1000
+    const result = computeCommercialResult(
+      convertedAmount,
+      rules.currency,
+      rules,
+    )
+    return {
+      ...result,
+      supplierOriginalAmount: supplierAmount,
+      supplierOriginalCurrency: supplierCurrency,
+    }
+  }
+
   return computeCommercialResult(supplierAmount, supplierCurrency, rules)
 }

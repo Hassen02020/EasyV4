@@ -208,6 +208,13 @@ export const flightPriceSnapshots = pgTable(
     supplierCurrency: varchar("supplier_currency", { length: 3 })
       .notNull()
       .default("TND"),
+    supplierOriginalAmount: decimal("supplier_original_amount", {
+      precision: 12,
+      scale: 3,
+    }),
+    supplierOriginalCurrency: varchar("supplier_original_currency", {
+      length: 3,
+    }),
     fee: decimal("fee", { precision: 12, scale: 3 }).notNull().default("0"),
     markup: decimal("markup", { precision: 12, scale: 3 })
       .notNull()

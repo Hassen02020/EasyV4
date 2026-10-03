@@ -73,6 +73,12 @@ export async function createPriceSnapshot(
         itinerary: input.itinerary as unknown as Record<string, unknown>,
         supplierAmount: String(commercial.supplierAmount),
         supplierCurrency: commercial.supplierCurrency,
+        ...(commercial.supplierOriginalAmount !== undefined && {
+          supplierOriginalAmount: String(commercial.supplierOriginalAmount),
+        }),
+        ...(commercial.supplierOriginalCurrency !== undefined && {
+          supplierOriginalCurrency: commercial.supplierOriginalCurrency,
+        }),
         fee: String(commercial.fee),
         markup: String(commercial.markup),
         sellingAmount: String(commercial.sellingAmount),

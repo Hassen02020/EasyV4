@@ -29,7 +29,7 @@ test("createNetworkProductBooking : résolution de session RÉELLE (resolveSessi
 test("COMMERCIAL-CONVERGENCE-01 : utilise le moteur de marge RÉEL et configurable (getMarginsForAgency/applyMargin, module 'network') — jamais margin-calculator.ts (marginRules sans aucun chemin d'écriture), jamais supplierPriceTnd = salePriceTnd", () => {
   assert.match(
     src,
-    /const networkMarginRule = \(\s*\n?\s*await getMarginsForAgency\(agencyId, createdByUserId\)\s*\n?\s*\)\.network/,
+    /const networkMarginRule = \(\s*\n?\s*await getMarginsForAgency\(agencyId, createdByUserId, "b2b"\)\s*\n?\s*\)\.network/,
   )
   assert.match(
     src,

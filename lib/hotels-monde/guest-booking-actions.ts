@@ -176,7 +176,7 @@ async function runCreateGuestWorldHotelBooking(
   // Marge agence — même règle que search (app/api/hotels-monde/search/
   // route.ts), jamais recalculée différemment : book() compare le prix agence
   // (net + marge), pas le prix net brut, à `expectedPriceTnd`.
-  const margins = await getMarginsForAgency(agencyId)
+  const margins = await getMarginsForAgency(agencyId, undefined, "direct")
 
   // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
   // Empêche deux requêtes concurrentes sur LE MÊME offerToken d'appeler

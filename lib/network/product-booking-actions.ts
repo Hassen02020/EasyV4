@@ -100,7 +100,7 @@ export async function createNetworkProductBooking(
   // lib/hotels-monde/guest-booking-actions.ts (jamais une deuxième formule,
   // jamais imbriqué dans la transaction de réservation).
   const networkMarginRule = (
-    await getMarginsForAgency(agencyId, createdByUserId)
+    await getMarginsForAgency(agencyId, createdByUserId, "b2b")
   ).network
 
   try {

@@ -467,7 +467,7 @@ export async function createReservationFromDraft(input: {
   // agences au prix net myGo, sans aucune marge, pour toute réservation
   // hôtel réellement confirmée. Marge existante réutilisée telle quelle
   // (`applyMargin`, `getMarginsForAgency`) — pas une deuxième formule.
-  const hotelMarginRule = (await getMarginsForAgency(agencyId, authUserId))
+  const hotelMarginRule = (await getMarginsForAgency(agencyId, authUserId, "b2b"))
     .hotel
   const agencyHotelPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
 

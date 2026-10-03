@@ -36,7 +36,26 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CRM-NOTES-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — CRM-STATS-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### CRM-STATS-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-STATS-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 1a64f9e
+
+Fichiers créés/modifiés:
+  - components/admin/lead-stats-bar.tsx (nouveau) — 6 chips KPI responsive :
+    total / new / contacté / converti / clos / stale-ou-convRate
+  - components/admin/leads-view-tabs.tsx — LeadStatsBar inséré au-dessus des onglets
+  - lib/crm/__tests__/lead-stats-invariants.test.ts (nouveau) — 6 tests
+
+DB: AUCUN CHANGEMENT — calcul pur depuis le tableau leads déjà chargé
+Tests: 6/6 PASS · tsc 0 erreur · lint 0 erreur
+Visual QA: NOT VERIFIED — nécessite session staff sur /admin/support
+```
 
 ### CRM-NOTES-01 — CLÔTURÉ (2026-10-03)
 

@@ -138,7 +138,7 @@ function ConvertDialog({
           </DialogTitle>
         </DialogHeader>
         <p className="text-muted-foreground text-xs">
-          Liez cette demande à la réservation réelle qu'elle a produite.
+          Liez cette demande à la réservation réelle qu&apos;elle a produite.
         </p>
         <div className="relative">
           <Search className="text-muted-foreground absolute top-1/2 start-3 h-4 w-4 -translate-y-1/2" />

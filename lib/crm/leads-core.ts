@@ -5,7 +5,7 @@
  * directement contre une vraie transaction DB.
  */
 
-import { and, eq, desc, ilike, or } from "drizzle-orm"
+import { and, eq, desc, ilike, isNull, or } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customers, leads, reservations } from "@/lib/db/schema"
 
@@ -270,6 +270,88 @@ export async function convertLeadCore(
     .where(and(eq(leads.id, params.id), eq(leads.agencyId, params.agencyId)))
 
   return { ok: true }
+}
+
+export type AutoConvertLeadOutcome =
+  | { outcome: "converted"; leadId: string }
+  | { outcome: "skipped"; reason: "no_match" | "ambiguous" | "already_linked" | "no_criteria" }
+
+/**
+ * Conversion automatique (système) d'un lead sur confirmation de réservation.
+ * Appelé par l'Inngest function `auto-convert-lead` sur `booking/confirmed`.
+ *
+ * Règles :
+ *  - Correspond si email OU téléphone du client confirme un lead (new/contacted,
+ *    sans reservationId déjà assigné) de la même agence.
+ *  - Convertit uniquement si exactement 1 match sans ambiguïté.
+ *  - En cas de 0 ou ≥2 matches : skip silencieux (conversion manuelle conservée).
+ *  - Idempotent : si reservationId déjà lié → "already_linked" (pas d'erreur).
+ *
+ * Pas de `handledByUserId` : conversion système (null = automatique).
+ */
+export async function autoConvertLeadCore(
+  tx: DrizzleTransaction,
+  params: {
+    agencyId: string
+    reservationId: string
+    customerEmail: string | null
+    customerPhone: string | null
+  },
+): Promise<AutoConvertLeadOutcome> {
+  const [alreadyLinked] = await tx
+    .select({ id: leads.id })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.agencyId, params.agencyId),
+        eq(leads.reservationId, params.reservationId),
+      ),
+    )
+    .limit(1)
+  if (alreadyLinked) return { outcome: "skipped", reason: "already_linked" }
+
+  const emailClause =
+    params.customerEmail ? eq(leads.email, params.customerEmail) : undefined
+  const phoneClause =
+    params.customerPhone ? eq(leads.phone, params.customerPhone) : undefined
+  if (!emailClause && !phoneClause)
+    return { outcome: "skipped", reason: "no_criteria" }
+
+  const contactMatch =
+    emailClause && phoneClause
+      ? or(emailClause, phoneClause)
+      : emailClause ?? phoneClause
+
+  // Limit 3 to detect ambiguity without scanning the whole table
+  const candidates = await tx
+    .select({ id: leads.id })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.agencyId, params.agencyId),
+        or(eq(leads.status, "new"), eq(leads.status, "contacted")),
+        isNull(leads.reservationId),
+        contactMatch,
+      ),
+    )
+    .limit(3)
+
+  if (candidates.length === 0) return { outcome: "skipped", reason: "no_match" }
+  if (candidates.length > 1) return { outcome: "skipped", reason: "ambiguous" }
+
+  const leadId = candidates[0]!.id
+  await tx
+    .update(leads)
+    .set({
+      status: "converted",
+      reservationId: params.reservationId,
+      convertedAt: new Date(),
+      handledByUserId: null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(leads.id, leadId), eq(leads.agencyId, params.agencyId)))
+
+  return { outcome: "converted", leadId }
 }
 
 export interface ReservationLinkCandidate {

@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
   // Hôtels Monde n'a pas de granularité par chambre exposée (contrairement
   // à myGo), pricePerNightTnd n'est qu'une valeur d'affichage dérivée.
   const agencyId = await getDefaultAgencyId()
-  const margins = await getMarginsForAgency(agencyId)
+  const margins = await getMarginsForAgency(agencyId, undefined, "direct")
   result.offers = result.offers.map((offer) => {
     const totalPriceTnd = applyMargin(offer.totalPriceTnd, margins.hotel)
     return {

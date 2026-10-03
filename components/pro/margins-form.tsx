@@ -25,7 +25,7 @@ import { upsertMyPricingMargin } from "@/lib/pro/margins-actions"
 // du prix de vente — voir lib/pro/pricing.ts (commentaire MarginModule).
 // "network" ajouté (COMMERCIAL-CONVERGENCE-01) : un Network Product a un
 // coût fournisseur net séparé (products.costPrice), la marge a un sens ici.
-export type MarginModule = "hotel" | "flight" | "transfer" | "network"
+export type MarginModule = "hotel" | "flight" | "transfer" | "network" | "car"
 
 export type MarginRow = {
   module: MarginModule
@@ -57,6 +57,14 @@ const MODULE_META: Record<
     label: "Produits Réseau",
     icon: Network,
     description: "Produits Network (fournisseurs partenaires)",
+  },
+  // Car est dormant (FEATURE_CAR=false) — entrée présente pour la cohérence
+  // du Record<MarginModule> ; non affiché dans l'UI (/pro/marges) tant que
+  // le module n'est pas activé.
+  car: {
+    label: "Location de voitures",
+    icon: Car,
+    description: "Location de véhicules",
   },
 }
 

@@ -358,7 +358,7 @@ async function runCreateGuestReservation(
   // que le B2B, `applyMargin`/`getMarginsForAgency` — pas une deuxième
   // formule) : le client final paie le prix affiché par Easy2Book, jamais
   // le prix net fournisseur brut.
-  const hotelMarginRule = (await getMarginsForAgency(agencyId, "")).hotel
+  const hotelMarginRule = (await getMarginsForAgency(agencyId, "", "direct")).hotel
   const agencyPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
   const breakdown = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyPrice, draft.adults),

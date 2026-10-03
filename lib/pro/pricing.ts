@@ -49,7 +49,7 @@
  * ECON-PILOT-01) — la marge a donc un sens ici, comme hotel/flight/transfer,
  * et suit le même moteur (jamais une deuxième formule).
  */
-export type MarginModule = "hotel" | "flight" | "transfer" | "network"
+export type MarginModule = "hotel" | "flight" | "transfer" | "network" | "car"
 
 export type MarginRule = {
   marginType: "percent" | "fixed"
@@ -85,6 +85,10 @@ export const DEFAULT_MARGINS: MarginMap = {
   transfer: { marginType: "fixed", marginValue: 10, isActive: true },
 
   network: { marginType: "percent", marginValue: 10, isActive: true },
+
+  // Car est dormant (FEATURE_CAR=false) — marge inactive par défaut afin de
+  // ne pas majorer les prix si le module est activé sans configuration préalable.
+  car: { marginType: "percent", marginValue: 0, isActive: false },
 }
 
 /**

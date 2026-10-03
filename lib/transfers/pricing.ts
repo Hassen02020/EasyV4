@@ -124,7 +124,7 @@ export async function calculateTransferPrice(
   )
   const preMargin = basePriceTnd + nightSurchargeAmount
 
-  const rule = (await getMarginsForAgency(input.agencyId)).transfer
+  const rule = (await getMarginsForAgency(input.agencyId, undefined, "b2b")).transfer
 
   let marginPercent: number | undefined
   let marginAmount = 0

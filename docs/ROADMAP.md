@@ -36,7 +36,120 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CRM-RELANCE-CRON-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — DB-UNBLOCK-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### DB-UNBLOCK-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : supprimer l'ancien index `pricing_margins_agency_module_uniq` (UNIQUE sur `agency_id, module`) qui bloquait les inserts multi-canal, et valider que l'invariant `UNIQUE(agency_id, module, channel)` est bien en place.
+
+**État audit** : FIX (correction DB production uniquement)
+
+**Ce qui a été fait** :
+- `DROP INDEX pricing_margins_agency_module_uniq` appliqué manuellement en production Supabase (l'index n'existait plus dans le schéma Drizzle depuis la migration `0101_pricing_margins_channel.sql` — la commande `DROP INDEX IF EXISTS` dans cette migration avait échoué lors de l'apply automatique).
+- Invariant vérifié dans `lib/db/schema.ts:1545` : `uniqueIndex("pricing_margins_agency_module_channel_uniq").on(t.agencyId, t.module, t.channel)` ✅
+- Preuve production : 3 index restants sur `pricing_margins` — `pricing_margins_pkey`, `pricing_margins_agency_idx`, `pricing_margins_agency_module_channel_uniq` — ancien index absent ✅
+- Correction bogue pré-existant `import.meta.dirname` → `__dirname` dans `lib/pro/__tests__/margins-complete-invariants.test.ts:14`
+
+**Tests** :
+- `margins-complete-invariants.test.ts` : 9/9 pass ✅
+- `channel-margins-invariants.test.ts` : 5/5 pass ✅
+- `channel-apply-invariants.test.ts` : 10/10 pass ✅
+- Total : 24/24 pass · TSC : 0 erreur · ESLint : 0 erreur
+
+**Aucun changement de schéma DB** — validation uniquement.
+
+---
+
+### MARGINS-COMPLETE-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : supprimer l'incohérence R3-02 — `lib/cars/pricing.ts` contournait `getMarginsForAgency` par une requête directe sur `pricingMargins` ; câbler "network" dans l'UI System A ; ajouter "car" au type.
+
+**État audit** : FIX + EXTEND
+
+**Ce qui a été fait** :
+- `lib/pro/pricing.ts` : `MarginModule` étendu avec `"car"` ; `DEFAULT_MARGINS.car = { percent, 0, isActive: false }` (dormant)
+- `lib/pro/server-context.ts` : `"car"` ajouté à `MARGIN_MODULES`
+- `lib/cars/pricing.ts` : remplace requête directe `pricingMargins` par `getMarginsForAgency(agencyId, undefined, channel ?? "direct")` ; `CarPricingInput` + champ optionnel `channel?: DistributionChannel` ; imports `pricingMargins`/`withTenantContext` supprimés
+- `lib/pro/margins-actions.ts` : z.enum module étendu avec `"car"`
+- `components/pro/margins-form.tsx` : `MODULE_META.car` ajouté pour cohérence `Record<MarginModule>` ; non affiché dans /pro/marges (FEATURE_CAR=false)
+- `components/admin/pricing-margins-manager.tsx` : `MODULE_LABELS.network = "Produits Réseau"` — l'admin peut désormais configurer la marge Network via l'UI System A
+- `lib/pro/__tests__/margins-complete-invariants.test.ts` : 9 invariants statiques
+
+**Tests** : 9/9 pass · TSC : 0 erreur · ESLint : 0 erreur
+**Commit** : `63a52e4`
+**NOT VERIFIED** : déploiement production (pipeline main → Vercel)
+
+---
+
+### DISTRIB-CHANNEL-APPLY-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : câbler le canal de distribution sur tous les call sites de `getMarginsForAgency()`.
+
+**État audit** : EXTEND — l'infrastructure canal était complète (param, cache, filtre DB) mais aucun call site ne passait le 3e argument.
+
+**Ce qui a été fait** :
+- Ajout de `resolvePartnerChannel(profile: PartnerProfile): DistributionChannel` dans `lib/pro/server-context.ts` (exportée)
+- Mise à jour de `getActivePartnerMargins()` → passe `resolvePartnerChannel(profile)` en 3e arg
+- 3 call sites B2B → `channel="b2b"` : `lib/booking/actions.ts`, `lib/transfers/pricing.ts`, `lib/network/product-booking-actions.ts`
+- 5 call sites invités/public → `channel="direct"` : `lib/booking/guest-actions.ts`, `lib/vols/guest-booking-actions.ts`, `lib/hotels-monde/guest-booking-actions.ts`, `app/api/hotels/search-public/route.ts`, `app/api/hotels-monde/search/route.ts`
+- Nouveau fichier `lib/pro/__tests__/channel-apply-invariants.test.ts` (10 invariants statiques)
+- Mise à jour regex dans `lib/network/__tests__/product-booking-actions-invariants.test.ts`
+
+**Tests** : 23/23 pass · TSC : 0 erreur · ESLint : 0 erreur (1 warning pre-existant dans actions.ts)
+**Commit** : `9b503a1`
+**NOT VERIFIED** : déploiement production (pipeline main → Vercel)
+
+---
+
+### CHANNEL-MARGINS-UI-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CHANNEL-MARGINS-UI-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: f64372d
+
+Fichiers modifiés:
+  - lib/pro/margins-actions.ts : channel (direct/b2b/white_label/api) ajouté
+    à MarginInputSchema (optionnel, propagé à AdminMarginActionInput)
+  - components/admin/pricing-margins-manager.tsx :
+    · CHANNEL_LABELS map (Direct / B2B / White Label / API)
+    · sélecteur "Canal de distribution" dans le formulaire (défaut: direct)
+    · colonne "Canal" (Badge outline) dans le tableau
+    · findIndex et handleToggle corrigés pour la clé (agency, module, channel)
+  - lib/pro/__tests__/channel-margins-invariants.test.ts (nouveau) : 5 tests
+
+DB: AUCUN CHANGEMENT — schéma complet depuis 0101 (branche + index multi-canal)
+Tests: 5/5 PASS (node:test, 0 imports @/) · tsc 0 erreur · lint 0 erreur
+Visual QA: login redirect confirmé (Playwright) · dialog et colonne Canal
+  NOT VERIFIED sur session authentifiée (local DB indisponible en cloud)
+
+⚠️ Rappel : DROP INDEX pricing_margins_agency_module_uniq toujours en attente
+   (Supabase Studio). Bloque l'insertion de 2 marges distinctes par canal pour
+   le même (agency_id, module). Table vide en production — aucun risque data.
+```
+
+### PR-PILOTE-MERGE-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: PR-PILOTE-MERGE-01
+Statut: CLÔTURÉ (2026-10-03)
+PR: #119 — mergée squash, commit f1ab2c6d sur main
+```
+
+**Migrations appliquées en production (Supabase `crygnaichvlxavvbifqi`) :**
+
+| Migration | Résultat |
+|---|---|
+| `0100_authorized_product_type_extend` | ✅ APPLIED — ADD VALUE 'car'/'transfer' à authorized_product_type |
+| `0101_pricing_margins_channel` (ADD COLUMN) | ✅ APPLIED — colonne `channel VARCHAR(16) DEFAULT 'direct'` ajoutée |
+| `0101_pricing_margins_channel` (DROP old index) | ❌ NOT APPLIED — `DROP INDEX pricing_margins_agency_module_uniq` refusé par le MCP Supabase. À exécuter manuellement via Supabase Studio SQL editor : `DROP INDEX pricing_margins_agency_module_uniq;` |
+| `0101_pricing_margins_channel` (CREATE new index) | ✅ APPLIED — `pricing_margins_agency_module_channel_uniq` sur (agency_id, module, channel) |
+| `0102_pricing_margins_guardrail` | ✅ APPLIED — CHECK constraints `margin_value >= 0` et `<= 10000` |
+
+**⚠️ Action manuelle requise** : tant que `pricing_margins_agency_module_uniq` (sur agency_id+module sans channel) n'est pas supprimé, il est impossible d'insérer deux marges différentes par canal pour le même module d'une agence. `pricing_margins` est vide en production (0 lignes) — aucune donnée à risque.
+
+---
 
 ### CRM-RELANCE-CRON-01 — CLÔTURÉ (2026-10-03)
 

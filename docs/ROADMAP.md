@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — APPLY-PENDING-MIGRATIONS-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+**FX-ADMIN-01** — en cours (2026-10-03). Interface admin `/admin/fx-policy` pour gérer `fx_policies`.
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 
@@ -68,6 +68,58 @@ Aucun — APPLY-PENDING-MIGRATIONS-01 CLÔTURÉ (2026-10-03). Attente du prochai
 **Bug de production corrigé** : `lib/inngest/functions/auto-convert-lead.ts` (SHA `fb77801`, déployé) référençait `notification_idempotency` — table désormais présente en production.
 
 **Aucun changement de code applicatif** — DB uniquement.
+
+---
+
+### CURRENCY-DIM-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : rendre les offres de vol Duffel facturées en EUR/USD visibles à la recherche et correctement ancrées financièrement au booking (Option B — traçabilité FX complète).
+
+**État audit** : EXTEND (`applyCommercialEngine`, `flight_price_snapshots`, `finalizeFlightBookingFinancials`)
+
+**Problème résolu** : toute offre `supplierCurrency ≠ TND` levait `UnsupportedCommercialCurrencyMismatchError` dans `computeCommercialResult()` et était silencieusement filtrée — aucun vol Duffel réel ne s'affichait jamais.
+
+**Ce qui a été fait** :
+- `applyCommercialEngine()` (`lib/vols/commercial-engine.ts`) : pré-conversion FX avec taux d'affichage mis en cache (`fetchExchangeRateForDisplay`) avant d'appeler `computeCommercialResult()` — préserve montant + devise originaux dans `supplierOriginalAmount` / `supplierOriginalCurrency`
+- `createPriceSnapshot()` (`lib/vols/price-snapshot.ts`) : stocke les 2 nouvelles colonnes nullable dans le snapshot
+- `finalizeFlightBookingFinancials()` (`lib/vols/flight-financials.ts`) : bloc FX activé — re-demande un taux frais au booking (`fetchExchangeRateForBooking`, D2 Option B) sur les snapshots où `supplierOriginalCurrency ≠ NULL`
+- `computeCommercialResult()` : **INCHANGÉ** — toujours reçoit des montants dans la même devise après pré-conversion ; P15/P15b inchangés
+- Migration `drizzle/manual/0103_flight_snapshot_fx_columns.sql` : 2 colonnes nullable additive sur `flight_price_snapshots` (`supplier_original_amount DECIMAL(12,3)`, `supplier_original_currency VARCHAR(3)`) — idempotente (`ADD COLUMN IF NOT EXISTS`)
+- 5 nouveaux tests `lib/vols/__tests__/commercial-engine-fx.test.ts` (P_FX_01, P_FX_ORIGINAL, P_FX_TND, P_FX_02, P_FX_USD)
+- `lib/finance/__tests__/fx-policy.test.ts` FX-POLICY-14 mis à jour pour la nouvelle condition `originalCurrency !== "TND"`
+
+**Preuves** :
+- PR #122 ouverte et mergée sur `main` — SHA squash `6960031e63ba3258ace6cb28829d687c01e63b36`
+- CI #190 : `typecheck` ✅ · `lint` ✅ · `test` ✅ · `build` ✅ · `financial-e2e` ✅ (échecs `format`/`playwright-a11y`/`lighthouse` pré-existants sur cette branche, non causés par ce chantier)
+- Migration 0103 appliquée en production Supabase `crygnaichvlxavvbifqi` — colonnes vérifiées : `supplier_original_amount` (numeric, nullable) + `supplier_original_currency` (character varying, nullable) ✅
+
+**Statut** : CLÔTURÉ (2026-10-03) — MERGED (PR #122, squash `6960031e` sur main) + MIGRATION 0103 APPLIQUÉE EN PRODUCTION
+
+
+---
+
+### FX-ADMIN-01 — EN COURS (2026-10-03)
+
+**Objectif** : interface admin `/admin/fx-policy` (super_admin) pour créer et désactiver des entrées `fx_policies` — débloque les confirmations de vol non-TND (Duffel EUR/USD) bloquées par `FxPolicyUnavailableError` en production (table à 0 lignes).
+
+**État audit** : CREATE (aucun code existant dans `app/` pour `fx_policies`)
+
+**Ce qui a été fait** :
+- `lib/finance/fx-policy-actions.ts` : server actions `createFxPolicy`, `deactivateFxPolicy`, `listFxPolicies` — guard super_admin, version auto-incrémentée, validation métier
+- `components/admin/fx-policy-manager.tsx` : client component — liste des politiques, formulaire création (4 correctionModes × 3 bankFeeModes), bouton désactiver, badge alerte critique si 0 politiques actives
+- `app/(internal)/admin/fx-policy/page.tsx` : Server Component — guard super_admin, affiche alerte fail-closed si 0 politiques actives
+- `app/(internal)/admin/fx-policy/loading.tsx` : skeleton Suspense
+- `components/admin-shell.tsx` : entrée "Politique FX" (icône Landmark) dans `superAdminNavItems`
+
+**Preuves** :
+- TypeScript `tsc --noEmit` : ✅ aucune erreur
+- Commit `1403f10` poussé sur `claude/easy2book-v6-modernization-7gyb5v`
+- PR à créer, CI à valider
+
+**Statut** : EN COURS — implémenté, poussé, PR non encore créée
+
+---
+
 
 ### DB-UNBLOCK-01 — CLÔTURÉ (2026-10-03)
 

@@ -11,9 +11,12 @@ import { toast } from "sonner"
 import {
   ArrowRight,
   Check,
+  ChevronDown,
+  ChevronUp,
   Link2,
   Loader2,
   Mail,
+  NotebookPen,
   Phone,
   Search,
   X,
@@ -21,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -29,6 +33,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   updateLeadStatus,
+  updateLeadNotes,
   convertLead,
   searchReservationsForLeadLink,
 } from "@/lib/admin/leads-actions"
@@ -195,6 +200,86 @@ function ConvertDialog({
   )
 }
 
+function StaffNotesWidget({
+  leadId,
+  initial,
+  onSaved,
+}: {
+  leadId: string
+  initial: string | null
+  onSaved: (notes: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(initial ?? "")
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    const result = await updateLeadNotes({
+      id: leadId,
+      staffNotes: draft.trim() || null,
+    }).catch(() => ({ ok: false as const, error: "Erreur technique." }))
+    if (result.ok) {
+      onSaved(draft.trim() || null)
+      toast.success("Note enregistrée.")
+    } else {
+      toast.error(result.error || "Échec.")
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="border-t pt-2">
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground flex w-full items-center gap-1 text-xs"
+        onClick={() => {
+          setDraft(initial ?? "")
+          setOpen((v) => !v)
+        }}
+      >
+        <NotebookPen className="h-3 w-3" />
+        {initial ? "Note interne" : "Ajouter une note"}
+        {open ? (
+          <ChevronUp className="ml-auto h-3 w-3" />
+        ) : (
+          <ChevronDown className="ml-auto h-3 w-3" />
+        )}
+      </button>
+      {!open && initial && (
+        <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
+          {initial}
+        </p>
+      )}
+      {open && (
+        <div className="mt-1.5 space-y-1.5">
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Note interne (visible uniquement par le staff)"
+            className="min-h-[60px] text-xs"
+            maxLength={2000}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground text-xs">
+              {draft.length}/2000
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-xs"
+              disabled={saving}
+              onClick={handleSave}
+            >
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enregistrer"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function LeadCard({
   lead,
   scoreRules,
@@ -208,6 +293,7 @@ function LeadCard({
 }) {
   const [busy, setBusy] = useState<LeadStatus | null>(null)
   const [showConvert, setShowConvert] = useState(false)
+  const [currentNotes, setCurrentNotes] = useState<string | null>(lead.staffNotes)
   const score = computeLeadScore(lead, scoreRules)
   const stale = isLeadStale(lead, relanceSettings)
 
@@ -323,6 +409,12 @@ function LeadCard({
           </div>
         )}
       </div>
+
+      <StaffNotesWidget
+        leadId={lead.id}
+        initial={currentNotes}
+        onSaved={setCurrentNotes}
+      />
 
       {showConvert && (
         <ConvertDialog

@@ -158,6 +158,23 @@ export async function updateLeadStatusCore(
   return { updated: updated.length > 0 }
 }
 
+export async function updateLeadNotesCore(
+  tx: DrizzleTransaction,
+  params: {
+    agencyId: string
+    id: string
+    staffNotes: string | null
+  },
+): Promise<{ updated: boolean }> {
+  const updated = await tx
+    .update(leads)
+    .set({ staffNotes: params.staffNotes, updatedAt: new Date() })
+    .where(and(eq(leads.id, params.id), eq(leads.agencyId, params.agencyId)))
+    .returning({ id: leads.id })
+
+  return { updated: updated.length > 0 }
+}
+
 export type ConvertLeadResult =
   | { ok: true }
   | {

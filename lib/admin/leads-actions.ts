@@ -20,6 +20,7 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import {
   listLeadsCore,
   updateLeadStatusCore,
+  updateLeadNotesCore,
   convertLeadCore,
   searchReservationsForLeadLinkCore,
   LEAD_STATUSES,
@@ -173,6 +174,43 @@ export async function convertLead(input: {
     return { ok: true }
   } catch (err) {
     console.error("[convertLead]", err)
+    return { ok: false, error: "Erreur technique. Veuillez réessayer." }
+  }
+}
+
+export type UpdateLeadNotesResult = { ok: true } | { ok: false; error: string }
+
+export async function updateLeadNotes(input: {
+  id: string
+  staffNotes: string | null
+}): Promise<UpdateLeadNotesResult> {
+  let ctx: SupportStaffContext
+  try {
+    ctx = await assertSupportStaff()
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
+  }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
+  if (!input.id || typeof input.id !== "string") {
+    return { ok: false, error: "Identifiant invalide." }
+  }
+
+  try {
+    const result = await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) =>
+        updateLeadNotesCore(tx, {
+          agencyId: ctx.agencyId,
+          id: input.id,
+          staffNotes: input.staffNotes,
+        }),
+    )
+    if (!result.updated) return { ok: false, error: "Demande introuvable." }
+    revalidatePath("/admin/support")
+    return { ok: true }
+  } catch (err) {
+    console.error("[updateLeadNotes]", err)
     return { ok: false, error: "Erreur technique. Veuillez réessayer." }
   }
 }

@@ -40,6 +40,11 @@ export async function upsertPricingMarginCore(
   tx: DrizzleTransaction,
   params: UpsertPricingMarginParams,
 ): Promise<{ id: string }> {
+  if (params.marginValue < 0)
+    throw new Error(`marginValue must be >= 0, got ${params.marginValue}`)
+  if (params.marginValue > 10000)
+    throw new Error(`marginValue must be <= 10000, got ${params.marginValue}`)
+
   const values: NewPricingMargin = {
     agencyId: params.agencyId,
     module: params.module,

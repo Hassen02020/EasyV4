@@ -36,7 +36,29 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — CRM-AUTO-CONV-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — CRM-RELANCE-CRON-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### CRM-RELANCE-CRON-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-RELANCE-CRON-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 671392a
+
+Fichiers créés/modifiés:
+  - lib/inngest/functions/notify-stale-leads.ts (nouveau) — Inngest cron 08:00 UTC,
+    idempotence via step.run("notify-stale-YYYY-MM-DD"), withSystemContext pour DB,
+    email HTML Resend par agence (max 10 leads affichés + "N autres")
+  - lib/inngest/functions/index.ts : export notifyStaleLeads
+  - app/api/inngest/route.ts : enregistrement notifyStaleLeads + autoConvertLead
+    (autoConvertLead était absent — oubli de CRM-AUTO-CONV-01 corrigé ici)
+  - lib/crm/__tests__/lead-relance-cron-invariants.test.ts : 5 invariants purs
+
+DB: AUCUN CHANGEMENT — utilise leadRelanceSettings + leads + agencies existants
+Tests: tsc --noEmit 0 erreur · 5/5 invariants pass
+NOT VERIFIED: déclenchement réel Inngest (nécessite INNGEST_SIGNING_KEY + cron 08:00 UTC)
+```
 
 ### CRM-AUTO-CONV-01 — CLÔTURÉ (2026-10-03)
 

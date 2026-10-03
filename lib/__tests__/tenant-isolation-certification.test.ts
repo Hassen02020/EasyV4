@@ -4,6 +4,11 @@
  * + wallets (RLS pré-existante, mais jamais testée directement — corrélée à
  * la correction IDOR de `getWalletBalance()`).
  *
+ * Note YIELD-DEPRECATE-01 : lib/yield/ a été supprimé (aucun appelant réel
+ * dans le flux booking/pricing). Les tests yield_rules ci-dessous restent
+ * valides : ils certifient la RLS de la table DB, indépendamment du code
+ * applicatif qui l'alimente.
+ *
  * Contrairement aux tests applicatifs existants (customer-ownership.test.ts,
  * inventory-locks-core.test.ts, etc.) qui prouvent que le CODE filtre bien
  * par agence, ceux-ci prouvent que la BASE elle-même refuse — même si une

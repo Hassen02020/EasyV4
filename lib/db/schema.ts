@@ -2976,7 +2976,10 @@ export type WalletTopUpMethod = (typeof walletTopUpMethod.enumValues)[number]
 export type WalletTxStatus = (typeof walletTxStatus.enumValues)[number]
 
 /* -------------------------------------------------------------------------- */
-/* Yield Engine — règles de marge par module et par agence                   */
+/* Yield Engine — @deprecated                                                */
+/* lib/yield/ supprimé (YIELD-DEPRECATE-01) : aucun appelant dans le flux   */
+/* réel booking/pricing. La table DB yield_rules subsiste pour RLS. Le      */
+/* moteur de prix réel est pricingMargins + applyMargin() (lib/pro/pricing). */
 /* -------------------------------------------------------------------------- */
 
 export const yieldRuleType = pgEnum("yield_rule_type", [

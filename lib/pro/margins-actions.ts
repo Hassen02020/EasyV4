@@ -34,7 +34,7 @@ import { upsertPricingMarginCore } from "./margins-core"
 // (COMMERCIAL-CONVERGENCE-01) : un Network Product a un coût fournisseur
 // net séparé (products.costPrice), la marge a donc un sens ici.
 const MarginInputSchema = z.object({
-  module: z.enum(["hotel", "flight", "transfer", "network"]),
+  module: z.enum(["hotel", "flight", "transfer", "network", "car"]),
   marginType: z.enum(["percent", "fixed"]),
   marginValue: z.coerce.number().min(0).max(1000),
   isActive: z.boolean(),

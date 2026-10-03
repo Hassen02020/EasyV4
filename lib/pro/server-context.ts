@@ -69,6 +69,7 @@ const MARGIN_MODULES = new Set<string>([
   "flight",
   "transfer",
   "network",
+  "car",
 ])
 
 export async function getMarginsForAgency(

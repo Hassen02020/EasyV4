@@ -13,12 +13,11 @@
 "use server"
 
 import { and, eq, isNull, lte, or, gte } from "drizzle-orm"
-import {
-  withPublicAgencyContext,
-  withTenantContext,
-} from "@/lib/db/tenant-context"
-import { carPricingRates, pricingMargins } from "@/lib/db/schema"
-import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
+import { withPublicAgencyContext } from "@/lib/db/tenant-context"
+import { carPricingRates } from "@/lib/db/schema"
+import { applyMargin } from "@/lib/pro/pricing"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import type { DistributionChannel } from "@/lib/types/tenant"
 
 export interface CarPricingInput {
   categoryId: string
@@ -27,6 +26,7 @@ export interface CarPricingInput {
   dropoffAt: string // ISO datetime
   insuranceLevel: "basic" | "standard" | "premium" | "full"
   agencyId: string
+  channel?: DistributionChannel
 }
 
 export interface CarPricingResult {
@@ -125,32 +125,15 @@ export async function calculateCarPrice(
 
   const preMargin = roundTnd(baseTotalTnd + insuranceTotalTnd)
 
-  const [marginRow] = await withTenantContext(
-    { agencyId: input.agencyId, userId: "", isSuperAdmin: false },
-    (db) =>
-      db
-        .select()
-        .from(pricingMargins)
-        .where(
-          and(
-            eq(pricingMargins.agencyId, input.agencyId),
-            eq(pricingMargins.module, "car"),
-            eq(pricingMargins.isActive, true),
-          ),
-        )
-        .limit(1),
-  )
+  const rule = (
+    await getMarginsForAgency(input.agencyId, undefined, input.channel ?? "direct")
+  ).car
 
   let marginPercent: number | undefined
   let marginAmount = 0
   let totalTnd = preMargin
 
-  if (marginRow) {
-    const rule: MarginRule = {
-      marginType: marginRow.marginType === "percent" ? "percent" : "fixed",
-      marginValue: Number(marginRow.marginValue),
-      isActive: marginRow.isActive,
-    }
+  if (rule.isActive) {
     totalTnd = roundTnd(applyMargin(preMargin, rule))
     marginAmount = roundTnd(totalTnd - preMargin)
     marginPercent = rule.marginType === "percent" ? rule.marginValue : undefined

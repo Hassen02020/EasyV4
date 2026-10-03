@@ -66,6 +66,7 @@ const MODULE_LABELS: Record<string, string> = {
   hotel: "Hôtels Tunisie",
   flight: "Vols",
   transfer: "Transferts",
+  network: "Produits Réseau",
 }
 
 const ALL_MODULES = Object.keys(

@@ -56,9 +56,9 @@ export const MODULE_CAPABILITIES: Record<string, ModuleCapability> = {
   vols: {
     label: "Vols",
     status: "DEMO",
-    note: 'Même schéma que Hôtels Monde : booking réel (lib/vols/guest-booking-actions.ts), fournisseur de recherche simulé (isDemoMode, driver "virtual").',
-    bookingActionFile: "lib/vols/guest-booking-actions.ts",
-    demoSupplierFile: "lib/vols/supplier-drivers.ts",
+    note: 'Pipeline P3 (PROVIDER-CONNECTIVITY-BRIDGE) : booking réel via booking-request-action.ts (crée PENDING flight_bookings), fournisseur de recherche simulé (adapters/virtual.ts, isDemoMode, driver "virtual").',
+    bookingActionFile: "lib/vols/booking-request-action.ts",
+    demoSupplierFile: "lib/vols/adapters/virtual.ts",
   },
   omra: {
     label: "Omra",

@@ -1,18 +1,87 @@
 /**
- * Schémas Zod pour la réservation Vols — B2C guest checkout.
+ * Schémas Zod pour le module Vols — types FlightOffer (résultats de
+ * recherche) et schémas de réservation B2C guest checkout.
  *
- * Plus léger que `omraPilgrimSchema` (pas de visa/santé/contact d'urgence,
- * un vol n'en a pas besoin) mais suit le même principe : partagé entre le
- * formulaire client (`zodResolver`) et la Server Action
- * (`lib/vols/guest-booking-actions.ts`).
- *
- * `offerToken`/`expectedPriceTnd` ne sont PAS revalidés ici — ce schéma ne
- * garantit qu'un format correct côté formulaire ; la revalidation réelle
- * (prix, disponibilité, expiration) a lieu côté serveur dans
- * `lib/vols/virtual-supplier/engine.ts::book()`, jamais dans ce fichier.
+ * Migré depuis lib/vols/client.ts (VOLS-CLEANUP-01, 2026-10-03) :
+ * FlightOffer et les schémas associés vivent ici ; client.ts + supplier-
+ * drivers.ts (ancienne architecture) ont été supprimés après migration.
  */
 
 import { z } from "zod"
+
+// ---------------------------------------------------------------------------
+// Schémas FlightOffer — résultats de recherche
+// (anciennement lib/vols/client.ts)
+// ---------------------------------------------------------------------------
+
+export const FlightSegmentSchema = z.object({
+  origin: z.string(),
+  destination: z.string(),
+  departure: z.string(),
+  arrival: z.string(),
+  marketingCarrier: z.string(),
+  operatingCarrier: z.string(),
+  marketingFlightNumber: z.string(),
+  operatingFlightNumber: z.string().optional(),
+  durationMinutes: z.number(),
+  stops: z.number(),
+  equipment: z.string().optional(),
+  cabin: z.enum(["ECONOMY", "PREMIUM_ECONOMY", "BUSINESS", "FIRST"]),
+  bookingClass: z.string().optional(),
+  fareBrandId: z.string().optional(),
+})
+
+const LayoverSchema = z.object({
+  airport: z.string(),
+  durationMinutes: z.number(),
+  isOvernightLayover: z.boolean(),
+  terminalChange: z.boolean().optional(),
+})
+
+export const FlightJourneySchema = z.object({
+  origin: z.string(),
+  destination: z.string(),
+  departureDate: z.string(),
+  segments: z.array(FlightSegmentSchema),
+  layovers: z.array(LayoverSchema),
+})
+
+export const FlightOfferSchema = z.object({
+  id: z.string(),
+  /** Structured journeys (legs) — preferred over flat segments. */
+  journeys: z.array(FlightJourneySchema),
+  stops: z.number(),
+  totalDurationMinutes: z.number(),
+  /** @deprecated use sellingAmount — kept for backward compat */
+  priceTnd: z.number().optional(),
+  /** Selling price shown to client (includes fees + markup). */
+  sellingAmount: z.number().optional(),
+  sellingCurrency: z.string().optional(),
+  currency: z.string().default("TND"),
+  availableSeats: z.number().nullable(),
+  refundable: z.boolean(),
+  baggageKg: z.number().nullable(),
+  source: z.string().default("virtual"),
+  /** Immutable price snapshot ID — use this to request a ticket, not the price. */
+  snapshotId: z.string().optional(),
+  expiresAt: z.string().optional(),
+})
+
+export type FlightOffer = z.infer<typeof FlightOfferSchema>
+
+export interface FlightSearchInput {
+  originCode: string
+  destinationCode: string
+  departureDate: string
+  returnDate?: string
+  adults: number
+  children?: number
+  cabin?: "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST"
+}
+
+export type FlightSearchResult =
+  | { ok: true; offers: FlightOffer[]; searchId: string }
+  | { ok: false; error: string; code: string }
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/
 

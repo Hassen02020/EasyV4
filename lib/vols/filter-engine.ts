@@ -6,7 +6,7 @@
  * applied server-side (pre-snapshot filtering) and reused in tests.
  */
 
-import type { FlightOffer } from "./client"
+import type { FlightOffer } from "./schemas"
 
 // ---------------------------------------------------------------------------
 // Types

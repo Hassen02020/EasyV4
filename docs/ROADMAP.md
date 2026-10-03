@@ -95,6 +95,32 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 **Statut** : CLÔTURÉ (2026-10-03) — MERGED (PR #122, squash `6960031e` sur main) + MIGRATION 0103 APPLIQUÉE EN PRODUCTION
 
+
+---
+
+### FX-ADMIN-01 — EN COURS (2026-10-03)
+
+**Objectif** : interface admin `/admin/fx-policy` (super_admin) pour créer et désactiver des entrées `fx_policies` — débloque les confirmations de vol non-TND (Duffel EUR/USD) bloquées par `FxPolicyUnavailableError` en production (table à 0 lignes).
+
+**État audit** : CREATE (aucun code existant dans `app/` pour `fx_policies`)
+
+**Ce qui a été fait** :
+- `lib/finance/fx-policy-actions.ts` : server actions `createFxPolicy`, `deactivateFxPolicy`, `listFxPolicies` — guard super_admin, version auto-incrémentée, validation métier
+- `components/admin/fx-policy-manager.tsx` : client component — liste des politiques, formulaire création (4 correctionModes × 3 bankFeeModes), bouton désactiver, badge alerte critique si 0 politiques actives
+- `app/(internal)/admin/fx-policy/page.tsx` : Server Component — guard super_admin, affiche alerte fail-closed si 0 politiques actives
+- `app/(internal)/admin/fx-policy/loading.tsx` : skeleton Suspense
+- `components/admin-shell.tsx` : entrée "Politique FX" (icône Landmark) dans `superAdminNavItems`
+
+**Preuves** :
+- TypeScript `tsc --noEmit` : ✅ aucune erreur
+- Commit `1403f10` poussé sur `claude/easy2book-v6-modernization-7gyb5v`
+- PR à créer, CI à valider
+
+**Statut** : EN COURS — implémenté, poussé, PR non encore créée
+
+---
+
+
 ### DB-UNBLOCK-01 — CLÔTURÉ (2026-10-03)
 
 **Objectif** : supprimer l'ancien index `pricing_margins_agency_module_uniq` (UNIQUE sur `agency_id, module`) qui bloquait les inserts multi-canal, et valider que l'invariant `UNIQUE(agency_id, module, channel)` est bien en place.

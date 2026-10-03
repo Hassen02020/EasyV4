@@ -36,7 +36,29 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — MARGINS-COMPLETE-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — DB-UNBLOCK-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### DB-UNBLOCK-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : supprimer l'ancien index `pricing_margins_agency_module_uniq` (UNIQUE sur `agency_id, module`) qui bloquait les inserts multi-canal, et valider que l'invariant `UNIQUE(agency_id, module, channel)` est bien en place.
+
+**État audit** : FIX (correction DB production uniquement)
+
+**Ce qui a été fait** :
+- `DROP INDEX pricing_margins_agency_module_uniq` appliqué manuellement en production Supabase (l'index n'existait plus dans le schéma Drizzle depuis la migration `0101_pricing_margins_channel.sql` — la commande `DROP INDEX IF EXISTS` dans cette migration avait échoué lors de l'apply automatique).
+- Invariant vérifié dans `lib/db/schema.ts:1545` : `uniqueIndex("pricing_margins_agency_module_channel_uniq").on(t.agencyId, t.module, t.channel)` ✅
+- Preuve production : 3 index restants sur `pricing_margins` — `pricing_margins_pkey`, `pricing_margins_agency_idx`, `pricing_margins_agency_module_channel_uniq` — ancien index absent ✅
+- Correction bogue pré-existant `import.meta.dirname` → `__dirname` dans `lib/pro/__tests__/margins-complete-invariants.test.ts:14`
+
+**Tests** :
+- `margins-complete-invariants.test.ts` : 9/9 pass ✅
+- `channel-margins-invariants.test.ts` : 5/5 pass ✅
+- `channel-apply-invariants.test.ts` : 10/10 pass ✅
+- Total : 24/24 pass · TSC : 0 erreur · ESLint : 0 erreur
+
+**Aucun changement de schéma DB** — validation uniquement.
+
+---
 
 ### MARGINS-COMPLETE-01 — CLÔTURÉ (2026-10-03)
 

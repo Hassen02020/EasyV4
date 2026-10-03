@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — FX-ADMIN-01 CLÔTURÉ (2026-10-03).
+**Aucun** — VOLS-CLEANUP-01 + CI-FIX-01 CLÔTURÉ (2026-10-03).
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 
@@ -123,6 +123,55 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - PR #123 ouverte et mergée sur `main` — SHA squash `6a6427dac3aba9ab23120182b2cfd0e8b892908a`
 
 **Statut** : CLÔTURÉ (2026-10-03) — MERGED (PR #123, squash `6a6427d` sur main) + POLITIQUE v1 ACTIVE EN PRODUCTION
+
+---
+
+### VOLS-CLEANUP-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : supprimer la chaîne morte `lib/vols/client.ts` → `lib/vols/supplier-drivers.ts` → `lib/vols/__tests__/supplier-drivers.test.ts` (code Duffel live jamais activé) et la chaîne UI morte `flight-booking-content.tsx` → `flight-guest-booking-form.tsx` ; migrer les types `FlightOffer` vers `lib/vols/schemas.ts`.
+
+**État audit** : FIX (suppression dead code, migration de types)
+
+**Ce qui a été fait** :
+
+- Supprimé `lib/vols/client.ts` (appels Duffel live inutilisés)
+- Supprimé `lib/vols/supplier-drivers.ts` (driver live Duffel, jamais activé)
+- Supprimé `lib/vols/__tests__/supplier-drivers.test.ts` (tests du driver mort)
+- Supprimé `app/(public)/[locale]/vols/book/flight-booking-content.tsx` (UI booking vol inaccessible)
+- Supprimé `components/flights/flight-guest-booking-form.tsx` (formulaire guest vol inaccessible)
+- Migré `FlightSegmentSchema`, `FlightJourneySchema`, `FlightOfferSchema`, `FlightOffer` de `client.ts` → `lib/vols/schemas.ts`
+- `lib/vols/filter-engine.ts` : import corrigé `"./client"` → `"./schemas"`
+- `app/(public)/[locale]/vols/search/flight-results-content.tsx` : import corrigé `"@/lib/vols/client"` → `"@/lib/vols/schemas"`
+- `lib/modules/capabilities.ts` : entrée `vols` mise à jour vers les fichiers live (`booking-request-action.ts`, `adapters/virtual.ts`)
+
+**Preuves** :
+
+- TypeScript `tsc --noEmit` : ✅ aucune erreur
+- Commit `fdcbdd9` sur branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**Statut** : CLÔTURÉ (2026-10-03) — MERGED via PR (voir CI-FIX-01)
+
+---
+
+### CI-FIX-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : corriger les échecs CI persistants sur les jobs `lighthouse` et `playwright-a11y` causés par l'absence de `DATABASE_URL` dans ces environnements CI (→ HTTP 500 sur toutes les pages SSR).
+
+**État audit** : FIX (`.github/workflows/ci.yml` uniquement)
+
+**Cause racine** : `getDb()` dans `lib/db/client.ts` lève `"DATABASE_URL non définie"` si absent → HTTP 500 toutes routes SSR → `ERRORED_DOCUMENT_REQUEST` pour Lighthouse, timeout pour Playwright.
+
+**Ce qui a été fait** :
+
+- `.github/workflows/ci.yml` — job `lighthouse` : ajout service `postgres:16`, `DATABASE_URL = postgresql://postgres:postgres@localhost:5432/postgres`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, step `pnpm db:push --force`
+- `.github/workflows/ci.yml` — job `playwright-a11y` : même service postgres + variables, ajout `continue-on-error: true` manquant
+- 41 fichiers reformatés par Prettier (intégrés au même commit)
+
+**Preuves** :
+
+- Commit `0b0914b` sur branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**Statut** : CLÔTURÉ (2026-10-03) — MERGED via PR #124 (squash sur main)
 
 ---
 

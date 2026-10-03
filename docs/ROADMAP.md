@@ -36,7 +36,28 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — DISTRIB-CHANNEL-APPLY-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — MARGINS-COMPLETE-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### MARGINS-COMPLETE-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : supprimer l'incohérence R3-02 — `lib/cars/pricing.ts` contournait `getMarginsForAgency` par une requête directe sur `pricingMargins` ; câbler "network" dans l'UI System A ; ajouter "car" au type.
+
+**État audit** : FIX + EXTEND
+
+**Ce qui a été fait** :
+- `lib/pro/pricing.ts` : `MarginModule` étendu avec `"car"` ; `DEFAULT_MARGINS.car = { percent, 0, isActive: false }` (dormant)
+- `lib/pro/server-context.ts` : `"car"` ajouté à `MARGIN_MODULES`
+- `lib/cars/pricing.ts` : remplace requête directe `pricingMargins` par `getMarginsForAgency(agencyId, undefined, channel ?? "direct")` ; `CarPricingInput` + champ optionnel `channel?: DistributionChannel` ; imports `pricingMargins`/`withTenantContext` supprimés
+- `lib/pro/margins-actions.ts` : z.enum module étendu avec `"car"`
+- `components/pro/margins-form.tsx` : `MODULE_META.car` ajouté pour cohérence `Record<MarginModule>` ; non affiché dans /pro/marges (FEATURE_CAR=false)
+- `components/admin/pricing-margins-manager.tsx` : `MODULE_LABELS.network = "Produits Réseau"` — l'admin peut désormais configurer la marge Network via l'UI System A
+- `lib/pro/__tests__/margins-complete-invariants.test.ts` : 9 invariants statiques
+
+**Tests** : 9/9 pass · TSC : 0 erreur · ESLint : 0 erreur
+**Commit** : `63a52e4`
+**NOT VERIFIED** : déploiement production (pipeline main → Vercel)
+
+---
 
 ### DISTRIB-CHANNEL-APPLY-01 — CLÔTURÉ (2026-10-03)
 

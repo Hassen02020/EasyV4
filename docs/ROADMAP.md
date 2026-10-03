@@ -36,7 +36,38 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — DB-UNBLOCK-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+Aucun — APPLY-PENDING-MIGRATIONS-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
+
+**Objectif** : appliquer les 3 migrations DB en attente (0091, 0098, 0099) présentes dans le dépôt mais jamais appliquées en production, et corriger un bug de production latent (Inngest `CRM-AUTO-CONV-01` crasherait sur `booking/confirmed` sans la table `notification_idempotency`).
+
+**État audit** : FIX (migrations additives, aucun backfill, aucune régression)
+
+**Anomalie découverte** : `0091_fx_policy.sql` contenait une policy RLS avec `auth.uid()` + table `profiles` — or `profiles` n'existe pas dans ce projet (le pattern RLS est `is_super_admin()` via GUC `app.is_super_admin`). La policy cassée a été délibérément omise à l'apply de 0091, puis créée correctement via 0098.
+
+**Ce qui a été fait** :
+
+| Migration | Nom | Application | `supabase_migrations` version |
+|---|---|---|---|
+| 0091 | `fx_policy` | ✅ appliqué (sans policy `profiles`) | `20261003211453` |
+| 0098 | `fx_policy_rls_fix` | ✅ appliqué (`is_super_admin()`) | `20261003212128` |
+| 0099 | `notification_idempotency` | ✅ appliqué | `20261003212242` |
+
+**Vérification production** :
+
+- `fx_policies` : EXISTS ✅ — RLS activé, policy `fx_policies_super_admin` → `is_super_admin()` ✅
+- `reservation_financials.applied_exchange_rate` : EXISTS, nullable ✅
+- `reservation_financials.applied_exchange_rate_at` : EXISTS, nullable ✅
+- `reservation_financials.fx_policy_id` : EXISTS, nullable ✅
+- `notification_idempotency` : EXISTS ✅ — RLS activé, policy `notification_idempotency_tenant_isolation` → `current_agency_id() OR is_super_admin()` ✅
+- Index `notification_idempotency` : `_pkey`, `_sent_uniq` (UNIQUE reservation_id+action), `_agency_idx`, `_reservation_idx` ✅
+- Grants `app_runtime` sur `fx_policies` : SELECT, INSERT, UPDATE, DELETE ✅
+- Grants `app_runtime` sur `notification_idempotency` : SELECT, INSERT, UPDATE, DELETE ✅
+
+**Bug de production corrigé** : `lib/inngest/functions/auto-convert-lead.ts` (SHA `fb77801`, déployé) référençait `notification_idempotency` — table désormais présente en production.
+
+**Aucun changement de code applicatif** — DB uniquement.
 
 ### DB-UNBLOCK-01 — CLÔTURÉ (2026-10-03)
 

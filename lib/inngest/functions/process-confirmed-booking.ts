@@ -14,7 +14,7 @@ import { inngest, type Events } from "../client"
 import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
 import { sendVoucherEmail } from "@/lib/email/send-voucher"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { auditEvents, reservations } from "@/lib/db/schema"
+import { auditEvents, notificationIdempotency, reservations } from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
 import { pgErrorCode } from "@/lib/db/pg-error"
@@ -35,13 +35,12 @@ async function hasVoucherEmailAlreadySucceeded(
 ): Promise<boolean> {
   const [existing] = await withSystemContext((tx) =>
     tx
-      .select({ id: auditEvents.id })
-      .from(auditEvents)
+      .select({ id: notificationIdempotency.id })
+      .from(notificationIdempotency)
       .where(
         and(
-          eq(auditEvents.entityType, "reservation"),
-          eq(auditEvents.entityId, reservationId),
-          eq(auditEvents.action, ACTION_VOUCHER_EMAIL_SENT),
+          eq(notificationIdempotency.reservationId, reservationId),
+          eq(notificationIdempotency.action, ACTION_VOUCHER_EMAIL_SENT),
         ),
       )
       .limit(1),
@@ -54,6 +53,7 @@ async function recordVoucherEmailSent(
   reservationId: string,
   publicRef: string,
 ): Promise<void> {
+  // Audit trail (purgé à 30j)
   try {
     await withSystemContext((tx) =>
       tx.insert(auditEvents).values({
@@ -65,8 +65,20 @@ async function recordVoucherEmailSent(
       }),
     )
   } catch (err) {
-    // audit_events_notification_success_uniq — course authentiquement
-    // concurrente (ex. livraison dupliquée d'événement) : no-op idempotent.
+    if (pgErrorCode(err) === "23505") return
+    throw err
+  }
+  // Garde d'idempotence permanente
+  try {
+    await withSystemContext((tx) =>
+      tx.insert(notificationIdempotency).values({
+        agencyId,
+        reservationId,
+        action: ACTION_VOUCHER_EMAIL_SENT,
+        context: { publicRef },
+      }),
+    )
+  } catch (err) {
     if (pgErrorCode(err) === "23505") return
     throw err
   }

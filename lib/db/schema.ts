@@ -24,6 +24,7 @@
 import { sql } from "drizzle-orm"
 import { marginRules, marginType, walletTxType } from "./schema/financials"
 import { supplierNodes } from "./schema/supplier-portal"
+import { inventoryStatus } from "./schema/products"
 import {
   bigint,
   boolean,
@@ -1200,6 +1201,42 @@ export const auditEvents = pgTable(
       ),
   ],
 )
+
+/**
+ * Garde d'idempotence permanente pour les notifications (WhatsApp, email
+ * voucher, CRM). Séparée de `audit_events` qui est purgée à 30 jours —
+ * cette table n'est jamais purgée.
+ *
+ * N'enregistre que les livraisons réussies par (reservation_id, action).
+ * `audit_events` reste la source d'audit exhaustive (toutes tentatives).
+ */
+export const notificationIdempotency = pgTable(
+  "notification_idempotency",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    reservationId: uuid("reservation_id").notNull(),
+    action: varchar("action", { length: 64 }).notNull(),
+    context: jsonb("context"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("notification_idempotency_sent_uniq").on(
+      t.reservationId,
+      t.action,
+    ),
+    index("notification_idempotency_agency_idx").on(t.agencyId),
+    index("notification_idempotency_reservation_idx").on(t.reservationId),
+  ],
+)
+
+export type NotificationIdempotency = typeof notificationIdempotency.$inferSelect
+export type NewNotificationIdempotency =
+  typeof notificationIdempotency.$inferInsert
 
 /* -------------------------------------------------------------------------- */
 /* Permission grants (Phase 22) — délégation explicite au-dessus du baseline  */
@@ -2614,6 +2651,44 @@ export const products = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* PRODUCT INVENTORY - Disponibilités Temps Réel                              */
+/* -------------------------------------------------------------------------- */
+
+export const productInventory = pgTable(
+  "product_inventory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    endDate: date("end_date"),
+    totalCapacity: integer("total_capacity").notNull(),
+    available: integer("available").notNull().default(0),
+    onHold: integer("on_hold").notNull().default(0),
+    confirmed: integer("confirmed").notNull().default(0),
+    price: decimal("price", { precision: 14, scale: 2 }),
+    currency: varchar("currency", { length: 3 }).default("TND"),
+    status: inventoryStatus("status").notNull().default("available"),
+    supplierStock: integer("supplier_stock"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("product_inventory_product_date_idx").on(t.productId, t.date),
+    { name: "product_inventory_status_idx", on: t.status },
+  ],
+)
+
+export type ProductInventory = typeof productInventory.$inferSelect
+export type NewProductInventory = typeof productInventory.$inferInsert
+
+/* -------------------------------------------------------------------------- */
 /* AUDIT LOGS - Traçabilité des actions critiques                             */
 /* -------------------------------------------------------------------------- */
 
@@ -3189,15 +3264,13 @@ export {
 } from "./schema/financials"
 
 /* -------------------------------------------------------------------------- */
-/* Products Module V6 — imported from schema/products.ts                       */
+/* Products Module V6 — apiLogs + inventoryStatus from schema/products.ts     */
+/* productInventory is defined directly above (after the products table).     */
 /* -------------------------------------------------------------------------- */
 
 export {
-  productInventory,
   apiLogs,
   inventoryStatus,
-  type ProductInventory,
-  type NewProductInventory,
   type ApiLog,
   type NewApiLog,
 } from "./schema/products"

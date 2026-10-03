@@ -20,7 +20,7 @@
 
 import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { auditEvents } from "@/lib/db/schema"
+import { auditEvents, notificationIdempotency } from "@/lib/db/schema"
 import {
   getCrmProvider,
   hasConfiguredCrmProvider,
@@ -53,13 +53,12 @@ export const defaultCrmAuditStore: NotificationAuditStore = {
   async hasAlreadySucceeded(reservationId, action) {
     const [existing] = await withSystemContext((tx) =>
       tx
-        .select({ id: auditEvents.id })
-        .from(auditEvents)
+        .select({ id: notificationIdempotency.id })
+        .from(notificationIdempotency)
         .where(
           and(
-            eq(auditEvents.entityType, "reservation"),
-            eq(auditEvents.entityId, reservationId),
-            eq(auditEvents.action, action),
+            eq(notificationIdempotency.reservationId, reservationId),
+            eq(notificationIdempotency.action, action),
           ),
         )
         .limit(1),
@@ -67,6 +66,7 @@ export const defaultCrmAuditStore: NotificationAuditStore = {
     return Boolean(existing)
   },
   async recordAttempt(input, action, diff) {
+    // Audit trail exhaustif (toutes tentatives, purgé à 30j)
     try {
       await withSystemContext((tx) =>
         tx.insert(auditEvents).values({
@@ -78,10 +78,24 @@ export const defaultCrmAuditStore: NotificationAuditStore = {
         }),
       )
     } catch (err) {
-      // `audit_events_notification_success_uniq` — même garde DB que
-      // lib/whatsapp/send-booking-confirmation.ts, voir son commentaire.
       if (pgErrorCode(err) === "23505" && action === ACTION_SYNCED) return
       throw err
+    }
+    // Garde d'idempotence permanente — uniquement pour les syncs réussies
+    if (action === ACTION_SYNCED) {
+      try {
+        await withSystemContext((tx) =>
+          tx.insert(notificationIdempotency).values({
+            agencyId: input.agencyId,
+            reservationId: input.reservationId,
+            action,
+            context: { publicRef: input.publicRef, ...diff },
+          }),
+        )
+      } catch (err) {
+        if (pgErrorCode(err) === "23505") return
+        throw err
+      }
     }
   },
 }

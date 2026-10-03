@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**FX-ADMIN-01** — en cours (2026-10-03). Interface admin `/admin/fx-policy` pour gérer `fx_policies`.
+**Aucun** — FX-ADMIN-01 CLÔTURÉ (2026-10-03).
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 
@@ -98,7 +98,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-### FX-ADMIN-01 — EN COURS (2026-10-03)
+### FX-ADMIN-01 — CLÔTURÉ (2026-10-03)
 
 **Objectif** : interface admin `/admin/fx-policy` (super_admin) pour créer et désactiver des entrées `fx_policies` — débloque les confirmations de vol non-TND (Duffel EUR/USD) bloquées par `FxPolicyUnavailableError` en production (table à 0 lignes).
 
@@ -110,13 +110,16 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - `app/(internal)/admin/fx-policy/page.tsx` : Server Component — guard super_admin, affiche alerte fail-closed si 0 politiques actives
 - `app/(internal)/admin/fx-policy/loading.tsx` : skeleton Suspense
 - `components/admin-shell.tsx` : entrée "Politique FX" (icône Landmark) dans `superAdminNavItems`
+- Fix Turbopack : suppression `export type { CorrectionMode, BankFeeMode }` depuis `"use server"` (types importés directement depuis `@/lib/finance/fx-policy` dans le composant client)
 
 **Preuves** :
 - TypeScript `tsc --noEmit` : ✅ aucune erreur
-- Commit `1403f10` poussé sur `claude/easy2book-v6-modernization-7gyb5v`
-- PR à créer, CI à valider
+- Tests `fx-policy.test.ts` : 16/16 pass ✅ (total suite 1390 pass, 0 fail)
+- Build Vercel Preview : ✅ state=success (commit `b44727e`)
+- Politique v1 insérée en production (`id=3e12bcdf`, `correctionMode=NONE`, `bankFeeMode=NONE`, `effective_to=NULL`) — `getActiveFxPolicy()` ne lève plus `FxPolicyUnavailableError` ✅
+- PR #123 ouverte et mergée sur `main` — SHA squash `6a6427dac3aba9ab23120182b2cfd0e8b892908a`
 
-**Statut** : EN COURS — implémenté, poussé, PR non encore créée
+**Statut** : CLÔTURÉ (2026-10-03) — MERGED (PR #123, squash `6a6427d` sur main) + POLITIQUE v1 ACTIVE EN PRODUCTION
 
 ---
 

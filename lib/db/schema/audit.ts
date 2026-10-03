@@ -1,36 +1,17 @@
 /**
- * Schéma Audit — Easy2Book V6
+ * Audit sous-schéma — Easy2Book V6
  *
- * Traçabilité complète de toutes les modifications métier
- * Enregistre oldValues/newValues pour chaque action sur les entités
+ * FIX-AUDIT-01 (2026-10-03) : supprimé la table `audit_logs` (doublon de
+ * celle définie dans lib/db/schema.ts:auditLogs avec les colonnes étendues
+ * userEmail/userRole/changes/oldValue/newValue) et l'enum `auditEntityType`
+ * (également défini dans schema.ts sous le même nom PostgreSQL avec un
+ * vocabulaire différent — conflit Drizzle garanti à la prochaine migration).
+ *
+ * Ne reste que `auditAction` (enum "audit_action") qui est uniquement défini
+ * ici et est réexporté dans le barrel schema.ts.
  */
 
-import {
-  boolean,
-  jsonb,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core"
-
-/* -------------------------------------------------------------------------- */
-/* Interfaces TypeScript pour JSONB                                              */
-/* -------------------------------------------------------------------------- */
-
-export interface AuditMetadata {
-  source?: string
-  ipAddress?: string
-  userAgent?: string
-  requestId?: string
-  sessionId?: string
-}
-
-/* -------------------------------------------------------------------------- */
-/* Enums                                                                        */
-/* -------------------------------------------------------------------------- */
+import { pgEnum } from "drizzle-orm/pg-core"
 
 export const auditAction = pgEnum("audit_action", [
   "create",
@@ -46,75 +27,3 @@ export const auditAction = pgEnum("audit_action", [
   "password_change",
   "role_change",
 ])
-
-export const auditEntityType = pgEnum("audit_entity_type", [
-  "reservation",
-  "wallet_account",
-  "wallet_ledger",
-  "margin_rule",
-  "product",
-  "supplier",
-  "user",
-  "agency",
-  "invoice",
-  "journal_entry",
-  "recharge_request",
-])
-
-/* -------------------------------------------------------------------------- */
-/* Audit Logs (Traçabilité complète)                                           */
-/* -------------------------------------------------------------------------- */
-
-export const auditLogs = pgTable(
-  "audit_logs",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-
-    // Qui a fait l'action
-    userId: uuid("user_id"),
-    agencyId: uuid("agency_id"),
-
-    // Quelle entité a été modifiée
-    entityType: auditEntityType("entity_type").notNull(),
-    entityId: uuid("entity_id").notNull(),
-
-    // Quelle action
-    action: auditAction("action").notNull(),
-
-    // Avant / Après (pour diff et rollback)
-    oldValues: jsonb("old_values").$type<Record<string, unknown>>(),
-    newValues: jsonb("new_values").$type<Record<string, unknown>>(),
-
-    // Contexte
-    description: text("description"),
-    reason: text("reason"), // Motif de l'action (ex: annulation client)
-
-    // Informations techniques
-    ipAddress: varchar("ip_address", { length: 45 }), // IPv4 ou IPv6
-    userAgent: text("user_agent"),
-    requestId: varchar("request_id", { length: 100 }), // Pour corrélation entre logs
-
-    // Métadonnées additionnelles
-    metadata: jsonb("metadata").$type<AuditMetadata>(),
-
-    // Timestamp
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (t) => [
-    { name: "audit_logs_user_idx", on: t.userId },
-    { name: "audit_logs_agency_idx", on: t.agencyId },
-    { name: "audit_logs_entity_idx", on: t.entityType },
-    { name: "audit_logs_entity_id_idx", on: t.entityId },
-    { name: "audit_logs_action_idx", on: t.action },
-    { name: "audit_logs_created_idx", on: t.createdAt },
-  ],
-)
-
-/* -------------------------------------------------------------------------- */
-/* Type Exports                                                                 */
-/* -------------------------------------------------------------------------- */
-
-export type AuditLog = typeof auditLogs.$inferSelect
-export type NewAuditLog = typeof auditLogs.$inferInsert

@@ -36,7 +36,188 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-Aucun — SITE-CONFIG-01 CLÔTURÉ (2026-10-02). Attente du prochain GO.
+Aucun — CRM-RELANCE-CRON-01 CLÔTURÉ (2026-10-03). Attente du prochain GO.
+
+### CRM-RELANCE-CRON-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-RELANCE-CRON-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 671392a
+
+Fichiers créés/modifiés:
+  - lib/inngest/functions/notify-stale-leads.ts (nouveau) — Inngest cron 08:00 UTC,
+    idempotence via step.run("notify-stale-YYYY-MM-DD"), withSystemContext pour DB,
+    email HTML Resend par agence (max 10 leads affichés + "N autres")
+  - lib/inngest/functions/index.ts : export notifyStaleLeads
+  - app/api/inngest/route.ts : enregistrement notifyStaleLeads + autoConvertLead
+    (autoConvertLead était absent — oubli de CRM-AUTO-CONV-01 corrigé ici)
+  - lib/crm/__tests__/lead-relance-cron-invariants.test.ts : 5 invariants purs
+
+DB: AUCUN CHANGEMENT — utilise leadRelanceSettings + leads + agencies existants
+Tests: tsc --noEmit 0 erreur · 5/5 invariants pass
+NOT VERIFIED: déclenchement réel Inngest (nécessite INNGEST_SIGNING_KEY + cron 08:00 UTC)
+```
+
+### CRM-AUTO-CONV-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-AUTO-CONV-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 26cec9b
+
+Fichiers créés/modifiés:
+  - lib/crm/leads-core.ts : autoConvertLeadCore() — correspond email/phone du client,
+    statuts new/contacted, sans reservationId existant ; convertit si exactement 1 match ;
+    skip silencieux si 0 ou ≥2 (ambiguïté → staff manuel)
+  - lib/inngest/functions/auto-convert-lead.ts (nouveau) — Inngest function sur
+    booking/confirmed, idempotente via notification_idempotency(reservationId,
+    'lead.auto_converted'), audit trail dans auditEvents, onFailure → Sentry
+  - lib/inngest/functions/index.ts : export barrel mis à jour
+
+DB: AUCUN CHANGEMENT de schéma — utilise notification_idempotency + auditEvents existants
+Tests: tsc --noEmit 0 erreur · lint 0 erreur
+NOT VERIFIED: déclenchement réel Inngest (nécessite INNGEST_SIGNING_KEY + booking/confirmed
+  émis en preview/prod)
+```
+
+### MARGIN-GUARDRAIL-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: MARGIN-GUARDRAIL-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 70cc7da
+
+Fichiers créés/modifiés:
+  - lib/pro/margins-core.ts : guards applicatifs margin_value >= 0 et <= 10000
+  - drizzle/manual/0102_pricing_margins_guardrail.sql : CHECK constraints DB
+    pricing_margins_margin_value_positive (>= 0) + pricing_margins_margin_value_max (<= 10000)
+
+DB: migration 0102 à appliquer (CHECK constraints idempotentes)
+Tests: tsc 0 erreur · lint 0 erreur
+```
+
+### YIELD-DEPRECATE-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: YIELD-DEPRECATE-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: ea53024
+
+Fichiers supprimés:
+  - lib/yield/math.ts (130 lignes) — zéro appelant confirmé
+  - lib/yield/actions.ts (130 lignes) — zéro appelant confirmé
+Fichiers modifiés:
+  - lib/db/schema.ts : header yieldRules marqué @deprecated
+  - lib/__tests__/tenant-isolation-certification.test.ts : note ajoutée
+
+DB: table yield_rules conservée (RLS cert) — AUCUNE migration
+Tests: tsc 0 erreur · lint 0 erreur
+```
+
+### Phase 1 (PILOTE) — CLÔTURÉ (2026-10-03)
+
+```text
+ID: TENANT-TYPES-01 / DISTRIB-EXTEND-01 / CHANNEL-DIM-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 0e5f0fc
+
+Fichiers créés/modifiés:
+  - lib/types/tenant.ts (nouveau) : BookingActorType, ProductOwnerType,
+    DistributionChannel, DISTRIBUTION_CHANNELS
+  - lib/db/schema.ts : authorizedProductType étendu ('car', 'transfer') +
+    pricingMargins.channel VARCHAR(16) NOT NULL DEFAULT 'direct' +
+    index unique (agency_id, module, channel)
+  - lib/pro/server-context.ts : getMarginsForAgency() 3e param channel +
+    invalidateMarginsCache vide les 4 canaux
+  - lib/pro/margins-core.ts : UpsertPricingMarginParams.channel? +
+    conflict target (agencyId, module, channel)
+  - components/admin/pricing-margins-manager.tsx : channel: "direct" default
+  - components/pro/authorized-products-list.tsx : car/transfer labels
+  - drizzle/manual/0100_authorized_product_type_extend.sql : ADD VALUE 'car'/'transfer'
+  - drizzle/manual/0101_pricing_margins_channel.sql : ADD COLUMN channel + index
+
+DB: migrations 0100 + 0101 à appliquer
+Tests: tsc 0 erreur · lint 0 erreur
+```
+
+### CRM-STATS-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-STATS-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 1a64f9e
+
+Fichiers créés/modifiés:
+  - components/admin/lead-stats-bar.tsx (nouveau) — 6 chips KPI responsive :
+    total / new / contacté / converti / clos / stale-ou-convRate
+  - components/admin/leads-view-tabs.tsx — LeadStatsBar inséré au-dessus des onglets
+  - lib/crm/__tests__/lead-stats-invariants.test.ts (nouveau) — 6 tests
+
+DB: AUCUN CHANGEMENT — calcul pur depuis le tableau leads déjà chargé
+Tests: 6/6 PASS · tsc 0 erreur · lint 0 erreur
+Visual QA: NOT VERIFIED — nécessite session staff sur /admin/support
+```
+
+### CRM-NOTES-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-NOTES-01
+Statut: CLÔTURÉ (2026-10-03)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 19811dd
+
+Fichiers créés/modifiés:
+  - lib/crm/leads-core.ts : updateLeadNotesCore() — UPDATE leads SET staff_notes
+    sans changement de statut, scopé agencyId
+  - lib/admin/leads-actions.ts : updateLeadNotes() Server Action autonome
+  - components/admin/lead-pipeline.tsx : StaffNotesWidget inline dans LeadCard —
+    toggle collapsable, textarea 2000 chars, preview quand fermé
+  - components/admin/customer-360-panel.tsx : section "Note interne" en lecture
+    (pre-wrap, fond amber) dans Vue 360 si staffNotes non null
+  - lib/crm/__tests__/lead-notes-invariants.test.ts : 5 tests (new file)
+
+DB: AUCUN CHANGEMENT — colonne staff_notes TEXT déjà présente (migration 0043)
+
+Tests: 5/5 PASS
+Typecheck: 0 erreur
+Lint: 0 erreur
+Visual QA: NOT VERIFIED — nécessite session staff sur /admin/support en production
+```
+
+### BRAND-ADMIN-01 — CLÔTURÉ (2026-10-02)
+
+```text
+ID: BRAND-ADMIN-01
+Statut: CLÔTURÉ (2026-10-02) — MERGED (PR #118, squash 296a16c sur main)
+Branche: claude/easy2book-v6-modernization-7gyb5v
+Commit: 01f4fb1
+```
+
+**Objectif** : Permettre au super_admin de gérer l'identité et les coordonnées du Brand Owner Easy2Book depuis `/admin/brand`, en écrivant dans l'agence OTA (`agencyType='ota'`, `domain IS NULL`).
+
+**Périmètre** :
+- `lib/admin/brand-actions.ts` — Server Actions `getOtaBrandInitial` + `updateOtaBrand`. agencyId résolu côté serveur. Vérifie `role=super_admin`. Écrit uniquement les colonnes de marque/contact/social.
+- `components/admin/brand-form.tsx` — Formulaire client (brandName, logo, couleur, email, téléphone, adresse, WhatsApp, Facebook, Instagram, TikTok).
+- `app/(internal)/admin/brand/page.tsx` — Page Server Component.
+- `components/admin-shell.tsx` — Lien "Marque Easy2Book" (icône `Palette`) + breadcrumb.
+
+**Preuves** :
+- `npx tsc --noEmit` → 0 erreur source
+- `npx eslint <fichiers>` → 0 warning
+- PR #118 mergée, squash `296a16c` sur `main`
+
+**DB** : Aucune migration — colonnes déjà présentes via 0097 (SITE-CONFIG-01).
+
+**Visual QA** : NOT VERIFIED — validation en Preview Vercel requise (local DB indisponible dans l'environnement cloud).
+
+---
 
 ### SITE-CONFIG-01 — CLÔTURÉ (2026-10-02)
 
@@ -1011,7 +1192,7 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | R8-01 | Transparence tarifaire : prix contextualisé dès la liste (durée séjour), devise claire, conditions d'annulation accessibles avant paiement — exigences de transparence applicables selon le marché (art. L111-1 code conso / pratiques sectorielles voyages) | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                   |
 | R8-02 | Parcours complet avec skeletons, états vides et erreurs, récapitulatif                                                                                                                                                                                       | **CLÔTURÉ (2026-10-02, PR #106)**                                                                                                                                                                   |
-| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **REUSE** — infrastructure déjà en place (`html dir={dir}`, `RtlDirectionProvider`, `LOCALE_META.ar.dir="rtl"`). Validation visuelle NOT VERIFIED.                                                  |
+| R8-03 | FR/AR avec RTL correct, dates et montants localisés                                                                                                                                                                                                          | **CLÔTURÉ (2026-10-02, commit a5c14f0)** — 9 composants corrigés (11 changements) : propriétés physiques left/right/pl/pr remplacées par les propriétés logiques start/end/ps/pe/text-start/text-end. Infrastructure RTL validée (html dir, RtlDirectionProvider, formatCurrency ar-TN, date-fns arTN). Screenshots Playwright : dir="rtl" sur /ar/cgv ✅, dir="ltr" sur /fr/cgv ✅, dir="rtl" sur /ar/compte/connexion ✅. tsc 0 erreurs ✅, pnpm build ✅. |
 | R8-04 | Performance : budgets Core Web Vitals via la config Lighthouse existante                                                                                                                                                                                     | **CLÔTURÉ (2026-10-02, commit cc617b4)** — LHCI câblé dans CI, FCP/LCP bloquants                                                                                                                    |
 | R8-05 | Accessibilité WCAG 2.2 AA                                                                                                                                                                                                                                    | **CLÔTURÉ (2026-10-02, commits 20a9b41+5853101+d3b3110)** — axe-core BLOQUANT en CI (continue-on-error retiré), 0 violations WCAG prouvé run #158 (job 110889828533 ✅), limitation auth documentée |
 | R8-06 | Design system unique (tokens Tailwind/shadcn existants), suppression des doublons v0                                                                                                                                                                         | **CLÔTURÉ (2026-10-02)** — 21 fichiers convertis aux tokens CSS shadcn. 0 bg-gray-_/text-gray-_ hors exceptions glassmorphism documentées. tsc ✅. Visual QA NOT VERIFIED.                          |
@@ -1027,6 +1208,31 @@ Les phases 3 et 4 peuvent avancer en parallèle **uniquement si** elles ne touch
 | R9-02 | Rubrique « Actualités & tendances » sourcée et datée                         | **CLÔTURÉ** — `components/market-signals-section.tsx` + `lib/market/market-signals-queries.ts`. Aucun chiffre en dur.                     |
 | R9-03 | Section « Prochainement » (`ANNONCÉ`) avec liste d'attente                   | **CLÔTURÉ** — `components/development-projects-section.tsx` + table `development_project_waitlist` (migration 0096). Jamais réservable.   |
 | R9-04 | Mise en avant des destinations en croissance **avec inventaire réel**        | **CLÔTURÉ** — `components/featured-destinations-section.tsx` + colonnes `is_featured`/`display_order` (migration 0095). CTA conditionnel. |
+
+---
+
+### CRM-PIPELINE-01 — CLÔTURÉ (2026-10-03)
+
+```text
+ID: CRM-PIPELINE-01
+OBJECTIF: Vue Kanban 4 colonnes (Nouveau → Contacté → Converti → Clos) sur /admin/support,
+  complémentaire à la vue Tableau existante (LeadsTable). Toggle Tableau / Pipeline.
+ÉTAT AUDIT: EXTEND — aucune DB, aucune nouvelle Server Action ; réutilise
+  updateLeadStatus, convertLead, searchReservationsForLeadLink, LeadRow, LeadStatus,
+  computeLeadScore, isLeadStale, Customer360Button déjà existants.
+FICHIERS CRÉÉS:
+  - components/admin/lead-pipeline.tsx (ScoreDots, ConvertDialog, LeadCard, LeadPipeline)
+  - components/admin/leads-view-tabs.tsx (toggle Tableau/Pipeline, Client Component)
+  - lib/crm/__tests__/lead-pipeline-invariants.test.ts (5 tests node:test, 5/5 pass)
+FICHIERS MODIFIÉS:
+  - app/(internal)/admin/support/page.tsx (utilise LeadsViewTabs au lieu de LeadsTable)
+CHANGEMENTS DB: aucun
+TESTS: 5/5 invariants pipeline verts (node --test)
+BUILD: tsc --noEmit propre ; dev server démarre ; /admin/support → redirect login OK
+PREUVE VISUELLE: screenshot Playwright — login redirect confirmé
+```
+
+**CLÔTURÉ (2026-10-03, branche claude/easy2book-v6-modernization-7gyb5v)**
 
 ---
 

@@ -24,6 +24,7 @@
 import { sql } from "drizzle-orm"
 import { marginRules, marginType, walletTxType } from "./schema/financials"
 import { supplierNodes } from "./schema/supplier-portal"
+import { inventoryStatus } from "./schema/products"
 import {
   bigint,
   boolean,
@@ -1201,6 +1202,42 @@ export const auditEvents = pgTable(
   ],
 )
 
+/**
+ * Garde d'idempotence permanente pour les notifications (WhatsApp, email
+ * voucher, CRM). Séparée de `audit_events` qui est purgée à 30 jours —
+ * cette table n'est jamais purgée.
+ *
+ * N'enregistre que les livraisons réussies par (reservation_id, action).
+ * `audit_events` reste la source d'audit exhaustive (toutes tentatives).
+ */
+export const notificationIdempotency = pgTable(
+  "notification_idempotency",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    reservationId: uuid("reservation_id").notNull(),
+    action: varchar("action", { length: 64 }).notNull(),
+    context: jsonb("context"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("notification_idempotency_sent_uniq").on(
+      t.reservationId,
+      t.action,
+    ),
+    index("notification_idempotency_agency_idx").on(t.agencyId),
+    index("notification_idempotency_reservation_idx").on(t.reservationId),
+  ],
+)
+
+export type NotificationIdempotency = typeof notificationIdempotency.$inferSelect
+export type NewNotificationIdempotency =
+  typeof notificationIdempotency.$inferInsert
+
 /* -------------------------------------------------------------------------- */
 /* Permission grants (Phase 22) — délégation explicite au-dessus du baseline  */
 /* par rôle (lib/auth/rbac.ts / lib/auth/permissions.ts). Une ligne = override */
@@ -1493,6 +1530,9 @@ export const pricingMargins = pgTable(
     marginValue: decimal("margin_value", { precision: 10, scale: 2 }).notNull(),
     isActive: boolean("is_active").notNull().default(true),
     notes: text("notes"),
+    /** Canal de distribution — CHANNEL-DIM-01. 'direct' = vente directe OTA
+     * (défaut), 'b2b' = revente partenaire, 'white_label' = marque blanche. */
+    channel: varchar("channel", { length: 16 }).notNull().default("direct"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1502,19 +1542,25 @@ export const pricingMargins = pgTable(
   },
   (t) => [
     index("pricing_margins_agency_idx").on(t.agencyId),
-    uniqueIndex("pricing_margins_agency_module_uniq").on(t.agencyId, t.module),
+    uniqueIndex("pricing_margins_agency_module_channel_uniq").on(
+      t.agencyId,
+      t.module,
+      t.channel,
+    ),
   ],
 )
 
-/** Type de produit autorisé — mêmes 3 valeurs que les triads catalogue Phase 13. */
+/** Type de produit autorisé pour la revente B2B / White Label. */
 export const authorizedProductType = pgEnum("authorized_product_type", [
   "package",
   "omra",
   "activity",
-  /** DISTRIBUTION-01 : produit canonique `products` (Network, ECON-PILOT-01) —
-   * même mécanisme d'autorisation B2B/White Label que les 3 valeurs
-   * historiques, pas un nouveau moteur de distribution. */
+  /** DISTRIBUTION-01 : produit canonique `products` (Network, ECON-PILOT-01). */
   "network",
+  /** DISTRIB-EXTEND-01 : location de voiture (module 'car'). */
+  "car",
+  /** DISTRIB-EXTEND-01 : transfert aéroport/hôtel (module 'transfer'). */
+  "transfer",
 ])
 
 /**
@@ -2614,6 +2660,44 @@ export const products = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* PRODUCT INVENTORY - Disponibilités Temps Réel                              */
+/* -------------------------------------------------------------------------- */
+
+export const productInventory = pgTable(
+  "product_inventory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    endDate: date("end_date"),
+    totalCapacity: integer("total_capacity").notNull(),
+    available: integer("available").notNull().default(0),
+    onHold: integer("on_hold").notNull().default(0),
+    confirmed: integer("confirmed").notNull().default(0),
+    price: decimal("price", { precision: 14, scale: 2 }),
+    currency: varchar("currency", { length: 3 }).default("TND"),
+    status: inventoryStatus("status").notNull().default("available"),
+    supplierStock: integer("supplier_stock"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("product_inventory_product_date_idx").on(t.productId, t.date),
+    { name: "product_inventory_status_idx", on: t.status },
+  ],
+)
+
+export type ProductInventory = typeof productInventory.$inferSelect
+export type NewProductInventory = typeof productInventory.$inferInsert
+
+/* -------------------------------------------------------------------------- */
 /* AUDIT LOGS - Traçabilité des actions critiques                             */
 /* -------------------------------------------------------------------------- */
 
@@ -2892,7 +2976,10 @@ export type WalletTopUpMethod = (typeof walletTopUpMethod.enumValues)[number]
 export type WalletTxStatus = (typeof walletTxStatus.enumValues)[number]
 
 /* -------------------------------------------------------------------------- */
-/* Yield Engine — règles de marge par module et par agence                   */
+/* Yield Engine — @deprecated                                                */
+/* lib/yield/ supprimé (YIELD-DEPRECATE-01) : aucun appelant dans le flux   */
+/* réel booking/pricing. La table DB yield_rules subsiste pour RLS. Le      */
+/* moteur de prix réel est pricingMargins + applyMargin() (lib/pro/pricing). */
 /* -------------------------------------------------------------------------- */
 
 export const yieldRuleType = pgEnum("yield_rule_type", [
@@ -3189,15 +3276,13 @@ export {
 } from "./schema/financials"
 
 /* -------------------------------------------------------------------------- */
-/* Products Module V6 — imported from schema/products.ts                       */
+/* Products Module V6 — apiLogs + inventoryStatus from schema/products.ts     */
+/* productInventory is defined directly above (after the products table).     */
 /* -------------------------------------------------------------------------- */
 
 export {
-  productInventory,
   apiLogs,
   inventoryStatus,
-  type ProductInventory,
-  type NewProductInventory,
   type ApiLog,
   type NewApiLog,
 } from "./schema/products"

@@ -28,7 +28,7 @@
 
 import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { auditEvents } from "@/lib/db/schema"
+import { auditEvents, notificationIdempotency } from "@/lib/db/schema"
 import { getWhatsAppProvider, type WhatsAppProvider } from "./provider"
 import { hasConfiguredWhatsAppProvider } from "./provider"
 import { pgErrorCode } from "@/lib/db/pg-error"
@@ -74,15 +74,16 @@ export interface NotificationAuditStore {
 
 export const defaultNotificationAuditStore: NotificationAuditStore = {
   async hasAlreadySucceeded(reservationId, action) {
+    // Vérifie notification_idempotency — table permanente (jamais purgée),
+    // contrairement à audit_events (purgé à 30j).
     const [existing] = await withSystemContext((tx) =>
       tx
-        .select({ id: auditEvents.id })
-        .from(auditEvents)
+        .select({ id: notificationIdempotency.id })
+        .from(notificationIdempotency)
         .where(
           and(
-            eq(auditEvents.entityType, "reservation"),
-            eq(auditEvents.entityId, reservationId),
-            eq(auditEvents.action, action),
+            eq(notificationIdempotency.reservationId, reservationId),
+            eq(notificationIdempotency.action, action),
           ),
         )
         .limit(1),
@@ -90,6 +91,7 @@ export const defaultNotificationAuditStore: NotificationAuditStore = {
     return Boolean(existing)
   },
   async recordAttempt(input, action, diff) {
+    // Audit trail exhaustif (toutes tentatives, purgé à 30j)
     try {
       await withSystemContext((tx) =>
         tx.insert(auditEvents).values({
@@ -101,13 +103,24 @@ export const defaultNotificationAuditStore: NotificationAuditStore = {
         }),
       )
     } catch (err) {
-      // `audit_events_notification_success_uniq` (index unique partiel) —
-      // garde DB en plus du check `hasAlreadySucceeded` : une course
-      // authentiquement concurrente (ex. livraison dupliquée d'événement)
-      // peut faire échouer un 2ᵉ INSERT "sent" ici, jamais un vrai double
-      // envoi côté client — traité comme un no-op idempotent, pas une erreur.
       if (pgErrorCode(err) === "23505" && action === ACTION_SENT) return
       throw err
+    }
+    // Garde d'idempotence permanente — uniquement pour les envois réussis
+    if (action === ACTION_SENT) {
+      try {
+        await withSystemContext((tx) =>
+          tx.insert(notificationIdempotency).values({
+            agencyId: input.agencyId,
+            reservationId: input.reservationId,
+            action,
+            context: { publicRef: input.publicRef, ...diff },
+          }),
+        )
+      } catch (err) {
+        if (pgErrorCode(err) === "23505") return
+        throw err
+      }
     }
   },
 }

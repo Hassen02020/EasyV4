@@ -26,23 +26,26 @@ import {
   type MarginModule,
   type MarginRule,
 } from "./pricing"
+import type { DistributionChannel } from "@/lib/types/tenant"
 
 /** Durée du cache marges — 5 min. Suffisant pour les prix live, évite les N DB calls par session. */
 const MARGINS_CACHE_TTL = 300
 
-/** Clé de cache Redis pour les marges d'une agence. */
-function marginsCacheKey(agencyId: string) {
-  return `e2b:margins:${agencyId}`
+/** Clé de cache Redis pour les marges d'une agence et d'un canal. */
+function marginsCacheKey(agencyId: string, channel: DistributionChannel) {
+  return `e2b:margins:${agencyId}:${channel}`
 }
 
 /**
- * Invalide le cache des marges pour une agence (appeler après update des règles de marge).
+ * Invalide le cache des marges pour une agence (tous les canaux).
  * À appeler depuis l'action admin qui modifie `pricing_margins`.
  */
 export async function invalidateMarginsCache(agencyId: string): Promise<void> {
   const { getRedis } = await import("@/lib/cache/redis")
   const redis = getRedis()
-  if (redis) await redis.del(marginsCacheKey(agencyId))
+  if (!redis) return
+  const channels: DistributionChannel[] = ["direct", "b2b", "white_label", "api"]
+  await Promise.all(channels.map((ch) => redis.del(marginsCacheKey(agencyId, ch))))
 }
 
 /**
@@ -60,15 +63,16 @@ const MARGIN_MODULES = new Set<string>([
 export async function getMarginsForAgency(
   agencyId: string | null | undefined,
   userId = "",
+  channel: DistributionChannel = "direct",
 ): Promise<MarginMap> {
   if (!agencyId || !process.env.DATABASE_URL) return { ...DEFAULT_MARGINS }
 
   try {
     return await withCache(
-      marginsCacheKey(agencyId),
+      marginsCacheKey(agencyId, channel),
       MARGINS_CACHE_TTL,
       async () => {
-        // System A — pricing_margins (primary, UI-managed per module)
+        // System A — pricing_margins (primary, UI-managed per module + channel)
         const pmRows = await withTenantContext(
           { agencyId, userId, isSuperAdmin: false },
           (db) =>
@@ -84,6 +88,7 @@ export async function getMarginsForAgency(
                 and(
                   eq(pricingMargins.agencyId, agencyId),
                   eq(pricingMargins.isActive, true),
+                  eq(pricingMargins.channel, channel),
                 ),
               ),
         )

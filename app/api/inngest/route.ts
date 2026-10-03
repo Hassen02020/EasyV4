@@ -17,6 +17,8 @@ import {
   sendWhatsAppConfirmation,
   syncBookingCrm,
   processNewLead,
+  autoConvertLead,
+  notifyStaleLeads,
 } from "@/lib/inngest/functions"
 
 export const { GET, POST, PUT } = serve({
@@ -30,5 +32,7 @@ export const { GET, POST, PUT } = serve({
     sendWhatsAppConfirmation,
     syncBookingCrm,
     processNewLead,
+    autoConvertLead,
+    notifyStaleLeads,
   ],
 })

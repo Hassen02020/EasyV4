@@ -459,7 +459,7 @@ export function BookingCard({ booking, onCancel, onReview, supportPhone }: Booki
             )}
           </div>
           {booking.confirmedAt && (
-            <div className="text-right">
+            <div className="text-end">
               <p className="text-muted-foreground text-xs">
                 {t("confirmeeLe")}
               </p>
@@ -469,7 +469,7 @@ export function BookingCard({ booking, onCancel, onReview, supportPhone }: Booki
             </div>
           )}
           {booking.cancelledAt && (
-            <div className="text-right">
+            <div className="text-end">
               <p className="text-muted-foreground text-xs">{t("annuleeLe")}</p>
               <p className="text-destructive text-sm font-medium">
                 {formatDate(booking.cancelledAt)}

@@ -33,7 +33,7 @@ import {
 
 export interface AuthorizedProductRow {
   authorizationId: string
-  productType: "package" | "omra" | "activity" | "network"
+  productType: "package" | "omra" | "activity" | "network" | "car" | "transfer"
   productId: string
   channel: string
   title: string

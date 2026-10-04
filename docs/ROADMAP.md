@@ -43,6 +43,26 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — SETTLE-02 CLÔTURÉ (2026-10-04, commit `e7e5919`).
 **Aucun** — SETTLE-02b CLÔTURÉ (2026-10-04, commit `0de624e`).
 **Aucun** — WALLET-GAP-1/2/3 CLÔTURÉ (2026-10-04, commit `7f3d11f`).
+**Aucun** — PARTNER-GAP-1 CLÔTURÉ (2026-10-04, commit `41b1293`).
+
+---
+
+### PARTNER-GAP-1 — CLÔTURÉ (2026-10-04, commit `41b1293`)
+
+**Objectif** : fermer le GAP ÉTAT identifié lors de l'audit ownership PARTNER —
+`agencies.status` varchar sans contrainte DB.
+
+**Problème** : le statut de l'agence (partenaire comme OTA) était une convention
+de code. La validation `identity.status !== "active"` dans `lib/auth/partner-profile.ts`
+était le seul garde. N'importe quelle string pouvait être insérée sans erreur DB.
+
+**Corrections** :
+- `lib/db/schema.ts` : `check("agencies_status_check", sql\`status in ('active','suspended')\`)`
+- `drizzle/manual/0108_agencies_status_check.sql` : migration idempotente DO-block
+- Production `crygnaichvlxavvbifqi` : contrainte `agencies_status_check` (type c) ✅
+- Données avant migration : 4 agences × status='active' — aucune valeur hors-domaine
+
+**Tests** : 82/82 pass (+2 nouveaux PARTNER-GAP-1 dans `commission-wiring-invariants.test.ts`)
 
 ---
 

@@ -36,7 +36,27 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — DUFFEL-ENUM-01 CLÔTURÉ (2026-10-04).
+**Aucun** — COMMISSION-MONDE-01 CLÔTURÉ (2026-10-04).
+
+---
+
+### COMMISSION-MONDE-01 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : câbler `commissionPercent` dans Hotels Monde pour que la plateforme
+perçoive effectivement sa commission sur chaque réservation hôtels monde.
+
+**Problème** : `recordReservationFinancials()` appelé sans `commissionPercent` dans
+`lib/hotels-monde/guest-booking-actions.ts` → `commissionAmount = 0 TND` sur 100 %
+des réservations monde. `margins.hotel` était déjà en scope (ligne 180) mais non exploité.
+
+**Fix** : passage de `commissionPercent: margins.hotel.commissionPercent` et
+`marginRuleId: margins.hotel.ruleId` à `recordReservationFinancials()` + split
+de l'`economicEntitlement` seller_margin (nette de commission + ligne commission
+Easy2Book) en miroir exact du pattern Hotels TN (`lib/booking/actions.ts:679-718`).
+
+**Commit** : `0087b44` — branche `claude/easy2book-v6-modernization-7gyb5v`.
+**Impact** : zéro régression si `commissionPercent = 0` ; commission effective dès
+qu'un taux est configuré dans `margin_rules`.
 
 ---
 

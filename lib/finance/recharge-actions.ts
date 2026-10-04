@@ -13,11 +13,12 @@
  *   - postal_transfer (virement postal CCP / La Poste)
  *   - postal_mandate (mandat postal)
  *   - check (chèque)
- *   - card_international (CB Stripe — anticipé, pas encore actif)
+ *   - card_international (CB en ligne via Paymee — redirection hébergée)
  */
 
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 
 import { walletRechargeRequests } from "@/lib/db/schema"
 import {
@@ -25,6 +26,10 @@ import {
   withTenantContext,
 } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
+import {
+  isPaymeeSelected,
+  PaymeePaymentProvider,
+} from "@/lib/payment/paymee-provider"
 import { creditRechargeRequest } from "./wallet-credit"
 
 /* -------------------------------------------------------------------------- */
@@ -283,6 +288,112 @@ export async function rejectRechargeRequest(
 
   return { ok: true, data: undefined }
 }
+
+/* -------------------------------------------------------------------------- */
+/* 4. Agent B2B — Initier une recharge en ligne via Paymee                   */
+/* -------------------------------------------------------------------------- */
+
+export interface InitiateOnlineRechargeInput {
+  amount: number // TND
+}
+
+export interface InitiateOnlineRechargeResult {
+  requestId: string
+  redirectUrl: string
+}
+
+export async function initiateOnlineRecharge(
+  input: InitiateOnlineRechargeInput,
+): Promise<ActionResult<InitiateOnlineRechargeResult>> {
+  if (!isPaymeeSelected()) {
+    return { ok: false, error: "Paiement en ligne non disponible" }
+  }
+
+  if (!input.amount || input.amount <= 0) {
+    return { ok: false, error: "Le montant doit être supérieur à 0" }
+  }
+  if (input.amount > 999_999) {
+    return { ok: false, error: "Montant maximum dépassé (999 999 TND)" }
+  }
+
+  const session = await resolveSessionContext()
+  if (!session.ok) return { ok: false, error: "Non authentifié" }
+  if (!session.agencyId)
+    return { ok: false, error: "Profil utilisateur introuvable" }
+
+  const agencyId = session.agencyId
+  const requestedByUserId = session.userId
+
+  // Identifiant de corrélation (clé de matching dans le webhook)
+  const orderId = `rch-${Date.now()}-${agencyId.slice(0, 8)}`
+
+  // Insérer la demande de recharge AVANT d'appeler Paymee (idempotence : si
+  // l'appel PSP échoue, la demande reste pending et peut être abandonnée ou
+  // réessayée — jamais de crédit orphelin).
+  const [row] = await withTenantContext(
+    { agencyId, userId: requestedByUserId, isSuperAdmin: session.isSuperAdmin },
+    (db) =>
+      db
+        .insert(walletRechargeRequests)
+        .values({
+          agencyId,
+          requestedByUserId,
+          amount: input.amount.toFixed(3),
+          method: "card_international",
+          paymentReference: orderId,
+        })
+        .returning({ id: walletRechargeRequests.id }),
+  )
+
+  if (!row) {
+    return { ok: false, error: "Erreur lors de la création de la demande" }
+  }
+
+  // Résoudre l'email de l'utilisateur pour Paymee (champ requis)
+  // Note : resolveSessionContext() ne renvoie pas l'email — on lit depuis les
+  // headers forwarded par le middleware (x-user-email si présent), sinon fallback.
+  const hdrs = await headers()
+  const userEmail =
+    hdrs.get("x-user-email") ??
+    `${requestedByUserId.slice(0, 8)}@easy2book.tn`
+
+  const paymee = new PaymeePaymentProvider()
+  const payResult = await paymee.createPayment({
+    amountTnd: input.amount,
+    currency: "TND",
+    reference: orderId,
+    description: `Recharge wallet Easy2Book — ${input.amount.toFixed(3)} TND`,
+    customerEmail: userEmail,
+    customerFirstName: "Agence",
+    customerLastName: "B2B",
+  })
+
+  if (!payResult.ok) {
+    // La demande est créée mais sans redirectUrl — elle restera pending et
+    // sera ignorée par le webhook (jamais de paymentReference = orderId côté
+    // Paymee). L'agence peut la laisser ou soumettre une nouvelle demande.
+    return {
+      ok: false,
+      error: payResult.message ?? "Erreur lors de la création du paiement",
+    }
+  }
+
+  revalidatePath("/b2b/wallet")
+
+  return {
+    ok: true,
+    data: {
+      requestId: row.id,
+      redirectUrl: payResult.redirectUrl!,
+    },
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Re-export (consommé par les Server Components pour la détection)          */
+/* -------------------------------------------------------------------------- */
+
+export { isPaymeeSelected }
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */

@@ -5,6 +5,7 @@ import { getAgencyBalance, getMovements } from "@/lib/finance/ledger"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { walletRechargeRequests } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
+import { isPaymeeSelected } from "@/lib/finance/recharge-actions"
 import {
   Wallet,
   TrendingDown,
@@ -127,7 +128,11 @@ export default async function WalletPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <WalletRechargeForm agencyId={profile.agencyId} userId={user.id} />
+          <WalletRechargeForm
+            agencyId={profile.agencyId}
+            userId={user.id}
+            paymeeAvailable={isPaymeeSelected()}
+          />
         </CardContent>
       </Card>
 

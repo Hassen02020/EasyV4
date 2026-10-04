@@ -36,7 +36,25 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — COMMISSION-WIRING-02 CLÔTURÉ (2026-10-04).
+**Aucun** — CARS-COMMISSION-01 CLÔTURÉ (2026-10-04).
+
+---
+
+### CARS-COMMISSION-01 (COMMERCIAL-REVENUE-04) — CLÔTURÉ (2026-10-04)
+
+Câblage `creditPlatformCommission` dans le module voitures — dernier module
+sans commission dans la chaîne Booking → Commission.
+
+**Fichiers modifiés :**
+- `lib/cars/actions.ts` — import + commissionAmount + appel B2B
+- `lib/cars/guest-booking-actions.ts` — même câblage B2C guest
+- `lib/cars/__tests__/reservation-financials-wiring.test.ts` — anti-assertions → assertions positives
+- `lib/finance/__tests__/commission-wiring-invariants.test.ts` — section CARS-COMMISSION-01 (tests 62–67)
+
+**Commit :** `d1e0b8c`
+**Tests :** 14/14 cars wiring + 67/67 commission invariants globaux — PASS
+**DB :** aucune migration
+**Note :** commissionAmount = 0 jusqu'à configuration commissionPercent dans la UI Marges Pro
 
 ---
 

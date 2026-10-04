@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment } from "react"
+import type { CSSProperties } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -81,6 +82,7 @@ export type ProSidebarAgency = {
   name: string
   brandName: string | null
   logoUrl: string | null
+  primaryColor?: string | null
   depositBalance: string
   creditLowThreshold: string
   maskCredit: boolean
@@ -393,6 +395,12 @@ export function ProShell({
 
   const agencyLabel = agency.brandName ?? agency.name
 
+  const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
+  const validPrimaryColor =
+    agency.primaryColor && HEX_COLOR_REGEX.test(agency.primaryColor)
+      ? agency.primaryColor
+      : null
+
   // "Utilisateurs" (gestion des collaborateurs de l'agence) est un droit
   // owner — voir le guard serveur équivalent dans
   // app/pro/(app)/utilisateurs/page.tsx. Filtré ici aussi pour qu'un
@@ -404,7 +412,13 @@ export function ProShell({
     : SETTINGS_NAV.filter((item) => item.href !== "/pro/utilisateurs")
 
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      style={
+        validPrimaryColor
+          ? ({ "--primary": validPrimaryColor } as CSSProperties)
+          : undefined
+      }
+    >
       {/* ------------------------------------------------------------------ */}
       {/* Sidebar                                                             */}
       {/* ------------------------------------------------------------------ */}

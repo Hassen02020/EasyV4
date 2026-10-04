@@ -59,6 +59,7 @@ export default async function ProLayout({ children }: { children: ReactNode }) {
         name: profile.agency.name,
         brandName: profile.agency.brandName,
         logoUrl: profile.agency.logoUrl,
+        primaryColor: profile.agency.primaryColor,
         depositBalance: profile.agency.depositBalance,
         creditLowThreshold: profile.agency.creditLowThreshold,
         maskCredit: profile.agency.maskCredit,

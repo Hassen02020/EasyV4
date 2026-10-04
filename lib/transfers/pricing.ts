@@ -22,6 +22,7 @@ import { withPublicAgencyContext } from "@/lib/db/tenant-context"
 import { catalogTransferPricing, transferVehicleType } from "@/lib/db/schema"
 import { applyMargin } from "@/lib/pro/pricing"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
+import type { DistributionChannel } from "@/lib/types/tenant"
 
 /** Type union des valeurs possibles pour un véhicule de transfert. */
 export type TransferVehicleType =
@@ -38,6 +39,7 @@ export interface TransferPricingInput {
   pickupDate: string // YYYY-MM-DD
   pickupTime: string // HH:MM (local time)
   agencyId: string
+  channel?: DistributionChannel
 }
 
 export interface TransferPricingResult {
@@ -124,8 +126,9 @@ export async function calculateTransferPrice(
   )
   const preMargin = basePriceTnd + nightSurchargeAmount
 
-  const rule = (await getMarginsForAgency(input.agencyId, undefined, "b2b"))
-    .transfer
+  const rule = (
+    await getMarginsForAgency(input.agencyId, undefined, input.channel ?? "direct")
+  ).transfer
 
   let marginPercent: number | undefined
   let marginAmount = 0

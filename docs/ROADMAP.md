@@ -36,7 +36,25 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — BUG-CAR-01 + BUG-CAR-04 CLÔTURÉS (2026-10-04).
+**Aucun** — BUG-TRANSFER-02 CLÔTURÉ (2026-10-04).
+
+---
+
+### BUG-TRANSFER-02 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : corriger le canal de marge hardcodé "b2b" dans `calculateTransferPrice`
+— les clients B2C se voyaient appliquer la marge B2B.
+
+**Cause** : `lib/transfers/pricing.ts:127` appelait `getMarginsForAgency(agencyId, undefined, "b2b")`
+avec "b2b" hardcodé, quelle que soit l'origine de l'appel (B2B, B2C guest, page publique).
+
+**Fichiers modifiés :**
+- `lib/transfers/pricing.ts` : import `DistributionChannel`, ajout `channel?` à
+  `TransferPricingInput`, remplacement de `"b2b"` par `input.channel ?? "direct"`
+- `lib/transfers/actions.ts` : passage explicite de `channel: "b2b"` dans le seul
+  appel B2B (booking partenaire)
+- Les call sites B2C (guest-booking-actions, page résultats, TransferBookingForm)
+  obtiennent `"direct"` par défaut — aucune modification requise
 
 ---
 

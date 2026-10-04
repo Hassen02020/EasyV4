@@ -140,6 +140,7 @@ export async function createTransferBooking(
         pickupDate: input.pickupDate,
         pickupTime: input.pickupTime,
         agencyId,
+        channel: "b2b",
       })
       if (!pricing) {
         throw new Error("NO_PRICING")

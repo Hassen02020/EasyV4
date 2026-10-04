@@ -36,6 +36,7 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateCarPrice } from "./pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
@@ -333,7 +334,7 @@ export async function createCarBooking(
       // "commission" fabriquée à 0, seulement les 2 lignes réelles.
       const carSupplierCostTnd =
         pricing.baseTotalTnd + pricing.insuranceTotalTnd
-      await recordReservationFinancials({
+      const { commissionAmount } = await recordReservationFinancials({
         tx,
         reservationId,
         supplierPriceTnd: carSupplierCostTnd,
@@ -358,6 +359,11 @@ export async function createCarBooking(
               "marge vendeur (agence product_owner ET seller sur son propre tarif)",
           },
         ],
+      })
+      await creditPlatformCommission(tx, {
+        reservationId,
+        commissionAmount,
+        description: `Commission réservation voiture ${publicRef}`,
       })
 
       await tx.insert(reservationCar).values({

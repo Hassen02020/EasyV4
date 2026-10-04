@@ -30,6 +30,7 @@ import {
 } from "@/lib/db/schema"
 import { calculateCarPrice } from "./pricing"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
@@ -319,7 +320,7 @@ async function runCreateGuestCarBooking(
         // propre, pas de fournisseur externe), pas de commission aujourd'hui.
         const carSupplierCostTnd =
           pricing.baseTotalTnd + pricing.insuranceTotalTnd
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: carSupplierCostTnd,
@@ -344,6 +345,11 @@ async function runCreateGuestCarBooking(
                 "marge vendeur (agence product_owner ET seller sur son propre tarif)",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission réservation voiture ${publicRef}`,
         })
 
         // 7. Extension Car

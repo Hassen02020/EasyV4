@@ -284,3 +284,41 @@ for (const { label, path } of SINGLE_WRITE_FILES) {
     )
   })
 }
+
+/* -------------------------------------------------------------------------- */
+/* CARS-COMMISSION-01 — câblage creditPlatformCommission module voitures      */
+/* (COMMERCIAL-REVENUE-04 : dernier module sans commission, clôturé 2026-10)  */
+/* -------------------------------------------------------------------------- */
+
+const CARS_COMMISSION_FILES: Array<{ label: string; path: string }> = [
+  { label: "cars/actions.ts", path: "lib/cars/actions.ts" },
+  { label: "cars/guest-booking-actions.ts", path: "lib/cars/guest-booking-actions.ts" },
+]
+
+for (const { label, path } of CARS_COMMISSION_FILES) {
+  const src = readFileSync(join(ROOT, path), "utf8")
+
+  test(`CARS-COMMISSION-01 — ${label} : importe creditPlatformCommission`, () => {
+    assert.match(
+      src,
+      /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+      `${label} doit importer creditPlatformCommission depuis lib/finance/platform-commission`,
+    )
+  })
+
+  test(`CARS-COMMISSION-01 — ${label} : destructure commissionAmount depuis recordReservationFinancials`, () => {
+    assert.match(
+      src,
+      /const\s*\{[^}]*commissionAmount[^}]*\}\s*=\s*await\s+recordReservationFinancials\(/,
+      `${label} doit destructurer commissionAmount depuis recordReservationFinancials`,
+    )
+  })
+
+  test(`CARS-COMMISSION-01 — ${label} : creditPlatformCommission description inclut publicRef`, () => {
+    assert.match(
+      src,
+      /description:\s*`[^`]*\$\{[^}]*publicRef[^}]*\}[^`]*`/,
+      `${label} : creditPlatformCommission doit inclure publicRef dans la description`,
+    )
+  })
+}

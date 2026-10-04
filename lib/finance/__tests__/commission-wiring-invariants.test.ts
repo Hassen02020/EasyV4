@@ -124,6 +124,18 @@ test("commission-settlement.ts : settleCommissions filtre via notExists(commissi
   assert.match(settlementSrc, /commissionSettlementEntries/)
 })
 
+test("commission-settlement.ts : notSettledFilter(tx) est appliqué aux DEUX sites de requête dans settleCommissions (agrégat ET sélection des entrées)", () => {
+  // L'idempotence repose sur deux lectures: COUNT (agrégat) et SELECT (entrées réelles).
+  // Si le filtre est absent de l'une, une entrée déjà settlée peut être recomptée
+  // ou réinsérée — seule la contrainte DB (UNIQUE walletLedgerId) l'empêche.
+  // Les deux doivent être protégées par le filtre pour éviter ce risque applicatif.
+  const occurrences = settlementSrc.split("notSettledFilter(tx)").length - 1
+  assert.ok(
+    occurrences >= 2,
+    `notSettledFilter(tx) doit être présent au moins 2 fois dans commission-settlement.ts (agrégat + sélection entrées) — trouvé: ${occurrences}`,
+  )
+})
+
 test("commission-settlement.ts : n'UPDATE plus jamais walletLedger (append-only, R4-03)", () => {
   assert.doesNotMatch(settlementSrc, /\.update\(walletLedger\)/)
 })

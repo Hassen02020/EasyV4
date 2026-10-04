@@ -191,10 +191,12 @@ after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
     // Clean up commission_settlements created by settlement tests
+    // settled_by LIKE 'cert64-%' couvre la période principale ET la période
+    // chevauchante créée par Test 5b (PERIOD_START_OVERLAP = 2097-12-01,
+    // en dehors du range de dates PERIOD_START..PERIOD_END).
     await tx.execute(sql`
       DELETE FROM commission_settlements
-      WHERE period_start >= ${PERIOD_START.toISOString().split("T")[0]}
-        AND period_end <= ${PERIOD_END.toISOString().split("T")[0]}
+      WHERE settled_by LIKE 'cert64-%'
     `)
     // Clean up wallet_ledger entries (commission entry + any debit entries)
     await tx.execute(sql`
@@ -511,6 +513,73 @@ test("settleCommissions : UNIQUE INDEX bloque un deuxième settlement sur la mê
       return true
     },
     "un deuxième INSERT commission_settlements sur la même période doit être rejeté",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* Test 5b — Idempotence couche applicative : période chevauchante            */
+/* -------------------------------------------------------------------------- */
+
+test("settleCommissions : une période chevauchante ne ré-inclut pas les entrées déjà settlées (notSettledFilter)", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  if (!settlementId)
+    return void t.skip("Test 3 n'a pas créé de settlement — skip")
+
+  // Période différente mais contenant la même entrée wallet_ledger
+  // (PERIOD_START_OVERLAP ⊂ PERIOD_START..PERIOD_END et contient walletLedgerIdComm)
+  const PERIOD_START_OVERLAP = new Date("2097-12-01T00:00:00Z")
+  const PERIOD_END_OVERLAP = new Date("2098-06-30T23:59:59Z")
+
+  const result = await settleCommissions(
+    PERIOD_START_OVERLAP,
+    PERIOD_END_OVERLAP,
+    "cert64-overlap-admin",
+    "IDEMPOTENCE-01 — test période chevauchante",
+  )
+
+  // L'entrée commission est déjà dans commission_settlement_entries → notSettledFilter l'exclut
+  assert.equal(
+    result.entryCount,
+    0,
+    "entryCount=0 : l'entrée déjà settlée est exclue par notSettledFilter sur une période chevauchante",
+  )
+  assert.equal(result.totalAmount, 0, "totalAmount=0 sur période chevauchante sans nouvelles entrées")
+  assert.ok(result.settlementId, "settlement vide créé (trace de vérification de la période)")
+})
+
+/* -------------------------------------------------------------------------- */
+/* Test 5c — Idempotence couche DB : contrainte UNIQUE walletLedgerId         */
+/* -------------------------------------------------------------------------- */
+
+test("commission_settlement_entries : INSERT direct avec walletLedgerId déjà présent → UNIQUE violation 23505 (contrainte DB dure)", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  if (!walletLedgerIdComm)
+    return void t.skip("Test before() n'a pas créé walletLedgerIdComm — skip")
+
+  // Créer un faux settlementId pour tenter un double-settlement direct
+  const fakeSettlementId = randomUUID()
+
+  await assert.rejects(
+    async () => {
+      await withSystemContext(async (tx) => {
+        await tx.insert(commissionSettlementEntries).values({
+          walletLedgerId: walletLedgerIdComm,
+          settlementId: fakeSettlementId,
+        })
+      })
+    },
+    (err: unknown) => {
+      const pgCode =
+        (err as { cause?: { code?: string } }).cause?.code ??
+        (err as { code?: string }).code
+      const msg = (err as { message?: string }).message ?? ""
+      assert.ok(
+        pgCode === "23505" || msg.includes("Failed query"),
+        `Attendu UNIQUE violation 23505 — obtenu: code=${pgCode}, msg=${msg}`,
+      )
+      return true
+    },
+    "double-settlement direct bloqué par UNIQUE commission_settlement_entries_ledger_uniq, quelle que soit la couche appelante",
   )
 })
 

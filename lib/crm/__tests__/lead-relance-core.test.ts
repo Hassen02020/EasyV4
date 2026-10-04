@@ -39,6 +39,7 @@ function makeLead(overrides: Partial<LeadRow> = {}): LeadRow {
     handledByUserId: null,
     reservationId: null,
     convertedAt: null,
+    supplierNodeId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

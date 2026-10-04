@@ -15,6 +15,7 @@
 
 import { headers } from "next/headers"
 import { z } from "zod"
+import { eq } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { rateLimit } from "@/lib/rate-limit"
@@ -24,6 +25,7 @@ import {
   createLeadCore,
 } from "@/lib/crm/leads-core"
 import { sendEvent } from "@/lib/inngest/client"
+import { products } from "@/lib/db/schema"
 
 const inputSchema = z
   .object({
@@ -85,11 +87,31 @@ export async function submitLead(
     return { ok: false, error: "Aucune agence n'est configurée pour ce site." }
   }
 
+  // UUID v4 regex — productRef peut être un UUID de produit catalogue Network
+  // ou un id externe opaque (myGo, etc.). On ne tente la jointure que si la
+  // forme ressemble à un UUID, pour éviter un SELECT systématique sur les leads
+  // classiques où productRef est un id myGo arbitraire.
+  const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const productRefIsUuid =
+    parsed.data.productRef && UUID_RE.test(parsed.data.productRef)
+
   try {
     const { id: leadId } = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: true },
-      (tx) =>
-        createLeadCore(tx, {
+      async (tx) => {
+        // J5 : résoudre le supplier_node_id si productRef est un UUID catalogue
+        let supplierNodeId: string | null = null
+        if (productRefIsUuid) {
+          const [product] = await tx
+            .select({ supplierNodeId: products.supplierNodeId })
+            .from(products)
+            .where(eq(products.id, parsed.data.productRef!))
+            .limit(1)
+          supplierNodeId = product?.supplierNodeId ?? null
+        }
+
+        return createLeadCore(tx, {
           agencyId,
           firstName: parsed.data.firstName,
           lastName: parsed.data.lastName || null,
@@ -101,7 +123,9 @@ export async function submitLead(
           productLabel: parsed.data.productLabel || null,
           sourcePage: parsed.data.sourcePage,
           acquisitionChannel: parsed.data.acquisitionChannel ?? null,
-        }),
+          supplierNodeId,
+        })
+      },
     )
 
     // Notification en arrière-plan — erreur Inngest silencieuse (lead déjà persisté)

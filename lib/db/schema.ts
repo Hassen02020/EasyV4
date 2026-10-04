@@ -2072,6 +2072,18 @@ export const leads = pgTable(
       onDelete: "set null",
     }),
     convertedAt: timestamp("converted_at", { withTimezone: true }),
+    /**
+     * J5 CRM→Supplier : nœud fournisseur réseau directement associé à ce
+     * lead. Renseigné automatiquement à la soumission quand `productRef` est
+     * un UUID de la table `products` avec un `supplier_node_id` connu.
+     * `null` pour tous les leads classiques (hotel myGo, vol, etc.) dont le
+     * fournisseur n'est pas modélisé dans le Network — comportement historique
+     * inchangé, aucune ligne existante modifiée.
+     */
+    supplierNodeId: uuid("supplier_node_id").references(
+      () => supplierNodes.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -2083,6 +2095,9 @@ export const leads = pgTable(
     index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
     index("leads_agency_idx").on(t.agencyId),
     uniqueIndex("leads_reservation_id_uniq").on(t.reservationId),
+    index("leads_supplier_node_idx")
+      .on(t.supplierNodeId)
+      .where(sql`${t.supplierNodeId} IS NOT NULL`),
   ],
 )
 

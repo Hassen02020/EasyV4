@@ -53,6 +53,8 @@ export interface LeadRow {
   handledByUserId: string | null
   reservationId: string | null
   convertedAt: Date | null
+  /** J5 : supplier_node_id résolu à la soumission (null = lead classique). */
+  supplierNodeId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -71,6 +73,8 @@ export async function createLeadCore(
     productLabel?: string | null
     sourcePage: string
     acquisitionChannel?: LeadAcquisitionChannel | null
+    /** J5 : nœud fournisseur Network résolu par l'appelant (submit-lead). */
+    supplierNodeId?: string | null
   },
 ): Promise<{ id: string }> {
   const [inserted] = await tx
@@ -87,6 +91,7 @@ export async function createLeadCore(
       productLabel: params.productLabel ?? undefined,
       sourcePage: params.sourcePage,
       acquisitionChannel: params.acquisitionChannel ?? undefined,
+      supplierNodeId: params.supplierNodeId ?? undefined,
     })
     .returning({ id: leads.id })
   return { id: inserted!.id }
@@ -106,6 +111,7 @@ export async function getLeadCore(
     ...row,
     productType: row.productType as LeadProductType,
     status: row.status as LeadStatus,
+    supplierNodeId: row.supplierNodeId ?? null,
   }
 }
 
@@ -136,6 +142,7 @@ export async function listLeadsCore(
     ...r,
     productType: r.productType as LeadProductType,
     status: r.status as LeadStatus,
+    supplierNodeId: r.supplierNodeId ?? null,
   }))
 }
 

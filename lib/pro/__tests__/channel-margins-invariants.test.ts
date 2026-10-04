@@ -50,8 +50,14 @@ test("channels: valeurs inconnues rejetées", () => {
 test("channels: même agency+module, canaux différents → clés distinctes", () => {
   const agency = "aaaaaaaa-0000-0000-0000-000000000001"
   const mod = "hotel"
-  assert.notEqual(marginKey(agency, mod, "direct"), marginKey(agency, mod, "b2b"))
-  assert.notEqual(marginKey(agency, mod, "b2b"), marginKey(agency, mod, "white_label"))
+  assert.notEqual(
+    marginKey(agency, mod, "direct"),
+    marginKey(agency, mod, "b2b"),
+  )
+  assert.notEqual(
+    marginKey(agency, mod, "b2b"),
+    marginKey(agency, mod, "white_label"),
+  )
 })
 
 test("channels: canal undefined → 'direct' par défaut", () => {

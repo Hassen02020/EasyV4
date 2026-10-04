@@ -269,13 +269,32 @@ jobs:
   # pipeline initialement (continue-on-error: true) pour recueillir une
   # baseline avant de durcir. Rebuild ici car les artefacts .next ne sont
   # pas partagés entre jobs GitHub Actions.
+  # CI-FIX-01 (2026-10-03) : ajout d'un service postgres éphémère + db:push
+  # pour que le serveur Next.js puisse démarrer (getDb() ne lève plus
+  # "DATABASE_URL non définie"). Sans DB, chaque page SSR retournait HTTP 500
+  # et Lighthouse échouait avec ERRORED_DOCUMENT_REQUEST.
   lighthouse:
     runs-on: ubuntu-latest
     needs: [build]
     continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-ci-lighthouse
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -286,6 +305,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Schéma DB CI (db:push)
+        run: pnpm db:push --force
       - name: Build (production)
         run: pnpm build
       - name: Lighthouse CI
@@ -296,12 +317,31 @@ jobs:
   # /booking redirigent vers login en CI (pas d'auth) : coverage réelle sur
   # / et /login ; documenté, pas masqué. continue-on-error: true pour
   # baseline — à durcir après validation.
+  # CI-FIX-01 (2026-10-03) : ajout continue-on-error: true (manquant malgré
+  # le commentaire ci-dessus) + service postgres éphémère + db:push pour que
+  # le serveur Next.js démarre (même cause que lighthouse ci-dessus).
   playwright-a11y:
     runs-on: ubuntu-latest
     needs: [build]
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-ci-playwright
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -312,6 +352,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Schéma DB CI (db:push)
+        run: pnpm db:push --force
       - name: Build (production)
         run: pnpm build
       - name: Install Playwright browsers

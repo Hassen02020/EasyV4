@@ -8,7 +8,15 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, NotebookPen, User, Star, Receipt, Gift, MessageCircle } from "lucide-react"
+import {
+  Loader2,
+  NotebookPen,
+  User,
+  Star,
+  Receipt,
+  Gift,
+  MessageCircle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -91,7 +99,7 @@ export function Customer360Button({
                     <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
                       <NotebookPen className="h-3.5 w-3.5" /> Note interne
                     </h3>
-                    <p className="text-muted-foreground whitespace-pre-wrap text-xs">
+                    <p className="text-muted-foreground text-xs whitespace-pre-wrap">
                       {data.lead.staffNotes}
                     </p>
                   </section>

@@ -62,7 +62,7 @@ function PackageCard({ pkg }: { pkg: OmraPackageWithMedia }) {
         )}
         <Badge
           variant="secondary"
-          className="absolute top-3 end-3 z-10 bg-white/20 text-white"
+          className="absolute end-3 top-3 z-10 bg-white/20 text-white"
         >
           {label}
         </Badge>

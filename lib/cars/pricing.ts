@@ -126,7 +126,11 @@ export async function calculateCarPrice(
   const preMargin = roundTnd(baseTotalTnd + insuranceTotalTnd)
 
   const rule = (
-    await getMarginsForAgency(input.agencyId, undefined, input.channel ?? "direct")
+    await getMarginsForAgency(
+      input.agencyId,
+      undefined,
+      input.channel ?? "direct",
+    )
   ).car
 
   let marginPercent: number | undefined

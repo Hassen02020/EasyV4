@@ -104,7 +104,9 @@ export function Header({
                 className="gap-1.5 text-sm font-medium"
                 asChild
               >
-                <Link href={`tel:${contactPhone.startsWith("+") ? "" : "+"}${contactPhone}`}>
+                <Link
+                  href={`tel:${contactPhone.startsWith("+") ? "" : "+"}${contactPhone}`}
+                >
                   <HelpCircle className="size-4" />
                   {t("help")}
                 </Link>

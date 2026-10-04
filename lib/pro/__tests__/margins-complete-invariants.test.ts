@@ -67,7 +67,7 @@ test("cars/pricing does not import withTenantContext", () => {
 test("cars/pricing imports getMarginsForAgency", () => {
   const text = src("lib/cars/pricing.ts")
   assert.ok(
-    text.includes('getMarginsForAgency'),
+    text.includes("getMarginsForAgency"),
     "cars/pricing must import getMarginsForAgency",
   )
 })
@@ -75,7 +75,9 @@ test("cars/pricing imports getMarginsForAgency", () => {
 test("cars/pricing uses getMarginsForAgency for car margin", () => {
   const text = src("lib/cars/pricing.ts")
   assert.ok(
-    /getMarginsForAgency\(input\.agencyId,\s*undefined,\s*input\.channel\s*\?\?\s*"direct"\s*\)\s*\n?\s*\)\.car/.test(text),
+    /getMarginsForAgency\(\s*input\.agencyId,\s*undefined,\s*input\.channel\s*\?\?\s*"direct",?\s*\)\s*\)\.car/.test(
+      text,
+    ),
     "cars/pricing must call getMarginsForAgency(...).car",
   )
 })

@@ -27,21 +27,30 @@ function isLeadStale(
 ): boolean {
   if (!settings.isEnabled) return false
   if (lead.status !== "new") return false
-  return now.getTime() - lead.updatedAt.getTime() > settings.thresholdDays * 86_400_000
+  return (
+    now.getTime() - lead.updatedAt.getTime() >
+    settings.thresholdDays * 86_400_000
+  )
 }
 
 function computeStats(
   leads: LeadRow[],
   relanceSettings: LeadRelanceSettingsValue,
 ) {
-  const byStatus: Record<LeadStatus, number> = { new: 0, contacted: 0, converted: 0, closed: 0 }
+  const byStatus: Record<LeadStatus, number> = {
+    new: 0,
+    contacted: 0,
+    converted: 0,
+    closed: 0,
+  }
   let stale = 0
   for (const lead of leads) {
     byStatus[lead.status]++
     if (isLeadStale(lead, relanceSettings)) stale++
   }
   const active = byStatus.new + byStatus.contacted + byStatus.converted
-  const convRate = active > 0 ? Math.round((byStatus.converted / active) * 100) : 0
+  const convRate =
+    active > 0 ? Math.round((byStatus.converted / active) * 100) : 0
   return { byStatus, stale, convRate, total: leads.length }
 }
 
@@ -63,7 +72,11 @@ test("total equals sum of per-status counts", () => {
     makeRow("5", "new"),
   ]
   const stats = computeStats(leads, settings)
-  const sum = stats.byStatus.new + stats.byStatus.contacted + stats.byStatus.converted + stats.byStatus.closed
+  const sum =
+    stats.byStatus.new +
+    stats.byStatus.contacted +
+    stats.byStatus.converted +
+    stats.byStatus.closed
   assert.equal(sum, stats.total)
   assert.equal(stats.total, 5)
 })
@@ -89,8 +102,8 @@ test("conversion rate ignores closed leads — 1 converted out of 2 active = 50 
 // ── 4. Stale : seulement les "new" anciens ───────────────────────────────────
 test("stale count includes only new leads older than threshold", () => {
   const leads = [
-    makeRow("old-new", "new", 5),       // stale (5 > 3 days)
-    makeRow("fresh-new", "new", 1),     // not stale
+    makeRow("old-new", "new", 5), // stale (5 > 3 days)
+    makeRow("fresh-new", "new", 1), // not stale
     makeRow("contacted", "contacted", 5), // not stale (non-new)
     makeRow("converted", "converted", 5), // not stale
   ]

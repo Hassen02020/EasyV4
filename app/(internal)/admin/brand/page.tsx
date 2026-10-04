@@ -31,7 +31,8 @@ export default async function BrandPage() {
         <div>
           <h1 className="text-xl font-semibold">Marque Easy2Book</h1>
           <p className="text-muted-foreground text-sm">
-            Identité et coordonnées du Brand Owner — visibles sur le storefront public.
+            Identité et coordonnées du Brand Owner — visibles sur le storefront
+            public.
           </p>
         </div>
       </div>

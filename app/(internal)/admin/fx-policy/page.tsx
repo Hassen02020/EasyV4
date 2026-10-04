@@ -46,15 +46,15 @@ export default async function FxPolicyPage() {
           Politique FX Trésorerie
         </h1>
         <p className="text-muted-foreground mt-1">
-          Correction du taux de référence et frais bancaire pour les
-          virements en devises étrangères (Duffel EUR/USD → TND).{" "}
+          Correction du taux de référence et frais bancaire pour les virements
+          en devises étrangères (Duffel EUR/USD → TND).{" "}
           {activeCount === 0 ? (
             <span className="text-destructive font-medium">
-              ⚠ Aucune politique active — les confirmations de vol non-TND
-              sont bloquées (fail-closed).
+              ⚠ Aucune politique active — les confirmations de vol non-TND sont
+              bloquées (fail-closed).
             </span>
           ) : (
-            <span className="text-emerald-600 font-medium">
+            <span className="font-medium text-emerald-600">
               {activeCount} politique active.
             </span>
           )}{" "}

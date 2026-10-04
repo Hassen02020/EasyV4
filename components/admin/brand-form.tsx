@@ -27,9 +27,14 @@ interface BrandFormProps {
 export function BrandForm({ initial }: BrandFormProps) {
   const [state, setState] = useState<BrandInitial>(initial)
   const [submitting, setSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Partial<Record<keyof BrandInitial, string>>>({})
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof BrandInitial, string>>
+  >({})
 
-  function update<K extends keyof BrandInitial>(key: K, value: BrandInitial[K]) {
+  function update<K extends keyof BrandInitial>(
+    key: K,
+    value: BrandInitial[K],
+  ) {
     setState((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => {
       if (!(key in prev)) return prev
@@ -79,7 +84,7 @@ export function BrandForm({ initial }: BrandFormProps) {
       className="bg-card border-border/60 space-y-5 rounded-2xl border p-5 md:p-6"
     >
       <section>
-        <h2 className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">
+        <h2 className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
           Identité visuelle
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
@@ -103,7 +108,11 @@ export function BrandForm({ initial }: BrandFormProps) {
             <div className="mt-1 flex items-center gap-2">
               <input
                 type="color"
-                value={HEX_COLOR_REGEX.test(state.primaryColor) ? state.primaryColor : "#c2410c"}
+                value={
+                  HEX_COLOR_REGEX.test(state.primaryColor)
+                    ? state.primaryColor
+                    : "#c2410c"
+                }
                 onChange={(e) => update("primaryColor", e.target.value)}
                 className="border-border h-9 w-11 shrink-0 rounded-md border p-0.5"
                 aria-label="Sélectionner la couleur d'accent"
@@ -117,10 +126,13 @@ export function BrandForm({ initial }: BrandFormProps) {
               />
             </div>
             {errors.primaryColor ? (
-              <p className="text-destructive mt-1 text-xs">{errors.primaryColor}</p>
+              <p className="text-destructive mt-1 text-xs">
+                {errors.primaryColor}
+              </p>
             ) : (
               <p className="text-muted-foreground mt-1 text-xs">
-                Couleur principale des boutons et liens sur le storefront public.
+                Couleur principale des boutons et liens sur le storefront
+                public.
               </p>
             )}
           </div>
@@ -128,7 +140,7 @@ export function BrandForm({ initial }: BrandFormProps) {
       </section>
 
       <section>
-        <h2 className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">
+        <h2 className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
           Coordonnées
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
@@ -168,7 +180,7 @@ export function BrandForm({ initial }: BrandFormProps) {
       </section>
 
       <section>
-        <h2 className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">
+        <h2 className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
           Réseaux sociaux
         </h2>
         <div className="grid gap-4 md:grid-cols-2">

@@ -86,7 +86,11 @@ export function FooterClient({
       label: "Instagram",
     },
     tiktokUrl && { icon: TikTokIcon, href: tiktokUrl, label: "TikTok" },
-  ].filter(Boolean) as { icon: React.ElementType; href: string; label: string }[]
+  ].filter(Boolean) as {
+    icon: React.ElementType
+    href: string
+    label: string
+  }[]
 
   // Numéro formaté pour affichage (téléphone)
   const formattedPhone = contactPhone

@@ -48,11 +48,39 @@ import type { LeadRelanceSettingsValue } from "@/lib/crm/lead-relance-core"
 import { isLeadStale } from "@/lib/crm/lead-relance-core"
 import { Customer360Button } from "@/components/admin/customer-360-panel"
 
-const COLUMNS: { status: LeadStatus; label: string; color: string; dot: string }[] = [
-  { status: "new", label: "Nouveau", color: "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30", dot: "bg-amber-400" },
-  { status: "contacted", label: "Contacté", color: "border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30", dot: "bg-blue-400" },
-  { status: "converted", label: "Converti", color: "border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/30", dot: "bg-emerald-400" },
-  { status: "closed", label: "Clos", color: "border-border bg-muted/40", dot: "bg-muted-foreground" },
+const COLUMNS: {
+  status: LeadStatus
+  label: string
+  color: string
+  dot: string
+}[] = [
+  {
+    status: "new",
+    label: "Nouveau",
+    color:
+      "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30",
+    dot: "bg-amber-400",
+  },
+  {
+    status: "contacted",
+    label: "Contacté",
+    color:
+      "border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30",
+    dot: "bg-blue-400",
+  },
+  {
+    status: "converted",
+    label: "Converti",
+    color:
+      "border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/30",
+    dot: "bg-emerald-400",
+  },
+  {
+    status: "closed",
+    label: "Clos",
+    color: "border-border bg-muted/40",
+    dot: "bg-muted-foreground",
+  },
 ]
 
 const PRODUCT_TYPE_LABEL: Record<LeadRow["productType"], string> = {
@@ -146,7 +174,7 @@ function ConvertDialog({
           Liez cette demande à la réservation réelle qu&apos;elle a produite.
         </p>
         <div className="relative">
-          <Search className="text-muted-foreground absolute top-1/2 start-3 h-4 w-4 -translate-y-1/2" />
+          <Search className="text-muted-foreground absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           <Input
             ref={inputRef}
             placeholder="Réf., nom, email, téléphone…"
@@ -271,7 +299,11 @@ function StaffNotesWidget({
               disabled={saving}
               onClick={handleSave}
             >
-              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enregistrer"}
+              {saving ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                "Enregistrer"
+              )}
             </Button>
           </div>
         </div>
@@ -293,7 +325,9 @@ function LeadCard({
 }) {
   const [busy, setBusy] = useState<LeadStatus | null>(null)
   const [showConvert, setShowConvert] = useState(false)
-  const [currentNotes, setCurrentNotes] = useState<string | null>(lead.staffNotes)
+  const [currentNotes, setCurrentNotes] = useState<string | null>(
+    lead.staffNotes,
+  )
   const score = computeLeadScore(lead, scoreRules)
   const stale = isLeadStale(lead, relanceSettings)
 
@@ -313,11 +347,11 @@ function LeadCard({
   return (
     <>
       <div
-        className={`bg-card rounded-lg border p-3 shadow-sm space-y-2 ${stale ? "border-amber-400/60" : ""}`}
+        className={`bg-card space-y-2 rounded-lg border p-3 shadow-sm ${stale ? "border-amber-400/60" : ""}`}
       >
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight">
+            <p className="truncate text-sm leading-tight font-semibold">
               {lead.firstName} {lead.lastName ?? ""}
             </p>
             <p className="text-muted-foreground text-xs">
@@ -330,9 +364,9 @@ function LeadCard({
           <div className="flex shrink-0 items-center gap-1">
             <ScoreDots score={score.total} />
             <Customer360Button
-                leadId={lead.id}
-                leadName={`${lead.firstName}${lead.lastName ? " " + lead.lastName : ""}`}
-              />
+              leadId={lead.id}
+              leadName={`${lead.firstName}${lead.lastName ? " " + lead.lastName : ""}`}
+            />
           </div>
         </div>
 
@@ -448,7 +482,8 @@ export function LeadPipeline({
     )
   }
 
-  const byStatus = (status: LeadStatus) => leads.filter((l) => l.status === status)
+  const byStatus = (status: LeadStatus) =>
+    leads.filter((l) => l.status === status)
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
@@ -466,7 +501,10 @@ export function LeadPipeline({
                 {colLeads.length}
               </span>
             </div>
-            <div className="flex-1 space-y-2 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 260px)", minHeight: 120 }}>
+            <div
+              className="flex-1 space-y-2 overflow-y-auto p-2"
+              style={{ maxHeight: "calc(100vh - 260px)", minHeight: 120 }}
+            >
               {colLeads.length === 0 ? (
                 <p className="text-muted-foreground py-6 text-center text-xs">
                   Aucune demande

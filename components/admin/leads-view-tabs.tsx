@@ -35,7 +35,10 @@ export function LeadsViewTabs({
   return (
     <div className="space-y-4">
       <LeadStatsBar leads={leads} relanceSettings={relanceSettings} />
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "table" | "pipeline")}>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as "table" | "pipeline")}
+      >
         <TabsList className="mb-4">
           <TabsTrigger value="table" className="gap-1.5">
             <LayoutList className="h-4 w-4" />

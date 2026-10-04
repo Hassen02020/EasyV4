@@ -18,9 +18,11 @@ function StatChip({
   accent?: "amber" | "blue" | "emerald" | "muted" | "red"
 }) {
   const colors: Record<string, string> = {
-    amber: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+    amber:
+      "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
     blue: "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-    emerald: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    emerald:
+      "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
     muted: "border-border bg-muted/50 text-muted-foreground",
     red: "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300",
   }
@@ -50,7 +52,8 @@ export function LeadStatsBar({
       if (isLeadStale(lead, relanceSettings)) stale++
     }
     const active = byStatus.new + byStatus.contacted + byStatus.converted
-    const convRate = active > 0 ? Math.round((byStatus.converted / active) * 100) : 0
+    const convRate =
+      active > 0 ? Math.round((byStatus.converted / active) * 100) : 0
     return { byStatus, stale, convRate, total: leads.length }
   }, [leads, relanceSettings])
 
@@ -63,7 +66,9 @@ export function LeadStatsBar({
         accent="muted"
       />
       <StatChip
-        icon={<span className="h-2 w-2 rounded-full bg-amber-400 inline-block" />}
+        icon={
+          <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+        }
         label="Nouveau"
         value={stats.byStatus.new}
         accent="amber"

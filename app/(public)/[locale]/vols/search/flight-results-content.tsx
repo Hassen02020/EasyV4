@@ -35,7 +35,7 @@ import {
   airportLabel,
   type FlightSearchState,
 } from "@/lib/vols/search-state"
-import type { FlightOffer } from "@/lib/vols/client"
+import type { FlightOffer } from "@/lib/vols/schemas"
 import {
   applyFilters,
   sortOffers,

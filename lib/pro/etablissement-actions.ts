@@ -76,7 +76,11 @@ const schema = z.object({
 
 export type UpdateEtablissementInput = Omit<
   z.infer<typeof schema>,
-  "defaultLanguage" | "defaultCurrency" | "facebookUrl" | "instagramUrl" | "tiktokUrl"
+  | "defaultLanguage"
+  | "defaultCurrency"
+  | "facebookUrl"
+  | "instagramUrl"
+  | "tiktokUrl"
 > & {
   defaultLanguage: string
   defaultCurrency: string

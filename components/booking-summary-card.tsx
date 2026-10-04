@@ -217,7 +217,12 @@ interface BookingCardProps {
   supportPhone?: string | null
 }
 
-export function BookingCard({ booking, onCancel, onReview, supportPhone }: BookingCardProps) {
+export function BookingCard({
+  booking,
+  onCancel,
+  onReview,
+  supportPhone,
+}: BookingCardProps) {
   const t = useTranslations("Common")
   const locale = useLocale()
   const MODULE_LABELS: Record<string, string> = {

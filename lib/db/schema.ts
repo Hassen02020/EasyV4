@@ -22,7 +22,12 @@
  */
 
 import { sql } from "drizzle-orm"
-import { marginRules, marginType, walletTxType } from "./schema/financials"
+import {
+  commissionSettlements,
+  marginRules,
+  marginType,
+  walletTxType,
+} from "./schema/financials"
 import { supplierNodes } from "./schema/supplier-portal"
 import { inventoryStatus } from "./schema/products"
 import {
@@ -866,7 +871,10 @@ export const economicEntitlements = pgTable(
     compensatesId: uuid("compensates_id"),
 
     settlementStatus: varchar("settlement_status", { length: 20 }),
-    settlementRef: text("settlement_ref"),
+    settlementRef: uuid("settlement_ref").references(
+      () => commissionSettlements.id,
+      { onDelete: "set null" },
+    ),
 
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

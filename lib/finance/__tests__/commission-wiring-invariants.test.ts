@@ -46,6 +46,14 @@ const migration0104Src = readFileSync(
   join(ROOT, "drizzle/manual/0104_settle_fk_integrity.sql"),
   "utf8",
 )
+const economicEntitlementsSchemaSrc = readFileSync(
+  join(ROOT, "lib/db/schema.ts"),
+  "utf8",
+)
+const migration0105Src = readFileSync(
+  join(ROOT, "drizzle/manual/0105_econ_entitlements_settlement_fk.sql"),
+  "utf8",
+)
 
 /* -------------------------------------------------------------------------- */
 /* Import wiring                                                                */
@@ -372,5 +380,58 @@ test("SETTLE-02 — migration 0104 : ADD CONSTRAINT FK settlement_id → commiss
     migration0104Src,
     /ON DELETE RESTRICT/i,
     "migration 0104 : ON DELETE RESTRICT (empêche suppression settlement avec entrées rattachées)",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* SETTLE-02b — GAP-2 : economic_entitlements.settlementRef uuid FK           */
+/* -------------------------------------------------------------------------- */
+
+test("SETTLE-02b — schema.ts : economic_entitlements.settlementRef est uuid avec FK vers commissionSettlements (GAP-2 fermé)", () => {
+  // Avant SETTLE-02b, settlementRef était text sans FK (convention de code seulement).
+  // Après : uuid avec .references(() => commissionSettlements.id, { onDelete: "set null" }).
+  // Vérifie que settlementRef utilise uuid() (pas text()) et référence commissionSettlements.id
+  assert.match(
+    economicEntitlementsSchemaSrc,
+    /settlementRef:\s*uuid\(/,
+    "economic_entitlements.settlementRef doit être déclaré uuid() (pas text())",
+  )
+  assert.match(
+    economicEntitlementsSchemaSrc,
+    /settlementRef[\s\S]{0,200}commissionSettlements\.id/,
+    "economic_entitlements.settlementRef doit référencer commissionSettlements.id",
+  )
+})
+
+test("SETTLE-02b — migration 0105 : ALTER COLUMN settlement_ref text → uuid + FK ON DELETE SET NULL", () => {
+  assert.match(
+    migration0105Src,
+    /ALTER COLUMN settlement_ref TYPE uuid/i,
+    "migration 0105 doit convertir settlement_ref de text en uuid",
+  )
+  assert.match(
+    migration0105Src,
+    /ADD CONSTRAINT.*economic_entitlements_settlement_ref_fk/i,
+    "migration 0105 doit nommer la contrainte economic_entitlements_settlement_ref_fk",
+  )
+  assert.match(
+    migration0105Src,
+    /REFERENCES\s+commission_settlements\s*\(id\)/i,
+    "migration 0105 doit référencer commission_settlements(id)",
+  )
+  assert.match(
+    migration0105Src,
+    /ON DELETE SET NULL/i,
+    "migration 0105 : ON DELETE SET NULL (preservation vs cascade RESTRICT)",
+  )
+})
+
+test("SETTLE-02b — migration 0105 : mark_econ_commission_settled() mise à jour (sans cast ::text)", () => {
+  // La fonction originale (0093) écrivait p_settlement_ref::text car settlement_ref était text.
+  // Après 0105, settlement_ref est uuid → le cast ::text est retiré.
+  assert.match(
+    migration0105Src,
+    /settlement_ref\s*=\s*p_settlement_ref[^:]/,
+    "migration 0105 : mark_econ_commission_settled doit écrire p_settlement_ref sans cast ::text",
   )
 })

@@ -339,15 +339,25 @@ async function runCreateGuestWorldHotelBooking(
         // déjà calculés par bookWorldHotel()/applyMargin(), jamais un recalcul.
         // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe
         // (API hôtels monde), non modélisé comme partie — partyType
-        // "external_supplier"/partyId null, comme Hotel TN/myGo. Aucune
-        // commission Easy2Book aujourd'hui sur ce module (pas de
-        // `commissionPercent` passé ci-dessus) : pas de ligne "commission"
-        // fabriquée à 0.
+        // "external_supplier"/partyId null, comme Hotel TN/myGo. Même formule
+        // textuelle que recordReservationFinancials() pour pré-calculer la
+        // ligne seller_margin nette de commission (COMMISSION-MONDE-01).
+        const marginAmountTnd =
+          bookResult.totalPriceTnd - bookResult.supplierPriceTnd
+        const commissionRateForEntitlements =
+          margins.hotel.commissionPercent ?? 0
+        const commissionAmountForEntitlements =
+          Math.round(
+            marginAmountTnd * (commissionRateForEntitlements / 100) * 100,
+          ) / 100
+
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: bookResult.supplierPriceTnd,
           salePriceTnd: bookResult.totalPriceTnd,
+          commissionPercent: margins.hotel.commissionPercent,
+          marginRuleId: margins.hotel.ruleId,
           economicEntitlements: [
             {
               partyType: "external_supplier",
@@ -356,15 +366,32 @@ async function runCreateGuestWorldHotelBooking(
               qualification: "supplier_cost",
               amount: bookResult.supplierPriceTnd,
               basis: "coût fournisseur réel confirmé par l'API hôtels monde",
+              ruleId: margins.hotel.ruleId ?? null,
+              agreementId: margins.hotel.ruleId ?? null,
             },
             {
               partyType: "agency",
               partyId: agencyId,
               role: "seller",
               qualification: "seller_margin",
-              amount: bookResult.totalPriceTnd - bookResult.supplierPriceTnd,
-              basis:
-                "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
+              amount: marginAmountTnd - commissionAmountForEntitlements,
+              basis: `marge vendeur nette de commission (${
+                margins.hotel.marginType === "percent"
+                  ? `${margins.hotel.marginValue}%`
+                  : `${margins.hotel.marginValue} TND`
+              } − commission ${commissionRateForEntitlements}%)`,
+              ruleId: margins.hotel.ruleId ?? null,
+              agreementId: margins.hotel.ruleId ?? null,
+            },
+            {
+              partyType: "easy2book",
+              partyId: null,
+              role: "easy2book",
+              qualification: "commission",
+              amount: commissionAmountForEntitlements,
+              basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+              ruleId: margins.hotel.ruleId ?? null,
+              agreementId: margins.hotel.ruleId ?? null,
             },
           ],
         })

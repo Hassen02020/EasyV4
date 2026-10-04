@@ -54,6 +54,18 @@ const migration0105Src = readFileSync(
   join(ROOT, "drizzle/manual/0105_econ_entitlements_settlement_fk.sql"),
   "utf8",
 )
+const migration0106Src = readFileSync(
+  join(ROOT, "drizzle/manual/0106_wallet_ledger_fk_account.sql"),
+  "utf8",
+)
+const migration0107Src = readFileSync(
+  join(ROOT, "drizzle/manual/0107_wallet_ledger_category_check.sql"),
+  "utf8",
+)
+const customerWalletSrc = readFileSync(
+  join(ROOT, "lib/finance/customer-wallet.ts"),
+  "utf8",
+)
 
 /* -------------------------------------------------------------------------- */
 /* Import wiring                                                                */
@@ -433,5 +445,99 @@ test("SETTLE-02b — migration 0105 : mark_econ_commission_settled() mise à jou
     migration0105Src,
     /settlement_ref\s*=\s*p_settlement_ref[^:]/,
     "migration 0105 : mark_econ_commission_settled doit écrire p_settlement_ref sans cast ::text",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* WALLET-GAP-1 — FK wallet_ledger.wallet_account_id → wallet_accounts(id)   */
+/* (2026-10-04 : mouvement orphelin impossible désormais)                     */
+/* -------------------------------------------------------------------------- */
+
+test("WALLET-GAP-1 — schema financials.ts : walletLedger.walletAccountId possède une FK vers walletAccounts (ownership proof DB-enforced)", () => {
+  assert.match(
+    financialsSchemaSrc,
+    /walletAccountId[\s\S]{0,200}\.references\(\(\)\s*=>\s*walletAccounts\.id/,
+    "walletLedger.walletAccountId doit avoir .references(() => walletAccounts.id)",
+  )
+})
+
+test("WALLET-GAP-1 — migration 0106 : ADD CONSTRAINT FK wallet_account_id → wallet_accounts ON DELETE RESTRICT", () => {
+  assert.match(
+    migration0106Src,
+    /ADD CONSTRAINT.*wallet_ledger_wallet_account_id_fk/i,
+    "migration 0106 doit nommer la contrainte wallet_ledger_wallet_account_id_fk",
+  )
+  assert.match(
+    migration0106Src,
+    /REFERENCES\s+wallet_accounts\s*\(id\)/i,
+    "migration 0106 doit référencer wallet_accounts(id)",
+  )
+  assert.match(
+    migration0106Src,
+    /ON DELETE RESTRICT/i,
+    "migration 0106 : ON DELETE RESTRICT (empêche suppression compte avec mouvements rattachés)",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* WALLET-GAP-2 — CHECK wallet_ledger.category IN allowed set                */
+/* (2026-10-04 : valeur arbitraire impossible désormais)                      */
+/* -------------------------------------------------------------------------- */
+
+test("WALLET-GAP-2 — schema financials.ts : walletLedger possède un check wallet_ledger_category_check", () => {
+  assert.match(
+    financialsSchemaSrc,
+    /wallet_ledger_category_check/,
+    "financials.ts doit déclarer le check wallet_ledger_category_check",
+  )
+})
+
+test("WALLET-GAP-2 — migration 0107 : ADD CONSTRAINT CHECK category IN 6-value set", () => {
+  assert.match(
+    migration0107Src,
+    /ADD CONSTRAINT.*wallet_ledger_category_check/i,
+    "migration 0107 doit nommer la contrainte wallet_ledger_category_check",
+  )
+  assert.match(
+    migration0107Src,
+    /category IS NULL/i,
+    "migration 0107 : la CHECK doit autoriser NULL (lignes historiques)",
+  )
+  // Vérifie que les 6 valeurs métier sont présentes
+  for (const val of ["booking", "recharge", "refund", "commission", "fee", "adjustment"]) {
+    assert.match(
+      migration0107Src,
+      new RegExp(`'${val}'`),
+      `migration 0107 : la CHECK doit inclure la valeur '${val}'`,
+    )
+  }
+})
+
+/* -------------------------------------------------------------------------- */
+/* WALLET-GAP-3 — idempotencyKey dans creditCustomerWallet (triple-layer)    */
+/* (2026-10-04 : refund/adjustment double-crédit impossible désormais)        */
+/* -------------------------------------------------------------------------- */
+
+test("WALLET-GAP-3 — customer-wallet.ts : CreditCustomerWalletInput déclare idempotencyKey", () => {
+  assert.match(
+    customerWalletSrc,
+    /idempotencyKey\?:\s*string/,
+    "CreditCustomerWalletInput doit déclarer idempotencyKey?: string",
+  )
+})
+
+test("WALLET-GAP-3 — customer-wallet.ts : creditCustomerWallet utilise SAVEPOINT idem_credit_insert (L3 idempotence)", () => {
+  assert.match(
+    customerWalletSrc,
+    /SAVEPOINT idem_credit_insert/,
+    "creditCustomerWallet doit utiliser SAVEPOINT idem_credit_insert pour L3 idempotence",
+  )
+})
+
+test("WALLET-GAP-3 — customer-wallet.ts : creditCustomerWallet utilise clé Redis e2b:idem:customer-wallet-credit: (L1 idempotence)", () => {
+  assert.match(
+    customerWalletSrc,
+    /e2b:idem:customer-wallet-credit:/,
+    "creditCustomerWallet doit utiliser la clé Redis e2b:idem:customer-wallet-credit: pour L1 idempotence",
   )
 })

@@ -188,7 +188,9 @@ export const walletLedger = pgTable(
   "wallet_ledger",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    walletAccountId: uuid("wallet_account_id").notNull(),
+    walletAccountId: uuid("wallet_account_id")
+      .notNull()
+      .references(() => walletAccounts.id, { onDelete: "restrict" }),
 
     // Double-entry: balance avant/après
     type: walletTxType("type").notNull(),
@@ -254,6 +256,10 @@ export const walletLedger = pgTable(
     uniqueIndex("wallet_ledger_idempotency_uniq")
       .on(t.idempotencyKey)
       .where(sql`${t.idempotencyKey} is not null`),
+    check(
+      "wallet_ledger_category_check",
+      sql`${t.category} is null or ${t.category} in ('booking','recharge','refund','commission','fee','adjustment')`,
+    ),
   ],
 )
 

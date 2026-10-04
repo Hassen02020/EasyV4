@@ -17,7 +17,6 @@ export const metadata = {
 }
 
 export default async function HotelsTunisiePage() {
-  const visual = await getPublicModuleVisual("hotels-tunisie")
   const t = await getTranslations("Hotels")
 
   return (
@@ -27,7 +26,7 @@ export default async function HotelsTunisiePage() {
         <ModuleHero
           Icon={Building2}
           gradient="from-blue-900 to-blue-700"
-          imageUrl={visual?.heroImageUrl ?? undefined}
+          imageUrl="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1800&q=85&auto=format&fit=crop"
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

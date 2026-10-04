@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — CARS-COMMISSION-01 CLÔTURÉ (2026-10-04).
+**Aucun** — PR-BATCH-04 CLÔTURÉ (2026-10-04). PR #126 ouverte, en attente de CI + merge.
 
 ---
 

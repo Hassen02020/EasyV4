@@ -149,7 +149,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - TypeScript `tsc --noEmit` : ✅ aucune erreur
 - Commit `fdcbdd9` sur branche `claude/easy2book-v6-modernization-7gyb5v`
 
-**Statut** : CLÔTURÉ (2026-10-03) — MERGED via PR (voir CI-FIX-01)
+**Statut** : CLÔTURÉ (2026-10-03) — MERGED via PR #124 (squash `87f0d7b` sur main, 2026-10-04)
 
 ---
 
@@ -171,7 +171,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 - Commit `0b0914b` sur branche `claude/easy2book-v6-modernization-7gyb5v`
 
-**Statut** : CLÔTURÉ (2026-10-03) — MERGED via PR #124 (squash sur main)
+**Statut** : CLÔTURÉ (2026-10-03) — MERGED via PR #124 (squash `87f0d7b` sur main, 2026-10-04)
 
 ---
 

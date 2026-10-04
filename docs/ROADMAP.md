@@ -36,6 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
 **Aucun** — IDENTITY-J6-01 CLÔTURÉ (2026-10-04).
 
 ---

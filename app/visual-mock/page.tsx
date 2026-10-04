@@ -199,10 +199,11 @@ const SECTIONS: Section[] = [
       },
       {
         name: "Voucher",
-        description: "Bon de réservation téléchargeable",
-        status: "MISSING",
-        route: "—",
-        note: "Pas de page /voucher dédiée — intégré à la confirmation",
+        description: "Bon de voyage PDF — page URL partageable",
+        status: "EXISTS",
+        route: "/fr/voucher/[ref]",
+        locales: true,
+        note: "/fr/voucher/[ref]?token=[t] — nécessite ref + guestAccessToken",
       },
       {
         name: "My Bookings",

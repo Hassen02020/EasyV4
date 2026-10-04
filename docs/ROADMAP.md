@@ -36,7 +36,44 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — TEST-INTEGRATION-FIX-01 CLÔTURÉ (2026-10-04, commit `423fe2d`).
+**Aucun** — BUG-CAR-01 + BUG-CAR-04 CLÔTURÉS (2026-10-04).
+
+---
+
+### BUG-CAR-04 — CLÔTURÉ — NOT A BUG (2026-10-04, vérifié Supabase)
+
+**Objectif** : vérifier que la migration RLS `drizzle/manual/0011_car_rental_rls.sql`
+était bien appliquée en production.
+
+**Résultat** : RLS actif (`rowsecurity=true`) ET politique `*_tenant_isolation` présente
+sur toutes les 6 tables cars (`car_locations`, `car_categories`, `car_fleet_vehicles`,
+`car_availability`, `car_pricing_rates`, `reservation_car`). Aucune action requise.
+
+**Preuve** : `pg_tables.rowsecurity=true` + `pg_policies` sur projet `crygnaichvlxavvbifqi` (EasyV4).
+
+---
+
+### BUG-CAR-01 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : corriger la sur-réservation systématique des voitures — `car_availability.booked_units`
+jamais incrémenté après booking.
+
+**Cause** : `checkCarAvailability()` retournait `boolean`, aucun ID de ligne exposé,
+aucun UPDATE possible après la réservation. Deux chemins affectés : B2B (`lib/cars/actions.ts`)
+et B2C guest (`lib/cars/guest-booking-actions.ts`).
+
+**Fichiers modifiés :**
+- `lib/cars/actions.ts` : `checkCarAvailability` retourne `{ available, availRowId }` +
+  `.for("update")` sur le SELECT + UPDATE `booked_units + 1` après `reservationCar.insert`
+- `lib/cars/guest-booking-actions.ts` : même correction sur le chemin B2C guest
+
+**Note** : quand `carAvailability` n'a pas de ligne pour la date (fallback fleet count),
+`availRowId = null` et aucun UPDATE n'est tenté — comportement correct car dans ce cas
+le stock est géré par fleet status, pas par booked_units.
+
+---
+
+### TEST-INTEGRATION-FIX-01 — CLÔTURÉ (2026-10-04, commit `423fe2d`)
 
 ---
 

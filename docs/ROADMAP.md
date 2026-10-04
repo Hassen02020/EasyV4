@@ -36,7 +36,33 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — WHITE-LABEL-ADMIN-01 CLÔTURÉ (2026-10-04, commit `8c558b6`).
+**Aucun** — APPLY-PENDING-MIGRATIONS-03 CLÔTURÉ (2026-10-04).
+
+---
+
+### APPLY-PENDING-MIGRATIONS-03 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : appliquer les 3 migrations DB en attente (0094, 0101, 0103) présentes dans le dépôt mais jamais appliquées en production.
+
+**État audit** : FIX (migrations additives, idempotentes, aucun backfill)
+
+**Ce qui a été fait** :
+
+| Migration | Nom                                  | Application                                                                                      | `supabase_migrations`                              |
+| --------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| 0094      | `market_signals_rls`                 | ✅ RLS + FORCE sur `market_signals` + `development_projects`; 4 policies (`read` + `admin_write`) | `0094a`, `0094b`, `0094e` (policies via timeout+verify) |
+| 0101      | `pricing_margins_channel`            | ✅ ADD COLUMN `channel VARCHAR(16) DEFAULT 'direct'` + nouvel index unique `(agency_id, module, channel)` | `0101`, `0101c`                               |
+| 0103      | `flight_snapshot_fx_columns`         | ✅ ADD COLUMN `supplier_original_amount DECIMAL(12,3)` + `supplier_original_currency VARCHAR(3)` | `0103_flight_snapshot_fx_columns`                  |
+
+**Vérification production** :
+
+- `market_signals` + `development_projects` : `relrowsecurity=true`, `relforcerowsecurity=true` ✅; 4 policies présentes ✅
+- `pricing_margins` : colonne `channel` présente, index `pricing_margins_agency_module_channel_uniq` ✅; ancien index `pricing_margins_agency_module_uniq` absent (n'existait pas) ✅
+- `flight_price_snapshots` : `supplier_original_amount` (numeric, nullable) + `supplier_original_currency` (varchar, nullable) ✅
+
+**Anomalie** : `apply_migration` timeout sur `CREATE POLICY` et `DROP INDEX` (>60s serveur). SQL exécuté côté DB avant le timeout — confirmé par requête `pg_policies` / `pg_indexes`. Registration manuelle via entrée `0094e_market_signals_rls_policies_verified` (SELECT 1 idempotent).
+
+---
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 

@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
+**Aucun** — WHITE-LABEL-ADMIN-01 CLÔTURÉ (2026-10-04, commit `8c558b6`).
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 
@@ -110,6 +110,35 @@ confirme :
 - table `development_project_waitlist` : présente (version `20261002185755`)
 
 Aucune action DB requise.
+
+---
+
+### WHITE-LABEL-ADMIN-01 — CLÔTURÉ (2026-10-04, commit `8c558b6`)
+
+**Objectif** : permettre à un super_admin de configurer les champs White Label d'une agence existante (domain, brandName, logoUrl, primaryColor) via une page d'édition `/admin/agencies/[id]`.
+
+**État audit** : CREATE (page + action manquantes)
+
+**Ce qui a été fait** :
+
+- `lib/admin/agencies-actions.ts` : +`updateAgencyWhiteLabel(agencyId, {domain, brandName, logoUrl, primaryColor})` — validation HEX regex + DOMAIN regex + gestion 23505 (domaine déjà pris) + audit event `agency.white_label_updated`
+- `app/(internal)/admin/agencies/[id]/page.tsx` : nouvelle page serveur (guard super_admin, charge l'agence depuis DB, rend `AgencyWhiteLabelForm`)
+- `components/admin/agency-wl-form.tsx` : nouveau composant client avec color picker + preview hex live
+- `components/admin/agencies-data-table.tsx` : +lien "White Label" dans le dropdown de chaque ligne d'agence
+- `lib/admin/__tests__/agencies-wl-invariants.test.ts` : 10 invariants purs
+
+**Preuves** :
+
+- typecheck : 0 erreur ✅
+- lint : 0 erreur (128 warnings pré-existants) ✅
+- tests : 1394 pass / 0 fail ✅
+- commit `8c558b6` sur `claude/easy2book-v6-modernization-7gyb5v` ✅
+
+**Visuel** : NOT VERIFIED (nécessite session super_admin authentifiée)
+
+**Aucun changement DB** — colonnes `domain`, `brandName`, `logoUrl`, `primaryColor` déjà présentes sur la table `agencies`.
+
+**Statut** : CLÔTURÉ (2026-10-04) — à merger vers main.
 
 ---
 

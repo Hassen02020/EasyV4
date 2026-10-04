@@ -93,26 +93,36 @@ for (const [label, path, costVar] of [
 }
 
 /* -------------------------------------------------------------------------- */
-/* Hotels-Monde / Vols — fournisseur externe réel, 0 commission aujourd'hui   */
+/* Hotels-Monde — fournisseur externe réel, commission réelle (COMMISSION-MONDE-01) */
 /* -------------------------------------------------------------------------- */
 
-for (const [label, path] of [
-  [
-    "hotels-monde/guest-booking-actions.ts",
-    "lib/hotels-monde/guest-booking-actions.ts",
-  ],
-  ["vols/guest-booking-actions.ts", "lib/vols/guest-booking-actions.ts"],
-] as const) {
-  test(`Hotels-Monde/Vols — ${label} : 2 lignes (external_supplier + agency seller), pas de commission fabriquée`, () => {
-    const src = read(path)
-    assert.match(
-      src,
-      /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
-    )
-    assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
-    assert.equal(src.includes('qualification: "commission"'), false)
-  })
-}
+test("Hotels-Monde — hotels-monde/guest-booking-actions.ts : 3 lignes (external_supplier + agency seller + easy2book commission), même formule que Hotel TN", () => {
+  const src = read("lib/hotels-monde/guest-booking-actions.ts")
+  assert.match(
+    src,
+    /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
+  )
+  assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
+  assert.match(src, /role: "easy2book",\s*\n\s*qualification: "commission",/)
+  assert.match(
+    src,
+    /Math\.round\(\s*\n?\s*marginAmountTnd \* \(commissionRateForEntitlements \/ 100\) \* 100,?\s*\n?\s*\) \/ 100/,
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* Vols — fournisseur externe réel, 0 commission aujourd'hui                  */
+/* -------------------------------------------------------------------------- */
+
+test("Vols — vols/guest-booking-actions.ts : 2 lignes (external_supplier + agency seller), pas de commission fabriquée", () => {
+  const src = read("lib/vols/guest-booking-actions.ts")
+  assert.match(
+    src,
+    /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
+  )
+  assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
+  assert.equal(src.includes('qualification: "commission"'), false)
+})
 
 test("vols/flight-financials.ts : 2 lignes conditionnées à la résolution réelle de agencyId (pas de ligne si la réservation est introuvable)", () => {
   const src = read("lib/vols/flight-financials.ts")

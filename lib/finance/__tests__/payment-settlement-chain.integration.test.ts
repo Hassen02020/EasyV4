@@ -37,6 +37,7 @@ import {
   customers,
   reservations,
   reservationFinancials,
+  economicEntitlements,
   payments,
   walletAccounts,
   walletLedger,
@@ -124,13 +125,23 @@ before(async () => {
       tndAmount: "1000.00",
     })
 
-    // Pre-write reservation_financials so analytics can track this reservation
+    // Pre-write reservation_financials + economic_entitlements (commission line)
     await recordReservationFinancials({
       tx,
       reservationId,
       supplierPriceTnd: 900,
       salePriceTnd: 1000,
       commissionPercent: 10,
+      economicEntitlements: [
+        {
+          partyType: "easy2book",
+          partyId: null,
+          role: "easy2book",
+          qualification: "commission",
+          amount: 10,
+          basis: "margin_percent",
+        },
+      ],
     })
 
     // Pre-create a B2C customer wallet with TND 1000 balance for debit test
@@ -195,6 +206,9 @@ after(async () => {
       .delete(walletAccounts)
       .where(eq(walletAccounts.id, walletAccountId))
     await tx.delete(payments).where(eq(payments.reservationId, reservationId))
+    await tx
+      .delete(economicEntitlements)
+      .where(eq(economicEntitlements.reservationId, reservationId))
     await tx
       .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))
@@ -424,6 +438,27 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
     entries[0]?.settlementId,
     settlementId,
     "commission_settlement_entries.settlement_id = settlement créé",
+  )
+
+  // SETTLE-01 : economic_entitlements commission line marquée settlée
+  const eeRows = await withSystemContext((tx) =>
+    tx
+      .select({
+        settlementStatus: economicEntitlements.settlementStatus,
+        settlementRef: economicEntitlements.settlementRef,
+      })
+      .from(economicEntitlements)
+      .where(eq(economicEntitlements.reservationId, reservationId)),
+  )
+  const commissionEe = eeRows.find((r) => r.settlementStatus === "settled")
+  assert.ok(
+    commissionEe != null,
+    "economic_entitlements : au moins 1 ligne qualification=commission marquée settlementStatus=settled",
+  )
+  assert.equal(
+    commissionEe?.settlementRef,
+    settlementId,
+    "economic_entitlements.settlementRef = settlementId",
   )
 })
 

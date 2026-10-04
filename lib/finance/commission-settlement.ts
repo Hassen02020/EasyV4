@@ -97,7 +97,7 @@ export async function settleCommissions(
     // 3. Enregistrer les entrées settlées (append-only — jamais d'UPDATE sur wallet_ledger)
     if (entryCount > 0) {
       const settledEntries = await tx
-        .select({ id: walletLedger.id })
+        .select({ id: walletLedger.id, reservationId: walletLedger.reservationId })
         .from(walletLedger)
         .where(
           and(
@@ -116,6 +116,18 @@ export async function settleCommissions(
             settlementId: settlement.id,
           })),
         )
+
+        // SETTLE-01 : marquer les lignes economic_entitlements qualification=commission
+        // via SECURITY DEFINER (0093) — app_runtime n'a pas le privilège UPDATE direct
+        // sur cette table depuis migration 0092 (ECON-ENTITLEMENTS-INTEGRITY-01).
+        const reservationIds = settledEntries
+          .map((e) => e.reservationId)
+          .filter((r): r is string => r !== null)
+        if (reservationIds.length > 0) {
+          await tx.execute(
+            sql`SELECT mark_econ_commission_settled(${reservationIds}::uuid[], ${settlement.id}::uuid)`,
+          )
+        }
       }
     }
 

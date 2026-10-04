@@ -134,10 +134,10 @@ const SECTIONS: Section[] = [
       },
       {
         name: "Partner",
-        description: "Gestion partenaires / accords commerciaux",
+        description: "Portail B2B partenaire (dashboard, réservations, factures, wallet, clients)",
         status: "EXISTS",
-        route: "/admin/accords-commerciaux",
-        note: "Page accords commerciaux — interface partenaire dédiée MISSING",
+        route: "/pro",
+        note: "Portail complet à /pro (getCurrentPartnerProfile). /admin/accords-commerciaux = gestion super_admin des accords, distinct.",
       },
       {
         name: "Distribution",
@@ -147,10 +147,10 @@ const SECTIONS: Section[] = [
       },
       {
         name: "White Label",
-        description: "Branding & white-label",
+        description: "Branding & white-label (brandName, logoUrl, primaryColor, customDomain)",
         status: "EXISTS",
-        route: "/admin/brand",
-        note: "Configuration branding — interface WL multi-tenant MISSING",
+        route: "/admin/agencies/[id]",
+        note: "Config partielle dans la page agence (brandName sur agencies). Formulaire WL complet (logo, couleur, domaine) prévu Phase 13.",
       },
     ],
   },

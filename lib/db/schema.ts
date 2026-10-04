@@ -934,6 +934,15 @@ export const commercialAgreementChannel = pgEnum(
   ["b2c", "b2b", "network", "white_label", "api"],
 )
 
+/** Canal d'acquisition du lead — J6 CRM→Distribution (2026-10-04). */
+export const leadAcquisitionChannel = pgEnum("lead_acquisition_channel", [
+  "b2c",
+  "b2b",
+  "network",
+  "white_label",
+  "api",
+])
+
 export const commercialAgreementStatus = pgEnum("commercial_agreement_status", [
   "draft",
   "active",
@@ -2046,6 +2055,8 @@ export const leads = pgTable(
     productLabel: varchar("product_label", { length: 255 }),
     /** Chemin de la page d'où la demande a été envoyée (ex. "/packages/mon-voyage") — utile pour prioriser/comprendre la demande, jamais affiché comme donnée client. */
     sourcePage: varchar("source_page", { length: 255 }).notNull(),
+    /** Canal de distribution par lequel le lead est arrivé — J6 CRM→Distribution. Null = inconnu / non renseigné (leads WhatsApp, anciens leads). */
+    acquisitionChannel: leadAcquisitionChannel("acquisition_channel"),
     /** 'new' | 'contacted' | 'converted' | 'closed' */
     status: varchar("status", { length: 16 }).notNull().default("new"),
     staffNotes: text("staff_notes"),

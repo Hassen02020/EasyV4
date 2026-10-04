@@ -18,7 +18,11 @@ import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { rateLimit } from "@/lib/rate-limit"
-import { LEAD_PRODUCT_TYPES, createLeadCore } from "@/lib/crm/leads-core"
+import {
+  LEAD_PRODUCT_TYPES,
+  LEAD_ACQUISITION_CHANNELS,
+  createLeadCore,
+} from "@/lib/crm/leads-core"
 import { sendEvent } from "@/lib/inngest/client"
 
 const inputSchema = z
@@ -32,6 +36,8 @@ const inputSchema = z
     productRef: z.string().trim().max(128).optional(),
     productLabel: z.string().trim().max(255).optional(),
     sourcePage: z.string().trim().min(1).max(255),
+    /** Canal de distribution par lequel le visiteur est arrivé (J6). */
+    acquisitionChannel: z.enum(LEAD_ACQUISITION_CHANNELS).optional(),
     /** Honeypot — doit rester vide. */
     website: z.string().optional(),
   })
@@ -94,6 +100,7 @@ export async function submitLead(
           productRef: parsed.data.productRef || null,
           productLabel: parsed.data.productLabel || null,
           sourcePage: parsed.data.sourcePage,
+          acquisitionChannel: parsed.data.acquisitionChannel ?? null,
         }),
     )
 

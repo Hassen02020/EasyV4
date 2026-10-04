@@ -36,7 +36,33 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — IDENTITY-J2A-01 CLÔTURÉ (2026-10-04).
+**Aucun** — IDENTITY-J6-01 CLÔTURÉ (2026-10-04).
+
+---
+
+### IDENTITY-J6-01 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : matérialiser le contrat d'identité CRM → Distribution (J6 de l'audit
+jonctions) — rendre traceable le canal d'acquisition de chaque lead.
+
+**Problème** : `leads.sourcePage` stockait le chemin URL brut, sans vocabulaire
+structuré permettant de distinguer les canaux de distribution (b2c / b2b /
+réseau / white-label / API). Impossible de filtrer ou segmenter les leads par
+canal sans parser les URL côté applicatif.
+
+**Corrections** :
+- pgEnum `lead_acquisition_channel` : `['b2c','b2b','network','white_label','api']`
+  — vocabulaire aligné sur `commercial_agreement_channel` (cohérence inter-domaines).
+- Migration `0018` : `CREATE TYPE` + `ALTER TABLE leads ADD COLUMN acquisition_channel`.
+- Colonne nullable : aucune valeur inventée sur les anciens leads / WhatsApp inbox.
+- `lib/crm/leads-core.ts` : `LEAD_ACQUISITION_CHANNELS`, `LeadAcquisitionChannel`,
+  `LeadRow.acquisitionChannel`, `createLeadCore` param `acquisitionChannel?`.
+- `app/actions/submit-lead.ts` : champ optionnel dans le schéma Zod + forwarding.
+
+**Call sites non modifiés** : `inbox-core.ts` (WhatsApp = canal comm, pas canal
+distribution → reste nullable), tests de fixtures (`acquisitionChannel: null` ajouté).
+
+**Commit** : à venir — branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

@@ -26,6 +26,16 @@ export const LEAD_STATUSES = [
 ] as const
 export type LeadStatus = (typeof LEAD_STATUSES)[number]
 
+/** J6 CRM→Distribution — canal par lequel le lead est arrivé. */
+export const LEAD_ACQUISITION_CHANNELS = [
+  "b2c",
+  "b2b",
+  "network",
+  "white_label",
+  "api",
+] as const
+export type LeadAcquisitionChannel = (typeof LEAD_ACQUISITION_CHANNELS)[number]
+
 export interface LeadRow {
   id: string
   firstName: string
@@ -37,6 +47,7 @@ export interface LeadRow {
   productRef: string | null
   productLabel: string | null
   sourcePage: string
+  acquisitionChannel: LeadAcquisitionChannel | null
   status: LeadStatus
   staffNotes: string | null
   handledByUserId: string | null
@@ -59,6 +70,7 @@ export async function createLeadCore(
     productRef?: string | null
     productLabel?: string | null
     sourcePage: string
+    acquisitionChannel?: LeadAcquisitionChannel | null
   },
 ): Promise<{ id: string }> {
   const [inserted] = await tx
@@ -74,6 +86,7 @@ export async function createLeadCore(
       productRef: params.productRef ?? undefined,
       productLabel: params.productLabel ?? undefined,
       sourcePage: params.sourcePage,
+      acquisitionChannel: params.acquisitionChannel ?? undefined,
     })
     .returning({ id: leads.id })
   return { id: inserted!.id }

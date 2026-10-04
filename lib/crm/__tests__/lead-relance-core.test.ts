@@ -33,6 +33,7 @@ function makeLead(overrides: Partial<LeadRow> = {}): LeadRow {
     productRef: null,
     productLabel: null,
     sourcePage: "/",
+    acquisitionChannel: null,
     status: "new",
     staffNotes: null,
     handledByUserId: null,

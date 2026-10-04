@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — VOLS-CLEANUP-01 + CI-FIX-01 CLÔTURÉ (2026-10-03).
+**Aucun** — APPLY-PENDING-MIGRATIONS-02 N/A (2026-10-04) : 0095 + 0096 déjà appliquées en production.
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 
@@ -96,6 +96,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - Migration 0103 appliquée en production Supabase `crygnaichvlxavvbifqi` — colonnes vérifiées : `supplier_original_amount` (numeric, nullable) + `supplier_original_currency` (character varying, nullable) ✅
 
 **Statut** : CLÔTURÉ (2026-10-03) — MERGED (PR #122, squash `6960031e` sur main) + MIGRATION 0103 APPLIQUÉE EN PRODUCTION
+
+---
+
+### APPLY-PENDING-MIGRATIONS-02 — N/A (2026-10-04)
+
+**Objectif** : appliquer 0095 (`destinations_featured`) + 0096 (`development_project_waitlist`) en production.
+
+**Résultat audit** : N/A — les deux migrations étaient déjà appliquées en production.
+La ROADMAP indiquait "NON ENCORE APPLIQUÉE" mais la vérification MCP Supabase (2026-10-04)
+confirme :
+- `destinations.is_featured` (boolean DEFAULT false) + `destinations.display_order` (integer DEFAULT 0) : présents (version `20261002185747`)
+- table `development_project_waitlist` : présente (version `20261002185755`)
+
+Aucune action DB requise.
 
 ---
 
@@ -624,9 +638,9 @@ Tests:
   - format:check ✅
 
 VISUAL QA: NOT VERIFIED — DevelopmentProjects invisible sans données en DB.
-Migration DB: NON ENCORE APPLIQUÉE EN PRODUCTION.
-  À appliquer sur GO séparé : psql "$DATABASE_DIRECT_URL" -f
-  drizzle/manual/0096_development_project_waitlist.sql
+Migration DB: APPLIQUÉE EN PRODUCTION (2026-10-04, vérifié via MCP Supabase —
+  table development_project_waitlist présente ; version supabase_migrations
+  20261002185755).
 ```
 
 ### R9-04 — CLÔTURÉ (2026-10-02)
@@ -668,11 +682,11 @@ Tests:
   - format:check ✅
 
 VISUAL QA: NOT VERIFIED — section invisible sans lignes is_featured=true
-  en production. Peupler via Supabase Studio + appliquer 0095.
+  en production. Peupler via Supabase Studio pour activer la section.
 
-Migration DB: NON ENCORE APPLIQUÉE EN PRODUCTION.
-  À appliquer sur GO séparé : psql "$DATABASE_DIRECT_URL" -f
-  drizzle/manual/0095_destinations_featured.sql
+Migration DB: APPLIQUÉE EN PRODUCTION (2026-10-04, vérifié via MCP Supabase —
+  colonnes is_featured BOOLEAN DEFAULT false + display_order INTEGER DEFAULT 0
+  présentes sur destinations ; version supabase_migrations 20261002185747).
 ```
 
 ### R9-03 — CLÔTURÉ (2026-10-02)

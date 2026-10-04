@@ -36,7 +36,19 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — BUG-TRANSFER-02 CLÔTURÉ (2026-10-04).
+**Aucun** — DUFFEL-ENUM-01 CLÔTURÉ (2026-10-04).
+
+---
+
+### DUFFEL-ENUM-01 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : ajouter "duffel" à l'enum `flight_supplier_name` pour permettre
+la configuration d'un fournisseur vols Duffel.
+
+**Fichiers modifiés :**
+- `lib/db/schema/flight-suppliers.ts` : "duffel" ajouté au pgEnum
+- `drizzle/0016_flight_supplier_duffel.sql` : migration `ALTER TYPE ... ADD VALUE`
+- Migration appliquée via Supabase MCP sur `crygnaichvlxavvbifqi` (vérifié via pg_enum)
 
 ---
 

@@ -40,6 +40,37 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — IDENTITY-J6-01 CLÔTURÉ (2026-10-04).
 **Aucun** — SETTLE-01 CLÔTURÉ (2026-10-04, commit `3856490`).
 **Aucun** — IDEMPOTENCE-01 CLÔTURÉ (2026-10-04, commit `8881408`).
+**Aucun** — SETTLE-02 CLÔTURÉ (2026-10-04, commit `e7e5919`).
+
+---
+
+### SETTLE-02 — CLÔTURÉ (2026-10-04, commit `e7e5919`)
+
+**Objectif** : fermer le GAP-1 de preuve ownership SETTLEMENT — FK DB entre
+`commission_settlement_entries.settlementId` et `commission_settlements.id`.
+
+**Problème** : `settlementId` était NOT NULL mais sans `.references()` — une entrée
+pouvait pointer vers un settlement fantôme (ghost settlement silencieux). La preuve
+de la chaîne `wallet_ledger → entry → settlement` tenait applicativement mais pas
+au niveau DB.
+
+**Corrections** :
+- `lib/db/schema/financials.ts` : `.references(() => commissionSettlements.id,
+  { onDelete: "restrict" })` ajouté sur `settlementId`.
+- `drizzle/manual/0104_settle_fk_integrity.sql` : `ALTER TABLE ADD CONSTRAINT FK`
+  `ON DELETE RESTRICT` — idempotent (IF NOT EXISTS).
+- 2 invariants statiques SETTLE-02 dans `commission-wiring-invariants.test.ts`.
+
+**NOT VERIFIED** : GAP-2 (`economic_entitlements.settlementRef` est `text` sans FK)
+reste en place — hors périmètre de ce chantier (migration DDL sur table avec REVOKE
+est un chantier séparé, si jugé prioritaire).
+
+**À appliquer en production** :
+`psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0104_settle_fk_integrity.sql`
+
+**Score tests** : 1443 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
+
+**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

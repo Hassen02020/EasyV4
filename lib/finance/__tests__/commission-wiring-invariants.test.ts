@@ -66,6 +66,12 @@ const customerWalletSrc = readFileSync(
   join(ROOT, "lib/finance/customer-wallet.ts"),
   "utf8",
 )
+const migration0108Src = readFileSync(
+  join(ROOT, "drizzle/manual/0108_agencies_status_check.sql"),
+  "utf8",
+)
+// agencies est défini dans lib/db/schema.ts (même fichier qu'economicEntitlementsSchemaSrc)
+const agenciesSchemaSrc = economicEntitlementsSchemaSrc
 
 /* -------------------------------------------------------------------------- */
 /* Import wiring                                                                */
@@ -539,5 +545,31 @@ test("WALLET-GAP-3 — customer-wallet.ts : creditCustomerWallet utilise clé Re
     customerWalletSrc,
     /e2b:idem:customer-wallet-credit:/,
     "creditCustomerWallet doit utiliser la clé Redis e2b:idem:customer-wallet-credit: pour L1 idempotence",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* PARTNER-GAP-1 — CHECK agencies.status IN ('active','suspended')            */
+/* (2026-10-04 : valeur arbitraire impossible désormais)                      */
+/* -------------------------------------------------------------------------- */
+
+test("PARTNER-GAP-1 — schema.ts : agencies possède un check agencies_status_check", () => {
+  assert.match(
+    agenciesSchemaSrc,
+    /agencies_status_check/,
+    "schema.ts doit déclarer le check agencies_status_check sur la table agencies",
+  )
+})
+
+test("PARTNER-GAP-1 — migration 0108 : ADD CONSTRAINT CHECK status IN ('active','suspended')", () => {
+  assert.match(
+    migration0108Src,
+    /ADD CONSTRAINT.*agencies_status_check/i,
+    "migration 0108 doit nommer la contrainte agencies_status_check",
+  )
+  assert.match(
+    migration0108Src,
+    /status IN \('active','suspended'\)/i,
+    "migration 0108 : la CHECK doit lister exactement ('active','suspended')",
   )
 })

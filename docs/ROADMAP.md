@@ -36,7 +36,36 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — PR-BATCH-04 CLÔTURÉ (2026-10-04). PR #126 ouverte, en attente de CI + merge.
+**Aucun** — TEST-INTEGRATION-FIX-01 CLÔTURÉ (2026-10-04, commit `423fe2d`).
+
+---
+
+### TEST-INTEGRATION-FIX-01 — CLÔTURÉ (2026-10-04, commit `423fe2d`)
+
+**Objectif** : corriger les assertions périmées dans le test d'intégration
+settlement (`payment-settlement-chain.integration.test.ts` lignes 407-425)
+qui vérifiaient `wallet_ledger.settledAt`/`settlementId` — colonnes mortes
+jamais écrites par le code actuel R4-03.
+
+**Cause** : `commission-settlement.ts` écrit dans `commission_settlement_entries`
+(R4-03 append-only), jamais dans `wallet_ledger.settled_at`. Les assertions
+du test Chantier 64 décrivaient l'ancienne mécanique (pré-R4-03).
+
+**Fichier modifié :**
+- `lib/finance/__tests__/payment-settlement-chain.integration.test.ts` :
+  - L.10 commentaire header corrigé (ancienne mécanique → R4-03)
+  - L.407-425 : assertions `wallet_ledger.settledAt/settlementId` → assertions
+    `commission_settlement_entries.walletLedgerId/settlementId`
+  - Import `commissionSettlementEntries` ajouté
+
+**Preuves :**
+- tsc --noEmit : 0 erreur ✅
+- commission-wiring-invariants.test.ts : 67/67 PASS ✅
+- commit `423fe2d` · push `94d19f4..423fe2d` ✅
+
+**DB :** aucune migration. Note : colonnes mortes `wallet_ledger.settledAt`
+et `wallet_ledger.settlementId` existent toujours en DB (jamais écrites depuis
+R4-03) — nettoyage possible via migration dédiée sur GO séparé.
 
 ---
 

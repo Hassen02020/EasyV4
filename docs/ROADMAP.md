@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — APPLY-PENDING-MIGRATIONS-02 N/A (2026-10-04) : 0095 + 0096 déjà appliquées en production.
+**Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 
@@ -110,6 +110,29 @@ confirme :
 - table `development_project_waitlist` : présente (version `20261002185755`)
 
 Aucune action DB requise.
+
+---
+
+### WHITE-LABEL-PRO-01 — CLÔTURÉ (2026-10-04, commit `e691cf7`)
+
+**Objectif** : appliquer la `primaryColor` de l'agence comme variable CSS `--primary` sur le portail /pro.
+
+**État audit** : EXTEND — infrastructure existante (`agencies.primary_color` DB, `PartnerProfile.primaryColor`) ; seul le câblage jusqu'au composant manquait.
+
+**Changements** :
+- `app/(internal)/pro/(app)/layout.tsx` : passage de `primaryColor: profile.agency.primaryColor` dans le prop `agency` de `<ProShell>`.
+- `components/pro/layout.tsx` :
+  - Ajout `primaryColor?: string | null` dans `ProSidebarAgency`.
+  - Import `CSSProperties` depuis react.
+  - Validation hex `/^#[0-9a-fA-F]{6}$/` + injection `style={{ "--primary": validPrimaryColor }}` sur `<SidebarProvider>`.
+
+**Tests** :
+- `pnpm typecheck` : ✓ zéro erreur.
+- 19 tests statiques invariants (margins + channel) : ✓ pass.
+- Dev server compile `/pro/login` (full layout chain) : ✓.
+- Preuve visuelle avec agence authentifiée : NOT VERIFIED (requiert session DB live avec `primary_color` renseigné).
+
+**Aucun changement DB** — `agencies.primary_color` existe depuis la migration initiale.
 
 ---
 

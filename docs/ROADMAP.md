@@ -36,7 +36,22 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — APPLY-PENDING-MIGRATIONS-03 CLÔTURÉ (2026-10-04).
+**Aucun** — COMMISSION-WIRING-02 CLÔTURÉ (2026-10-04).
+
+---
+
+### COMMISSION-WIRING-02 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : câbler `creditPlatformCommission` dans les 10 modules de réservation qui appelaient `recordReservationFinancials` sans jamais écrire dans `wallet_ledger` — maillon manquant Payment → Commission de l'autoroute Supplier → Settlement.
+
+**Périmètre** : Vols B2B (`flight-financials.ts`), Vols B2C (`vols/guest-booking-actions.ts`), Transferts B2B (`transfers/actions.ts`), Transferts B2C (`transfers/guest-booking-actions.ts`), Hôtels Monde B2C (`hotels-monde/guest-booking-actions.ts`), Activités B2B (`activities/booking-actions.ts`), Activités B2C (`activities/guest-booking-actions.ts`), Omra B2B (`omra/booking-actions.ts`), Omra B2C (`omra/guest-booking-actions.ts`), Packages B2C+B2B (`packages/booking-actions.ts`). Voitures HORS PÉRIMÈTRE.
+
+**Correctif inclus** : suppression du double-write pré-existant (ECON-WIRING-01 avait ajouté un second appel `recordReservationFinancials` sans supprimer le premier) dans `activities/guest-booking-actions.ts`, `omra/guest-booking-actions.ts`, `packages/booking-actions.ts` — la transaction de réservation était systématiquement avortée par la contrainte unique `reservation_financials_reservation_idx`.
+
+**Preuves** :
+- `npx tsc --noEmit` : 0 erreur
+- `npx tsx --test lib/finance/__tests__/commission-wiring-invariants.test.ts` : 61/61 (28 anciens + 33 nouveaux)
+- Aucun fichier hors périmètre modifié (git status : 11 fichiers exactement)
 
 ---
 

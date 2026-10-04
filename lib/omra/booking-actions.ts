@@ -39,6 +39,7 @@ import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -353,7 +354,7 @@ export async function createOmraBooking(
         // ci-dessus) : une SEULE ligne product_owner=agence, pas de lignes
         // seller_margin/commission fabriquées à 0 (règle Direction, 2026-10 —
         // ne jamais fabriquer une ligne sans valeur économique réelle).
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
@@ -369,6 +370,11 @@ export async function createOmraBooking(
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission omra — réservation ${publicRef}`,
         })
 
         /* ------------------------------------------------------------------

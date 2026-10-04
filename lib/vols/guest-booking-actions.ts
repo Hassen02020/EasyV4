@@ -41,6 +41,7 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -342,7 +343,7 @@ async function runCreateGuestFlightBooking(
         // ECON-WIRING-01 — economic_entitlements. Fournisseur réel externe
         // (API vols), non modélisé — external_supplier/partyId null, comme
         // Hotel TN/Hotels-Monde. Aucune commission Easy2Book aujourd'hui.
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: bookResult.supplierPriceTnd,
@@ -366,6 +367,11 @@ async function runCreateGuestFlightBooking(
                 "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission vol — réservation ${publicRef}`,
         })
 
         const firstSegment = bookResult.segments[0]!

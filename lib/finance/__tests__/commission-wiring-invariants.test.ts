@@ -216,3 +216,71 @@ for (const { label, path } of DIRECT_WIRING_FILES) {
     )
   })
 }
+
+/* -------------------------------------------------------------------------- */
+/* COMMISSION-WIRING-02 — câblage creditPlatformCommission dans les 10 modules */
+/* manquants (Payment → Commission bridge, autoroute Supplier → Settlement)    */
+/* -------------------------------------------------------------------------- */
+
+// Modules cibles de COMMISSION-WIRING-02 (Voitures HORS PÉRIMÈTRE)
+const COMMISSION_WIRING_FILES: Array<{ label: string; path: string }> = [
+  { label: "vols/guest-booking-actions.ts", path: "lib/vols/guest-booking-actions.ts" },
+  { label: "vols/flight-financials.ts", path: "lib/vols/flight-financials.ts" },
+  { label: "transfers/actions.ts", path: "lib/transfers/actions.ts" },
+  { label: "transfers/guest-booking-actions.ts", path: "lib/transfers/guest-booking-actions.ts" },
+  { label: "hotels-monde/guest-booking-actions.ts", path: "lib/hotels-monde/guest-booking-actions.ts" },
+  { label: "activities/booking-actions.ts", path: "lib/activities/booking-actions.ts" },
+  { label: "activities/guest-booking-actions.ts", path: "lib/activities/guest-booking-actions.ts" },
+  { label: "omra/booking-actions.ts", path: "lib/omra/booking-actions.ts" },
+  { label: "omra/guest-booking-actions.ts", path: "lib/omra/guest-booking-actions.ts" },
+  { label: "packages/booking-actions.ts", path: "lib/packages/booking-actions.ts" },
+]
+
+for (const { label, path } of COMMISSION_WIRING_FILES) {
+  const src = readFileSync(join(ROOT, path), "utf8")
+
+  test(`COMMISSION-WIRING-02 — ${label} : importe creditPlatformCommission`, () => {
+    assert.match(
+      src,
+      /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+      `${label} doit importer creditPlatformCommission depuis lib/finance/platform-commission`,
+    )
+  })
+
+  test(`COMMISSION-WIRING-02 — ${label} : destructure commissionAmount depuis recordReservationFinancials`, () => {
+    assert.match(
+      src,
+      /const\s*\{[^}]*commissionAmount[^}]*\}\s*=\s*await\s+recordReservationFinancials\(/,
+      `${label} doit destructurer commissionAmount depuis recordReservationFinancials`,
+    )
+  })
+
+  test(`COMMISSION-WIRING-02 — ${label} : creditPlatformCommission description inclut publicRef`, () => {
+    assert.match(
+      src,
+      /description:\s*`[^`]*\$\{[^}]*publicRef[^}]*\}[^`]*`/,
+      `${label} : creditPlatformCommission doit inclure publicRef dans la description`,
+    )
+  })
+}
+
+// Invariant anti-double-write : les fichiers corrigés (double-write bug pré-existant)
+// ne doivent plus contenir qu'UN SEUL appel à recordReservationFinancials.
+const SINGLE_WRITE_FILES: Array<{ label: string; path: string }> = [
+  { label: "activities/guest-booking-actions.ts", path: "lib/activities/guest-booking-actions.ts" },
+  { label: "omra/guest-booking-actions.ts", path: "lib/omra/guest-booking-actions.ts" },
+  { label: "packages/booking-actions.ts", path: "lib/packages/booking-actions.ts" },
+]
+
+for (const { label, path } of SINGLE_WRITE_FILES) {
+  const src = readFileSync(join(ROOT, path), "utf8")
+  test(`COMMISSION-WIRING-02 — ${label} : au plus 2 appels recordReservationFinancials (B2C+B2B, pas de double-write)`, () => {
+    const matches = src.match(/recordReservationFinancials\s*\(/g) ?? []
+    // packages/booking-actions.ts a 2 chemins (B2C + B2B) → 2 appels légitimes
+    // activities/guest et omra/guest n'ont qu'un chemin → 1 appel
+    assert.ok(
+      matches.length <= 2,
+      `${label} ne doit pas avoir plus de 2 appels recordReservationFinancials (trouvé ${matches.length}) — double-write bug`,
+    )
+  })
+}

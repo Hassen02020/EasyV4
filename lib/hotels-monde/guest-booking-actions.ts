@@ -47,6 +47,7 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -342,7 +343,7 @@ async function runCreateGuestWorldHotelBooking(
         // commission Easy2Book aujourd'hui sur ce module (pas de
         // `commissionPercent` passé ci-dessus) : pas de ligne "commission"
         // fabriquée à 0.
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: bookResult.supplierPriceTnd,
@@ -366,6 +367,11 @@ async function runCreateGuestWorldHotelBooking(
                 "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission hôtel monde — réservation ${publicRef}`,
         })
 
         await tx.insert(reservationHotel).values({

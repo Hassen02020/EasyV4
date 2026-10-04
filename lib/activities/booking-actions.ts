@@ -42,6 +42,7 @@ import {
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { computePriceBreakdown } from "@/lib/booking/pricing"
 import {
   activityPartnerBookingSchema,
@@ -258,7 +259,7 @@ export async function createActivityBooking(
         // (pas de coût net séparé pour activités, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
@@ -274,6 +275,11 @@ export async function createActivityBooking(
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission activité — réservation ${publicRef}`,
         })
 
         // --- 7. Extension Activity ---

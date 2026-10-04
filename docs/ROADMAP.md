@@ -36,7 +36,35 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — COMMISSION-MONDE-01 CLÔTURÉ (2026-10-04).
+**Aucun** — RECHARGE-PAYMEE-01 CLÔTURÉ (2026-10-04).
+
+---
+
+### RECHARGE-PAYMEE-01 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : permettre aux agences B2B de recharger leur wallet en ligne via
+Paymee (carte bancaire, redirection hébergée) sans intervention manuelle admin.
+
+**Implémentation** :
+- `app/api/payment/webhook/route.ts` : branche `provider=paymee` ajoutée —
+  vérification `check_sum` MD5, normalisation du statut, corrélation par
+  `order_id` (= `paymentReference`). Tous les casts `pspWebhooks.psp` mis à
+  jour vers `"stripe" | "sps" | "paymee"`.
+- `lib/finance/recharge-actions.ts` : `initiateOnlineRecharge()` — crée la
+  demande (`card_international`) avant d'appeler Paymee (idempotence), retourne
+  `redirectUrl`. Re-exporte `isPaymeeSelected()`.
+- `components/b2b/wallet-recharge-form.tsx` : section "Payer en ligne" (bleue)
+  conditionnelle sur prop `paymeeAvailable`.
+- `app/(internal)/b2b/wallet/page.tsx` : passe `paymeeAvailable={isPaymeeSelected()}`.
+
+**Aucune migration DB** : `card_international` dans `recharge_method` ✓,
+`paymee` dans `payment_psp` ✓.
+
+**Activation** : poser `PAYMENT_PROVIDER=paymee` + `PAYMEE_API_KEY` en env.
+Sans ces vars, la section "Payer en ligne" est invisible et le webhook retourne
+500 (misconfigured) — pas de régression pour les agences sans Paymee.
+
+**Commit** : `405f94b` — branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

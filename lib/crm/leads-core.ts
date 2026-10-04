@@ -122,19 +122,22 @@ export async function getLeadCore(
  */
 export async function listLeadsCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; status?: LeadStatus },
+  params: {
+    agencyId: string
+    status?: LeadStatus
+    /** J6-BIS : filtre par canal de distribution — null = tous les canaux. */
+    acquisitionChannel?: LeadAcquisitionChannel
+  },
 ): Promise<LeadRow[]> {
+  const conditions = [eq(leads.agencyId, params.agencyId)]
+  if (params.status) conditions.push(eq(leads.status, params.status))
+  if (params.acquisitionChannel)
+    conditions.push(eq(leads.acquisitionChannel, params.acquisitionChannel))
+
   const rows = await tx
     .select()
     .from(leads)
-    .where(
-      params.status
-        ? and(
-            eq(leads.agencyId, params.agencyId),
-            eq(leads.status, params.status),
-          )
-        : eq(leads.agencyId, params.agencyId),
-    )
+    .where(and(...conditions))
     .orderBy(desc(leads.createdAt))
     .limit(200)
 

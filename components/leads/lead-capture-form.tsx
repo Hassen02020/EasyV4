@@ -16,13 +16,15 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { submitLead, type SubmitLeadInput } from "@/app/actions/submit-lead"
-import type { LeadProductType } from "@/lib/crm/leads-core"
+import type { LeadProductType, LeadAcquisitionChannel } from "@/lib/crm/leads-core"
 
 interface LeadCaptureFormProps {
   productType: LeadProductType
   productRef?: string
   productLabel?: string
   title?: string
+  /** Canal de distribution explicite (ex. "b2b" depuis le portail partner). Omis = inféré côté serveur. */
+  acquisitionChannel?: LeadAcquisitionChannel
 }
 
 export function LeadCaptureForm({
@@ -30,6 +32,7 @@ export function LeadCaptureForm({
   productRef,
   productLabel,
   title,
+  acquisitionChannel,
 }: LeadCaptureFormProps) {
   const t = useTranslations("Common")
   const pathname = usePathname()
@@ -58,6 +61,7 @@ export function LeadCaptureForm({
       productLabel,
       sourcePage: pathname,
       website,
+      acquisitionChannel,
     }
 
     submitLead(input)

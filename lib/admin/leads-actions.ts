@@ -26,6 +26,7 @@ import {
   LEAD_STATUSES,
   type LeadRow,
   type LeadStatus,
+  type LeadAcquisitionChannel,
   type ReservationLinkCandidate,
 } from "@/lib/crm/leads-core"
 
@@ -59,7 +60,10 @@ export type ListLeadsResult =
   | { ok: true; leads: LeadRow[] }
   | { ok: false; error: string }
 
-export async function listLeads(status?: LeadStatus): Promise<ListLeadsResult> {
+export async function listLeads(
+  status?: LeadStatus,
+  acquisitionChannel?: LeadAcquisitionChannel,
+): Promise<ListLeadsResult> {
   let ctx: SupportStaffContext
   try {
     ctx = await assertSupportStaff()
@@ -72,7 +76,8 @@ export async function listLeads(status?: LeadStatus): Promise<ListLeadsResult> {
   try {
     const rows = await withTenantContext(
       { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
-      (tx) => listLeadsCore(tx, { agencyId: ctx.agencyId, status }),
+      (tx) =>
+        listLeadsCore(tx, { agencyId: ctx.agencyId, status, acquisitionChannel }),
     )
     return { ok: true, leads: rows }
   } catch (err) {

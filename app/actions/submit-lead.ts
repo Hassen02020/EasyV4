@@ -111,6 +111,15 @@ export async function submitLead(
           supplierNodeId = product?.supplierNodeId ?? null
         }
 
+        // J6-BIS : inférer le canal si l'appelant ne le fournit pas.
+        // Règles (ordre de priorité) :
+        //   1. Explicitement fourni par l'appelant (ex. portail B2B/White Label) → tel quel.
+        //   2. supplierNodeId non null = produit Network → "network".
+        //   3. Défaut public B2C (submitLead est l'action de capture publique).
+        const acquisitionChannel =
+          parsed.data.acquisitionChannel ??
+          (supplierNodeId ? "network" : "b2c")
+
         return createLeadCore(tx, {
           agencyId,
           firstName: parsed.data.firstName,
@@ -122,7 +131,7 @@ export async function submitLead(
           productRef: parsed.data.productRef || null,
           productLabel: parsed.data.productLabel || null,
           sourcePage: parsed.data.sourcePage,
-          acquisitionChannel: parsed.data.acquisitionChannel ?? null,
+          acquisitionChannel,
           supplierNodeId,
         })
       },

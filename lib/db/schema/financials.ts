@@ -630,7 +630,9 @@ export const commissionSettlementEntries = pgTable(
     walletLedgerId: uuid("wallet_ledger_id")
       .notNull()
       .references(() => walletLedger.id, { onDelete: "restrict" }),
-    settlementId: uuid("settlement_id").notNull(),
+    settlementId: uuid("settlement_id")
+      .notNull()
+      .references(() => commissionSettlements.id, { onDelete: "restrict" }),
     settledAt: timestamp("settled_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

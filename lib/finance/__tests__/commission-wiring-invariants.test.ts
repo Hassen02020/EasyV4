@@ -38,6 +38,14 @@ const settlementSrc = readFileSync(
   join(ROOT, "lib/finance/commission-settlement.ts"),
   "utf8",
 )
+const financialsSchemaSrc = readFileSync(
+  join(ROOT, "lib/db/schema/financials.ts"),
+  "utf8",
+)
+const migration0104Src = readFileSync(
+  join(ROOT, "drizzle/manual/0104_settle_fk_integrity.sql"),
+  "utf8",
+)
 
 /* -------------------------------------------------------------------------- */
 /* Import wiring                                                                */
@@ -334,3 +342,35 @@ for (const { label, path } of CARS_COMMISSION_FILES) {
     )
   })
 }
+
+/* -------------------------------------------------------------------------- */
+/* SETTLE-02 — Intégrité référentielle settlement (preuve ownership DB)        */
+/* -------------------------------------------------------------------------- */
+
+test("SETTLE-02 — schema financials.ts : commissionSettlementEntries.settlementId possède une FK vers commissionSettlements (ownership proof DB-enforced)", () => {
+  // La FK manquante était le GAP-1 identifié lors de l'audit ownership SETTLEMENT :
+  // sans .references(), une entrée pouvait pointer vers un settlement fantôme.
+  assert.match(
+    financialsSchemaSrc,
+    /settlementId.*\n.*\.notNull\(\)\s*\n\s*\.references\(\(\)\s*=>\s*commissionSettlements\.id/s,
+    "commissionSettlementEntries.settlementId doit avoir .references(() => commissionSettlements.id)",
+  )
+})
+
+test("SETTLE-02 — migration 0104 : ADD CONSTRAINT FK settlement_id → commission_settlements ON DELETE RESTRICT", () => {
+  assert.match(
+    migration0104Src,
+    /ADD CONSTRAINT.*commission_settlement_entries_settlement_fk/i,
+    "migration 0104 doit nommer la contrainte commission_settlement_entries_settlement_fk",
+  )
+  assert.match(
+    migration0104Src,
+    /REFERENCES\s+commission_settlements\s*\(id\)/i,
+    "migration 0104 doit référencer commission_settlements(id)",
+  )
+  assert.match(
+    migration0104Src,
+    /ON DELETE RESTRICT/i,
+    "migration 0104 : ON DELETE RESTRICT (empêche suppression settlement avec entrées rattachées)",
+  )
+})

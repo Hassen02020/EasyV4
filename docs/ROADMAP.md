@@ -42,6 +42,33 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — IDEMPOTENCE-01 CLÔTURÉ (2026-10-04, commit `8881408`).
 **Aucun** — SETTLE-02 CLÔTURÉ (2026-10-04, commit `e7e5919`).
 **Aucun** — SETTLE-02b CLÔTURÉ (2026-10-04, commit `0de624e`).
+**Aucun** — WALLET-GAP-1/2/3 CLÔTURÉ (2026-10-04, commit `7f3d11f`).
+
+---
+
+### WALLET-GAP-1/2/3 — CLÔTURÉ (2026-10-04, commit `7f3d11f`)
+
+**Objectif** : fermer les 3 GAPs structurels identifiés lors de l'audit ownership
+WALLET (2026-10-04) — propriété, intégrité et idempotence du ledger B2C.
+
+**GAP-1 — FK wallet_ledger.wallet_account_id → wallet_accounts(id)** :
+- `lib/db/schema/financials.ts` : `.references(() => walletAccounts.id, { onDelete: "restrict" })`
+- `drizzle/manual/0106_wallet_ledger_fk_account.sql` : migration idempotente DO-block
+- Production `crygnaichvlxavvbifqi` : contrainte `wallet_ledger_wallet_account_id_fk` (type f) ✅
+
+**GAP-2 — CHECK wallet_ledger.category IN 6-value set** :
+- `lib/db/schema/financials.ts` : `check("wallet_ledger_category_check", ...)`
+- `drizzle/manual/0107_wallet_ledger_category_check.sql` : migration idempotente DO-block
+- Production `crygnaichvlxavvbifqi` : contrainte `wallet_ledger_category_check` (type c) ✅
+- Valeurs autorisées : `booking`, `recharge`, `refund`, `commission`, `fee`, `adjustment`, NULL
+
+**GAP-3 — idempotencyKey dans creditCustomerWallet (triple-layer)** :
+- `lib/finance/customer-wallet.ts` : `CreditCustomerWalletInput` + `idempotencyKey?: string`
+- L1 Redis `e2b:idem:customer-wallet-credit:{key}` TTL 24h
+- L2 DB pre-check SELECT WHERE `idempotencyKey`
+- L3 SAVEPOINT `idem_credit_insert` + ROLLBACK TO SAVEPOINT sur violation UNIQUE
+
+**Tests** : 80/80 pass (+9 nouveaux WALLET-GAP-1/2/3 dans `commission-wiring-invariants.test.ts`)
 
 ---
 

@@ -41,6 +41,37 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — SETTLE-01 CLÔTURÉ (2026-10-04, commit `3856490`).
 **Aucun** — IDEMPOTENCE-01 CLÔTURÉ (2026-10-04, commit `8881408`).
 **Aucun** — SETTLE-02 CLÔTURÉ (2026-10-04, commit `e7e5919`).
+**Aucun** — SETTLE-02b CLÔTURÉ (2026-10-04, commit `0de624e`).
+
+---
+
+### SETTLE-02b — CLÔTURÉ (2026-10-04, commit `0de624e`)
+
+**Objectif** : fermer le GAP-2 de preuve ownership SETTLEMENT — convertir
+`economic_entitlements.settlement_ref` de `text` sans FK en `uuid` avec FK
+vers `commission_settlements(id)`.
+
+**Problème** : le lien entre un droit économique réglé et son settlement était
+une convention de code, pas une contrainte DB. La preuve cross-domaine
+(ECON ↔ SETTLEMENT) n'était pas DB-enforced.
+
+**Corrections** :
+- `lib/db/schema.ts` : `settlementRef` `text` → `uuid().references(commissionSettlements.id,
+  { onDelete: "set null" })` + import `commissionSettlements` ajouté ligne 25
+  (résolution forward-reference).
+- `drizzle/manual/0105_econ_entitlements_settlement_fk.sql` :
+  - `ALTER COLUMN settlement_ref TYPE uuid USING settlement_ref::uuid`
+  - `ADD CONSTRAINT FK ON DELETE SET NULL`
+  - `CREATE OR REPLACE FUNCTION mark_econ_commission_settled()` sans `::text` cast
+    (settlement_ref étant désormais uuid nativement).
+- 3 invariants statiques SETTLE-02b dans `commission-wiring-invariants.test.ts`.
+
+**À appliquer en production** :
+`psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0105_econ_entitlements_settlement_fk.sql`
+
+**Score tests** : 73/73 wiring invariants · 1446 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
+
+**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

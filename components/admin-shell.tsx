@@ -34,6 +34,8 @@ import {
   TrendingUp,
   MapPin,
   BarChart2,
+  Palette,
+  Landmark,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -223,6 +225,16 @@ const technicalNavItems: NavItem[] = [
 
 const superAdminNavItems: NavItem[] = [
   {
+    title: "Politique FX",
+    icon: Landmark,
+    href: "/admin/fx-policy",
+  },
+  {
+    title: "Marque Easy2Book",
+    icon: Palette,
+    href: "/admin/brand",
+  },
+  {
     // Pointait vers /admin/config, une route qui n'a jamais existé.
     // /admin/suppliers (Phase 27) EST la configuration fournisseurs réelle
     // — déjà construite, déjà réelle (super_admin uniquement, voir sa
@@ -322,6 +334,7 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "users") label = "Utilisateurs"
     if (paths[i] === "agencies") label = "Agences"
     if (paths[i] === "logs") label = "Logs Système"
+    if (paths[i] === "brand") label = "Marque Easy2Book"
 
     breadcrumbs.push({ label, href })
   }

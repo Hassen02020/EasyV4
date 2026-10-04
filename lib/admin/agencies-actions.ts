@@ -429,6 +429,140 @@ export async function setAgencyReservationTolerance(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Configuration White Label                                                    */
+/* -------------------------------------------------------------------------- */
+
+const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
+const DOMAIN_REGEX =
+  /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/
+
+const updateAgencyWhiteLabelSchema = z.object({
+  agencyId: z.string().uuid(),
+  brandName: z.string().trim().max(200).nullable().optional(),
+  logoUrl: z
+    .string()
+    .trim()
+    .url("URL invalide")
+    .max(2048)
+    .nullable()
+    .optional()
+    .or(z.literal("")),
+  primaryColor: z
+    .string()
+    .trim()
+    .regex(HEX_COLOR_REGEX, "Couleur invalide (#RRGGBB)")
+    .nullable()
+    .optional()
+    .or(z.literal("")),
+  domain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(DOMAIN_REGEX, "Domaine invalide (ex. voyages.exemple.tn)")
+    .max(255)
+    .nullable()
+    .optional()
+    .or(z.literal("")),
+})
+
+/**
+ * Met à jour les champs White Label d'une agence existante :
+ * `brandName`, `logoUrl`, `primaryColor`, `domain`.
+ * Super_admin uniquement. Aucun changement DB structurel — colonnes
+ * déjà présentes depuis Phase 13.1.
+ */
+export async function updateAgencyWhiteLabel(
+  raw: z.infer<typeof updateAgencyWhiteLabelSchema>,
+): Promise<AgencyActionResult> {
+  const parsed = updateAgencyWhiteLabelSchema.safeParse(raw)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error:
+        "Entrée invalide : " +
+        parsed.error.errors.map((e) => e.message).join(", "),
+    }
+  }
+  const input = parsed.data
+
+  let actorId: string
+  try {
+    actorId = await assertSuperAdmin()
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
+  }
+
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
+
+  const patch: Partial<{
+    brandName: string | null
+    logoUrl: string | null
+    primaryColor: string | null
+    domain: string | null
+    updatedAt: Date
+  }> = { updatedAt: new Date() }
+
+  if ("brandName" in input)
+    patch.brandName = input.brandName || null
+  if ("logoUrl" in input)
+    patch.logoUrl = input.logoUrl || null
+  if ("primaryColor" in input)
+    patch.primaryColor = input.primaryColor || null
+  if ("domain" in input)
+    patch.domain = input.domain || null
+
+  try {
+    await withTenantContext(
+      { agencyId: null, userId: actorId, isSuperAdmin: true },
+      async (tx) => {
+        const [updated] = await tx
+          .update(agencies)
+          .set(patch)
+          .where(eq(agencies.id, input.agencyId))
+          .returning({ id: agencies.id })
+
+        if (!updated) throw new Error("AGENCY_NOT_FOUND")
+
+        await tx.insert(auditEvents).values({
+          agencyId: input.agencyId,
+          actorUserId: actorId,
+          entityType: "agency",
+          entityId: input.agencyId,
+          action: "agency.white_label_updated",
+          diff: {
+            brandName: patch.brandName,
+            logoUrl: patch.logoUrl,
+            primaryColor: patch.primaryColor,
+            domain: patch.domain,
+          },
+        })
+      },
+    )
+
+    revalidatePath("/admin/agencies")
+    revalidatePath(`/admin/agencies/${input.agencyId}`)
+    logger.info("[agencies-actions] white label config updated", {
+      agencyId: input.agencyId,
+      actorId,
+    })
+    return { ok: true }
+  } catch (e) {
+    if (pgErrorCode(e) === "23505") {
+      return { ok: false, error: "Ce domaine est déjà utilisé par une autre agence." }
+    }
+    logger.error("[agencies-actions] updateAgencyWhiteLabel failed", {
+      agencyId: input.agencyId,
+      err: e instanceof Error ? e.message : String(e),
+    })
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Erreur inconnue",
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Recharge manuelle du solde wallet                                            */
 /* -------------------------------------------------------------------------- */
 

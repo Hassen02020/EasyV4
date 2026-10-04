@@ -36,7 +36,33 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — RECHARGE-PAYMEE-01 CLÔTURÉ (2026-10-04).
+**Aucun** — IDENTITY-J2A-01 CLÔTURÉ (2026-10-04).
+
+---
+
+### IDENTITY-J2A-01 — CLÔTURÉ (2026-10-04)
+
+**Objectif** : renforcer les contrats d'identité Booking → Financial
+(J2 de l'audit jonctions CRM/Financial/Wallet).
+
+**Problèmes corrigés** :
+- `partner_credit_movements.reservationId` : nullable, no FK, **no index** — full
+  scan sur les requêtes "mouvements d'une réservation".
+- `commission_settlement_entries.walletLedgerId` : NOT NULL mais aucune FK DB —
+  un ledger entry pouvait être référencé par un settlement sans contrainte d'intégrité.
+
+**Corrections** :
+- Migration `0017` : `CREATE INDEX CONCURRENTLY` partiel sur
+  `partner_credit_movements.reservation_id WHERE IS NOT NULL`.
+- Migration `0017` : `ALTER TABLE commission_settlement_entries ADD CONSTRAINT FK`
+  vers `wallet_ledger.id ON DELETE RESTRICT` — renforce R4-03 (append-only).
+- Drizzle schema : index et FK déclarés dans `lib/db/schema.ts` et
+  `lib/db/schema/financials.ts`.
+
+**Aucun changement applicatif** — colonnes restent nullable (correct pour
+les recharges et ajustements sans réservation).
+
+**Commit** : `bc60461` — branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

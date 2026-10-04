@@ -7,7 +7,8 @@
  *  2. debitCustomerWallet débite wallet_accounts et écrit wallet_ledger (B2C) :
  *     INSUFFICIENT_FUNDS si solde < montant, succès sinon.
  *  3. settleCommissions agrège les entrées commission non settlées → crée
- *     commission_settlements (status='pending'), marque wallet_ledger.settled_at.
+ *     commission_settlements (status='pending'), insère dans commission_settlement_entries
+ *     (R4-03 : wallet_ledger est append-only, jamais mis à jour).
  *  4. markSettlementPaid passe le settlement de 'pending' → 'paid' avec
  *     settled_at renseigné.
  *  5. Idempotence : un deuxième settleCommissions sur la MÊME période est rejeté
@@ -40,6 +41,7 @@ import {
   walletAccounts,
   walletLedger,
   commissionSettlements,
+  commissionSettlementEntries,
 } from "@/lib/db/schema"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { PLATFORM_COMMISSION_WALLET_ID } from "@/lib/finance/platform-commission"
@@ -404,24 +406,24 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
   )
   assert.equal(s.settledBy, "cert64-admin", "settled_by renseigné")
 
-  // Vérifier que les entrées wallet_ledger sont marquées settled_at
-  const ledgerEntry = await withSystemContext((tx) =>
+  // R4-03 : le lien ledger ↔ settlement est dans commission_settlement_entries,
+  // jamais dans wallet_ledger (append-only — settled_at/settlement_id sur
+  // wallet_ledger sont des colonnes mortes jamais écrites par le code actuel).
+  const entries = await withSystemContext((tx) =>
     tx
-      .select({
-        settledAt: walletLedger.settledAt,
-        settlementId: walletLedger.settlementId,
-      })
-      .from(walletLedger)
-      .where(eq(walletLedger.id, walletLedgerIdComm)),
-  )
-  assert.ok(
-    ledgerEntry[0]?.settledAt != null,
-    "wallet_ledger.settled_at renseigné après settlement",
+      .select()
+      .from(commissionSettlementEntries)
+      .where(eq(commissionSettlementEntries.walletLedgerId, walletLedgerIdComm)),
   )
   assert.equal(
-    ledgerEntry[0]?.settlementId,
+    entries.length,
+    1,
+    "commission_settlement_entries : 1 entrée pour la ligne wallet_ledger commission",
+  )
+  assert.equal(
+    entries[0]?.settlementId,
     settlementId,
-    "wallet_ledger.settlement_id = settlement créé",
+    "commission_settlement_entries.settlement_id = settlement créé",
   )
 })
 

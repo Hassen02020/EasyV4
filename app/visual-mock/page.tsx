@@ -247,9 +247,9 @@ const SECTIONS: Section[] = [
       {
         name: "Register",
         description: "Création de compte client",
-        status: "MISSING",
-        route: "—",
-        note: "Pas de page /inscription ou /register trouvée",
+        status: "EXISTS",
+        route: "/[locale]/compte/inscription",
+        locales: true,
       },
       {
         name: "Support / CRM",

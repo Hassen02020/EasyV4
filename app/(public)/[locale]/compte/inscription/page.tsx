@@ -1,18 +1,18 @@
 import { Suspense } from "react"
 import { Link } from "@/i18n/navigation"
 import { getTranslations } from "next-intl/server"
-import { CompteLoginForm } from "@/components/compte/compte-login-form"
+import { CompteSignupForm } from "@/components/compte/compte-signup-form"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
-  title: "Mon compte — Connexion | Easy2Book",
+  title: "Créer un compte — Easy2Book",
   description:
-    "Connectez-vous pour retrouver l'historique de toutes vos réservations Easy2Book.",
-  alternates: { languages: buildLanguageAlternates("/compte/connexion") },
+    "Créez votre compte Easy2Book pour retrouver facilement toutes vos réservations.",
+  alternates: { languages: buildLanguageAlternates("/compte/inscription") },
 }
 
-export default async function CompteConnexionPage() {
+export default async function CompteInscriptionPage() {
   const t = await getTranslations("Compte")
   return (
     <main className="from-background via-background to-accent/10 relative flex min-h-screen items-center justify-center bg-gradient-to-br px-4 py-12">
@@ -30,10 +30,10 @@ export default async function CompteConnexionPage() {
             <Easy2BookLogo className="e2b-logo-pulse h-20 w-20" priority />
           </Link>
           <h1 className="text-foreground mt-6 text-2xl font-semibold tracking-tight">
-            {t("connexionPageTitle")}
+            {t("inscriptionPageTitle")}
           </h1>
           <p className="text-muted-foreground mt-1 text-center text-sm">
-            {t("connexionPageSubtitle")}
+            {t("inscriptionPageSubtitle")}
           </p>
         </div>
 
@@ -42,26 +42,17 @@ export default async function CompteConnexionPage() {
             <div className="bg-card shadow-e2b-soft h-56 animate-pulse rounded-2xl border" />
           }
         >
-          <CompteLoginForm />
+          <CompteSignupForm />
         </Suspense>
 
         <div className="mt-6 flex flex-col items-center gap-2 text-center text-xs">
           <p className="text-muted-foreground">
-            {t("createAccountPrefix")}{" "}
+            {t("alreadyAccountPrefix")}{" "}
             <Link
-              href="/compte/inscription"
+              href="/compte/connexion"
               className="text-primary font-medium hover:underline"
             >
-              {t("createAccountLink")}
-            </Link>
-          </p>
-          <p className="text-muted-foreground">
-            {t("noAccountPrefix")}{" "}
-            <Link
-              href="/bookings"
-              className="text-primary font-medium hover:underline"
-            >
-              {t("lookupWithCodeLink")}
+              {t("loginLink")}
             </Link>
           </p>
         </div>

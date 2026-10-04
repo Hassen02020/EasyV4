@@ -62,7 +62,7 @@ canal sans parser les URL côté applicatif.
 **Call sites non modifiés** : `inbox-core.ts` (WhatsApp = canal comm, pas canal
 distribution → reste nullable), tests de fixtures (`acquisitionChannel: null` ajouté).
 
-**Commit** : à venir — branche `claude/easy2book-v6-modernization-7gyb5v`.
+**Commit** : `17af55d` — branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

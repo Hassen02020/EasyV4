@@ -38,6 +38,73 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 **Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
 **Aucun** — IDENTITY-J6-01 CLÔTURÉ (2026-10-04).
+**Aucun** — SETTLE-01 CLÔTURÉ (2026-10-04, commit `3856490`).
+**Aucun** — IDEMPOTENCE-01 CLÔTURÉ (2026-10-04, commit `8881408`).
+
+---
+
+### IDEMPOTENCE-01 — CLÔTURÉ (2026-10-04, commit `8881408`)
+
+**Objectif** : certifier que la même commission ne peut pas être réglée deux fois,
+même si `settleCommissions()` est déclenché plusieurs fois ou sur des périodes
+chevauchantes — indépendamment du chemin d'appel.
+
+**Audit** : SETTLE-01 matérialisait le settlement dans `economic_entitlements`, mais
+ne prouvait pas les 3 couches d'idempotence. Audit IDEMPOTENCE-01 a identifié :
+- Couche 1 (UNIQUE `period_start, period_end`) — déjà en place (migration 0066)
+- Couche 2 (UNIQUE `walletLedgerId` dans `commission_settlement_entries`) — présente
+  mais non testée : INSERT direct dupliqué → 23505 non couvert
+- Couche 3 (`notSettledFilter(tx)`) — appliqué aux 2 sites de requête dans
+  `settleCommissions()` (agrégat COUNT + SELECT entrées), mais invariant statique absent
+
+**Corrections** :
+- Invariant statique : `notSettledFilter(tx)` présent ≥ 2 fois dans
+  `commission-settlement.ts` (test `commission-wiring-invariants.test.ts`)
+- Test 5b (intégration) : période chevauchante sur une entrée déjà settlée →
+  `entryCount=0`, `totalAmount=0` (prouve la couche 3)
+- Test 5c (intégration) : INSERT direct `commissionSettlementEntries` avec
+  `walletLedgerId` déjà présent → UNIQUE violation `23505` (prouve la couche 2)
+
+**Score tests** : 1441 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
+
+**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
+### SETTLE-01 — CLÔTURÉ (2026-10-04, commit `3856490`)
+
+**Objectif** : matérialiser le settlement commission dans `economic_entitlements`
+(colonnes `settlement_status` / `settlement_ref`), qui existaient en schéma mais
+n'étaient jamais écrites par aucun code de production.
+
+**Contrainte** : migration 0092 (ECON-ENTITLEMENTS-INTEGRITY-01) a révoqué
+`UPDATE/DELETE/TRUNCATE` sur `economic_entitlements` à tous les rôles applicatifs
+(`app_runtime`, `anon`, `authenticated`, `service_role`). Toute mutation requiert
+une fonction `SECURITY DEFINER`.
+
+**Corrections** :
+- `drizzle/manual/0093_settle_econ_commission.sql` — fonction SECURITY DEFINER
+  `mark_econ_commission_settled(p_reservation_ids uuid[], p_settlement_ref uuid)` :
+  UPDATE `economic_entitlements` SET `settlement_status='settled'`,
+  `settlement_ref=p_settlement_ref`, `updated_at=now()` WHERE
+  `reservation_id = ANY(...)` AND `qualification='commission'`
+  AND `party_type='easy2book'`. REVOKE PUBLIC/anon/authenticated ;
+  GRANT `service_role`/`app_runtime`.
+- `lib/finance/commission-settlement.ts` : après INSERT dans
+  `commission_settlement_entries`, appel `tx.execute(sql\`SELECT mark_econ_commission_settled(...)\`)`
+  — zéro `.update(economicEntitlements)` côté applicatif.
+- `lib/finance/__tests__/payment-settlement-chain.integration.test.ts` : Test 3
+  vérifie `economicEntitlements.settlementStatus = 'settled'` + `settlementRef = settlementId`.
+- `lib/finance/__tests__/econ-wiring-01-invariants.test.ts` : fix boucle Hotels-Monde/Vols
+  (split en 2 tests indépendants : Hotels-Monde → 3 lignes avec commission,
+  Vols → 2 lignes sans commission fabriquée).
+
+**À appliquer en production** :
+`psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0093_settle_econ_commission.sql`
+
+**Score tests** : 1440 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
+
+**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

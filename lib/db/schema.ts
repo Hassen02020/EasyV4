@@ -3219,6 +3219,19 @@ export {
 } from "./schema/hotel-suppliers"
 
 /* -------------------------------------------------------------------------- */
+/* CANONICAL-HOTEL-01 — imported from schema/canonical-hotels.ts              */
+/* -------------------------------------------------------------------------- */
+
+export {
+  canonicalHotels,
+  canonicalHotelSupplierMappings,
+  type CanonicalHotelRow,
+  type NewCanonicalHotelRow,
+  type CanonicalHotelSupplierMappingRow,
+  type NewCanonicalHotelSupplierMappingRow,
+} from "./schema/canonical-hotels"
+
+/* -------------------------------------------------------------------------- */
 /* Validation Module — imported from schema/validation.ts                     */
 /* -------------------------------------------------------------------------- */
 

@@ -2046,6 +2046,30 @@ export const leads = pgTable(
     productLabel: varchar("product_label", { length: 255 }),
     /** Chemin de la page d'où la demande a été envoyée (ex. "/packages/mon-voyage") — utile pour prioriser/comprendre la demande, jamais affiché comme donnée client. */
     sourcePage: varchar("source_page", { length: 255 }).notNull(),
+    /**
+     * CRM-NICHE-01 — destination demandée (ville/pays), texte libre saisi
+     * par le visiteur ou déduit du produit catalogue au moment de la
+     * capture — jamais une FK stricte (même raisonnement que productRef).
+     */
+    destination: varchar("destination", { length: 128 }),
+    /**
+     * CRM-NICHE-01 — 'groupe' | 'transfert' | 'a_la_carte' | 'standard'.
+     * Alignée sur la décision Devis (2026-09-29, ROADMAP Phase 3 R3-03) :
+     * les 3 valeurs non-standard correspondent exactement aux 3 cas où un
+     * futur flux devis s'appliquera. Validé en code (LEAD_INTENTIONS,
+     * lib/crm/leads-core.ts), pas un enum DB — permet d'ajouter une
+     * intention sans migration.
+     */
+    intention: varchar("intention", { length: 16 })
+      .notNull()
+      .default("standard"),
+    /**
+     * CRM-NICHE-01 — marché/marque Easy2Book (ex. "tunisia"), pas un code
+     * pays ISO générique : une entité commerciale distincte (Tunisia, puis
+     * USA, Asia...). Validé contre LEAD_MARKETS (lib/crm/leads-core.ts),
+     * pas un enum DB — ajouter un marché ne demande aucune migration.
+     */
+    market: varchar("market", { length: 32 }).notNull().default("tunisia"),
     /** 'new' | 'contacted' | 'converted' | 'closed' */
     status: varchar("status", { length: 16 }).notNull().default("new"),
     staffNotes: text("staff_notes"),
@@ -2072,6 +2096,13 @@ export const leads = pgTable(
     index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
     index("leads_agency_idx").on(t.agencyId),
     uniqueIndex("leads_reservation_id_uniq").on(t.reservationId),
+    /** CRM-NICHE-01 — colonnes de group-by de getNicheSegmentsCore(). */
+    index("leads_agency_market_product_intention_idx").on(
+      t.agencyId,
+      t.market,
+      t.productType,
+      t.intention,
+    ),
   ],
 )
 

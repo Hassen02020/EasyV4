@@ -57,6 +57,7 @@ export function LeadCaptureForm({
       productRef,
       productLabel,
       sourcePage: pathname,
+      intention: "standard",
       website,
     }
 

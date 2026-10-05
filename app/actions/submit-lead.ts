@@ -18,7 +18,11 @@ import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { rateLimit } from "@/lib/rate-limit"
-import { LEAD_PRODUCT_TYPES, createLeadCore } from "@/lib/crm/leads-core"
+import {
+  LEAD_PRODUCT_TYPES,
+  LEAD_INTENTIONS,
+  createLeadCore,
+} from "@/lib/crm/leads-core"
 import { sendEvent } from "@/lib/inngest/client"
 
 const inputSchema = z
@@ -32,6 +36,10 @@ const inputSchema = z
     productRef: z.string().trim().max(128).optional(),
     productLabel: z.string().trim().max(255).optional(),
     sourcePage: z.string().trim().min(1).max(255),
+    /** CRM-NICHE-01 — optionnel : pas tous les formulaires n'exposent encore ce champ. */
+    destination: z.string().trim().max(128).optional(),
+    /** CRM-NICHE-01 — défaut "standard" si le formulaire ne le précise pas. */
+    intention: z.enum(LEAD_INTENTIONS).default("standard"),
     /** Honeypot — doit rester vide. */
     website: z.string().optional(),
   })
@@ -94,6 +102,8 @@ export async function submitLead(
           productRef: parsed.data.productRef || null,
           productLabel: parsed.data.productLabel || null,
           sourcePage: parsed.data.sourcePage,
+          destination: parsed.data.destination || null,
+          intention: parsed.data.intention,
         }),
     )
 

@@ -7,7 +7,9 @@
 -- modélisation (hybride, validé) : un journal append-only
 -- (lead_origin_events) comme source de vérité/audit, avec 4 colonnes
 -- "résolues" sur `leads` comme cache rapide pour la segmentation
--- (CRM-NICHE-02) — dernier événement gagne, par rôle.
+-- (CRM-NICHE-02) — rang de confiance maximal par rôle, jamais un simple
+-- départage par date (voir LEAD_ORIGIN_SOURCE_TRUST,
+-- lib/crm/network-demand-capture-core.ts).
 --
 -- Strictement additif : 4 colonnes nullable sur `leads`, 1 nouvelle table.
 -- Aucune colonne existante touchée, aucun impact sur
@@ -53,5 +55,17 @@ CREATE POLICY lead_origin_events_tenant_isolation ON lead_origin_events
   WITH CHECK (agency_id = current_agency_id() OR is_super_admin());
 
 GRANT SELECT, INSERT ON lead_origin_events TO app_runtime;
+
+-- CRITIQUE — découvert en appliquant cette migration en production : un
+-- ALTER DEFAULT PRIVILEGES préexistant (rôle postgres, schéma public,
+-- voir 0069_database_url_app_runtime_cutover.sql) accorde automatiquement
+-- INSERT/SELECT/UPDATE/DELETE à app_runtime sur TOUTE nouvelle table créée
+-- dans public. Le GRANT ci-dessus (SELECT, INSERT seulement) ne retire
+-- PAS ce qui a déjà été accordé par défaut — sans ce REVOKE explicite,
+-- app_runtime aurait UPDATE/DELETE malgré ce fichier, et l'invariant
+-- append-only ne serait vrai qu'en apparence (vérifié faux en production
+-- avant ce correctif). Toujours REVOKE explicitement après CREATE TABLE
+-- pour toute table censée être append-only dans ce dépôt.
+REVOKE UPDATE, DELETE ON lead_origin_events FROM app_runtime;
 
 COMMIT;

@@ -3,6 +3,14 @@
  * commerciaux mesurables (marché × produit × intention × destination ×
  * période), avec volume et taux de conversion.
  *
+ * NICHE-PROVENANCE-01 — étend le group-by avec les colonnes résolues de
+ * NETWORK-DEMAND-CAPTURE-01 (originAgencyId/channel/campaignRef) :
+ * répond à "quelle origine génère quelle niche". Un lead sans origine
+ * connue (colonne NULL) forme son propre groupe "origine inconnue" —
+ * jamais fusionné avec un lead qui EN a une (même principe anti-
+ * fabrication que le reste du dépôt : une origine inconnue reste
+ * inconnue, jamais supposée).
+ *
  * PAS un fichier `"use server"` (même convention que leads-core.ts) —
  * `computeNicheSegmentsCore` est une fonction pure testable sans DB ;
  * `getNicheSegmentsCore` est le seul point qui touche Postgres.
@@ -25,6 +33,10 @@ export interface NicheSegmentInputRow {
   destination: string | null
   status: string
   createdAt: Date
+  /** NICHE-PROVENANCE-01 — colonnes résolues NETWORK-DEMAND-CAPTURE-01. */
+  originAgencyId: string | null
+  channel: string | null
+  campaignRef: string | null
 }
 
 export interface NicheSegment {
@@ -35,6 +47,10 @@ export interface NicheSegment {
   destination: string | null
   /** Période mensuelle, format "YYYY-MM" (UTC) — stable, comparable dans le temps. */
   period: string
+  /** null = regroupé séparément des leads avec origine connue (jamais fusionné). */
+  originAgencyId: string | null
+  channel: string | null
+  campaignRef: string | null
   volume: number
   convertedCount: number
   /** 0-100, arrondi — 0 si volume=0 (jamais de division par zéro). */
@@ -62,6 +78,9 @@ export function computeNicheSegmentsCore(
       row.intention,
       row.destination ?? "",
       period,
+      row.originAgencyId ?? "",
+      row.channel ?? "",
+      row.campaignRef ?? "",
     ].join("|")
 
     const isConverted = row.status === "converted"
@@ -76,6 +95,9 @@ export function computeNicheSegmentsCore(
         intention: row.intention,
         destination: row.destination,
         period,
+        originAgencyId: row.originAgencyId,
+        channel: row.channel,
+        campaignRef: row.campaignRef,
         volume: 1,
         convertedCount: isConverted ? 1 : 0,
         conversionRate: 0,
@@ -110,6 +132,9 @@ export async function getNicheSegmentsCore(
       destination: leads.destination,
       status: leads.status,
       createdAt: leads.createdAt,
+      originAgencyId: leads.originAgencyId,
+      channel: leads.channel,
+      campaignRef: leads.campaignRef,
     })
     .from(leads)
     .where(eq(leads.agencyId, params.agencyId))

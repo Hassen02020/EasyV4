@@ -24,7 +24,6 @@
 import { sql } from "drizzle-orm"
 import { marginRules, marginType, walletTxType } from "./schema/financials"
 import { supplierNodes } from "./schema/supplier-portal"
-import { publicSiteSettings, publicModuleVisuals, publicPromotions } from "./schema/public-site"
 import { inventoryStatus } from "./schema/products"
 import {
   bigint,
@@ -3230,6 +3229,25 @@ export {
   type CanonicalHotelSupplierMappingRow,
   type NewCanonicalHotelSupplierMappingRow,
 } from "./schema/canonical-hotels"
+
+/* -------------------------------------------------------------------------- */
+/* PUBLIC-VISUAL-01 — imported from schema/public-site.ts                     */
+/* CI-FIX (2026-10-05) : import orphelin depuis la fusion de PR #116, jamais  */
+/* ré-exporté — cassait lib/admin/public-site-actions.ts et                  */
+/* lib/public/site-content.ts (TS2459), typecheck rouge sur main.            */
+/* -------------------------------------------------------------------------- */
+
+export {
+  publicSiteSettings,
+  publicModuleVisuals,
+  publicPromotions,
+  type PublicSiteSettings,
+  type NewPublicSiteSettings,
+  type PublicModuleVisual,
+  type NewPublicModuleVisual,
+  type PublicPromotion,
+  type NewPublicPromotion,
+} from "./schema/public-site"
 
 /* -------------------------------------------------------------------------- */
 /* Validation Module — imported from schema/validation.ts                     */

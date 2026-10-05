@@ -20,7 +20,6 @@ interface HeaderProps {
   brandName?: string | null
   /** Logo d'agence White Label ; absent = logo Easy2Book par défaut. */
   logoUrl?: string | null
-  contactPhone?: string | null
   /** Téléphone de contact résolu depuis la BDD par HeaderWrapper ; absent = lien désactivé. */
   contactPhone?: string | null
 }

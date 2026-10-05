@@ -56,6 +56,7 @@ async function getZones() {
 export default async function TransfertsPage() {
   const zones = await getZones()
   const t = await getTranslations("Transferts")
+  const visual = await getPublicModuleVisual("transferts")
 
   return (
     <div className="flex min-h-screen flex-col">

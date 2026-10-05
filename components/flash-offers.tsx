@@ -1,7 +1,7 @@
 import Image from "next/image"
 import { Link } from "@/i18n/navigation"
 import { Button } from "@/components/ui/button"
-import { useTranslations } from "next-intl"
+import { getTranslations } from "next-intl/server"
 import { getPublicPromotions } from "@/lib/public/site-content"
 
 /**
@@ -9,7 +9,7 @@ import { getPublicPromotions } from "@/lib/public/site-content"
  * The component only renders the active rows selected by the server query.
  */
 export async function FlashOffers() {
-  const t = useTranslations("Common")
+  const t = await getTranslations("Common")
   const offers = await getPublicPromotions()
 
   if (offers.length === 0) return null

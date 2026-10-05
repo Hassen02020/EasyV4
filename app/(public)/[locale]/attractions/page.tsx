@@ -197,6 +197,7 @@ export default async function AttractionsPage({
   const t = await getTranslations("Attractions")
   const tCommon = await getTranslations("Common")
   const locale = await getLocale()
+  const visual = await getPublicModuleVisual("attractions")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -241,9 +242,8 @@ export default async function AttractionsPage({
                 // Fallback mission §23 : Media System en priorité, sinon
                 // coverImage (legacy), sinon dégradé de marque (mission §33).
                 const coverImage = a.coverMediaUrl || a.coverImage
-                const visual = await getPublicModuleVisual("attractions")
 
-  return (
+                return (
                   <Link
                     key={a.id}
                     href={`/attractions/${a.slug}`}

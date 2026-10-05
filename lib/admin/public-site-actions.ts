@@ -86,7 +86,6 @@ export async function savePublicSiteSettings(formData: FormData) {
 
   revalidatePath("/[locale]", "layout")
   revalidatePath("/admin/site")
-  return { ok: true }
 }
 
 export async function savePublicModuleVisual(formData: FormData) {
@@ -120,7 +119,6 @@ export async function savePublicModuleVisual(formData: FormData) {
 
   revalidatePath("/[locale]", "layout")
   revalidatePath("/admin/site")
-  return { ok: true }
 }
 
 export async function savePublicPromotion(formData: FormData) {
@@ -178,5 +176,4 @@ export async function savePublicPromotion(formData: FormData) {
 
   revalidatePath("/[locale]", "layout")
   revalidatePath("/admin/site")
-  return { ok: true }
 }

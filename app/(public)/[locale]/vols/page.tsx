@@ -78,6 +78,7 @@ export default async function VolsPage({
     adults: typeof rawParams.adults === "string" ? rawParams.adults : undefined,
   }
   const t = await getTranslations("Vols")
+  const visual = await getPublicModuleVisual("vols")
 
   return (
     <div className="flex min-h-screen flex-col">

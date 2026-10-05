@@ -101,13 +101,18 @@ dédié, pas ajoutée ici par anticipation.
 - `npx prettier --check` sur tous les fichiers modifiés : clean.
 - `pnpm build` : exit 0.
 
+**Mis à jour (2026-10-05, même jour — GO explicite reçu)** :
+
+- PR #131 ouverte (`crm-niche-01` → `main`), branche pushée.
+- Migration 0110 appliquée en production Supabase `crygnaichvlxavvbifqi`
+  (`apply_migration`, succès) — vérifié par lecture directe :
+  `destination` (varchar, nullable), `intention` (varchar, NOT NULL,
+  défaut `'standard'`), `market` (varchar, NOT NULL, défaut `'tunisia'`),
+  index `leads_agency_market_product_intention_idx` présent.
+
 **NOT VERIFIED** :
 
-- Migration 0110 : **pas encore appliquée en production** — nécessite
-  un GO explicite séparé avant tout `apply_migration` Supabase.
-- Branche `crm-niche-01` committée localement, **pas encore pushée**
-  (pas de PR ouverte) — en attente d'un GO explicite séparé pour push/PR,
-  même convention que les chantiers précédents de cette session.
+- PR #131 : pas encore mergée sur `main` — CI à surveiller.
 - Visual QA dashboard CRM : aucune UI de consultation des segments n'a
   été construite dans ce chantier (hors scope — le critère de sortie
   validé portait sur la fonction d'agrégation, pas sur un écran staff).

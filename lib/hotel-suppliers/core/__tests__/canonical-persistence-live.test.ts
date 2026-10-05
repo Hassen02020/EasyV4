@@ -11,10 +11,14 @@
  *     nettoyage précis, sans toucher aux autres données (ces tables ne sont
  *     pas partitionnées par agence — voir l'en-tête de la migration 0109).
  *
- * E1/E2/E3 de la proposition CANONICAL (§10) :
+ * E1/E2/E3 de la proposition CANONICAL (§10), E4 ajouté par
+ * CANONICAL-HOTEL-01-REASONS :
  *   E1 — un match EXACT cross-fournisseur persiste UNE identité partagée.
  *   E2 — revoir le même (supplier, code) ne crée jamais une deuxième identité.
  *   E3 — un match HIGH/MEDIUM/LOW n'est JAMAIS auto-persisté.
+ *   E4 — le "pourquoi" (reasons[] de matchHotels()) est persisté avec le
+ *        "quoi", pas seulement la confiance — requêtable après coup, pas
+ *        seulement visible dans les logs de la recherche d'origine.
  */
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
@@ -49,6 +53,7 @@ async function findMapping(supplier: string, supplierHotelCode: string) {
       .select({
         canonicalHotelId: canonicalHotelSupplierMappings.canonicalHotelId,
         confidence: canonicalHotelSupplierMappings.matchConfidence,
+        reasons: canonicalHotelSupplierMappings.matchReasons,
       })
       .from(canonicalHotelSupplierMappings)
       .where(
@@ -157,6 +162,71 @@ test("persistCanonicalHotelMappings : match EXACT cross-fournisseur (E1) => UNE 
   )
   assert.equal(mygoMapping!.confidence, "EXACT")
   assert.equal(cyberesaMapping!.confidence, "EXACT")
+})
+
+test("persistCanonicalHotelMappings : le pourquoi (reasons) est persisté, pas seulement la confiance (E4)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+
+  const run = randomUUID().slice(0, 8)
+  const anchorCode = `MYGO-${run}`
+  const matchedCode = `CYB-${run}`
+  createdSuppliersAndCodes.push(
+    { supplier: "mygo", code: anchorCode },
+    { supplier: "cyberesa", code: matchedCode },
+  )
+
+  const anchor: NormalizedHotel = {
+    name: `El Mouradi Reasons E2E ${run}`,
+    city: "Gammarth",
+    latitude: 36.9,
+    longitude: 10.3,
+    images: [],
+    facilities: [],
+    supplierMappings: [{ supplier: "mygo", supplierHotelCode: anchorCode }],
+  }
+  const matched: NormalizedHotel = {
+    name: `El Mouradi Reasons E2E ${run}`,
+    city: "Gammarth",
+    latitude: 36.9002,
+    longitude: 10.3001,
+    images: [],
+    facilities: [],
+    supplierMappings: [
+      { supplier: "cyberesa", supplierHotelCode: matchedCode },
+    ],
+  }
+
+  const groups = deduplicateHotels([anchor, matched], [])
+  await persistCanonicalHotelMappings(groups, randomUUID())
+
+  const anchorMapping = await findMapping("mygo", anchorCode)
+  const matchedMapping = await findMapping("cyberesa", matchedCode)
+
+  assert.ok(anchorMapping, "setup")
+  assert.ok(matchedMapping, "setup")
+
+  // L'ancre n'a subi aucune comparaison — reasons synthétique, jamais vide.
+  assert.ok(
+    Array.isArray(anchorMapping!.reasons) && anchorMapping!.reasons.length > 0,
+    "les reasons de l'ancre ne doivent jamais être un tableau vide",
+  )
+  assert.match(
+    anchorMapping!.reasons[0] as string,
+    /first sighting/,
+    "l'ancre doit porter une raison explicite de création, jamais fabriquée comme un vrai match",
+  )
+
+  // Le membre réellement comparé porte les VRAIES raisons de matchHotels().
+  assert.ok(
+    Array.isArray(matchedMapping!.reasons) &&
+      matchedMapping!.reasons.length > 0,
+    "les reasons du membre comparé doivent être persistées, pas vides",
+  )
+  assert.ok(
+    matchedMapping!.reasons.some((r) => /geo within/.test(r)) &&
+      matchedMapping!.reasons.some((r) => /name similarity/.test(r)),
+    `les reasons doivent refléter le VRAI calcul de matchHotels() (geo + nom), reçu: ${JSON.stringify(matchedMapping!.reasons)}`,
+  )
 })
 
 test("persistCanonicalHotelMappings : revoir le même (supplier, code) (E2) => jamais une deuxième identité", async (t) => {

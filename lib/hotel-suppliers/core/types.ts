@@ -182,8 +182,19 @@ export type MatchConfidence = "EXACT" | "HIGH" | "MEDIUM" | "LOW" | "UNMATCHED"
 export interface DeduplicatedHotelGroup {
   /** Fiche représentative (premier hôtel du groupe) — jamais un objet inventé/fusionné champ par champ. */
   hotel: NormalizedHotel
-  /** Tous les hôtels normalisés (un par fournisseur) regroupés ici, avec la confiance du rattachement au premier. */
-  members: { hotel: NormalizedHotel; confidence: MatchConfidence }[]
+  /**
+   * Tous les hôtels normalisés (un par fournisseur) regroupés ici, avec la
+   * confiance du rattachement au premier et les `reasons` qui l'expliquent
+   * (CANONICAL-HOTEL-01-REASONS — mêmes `reasons` que `matchHotels()`
+   * renvoie déjà ; pour le premier membre d'un groupe (l'ancre), ce n'est
+   * pas une comparaison mais la création de l'identité elle-même — jamais
+   * un tableau vide/inventé).
+   */
+  members: {
+    hotel: NormalizedHotel
+    confidence: MatchConfidence
+    reasons: string[]
+  }[]
   /** Toutes les offres tarifaires des fournisseurs regroupés — jamais réduites à une seule avant le ranking. */
   rates: NormalizedRate[]
   fromPrice: number | null

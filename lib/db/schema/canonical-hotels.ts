@@ -27,6 +27,7 @@ import {
   timestamp,
   uniqueIndex,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core"
 
 export const canonicalHotels = pgTable("canonical_hotels", {
@@ -67,6 +68,16 @@ export const canonicalHotelSupplierMappings = pgTable(
      * réévaluée après coup par ce chantier.
      */
     matchConfidence: varchar("match_confidence", { length: 16 }).notNull(),
+    /**
+     * CANONICAL-HOTEL-01-REASONS (2026-10-05) — le détail humainement
+     * lisible qui justifie `matchConfidence` (ex. `["geo within 42m",
+     * "name similarity 0.87"]`), exactement les `reasons` déjà retournées
+     * par `matchHotels()` (lib/hotel-suppliers/core/mapping.ts), jamais
+     * recalculées ni réinterprétées ici. Avant ce chantier, seul le
+     * résultat (`EXACT`) était persisté — jamais le "pourquoi", qui ne
+     * vivait que dans les logs de la recherche l'ayant créé.
+     */
+    matchReasons: jsonb("match_reasons").$type<string[]>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

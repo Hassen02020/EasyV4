@@ -2070,6 +2070,27 @@ export const leads = pgTable(
      * pas un enum DB — ajouter un marché ne demande aucune migration.
      */
     market: varchar("market", { length: 32 }).notNull().default("tunisia"),
+    /**
+     * NETWORK-DEMAND-CAPTURE-01 — cache RÉSOLU (rang de confiance maximal
+     * par rôle, jamais un simple départage par date — voir
+     * LEAD_ORIGIN_SOURCE_TRUST, lib/crm/network-demand-capture-core.ts),
+     * jamais écrit directement : toujours dérivé du journal append-only
+     * `leadOriginEvents` par `recordLeadOriginEventCore()`. Distinct de
+     * `agencyId` (tenant propriétaire, ci-dessus) : ici, l'agence qui a
+     * APPORTÉ la demande (ex. une agence `agencyType='partner'`) — peut
+     * être une agence différente du tenant propriétaire.
+     */
+    originAgencyId: uuid("origin_agency_id").references(() => agencies.id, {
+      onDelete: "set null",
+    }),
+    /** NETWORK-DEMAND-CAPTURE-01 — cache résolu : le commercial/agent apporteur, distinct de `handledByUserId` (qui TRAITE le lead après coup). */
+    capturedByUserId: uuid("captured_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** NETWORK-DEMAND-CAPTURE-01 — cache résolu : canal de capture, validé contre LEAD_CHANNELS (lib/crm/leads-core.ts), pas un enum DB. */
+    channel: varchar("channel", { length: 32 }),
+    /** NETWORK-DEMAND-CAPTURE-01 — cache résolu : référence de campagne/acquisition, texte libre (aucun mécanisme de capture structuré n'existe encore — ce chantier prépare la forme, pas le branchement). */
+    campaignRef: varchar("campaign_ref", { length: 255 }),
     /** 'new' | 'contacted' | 'converted' | 'closed' */
     status: varchar("status", { length: 16 }).notNull().default("new"),
     staffNotes: text("staff_notes"),
@@ -2103,6 +2124,51 @@ export const leads = pgTable(
       t.productType,
       t.intention,
     ),
+    /** NETWORK-DEMAND-CAPTURE-01 — colonnes de group-by futures (CRM-NICHE-02). */
+    index("leads_agency_origin_channel_idx").on(
+      t.agencyId,
+      t.originAgencyId,
+      t.channel,
+    ),
+  ],
+)
+
+/**
+ * NETWORK-DEMAND-CAPTURE-01 — journal append-only du chemin de provenance
+ * d'un lead (campagne → partenaire → commercial → canal → agence...).
+ * JAMAIS de UPDATE/DELETE (même invariant que `wallet_ledger`, R4-03) :
+ * une correction s'écrit comme un NOUVEL événement, l'ancien reste visible.
+ * Les colonnes résolues sur `leads` (originAgencyId/capturedByUserId/
+ * channel/campaignRef) sont un cache dérivé de ce journal — rang de
+ * confiance maximal par rôle, jamais un simple départage par date (voir
+ * LEAD_ORIGIN_SOURCE_TRUST, lib/crm/network-demand-capture-core.ts) —
+ * jamais écrites directement par l'app hors de `recordLeadOriginEventCore()`.
+ */
+export const leadOriginEvents = pgTable(
+  "lead_origin_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Dénormalisé depuis leads.agencyId — évite un join dans la policy RLS. */
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    /** 'campaign' | 'origin_agency' | 'captured_by_user' | 'channel' — validé contre LEAD_ORIGIN_ROLES (lib/crm/network-demand-capture-core.ts). */
+    role: varchar("role", { length: 24 }).notNull(),
+    /** uuid (agence/user) ou texte libre (canal/campagne) selon le rôle — jamais interprété au niveau DB. */
+    actorRef: varchar("actor_ref", { length: 255 }).notNull(),
+    /** Mécanisme de capture — rang de confiance défini dans LEAD_ORIGIN_SOURCE_TRUST (lib/crm/network-demand-capture-core.ts). */
+    source: varchar("source", { length: 64 }).notNull(),
+    notes: text("notes"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("lead_origin_events_lead_idx").on(t.leadId, t.recordedAt),
+    index("lead_origin_events_agency_idx").on(t.agencyId),
   ],
 )
 

@@ -15,6 +15,7 @@ import type { DrizzleTransaction } from "@/lib/db/client"
 import { crmConversations, crmMessages, leads } from "@/lib/db/schema"
 import { CRM_CHANNELS, type CrmChannel } from "@/lib/db/schema"
 import { createLeadCore } from "./leads-core"
+import { recordLeadOriginEventCore } from "./network-demand-capture-core"
 
 export { CRM_CHANNELS }
 export type { CrmChannel }
@@ -203,6 +204,22 @@ export async function upsertConversationForInboundCore(
         sourcePage: params.channel,
       })
       leadId = created.id
+
+      // NETWORK-DEMAND-CAPTURE-01 — seule source RÉELLEMENT opérationnelle
+      // aujourd'hui (voir fiche §3) : le webhook WhatsApp est signé/vérifié
+      // HMAC avant d'appeler cette fonction (app/api/webhooks/whatsapp/
+      // route.ts), donc authorized=true est correct ici — aucune autre
+      // source préparatoire n'a d'appelant réel (voir test dédié).
+      if (params.channel === "whatsapp") {
+        await recordLeadOriginEventCore(tx, {
+          agencyId: params.agencyId,
+          leadId,
+          role: "channel",
+          actorRef: "whatsapp",
+          source: "whatsapp_webhook",
+          authorized: true,
+        })
+      }
     }
 
     const [inserted] = await tx

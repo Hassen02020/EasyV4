@@ -18,6 +18,28 @@ export const LEAD_PRODUCT_TYPES = [
 ] as const
 export type LeadProductType = (typeof LEAD_PRODUCT_TYPES)[number]
 
+/**
+ * CRM-NICHE-01 — alignée sur la décision Devis permanente (2026-09-29,
+ * ROADMAP Phase 3 R3-03) : "groupe", "transfert" et "a_la_carte" sont
+ * exactement les 3 cas où un futur flux devis s'appliquera. "standard"
+ * couvre tout le reste (défaut).
+ */
+export const LEAD_INTENTIONS = [
+  "groupe",
+  "transfert",
+  "a_la_carte",
+  "standard",
+] as const
+export type LeadIntention = (typeof LEAD_INTENTIONS)[number]
+
+/**
+ * CRM-NICHE-01 — marchés/marques Easy2Book actifs, pas un code pays ISO
+ * générique. Une seule entité active aujourd'hui ; ajouter "usa"/"asia"
+ * plus tard ne demande aucune migration (colonne texte, validée ici).
+ */
+export const LEAD_MARKETS = ["tunisia"] as const
+export type LeadMarket = (typeof LEAD_MARKETS)[number]
+
 export const LEAD_STATUSES = [
   "new",
   "contacted",
@@ -37,6 +59,9 @@ export interface LeadRow {
   productRef: string | null
   productLabel: string | null
   sourcePage: string
+  destination: string | null
+  intention: LeadIntention
+  market: LeadMarket
   status: LeadStatus
   staffNotes: string | null
   handledByUserId: string | null
@@ -59,6 +84,9 @@ export async function createLeadCore(
     productRef?: string | null
     productLabel?: string | null
     sourcePage: string
+    destination?: string | null
+    intention?: LeadIntention
+    market?: LeadMarket
   },
 ): Promise<{ id: string }> {
   const [inserted] = await tx
@@ -74,6 +102,9 @@ export async function createLeadCore(
       productRef: params.productRef ?? undefined,
       productLabel: params.productLabel ?? undefined,
       sourcePage: params.sourcePage,
+      destination: params.destination ?? undefined,
+      intention: params.intention ?? "standard",
+      market: params.market ?? "tunisia",
     })
     .returning({ id: leads.id })
   return { id: inserted!.id }
@@ -92,6 +123,8 @@ export async function getLeadCore(
   return {
     ...row,
     productType: row.productType as LeadProductType,
+    intention: row.intention as LeadIntention,
+    market: row.market as LeadMarket,
     status: row.status as LeadStatus,
   }
 }
@@ -122,6 +155,8 @@ export async function listLeadsCore(
   return rows.map((r) => ({
     ...r,
     productType: r.productType as LeadProductType,
+    intention: r.intention as LeadIntention,
+    market: r.market as LeadMarket,
     status: r.status as LeadStatus,
   }))
 }

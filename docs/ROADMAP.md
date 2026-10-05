@@ -36,7 +36,94 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
+**Aucun** — CRM-NICHE-01 CLÔTURÉ (2026-10-05, commit `b71738b`, non pushé).
+
+### CRM-NICHE-01 — CLÔTURÉ (2026-10-05)
+
+```text
+ID: CRM-NICHE-01
+Statut: CLÔTURÉ (2026-10-05) — TESTED / READY FOR PRODUCTION — NOT YET PUSHED
+Branche: crm-niche-01
+Commit: b71738b
+```
+
+**Audit préalable** : NICHE ENGINE = ❌ NON (gap quasi total) — le CRM
+capturait des leads (LEAD MACHINE) mais ne pouvait les regrouper en
+segments commerciaux observables/mesurables/reproductibles (destination,
+intention, marché, période, comportement). Aucune table/colonne
+segment/niche/cohort, aucune fonction d'agrégation, aucune persistance.
+
+**Périmètre explicitement scindé** (décision utilisateur) :
+
+- **CRM-NICHE-01** (ce chantier) : modèle de segmentation sur les
+  sources déjà captées aujourd'hui (site web/apps).
+- **CRM-NICHE-02** (futur, audit séparé requis) : branchement du reste
+  du réseau Easy2Book (agence physique, partenaire, commercial,
+  fournisseur-référent, campagnes pub, réseaux sociaux) — aucun point
+  d'entrée de capture structuré n'existe encore pour ces sources.
+
+**Ce qui a été fait** :
+
+- `lib/db/schema.ts` : 3 colonnes additives sur `leads` — `destination`
+  (varchar, texte libre), `intention` (varchar, validée en code contre
+  `LEAD_INTENTIONS`), `market` (varchar, validée contre `LEAD_MARKETS`)
+  + index composite `leads_agency_market_product_intention_idx`.
+- `lib/crm/leads-core.ts` : `LEAD_INTENTIONS = ["groupe", "transfert",
+  "a_la_carte", "standard"]` (alignée sur la décision Devis permanente
+  2026-09-29, Phase 3 R3-03 — les 3 valeurs non-standard sont exactement
+  les 3 cas où le futur flux devis s'appliquera) ; `LEAD_MARKETS =
+  ["tunisia"]`, extensible sans migration (contrainte TS, pas un enum
+  DB) pour l'expansion USA/Asia annoncée par l'utilisateur.
+- `lib/crm/niche-core.ts` (nouveau) : `computeNicheSegmentsCore()`
+  (fonction pure, group-by déterministe marché × produit × intention ×
+  destination × période mensuelle, avec volume + taux de conversion) ;
+  `getNicheSegmentsCore()` lit les leads réels de l'agence et délègue
+  tout le calcul sans dupliquer la logique.
+- `app/actions/submit-lead.ts` + `components/leads/lead-capture-form.tsx` :
+  câblage de `intention` (défaut "standard"), `destination` optionnelle.
+- Migration `drizzle/manual/0110_leads_niche_dimensions.sql` — additive,
+  idempotente (`ADD COLUMN IF NOT EXISTS`), aucune colonne existante
+  touchée, aucun impact reservations/payments/wallet.
+
+**Hors scope volontaire** : dimension "comportement" (récence/fréquence
+par contact) — identifiée dans l'audit comme manquante, mais absente du
+critère de sortie validé au GO ; à reprendre si besoin dans un chantier
+dédié, pas ajoutée ici par anticipation.
+
+**Preuves** :
+
+- `pnpm test` : 1391/1391 pass (7 nouveaux tests `niche-core.test.ts` :
+  liste vide, regroupement multi-dimensions, période distincte, taux de
+  conversion sans division par zéro, destination null vs renseignée, tri
+  par volume).
+- `pnpm typecheck` : 0 erreur.
+- `pnpm lint` : 0 erreur (2 runs).
+- `npx prettier --check` sur tous les fichiers modifiés : clean.
+- `pnpm build` : exit 0.
+
+**Mis à jour (2026-10-05, même jour — GO explicite reçu)** :
+
+- PR #131 ouverte (`crm-niche-01` → `main`), branche pushée.
+- Migration 0110 appliquée en production Supabase `crygnaichvlxavvbifqi`
+  (`apply_migration`, succès) — vérifié par lecture directe :
+  `destination` (varchar, nullable), `intention` (varchar, NOT NULL,
+  défaut `'standard'`), `market` (varchar, NOT NULL, défaut `'tunisia'`),
+  index `leads_agency_market_product_intention_idx` présent.
+
+**NOT VERIFIED** :
+
+- PR #131 : pas encore mergée sur `main` — CI à surveiller.
+- Visual QA dashboard CRM : aucune UI de consultation des segments n'a
+  été construite dans ce chantier (hors scope — le critère de sortie
+  validé portait sur la fonction d'agrégation, pas sur un écran staff).
+
+**Prochain chantier potentiel identifié, NON exécuté** : une vue
+dashboard consommant `getNicheSegmentsCore()` (affichage des segments
+par marché/produit/intention) serait l'étape naturelle pour rendre ce
+moteur exploitable par le staff — à auditer/proposer séparément, sur GO
+explicite, pas enchaîné automatiquement ici.
+
+---
 
 ### APPLY-PENDING-MIGRATIONS-01 — CLÔTURÉ (2026-10-03)
 

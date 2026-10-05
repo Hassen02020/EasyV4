@@ -2047,13 +2047,38 @@ export const leads = pgTable(
     /** Chemin de la page d'où la demande a été envoyée (ex. "/packages/mon-voyage") — utile pour prioriser/comprendre la demande, jamais affiché comme donnée client. */
     sourcePage: varchar("source_page", { length: 255 }).notNull(),
     /**
-     * NETWORK-DEMAND-CAPTURE-01 — cache RÉSOLU (dernier événement gagne,
-     * par rôle), jamais écrit directement : toujours dérivé du journal
-     * append-only `leadOriginEvents` par `recordLeadOriginEventCore()`
-     * (lib/crm/network-demand-capture-core.ts). Distinct de `agencyId`
-     * (tenant propriétaire, ci-dessus) : ici, l'agence qui a APPORTÉ la
-     * demande (ex. une agence `agencyType='partner'`) — peut être une
-     * agence différente du tenant propriétaire.
+     * CRM-NICHE-01 — destination demandée (ville/pays), texte libre saisi
+     * par le visiteur ou déduit du produit catalogue au moment de la
+     * capture — jamais une FK stricte (même raisonnement que productRef).
+     */
+    destination: varchar("destination", { length: 128 }),
+    /**
+     * CRM-NICHE-01 — 'groupe' | 'transfert' | 'a_la_carte' | 'standard'.
+     * Alignée sur la décision Devis (2026-09-29, ROADMAP Phase 3 R3-03) :
+     * les 3 valeurs non-standard correspondent exactement aux 3 cas où un
+     * futur flux devis s'appliquera. Validé en code (LEAD_INTENTIONS,
+     * lib/crm/leads-core.ts), pas un enum DB — permet d'ajouter une
+     * intention sans migration.
+     */
+    intention: varchar("intention", { length: 16 })
+      .notNull()
+      .default("standard"),
+    /**
+     * CRM-NICHE-01 — marché/marque Easy2Book (ex. "tunisia"), pas un code
+     * pays ISO générique : une entité commerciale distincte (Tunisia, puis
+     * USA, Asia...). Validé contre LEAD_MARKETS (lib/crm/leads-core.ts),
+     * pas un enum DB — ajouter un marché ne demande aucune migration.
+     */
+    market: varchar("market", { length: 32 }).notNull().default("tunisia"),
+    /**
+     * NETWORK-DEMAND-CAPTURE-01 — cache RÉSOLU (rang de confiance maximal
+     * par rôle, jamais un simple départage par date — voir
+     * LEAD_ORIGIN_SOURCE_TRUST, lib/crm/network-demand-capture-core.ts),
+     * jamais écrit directement : toujours dérivé du journal append-only
+     * `leadOriginEvents` par `recordLeadOriginEventCore()`. Distinct de
+     * `agencyId` (tenant propriétaire, ci-dessus) : ici, l'agence qui a
+     * APPORTÉ la demande (ex. une agence `agencyType='partner'`) — peut
+     * être une agence différente du tenant propriétaire.
      */
     originAgencyId: uuid("origin_agency_id").references(() => agencies.id, {
       onDelete: "set null",
@@ -2092,6 +2117,13 @@ export const leads = pgTable(
     index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
     index("leads_agency_idx").on(t.agencyId),
     uniqueIndex("leads_reservation_id_uniq").on(t.reservationId),
+    /** CRM-NICHE-01 — colonnes de group-by de getNicheSegmentsCore(). */
+    index("leads_agency_market_product_intention_idx").on(
+      t.agencyId,
+      t.market,
+      t.productType,
+      t.intention,
+    ),
     /** NETWORK-DEMAND-CAPTURE-01 — colonnes de group-by futures (CRM-NICHE-02). */
     index("leads_agency_origin_channel_idx").on(
       t.agencyId,
@@ -2107,9 +2139,10 @@ export const leads = pgTable(
  * JAMAIS de UPDATE/DELETE (même invariant que `wallet_ledger`, R4-03) :
  * une correction s'écrit comme un NOUVEL événement, l'ancien reste visible.
  * Les colonnes résolues sur `leads` (originAgencyId/capturedByUserId/
- * channel/campaignRef) sont un cache dérivé de ce journal — dernier
- * événement gagne, par rôle — jamais écrites directement par l'app hors
- * de `recordLeadOriginEventCore()` (lib/crm/network-demand-capture-core.ts).
+ * channel/campaignRef) sont un cache dérivé de ce journal — rang de
+ * confiance maximal par rôle, jamais un simple départage par date (voir
+ * LEAD_ORIGIN_SOURCE_TRUST, lib/crm/network-demand-capture-core.ts) —
+ * jamais écrites directement par l'app hors de `recordLeadOriginEventCore()`.
  */
 export const leadOriginEvents = pgTable(
   "lead_origin_events",

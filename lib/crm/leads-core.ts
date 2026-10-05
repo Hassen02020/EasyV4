@@ -37,6 +37,11 @@ export interface LeadRow {
   productRef: string | null
   productLabel: string | null
   sourcePage: string
+  /** NETWORK-DEMAND-CAPTURE-01 — colonnes résolues, jamais écrites directement (voir network-demand-capture-core.ts). */
+  originAgencyId: string | null
+  capturedByUserId: string | null
+  channel: string | null
+  campaignRef: string | null
   status: LeadStatus
   staffNotes: string | null
   handledByUserId: string | null

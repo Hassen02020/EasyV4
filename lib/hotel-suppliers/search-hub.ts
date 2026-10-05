@@ -50,6 +50,7 @@ import {
 import { logger } from "@/lib/logger"
 import { mapMyGoHotelSummary, mapMyGoOfferToRates } from "./mygo/mapper"
 import { searchAcrossSuppliers } from "./core/orchestration"
+import { persistCanonicalHotelMappings } from "./core/canonical-persistence"
 import { createTunisiaBedDriver } from "./tunisia-bed/driver"
 import { createCyberesaDriver } from "./cyberesa/driver"
 import { createThreeTDriver } from "./3t/driver"
@@ -182,6 +183,11 @@ export async function runSearchThroughHub(
   const hubResult = await searchAcrossSuppliers(drivers, hubRequest, {
     correlationId,
   })
+
+  // CANONICAL-HOTEL-01 : best-effort, ne lève jamais — voir l'en-tête de
+  // canonical-persistence.ts. Safe ici précisément parce que la réponse
+  // HTTP ne dépend pas de hubResult (voir l'en-tête de ce fichier).
+  await persistCanonicalHotelMappings(hubResult.groups, hubResult.correlationId)
 
   return { runResult, hubResult }
 }

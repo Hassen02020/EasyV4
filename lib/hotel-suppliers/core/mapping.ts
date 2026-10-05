@@ -9,9 +9,10 @@
  * pas branché — voir le rapport final, section "Remaining gaps".
  */
 
-import type { NormalizedHotel, SupplierName } from "./types"
+import type { NormalizedHotel, SupplierName, MatchConfidence } from "./types"
 
-export type MatchConfidence = "EXACT" | "HIGH" | "MEDIUM" | "LOW" | "UNMATCHED"
+/** CANONICAL-HOTEL-01 — déplacé vers types.ts, ré-exporté ici pour ne pas casser les imports existants (lib/hotel-suppliers/core/deduplication.ts, tests). */
+export type { MatchConfidence }
 
 export interface HotelMatchResult {
   confidence: MatchConfidence

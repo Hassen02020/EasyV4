@@ -6,18 +6,16 @@
  * son fournisseur d'origine.
  */
 
-import type { NormalizedHotel, NormalizedRate } from "./types"
-import { matchHotels, isAutoMergeable, type MatchConfidence } from "./mapping"
+import type {
+  NormalizedHotel,
+  NormalizedRate,
+  MatchConfidence,
+  DeduplicatedHotelGroup,
+} from "./types"
+import { matchHotels, isAutoMergeable } from "./mapping"
 
-export interface DeduplicatedHotelGroup {
-  /** Fiche représentative (premier hôtel du groupe) — jamais un objet inventé/fusionné champ par champ. */
-  hotel: NormalizedHotel
-  /** Tous les hôtels normalisés (un par fournisseur) regroupés ici, avec la confiance du rattachement au premier. */
-  members: { hotel: NormalizedHotel; confidence: MatchConfidence }[]
-  /** Toutes les offres tarifaires des fournisseurs regroupés — jamais réduites à une seule avant le ranking. */
-  rates: NormalizedRate[]
-  fromPrice: number | null
-}
+/** CANONICAL-HOTEL-01 — déplacé vers types.ts, ré-exporté ici pour ne pas casser les imports existants. */
+export type { DeduplicatedHotelGroup }
 
 export function deduplicateHotels(
   hotels: NormalizedHotel[],

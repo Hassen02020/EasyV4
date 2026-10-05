@@ -3218,6 +3218,19 @@ export {
 } from "./schema/hotel-suppliers"
 
 /* -------------------------------------------------------------------------- */
+/* CANONICAL-HOTEL-01 — imported from schema/canonical-hotels.ts              */
+/* -------------------------------------------------------------------------- */
+
+export {
+  canonicalHotels,
+  canonicalHotelSupplierMappings,
+  type CanonicalHotelRow,
+  type NewCanonicalHotelRow,
+  type CanonicalHotelSupplierMappingRow,
+  type NewCanonicalHotelSupplierMappingRow,
+} from "./schema/canonical-hotels"
+
+/* -------------------------------------------------------------------------- */
 /* PUBLIC-VISUAL-01 — imported from schema/public-site.ts                     */
 /* CI-FIX (2026-10-05) : import orphelin depuis la fusion de PR #116, jamais  */
 /* ré-exporté — cassait lib/admin/public-site-actions.ts et                  */

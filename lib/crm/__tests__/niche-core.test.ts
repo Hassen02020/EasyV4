@@ -18,6 +18,7 @@ function row(over: Partial<NicheSegmentInputRow> = {}): NicheSegmentInputRow {
     status: "new",
     createdAt: new Date("2026-10-01T00:00:00Z"),
     originAgencyId: null,
+    capturedByUserId: null,
     channel: null,
     campaignRef: null,
     ...over,
@@ -126,4 +127,20 @@ test("NICHE-PROVENANCE-01 : channel et campaignRef distinguent des leads par ail
     row({ channel: "whatsapp", campaignRef: "facebook:ad123" }),
   ])
   assert.equal(segments.length, 3)
+})
+
+test("NICHE-PROVENANCE-01 : capturedByUserId (commercial apporteur) distingue des leads par ailleurs identiques, jamais fusionné avec un apporteur inconnu", () => {
+  const segments = computeNicheSegmentsCore([
+    row({ capturedByUserId: "user-a" }),
+    row({ capturedByUserId: "user-a" }),
+    row({ capturedByUserId: "user-b" }),
+    row({ capturedByUserId: null }),
+  ])
+  assert.equal(segments.length, 3)
+  const userA = segments.find((s) => s.capturedByUserId === "user-a")
+  assert.equal(userA?.volume, 2)
+  assert.equal(
+    segments.some((s) => s.capturedByUserId === null),
+    true,
+  )
 })

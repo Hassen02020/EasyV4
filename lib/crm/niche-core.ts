@@ -4,8 +4,9 @@
  * période), avec volume et taux de conversion.
  *
  * NICHE-PROVENANCE-01 — étend le group-by avec les colonnes résolues de
- * NETWORK-DEMAND-CAPTURE-01 (originAgencyId/channel/campaignRef) :
- * répond à "quelle origine génère quelle niche". Un lead sans origine
+ * NETWORK-DEMAND-CAPTURE-01 (originAgencyId/capturedByUserId/channel/
+ * campaignRef) : répond à "quelle origine génère quelle niche", y
+ * compris le commercial apporteur. Un lead sans origine
  * connue (colonne NULL) forme son propre groupe "origine inconnue" —
  * jamais fusionné avec un lead qui EN a une (même principe anti-
  * fabrication que le reste du dépôt : une origine inconnue reste
@@ -35,6 +36,7 @@ export interface NicheSegmentInputRow {
   createdAt: Date
   /** NICHE-PROVENANCE-01 — colonnes résolues NETWORK-DEMAND-CAPTURE-01. */
   originAgencyId: string | null
+  capturedByUserId: string | null
   channel: string | null
   campaignRef: string | null
 }
@@ -49,6 +51,7 @@ export interface NicheSegment {
   period: string
   /** null = regroupé séparément des leads avec origine connue (jamais fusionné). */
   originAgencyId: string | null
+  capturedByUserId: string | null
   channel: string | null
   campaignRef: string | null
   volume: number
@@ -79,6 +82,7 @@ export function computeNicheSegmentsCore(
       row.destination ?? "",
       period,
       row.originAgencyId ?? "",
+      row.capturedByUserId ?? "",
       row.channel ?? "",
       row.campaignRef ?? "",
     ].join("|")
@@ -96,6 +100,7 @@ export function computeNicheSegmentsCore(
         destination: row.destination,
         period,
         originAgencyId: row.originAgencyId,
+        capturedByUserId: row.capturedByUserId,
         channel: row.channel,
         campaignRef: row.campaignRef,
         volume: 1,
@@ -133,6 +138,7 @@ export async function getNicheSegmentsCore(
       status: leads.status,
       createdAt: leads.createdAt,
       originAgencyId: leads.originAgencyId,
+      capturedByUserId: leads.capturedByUserId,
       channel: leads.channel,
       campaignRef: leads.campaignRef,
     })

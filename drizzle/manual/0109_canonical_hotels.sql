@@ -51,10 +51,17 @@ CREATE INDEX IF NOT EXISTS canonical_hotel_supplier_mappings_canonical_idx
 
 -- app_runtime (production, non-BYPASSRLS) : même convention que 0099
 -- (notification_idempotency) — GRANT explicite plutôt que de dépendre
--- d'ALTER DEFAULT PRIVILEGES, qui ne s'est pas montré fiable rétroactivement
--- dans ce dépôt.
+-- d'ALTER DEFAULT PRIVILEGES. Constaté à l'application réelle (production,
+-- crygnaichvlxavvbifqi) : ALTER DEFAULT PRIVILEGES (0061) accorde en fait
+-- déjà SELECT/INSERT/UPDATE/DELETE automatiquement sur toute nouvelle
+-- table — REVOKE explicite ensuite pour retrouver l'empreinte minimale
+-- voulue (append-only : jamais de DELETE sur les deux tables, jamais
+-- d'UPDATE sur les mappings — une ligne de mapping n'est jamais réécrite,
+-- voir canonical-persistence.ts).
 GRANT SELECT, INSERT, UPDATE ON canonical_hotels TO app_runtime;
+REVOKE DELETE ON canonical_hotels FROM app_runtime;
 GRANT SELECT, INSERT ON canonical_hotel_supplier_mappings TO app_runtime;
+REVOKE UPDATE, DELETE ON canonical_hotel_supplier_mappings FROM app_runtime;
 
 COMMIT;
 

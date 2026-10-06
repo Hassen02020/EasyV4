@@ -61,6 +61,8 @@ import {
 import { round2 } from "@/lib/shared/money"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 
 export type CreateGuestOmraBookingResult =
   | {
@@ -79,6 +81,14 @@ function pad(n: number, w = 6) {
 export async function createGuestOmraBooking(input: {
   booking: OmraGuestBookingInput
   paymentMethod: GuestPaymentMethod
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact RÉEL du premier pèlerin, jamais déduite de ce
+   * champ seul.
+   */
+  campaignId?: string
 }): Promise<CreateGuestOmraBookingResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -133,6 +143,7 @@ export async function createGuestOmraBooking(input: {
       parsed.data,
       input.paymentMethod,
       linkedAuthUserId,
+      input.campaignId,
     ),
   )
 }
@@ -141,6 +152,7 @@ async function runCreateGuestOmraBooking(
   booking: OmraGuestBookingInput,
   paymentMethod: GuestPaymentMethod,
   linkedAuthUserId: string | null,
+  campaignId: string | undefined,
 ): Promise<CreateGuestOmraBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -196,7 +208,33 @@ async function runCreateGuestOmraBooking(
         const pricePerPilgrim = allotment.overridePrice
           ? parseFloat(allotment.overridePrice)
           : parseFloat(pkg.basePrice)
-        const totalTnd = round2(pricePerPilgrim * pilgrimCount)
+
+        // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
+        // Appliquée ICI, AVANT toute dérivation (paiement carte,
+        // reservations/payments, recordReservationFinancials
+        // consomment tous `totalTnd` ci-dessous) — jamais seulement
+        // avant l'enregistrement financier. `campaignId` est un
+        // INDICE transporté par le client, jamais une autorisation :
+        // `resolveCheckoutPromoCore` re-dérive l'éligibilité réelle
+        // depuis le contact réel du premier pèlerin. Omra : pas de
+        // coût fournisseur séparé (catalogue agence = prix de vente,
+        // voir recordReservationFinancials ci-dessous) —
+        // `supplierPriceTnd` omis, jamais fabriqué.
+        let totalTnd = round2(pricePerPilgrim * pilgrimCount)
+        if (campaignId) {
+          const checkoutPromo = await resolveCheckoutPromoCore(tx, {
+            agencyId,
+            campaignId,
+            email: firstPilgrim.email ?? null,
+            phone: firstPilgrim.phone,
+          })
+          if (checkoutPromo.eligible) {
+            totalTnd = applyPromoDiscountCore(
+              totalTnd,
+              checkoutPromo.discount,
+            ).finalPriceTnd
+          }
+        }
 
         // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---
         // Résolue et figée AU MOMENT de cette réservation précise (spécifique

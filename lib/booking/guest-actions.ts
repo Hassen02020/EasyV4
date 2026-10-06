@@ -377,16 +377,54 @@ async function runCreateGuestReservation(
     myGoBooking.totalPrice,
     hotelMarginRule,
   )
+  const breakdownBeforePromo = computePriceBreakdown({
+    ...authoritativeUnitPrice(agencyPriceBeforePromo, draft.adults),
+    adults: draft.adults,
+    children: draft.children,
+  })
+
+  // --- Garde anti-drift de prix (CART-DRIFT-01) ---
+  // Comparée au prix AVANT remise PROMO : `expectedTotalTnd` vient du
+  // panier/draft client (lib/cart/cart-store.ts), qui n'a connaissance
+  // d'aucune promo — seulement du prix catalogue affiché au moment de
+  // l'ajout au panier. Comparer contre un total déjà remisé déclencherait
+  // un faux PRICE_CHANGED pour tout client réellement éligible à PROMO
+  // (bug identifié et corrigé le jour même de l'intégration initiale).
+  // Le total ci-dessus vient d'être recalculé à partir du VRAI prix myGo +
+  // marge (jamais du panier/draft client) — c'est déjà, et reste, le seul
+  // montant de référence. Mais si le client a accepté un montant affiché
+  // AVANT (ex. snapshot panier pris à l'ajout, potentiellement vieux de
+  // plusieurs jours — voir lib/cart/cart-store.ts, aucun TTL) et que le prix
+  // a réellement bougé depuis (repricing fournisseur), le facturer quand
+  // même sans le dire au client serait le rendre lésé silencieusement.
+  // On rejette plutôt que de continuer, compensation myGo/verrou identique
+  // aux autres rejets ci-dessus.
+  if (priceDrifted(expectedTotalTnd, breakdownBeforePromo.totalTnd)) {
+    try {
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+        bookingId: myGoBooking.bookingId,
+      })
+    } catch {
+      /* best effort — un hold myGo redondant sans réservation locale associée
+       * n'a aucun impact financier/paiement côté Easy2Book. */
+    }
+    await releaseInventoryLock()
+    return {
+      ok: false,
+      error: `Le prix de cette offre a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${breakdownBeforePromo.totalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
+      code: "PRICE_CHANGED",
+      currentTotalTnd: breakdownBeforePromo.totalTnd,
+    }
+  }
 
   // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
-  // Appliquée ICI, AVANT computePriceBreakdown/authoritativeUnitPrice :
-  // c'est la variable `agencyPrice` ci-dessous qui porte le prix réel
-  // tout le reste de la fonction (breakdown affiché, garde CART-DRIFT-01,
-  // paiement, recordReservationFinancials plus bas) — jamais une remise
-  // appliquée seulement à la toute fin après que le client a déjà payé
-  // le prix plein. `campaignId` est un INDICE transporté par le client,
-  // jamais une autorisation : `resolveCheckoutPromoCore` re-dérive
-  // l'éligibilité réelle depuis le contact réel du voyageur.
+  // Appliquée ICI, APRÈS la garde CART-DRIFT-01 (qui valide contre le
+  // prix catalogue que le client a réellement vu) mais AVANT tout le
+  // reste (paiement, recordReservationFinancials plus bas) — c'est la
+  // variable `agencyPrice`/`breakdown` ci-dessous qui porte le prix
+  // réellement facturé. `campaignId` est un INDICE transporté par le
+  // client, jamais une autorisation : `resolveCheckoutPromoCore`
+  // re-dérive l'éligibilité réelle depuis le contact réel du voyageur.
   let agencyPrice = agencyPriceBeforePromo
   if (campaignId) {
     const checkoutPromo = await withTenantContext(
@@ -408,39 +446,14 @@ async function runCreateGuestReservation(
     }
   }
 
-  const breakdown = computePriceBreakdown({
-    ...authoritativeUnitPrice(agencyPrice, draft.adults),
-    adults: draft.adults,
-    children: draft.children,
-  })
-
-  // --- Garde anti-drift de prix (CART-DRIFT-01) ---
-  // Le total ci-dessus vient d'être recalculé à partir du VRAI prix myGo +
-  // marge (jamais du panier/draft client) — c'est déjà, et reste, le seul
-  // montant qui sera chargé. Mais si le client a accepté un montant affiché
-  // AVANT (ex. snapshot panier pris à l'ajout, potentiellement vieux de
-  // plusieurs jours — voir lib/cart/cart-store.ts, aucun TTL) et que le prix
-  // a réellement bougé depuis (repricing fournisseur), le facturer quand
-  // même sans le dire au client serait le rendre lésé silencieusement.
-  // On rejette plutôt que de continuer, compensation myGo/verrou identique
-  // aux autres rejets ci-dessus.
-  if (priceDrifted(expectedTotalTnd, breakdown.totalTnd)) {
-    try {
-      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
-        bookingId: myGoBooking.bookingId,
-      })
-    } catch {
-      /* best effort — un hold myGo redondant sans réservation locale associée
-       * n'a aucun impact financier/paiement côté Easy2Book. */
-    }
-    await releaseInventoryLock()
-    return {
-      ok: false,
-      error: `Le prix de cette offre a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${breakdown.totalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
-      code: "PRICE_CHANGED",
-      currentTotalTnd: breakdown.totalTnd,
-    }
-  }
+  const breakdown =
+    agencyPrice === agencyPriceBeforePromo
+      ? breakdownBeforePromo
+      : computePriceBreakdown({
+          ...authoritativeUnitPrice(agencyPrice, draft.adults),
+          adults: draft.adults,
+          children: draft.children,
+        })
 
   const hotelStartDate = new Date(draft.startDate)
   const hotelEndDate = draft.endDate ? new Date(draft.endDate) : hotelStartDate

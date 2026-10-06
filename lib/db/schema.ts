@@ -2548,6 +2548,67 @@ export type CampaignAttribution = typeof campaignAttributions.$inferSelect
 export type NewCampaignAttribution = typeof campaignAttributions.$inferInsert
 
 /**
+ * PROMO-01 — définition d'une offre commerciale, STRICTEMENT liée à UNE
+ * campagne (décision explicite de l'utilisateur, 2026-10-06 : pas de
+ * promo générique indépendante — `campaignId` obligatoire et UNIQUE,
+ * 1 promo par campagne, cohérent avec `campaigns.promoRef`, un pointeur
+ * singulier posé dès CAMPAIGN-PERSISTENCE-01).
+ *
+ * Audit de conception dédié (docs/ROADMAP.md) : PROMO décide "quelle
+ * offre", JAMAIS "quel prix final" (PRICING) ni "quelle réservation"
+ * (BOOKING) — aucune colonne prix/réservation ici. `discountType`/
+ * `discountValue` suivent le même vocabulaire que `marginRules`
+ * (percent/fixed) — pas une deuxième convention.
+ *
+ * Immutabilité : comme `campaigns.message`, une promo n'est modifiable
+ * que tant que la campagne propriétaire est en statut 'draft' — gardé
+ * en code (`updatePromoCore`), pas par un grant DB séparé (même
+ * discipline que CAMPAIGN-EXTENSION-01).
+ */
+export const PROMO_DISCOUNT_TYPES = ["percent", "fixed"] as const
+export type PromoDiscountType = (typeof PROMO_DISCOUNT_TYPES)[number]
+
+export const promos = pgTable(
+  "promos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    discountType: varchar("discount_type", { length: 16 }).notNull(),
+    discountValue: decimal("discount_value", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    /** Texte libre — ex. "séjour 3 nuits minimum", jamais interprété par le code (même choix que `marginRules.name`/`economicEntitlements.basis`). */
+    conditions: text("conditions"),
+    /** `null` = sans borne de ce côté. */
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("promos_campaign_uniq").on(t.campaignId),
+    index("promos_agency_idx").on(t.agencyId),
+    check(
+      "promos_discount_type_check",
+      sql`${t.discountType} in ('percent','fixed')`,
+    ),
+  ],
+)
+
+export type Promo = typeof promos.$inferSelect
+export type NewPromo = typeof promos.$inferInsert
+
+/**
  * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
  * cible joint à l'audit senior OTA. Modèle agnostique du canal ; seul
  * WhatsApp a une intégration entrante réelle à ce stade (voir

@@ -2303,6 +2303,59 @@ export const leadConsentEvents = pgTable(
 )
 
 /**
+ * CONTACT-01 — registre de POINTS DE CONTACT normalisés, PAS une
+ * identité "personne". Une ligne = (agencyId, channel, contactRef)
+ * normalisé, avec un id stable réutilisable par d'autres modules
+ * (ex. CAMPAIGN) pour regrouper sans fusionner.
+ *
+ * Audit de conception dédié (docs/ROADMAP.md) : `customers` a été
+ * explicitement exclu comme fondation (aucun index unique sur
+ * email/phone, et lib/admin/customer-360-core.ts documente déjà qu'un
+ * même lead peut correspondre à plusieurs `customerId` sans jamais être
+ * fusionné). Ce registre ne prétend PAS résoudre qui est la personne —
+ * seulement reconnaître qu'une même valeur de contact réapparaît.
+ *
+ * PAS append-only (contrairement à lead_consent_events) : `lastSeenAt`
+ * est mis à jour à chaque résolution du même point de contact — c'est
+ * un registre/dimension, pas un journal d'événements.
+ *
+ * Aucune colonne leadId/customerId/personId ici, et AUCUN backfill —
+ * le registre se peuple uniquement à l'appel explicite d'un
+ * consommateur (voir lib/crm/contact-core.ts), jamais par migration de
+ * données historiques.
+ */
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    channel: varchar("channel", { length: 32 }).notNull(),
+    contactRef: varchar("contact_ref", { length: 320 }).notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("contacts_resolution_uniq").on(
+      t.agencyId,
+      t.channel,
+      t.contactRef,
+    ),
+  ],
+)
+
+/**
  * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
  * cible joint à l'audit senior OTA. Modèle agnostique du canal ; seul
  * WhatsApp a une intégration entrante réelle à ce stade (voir

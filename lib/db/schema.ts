@@ -2356,6 +2356,118 @@ export const contacts = pgTable(
 )
 
 /**
+ * CAMPAIGN-PERSISTENCE-01 — identité, objectif et état d'une campagne
+ * commerciale dans le temps. Audit de conception dédié (docs/ROADMAP.md) :
+ * CAMPAIGN décide "à qui et pour quelle action commerciale" — jamais
+ * "quelle offre" (PROMO), "quel prix" (PRICING) ni "quelle réservation"
+ * (BOOKING). Aucune de ces colonnes n'apparaît ici.
+ *
+ * `objective` est un texte libre (ex. "Istanbul Novembre") — pas une FK
+ * vers NICHE/AUDIENCE, qui restent des calculs à la demande, jamais
+ * persistés. `promoRef` est un pointeur nullable, posé pour PROMO (non
+ * construit), jamais une valeur de remise elle-même — même pattern que
+ * `economicEntitlements.agreementId` (AGREEMENT-01) : une référence
+ * technique provisoire, pas une équivalence conceptuelle.
+ */
+export const CAMPAIGN_STATUSES = [
+  "draft",
+  "active",
+  "completed",
+  "cancelled",
+] as const
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number]
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 200 }).notNull(),
+    objective: text("objective"),
+    /** Réutilise CRM_CHANNELS — une campagne cible UN canal, jamais un mélange implicite. */
+    channel: varchar("channel", { length: 32 }).notNull(),
+    status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /** Nullable — posé pour PROMO, jamais construit par ce chantier. */
+    promoRef: uuid("promo_ref"),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("campaigns_agency_status_idx").on(t.agencyId, t.status),
+    check(
+      "campaigns_status_check",
+      sql`${t.status} in ('draft','active','completed','cancelled')`,
+    ),
+  ],
+)
+
+export type Campaign = typeof campaigns.$inferSelect
+export type NewCampaign = typeof campaigns.$inferInsert
+
+/**
+ * CAMPAIGN-PERSISTENCE-01 — snapshot figé de la cible d'une campagne au
+ * moment de son LANCEMENT (transition de statut 'draft' → 'active'),
+ * PAS à sa création : une campagne se prépare un jour et se lance un
+ * autre — les contacts visés doivent être figés au lancement, jamais
+ * avant (sinon l'audience réelle au moment de l'action commerciale ne
+ * correspondrait pas à ce qui a été préparé). JAMAIS un recalcul live
+ * après coup : AUDIENCE n'est pas persistée (NICHE/SIGNAL/TREND restent
+ * des calculs à la demande), donc c'est CE snapshot, pris une seule
+ * fois au lancement, qui permet à CONVERSION/LEARNING de mesurer "qui a
+ * été visé" sans que l'audience ne dérive après coup.
+ *
+ * `contactId` référence CONTACT-01 (jamais une copie d'email/téléphone
+ * ici). `consentStatusAtSnapshot` est une COPIE HORODATÉE à but de
+ * preuve ("ce qui était vrai à cet instant") — CONSENT-01 reste l'unique
+ * source de vérité pour "est-ce vrai maintenant ?", jamais relue depuis
+ * cette table. `leadIds` (jsonb) : traçabilité des demandes d'origine
+ * ayant résolu à ce contact — jamais une fusion d'identité, uniquement
+ * la liste telle que CAMPAIGN-01 (`filterAudienceByConsentCore`) l'a
+ * produite.
+ *
+ * Seuls les contacts ÉLIGIBLES (CAMPAIGN-01) sont enregistrés ici — un
+ * contact exclu (pas de consentement, pas de contactRef résolvable)
+ * n'est jamais une "cible", donc jamais une ligne de cette table.
+ */
+export const campaignTargets = pgTable(
+  "campaign_targets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    leadIds: jsonb("lead_ids").notNull(),
+    consentStatusAtSnapshot: boolean("consent_status_at_snapshot").notNull(),
+    snapshotAt: timestamp("snapshot_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("campaign_targets_campaign_contact_uniq").on(
+      t.campaignId,
+      t.contactId,
+    ),
+    index("campaign_targets_agency_idx").on(t.agencyId),
+  ],
+)
+
+export type CampaignTarget = typeof campaignTargets.$inferSelect
+export type NewCampaignTarget = typeof campaignTargets.$inferInsert
+
+/**
  * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
  * cible joint à l'audit senior OTA. Modèle agnostique du canal ; seul
  * WhatsApp a une intégration entrante réelle à ce stade (voir

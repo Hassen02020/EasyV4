@@ -87,18 +87,48 @@ const HotelsTunisieSearch = dynamic(
  * /attractions/[slug]/book) — plus de raison de l'exclure ici.
  */
 const tabsConfig = [
-  { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2, href: "/hotels" },
-  { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe, href: "/hotels-monde" },
+  {
+    id: "hotels-tunisie",
+    labelKey: "tabHotelsTunisie",
+    icon: Building2,
+    href: "/hotels",
+  },
+  {
+    id: "hotels-monde",
+    labelKey: "tabHotelsMonde",
+    icon: Globe,
+    href: "/hotels-monde",
+  },
   { id: "omraty", labelKey: "tabOmraty", icon: Moon, href: "/omra" },
-  { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase, href: "/packages" },
-  { id: "attractions", labelKey: "tabAttractions", icon: Compass, href: "/attractions" },
+  {
+    id: "voyages-organises",
+    labelKey: "tabVoyages",
+    icon: Briefcase,
+    href: "/packages",
+  },
+  {
+    id: "attractions",
+    labelKey: "tabAttractions",
+    icon: Compass,
+    href: "/attractions",
+  },
   { id: "vols", labelKey: "tabVols", icon: Plane, href: "/vols" },
-  { id: "transferts", labelKey: "tabTransferts", icon: Navigation, href: "/transferts" },
+  {
+    id: "transferts",
+    labelKey: "tabTransferts",
+    icon: Navigation,
+    href: "/transferts",
+  },
   { id: "car", labelKey: "tabCar", icon: Car, href: "/car" },
 ] as const
 
 type TabId = (typeof tabsConfig)[number]["id"]
-type PublicModuleVisual = { moduleSlug: string; enabled: boolean; sortOrder: number; heroImageUrl: string | null }
+type PublicModuleVisual = {
+  moduleSlug: string
+  enabled: boolean
+  sortOrder: number
+  heroImageUrl: string | null
+}
 
 // Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
 
@@ -123,8 +153,14 @@ function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
       const config = tabsConfig.find((tab) => tab.id === activeTab)!
       return (
         <div className="flex flex-col items-center gap-4 py-3 text-center">
-          <p className="text-muted-foreground text-sm">{tHome("mobileTriggerSubtitle")}</p>
-          <Button asChild size="lg" className="from-primary to-accent bg-gradient-to-r text-white">
+          <p className="text-muted-foreground text-sm">
+            {tHome("mobileTriggerSubtitle")}
+          </p>
+          <Button
+            asChild
+            size="lg"
+            className="from-primary to-accent bg-gradient-to-r text-white"
+          >
             <Link href={config.href}>Ouvrir {t(config.labelKey)}</Link>
           </Button>
         </div>
@@ -182,9 +218,19 @@ function TabPills({
   )
 }
 
-export function BookingEngine({ heroImageUrl, modules = [] }: { heroImageUrl?: string | null; modules?: PublicModuleVisual[] }) {
-  const enabledModules = modules.filter((module) => module.enabled).sort((a, b) => a.sortOrder - b.sortOrder)
-  const visibleTabs = tabsConfig.filter((tab) => enabledModules.some((module) => module.moduleSlug === tab.id))
+export function BookingEngine({
+  heroImageUrl,
+  modules = [],
+}: {
+  heroImageUrl?: string | null
+  modules?: PublicModuleVisual[]
+}) {
+  const enabledModules = modules
+    .filter((module) => module.enabled)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const visibleTabs = tabsConfig.filter((tab) =>
+    enabledModules.some((module) => module.moduleSlug === tab.id),
+  )
   const firstTab = visibleTabs[0]?.id ?? "hotels-tunisie"
   const [activeTab, setActiveTab] = useState<TabId>(firstTab)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -192,7 +238,9 @@ export function BookingEngine({ heroImageUrl, modules = [] }: { heroImageUrl?: s
   const tHome = useTranslations("Home")
 
   const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
-  const activeModule = enabledModules.find((module) => module.moduleSlug === activeTab)
+  const activeModule = enabledModules.find(
+    (module) => module.moduleSlug === activeTab,
+  )
   const activeHeroImageUrl = activeModule?.heroImageUrl ?? heroImageUrl
   const ActiveIcon = activeTabConfig.icon
 
@@ -201,10 +249,22 @@ export function BookingEngine({ heroImageUrl, modules = [] }: { heroImageUrl?: s
       {/* Hero background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={activeHeroImageUrl ? { backgroundImage: `url('${activeHeroImageUrl}')` } : undefined}
+        style={
+          activeHeroImageUrl
+            ? { backgroundImage: `url('${activeHeroImageUrl}')` }
+            : undefined
+        }
       >
-        <div className="from-sidebar/85 via-sidebar/35 to-background absolute inset-0 bg-gradient-to-b" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
+        {/* COLOR-HARMONY-01 : tinte brand constante (Bleu Méditerranée) sur
+            toute la hauteur, pas seulement en dégradé — les photos hero par
+            module (Unsplash, choisies indépendamment) ont des teintes trop
+            divergentes (ciel bleu, jungle verte, montgolfières dorées, foule
+            sombre) pour paraître appartenir au même site une fois dégradées
+            à 35% au milieu. Un voile uniforme plus fort ramène chaque photo
+            vers la même palette, quelle que soit sa couleur native. */}
+        <div className="bg-sidebar/70 absolute inset-0" />
+        <div className="from-sidebar/70 via-sidebar/50 to-sidebar/40 absolute inset-0 bg-gradient-to-b" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/15" />
       </div>
 
       {/* Content */}
@@ -227,7 +287,11 @@ export function BookingEngine({ heroImageUrl, modules = [] }: { heroImageUrl?: s
           style={{ animationDelay: "80ms" }}
         >
           <div className="flex items-center justify-between gap-3 px-1.5 pt-1.5 pb-2">
-            <TabPills activeTab={activeTab} onSelect={setActiveTab} visibleTabs={visibleTabs} />
+            <TabPills
+              activeTab={activeTab}
+              onSelect={setActiveTab}
+              visibleTabs={visibleTabs}
+            />
           </div>
 
           <div className="rounded-[1.4rem] bg-white/60 p-5 sm:p-6">

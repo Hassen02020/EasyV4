@@ -36,7 +36,46 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — CRM-NICHE-01 CLÔTURÉ (2026-10-05, commit `b71738b`, non pushé).
+**Aucun** — CAMPAIGN-PERSISTENCE-01 CLÔTURÉ (2026-10-06, commit `a466297`,
+branche `campaign-persistence-01`, pushée, NON mergée sur `main`).
+
+### Chaîne NICHE → CAMPAIGN-PERSISTENCE (2026-10-05/06) — CLÔTURÉE, branches NON mergées
+
+Chaîne construite séquentiellement (chaque étape : audit d'ownership →
+fiche → GO explicite → implémentation → preuve réelle, base Postgres
+locale + migration appliquée en production avec vérification des
+grants). Principe permanent respecté à chaque étape : `LEAD = demande,
+CONTACT = point de communication, CONSENT = permission, AUDIENCE =
+correspondance avec une demande, CAMPAIGN = action commerciale` —
+aucun de ces concepts fusionné implicitement.
+
+| Chantier | Branche | Statut | Dépend de |
+|---|---|---|---|
+| NICHE-PROVENANCE-01 | `niche-provenance-01` | **MERGÉ** (PR #133) | CRM-NICHE-01 |
+| EXPOSITION / NICHE-SIGNAL-01 (concentration) / NICHE-TREND-01 (émergence, répond à Q10) / NICHE-AUDIENCE-01 | `niche-signal-01` | TESTED, **NON mergé** | NICHE-PROVENANCE-01 |
+| CONSENT-01 (`lead_consent_events`, append-only, dernier événement par `occurredAt` fait foi) | `consent-01` | TESTED, migration **en production**, **NON mergé** | aucun (indépendant) |
+| CONTACT-01 (`contacts`, registre de points de contact normalisés, PAS une identité personne) | `contact-01` | TESTED, migration **en production**, **NON mergé** | aucun (zéro dépendance vers CONSENT-01, vérifié par test) |
+| CAMPAIGN-01 (`filterAudienceByConsentCore` — orchestre CONTACT-01 puis CONSENT-01, jamais de logique propre) | `campaign-01` (contient le merge de `contact-01`) | TESTED, **NON mergé** | CONSENT-01 + CONTACT-01 |
+| **CAMPAIGN-PERSISTENCE-01** (`campaigns`/`campaign_targets` — snapshot au LANCEMENT, jamais à la création) | `campaign-persistence-01` (contient le merge de `campaign-01`) | TESTED, migration **en production**, **NON mergé** | CAMPAIGN-01 |
+
+**NOT VERIFIED** : aucune de ces branches (hors NICHE-PROVENANCE-01) n'est
+mergée sur `main` — le code applicatif n'est donc PAS en production
+Vercel, uniquement les migrations DB (additives, sans impact tant
+qu'aucun code ne les lit/écrit). Audit AUDIENCE-DEDUP-01 potentiel non
+traité : CAMPAIGN opère par CONTACT unique (prouvé), mais AUDIENCE
+elle-même (NICHE-AUDIENCE-01) ne déduplique pas les `LeadRow` bruts
+avant que CAMPAIGN-01 ne les reçoive — sans conséquence sur le
+consentement (toujours strict), seulement sur le volume de leads
+traités par appel.
+
+**Prochain chantier potentiel identifié, NON exécuté** : PROMO — audit
+d'ownership réalisé (2026-10-06) : verdict NEW FOUNDATION (aucune
+entité "offre" existante ; `publicPromotions` = bannière éditoriale
+pure, `marginRules` = moteur de marge B2B, tous deux non réutilisables).
+Bloqué jusqu'à CAMPAIGN-PERSISTENCE-01 (maintenant résolu — PROMO peut
+s'attacher à un `campaignId` réel). Principe à préserver si repris :
+PROMO décide "quelle offre", jamais le prix final (PRICING) ni la
+réservation (BOOKING). **Aucune fiche PROMO écrite, aucun GO donné.**
 
 ### CRM-NICHE-01 — CLÔTURÉ (2026-10-05)
 

@@ -36,10 +36,14 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — CAMPAIGN-PERSISTENCE-01 CLÔTURÉ (2026-10-06, commit `a466297`,
-branche `campaign-persistence-01`, pushée, NON mergée sur `main`).
+**Aucun** — chaîne NICHE → PROMO CLÔTURÉE et **DÉPLOYÉE EN PRODUCTION**
+(2026-10-06, commit `0306465`, mergée sur `main`, déploiement Vercel
+`dpl_2Cmqaj42m1gCYqqBgs9B8VfdMHqn`, `state=READY`, `target=production`,
+`githubCommitSha=0306465...` = HEAD(main), aliasé sur
+`easy2book-new.vercel.app` — même critère de preuve que la résolution
+DEPLOY-01).
 
-### Chaîne NICHE → CAMPAIGN-PERSISTENCE (2026-10-05/06) — CLÔTURÉE, branches NON mergées
+### Chaîne NICHE → PROMO (2026-10-05/06) — CLÔTURÉE, MERGÉE, DÉPLOYÉE
 
 Chaîne construite séquentiellement (chaque étape : audit d'ownership →
 fiche → GO explicite → implémentation → preuve réelle, base Postgres
@@ -47,35 +51,44 @@ locale + migration appliquée en production avec vérification des
 grants). Principe permanent respecté à chaque étape : `LEAD = demande,
 CONTACT = point de communication, CONSENT = permission, AUDIENCE =
 correspondance avec une demande, CAMPAIGN = action commerciale` —
-aucun de ces concepts fusionné implicitement.
+aucun de ces concepts fusionné implicitement. Séparation d'ownership
+tenue de bout en bout : `CAMPAIGN dit "à qui et pour quelle action
+commerciale", PROMO dit "quelle offre", PRICING dit "quel prix final",
+BOOKING dit "quelle réservation"` — jamais l'un propriétaire du rôle
+de l'autre.
 
-| Chantier | Branche | Statut | Dépend de |
-|---|---|---|---|
-| NICHE-PROVENANCE-01 | `niche-provenance-01` | **MERGÉ** (PR #133) | CRM-NICHE-01 |
-| EXPOSITION / NICHE-SIGNAL-01 (concentration) / NICHE-TREND-01 (émergence, répond à Q10) / NICHE-AUDIENCE-01 | `niche-signal-01` | TESTED, **NON mergé** | NICHE-PROVENANCE-01 |
-| CONSENT-01 (`lead_consent_events`, append-only, dernier événement par `occurredAt` fait foi) | `consent-01` | TESTED, migration **en production**, **NON mergé** | aucun (indépendant) |
-| CONTACT-01 (`contacts`, registre de points de contact normalisés, PAS une identité personne) | `contact-01` | TESTED, migration **en production**, **NON mergé** | aucun (zéro dépendance vers CONSENT-01, vérifié par test) |
-| CAMPAIGN-01 (`filterAudienceByConsentCore` — orchestre CONTACT-01 puis CONSENT-01, jamais de logique propre) | `campaign-01` (contient le merge de `contact-01`) | TESTED, **NON mergé** | CONSENT-01 + CONTACT-01 |
-| **CAMPAIGN-PERSISTENCE-01** (`campaigns`/`campaign_targets` — snapshot au LANCEMENT, jamais à la création) | `campaign-persistence-01` (contient le merge de `campaign-01`) | TESTED, migration **en production**, **NON mergé** | CAMPAIGN-01 |
+| Chantier | Branche | Statut |
+|---|---|---|
+| NICHE-PROVENANCE-01 | `niche-provenance-01` | **MERGÉ** (PR #133) |
+| EXPOSITION / NICHE-SIGNAL-01 (concentration) / NICHE-TREND-01 (émergence, répond à Q10) / NICHE-AUDIENCE-01 | `niche-signal-01` | **MERGÉ** sur `main` (2026-10-06) |
+| CONSENT-01 (`lead_consent_events`, append-only, dernier événement par `occurredAt` fait foi) | `consent-01` | **MERGÉ**, migration en production |
+| CONTACT-01 (`contacts`, registre de points de contact normalisés, PAS une identité personne) | `contact-01` | **MERGÉ**, migration en production |
+| CAMPAIGN-01 (`filterAudienceByConsentCore` — orchestre CONTACT-01 puis CONSENT-01, jamais de logique propre) | `campaign-01` | **MERGÉ** |
+| CAMPAIGN-PERSISTENCE-01 (`campaigns`/`campaign_targets` — snapshot au LANCEMENT, jamais à la création) | `campaign-persistence-01` | **MERGÉ**, migration en production |
+| CAMPAIGN-EXTENSION-01 (Period/Message sur `campaigns`, immuables au lancement) | `campaign-extension-01` | **MERGÉ**, migration en production |
+| CAMPAIGN-ATTRIBUTION-01 (`campaign_attributions` — lien stable réservation→campagne, cron, BOOKING inchangé) | `campaign-attribution-01` | **MERGÉ**, migration en production |
+| PROMO-01 (`promos` — offre strictement liée à 1 campagne, `campaigns.promoRef` réellement rempli) | `promo-01` | **MERGÉ**, migration en production |
 
-**NOT VERIFIED** : aucune de ces branches (hors NICHE-PROVENANCE-01) n'est
-mergée sur `main` — le code applicatif n'est donc PAS en production
-Vercel, uniquement les migrations DB (additives, sans impact tant
-qu'aucun code ne les lit/écrit). Audit AUDIENCE-DEDUP-01 potentiel non
-traité : CAMPAIGN opère par CONTACT unique (prouvé), mais AUDIENCE
-elle-même (NICHE-AUDIENCE-01) ne déduplique pas les `LeadRow` bruts
-avant que CAMPAIGN-01 ne les reçoive — sans conséquence sur le
+Toutes les migrations DB listées ci-dessus étaient déjà appliquées en
+production (vérifiées via grants/RLS à chaque chantier) **avant** ce
+merge — seul le code applicatif restait non déployé jusqu'à ce merge
+sur `main`. C'est maintenant résolu : le merge de `promo-01` (contenant
+toute la chaîne CONSENT→PROMO) et de `niche-signal-01` dans `main`,
+suivi du push, a déclenché le déploiement Vercel confirmé ci-dessus.
+
+**NOT VERIFIED, restant après ce chantier** : AUDIENCE-DEDUP-01
+potentiel non traité — CAMPAIGN opère par CONTACT unique (prouvé), mais
+AUDIENCE elle-même (NICHE-AUDIENCE-01) ne déduplique pas les `LeadRow`
+bruts avant que CAMPAIGN-01 ne les reçoive — sans conséquence sur le
 consentement (toujours strict), seulement sur le volume de leads
 traités par appel.
 
-**Prochain chantier potentiel identifié, NON exécuté** : PROMO — audit
-d'ownership réalisé (2026-10-06) : verdict NEW FOUNDATION (aucune
-entité "offre" existante ; `publicPromotions` = bannière éditoriale
-pure, `marginRules` = moteur de marge B2B, tous deux non réutilisables).
-Bloqué jusqu'à CAMPAIGN-PERSISTENCE-01 (maintenant résolu — PROMO peut
-s'attacher à un `campaignId` réel). Principe à préserver si repris :
-PROMO décide "quelle offre", jamais le prix final (PRICING) ni la
-réservation (BOOKING). **Aucune fiche PROMO écrite, aucun GO donné.**
+**Prochains chantiers potentiels identifiés, NON exécutés** :
+- **PRICING** : consommer `resolveApplicableDiscountCore` (PROMO-01) —
+  aucun audit réalisé.
+- **CONVERSION / LEARNING** : exploiter `campaign_attributions` pour
+  mesurer "17 réservations générées par la campagne Istanbul" — aucun
+  audit réalisé.
 
 ### CRM-NICHE-01 — CLÔTURÉ (2026-10-05)
 

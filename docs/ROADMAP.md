@@ -36,14 +36,14 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — chaîne NICHE → PROMO CLÔTURÉE et **DÉPLOYÉE EN PRODUCTION**
-(2026-10-06, commit `0306465`, mergée sur `main`, déploiement Vercel
-`dpl_2Cmqaj42m1gCYqqBgs9B8VfdMHqn`, `state=READY`, `target=production`,
-`githubCommitSha=0306465...` = HEAD(main), aliasé sur
-`easy2book-new.vercel.app` — même critère de preuve que la résolution
-DEPLOY-01).
+**Aucun** — chaîne NICHE → PRICING-PROMO-LINK CLÔTURÉE et **DÉPLOYÉE EN
+PRODUCTION** (2026-10-06, commit `8e31a35`, mergée sur `main`,
+déploiement Vercel `dpl_HcFvkQ54Vx5mHcU4At5x7ATUWMPH`, `state=READY`,
+`target=production`, `githubCommitSha=8e31a35...` = HEAD(main), aliasé
+sur `easy2book-new.vercel.app` — même critère de preuve que la
+résolution DEPLOY-01).
 
-### Chaîne NICHE → PROMO (2026-10-05/06) — CLÔTURÉE, MERGÉE, DÉPLOYÉE
+### Chaîne NICHE → PRICING-PROMO-LINK (2026-10-05/06) — CLÔTURÉE, MERGÉE, DÉPLOYÉE
 
 Chaîne construite séquentiellement (chaque étape : audit d'ownership →
 fiche → GO explicite → implémentation → preuve réelle, base Postgres
@@ -68,13 +68,22 @@ de l'autre.
 | CAMPAIGN-EXTENSION-01 (Period/Message sur `campaigns`, immuables au lancement) | `campaign-extension-01` | **MERGÉ**, migration en production |
 | CAMPAIGN-ATTRIBUTION-01 (`campaign_attributions` — lien stable réservation→campagne, cron, BOOKING inchangé) | `campaign-attribution-01` | **MERGÉ**, migration en production |
 | PROMO-01 (`promos` — offre strictement liée à 1 campagne, `campaigns.promoRef` réellement rempli) | `promo-01` | **MERGÉ**, migration en production |
+| PRICING-PROMO-LINK-01 (`applyPromoDiscountCore`/`resolveCheckoutPromoCore` — un `campaignId` transporté par le client n'est jamais une preuve d'éligibilité, toujours re-dérivée côté serveur ; `promos.allowBelowCost`, PROMO-LOSS-POLICY-01) | `pricing-promo-link-01` | **MERGÉ**, migration en production |
 
 Toutes les migrations DB listées ci-dessus étaient déjà appliquées en
-production (vérifiées via grants/RLS à chaque chantier) **avant** ce
-merge — seul le code applicatif restait non déployé jusqu'à ce merge
-sur `main`. C'est maintenant résolu : le merge de `promo-01` (contenant
-toute la chaîne CONSENT→PROMO) et de `niche-signal-01` dans `main`,
-suivi du push, a déclenché le déploiement Vercel confirmé ci-dessus.
+production (vérifiées via grants/RLS à chaque chantier) **avant** leur
+merge respectif — seul le code applicatif restait non déployé jusqu'à
+chaque merge sur `main`. C'est maintenant résolu pour toute la chaîne.
+
+**Intégration de référence PRICING-PROMO-LINK-01 : hôtel UNIQUEMENT**
+(`lib/booking/guest-actions.ts`). Les 7 autres modules (flight/transfer/
+omra/package/activity/network/car) restent **NON câblés** — signalé
+explicitement, pas une omission silencieuse. FERRY et VISA (futurs
+modules annoncés) restent non implémentés/non câblés/non certifiés ;
+audit dédié a confirmé qu'aucune des 3 briques core (`promo-core.ts`,
+`promo-discount-core.ts`, `promo-checkout-core.ts`) ne dépend
+structurellement des 8 modules actuels — réutilisables sans réécriture
+pour de futurs modules.
 
 **NOT VERIFIED, restant après ce chantier** : AUDIENCE-DEDUP-01
 potentiel non traité — CAMPAIGN opère par CONTACT unique (prouvé), mais
@@ -84,11 +93,14 @@ consentement (toujours strict), seulement sur le volume de leads
 traités par appel.
 
 **Prochains chantiers potentiels identifiés, NON exécutés** :
-- **PRICING** : consommer `resolveApplicableDiscountCore` (PROMO-01) —
-  aucun audit réalisé.
+- **Câblage PRICING-PROMO-LINK-01 dans les 7 modules restants**
+  (flight/transfer/omra/package/activity/network/car) — aucun audit
+  réalisé au-delà de la référence hôtel.
 - **CONVERSION / LEARNING** : exploiter `campaign_attributions` pour
   mesurer "17 réservations générées par la campagne Istanbul" — aucun
   audit réalisé.
+- **FERRY / VISA** : futurs modules commerciaux annoncés, aucun audit
+  d'intégration réalisé, aucun code, aucun stub.
 
 ### CRM-NICHE-01 — CLÔTURÉ (2026-10-05)
 

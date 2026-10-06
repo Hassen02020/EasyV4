@@ -17,6 +17,10 @@ function row(over: Partial<NicheSegmentInputRow> = {}): NicheSegmentInputRow {
     destination: null,
     status: "new",
     createdAt: new Date("2026-10-01T00:00:00Z"),
+    originAgencyId: null,
+    capturedByUserId: null,
+    channel: null,
+    campaignRef: null,
     ...over,
   }
 }
@@ -85,4 +89,58 @@ test("tri par volume décroissant", () => {
   ])
   assert.equal(segments[0]!.destination, "B")
   assert.equal(segments[0]!.volume, 3)
+})
+
+test("NICHE-PROVENANCE-01 : regroupe aussi par originAgencyId × channel × campaignRef", () => {
+  const segments = computeNicheSegmentsCore([
+    row({ originAgencyId: "agency-a", channel: "whatsapp" }),
+    row({ originAgencyId: "agency-a", channel: "whatsapp" }),
+    row({ originAgencyId: "agency-b", channel: "whatsapp" }),
+  ])
+  assert.equal(segments.length, 2)
+  const a = segments.find((s) => s.originAgencyId === "agency-a")
+  const b = segments.find((s) => s.originAgencyId === "agency-b")
+  assert.equal(a?.volume, 2)
+  assert.equal(b?.volume, 1)
+})
+
+test("NICHE-PROVENANCE-01 : origine inconnue (null) jamais fusionnée avec une origine connue", () => {
+  const segments = computeNicheSegmentsCore([
+    row({ originAgencyId: null }),
+    row({ originAgencyId: "agency-a" }),
+  ])
+  assert.equal(segments.length, 2)
+  assert.equal(
+    segments.some((s) => s.originAgencyId === null),
+    true,
+  )
+  assert.equal(
+    segments.some((s) => s.originAgencyId === "agency-a"),
+    true,
+  )
+})
+
+test("NICHE-PROVENANCE-01 : channel et campaignRef distinguent des leads par ailleurs identiques", () => {
+  const segments = computeNicheSegmentsCore([
+    row({ channel: "whatsapp", campaignRef: null }),
+    row({ channel: "web", campaignRef: null }),
+    row({ channel: "whatsapp", campaignRef: "facebook:ad123" }),
+  ])
+  assert.equal(segments.length, 3)
+})
+
+test("NICHE-PROVENANCE-01 : capturedByUserId (commercial apporteur) distingue des leads par ailleurs identiques, jamais fusionné avec un apporteur inconnu", () => {
+  const segments = computeNicheSegmentsCore([
+    row({ capturedByUserId: "user-a" }),
+    row({ capturedByUserId: "user-a" }),
+    row({ capturedByUserId: "user-b" }),
+    row({ capturedByUserId: null }),
+  ])
+  assert.equal(segments.length, 3)
+  const userA = segments.find((s) => s.capturedByUserId === "user-a")
+  assert.equal(userA?.volume, 2)
+  assert.equal(
+    segments.some((s) => s.capturedByUserId === null),
+    true,
+  )
 })

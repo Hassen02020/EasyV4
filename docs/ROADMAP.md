@@ -36,12 +36,31 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — chaîne NICHE → PRICING-PROMO-LINK CLÔTURÉE et **DÉPLOYÉE EN
-PRODUCTION** (2026-10-06, commit `8e31a35`, mergée sur `main`,
-déploiement Vercel `dpl_HcFvkQ54Vx5mHcU4At5x7ATUWMPH`, `state=READY`,
-`target=production`, `githubCommitSha=8e31a35...` = HEAD(main), aliasé
-sur `easy2book-new.vercel.app` — même critère de preuve que la
-résolution DEPLOY-01).
+**Aucun** — câblage PRICING-PROMO-LINK-01 dans transfert/omra/package
+CLÔTURÉ et **DÉPLOYÉ EN PRODUCTION** (2026-10-06). Deux déploiements
+`easy2book-new`, tous deux `state=READY`/`target=production`/aliasés
+`easy2book-new.vercel.app` :
+- `dpl_2pCj9GTpWJQ2VX1rnByMNAun5bqE`, `githubCommitSha=c1c75cb...` —
+  câblage module transfert (point d'injection unique, pas de garde
+  CART-DRIFT-01 dans ce module).
+- `dpl_9mE8rQfXkcQA65oKc8YEHFWXnhUf`, `githubCommitSha=e43af3d...` —
+  (a) **bugfix** sur l'intégration hôtel déjà en production : la remise
+  PROMO était appliquée AVANT le calcul de breakdown et la garde
+  anti-drift CART-DRIFT-01 (`lib/booking/guest-actions.ts`), ce qui
+  aurait rejeté `PRICE_CHANGED` à tort pour tout client réellement
+  éligible à une promo — jamais déclenché en prod faute de campagne
+  active sur le hot path concerné, mais un vrai bug trouvé par audit
+  avant tout incident réel, pas par un rapport utilisateur ; (b)
+  câblage omra (injection unique, pas de garde CART-DRIFT-01 dans ce
+  module non plus) ; (c) câblage package (remise appliquée aux montants
+  agrégés déjà facturés totalTnd/depositTnd/balanceTnd, après la garde
+  anti-drift, sans fabriquer un faux prix unitaire adulte/enfant).
+
+Un seul ensemble de preuves : `pnpm typecheck`/`pnpm test`
+(1486 pass/0 fail)/`pnpm lint`/`prettier --check`/`pnpm build` verts
+avant merge ; fast-forward propre `c1c75cb..e43af3d` sur `main` ;
+déploiement confirmé par lecture directe Vercel (pas seulement
+l'affirmation de l'agent), mêmes critères que DEPLOY-01.
 
 ### Chaîne NICHE → PRICING-PROMO-LINK (2026-10-05/06) — CLÔTURÉE, MERGÉE, DÉPLOYÉE
 
@@ -75,15 +94,16 @@ production (vérifiées via grants/RLS à chaque chantier) **avant** leur
 merge respectif — seul le code applicatif restait non déployé jusqu'à
 chaque merge sur `main`. C'est maintenant résolu pour toute la chaîne.
 
-**Intégration de référence PRICING-PROMO-LINK-01 : hôtel UNIQUEMENT**
-(`lib/booking/guest-actions.ts`). Les 7 autres modules (flight/transfer/
-omra/package/activity/network/car) restent **NON câblés** — signalé
-explicitement, pas une omission silencieuse. FERRY et VISA (futurs
-modules annoncés) restent non implémentés/non câblés/non certifiés ;
-audit dédié a confirmé qu'aucune des 3 briques core (`promo-core.ts`,
-`promo-discount-core.ts`, `promo-checkout-core.ts`) ne dépend
-structurellement des 8 modules actuels — réutilisables sans réécriture
-pour de futurs modules.
+**Câblage PRICING-PROMO-LINK-01 — 4/7 modules restants faits** : hôtel
+(référence initiale, bugfix ordre CART-DRIFT-01/PROMO appliqué
+ci-dessus), transfert, omra, package. **Restent NON câblés** : flight
+(signalé plus complexe — prix utilisé à 2 points séparés du fichier,
+audit dédié requis avant câblage), activity, network. `car` reste
+EXCLU volontairement (module dormant, non commercialisé,
+`FEATURE_CAR=false`). FERRY et VISA (futurs modules annoncés) restent
+non implémentés/non câblés/non certifiés. Les 3 briques core
+(`promo-core.ts`, `promo-discount-core.ts`, `promo-checkout-core.ts`)
+confirmées réutilisables sans réécriture pour tout module restant.
 
 **NOT VERIFIED, restant après ce chantier** : AUDIENCE-DEDUP-01
 potentiel non traité — CAMPAIGN opère par CONTACT unique (prouvé), mais
@@ -93,14 +113,27 @@ consentement (toujours strict), seulement sur le volume de leads
 traités par appel.
 
 **Prochains chantiers potentiels identifiés, NON exécutés** :
-- **Câblage PRICING-PROMO-LINK-01 dans les 7 modules restants**
-  (flight/transfer/omra/package/activity/network/car) — aucun audit
-  réalisé au-delà de la référence hôtel.
+- **Câblage PRICING-PROMO-LINK-01 dans les 3 modules restants**
+  (activity, network, flight) — flight signalé plus complexe (prix à
+  2 points séparés du fichier), audit dédié requis avant câblage ;
+  activity/network pas encore audités dans ce round.
 - **CONVERSION / LEARNING** : exploiter `campaign_attributions` pour
   mesurer "17 réservations générées par la campagne Istanbul" — aucun
-  audit réalisé.
+  audit réalisé. `CAMPAIGN-PERFORMANCE-01` (exposed/converted/CA/marge
+  par campagne, lecture pure, MERGÉ et DÉPLOYÉ — commit `155d540`,
+  `dpl_GBqWhaMnzZ3MDEnQ8JfP4gbZ34rX`) en couvre une partie ; LEARNING
+  proprement dit (apprentissage/optimisation) reste non traité.
 - **FERRY / VISA** : futurs modules commerciaux annoncés, aucun audit
   d'intégration réalisé, aucun code, aucun stub.
+
+**MISSION PARALLÈLE EN COURS (hors chaîne NICHE→PROMO)** :
+`MASTER STRESS TEST` — audit E2E/produit écran par écran demandé
+2026-10-06. Audit infra existante rendu (Playwright/CI/fixtures/seed/
+mock GoTrue/audits antérieurs `docs/audits/*` du 2026-09-11, périmés
+depuis la chaîne NICHE→PROMO entière + CURRENCY-DIM-01a +
+ECON-BREAKDOWN-01, jamais rejoués en navigateur réel). **STOP — en
+attente du GO** pour reconstruire l'infra locale (Postgres + mock
+GoTrue + seed), seul préalable technique avant le premier scénario.
 
 ### CRM-NICHE-01 — CLÔTURÉ (2026-10-05)
 

@@ -21,6 +21,20 @@
  * sources réseau non encore branchées (agence physique, partenaire,
  * commercial, fournisseur-référent, pub, réseaux sociaux) sont hors
  * scope — voir CRM-NICHE-02.
+ *
+ * NICHE-SIGNAL-01 — détection de CONCENTRATION/IMPORTANCE RELATIVE sur
+ * UNE SEULE période. `detectNicheSignalsCore` est une fonction pure, sans
+ * DB, sans automatisation (aucun envoi d'alerte/notification).
+ *
+ * MISE EN GARDE EXPLICITE (ne pas confondre avec "émergence") : ce calcul
+ * ne regarde qu'une période isolée — il ne peut PAS distinguer une niche
+ * "qui vient d'apparaître/d'accélérer" d'une niche "grosse depuis
+ * toujours". Un segment stable à 25% du volume depuis 10 périodes
+ * déclenche ce signal exactement comme un segment apparu cette période-
+ * ci — ce n'est PAS un signal d'émergence, seulement d'importance
+ * actuelle. La détection d'émergence réelle (nouveauté, accélération,
+ * variation dans le temps) nécessite une comparaison multi-période —
+ * voir NICHE-TREND-01, hors scope ici, jamais construit par ce fichier.
  */
 
 import { eq } from "drizzle-orm"
@@ -146,4 +160,45 @@ export async function getNicheSegmentsCore(
     .where(eq(leads.agencyId, params.agencyId))
 
   return computeNicheSegmentsCore(rows)
+}
+
+/**
+ * NICHE-SIGNAL-01 — seuil par défaut, constante inspectable/testable (même
+ * principe que LEAD_ORIGIN_SOURCE_TRUST), jamais une valeur magique codée
+ * en dur dans la fonction elle-même. Part relative du volume de la
+ * période, pas un volume absolu — s'adapte à la taille de l'agence.
+ */
+export const DEFAULT_NICHE_SIGNAL_THRESHOLD_PERCENT = 20
+
+export interface NicheSignal extends NicheSegment {
+  /** 0-100, arrondi — part de ce segment dans le volume total de sa période. */
+  shareOfPeriod: number
+}
+
+/**
+ * Fonction pure, sans DB, sans automatisation — détecte une concentration
+ * sur UNE SEULE période (chaque segment n'est comparé qu'aux autres
+ * segments de la MÊME période, jamais entre périodes différentes — ça,
+ * c'est NICHE-TREND-01, hors scope ici).
+ */
+export function detectNicheSignalsCore(
+  segments: NicheSegment[],
+  thresholdPercent: number = DEFAULT_NICHE_SIGNAL_THRESHOLD_PERCENT,
+): NicheSignal[] {
+  const totalByPeriod = new Map<string, number>()
+  for (const s of segments) {
+    totalByPeriod.set(s.period, (totalByPeriod.get(s.period) ?? 0) + s.volume)
+  }
+
+  const signals: NicheSignal[] = []
+  for (const s of segments) {
+    const periodTotal = totalByPeriod.get(s.period) ?? 0
+    const shareOfPeriod =
+      periodTotal > 0 ? Math.round((s.volume / periodTotal) * 100) : 0
+    if (shareOfPeriod >= thresholdPercent) {
+      signals.push({ ...s, shareOfPeriod })
+    }
+  }
+
+  return signals.sort((a, b) => b.shareOfPeriod - a.shareOfPeriod)
 }

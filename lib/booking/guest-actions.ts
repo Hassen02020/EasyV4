@@ -63,6 +63,8 @@ import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
@@ -155,6 +157,15 @@ export async function createGuestReservationFromDraft(input: {
    * pas de migration de représentation de données.
    */
   expectedTotalTnd?: number
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact RÉEL du voyageur (`traveler.email`/`phone`),
+   * jamais déduite de ce champ seul — un `campaignId` fabriqué ne
+   * donne jamais de remise.
+   */
+  campaignId?: string
 }): Promise<CreateGuestReservationResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -202,6 +213,7 @@ export async function createGuestReservationFromDraft(input: {
       input.idempotencyKey,
       linkedAuthUserId,
       input.expectedTotalTnd,
+      input.campaignId,
     ),
   )
 }
@@ -253,6 +265,7 @@ async function runCreateGuestReservation(
   idempotencyKey: string,
   linkedAuthUserId: string | null,
   expectedTotalTnd: number | undefined,
+  campaignId: string | undefined,
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -360,7 +373,41 @@ async function runCreateGuestReservation(
   // le prix net fournisseur brut.
   const hotelMarginRule = (await getMarginsForAgency(agencyId, "", "direct"))
     .hotel
-  const agencyPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
+  const agencyPriceBeforePromo = applyMargin(
+    myGoBooking.totalPrice,
+    hotelMarginRule,
+  )
+
+  // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
+  // Appliquée ICI, AVANT computePriceBreakdown/authoritativeUnitPrice :
+  // c'est la variable `agencyPrice` ci-dessous qui porte le prix réel
+  // tout le reste de la fonction (breakdown affiché, garde CART-DRIFT-01,
+  // paiement, recordReservationFinancials plus bas) — jamais une remise
+  // appliquée seulement à la toute fin après que le client a déjà payé
+  // le prix plein. `campaignId` est un INDICE transporté par le client,
+  // jamais une autorisation : `resolveCheckoutPromoCore` re-dérive
+  // l'éligibilité réelle depuis le contact réel du voyageur.
+  let agencyPrice = agencyPriceBeforePromo
+  if (campaignId) {
+    const checkoutPromo = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: true },
+      (tx) =>
+        resolveCheckoutPromoCore(tx, {
+          agencyId,
+          campaignId,
+          email: traveler.email,
+          phone: traveler.phone,
+        }),
+    )
+    if (checkoutPromo.eligible) {
+      agencyPrice = applyPromoDiscountCore(
+        agencyPriceBeforePromo,
+        checkoutPromo.discount,
+        { supplierPriceTnd: myGoBooking.totalPrice },
+      ).finalPriceTnd
+    }
+  }
+
   const breakdown = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyPrice, draft.adults),
     adults: draft.adults,

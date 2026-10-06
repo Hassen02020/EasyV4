@@ -2588,6 +2588,18 @@ export const promos = pgTable(
     /** `null` = sans borne de ce côté. */
     validFrom: timestamp("valid_from", { withTimezone: true }),
     validTo: timestamp("valid_to", { withTimezone: true }),
+    /**
+     * PROMO-LOSS-POLICY-01 — décision commerciale EXPLICITE de l'agence,
+     * jamais déduite par PRICING. `false` (défaut) : PRICING plafonne la
+     * remise au coût fournisseur quand un coût séparé existe (hotel/
+     * flight/transfer/network) — sans objet pour omra/package/activity/
+     * car, qui n'ont pas de coût fournisseur distinct (`supplierPriceTnd
+     * === salePriceTnd`, vérifié par lecture de ces modules). `true` :
+     * l'agence autorise explicitement une vente à perte pour cette promo.
+     * Ni PRICING ni PROMO n'inventent cette politique — elle est posée
+     * ici, au moment de la création de la promo, par celui qui la décide.
+     */
+    allowBelowCost: boolean("allow_below_cost").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

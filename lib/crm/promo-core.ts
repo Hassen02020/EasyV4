@@ -45,6 +45,7 @@ export interface PromoRow {
   conditions: string | null
   validFrom: Date | null
   validTo: Date | null
+  allowBelowCost: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -76,6 +77,7 @@ export async function createPromoCore(
     conditions?: string | null
     validFrom?: Date | null
     validTo?: Date | null
+    allowBelowCost?: boolean
   },
 ): Promise<CreatePromoResult> {
   if (
@@ -106,6 +108,7 @@ export async function createPromoCore(
       conditions: params.conditions ?? undefined,
       validFrom: params.validFrom ?? undefined,
       validTo: params.validTo ?? undefined,
+      allowBelowCost: params.allowBelowCost ?? undefined,
     })
     .returning()
 
@@ -151,6 +154,7 @@ export async function updatePromoCore(
     conditions?: string | null
     validFrom?: Date | null
     validTo?: Date | null
+    allowBelowCost?: boolean
   },
 ): Promise<UpdatePromoResult> {
   const [existing] = await tx
@@ -183,6 +187,9 @@ export async function updatePromoCore(
         ? { validFrom: params.validFrom }
         : {}),
       ...(params.validTo !== undefined ? { validTo: params.validTo } : {}),
+      ...(params.allowBelowCost !== undefined
+        ? { allowBelowCost: params.allowBelowCost }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(promos.id, params.promoId))
@@ -199,18 +206,24 @@ export type ApplicableDiscountResult =
       applicable: true
       discountType: PromoDiscountType
       discountValue: string
+      allowBelowCost: boolean
     }
   | { applicable: false; reason: "NOT_YET_VALID" | "EXPIRED" }
 
 /**
  * Fonction PURE — ne calcule JAMAIS un prix, renvoie seulement la
- * remise définie et si elle s'applique à `at`. PRICING reste seul
+ * remise définie, si elle s'applique à `at`, et la politique de vente
+ * à perte posée par l'agence (PROMO-LOSS-POLICY-01). PRICING reste seul
  * responsable d'appliquer ce résultat à un prix réel.
  */
 export function resolveApplicableDiscountCore(
   promo: Pick<
     PromoRow,
-    "discountType" | "discountValue" | "validFrom" | "validTo"
+    | "discountType"
+    | "discountValue"
+    | "validFrom"
+    | "validTo"
+    | "allowBelowCost"
   >,
   at: Date,
 ): ApplicableDiscountResult {
@@ -224,5 +237,6 @@ export function resolveApplicableDiscountCore(
     applicable: true,
     discountType: promo.discountType,
     discountValue: promo.discountValue,
+    allowBelowCost: promo.allowBelowCost,
   }
 }

@@ -36,8 +36,92 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — câblage PRICING-PROMO-LINK-01 dans transfert/omra/package
-CLÔTURÉ et **DÉPLOYÉ EN PRODUCTION** (2026-10-06). Deux déploiements
+**Aucun** — MASTER STRESS TEST, Scénario A (Smoke) : 2 bugs réels trouvés
+et CLÔTURÉS, **DÉPLOYÉS EN PRODUCTION** (2026-10-06).
+
+### PUBLIC-VISUAL-RLS-ROLE-GAP-01 + BOOKING-ENGINE-MODULES-NOT-WIRED-01 + DESTINATIONS-SSG-POOL-EXHAUSTION-01 — CLÔTURÉS
+
+Trouvés en exécutant le Scénario A (Smoke, Home→Search) sur l'infra E2E
+locale reconstruite : la page d'accueil réelle (tous locales, tout
+utilisateur, depuis le 2026-10-02) n'affichait **aucun onglet de
+navigation entre modules**, aucune image hero dynamique, aucun carrousel
+de promotions — dégradée silencieusement vers un seul module par défaut
+codé en dur.
+
+**3 causes réelles, empilées, chacune trouvée et corrigée séparément :**
+
+1. **PUBLIC-VISUAL-RLS-ROLE-GAP-01** — les policies RLS de
+   `public_module_visuals`/`public_site_settings`/`public_promotions`
+   (migration `0097_public_visual_content.sql`, 2026-10-02) étaient
+   scopées `TO authenticated`, un rôle Supabase/PostgREST dont
+   `app_runtime` (le rôle Postgres réel de `DATABASE_URL`) n'est jamais
+   membre — 0 ligne retournée silencieusement à chaque lecture/écriture,
+   `FORCE ROW LEVEL SECURITY` + aucune policy applicable = déni par
+   défaut, sans jamais lever d'exception. **Découverte additionnelle** :
+   la migration `0097` elle-même n'avait **jamais été appliquée en
+   production** (confirmée absente de `list_migrations` sur le projet
+   Supabase `crygnaichvlxavvbifqi`) — corrigée en une seule migration
+   combinée (création + RLS correcte dès le départ + seed), jamais l'état
+   cassé intermédiaire. Grants `app_runtime` déjà corrects (vérifiés),
+   aucun gap `DEFAULT-PRIVILEGES-GAP-01` sur ces 3 tables.
+2. **BOOKING-ENGINE-MODULES-NOT-WIRED-01** — `app/(public)/[locale]/page.tsx`
+   n'a jamais appelé `getPublicModuleVisuals()`/`getPublicSiteConfig()` ;
+   `<BookingEngine />` recevait toujours `modules=[]` par défaut, quel
+   que soit l'état de la DB/RLS. `getPublicModuleVisuals()` n'était
+   appelée que par l'éditeur admin (`/admin/site`), jamais par la page
+   publique — un chantier backend+composant terminé, la dernière étape
+   (relier la page au composant) jamais faite.
+3. **DESTINATIONS-SSG-POOL-EXHAUSTION-01** — trouvée en déployant le
+   correctif ci-dessus : 4 builds Vercel sur 4 ont échoué
+   (`BUILD_UTILS_SPAWN_1`), alors que le même commit construisait sans
+   erreur en local (×2) et sur GitHub Actions (×2, `build` +
+   `playwright-a11y`). Root cause confirmée via le log de build Vercel
+   réel (collé par l'utilisateur, pas supposée) : `next build` tente de
+   pré-générer les ~192 fiches `/destinations/[slug]` au build, chacune
+   ouvrant une connexion au pooler Supabase (session mode, plafond 15
+   clients) — épuisé en cours de route, crash sur une fiche différente à
+   chaque run (`maroc`, puis `pays-bas` — preuve que la cause est
+   générique au volume cumulé de connexions séquentielles, pas une
+   destination précise). `lib/db/client.ts::getDb()` reste un singleton
+   correct (`max: 10` côté app, jamais modifié) — c'est le plafond du
+   pooler externe qui casse. Aucun rapport avec les 2 bugs ci-dessus ;
+   découvert uniquement parce qu'il bloquait leur déploiement. **Correctif
+   volontairement sans toucher au pooling** (augmenter un pool aurait
+   seulement déplacé le seuil de rupture) : `generateStaticParams()`
+   renvoie toujours `[]` — zéro connexion DB au build pour cette route,
+   `dynamicParams` reste à `true` (défaut Next.js), chaque fiche se rend
+   à la demande au premier accès — exactement le même comportement que
+   le fallback "DB injoignable pendant le build" déjà écrit et déjà
+   documenté comme sûr dans ce fichier, juste rendu systématique.
+
+**Preuves** : `pnpm typecheck`/`pnpm test` (1486 pass/0 fail)/`pnpm
+lint`/`prettier --check`/`pnpm build` verts avant chaque merge ;
+2 fast-forwards propres sur `main` (`c589dda..5435c45..c6db257`) ;
+test de régression live DB pour le gap RLS
+(`lib/public/__tests__/public-visual-rls-role-gap-live.test.ts`, prouvé
+dans les deux sens — échoue sur l'ancienne policy, passe sur la
+nouvelle) ; déploiement Vercel final `dpl_4N7i4KzcC3TtTFcezp6HDArX3g4s`,
+`state=READY`, `target=production`, `githubCommitSha=c6db257...`, aliasé
+`easy2book-new.vercel.app` ; **confirmation visuelle en production réelle**
+(capture d'écran navigateur utilisateur, 2026-10-06) : les 8 onglets de
+modules (Hôtels Tunisie/Monde, Omraty, Voyages Organisés, Attractions,
+Vols, Transferts, Car) et l'image hero dynamique s'affichent correctement
+sur `https://easy2book-new.vercel.app/fr`.
+
+**NOT VERIFIED** : le carrousel de promotions (Istanbul/Djerba) n'a été
+confirmé visuellement qu'en local (navigateur réel, infra E2E
+reconstruite) — pas encore reconfirmé sur la capture de production
+elle-même (hors du cadre visible de la capture reçue).
+
+**Gap séparé trouvé, non traité ici** (`get_advisors` Supabase, lecture
+seule) : 3 tables pré-existantes sans rapport avec ce chantier ont RLS
+entièrement désactivée en production — `development_project_waitlist`,
+`canonical_hotel_supplier_mappings`, `canonical_hotels`. À auditer
+séparément, sur GO dédié.
+
+---
+
+### Chaîne NICHE → PRICING-PROMO-LINK (câblage transfert/omra/package) — CLÔTURÉE, DÉPLOYÉE Deux déploiements
 `easy2book-new`, tous deux `state=READY`/`target=production`/aliasés
 `easy2book-new.vercel.app` :
 - `dpl_2pCj9GTpWJQ2VX1rnByMNAun5bqE`, `githubCommitSha=c1c75cb...` —

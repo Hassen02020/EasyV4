@@ -37,9 +37,16 @@
  * voir NICHE-TREND-01, hors scope ici, jamais construit par ce fichier.
  */
 
-import { eq } from "drizzle-orm"
+import { and, eq, gte, isNull, lt } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { leads } from "@/lib/db/schema"
+import type {
+  LeadRow,
+  LeadProductType,
+  LeadIntention,
+  LeadMarket,
+  LeadStatus,
+} from "@/lib/crm/leads-core"
 
 export interface NicheSegmentInputRow {
   market: string
@@ -340,4 +347,90 @@ export function detectNicheTrendsCore(
   }
 
   return trends
+}
+
+/**
+ * NICHE-AUDIENCE-01 — étape 8 de la chaîne CAPTURE→...→LEARNING. Transforme
+ * un segment NICHE agrégé (compteur) en liste de LeadRow réels — réutilise
+ * EXACTEMENT les mêmes champs de dimension que NicheSegment (+ période),
+ * jamais une requête inventée séparément.
+ *
+ * GARDE-FOUS (vie privée + sécurité, vérifiés par tests dédiés) :
+ *  - `agencyId` toujours dans le WHERE — jamais une audience cross-tenant.
+ *  - Cohérence mathématique attendue par l'appelant : pour les MÊMES
+ *    dimensions + période, `audience.length === segment.volume` — testé
+ *    par comparaison directe avec `computeNicheSegmentsCore` sur le même
+ *    jeu de leads.
+ *  - PAS de garde d'autorisation ICI (fonction core, comme tout le reste
+ *    de ce fichier) — l'autorisation staff-only est de la responsabilité
+ *    de l'appelant (voir lib/admin/niche-actions.ts::assertSupportStaff,
+ *    exécutée AVANT tout appel à cette fonction).
+ *  - HORS SCOPE strict : aucune sélection de canal, aucun envoi, aucun
+ *    export, aucun ciblage publicitaire, aucun consentement marketing
+ *    inventé — cette fonction ne fait QUE lire des LeadRow, rien de plus.
+ */
+export interface NicheAudienceFilter {
+  agencyId: string
+  market: string
+  productType: string
+  intention: string
+  destination: string | null
+  originAgencyId: string | null
+  capturedByUserId: string | null
+  channel: string | null
+  campaignRef: string | null
+  /** "YYYY-MM" — même format que NicheSegment.period. */
+  period: string
+}
+
+/** Bornes [début, fin) du mois calendaire désigné par "YYYY-MM", en UTC — même découpage que toPeriodKey(). */
+function periodBoundsUtc(period: string): { start: Date; end: Date } {
+  const [yearStr, monthStr] = period.split("-")
+  const year = Number(yearStr)
+  const month = Number(monthStr) // 1-12
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1)),
+    end: new Date(Date.UTC(year, month, 1)),
+  }
+}
+
+function eqOrNull<T>(
+  column: Parameters<typeof eq>[0],
+  value: T | null,
+): ReturnType<typeof eq> | ReturnType<typeof isNull> {
+  return value === null ? isNull(column) : eq(column, value)
+}
+
+export async function getNicheAudienceCore(
+  tx: DrizzleTransaction,
+  filter: NicheAudienceFilter,
+): Promise<LeadRow[]> {
+  const { start, end } = periodBoundsUtc(filter.period)
+
+  const rows = await tx
+    .select()
+    .from(leads)
+    .where(
+      and(
+        eq(leads.agencyId, filter.agencyId),
+        eq(leads.market, filter.market),
+        eq(leads.productType, filter.productType),
+        eq(leads.intention, filter.intention),
+        eqOrNull(leads.destination, filter.destination),
+        eqOrNull(leads.originAgencyId, filter.originAgencyId),
+        eqOrNull(leads.capturedByUserId, filter.capturedByUserId),
+        eqOrNull(leads.channel, filter.channel),
+        eqOrNull(leads.campaignRef, filter.campaignRef),
+        gte(leads.createdAt, start),
+        lt(leads.createdAt, end),
+      ),
+    )
+
+  return rows.map((r) => ({
+    ...r,
+    productType: r.productType as LeadProductType,
+    intention: r.intention as LeadIntention,
+    market: r.market as LeadMarket,
+    status: r.status as LeadStatus,
+  }))
 }

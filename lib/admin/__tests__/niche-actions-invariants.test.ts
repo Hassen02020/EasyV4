@@ -17,6 +17,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { execSync } from "node:child_process"
 
 const ROOT = process.cwd()
 const nicheActionsSrc = readFileSync(
@@ -57,4 +58,61 @@ test("listNicheSegments() : appelle assertSupportStaff() avant toute lecture DB"
 test("listNicheSegments() : délègue à getNicheSegmentsCore sans dupliquer le calcul (pas de .select() direct)", () => {
   assert.match(nicheActionsSrc, /getNicheSegmentsCore\(/)
   assert.equal(nicheActionsSrc.includes(".select("), false)
+})
+
+test("listNicheAudience() : appelle assertSupportStaff() avant toute lecture DB (NICHE-AUDIENCE-01)", () => {
+  const fnStart = nicheActionsSrc.indexOf(
+    "export async function listNicheAudience",
+  )
+  assert.notEqual(fnStart, -1)
+  const fnBody = nicheActionsSrc.slice(fnStart, fnStart + 800)
+  const authIdx = fnBody.indexOf("assertSupportStaff()")
+  const dbIdx = fnBody.indexOf("withTenantContext")
+  assert.ok(authIdx !== -1 && dbIdx !== -1)
+  assert.ok(authIdx < dbIdx, "l'autorisation doit précéder l'accès DB")
+})
+
+test("listNicheAudience() : le paramètre filter n'accepte jamais agencyId — Omit<NicheAudienceFilter, 'agencyId'> en signature", () => {
+  assert.match(
+    nicheActionsSrc,
+    /listNicheAudience\(\s*filter: Omit<NicheAudienceFilter, "agencyId">/,
+  )
+})
+
+test("listNicheAudience() : agencyId injecté depuis ctx (résolu serveur), jamais depuis le filtre appelant", () => {
+  const fnStart = nicheActionsSrc.indexOf(
+    "export async function listNicheAudience",
+  )
+  const fnBody = nicheActionsSrc.slice(fnStart, fnStart + 1200)
+  assert.match(
+    fnBody,
+    /getNicheAudienceCore\(tx,\s*\{\s*\.\.\.filter,\s*agencyId:\s*ctx\.agencyId\s*\}/,
+  )
+})
+
+test("getNicheAudienceCore (niche-core.ts) : WHERE inclut toujours eq(leads.agencyId, ...) — jamais une audience cross-tenant", () => {
+  const nicheCoreSrc = readFileSync(join(ROOT, "lib/crm/niche-core.ts"), "utf8")
+  const fnStart = nicheCoreSrc.indexOf(
+    "export async function getNicheAudienceCore",
+  )
+  assert.notEqual(fnStart, -1)
+  const fnBody = nicheCoreSrc.slice(fnStart, fnStart + 1200)
+  assert.match(fnBody, /eq\(leads\.agencyId, filter\.agencyId\)/)
+})
+
+test("niche-actions.ts reste le SEUL point d'exposition : aucune route app/api ne référence getNicheAudienceCore/listNicheAudience (pas de GET public)", () => {
+  const grep = execSync(
+    `grep -rl "getNicheAudienceCore\\|listNicheAudience" app lib --include="*.ts" --include="*.tsx" || true`,
+    { cwd: ROOT, encoding: "utf8" },
+  )
+  const files = grep
+    .split("\n")
+    .filter(Boolean)
+    .filter(
+      (f) =>
+        !f.includes("__tests__") &&
+        f !== "lib/crm/niche-core.ts" &&
+        f !== "lib/admin/niche-actions.ts",
+    )
+  assert.deepEqual(files, [])
 })

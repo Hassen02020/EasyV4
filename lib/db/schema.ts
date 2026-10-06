@@ -2388,7 +2388,28 @@ export const campaigns = pgTable(
     objective: text("objective"),
     /** Réutilise CRM_CHANNELS — une campagne cible UN canal, jamais un mélange implicite. */
     channel: varchar("channel", { length: 32 }).notNull(),
+    /**
+     * CAMPAIGN-EXTENSION-01 — contenu réellement montré à la cible.
+     * Figé dès que `status !== 'draft'` (voir `updateCampaignCore`,
+     * lib/crm/campaign-persistence-core.ts) : décision explicite de
+     * l'utilisateur (2026-10-06) — changer le message après lancement
+     * exige une NOUVELLE campagne, jamais une édition en place. Pas de
+     * mécanisme de version séparé : la nouvelle campagne EST la nouvelle
+     * version.
+     */
+    message: text("message"),
     status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /**
+     * CAMPAIGN-EXTENSION-01 — fenêtre PLANIFIÉE, distincte de la date
+     * réelle de clôture (transition `active → completed`, déjà portée
+     * par `updatedAt`). Décision explicite de l'utilisateur (2026-10-06) :
+     * champ dédié plutôt que déduit du statut. Contrairement à
+     * name/objective/channel/message, restent modifiables même après
+     * lancement — un planning s'ajuste, le contenu montré non (décision
+     * non posée par l'utilisateur, tranchée ici et signalée explicitement).
+     */
+    startAt: timestamp("start_at", { withTimezone: true }),
+    endAt: timestamp("end_at", { withTimezone: true }),
     /** Nullable — posé pour PROMO, jamais construit par ce chantier. */
     promoRef: uuid("promo_ref"),
     createdByUserId: uuid("created_by_user_id"),

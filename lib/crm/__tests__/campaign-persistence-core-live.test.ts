@@ -28,6 +28,7 @@ import {
   launchCampaignCore,
   listCampaignTargetsCore,
   getCampaignCore,
+  updateCampaignCore,
 } from "../campaign-persistence-core"
 
 async function isDbAvailable(): Promise<boolean> {
@@ -223,6 +224,149 @@ test("launchCampaignCore : campagne inexistante → CAMPAIGN_NOT_FOUND", async (
       agencyId: agencyA,
       campaignId: randomUUID(),
       audience: [],
+    }),
+  )
+  assert.deepEqual(result, { ok: false, code: "CAMPAIGN_NOT_FOUND" })
+})
+
+test("updateCampaignCore : en 'draft', name/objective/channel/message/startAt/endAt tous modifiables", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+
+  const campaign = await withTenantContext(ctxA, (tx) =>
+    createCampaignCore(tx, {
+      agencyId: agencyA,
+      name: "Brouillon initial",
+      channel: "email",
+    }),
+  )
+
+  const startAt = new Date("2026-11-01T00:00:00Z")
+  const endAt = new Date("2026-11-30T00:00:00Z")
+  const result = await withTenantContext(ctxA, (tx) =>
+    updateCampaignCore(tx, {
+      agencyId: agencyA,
+      campaignId: campaign.id,
+      name: "Istanbul Novembre",
+      objective: "Relancer les demandes Istanbul",
+      message: "Profitez de -50 TND sur votre séjour à Istanbul",
+      startAt,
+      endAt,
+    }),
+  )
+
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.campaign.name, "Istanbul Novembre")
+    assert.equal(
+      result.campaign.message,
+      "Profitez de -50 TND sur votre séjour à Istanbul",
+    )
+    assert.equal(result.campaign.startAt?.getTime(), startAt.getTime())
+    assert.equal(result.campaign.endAt?.getTime(), endAt.getTime())
+  }
+})
+
+test("updateCampaignCore : après lancement, name/objective/channel/message REFUSÉS (CAMPAIGN_NOT_DRAFT) — une nouvelle version exige une nouvelle campagne", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+
+  const campaign = await withTenantContext(ctxA, (tx) =>
+    createCampaignCore(tx, {
+      agencyId: agencyA,
+      name: "Figée après lancement",
+      message: "Message original",
+      channel: "email",
+    }),
+  )
+
+  await withTenantContext(ctxA, (tx) =>
+    launchCampaignCore(tx, {
+      agencyId: agencyA,
+      campaignId: campaign.id,
+      audience: [],
+    }),
+  )
+
+  const refused = await withTenantContext(ctxA, (tx) =>
+    updateCampaignCore(tx, {
+      agencyId: agencyA,
+      campaignId: campaign.id,
+      message: "Nouveau message après lancement",
+    }),
+  )
+  assert.deepEqual(refused, { ok: false, code: "CAMPAIGN_NOT_DRAFT" })
+
+  const reloaded = await withTenantContext(ctxA, (tx) =>
+    getCampaignCore(tx, { agencyId: agencyA, campaignId: campaign.id }),
+  )
+  assert.equal(
+    reloaded!.message,
+    "Message original",
+    "le message n'a pas changé malgré le refus",
+  )
+})
+
+test("updateCampaignCore : après lancement, startAt/endAt restent modifiables (un planning s'ajuste)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+
+  const campaign = await withTenantContext(ctxA, (tx) =>
+    createCampaignCore(tx, {
+      agencyId: agencyA,
+      name: "Planning ajustable",
+      channel: "email",
+    }),
+  )
+
+  await withTenantContext(ctxA, (tx) =>
+    launchCampaignCore(tx, {
+      agencyId: agencyA,
+      campaignId: campaign.id,
+      audience: [],
+    }),
+  )
+
+  const newEndAt = new Date("2026-12-15T00:00:00Z")
+  const result = await withTenantContext(ctxA, (tx) =>
+    updateCampaignCore(tx, {
+      agencyId: agencyA,
+      campaignId: campaign.id,
+      endAt: newEndAt,
+    }),
+  )
+
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.campaign.endAt?.getTime(), newEndAt.getTime())
+  }
+})
+
+test("updateCampaignCore : campagne inexistante → CAMPAIGN_NOT_FOUND", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+
+  const result = await withTenantContext(ctxA, (tx) =>
+    updateCampaignCore(tx, {
+      agencyId: agencyA,
+      campaignId: randomUUID(),
+      name: "x",
     }),
   )
   assert.deepEqual(result, { ok: false, code: "CAMPAIGN_NOT_FOUND" })

@@ -24,6 +24,16 @@
  * 'draft' ne peut pas être relancée (erreur explicite) — jamais un
  * second snapshot silencieux qui écraserait la preuve du premier.
  *
+ * CAMPAIGN-EXTENSION-01 — immutabilité du contenu après lancement,
+ * décision explicite de l'utilisateur (2026-10-06) : `name`/`objective`/
+ * `channel`/`message` ne sont plus modifiables dès que `status !==
+ * 'draft'` — une nouvelle version de message exige une NOUVELLE
+ * campagne, jamais une édition en place (`updateCampaignCore` refuse
+ * explicitement, code `CAMPAIGN_NOT_DRAFT`). `startAt`/`endAt` restent
+ * modifiables même après lancement — un planning s'ajuste, le contenu
+ * réellement montré non (distinction non posée par l'utilisateur,
+ * tranchée ici et signalée explicitement dans le rapport de chantier).
+ *
  * PAS un fichier `"use server"` (même convention que consent-core.ts/
  * contact-core.ts/campaign-core.ts).
  */
@@ -49,7 +59,10 @@ export interface CampaignRow {
   name: string
   objective: string | null
   channel: CrmChannel
+  message: string | null
   status: CampaignStatus
+  startAt: Date | null
+  endAt: Date | null
   promoRef: string | null
   createdByUserId: string | null
   createdAt: Date
@@ -63,6 +76,9 @@ export async function createCampaignCore(
     name: string
     objective?: string | null
     channel: CrmChannel
+    message?: string | null
+    startAt?: Date | null
+    endAt?: Date | null
     createdByUserId?: string | null
   },
 ): Promise<CampaignRow> {
@@ -73,6 +89,9 @@ export async function createCampaignCore(
       name: params.name,
       objective: params.objective ?? undefined,
       channel: params.channel,
+      message: params.message ?? undefined,
+      startAt: params.startAt ?? undefined,
+      endAt: params.endAt ?? undefined,
       status: "draft",
       createdByUserId: params.createdByUserId ?? undefined,
     })
@@ -82,6 +101,72 @@ export async function createCampaignCore(
     ...row!,
     channel: row!.channel as CrmChannel,
     status: row!.status as CampaignStatus,
+  }
+}
+
+export type UpdateCampaignResult =
+  | { ok: true; campaign: CampaignRow }
+  | { ok: false; code: "CAMPAIGN_NOT_FOUND" | "CAMPAIGN_NOT_DRAFT" }
+
+/**
+ * Seul point d'édition d'une campagne. `name`/`objective`/`channel`/
+ * `message` sont REFUSÉS dès que `status !== 'draft'` (CAMPAIGN_NOT_DRAFT)
+ * — une nouvelle campagne est le seul moyen de changer le contenu
+ * réellement montré après lancement. `startAt`/`endAt` restent
+ * acceptés quel que soit le statut.
+ */
+export async function updateCampaignCore(
+  tx: DrizzleTransaction,
+  params: {
+    agencyId: string
+    campaignId: string
+    name?: string
+    objective?: string | null
+    channel?: CrmChannel
+    message?: string | null
+    startAt?: Date | null
+    endAt?: Date | null
+  },
+): Promise<UpdateCampaignResult> {
+  const campaign = await getCampaignCore(tx, {
+    agencyId: params.agencyId,
+    campaignId: params.campaignId,
+  })
+  if (!campaign) return { ok: false, code: "CAMPAIGN_NOT_FOUND" }
+
+  const changesFrozenContent =
+    params.name !== undefined ||
+    params.objective !== undefined ||
+    params.channel !== undefined ||
+    params.message !== undefined
+
+  if (changesFrozenContent && campaign.status !== "draft") {
+    return { ok: false, code: "CAMPAIGN_NOT_DRAFT" }
+  }
+
+  const [row] = await tx
+    .update(campaigns)
+    .set({
+      ...(params.name !== undefined ? { name: params.name } : {}),
+      ...(params.objective !== undefined
+        ? { objective: params.objective }
+        : {}),
+      ...(params.channel !== undefined ? { channel: params.channel } : {}),
+      ...(params.message !== undefined ? { message: params.message } : {}),
+      ...(params.startAt !== undefined ? { startAt: params.startAt } : {}),
+      ...(params.endAt !== undefined ? { endAt: params.endAt } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(campaigns.id, params.campaignId))
+    .returning()
+
+  return {
+    ok: true,
+    campaign: {
+      ...row!,
+      channel: row!.channel as CrmChannel,
+      status: row!.status as CampaignStatus,
+    },
   }
 }
 

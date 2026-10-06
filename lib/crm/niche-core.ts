@@ -202,3 +202,142 @@ export function detectNicheSignalsCore(
 
   return signals.sort((a, b) => b.shareOfPeriod - a.shareOfPeriod)
 }
+
+/**
+ * NICHE-TREND-01 — étape 7 de la chaîne CAPTURE→...→LEARNING. Détecte une
+ * variation d'un même segment (même dimension, hors période) entre deux
+ * périodes CHRONOLOGIQUEMENT CONSÉCUTIVES — jamais entre deux périodes
+ * arbitraires. Fonction pure, sans DB, sans automatisation.
+ *
+ * Classification à 4 sous-types ("kind"), jamais réduite à un simple % :
+ *  - 0 → 0 : aucune tendance — exclu du résultat (rien à signaler).
+ *  - 0 → N : "new" (apparition) — pas de `changePercent` (aucune base
+ *    pour calculer un pourcentage depuis zéro).
+ *  - N → 0 : "declining" à son extrême (-100%) — une disparition EST une
+ *    décroissance, pas une catégorie séparée.
+ *  - N → N : "growing" / "declining" / "stable" selon le signe et la
+ *    magnitude de `changePercent`, départagés par
+ *    DEFAULT_NICHE_TREND_STABLE_THRESHOLD_PERCENT (constante inspectable,
+ *    pas une valeur magique) — une variation dont la valeur absolue est
+ *    sous ce seuil est "stable", pas un faux signal de croissance/déclin.
+ *
+ * Les périodes "YYYY-MM" se trient correctement par simple comparaison
+ * de chaînes (mois toujours sur 2 chiffres) — y compris au changement
+ * d'année ("2026-12" < "2027-01") : pas besoin de parser les dates.
+ */
+export type NicheTrendKind = "new" | "growing" | "declining" | "stable"
+
+/** Variation absolue sous ce seuil (%) = "stable", pas "growing"/"declining". */
+export const DEFAULT_NICHE_TREND_STABLE_THRESHOLD_PERCENT = 5
+
+export interface NicheTrend {
+  market: string
+  productType: string
+  intention: string
+  destination: string | null
+  originAgencyId: string | null
+  capturedByUserId: string | null
+  channel: string | null
+  campaignRef: string | null
+  previousPeriod: string
+  currentPeriod: string
+  previousVolume: number
+  currentVolume: number
+  kind: NicheTrendKind
+  /** null uniquement pour "new" (aucune base pour calculer un pourcentage depuis zéro). */
+  changePercent: number | null
+}
+
+function dimensionKeyOf(s: NicheSegment): string {
+  return [
+    s.market,
+    s.productType,
+    s.intention,
+    s.destination ?? "",
+    s.originAgencyId ?? "",
+    s.capturedByUserId ?? "",
+    s.channel ?? "",
+    s.campaignRef ?? "",
+  ].join("|")
+}
+
+function dimensionFieldsOf(s: NicheSegment) {
+  return {
+    market: s.market,
+    productType: s.productType,
+    intention: s.intention,
+    destination: s.destination,
+    originAgencyId: s.originAgencyId,
+    capturedByUserId: s.capturedByUserId,
+    channel: s.channel,
+    campaignRef: s.campaignRef,
+  }
+}
+
+export function detectNicheTrendsCore(
+  segments: NicheSegment[],
+  stableThresholdPercent: number = DEFAULT_NICHE_TREND_STABLE_THRESHOLD_PERCENT,
+): NicheTrend[] {
+  const periods = [...new Set(segments.map((s) => s.period))].sort()
+
+  const volumesByDimension = new Map<string, Map<string, number>>()
+  const fieldsByDimension = new Map<
+    string,
+    ReturnType<typeof dimensionFieldsOf>
+  >()
+
+  for (const s of segments) {
+    const key = dimensionKeyOf(s)
+    if (!volumesByDimension.has(key)) {
+      volumesByDimension.set(key, new Map())
+      fieldsByDimension.set(key, dimensionFieldsOf(s))
+    }
+    const periodMap = volumesByDimension.get(key)!
+    periodMap.set(s.period, (periodMap.get(s.period) ?? 0) + s.volume)
+  }
+
+  const trends: NicheTrend[] = []
+  for (const [key, periodVolumes] of volumesByDimension) {
+    const fields = fieldsByDimension.get(key)!
+    for (let i = 1; i < periods.length; i++) {
+      const previousPeriod = periods[i - 1]!
+      const currentPeriod = periods[i]!
+      const previousVolume = periodVolumes.get(previousPeriod) ?? 0
+      const currentVolume = periodVolumes.get(currentPeriod) ?? 0
+
+      if (previousVolume === 0 && currentVolume === 0) continue
+
+      let kind: NicheTrendKind
+      let changePercent: number | null
+      if (previousVolume === 0) {
+        kind = "new"
+        changePercent = null
+      } else {
+        changePercent = Math.round(
+          ((currentVolume - previousVolume) / previousVolume) * 100,
+        )
+        if (currentVolume === 0) {
+          kind = "declining" // -100%, disparition = décroissance extrême
+        } else if (Math.abs(changePercent) < stableThresholdPercent) {
+          kind = "stable"
+        } else if (changePercent > 0) {
+          kind = "growing"
+        } else {
+          kind = "declining"
+        }
+      }
+
+      trends.push({
+        ...fields,
+        previousPeriod,
+        currentPeriod,
+        previousVolume,
+        currentVolume,
+        kind,
+        changePercent,
+      })
+    }
+  }
+
+  return trends
+}

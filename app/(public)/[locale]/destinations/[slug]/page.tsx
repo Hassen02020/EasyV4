@@ -35,7 +35,6 @@ import { Footer } from "@/components/footer"
 import {
   destinationLinkHref,
   getDestinationBySlug,
-  listActiveDestinationSlugs,
   localizedDestinationName,
   type DestinationModule,
 } from "@/lib/destinations/queries"
@@ -50,19 +49,20 @@ import type { Locale } from "@/lib/locale"
 const getDestination = cache(getDestinationBySlug)
 
 export async function generateStaticParams() {
-  // DB injoignable pendant le build (ex. build sans accès réseau au pooler
-  // Supabase) : ne doit jamais faire échouer `next build` entier. En
-  // renvoyant [] ici, aucune fiche destination n'est pré-générée au build,
-  // mais `dynamicParams` reste à son défaut Next.js (true, non modifié
-  // ailleurs dans ce fichier) — chaque /destinations/[slug] est alors
-  // simplement rendue à la demande au premier accès, comportement runtime
-  // utilisateur final inchangé une fois la DB accessible.
-  try {
-    const slugs = await listActiveDestinationSlugs()
-    return slugs.map((slug) => ({ slug }))
-  } catch {
-    return []
-  }
+  // DESTINATIONS-SSG-POOL-EXHAUSTION-01 (2026-10-06) : pré-générer les ~192
+  // fiches destination au build épuise le pool de connexions du pooler
+  // Supabase (session mode, plafond 15 clients) — `getDb()` (lib/db/
+  // client.ts) est un singleton correct côté app, mais chaque fiche rendue
+  // séquentiellement pendant le build consomme une connexion, et le pooler
+  // fini par refuser ("max clients reached in session mode"), faisant
+  // crasher tout `next build` sur une seule page (ex. /fr/destinations/
+  // maroc). Toujours renvoyer [] ici — même comportement déjà prévu et
+  // documenté pour le cas "DB injoignable pendant le build" : `dynamicParams`
+  // reste à son défaut Next.js (true, non modifié ailleurs dans ce fichier),
+  // donc chaque /destinations/[slug] est simplement rendue à la demande au
+  // premier accès — comportement runtime utilisateur final inchangé, seule
+  // la pré-génération SSG au build est désactivée.
+  return []
 }
 
 const MODULE_ICON: Record<DestinationModule, typeof Hotel> = {

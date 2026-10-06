@@ -10,20 +10,29 @@ import {
   getPublicModuleVisuals,
   getPublicSiteConfig,
 } from "@/lib/public/site-content"
+import { getActiveTransferZones } from "@/lib/transfers/catalog"
+import { getActiveCarCatalog } from "@/lib/cars/catalog"
 
 export const dynamic = "force-dynamic"
 
 export default async function Home() {
-  const [modules, site] = await Promise.all([
+  const [modules, site, transferZones, carCatalog] = await Promise.all([
     getPublicModuleVisuals(),
     getPublicSiteConfig(),
+    getActiveTransferZones(),
+    getActiveCarCatalog(),
   ])
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <BookingEngine modules={modules} heroImageUrl={site?.heroImageUrl} />
+        <BookingEngine
+          modules={modules}
+          heroImageUrl={site?.heroImageUrl}
+          transferZones={transferZones}
+          carLocations={carCatalog.locations}
+        />
         <FlashOffers />
         <OmratySection />
         <FeaturedDestinationsSection />

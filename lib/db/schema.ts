@@ -2489,6 +2489,65 @@ export type CampaignTarget = typeof campaignTargets.$inferSelect
 export type NewCampaignTarget = typeof campaignTargets.$inferInsert
 
 /**
+ * CAMPAIGN-ATTRIBUTION-01 — lien STABLE ET TRAÇABLE entre une réservation
+ * réelle (BOOKING) et la campagne qui l'a généreée, écrit UNE SEULE FOIS
+ * au moment où le rapprochement est calculé. Audit de conception dédié
+ * (docs/ROADMAP.md) : un calcul recomposé à la lecture (jointure
+ * reservations → customers → contacts → campaign_targets à la demande)
+ * n'est PAS traçable — si la logique de rapprochement change plus tard,
+ * l'historique changerait silencieusement rétroactivement. D'où cette
+ * table, écrite une fois, jamais recalculée.
+ *
+ * BOOKING n'est JAMAIS modifié par ce chantier : aucune colonne ajoutée
+ * sur `reservations`/`customers`, aucun des ~15 fichiers de création de
+ * réservation touché. Le rapprochement est calculé par un job CAMPAIGN
+ * (cron, lib/crm/campaign-attribution-core.ts), en LECTURE SEULE côté
+ * BOOKING (reservations.customerId → customers.email/phone, normalisés
+ * via CONTACT-01, jamais une seconde normalisation).
+ *
+ * Règle de sélection déterministe (1 réservation = 1 crédit, jamais
+ * plusieurs) actée explicitement par l'utilisateur (2026-10-06) :
+ * parmi les campagnes dont le contact fait partie de `campaign_targets`,
+ * encore éligibles (statut 'active'/'completed', jamais 'cancelled'),
+ * et dont la fenêtre [snapshotAt, endAt ?? +∞] couvre la date de la
+ * réservation — le snapshot le plus RÉCENT gagne ; égalité parfaite →
+ * `campaignId` le plus petit comme tie-breaker stable.
+ *
+ * `reservationId` UNIQUE : contrainte DB qui rend structurellement
+ * impossible une double attribution, pas seulement une convention de
+ * code.
+ */
+export const campaignAttributions = pgTable(
+  "campaign_attributions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    reservationId: uuid("reservation_id")
+      .notNull()
+      .references(() => reservations.id),
+    attributedAt: timestamp("attributed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("campaign_attributions_reservation_uniq").on(t.reservationId),
+    index("campaign_attributions_campaign_idx").on(t.campaignId),
+    index("campaign_attributions_agency_idx").on(t.agencyId),
+  ],
+)
+
+export type CampaignAttribution = typeof campaignAttributions.$inferSelect
+export type NewCampaignAttribution = typeof campaignAttributions.$inferInsert
+
+/**
  * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
  * cible joint à l'audit senior OTA. Modèle agnostique du canal ; seul
  * WhatsApp a une intégration entrante réelle à ce stade (voir

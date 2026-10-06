@@ -2245,6 +2245,64 @@ export const CRM_CHANNELS = [
 export type CrmChannel = (typeof CRM_CHANNELS)[number]
 
 /**
+ * CONSENT-01 — journal append-only de permission marketing, par point de
+ * contact (PAS par lead ni par "personne" — aucune de ces deux entités
+ * n'a d'identité canonique dans ce dépôt, voir audit de conception).
+ * JAMAIS de UPDATE/DELETE (même invariant que lead_origin_events/
+ * wallet_ledger) : une révocation ou un nouvel opt-in s'écrit comme un
+ * NOUVEL événement, l'ancien reste visible pour la preuve (point 5 du
+ * modèle : qui/quoi, quand, par quel mécanisme).
+ *
+ * Clé de résolution : (agencyId, channel, contactRef, purpose). Dernier
+ * événement par `occurredAt` fait foi — contrairement à
+ * `lead_origin_events` (NETWORK-DEMAND-CAPTURE-01), "dernier gagne" est
+ * ICI la règle correcte : un seul auteur légitime (la personne elle-même
+ * ou un staff agissant pour elle) exprime une volonté séquentielle, pas
+ * des tiers concurrents qui s'affirment des choses contradictoires.
+ */
+export const CONSENT_PURPOSES = ["marketing"] as const
+export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number]
+
+export const CONSENT_ACTIONS = ["granted", "withdrawn"] as const
+export type ConsentAction = (typeof CONSENT_ACTIONS)[number]
+
+export const leadConsentEvents = pgTable(
+  "lead_consent_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** 'whatsapp' | 'instagram' | ... — réutilise CRM_CHANNELS, pas un second vocabulaire canal. */
+    channel: varchar("channel", { length: 32 }).notNull(),
+    /** Email (minuscules) ou téléphone — texte brut, PAS une FK vers customers/leads (aucune identité canonique n'existe). */
+    contactRef: varchar("contact_ref", { length: 320 }).notNull(),
+    /** 'marketing' — seule finalité gérée ; le transactionnel n'a aucune ligne ici, jamais soumis à ce contrôle. */
+    purpose: varchar("purpose", { length: 32 }).notNull(),
+    /** 'granted' | 'withdrawn'. */
+    action: varchar("action", { length: 16 }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Mécanisme d'enregistrement — ex. "lead_capture_form_checkbox", "staff_manual_entry". */
+    source: varchar("source", { length: 64 }).notNull(),
+    /** Référence/version du texte de consentement, si pertinent — jamais le contenu intégral. */
+    proofRef: varchar("proof_ref", { length: 255 }),
+    /** null = la personne elle-même ; renseigné = un staff a agi en son nom. */
+    recordedByUserId: uuid("recorded_by_user_id"),
+  },
+  (t) => [
+    index("lead_consent_events_resolution_idx").on(
+      t.agencyId,
+      t.channel,
+      t.contactRef,
+      t.purpose,
+      t.occurredAt,
+    ),
+  ],
+)
+
+/**
  * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
  * cible joint à l'audit senior OTA. Modèle agnostique du canal ; seul
  * WhatsApp a une intégration entrante réelle à ce stade (voir

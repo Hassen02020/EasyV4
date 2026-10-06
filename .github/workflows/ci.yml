@@ -250,7 +250,8 @@ jobs:
             lib/finance/__tests__/currency-dim-01-plumbing.test.ts \
             lib/admin/__tests__/reservation-status-transition-guard-live.test.ts \
             lib/hotel-suppliers/core/__tests__/canonical-persistence-live.test.ts \
-            lib/db/__tests__/rls-gap-public-tables-01-live.test.ts
+            lib/db/__tests__/rls-gap-public-tables-01-live.test.ts \
+            lib/market/__tests__/market-content-rls-role-gap-live.test.ts
 
   build:
     runs-on: ubuntu-latest

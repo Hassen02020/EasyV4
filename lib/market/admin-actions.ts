@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { eq } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/lib/db/client"
+import { withSystemContext } from "@/lib/db/tenant-context"
 import { marketSignals, developmentProjects } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
@@ -48,14 +48,16 @@ export async function createMarketSignal(
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" }
 
-  const db = getDb()
-  const [row] = await db
-    .insert(marketSignals)
-    .values({
-      ...parsed.data,
-      publishedAt: new Date(parsed.data.publishedAt),
-    })
-    .returning({ id: marketSignals.id })
+  const row = await withSystemContext(async (tx) => {
+    const [row] = await tx
+      .insert(marketSignals)
+      .values({
+        ...parsed.data,
+        publishedAt: new Date(parsed.data.publishedAt),
+      })
+      .returning({ id: marketSignals.id })
+    return row
+  })
 
   revalidatePath("/admin/veille/signaux")
   revalidatePath("/[locale]", "layout")
@@ -66,8 +68,9 @@ export async function deleteMarketSignal(id: string): Promise<ActionResult> {
   const auth = await requireSuperAdmin()
   if (!auth.ok) return auth
 
-  const db = getDb()
-  await db.delete(marketSignals).where(eq(marketSignals.id, id))
+  await withSystemContext((tx) =>
+    tx.delete(marketSignals).where(eq(marketSignals.id, id)),
+  )
 
   revalidatePath("/admin/veille/signaux")
   revalidatePath("/[locale]", "layout")
@@ -103,14 +106,16 @@ export async function createDevelopmentProject(
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" }
 
-  const db = getDb()
-  const [row] = await db
-    .insert(developmentProjects)
-    .values({
-      ...parsed.data,
-      publishedAt: new Date(parsed.data.publishedAt),
-    })
-    .returning({ id: developmentProjects.id })
+  const row = await withSystemContext(async (tx) => {
+    const [row] = await tx
+      .insert(developmentProjects)
+      .values({
+        ...parsed.data,
+        publishedAt: new Date(parsed.data.publishedAt),
+      })
+      .returning({ id: developmentProjects.id })
+    return row
+  })
 
   revalidatePath("/admin/veille/projets")
   revalidatePath("/[locale]", "layout")
@@ -142,11 +147,12 @@ export async function updateDevelopmentProject(
     updateValues.projectType = fields.projectType
   if (fields.status !== undefined) updateValues.status = fields.status
 
-  const db = getDb()
-  await db
-    .update(developmentProjects)
-    .set({ ...updateValues, updatedAt: new Date() })
-    .where(eq(developmentProjects.id, id))
+  await withSystemContext((tx) =>
+    tx
+      .update(developmentProjects)
+      .set({ ...updateValues, updatedAt: new Date() })
+      .where(eq(developmentProjects.id, id)),
+  )
 
   revalidatePath("/admin/veille/projets")
   revalidatePath(`/admin/veille/projets/${id}`)
@@ -160,8 +166,9 @@ export async function deleteDevelopmentProject(
   const auth = await requireSuperAdmin()
   if (!auth.ok) return auth
 
-  const db = getDb()
-  await db.delete(developmentProjects).where(eq(developmentProjects.id, id))
+  await withSystemContext((tx) =>
+    tx.delete(developmentProjects).where(eq(developmentProjects.id, id)),
+  )
 
   revalidatePath("/admin/veille/projets")
   revalidatePath("/[locale]", "layout")

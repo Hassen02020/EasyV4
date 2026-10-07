@@ -31,6 +31,8 @@ import {
 import { calculateCarPrice } from "./pricing"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
@@ -55,6 +57,13 @@ export interface GuestCarBookingInput {
     licenseCountry?: string
     birthDate?: string // YYYY-MM-DD
   }
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact réel du conducteur.
+   */
+  campaignId?: string
 }
 
 export type CreateGuestCarBookingResult =
@@ -223,7 +232,30 @@ async function runCreateGuestCarBooking(
         )
         if (!available) throw new Error("NO_AVAILABILITY")
 
-        const totalTnd = pricing.totalTnd
+        // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
+        // Appliquée ICI, AVANT toute dérivation (reservations/payments,
+        // recordReservationFinancials plus bas). `campaignId` est un
+        // INDICE transporté par le client, jamais une autorisation :
+        // `resolveCheckoutPromoCore` re-dérive l'éligibilité réelle depuis
+        // le contact réel du conducteur. Voiture : pas de coût fournisseur
+        // externe (catalogue agence = prix de vente, voir
+        // recordReservationFinancials ci-dessous) — `supplierPriceTnd`
+        // omis, jamais fabriqué.
+        let totalTnd = pricing.totalTnd
+        if (input.campaignId) {
+          const checkoutPromo = await resolveCheckoutPromoCore(tx, {
+            agencyId,
+            campaignId: input.campaignId,
+            email: input.driver.email ?? null,
+            phone: input.driver.phone,
+          })
+          if (checkoutPromo.eligible) {
+            totalTnd = applyPromoDiscountCore(
+              totalTnd,
+              checkoutPromo.discount,
+            ).finalPriceTnd
+          }
+        }
 
         // 3. Noms catégorie + lieux pour l'affichage
         const [category] = await tx
@@ -328,7 +360,7 @@ async function runCreateGuestCarBooking(
           tx,
           reservationId,
           supplierPriceTnd: carSupplierCostTnd,
-          salePriceTnd: pricing.totalTnd,
+          salePriceTnd: totalTnd,
           economicEntitlements: [
             {
               partyType: "agency",
@@ -344,7 +376,7 @@ async function runCreateGuestCarBooking(
               partyId: agencyId,
               role: "seller",
               qualification: "seller_margin",
-              amount: pricing.totalTnd - carSupplierCostTnd,
+              amount: totalTnd - carSupplierCostTnd,
               basis:
                 "marge vendeur (agence product_owner ET seller sur son propre tarif)",
             },

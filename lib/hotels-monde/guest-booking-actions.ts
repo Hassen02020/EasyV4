@@ -48,6 +48,9 @@ import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
+import type { ApplicableDiscountResult } from "@/lib/crm/promo-core"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -110,6 +113,13 @@ const BOOK_ERROR_MESSAGES: Record<string, string> = {
 export async function createGuestWorldHotelBooking(input: {
   booking: WorldHotelGuestBookingInput
   paymentMethod: WorldHotelGuestPaymentMethod
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact RÉEL du guest, jamais déduite de ce champ seul.
+   */
+  campaignId?: string
 }): Promise<CreateGuestWorldHotelBookingResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -155,6 +165,7 @@ export async function createGuestWorldHotelBooking(input: {
       parsed.data,
       input.paymentMethod,
       linkedAuthUserId,
+      input.campaignId,
     ),
   )
 }
@@ -163,6 +174,7 @@ async function runCreateGuestWorldHotelBooking(
   booking: WorldHotelGuestBookingInput,
   paymentMethod: WorldHotelGuestPaymentMethod,
   linkedAuthUserId: string | null,
+  campaignId: string | undefined,
 ): Promise<CreateGuestWorldHotelBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -173,6 +185,32 @@ async function runCreateGuestWorldHotelBooking(
   }
 
   const guest = booking.guest
+
+  // --- PRICING-PROMO-LINK-01 — résolution PROMO, AVANT bookWorldHotel()/
+  // paiement (les deux hors transaction DB principale ci-dessous) : le
+  // `bookResult.totalPriceTnd` n'existe pas encore à ce stade, donc la
+  // remise elle-même est résolue ici (lecture seule, campagne/contact
+  // réel du guest), appliquée au prix UNE FOIS connu, juste avant le
+  // paiement. `campaignId` est un INDICE transporté par le client,
+  // jamais une autorisation — `resolveCheckoutPromoCore` re-dérive
+  // l'éligibilité réelle.
+  let promoDiscount: ApplicableDiscountResult | null = null
+  if (campaignId) {
+    await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      async (tx) => {
+        const checkoutPromo = await resolveCheckoutPromoCore(tx, {
+          agencyId,
+          campaignId,
+          email: guest.email ?? null,
+          phone: guest.phone ?? null,
+        })
+        if (checkoutPromo.eligible) {
+          promoDiscount = checkoutPromo.discount
+        }
+      },
+    )
+  }
 
   // Marge agence — même règle que search (app/api/hotels-monde/search/
   // route.ts), jamais recalculée différemment : book() compare le prix agence
@@ -227,11 +265,23 @@ async function runCreateGuestWorldHotelBooking(
     }
   }
 
+  // PRICING-PROMO-LINK-01 — remise appliquée au prix de vente CONFIRMÉ par
+  // le fournisseur, jamais avant (ne doit jamais interférer avec la
+  // revalidation `expectedPriceTnd`/marge ci-dessus). PROMO-LOSS-POLICY-01 :
+  // hôtels monde a un coût fournisseur réel séparé (`supplierPriceTnd`) —
+  // la remise ne peut jamais ramener le prix sous ce coût (sauf
+  // `allowBelowCost` explicite sur la promo).
+  const finalTotalTnd = promoDiscount
+    ? applyPromoDiscountCore(bookResult.totalPriceTnd, promoDiscount, {
+        supplierPriceTnd: bookResult.supplierPriceTnd,
+      }).finalPriceTnd
+    : bookResult.totalPriceTnd
+
   try {
     if (paymentMethod === "card") {
       const provider = getPaymentProvider()
       const paymentResult = await provider.createPayment({
-        amountTnd: bookResult.totalPriceTnd,
+        amountTnd: finalTotalTnd,
         currency: "TND",
         reference: `guest-hotel-monde-${Date.now()}`,
         description: `Réservation hôtel — ${bookResult.name}`,
@@ -273,9 +323,9 @@ async function runCreateGuestWorldHotelBooking(
             source: "internal",
             status: "pending",
             originalCurrency: "TND",
-            originalAmount: String(bookResult.totalPriceTnd),
-            tndAmount: String(bookResult.totalPriceTnd),
-            depositAmount: String(bookResult.totalPriceTnd),
+            originalAmount: String(finalTotalTnd),
+            tndAmount: String(finalTotalTnd),
+            depositAmount: String(finalTotalTnd),
             depositPaid: "0",
             providerPayload: {
               offerId: bookResult.offerId,
@@ -327,8 +377,8 @@ async function runCreateGuestWorldHotelBooking(
           psp: "manual",
           method: paymentMethod,
           originalCurrency: "TND",
-          originalAmount: bookResult.totalPriceTnd.toFixed(2),
-          tndAmount: bookResult.totalPriceTnd.toFixed(2),
+          originalAmount: finalTotalTnd.toFixed(2),
+          tndAmount: finalTotalTnd.toFixed(2),
           kind: "deposit",
           status: isImmediatelyPaid ? "captured" : "pending",
           capturedAt: isImmediatelyPaid ? new Date() : undefined,
@@ -342,8 +392,7 @@ async function runCreateGuestWorldHotelBooking(
         // "external_supplier"/partyId null, comme Hotel TN/myGo. Même formule
         // textuelle que recordReservationFinancials() pour pré-calculer la
         // ligne seller_margin nette de commission (COMMISSION-MONDE-01).
-        const marginAmountTnd =
-          bookResult.totalPriceTnd - bookResult.supplierPriceTnd
+        const marginAmountTnd = finalTotalTnd - bookResult.supplierPriceTnd
         const commissionRateForEntitlements =
           margins.hotel.commissionPercent ?? 0
         const commissionAmountForEntitlements =
@@ -355,7 +404,7 @@ async function runCreateGuestWorldHotelBooking(
           tx,
           reservationId,
           supplierPriceTnd: bookResult.supplierPriceTnd,
-          salePriceTnd: bookResult.totalPriceTnd,
+          salePriceTnd: finalTotalTnd,
           commissionPercent: margins.hotel.commissionPercent,
           marginRuleId: margins.hotel.ruleId,
           economicEntitlements: [
@@ -431,7 +480,7 @@ async function runCreateGuestWorldHotelBooking(
             confirmationNumber: bookResult.confirmationNumber,
             name: bookResult.name,
             destination: bookResult.destination,
-            totalTnd: bookResult.totalPriceTnd,
+            totalTnd: finalTotalTnd,
             publicRef,
             via: "b2c_guest",
             paymentMethod,
@@ -467,7 +516,7 @@ async function runCreateGuestWorldHotelBooking(
         nights: bookResult.nights,
         adults: bookResult.adults,
         children: 0,
-        totalTnd: bookResult.totalPriceTnd,
+        totalTnd: finalTotalTnd,
       }).catch(() => {
         /* fire-and-forget */
       })

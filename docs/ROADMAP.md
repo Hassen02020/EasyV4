@@ -164,9 +164,56 @@ par un test invariant (`product-booking-actions-invariants.test.ts`)
 qui vérifie qu'il n'est jamais réimporté. Supprimé. Mergé avec
 PROMO-PRICING-COVERAGE-01 (même PR #156, merge commit `6965d233`).
 
-**Backlog candidates restants (dans l'ordre de priorité convenu)** :
-`REVENUE-CONSOLIDATE-01`, puis `NICHE-UI-01` (décision produit requise
-avant audit technique).
+**Backlog candidate restant** : `REVENUE-CONSOLIDATE-01` (PR #157,
+en cours de CI).
+
+### NICHE-UI-01 — CLÔTURÉ (en attente de merge PR)
+
+Décision produit explicite (2026-10-07, demandée avant tout travail
+technique, confirmée par l'utilisateur) : nouvelle page
+`/admin/analytics/niches`, **read-only**, accessible aux rôles déjà
+autorisés par `listNicheSegments()` (super_admin/manager/agent_resa +
+agencyType="ota") — **aucune action "lancer une campagne depuis ce
+segment" en V1**.
+
+- `app/(internal)/admin/analytics/niches/page.tsx` : nouvelle page
+  client, même patron que `/admin/analytics/margins` (fetch au mount,
+  état loading/erreur, tableau). Consomme `listNicheSegments()`
+  (`lib/admin/niche-actions.ts`) — déjà existant, déjà sécurisé
+  (vérifie le rôle + `agencyType` côté serveur avant tout accès DB),
+  aucune garde supplémentaire nécessaire.
+- Tableau : Marché, Produit, Intention, Destination, Période, Volume,
+  Convertis, Taux de conversion, Canal — trié par volume décroissant
+  (le staff veut d'abord voir la niche avec le plus de signal).
+- `app/visual-mock/page.tsx` : entrée ajoutée au répertoire de routes
+  admin (même convention que l'entrée "Analytics Margins", qui n'a pas
+  non plus de lien dans la sidebar de production — cette page suit
+  exactement le même précédent de découvrabilité).
+- Aucun nouveau test : `listNicheSegments()`/`getNicheSegmentsCore()`
+  ont déjà une couverture dédiée
+  (`lib/admin/__tests__/niche-actions-invariants.test.ts`,
+  `lib/crm/__tests__/niche-audience-live.test.ts`) ; aucune page du
+  dépôt n'a de test au niveau composant (vérifié sur
+  `/admin/analytics/margins`, même précédent), cette page suit la même
+  convention.
+
+**Vérifié localement** : `curl` sur `/admin/analytics/niches` avec
+serveur `pnpm dev` local → redirect `307` vers
+`/login?next=/admin/analytics/niches`, comportement strictement
+identique à `/admin/analytics/margins` (gate `isAllowedIntoAdmin` au
+niveau layout) — aucune erreur serveur, aucune trace dans les logs du
+serveur de dev. Pas de vérification visuelle authentifiée possible
+dans cet environnement (pas de session Supabase/Postgres local
+disponible) — à confirmer sur Preview Vercel avant merge si possible.
+
+**Preuve de clôture (hors vérification visuelle authentifiée)** :
+`pnpm typecheck` 0 erreur, `pnpm format:check` clean, `pnpm lint` 0
+erreur, `pnpm test` 1598/1598 PASS, `pnpm build` OK (route
+`/admin/analytics/niches` confirmée dans la sortie du build).
+
+**Backlog candidate pour une V2 future (pas de GO, juste noté)** :
+action "lancer une campagne depuis ce segment" — explicitement exclue
+de cette V1 par décision produit.
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 

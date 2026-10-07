@@ -382,6 +382,13 @@ const SECTIONS: Section[] = [
         route: "/admin/analytics/margins",
       },
       {
+        name: "Analytics Niches",
+        description:
+          "Segments marché × produit × intention × destination × période (NICHE-UI-01)",
+        status: "EXISTS",
+        route: "/admin/analytics/niches",
+      },
+      {
         name: "Veille",
         description: "Veille tarifaire destinations",
         status: "EXISTS",

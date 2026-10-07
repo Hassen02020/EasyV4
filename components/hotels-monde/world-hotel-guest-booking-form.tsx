@@ -23,7 +23,6 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -271,13 +270,12 @@ export function WorldHotelGuestBookingForm({
               </div>
               <div>
                 <Label htmlFor="guest-phone">{t("phoneLabel")}</Label>
-                <PhoneInput
+                <Input
                   id="guest-phone"
-                  value={form.watch("guest.phone")}
-                  onChange={(v) =>
-                    form.setValue("guest.phone", v, { shouldValidate: true })
-                  }
+                  type="tel"
+                  {...form.register("guest.phone")}
                   className="mt-1"
+                  placeholder="+216 98 140 514"
                 />
                 {form.formState.errors.guest?.phone ? (
                   <p className="text-destructive mt-1 text-xs">

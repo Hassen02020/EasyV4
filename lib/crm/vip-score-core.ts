@@ -38,6 +38,18 @@
  * (lib/admin/customer-360-core.ts) — jamais une troisième méthode de
  * rapprochement inventée ici.
  *
+ * VIP-SCORE-02 — signal "engagement" : nombre de demandes historiques du
+ * même CONTACT (`getContactLeadHistoryCore`, lib/crm/contact-history-core.ts),
+ * fermant le gap identifié dans l'audit initial ("répétition"/"engagement"
+ * explicitement listés mais reportés tant que CONTACT-LEAD-HISTORY-01
+ * n'existait pas). Lecture SEULE du contact existant — jamais de création
+ * (`resolveOrCreateContactCore` n'est jamais appelé ici : calculer un score
+ * ne doit jamais avoir d'effet de bord sur les données). Si aucun contact
+ * n'a encore été persisté pour ce lead (aucun des flux de capture ne l'a
+ * encore résolu), `engagementLeadCount` vaut 1 (ce lead lui-même, jamais 0
+ * ni null) — pas de régression silencieuse par rapport à l'absence de ce
+ * signal avant VIP-SCORE-02.
+ *
  * Réservations exclues du calcul de valeur commerciale : 'cancelled',
  * 'expired', 'refunded' — aucune argent réellement resté dans l'activité
  * pour ces statuts. Raffinement explicitement HORS SCOPE ici : un
@@ -51,9 +63,16 @@
 
 import { and, eq, or, notInArray, desc } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { customers, reservations, reservationFinancials } from "@/lib/db/schema"
+import {
+  contacts,
+  customers,
+  reservations,
+  reservationFinancials,
+} from "@/lib/db/schema"
 import { getLeadCore, type LeadRow } from "./leads-core"
 import { computeLeadScore, type LeadScoreRuleMap } from "./lead-scoring-core"
+import { resolveContactKeyCore } from "./contact-core"
+import { getContactLeadHistoryCore } from "./contact-history-core"
 
 /** Statuts où aucune valeur commerciale n'est restée dans l'activité. */
 const VIP_SCORE_EXCLUDED_RESERVATION_STATUSES = [
@@ -73,6 +92,8 @@ export interface VipScoreSignals {
   totalMarginTnd: number
   /** Jours depuis la plus récente activité (lead ou réservation) ; null = aucune activité connue. */
   daysSinceLastActivity: number | null
+  /** VIP-SCORE-02 — nombre de demandes historiques du même CONTACT, ce lead inclus. Jamais 0 (ce lead compte toujours pour 1). */
+  engagementLeadCount: number
 }
 
 export interface VipScoreWeights {
@@ -88,6 +109,8 @@ export interface VipScoreWeights {
   recencyMaxPoints: number
   /** Horizon (jours) au-delà duquel la récence ne contribue plus rien — défaut 365. */
   recencyHorizonDays: number
+  /** VIP-SCORE-02 — points par demande RÉPÉTÉE du même contact (engagementLeadCount - 1, jamais le premier lead lui-même) — défaut 5. */
+  pointsPerEngagementLead: number
 }
 
 /**
@@ -102,6 +125,7 @@ export const DEFAULT_VIP_SCORE_WEIGHTS: VipScoreWeights = {
   pointsPer100TndMargin: 3,
   recencyMaxPoints: 20,
   recencyHorizonDays: 365,
+  pointsPerEngagementLead: 5,
 }
 
 export interface VipScoreBreakdownItem {
@@ -111,6 +135,7 @@ export interface VipScoreBreakdownItem {
     | "commercial_value_sale"
     | "commercial_value_margin"
     | "recency"
+    | "engagement"
   /** Valeur brute du signal, pour affichage/audit — jamais masquée. */
   rawValue: number | null
   points: number
@@ -156,6 +181,14 @@ export function computeVipScoreCore(
               (1 - signals.daysSinceLastActivity / weights.recencyHorizonDays),
           ),
         )
+  // Seules les demandes RÉPÉTÉES comptent (engagementLeadCount - 1) — le
+  // premier lead lui-même ne vaut pas un point d'engagement en plus de
+  // son propre lead_quality, sinon le signal doublerait "le fait d'être
+  // un lead" au lieu de mesurer la répétition.
+  const engagementPoints = round2(
+    Math.max(0, signals.engagementLeadCount - 1) *
+      weights.pointsPerEngagementLead,
+  )
 
   const breakdown: VipScoreBreakdownItem[] = [
     {
@@ -183,6 +216,11 @@ export function computeVipScoreCore(
       rawValue: signals.daysSinceLastActivity,
       points: recencyPoints,
     },
+    {
+      signal: "engagement",
+      rawValue: signals.engagementLeadCount,
+      points: engagementPoints,
+    },
   ]
 
   const total = round2(breakdown.reduce((sum, item) => sum + item.points, 0))
@@ -191,6 +229,50 @@ export function computeVipScoreCore(
 
 function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+/**
+ * VIP-SCORE-02 — recherche d'un CONTACT-01 déjà persisté pour ce lead,
+ * LECTURE SEULE (jamais `resolveOrCreateContactCore` : calculer un score
+ * ne doit jamais créer de donnée). Un numéro de téléphone peut avoir été
+ * résolu sous 'whatsapp' OU 'call' selon le flux de capture d'origine
+ * (lib/crm/inbox-core.ts vs lib/meta-leadads/lead-capture-core.ts) — les
+ * deux sont essayés, jamais une troisième taxonomie de canal inventée.
+ * `null` si aucun contact n'a encore été persisté pour ce lead (flux de
+ * capture qui n'a pas encore résolu CONTACT-01, ou lead sans email/
+ * téléphone) — jamais une erreur, jamais un contact fabriqué.
+ */
+async function findExistingContactIdForLeadCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; email: string | null; phone: string | null },
+): Promise<string | null> {
+  const candidates: Array<{
+    channel: "email" | "whatsapp" | "call"
+    raw: string
+  }> = []
+  if (params.email) candidates.push({ channel: "email", raw: params.email })
+  if (params.phone) {
+    candidates.push({ channel: "whatsapp", raw: params.phone })
+    candidates.push({ channel: "call", raw: params.phone })
+  }
+
+  for (const candidate of candidates) {
+    const contactRef = resolveContactKeyCore(candidate.channel, candidate.raw)
+    const [found] = await tx
+      .select({ id: contacts.id })
+      .from(contacts)
+      .where(
+        and(
+          eq(contacts.agencyId, params.agencyId),
+          eq(contacts.channel, candidate.channel),
+          eq(contacts.contactRef, contactRef),
+        ),
+      )
+      .limit(1)
+    if (found) return found.id
+  }
+
+  return null
 }
 
 /**
@@ -264,12 +346,27 @@ export async function getVipScoreForLeadCore(
       : lead.createdAt
   const daysSinceLastActivity = daysBetween(mostRecentAt, now)
 
+  const existingContactId = await findExistingContactIdForLeadCore(tx, {
+    agencyId: params.agencyId,
+    email: lead.email,
+    phone: lead.phone,
+  })
+  const engagementLeadCount = existingContactId
+    ? (
+        await getContactLeadHistoryCore(tx, {
+          agencyId: params.agencyId,
+          contactId: existingContactId,
+        })
+      ).length || 1
+    : 1
+
   const signals: VipScoreSignals = {
     leadQualityScore,
     reservationCount: reservationRows.length,
     totalSalePriceTnd,
     totalMarginTnd,
     daysSinceLastActivity,
+    engagementLeadCount,
   }
 
   return {

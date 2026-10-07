@@ -164,9 +164,36 @@ par un test invariant (`product-booking-actions-invariants.test.ts`)
 qui vérifie qu'il n'est jamais réimporté. Supprimé. Mergé avec
 PROMO-PRICING-COVERAGE-01 (même PR #156, merge commit `6965d233`).
 
-**Backlog candidates restants (dans l'ordre de priorité convenu)** :
-`REVENUE-CONSOLIDATE-01`, puis `NICHE-UI-01` (décision produit requise
-avant audit technique).
+### REVENUE-CONSOLIDATE-01 — CLÔTURÉ (en attente de merge PR)
+
+Extrait `sumRevenueMarginCore()`, une primitive PURE (aucun accès DB),
+dans `lib/reporting/margin-analytics-core.ts` (module déjà identifié
+comme canonique par l'audit) — remplace les 2 paires de `.reduce()`
+dupliquées dans `lib/crm/campaign-performance-core.ts` et
+`lib/crm/vip-score-core.ts`. Reste volontairement minimal : aucune
+jointure, aucun filtre — l'appelant garde la responsabilité de résoudre
+le bon ensemble de lignes pour son propre périmètre (campagne, client).
+`margin-analytics-core.ts` lui-même (scope agence+période, SQL `SUM()`)
+n'a pas été modifié dans sa logique de requête — seul un nouvel export
+pur partagé a été ajouté.
+
+Comble aussi le second volet du gap identifié : `margin-analytics-core.ts`
+n'avait ZÉRO test. Ajouté :
+
+- `lib/reporting/__tests__/margin-analytics-core.test.ts` (6 tests
+  unitaires purs sur `sumRevenueMarginCore`).
+- `lib/reporting/__tests__/margin-analytics-core-live.test.ts` (preuve
+  live contre Postgres réel pour `getMarginKPIsCore` — vérifie que
+  seules les réservations `confirmed` DANS la période comptent, via
+  `recordReservationFinancials`, jamais un second calcul inventé par
+  le test).
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1569/1569 PASS (le nouveau test
+live se dégrade en `skip` localement sans Postgres, s'exécute pour de
+vrai sur le job CI `financial-e2e` qui en fournit un éphémère), `pnpm build` OK.
+
+**Backlog candidate restant** : `NICHE-UI-01` (PR #158, en cours de CI).
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 

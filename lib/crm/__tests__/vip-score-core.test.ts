@@ -1,6 +1,6 @@
 /**
- * VIP-SCORE-01 — tests unitaires de `computeVipScoreCore` (fonction pure,
- * sans DB). Voir lib/crm/__tests__/vip-score-core-live.test.ts pour la
+ * VIP-SCORE-01/02 — tests unitaires de `computeVipScoreCore` (fonction
+ * pure, sans DB). Voir lib/crm/__tests__/vip-score-live.test.ts pour la
  * preuve contre un Postgres réel de `getVipScoreForLeadCore`.
  */
 import test from "node:test"
@@ -20,6 +20,7 @@ function baseSignals(
     totalSalePriceTnd: 0,
     totalMarginTnd: 0,
     daysSinceLastActivity: null,
+    engagementLeadCount: 1,
     ...overrides,
   }
 }
@@ -27,7 +28,7 @@ function baseSignals(
 test("computeVipScoreCore : tous les signaux à zéro => score 0, breakdown explicite à 0 partout", () => {
   const score = computeVipScoreCore(baseSignals())
   assert.equal(score.total, 0)
-  assert.equal(score.breakdown.length, 5)
+  assert.equal(score.breakdown.length, 6)
   for (const item of score.breakdown) {
     assert.equal(item.points, 0)
   }
@@ -136,6 +137,32 @@ test("computeVipScoreCore : reproductible — mêmes signaux => même score, tou
   const a = computeVipScoreCore(signals)
   const b = computeVipScoreCore(signals)
   assert.deepEqual(a, b)
+})
+
+test("computeVipScoreCore : engagementLeadCount=1 (première demande) => 0 points, jamais une pénalité ni un bonus", () => {
+  const score = computeVipScoreCore(baseSignals({ engagementLeadCount: 1 }))
+  const item = score.breakdown.find((b) => b.signal === "engagement")!
+  assert.equal(item.points, 0)
+  assert.equal(item.rawValue, 1)
+})
+
+test("computeVipScoreCore : engagementLeadCount=4 => exactement 3 demandes répétées comptent (la première n'est jamais un bonus)", () => {
+  const score = computeVipScoreCore(baseSignals({ engagementLeadCount: 4 }))
+  const item = score.breakdown.find((b) => b.signal === "engagement")!
+  assert.equal(
+    item.points,
+    3 * DEFAULT_VIP_SCORE_WEIGHTS.pointsPerEngagementLead,
+  )
+  assert.equal(score.total, item.points)
+})
+
+test("computeVipScoreCore : engagementLeadCount croissant => score jamais inférieur (monotone)", () => {
+  const one = computeVipScoreCore(baseSignals({ engagementLeadCount: 1 }))
+  const three = computeVipScoreCore(baseSignals({ engagementLeadCount: 3 }))
+  assert.ok(
+    three.total > one.total,
+    "un contact à 3 demandes historiques doit scorer plus haut qu'un contact à 1 demande",
+  )
 })
 
 test("computeVipScoreCore : poids personnalisés respectés (pas seulement les défauts)", () => {

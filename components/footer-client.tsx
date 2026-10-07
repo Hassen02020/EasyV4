@@ -253,7 +253,15 @@ export function FooterClient({
                   </li>
                 )}
                 {contactEmail && (
-                  <li className="flex items-center gap-2"><span className="text-accent text-sm">@</span><a href={`mailto:${contactEmail}`} className="font-medium transition-colors hover:text-white">{contactEmail}</a></li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-accent text-sm">@</span>
+                    <a
+                      href={`mailto:${contactEmail}`}
+                      className="font-medium transition-colors hover:text-white"
+                    >
+                      {contactEmail}
+                    </a>
+                  </li>
                 )}
                 {whatsappNumber && (
                   <li className="flex items-center gap-2">

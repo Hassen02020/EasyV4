@@ -49,26 +49,26 @@ CONNECTED?/TESTED?/PROTECTED?.
 
 **Classification finale :**
 
-| Composant | Classification | Point clé |
-|---|---|---|
-| LEAD | REUSE | noyau solide, gap de câblage vers CONTACT/PROVENANCE (corrigé, voir ci-dessous) |
-| CONTACT | EXTEND→DONE | câblé au canal principal par CRM-LEAD-WIRING-01 |
-| CONSENT | CONSOLIDATE | jamais déclenché à la capture ; normalisation dupliquée (pas de téléphone côté consent-core) |
-| PROVENANCE | EXTEND→DONE | câblé au canal principal par CRM-LEAD-WIRING-01 |
-| NORMALIZATION | CONSOLIDATE | 2 implémentations indépendantes (contact-core vs consent-core) |
-| NICHE | DONE | solide ; lien "NICHE→PROMO" de cette même ROADMAP = terminologique, pas un câblage de code réel (aucune dépendance croisée trouvée) |
-| VIP | DONE (isolé) | calculateur à la demande, jamais branché à CAMPAIGN (par design, pas un gap) |
-| CAMPAIGN | FIX | RLS ENABLE sans FORCE (`campaigns`, `campaign_targets`) |
-| ATTRIBUTION | FIX | même gap RLS FORCE (`campaign_attributions`) |
-| PROMO | EXTEND + FIX | pricing câblé 4/7 modules (hôtel/transfert/omra/package faits — flight/activity/network pas câblés, cohérent avec le scope déjà documenté) ; même gap RLS FORCE (`promos`) |
-| BOOKING | DONE | owner unique confirmé (`recordReservationFinancials`), `financial-e2e` vert |
-| REVENUE | CONSOLIDATE | dispersé entre `lib/reporting/margin-analytics-core.ts` et `lib/admin/accounting-data.ts`, zéro test dédié |
-| MARGIN | CONSOLIDATE | owner réel clair (`lib/pro/pricing.ts`/`margins-core.ts`) mais fichier mort dupliquant la formule (`lib/finance/margin-calculator.ts`, aucun appelant réel) |
-| CUSTOMER 360 | DONE | réserve mineure : scoping tenant de l'appelant de `getCustomer360Core` non vérifié dans cet audit |
-| LOYALTY | DONE | complet, testé, RLS forcée |
-| WHATSAPP | DONE | complet, testé, RLS forcée |
-| META LEAD ADS | EXTEND | webhook+capture de lead structurée faits (au-delà du simple webhook, contrairement à ce que laissait penser le libellé précédent de cette ROADMAP) ; reporting/audience/consentement formalisé toujours hors scope |
-| BEHAVIORAL SIGNAL | DONE | strictement dans le périmètre pilote hôtel (PR #146) |
+| Composant         | Classification | Point clé                                                                                                                                                                                                          |
+| ----------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| LEAD              | REUSE          | noyau solide, gap de câblage vers CONTACT/PROVENANCE (corrigé, voir ci-dessous)                                                                                                                                    |
+| CONTACT           | EXTEND→DONE    | câblé au canal principal par CRM-LEAD-WIRING-01                                                                                                                                                                    |
+| CONSENT           | CONSOLIDATE    | jamais déclenché à la capture ; normalisation dupliquée (pas de téléphone côté consent-core)                                                                                                                       |
+| PROVENANCE        | EXTEND→DONE    | câblé au canal principal par CRM-LEAD-WIRING-01                                                                                                                                                                    |
+| NORMALIZATION     | CONSOLIDATE    | 2 implémentations indépendantes (contact-core vs consent-core)                                                                                                                                                     |
+| NICHE             | DONE           | solide ; lien "NICHE→PROMO" de cette même ROADMAP = terminologique, pas un câblage de code réel (aucune dépendance croisée trouvée)                                                                                |
+| VIP               | DONE (isolé)   | calculateur à la demande, jamais branché à CAMPAIGN (par design, pas un gap)                                                                                                                                       |
+| CAMPAIGN          | FIX            | RLS ENABLE sans FORCE (`campaigns`, `campaign_targets`)                                                                                                                                                            |
+| ATTRIBUTION       | FIX            | même gap RLS FORCE (`campaign_attributions`)                                                                                                                                                                       |
+| PROMO             | EXTEND + FIX   | pricing câblé 4/7 modules (hôtel/transfert/omra/package faits — flight/activity/network pas câblés, cohérent avec le scope déjà documenté) ; même gap RLS FORCE (`promos`)                                         |
+| BOOKING           | DONE           | owner unique confirmé (`recordReservationFinancials`), `financial-e2e` vert                                                                                                                                        |
+| REVENUE           | CONSOLIDATE    | dispersé entre `lib/reporting/margin-analytics-core.ts` et `lib/admin/accounting-data.ts`, zéro test dédié                                                                                                         |
+| MARGIN            | CONSOLIDATE    | owner réel clair (`lib/pro/pricing.ts`/`margins-core.ts`) mais fichier mort dupliquant la formule (`lib/finance/margin-calculator.ts`, aucun appelant réel)                                                        |
+| CUSTOMER 360      | DONE           | réserve mineure : scoping tenant de l'appelant de `getCustomer360Core` non vérifié dans cet audit                                                                                                                  |
+| LOYALTY           | DONE           | complet, testé, RLS forcée                                                                                                                                                                                         |
+| WHATSAPP          | DONE           | complet, testé, RLS forcée                                                                                                                                                                                         |
+| META LEAD ADS     | EXTEND         | webhook+capture de lead structurée faits (au-delà du simple webhook, contrairement à ce que laissait penser le libellé précédent de cette ROADMAP) ; reporting/audience/consentement formalisé toujours hors scope |
+| BEHAVIORAL SIGNAL | DONE           | strictement dans le périmètre pilote hôtel (PR #146)                                                                                                                                                               |
 
 **Gap bloquant retenu pour exécution immédiate** : le canal d'acquisition
 principal — le formulaire du site (`app/actions/submit-lead.ts` →
@@ -199,15 +199,15 @@ merge (progression : 1486 → 1498 → 1501 pass/0 fail sur la période,
 hors scope à chaque fois — dette non bloquante déjà connue, pas une
 régression de cette chaîne).
 
-| Chantier | Branche | Statut |
-|---|---|---|
-| RLS-GAP-PUBLIC-TABLES-01 (`canonical_hotels`/`canonical_hotel_supplier_mappings`/`development_project_waitlist` — RLS activée+forcée, policy `app_runtime`, REVOKE anon/authenticated) | — | **MERGÉ** (PR #136), migration en production |
-| MARKET-CONTENT-RLS-ROLE-GAP-01 (`market_signals`/`development_projects` — policies recréées sans restriction de rôle, `is_super_admin()` conservé comme garde d'écriture ; 4 fonctions `lib/market/admin-actions.ts` migrées vers `withSystemContext`) | — | **MERGÉ** (PR #137), migration en production |
-| VIP-SCORE-01 (`lib/crm/vip-score-core.ts` — thermomètre de valeur commerciale, fonction pure, breakdown explicite, **aucun seuil VIP fixé** — décision produit permanente, à ne jamais rouvrir avant analyse de distribution réelle) | `vip-score-01` | **MERGÉ** (PR #138) |
-| WHATSAPP-CONTACT-RESOLUTION-01 (`upsertConversationForInboundCore` alimente aussi CONTACT-01) | `whatsapp-contact-resolution-01` | **MERGÉ** (PR #139) |
-| META-LEADADS-WEBHOOK-01 (pilote Meta Lead Ads — `leadgen_id` webhook + appel Graph API séparé pour le détail, même discipline honnête que `lib/whatsapp/provider.ts` ; jamais de consentement marketing fabriqué depuis la case Meta) | `meta-leadads-webhook-01` | **MERGÉ** (PR #140) |
-| CONTACT-LEAD-HISTORY-01 (`getContactLeadHistoryCore` — ferme le gap "historique de leads par CONTACT durable", indépendant de CAMPAIGN ; bug réel trouvé par le test : comparaison `leads.email/phone` bruts vs `contacts.contactRef` normalisé nécessite une renormalisation, jamais une égalité SQL directe) | `contact-lead-history-01` | **MERGÉ** (PR #141) |
-| VIP-SCORE-02 (signal `engagement` = répétition par CONTACT durable, lecture seule — jamais de création de contact dans un calcul de score ; toujours aucun seuil VIP) | `vip-score-02` | **MERGÉ** (PR #142) |
+| Chantier                                                                                                                                                                                                                                                                                                       | Branche                          | Statut                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------- |
+| RLS-GAP-PUBLIC-TABLES-01 (`canonical_hotels`/`canonical_hotel_supplier_mappings`/`development_project_waitlist` — RLS activée+forcée, policy `app_runtime`, REVOKE anon/authenticated)                                                                                                                         | —                                | **MERGÉ** (PR #136), migration en production |
+| MARKET-CONTENT-RLS-ROLE-GAP-01 (`market_signals`/`development_projects` — policies recréées sans restriction de rôle, `is_super_admin()` conservé comme garde d'écriture ; 4 fonctions `lib/market/admin-actions.ts` migrées vers `withSystemContext`)                                                         | —                                | **MERGÉ** (PR #137), migration en production |
+| VIP-SCORE-01 (`lib/crm/vip-score-core.ts` — thermomètre de valeur commerciale, fonction pure, breakdown explicite, **aucun seuil VIP fixé** — décision produit permanente, à ne jamais rouvrir avant analyse de distribution réelle)                                                                           | `vip-score-01`                   | **MERGÉ** (PR #138)                          |
+| WHATSAPP-CONTACT-RESOLUTION-01 (`upsertConversationForInboundCore` alimente aussi CONTACT-01)                                                                                                                                                                                                                  | `whatsapp-contact-resolution-01` | **MERGÉ** (PR #139)                          |
+| META-LEADADS-WEBHOOK-01 (pilote Meta Lead Ads — `leadgen_id` webhook + appel Graph API séparé pour le détail, même discipline honnête que `lib/whatsapp/provider.ts` ; jamais de consentement marketing fabriqué depuis la case Meta)                                                                          | `meta-leadads-webhook-01`        | **MERGÉ** (PR #140)                          |
+| CONTACT-LEAD-HISTORY-01 (`getContactLeadHistoryCore` — ferme le gap "historique de leads par CONTACT durable", indépendant de CAMPAIGN ; bug réel trouvé par le test : comparaison `leads.email/phone` bruts vs `contacts.contactRef` normalisé nécessite une renormalisation, jamais une égalité SQL directe) | `contact-lead-history-01`        | **MERGÉ** (PR #141)                          |
+| VIP-SCORE-02 (signal `engagement` = répétition par CONTACT durable, lecture seule — jamais de création de contact dans un calcul de score ; toujours aucun seuil VIP)                                                                                                                                          | `vip-score-02`                   | **MERGÉ** (PR #142)                          |
 
 **Preuves** : 22/22 tests du domaine vip-score + contact-history verts
 contre Postgres local (`app_runtime`, non-BYPASSRLS) ; régression
@@ -374,6 +374,7 @@ individuelle serait risquée telle quelle.
 
 **Décisions produit actées par l'utilisateur** (pour un futur pilote
 "recherche hôtel" uniquement, pas une plateforme générique) :
+
 - **Agrégation, jamais individuelle** : destination+produit+période →
   compteur, pas une ligne par recherche. Objectif = mesurer la demande
   (signal marché), pas construire un historique individuel.
@@ -388,7 +389,7 @@ individuelle serait risquée telle quelle.
 - **Infra** : aucune écriture individuelle par recherche ; mesurer le
   volume réel et l'impact pool DB sur le pilote avant toute
   généralisation (`PILOTE → mesurer volume → mesurer impact DB/pool →
-  preuve → GO extension`).
+preuve → GO extension`).
 
 **Condition bloquante avant tout code** (RGPD/privacy) : aucun tracking
 comportemental individuel sans base légale/consentement approprié.
@@ -436,8 +437,10 @@ mesure d'impact DB/pool en conditions réelles de volume (prochaine
 ---
 
 ### Chaîne NICHE → PRICING-PROMO-LINK (câblage transfert/omra/package) — CLÔTURÉE, DÉPLOYÉE Deux déploiements
+
 `easy2book-new`, tous deux `state=READY`/`target=production`/aliasés
 `easy2book-new.vercel.app` :
+
 - `dpl_2pCj9GTpWJQ2VX1rnByMNAun5bqE`, `githubCommitSha=c1c75cb...` —
   câblage module transfert (point d'injection unique, pas de garde
   CART-DRIFT-01 dans ce module).
@@ -474,18 +477,18 @@ commerciale", PROMO dit "quelle offre", PRICING dit "quel prix final",
 BOOKING dit "quelle réservation"` — jamais l'un propriétaire du rôle
 de l'autre.
 
-| Chantier | Branche | Statut |
-|---|---|---|
-| NICHE-PROVENANCE-01 | `niche-provenance-01` | **MERGÉ** (PR #133) |
-| EXPOSITION / NICHE-SIGNAL-01 (concentration) / NICHE-TREND-01 (émergence, répond à Q10) / NICHE-AUDIENCE-01 | `niche-signal-01` | **MERGÉ** sur `main` (2026-10-06) |
-| CONSENT-01 (`lead_consent_events`, append-only, dernier événement par `occurredAt` fait foi) | `consent-01` | **MERGÉ**, migration en production |
-| CONTACT-01 (`contacts`, registre de points de contact normalisés, PAS une identité personne) | `contact-01` | **MERGÉ**, migration en production |
-| CAMPAIGN-01 (`filterAudienceByConsentCore` — orchestre CONTACT-01 puis CONSENT-01, jamais de logique propre) | `campaign-01` | **MERGÉ** |
-| CAMPAIGN-PERSISTENCE-01 (`campaigns`/`campaign_targets` — snapshot au LANCEMENT, jamais à la création) | `campaign-persistence-01` | **MERGÉ**, migration en production |
-| CAMPAIGN-EXTENSION-01 (Period/Message sur `campaigns`, immuables au lancement) | `campaign-extension-01` | **MERGÉ**, migration en production |
-| CAMPAIGN-ATTRIBUTION-01 (`campaign_attributions` — lien stable réservation→campagne, cron, BOOKING inchangé) | `campaign-attribution-01` | **MERGÉ**, migration en production |
-| PROMO-01 (`promos` — offre strictement liée à 1 campagne, `campaigns.promoRef` réellement rempli) | `promo-01` | **MERGÉ**, migration en production |
-| PRICING-PROMO-LINK-01 (`applyPromoDiscountCore`/`resolveCheckoutPromoCore` — un `campaignId` transporté par le client n'est jamais une preuve d'éligibilité, toujours re-dérivée côté serveur ; `promos.allowBelowCost`, PROMO-LOSS-POLICY-01) | `pricing-promo-link-01` | **MERGÉ**, migration en production |
+| Chantier                                                                                                                                                                                                                                       | Branche                   | Statut                             |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------- |
+| NICHE-PROVENANCE-01                                                                                                                                                                                                                            | `niche-provenance-01`     | **MERGÉ** (PR #133)                |
+| EXPOSITION / NICHE-SIGNAL-01 (concentration) / NICHE-TREND-01 (émergence, répond à Q10) / NICHE-AUDIENCE-01                                                                                                                                    | `niche-signal-01`         | **MERGÉ** sur `main` (2026-10-06)  |
+| CONSENT-01 (`lead_consent_events`, append-only, dernier événement par `occurredAt` fait foi)                                                                                                                                                   | `consent-01`              | **MERGÉ**, migration en production |
+| CONTACT-01 (`contacts`, registre de points de contact normalisés, PAS une identité personne)                                                                                                                                                   | `contact-01`              | **MERGÉ**, migration en production |
+| CAMPAIGN-01 (`filterAudienceByConsentCore` — orchestre CONTACT-01 puis CONSENT-01, jamais de logique propre)                                                                                                                                   | `campaign-01`             | **MERGÉ**                          |
+| CAMPAIGN-PERSISTENCE-01 (`campaigns`/`campaign_targets` — snapshot au LANCEMENT, jamais à la création)                                                                                                                                         | `campaign-persistence-01` | **MERGÉ**, migration en production |
+| CAMPAIGN-EXTENSION-01 (Period/Message sur `campaigns`, immuables au lancement)                                                                                                                                                                 | `campaign-extension-01`   | **MERGÉ**, migration en production |
+| CAMPAIGN-ATTRIBUTION-01 (`campaign_attributions` — lien stable réservation→campagne, cron, BOOKING inchangé)                                                                                                                                   | `campaign-attribution-01` | **MERGÉ**, migration en production |
+| PROMO-01 (`promos` — offre strictement liée à 1 campagne, `campaigns.promoRef` réellement rempli)                                                                                                                                              | `promo-01`                | **MERGÉ**, migration en production |
+| PRICING-PROMO-LINK-01 (`applyPromoDiscountCore`/`resolveCheckoutPromoCore` — un `campaignId` transporté par le client n'est jamais une preuve d'éligibilité, toujours re-dérivée côté serveur ; `promos.allowBelowCost`, PROMO-LOSS-POLICY-01) | `pricing-promo-link-01`   | **MERGÉ**, migration en production |
 
 Toutes les migrations DB listées ci-dessus étaient déjà appliquées en
 production (vérifiées via grants/RLS à chaque chantier) **avant** leur
@@ -511,6 +514,7 @@ consentement (toujours strict), seulement sur le volume de leads
 traités par appel.
 
 **Prochains chantiers potentiels identifiés, NON exécutés** :
+
 - **Câblage PRICING-PROMO-LINK-01 dans les 3 modules restants**
   (activity, network, flight) — flight signalé plus complexe (prix à
   2 points séparés du fichier), audit dédié requis avant câblage ;
@@ -562,12 +566,12 @@ segment/niche/cohort, aucune fonction d'agrégation, aucune persistance.
 - `lib/db/schema.ts` : 3 colonnes additives sur `leads` — `destination`
   (varchar, texte libre), `intention` (varchar, validée en code contre
   `LEAD_INTENTIONS`), `market` (varchar, validée contre `LEAD_MARKETS`)
-  + index composite `leads_agency_market_product_intention_idx`.
+  - index composite `leads_agency_market_product_intention_idx`.
 - `lib/crm/leads-core.ts` : `LEAD_INTENTIONS = ["groupe", "transfert",
-  "a_la_carte", "standard"]` (alignée sur la décision Devis permanente
+"a_la_carte", "standard"]` (alignée sur la décision Devis permanente
   2026-09-29, Phase 3 R3-03 — les 3 valeurs non-standard sont exactement
   les 3 cas où le futur flux devis s'appliquera) ; `LEAD_MARKETS =
-  ["tunisia"]`, extensible sans migration (contrainte TS, pas un enum
+["tunisia"]`, extensible sans migration (contrainte TS, pas un enum
   DB) pour l'expansion USA/Asia annoncée par l'utilisateur.
 - `lib/crm/niche-core.ts` (nouveau) : `computeNicheSegmentsCore()`
   (fonction pure, group-by déterministe marché × produit × intention ×
@@ -688,6 +692,7 @@ explicite, pas enchaîné automatiquement ici.
 **Résultat audit** : N/A — les deux migrations étaient déjà appliquées en production.
 La ROADMAP indiquait "NON ENCORE APPLIQUÉE" mais la vérification MCP Supabase (2026-10-04)
 confirme :
+
 - `destinations.is_featured` (boolean DEFAULT false) + `destinations.display_order` (integer DEFAULT 0) : présents (version `20261002185747`)
 - table `development_project_waitlist` : présente (version `20261002185755`)
 
@@ -702,6 +707,7 @@ Aucune action DB requise.
 **État audit** : EXTEND — infrastructure existante (`agencies.primary_color` DB, `PartnerProfile.primaryColor`) ; seul le câblage jusqu'au composant manquait.
 
 **Changements** :
+
 - `app/(internal)/pro/(app)/layout.tsx` : passage de `primaryColor: profile.agency.primaryColor` dans le prop `agency` de `<ProShell>`.
 - `components/pro/layout.tsx` :
   - Ajout `primaryColor?: string | null` dans `ProSidebarAgency`.
@@ -709,6 +715,7 @@ Aucune action DB requise.
   - Validation hex `/^#[0-9a-fA-F]{6}$/` + injection `style={{ "--primary": validPrimaryColor }}` sur `<SidebarProvider>`.
 
 **Tests** :
+
 - `pnpm typecheck` : ✓ zéro erreur.
 - 19 tests statiques invariants (margins + channel) : ✓ pass.
 - Dev server compile `/pro/login` (full layout chain) : ✓.

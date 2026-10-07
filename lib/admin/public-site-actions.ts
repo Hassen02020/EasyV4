@@ -2,7 +2,12 @@
 
 import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { agencies, publicSiteSettings, publicModuleVisuals, publicPromotions } from "@/lib/db/schema"
+import {
+  agencies,
+  publicSiteSettings,
+  publicModuleVisuals,
+  publicPromotions,
+} from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 import { withTenantContext } from "@/lib/db/tenant-context"
 
@@ -111,7 +116,10 @@ export async function savePublicModuleVisual(formData: FormData) {
           sortOrder,
         })
         .onConflictDoUpdate({
-          target: [publicModuleVisuals.agencyId, publicModuleVisuals.moduleSlug],
+          target: [
+            publicModuleVisuals.agencyId,
+            publicModuleVisuals.moduleSlug,
+          ],
           set: { heroImageUrl, enabled, sortOrder, updatedAt: new Date() },
         })
     },
@@ -135,7 +143,8 @@ export async function savePublicPromotion(formData: FormData) {
   const sortOrder = Number.parseInt(clean(formData.get("sortOrder")) || "0", 10)
 
   if (!title || title.length > 200) throw new Error("INVALID_TITLE")
-  if (!destination || destination.length > 120) throw new Error("INVALID_DESTINATION")
+  if (!destination || destination.length > 120)
+    throw new Error("INVALID_DESTINATION")
   if (!/^[a-z0-9-]{2,64}$/.test(moduleSlug)) throw new Error("INVALID_MODULE")
   if (!href.startsWith("/")) throw new Error("INVALID_HREF")
   if (!imageUrl) throw new Error("IMAGE_REQUIRED")

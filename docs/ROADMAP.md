@@ -36,41 +36,50 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — PHONE-INTL-VOLS-HOTELS-MONDE-01 CLÔTURÉ (2026-10-07), voir
-section dédiée ci-dessous. COLOR-HARMONY-01-REVERT (PR #153) en cours de
-CI, pas encore mergé.
+**Aucun.** PHONE-INTL-VOLS-HOTELS-MONDE-01 a causé un **incident
+production RÉSOLU** (voir ci-dessous) — chantier à reprendre uniquement
+sur GO explicite, avec vérification runtime Vercel réelle avant tout
+nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) en cours de CI, pas
+encore mergé.
 
-### PHONE-INTL-VOLS-HOTELS-MONDE-01 — MERGÉ (PR #152, commit squash `c7d0859`, 2026-10-07)
+### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 
-Observation produit directe (téléphone international pour vols/hôtels-monde)
-→ audit (lecture seule) : aucun des deux flux ne passe par la normalisation
-Tunisie-only de `lib/crm/contact-core.ts` (pas de risque de corruption),
-validation incohérente entre les deux flux, placeholder hôtels-monde
-trompeur pour un client étranger. Option B choisie (sélecteur pays+indicatif
-réutilisable, pas juste un correctif de placeholder/regex).
+**PR #152 mergée (commit `c7d0859`) → page d'accueil de production
+(`easy2book-new.vercel.app/fr`) en erreur** ("Une erreur inattendue s'est
+produite", `app/error.tsx` déclenché). Confirmé en direct par l'utilisateur
+(capture d'écran + console navigateur : "Error: An error occurred in the
+Server Components render").
 
-`components/ui/phone-input.tsx` (nouveau) : Popover+Command du design
-system, noms de pays localisés via `Intl.DisplayNames`, valeur exposée en
-E.164. `lib/hotels-monde/schemas.ts`/`lib/vols/booking-request-action.ts` :
-validation via `isValidPhoneNumber` (libphonenumber-js) au lieu d'une regex
-maison. `lib/phone/metadata.ts` (nouveau) : point d'import unique des
-métadonnées.
+**Cause probable identifiée, NON CONFIRMÉE par logs runtime** (accès
+Vercel MCP resté en 403 pendant tout l'incident, scope de connecteur
+insuffisant — nécessite une nouvelle session pour prendre effet) :
+`lib/phone/metadata.ts` importait `libphonenumber-js/metadata.min.json`
+sans assertion `type: "json"`. Vérifié fonctionnel en build local
+(Turbopack) et en test (`node --import tsx --test`) **avant merge** —
+mais jamais vérifié sur le runtime Node.js serverless réel de Vercel en
+production, qui peut appliquer l'enforcement ESM des import JSON
+différemment du build local. Si ce module était inclus dans un chunk
+serveur partagé évalué pour toutes les routes, une erreur d'évaluation
+aurait cassé le site entier — cohérent avec l'observation (page d'accueil
+touchée alors que le diff ne touchait que les formulaires vols/hôtels-monde).
 
-**Piège technique réel rencontré et documenté** : l'auto-chargement du
-package racine `libphonenumber-js` casse sous `node --import tsx --test`
-(interop CJS/ESM — "metadata argument was passed but it's not a valid
-metadata"). Le contournement initial (`with { type: "json" }`) cassait
-Turbopack dans l'autre sens (résout vers un wrapper `.js` non-JSON une fois
-l'assertion forcée). `/core` + import JSON **sans** assertion fonctionne
-dans les deux environnements — vérifié par build réel + test réel.
+**Action corrective** : `git revert c7d0859` sur une branche dédiée
+(`phone-intl-revert-emergency-01`, typecheck+build validés localement),
+PR #154 ouverte et **mergée sans attendre la CI** (urgence production,
+revert propre sans conflit, déjà validé localement) — commit `aa60a05`.
+**Production restaurée, confirmé par l'utilisateur.**
 
-Preuves : `lib/hotels-monde/__tests__/schemas.test.ts` (nouveau, 6 tests —
-FR/TN/IT acceptés, invalides rejetés) ; régression complète 1507 pass/0
-fail (+6 nouveaux) ; `pnpm build` ok. CI de la PR : tout vert (format/lint/
-typecheck/test/financial-e2e/build) sauf `lighthouse` (même NO_FCP connu,
-non lié à ce diff) — 1 flake confirmé sur `test` (production-load.test.ts,
-assertion de débit basée sur un timing runner CI, aucun rapport avec ce
-diff, vert au re-run).
+**Leçon retenue pour toute reprise future** : un build local + des tests
+locaux verts ne prouvent PAS le comportement sur le runtime serverless
+réel de la plateforme de déploiement — en particulier pour tout import
+JSON/ESM non trivial dans une bibliothèque tierce. Avant tout merge
+futur touchant ce type de pattern, vérifier sur un déploiement Preview
+réel (pas seulement `pnpm build` local) avant de merger sur `main`.
+
+**Chantier PHONE-INTL-VOLS-HOTELS-MONDE-01** : retiré de l'état "clôturé",
+revient en **backlog candidate** — nécessite une nouvelle tentative sur
+branche séparée, avec vérification Preview réelle avant merge, sur GO
+explicite séparé.
 
 ### COLOR-HARMONY-01-REVERT — EN COURS (PR #153, pas encore mergée)
 

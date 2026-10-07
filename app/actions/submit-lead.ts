@@ -11,6 +11,10 @@
  * humain — non vide = bot, `ok: true` renvoyé quand même (ne jamais révéler
  * la détection à l'appelant) sans rien persister. Rate-limité par IP, même
  * bucket pattern que les routes de recherche publiques (lib/rate-limit.ts).
+ *
+ * CRM-LEAD-WIRING-01 — câblé sur captureWebsiteLeadCore
+ * (lib/crm/website-lead-capture-core.ts), même patron que
+ * lib/meta-leadads/lead-capture-core.ts pour le canal Meta Lead Ads.
  */
 
 import { headers } from "next/headers"
@@ -18,11 +22,8 @@ import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { rateLimit } from "@/lib/rate-limit"
-import {
-  LEAD_PRODUCT_TYPES,
-  LEAD_INTENTIONS,
-  createLeadCore,
-} from "@/lib/crm/leads-core"
+import { LEAD_PRODUCT_TYPES, LEAD_INTENTIONS } from "@/lib/crm/leads-core"
+import { captureWebsiteLeadCore } from "@/lib/crm/website-lead-capture-core"
 import { sendEvent } from "@/lib/inngest/client"
 
 const inputSchema = z
@@ -88,10 +89,10 @@ export async function submitLead(
   }
 
   try {
-    const { id: leadId } = await withTenantContext(
+    const { leadId } = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: true },
       (tx) =>
-        createLeadCore(tx, {
+        captureWebsiteLeadCore(tx, {
           agencyId,
           firstName: parsed.data.firstName,
           lastName: parsed.data.lastName || null,

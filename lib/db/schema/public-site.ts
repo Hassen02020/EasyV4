@@ -1,4 +1,14 @@
-import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core"
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from "drizzle-orm/pg-core"
 
 /**
  * Public visual/content configuration.
@@ -11,8 +21,7 @@ export const publicSiteSettings = pgTable(
   "public_site_settings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    agencyId: uuid("agency_id")
-      .notNull(),
+    agencyId: uuid("agency_id").notNull(),
     heroImageUrl: text("hero_image_url"),
     facebookUrl: text("facebook_url"),
     instagramUrl: text("instagram_url"),
@@ -31,8 +40,7 @@ export const publicModuleVisuals = pgTable(
   "public_module_visuals",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    agencyId: uuid("agency_id")
-      .notNull(),
+    agencyId: uuid("agency_id").notNull(),
     moduleSlug: varchar("module_slug", { length: 64 }).notNull(),
     enabled: boolean("enabled").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),

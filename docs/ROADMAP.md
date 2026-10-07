@@ -114,7 +114,7 @@ CRM avancés.
 `REVENUE-CONSOLIDATE-01` + `NICHE-UI-01` + suppression de
 `margin-calculator.ts`, dans cet ordre de priorité.
 
-### PROMO-PRICING-COVERAGE-01 — CLÔTURÉ (en attente de merge PR)
+### PROMO-PRICING-COVERAGE-01 — CLÔTURÉ (PR #156, mergée)
 
 Câblage `resolveCheckoutPromoCore`/`applyPromoDiscountCore` dans les 4
 modules qui ne l'avaient pas : `lib/hotels-monde/guest-booking-actions.ts`,
@@ -153,12 +153,16 @@ chantier séparé, non couvert ici.
 
 **Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
 clean, `pnpm lint` 0 erreur, `pnpm test` 1598/1598 PASS, `pnpm build` OK.
+PR #156 mergée (squash) le 2026-10-07, merge commit `6965d233`. CI finale :
+format/lint/typecheck/test/financial-e2e/build/playwright-a11y tous
+verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
 
-### Suppression `lib/finance/margin-calculator.ts` — CLÔTURÉ (en attente de merge PR)
+### Suppression `lib/finance/margin-calculator.ts` — CLÔTURÉ (PR #156, mergée)
 
 Confirmé mort (audit CRM du 2026-10-07) : zéro importeur réel, gardé
 par un test invariant (`product-booking-actions-invariants.test.ts`)
-qui vérifie qu'il n'est jamais réimporté. Supprimé.
+qui vérifie qu'il n'est jamais réimporté. Supprimé. Mergé avec
+PROMO-PRICING-COVERAGE-01 (même PR #156, merge commit `6965d233`).
 
 **Backlog candidates restants (dans l'ordre de priorité convenu)** :
 `REVENUE-CONSOLIDATE-01`, puis `NICHE-UI-01` (décision produit requise

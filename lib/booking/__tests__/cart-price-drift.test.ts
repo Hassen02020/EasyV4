@@ -166,7 +166,7 @@ test("createGuestActivityBooking : accepte expectedTotalTnd optionnel, inclus da
 test("createGuestActivityBooking : priceDrifted() vérifié AVANT toute tentative de paiement carte et avant l'INSERT reservations", () => {
   const driftIdx = idx(
     activityActionsSrc,
-    "priceDrifted(expectedTotalTnd, totalTnd)",
+    "priceDrifted(expectedTotalTnd, breakdownBeforePromo.totalTnd)",
   )
   const paymentIdx = idx(activityActionsSrc, 'paymentMethod === "card"')
   const insertIdx = idx(activityActionsSrc, ".insert(reservations)")
@@ -182,7 +182,10 @@ test("createGuestActivityBooking : priceDrifted() vérifié AVANT toute tentativ
 
 test("createGuestActivityBooking : un rejet PRICE_CHANGED renvoie le code et le nouveau total, jamais une charge silencieuse", () => {
   assert.match(activityActionsSrc, /class PriceChanged extends Error/)
-  assert.match(activityActionsSrc, /throw new PriceChanged\(totalTnd\)/)
+  assert.match(
+    activityActionsSrc,
+    /throw new PriceChanged\(breakdownBeforePromo\.totalTnd\)/,
+  )
   assert.match(activityActionsSrc, /err instanceof PriceChanged/)
   assert.match(activityActionsSrc, /code:\s*"PRICE_CHANGED"/)
   assert.match(activityActionsSrc, /currentTotalTnd:\s*err\.currentTotalTnd/)

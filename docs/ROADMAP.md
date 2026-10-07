@@ -110,9 +110,59 @@ CRM avancés.
 | Promo → pricing incomplet                                            | EXTEND + CREATE (le plus concret, impact client direct)           | 4/8 modules câblés (Hôtel TN, Packages, Omra, Transferts) ; **Hôtels Monde, Activités, Voitures, Vols non câblés** — aucun test de couverture n'existe |
 | Meta Ads reporting/audience avancé, automation marketing, social CRM | N/A — confirmé greenfield                                         | rien construit au-delà de la capture                                                                                                                   |
 
-**GO reçu pour tout (2026-10-07)** : `PROMO-PRICING-COVERAGE-01` (PR #156,
-en cours) → `REVENUE-CONSOLIDATE-01` (ce chantier) → `NICHE-UI-01`,
-dans cet ordre de priorité, chacun sur sa propre PR.
+**GO reçu pour tout (2026-10-07)** : `PROMO-PRICING-COVERAGE-01` +
+`REVENUE-CONSOLIDATE-01` + `NICHE-UI-01` + suppression de
+`margin-calculator.ts`, dans cet ordre de priorité.
+
+### PROMO-PRICING-COVERAGE-01 — CLÔTURÉ (PR #156, mergée)
+
+Câblage `resolveCheckoutPromoCore`/`applyPromoDiscountCore` dans les 4
+modules qui ne l'avaient pas : `lib/hotels-monde/guest-booking-actions.ts`,
+`lib/activities/guest-booking-actions.ts`,
+`lib/cars/guest-booking-actions.ts`, `lib/vols/booking-request-action.ts`.
+
+- Hôtels Monde et Vols ont un coût fournisseur externe réel
+  (`supplierPriceTnd`/`supplierAmount`) → remise appliquée AVEC le
+  plancher PROMO-LOSS-POLICY-01 (jamais sous le coût réel, sauf
+  `allowBelowCost` explicite sur la promo).
+- Activités et Voitures n'ont pas de coût fournisseur séparé (catalogue
+  agence) → remise appliquée SANS plancher, même traitement que
+  Omra/Packages déjà câblés.
+- Vols : particularité du pipeline en 2 phases (booking-request
+  maintenant → fulfillment plus tard par le desk ticketing). La remise
+  est résolue et appliquée à la réclamation atomique du
+  `flightPriceSnapshot` (CAS ACTIVE→USED) et persistée dans ce même
+  snapshot — `finalizeFlightBookingFinancials` (appelé bien plus tard,
+  à la confirmation) relit ce `sellingAmount` déjà remisé sans aucun
+  changement requis côté fulfillment : une seule vérité financière.
+- Nouveau test `lib/finance/__tests__/promo-wiring-invariants.test.ts`
+  (35 assertions) : couverture des 8/8 modules + vérification du
+  plancher PROMO-LOSS-POLICY-01 là où il doit s'appliquer (et son
+  absence là où il ne doit pas).
+- 2 tests existants mis à jour pour refléter le changement attendu
+  (`totalTnd` devient `let`/réassignable pour accueillir la remise,
+  plus `const` figé) : `lib/cars/__tests__/reservation-financials-wiring.test.ts`,
+  `lib/booking/__tests__/cart-price-drift.test.ts`.
+
+**Note UI** : comme pour les 4 modules déjà câblés avant ce chantier
+(Hôtel TN, Packages, Omra, Transferts), `campaignId` n'est câblé que
+côté pipeline serveur — aucun formulaire ne le transporte encore depuis
+l'UI (confirmé : aucun module, même les 4 déjà câblés, ne le fait). Capture
+UI du `campaignId` (ex. lien de campagne avec paramètre) reste un
+chantier séparé, non couvert ici.
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1598/1598 PASS, `pnpm build` OK.
+PR #156 mergée (squash) le 2026-10-07, merge commit `6965d233`. CI finale :
+format/lint/typecheck/test/financial-e2e/build/playwright-a11y tous
+verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
+
+### Suppression `lib/finance/margin-calculator.ts` — CLÔTURÉ (PR #156, mergée)
+
+Confirmé mort (audit CRM du 2026-10-07) : zéro importeur réel, gardé
+par un test invariant (`product-booking-actions-invariants.test.ts`)
+qui vérifie qu'il n'est jamais réimporté. Supprimé. Mergé avec
+PROMO-PRICING-COVERAGE-01 (même PR #156, merge commit `6965d233`).
 
 ### REVENUE-CONSOLIDATE-01 — CLÔTURÉ (en attente de merge PR)
 
@@ -143,8 +193,7 @@ clean, `pnpm lint` 0 erreur, `pnpm test` 1569/1569 PASS (le nouveau test
 live se dégrade en `skip` localement sans Postgres, s'exécute pour de
 vrai sur le job CI `financial-e2e` qui en fournit un éphémère), `pnpm build` OK.
 
-**Backlog candidate restant** : `NICHE-UI-01` (décision produit requise
-avant audit technique — quel contenu afficher, à quel endroit).
+**Backlog candidate restant** : `NICHE-UI-01` (PR #158, en cours de CI).
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 

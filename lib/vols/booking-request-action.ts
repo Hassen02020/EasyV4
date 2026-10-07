@@ -29,6 +29,8 @@ import {
 } from "@/lib/db/schema/flights"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import type { CanonicalItinerary } from "./canonical"
 import { flattenSegments } from "./canonical"
 import { z } from "zod"
@@ -74,6 +76,13 @@ const flightBookingRequestSchema = z.object({
   ancillaries: z.array(ancillarySelectionSchema).max(20).optional(),
   /** B2C: how the customer intends to pay (card not available yet — GDS ticketing desk flow). */
   paymentMethod: z.enum(["transfer", "cash"]).optional(),
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact réel fourni ci-dessus.
+   */
+  campaignId: z.string().uuid().optional(),
 })
 
 export type FlightBookingRequestInput = z.infer<
@@ -146,6 +155,7 @@ export async function createFlightBookingRequest(
     orderId,
     ancillaries,
     paymentMethod,
+    campaignId,
   } = parsed.data
 
   const agencyId = await getDefaultAgencyId()
@@ -184,6 +194,7 @@ export async function createFlightBookingRequest(
           itinerary: flightPriceSnapshots.itinerary,
           sellingAmount: flightPriceSnapshots.sellingAmount,
           sellingCurrency: flightPriceSnapshots.sellingCurrency,
+          supplierAmount: flightPriceSnapshots.supplierAmount,
         })
 
       if (snapRows.length === 0) throw new SnapshotExpiredError()
@@ -194,9 +205,47 @@ export async function createFlightBookingRequest(
           itinerary: Record<string, unknown>
           sellingAmount: string
           sellingCurrency: string | null
+          supplierAmount: string
         }>
       )[0]!
       const itinerary = snap.itinerary as unknown as CanonicalItinerary
+
+      // ── 0b. PRICING-PROMO-LINK-01 — remise PROMO, si éligible ────────────
+      // Appliquée ICI, juste après le CAS qui fige `sellingAmount` (la
+      // réclamation du snapshot), AVANT toute dérivation (reservations/
+      // payments ci-dessous, et `finalizeFlightBookingFinancials` plus tard
+      // à la confirmation — qui relit ce même `sellingAmount` déjà remisé,
+      // AUCUN changement requis côté fulfillment). `campaignId` est un
+      // INDICE transporté par le client, jamais une autorisation :
+      // `resolveCheckoutPromoCore` re-dérive l'éligibilité réelle depuis le
+      // contact réel. PROMO-LOSS-POLICY-01 : vols a un coût fournisseur réel
+      // séparé (`supplierAmount`) — la remise ne peut jamais ramener le
+      // prix sous ce coût (sauf `allowBelowCost` explicite sur la promo).
+      // Persistée dans le snapshot lui-même (déjà réclamé, jamais relu par
+      // une autre requête) pour que la vérité financière reste unique :
+      // ce que le client paie ICI est exactement ce que
+      // `finalizeFlightBookingFinancials` enregistrera comme `salePriceTnd`.
+      let finalSellingAmount = snap.sellingAmount
+      if (campaignId) {
+        const checkoutPromo = await resolveCheckoutPromoCore(tx, {
+          agencyId,
+          campaignId,
+          email: contact.email,
+          phone: contact.phone ?? null,
+        })
+        if (checkoutPromo.eligible) {
+          const discounted = applyPromoDiscountCore(
+            Number(snap.sellingAmount),
+            checkoutPromo.discount,
+            { supplierPriceTnd: Number(snap.supplierAmount) },
+          ).finalPriceTnd
+          finalSellingAmount = discounted.toFixed(2)
+          await tx
+            .update(flightPriceSnapshots)
+            .set({ sellingAmount: finalSellingAmount })
+            .where(eq(flightPriceSnapshots.id, snapshotId))
+        }
+      }
 
       // ── 1. Find or create customer ─────────────────────────────────────────
       let customerId: string
@@ -250,8 +299,8 @@ export async function createFlightBookingRequest(
           source: providerToSource(snap.provider),
           status: "pending",
           originalCurrency: snap.sellingCurrency ?? "TND",
-          originalAmount: snap.sellingAmount,
-          tndAmount: snap.sellingAmount,
+          originalAmount: finalSellingAmount,
+          tndAmount: finalSellingAmount,
           providerPayload: {
             offerLabel:
               origin && destination ? `Vol ${origin} → ${destination}` : "Vol",
@@ -279,8 +328,8 @@ export async function createFlightBookingRequest(
           psp: "manual",
           method: paymentMethod,
           originalCurrency: snap.sellingCurrency ?? "TND",
-          originalAmount: snap.sellingAmount,
-          tndAmount: snap.sellingAmount,
+          originalAmount: finalSellingAmount,
+          tndAmount: finalSellingAmount,
           kind: "deposit",
           status: "pending",
         })

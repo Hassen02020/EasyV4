@@ -63,6 +63,7 @@ import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { round2 } from "@/lib/shared/money"
@@ -390,15 +391,6 @@ async function runCreateGuestPackageBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
-        // Données financières (Break 4 — Chantier 62)
-        // Package : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
-        await recordReservationFinancials({
-          tx,
-          reservationId,
-          supplierPriceTnd: totalTnd,
-          salePriceTnd: totalTnd,
-        })
-
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
@@ -436,7 +428,7 @@ async function runCreateGuestPackageBooking(
         // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
@@ -452,6 +444,11 @@ async function runCreateGuestPackageBooking(
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission package — réservation ${publicRef}`,
         })
 
         // Easy2Book Rewards (Phase 38D) — B2C uniquement (voir doc de tête
@@ -722,14 +719,6 @@ export async function createPackageBooking(
           .returning({ id: reservations.id })
         const reservationId = reservation.id
 
-        // Données financières (Break 4 — Chantier 62) — voie B2B agent
-        await recordReservationFinancials({
-          tx,
-          reservationId,
-          supplierPriceTnd: totalTnd,
-          salePriceTnd: totalTnd,
-        })
-
         const debitResult = await debitPartnerCredit({
           agencyId,
           amountTnd: totalTnd,
@@ -784,22 +773,28 @@ export async function createPackageBooking(
         // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
-        await recordReservationFinancials({
-          tx,
+        const { commissionAmount: commissionAmountB2b } =
+          await recordReservationFinancials({
+            tx,
+            reservationId,
+            supplierPriceTnd: totalTnd,
+            salePriceTnd: totalTnd,
+            economicEntitlements: [
+              {
+                partyType: "agency",
+                partyId: agencyId,
+                role: "product_owner",
+                qualification: "owner_share",
+                amount: totalTnd,
+                basis:
+                  "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+              },
+            ],
+          })
+        await creditPlatformCommission(tx, {
           reservationId,
-          supplierPriceTnd: totalTnd,
-          salePriceTnd: totalTnd,
-          economicEntitlements: [
-            {
-              partyType: "agency",
-              partyId: agencyId,
-              role: "product_owner",
-              qualification: "owner_share",
-              amount: totalTnd,
-              basis:
-                "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
-            },
-          ],
+          commissionAmount: commissionAmountB2b,
+          description: `Commission package — réservation ${publicRef}`,
         })
 
         await tx.insert(reservationPackage).values({

@@ -129,10 +129,42 @@ test("actions.ts / guest-booking-actions.ts : totalTnd (montant débité/factur�
   assert.match(guestActionsSrc, /const totalTnd = pricing\.totalTnd/)
 })
 
-test("actions.ts : ne câble PAS creditPlatformCommission (hors scope COMMERCIAL-REVENUE-02, bloqué sur COMMERCIAL-REVENUE-04)", () => {
-  assert.equal(countOccurrences(actionsSrc, "creditPlatformCommission"), 0)
+/* -------------------------------------------------------------------------- */
+/* CARS-COMMISSION-01 — câblage creditPlatformCommission (COMMERCIAL-REVENUE-04) */
+/* -------------------------------------------------------------------------- */
+
+test("actions.ts : importe creditPlatformCommission depuis lib/finance/platform-commission", () => {
+  assert.match(
+    actionsSrc,
+    /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+  )
 })
 
-test("guest-booking-actions.ts : ne câble PAS creditPlatformCommission (hors scope COMMERCIAL-REVENUE-02, bloqué sur COMMERCIAL-REVENUE-04)", () => {
-  assert.equal(countOccurrences(guestActionsSrc, "creditPlatformCommission"), 0)
+test("guest-booking-actions.ts : importe creditPlatformCommission depuis lib/finance/platform-commission", () => {
+  assert.match(
+    guestActionsSrc,
+    /import\s*\{[^}]*creditPlatformCommission[^}]*\}\s*from\s*["']@\/lib\/finance\/platform-commission["']/,
+  )
+})
+
+test("actions.ts : destructure commissionAmount depuis recordReservationFinancials", () => {
+  assert.match(
+    actionsSrc,
+    /const\s*\{[^}]*commissionAmount[^}]*\}\s*=\s*await\s+recordReservationFinancials\(/,
+  )
+})
+
+test("guest-booking-actions.ts : destructure commissionAmount depuis recordReservationFinancials", () => {
+  assert.match(
+    guestActionsSrc,
+    /const\s*\{[^}]*commissionAmount[^}]*\}\s*=\s*await\s+recordReservationFinancials\(/,
+  )
+})
+
+test("actions.ts : creditPlatformCommission description inclut publicRef", () => {
+  assert.match(actionsSrc, /description:\s*`[^`]*\$\{publicRef\}[^`]*`/)
+})
+
+test("guest-booking-actions.ts : creditPlatformCommission description inclut publicRef", () => {
+  assert.match(guestActionsSrc, /description:\s*`[^`]*\$\{publicRef\}[^`]*`/)
 })

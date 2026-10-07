@@ -162,6 +162,14 @@ export type CreditCustomerWalletInput = {
    *    (lib/admin/customer-wallet-actions.ts) — solde réellement disponible.
    */
   source: WalletRechargeMethod | "refund" | "adjustment"
+  /** Backstop d'idempotence DB — même pattern que debitCustomerWallet.
+   *  Critique pour les remboursements (refund) et ajustements (adjustment)
+   *  qui peuvent être rejoués après timeout réseau. */
+  idempotencyKey?: string
+  redisOverride?: {
+    get: <T>(key: string) => Promise<T | null>
+    set: (key: string, value: string, opts?: { ex: number }) => Promise<unknown>
+  }
   dbOverride?: DrizzleLikeDb
   txOverride?: DrizzleLikeTx
 }
@@ -476,6 +484,36 @@ export async function creditCustomerWallet(
   }
 
   const run = async (tx: DrizzleLikeTx): Promise<WalletMovementResult> => {
+    // Backstop d'idempotence DB — même pattern que debitCustomerWallet.
+    if (input.idempotencyKey) {
+      const existingRows = (await tx
+        .select({
+          id: walletLedger.id,
+          walletAccountId: walletLedger.walletAccountId,
+          balanceBefore: walletLedger.balanceBefore,
+          balanceAfter: walletLedger.balanceAfter,
+        })
+        .from?.(walletLedger)
+        .where?.(eq(walletLedger.idempotencyKey, input.idempotencyKey))) as
+        | Array<{
+            id: string
+            walletAccountId: string
+            balanceBefore: string
+            balanceAfter: string
+          }>
+        | undefined
+      const existing = existingRows?.[0]
+      if (existing) {
+        return {
+          ok: true,
+          walletAccountId: existing.walletAccountId,
+          ledgerId: existing.id,
+          balanceBefore: existing.balanceBefore,
+          balanceAfter: existing.balanceAfter,
+        }
+      }
+    }
+
     const wallet = await lockOrCreateCustomerWallet(tx, input.customerId)
     const balanceBefore = parseTnd(wallet.currentBalance)
     const balanceAfter = balanceBefore + input.amountTnd
@@ -497,17 +535,60 @@ export async function creditCustomerWallet(
             ? "adjustment"
             : "recharge",
       metadata: { paymentMethod: input.source },
+      idempotencyKey: input.idempotencyKey ?? null,
       // chantier-49C étape 1 : double-écriture, voir lib/finance/millimes.ts
       amountMillimes: toMillimes(input.amountTnd),
       balanceBeforeMillimes: toMillimes(balanceBefore),
       balanceAfterMillimes: toMillimes(balanceAfter),
     }
-    const inserted = (await tx
-      .insert(walletLedger)
-      .values?.(ledgerInsert)
-      .returning?.({ id: walletLedger.id })) as
-      | Array<{ id: string }>
-      | undefined
+
+    if (input.idempotencyKey) {
+      await tx.execute(sql`SAVEPOINT idem_credit_insert`)
+    }
+
+    let inserted: Array<{ id: string }> | undefined
+    try {
+      inserted = (await tx
+        .insert(walletLedger)
+        .values?.(ledgerInsert)
+        .returning?.({ id: walletLedger.id })) as
+        | Array<{ id: string }>
+        | undefined
+    } catch (insertErr) {
+      const isUniqueViolation =
+        insertErr instanceof Error &&
+        /idempotency_uniq|duplicate key value/.test(insertErr.message)
+      if (!isUniqueViolation || !input.idempotencyKey) throw insertErr
+
+      await tx.execute(sql`ROLLBACK TO SAVEPOINT idem_credit_insert`)
+
+      const raceRows = (await tx
+        .select({
+          id: walletLedger.id,
+          walletAccountId: walletLedger.walletAccountId,
+          balanceBefore: walletLedger.balanceBefore,
+          balanceAfter: walletLedger.balanceAfter,
+        })
+        .from?.(walletLedger)
+        .where?.(eq(walletLedger.idempotencyKey, input.idempotencyKey))) as
+        | Array<{
+            id: string
+            walletAccountId: string
+            balanceBefore: string
+            balanceAfter: string
+          }>
+        | undefined
+      const race = raceRows?.[0]
+      if (!race) throw insertErr
+      return {
+        ok: true,
+        walletAccountId: race.walletAccountId,
+        ledgerId: race.id,
+        balanceBefore: race.balanceBefore,
+        balanceAfter: race.balanceAfter,
+      }
+    }
+
     const ledgerId = inserted?.[0]?.id
     if (!ledgerId)
       throw new Error(
@@ -519,16 +600,43 @@ export async function creditCustomerWallet(
       .set?.({ currentBalance: formatTnd(balanceAfter), updatedAt: new Date() })
       .where?.(eq(walletAccounts.id, wallet.id))
 
-    return {
+    const success: WalletMovementSuccess = {
       ok: true,
       walletAccountId: wallet.id,
       ledgerId,
       balanceBefore: formatTnd(balanceBefore),
       balanceAfter: formatTnd(balanceAfter),
     }
+
+    if (input.idempotencyKey) {
+      const redis = input.redisOverride ?? getRedis()
+      if (redis) {
+        await redis.set(
+          `e2b:idem:customer-wallet-credit:${input.idempotencyKey}`,
+          JSON.stringify(success),
+          { ex: 86_400 },
+        )
+      }
+    }
+    return success
   }
 
   try {
+    if (input.idempotencyKey && !input.txOverride) {
+      const redis = input.redisOverride ?? getRedis()
+      if (redis) {
+        const cached = await redis.get<string>(
+          `e2b:idem:customer-wallet-credit:${input.idempotencyKey}`,
+        )
+        if (cached) {
+          try {
+            return JSON.parse(cached) as WalletMovementResult
+          } catch {
+            /* cache corrompu — on rejoue normalement */
+          }
+        }
+      }
+    }
     if (input.txOverride) return await run(input.txOverride)
     const db = (input.dbOverride ?? getDb()) as DrizzleLikeDb
     return await db.transaction(run)

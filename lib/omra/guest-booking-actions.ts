@@ -61,6 +61,7 @@ import {
 import { round2 } from "@/lib/shared/money"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 
@@ -331,15 +332,6 @@ async function runCreateGuestOmraBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
-        // Données financières (Break 4 — Chantier 62)
-        // Omra : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
-        await recordReservationFinancials({
-          tx,
-          reservationId,
-          supplierPriceTnd: totalTnd,
-          salePriceTnd: totalTnd,
-        })
-
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
@@ -377,7 +369,7 @@ async function runCreateGuestOmraBooking(
         // (pas de coût net séparé pour omra, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
@@ -393,6 +385,11 @@ async function runCreateGuestOmraBooking(
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission omra — réservation ${publicRef}`,
         })
 
         // --- 5. Extension Omra + fiches pèlerins ---

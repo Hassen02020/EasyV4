@@ -36,6 +36,7 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateCarPrice } from "./pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
@@ -115,7 +116,7 @@ async function checkCarAvailability(
   categoryId: string,
   locationId: string,
   pickupDate: string,
-): Promise<boolean> {
+): Promise<{ available: boolean; availRowId: string | null }> {
   const [availRow] = await tx
     .select()
     .from(carAvailability)
@@ -128,11 +129,15 @@ async function checkCarAvailability(
       ),
     )
     .limit(1)
+    .for("update")
 
   if (availRow) {
-    return (
-      availRow.status === "open" && availRow.bookedUnits < availRow.totalUnits
-    )
+    return {
+      available:
+        availRow.status === "open" &&
+        availRow.bookedUnits < availRow.totalUnits,
+      availRowId: availRow.id,
+    }
   }
 
   const [fleetCount] = await tx
@@ -147,7 +152,7 @@ async function checkCarAvailability(
       ),
     )
 
-  return Number(fleetCount?.count ?? 0) > 0
+  return { available: Number(fleetCount?.count ?? 0) > 0, availRowId: null }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -190,7 +195,7 @@ export async function createCarBooking(
         throw new Error("NO_PRICING")
       }
 
-      const available = await checkCarAvailability(
+      const { available, availRowId } = await checkCarAvailability(
         tx,
         agencyId,
         input.categoryId,
@@ -333,7 +338,7 @@ export async function createCarBooking(
       // "commission" fabriquée à 0, seulement les 2 lignes réelles.
       const carSupplierCostTnd =
         pricing.baseTotalTnd + pricing.insuranceTotalTnd
-      await recordReservationFinancials({
+      const { commissionAmount } = await recordReservationFinancials({
         tx,
         reservationId,
         supplierPriceTnd: carSupplierCostTnd,
@@ -359,6 +364,11 @@ export async function createCarBooking(
           },
         ],
       })
+      await creditPlatformCommission(tx, {
+        reservationId,
+        commissionAmount,
+        description: `Commission réservation voiture ${publicRef}`,
+      })
 
       await tx.insert(reservationCar).values({
         reservationId,
@@ -376,6 +386,13 @@ export async function createCarBooking(
         insuranceLevel: input.insuranceLevel,
         depositAmountTnd: String(pricing.depositTnd),
       })
+
+      if (availRowId) {
+        await tx
+          .update(carAvailability)
+          .set({ bookedUnits: sql`${carAvailability.bookedUnits} + 1` })
+          .where(eq(carAvailability.id, availRowId))
+      }
 
       await tx.insert(auditEvents).values({
         agencyId,

@@ -32,6 +32,7 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 
@@ -273,11 +274,16 @@ async function runCreateGuestTransferBooking(
 
         // 5. Données financières (Break 4 — Chantier 62 : tous les modules)
         // Transfer : prix catalogue = prix de vente (pas de coût fournisseur séparé)
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
           salePriceTnd: totalTnd,
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission transfert — réservation ${publicRef}`,
         })
 
         // 6. Paiement en attente — règlement différé (virement / espèces)

@@ -22,7 +22,12 @@
  */
 
 import { sql } from "drizzle-orm"
-import { marginRules, marginType, walletTxType } from "./schema/financials"
+import {
+  commissionSettlements,
+  marginRules,
+  marginType,
+  walletTxType,
+} from "./schema/financials"
 import { supplierNodes } from "./schema/supplier-portal"
 import { inventoryStatus } from "./schema/products"
 import {
@@ -270,6 +275,7 @@ export const agencies = pgTable(
     uniqueIndex("agencies_slug_uniq").on(t.slug),
     index("agencies_type_idx").on(t.agencyType),
     uniqueIndex("agencies_domain_uniq").on(t.domain),
+    check("agencies_status_check", sql`${t.status} in ('active','suspended')`),
   ],
 )
 
@@ -866,7 +872,10 @@ export const economicEntitlements = pgTable(
     compensatesId: uuid("compensates_id"),
 
     settlementStatus: varchar("settlement_status", { length: 20 }),
-    settlementRef: text("settlement_ref"),
+    settlementRef: uuid("settlement_ref").references(
+      () => commissionSettlements.id,
+      { onDelete: "set null" },
+    ),
 
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -2887,7 +2896,7 @@ export const partnerCreditMovements = pgTable(
     balanceAfterMillimes: bigint("balance_after_millimes", { mode: "number" }),
     /** Référence externe (n° réservation, n° facture, etc.). */
     reference: varchar("reference", { length: 64 }),
-    /** Lien optionnel à une réservation. */
+    /** Lien optionnel à une réservation (présent sur tout débit booking). */
     reservationId: uuid("reservation_id"),
     /** Lien optionnel à une facture. */
     invoiceId: uuid("invoice_id"),
@@ -2909,6 +2918,9 @@ export const partnerCreditMovements = pgTable(
   (t) => [
     index("partner_credit_agency_idx").on(t.agencyId),
     index("partner_credit_created_idx").on(t.agencyId, t.createdAt),
+    index("partner_credit_reservation_idx")
+      .on(t.reservationId)
+      .where(sql`${t.reservationId} is not null`),
     uniqueIndex("partner_credit_movements_idempotency_uniq")
       .on(t.idempotencyKey)
       .where(sql`${t.idempotencyKey} is not null`),

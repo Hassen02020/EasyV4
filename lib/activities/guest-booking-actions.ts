@@ -52,6 +52,7 @@ import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 
 export type CreateGuestActivityBookingResult =
   | {
@@ -336,15 +337,6 @@ async function runCreateGuestActivityBooking(
         const reservationId = reservation.id
         const guestAccessToken = reservation.guestAccessToken
 
-        // Données financières (Break 4 — Chantier 62)
-        // Activité : prix catalogue agence = prix de vente (pas de coût fournisseur séparé)
-        await recordReservationFinancials({
-          tx,
-          reservationId,
-          supplierPriceTnd: totalTnd,
-          salePriceTnd: totalTnd,
-        })
-
         if (isImmediatelyPaid) {
           await tx
             .update(reservations)
@@ -382,7 +374,7 @@ async function runCreateGuestActivityBooking(
         // (pas de coût net séparé pour activités, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
-        await recordReservationFinancials({
+        const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: totalTnd,
@@ -398,6 +390,11 @@ async function runCreateGuestActivityBooking(
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
             },
           ],
+        })
+        await creditPlatformCommission(tx, {
+          reservationId,
+          commissionAmount,
+          description: `Commission activité — réservation ${publicRef}`,
         })
 
         // Easy2Book Rewards (Phase 38D) — B2C uniquement (voir doc de tête

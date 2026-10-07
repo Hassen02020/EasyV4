@@ -5,12 +5,14 @@ import { type ColumnDef } from "@tanstack/react-table"
 import {
   Building2,
   CheckCircle2,
+  Globe,
   MoreHorizontal,
   PauseCircle,
   PlayCircle,
   Users,
   Wallet,
 } from "lucide-react"
+import Link from "next/link"
 import { toast } from "sonner"
 
 import { DataTable } from "@/components/ui/data-table"
@@ -368,9 +370,15 @@ function buildColumns(
                   <span className="sr-only">Actions</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href={`/admin/agencies/${agency.id}`}>
+                    <Globe className="mr-2 h-4 w-4 text-indigo-600" />
+                    White Label
+                  </Link>
+                </DropdownMenuItem>
                 {agency.agencyType === "partner" && (
                   <DropdownMenuItem onClick={() => onRecharge(agency)}>
                     <Wallet className="mr-2 h-4 w-4 text-blue-600" />

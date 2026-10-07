@@ -1,8 +1,8 @@
 /**
- * Webhook PSP — Stripe & SPS Monétique Tunisie
+ * Webhook PSP — Stripe, SPS Monétique Tunisie, Paymee
  *
  * Sécurité :
- *  1. Vérification signature HMAC-SHA256 (Stripe) / SHA-512 (SPS) avant toute logique
+ *  1. Vérification signature HMAC-SHA256 (Stripe) / SHA-512 (SPS) / MD5 check_sum (Paymee)
  *  2. Idempotence event-level : chaque event_id n'est traité qu'une seule fois (payment_events)
  *  3. Idempotence business-level : une demande de recharge déjà `validated`/`rejected`
  *     n'est jamais retraitée, même sur un event_id différent pour le même paiement
@@ -39,10 +39,15 @@ import {
   verifyStripeSignature,
 } from "@/lib/payment/signing"
 import {
+  verifyPaymeeChecksum,
+  normalizePaymeeStatus,
+} from "@/lib/payment/paymee-signing"
+import {
   classifyEventType,
   matchesPendingRecharge,
   normalizeSpsEvent,
   normalizeStripeEvent,
+  normalizePaymeeEvent,
   type NormalizedChargeEvent,
 } from "@/lib/payment/webhook-logic"
 
@@ -51,7 +56,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export async function POST(request: NextRequest) {
-  const provider = request.nextUrl.searchParams.get("provider") // 'stripe' | 'sps'
+  const provider = request.nextUrl.searchParams.get("provider") // 'stripe' | 'sps' | 'paymee'
 
   const rawBody = await request.arrayBuffer()
   const bodyBuffer = Buffer.from(rawBody)
@@ -120,6 +125,42 @@ export async function POST(request: NextRequest) {
       body["transaction_id"] ??
       body["order_id"] ??
       `sps-unknown-${Date.now()}`
+  } else if (provider === "paymee") {
+    const paymeeApiKey = process.env.PAYMEE_API_KEY
+    if (!paymeeApiKey) {
+      console.error("[Webhook/Paymee] PAYMEE_API_KEY manquant")
+      return NextResponse.json({ error: "Misconfigured" }, { status: 500 })
+    }
+    let paymeeBody: Record<string, unknown>
+    try {
+      paymeeBody = JSON.parse(bodyBuffer.toString("utf8"))
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+    }
+    const token =
+      typeof paymeeBody["token"] === "string" ? paymeeBody["token"] : null
+    const checkSum =
+      typeof paymeeBody["check_sum"] === "string"
+        ? paymeeBody["check_sum"]
+        : null
+    if (!token) {
+      return NextResponse.json({ error: "Missing token" }, { status: 400 })
+    }
+    signatureOk = verifyPaymeeChecksum({
+      token,
+      paymentStatusRaw: paymeeBody["payment_status"],
+      checkSum,
+      apiKey: paymeeApiKey,
+    })
+    if (!signatureOk) {
+      console.warn("[Webhook/Paymee] Signature invalide — requête rejetée")
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
+    }
+    const status = normalizePaymeeStatus(paymeeBody["payment_status"])
+    eventType =
+      status === true ? "paymee.payment.success" : "paymee.payment.failed"
+    charge = normalizePaymeeEvent(paymeeBody, eventType)
+    eventId = charge?.eventId ?? `paymee-${token}-${Date.now()}`
   } else {
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 })
   }
@@ -152,7 +193,7 @@ export async function POST(request: NextRequest) {
     if (kind === "unknown" || !charge) {
       await tx.insert(pspWebhooks).values({
         agencyId: null,
-        psp: provider as "stripe" | "sps",
+        psp: provider as "stripe" | "sps" | "paymee",
         eventType,
         payload: auditPayload,
         signatureOk,
@@ -175,7 +216,7 @@ export async function POST(request: NextRequest) {
     if (!pending) {
       await tx.insert(pspWebhooks).values({
         agencyId: null,
-        psp: provider as "stripe" | "sps",
+        psp: provider as "stripe" | "sps" | "paymee",
         eventType,
         payload: auditPayload,
         signatureOk,
@@ -199,7 +240,7 @@ export async function POST(request: NextRequest) {
 
         await tx.insert(pspWebhooks).values({
           agencyId: pending.agencyId,
-          psp: provider as "stripe" | "sps",
+          psp: provider as "stripe" | "sps" | "paymee",
           eventType,
           payload: auditPayload,
           signatureOk,
@@ -217,7 +258,7 @@ export async function POST(request: NextRequest) {
 
       await tx.insert(pspWebhooks).values({
         agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps",
+        psp: provider as "stripe" | "sps" | "paymee",
         eventType,
         payload: auditPayload,
         signatureOk,
@@ -233,7 +274,7 @@ export async function POST(request: NextRequest) {
       // charge.captured pour un seul paiement) ne doit jamais re-créditer.
       await tx.insert(pspWebhooks).values({
         agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps",
+        psp: provider as "stripe" | "sps" | "paymee",
         eventType,
         payload: auditPayload,
         signatureOk,
@@ -256,7 +297,7 @@ export async function POST(request: NextRequest) {
 
       await tx.insert(pspWebhooks).values({
         agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps",
+        psp: provider as "stripe" | "sps" | "paymee",
         eventType,
         payload: auditPayload,
         signatureOk,
@@ -281,7 +322,7 @@ export async function POST(request: NextRequest) {
 
       await tx.insert(pspWebhooks).values({
         agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps",
+        psp: provider as "stripe" | "sps" | "paymee",
         eventType,
         payload: auditPayload,
         signatureOk,
@@ -302,7 +343,7 @@ export async function POST(request: NextRequest) {
 
     await tx.insert(pspWebhooks).values({
       agencyId: pending.agencyId,
-      psp: provider as "stripe" | "sps",
+      psp: provider as "stripe" | "sps" | "paymee",
       eventType,
       payload: auditPayload,
       signatureOk,

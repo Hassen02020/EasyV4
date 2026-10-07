@@ -37,6 +37,7 @@ export const flightSupplierName = pgEnum("flight_supplier_name", [
   "amadeus",
   "travelport",
   "sabre",
+  "duffel",
 ])
 
 // ---------------------------------------------------------------------------

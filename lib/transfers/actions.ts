@@ -31,6 +31,7 @@ import { calculateTransferPrice } from "./pricing"
 import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
@@ -139,6 +140,7 @@ export async function createTransferBooking(
         pickupDate: input.pickupDate,
         pickupTime: input.pickupTime,
         agencyId,
+        channel: "b2b",
       })
       if (!pricing) {
         throw new Error("NO_PRICING")
@@ -286,7 +288,7 @@ export async function createTransferBooking(
       // pour le commentaire complet). Aucune commission aujourd'hui.
       const transferSupplierCostTnd =
         pricing.basePriceTnd + pricing.nightSurchargeAmount
-      await recordReservationFinancials({
+      const { commissionAmount } = await recordReservationFinancials({
         tx,
         reservationId,
         supplierPriceTnd: transferSupplierCostTnd,
@@ -310,6 +312,11 @@ export async function createTransferBooking(
               "marge vendeur (agence product_owner ET seller sur son propre tarif)",
           },
         ],
+      })
+      await creditPlatformCommission(tx, {
+        reservationId,
+        commissionAmount,
+        description: `Commission transfert — réservation ${publicRef}`,
       })
 
       /* ------------------------------------------------------------------

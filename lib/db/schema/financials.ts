@@ -188,7 +188,9 @@ export const walletLedger = pgTable(
   "wallet_ledger",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    walletAccountId: uuid("wallet_account_id").notNull(),
+    walletAccountId: uuid("wallet_account_id")
+      .notNull()
+      .references(() => walletAccounts.id, { onDelete: "restrict" }),
 
     // Double-entry: balance avant/après
     type: walletTxType("type").notNull(),
@@ -254,6 +256,10 @@ export const walletLedger = pgTable(
     uniqueIndex("wallet_ledger_idempotency_uniq")
       .on(t.idempotencyKey)
       .where(sql`${t.idempotencyKey} is not null`),
+    check(
+      "wallet_ledger_category_check",
+      sql`${t.category} is null or ${t.category} in ('booking','recharge','refund','commission','fee','adjustment')`,
+    ),
   ],
 )
 
@@ -627,8 +633,12 @@ export const commissionSettlementEntries = pgTable(
   "commission_settlement_entries",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    walletLedgerId: uuid("wallet_ledger_id").notNull(),
-    settlementId: uuid("settlement_id").notNull(),
+    walletLedgerId: uuid("wallet_ledger_id")
+      .notNull()
+      .references(() => walletLedger.id, { onDelete: "restrict" }),
+    settlementId: uuid("settlement_id")
+      .notNull()
+      .references(() => commissionSettlements.id, { onDelete: "restrict" }),
     settledAt: timestamp("settled_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

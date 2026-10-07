@@ -30,6 +30,7 @@ import {
   recordReservationFinancials,
   type RecordReservationFinancialsInput,
 } from "@/lib/finance/reservation-financials"
+import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import {
   fetchExchangeRateForBooking,
   ExchangeRateUnavailableError,
@@ -120,12 +121,15 @@ export async function finalizeFlightBookingFinancials(
   // deux appelants aujourd'hui) — simple SELECT dans la même transaction,
   // aucun changement de comportement du calcul financier lui-même.
   const [reservation] = await tx
-    .select({ agencyId: reservations.agencyId })
+    .select({
+      agencyId: reservations.agencyId,
+      publicRef: reservations.publicRef,
+    })
     .from(reservations)
     .where(eq(reservations.id, input.reservationId))
     .limit(1)
 
-  await recordReservationFinancials({
+  const { commissionAmount } = await recordReservationFinancials({
     tx,
     reservationId: input.reservationId,
     supplierPriceTnd,
@@ -170,5 +174,10 @@ export async function finalizeFlightBookingFinancials(
             : []),
         ]
       : undefined,
+  })
+  await creditPlatformCommission(tx, {
+    reservationId: input.reservationId,
+    commissionAmount,
+    description: `Commission vol — réservation ${reservation?.publicRef ?? input.reservationId}`,
   })
 }

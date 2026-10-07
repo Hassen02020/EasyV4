@@ -95,14 +95,43 @@ typecheck) sauf `format`/`lighthouse` — confirmés non liés à ce diff
 (voir `CI-FORMAT-CLEANUP-01` ci-dessous pour `format` ; `lighthouse`
 reste le NO_FCP non résolu documenté sous CI-FIX-02).
 
-**Backlog identifié par cet audit, non exécuté** (prochains chantiers
-potentiels, à proposer un par un sur GO explicite) : RLS FORCE manquante
-sur `campaigns`/`campaign_targets`/`campaign_attributions`/`promos`/
-`contacts`/`lead_origin_events` ; duplication de normalisation
-contact-core/consent-core (téléphone non géré côté consent) ; fichier
-mort `lib/finance/margin-calculator.ts` ; REVENUE dispersé sans owner ni
-test dédié ; câblage PROMO→pricing incomplet (3/7 modules restants :
-flight/activity/network).
+**CI-FORMAT-CLEANUP-01 — MERGÉ (PR #148, commit squash `9bcde6e`,
+2026-10-07).** Formatage pur (`prettier --write`) des 5 fichiers en échec
+`format` depuis plusieurs chantiers (`app/(internal)/admin/site/page.tsx`,
+`components/footer-client.tsx`, `docs/ROADMAP.md`,
+`lib/admin/public-site-actions.ts`, `lib/db/schema/public-site.ts`) —
+zéro changement sémantique (diffs relus), zéro fichier hors scope. Job
+`format` vert sur `main` depuis ce merge. Délégué à un agent ; une PR
+identique créée en parallèle (collision de branche détectée et
+documentée par l'agent, contenu octet pour octet identique) — utilisée
+comme véhicule plutôt que dupliquée.
+
+**RLS-FORCE-CRM-TABLES-01 — MERGÉ (PR #150, commit squash `19b125b`,
+2026-10-07).** Migration `drizzle/manual/0123_rls_force_crm_tables_01.sql`
+— `ALTER TABLE ... FORCE ROW LEVEL SECURITY` sur `contacts`,
+`lead_origin_events`, `campaigns`, `campaign_targets`,
+`campaign_attributions`, `promos`. Vérifié avant migration : `app_runtime`
+n'est pas owner de ces tables (GRANT explicite requis) — `FORCE` n'a donc
+aucun effet sur le trafic applicatif normal, c'est une protection en
+profondeur contre un accès direct par le rôle owner, pas la correction
+d'un trou actif. **Migration appliquée et vérifiée en production**
+(Supabase `crygnaichvlxavvbifqi`) : `relforcerowsecurity=true` confirmé
+par requête directe sur les 6 tables, avant et après (avant : `false`
+partout, confirmé). Preuves : 28/28 tests live existants
+(contact-core/campaign-core/campaign-attribution-core/promo-core/
+network-demand-capture-core/website-lead-capture-core) verts après
+application locale, zéro régression côté `app_runtime` ; régression
+complète 1501 pass/0 fail ; `pnpm build` ok. CI de la PR : tout vert
+(lint/typecheck/test/financial-e2e/build/playwright-a11y/**format**)
+sauf `lighthouse` (même NO_FCP connu, non lié à ce diff).
+
+**Backlog restant identifié par l'AUDIT FINAL CRM, non exécuté**
+(prochains chantiers potentiels, à proposer un par un sur GO explicite) :
+duplication de normalisation contact-core/consent-core (téléphone non
+géré côté consent) ; fichier mort `lib/finance/margin-calculator.ts` ;
+REVENUE dispersé sans owner ni test dédié ; câblage PROMO→pricing
+incomplet (3/7 modules restants : flight/activity/network) ; `lighthouse`
+NO_FCP toujours non résolu (CI-FIX-02/CI-FIX-03 potentiel).
 
 ### PUBLIC-VISUAL-RLS-ROLE-GAP-01 + BOOKING-ENGINE-MODULES-NOT-WIRED-01 + DESTINATIONS-SSG-POOL-EXHAUSTION-01 — CLÔTURÉS
 

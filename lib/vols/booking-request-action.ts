@@ -32,6 +32,8 @@ import { nextPublicRef } from "@/lib/booking/actions"
 import type { CanonicalItinerary } from "./canonical"
 import { flattenSegments } from "./canonical"
 import { z } from "zod"
+import { isValidPhoneNumber } from "libphonenumber-js/core"
+import { metadata as phoneMetadata } from "@/lib/phone/metadata"
 
 // ---------------------------------------------------------------------------
 // Input schemas
@@ -49,7 +51,17 @@ const passengerSchema = z.object({
 
 const contactSchema = z.object({
   email: z.string().email(),
-  phone: z.string().optional(),
+  // PHONE-INTL-VOLS-HOTELS-MONDE-01 — valeur attendue en E.164 (produite par
+  // components/ui/phone-input.tsx) si fournie ; validée via libphonenumber-js,
+  // accepte nativement tout pays (jamais de dépendance vers la normalisation
+  // Tunisie-only de lib/crm/contact-core.ts ici).
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || isValidPhoneNumber(v, phoneMetadata),
+      "Numéro de téléphone invalide",
+    ),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
 })

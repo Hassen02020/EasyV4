@@ -14,6 +14,7 @@ import { useRouter } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -236,13 +237,10 @@ export function PassengerBookingForm({
           </div>
           <div className="space-y-1">
             <Label htmlFor="contact-phone">{t("phoneLabel")}</Label>
-            <Input
+            <PhoneInput
               id="contact-phone"
-              type="tel"
               value={contact.phone}
-              onChange={(e) =>
-                setContact((c) => ({ ...c, phone: e.target.value }))
-              }
+              onChange={(v) => setContact((c) => ({ ...c, phone: v }))}
             />
           </div>
         </CardContent>

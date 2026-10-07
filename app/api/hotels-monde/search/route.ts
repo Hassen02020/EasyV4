@@ -16,6 +16,9 @@ import { rateLimit } from "@/lib/rate-limit"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
+import { withSystemContext } from "@/lib/db/tenant-context"
+import { recordHotelSearchDemandCore } from "@/lib/crm/search-demand-core"
+import { logger } from "@/lib/logger"
 
 export const runtime = "nodejs"
 export const revalidate = 0
@@ -57,6 +60,28 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  const agencyId = await getDefaultAgencyId()
+
+  // BEHAVIORAL-SIGNAL-01 — signal de demande marché agrégé (jamais un
+  // historique individuel, voir lib/crm/search-demand-core.ts). Ne doit
+  // JAMAIS faire échouer une vraie recherche — comptage best-effort,
+  // même discipline que acquireLock (lib/booking/inventory.ts).
+  try {
+    if (agencyId) {
+      await withSystemContext((tx) =>
+        recordHotelSearchDemandCore(tx, {
+          agencyId,
+          destination: destination.value,
+        }),
+      )
+    }
+  } catch (err) {
+    logger.warn("[search-demand] enregistrement signal échoué", {
+      err: String(err),
+      destination: destination.value,
+    })
+  }
+
   const nights = Math.round(
     (new Date(parsed.data.checkOut).getTime() -
       new Date(parsed.data.checkIn).getTime()) /
@@ -82,7 +107,6 @@ export async function GET(req: NextRequest) {
   // Le prix net (totalPriceTnd) est l'unité de marge atomique — l'offre
   // Hôtels Monde n'a pas de granularité par chambre exposée (contrairement
   // à myGo), pricePerNightTnd n'est qu'une valeur d'affichage dérivée.
-  const agencyId = await getDefaultAgencyId()
   const margins = await getMarginsForAgency(agencyId, undefined, "direct")
   result.offers = result.offers.map((offer) => {
     const totalPriceTnd = applyMargin(offer.totalPriceTnd, margins.hotel)

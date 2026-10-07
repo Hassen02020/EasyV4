@@ -2356,6 +2356,53 @@ export const contacts = pgTable(
 )
 
 /**
+ * BEHAVIORAL-SIGNAL-01 — signal de DEMANDE MARCHÉ agrégé, PAS un
+ * historique individuel. Audit de conception dédié (docs/ROADMAP.md,
+ * BEHAVIORAL-INTENT-01/BEHAVIORAL-SIGNAL-01, décisions actées avec
+ * l'utilisateur) :
+ *  - AUCUN tracking individuel, aucune IP, aucun fingerprint, aucun
+ *    identifiant de visiteur — une recherche hôtel incrémente un COMPTEUR
+ *    partagé (agencyId, productType, destination, searchDate), jamais
+ *    une ligne par recherche ;
+ *  - "pilote" strictement limité au produit hôtel ("hotel") pour ce
+ *    chantier — pas une plateforme générique d'événements comportementaux ;
+ *  - jamais fusionné avec VIP Score (valeur client) ni NICHE
+ *    (segmentation) — ce signal mesure la demande marché, pas une
+ *    personne.
+ */
+export const searchDemandSignals = pgTable(
+  "search_demand_signals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** "hotel" uniquement pour ce pilote — jamais un second vocabulaire que `leads.productType`. */
+    productType: varchar("product_type", { length: 32 }).notNull(),
+    /** Valeur canonique (ex. `destinationByValue(...).value`) — jamais un libellé localisé comme clé d'agrégation. */
+    destination: varchar("destination", { length: 100 }).notNull(),
+    /** Jour de l'agrégation (UTC) — granularité volontairement journalière, pas horaire. */
+    searchDate: date("search_date").notNull(),
+    searchCount: integer("search_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("search_demand_signals_agg_uniq").on(
+      t.agencyId,
+      t.productType,
+      t.destination,
+      t.searchDate,
+    ),
+    index("search_demand_signals_agency_date_idx").on(t.agencyId, t.searchDate),
+  ],
+)
+
+/**
  * CAMPAIGN-PERSISTENCE-01 — identité, objectif et état d'une campagne
  * commerciale dans le temps. Audit de conception dédié (docs/ROADMAP.md) :
  * CAMPAIGN décide "à qui et pour quelle action commerciale" — jamais

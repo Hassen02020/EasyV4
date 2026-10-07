@@ -258,16 +258,8 @@ export function BookingEngine({
             : undefined
         }
       >
-        {/* COLOR-HARMONY-01 : tinte brand constante (Bleu Méditerranée) sur
-            toute la hauteur, pas seulement en dégradé — les photos hero par
-            module (Unsplash, choisies indépendamment) ont des teintes trop
-            divergentes (ciel bleu, jungle verte, montgolfières dorées, foule
-            sombre) pour paraître appartenir au même site une fois dégradées
-            à 35% au milieu. Un voile uniforme plus fort ramène chaque photo
-            vers la même palette, quelle que soit sa couleur native. */}
-        <div className="bg-sidebar/70 absolute inset-0" />
-        <div className="from-sidebar/70 via-sidebar/50 to-sidebar/40 absolute inset-0 bg-gradient-to-b" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/15" />
+        <div className="from-sidebar/85 via-sidebar/35 to-background absolute inset-0 bg-gradient-to-b" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
       </div>
 
       {/* Content */}

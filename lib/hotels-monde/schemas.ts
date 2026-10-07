@@ -18,8 +18,8 @@
  */
 
 import { z } from "zod"
-
-const phoneRegex = /^\+?[0-9 ()\-.]{7,20}$/
+import { isValidPhoneNumber } from "libphonenumber-js/core"
+import { metadata } from "@/lib/phone/metadata"
 
 export const worldHotelGuestSchema = z.object({
   civility: z.enum(["M", "Mme", "Mlle"], {
@@ -32,10 +32,18 @@ export const worldHotelGuestSchema = z.object({
     .max(100),
   lastName: z.string().trim().min(2, "Nom requis (min 2 caractères)").max(100),
   email: z.string().trim().email("Email invalide").max(320),
+  // PHONE-INTL-VOLS-HOTELS-MONDE-01 — valeur attendue en E.164 (produite par
+  // components/ui/phone-input.tsx), validée via libphonenumber-js plutôt
+  // qu'une regex maison — accepte nativement tout pays, pas seulement la
+  // Tunisie (jamais de dépendance vers lib/crm/contact-core.ts ici, ce champ
+  // ne sert qu'au guest checkout, pas à CONTACT-01).
   phone: z
     .string()
     .trim()
-    .regex(phoneRegex, "Numéro invalide (ex. +216 98 123 456)"),
+    .refine(
+      (v) => isValidPhoneNumber(v, metadata),
+      "Numéro invalide (sélectionnez le pays puis saisissez le numéro)",
+    ),
   nationality: z.string().trim().max(64).optional().or(z.literal("")),
 })
 

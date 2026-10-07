@@ -249,26 +249,31 @@ passe systématiquement). Confirmé pré-existant (job créé par le commit
 exclue : la page auditée (`/admin`) redirige vers `/login` en CI faute
 d'auth, pourrait contribuer à un paint vide.
 
-**CI-FIX-02 — IMPLÉMENTÉ (PR #145, branche `ci-fix-02`), PAS ENCORE VERT.**
+**CI-FIX-02 — MERGÉ (PR #145, commit squash `3a8e24b2`, 2026-10-07).**
 Correctif appliqué : `playwright install-deps chromium` ajouté au job
-`lighthouse`. **Résultat réel après correctif** (pas une affirmation
-prématurée) : `playwright install-deps chromium` s'exécute avec succès
-(paquets apt installés, confirmé dans les logs) — l'hypothèse "Chrome
-sans dépendances" est donc **écartée**, pas confirmée. Nouveau constat
-précis : `http://localhost:3000/` passe (2/2 runs Lighthouse réussis),
-mais `http://localhost:3000/login` bloque ~102 secondes puis échoue en
-`NO_FCP` (`requestedUrl: "http://localhost:3000/login"`, confirmé dans
-le JSON d'erreur) — le job s'arrête à ce premier échec, `/admin` n'est
-même pas atteint. Donc ce n'est ni un Chrome absent, ni l'hypothèse
-`/admin→/login` telle que formulée (ici `/login` est audité
-directement, pas via une redirection). Piste non résolue à ce jour :
-`/login` met ~100s à ne rien peindre sous Lighthouse (CPU throttlé 4x)
-alors que `playwright-a11y` le teste sans throttling avec succès —
-possible boucle d'attente/retry réseau côté client contre
-`NEXT_PUBLIC_SUPABASE_URL` (domaine placeholder en CI). `continue-on-error:
-true` conservé. Aucun second correctif spéculatif poussé — piste
-documentée en commentaire PR, proposition séparée (`CI-FIX-03` ?) si
-poursuite souhaitée.
+`lighthouse` ; `public/manifest.json` corrigé (icônes réelles au lieu
+de fichiers inexistants, causant des 404 catastrophiques de 14-28s sur
+tout chemin non matché côté `[locale]`) ; `prefetch={false}` ajouté sur
+les deux `<Link>` de `/login`. **Résultat réel après correctif** (pas
+une affirmation prématurée) : `playwright install-deps chromium`
+s'exécute avec succès — l'hypothèse "Chrome sans dépendances" est donc
+**écartée**, pas confirmée comme cause unique. Le correctif manifest.json
+est une amélioration mesurée et réelle (temps de 404 ramené à <1s),
+mais **`NO_FCP` sur `/login` persiste malgré tout** — non résolu à ce
+jour, `continue-on-error: true` conservé à raison. CI de la PR :
+tout vert sauf `format`/`lighthouse` (les deux connus, documentés,
+non liés à ce diff — `lighthouse` rouge sur `main` lui-même avant ce
+correctif). Mergé en l'état car le correctif apporté est réel et net
+même sans résoudre `NO_FCP` entièrement ; piste `/login` restante
+documentée ci-dessus pour un futur `CI-FIX-03` séparé, jamais démarré
+automatiquement.
+
+**Gap séparé identifié pendant cet audit, non résolu, laissé ouvert
+pour un futur chantier** : tout chemin public non matché par
+`app/(public)/[locale]/...` déclenche un rendu spéculatif complet de
+la page d'accueil (avec requêtes DB live) avant le `notFound()` du
+layout — risque de charge DB/pool sur du trafic bot/scanner/lien cassé,
+indépendant du fix manifest.json qui n'a corrigé que le symptôme (icônes).
 
 ---
 
@@ -328,11 +333,40 @@ profilage individuel) — **mais la conformité juridique finale reste à
 valider avant toute mise en production, et avant tout code selon la
 décision explicite de l'utilisateur**.
 
-**Statut** : AUDIT ONLY clos, cadre produit acté, **EN ATTENTE** de
-validation juridique/privacy avant qu'un GO sur un chantier de code
-(mécanisme minimal d'agrégation "recherche hôtel" + mesure d'impact DB,
-explicitement : pas de plateforme générique, pas d'Intent, pas de
-modification VIP/Niche, pas de tracking individuel) puisse être donné.
+**Statut : BEHAVIORAL-SIGNAL-01 — MERGÉ (PR #146, commit squash
+`1399fbdd`, 2026-10-07).** Validation juridique/privacy obtenue
+(confirmée explicitement par l'utilisateur avant le code), GO global
+donné, chantier réalisé dans le périmètre strictement acté ci-dessus
+(pilote "hotel" uniquement, compteur agrégé, zéro tracking individuel).
+
+**Implémenté** : table `search_demand_signals` (migration
+`drizzle/manual/0122_behavioral_signal_01.sql`), unique
+`(agencyId, productType, destination, searchDate)`, RLS activée+forcée
+(policy `agency_id = current_agency_id() OR is_super_admin()`, même
+pattern que `contacts`), `REVOKE DELETE` pour `app_runtime` (même
+discipline DEFAULT-PRIVILEGES-GAP-01). `lib/crm/search-demand-core.ts::
+recordHotelSearchDemandCore` (upsert idempotent, incrément SQL),
+instrumenté dans `app/api/hotels-monde/search/route.ts` (seul point
+d'entrée réel pour la recherche hôtel monde), wrappé `try/catch` —
+jamais bloquant pour une vraie recherche (même discipline que
+`acquireLock`).
+
+**Preuves** : 4/4 tests live verts (`lib/crm/__tests__/
+search-demand-core-live.test.ts` — compteur agrégé 3→1 ligne/count=3,
+jours séparés, destinations séparées, isolation cross-agence) ;
+régression complète 1501 pass/0 fail (baseline inchangée, les 4
+nouveaux tests sont skip-only sans DB) ; migration appliquée et
+vérifiée en production (Supabase `crygnaichvlxavvbifqi` — RLS
+activée+forcée, policy correcte, grants SELECT/INSERT/UPDATE pour
+`app_runtime`, DELETE bien révoqué, confirmé par `has_table_privilege`
+direct). CI de la PR : tout vert sauf `format`/`lighthouse` (connus,
+documentés, non liés à ce diff).
+
+**Hors scope, explicitement non traité ici** (à ne jamais démarrer
+automatiquement) : second produit (vols, omra) sur ce même signal ;
+toute fusion avec VIP Score ou Niche ; durée de rétention finale ;
+mesure d'impact DB/pool en conditions réelles de volume (prochaine
+étape naturelle avant toute extension, mais pas un chantier démarré ici).
 
 ---
 

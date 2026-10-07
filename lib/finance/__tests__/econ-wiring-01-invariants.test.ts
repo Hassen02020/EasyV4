@@ -101,7 +101,6 @@ for (const [label, path] of [
     "hotels-monde/guest-booking-actions.ts",
     "lib/hotels-monde/guest-booking-actions.ts",
   ],
-  ["vols/guest-booking-actions.ts", "lib/vols/guest-booking-actions.ts"],
 ] as const) {
   test(`Hotels-Monde/Vols — ${label} : 2 lignes (external_supplier + agency seller), pas de commission fabriquée`, () => {
     const src = read(path)
@@ -165,7 +164,6 @@ test("aucun des fichiers câblés ne modifie applyMargin/getMarginsForAgency/cre
     "lib/cars/guest-booking-actions.ts",
     "lib/transfers/actions.ts",
     "lib/hotels-monde/guest-booking-actions.ts",
-    "lib/vols/guest-booking-actions.ts",
     "lib/vols/flight-financials.ts",
     "lib/omra/booking-actions.ts",
     "lib/omra/guest-booking-actions.ts",

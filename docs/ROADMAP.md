@@ -164,7 +164,7 @@ par un test invariant (`product-booking-actions-invariants.test.ts`)
 qui vérifie qu'il n'est jamais réimporté. Supprimé. Mergé avec
 PROMO-PRICING-COVERAGE-01 (même PR #156, merge commit `6965d233`).
 
-### REVENUE-CONSOLIDATE-01 — CLÔTURÉ (en attente de merge PR)
+### REVENUE-CONSOLIDATE-01 — CLÔTURÉ (PR #157, mergée)
 
 Extrait `sumRevenueMarginCore()`, une primitive PURE (aucun accès DB),
 dans `lib/reporting/margin-analytics-core.ts` (module déjà identifié
@@ -186,14 +186,63 @@ n'avait ZÉRO test. Ajouté :
   live contre Postgres réel pour `getMarginKPIsCore` — vérifie que
   seules les réservations `confirmed` DANS la période comptent, via
   `recordReservationFinancials`, jamais un second calcul inventé par
-  le test).
+  le test). **Confirmé exécuté pour de vrai sur CI** : le job
+  `financial-e2e` (Postgres éphémère) est passé au vert sur cette PR,
+  preuve que ce test s'exécute réellement (pas seulement un `skip`).
 
 **Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
-clean, `pnpm lint` 0 erreur, `pnpm test` 1569/1569 PASS (le nouveau test
-live se dégrade en `skip` localement sans Postgres, s'exécute pour de
-vrai sur le job CI `financial-e2e` qui en fournit un éphémère), `pnpm build` OK.
+clean, `pnpm lint` 0 erreur, `pnpm test` 1569/1569 PASS, `pnpm build` OK.
+PR #157 mergée (squash) le 2026-10-07, merge commit `a0f91877`. CI finale :
+format/lint/typecheck/test/financial-e2e/build/playwright-a11y tous
+verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
 
-**Backlog candidate restant** : `NICHE-UI-01` (PR #158, en cours de CI).
+### NICHE-UI-01 — CLÔTURÉ (en attente de merge PR)
+
+Décision produit explicite (2026-10-07, demandée avant tout travail
+technique, confirmée par l'utilisateur) : nouvelle page
+`/admin/analytics/niches`, **read-only**, accessible aux rôles déjà
+autorisés par `listNicheSegments()` (super_admin/manager/agent_resa +
+agencyType="ota") — **aucune action "lancer une campagne depuis ce
+segment" en V1**.
+
+- `app/(internal)/admin/analytics/niches/page.tsx` : nouvelle page
+  client, même patron que `/admin/analytics/margins` (fetch au mount,
+  état loading/erreur, tableau). Consomme `listNicheSegments()`
+  (`lib/admin/niche-actions.ts`) — déjà existant, déjà sécurisé
+  (vérifie le rôle + `agencyType` côté serveur avant tout accès DB),
+  aucune garde supplémentaire nécessaire.
+- Tableau : Marché, Produit, Intention, Destination, Période, Volume,
+  Convertis, Taux de conversion, Canal — trié par volume décroissant
+  (le staff veut d'abord voir la niche avec le plus de signal).
+- `app/visual-mock/page.tsx` : entrée ajoutée au répertoire de routes
+  admin (même convention que l'entrée "Analytics Margins", qui n'a pas
+  non plus de lien dans la sidebar de production — cette page suit
+  exactement le même précédent de découvrabilité).
+- Aucun nouveau test : `listNicheSegments()`/`getNicheSegmentsCore()`
+  ont déjà une couverture dédiée
+  (`lib/admin/__tests__/niche-actions-invariants.test.ts`,
+  `lib/crm/__tests__/niche-audience-live.test.ts`) ; aucune page du
+  dépôt n'a de test au niveau composant (vérifié sur
+  `/admin/analytics/margins`, même précédent), cette page suit la même
+  convention.
+
+**Vérifié localement** : `curl` sur `/admin/analytics/niches` avec
+serveur `pnpm dev` local → redirect `307` vers
+`/login?next=/admin/analytics/niches`, comportement strictement
+identique à `/admin/analytics/margins` (gate `isAllowedIntoAdmin` au
+niveau layout) — aucune erreur serveur, aucune trace dans les logs du
+serveur de dev. Pas de vérification visuelle authentifiée possible
+dans cet environnement (pas de session Supabase/Postgres local
+disponible) — à confirmer sur Preview Vercel avant merge si possible.
+
+**Preuve de clôture (hors vérification visuelle authentifiée)** :
+`pnpm typecheck` 0 erreur, `pnpm format:check` clean, `pnpm lint` 0
+erreur, `pnpm test` 1598/1598 PASS, `pnpm build` OK (route
+`/admin/analytics/niches` confirmée dans la sortie du build).
+
+**Backlog candidate pour une V2 future (pas de GO, juste noté)** :
+action "lancer une campagne depuis ce segment" — explicitement exclue
+de cette V1 par décision produit.
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 

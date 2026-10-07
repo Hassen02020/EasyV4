@@ -42,10 +42,12 @@ sur GO explicite, avec vérification runtime Vercel réelle avant tout
 nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) **MERGÉE**. PR-BATCH-04
 (PR #126, voir ci-dessous) **MERGÉE** + correctif de suivi PR #155
 **MERGÉE**. PR #63 **FERMÉE sans merge** (superseded, voir ci-dessous).
-Conformément à la RÈGLE OPÉRATIONNELLE ABSOLUE, aucun nouveau chantier
-n'est démarré automatiquement — en attente du prochain GO explicite de
-l'utilisateur. Audit CRM de certification (2026-10-07) proposé,
-PROMO-PRICING-COVERAGE-01 en attente de GO (voir section CRM ci-dessous).
+Audit CRM de certification (2026-10-07) : les 3 chantiers du GO reçu ce
+jour-là sont tous **MERGÉS** — `PROMO-PRICING-COVERAGE-01` + suppression
+`margin-calculator.ts` (PR #156), `REVENUE-CONSOLIDATE-01` (PR #157),
+`NICHE-UI-01` (PR #158). Conformément à la RÈGLE OPÉRATIONNELLE ABSOLUE,
+aucun nouveau chantier n'est démarré automatiquement — en attente du
+prochain GO explicite de l'utilisateur.
 
 ### PR-BATCH-04 — WHITE-LABEL-ADMIN-01, WHITE-LABEL-PRO-01, COMMISSION-WIRING-02, CARS-COMMISSION-01 — CLÔTURÉ (PR #126 + #155)
 
@@ -196,7 +198,7 @@ PR #157 mergée (squash) le 2026-10-07, merge commit `a0f91877`. CI finale :
 format/lint/typecheck/test/financial-e2e/build/playwright-a11y tous
 verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
 
-### NICHE-UI-01 — CLÔTURÉ (en attente de merge PR)
+### NICHE-UI-01 — CLÔTURÉ (PR #158, mergée)
 
 Décision produit explicite (2026-10-07, demandée avant tout travail
 technique, confirmée par l'utilisateur) : nouvelle page
@@ -235,10 +237,17 @@ serveur de dev. Pas de vérification visuelle authentifiée possible
 dans cet environnement (pas de session Supabase/Postgres local
 disponible) — à confirmer sur Preview Vercel avant merge si possible.
 
-**Preuve de clôture (hors vérification visuelle authentifiée)** :
-`pnpm typecheck` 0 erreur, `pnpm format:check` clean, `pnpm lint` 0
-erreur, `pnpm test` 1598/1598 PASS, `pnpm build` OK (route
-`/admin/analytics/niches` confirmée dans la sortie du build).
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1604/1604 PASS, `pnpm build` OK
+(route `/admin/analytics/niches` confirmée dans la sortie du build).
+PR #158 mergée (squash) le 2026-10-07, merge commit `7abc1acc`. CI
+finale : format/lint/typecheck/test/financial-e2e/build/playwright-a11y
+tous verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
+Vérification visuelle authentifiée (Preview Vercel) non effectuée dans
+cette session — comportement du gate d'accès confirmé identique à
+`/admin/analytics/margins` via `curl` local (voir ci-dessus), ce qui
+couvre le risque principal (accès non autorisé), mais le rendu visuel
+réel de la page (une fois connecté) reste `NOT VERIFIED` à ce stade.
 
 **Backlog candidate pour une V2 future (pas de GO, juste noté)** :
 action "lancer une campagne depuis ce segment" — explicitement exclue

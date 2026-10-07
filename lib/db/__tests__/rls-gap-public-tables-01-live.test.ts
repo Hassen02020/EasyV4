@@ -243,6 +243,7 @@ test("app_runtime : canonical_hotels / canonical_hotel_supplier_mappings restent
       supplier: "rls_gap_01_fixture",
       supplierHotelCode: randomUUID(),
       matchConfidence: "EXACT",
+      matchReasons: ["rls-gap-01 fixture"],
     })
   })
 

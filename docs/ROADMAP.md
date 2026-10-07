@@ -36,8 +36,52 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — CRM-LEAD-WIRING-01 CLÔTURÉ (2026-10-07), voir section dédiée
-ci-dessous. En attente de GO pour le prochain chantier.
+**Aucun** — PHONE-INTL-VOLS-HOTELS-MONDE-01 CLÔTURÉ (2026-10-07), voir
+section dédiée ci-dessous. COLOR-HARMONY-01-REVERT (PR #153) en cours de
+CI, pas encore mergé.
+
+### PHONE-INTL-VOLS-HOTELS-MONDE-01 — MERGÉ (PR #152, commit squash `c7d0859`, 2026-10-07)
+
+Observation produit directe (téléphone international pour vols/hôtels-monde)
+→ audit (lecture seule) : aucun des deux flux ne passe par la normalisation
+Tunisie-only de `lib/crm/contact-core.ts` (pas de risque de corruption),
+validation incohérente entre les deux flux, placeholder hôtels-monde
+trompeur pour un client étranger. Option B choisie (sélecteur pays+indicatif
+réutilisable, pas juste un correctif de placeholder/regex).
+
+`components/ui/phone-input.tsx` (nouveau) : Popover+Command du design
+system, noms de pays localisés via `Intl.DisplayNames`, valeur exposée en
+E.164. `lib/hotels-monde/schemas.ts`/`lib/vols/booking-request-action.ts` :
+validation via `isValidPhoneNumber` (libphonenumber-js) au lieu d'une regex
+maison. `lib/phone/metadata.ts` (nouveau) : point d'import unique des
+métadonnées.
+
+**Piège technique réel rencontré et documenté** : l'auto-chargement du
+package racine `libphonenumber-js` casse sous `node --import tsx --test`
+(interop CJS/ESM — "metadata argument was passed but it's not a valid
+metadata"). Le contournement initial (`with { type: "json" }`) cassait
+Turbopack dans l'autre sens (résout vers un wrapper `.js` non-JSON une fois
+l'assertion forcée). `/core` + import JSON **sans** assertion fonctionne
+dans les deux environnements — vérifié par build réel + test réel.
+
+Preuves : `lib/hotels-monde/__tests__/schemas.test.ts` (nouveau, 6 tests —
+FR/TN/IT acceptés, invalides rejetés) ; régression complète 1507 pass/0
+fail (+6 nouveaux) ; `pnpm build` ok. CI de la PR : tout vert (format/lint/
+typecheck/test/financial-e2e/build) sauf `lighthouse` (même NO_FCP connu,
+non lié à ce diff) — 1 flake confirmé sur `test` (production-load.test.ts,
+assertion de débit basée sur un timing runner CI, aucun rapport avec ce
+diff, vert au re-run).
+
+### COLOR-HARMONY-01-REVERT — EN COURS (PR #153, pas encore mergée)
+
+Demande utilisateur explicite (capture d'écran à l'appui) : le voile
+`--sidebar` renforcé introduit par COLOR-HARMONY-01 (commit `7f1bc06`,
+mergé précédemment) rendait l'arrière-plan de la page d'accueil trop
+sombre. Retour au voile d'origine sur `components/booking-engine.tsx`
+(2 lignes CSS) — correctif purement visuel, aucune logique métier/donnée
+touchée. CI : format/lint/typecheck/test/financial-e2e/build verts,
+`lighthouse` rouge (même NO_FCP connu, non lié à ce diff). À documenter
+comme MERGÉ une fois la PR effectivement fusionnée.
 
 ### AUDIT FINAL CRM — 17 composants (2026-10-07) + CRM-LEAD-WIRING-01 CLÔTURÉ
 

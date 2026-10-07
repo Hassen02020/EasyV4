@@ -35,13 +35,18 @@ test("R11-01 — requireSuperAdmin vérifie role === super_admin", () => {
   )
 })
 
+// MARKET-CONTENT-RLS-ROLE-GAP-01 : l'accès DB de ces 5 fonctions passe
+// désormais par withSystemContext() (pose le GUC app.is_super_admin
+// requis par la policy RLS *_admin_write), plus par getDb() nu — même
+// garde requireSuperAdmin() en amont, inchangée.
+
 test("R11-01 — createMarketSignal appelle requireSuperAdmin en premier", () => {
   const fnBlock = SRC.slice(
     SRC.indexOf("async function createMarketSignal"),
     SRC.indexOf("async function deleteMarketSignal"),
   )
   const authIdx = fnBlock.indexOf("requireSuperAdmin")
-  const dbIdx = fnBlock.indexOf("getDb()")
+  const dbIdx = fnBlock.indexOf("withSystemContext")
   assert.ok(authIdx !== -1, "createMarketSignal doit appeler requireSuperAdmin")
   assert.ok(authIdx < dbIdx, "requireSuperAdmin doit précéder l'accès DB")
 })
@@ -52,7 +57,7 @@ test("R11-01 — deleteMarketSignal appelle requireSuperAdmin en premier", () =>
     SRC.indexOf("async function createDevelopmentProject"),
   )
   const authIdx = fnBlock.indexOf("requireSuperAdmin")
-  const dbIdx = fnBlock.indexOf("getDb()")
+  const dbIdx = fnBlock.indexOf("withSystemContext")
   assert.ok(authIdx !== -1, "deleteMarketSignal doit appeler requireSuperAdmin")
   assert.ok(authIdx < dbIdx, "requireSuperAdmin doit précéder l'accès DB")
 })
@@ -63,7 +68,7 @@ test("R11-01 — createDevelopmentProject appelle requireSuperAdmin en premier",
     SRC.indexOf("async function updateDevelopmentProject"),
   )
   const authIdx = fnBlock.indexOf("requireSuperAdmin")
-  const dbIdx = fnBlock.indexOf("getDb()")
+  const dbIdx = fnBlock.indexOf("withSystemContext")
   assert.ok(
     authIdx !== -1,
     "createDevelopmentProject doit appeler requireSuperAdmin",
@@ -77,7 +82,7 @@ test("R11-01 — updateDevelopmentProject appelle requireSuperAdmin en premier",
     SRC.indexOf("async function deleteDevelopmentProject"),
   )
   const authIdx = fnBlock.indexOf("requireSuperAdmin")
-  const dbIdx = fnBlock.indexOf("getDb()")
+  const dbIdx = fnBlock.indexOf("withSystemContext")
   assert.ok(
     authIdx !== -1,
     "updateDevelopmentProject doit appeler requireSuperAdmin",
@@ -90,7 +95,7 @@ test("R11-01 — deleteDevelopmentProject appelle requireSuperAdmin en premier",
     SRC.indexOf("async function deleteDevelopmentProject"),
   )
   const authIdx = fnBlock.indexOf("requireSuperAdmin")
-  const dbIdx = fnBlock.indexOf("getDb()")
+  const dbIdx = fnBlock.indexOf("withSystemContext")
   assert.ok(
     authIdx !== -1,
     "deleteDevelopmentProject doit appeler requireSuperAdmin",

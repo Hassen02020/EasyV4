@@ -9,6 +9,7 @@ import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { OmraSearch } from "@/components/omra/omra-search"
 import { OmraPackageList } from "@/components/omra/omra-package-list"
 import { CatalogPagination } from "@/components/catalog-pagination"
@@ -201,6 +202,8 @@ export default async function OmraPage({
   const t = await getTranslations("Omra")
   const tCommon = await getTranslations("Common")
   const locale = await getLocale()
+
+  const visual = await getPublicModuleVisual("omraty")
 
   return (
     <div className="flex min-h-screen flex-col">

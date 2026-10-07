@@ -63,6 +63,8 @@ import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
@@ -155,6 +157,15 @@ export async function createGuestReservationFromDraft(input: {
    * pas de migration de représentation de données.
    */
   expectedTotalTnd?: number
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact RÉEL du voyageur (`traveler.email`/`phone`),
+   * jamais déduite de ce champ seul — un `campaignId` fabriqué ne
+   * donne jamais de remise.
+   */
+  campaignId?: string
 }): Promise<CreateGuestReservationResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -202,6 +213,7 @@ export async function createGuestReservationFromDraft(input: {
       input.idempotencyKey,
       linkedAuthUserId,
       input.expectedTotalTnd,
+      input.campaignId,
     ),
   )
 }
@@ -253,6 +265,7 @@ async function runCreateGuestReservation(
   idempotencyKey: string,
   linkedAuthUserId: string | null,
   expectedTotalTnd: number | undefined,
+  campaignId: string | undefined,
 ): Promise<CreateGuestReservationResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -360,24 +373,33 @@ async function runCreateGuestReservation(
   // le prix net fournisseur brut.
   const hotelMarginRule = (await getMarginsForAgency(agencyId, "", "direct"))
     .hotel
-  const agencyPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
-  const breakdown = computePriceBreakdown({
-    ...authoritativeUnitPrice(agencyPrice, draft.adults),
+  const agencyPriceBeforePromo = applyMargin(
+    myGoBooking.totalPrice,
+    hotelMarginRule,
+  )
+  const breakdownBeforePromo = computePriceBreakdown({
+    ...authoritativeUnitPrice(agencyPriceBeforePromo, draft.adults),
     adults: draft.adults,
     children: draft.children,
   })
 
   // --- Garde anti-drift de prix (CART-DRIFT-01) ---
+  // Comparée au prix AVANT remise PROMO : `expectedTotalTnd` vient du
+  // panier/draft client (lib/cart/cart-store.ts), qui n'a connaissance
+  // d'aucune promo — seulement du prix catalogue affiché au moment de
+  // l'ajout au panier. Comparer contre un total déjà remisé déclencherait
+  // un faux PRICE_CHANGED pour tout client réellement éligible à PROMO
+  // (bug identifié et corrigé le jour même de l'intégration initiale).
   // Le total ci-dessus vient d'être recalculé à partir du VRAI prix myGo +
   // marge (jamais du panier/draft client) — c'est déjà, et reste, le seul
-  // montant qui sera chargé. Mais si le client a accepté un montant affiché
+  // montant de référence. Mais si le client a accepté un montant affiché
   // AVANT (ex. snapshot panier pris à l'ajout, potentiellement vieux de
   // plusieurs jours — voir lib/cart/cart-store.ts, aucun TTL) et que le prix
   // a réellement bougé depuis (repricing fournisseur), le facturer quand
   // même sans le dire au client serait le rendre lésé silencieusement.
   // On rejette plutôt que de continuer, compensation myGo/verrou identique
   // aux autres rejets ci-dessus.
-  if (priceDrifted(expectedTotalTnd, breakdown.totalTnd)) {
+  if (priceDrifted(expectedTotalTnd, breakdownBeforePromo.totalTnd)) {
     try {
       await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
         bookingId: myGoBooking.bookingId,
@@ -389,11 +411,49 @@ async function runCreateGuestReservation(
     await releaseInventoryLock()
     return {
       ok: false,
-      error: `Le prix de cette offre a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${breakdown.totalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
+      error: `Le prix de cette offre a changé depuis son ajout au panier (${expectedTotalTnd?.toFixed(3)} DT → ${breakdownBeforePromo.totalTnd.toFixed(3)} DT). Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
       code: "PRICE_CHANGED",
-      currentTotalTnd: breakdown.totalTnd,
+      currentTotalTnd: breakdownBeforePromo.totalTnd,
     }
   }
+
+  // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
+  // Appliquée ICI, APRÈS la garde CART-DRIFT-01 (qui valide contre le
+  // prix catalogue que le client a réellement vu) mais AVANT tout le
+  // reste (paiement, recordReservationFinancials plus bas) — c'est la
+  // variable `agencyPrice`/`breakdown` ci-dessous qui porte le prix
+  // réellement facturé. `campaignId` est un INDICE transporté par le
+  // client, jamais une autorisation : `resolveCheckoutPromoCore`
+  // re-dérive l'éligibilité réelle depuis le contact réel du voyageur.
+  let agencyPrice = agencyPriceBeforePromo
+  if (campaignId) {
+    const checkoutPromo = await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: true },
+      (tx) =>
+        resolveCheckoutPromoCore(tx, {
+          agencyId,
+          campaignId,
+          email: traveler.email,
+          phone: traveler.phone,
+        }),
+    )
+    if (checkoutPromo.eligible) {
+      agencyPrice = applyPromoDiscountCore(
+        agencyPriceBeforePromo,
+        checkoutPromo.discount,
+        { supplierPriceTnd: myGoBooking.totalPrice },
+      ).finalPriceTnd
+    }
+  }
+
+  const breakdown =
+    agencyPrice === agencyPriceBeforePromo
+      ? breakdownBeforePromo
+      : computePriceBreakdown({
+          ...authoritativeUnitPrice(agencyPrice, draft.adults),
+          adults: draft.adults,
+          children: draft.children,
+        })
 
   const hotelStartDate = new Date(draft.startDate)
   const hotelEndDate = draft.endDate ? new Date(draft.endDate) : hotelStartDate

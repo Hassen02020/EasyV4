@@ -36,437 +36,738 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
-**Aucun** — IDENTITY-J6-01 CLÔTURÉ (2026-10-04).
-**Aucun** — SETTLE-01 CLÔTURÉ (2026-10-04, commit `3856490`).
-**Aucun** — IDEMPOTENCE-01 CLÔTURÉ (2026-10-04, commit `8881408`).
-**Aucun** — SETTLE-02 CLÔTURÉ (2026-10-04, commit `e7e5919`).
-**Aucun** — SETTLE-02b CLÔTURÉ (2026-10-04, commit `0de624e`).
-**Aucun** — WALLET-GAP-1/2/3 CLÔTURÉ (2026-10-04, commit `7f3d11f`).
-**Aucun** — PARTNER-GAP-1 CLÔTURÉ (2026-10-04, commit `41b1293`).
+**Aucun.** PHONE-INTL-VOLS-HOTELS-MONDE-01 a causé un **incident
+production RÉSOLU** (voir ci-dessous) — chantier à reprendre uniquement
+sur GO explicite, avec vérification runtime Vercel réelle avant tout
+nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) **MERGÉE** (voir
+ci-dessous). Conformément à la RÈGLE OPÉRATIONNELLE ABSOLUE, aucun
+nouveau chantier n'est démarré automatiquement — en attente du prochain
+GO explicite de l'utilisateur.
+
+### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
+
+**PR #152 mergée (commit `c7d0859`) → page d'accueil de production
+(`easy2book-new.vercel.app/fr`) en erreur** ("Une erreur inattendue s'est
+produite", `app/error.tsx` déclenché). Confirmé en direct par l'utilisateur
+(capture d'écran + console navigateur : "Error: An error occurred in the
+Server Components render").
+
+**Cause probable identifiée, NON CONFIRMÉE par logs runtime** (accès
+Vercel MCP resté en 403 pendant tout l'incident, scope de connecteur
+insuffisant — nécessite une nouvelle session pour prendre effet) :
+`lib/phone/metadata.ts` importait `libphonenumber-js/metadata.min.json`
+sans assertion `type: "json"`. Vérifié fonctionnel en build local
+(Turbopack) et en test (`node --import tsx --test`) **avant merge** —
+mais jamais vérifié sur le runtime Node.js serverless réel de Vercel en
+production, qui peut appliquer l'enforcement ESM des import JSON
+différemment du build local. Si ce module était inclus dans un chunk
+serveur partagé évalué pour toutes les routes, une erreur d'évaluation
+aurait cassé le site entier — cohérent avec l'observation (page d'accueil
+touchée alors que le diff ne touchait que les formulaires vols/hôtels-monde).
+
+**Action corrective** : `git revert c7d0859` sur une branche dédiée
+(`phone-intl-revert-emergency-01`, typecheck+build validés localement),
+PR #154 ouverte et **mergée sans attendre la CI** (urgence production,
+revert propre sans conflit, déjà validé localement) — commit `aa60a05`.
+**Production restaurée, confirmé par l'utilisateur.**
+
+**Leçon retenue pour toute reprise future** : un build local + des tests
+locaux verts ne prouvent PAS le comportement sur le runtime serverless
+réel de la plateforme de déploiement — en particulier pour tout import
+JSON/ESM non trivial dans une bibliothèque tierce. Avant tout merge
+futur touchant ce type de pattern, vérifier sur un déploiement Preview
+réel (pas seulement `pnpm build` local) avant de merger sur `main`.
+
+**Chantier PHONE-INTL-VOLS-HOTELS-MONDE-01** : retiré de l'état "clôturé",
+revient en **backlog candidate** — nécessite une nouvelle tentative sur
+branche séparée, avec vérification Preview réelle avant merge, sur GO
+explicite séparé.
+
+### COLOR-HARMONY-01-REVERT — CLÔTURÉ (PR #153, mergée)
+
+Demande utilisateur explicite (capture d'écran à l'appui) : le voile
+`--sidebar` renforcé introduit par COLOR-HARMONY-01 (commit `7f1bc06`,
+mergé précédemment) rendait l'arrière-plan de la page d'accueil trop
+sombre. Retour au voile d'origine sur `components/booking-engine.tsx`
+(2 lignes CSS, commit `d5a993f`) — correctif purement visuel, aucune
+logique métier/donnée touchée, seul fichier modifié.
+
+**Preuve de clôture** : PR #153 mergée (`merge_pull_request`, squash) le
+2026-10-07 20:06:19 UTC, merge commit `0c8d42b` sur `main`. CI finale :
+`format`/`lint`/`typecheck`/`test`/`financial-e2e`/`build`/
+`Vercel Preview Comments` verts ; `playwright-a11y` vert à l'issue ;
+`lighthouse` rouge (NO_FCP connu, pré-existant, non lié à ce diff,
+commentaire de standing-down posté sur la PR). Mergée directement par
+l'utilisateur (`Hassen02020`) via GitHub.
+
+### AUDIT FINAL CRM — 17 composants (2026-10-07) + CRM-LEAD-WIRING-01 CLÔTURÉ
+
+Audit lecture seule (4 sous-agents en parallèle, périmètre Master Prompt CRM)
+sur LEAD/CONTACT/CONSENT/PROVENANCE/NORMALIZATION/NICHE/VIP/CAMPAIGN/
+ATTRIBUTION/PROMO/BOOKING/REVENUE/MARGIN/CUSTOMER 360/LOYALTY/WHATSAPP/
+META LEAD ADS/BEHAVIORAL SIGNAL, chacun noté EXISTS?/OWNER?/REAL?/
+CONNECTED?/TESTED?/PROTECTED?.
+
+**Classification finale :**
+
+| Composant         | Classification | Point clé                                                                                                                                                                                                          |
+| ----------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| LEAD              | REUSE          | noyau solide, gap de câblage vers CONTACT/PROVENANCE (corrigé, voir ci-dessous)                                                                                                                                    |
+| CONTACT           | EXTEND→DONE    | câblé au canal principal par CRM-LEAD-WIRING-01                                                                                                                                                                    |
+| CONSENT           | CONSOLIDATE    | jamais déclenché à la capture ; normalisation dupliquée (pas de téléphone côté consent-core)                                                                                                                       |
+| PROVENANCE        | EXTEND→DONE    | câblé au canal principal par CRM-LEAD-WIRING-01                                                                                                                                                                    |
+| NORMALIZATION     | CONSOLIDATE    | 2 implémentations indépendantes (contact-core vs consent-core)                                                                                                                                                     |
+| NICHE             | DONE           | solide ; lien "NICHE→PROMO" de cette même ROADMAP = terminologique, pas un câblage de code réel (aucune dépendance croisée trouvée)                                                                                |
+| VIP               | DONE (isolé)   | calculateur à la demande, jamais branché à CAMPAIGN (par design, pas un gap)                                                                                                                                       |
+| CAMPAIGN          | FIX            | RLS ENABLE sans FORCE (`campaigns`, `campaign_targets`)                                                                                                                                                            |
+| ATTRIBUTION       | FIX            | même gap RLS FORCE (`campaign_attributions`)                                                                                                                                                                       |
+| PROMO             | EXTEND + FIX   | pricing câblé 4/7 modules (hôtel/transfert/omra/package faits — flight/activity/network pas câblés, cohérent avec le scope déjà documenté) ; même gap RLS FORCE (`promos`)                                         |
+| BOOKING           | DONE           | owner unique confirmé (`recordReservationFinancials`), `financial-e2e` vert                                                                                                                                        |
+| REVENUE           | CONSOLIDATE    | dispersé entre `lib/reporting/margin-analytics-core.ts` et `lib/admin/accounting-data.ts`, zéro test dédié                                                                                                         |
+| MARGIN            | CONSOLIDATE    | owner réel clair (`lib/pro/pricing.ts`/`margins-core.ts`) mais fichier mort dupliquant la formule (`lib/finance/margin-calculator.ts`, aucun appelant réel)                                                        |
+| CUSTOMER 360      | DONE           | réserve mineure : scoping tenant de l'appelant de `getCustomer360Core` non vérifié dans cet audit                                                                                                                  |
+| LOYALTY           | DONE           | complet, testé, RLS forcée                                                                                                                                                                                         |
+| WHATSAPP          | DONE           | complet, testé, RLS forcée                                                                                                                                                                                         |
+| META LEAD ADS     | EXTEND         | webhook+capture de lead structurée faits (au-delà du simple webhook, contrairement à ce que laissait penser le libellé précédent de cette ROADMAP) ; reporting/audience/consentement formalisé toujours hors scope |
+| BEHAVIORAL SIGNAL | DONE           | strictement dans le périmètre pilote hôtel (PR #146)                                                                                                                                                               |
+
+**Gap bloquant retenu pour exécution immédiate** : le canal d'acquisition
+principal — le formulaire du site (`app/actions/submit-lead.ts` →
+`createLeadCore`) — ne créait **ni CONTACT, ni PROVENANCE, ni CONSENT**.
+Seul le canal Meta Lead Ads était câblé sur toute la chaîne ; la majorité
+des leads réels (trafic organique) étaient invisibles à CUSTOMER 360/
+CAMPAIGN au-delà de la table `leads` brute.
+
+**CRM-LEAD-WIRING-01 — MERGÉ (PR #147, commit squash `70560129`,
+2026-10-07).** Extraction dans `lib/crm/website-lead-capture-core.ts::
+captureWebsiteLeadCore` (même patron que `lib/meta-leadads/
+lead-capture-core.ts`), appelée dans la même transaction que
+`createLeadCore` : `createLeadCore → recordLeadOriginEventCore
+(role="channel", source="website_form") → resolveOrCreateContactCore`.
+`website_form` ajouté à `LEAD_ORIGIN_SOURCE_TRUST`, même rang que les
+webhooks WhatsApp/Meta. Aucun consentement fabriqué (le formulaire
+n'affiche aucune case de consentement UI — vérifié, pas supposé) : ce
+lead reste exclu de toute campagne par `filterAudienceByConsentCore`,
+comportement déjà correct. Aucun changement DB. Preuves : 4/4 tests live
+(`lib/crm/__tests__/website-lead-capture-core-live.test.ts`), régression
+1501 pass/0 fail (+4 nouveaux skip-only sans DB), `pnpm build` ok. CI de
+la PR : tout vert (lint/test/financial-e2e/playwright-a11y/build/
+typecheck) sauf `format`/`lighthouse` — confirmés non liés à ce diff
+(voir `CI-FORMAT-CLEANUP-01` ci-dessous pour `format` ; `lighthouse`
+reste le NO_FCP non résolu documenté sous CI-FIX-02).
+
+**CI-FORMAT-CLEANUP-01 — MERGÉ (PR #148, commit squash `9bcde6e`,
+2026-10-07).** Formatage pur (`prettier --write`) des 5 fichiers en échec
+`format` depuis plusieurs chantiers (`app/(internal)/admin/site/page.tsx`,
+`components/footer-client.tsx`, `docs/ROADMAP.md`,
+`lib/admin/public-site-actions.ts`, `lib/db/schema/public-site.ts`) —
+zéro changement sémantique (diffs relus), zéro fichier hors scope. Job
+`format` vert sur `main` depuis ce merge. Délégué à un agent ; une PR
+identique créée en parallèle (collision de branche détectée et
+documentée par l'agent, contenu octet pour octet identique) — utilisée
+comme véhicule plutôt que dupliquée.
+
+**RLS-FORCE-CRM-TABLES-01 — MERGÉ (PR #150, commit squash `19b125b`,
+2026-10-07).** Migration `drizzle/manual/0123_rls_force_crm_tables_01.sql`
+— `ALTER TABLE ... FORCE ROW LEVEL SECURITY` sur `contacts`,
+`lead_origin_events`, `campaigns`, `campaign_targets`,
+`campaign_attributions`, `promos`. Vérifié avant migration : `app_runtime`
+n'est pas owner de ces tables (GRANT explicite requis) — `FORCE` n'a donc
+aucun effet sur le trafic applicatif normal, c'est une protection en
+profondeur contre un accès direct par le rôle owner, pas la correction
+d'un trou actif. **Migration appliquée et vérifiée en production**
+(Supabase `crygnaichvlxavvbifqi`) : `relforcerowsecurity=true` confirmé
+par requête directe sur les 6 tables, avant et après (avant : `false`
+partout, confirmé). Preuves : 28/28 tests live existants
+(contact-core/campaign-core/campaign-attribution-core/promo-core/
+network-demand-capture-core/website-lead-capture-core) verts après
+application locale, zéro régression côté `app_runtime` ; régression
+complète 1501 pass/0 fail ; `pnpm build` ok. CI de la PR : tout vert
+(lint/typecheck/test/financial-e2e/build/playwright-a11y/**format**)
+sauf `lighthouse` (même NO_FCP connu, non lié à ce diff).
+
+**Backlog restant identifié par l'AUDIT FINAL CRM, non exécuté**
+(prochains chantiers potentiels, à proposer un par un sur GO explicite) :
+duplication de normalisation contact-core/consent-core (téléphone non
+géré côté consent) ; fichier mort `lib/finance/margin-calculator.ts` ;
+REVENUE dispersé sans owner ni test dédié ; câblage PROMO→pricing
+incomplet (3/7 modules restants : flight/activity/network) ; `lighthouse`
+NO_FCP toujours non résolu (CI-FIX-02/CI-FIX-03 potentiel).
 
 ---
 
-### PARTNER-GAP-1 — CLÔTURÉ (2026-10-04, commit `41b1293`)
+### CANONICAL UPDATE / BACKLOG GOVERNANCE — protocole adopté (2026-10-07)
 
-**Objectif** : fermer le GAP ÉTAT identifié lors de l'audit ownership PARTNER —
-`agencies.status` varchar sans contrainte DB.
+L'utilisateur a posé un protocole explicite de traitement des documents
+canoniques (CLARIFICATION CANONIQUE CRM/SIGNAUX/MARCHÉS, puis
+CANONICAL UPDATE + BACKLOG GOVERNANCE) : classification obligatoire
+(CONFIRMED/ALREADY CERTIFIED/NEW RULE/NEW GAP/OUT OF SCOPE/CONTRADICTION),
+séparation stricte Architecture (canonical) ≠ État réel
+(IMPLEMENTED/PARTIAL/**UNKNOWN**/NOT IMPLEMENTED) ≠ Action (NO ACTION/
+AUDIT CANDIDATE/BACKLOG OFFICIAL/AUTHORIZED CHANTIER), `UNKNOWN ≠ GAP
+CONFIRMED` (il faut un audit prouvé avant de déclarer un gap confirmé),
+`BACKLOG CANDIDATE ≠ BACKLOG OFFICIAL` (aucune promotion automatique,
+décision utilisateur explicite requise), et interdiction d'enchaîner
+automatiquement le prochain audit même sur une piste évidente — toujours
+repasser par une décision utilisateur. Protocole appliqué à partir de ce
+point de la session, y compris rétroactivement sur l'audit NETWORK/SUPPLIER
+ci-dessous (lancé sur un "go" générique, signalé comme possible écart de
+process, clarifié avec l'utilisateur avant de continuer).
 
-**Problème** : le statut de l'agence (partenaire comme OTA) était une convention
-de code. La validation `identity.status !== "active"` dans `lib/auth/partner-profile.ts`
-était le seul garde. N'importe quelle string pouvait être insérée sans erreur DB.
+**Capacity Matching Engine (DEMANDE CRM ↔ CAPACITÉ réseau)** — promu en
+**candidate backlog officiel** : architecture=CANONICAL (SUPPLIER/NETWORK
+possède la capacité), implémentation=**NOT IMPLEMENTED** (prouvé par audit,
+pas supposé — voir ci-dessous), scope actuel=**hors exécution**, nécessitera
+sa propre fiche d'audit de conception avant tout code, sur GO séparé futur.
 
-**Corrections** :
-- `lib/db/schema.ts` : `check("agencies_status_check", sql\`status in ('active','suspended')\`)`
-- `drizzle/manual/0108_agencies_status_check.sql` : migration idempotente DO-block
-- Production `crygnaichvlxavvbifqi` : contrainte `agencies_status_check` (type c) ✅
-- Données avant migration : 4 agences × status='active' — aucune valeur hors-domaine
+### RLS-FORCE-SUPPLIER-TABLES-01 — MERGÉ (PR #151, commit squash `804b14a`, 2026-10-07)
 
-**Tests** : 82/82 pass (+2 nouveaux PARTNER-GAP-1 dans `commission-wiring-invariants.test.ts`)
+Déclenché par l'audit NETWORK/SUPPLIER capacity matching (lecture seule,
+agent dédié) : aucun "Capacity Matching Engine" n'existe dans ce dépôt —
+`suppliers`/`supplier_nodes`/`products.stock` existent mais ne modélisent
+ni disponibilité par date, ni destination couverte, ni conditions/expertise ;
+`network-demand-capture-core.ts` (malgré son nom) ne fait que de la
+provenance de lead, aucun croisement CRM↔capacité réseau trouvé (0
+occurrence). Deux mondes cloisonnés, confirmé par citations fichier:ligne.
 
----
+Sous-gap distinct trouvé et corrigé : `products`, `supplier_nodes`,
+`supplier_portal_users` avaient `ENABLE ROW LEVEL SECURITY` sans `FORCE`
+(contrairement à `suppliers` lui-même). **Correction en cours de route** :
+vérification directe en production (`pg_class.relforcerowsecurity`) a
+montré que `products` avait en réalité déjà `FORCE` (le rapport d'audit
+initial de l'agent le citait à tort) — scope réduit à 2 tables réelles :
+`supplier_nodes`, `supplier_portal_users`.
 
-### WALLET-GAP-1/2/3 — CLÔTURÉ (2026-10-04, commit `7f3d11f`)
+Migration `drizzle/manual/0124_rls_force_supplier_tables_01.sql`. Vérifié
+avant migration : `app_runtime` n'est pas owner de ces tables (owner =
+`postgres`, confirmé via `pg_tables`) — `FORCE` n'a aucun effet sur le
+trafic applicatif normal, protection en profondeur, pas la correction
+d'un trou actif. **Migration appliquée et vérifiée en production**
+(Supabase `crygnaichvlxavvbifqi`) : `relforcerowsecurity=true` confirmé
+sur les 2 tables, avant (`false`) et après. Preuves : 21/21 tests
+existants verts (`product-booking-actions-invariants.test.ts`,
+`portal-actions-invariants.test.ts`) ; régression complète 1501 pass/0
+fail ; `pnpm build` ok. CI de la PR : tout vert (format/lint/typecheck/
+test/financial-e2e/build/playwright-a11y) sauf `lighthouse` (même NO_FCP
+connu, non lié à ce diff).
 
-**Objectif** : fermer les 3 GAPs structurels identifiés lors de l'audit ownership
-WALLET (2026-10-04) — propriété, intégrité et idempotence du ledger B2C.
+### PUBLIC-VISUAL-RLS-ROLE-GAP-01 + BOOKING-ENGINE-MODULES-NOT-WIRED-01 + DESTINATIONS-SSG-POOL-EXHAUSTION-01 — CLÔTURÉS
 
-**GAP-1 — FK wallet_ledger.wallet_account_id → wallet_accounts(id)** :
-- `lib/db/schema/financials.ts` : `.references(() => walletAccounts.id, { onDelete: "restrict" })`
-- `drizzle/manual/0106_wallet_ledger_fk_account.sql` : migration idempotente DO-block
-- Production `crygnaichvlxavvbifqi` : contrainte `wallet_ledger_wallet_account_id_fk` (type f) ✅
+Trouvés en exécutant le Scénario A (Smoke, Home→Search) sur l'infra E2E
+locale reconstruite : la page d'accueil réelle (tous locales, tout
+utilisateur, depuis le 2026-10-02) n'affichait **aucun onglet de
+navigation entre modules**, aucune image hero dynamique, aucun carrousel
+de promotions — dégradée silencieusement vers un seul module par défaut
+codé en dur.
 
-**GAP-2 — CHECK wallet_ledger.category IN 6-value set** :
-- `lib/db/schema/financials.ts` : `check("wallet_ledger_category_check", ...)`
-- `drizzle/manual/0107_wallet_ledger_category_check.sql` : migration idempotente DO-block
-- Production `crygnaichvlxavvbifqi` : contrainte `wallet_ledger_category_check` (type c) ✅
-- Valeurs autorisées : `booking`, `recharge`, `refund`, `commission`, `fee`, `adjustment`, NULL
+**3 causes réelles, empilées, chacune trouvée et corrigée séparément :**
 
-**GAP-3 — idempotencyKey dans creditCustomerWallet (triple-layer)** :
-- `lib/finance/customer-wallet.ts` : `CreditCustomerWalletInput` + `idempotencyKey?: string`
-- L1 Redis `e2b:idem:customer-wallet-credit:{key}` TTL 24h
-- L2 DB pre-check SELECT WHERE `idempotencyKey`
-- L3 SAVEPOINT `idem_credit_insert` + ROLLBACK TO SAVEPOINT sur violation UNIQUE
+1. **PUBLIC-VISUAL-RLS-ROLE-GAP-01** — les policies RLS de
+   `public_module_visuals`/`public_site_settings`/`public_promotions`
+   (migration `0097_public_visual_content.sql`, 2026-10-02) étaient
+   scopées `TO authenticated`, un rôle Supabase/PostgREST dont
+   `app_runtime` (le rôle Postgres réel de `DATABASE_URL`) n'est jamais
+   membre — 0 ligne retournée silencieusement à chaque lecture/écriture,
+   `FORCE ROW LEVEL SECURITY` + aucune policy applicable = déni par
+   défaut, sans jamais lever d'exception. **Découverte additionnelle** :
+   la migration `0097` elle-même n'avait **jamais été appliquée en
+   production** (confirmée absente de `list_migrations` sur le projet
+   Supabase `crygnaichvlxavvbifqi`) — corrigée en une seule migration
+   combinée (création + RLS correcte dès le départ + seed), jamais l'état
+   cassé intermédiaire. Grants `app_runtime` déjà corrects (vérifiés),
+   aucun gap `DEFAULT-PRIVILEGES-GAP-01` sur ces 3 tables.
+2. **BOOKING-ENGINE-MODULES-NOT-WIRED-01** — `app/(public)/[locale]/page.tsx`
+   n'a jamais appelé `getPublicModuleVisuals()`/`getPublicSiteConfig()` ;
+   `<BookingEngine />` recevait toujours `modules=[]` par défaut, quel
+   que soit l'état de la DB/RLS. `getPublicModuleVisuals()` n'était
+   appelée que par l'éditeur admin (`/admin/site`), jamais par la page
+   publique — un chantier backend+composant terminé, la dernière étape
+   (relier la page au composant) jamais faite.
+3. **DESTINATIONS-SSG-POOL-EXHAUSTION-01** — trouvée en déployant le
+   correctif ci-dessus : 4 builds Vercel sur 4 ont échoué
+   (`BUILD_UTILS_SPAWN_1`), alors que le même commit construisait sans
+   erreur en local (×2) et sur GitHub Actions (×2, `build` +
+   `playwright-a11y`). Root cause confirmée via le log de build Vercel
+   réel (collé par l'utilisateur, pas supposée) : `next build` tente de
+   pré-générer les ~192 fiches `/destinations/[slug]` au build, chacune
+   ouvrant une connexion au pooler Supabase (session mode, plafond 15
+   clients) — épuisé en cours de route, crash sur une fiche différente à
+   chaque run (`maroc`, puis `pays-bas` — preuve que la cause est
+   générique au volume cumulé de connexions séquentielles, pas une
+   destination précise). `lib/db/client.ts::getDb()` reste un singleton
+   correct (`max: 10` côté app, jamais modifié) — c'est le plafond du
+   pooler externe qui casse. Aucun rapport avec les 2 bugs ci-dessus ;
+   découvert uniquement parce qu'il bloquait leur déploiement. **Correctif
+   volontairement sans toucher au pooling** (augmenter un pool aurait
+   seulement déplacé le seuil de rupture) : `generateStaticParams()`
+   renvoie toujours `[]` — zéro connexion DB au build pour cette route,
+   `dynamicParams` reste à `true` (défaut Next.js), chaque fiche se rend
+   à la demande au premier accès — exactement le même comportement que
+   le fallback "DB injoignable pendant le build" déjà écrit et déjà
+   documenté comme sûr dans ce fichier, juste rendu systématique.
 
-**Tests** : 80/80 pass (+9 nouveaux WALLET-GAP-1/2/3 dans `commission-wiring-invariants.test.ts`)
+**Preuves** : `pnpm typecheck`/`pnpm test` (1486 pass/0 fail)/`pnpm
+lint`/`prettier --check`/`pnpm build` verts avant chaque merge ;
+2 fast-forwards propres sur `main` (`c589dda..5435c45..c6db257`) ;
+test de régression live DB pour le gap RLS
+(`lib/public/__tests__/public-visual-rls-role-gap-live.test.ts`, prouvé
+dans les deux sens — échoue sur l'ancienne policy, passe sur la
+nouvelle) ; déploiement Vercel final `dpl_4N7i4KzcC3TtTFcezp6HDArX3g4s`,
+`state=READY`, `target=production`, `githubCommitSha=c6db257...`, aliasé
+`easy2book-new.vercel.app` ; **confirmation visuelle en production réelle**
+(capture d'écran navigateur utilisateur, 2026-10-06) : les 8 onglets de
+modules (Hôtels Tunisie/Monde, Omraty, Voyages Organisés, Attractions,
+Vols, Transferts, Car) et l'image hero dynamique s'affichent correctement
+sur `https://easy2book-new.vercel.app/fr`.
 
----
+**NOT VERIFIED** : le carrousel de promotions (Istanbul/Djerba) n'a été
+confirmé visuellement qu'en local (navigateur réel, infra E2E
+reconstruite) — pas encore reconfirmé sur la capture de production
+elle-même (hors du cadre visible de la capture reçue).
 
-### SETTLE-02b — CLÔTURÉ (2026-10-04, commit `0de624e`)
+**Gap séparé trouvé, non traité ici** (`get_advisors` Supabase, lecture
+seule) : 3 tables pré-existantes sans rapport avec ce chantier ont RLS
+entièrement désactivée en production — `development_project_waitlist`,
+`canonical_hotel_supplier_mappings`, `canonical_hotels`. À auditer
+séparément, sur GO dédié.
 
-**Objectif** : fermer le GAP-2 de preuve ownership SETTLEMENT — convertir
-`economic_entitlements.settlement_ref` de `text` sans FK en `uuid` avec FK
-vers `commission_settlements(id)`.
-
-**Problème** : le lien entre un droit économique réglé et son settlement était
-une convention de code, pas une contrainte DB. La preuve cross-domaine
-(ECON ↔ SETTLEMENT) n'était pas DB-enforced.
-
-**Corrections** :
-- `lib/db/schema.ts` : `settlementRef` `text` → `uuid().references(commissionSettlements.id,
-  { onDelete: "set null" })` + import `commissionSettlements` ajouté ligne 25
-  (résolution forward-reference).
-- `drizzle/manual/0105_econ_entitlements_settlement_fk.sql` :
-  - `ALTER COLUMN settlement_ref TYPE uuid USING settlement_ref::uuid`
-  - `ADD CONSTRAINT FK ON DELETE SET NULL`
-  - `CREATE OR REPLACE FUNCTION mark_econ_commission_settled()` sans `::text` cast
-    (settlement_ref étant désormais uuid nativement).
-- 3 invariants statiques SETTLE-02b dans `commission-wiring-invariants.test.ts`.
-
-**À appliquer en production** :
-`psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0105_econ_entitlements_settlement_fk.sql`
-
-**Score tests** : 73/73 wiring invariants · 1446 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
-
-**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
-
----
-
-### SETTLE-02 — CLÔTURÉ (2026-10-04, commit `e7e5919`)
-
-**Objectif** : fermer le GAP-1 de preuve ownership SETTLEMENT — FK DB entre
-`commission_settlement_entries.settlementId` et `commission_settlements.id`.
-
-**Problème** : `settlementId` était NOT NULL mais sans `.references()` — une entrée
-pouvait pointer vers un settlement fantôme (ghost settlement silencieux). La preuve
-de la chaîne `wallet_ledger → entry → settlement` tenait applicativement mais pas
-au niveau DB.
-
-**Corrections** :
-- `lib/db/schema/financials.ts` : `.references(() => commissionSettlements.id,
-  { onDelete: "restrict" })` ajouté sur `settlementId`.
-- `drizzle/manual/0104_settle_fk_integrity.sql` : `ALTER TABLE ADD CONSTRAINT FK`
-  `ON DELETE RESTRICT` — idempotent (IF NOT EXISTS).
-- 2 invariants statiques SETTLE-02 dans `commission-wiring-invariants.test.ts`.
-
-**NOT VERIFIED** : GAP-2 (`economic_entitlements.settlementRef` est `text` sans FK)
-reste en place — hors périmètre de ce chantier (migration DDL sur table avec REVOKE
-est un chantier séparé, si jugé prioritaire).
-
-**À appliquer en production** :
-`psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0104_settle_fk_integrity.sql`
-
-**Score tests** : 1443 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
-
-**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
-
----
-
-### IDEMPOTENCE-01 — CLÔTURÉ (2026-10-04, commit `8881408`)
-
-**Objectif** : certifier que la même commission ne peut pas être réglée deux fois,
-même si `settleCommissions()` est déclenché plusieurs fois ou sur des périodes
-chevauchantes — indépendamment du chemin d'appel.
-
-**Audit** : SETTLE-01 matérialisait le settlement dans `economic_entitlements`, mais
-ne prouvait pas les 3 couches d'idempotence. Audit IDEMPOTENCE-01 a identifié :
-- Couche 1 (UNIQUE `period_start, period_end`) — déjà en place (migration 0066)
-- Couche 2 (UNIQUE `walletLedgerId` dans `commission_settlement_entries`) — présente
-  mais non testée : INSERT direct dupliqué → 23505 non couvert
-- Couche 3 (`notSettledFilter(tx)`) — appliqué aux 2 sites de requête dans
-  `settleCommissions()` (agrégat COUNT + SELECT entrées), mais invariant statique absent
-
-**Corrections** :
-- Invariant statique : `notSettledFilter(tx)` présent ≥ 2 fois dans
-  `commission-settlement.ts` (test `commission-wiring-invariants.test.ts`)
-- Test 5b (intégration) : période chevauchante sur une entrée déjà settlée →
-  `entryCount=0`, `totalAmount=0` (prouve la couche 3)
-- Test 5c (intégration) : INSERT direct `commissionSettlementEntries` avec
-  `walletLedgerId` déjà présent → UNIQUE violation `23505` (prouve la couche 2)
-
-**Score tests** : 1441 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
-
-**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
-
----
-
-### SETTLE-01 — CLÔTURÉ (2026-10-04, commit `3856490`)
-
-**Objectif** : matérialiser le settlement commission dans `economic_entitlements`
-(colonnes `settlement_status` / `settlement_ref`), qui existaient en schéma mais
-n'étaient jamais écrites par aucun code de production.
-
-**Contrainte** : migration 0092 (ECON-ENTITLEMENTS-INTEGRITY-01) a révoqué
-`UPDATE/DELETE/TRUNCATE` sur `economic_entitlements` à tous les rôles applicatifs
-(`app_runtime`, `anon`, `authenticated`, `service_role`). Toute mutation requiert
-une fonction `SECURITY DEFINER`.
-
-**Corrections** :
-- `drizzle/manual/0093_settle_econ_commission.sql` — fonction SECURITY DEFINER
-  `mark_econ_commission_settled(p_reservation_ids uuid[], p_settlement_ref uuid)` :
-  UPDATE `economic_entitlements` SET `settlement_status='settled'`,
-  `settlement_ref=p_settlement_ref`, `updated_at=now()` WHERE
-  `reservation_id = ANY(...)` AND `qualification='commission'`
-  AND `party_type='easy2book'`. REVOKE PUBLIC/anon/authenticated ;
-  GRANT `service_role`/`app_runtime`.
-- `lib/finance/commission-settlement.ts` : après INSERT dans
-  `commission_settlement_entries`, appel `tx.execute(sql\`SELECT mark_econ_commission_settled(...)\`)`
-  — zéro `.update(economicEntitlements)` côté applicatif.
-- `lib/finance/__tests__/payment-settlement-chain.integration.test.ts` : Test 3
-  vérifie `economicEntitlements.settlementStatus = 'settled'` + `settlementRef = settlementId`.
-- `lib/finance/__tests__/econ-wiring-01-invariants.test.ts` : fix boucle Hotels-Monde/Vols
-  (split en 2 tests indépendants : Hotels-Monde → 3 lignes avec commission,
-  Vols → 2 lignes sans commission fabriquée).
-
-**À appliquer en production** :
-`psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0093_settle_econ_commission.sql`
-
-**Score tests** : 1440 pass / 1 fail pré-existant (transfers/pricing, hors périmètre).
-
-**Branche** : `claude/easy2book-v6-modernization-7gyb5v`.
+**CLÔTURÉ** par RLS-GAP-PUBLIC-TABLES-01 ci-dessous (2026-10-06/07).
 
 ---
 
-### IDENTITY-J6-01 — CLÔTURÉ (2026-10-04)
+### Chaîne RLS-GAP + NICHE CRM & VIP LEAD ENGINE (2026-10-06/07) — CLÔTURÉE, MERGÉE sur `main`
 
-**Objectif** : matérialiser le contrat d'identité CRM → Distribution (J6 de l'audit
-jonctions) — rendre traceable le canal d'acquisition de chaque lead.
+Chaîne de 7 chantiers, chacun : audit d'ownership → fiche → GO explicite
+→ implémentation → preuve réelle (Postgres local, migration vérifiée en
+production quand applicable). `pnpm typecheck`/`pnpm lint`/`prettier
+--check` verts et régression complète sans régression avant chaque
+merge (progression : 1486 → 1498 → 1501 pass/0 fail sur la période,
+332 skip final, `format` rouge sur les 5 mêmes fichiers pré-existants
+hors scope à chaque fois — dette non bloquante déjà connue, pas une
+régression de cette chaîne).
 
-**Problème** : `leads.sourcePage` stockait le chemin URL brut, sans vocabulaire
-structuré permettant de distinguer les canaux de distribution (b2c / b2b /
-réseau / white-label / API). Impossible de filtrer ou segmenter les leads par
-canal sans parser les URL côté applicatif.
+| Chantier                                                                                                                                                                                                                                                                                                       | Branche                          | Statut                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------- |
+| RLS-GAP-PUBLIC-TABLES-01 (`canonical_hotels`/`canonical_hotel_supplier_mappings`/`development_project_waitlist` — RLS activée+forcée, policy `app_runtime`, REVOKE anon/authenticated)                                                                                                                         | —                                | **MERGÉ** (PR #136), migration en production |
+| MARKET-CONTENT-RLS-ROLE-GAP-01 (`market_signals`/`development_projects` — policies recréées sans restriction de rôle, `is_super_admin()` conservé comme garde d'écriture ; 4 fonctions `lib/market/admin-actions.ts` migrées vers `withSystemContext`)                                                         | —                                | **MERGÉ** (PR #137), migration en production |
+| VIP-SCORE-01 (`lib/crm/vip-score-core.ts` — thermomètre de valeur commerciale, fonction pure, breakdown explicite, **aucun seuil VIP fixé** — décision produit permanente, à ne jamais rouvrir avant analyse de distribution réelle)                                                                           | `vip-score-01`                   | **MERGÉ** (PR #138)                          |
+| WHATSAPP-CONTACT-RESOLUTION-01 (`upsertConversationForInboundCore` alimente aussi CONTACT-01)                                                                                                                                                                                                                  | `whatsapp-contact-resolution-01` | **MERGÉ** (PR #139)                          |
+| META-LEADADS-WEBHOOK-01 (pilote Meta Lead Ads — `leadgen_id` webhook + appel Graph API séparé pour le détail, même discipline honnête que `lib/whatsapp/provider.ts` ; jamais de consentement marketing fabriqué depuis la case Meta)                                                                          | `meta-leadads-webhook-01`        | **MERGÉ** (PR #140)                          |
+| CONTACT-LEAD-HISTORY-01 (`getContactLeadHistoryCore` — ferme le gap "historique de leads par CONTACT durable", indépendant de CAMPAIGN ; bug réel trouvé par le test : comparaison `leads.email/phone` bruts vs `contacts.contactRef` normalisé nécessite une renormalisation, jamais une égalité SQL directe) | `contact-lead-history-01`        | **MERGÉ** (PR #141)                          |
+| VIP-SCORE-02 (signal `engagement` = répétition par CONTACT durable, lecture seule — jamais de création de contact dans un calcul de score ; toujours aucun seuil VIP)                                                                                                                                          | `vip-score-02`                   | **MERGÉ** (PR #142)                          |
 
-**Corrections** :
-- pgEnum `lead_acquisition_channel` : `['b2c','b2b','network','white_label','api']`
-  — vocabulaire aligné sur `commercial_agreement_channel` (cohérence inter-domaines).
-- Migration `0018` : `CREATE TYPE` + `ALTER TABLE leads ADD COLUMN acquisition_channel`.
-- Colonne nullable : aucune valeur inventée sur les anciens leads / WhatsApp inbox.
-- `lib/crm/leads-core.ts` : `LEAD_ACQUISITION_CHANNELS`, `LeadAcquisitionChannel`,
-  `LeadRow.acquisitionChannel`, `createLeadCore` param `acquisitionChannel?`.
-- `app/actions/submit-lead.ts` : champ optionnel dans le schéma Zod + forwarding.
+**Preuves** : 22/22 tests du domaine vip-score + contact-history verts
+contre Postgres local (`app_runtime`, non-BYPASSRLS) ; régression
+complète finale 1501 pass/0 fail, 332 skip ; CI verte sur chaque PR
+(`format` rouge connu/non bloquant sur chaque run, documenté en
+commentaire PR à chaque occurrence).
 
-**Call sites non modifiés** : `inbox-core.ts` (WhatsApp = canal comm, pas canal
-distribution → reste nullable), tests de fixtures (`acquisitionChannel: null` ajouté).
+**NOT VERIFIED** : aucun déploiement Vercel production confirmé pour
+cette chaîne spécifique (contrairement à DEPLOY-01/PUBLIC-VISUAL
+ci-dessus) — à confirmer sur `easy2book-new` si cette chaîne doit être
+vérifiée en production avant le prochain chantier CRM.
 
-**Commit** : `17af55d` — branche `claude/easy2book-v6-modernization-7gyb5v`.
+**Suite directe, même chaîne** : CUSTOMER-360-VIP-SCORE-01 (2026-10-07)
+— `getVipScoreForLeadCore` (VIP-SCORE-01/02 ci-dessus) avait 0 appelant
+réel ailleurs dans l'application (confirmé par grep exhaustif), donc
+invisible malgré 2 chantiers mergés. **EXTEND**, pas CREATE : câblé dans
+le panneau "Vue 360" déjà existant (`/admin/support`,
+`components/admin/customer-360-panel.tsx`, derrière
+`getCustomer360Core`) — nouveau bloc "Score VIP (total)" avec breakdown,
+toujours aucun seuil/verdict VIP affiché. Deux requêtes reservations
+volontairement séparées (Vue 360 = toutes les réservations y compris
+annulées ; VIP score = exclut cancelled/expired/refunded), pas une
+duplication à corriger. **MERGÉ** (PR #143, commit `f4bbc833`) — CI
+verte sur tout sauf `format` (connu, 5 fichiers hors scope) et
+`lighthouse` (infra `NO_FCP`, confirmé rouge sur `main` lui-même au
+commit précédent sans aucun changement de code applicatif — pas causé
+par cette PR). `lib/admin/__tests__/customer-360-core-live.test.ts`
+(nouveau — aucun test n'existait pour ce fichier avant ce chantier).
 
----
+**VIP-DISTRIBUTION-AUDIT-01 (2026-10-07, lecture seule, production
+`crygnaichvlxavvbifqi`)** — tentative d'analyser la distribution réelle
+des scores VIP pour fixer un seuil. Résultat : **jeu de données
+insuffisant**, pas une absence d'exécution — 2 leads en production,
+les deux des fixtures QA ("QA Lead Test"/"QA Lead Test 2"), aucun vrai
+lead client. `contacts` : 0 ligne (le signal `engagement` de
+VIP-SCORE-02 n'a encore jamais produit un seul point bonus en
+production). Score calculé pour les deux leads : ≈49.0, quasi
+identique — min/max/médiane/percentiles tous dénués de sens
+statistique avec n=2. **Anomalie réelle trouvée en cours d'audit** : un
+client `+216 98 140 514` (avec espaces) ne matchait aucun des 2 leads
+via l'égalité SQL stricte alors que le numéro est identique à un lead
+`+21698140514` (sans espaces) — gap de normalisation, même classe de
+bug que CONTACT-LEAD-HISTORY-01. **PROPOSITION actée** : reporter la
+décision de seuil VIP jusqu'à l'apparition d'un vrai volume de leads en
+production ; ne pas la rouvrir avant une distribution réelle
+exploitable.
 
-### IDENTITY-J2A-01 — CLÔTURÉ (2026-10-04)
+**NORMALIZED-MATCHING-01 (2026-10-07) — CLÔTURÉ, MERGÉ** — corrige
+l'anomalie trouvée ci-dessus. `lib/crm/customer-match-core.ts`
+(nouveau) : `findMatchingCustomerIdsCore`, seul point de rapprochement
+lead↔customer partagé, réutilise EXACTEMENT la normalisation CONTACT-01
+(`resolveContactKeyCore`/`normalizePhoneRefCore`), jamais une seconde
+logique inventée. 3 call sites migrés (`getVipScoreForLeadCore`,
+`getCustomer360Core`, `searchReservationsForLeadLinkCore` mode
+sans-query) au lieu de dupliquer chacun leur `matchClause` par égalité
+stricte. **MERGÉ** (PR #144, commit `dcd51aec`) — CI verte sur tout
+sauf `format`/`lighthouse` (connus, non liés à ce diff, documentés en
+commentaire PR). Preuve : `lib/crm/__tests__/customer-match-core-live.test.ts`
+(nouveau), reproduit exactement le cas réel de production (téléphone
+avec/sans espaces → matche après correctif) ; 30/30 tests verts contre
+Postgres local ; régression complète 1501 pass/0 fail, 338 skip.
+Risque documenté (pas une régression) : le filtrage charge plus de
+lignes pour une agence à très gros volume de réservations — acceptable
+aujourd'hui (volumes réels quasi nuls), à revisiter si le volume
+augmente.
 
-**Objectif** : renforcer les contrats d'identité Booking → Financial
-(J2 de l'audit jonctions CRM/Financial/Wallet).
+**Séquence actée avec l'utilisateur** : NORMALIZED-MATCHING-01 (fait)
+→ CI-FIX-02 (ci-dessus, en attente de GO) → attendre un vrai volume de
+leads en production → revenir à VIP-DISTRIBUTION / seuil VIP.
 
-**Problèmes corrigés** :
-- `partner_credit_movements.reservationId` : nullable, no FK, **no index** — full
-  scan sur les requêtes "mouvements d'une réservation".
-- `commission_settlement_entries.walletLedgerId` : NOT NULL mais aucune FK DB —
-  un ledger entry pouvait être référencé par un settlement sans contrainte d'intégrité.
+**Hors scope, laissé explicitement ouvert** (voir audits "NICHE CRM &
+VIP LEAD ENGINE" et "SOCIAL CRM" livrés en texte pendant cette chaîne,
+non persistés en fichier) : seuil VIP (décision produit après analyse
+de distribution réelle des scores sur la base existante — jamais une
+valeur arbitraire — VIP-DISTRIBUTION-AUDIT-01 ci-dessus a tenté cette
+analyse mais le jeu de données réel est actuellement insuffisant) ;
+pilote Meta Lead Ads
+au-delà du webhook (reporting, audience, consentement structuré) ;
+toute autre plateforme sociale (Instagram/Messenger — "quelles
+plateformes, quels signaux, quelle autorisation, quel parcours, quel
+propriétaire des données, quel coût,
+quelle valeur commerciale" restent à répondre avant tout code) ; une
+policy de test résiduelle `market_signals_read_test` (doublon sans
+risque de `market_signals_read`, non supprimable via les outils MCP
+Supabase disponibles — `DROP POLICY` bloque systématiquement, voir
+limitation documentée dans PR #136/#137) ; IA, Contact Graph relationnel,
+Partner Referral structuré, Campaign Automation — toujours listés
+"❌ Ne pas toucher maintenant".
 
-**Corrections** :
-- Migration `0017` : `CREATE INDEX CONCURRENTLY` partiel sur
-  `partner_credit_movements.reservation_id WHERE IS NOT NULL`.
-- Migration `0017` : `ALTER TABLE commission_settlement_entries ADD CONSTRAINT FK`
-  vers `wallet_ledger.id ON DELETE RESTRICT` — renforce R4-03 (append-only).
-- Drizzle schema : index et FK déclarés dans `lib/db/schema.ts` et
-  `lib/db/schema/financials.ts`.
+**Gap séparé trouvé, non traité ici** (lecture seule, logs CI) : le job
+`lighthouse` est rouge sur `main` lui-même (confirmé au commit
+`511d78c`, un changement purement documentaire sans aucun code
+applicatif), erreur `Runtime error ... The page did not paint any
+content (NO_FCP)` — Chrome headless n'obtient jamais de First
+Contentful Paint pendant l'audit Lighthouse CI.
 
-**Aucun changement applicatif** — colonnes restent nullable (correct pour
-les recharges et ajustements sans réservation).
+**Audit lecture seule fait** (agent dédié, 2026-10-07) : cause probable
+identifiée — `.github/workflows/ci.yml` (job `lighthouse`) n'installe
+aucun navigateur Chrome/Chromium, contrairement à `playwright-a11y` qui
+fait explicitement `playwright install chromium --with-deps` (qui, lui,
+passe systématiquement). Confirmé pré-existant (job créé par le commit
+`cc617b4` sans cette étape dès l'origine, tourne sous
+`continue-on-error: true` depuis le début). Cause secondaire non
+exclue : la page auditée (`/admin`) redirige vers `/login` en CI faute
+d'auth, pourrait contribuer à un paint vide.
 
-**Commit** : `bc60461` — branche `claude/easy2book-v6-modernization-7gyb5v`.
+**CI-FIX-02 — MERGÉ (PR #145, commit squash `3a8e24b2`, 2026-10-07).**
+Correctif appliqué : `playwright install-deps chromium` ajouté au job
+`lighthouse` ; `public/manifest.json` corrigé (icônes réelles au lieu
+de fichiers inexistants, causant des 404 catastrophiques de 14-28s sur
+tout chemin non matché côté `[locale]`) ; `prefetch={false}` ajouté sur
+les deux `<Link>` de `/login`. **Résultat réel après correctif** (pas
+une affirmation prématurée) : `playwright install-deps chromium`
+s'exécute avec succès — l'hypothèse "Chrome sans dépendances" est donc
+**écartée**, pas confirmée comme cause unique. Le correctif manifest.json
+est une amélioration mesurée et réelle (temps de 404 ramené à <1s),
+mais **`NO_FCP` sur `/login` persiste malgré tout** — non résolu à ce
+jour, `continue-on-error: true` conservé à raison. CI de la PR :
+tout vert sauf `format`/`lighthouse` (les deux connus, documentés,
+non liés à ce diff — `lighthouse` rouge sur `main` lui-même avant ce
+correctif). Mergé en l'état car le correctif apporté est réel et net
+même sans résoudre `NO_FCP` entièrement ; piste `/login` restante
+documentée ci-dessus pour un futur `CI-FIX-03` séparé, jamais démarré
+automatiquement.
 
----
-
-### RECHARGE-PAYMEE-01 — CLÔTURÉ (2026-10-04)
-
-**Objectif** : permettre aux agences B2B de recharger leur wallet en ligne via
-Paymee (carte bancaire, redirection hébergée) sans intervention manuelle admin.
-
-**Implémentation** :
-- `app/api/payment/webhook/route.ts` : branche `provider=paymee` ajoutée —
-  vérification `check_sum` MD5, normalisation du statut, corrélation par
-  `order_id` (= `paymentReference`). Tous les casts `pspWebhooks.psp` mis à
-  jour vers `"stripe" | "sps" | "paymee"`.
-- `lib/finance/recharge-actions.ts` : `initiateOnlineRecharge()` — crée la
-  demande (`card_international`) avant d'appeler Paymee (idempotence), retourne
-  `redirectUrl`. Re-exporte `isPaymeeSelected()`.
-- `components/b2b/wallet-recharge-form.tsx` : section "Payer en ligne" (bleue)
-  conditionnelle sur prop `paymeeAvailable`.
-- `app/(internal)/b2b/wallet/page.tsx` : passe `paymeeAvailable={isPaymeeSelected()}`.
-
-**Aucune migration DB** : `card_international` dans `recharge_method` ✓,
-`paymee` dans `payment_psp` ✓.
-
-**Activation** : poser `PAYMENT_PROVIDER=paymee` + `PAYMEE_API_KEY` en env.
-Sans ces vars, la section "Payer en ligne" est invisible et le webhook retourne
-500 (misconfigured) — pas de régression pour les agences sans Paymee.
-
-**Commit** : `405f94b` — branche `claude/easy2book-v6-modernization-7gyb5v`.
-
----
-
-### COMMISSION-MONDE-01 — CLÔTURÉ (2026-10-04)
-
-**Objectif** : câbler `commissionPercent` dans Hotels Monde pour que la plateforme
-perçoive effectivement sa commission sur chaque réservation hôtels monde.
-
-**Problème** : `recordReservationFinancials()` appelé sans `commissionPercent` dans
-`lib/hotels-monde/guest-booking-actions.ts` → `commissionAmount = 0 TND` sur 100 %
-des réservations monde. `margins.hotel` était déjà en scope (ligne 180) mais non exploité.
-
-**Fix** : passage de `commissionPercent: margins.hotel.commissionPercent` et
-`marginRuleId: margins.hotel.ruleId` à `recordReservationFinancials()` + split
-de l'`economicEntitlement` seller_margin (nette de commission + ligne commission
-Easy2Book) en miroir exact du pattern Hotels TN (`lib/booking/actions.ts:679-718`).
-
-**Commit** : `0087b44` — branche `claude/easy2book-v6-modernization-7gyb5v`.
-**Impact** : zéro régression si `commissionPercent = 0` ; commission effective dès
-qu'un taux est configuré dans `margin_rules`.
-
----
-
-### DUFFEL-ENUM-01 — CLÔTURÉ (2026-10-04)
-
-**Objectif** : ajouter "duffel" à l'enum `flight_supplier_name` pour permettre
-la configuration d'un fournisseur vols Duffel.
-
-**Fichiers modifiés :**
-- `lib/db/schema/flight-suppliers.ts` : "duffel" ajouté au pgEnum
-- `drizzle/0016_flight_supplier_duffel.sql` : migration `ALTER TYPE ... ADD VALUE`
-- Migration appliquée via Supabase MCP sur `crygnaichvlxavvbifqi` (vérifié via pg_enum)
-
----
-
-### BUG-TRANSFER-02 — CLÔTURÉ (2026-10-04)
-
-**Objectif** : corriger le canal de marge hardcodé "b2b" dans `calculateTransferPrice`
-— les clients B2C se voyaient appliquer la marge B2B.
-
-**Cause** : `lib/transfers/pricing.ts:127` appelait `getMarginsForAgency(agencyId, undefined, "b2b")`
-avec "b2b" hardcodé, quelle que soit l'origine de l'appel (B2B, B2C guest, page publique).
-
-**Fichiers modifiés :**
-- `lib/transfers/pricing.ts` : import `DistributionChannel`, ajout `channel?` à
-  `TransferPricingInput`, remplacement de `"b2b"` par `input.channel ?? "direct"`
-- `lib/transfers/actions.ts` : passage explicite de `channel: "b2b"` dans le seul
-  appel B2B (booking partenaire)
-- Les call sites B2C (guest-booking-actions, page résultats, TransferBookingForm)
-  obtiennent `"direct"` par défaut — aucune modification requise
-
----
-
-### BUG-CAR-04 — CLÔTURÉ — NOT A BUG (2026-10-04, vérifié Supabase)
-
-**Objectif** : vérifier que la migration RLS `drizzle/manual/0011_car_rental_rls.sql`
-était bien appliquée en production.
-
-**Résultat** : RLS actif (`rowsecurity=true`) ET politique `*_tenant_isolation` présente
-sur toutes les 6 tables cars (`car_locations`, `car_categories`, `car_fleet_vehicles`,
-`car_availability`, `car_pricing_rates`, `reservation_car`). Aucune action requise.
-
-**Preuve** : `pg_tables.rowsecurity=true` + `pg_policies` sur projet `crygnaichvlxavvbifqi` (EasyV4).
-
----
-
-### BUG-CAR-01 — CLÔTURÉ (2026-10-04)
-
-**Objectif** : corriger la sur-réservation systématique des voitures — `car_availability.booked_units`
-jamais incrémenté après booking.
-
-**Cause** : `checkCarAvailability()` retournait `boolean`, aucun ID de ligne exposé,
-aucun UPDATE possible après la réservation. Deux chemins affectés : B2B (`lib/cars/actions.ts`)
-et B2C guest (`lib/cars/guest-booking-actions.ts`).
-
-**Fichiers modifiés :**
-- `lib/cars/actions.ts` : `checkCarAvailability` retourne `{ available, availRowId }` +
-  `.for("update")` sur le SELECT + UPDATE `booked_units + 1` après `reservationCar.insert`
-- `lib/cars/guest-booking-actions.ts` : même correction sur le chemin B2C guest
-
-**Note** : quand `carAvailability` n'a pas de ligne pour la date (fallback fleet count),
-`availRowId = null` et aucun UPDATE n'est tenté — comportement correct car dans ce cas
-le stock est géré par fleet status, pas par booked_units.
+**Gap séparé identifié pendant cet audit, non résolu, laissé ouvert
+pour un futur chantier** : tout chemin public non matché par
+`app/(public)/[locale]/...` déclenche un rendu spéculatif complet de
+la page d'accueil (avec requêtes DB live) avant le `notFound()` du
+layout — risque de charge DB/pool sur du trafic bot/scanner/lien cassé,
+indépendant du fix manifest.json qui n'a corrigé que le symptôme (icônes).
 
 ---
 
-### TEST-INTEGRATION-FIX-01 — CLÔTURÉ (2026-10-04, commit `423fe2d`)
+### BEHAVIORAL-INTENT-01 + BEHAVIORAL-SIGNAL-01 — AUDIT ONLY, décisions produit actées, bloqué sur validation juridique
+
+Deux audits lecture seule en chaîne (2026-10-07), déclenchés après
+NORMALIZED-MATCHING-01 : peut-on construire une notion d'intention
+d'achat ("ce que veut ce client maintenant"), distincte du VIP Score
+("sa valeur globale") ?
+
+**BEHAVIORAL-INTENT-01 (agent dédié)** — constat factuel : le système
+capture déjà la DEMANDE EXPLICITE (lead via `createLeadCore`, WhatsApp
+via `upsertConversationForInboundCore`, réservation `pending` via
+`lib/booking/guest-actions.ts`) — rattachable, normalisée (CONTACT-01/
+NORMALIZED-MATCHING-01), horodatée. Mais AUCUN signal de comportement
+implicite pré-achat n'existe : recherche (hôtel/vol/omra/package),
+consultation de fiche produit, et abandon sont soit purement côté
+client (URL params, `lib/cart/cart-store.ts` = localStorage uniquement,
+"PAS de table BDD"), soit absents de toute table. Ownership INTENT :
+**non confirmé**, faute de signaux source — pas un défaut d'architecture.
+
+**BEHAVIORAL-SIGNAL-01 (agent dédié)** — creuse la faisabilité d'un
+premier signal. Constats clés : (1) aucun journal d'événements
+générique réutilisable (`lead_origin_events` verrouillé sur `leadId
+NOT NULL`, inutilisable pour un visiteur anonyme) ; (2) identité
+réutilisable telle quelle (`resolveContactKeyCore`/
+`findMatchingCustomerIdsCore`, signatures stables, zéro dépendance
+cachée) ; (3) CONSENT-01 ne couvre QUE le marketing, pas le tracking
+analytique — sujet RGPD distinct et non traité ; (4) pool DB à 10
+connexions déjà en cause dans un incident de production réel
+(DESTINATIONS-SSG-POOL-EXHAUSTION-01) — une écriture par recherche
+individuelle serait risquée telle quelle.
+
+**Décisions produit actées par l'utilisateur** (pour un futur pilote
+"recherche hôtel" uniquement, pas une plateforme générique) :
+
+- **Agrégation, jamais individuelle** : destination+produit+période →
+  compteur, pas une ligne par recherche. Objectif = mesurer la demande
+  (signal marché), pas construire un historique individuel.
+- **Valeur métier** : le compteur doit révéler une tendance de demande
+  exploitable par NICHE/PROMO/commercial (ex. "Tunis hôtels" en forte
+  progression → offre ciblée) — jamais un score client, jamais fusionné
+  avec VIP Score (VIP = valeur, Intent = envie maintenant — deux
+  dimensions explicitement distinctes, un client peut être VIP élevé +
+  intent faible ou l'inverse).
+- **Rétention** : agrégation journalière, durée finale à justifier par
+  l'usage métier et la politique privacy — jamais fixée arbitrairement.
+- **Infra** : aucune écriture individuelle par recherche ; mesurer le
+  volume réel et l'impact pool DB sur le pilote avant toute
+  généralisation (`PILOTE → mesurer volume → mesurer impact DB/pool →
+preuve → GO extension`).
+
+**Condition bloquante avant tout code** (RGPD/privacy) : aucun tracking
+comportemental individuel sans base légale/consentement approprié.
+Décision provisoire actée : signal agrégé non destiné à identifier une
+personne pour le pilote (pas d'IP brute, pas de fingerprint, pas de
+profilage individuel) — **mais la conformité juridique finale reste à
+valider avant toute mise en production, et avant tout code selon la
+décision explicite de l'utilisateur**.
+
+**Statut : BEHAVIORAL-SIGNAL-01 — MERGÉ (PR #146, commit squash
+`1399fbdd`, 2026-10-07).** Validation juridique/privacy obtenue
+(confirmée explicitement par l'utilisateur avant le code), GO global
+donné, chantier réalisé dans le périmètre strictement acté ci-dessus
+(pilote "hotel" uniquement, compteur agrégé, zéro tracking individuel).
+
+**Implémenté** : table `search_demand_signals` (migration
+`drizzle/manual/0122_behavioral_signal_01.sql`), unique
+`(agencyId, productType, destination, searchDate)`, RLS activée+forcée
+(policy `agency_id = current_agency_id() OR is_super_admin()`, même
+pattern que `contacts`), `REVOKE DELETE` pour `app_runtime` (même
+discipline DEFAULT-PRIVILEGES-GAP-01). `lib/crm/search-demand-core.ts::
+recordHotelSearchDemandCore` (upsert idempotent, incrément SQL),
+instrumenté dans `app/api/hotels-monde/search/route.ts` (seul point
+d'entrée réel pour la recherche hôtel monde), wrappé `try/catch` —
+jamais bloquant pour une vraie recherche (même discipline que
+`acquireLock`).
+
+**Preuves** : 4/4 tests live verts (`lib/crm/__tests__/
+search-demand-core-live.test.ts` — compteur agrégé 3→1 ligne/count=3,
+jours séparés, destinations séparées, isolation cross-agence) ;
+régression complète 1501 pass/0 fail (baseline inchangée, les 4
+nouveaux tests sont skip-only sans DB) ; migration appliquée et
+vérifiée en production (Supabase `crygnaichvlxavvbifqi` — RLS
+activée+forcée, policy correcte, grants SELECT/INSERT/UPDATE pour
+`app_runtime`, DELETE bien révoqué, confirmé par `has_table_privilege`
+direct). CI de la PR : tout vert sauf `format`/`lighthouse` (connus,
+documentés, non liés à ce diff).
+
+**Hors scope, explicitement non traité ici** (à ne jamais démarrer
+automatiquement) : second produit (vols, omra) sur ce même signal ;
+toute fusion avec VIP Score ou Niche ; durée de rétention finale ;
+mesure d'impact DB/pool en conditions réelles de volume (prochaine
+étape naturelle avant toute extension, mais pas un chantier démarré ici).
 
 ---
 
-### TEST-INTEGRATION-FIX-01 — CLÔTURÉ (2026-10-04, commit `423fe2d`)
+### Chaîne NICHE → PRICING-PROMO-LINK (câblage transfert/omra/package) — CLÔTURÉE, DÉPLOYÉE Deux déploiements
 
-**Objectif** : corriger les assertions périmées dans le test d'intégration
-settlement (`payment-settlement-chain.integration.test.ts` lignes 407-425)
-qui vérifiaient `wallet_ledger.settledAt`/`settlementId` — colonnes mortes
-jamais écrites par le code actuel R4-03.
+`easy2book-new`, tous deux `state=READY`/`target=production`/aliasés
+`easy2book-new.vercel.app` :
 
-**Cause** : `commission-settlement.ts` écrit dans `commission_settlement_entries`
-(R4-03 append-only), jamais dans `wallet_ledger.settled_at`. Les assertions
-du test Chantier 64 décrivaient l'ancienne mécanique (pré-R4-03).
+- `dpl_2pCj9GTpWJQ2VX1rnByMNAun5bqE`, `githubCommitSha=c1c75cb...` —
+  câblage module transfert (point d'injection unique, pas de garde
+  CART-DRIFT-01 dans ce module).
+- `dpl_9mE8rQfXkcQA65oKc8YEHFWXnhUf`, `githubCommitSha=e43af3d...` —
+  (a) **bugfix** sur l'intégration hôtel déjà en production : la remise
+  PROMO était appliquée AVANT le calcul de breakdown et la garde
+  anti-drift CART-DRIFT-01 (`lib/booking/guest-actions.ts`), ce qui
+  aurait rejeté `PRICE_CHANGED` à tort pour tout client réellement
+  éligible à une promo — jamais déclenché en prod faute de campagne
+  active sur le hot path concerné, mais un vrai bug trouvé par audit
+  avant tout incident réel, pas par un rapport utilisateur ; (b)
+  câblage omra (injection unique, pas de garde CART-DRIFT-01 dans ce
+  module non plus) ; (c) câblage package (remise appliquée aux montants
+  agrégés déjà facturés totalTnd/depositTnd/balanceTnd, après la garde
+  anti-drift, sans fabriquer un faux prix unitaire adulte/enfant).
 
-**Fichier modifié :**
-- `lib/finance/__tests__/payment-settlement-chain.integration.test.ts` :
-  - L.10 commentaire header corrigé (ancienne mécanique → R4-03)
-  - L.407-425 : assertions `wallet_ledger.settledAt/settlementId` → assertions
-    `commission_settlement_entries.walletLedgerId/settlementId`
-  - Import `commissionSettlementEntries` ajouté
+Un seul ensemble de preuves : `pnpm typecheck`/`pnpm test`
+(1486 pass/0 fail)/`pnpm lint`/`prettier --check`/`pnpm build` verts
+avant merge ; fast-forward propre `c1c75cb..e43af3d` sur `main` ;
+déploiement confirmé par lecture directe Vercel (pas seulement
+l'affirmation de l'agent), mêmes critères que DEPLOY-01.
 
-**Preuves :**
-- tsc --noEmit : 0 erreur ✅
-- commission-wiring-invariants.test.ts : 67/67 PASS ✅
-- commit `423fe2d` · push `94d19f4..423fe2d` ✅
+### Chaîne NICHE → PRICING-PROMO-LINK (2026-10-05/06) — CLÔTURÉE, MERGÉE, DÉPLOYÉE
 
-**DB :** aucune migration. Note : colonnes mortes `wallet_ledger.settledAt`
-et `wallet_ledger.settlementId` existent toujours en DB (jamais écrites depuis
-R4-03) — nettoyage possible via migration dédiée sur GO séparé.
+Chaîne construite séquentiellement (chaque étape : audit d'ownership →
+fiche → GO explicite → implémentation → preuve réelle, base Postgres
+locale + migration appliquée en production avec vérification des
+grants). Principe permanent respecté à chaque étape : `LEAD = demande,
+CONTACT = point de communication, CONSENT = permission, AUDIENCE =
+correspondance avec une demande, CAMPAIGN = action commerciale` —
+aucun de ces concepts fusionné implicitement. Séparation d'ownership
+tenue de bout en bout : `CAMPAIGN dit "à qui et pour quelle action
+commerciale", PROMO dit "quelle offre", PRICING dit "quel prix final",
+BOOKING dit "quelle réservation"` — jamais l'un propriétaire du rôle
+de l'autre.
 
----
+| Chantier                                                                                                                                                                                                                                       | Branche                   | Statut                             |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------- |
+| NICHE-PROVENANCE-01                                                                                                                                                                                                                            | `niche-provenance-01`     | **MERGÉ** (PR #133)                |
+| EXPOSITION / NICHE-SIGNAL-01 (concentration) / NICHE-TREND-01 (émergence, répond à Q10) / NICHE-AUDIENCE-01                                                                                                                                    | `niche-signal-01`         | **MERGÉ** sur `main` (2026-10-06)  |
+| CONSENT-01 (`lead_consent_events`, append-only, dernier événement par `occurredAt` fait foi)                                                                                                                                                   | `consent-01`              | **MERGÉ**, migration en production |
+| CONTACT-01 (`contacts`, registre de points de contact normalisés, PAS une identité personne)                                                                                                                                                   | `contact-01`              | **MERGÉ**, migration en production |
+| CAMPAIGN-01 (`filterAudienceByConsentCore` — orchestre CONTACT-01 puis CONSENT-01, jamais de logique propre)                                                                                                                                   | `campaign-01`             | **MERGÉ**                          |
+| CAMPAIGN-PERSISTENCE-01 (`campaigns`/`campaign_targets` — snapshot au LANCEMENT, jamais à la création)                                                                                                                                         | `campaign-persistence-01` | **MERGÉ**, migration en production |
+| CAMPAIGN-EXTENSION-01 (Period/Message sur `campaigns`, immuables au lancement)                                                                                                                                                                 | `campaign-extension-01`   | **MERGÉ**, migration en production |
+| CAMPAIGN-ATTRIBUTION-01 (`campaign_attributions` — lien stable réservation→campagne, cron, BOOKING inchangé)                                                                                                                                   | `campaign-attribution-01` | **MERGÉ**, migration en production |
+| PROMO-01 (`promos` — offre strictement liée à 1 campagne, `campaigns.promoRef` réellement rempli)                                                                                                                                              | `promo-01`                | **MERGÉ**, migration en production |
+| PRICING-PROMO-LINK-01 (`applyPromoDiscountCore`/`resolveCheckoutPromoCore` — un `campaignId` transporté par le client n'est jamais une preuve d'éligibilité, toujours re-dérivée côté serveur ; `promos.allowBelowCost`, PROMO-LOSS-POLICY-01) | `pricing-promo-link-01`   | **MERGÉ**, migration en production |
 
-### CARS-COMMISSION-01 (COMMERCIAL-REVENUE-04) — CLÔTURÉ (2026-10-04)
+Toutes les migrations DB listées ci-dessus étaient déjà appliquées en
+production (vérifiées via grants/RLS à chaque chantier) **avant** leur
+merge respectif — seul le code applicatif restait non déployé jusqu'à
+chaque merge sur `main`. C'est maintenant résolu pour toute la chaîne.
 
-Câblage `creditPlatformCommission` dans le module voitures — dernier module
-sans commission dans la chaîne Booking → Commission.
+**Câblage PRICING-PROMO-LINK-01 — 4/7 modules restants faits** : hôtel
+(référence initiale, bugfix ordre CART-DRIFT-01/PROMO appliqué
+ci-dessus), transfert, omra, package. **Restent NON câblés** : flight
+(signalé plus complexe — prix utilisé à 2 points séparés du fichier,
+audit dédié requis avant câblage), activity, network. `car` reste
+EXCLU volontairement (module dormant, non commercialisé,
+`FEATURE_CAR=false`). FERRY et VISA (futurs modules annoncés) restent
+non implémentés/non câblés/non certifiés. Les 3 briques core
+(`promo-core.ts`, `promo-discount-core.ts`, `promo-checkout-core.ts`)
+confirmées réutilisables sans réécriture pour tout module restant.
 
-**Fichiers modifiés :**
-- `lib/cars/actions.ts` — import + commissionAmount + appel B2B
-- `lib/cars/guest-booking-actions.ts` — même câblage B2C guest
-- `lib/cars/__tests__/reservation-financials-wiring.test.ts` — anti-assertions → assertions positives
-- `lib/finance/__tests__/commission-wiring-invariants.test.ts` — section CARS-COMMISSION-01 (tests 62–67)
+**NOT VERIFIED, restant après ce chantier** : AUDIENCE-DEDUP-01
+potentiel non traité — CAMPAIGN opère par CONTACT unique (prouvé), mais
+AUDIENCE elle-même (NICHE-AUDIENCE-01) ne déduplique pas les `LeadRow`
+bruts avant que CAMPAIGN-01 ne les reçoive — sans conséquence sur le
+consentement (toujours strict), seulement sur le volume de leads
+traités par appel.
 
-**Commit :** `d1e0b8c`
-**Tests :** 14/14 cars wiring + 67/67 commission invariants globaux — PASS
-**DB :** aucune migration
-**Note :** commissionAmount = 0 jusqu'à configuration commissionPercent dans la UI Marges Pro
+**Prochains chantiers potentiels identifiés, NON exécutés** :
 
----
+- **Câblage PRICING-PROMO-LINK-01 dans les 3 modules restants**
+  (activity, network, flight) — flight signalé plus complexe (prix à
+  2 points séparés du fichier), audit dédié requis avant câblage ;
+  activity/network pas encore audités dans ce round.
+- **CONVERSION / LEARNING** : exploiter `campaign_attributions` pour
+  mesurer "17 réservations générées par la campagne Istanbul" — aucun
+  audit réalisé. `CAMPAIGN-PERFORMANCE-01` (exposed/converted/CA/marge
+  par campagne, lecture pure, MERGÉ et DÉPLOYÉ — commit `155d540`,
+  `dpl_GBqWhaMnzZ3MDEnQ8JfP4gbZ34rX`) en couvre une partie ; LEARNING
+  proprement dit (apprentissage/optimisation) reste non traité.
+- **FERRY / VISA** : futurs modules commerciaux annoncés, aucun audit
+  d'intégration réalisé, aucun code, aucun stub.
 
-### COMMISSION-WIRING-02 — CLÔTURÉ (2026-10-04)
+**MISSION PARALLÈLE EN COURS (hors chaîne NICHE→PROMO)** :
+`MASTER STRESS TEST` — audit E2E/produit écran par écran demandé
+2026-10-06. Audit infra existante rendu (Playwright/CI/fixtures/seed/
+mock GoTrue/audits antérieurs `docs/audits/*` du 2026-09-11, périmés
+depuis la chaîne NICHE→PROMO entière + CURRENCY-DIM-01a +
+ECON-BREAKDOWN-01, jamais rejoués en navigateur réel). **STOP — en
+attente du GO** pour reconstruire l'infra locale (Postgres + mock
+GoTrue + seed), seul préalable technique avant le premier scénario.
 
-**Objectif** : câbler `creditPlatformCommission` dans les 10 modules de réservation qui appelaient `recordReservationFinancials` sans jamais écrire dans `wallet_ledger` — maillon manquant Payment → Commission de l'autoroute Supplier → Settlement.
+### CRM-NICHE-01 — CLÔTURÉ (2026-10-05)
 
-**Périmètre** : Vols B2B (`flight-financials.ts`), Vols B2C (`vols/guest-booking-actions.ts`), Transferts B2B (`transfers/actions.ts`), Transferts B2C (`transfers/guest-booking-actions.ts`), Hôtels Monde B2C (`hotels-monde/guest-booking-actions.ts`), Activités B2B (`activities/booking-actions.ts`), Activités B2C (`activities/guest-booking-actions.ts`), Omra B2B (`omra/booking-actions.ts`), Omra B2C (`omra/guest-booking-actions.ts`), Packages B2C+B2B (`packages/booking-actions.ts`). Voitures HORS PÉRIMÈTRE.
+```text
+ID: CRM-NICHE-01
+Statut: CLÔTURÉ (2026-10-05) — TESTED / READY FOR PRODUCTION — NOT YET PUSHED
+Branche: crm-niche-01
+Commit: b71738b
+```
 
-**Correctif inclus** : suppression du double-write pré-existant (ECON-WIRING-01 avait ajouté un second appel `recordReservationFinancials` sans supprimer le premier) dans `activities/guest-booking-actions.ts`, `omra/guest-booking-actions.ts`, `packages/booking-actions.ts` — la transaction de réservation était systématiquement avortée par la contrainte unique `reservation_financials_reservation_idx`.
+**Audit préalable** : NICHE ENGINE = ❌ NON (gap quasi total) — le CRM
+capturait des leads (LEAD MACHINE) mais ne pouvait les regrouper en
+segments commerciaux observables/mesurables/reproductibles (destination,
+intention, marché, période, comportement). Aucune table/colonne
+segment/niche/cohort, aucune fonction d'agrégation, aucune persistance.
 
-**Preuves** :
-- `npx tsc --noEmit` : 0 erreur
-- `npx tsx --test lib/finance/__tests__/commission-wiring-invariants.test.ts` : 61/61 (28 anciens + 33 nouveaux)
-- Aucun fichier hors périmètre modifié (git status : 11 fichiers exactement)
+**Périmètre explicitement scindé** (décision utilisateur) :
 
----
-
-### APPLY-PENDING-MIGRATIONS-03 — CLÔTURÉ (2026-10-04)
-
-**Objectif** : appliquer les 3 migrations DB en attente (0094, 0101, 0103) présentes dans le dépôt mais jamais appliquées en production.
-
-**État audit** : FIX (migrations additives, idempotentes, aucun backfill)
+- **CRM-NICHE-01** (ce chantier) : modèle de segmentation sur les
+  sources déjà captées aujourd'hui (site web/apps).
+- **CRM-NICHE-02** (futur, audit séparé requis) : branchement du reste
+  du réseau Easy2Book (agence physique, partenaire, commercial,
+  fournisseur-référent, campagnes pub, réseaux sociaux) — aucun point
+  d'entrée de capture structuré n'existe encore pour ces sources.
 
 **Ce qui a été fait** :
 
-| Migration | Nom                                  | Application                                                                                      | `supabase_migrations`                              |
-| --------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| 0094      | `market_signals_rls`                 | ✅ RLS + FORCE sur `market_signals` + `development_projects`; 4 policies (`read` + `admin_write`) | `0094a`, `0094b`, `0094e` (policies via timeout+verify) |
-| 0101      | `pricing_margins_channel`            | ✅ ADD COLUMN `channel VARCHAR(16) DEFAULT 'direct'` + nouvel index unique `(agency_id, module, channel)` | `0101`, `0101c`                               |
-| 0103      | `flight_snapshot_fx_columns`         | ✅ ADD COLUMN `supplier_original_amount DECIMAL(12,3)` + `supplier_original_currency VARCHAR(3)` | `0103_flight_snapshot_fx_columns`                  |
+- `lib/db/schema.ts` : 3 colonnes additives sur `leads` — `destination`
+  (varchar, texte libre), `intention` (varchar, validée en code contre
+  `LEAD_INTENTIONS`), `market` (varchar, validée contre `LEAD_MARKETS`)
+  - index composite `leads_agency_market_product_intention_idx`.
+- `lib/crm/leads-core.ts` : `LEAD_INTENTIONS = ["groupe", "transfert",
+"a_la_carte", "standard"]` (alignée sur la décision Devis permanente
+  2026-09-29, Phase 3 R3-03 — les 3 valeurs non-standard sont exactement
+  les 3 cas où le futur flux devis s'appliquera) ; `LEAD_MARKETS =
+["tunisia"]`, extensible sans migration (contrainte TS, pas un enum
+  DB) pour l'expansion USA/Asia annoncée par l'utilisateur.
+- `lib/crm/niche-core.ts` (nouveau) : `computeNicheSegmentsCore()`
+  (fonction pure, group-by déterministe marché × produit × intention ×
+  destination × période mensuelle, avec volume + taux de conversion) ;
+  `getNicheSegmentsCore()` lit les leads réels de l'agence et délègue
+  tout le calcul sans dupliquer la logique.
+- `app/actions/submit-lead.ts` + `components/leads/lead-capture-form.tsx` :
+  câblage de `intention` (défaut "standard"), `destination` optionnelle.
+- Migration `drizzle/manual/0110_leads_niche_dimensions.sql` — additive,
+  idempotente (`ADD COLUMN IF NOT EXISTS`), aucune colonne existante
+  touchée, aucun impact reservations/payments/wallet.
 
-**Vérification production** :
+**Hors scope volontaire** : dimension "comportement" (récence/fréquence
+par contact) — identifiée dans l'audit comme manquante, mais absente du
+critère de sortie validé au GO ; à reprendre si besoin dans un chantier
+dédié, pas ajoutée ici par anticipation.
 
-- `market_signals` + `development_projects` : `relrowsecurity=true`, `relforcerowsecurity=true` ✅; 4 policies présentes ✅
-- `pricing_margins` : colonne `channel` présente, index `pricing_margins_agency_module_channel_uniq` ✅; ancien index `pricing_margins_agency_module_uniq` absent (n'existait pas) ✅
-- `flight_price_snapshots` : `supplier_original_amount` (numeric, nullable) + `supplier_original_currency` (varchar, nullable) ✅
+**Preuves** :
 
-**Anomalie** : `apply_migration` timeout sur `CREATE POLICY` et `DROP INDEX` (>60s serveur). SQL exécuté côté DB avant le timeout — confirmé par requête `pg_policies` / `pg_indexes`. Registration manuelle via entrée `0094e_market_signals_rls_policies_verified` (SELECT 1 idempotent).
+- `pnpm test` : 1391/1391 pass (7 nouveaux tests `niche-core.test.ts` :
+  liste vide, regroupement multi-dimensions, période distincte, taux de
+  conversion sans division par zéro, destination null vs renseignée, tri
+  par volume).
+- `pnpm typecheck` : 0 erreur.
+- `pnpm lint` : 0 erreur (2 runs).
+- `npx prettier --check` sur tous les fichiers modifiés : clean.
+- `pnpm build` : exit 0.
+
+**Mis à jour (2026-10-05, même jour — GO explicite reçu)** :
+
+- PR #131 ouverte (`crm-niche-01` → `main`), branche pushée.
+- Migration 0110 appliquée en production Supabase `crygnaichvlxavvbifqi`
+  (`apply_migration`, succès) — vérifié par lecture directe :
+  `destination` (varchar, nullable), `intention` (varchar, NOT NULL,
+  défaut `'standard'`), `market` (varchar, NOT NULL, défaut `'tunisia'`),
+  index `leads_agency_market_product_intention_idx` présent.
+
+**NOT VERIFIED** :
+
+- PR #131 : pas encore mergée sur `main` — CI à surveiller.
+- Visual QA dashboard CRM : aucune UI de consultation des segments n'a
+  été construite dans ce chantier (hors scope — le critère de sortie
+  validé portait sur la fonction d'agrégation, pas sur un écran staff).
+
+**Prochain chantier potentiel identifié, NON exécuté** : une vue
+dashboard consommant `getNicheSegmentsCore()` (affichage des segments
+par marché/produit/intention) serait l'étape naturelle pour rendre ce
+moteur exploitable par le staff — à auditer/proposer séparément, sur GO
+explicite, pas enchaîné automatiquement ici.
 
 ---
 
@@ -538,39 +839,11 @@ sans commission dans la chaîne Booking → Commission.
 **Résultat audit** : N/A — les deux migrations étaient déjà appliquées en production.
 La ROADMAP indiquait "NON ENCORE APPLIQUÉE" mais la vérification MCP Supabase (2026-10-04)
 confirme :
+
 - `destinations.is_featured` (boolean DEFAULT false) + `destinations.display_order` (integer DEFAULT 0) : présents (version `20261002185747`)
 - table `development_project_waitlist` : présente (version `20261002185755`)
 
 Aucune action DB requise.
-
----
-
-### WHITE-LABEL-ADMIN-01 — CLÔTURÉ (2026-10-04, commit `8c558b6`)
-
-**Objectif** : permettre à un super_admin de configurer les champs White Label d'une agence existante (domain, brandName, logoUrl, primaryColor) via une page d'édition `/admin/agencies/[id]`.
-
-**État audit** : CREATE (page + action manquantes)
-
-**Ce qui a été fait** :
-
-- `lib/admin/agencies-actions.ts` : +`updateAgencyWhiteLabel(agencyId, {domain, brandName, logoUrl, primaryColor})` — validation HEX regex + DOMAIN regex + gestion 23505 (domaine déjà pris) + audit event `agency.white_label_updated`
-- `app/(internal)/admin/agencies/[id]/page.tsx` : nouvelle page serveur (guard super_admin, charge l'agence depuis DB, rend `AgencyWhiteLabelForm`)
-- `components/admin/agency-wl-form.tsx` : nouveau composant client avec color picker + preview hex live
-- `components/admin/agencies-data-table.tsx` : +lien "White Label" dans le dropdown de chaque ligne d'agence
-- `lib/admin/__tests__/agencies-wl-invariants.test.ts` : 10 invariants purs
-
-**Preuves** :
-
-- typecheck : 0 erreur ✅
-- lint : 0 erreur (128 warnings pré-existants) ✅
-- tests : 1394 pass / 0 fail ✅
-- commit `8c558b6` sur `claude/easy2book-v6-modernization-7gyb5v` ✅
-
-**Visuel** : NOT VERIFIED (nécessite session super_admin authentifiée)
-
-**Aucun changement DB** — colonnes `domain`, `brandName`, `logoUrl`, `primaryColor` déjà présentes sur la table `agencies`.
-
-**Statut** : CLÔTURÉ (2026-10-04) — à merger vers main.
 
 ---
 
@@ -581,6 +854,7 @@ Aucune action DB requise.
 **État audit** : EXTEND — infrastructure existante (`agencies.primary_color` DB, `PartnerProfile.primaryColor`) ; seul le câblage jusqu'au composant manquait.
 
 **Changements** :
+
 - `app/(internal)/pro/(app)/layout.tsx` : passage de `primaryColor: profile.agency.primaryColor` dans le prop `agency` de `<ProShell>`.
 - `components/pro/layout.tsx` :
   - Ajout `primaryColor?: string | null` dans `ProSidebarAgency`.
@@ -588,6 +862,7 @@ Aucune action DB requise.
   - Validation hex `/^#[0-9a-fA-F]{6}$/` + injection `style={{ "--primary": validPrimaryColor }}` sur `<SidebarProvider>`.
 
 **Tests** :
+
 - `pnpm typecheck` : ✓ zéro erreur.
 - 19 tests statiques invariants (margins + channel) : ✓ pass.
 - Dev server compile `/pro/login` (full layout chain) : ✓.

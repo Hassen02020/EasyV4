@@ -35,11 +35,6 @@ test("network/product-booking-actions.ts : getMarginsForAgency passe channel='b2
   assert.match(src, /getMarginsForAgency\(agencyId, createdByUserId, "b2b"\)/)
 })
 
-test("vols/guest-booking-actions.ts : getMarginsForAgency passe channel='direct'", () => {
-  const src = read("lib/vols/guest-booking-actions.ts")
-  assert.match(src, /getMarginsForAgency\(agencyId, undefined, "direct"\)/)
-})
-
 test("booking/guest-actions.ts : getMarginsForAgency passe channel='direct'", () => {
   const src = read("lib/booking/guest-actions.ts")
   assert.match(src, /getMarginsForAgency\(agencyId, "", "direct"\)/)

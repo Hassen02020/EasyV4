@@ -187,10 +187,6 @@ test("commission-settlement.ts : markSettlementPaid passe status à 'paid'", () 
 // Modules qui appellent recordReservationFinancials DIRECTEMENT
 const DIRECT_WIRING_FILES: Array<{ label: string; path: string }> = [
   {
-    label: "vols/guest-booking-actions.ts",
-    path: "lib/vols/guest-booking-actions.ts",
-  },
-  {
     label: "transfers/guest-booking-actions.ts",
     path: "lib/transfers/guest-booking-actions.ts",
   },

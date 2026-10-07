@@ -5,9 +5,10 @@
  * directement contre une vraie transaction DB.
  */
 
-import { and, eq, desc, ilike, isNull, or } from "drizzle-orm"
+import { and, eq, desc, ilike, inArray, isNull, or } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customers, leads, reservations } from "@/lib/db/schema"
+import { findMatchingCustomerIdsCore } from "./customer-match-core"
 
 export const LEAD_PRODUCT_TYPES = [
   "hotel",
@@ -18,6 +19,28 @@ export const LEAD_PRODUCT_TYPES = [
 ] as const
 export type LeadProductType = (typeof LEAD_PRODUCT_TYPES)[number]
 
+/**
+ * CRM-NICHE-01 — alignée sur la décision Devis permanente (2026-09-29,
+ * ROADMAP Phase 3 R3-03) : "groupe", "transfert" et "a_la_carte" sont
+ * exactement les 3 cas où un futur flux devis s'appliquera. "standard"
+ * couvre tout le reste (défaut).
+ */
+export const LEAD_INTENTIONS = [
+  "groupe",
+  "transfert",
+  "a_la_carte",
+  "standard",
+] as const
+export type LeadIntention = (typeof LEAD_INTENTIONS)[number]
+
+/**
+ * CRM-NICHE-01 — marchés/marques Easy2Book actifs, pas un code pays ISO
+ * générique. Une seule entité active aujourd'hui ; ajouter "usa"/"asia"
+ * plus tard ne demande aucune migration (colonne texte, validée ici).
+ */
+export const LEAD_MARKETS = ["tunisia"] as const
+export type LeadMarket = (typeof LEAD_MARKETS)[number]
+
 export const LEAD_STATUSES = [
   "new",
   "contacted",
@@ -25,16 +48,6 @@ export const LEAD_STATUSES = [
   "closed",
 ] as const
 export type LeadStatus = (typeof LEAD_STATUSES)[number]
-
-/** J6 CRM→Distribution — canal par lequel le lead est arrivé. */
-export const LEAD_ACQUISITION_CHANNELS = [
-  "b2c",
-  "b2b",
-  "network",
-  "white_label",
-  "api",
-] as const
-export type LeadAcquisitionChannel = (typeof LEAD_ACQUISITION_CHANNELS)[number]
 
 export interface LeadRow {
   id: string
@@ -47,14 +60,19 @@ export interface LeadRow {
   productRef: string | null
   productLabel: string | null
   sourcePage: string
-  acquisitionChannel: LeadAcquisitionChannel | null
+  destination: string | null
+  intention: LeadIntention
+  market: LeadMarket
+  /** NETWORK-DEMAND-CAPTURE-01 — colonnes résolues, jamais écrites directement (voir network-demand-capture-core.ts). */
+  originAgencyId: string | null
+  capturedByUserId: string | null
+  channel: string | null
+  campaignRef: string | null
   status: LeadStatus
   staffNotes: string | null
   handledByUserId: string | null
   reservationId: string | null
   convertedAt: Date | null
-  /** J5 : supplier_node_id résolu à la soumission (null = lead classique). */
-  supplierNodeId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -72,9 +90,9 @@ export async function createLeadCore(
     productRef?: string | null
     productLabel?: string | null
     sourcePage: string
-    acquisitionChannel?: LeadAcquisitionChannel | null
-    /** J5 : nœud fournisseur Network résolu par l'appelant (submit-lead). */
-    supplierNodeId?: string | null
+    destination?: string | null
+    intention?: LeadIntention
+    market?: LeadMarket
   },
 ): Promise<{ id: string }> {
   const [inserted] = await tx
@@ -90,8 +108,9 @@ export async function createLeadCore(
       productRef: params.productRef ?? undefined,
       productLabel: params.productLabel ?? undefined,
       sourcePage: params.sourcePage,
-      acquisitionChannel: params.acquisitionChannel ?? undefined,
-      supplierNodeId: params.supplierNodeId ?? undefined,
+      destination: params.destination ?? undefined,
+      intention: params.intention ?? "standard",
+      market: params.market ?? "tunisia",
     })
     .returning({ id: leads.id })
   return { id: inserted!.id }
@@ -110,8 +129,9 @@ export async function getLeadCore(
   return {
     ...row,
     productType: row.productType as LeadProductType,
+    intention: row.intention as LeadIntention,
+    market: row.market as LeadMarket,
     status: row.status as LeadStatus,
-    supplierNodeId: row.supplierNodeId ?? null,
   }
 }
 
@@ -125,14 +145,10 @@ export async function listLeadsCore(
   params: {
     agencyId: string
     status?: LeadStatus
-    /** J6-BIS : filtre par canal de distribution — null = tous les canaux. */
-    acquisitionChannel?: LeadAcquisitionChannel
   },
 ): Promise<LeadRow[]> {
   const conditions = [eq(leads.agencyId, params.agencyId)]
   if (params.status) conditions.push(eq(leads.status, params.status))
-  if (params.acquisitionChannel)
-    conditions.push(eq(leads.acquisitionChannel, params.acquisitionChannel))
 
   const rows = await tx
     .select()
@@ -144,8 +160,9 @@ export async function listLeadsCore(
   return rows.map((r) => ({
     ...r,
     productType: r.productType as LeadProductType,
+    intention: r.intention as LeadIntention,
+    market: r.market as LeadMarket,
     status: r.status as LeadStatus,
-    supplierNodeId: r.supplierNodeId ?? null,
   }))
 }
 
@@ -398,11 +415,13 @@ export interface ReservationLinkCandidate {
 /**
  * Réservations candidates pour lier un lead — jamais un lien automatique :
  * le staff choisit toujours explicitement dans cette liste (voir
- * `convertLeadCore`). Sans `query`, suggère par correspondance email/
- * téléphone du lead (le cas le plus courant) ; avec `query`, recherche
- * libre (réf publique, nom, email, téléphone) pour couvrir le cas où le
- * client a réservé avec des coordonnées différentes de celles du lead.
- * Toujours scopé à `agencyId` — jamais de résultat cross-agence.
+ * `convertLeadCore`). Sans `query`, suggère par correspondance NORMALISÉE
+ * email/téléphone du lead (le cas le plus courant — NORMALIZED-MATCHING-01,
+ * même helper partagé que `getVipScoreForLeadCore`/`getCustomer360Core`) ;
+ * avec `query`, recherche libre (réf publique, nom, email, téléphone, non
+ * normalisée) pour couvrir le cas où le client a réservé avec des
+ * coordonnées différentes de celles du lead. Toujours scopé à `agencyId`
+ * — jamais de résultat cross-agence.
  */
 export async function searchReservationsForLeadLinkCore(
   tx: DrizzleTransaction,
@@ -415,21 +434,29 @@ export async function searchReservationsForLeadLinkCore(
 ): Promise<ReservationLinkCandidate[]> {
   const q = params.query?.trim()
 
-  const matchClause = q
-    ? or(
-        ilike(reservations.publicRef, `%${q}%`),
-        ilike(customers.firstName, `%${q}%`),
-        ilike(customers.lastName, `%${q}%`),
-        ilike(customers.email, `%${q}%`),
-        ilike(customers.phone, `%${q}%`),
-      )
-    : or(
-        params.email ? eq(customers.email, params.email) : undefined,
-        params.phone ? eq(customers.phone, params.phone) : undefined,
-      )
+  let matchClause
+  if (q) {
+    matchClause = or(
+      ilike(reservations.publicRef, `%${q}%`),
+      ilike(customers.firstName, `%${q}%`),
+      ilike(customers.lastName, `%${q}%`),
+      ilike(customers.email, `%${q}%`),
+      ilike(customers.phone, `%${q}%`),
+    )
+  } else {
+    const matchedCustomerIds = await findMatchingCustomerIdsCore(tx, {
+      agencyId: params.agencyId,
+      email: params.email,
+      phone: params.phone,
+    })
+    matchClause = matchedCustomerIds.length
+      ? inArray(reservations.customerId, matchedCustomerIds)
+      : undefined
+  }
 
-  // Ni query, ni email, ni phone : rien de pertinent à suggérer — jamais une
-  // liste arbitraire des dernières réservations de l'agence.
+  // Ni query, ni email, ni phone, ni aucun customer trouvé : rien de
+  // pertinent à suggérer — jamais une liste arbitraire des dernières
+  // réservations de l'agence.
   if (!matchClause) return []
 
   const rows = await tx

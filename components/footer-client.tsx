@@ -48,6 +48,7 @@ interface FooterClientProps {
   logoUrl?: string | null
   /** Nom d'agence White Label ; absent = branding Easy2Book par défaut. */
   brandName?: string | null
+  contactEmail?: string | null
   /** Téléphone de contact — résolu depuis la BDD. */
   contactPhone?: string | null
   /** Numéro WhatsApp (format international sans +, ex. "21698140514"). */
@@ -65,6 +66,7 @@ interface FooterClientProps {
 export function FooterClient({
   logoUrl,
   brandName,
+  contactEmail,
   contactPhone,
   whatsappNumber,
   facebookUrl,
@@ -247,6 +249,17 @@ export function FooterClient({
                       className="font-medium transition-colors hover:text-white"
                     >
                       {formattedPhone}
+                    </a>
+                  </li>
+                )}
+                {contactEmail && (
+                  <li className="flex items-center gap-2">
+                    <span className="text-accent text-sm">@</span>
+                    <a
+                      href={`mailto:${contactEmail}`}
+                      className="font-medium transition-colors hover:text-white"
+                    >
+                      {contactEmail}
                     </a>
                   </li>
                 )}

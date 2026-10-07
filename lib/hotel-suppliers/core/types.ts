@@ -167,6 +167,39 @@ export interface SupplierRunDetail {
   errorMessage?: string
 }
 
+/**
+ * CANONICAL-HOTEL-01 — déplacé ici depuis mapping.ts (ré-exporté là-bas)
+ * pour que `DeduplicatedHotelGroup` ci-dessous puisse le référencer sans
+ * import circulaire (mapping.ts/deduplication.ts importent déjà depuis ce
+ * fichier, jamais l'inverse).
+ */
+export type MatchConfidence = "EXACT" | "HIGH" | "MEDIUM" | "LOW" | "UNMATCHED"
+
+/**
+ * CANONICAL-HOTEL-01 — déplacé ici depuis deduplication.ts (ré-exporté
+ * là-bas) pour que `HubSearchResult.groups` puisse le référencer.
+ */
+export interface DeduplicatedHotelGroup {
+  /** Fiche représentative (premier hôtel du groupe) — jamais un objet inventé/fusionné champ par champ. */
+  hotel: NormalizedHotel
+  /**
+   * Tous les hôtels normalisés (un par fournisseur) regroupés ici, avec la
+   * confiance du rattachement au premier et les `reasons` qui l'expliquent
+   * (CANONICAL-HOTEL-01-REASONS — mêmes `reasons` que `matchHotels()`
+   * renvoie déjà ; pour le premier membre d'un groupe (l'ancre), ce n'est
+   * pas une comparaison mais la création de l'identité elle-même — jamais
+   * un tableau vide/inventé).
+   */
+  members: {
+    hotel: NormalizedHotel
+    confidence: MatchConfidence
+    reasons: string[]
+  }[]
+  /** Toutes les offres tarifaires des fournisseurs regroupés — jamais réduites à une seule avant le ranking. */
+  rates: NormalizedRate[]
+  fromPrice: number | null
+}
+
 export interface HubSearchResult {
   correlationId: string
   results: NormalizedHotel[]
@@ -176,6 +209,8 @@ export interface HubSearchResult {
   failedSuppliers: SupplierName[]
   /** PHASE 28 — additif, ne remplace pas supplierStatus/failedSuppliers (déjà utilisés ailleurs). */
   supplierDetails: Record<SupplierName, SupplierRunDetail>
+  /** CANONICAL-HOTEL-01 — additif, groupes complets (avec confiance par membre) pour la persistance canonical best-effort (lib/hotel-suppliers/core/canonical-persistence.ts). `results` reste le contrat existant inchangé. */
+  groups: DeduplicatedHotelGroup[]
 }
 
 export type CheckRateResult =

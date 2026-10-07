@@ -25,6 +25,7 @@ export default function LoginPage() {
             href="/"
             aria-label="Retour à l'accueil Easy2Book"
             className="group"
+            prefetch={false}
           >
             <Easy2BookLogo className="e2b-logo-pulse h-20 w-20" priority />
           </Link>
@@ -49,6 +50,7 @@ export default function LoginPage() {
           <Link
             href="/login/select"
             className="text-primary font-medium hover:underline"
+            prefetch={false}
           >
             Choisir mon espace
           </Link>

@@ -152,5 +152,6 @@ export async function searchAcrossSuppliers(
     elapsedMs: Date.now() - start,
     failedSuppliers,
     supplierDetails: supplierDetails as Record<SupplierName, SupplierRunDetail>,
+    groups,
   }
 }

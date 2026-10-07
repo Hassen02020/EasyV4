@@ -946,15 +946,6 @@ export const commercialAgreementChannel = pgEnum(
   ["b2c", "b2b", "network", "white_label", "api"],
 )
 
-/** Canal d'acquisition du lead — J6 CRM→Distribution (2026-10-04). */
-export const leadAcquisitionChannel = pgEnum("lead_acquisition_channel", [
-  "b2c",
-  "b2b",
-  "network",
-  "white_label",
-  "api",
-])
-
 export const commercialAgreementStatus = pgEnum("commercial_agreement_status", [
   "draft",
   "active",
@@ -2067,8 +2058,51 @@ export const leads = pgTable(
     productLabel: varchar("product_label", { length: 255 }),
     /** Chemin de la page d'où la demande a été envoyée (ex. "/packages/mon-voyage") — utile pour prioriser/comprendre la demande, jamais affiché comme donnée client. */
     sourcePage: varchar("source_page", { length: 255 }).notNull(),
-    /** Canal de distribution par lequel le lead est arrivé — J6 CRM→Distribution. Null = inconnu / non renseigné (leads WhatsApp, anciens leads). */
-    acquisitionChannel: leadAcquisitionChannel("acquisition_channel"),
+    /**
+     * CRM-NICHE-01 — destination demandée (ville/pays), texte libre saisi
+     * par le visiteur ou déduit du produit catalogue au moment de la
+     * capture — jamais une FK stricte (même raisonnement que productRef).
+     */
+    destination: varchar("destination", { length: 128 }),
+    /**
+     * CRM-NICHE-01 — 'groupe' | 'transfert' | 'a_la_carte' | 'standard'.
+     * Alignée sur la décision Devis (2026-09-29, ROADMAP Phase 3 R3-03) :
+     * les 3 valeurs non-standard correspondent exactement aux 3 cas où un
+     * futur flux devis s'appliquera. Validé en code (LEAD_INTENTIONS,
+     * lib/crm/leads-core.ts), pas un enum DB — permet d'ajouter une
+     * intention sans migration.
+     */
+    intention: varchar("intention", { length: 16 })
+      .notNull()
+      .default("standard"),
+    /**
+     * CRM-NICHE-01 — marché/marque Easy2Book (ex. "tunisia"), pas un code
+     * pays ISO générique : une entité commerciale distincte (Tunisia, puis
+     * USA, Asia...). Validé contre LEAD_MARKETS (lib/crm/leads-core.ts),
+     * pas un enum DB — ajouter un marché ne demande aucune migration.
+     */
+    market: varchar("market", { length: 32 }).notNull().default("tunisia"),
+    /**
+     * NETWORK-DEMAND-CAPTURE-01 — cache RÉSOLU (rang de confiance maximal
+     * par rôle, jamais un simple départage par date — voir
+     * LEAD_ORIGIN_SOURCE_TRUST, lib/crm/network-demand-capture-core.ts),
+     * jamais écrit directement : toujours dérivé du journal append-only
+     * `leadOriginEvents` par `recordLeadOriginEventCore()`. Distinct de
+     * `agencyId` (tenant propriétaire, ci-dessus) : ici, l'agence qui a
+     * APPORTÉ la demande (ex. une agence `agencyType='partner'`) — peut
+     * être une agence différente du tenant propriétaire.
+     */
+    originAgencyId: uuid("origin_agency_id").references(() => agencies.id, {
+      onDelete: "set null",
+    }),
+    /** NETWORK-DEMAND-CAPTURE-01 — cache résolu : le commercial/agent apporteur, distinct de `handledByUserId` (qui TRAITE le lead après coup). */
+    capturedByUserId: uuid("captured_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** NETWORK-DEMAND-CAPTURE-01 — cache résolu : canal de capture, validé contre LEAD_CHANNELS (lib/crm/leads-core.ts), pas un enum DB. */
+    channel: varchar("channel", { length: 32 }),
+    /** NETWORK-DEMAND-CAPTURE-01 — cache résolu : référence de campagne/acquisition, texte libre (aucun mécanisme de capture structuré n'existe encore — ce chantier prépare la forme, pas le branchement). */
+    campaignRef: varchar("campaign_ref", { length: 255 }),
     /** 'new' | 'contacted' | 'converted' | 'closed' */
     status: varchar("status", { length: 16 }).notNull().default("new"),
     staffNotes: text("staff_notes"),
@@ -2084,18 +2118,6 @@ export const leads = pgTable(
       onDelete: "set null",
     }),
     convertedAt: timestamp("converted_at", { withTimezone: true }),
-    /**
-     * J5 CRM→Supplier : nœud fournisseur réseau directement associé à ce
-     * lead. Renseigné automatiquement à la soumission quand `productRef` est
-     * un UUID de la table `products` avec un `supplier_node_id` connu.
-     * `null` pour tous les leads classiques (hotel myGo, vol, etc.) dont le
-     * fournisseur n'est pas modélisé dans le Network — comportement historique
-     * inchangé, aucune ligne existante modifiée.
-     */
-    supplierNodeId: uuid("supplier_node_id").references(
-      () => supplierNodes.id,
-      { onDelete: "set null" },
-    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -2107,9 +2129,58 @@ export const leads = pgTable(
     index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
     index("leads_agency_idx").on(t.agencyId),
     uniqueIndex("leads_reservation_id_uniq").on(t.reservationId),
-    index("leads_supplier_node_idx")
-      .on(t.supplierNodeId)
-      .where(sql`${t.supplierNodeId} IS NOT NULL`),
+    /** CRM-NICHE-01 — colonnes de group-by de getNicheSegmentsCore(). */
+    index("leads_agency_market_product_intention_idx").on(
+      t.agencyId,
+      t.market,
+      t.productType,
+      t.intention,
+    ),
+    /** NETWORK-DEMAND-CAPTURE-01 — colonnes de group-by futures (CRM-NICHE-02). */
+    index("leads_agency_origin_channel_idx").on(
+      t.agencyId,
+      t.originAgencyId,
+      t.channel,
+    ),
+  ],
+)
+
+/**
+ * NETWORK-DEMAND-CAPTURE-01 — journal append-only du chemin de provenance
+ * d'un lead (campagne → partenaire → commercial → canal → agence...).
+ * JAMAIS de UPDATE/DELETE (même invariant que `wallet_ledger`, R4-03) :
+ * une correction s'écrit comme un NOUVEL événement, l'ancien reste visible.
+ * Les colonnes résolues sur `leads` (originAgencyId/capturedByUserId/
+ * channel/campaignRef) sont un cache dérivé de ce journal — rang de
+ * confiance maximal par rôle, jamais un simple départage par date (voir
+ * LEAD_ORIGIN_SOURCE_TRUST, lib/crm/network-demand-capture-core.ts) —
+ * jamais écrites directement par l'app hors de `recordLeadOriginEventCore()`.
+ */
+export const leadOriginEvents = pgTable(
+  "lead_origin_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Dénormalisé depuis leads.agencyId — évite un join dans la policy RLS. */
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    /** 'campaign' | 'origin_agency' | 'captured_by_user' | 'channel' — validé contre LEAD_ORIGIN_ROLES (lib/crm/network-demand-capture-core.ts). */
+    role: varchar("role", { length: 24 }).notNull(),
+    /** uuid (agence/user) ou texte libre (canal/campagne) selon le rôle — jamais interprété au niveau DB. */
+    actorRef: varchar("actor_ref", { length: 255 }).notNull(),
+    /** Mécanisme de capture — rang de confiance défini dans LEAD_ORIGIN_SOURCE_TRUST (lib/crm/network-demand-capture-core.ts). */
+    source: varchar("source", { length: 64 }).notNull(),
+    notes: text("notes"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("lead_origin_events_lead_idx").on(t.leadId, t.recordedAt),
+    index("lead_origin_events_agency_idx").on(t.agencyId),
   ],
 )
 
@@ -2184,6 +2255,429 @@ export const CRM_CHANNELS = [
   "web",
 ] as const
 export type CrmChannel = (typeof CRM_CHANNELS)[number]
+
+/**
+ * CONSENT-01 — journal append-only de permission marketing, par point de
+ * contact (PAS par lead ni par "personne" — aucune de ces deux entités
+ * n'a d'identité canonique dans ce dépôt, voir audit de conception).
+ * JAMAIS de UPDATE/DELETE (même invariant que lead_origin_events/
+ * wallet_ledger) : une révocation ou un nouvel opt-in s'écrit comme un
+ * NOUVEL événement, l'ancien reste visible pour la preuve (point 5 du
+ * modèle : qui/quoi, quand, par quel mécanisme).
+ *
+ * Clé de résolution : (agencyId, channel, contactRef, purpose). Dernier
+ * événement par `occurredAt` fait foi — contrairement à
+ * `lead_origin_events` (NETWORK-DEMAND-CAPTURE-01), "dernier gagne" est
+ * ICI la règle correcte : un seul auteur légitime (la personne elle-même
+ * ou un staff agissant pour elle) exprime une volonté séquentielle, pas
+ * des tiers concurrents qui s'affirment des choses contradictoires.
+ */
+export const CONSENT_PURPOSES = ["marketing"] as const
+export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number]
+
+export const CONSENT_ACTIONS = ["granted", "withdrawn"] as const
+export type ConsentAction = (typeof CONSENT_ACTIONS)[number]
+
+export const leadConsentEvents = pgTable(
+  "lead_consent_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** 'whatsapp' | 'instagram' | ... — réutilise CRM_CHANNELS, pas un second vocabulaire canal. */
+    channel: varchar("channel", { length: 32 }).notNull(),
+    /** Email (minuscules) ou téléphone — texte brut, PAS une FK vers customers/leads (aucune identité canonique n'existe). */
+    contactRef: varchar("contact_ref", { length: 320 }).notNull(),
+    /** 'marketing' — seule finalité gérée ; le transactionnel n'a aucune ligne ici, jamais soumis à ce contrôle. */
+    purpose: varchar("purpose", { length: 32 }).notNull(),
+    /** 'granted' | 'withdrawn'. */
+    action: varchar("action", { length: 16 }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Mécanisme d'enregistrement — ex. "lead_capture_form_checkbox", "staff_manual_entry". */
+    source: varchar("source", { length: 64 }).notNull(),
+    /** Référence/version du texte de consentement, si pertinent — jamais le contenu intégral. */
+    proofRef: varchar("proof_ref", { length: 255 }),
+    /** null = la personne elle-même ; renseigné = un staff a agi en son nom. */
+    recordedByUserId: uuid("recorded_by_user_id"),
+  },
+  (t) => [
+    index("lead_consent_events_resolution_idx").on(
+      t.agencyId,
+      t.channel,
+      t.contactRef,
+      t.purpose,
+      t.occurredAt,
+    ),
+  ],
+)
+
+/**
+ * CONTACT-01 — registre de POINTS DE CONTACT normalisés, PAS une
+ * identité "personne". Une ligne = (agencyId, channel, contactRef)
+ * normalisé, avec un id stable réutilisable par d'autres modules
+ * (ex. CAMPAIGN) pour regrouper sans fusionner.
+ *
+ * Audit de conception dédié (docs/ROADMAP.md) : `customers` a été
+ * explicitement exclu comme fondation (aucun index unique sur
+ * email/phone, et lib/admin/customer-360-core.ts documente déjà qu'un
+ * même lead peut correspondre à plusieurs `customerId` sans jamais être
+ * fusionné). Ce registre ne prétend PAS résoudre qui est la personne —
+ * seulement reconnaître qu'une même valeur de contact réapparaît.
+ *
+ * PAS append-only (contrairement à lead_consent_events) : `lastSeenAt`
+ * est mis à jour à chaque résolution du même point de contact — c'est
+ * un registre/dimension, pas un journal d'événements.
+ *
+ * Aucune colonne leadId/customerId/personId ici, et AUCUN backfill —
+ * le registre se peuple uniquement à l'appel explicite d'un
+ * consommateur (voir lib/crm/contact-core.ts), jamais par migration de
+ * données historiques.
+ */
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    channel: varchar("channel", { length: 32 }).notNull(),
+    contactRef: varchar("contact_ref", { length: 320 }).notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("contacts_resolution_uniq").on(
+      t.agencyId,
+      t.channel,
+      t.contactRef,
+    ),
+  ],
+)
+
+/**
+ * BEHAVIORAL-SIGNAL-01 — signal de DEMANDE MARCHÉ agrégé, PAS un
+ * historique individuel. Audit de conception dédié (docs/ROADMAP.md,
+ * BEHAVIORAL-INTENT-01/BEHAVIORAL-SIGNAL-01, décisions actées avec
+ * l'utilisateur) :
+ *  - AUCUN tracking individuel, aucune IP, aucun fingerprint, aucun
+ *    identifiant de visiteur — une recherche hôtel incrémente un COMPTEUR
+ *    partagé (agencyId, productType, destination, searchDate), jamais
+ *    une ligne par recherche ;
+ *  - "pilote" strictement limité au produit hôtel ("hotel") pour ce
+ *    chantier — pas une plateforme générique d'événements comportementaux ;
+ *  - jamais fusionné avec VIP Score (valeur client) ni NICHE
+ *    (segmentation) — ce signal mesure la demande marché, pas une
+ *    personne.
+ */
+export const searchDemandSignals = pgTable(
+  "search_demand_signals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    /** "hotel" uniquement pour ce pilote — jamais un second vocabulaire que `leads.productType`. */
+    productType: varchar("product_type", { length: 32 }).notNull(),
+    /** Valeur canonique (ex. `destinationByValue(...).value`) — jamais un libellé localisé comme clé d'agrégation. */
+    destination: varchar("destination", { length: 100 }).notNull(),
+    /** Jour de l'agrégation (UTC) — granularité volontairement journalière, pas horaire. */
+    searchDate: date("search_date").notNull(),
+    searchCount: integer("search_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("search_demand_signals_agg_uniq").on(
+      t.agencyId,
+      t.productType,
+      t.destination,
+      t.searchDate,
+    ),
+    index("search_demand_signals_agency_date_idx").on(t.agencyId, t.searchDate),
+  ],
+)
+
+/**
+ * CAMPAIGN-PERSISTENCE-01 — identité, objectif et état d'une campagne
+ * commerciale dans le temps. Audit de conception dédié (docs/ROADMAP.md) :
+ * CAMPAIGN décide "à qui et pour quelle action commerciale" — jamais
+ * "quelle offre" (PROMO), "quel prix" (PRICING) ni "quelle réservation"
+ * (BOOKING). Aucune de ces colonnes n'apparaît ici.
+ *
+ * `objective` est un texte libre (ex. "Istanbul Novembre") — pas une FK
+ * vers NICHE/AUDIENCE, qui restent des calculs à la demande, jamais
+ * persistés. `promoRef` est un pointeur nullable, posé pour PROMO (non
+ * construit), jamais une valeur de remise elle-même — même pattern que
+ * `economicEntitlements.agreementId` (AGREEMENT-01) : une référence
+ * technique provisoire, pas une équivalence conceptuelle.
+ */
+export const CAMPAIGN_STATUSES = [
+  "draft",
+  "active",
+  "completed",
+  "cancelled",
+] as const
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number]
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 200 }).notNull(),
+    objective: text("objective"),
+    /** Réutilise CRM_CHANNELS — une campagne cible UN canal, jamais un mélange implicite. */
+    channel: varchar("channel", { length: 32 }).notNull(),
+    /**
+     * CAMPAIGN-EXTENSION-01 — contenu réellement montré à la cible.
+     * Figé dès que `status !== 'draft'` (voir `updateCampaignCore`,
+     * lib/crm/campaign-persistence-core.ts) : décision explicite de
+     * l'utilisateur (2026-10-06) — changer le message après lancement
+     * exige une NOUVELLE campagne, jamais une édition en place. Pas de
+     * mécanisme de version séparé : la nouvelle campagne EST la nouvelle
+     * version.
+     */
+    message: text("message"),
+    status: varchar("status", { length: 16 }).notNull().default("draft"),
+    /**
+     * CAMPAIGN-EXTENSION-01 — fenêtre PLANIFIÉE, distincte de la date
+     * réelle de clôture (transition `active → completed`, déjà portée
+     * par `updatedAt`). Décision explicite de l'utilisateur (2026-10-06) :
+     * champ dédié plutôt que déduit du statut. Contrairement à
+     * name/objective/channel/message, restent modifiables même après
+     * lancement — un planning s'ajuste, le contenu montré non (décision
+     * non posée par l'utilisateur, tranchée ici et signalée explicitement).
+     */
+    startAt: timestamp("start_at", { withTimezone: true }),
+    endAt: timestamp("end_at", { withTimezone: true }),
+    /** Nullable — posé pour PROMO, jamais construit par ce chantier. */
+    promoRef: uuid("promo_ref"),
+    createdByUserId: uuid("created_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("campaigns_agency_status_idx").on(t.agencyId, t.status),
+    check(
+      "campaigns_status_check",
+      sql`${t.status} in ('draft','active','completed','cancelled')`,
+    ),
+  ],
+)
+
+export type Campaign = typeof campaigns.$inferSelect
+export type NewCampaign = typeof campaigns.$inferInsert
+
+/**
+ * CAMPAIGN-PERSISTENCE-01 — snapshot figé de la cible d'une campagne au
+ * moment de son LANCEMENT (transition de statut 'draft' → 'active'),
+ * PAS à sa création : une campagne se prépare un jour et se lance un
+ * autre — les contacts visés doivent être figés au lancement, jamais
+ * avant (sinon l'audience réelle au moment de l'action commerciale ne
+ * correspondrait pas à ce qui a été préparé). JAMAIS un recalcul live
+ * après coup : AUDIENCE n'est pas persistée (NICHE/SIGNAL/TREND restent
+ * des calculs à la demande), donc c'est CE snapshot, pris une seule
+ * fois au lancement, qui permet à CONVERSION/LEARNING de mesurer "qui a
+ * été visé" sans que l'audience ne dérive après coup.
+ *
+ * `contactId` référence CONTACT-01 (jamais une copie d'email/téléphone
+ * ici). `consentStatusAtSnapshot` est une COPIE HORODATÉE à but de
+ * preuve ("ce qui était vrai à cet instant") — CONSENT-01 reste l'unique
+ * source de vérité pour "est-ce vrai maintenant ?", jamais relue depuis
+ * cette table. `leadIds` (jsonb) : traçabilité des demandes d'origine
+ * ayant résolu à ce contact — jamais une fusion d'identité, uniquement
+ * la liste telle que CAMPAIGN-01 (`filterAudienceByConsentCore`) l'a
+ * produite.
+ *
+ * Seuls les contacts ÉLIGIBLES (CAMPAIGN-01) sont enregistrés ici — un
+ * contact exclu (pas de consentement, pas de contactRef résolvable)
+ * n'est jamais une "cible", donc jamais une ligne de cette table.
+ */
+export const campaignTargets = pgTable(
+  "campaign_targets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    leadIds: jsonb("lead_ids").notNull(),
+    consentStatusAtSnapshot: boolean("consent_status_at_snapshot").notNull(),
+    snapshotAt: timestamp("snapshot_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("campaign_targets_campaign_contact_uniq").on(
+      t.campaignId,
+      t.contactId,
+    ),
+    index("campaign_targets_agency_idx").on(t.agencyId),
+  ],
+)
+
+export type CampaignTarget = typeof campaignTargets.$inferSelect
+export type NewCampaignTarget = typeof campaignTargets.$inferInsert
+
+/**
+ * CAMPAIGN-ATTRIBUTION-01 — lien STABLE ET TRAÇABLE entre une réservation
+ * réelle (BOOKING) et la campagne qui l'a généreée, écrit UNE SEULE FOIS
+ * au moment où le rapprochement est calculé. Audit de conception dédié
+ * (docs/ROADMAP.md) : un calcul recomposé à la lecture (jointure
+ * reservations → customers → contacts → campaign_targets à la demande)
+ * n'est PAS traçable — si la logique de rapprochement change plus tard,
+ * l'historique changerait silencieusement rétroactivement. D'où cette
+ * table, écrite une fois, jamais recalculée.
+ *
+ * BOOKING n'est JAMAIS modifié par ce chantier : aucune colonne ajoutée
+ * sur `reservations`/`customers`, aucun des ~15 fichiers de création de
+ * réservation touché. Le rapprochement est calculé par un job CAMPAIGN
+ * (cron, lib/crm/campaign-attribution-core.ts), en LECTURE SEULE côté
+ * BOOKING (reservations.customerId → customers.email/phone, normalisés
+ * via CONTACT-01, jamais une seconde normalisation).
+ *
+ * Règle de sélection déterministe (1 réservation = 1 crédit, jamais
+ * plusieurs) actée explicitement par l'utilisateur (2026-10-06) :
+ * parmi les campagnes dont le contact fait partie de `campaign_targets`,
+ * encore éligibles (statut 'active'/'completed', jamais 'cancelled'),
+ * et dont la fenêtre [snapshotAt, endAt ?? +∞] couvre la date de la
+ * réservation — le snapshot le plus RÉCENT gagne ; égalité parfaite →
+ * `campaignId` le plus petit comme tie-breaker stable.
+ *
+ * `reservationId` UNIQUE : contrainte DB qui rend structurellement
+ * impossible une double attribution, pas seulement une convention de
+ * code.
+ */
+export const campaignAttributions = pgTable(
+  "campaign_attributions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    reservationId: uuid("reservation_id")
+      .notNull()
+      .references(() => reservations.id),
+    attributedAt: timestamp("attributed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("campaign_attributions_reservation_uniq").on(t.reservationId),
+    index("campaign_attributions_campaign_idx").on(t.campaignId),
+    index("campaign_attributions_agency_idx").on(t.agencyId),
+  ],
+)
+
+export type CampaignAttribution = typeof campaignAttributions.$inferSelect
+export type NewCampaignAttribution = typeof campaignAttributions.$inferInsert
+
+/**
+ * PROMO-01 — définition d'une offre commerciale, STRICTEMENT liée à UNE
+ * campagne (décision explicite de l'utilisateur, 2026-10-06 : pas de
+ * promo générique indépendante — `campaignId` obligatoire et UNIQUE,
+ * 1 promo par campagne, cohérent avec `campaigns.promoRef`, un pointeur
+ * singulier posé dès CAMPAIGN-PERSISTENCE-01).
+ *
+ * Audit de conception dédié (docs/ROADMAP.md) : PROMO décide "quelle
+ * offre", JAMAIS "quel prix final" (PRICING) ni "quelle réservation"
+ * (BOOKING) — aucune colonne prix/réservation ici. `discountType`/
+ * `discountValue` suivent le même vocabulaire que `marginRules`
+ * (percent/fixed) — pas une deuxième convention.
+ *
+ * Immutabilité : comme `campaigns.message`, une promo n'est modifiable
+ * que tant que la campagne propriétaire est en statut 'draft' — gardé
+ * en code (`updatePromoCore`), pas par un grant DB séparé (même
+ * discipline que CAMPAIGN-EXTENSION-01).
+ */
+export const PROMO_DISCOUNT_TYPES = ["percent", "fixed"] as const
+export type PromoDiscountType = (typeof PROMO_DISCOUNT_TYPES)[number]
+
+export const promos = pgTable(
+  "promos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    discountType: varchar("discount_type", { length: 16 }).notNull(),
+    discountValue: decimal("discount_value", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    /** Texte libre — ex. "séjour 3 nuits minimum", jamais interprété par le code (même choix que `marginRules.name`/`economicEntitlements.basis`). */
+    conditions: text("conditions"),
+    /** `null` = sans borne de ce côté. */
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    /**
+     * PROMO-LOSS-POLICY-01 — décision commerciale EXPLICITE de l'agence,
+     * jamais déduite par PRICING. `false` (défaut) : PRICING plafonne la
+     * remise au coût fournisseur quand un coût séparé existe (hotel/
+     * flight/transfer/network) — sans objet pour omra/package/activity/
+     * car, qui n'ont pas de coût fournisseur distinct (`supplierPriceTnd
+     * === salePriceTnd`, vérifié par lecture de ces modules). `true` :
+     * l'agence autorise explicitement une vente à perte pour cette promo.
+     * Ni PRICING ni PROMO n'inventent cette politique — elle est posée
+     * ici, au moment de la création de la promo, par celui qui la décide.
+     */
+    allowBelowCost: boolean("allow_below_cost").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("promos_campaign_uniq").on(t.campaignId),
+    index("promos_agency_idx").on(t.agencyId),
+    check(
+      "promos_discount_type_check",
+      sql`${t.discountType} in ('percent','fixed')`,
+    ),
+  ],
+)
+
+export type Promo = typeof promos.$inferSelect
+export type NewPromo = typeof promos.$inferInsert
 
 /**
  * CRM / Inbox omnicanal (0046) — fondations "Customer 360" du diagramme
@@ -3257,6 +3751,38 @@ export {
   type HotelSupplierAuthorizationRow,
   type NewHotelSupplierAuthorizationRow,
 } from "./schema/hotel-suppliers"
+
+/* -------------------------------------------------------------------------- */
+/* CANONICAL-HOTEL-01 — imported from schema/canonical-hotels.ts              */
+/* -------------------------------------------------------------------------- */
+
+export {
+  canonicalHotels,
+  canonicalHotelSupplierMappings,
+  type CanonicalHotelRow,
+  type NewCanonicalHotelRow,
+  type CanonicalHotelSupplierMappingRow,
+  type NewCanonicalHotelSupplierMappingRow,
+} from "./schema/canonical-hotels"
+
+/* -------------------------------------------------------------------------- */
+/* PUBLIC-VISUAL-01 — imported from schema/public-site.ts                     */
+/* CI-FIX (2026-10-05) : import orphelin depuis la fusion de PR #116, jamais  */
+/* ré-exporté — cassait lib/admin/public-site-actions.ts et                  */
+/* lib/public/site-content.ts (TS2459), typecheck rouge sur main.            */
+/* -------------------------------------------------------------------------- */
+
+export {
+  publicSiteSettings,
+  publicModuleVisuals,
+  publicPromotions,
+  type PublicSiteSettings,
+  type NewPublicSiteSettings,
+  type PublicModuleVisual,
+  type NewPublicModuleVisual,
+  type PublicPromotion,
+  type NewPublicPromotion,
+} from "./schema/public-site"
 
 /* -------------------------------------------------------------------------- */
 /* Validation Module — imported from schema/validation.ts                     */

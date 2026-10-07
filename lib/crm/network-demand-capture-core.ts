@@ -62,6 +62,10 @@ export const LEAD_ORIGIN_SOURCE_TRUST: Record<string, number> = {
   staff_correction: 3,
   staff_manual_entry: 2,
   whatsapp_webhook: 1,
+  /** META-LEADADS-WEBHOOK-01 — même rang que whatsapp_webhook : capture
+   * temps réel signée (HMAC vérifié avant tout traitement), pas une
+   * déclaration non vérifiée comme partner_portal_claim/utm_capture. */
+  meta_leadads_webhook: 1,
   partner_portal_claim: 0,
   utm_capture: 0,
 }

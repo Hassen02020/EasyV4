@@ -119,6 +119,58 @@ entièrement désactivée en production — `development_project_waitlist`,
 `canonical_hotel_supplier_mappings`, `canonical_hotels`. À auditer
 séparément, sur GO dédié.
 
+**CLÔTURÉ** par RLS-GAP-PUBLIC-TABLES-01 ci-dessous (2026-10-06/07).
+
+---
+
+### Chaîne RLS-GAP + NICHE CRM & VIP LEAD ENGINE (2026-10-06/07) — CLÔTURÉE, MERGÉE sur `main`
+
+Chaîne de 7 chantiers, chacun : audit d'ownership → fiche → GO explicite
+→ implémentation → preuve réelle (Postgres local, migration vérifiée en
+production quand applicable). `pnpm typecheck`/`pnpm lint`/`prettier
+--check` verts et régression complète sans régression avant chaque
+merge (progression : 1486 → 1498 → 1501 pass/0 fail sur la période,
+332 skip final, `format` rouge sur les 5 mêmes fichiers pré-existants
+hors scope à chaque fois — dette non bloquante déjà connue, pas une
+régression de cette chaîne).
+
+| Chantier | Branche | Statut |
+|---|---|---|
+| RLS-GAP-PUBLIC-TABLES-01 (`canonical_hotels`/`canonical_hotel_supplier_mappings`/`development_project_waitlist` — RLS activée+forcée, policy `app_runtime`, REVOKE anon/authenticated) | — | **MERGÉ** (PR #136), migration en production |
+| MARKET-CONTENT-RLS-ROLE-GAP-01 (`market_signals`/`development_projects` — policies recréées sans restriction de rôle, `is_super_admin()` conservé comme garde d'écriture ; 4 fonctions `lib/market/admin-actions.ts` migrées vers `withSystemContext`) | — | **MERGÉ** (PR #137), migration en production |
+| VIP-SCORE-01 (`lib/crm/vip-score-core.ts` — thermomètre de valeur commerciale, fonction pure, breakdown explicite, **aucun seuil VIP fixé** — décision produit permanente, à ne jamais rouvrir avant analyse de distribution réelle) | `vip-score-01` | **MERGÉ** (PR #138) |
+| WHATSAPP-CONTACT-RESOLUTION-01 (`upsertConversationForInboundCore` alimente aussi CONTACT-01) | `whatsapp-contact-resolution-01` | **MERGÉ** (PR #139) |
+| META-LEADADS-WEBHOOK-01 (pilote Meta Lead Ads — `leadgen_id` webhook + appel Graph API séparé pour le détail, même discipline honnête que `lib/whatsapp/provider.ts` ; jamais de consentement marketing fabriqué depuis la case Meta) | `meta-leadads-webhook-01` | **MERGÉ** (PR #140) |
+| CONTACT-LEAD-HISTORY-01 (`getContactLeadHistoryCore` — ferme le gap "historique de leads par CONTACT durable", indépendant de CAMPAIGN ; bug réel trouvé par le test : comparaison `leads.email/phone` bruts vs `contacts.contactRef` normalisé nécessite une renormalisation, jamais une égalité SQL directe) | `contact-lead-history-01` | **MERGÉ** (PR #141) |
+| VIP-SCORE-02 (signal `engagement` = répétition par CONTACT durable, lecture seule — jamais de création de contact dans un calcul de score ; toujours aucun seuil VIP) | `vip-score-02` | **MERGÉ** (PR #142) |
+
+**Preuves** : 22/22 tests du domaine vip-score + contact-history verts
+contre Postgres local (`app_runtime`, non-BYPASSRLS) ; régression
+complète finale 1501 pass/0 fail, 332 skip ; CI verte sur chaque PR
+(`format` rouge connu/non bloquant sur chaque run, documenté en
+commentaire PR à chaque occurrence).
+
+**NOT VERIFIED** : aucun déploiement Vercel production confirmé pour
+cette chaîne spécifique (contrairement à DEPLOY-01/PUBLIC-VISUAL
+ci-dessus) — à confirmer sur `easy2book-new` si cette chaîne doit être
+vérifiée en production avant le prochain chantier CRM.
+
+**Hors scope, laissé explicitement ouvert** (voir audits "NICHE CRM &
+VIP LEAD ENGINE" et "SOCIAL CRM" livrés en texte pendant cette chaîne,
+non persistés en fichier) : seuil VIP (décision produit après analyse
+de distribution réelle des scores sur la base existante — jamais une
+valeur arbitraire) ; pilote Meta Lead Ads au-delà du webhook (reporting,
+audience, consentement structuré) ; toute autre plateforme sociale
+(Instagram/Messenger — "quelles plateformes, quels signaux, quelle
+autorisation, quel parcours, quel propriétaire des données, quel coût,
+quelle valeur commerciale" restent à répondre avant tout code) ; une
+policy de test résiduelle `market_signals_read_test` (doublon sans
+risque de `market_signals_read`, non supprimable via les outils MCP
+Supabase disponibles — `DROP POLICY` bloque systématiquement, voir
+limitation documentée dans PR #136/#137) ; IA, Contact Graph relationnel,
+Partner Referral structuré, Campaign Automation — toujours listés
+"❌ Ne pas toucher maintenant".
+
 ---
 
 ### Chaîne NICHE → PRICING-PROMO-LINK (câblage transfert/omra/package) — CLÔTURÉE, DÉPLOYÉE Deux déploiements

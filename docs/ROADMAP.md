@@ -155,14 +155,33 @@ cette chaîne spécifique (contrairement à DEPLOY-01/PUBLIC-VISUAL
 ci-dessus) — à confirmer sur `easy2book-new` si cette chaîne doit être
 vérifiée en production avant le prochain chantier CRM.
 
+**Suite directe, même chaîne** : CUSTOMER-360-VIP-SCORE-01 (2026-10-07)
+— `getVipScoreForLeadCore` (VIP-SCORE-01/02 ci-dessus) avait 0 appelant
+réel ailleurs dans l'application (confirmé par grep exhaustif), donc
+invisible malgré 2 chantiers mergés. **EXTEND**, pas CREATE : câblé dans
+le panneau "Vue 360" déjà existant (`/admin/support`,
+`components/admin/customer-360-panel.tsx`, derrière
+`getCustomer360Core`) — nouveau bloc "Score VIP (total)" avec breakdown,
+toujours aucun seuil/verdict VIP affiché. Deux requêtes reservations
+volontairement séparées (Vue 360 = toutes les réservations y compris
+annulées ; VIP score = exclut cancelled/expired/refunded), pas une
+duplication à corriger. **MERGÉ** (PR #143, commit `f4bbc833`) — CI
+verte sur tout sauf `format` (connu, 5 fichiers hors scope) et
+`lighthouse` (infra `NO_FCP`, confirmé rouge sur `main` lui-même au
+commit précédent sans aucun changement de code applicatif — pas causé
+par cette PR). `lib/admin/__tests__/customer-360-core-live.test.ts`
+(nouveau — aucun test n'existait pour ce fichier avant ce chantier).
+
 **Hors scope, laissé explicitement ouvert** (voir audits "NICHE CRM &
 VIP LEAD ENGINE" et "SOCIAL CRM" livrés en texte pendant cette chaîne,
 non persistés en fichier) : seuil VIP (décision produit après analyse
 de distribution réelle des scores sur la base existante — jamais une
-valeur arbitraire) ; pilote Meta Lead Ads au-delà du webhook (reporting,
-audience, consentement structuré) ; toute autre plateforme sociale
-(Instagram/Messenger — "quelles plateformes, quels signaux, quelle
-autorisation, quel parcours, quel propriétaire des données, quel coût,
+valeur arbitraire — maintenant observable via la Vue 360, mais aucune
+analyse de distribution agrégée encore faite) ; pilote Meta Lead Ads
+au-delà du webhook (reporting, audience, consentement structuré) ;
+toute autre plateforme sociale (Instagram/Messenger — "quelles
+plateformes, quels signaux, quelle autorisation, quel parcours, quel
+propriétaire des données, quel coût,
 quelle valeur commerciale" restent à répondre avant tout code) ; une
 policy de test résiduelle `market_signals_read_test` (doublon sans
 risque de `market_signals_read`, non supprimable via les outils MCP
@@ -170,6 +189,17 @@ Supabase disponibles — `DROP POLICY` bloque systématiquement, voir
 limitation documentée dans PR #136/#137) ; IA, Contact Graph relationnel,
 Partner Referral structuré, Campaign Automation — toujours listés
 "❌ Ne pas toucher maintenant".
+
+**Gap séparé trouvé, non traité ici** (lecture seule, logs CI) : le job
+`lighthouse` est rouge sur `main` lui-même (confirmé au commit
+`511d78c`, un changement purement documentaire sans aucun code
+applicatif), erreur `Runtime error ... The page did not paint any
+content (NO_FCP)` — Chrome headless n'obtient jamais de First
+Contentful Paint pendant l'audit Lighthouse CI. Cause non investiguée
+(infra runner probable, pas un problème d'application). À auditer
+séparément, sur GO dédié — ne bloque aucun chantier tant que `format`
+reste la seule autre tolérance connue, mais masque actuellement toute
+vraie régression de performance qu'un futur chantier introduirait.
 
 ---
 

@@ -53,6 +53,8 @@ import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 
 export type CreateGuestActivityBookingResult =
   | {
@@ -102,6 +104,13 @@ export async function createGuestActivityBooking(input: {
   paymentMethod: GuestPaymentMethod
   /** CART-DRIFT-01 — voir lib/booking/guest-actions.ts::createGuestReservationFromDraft. */
   expectedTotalTnd?: number
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact réel du voyageur.
+   */
+  campaignId?: string
 }): Promise<CreateGuestActivityBookingResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -151,6 +160,7 @@ export async function createGuestActivityBooking(input: {
       input.paymentMethod,
       linkedAuthUserId,
       input.expectedTotalTnd,
+      input.campaignId,
     ),
   )
 }
@@ -160,6 +170,7 @@ async function runCreateGuestActivityBooking(
   paymentMethod: GuestPaymentMethod,
   linkedAuthUserId: string | null,
   expectedTotalTnd: number | undefined,
+  campaignId: string | undefined,
 ): Promise<CreateGuestActivityBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -234,17 +245,46 @@ async function runCreateGuestActivityBooking(
           unitChildPriceTnd,
           depositPercent: 100, // Attractions : pas d'acompte partiel, règlement intégral à la réservation.
         })
-        const totalTnd = breakdown.totalTnd
+        const breakdownBeforePromo = breakdown
 
         // --- Garde anti-drift de prix (CART-DRIFT-01) ---
-        // `totalTnd` ci-dessus vient d'être recalculé depuis `session`
-        // verrouillée `FOR UPDATE` — déjà le seul montant qui sera chargé.
-        // Si le client a accepté un montant affiché avant (snapshot panier,
-        // potentiellement vieux — aucun TTL, voir lib/cart/cart-store.ts) et
-        // que le tarif a réellement changé depuis, on rejette plutôt que de
-        // charger silencieusement un montant différent de celui affiché.
-        if (priceDrifted(expectedTotalTnd, totalTnd)) {
-          throw new PriceChanged(totalTnd)
+        // Comparée au prix AVANT remise PROMO : `expectedTotalTnd` vient du
+        // panier/draft client, qui n'a connaissance d'aucune promo —
+        // seulement du prix catalogue affiché au moment de l'ajout au
+        // panier. `breakdownBeforePromo.totalTnd` vient d'être recalculé
+        // depuis `session` verrouillée `FOR UPDATE` — déjà, et reste, le
+        // seul montant de référence. Si le client a accepté un montant
+        // affiché avant (snapshot panier, potentiellement vieux — aucun
+        // TTL, voir lib/cart/cart-store.ts) et que le tarif a réellement
+        // changé depuis, on rejette plutôt que de charger silencieusement
+        // un montant différent de celui affiché.
+        if (priceDrifted(expectedTotalTnd, breakdownBeforePromo.totalTnd)) {
+          throw new PriceChanged(breakdownBeforePromo.totalTnd)
+        }
+
+        // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
+        // Appliquée ICI, APRÈS la garde CART-DRIFT-01, AVANT tout le reste
+        // (paiement, reservations/payments, recordReservationFinancials
+        // plus bas). `campaignId` est un INDICE transporté par le client,
+        // jamais une autorisation : `resolveCheckoutPromoCore` re-dérive
+        // l'éligibilité réelle depuis le contact réel du voyageur.
+        // Attraction : pas de coût fournisseur séparé (catalogue agence =
+        // prix de vente, voir recordReservationFinancials ci-dessous) —
+        // `supplierPriceTnd` omis, jamais fabriqué.
+        let totalTnd = breakdownBeforePromo.totalTnd
+        if (campaignId) {
+          const checkoutPromo = await resolveCheckoutPromoCore(tx, {
+            agencyId,
+            campaignId,
+            email: traveler.email,
+            phone: traveler.phone,
+          })
+          if (checkoutPromo.eligible) {
+            totalTnd = applyPromoDiscountCore(
+              totalTnd,
+              checkoutPromo.discount,
+            ).finalPriceTnd
+          }
         }
 
         // --- Politique d'annulation (Policy Engine Omra/Package/Activity) ---

@@ -56,7 +56,8 @@ Label admin (`updateAgencyWhiteLabel()`, page `/admin/agencies/[id]`,
 color picker) + White Label `/pro` (couleur primaire agence) +
 COMMISSION-WIRING-02 (câblage `creditPlatformCommission` dans 10
 modules : transferts, hôtels-monde, activités, omra, packages B2B+B2C)
-+ CARS-COMMISSION-01 (dernier module sans commission).
+
+- CARS-COMMISSION-01 (dernier module sans commission).
 
 **Abandonné pendant le rebase** (hors scope de la PR, jamais mentionné
 dans sa description) : feature "lead acquisition-channel + supplier-node"
@@ -98,24 +99,70 @@ CRM avancés.
 
 **Classification finale :**
 
-| Point | Classification | Preuve |
-| --- | --- | --- |
-| Duplication `contact-core.ts`/`consent-core.ts` | N/A — volontaire, documentée (`contact-core.ts:24-31`) | pas un gap |
-| Consent jamais déclenché à la capture | N/A — scope délibéré (CONSENT-01 : "hors scope") | pas un gap |
-| Seuil VIP "magic number" | N/A — n'existe pas du tout, par design (`vip-score-core.ts:1-29`) | pas un gap |
-| `lib/finance/margin-calculator.ts` mort | N/A — confirmé mort, gardé par un test invariant | suppression optionnelle, pas un gap |
-| NICHE segmentation sans consommateur UI | CREATE | `niche-core.ts`/`niche-actions.ts` calculent, zéro page ne lit |
-| Revenue dispersée | CONSOLIDATE | `campaign-performance-core.ts`/`vip-score-core.ts` recalculent au lieu de réutiliser `margin-analytics-core.ts` (lui-même sans test) |
-| Promo → pricing incomplet | EXTEND + CREATE (le plus concret, impact client direct) | 4/8 modules câblés (Hôtel TN, Packages, Omra, Transferts) ; **Hôtels Monde, Activités, Voitures, Vols non câblés** — aucun test de couverture n'existe |
-| Meta Ads reporting/audience avancé, automation marketing, social CRM | N/A — confirmé greenfield | rien construit au-delà de la capture |
+| Point                                                                | Classification                                                    | Preuve                                                                                                                                                 |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Duplication `contact-core.ts`/`consent-core.ts`                      | N/A — volontaire, documentée (`contact-core.ts:24-31`)            | pas un gap                                                                                                                                             |
+| Consent jamais déclenché à la capture                                | N/A — scope délibéré (CONSENT-01 : "hors scope")                  | pas un gap                                                                                                                                             |
+| Seuil VIP "magic number"                                             | N/A — n'existe pas du tout, par design (`vip-score-core.ts:1-29`) | pas un gap                                                                                                                                             |
+| `lib/finance/margin-calculator.ts` mort                              | N/A — confirmé mort, gardé par un test invariant                  | suppression optionnelle, pas un gap                                                                                                                    |
+| NICHE segmentation sans consommateur UI                              | CREATE                                                            | `niche-core.ts`/`niche-actions.ts` calculent, zéro page ne lit                                                                                         |
+| Revenue dispersée                                                    | CONSOLIDATE                                                       | `campaign-performance-core.ts`/`vip-score-core.ts` recalculent au lieu de réutiliser `margin-analytics-core.ts` (lui-même sans test)                   |
+| Promo → pricing incomplet                                            | EXTEND + CREATE (le plus concret, impact client direct)           | 4/8 modules câblés (Hôtel TN, Packages, Omra, Transferts) ; **Hôtels Monde, Activités, Voitures, Vols non câblés** — aucun test de couverture n'existe |
+| Meta Ads reporting/audience avancé, automation marketing, social CRM | N/A — confirmé greenfield                                         | rien construit au-delà de la capture                                                                                                                   |
 
-**Chantier proposé (GO en attente)** : `PROMO-PRICING-COVERAGE-01` —
-câbler `resolveCheckoutPromoCore`/`applyPromoDiscountCore` dans les 4
-modules manquants + créer `promo-wiring-invariants.test.ts`.
+**GO reçu pour tout (2026-10-07)** : `PROMO-PRICING-COVERAGE-01` +
+`REVENUE-CONSOLIDATE-01` + `NICHE-UI-01` + suppression de
+`margin-calculator.ts`, dans cet ordre de priorité.
 
-**Backlog candidates (GO séparé requis chacun)** : `REVENUE-CONSOLIDATE-01`,
-`NICHE-UI-01` (décision produit requise avant audit technique),
-suppression de `margin-calculator.ts` (cleanup trivial).
+### PROMO-PRICING-COVERAGE-01 — CLÔTURÉ (en attente de merge PR)
+
+Câblage `resolveCheckoutPromoCore`/`applyPromoDiscountCore` dans les 4
+modules qui ne l'avaient pas : `lib/hotels-monde/guest-booking-actions.ts`,
+`lib/activities/guest-booking-actions.ts`,
+`lib/cars/guest-booking-actions.ts`, `lib/vols/booking-request-action.ts`.
+
+- Hôtels Monde et Vols ont un coût fournisseur externe réel
+  (`supplierPriceTnd`/`supplierAmount`) → remise appliquée AVEC le
+  plancher PROMO-LOSS-POLICY-01 (jamais sous le coût réel, sauf
+  `allowBelowCost` explicite sur la promo).
+- Activités et Voitures n'ont pas de coût fournisseur séparé (catalogue
+  agence) → remise appliquée SANS plancher, même traitement que
+  Omra/Packages déjà câblés.
+- Vols : particularité du pipeline en 2 phases (booking-request
+  maintenant → fulfillment plus tard par le desk ticketing). La remise
+  est résolue et appliquée à la réclamation atomique du
+  `flightPriceSnapshot` (CAS ACTIVE→USED) et persistée dans ce même
+  snapshot — `finalizeFlightBookingFinancials` (appelé bien plus tard,
+  à la confirmation) relit ce `sellingAmount` déjà remisé sans aucun
+  changement requis côté fulfillment : une seule vérité financière.
+- Nouveau test `lib/finance/__tests__/promo-wiring-invariants.test.ts`
+  (35 assertions) : couverture des 8/8 modules + vérification du
+  plancher PROMO-LOSS-POLICY-01 là où il doit s'appliquer (et son
+  absence là où il ne doit pas).
+- 2 tests existants mis à jour pour refléter le changement attendu
+  (`totalTnd` devient `let`/réassignable pour accueillir la remise,
+  plus `const` figé) : `lib/cars/__tests__/reservation-financials-wiring.test.ts`,
+  `lib/booking/__tests__/cart-price-drift.test.ts`.
+
+**Note UI** : comme pour les 4 modules déjà câblés avant ce chantier
+(Hôtel TN, Packages, Omra, Transferts), `campaignId` n'est câblé que
+côté pipeline serveur — aucun formulaire ne le transporte encore depuis
+l'UI (confirmé : aucun module, même les 4 déjà câblés, ne le fait). Capture
+UI du `campaignId` (ex. lien de campagne avec paramètre) reste un
+chantier séparé, non couvert ici.
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1598/1598 PASS, `pnpm build` OK.
+
+### Suppression `lib/finance/margin-calculator.ts` — CLÔTURÉ (en attente de merge PR)
+
+Confirmé mort (audit CRM du 2026-10-07) : zéro importeur réel, gardé
+par un test invariant (`product-booking-actions-invariants.test.ts`)
+qui vérifie qu'il n'est jamais réimporté. Supprimé.
+
+**Backlog candidates restants (dans l'ordre de priorité convenu)** :
+`REVENUE-CONSOLIDATE-01`, puis `NICHE-UI-01` (décision produit requise
+avant audit technique).
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 

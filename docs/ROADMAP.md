@@ -172,12 +172,54 @@ commit précédent sans aucun changement de code applicatif — pas causé
 par cette PR). `lib/admin/__tests__/customer-360-core-live.test.ts`
 (nouveau — aucun test n'existait pour ce fichier avant ce chantier).
 
+**VIP-DISTRIBUTION-AUDIT-01 (2026-10-07, lecture seule, production
+`crygnaichvlxavvbifqi`)** — tentative d'analyser la distribution réelle
+des scores VIP pour fixer un seuil. Résultat : **jeu de données
+insuffisant**, pas une absence d'exécution — 2 leads en production,
+les deux des fixtures QA ("QA Lead Test"/"QA Lead Test 2"), aucun vrai
+lead client. `contacts` : 0 ligne (le signal `engagement` de
+VIP-SCORE-02 n'a encore jamais produit un seul point bonus en
+production). Score calculé pour les deux leads : ≈49.0, quasi
+identique — min/max/médiane/percentiles tous dénués de sens
+statistique avec n=2. **Anomalie réelle trouvée en cours d'audit** : un
+client `+216 98 140 514` (avec espaces) ne matchait aucun des 2 leads
+via l'égalité SQL stricte alors que le numéro est identique à un lead
+`+21698140514` (sans espaces) — gap de normalisation, même classe de
+bug que CONTACT-LEAD-HISTORY-01. **PROPOSITION actée** : reporter la
+décision de seuil VIP jusqu'à l'apparition d'un vrai volume de leads en
+production ; ne pas la rouvrir avant une distribution réelle
+exploitable.
+
+**NORMALIZED-MATCHING-01 (2026-10-07) — CLÔTURÉ, MERGÉ** — corrige
+l'anomalie trouvée ci-dessus. `lib/crm/customer-match-core.ts`
+(nouveau) : `findMatchingCustomerIdsCore`, seul point de rapprochement
+lead↔customer partagé, réutilise EXACTEMENT la normalisation CONTACT-01
+(`resolveContactKeyCore`/`normalizePhoneRefCore`), jamais une seconde
+logique inventée. 3 call sites migrés (`getVipScoreForLeadCore`,
+`getCustomer360Core`, `searchReservationsForLeadLinkCore` mode
+sans-query) au lieu de dupliquer chacun leur `matchClause` par égalité
+stricte. **MERGÉ** (PR #144, commit `dcd51aec`) — CI verte sur tout
+sauf `format`/`lighthouse` (connus, non liés à ce diff, documentés en
+commentaire PR). Preuve : `lib/crm/__tests__/customer-match-core-live.test.ts`
+(nouveau), reproduit exactement le cas réel de production (téléphone
+avec/sans espaces → matche après correctif) ; 30/30 tests verts contre
+Postgres local ; régression complète 1501 pass/0 fail, 338 skip.
+Risque documenté (pas une régression) : le filtrage charge plus de
+lignes pour une agence à très gros volume de réservations — acceptable
+aujourd'hui (volumes réels quasi nuls), à revisiter si le volume
+augmente.
+
+**Séquence actée avec l'utilisateur** : NORMALIZED-MATCHING-01 (fait)
+→ CI-FIX-02 (ci-dessus, en attente de GO) → attendre un vrai volume de
+leads en production → revenir à VIP-DISTRIBUTION / seuil VIP.
+
 **Hors scope, laissé explicitement ouvert** (voir audits "NICHE CRM &
 VIP LEAD ENGINE" et "SOCIAL CRM" livrés en texte pendant cette chaîne,
 non persistés en fichier) : seuil VIP (décision produit après analyse
 de distribution réelle des scores sur la base existante — jamais une
-valeur arbitraire — maintenant observable via la Vue 360, mais aucune
-analyse de distribution agrégée encore faite) ; pilote Meta Lead Ads
+valeur arbitraire — VIP-DISTRIBUTION-AUDIT-01 ci-dessus a tenté cette
+analyse mais le jeu de données réel est actuellement insuffisant) ;
+pilote Meta Lead Ads
 au-delà du webhook (reporting, audience, consentement structuré) ;
 toute autre plateforme sociale (Instagram/Messenger — "quelles
 plateformes, quels signaux, quelle autorisation, quel parcours, quel
@@ -195,11 +237,23 @@ Partner Referral structuré, Campaign Automation — toujours listés
 `511d78c`, un changement purement documentaire sans aucun code
 applicatif), erreur `Runtime error ... The page did not paint any
 content (NO_FCP)` — Chrome headless n'obtient jamais de First
-Contentful Paint pendant l'audit Lighthouse CI. Cause non investiguée
-(infra runner probable, pas un problème d'application). À auditer
-séparément, sur GO dédié — ne bloque aucun chantier tant que `format`
-reste la seule autre tolérance connue, mais masque actuellement toute
-vraie régression de performance qu'un futur chantier introduirait.
+Contentful Paint pendant l'audit Lighthouse CI.
+
+**Audit lecture seule fait** (agent dédié, 2026-10-07) : cause probable
+identifiée — `.github/workflows/ci.yml` (job `lighthouse`) n'installe
+aucun navigateur Chrome/Chromium, contrairement à `playwright-a11y` qui
+fait explicitement `playwright install chromium --with-deps` (qui, lui,
+passe systématiquement). Confirmé pré-existant (job créé par le commit
+`cc617b4` sans cette étape dès l'origine, tourne sous
+`continue-on-error: true` depuis le début). Cause secondaire non
+exclue : la page auditée (`/admin`) redirige vers `/login` en CI faute
+d'auth, pourrait contribuer à un paint vide. Fiche proposée :
+**CI-FIX-02** (installer Chrome+dépendances dans ce job) — **réserve
+explicite de l'utilisateur** : ne pas retirer `continue-on-error` ni
+présenter l'installation Chrome comme un correctif prouvé avant une run
+verte confirmée, l'hypothèse `/admin→/login` n'étant pas écartée.
+**Prochain dans la séquence actée** (après NORMALIZED-MATCHING-01,
+avant tout retour à VIP-DISTRIBUTION/seuil VIP) — en attente de GO.
 
 ---
 

@@ -11,7 +11,13 @@ import {
   withSystemContext,
   type TenantContext,
 } from "@/lib/db/tenant-context"
-import { agencies, crmConversations, crmMessages, leads } from "@/lib/db/schema"
+import {
+  agencies,
+  contacts,
+  crmConversations,
+  crmMessages,
+  leads,
+} from "@/lib/db/schema"
 import {
   canSendSessionMessage,
   isChannelConnected,
@@ -108,11 +114,13 @@ after(async () => {
       .delete(crmConversations)
       .where(eq(crmConversations.agencyId, agencyA))
     await tx.delete(leads).where(eq(leads.agencyId, agencyA))
+    await tx.delete(contacts).where(eq(contacts.agencyId, agencyA))
     await tx.delete(crmMessages).where(eq(crmMessages.agencyId, agencyB))
     await tx
       .delete(crmConversations)
       .where(eq(crmConversations.agencyId, agencyB))
     await tx.delete(leads).where(eq(leads.agencyId, agencyB))
+    await tx.delete(contacts).where(eq(contacts.agencyId, agencyB))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
     await tx.delete(agencies).where(eq(agencies.id, agencyB))
   })
@@ -157,6 +165,68 @@ test("upsertConversationForInboundCore : premier message → crée conversation 
   )
   assert.equal(linkedLead[0]!.phone, phone)
   assert.equal(linkedLead[0]!.sourcePage, "whatsapp")
+})
+
+test("upsertConversationForInboundCore : WHATSAPP-CONTACT-RESOLUTION-01 — résout aussi CONTACT-01 (contacts.channel='whatsapp')", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const phone = "21620000021"
+
+  const result = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "whatsapp",
+      contactPhone: phone,
+      body: "Bonjour",
+      externalMessageId: `wamid.${randomUUID()}`,
+      sentAt: new Date(),
+    }),
+  )
+  assert.ok(result.contactId, "un contactId doit être retourné")
+
+  const contactRows = await withTenantContext(ctxFor(agencyA), (tx) =>
+    tx.select().from(contacts).where(eq(contacts.id, result.contactId)),
+  )
+  assert.equal(contactRows.length, 1)
+  assert.equal(contactRows[0]!.agencyId, agencyA)
+  assert.equal(contactRows[0]!.channel, "whatsapp")
+  assert.equal(contactRows[0]!.contactRef, `+${phone}`)
+})
+
+test("upsertConversationForInboundCore : WHATSAPP-CONTACT-RESOLUTION-01 — un second message du même téléphone réutilise le même contact (jamais un doublon)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const phone = "21620000022"
+
+  const first = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "whatsapp",
+      contactPhone: phone,
+      body: "Premier message",
+      externalMessageId: `wamid.${randomUUID()}`,
+      sentAt: new Date("2026-01-01T10:00:00Z"),
+    }),
+  )
+  const second = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "whatsapp",
+      contactPhone: phone,
+      body: "Deuxième message",
+      externalMessageId: `wamid.${randomUUID()}`,
+      sentAt: new Date("2026-01-01T11:00:00Z"),
+    }),
+  )
+  assert.equal(second.contactId, first.contactId)
+
+  const contactRows = await withTenantContext(ctxFor(agencyA), (tx) =>
+    tx.select().from(contacts).where(eq(contacts.agencyId, agencyA)),
+  )
+  const matching = contactRows.filter((c) => c.id === first.contactId)
+  assert.equal(
+    matching.length,
+    1,
+    "jamais un contact dupliqué pour le même téléphone",
+  )
 })
 
 test("upsertConversationForInboundCore : second message du même contact → même conversation, pas de doublon de lead", async (t) => {

@@ -13,6 +13,7 @@ import {
   NotebookPen,
   User,
   Star,
+  TrendingUp,
   Receipt,
   Gift,
   MessageCircle,
@@ -27,6 +28,15 @@ import {
 } from "@/components/ui/dialog"
 import { getCustomer360 } from "@/lib/admin/inbox-actions"
 import type { Customer360 } from "@/lib/admin/customer-360-core"
+
+const VIP_SIGNAL_LABEL: Record<string, string> = {
+  lead_quality: "Qualité du lead",
+  recurrence: "Réservations",
+  commercial_value_sale: "Chiffre d'affaires",
+  commercial_value_margin: "Marge",
+  recency: "Récence",
+  engagement: "Demandes répétées",
+}
 
 const CHANNEL_LABEL: Record<string, string> = {
   whatsapp: "WhatsApp",
@@ -132,6 +142,34 @@ export function Customer360Button({
                           }
                         >
                           {item.matched ? `+${item.points}` : "0"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                    <TrendingUp className="h-3.5 w-3.5" /> Score VIP (
+                    {data.vipScore.total})
+                  </h3>
+                  <ul className="grid grid-cols-2 gap-1.5 text-xs">
+                    {data.vipScore.breakdown.map((item) => (
+                      <li
+                        key={item.signal}
+                        className="flex items-center justify-between rounded border px-2 py-1"
+                      >
+                        <span className="text-foreground">
+                          {VIP_SIGNAL_LABEL[item.signal] ?? item.signal}
+                        </span>
+                        <span
+                          className={
+                            item.points > 0
+                              ? "font-medium text-emerald-700"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {item.points > 0 ? `+${item.points}` : "0"}
                         </span>
                       </li>
                     ))}

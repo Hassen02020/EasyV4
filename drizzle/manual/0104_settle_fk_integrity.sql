@@ -14,16 +14,23 @@
 --
 -- Application :
 --   psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0104_settle_fk_integrity.sql
--- Idempotent (IF NOT EXISTS). Retour arrière en bas de fichier.
+-- Idempotent : ADD CONSTRAINT protégé par un bloc DO/EXCEPTION (Postgres n'a
+-- pas d'équivalent direct à "ADD CONSTRAINT IF NOT EXISTS", même raisonnement
+-- que drizzle/manual/0089_agreement_01_margin_rules_link.sql). Retour arrière
+-- en bas de fichier.
 -- =============================================================================
 
 BEGIN;
 
-ALTER TABLE commission_settlement_entries
-  ADD CONSTRAINT IF NOT EXISTS commission_settlement_entries_settlement_fk
-  FOREIGN KEY (settlement_id)
-  REFERENCES commission_settlements(id)
-  ON DELETE RESTRICT;
+DO $$ BEGIN
+  ALTER TABLE commission_settlement_entries
+    ADD CONSTRAINT commission_settlement_entries_settlement_fk
+    FOREIGN KEY (settlement_id)
+    REFERENCES commission_settlements(id)
+    ON DELETE RESTRICT;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 COMMIT;
 

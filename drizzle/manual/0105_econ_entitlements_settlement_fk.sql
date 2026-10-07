@@ -31,12 +31,18 @@ BEGIN;
 ALTER TABLE economic_entitlements
   ALTER COLUMN settlement_ref TYPE uuid USING settlement_ref::uuid;
 
--- 2. Ajouter la FK ON DELETE SET NULL
-ALTER TABLE economic_entitlements
-  ADD CONSTRAINT IF NOT EXISTS economic_entitlements_settlement_ref_fk
-  FOREIGN KEY (settlement_ref)
-  REFERENCES commission_settlements(id)
-  ON DELETE SET NULL;
+-- 2. Ajouter la FK ON DELETE SET NULL (idempotent : bloc DO/EXCEPTION, même
+--    raisonnement que drizzle/manual/0089_agreement_01_margin_rules_link.sql
+--    — Postgres n'a pas d'équivalent direct à "ADD CONSTRAINT IF NOT EXISTS")
+DO $$ BEGIN
+  ALTER TABLE economic_entitlements
+    ADD CONSTRAINT economic_entitlements_settlement_ref_fk
+    FOREIGN KEY (settlement_ref)
+    REFERENCES commission_settlements(id)
+    ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 3. Mettre à jour mark_econ_commission_settled pour écrire directement uuid
 --    (retirer l'ancien cast ::text devenu inutile)

@@ -93,7 +93,9 @@ export default async function AgencyWhiteLabelPage({
           </h1>
           <div className="mt-1 flex items-center gap-2">
             <span className="text-muted-foreground text-sm">{agency.slug}</span>
-            <Badge variant={agency.agencyType === "ota" ? "default" : "secondary"}>
+            <Badge
+              variant={agency.agencyType === "ota" ? "default" : "secondary"}
+            >
               {TYPE_LABEL[agency.agencyType] ?? agency.agencyType}
             </Badge>
           </div>
@@ -104,9 +106,9 @@ export default async function AgencyWhiteLabelPage({
         <CardHeader>
           <CardTitle>Configuration White Label</CardTitle>
           <CardDescription>
-            Ces paramètres activent le portail de marque blanche de cette
-            agence : domaine dédié, logo, nom de marque et couleur d&apos;accent.
-            Une fois le domaine configuré, le portail public et le portail{" "}
+            Ces paramètres activent le portail de marque blanche de cette agence
+            : domaine dédié, logo, nom de marque et couleur d&apos;accent. Une
+            fois le domaine configuré, le portail public et le portail{" "}
             <code>/pro</code> adopteront automatiquement le branding de
             l&apos;agence pour les visiteurs de ce domaine.
           </CardDescription>

@@ -266,16 +266,33 @@ for (const { label, path } of DIRECT_WIRING_FILES) {
 
 // Modules cibles de COMMISSION-WIRING-02 (Voitures HORS PÉRIMÈTRE)
 const COMMISSION_WIRING_FILES: Array<{ label: string; path: string }> = [
-  { label: "vols/guest-booking-actions.ts", path: "lib/vols/guest-booking-actions.ts" },
   { label: "vols/flight-financials.ts", path: "lib/vols/flight-financials.ts" },
   { label: "transfers/actions.ts", path: "lib/transfers/actions.ts" },
-  { label: "transfers/guest-booking-actions.ts", path: "lib/transfers/guest-booking-actions.ts" },
-  { label: "hotels-monde/guest-booking-actions.ts", path: "lib/hotels-monde/guest-booking-actions.ts" },
-  { label: "activities/booking-actions.ts", path: "lib/activities/booking-actions.ts" },
-  { label: "activities/guest-booking-actions.ts", path: "lib/activities/guest-booking-actions.ts" },
+  {
+    label: "transfers/guest-booking-actions.ts",
+    path: "lib/transfers/guest-booking-actions.ts",
+  },
+  {
+    label: "hotels-monde/guest-booking-actions.ts",
+    path: "lib/hotels-monde/guest-booking-actions.ts",
+  },
+  {
+    label: "activities/booking-actions.ts",
+    path: "lib/activities/booking-actions.ts",
+  },
+  {
+    label: "activities/guest-booking-actions.ts",
+    path: "lib/activities/guest-booking-actions.ts",
+  },
   { label: "omra/booking-actions.ts", path: "lib/omra/booking-actions.ts" },
-  { label: "omra/guest-booking-actions.ts", path: "lib/omra/guest-booking-actions.ts" },
-  { label: "packages/booking-actions.ts", path: "lib/packages/booking-actions.ts" },
+  {
+    label: "omra/guest-booking-actions.ts",
+    path: "lib/omra/guest-booking-actions.ts",
+  },
+  {
+    label: "packages/booking-actions.ts",
+    path: "lib/packages/booking-actions.ts",
+  },
 ]
 
 for (const { label, path } of COMMISSION_WIRING_FILES) {
@@ -309,9 +326,18 @@ for (const { label, path } of COMMISSION_WIRING_FILES) {
 // Invariant anti-double-write : les fichiers corrigés (double-write bug pré-existant)
 // ne doivent plus contenir qu'UN SEUL appel à recordReservationFinancials.
 const SINGLE_WRITE_FILES: Array<{ label: string; path: string }> = [
-  { label: "activities/guest-booking-actions.ts", path: "lib/activities/guest-booking-actions.ts" },
-  { label: "omra/guest-booking-actions.ts", path: "lib/omra/guest-booking-actions.ts" },
-  { label: "packages/booking-actions.ts", path: "lib/packages/booking-actions.ts" },
+  {
+    label: "activities/guest-booking-actions.ts",
+    path: "lib/activities/guest-booking-actions.ts",
+  },
+  {
+    label: "omra/guest-booking-actions.ts",
+    path: "lib/omra/guest-booking-actions.ts",
+  },
+  {
+    label: "packages/booking-actions.ts",
+    path: "lib/packages/booking-actions.ts",
+  },
 ]
 
 for (const { label, path } of SINGLE_WRITE_FILES) {
@@ -334,7 +360,10 @@ for (const { label, path } of SINGLE_WRITE_FILES) {
 
 const CARS_COMMISSION_FILES: Array<{ label: string; path: string }> = [
   { label: "cars/actions.ts", path: "lib/cars/actions.ts" },
-  { label: "cars/guest-booking-actions.ts", path: "lib/cars/guest-booking-actions.ts" },
+  {
+    label: "cars/guest-booking-actions.ts",
+    path: "lib/cars/guest-booking-actions.ts",
+  },
 ]
 
 for (const { label, path } of CARS_COMMISSION_FILES) {
@@ -374,7 +403,7 @@ test("SETTLE-02 — schema financials.ts : commissionSettlementEntries.settlemen
   // sans .references(), une entrée pouvait pointer vers un settlement fantôme.
   assert.match(
     financialsSchemaSrc,
-    /settlementId.*\n.*\.notNull\(\)\s*\n\s*\.references\(\(\)\s*=>\s*commissionSettlements\.id/s,
+    /settlementId.*\n.*\.notNull\(\)\s*\n\s*\.references\(\(\)\s*=>\s*commissionSettlements\.id/,
     "commissionSettlementEntries.settlementId doit avoir .references(() => commissionSettlements.id)",
   )
 })
@@ -506,7 +535,14 @@ test("WALLET-GAP-2 — migration 0107 : ADD CONSTRAINT CHECK category IN 6-value
     "migration 0107 : la CHECK doit autoriser NULL (lignes historiques)",
   )
   // Vérifie que les 6 valeurs métier sont présentes
-  for (const val of ["booking", "recharge", "refund", "commission", "fee", "adjustment"]) {
+  for (const val of [
+    "booking",
+    "recharge",
+    "refund",
+    "commission",
+    "fee",
+    "adjustment",
+  ]) {
     assert.match(
       migration0107Src,
       new RegExp(`'${val}'`),

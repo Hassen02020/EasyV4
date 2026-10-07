@@ -160,8 +160,7 @@ export async function POST(request: NextRequest) {
     eventType =
       status === true ? "paymee.payment.success" : "paymee.payment.failed"
     charge = normalizePaymeeEvent(paymeeBody, eventType)
-    eventId =
-      charge?.eventId ?? `paymee-${token}-${Date.now()}`
+    eventId = charge?.eventId ?? `paymee-${token}-${Date.now()}`
   } else {
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 })
   }

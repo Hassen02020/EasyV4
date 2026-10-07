@@ -275,10 +275,7 @@ export const agencies = pgTable(
     uniqueIndex("agencies_slug_uniq").on(t.slug),
     index("agencies_type_idx").on(t.agencyType),
     uniqueIndex("agencies_domain_uniq").on(t.domain),
-    check(
-      "agencies_status_check",
-      sql`${t.status} in ('active','suspended')`,
-    ),
+    check("agencies_status_check", sql`${t.status} in ('active','suspended')`),
   ],
 )
 

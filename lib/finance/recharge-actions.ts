@@ -354,8 +354,7 @@ export async function initiateOnlineRecharge(
   // headers forwarded par le middleware (x-user-email si présent), sinon fallback.
   const hdrs = await headers()
   const userEmail =
-    hdrs.get("x-user-email") ??
-    `${requestedByUserId.slice(0, 8)}@easy2book.tn`
+    hdrs.get("x-user-email") ?? `${requestedByUserId.slice(0, 8)}@easy2book.tn`
 
   const paymee = new PaymeePaymentProvider()
   const payResult = await paymee.createPayment({

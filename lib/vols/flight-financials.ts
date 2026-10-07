@@ -121,7 +121,10 @@ export async function finalizeFlightBookingFinancials(
   // deux appelants aujourd'hui) — simple SELECT dans la même transaction,
   // aucun changement de comportement du calcul financier lui-même.
   const [reservation] = await tx
-    .select({ agencyId: reservations.agencyId, publicRef: reservations.publicRef })
+    .select({
+      agencyId: reservations.agencyId,
+      publicRef: reservations.publicRef,
+    })
     .from(reservations)
     .where(eq(reservations.id, input.reservationId))
     .limit(1)

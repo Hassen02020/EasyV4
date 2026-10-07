@@ -26,14 +26,8 @@ import {
   LEAD_STATUSES,
   type LeadRow,
   type LeadStatus,
-  type LeadAcquisitionChannel,
   type ReservationLinkCandidate,
 } from "@/lib/crm/leads-core"
-import {
-  getLeadFunnelValueCore,
-  aggregateFunnelRows,
-  type LeadFunnelRow,
-} from "@/lib/crm/lead-analytics-core"
 
 const SUPPORT_STAFF_ROLES = ["super_admin", "manager", "agent_resa"] as const
 
@@ -65,10 +59,7 @@ export type ListLeadsResult =
   | { ok: true; leads: LeadRow[] }
   | { ok: false; error: string }
 
-export async function listLeads(
-  status?: LeadStatus,
-  acquisitionChannel?: LeadAcquisitionChannel,
-): Promise<ListLeadsResult> {
+export async function listLeads(status?: LeadStatus): Promise<ListLeadsResult> {
   let ctx: SupportStaffContext
   try {
     ctx = await assertSupportStaff()
@@ -81,8 +72,7 @@ export async function listLeads(
   try {
     const rows = await withTenantContext(
       { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
-      (tx) =>
-        listLeadsCore(tx, { agencyId: ctx.agencyId, status, acquisitionChannel }),
+      (tx) => listLeadsCore(tx, { agencyId: ctx.agencyId, status }),
     )
     return { ok: true, leads: rows }
   } catch (err) {
@@ -267,51 +257,6 @@ export async function searchReservationsForLeadLink(input: {
     return { ok: true, reservations: rows }
   } catch (err) {
     console.error("[searchReservationsForLeadLink]", err)
-    return { ok: false, error: "Erreur technique. Veuillez réessayer." }
-  }
-}
-
-export type GetLeadFunnelValueResult =
-  | {
-      ok: true
-      rows: LeadFunnelRow[]
-      totals: ReturnType<typeof aggregateFunnelRows>
-    }
-  | { ok: false; error: string }
-
-/**
- * Funnel valeur CRM — lead → conversion → réservation → valeur → commission.
- * Segmenté par canal (acquisitionChannel). Retourne les lignes brutes ET
- * les totaux agrégés en une seule réponse.
- */
-export async function getLeadFunnelValue(input?: {
-  from?: Date
-  to?: Date
-  acquisitionChannel?: LeadAcquisitionChannel
-}): Promise<GetLeadFunnelValueResult> {
-  let ctx: SupportStaffContext
-  try {
-    ctx = await assertSupportStaff()
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
-  }
-  if (!process.env.DATABASE_URL)
-    return { ok: false, error: "Base de données non configurée" }
-
-  try {
-    const rows = await withTenantContext(
-      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
-      (tx) =>
-        getLeadFunnelValueCore(tx, {
-          agencyId: ctx.agencyId,
-          from: input?.from,
-          to: input?.to,
-          acquisitionChannel: input?.acquisitionChannel,
-        }),
-    )
-    return { ok: true, rows, totals: aggregateFunnelRows(rows) }
-  } catch (err) {
-    console.error("[getLeadFunnelValue]", err)
     return { ok: false, error: "Erreur technique. Veuillez réessayer." }
   }
 }

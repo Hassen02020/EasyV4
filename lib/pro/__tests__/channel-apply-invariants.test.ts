@@ -25,9 +25,14 @@ test("booking/actions.ts : getMarginsForAgency passe channel='b2b'", () => {
   assert.match(src, /getMarginsForAgency\(agencyId, authUserId, "b2b"\)/)
 })
 
-test("transfers/pricing.ts : getMarginsForAgency passe channel='b2b'", () => {
-  const src = read("lib/transfers/pricing.ts")
-  assert.match(src, /getMarginsForAgency\(input\.agencyId, undefined, "b2b"\)/)
+test("transfers/actions.ts : calculateTransferPrice passe channel='b2b'", () => {
+  const src = read("lib/transfers/actions.ts")
+  assert.match(src, /channel:\s*"b2b",/)
+})
+
+test("transfers/guest-booking-actions.ts : calculateTransferPrice ne force pas channel (défaut 'direct')", () => {
+  const src = read("lib/transfers/guest-booking-actions.ts")
+  assert.doesNotMatch(src, /channel:\s*"b2b"/)
 })
 
 test("network/product-booking-actions.ts : getMarginsForAgency passe channel='b2b'", () => {

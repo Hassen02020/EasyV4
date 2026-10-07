@@ -34,7 +34,8 @@ const SECTIONS: Section[] = [
   {
     id: "public",
     label: "PUBLIC",
-    color: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+    color:
+      "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
     routes: [
       {
         name: "Home",
@@ -112,7 +113,8 @@ const SECTIONS: Section[] = [
   {
     id: "business",
     label: "BUSINESS",
-    color: "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800",
+    color:
+      "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800",
     routes: [
       {
         name: "B2B Dashboard",
@@ -134,7 +136,8 @@ const SECTIONS: Section[] = [
       },
       {
         name: "Partner",
-        description: "Portail B2B partenaire (dashboard, réservations, factures, wallet, clients)",
+        description:
+          "Portail B2B partenaire (dashboard, réservations, factures, wallet, clients)",
         status: "EXISTS",
         route: "/pro",
         note: "Portail complet à /pro (getCurrentPartnerProfile). /admin/accords-commerciaux = gestion super_admin des accords, distinct.",
@@ -147,7 +150,8 @@ const SECTIONS: Section[] = [
       },
       {
         name: "White Label",
-        description: "Branding & white-label (brandName, logoUrl, primaryColor, customDomain)",
+        description:
+          "Branding & white-label (brandName, logoUrl, primaryColor, customDomain)",
         status: "EXISTS",
         route: "/admin/agencies/[id]",
         note: "Config partielle dans la page agence (brandName sur agencies). Formulaire WL complet (logo, couleur, domaine) prévu Phase 13.",
@@ -157,7 +161,8 @@ const SECTIONS: Section[] = [
   {
     id: "booking",
     label: "BOOKING",
-    color: "bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800",
+    color:
+      "bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800",
     routes: [
       {
         name: "Search",
@@ -217,7 +222,8 @@ const SECTIONS: Section[] = [
   {
     id: "system",
     label: "SYSTEM",
-    color: "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
+    color:
+      "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
     routes: [
       {
         name: "Login B2C",
@@ -282,35 +288,137 @@ const SECTIONS: Section[] = [
   {
     id: "admin",
     label: "ADMIN",
-    color: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
+    color:
+      "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
     routes: [
-      { name: "Admin Home", description: "Tableau de bord admin", status: "EXISTS", route: "/admin" },
-      { name: "Agencies", description: "Gestion des agences", status: "EXISTS", route: "/admin/agencies" },
-      { name: "Reservations", description: "Toutes réservations", status: "EXISTS", route: "/admin/reservations" },
-      { name: "Reservations Hotels", description: "Réservations hôtels", status: "EXISTS", route: "/admin/reservations/hotels" },
-      { name: "Reservations Vols", description: "Réservations vols", status: "EXISTS", route: "/admin/reservations/vols" },
-      { name: "Finance", description: "Finance & paiements", status: "EXISTS", route: "/admin/finance" },
-      { name: "Accounting", description: "Comptabilité & rapports", status: "EXISTS", route: "/admin/accounting" },
-      { name: "Products", description: "Catalogue produits", status: "EXISTS", route: "/admin/products" },
-      { name: "Suppliers", description: "Fournisseurs", status: "EXISTS", route: "/admin/suppliers" },
-      { name: "Staff", description: "Équipe interne", status: "EXISTS", route: "/admin/staff" },
-      { name: "Marges", description: "Politique de marges", status: "EXISTS", route: "/admin/marges" },
-      { name: "FX Policy", description: "Taux de change", status: "EXISTS", route: "/admin/fx-policy" },
-      { name: "Mutuelle Admin", description: "Gestion dossiers mutuelle", status: "EXISTS", route: "/admin/mutuelle" },
-      { name: "Journeys", description: "Voyages organisés", status: "EXISTS", route: "/admin/journeys" },
-      { name: "Analytics Margins", description: "Analyse des marges", status: "EXISTS", route: "/admin/analytics/margins" },
-      { name: "Veille", description: "Veille tarifaire destinations", status: "EXISTS", route: "/admin/veille/projets" },
-      { name: "Logs", description: "Journaux système", status: "EXISTS", route: "/admin/logs" },
+      {
+        name: "Admin Home",
+        description: "Tableau de bord admin",
+        status: "EXISTS",
+        route: "/admin",
+      },
+      {
+        name: "Agencies",
+        description: "Gestion des agences",
+        status: "EXISTS",
+        route: "/admin/agencies",
+      },
+      {
+        name: "Reservations",
+        description: "Toutes réservations",
+        status: "EXISTS",
+        route: "/admin/reservations",
+      },
+      {
+        name: "Reservations Hotels",
+        description: "Réservations hôtels",
+        status: "EXISTS",
+        route: "/admin/reservations/hotels",
+      },
+      {
+        name: "Reservations Vols",
+        description: "Réservations vols",
+        status: "EXISTS",
+        route: "/admin/reservations/vols",
+      },
+      {
+        name: "Finance",
+        description: "Finance & paiements",
+        status: "EXISTS",
+        route: "/admin/finance",
+      },
+      {
+        name: "Accounting",
+        description: "Comptabilité & rapports",
+        status: "EXISTS",
+        route: "/admin/accounting",
+      },
+      {
+        name: "Products",
+        description: "Catalogue produits",
+        status: "EXISTS",
+        route: "/admin/products",
+      },
+      {
+        name: "Suppliers",
+        description: "Fournisseurs",
+        status: "EXISTS",
+        route: "/admin/suppliers",
+      },
+      {
+        name: "Staff",
+        description: "Équipe interne",
+        status: "EXISTS",
+        route: "/admin/staff",
+      },
+      {
+        name: "Marges",
+        description: "Politique de marges",
+        status: "EXISTS",
+        route: "/admin/marges",
+      },
+      {
+        name: "FX Policy",
+        description: "Taux de change",
+        status: "EXISTS",
+        route: "/admin/fx-policy",
+      },
+      {
+        name: "Mutuelle Admin",
+        description: "Gestion dossiers mutuelle",
+        status: "EXISTS",
+        route: "/admin/mutuelle",
+      },
+      {
+        name: "Journeys",
+        description: "Voyages organisés",
+        status: "EXISTS",
+        route: "/admin/journeys",
+      },
+      {
+        name: "Analytics Margins",
+        description: "Analyse des marges",
+        status: "EXISTS",
+        route: "/admin/analytics/margins",
+      },
+      {
+        name: "Veille",
+        description: "Veille tarifaire destinations",
+        status: "EXISTS",
+        route: "/admin/veille/projets",
+      },
+      {
+        name: "Logs",
+        description: "Journaux système",
+        status: "EXISTS",
+        route: "/admin/logs",
+      },
     ],
   },
   {
     id: "mutuelle",
     label: "MUTUELLE",
-    color: "bg-teal-50 border-teal-200 dark:bg-teal-950/30 dark:border-teal-800",
+    color:
+      "bg-teal-50 border-teal-200 dark:bg-teal-950/30 dark:border-teal-800",
     routes: [
-      { name: "Mutuelle Home", description: "Espace mutuelle membre", status: "EXISTS", route: "/mutuelle" },
-      { name: "Dossiers", description: "Dossiers de remboursement", status: "EXISTS", route: "/mutuelle/dossiers" },
-      { name: "Catalogue", description: "Catalogue prestations mutuelle", status: "EXISTS", route: "/mutuelle/catalogue" },
+      {
+        name: "Mutuelle Home",
+        description: "Espace mutuelle membre",
+        status: "EXISTS",
+        route: "/mutuelle",
+      },
+      {
+        name: "Dossiers",
+        description: "Dossiers de remboursement",
+        status: "EXISTS",
+        route: "/mutuelle/dossiers",
+      },
+      {
+        name: "Catalogue",
+        description: "Catalogue prestations mutuelle",
+        status: "EXISTS",
+        route: "/mutuelle/catalogue",
+      },
     ],
   },
 ]
@@ -368,8 +476,12 @@ function RouteCard({ entry }: { entry: RouteEntry }) {
     <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{entry.name}</p>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{entry.description}</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {entry.name}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            {entry.description}
+          </p>
         </div>
         <StatusBadge status={entry.status} />
       </div>
@@ -379,7 +491,9 @@ function RouteCard({ entry }: { entry: RouteEntry }) {
       </code>
 
       {entry.note && (
-        <p className="text-xs italic text-amber-600 dark:text-amber-400">{entry.note}</p>
+        <p className="text-xs text-amber-600 italic dark:text-amber-400">
+          {entry.note}
+        </p>
       )}
 
       {entry.locales && !isMissing && <LocaleLinks base={entry.route} />}
@@ -418,7 +532,14 @@ export default function VisualMockPage() {
         <div className="mb-8 border-b border-gray-200 pb-6 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
@@ -450,12 +571,17 @@ export default function VisualMockPage() {
         <div className="space-y-10">
           {SECTIONS.map((section) => (
             <div key={section.id}>
-              <div className={`mb-4 inline-flex rounded-md border px-3 py-1 text-xs font-bold tracking-widest ${section.color}`}>
+              <div
+                className={`mb-4 inline-flex rounded-md border px-3 py-1 text-xs font-bold tracking-widest ${section.color}`}
+              >
                 {section.label}
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {section.routes.map((entry) => (
-                  <RouteCard key={`${section.id}-${entry.name}`} entry={entry} />
+                  <RouteCard
+                    key={`${section.id}-${entry.name}`}
+                    entry={entry}
+                  />
                 ))}
               </div>
             </div>

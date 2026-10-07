@@ -276,6 +276,20 @@ jobs:
   # pour que le serveur Next.js puisse démarrer (getDb() ne lève plus
   # "DATABASE_URL non définie"). Sans DB, chaque page SSR retournait HTTP 500
   # et Lighthouse échouait avec ERRORED_DOCUMENT_REQUEST.
+  # CI-FIX-02 (2026-10-07) : audit lecture seule (agent dédié) a trouvé que
+  # ce job, contrairement à playwright-a11y ci-dessous, n'installait aucune
+  # dépendance système navigateur — @lhci/cli (via chrome-launcher) compte
+  # sur un Chrome déjà présent sur le runner, sans garantir les librairies
+  # partagées nécessaires au rendu headless (libnss3, libgbm, etc.), d'où
+  # l'erreur "NO_FCP" (Chrome démarre mais ne peint jamais). Ajout de
+  # `playwright install-deps chromium` (dépendances système SEULEMENT,
+  # aucun nouveau binaire téléchargé/substitué) pour fiabiliser le Chrome
+  # déjà détecté par chrome-launcher, sans changer quel binaire est utilisé.
+  # Hypothèse secondaire NON écartée (réserve explicite) : la page /admin
+  # auditée (lighthouserc.js) redirige vers /login faute d'auth en CI —
+  # pourrait contribuer à un paint vide indépendamment des libs système.
+  # `continue-on-error: true` volontairement CONSERVÉ tant qu'une run verte
+  # confirmée ne prouve pas la cause exacte.
   lighthouse:
     runs-on: ubuntu-latest
     needs: [build]
@@ -312,6 +326,8 @@ jobs:
         run: pnpm db:push --force
       - name: Build (production)
         run: pnpm build
+      - name: Dépendances système Chrome headless (CI-FIX-02)
+        run: pnpm exec playwright install-deps chromium
       - name: Lighthouse CI
         run: pnpm dlx @lhci/cli autorun
 

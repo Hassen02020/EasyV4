@@ -247,13 +247,92 @@ passe systématiquement). Confirmé pré-existant (job créé par le commit
 `cc617b4` sans cette étape dès l'origine, tourne sous
 `continue-on-error: true` depuis le début). Cause secondaire non
 exclue : la page auditée (`/admin`) redirige vers `/login` en CI faute
-d'auth, pourrait contribuer à un paint vide. Fiche proposée :
-**CI-FIX-02** (installer Chrome+dépendances dans ce job) — **réserve
-explicite de l'utilisateur** : ne pas retirer `continue-on-error` ni
-présenter l'installation Chrome comme un correctif prouvé avant une run
-verte confirmée, l'hypothèse `/admin→/login` n'étant pas écartée.
-**Prochain dans la séquence actée** (après NORMALIZED-MATCHING-01,
-avant tout retour à VIP-DISTRIBUTION/seuil VIP) — en attente de GO.
+d'auth, pourrait contribuer à un paint vide.
+
+**CI-FIX-02 — IMPLÉMENTÉ (PR #145, branche `ci-fix-02`), PAS ENCORE VERT.**
+Correctif appliqué : `playwright install-deps chromium` ajouté au job
+`lighthouse`. **Résultat réel après correctif** (pas une affirmation
+prématurée) : `playwright install-deps chromium` s'exécute avec succès
+(paquets apt installés, confirmé dans les logs) — l'hypothèse "Chrome
+sans dépendances" est donc **écartée**, pas confirmée. Nouveau constat
+précis : `http://localhost:3000/` passe (2/2 runs Lighthouse réussis),
+mais `http://localhost:3000/login` bloque ~102 secondes puis échoue en
+`NO_FCP` (`requestedUrl: "http://localhost:3000/login"`, confirmé dans
+le JSON d'erreur) — le job s'arrête à ce premier échec, `/admin` n'est
+même pas atteint. Donc ce n'est ni un Chrome absent, ni l'hypothèse
+`/admin→/login` telle que formulée (ici `/login` est audité
+directement, pas via une redirection). Piste non résolue à ce jour :
+`/login` met ~100s à ne rien peindre sous Lighthouse (CPU throttlé 4x)
+alors que `playwright-a11y` le teste sans throttling avec succès —
+possible boucle d'attente/retry réseau côté client contre
+`NEXT_PUBLIC_SUPABASE_URL` (domaine placeholder en CI). `continue-on-error:
+true` conservé. Aucun second correctif spéculatif poussé — piste
+documentée en commentaire PR, proposition séparée (`CI-FIX-03` ?) si
+poursuite souhaitée.
+
+---
+
+### BEHAVIORAL-INTENT-01 + BEHAVIORAL-SIGNAL-01 — AUDIT ONLY, décisions produit actées, bloqué sur validation juridique
+
+Deux audits lecture seule en chaîne (2026-10-07), déclenchés après
+NORMALIZED-MATCHING-01 : peut-on construire une notion d'intention
+d'achat ("ce que veut ce client maintenant"), distincte du VIP Score
+("sa valeur globale") ?
+
+**BEHAVIORAL-INTENT-01 (agent dédié)** — constat factuel : le système
+capture déjà la DEMANDE EXPLICITE (lead via `createLeadCore`, WhatsApp
+via `upsertConversationForInboundCore`, réservation `pending` via
+`lib/booking/guest-actions.ts`) — rattachable, normalisée (CONTACT-01/
+NORMALIZED-MATCHING-01), horodatée. Mais AUCUN signal de comportement
+implicite pré-achat n'existe : recherche (hôtel/vol/omra/package),
+consultation de fiche produit, et abandon sont soit purement côté
+client (URL params, `lib/cart/cart-store.ts` = localStorage uniquement,
+"PAS de table BDD"), soit absents de toute table. Ownership INTENT :
+**non confirmé**, faute de signaux source — pas un défaut d'architecture.
+
+**BEHAVIORAL-SIGNAL-01 (agent dédié)** — creuse la faisabilité d'un
+premier signal. Constats clés : (1) aucun journal d'événements
+générique réutilisable (`lead_origin_events` verrouillé sur `leadId
+NOT NULL`, inutilisable pour un visiteur anonyme) ; (2) identité
+réutilisable telle quelle (`resolveContactKeyCore`/
+`findMatchingCustomerIdsCore`, signatures stables, zéro dépendance
+cachée) ; (3) CONSENT-01 ne couvre QUE le marketing, pas le tracking
+analytique — sujet RGPD distinct et non traité ; (4) pool DB à 10
+connexions déjà en cause dans un incident de production réel
+(DESTINATIONS-SSG-POOL-EXHAUSTION-01) — une écriture par recherche
+individuelle serait risquée telle quelle.
+
+**Décisions produit actées par l'utilisateur** (pour un futur pilote
+"recherche hôtel" uniquement, pas une plateforme générique) :
+- **Agrégation, jamais individuelle** : destination+produit+période →
+  compteur, pas une ligne par recherche. Objectif = mesurer la demande
+  (signal marché), pas construire un historique individuel.
+- **Valeur métier** : le compteur doit révéler une tendance de demande
+  exploitable par NICHE/PROMO/commercial (ex. "Tunis hôtels" en forte
+  progression → offre ciblée) — jamais un score client, jamais fusionné
+  avec VIP Score (VIP = valeur, Intent = envie maintenant — deux
+  dimensions explicitement distinctes, un client peut être VIP élevé +
+  intent faible ou l'inverse).
+- **Rétention** : agrégation journalière, durée finale à justifier par
+  l'usage métier et la politique privacy — jamais fixée arbitrairement.
+- **Infra** : aucune écriture individuelle par recherche ; mesurer le
+  volume réel et l'impact pool DB sur le pilote avant toute
+  généralisation (`PILOTE → mesurer volume → mesurer impact DB/pool →
+  preuve → GO extension`).
+
+**Condition bloquante avant tout code** (RGPD/privacy) : aucun tracking
+comportemental individuel sans base légale/consentement approprié.
+Décision provisoire actée : signal agrégé non destiné à identifier une
+personne pour le pilote (pas d'IP brute, pas de fingerprint, pas de
+profilage individuel) — **mais la conformité juridique finale reste à
+valider avant toute mise en production, et avant tout code selon la
+décision explicite de l'utilisateur**.
+
+**Statut** : AUDIT ONLY clos, cadre produit acté, **EN ATTENTE** de
+validation juridique/privacy avant qu'un GO sur un chantier de code
+(mécanisme minimal d'agrégation "recherche hôtel" + mesure d'impact DB,
+explicitement : pas de plateforme générique, pas d'Intent, pas de
+modification VIP/Niche, pas de tracking individuel) puisse être donné.
 
 ---
 

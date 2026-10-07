@@ -56,7 +56,8 @@ Label admin (`updateAgencyWhiteLabel()`, page `/admin/agencies/[id]`,
 color picker) + White Label `/pro` (couleur primaire agence) +
 COMMISSION-WIRING-02 (câblage `creditPlatformCommission` dans 10
 modules : transferts, hôtels-monde, activités, omra, packages B2B+B2C)
-+ CARS-COMMISSION-01 (dernier module sans commission).
+
+- CARS-COMMISSION-01 (dernier module sans commission).
 
 **Abandonné pendant le rebase** (hors scope de la PR, jamais mentionné
 dans sa description) : feature "lead acquisition-channel + supplier-node"
@@ -98,24 +99,52 @@ CRM avancés.
 
 **Classification finale :**
 
-| Point | Classification | Preuve |
-| --- | --- | --- |
-| Duplication `contact-core.ts`/`consent-core.ts` | N/A — volontaire, documentée (`contact-core.ts:24-31`) | pas un gap |
-| Consent jamais déclenché à la capture | N/A — scope délibéré (CONSENT-01 : "hors scope") | pas un gap |
-| Seuil VIP "magic number" | N/A — n'existe pas du tout, par design (`vip-score-core.ts:1-29`) | pas un gap |
-| `lib/finance/margin-calculator.ts` mort | N/A — confirmé mort, gardé par un test invariant | suppression optionnelle, pas un gap |
-| NICHE segmentation sans consommateur UI | CREATE | `niche-core.ts`/`niche-actions.ts` calculent, zéro page ne lit |
-| Revenue dispersée | CONSOLIDATE | `campaign-performance-core.ts`/`vip-score-core.ts` recalculent au lieu de réutiliser `margin-analytics-core.ts` (lui-même sans test) |
-| Promo → pricing incomplet | EXTEND + CREATE (le plus concret, impact client direct) | 4/8 modules câblés (Hôtel TN, Packages, Omra, Transferts) ; **Hôtels Monde, Activités, Voitures, Vols non câblés** — aucun test de couverture n'existe |
-| Meta Ads reporting/audience avancé, automation marketing, social CRM | N/A — confirmé greenfield | rien construit au-delà de la capture |
+| Point                                                                | Classification                                                    | Preuve                                                                                                                                                 |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Duplication `contact-core.ts`/`consent-core.ts`                      | N/A — volontaire, documentée (`contact-core.ts:24-31`)            | pas un gap                                                                                                                                             |
+| Consent jamais déclenché à la capture                                | N/A — scope délibéré (CONSENT-01 : "hors scope")                  | pas un gap                                                                                                                                             |
+| Seuil VIP "magic number"                                             | N/A — n'existe pas du tout, par design (`vip-score-core.ts:1-29`) | pas un gap                                                                                                                                             |
+| `lib/finance/margin-calculator.ts` mort                              | N/A — confirmé mort, gardé par un test invariant                  | suppression optionnelle, pas un gap                                                                                                                    |
+| NICHE segmentation sans consommateur UI                              | CREATE                                                            | `niche-core.ts`/`niche-actions.ts` calculent, zéro page ne lit                                                                                         |
+| Revenue dispersée                                                    | CONSOLIDATE                                                       | `campaign-performance-core.ts`/`vip-score-core.ts` recalculent au lieu de réutiliser `margin-analytics-core.ts` (lui-même sans test)                   |
+| Promo → pricing incomplet                                            | EXTEND + CREATE (le plus concret, impact client direct)           | 4/8 modules câblés (Hôtel TN, Packages, Omra, Transferts) ; **Hôtels Monde, Activités, Voitures, Vols non câblés** — aucun test de couverture n'existe |
+| Meta Ads reporting/audience avancé, automation marketing, social CRM | N/A — confirmé greenfield                                         | rien construit au-delà de la capture                                                                                                                   |
 
-**Chantier proposé (GO en attente)** : `PROMO-PRICING-COVERAGE-01` —
-câbler `resolveCheckoutPromoCore`/`applyPromoDiscountCore` dans les 4
-modules manquants + créer `promo-wiring-invariants.test.ts`.
+**GO reçu pour tout (2026-10-07)** : `PROMO-PRICING-COVERAGE-01` (PR #156,
+en cours) → `REVENUE-CONSOLIDATE-01` (ce chantier) → `NICHE-UI-01`,
+dans cet ordre de priorité, chacun sur sa propre PR.
 
-**Backlog candidates (GO séparé requis chacun)** : `REVENUE-CONSOLIDATE-01`,
-`NICHE-UI-01` (décision produit requise avant audit technique),
-suppression de `margin-calculator.ts` (cleanup trivial).
+### REVENUE-CONSOLIDATE-01 — CLÔTURÉ (en attente de merge PR)
+
+Extrait `sumRevenueMarginCore()`, une primitive PURE (aucun accès DB),
+dans `lib/reporting/margin-analytics-core.ts` (module déjà identifié
+comme canonique par l'audit) — remplace les 2 paires de `.reduce()`
+dupliquées dans `lib/crm/campaign-performance-core.ts` et
+`lib/crm/vip-score-core.ts`. Reste volontairement minimal : aucune
+jointure, aucun filtre — l'appelant garde la responsabilité de résoudre
+le bon ensemble de lignes pour son propre périmètre (campagne, client).
+`margin-analytics-core.ts` lui-même (scope agence+période, SQL `SUM()`)
+n'a pas été modifié dans sa logique de requête — seul un nouvel export
+pur partagé a été ajouté.
+
+Comble aussi le second volet du gap identifié : `margin-analytics-core.ts`
+n'avait ZÉRO test. Ajouté :
+
+- `lib/reporting/__tests__/margin-analytics-core.test.ts` (6 tests
+  unitaires purs sur `sumRevenueMarginCore`).
+- `lib/reporting/__tests__/margin-analytics-core-live.test.ts` (preuve
+  live contre Postgres réel pour `getMarginKPIsCore` — vérifie que
+  seules les réservations `confirmed` DANS la période comptent, via
+  `recordReservationFinancials`, jamais un second calcul inventé par
+  le test).
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1569/1569 PASS (le nouveau test
+live se dégrade en `skip` localement sans Postgres, s'exécute pour de
+vrai sur le job CI `financial-e2e` qui en fournit un éphémère), `pnpm build` OK.
+
+**Backlog candidate restant** : `NICHE-UI-01` (décision produit requise
+avant audit technique — quel contenu afficher, à quel endroit).
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 

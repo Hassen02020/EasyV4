@@ -31,6 +31,7 @@ import {
   campaignAttributions,
   reservationFinancials,
 } from "@/lib/db/schema"
+import { sumRevenueMarginCore } from "@/lib/reporting/margin-analytics-core"
 
 export interface CampaignPerformance {
   campaignId: string
@@ -78,14 +79,7 @@ export async function getCampaignPerformanceCore(
       ),
     )
 
-  const revenueTnd = attributedRows.reduce(
-    (sum, r) => sum + Number(r.salePriceTnd),
-    0,
-  )
-  const marginTnd = attributedRows.reduce(
-    (sum, r) => sum + Number(r.marginAmount),
-    0,
-  )
+  const { revenueTnd, marginTnd } = sumRevenueMarginCore(attributedRows)
 
   return {
     campaignId: params.campaignId,

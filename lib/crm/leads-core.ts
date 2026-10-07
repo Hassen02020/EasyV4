@@ -5,9 +5,10 @@
  * directement contre une vraie transaction DB.
  */
 
-import { and, eq, desc, ilike, isNull, or } from "drizzle-orm"
+import { and, eq, desc, ilike, inArray, isNull, or } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customers, leads, reservations } from "@/lib/db/schema"
+import { findMatchingCustomerIdsCore } from "./customer-match-core"
 
 export const LEAD_PRODUCT_TYPES = [
   "hotel",
@@ -415,11 +416,13 @@ export interface ReservationLinkCandidate {
 /**
  * Réservations candidates pour lier un lead — jamais un lien automatique :
  * le staff choisit toujours explicitement dans cette liste (voir
- * `convertLeadCore`). Sans `query`, suggère par correspondance email/
- * téléphone du lead (le cas le plus courant) ; avec `query`, recherche
- * libre (réf publique, nom, email, téléphone) pour couvrir le cas où le
- * client a réservé avec des coordonnées différentes de celles du lead.
- * Toujours scopé à `agencyId` — jamais de résultat cross-agence.
+ * `convertLeadCore`). Sans `query`, suggère par correspondance NORMALISÉE
+ * email/téléphone du lead (le cas le plus courant — NORMALIZED-MATCHING-01,
+ * même helper partagé que `getVipScoreForLeadCore`/`getCustomer360Core`) ;
+ * avec `query`, recherche libre (réf publique, nom, email, téléphone, non
+ * normalisée) pour couvrir le cas où le client a réservé avec des
+ * coordonnées différentes de celles du lead. Toujours scopé à `agencyId`
+ * — jamais de résultat cross-agence.
  */
 export async function searchReservationsForLeadLinkCore(
   tx: DrizzleTransaction,
@@ -432,21 +435,29 @@ export async function searchReservationsForLeadLinkCore(
 ): Promise<ReservationLinkCandidate[]> {
   const q = params.query?.trim()
 
-  const matchClause = q
-    ? or(
-        ilike(reservations.publicRef, `%${q}%`),
-        ilike(customers.firstName, `%${q}%`),
-        ilike(customers.lastName, `%${q}%`),
-        ilike(customers.email, `%${q}%`),
-        ilike(customers.phone, `%${q}%`),
-      )
-    : or(
-        params.email ? eq(customers.email, params.email) : undefined,
-        params.phone ? eq(customers.phone, params.phone) : undefined,
-      )
+  let matchClause
+  if (q) {
+    matchClause = or(
+      ilike(reservations.publicRef, `%${q}%`),
+      ilike(customers.firstName, `%${q}%`),
+      ilike(customers.lastName, `%${q}%`),
+      ilike(customers.email, `%${q}%`),
+      ilike(customers.phone, `%${q}%`),
+    )
+  } else {
+    const matchedCustomerIds = await findMatchingCustomerIdsCore(tx, {
+      agencyId: params.agencyId,
+      email: params.email,
+      phone: params.phone,
+    })
+    matchClause = matchedCustomerIds.length
+      ? inArray(reservations.customerId, matchedCustomerIds)
+      : undefined
+  }
 
-  // Ni query, ni email, ni phone : rien de pertinent à suggérer — jamais une
-  // liste arbitraire des dernières réservations de l'agence.
+  // Ni query, ni email, ni phone, ni aucun customer trouvé : rien de
+  // pertinent à suggérer — jamais une liste arbitraire des dernières
+  // réservations de l'agence.
   if (!matchClause) return []
 
   const rows = await tx

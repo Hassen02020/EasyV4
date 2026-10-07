@@ -133,6 +133,63 @@ REVENUE dispersé sans owner ni test dédié ; câblage PROMO→pricing
 incomplet (3/7 modules restants : flight/activity/network) ; `lighthouse`
 NO_FCP toujours non résolu (CI-FIX-02/CI-FIX-03 potentiel).
 
+---
+
+### CANONICAL UPDATE / BACKLOG GOVERNANCE — protocole adopté (2026-10-07)
+
+L'utilisateur a posé un protocole explicite de traitement des documents
+canoniques (CLARIFICATION CANONIQUE CRM/SIGNAUX/MARCHÉS, puis
+CANONICAL UPDATE + BACKLOG GOVERNANCE) : classification obligatoire
+(CONFIRMED/ALREADY CERTIFIED/NEW RULE/NEW GAP/OUT OF SCOPE/CONTRADICTION),
+séparation stricte Architecture (canonical) ≠ État réel
+(IMPLEMENTED/PARTIAL/**UNKNOWN**/NOT IMPLEMENTED) ≠ Action (NO ACTION/
+AUDIT CANDIDATE/BACKLOG OFFICIAL/AUTHORIZED CHANTIER), `UNKNOWN ≠ GAP
+CONFIRMED` (il faut un audit prouvé avant de déclarer un gap confirmé),
+`BACKLOG CANDIDATE ≠ BACKLOG OFFICIAL` (aucune promotion automatique,
+décision utilisateur explicite requise), et interdiction d'enchaîner
+automatiquement le prochain audit même sur une piste évidente — toujours
+repasser par une décision utilisateur. Protocole appliqué à partir de ce
+point de la session, y compris rétroactivement sur l'audit NETWORK/SUPPLIER
+ci-dessous (lancé sur un "go" générique, signalé comme possible écart de
+process, clarifié avec l'utilisateur avant de continuer).
+
+**Capacity Matching Engine (DEMANDE CRM ↔ CAPACITÉ réseau)** — promu en
+**candidate backlog officiel** : architecture=CANONICAL (SUPPLIER/NETWORK
+possède la capacité), implémentation=**NOT IMPLEMENTED** (prouvé par audit,
+pas supposé — voir ci-dessous), scope actuel=**hors exécution**, nécessitera
+sa propre fiche d'audit de conception avant tout code, sur GO séparé futur.
+
+### RLS-FORCE-SUPPLIER-TABLES-01 — MERGÉ (PR #151, commit squash `804b14a`, 2026-10-07)
+
+Déclenché par l'audit NETWORK/SUPPLIER capacity matching (lecture seule,
+agent dédié) : aucun "Capacity Matching Engine" n'existe dans ce dépôt —
+`suppliers`/`supplier_nodes`/`products.stock` existent mais ne modélisent
+ni disponibilité par date, ni destination couverte, ni conditions/expertise ;
+`network-demand-capture-core.ts` (malgré son nom) ne fait que de la
+provenance de lead, aucun croisement CRM↔capacité réseau trouvé (0
+occurrence). Deux mondes cloisonnés, confirmé par citations fichier:ligne.
+
+Sous-gap distinct trouvé et corrigé : `products`, `supplier_nodes`,
+`supplier_portal_users` avaient `ENABLE ROW LEVEL SECURITY` sans `FORCE`
+(contrairement à `suppliers` lui-même). **Correction en cours de route** :
+vérification directe en production (`pg_class.relforcerowsecurity`) a
+montré que `products` avait en réalité déjà `FORCE` (le rapport d'audit
+initial de l'agent le citait à tort) — scope réduit à 2 tables réelles :
+`supplier_nodes`, `supplier_portal_users`.
+
+Migration `drizzle/manual/0124_rls_force_supplier_tables_01.sql`. Vérifié
+avant migration : `app_runtime` n'est pas owner de ces tables (owner =
+`postgres`, confirmé via `pg_tables`) — `FORCE` n'a aucun effet sur le
+trafic applicatif normal, protection en profondeur, pas la correction
+d'un trou actif. **Migration appliquée et vérifiée en production**
+(Supabase `crygnaichvlxavvbifqi`) : `relforcerowsecurity=true` confirmé
+sur les 2 tables, avant (`false`) et après. Preuves : 21/21 tests
+existants verts (`product-booking-actions-invariants.test.ts`,
+`portal-actions-invariants.test.ts`) ; régression complète 1501 pass/0
+fail ; `pnpm build` ok. CI de la PR : tout vert (format/lint/typecheck/
+test/financial-e2e/build/playwright-a11y) sauf `lighthouse` (même NO_FCP
+connu, non lié à ce diff).
+
 ### PUBLIC-VISUAL-RLS-ROLE-GAP-01 + BOOKING-ENGINE-MODULES-NOT-WIRED-01 + DESTINATIONS-SSG-POOL-EXHAUSTION-01 — CLÔTURÉS
 
 Trouvés en exécutant le Scénario A (Smoke, Home→Search) sur l'infra E2E

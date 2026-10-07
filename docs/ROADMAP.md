@@ -164,8 +164,37 @@ par un test invariant (`product-booking-actions-invariants.test.ts`)
 qui vérifie qu'il n'est jamais réimporté. Supprimé. Mergé avec
 PROMO-PRICING-COVERAGE-01 (même PR #156, merge commit `6965d233`).
 
-**Backlog candidate restant** : `REVENUE-CONSOLIDATE-01` (PR #157,
-en cours de CI).
+### REVENUE-CONSOLIDATE-01 — CLÔTURÉ (PR #157, mergée)
+
+Extrait `sumRevenueMarginCore()`, une primitive PURE (aucun accès DB),
+dans `lib/reporting/margin-analytics-core.ts` (module déjà identifié
+comme canonique par l'audit) — remplace les 2 paires de `.reduce()`
+dupliquées dans `lib/crm/campaign-performance-core.ts` et
+`lib/crm/vip-score-core.ts`. Reste volontairement minimal : aucune
+jointure, aucun filtre — l'appelant garde la responsabilité de résoudre
+le bon ensemble de lignes pour son propre périmètre (campagne, client).
+`margin-analytics-core.ts` lui-même (scope agence+période, SQL `SUM()`)
+n'a pas été modifié dans sa logique de requête — seul un nouvel export
+pur partagé a été ajouté.
+
+Comble aussi le second volet du gap identifié : `margin-analytics-core.ts`
+n'avait ZÉRO test. Ajouté :
+
+- `lib/reporting/__tests__/margin-analytics-core.test.ts` (6 tests
+  unitaires purs sur `sumRevenueMarginCore`).
+- `lib/reporting/__tests__/margin-analytics-core-live.test.ts` (preuve
+  live contre Postgres réel pour `getMarginKPIsCore` — vérifie que
+  seules les réservations `confirmed` DANS la période comptent, via
+  `recordReservationFinancials`, jamais un second calcul inventé par
+  le test). **Confirmé exécuté pour de vrai sur CI** : le job
+  `financial-e2e` (Postgres éphémère) est passé au vert sur cette PR,
+  preuve que ce test s'exécute réellement (pas seulement un `skip`).
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1569/1569 PASS, `pnpm build` OK.
+PR #157 mergée (squash) le 2026-10-07, merge commit `a0f91877`. CI finale :
+format/lint/typecheck/test/financial-e2e/build/playwright-a11y tous
+verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
 
 ### NICHE-UI-01 — CLÔTURÉ (en attente de merge PR)
 

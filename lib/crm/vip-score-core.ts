@@ -32,11 +32,12 @@
  * même numéro WhatsApp restent deux lignes distinctes, par conception) —
  * en déduire une identité "personne" unique serait une fusion silencieuse
  * que ce dépôt refuse explicitement ailleurs (voir contact-core.ts). Un
- * `LeadRow` porte déjà email ET téléphone, exactement le même
- * rapprochement déjà utilisé par `searchReservationsForLeadLinkCore`
- * (lib/crm/leads-core.ts) et `getCustomer360Core`
- * (lib/admin/customer-360-core.ts) — jamais une troisième méthode de
- * rapprochement inventée ici.
+ * `LeadRow` porte déjà email ET téléphone, rapprochés via
+ * `findMatchingCustomerIdsCore` (lib/crm/customer-match-core.ts,
+ * NORMALIZED-MATCHING-01) — même helper partagé que
+ * `searchReservationsForLeadLinkCore` (lib/crm/leads-core.ts) et
+ * `getCustomer360Core` (lib/admin/customer-360-core.ts), jamais une
+ * troisième méthode de rapprochement inventée ici.
  *
  * VIP-SCORE-02 — signal "engagement" : nombre de demandes historiques du
  * même CONTACT (`getContactLeadHistoryCore`, lib/crm/contact-history-core.ts),
@@ -61,18 +62,14 @@
  * simple, pas une seconde vérité financière.
  */
 
-import { and, eq, or, notInArray, desc } from "drizzle-orm"
+import { and, eq, inArray, notInArray, desc } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import {
-  contacts,
-  customers,
-  reservations,
-  reservationFinancials,
-} from "@/lib/db/schema"
+import { contacts, reservations, reservationFinancials } from "@/lib/db/schema"
 import { getLeadCore, type LeadRow } from "./leads-core"
 import { computeLeadScore, type LeadScoreRuleMap } from "./lead-scoring-core"
 import { resolveContactKeyCore } from "./contact-core"
 import { getContactLeadHistoryCore } from "./contact-history-core"
+import { findMatchingCustomerIdsCore } from "./customer-match-core"
 
 /** Statuts où aucune valeur commerciale n'est restée dans l'activité. */
 const VIP_SCORE_EXCLUDED_RESERVATION_STATUSES = [
@@ -277,8 +274,9 @@ async function findExistingContactIdForLeadCore(
 
 /**
  * Seul point de contact DB — résout les signaux réels d'un lead (même
- * rapprochement email/téléphone que `searchReservationsForLeadLinkCore`),
- * puis délègue tout le calcul à `computeVipScoreCore` (jamais de logique
+ * rapprochement NORMALISÉ email/téléphone que `getCustomer360Core`,
+ * via `findMatchingCustomerIdsCore`, NORMALIZED-MATCHING-01), puis
+ * délègue tout le calcul à `computeVipScoreCore` (jamais de logique
  * dupliquée). `now` injectable pour les tests (reproductibilité).
  */
 export async function getVipScoreForLeadCore(
@@ -299,12 +297,13 @@ export async function getVipScoreForLeadCore(
 
   const leadQualityScore = computeLeadScore(lead, params.scoreRules).total
 
-  const matchClause = or(
-    lead.email ? eq(customers.email, lead.email) : undefined,
-    lead.phone ? eq(customers.phone, lead.phone) : undefined,
-  )
+  const matchedCustomerIds = await findMatchingCustomerIdsCore(tx, {
+    agencyId: params.agencyId,
+    email: lead.email,
+    phone: lead.phone,
+  })
 
-  const reservationRows = matchClause
+  const reservationRows = matchedCustomerIds.length
     ? await tx
         .select({
           createdAt: reservations.createdAt,
@@ -312,7 +311,6 @@ export async function getVipScoreForLeadCore(
           marginAmount: reservationFinancials.marginAmount,
         })
         .from(reservations)
-        .innerJoin(customers, eq(customers.id, reservations.customerId))
         .innerJoin(
           reservationFinancials,
           eq(reservationFinancials.reservationId, reservations.id),
@@ -320,7 +318,7 @@ export async function getVipScoreForLeadCore(
         .where(
           and(
             eq(reservations.agencyId, params.agencyId),
-            matchClause,
+            inArray(reservations.customerId, matchedCustomerIds),
             notInArray(reservations.status, [
               ...VIP_SCORE_EXCLUDED_RESERVATION_STATUSES,
             ]),

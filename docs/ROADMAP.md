@@ -39,10 +39,83 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun.** PHONE-INTL-VOLS-HOTELS-MONDE-01 a causé un **incident
 production RÉSOLU** (voir ci-dessous) — chantier à reprendre uniquement
 sur GO explicite, avec vérification runtime Vercel réelle avant tout
-nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) **MERGÉE** (voir
-ci-dessous). Conformément à la RÈGLE OPÉRATIONNELLE ABSOLUE, aucun
-nouveau chantier n'est démarré automatiquement — en attente du prochain
-GO explicite de l'utilisateur.
+nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) **MERGÉE**. PR-BATCH-04
+(PR #126, voir ci-dessous) **MERGÉE** + correctif de suivi PR #155
+**MERGÉE**. PR #63 **FERMÉE sans merge** (superseded, voir ci-dessous).
+Conformément à la RÈGLE OPÉRATIONNELLE ABSOLUE, aucun nouveau chantier
+n'est démarré automatiquement — en attente du prochain GO explicite de
+l'utilisateur. Audit CRM de certification (2026-10-07) proposé,
+PROMO-PRICING-COVERAGE-01 en attente de GO (voir section CRM ci-dessous).
+
+### PR-BATCH-04 — WHITE-LABEL-ADMIN-01, WHITE-LABEL-PRO-01, COMMISSION-WIRING-02, CARS-COMMISSION-01 — CLÔTURÉ (PR #126 + #155)
+
+**PR #126** (branche `claude/easy2book-v6-modernization-7gyb5v`, ouverte
+2026-10-04, 73 commits de dérive accumulés) rebasée sur `main` actuel et
+mergée le 2026-10-07 (merge commit `68e3713`). Contenu réel : White
+Label admin (`updateAgencyWhiteLabel()`, page `/admin/agencies/[id]`,
+color picker) + White Label `/pro` (couleur primaire agence) +
+COMMISSION-WIRING-02 (câblage `creditPlatformCommission` dans 10
+modules : transferts, hôtels-monde, activités, omra, packages B2B+B2C)
++ CARS-COMMISSION-01 (dernier module sans commission).
+
+**Abandonné pendant le rebase** (hors scope de la PR, jamais mentionné
+dans sa description) : feature "lead acquisition-channel + supplier-node"
+(2 migrations jamais appliquées, 2 fichiers CRM neufs) — superseded par
+CRM-LEAD-WIRING-01 déjà mergé, redevient backlog candidate sur GO séparé.
+Câblage commission sur `lib/vols/guest-booking-actions.ts` — fichier
+confirmé mort par PR #130, retiré.
+
+**PR #155** (merge squash `1435c54`) : corrige 2 bugs tombés sur `main`
+parce que PR #126 a été mergée par l'utilisateur sur un commit antérieur
+à mon dernier correctif poussé sur la branche — fixture de test
+`rls-gap-public-tables-01-live.test.ts` sans `matchReasons` (bloquait
+`typecheck`), et 2 migrations (`0104_settle_fk_integrity.sql`,
+`0105_econ_entitlements_settlement_fk.sql`, contenu SETTLE-02/02b de
+PR #126) utilisant `ADD CONSTRAINT IF NOT EXISTS` — syntaxe Postgres
+invalide, jamais exécutable avec succès telle qu'écrite (donc aucune
+contrainte posée en production par ce biais avant le correctif). Les
+deux migrations n'avaient jamais pu s'appliquer en l'état.
+
+**Preuve de clôture** : `main` HEAD = `1435c54`, `pnpm typecheck`/
+`format:check`/`lint` clean, `pnpm test` 1563/1563 PASS, `pnpm build` OK.
+
+### PR #63 — FERMÉE sans merge (superseded)
+
+Objet : reformater 753 fichiers avec Prettier (dette CI `format`).
+Fermée sans merge : `main` était déjà 100% prettier-clean et le job
+`format` déjà un hard gate avant même l'examen de cette PR — l'objectif
+était déjà atteint par d'autres chantiers mergés depuis son ouverture
+(29/09). Rien à récupérer (diff purement whitespace, 1 semaine+ de dérive).
+
+### AUDIT CRM DE CERTIFICATION (2026-10-07)
+
+Audit lecture seule (3 sous-agents en parallèle) sur les points
+restants identifiés après l'AUDIT FINAL CRM du 2026-10-07 (17
+composants, voir section ci-dessous) : normalisation contact/consent,
+seuil VIP, fichier mort margin-calculator, NICHE sans consommateur,
+revenue dispersée, promo→pricing incomplet, Meta Ads/automation/social
+CRM avancés.
+
+**Classification finale :**
+
+| Point | Classification | Preuve |
+| --- | --- | --- |
+| Duplication `contact-core.ts`/`consent-core.ts` | N/A — volontaire, documentée (`contact-core.ts:24-31`) | pas un gap |
+| Consent jamais déclenché à la capture | N/A — scope délibéré (CONSENT-01 : "hors scope") | pas un gap |
+| Seuil VIP "magic number" | N/A — n'existe pas du tout, par design (`vip-score-core.ts:1-29`) | pas un gap |
+| `lib/finance/margin-calculator.ts` mort | N/A — confirmé mort, gardé par un test invariant | suppression optionnelle, pas un gap |
+| NICHE segmentation sans consommateur UI | CREATE | `niche-core.ts`/`niche-actions.ts` calculent, zéro page ne lit |
+| Revenue dispersée | CONSOLIDATE | `campaign-performance-core.ts`/`vip-score-core.ts` recalculent au lieu de réutiliser `margin-analytics-core.ts` (lui-même sans test) |
+| Promo → pricing incomplet | EXTEND + CREATE (le plus concret, impact client direct) | 4/8 modules câblés (Hôtel TN, Packages, Omra, Transferts) ; **Hôtels Monde, Activités, Voitures, Vols non câblés** — aucun test de couverture n'existe |
+| Meta Ads reporting/audience avancé, automation marketing, social CRM | N/A — confirmé greenfield | rien construit au-delà de la capture |
+
+**Chantier proposé (GO en attente)** : `PROMO-PRICING-COVERAGE-01` —
+câbler `resolveCheckoutPromoCore`/`applyPromoDiscountCore` dans les 4
+modules manquants + créer `promo-wiring-invariants.test.ts`.
+
+**Backlog candidates (GO séparé requis chacun)** : `REVENUE-CONSOLIDATE-01`,
+`NICHE-UI-01` (décision produit requise avant audit technique),
+suppression de `margin-calculator.ts` (cleanup trivial).
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 

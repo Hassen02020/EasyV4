@@ -66,6 +66,10 @@ export const LEAD_ORIGIN_SOURCE_TRUST: Record<string, number> = {
    * temps réel signée (HMAC vérifié avant tout traitement), pas une
    * déclaration non vérifiée comme partner_portal_claim/utm_capture. */
   meta_leadads_webhook: 1,
+  /** CRM-LEAD-WIRING-01 — même rang : soumission directe par le visiteur
+   * lui-même via le formulaire du site, pas une déclaration tierce non
+   * vérifiée. */
+  website_form: 1,
   partner_portal_claim: 0,
   utm_capture: 0,
 }

@@ -39,8 +39,10 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun.** PHONE-INTL-VOLS-HOTELS-MONDE-01 a causé un **incident
 production RÉSOLU** (voir ci-dessous) — chantier à reprendre uniquement
 sur GO explicite, avec vérification runtime Vercel réelle avant tout
-nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) en cours de CI, pas
-encore mergé.
+nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) **MERGÉE** (voir
+ci-dessous). Conformément à la RÈGLE OPÉRATIONNELLE ABSOLUE, aucun
+nouveau chantier n'est démarré automatiquement — en attente du prochain
+GO explicite de l'utilisateur.
 
 ### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
 
@@ -81,16 +83,22 @@ revient en **backlog candidate** — nécessite une nouvelle tentative sur
 branche séparée, avec vérification Preview réelle avant merge, sur GO
 explicite séparé.
 
-### COLOR-HARMONY-01-REVERT — EN COURS (PR #153, pas encore mergée)
+### COLOR-HARMONY-01-REVERT — CLÔTURÉ (PR #153, mergée)
 
 Demande utilisateur explicite (capture d'écran à l'appui) : le voile
 `--sidebar` renforcé introduit par COLOR-HARMONY-01 (commit `7f1bc06`,
 mergé précédemment) rendait l'arrière-plan de la page d'accueil trop
 sombre. Retour au voile d'origine sur `components/booking-engine.tsx`
-(2 lignes CSS) — correctif purement visuel, aucune logique métier/donnée
-touchée. CI : format/lint/typecheck/test/financial-e2e/build verts,
-`lighthouse` rouge (même NO_FCP connu, non lié à ce diff). À documenter
-comme MERGÉ une fois la PR effectivement fusionnée.
+(2 lignes CSS, commit `d5a993f`) — correctif purement visuel, aucune
+logique métier/donnée touchée, seul fichier modifié.
+
+**Preuve de clôture** : PR #153 mergée (`merge_pull_request`, squash) le
+2026-10-07 20:06:19 UTC, merge commit `0c8d42b` sur `main`. CI finale :
+`format`/`lint`/`typecheck`/`test`/`financial-e2e`/`build`/
+`Vercel Preview Comments` verts ; `playwright-a11y` vert à l'issue ;
+`lighthouse` rouge (NO_FCP connu, pré-existant, non lié à ce diff,
+commentaire de standing-down posté sur la PR). Mergée directement par
+l'utilisateur (`Hassen02020`) via GitHub.
 
 ### AUDIT FINAL CRM — 17 composants (2026-10-07) + CRM-LEAD-WIRING-01 CLÔTURÉ
 

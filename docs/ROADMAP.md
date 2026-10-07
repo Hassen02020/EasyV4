@@ -36,8 +36,73 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — MASTER STRESS TEST, Scénario A (Smoke) : 2 bugs réels trouvés
-et CLÔTURÉS, **DÉPLOYÉS EN PRODUCTION** (2026-10-06).
+**Aucun** — CRM-LEAD-WIRING-01 CLÔTURÉ (2026-10-07), voir section dédiée
+ci-dessous. En attente de GO pour le prochain chantier.
+
+### AUDIT FINAL CRM — 17 composants (2026-10-07) + CRM-LEAD-WIRING-01 CLÔTURÉ
+
+Audit lecture seule (4 sous-agents en parallèle, périmètre Master Prompt CRM)
+sur LEAD/CONTACT/CONSENT/PROVENANCE/NORMALIZATION/NICHE/VIP/CAMPAIGN/
+ATTRIBUTION/PROMO/BOOKING/REVENUE/MARGIN/CUSTOMER 360/LOYALTY/WHATSAPP/
+META LEAD ADS/BEHAVIORAL SIGNAL, chacun noté EXISTS?/OWNER?/REAL?/
+CONNECTED?/TESTED?/PROTECTED?.
+
+**Classification finale :**
+
+| Composant | Classification | Point clé |
+|---|---|---|
+| LEAD | REUSE | noyau solide, gap de câblage vers CONTACT/PROVENANCE (corrigé, voir ci-dessous) |
+| CONTACT | EXTEND→DONE | câblé au canal principal par CRM-LEAD-WIRING-01 |
+| CONSENT | CONSOLIDATE | jamais déclenché à la capture ; normalisation dupliquée (pas de téléphone côté consent-core) |
+| PROVENANCE | EXTEND→DONE | câblé au canal principal par CRM-LEAD-WIRING-01 |
+| NORMALIZATION | CONSOLIDATE | 2 implémentations indépendantes (contact-core vs consent-core) |
+| NICHE | DONE | solide ; lien "NICHE→PROMO" de cette même ROADMAP = terminologique, pas un câblage de code réel (aucune dépendance croisée trouvée) |
+| VIP | DONE (isolé) | calculateur à la demande, jamais branché à CAMPAIGN (par design, pas un gap) |
+| CAMPAIGN | FIX | RLS ENABLE sans FORCE (`campaigns`, `campaign_targets`) |
+| ATTRIBUTION | FIX | même gap RLS FORCE (`campaign_attributions`) |
+| PROMO | EXTEND + FIX | pricing câblé 4/7 modules (hôtel/transfert/omra/package faits — flight/activity/network pas câblés, cohérent avec le scope déjà documenté) ; même gap RLS FORCE (`promos`) |
+| BOOKING | DONE | owner unique confirmé (`recordReservationFinancials`), `financial-e2e` vert |
+| REVENUE | CONSOLIDATE | dispersé entre `lib/reporting/margin-analytics-core.ts` et `lib/admin/accounting-data.ts`, zéro test dédié |
+| MARGIN | CONSOLIDATE | owner réel clair (`lib/pro/pricing.ts`/`margins-core.ts`) mais fichier mort dupliquant la formule (`lib/finance/margin-calculator.ts`, aucun appelant réel) |
+| CUSTOMER 360 | DONE | réserve mineure : scoping tenant de l'appelant de `getCustomer360Core` non vérifié dans cet audit |
+| LOYALTY | DONE | complet, testé, RLS forcée |
+| WHATSAPP | DONE | complet, testé, RLS forcée |
+| META LEAD ADS | EXTEND | webhook+capture de lead structurée faits (au-delà du simple webhook, contrairement à ce que laissait penser le libellé précédent de cette ROADMAP) ; reporting/audience/consentement formalisé toujours hors scope |
+| BEHAVIORAL SIGNAL | DONE | strictement dans le périmètre pilote hôtel (PR #146) |
+
+**Gap bloquant retenu pour exécution immédiate** : le canal d'acquisition
+principal — le formulaire du site (`app/actions/submit-lead.ts` →
+`createLeadCore`) — ne créait **ni CONTACT, ni PROVENANCE, ni CONSENT**.
+Seul le canal Meta Lead Ads était câblé sur toute la chaîne ; la majorité
+des leads réels (trafic organique) étaient invisibles à CUSTOMER 360/
+CAMPAIGN au-delà de la table `leads` brute.
+
+**CRM-LEAD-WIRING-01 — MERGÉ (PR #147, commit squash `70560129`,
+2026-10-07).** Extraction dans `lib/crm/website-lead-capture-core.ts::
+captureWebsiteLeadCore` (même patron que `lib/meta-leadads/
+lead-capture-core.ts`), appelée dans la même transaction que
+`createLeadCore` : `createLeadCore → recordLeadOriginEventCore
+(role="channel", source="website_form") → resolveOrCreateContactCore`.
+`website_form` ajouté à `LEAD_ORIGIN_SOURCE_TRUST`, même rang que les
+webhooks WhatsApp/Meta. Aucun consentement fabriqué (le formulaire
+n'affiche aucune case de consentement UI — vérifié, pas supposé) : ce
+lead reste exclu de toute campagne par `filterAudienceByConsentCore`,
+comportement déjà correct. Aucun changement DB. Preuves : 4/4 tests live
+(`lib/crm/__tests__/website-lead-capture-core-live.test.ts`), régression
+1501 pass/0 fail (+4 nouveaux skip-only sans DB), `pnpm build` ok. CI de
+la PR : tout vert (lint/test/financial-e2e/playwright-a11y/build/
+typecheck) sauf `format`/`lighthouse` — confirmés non liés à ce diff
+(voir `CI-FORMAT-CLEANUP-01` ci-dessous pour `format` ; `lighthouse`
+reste le NO_FCP non résolu documenté sous CI-FIX-02).
+
+**Backlog identifié par cet audit, non exécuté** (prochains chantiers
+potentiels, à proposer un par un sur GO explicite) : RLS FORCE manquante
+sur `campaigns`/`campaign_targets`/`campaign_attributions`/`promos`/
+`contacts`/`lead_origin_events` ; duplication de normalisation
+contact-core/consent-core (téléphone non géré côté consent) ; fichier
+mort `lib/finance/margin-calculator.ts` ; REVENUE dispersé sans owner ni
+test dédié ; câblage PROMO→pricing incomplet (3/7 modules restants :
+flight/activity/network).
 
 ### PUBLIC-VISUAL-RLS-ROLE-GAP-01 + BOOKING-ENGINE-MODULES-NOT-WIRED-01 + DESTINATIONS-SSG-POOL-EXHAUSTION-01 — CLÔTURÉS
 

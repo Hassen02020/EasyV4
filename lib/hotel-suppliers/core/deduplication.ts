@@ -26,22 +26,34 @@ export function deduplicateHotels(
   for (const hotel of hotels) {
     let target: DeduplicatedHotelGroup | null = null
     let bestConfidence: MatchConfidence = "UNMATCHED"
+    let bestReasons: string[] = []
 
     for (const group of groups) {
-      const { confidence } = matchHotels(group.hotel, hotel)
+      const { confidence, reasons } = matchHotels(group.hotel, hotel)
       if (isAutoMergeable(confidence) && confidence !== "UNMATCHED") {
         target = group
         bestConfidence = confidence
+        bestReasons = reasons
         break
       }
     }
 
     if (target) {
-      target.members.push({ hotel, confidence: bestConfidence })
+      target.members.push({
+        hotel,
+        confidence: bestConfidence,
+        reasons: bestReasons,
+      })
     } else {
       groups.push({
         hotel,
-        members: [{ hotel, confidence: "EXACT" }],
+        members: [
+          {
+            hotel,
+            confidence: "EXACT",
+            reasons: ["first sighting — ancre de l'identité canonical"],
+          },
+        ],
         rates: [],
         fromPrice: null,
       })

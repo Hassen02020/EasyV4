@@ -18,6 +18,13 @@
  * encore (hors scope de ce chantier, à proposer séparément si le besoin se
  * confirme une fois un second fournisseur réel connecté).
  *
+ * CANONICAL-HOTEL-01-REASONS (2026-10-05) : persiste aussi les `reasons`
+ * (`matchHotels()`) qui justifient `matchConfidence` — avant ce complément,
+ * seul le résultat ("EXACT") était durable, jamais le "pourquoi". Les
+ * `reasons` du membre ancre d'un groupe sont synthétiques ("first sighting")
+ * puisqu'aucune comparaison n'a eu lieu pour lui — jamais inventées pour un
+ * membre réellement comparé.
+ *
  * Best-effort strict : jamais une erreur de persistance ne doit faire
  * échouer ou ralentir une recherche hôtel réelle — toute exception est
  * loggée et absorbée ici, jamais propagée à l'appelant (voir le seul
@@ -107,6 +114,7 @@ async function persistGroup(
         supplier: mapping.supplier,
         supplierHotelCode: mapping.supplierHotelCode,
         matchConfidence: member.confidence,
+        matchReasons: member.reasons,
       })
       .onConflictDoNothing()
   }

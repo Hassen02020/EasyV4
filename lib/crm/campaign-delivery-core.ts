@@ -23,6 +23,10 @@ import { eq, and, inArray } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { campaignTargets, contacts, campaigns } from "@/lib/db/schema"
 import { sendCampaignEmail } from "@/lib/email/send-campaign-email"
+import {
+  hasMarketingConsentCore,
+  normalizeContactRef,
+} from "@/lib/crm/consent-core"
 
 export type DeliveryStatus = "pending" | "sent" | "failed" | "skipped"
 
@@ -123,6 +127,28 @@ export async function deliverCampaignCore(
     let status: DeliveryStatus = "skipped"
     let code: string | undefined
     let error: string | undefined
+
+    // Vérification du consentement live (CONSENT-01) — RGPD art.7.
+    // Le snapshot `consentStatusAtSnapshot` était vrai au lancement, mais
+    // le contact peut avoir révoqué son consentement entre le lancement et
+    // l'exécution Inngest. On relit la source de vérité avant tout envoi.
+    if (contactRef) {
+      const hasConsent = await hasMarketingConsentCore(tx, {
+        agencyId: params.agencyId,
+        channel: campaign.channel,
+        contactRef: normalizeContactRef(contactRef),
+      })
+      if (!hasConsent) {
+        status = "skipped"
+        code = "CONSENT_REVOKED"
+        await tx
+          .update(campaignTargets)
+          .set({ deliveryStatus: status, deliveredAt: null })
+          .where(eq(campaignTargets.id, target.id))
+        outcomes.push({ targetId: target.id, contactRef, status, code })
+        continue
+      }
+    }
 
     if (campaign.channel === "email") {
       try {

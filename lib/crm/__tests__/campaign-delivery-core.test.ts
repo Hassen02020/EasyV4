@@ -16,32 +16,17 @@ function makeTx(
   campaign: object | null,
   targets: object[],
   contacts: object[],
+  consentGranted = true,
 ) {
   const updates: object[] = []
-
-  const selectMock = vi.fn().mockImplementation(() => {
-    let chain: Record<string, unknown>
-    let callCount = 0
-
-    chain = {
-      select: vi.fn().mockReturnThis(),
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn(() => {
-        callCount++
-        // First .where() call = campaign lookup
-        // Second .where() call = pending targets
-        if (callCount === 1) {
-          return { limit: () => (campaign ? [campaign] : []) }
-        }
-        return Promise.resolve(targets)
-      }),
-      limit: vi.fn().mockReturnValue(campaign ? [campaign] : []),
-    }
-    return chain
-  })
-
-  // Simpler approach: track call sequence with a counter
+  // Séquence fixe des SELECT dans deliverCampaignCore :
+  //   1 → campaigns (avec .limit)
+  //   2 → campaign_targets pending
+  //   3 → contacts (inArray)
+  //   4+ → lead_consent_events par cible (avec .orderBy)
   let queryCount = 0
+  const consentRow = { action: "granted", occurredAt: new Date() }
+
   const txMock = {
     select: vi.fn(() => ({
       from: vi.fn().mockReturnThis(),
@@ -50,8 +35,13 @@ function makeTx(
         if (queryCount === 1)
           return { limit: vi.fn().mockReturnValue(campaign ? [campaign] : []) }
         if (queryCount === 2) return Promise.resolve(targets)
-        // contacts inArray query
-        return Promise.resolve(contacts)
+        if (queryCount === 3) return Promise.resolve(contacts)
+        // consent queries (hasMarketingConsentCore) — une par cible
+        return {
+          orderBy: vi
+            .fn()
+            .mockResolvedValue(consentGranted ? [consentRow] : []),
+        }
       }),
     })),
     update: vi.fn(() => ({
@@ -195,6 +185,34 @@ describe("CAMPAIGN-DELIVERY-01 — deliverCampaignCore", () => {
     expect(result.skipped).toBe(0)
     expect(result.failed).toBe(0)
     expect(result.outcomes).toHaveLength(0)
+  })
+
+  it("consentement révoqué entre lancement et livraison → skipped CONSENT_REVOKED, email non envoyé", async () => {
+    const sendMock = vi.spyOn(emailSender, "sendCampaignEmail")
+
+    const campaign = {
+      id: "camp-6",
+      name: "Campagne RGPD",
+      channel: "email",
+      message: "Offre exclusive",
+      status: "active",
+    }
+    const target = { id: "tgt-6", contactId: "ctc-6" }
+    const contact = { id: "ctc-6", contactRef: "carol@example.com" }
+
+    // consentGranted = false → hasMarketingConsentCore retourne false
+    const tx = makeTx(campaign, [target], [contact], false)
+    const result = await deliverCampaignCore(tx as never, {
+      agencyId: "agency-1",
+      campaignId: "camp-6",
+    })
+
+    expect(sendMock).not.toHaveBeenCalled()
+    expect(result.skipped).toBe(1)
+    expect(result.sent).toBe(0)
+    const outcome = result.outcomes[0]
+    expect(outcome?.status).toBe("skipped")
+    expect(outcome?.code).toBe("CONSENT_REVOKED")
   })
 
   it("aucune cible pending → retourne counts à zéro", async () => {

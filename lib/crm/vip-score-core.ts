@@ -70,6 +70,7 @@ import { computeLeadScore, type LeadScoreRuleMap } from "./lead-scoring-core"
 import { resolveContactKeyCore } from "./contact-core"
 import { getContactLeadHistoryCore } from "./contact-history-core"
 import { findMatchingCustomerIdsCore } from "./customer-match-core"
+import { sumRevenueMarginCore } from "@/lib/reporting/margin-analytics-core"
 
 /** Statuts où aucune valeur commerciale n'est restée dans l'activité. */
 const VIP_SCORE_EXCLUDED_RESERVATION_STATUSES = [
@@ -330,14 +331,8 @@ export async function getVipScoreForLeadCore(
         .orderBy(desc(reservations.createdAt))
     : []
 
-  const totalSalePriceTnd = reservationRows.reduce(
-    (sum, r) => sum + Number(r.salePriceTnd),
-    0,
-  )
-  const totalMarginTnd = reservationRows.reduce(
-    (sum, r) => sum + Number(r.marginAmount),
-    0,
-  )
+  const { revenueTnd: totalSalePriceTnd, marginTnd: totalMarginTnd } =
+    sumRevenueMarginCore(reservationRows)
 
   const now = params.now ?? new Date()
   const lastActivityAt = reservationRows[0]?.createdAt ?? null

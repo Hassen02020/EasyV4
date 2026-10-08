@@ -101,7 +101,11 @@ test("guest-booking-actions.ts : appelle recordReservationFinancials exactement 
     /const carSupplierCostTnd =\s*\n?\s*pricing\.baseTotalTnd \+ pricing\.insuranceTotalTnd/,
   )
   assert.match(guestActionsSrc, /supplierPriceTnd:\s*carSupplierCostTnd,/)
-  assert.match(guestActionsSrc, /salePriceTnd:\s*pricing\.totalTnd,/)
+  // PRICING-PROMO-LINK-01 : salePriceTnd utilise `totalTnd` (local,
+  // potentiellement remisé par applyPromoDiscountCore), plus
+  // `pricing.totalTnd` directement — jamais un second calcul, juste la
+  // variable locale qui PART de pricing.totalTnd (voir test ci-dessous).
+  assert.match(guestActionsSrc, /salePriceTnd:\s*totalTnd,/)
 })
 
 test("guest-booking-actions.ts : recordReservationFinancials est appelé DANS la transaction (avant sa fermeture), APRÈS l'insertion du paiement", () => {
@@ -124,9 +128,14 @@ test("guest-booking-actions.ts : recordReservationFinancials est appelé DANS la
 /* Non-régression — aucune modification de la marge elle-même                 */
 /* -------------------------------------------------------------------------- */
 
-test("actions.ts / guest-booking-actions.ts : totalTnd (montant débité/facturé) reste `pricing.totalTnd`, jamais recalculé pour le financials", () => {
+test("actions.ts / guest-booking-actions.ts : totalTnd (montant débité/facturé) PART de `pricing.totalTnd`, jamais recalculé pour le financials", () => {
+  // B2B (actions.ts) : pas de promo, `totalTnd` reste `const`, jamais réassigné.
   assert.match(actionsSrc, /const totalTnd = pricing\.totalTnd/)
-  assert.match(guestActionsSrc, /const totalTnd = pricing\.totalTnd/)
+  // B2C guest : PRICING-PROMO-LINK-01 réassigne `totalTnd` SI une remise
+  // s'applique (checkoutPromo.eligible) — `let`, pas `const` — mais la
+  // valeur de départ reste exactement `pricing.totalTnd`, jamais un second
+  // calcul de prix indépendant.
+  assert.match(guestActionsSrc, /let totalTnd = pricing\.totalTnd/)
 })
 
 /* -------------------------------------------------------------------------- */

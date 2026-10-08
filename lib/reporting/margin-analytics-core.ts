@@ -104,6 +104,33 @@ export interface TopMarginReservation {
 }
 
 /**
+ * REVENUE-CONSOLIDATE-01 — primitive PURE partagée (jamais d'accès DB ici)
+ * pour sommer revenu/marge sur un ensemble de lignes `reservationFinancials`
+ * déjà résolu par l'appelant (jointure propre à son périmètre : attribution
+ * de campagne pour `campaign-performance-core.ts`, réservations d'un client
+ * pour `vip-score-core.ts`, etc.) — ce module (`margin-analytics-core.ts`)
+ * reste l'owner canonique de "comment sommer revenu/marge", les deux
+ * champs `getMarginKPIsCore` lit déjà via SQL `SUM()` pour son propre
+ * périmètre (agence + période). Avant REVENUE-CONSOLIDATE-01, chaque
+ * consommateur réimplémentait sa propre paire de `.reduce()` — risque de
+ * divergence silencieuse si la formule changeait un jour dans un seul
+ * endroit. Reste volontairement minimal : ne fait AUCUNE jointure, AUCUN
+ * filtre — l'appelant reste seul responsable de résoudre le bon ensemble
+ * de lignes pour SON périmètre (campagne, client, agence...), jamais une
+ * seconde logique de résolution ici.
+ */
+export function sumRevenueMarginCore(
+  rows: ReadonlyArray<{
+    salePriceTnd: string | number
+    marginAmount: string | number
+  }>,
+): { revenueTnd: number; marginTnd: number } {
+  const revenueTnd = rows.reduce((sum, r) => sum + Number(r.salePriceTnd), 0)
+  const marginTnd = rows.reduce((sum, r) => sum + Number(r.marginAmount), 0)
+  return { revenueTnd, marginTnd }
+}
+
+/**
  * Récupère les KPIs de marge pour une période
  */
 export async function getMarginKPIsCore(

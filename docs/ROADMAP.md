@@ -59,6 +59,213 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — ACTION-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a0231ea`).
 **Aucun** — LEARNING-01 CLÔTURÉ (2026-10-08, commit `3b25026`).
 **Aucun** — CAMPAIGN-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a14e671`).
+**Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
+**Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
+**Aucun** — NICHE-UI-01 CLÔTURÉ (2026-10-07, PR #158, merge `7abc1acc`).
+
+### PR-BATCH-04 — WHITE-LABEL-ADMIN-01, WHITE-LABEL-PRO-01, COMMISSION-WIRING-02, CARS-COMMISSION-01 — CLÔTURÉ (PR #126 + #155)
+
+**PR #126** (branche `claude/easy2book-v6-modernization-7gyb5v`, ouverte
+2026-10-04, 73 commits de dérive accumulés) rebasée sur `main` actuel et
+mergée le 2026-10-07 (merge commit `68e3713`). Contenu réel : White
+Label admin (`updateAgencyWhiteLabel()`, page `/admin/agencies/[id]`,
+color picker) + White Label `/pro` (couleur primaire agence) +
+COMMISSION-WIRING-02 (câblage `creditPlatformCommission` dans 10
+modules : transferts, hôtels-monde, activités, omra, packages B2B+B2C)
+
+- CARS-COMMISSION-01 (dernier module sans commission).
+
+**Abandonné pendant le rebase** (hors scope de la PR, jamais mentionné
+dans sa description) : feature "lead acquisition-channel + supplier-node"
+(2 migrations jamais appliquées, 2 fichiers CRM neufs) — superseded par
+CRM-LEAD-WIRING-01 déjà mergé, redevient backlog candidate sur GO séparé.
+Câblage commission sur `lib/vols/guest-booking-actions.ts` — fichier
+confirmé mort par PR #130, retiré.
+
+**PR #155** (merge squash `1435c54`) : corrige 2 bugs tombés sur `main`
+parce que PR #126 a été mergée par l'utilisateur sur un commit antérieur
+à mon dernier correctif poussé sur la branche — fixture de test
+`rls-gap-public-tables-01-live.test.ts` sans `matchReasons` (bloquait
+`typecheck`), et 2 migrations (`0104_settle_fk_integrity.sql`,
+`0105_econ_entitlements_settlement_fk.sql`, contenu SETTLE-02/02b de
+PR #126) utilisant `ADD CONSTRAINT IF NOT EXISTS` — syntaxe Postgres
+invalide, jamais exécutable avec succès telle qu'écrite (donc aucune
+contrainte posée en production par ce biais avant le correctif). Les
+deux migrations n'avaient jamais pu s'appliquer en l'état.
+
+**Preuve de clôture** : `main` HEAD = `1435c54`, `pnpm typecheck`/
+`format:check`/`lint` clean, `pnpm test` 1563/1563 PASS, `pnpm build` OK.
+
+### PR #63 — FERMÉE sans merge (superseded)
+
+Objet : reformater 753 fichiers avec Prettier (dette CI `format`).
+Fermée sans merge : `main` était déjà 100% prettier-clean et le job
+`format` déjà un hard gate avant même l'examen de cette PR — l'objectif
+était déjà atteint par d'autres chantiers mergés depuis son ouverture
+(29/09). Rien à récupérer (diff purement whitespace, 1 semaine+ de dérive).
+
+### AUDIT CRM DE CERTIFICATION (2026-10-07)
+
+Audit lecture seule (3 sous-agents en parallèle) sur les points
+restants identifiés après l'AUDIT FINAL CRM du 2026-10-07 (17
+composants, voir section ci-dessous) : normalisation contact/consent,
+seuil VIP, fichier mort margin-calculator, NICHE sans consommateur,
+revenue dispersée, promo→pricing incomplet, Meta Ads/automation/social
+CRM avancés.
+
+**Classification finale :**
+
+| Point                                                                | Classification                                                    | Preuve                                                                                                                                                 |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Duplication `contact-core.ts`/`consent-core.ts`                      | N/A — volontaire, documentée (`contact-core.ts:24-31`)            | pas un gap                                                                                                                                             |
+| Consent jamais déclenché à la capture                                | N/A — scope délibéré (CONSENT-01 : "hors scope")                  | pas un gap                                                                                                                                             |
+| Seuil VIP "magic number"                                             | N/A — n'existe pas du tout, par design (`vip-score-core.ts:1-29`) | pas un gap                                                                                                                                             |
+| `lib/finance/margin-calculator.ts` mort                              | N/A — confirmé mort, gardé par un test invariant                  | suppression optionnelle, pas un gap                                                                                                                    |
+| NICHE segmentation sans consommateur UI                              | CREATE                                                            | `niche-core.ts`/`niche-actions.ts` calculent, zéro page ne lit                                                                                         |
+| Revenue dispersée                                                    | CONSOLIDATE                                                       | `campaign-performance-core.ts`/`vip-score-core.ts` recalculent au lieu de réutiliser `margin-analytics-core.ts` (lui-même sans test)                   |
+| Promo → pricing incomplet                                            | EXTEND + CREATE (le plus concret, impact client direct)           | 4/8 modules câblés (Hôtel TN, Packages, Omra, Transferts) ; **Hôtels Monde, Activités, Voitures, Vols non câblés** — aucun test de couverture n'existe |
+| Meta Ads reporting/audience avancé, automation marketing, social CRM | N/A — confirmé greenfield                                         | rien construit au-delà de la capture                                                                                                                   |
+
+**GO reçu pour tout (2026-10-07)** : `PROMO-PRICING-COVERAGE-01` +
+`REVENUE-CONSOLIDATE-01` + `NICHE-UI-01` + suppression de
+`margin-calculator.ts`, dans cet ordre de priorité.
+
+### PROMO-PRICING-COVERAGE-01 — CLÔTURÉ (PR #156, mergée)
+
+Câblage `resolveCheckoutPromoCore`/`applyPromoDiscountCore` dans les 4
+modules qui ne l'avaient pas : `lib/hotels-monde/guest-booking-actions.ts`,
+`lib/activities/guest-booking-actions.ts`,
+`lib/cars/guest-booking-actions.ts`, `lib/vols/booking-request-action.ts`.
+
+- Hôtels Monde et Vols ont un coût fournisseur externe réel
+  (`supplierPriceTnd`/`supplierAmount`) → remise appliquée AVEC le
+  plancher PROMO-LOSS-POLICY-01 (jamais sous le coût réel, sauf
+  `allowBelowCost` explicite sur la promo).
+- Activités et Voitures n'ont pas de coût fournisseur séparé (catalogue
+  agence) → remise appliquée SANS plancher, même traitement que
+  Omra/Packages déjà câblés.
+- Vols : particularité du pipeline en 2 phases (booking-request
+  maintenant → fulfillment plus tard par le desk ticketing). La remise
+  est résolue et appliquée à la réclamation atomique du
+  `flightPriceSnapshot` (CAS ACTIVE→USED) et persistée dans ce même
+  snapshot — `finalizeFlightBookingFinancials` (appelé bien plus tard,
+  à la confirmation) relit ce `sellingAmount` déjà remisé sans aucun
+  changement requis côté fulfillment : une seule vérité financière.
+- Nouveau test `lib/finance/__tests__/promo-wiring-invariants.test.ts`
+  (35 assertions) : couverture des 8/8 modules + vérification du
+  plancher PROMO-LOSS-POLICY-01 là où il doit s'appliquer (et son
+  absence là où il ne doit pas).
+- 2 tests existants mis à jour pour refléter le changement attendu
+  (`totalTnd` devient `let`/réassignable pour accueillir la remise,
+  plus `const` figé) : `lib/cars/__tests__/reservation-financials-wiring.test.ts`,
+  `lib/booking/__tests__/cart-price-drift.test.ts`.
+
+**Note UI** : comme pour les 4 modules déjà câblés avant ce chantier
+(Hôtel TN, Packages, Omra, Transferts), `campaignId` n'est câblé que
+côté pipeline serveur — aucun formulaire ne le transporte encore depuis
+l'UI (confirmé : aucun module, même les 4 déjà câblés, ne le fait). Capture
+UI du `campaignId` (ex. lien de campagne avec paramètre) reste un
+chantier séparé, non couvert ici.
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1598/1598 PASS, `pnpm build` OK.
+PR #156 mergée (squash) le 2026-10-07, merge commit `6965d233`. CI finale :
+format/lint/typecheck/test/financial-e2e/build/playwright-a11y tous
+verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
+
+### Suppression `lib/finance/margin-calculator.ts` — CLÔTURÉ (PR #156, mergée)
+
+Confirmé mort (audit CRM du 2026-10-07) : zéro importeur réel, gardé
+par un test invariant (`product-booking-actions-invariants.test.ts`)
+qui vérifie qu'il n'est jamais réimporté. Supprimé. Mergé avec
+PROMO-PRICING-COVERAGE-01 (même PR #156, merge commit `6965d233`).
+
+### REVENUE-CONSOLIDATE-01 — CLÔTURÉ (PR #157, mergée)
+
+Extrait `sumRevenueMarginCore()`, une primitive PURE (aucun accès DB),
+dans `lib/reporting/margin-analytics-core.ts` (module déjà identifié
+comme canonique par l'audit) — remplace les 2 paires de `.reduce()`
+dupliquées dans `lib/crm/campaign-performance-core.ts` et
+`lib/crm/vip-score-core.ts`. Reste volontairement minimal : aucune
+jointure, aucun filtre — l'appelant garde la responsabilité de résoudre
+le bon ensemble de lignes pour son propre périmètre (campagne, client).
+`margin-analytics-core.ts` lui-même (scope agence+période, SQL `SUM()`)
+n'a pas été modifié dans sa logique de requête — seul un nouvel export
+pur partagé a été ajouté.
+
+Comble aussi le second volet du gap identifié : `margin-analytics-core.ts`
+n'avait ZÉRO test. Ajouté :
+
+- `lib/reporting/__tests__/margin-analytics-core.test.ts` (6 tests
+  unitaires purs sur `sumRevenueMarginCore`).
+- `lib/reporting/__tests__/margin-analytics-core-live.test.ts` (preuve
+  live contre Postgres réel pour `getMarginKPIsCore` — vérifie que
+  seules les réservations `confirmed` DANS la période comptent, via
+  `recordReservationFinancials`, jamais un second calcul inventé par
+  le test). **Confirmé exécuté pour de vrai sur CI** : le job
+  `financial-e2e` (Postgres éphémère) est passé au vert sur cette PR,
+  preuve que ce test s'exécute réellement (pas seulement un `skip`).
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1569/1569 PASS, `pnpm build` OK.
+PR #157 mergée (squash) le 2026-10-07, merge commit `a0f91877`. CI finale :
+format/lint/typecheck/test/financial-e2e/build/playwright-a11y tous
+verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
+
+### NICHE-UI-01 — CLÔTURÉ (PR #158, mergée)
+
+Décision produit explicite (2026-10-07, demandée avant tout travail
+technique, confirmée par l'utilisateur) : nouvelle page
+`/admin/analytics/niches`, **read-only**, accessible aux rôles déjà
+autorisés par `listNicheSegments()` (super_admin/manager/agent_resa +
+agencyType="ota") — **aucune action "lancer une campagne depuis ce
+segment" en V1**.
+
+- `app/(internal)/admin/analytics/niches/page.tsx` : nouvelle page
+  client, même patron que `/admin/analytics/margins` (fetch au mount,
+  état loading/erreur, tableau). Consomme `listNicheSegments()`
+  (`lib/admin/niche-actions.ts`) — déjà existant, déjà sécurisé
+  (vérifie le rôle + `agencyType` côté serveur avant tout accès DB),
+  aucune garde supplémentaire nécessaire.
+- Tableau : Marché, Produit, Intention, Destination, Période, Volume,
+  Convertis, Taux de conversion, Canal — trié par volume décroissant
+  (le staff veut d'abord voir la niche avec le plus de signal).
+- `app/visual-mock/page.tsx` : entrée ajoutée au répertoire de routes
+  admin (même convention que l'entrée "Analytics Margins", qui n'a pas
+  non plus de lien dans la sidebar de production — cette page suit
+  exactement le même précédent de découvrabilité).
+- Aucun nouveau test : `listNicheSegments()`/`getNicheSegmentsCore()`
+  ont déjà une couverture dédiée
+  (`lib/admin/__tests__/niche-actions-invariants.test.ts`,
+  `lib/crm/__tests__/niche-audience-live.test.ts`) ; aucune page du
+  dépôt n'a de test au niveau composant (vérifié sur
+  `/admin/analytics/margins`, même précédent), cette page suit la même
+  convention.
+
+**Vérifié localement** : `curl` sur `/admin/analytics/niches` avec
+serveur `pnpm dev` local → redirect `307` vers
+`/login?next=/admin/analytics/niches`, comportement strictement
+identique à `/admin/analytics/margins` (gate `isAllowedIntoAdmin` au
+niveau layout) — aucune erreur serveur, aucune trace dans les logs du
+serveur de dev. Pas de vérification visuelle authentifiée possible
+dans cet environnement (pas de session Supabase/Postgres local
+disponible) — à confirmer sur Preview Vercel avant merge si possible.
+
+**Preuve de clôture** : `pnpm typecheck` 0 erreur, `pnpm format:check`
+clean, `pnpm lint` 0 erreur, `pnpm test` 1604/1604 PASS, `pnpm build` OK
+(route `/admin/analytics/niches` confirmée dans la sortie du build).
+PR #158 mergée (squash) le 2026-10-07, merge commit `7abc1acc`. CI
+finale : format/lint/typecheck/test/financial-e2e/build/playwright-a11y
+tous verts ; `lighthouse` rouge (NO_FCP connu, pré-existant, non lié).
+Vérification visuelle authentifiée (Preview Vercel) non effectuée dans
+cette session — comportement du gate d'accès confirmé identique à
+`/admin/analytics/margins` via `curl` local (voir ci-dessus), ce qui
+couvre le risque principal (accès non autorisé), mais le rendu visuel
+réel de la page (une fois connecté) reste `NOT VERIFIED` à ce stade.
+
+**Backlog candidate pour une V2 future (pas de GO, juste noté)** :
+action "lancer une campagne depuis ce segment" — explicitement exclue
+de cette V1 par décision produit.
 
 ---
 

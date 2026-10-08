@@ -23,12 +23,57 @@
  *    `acquireLock`, lib/booking/inventory.ts).
  */
 
-import { sql } from "drizzle-orm"
+import { and, desc, eq, gte, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { searchDemandSignals } from "@/lib/db/schema"
 
 /** Seul produit instrumenté pour ce pilote — jamais un second vocabulaire. */
 export const SEARCH_DEMAND_PILOT_PRODUCT_TYPE = "hotel" as const
+
+export type SearchDemandRow = {
+  destination: string
+  productType: string
+  totalCount: number
+  lastSearchDate: string
+}
+
+/**
+ * SEARCH-DEMAND-DISPLAY-01 — lecture : top destinations par volume de
+ * recherche sur les `days` derniers jours (défaut 30), agrégées par
+ * (destination, productType), triées par total décroissant.
+ * Appelé sous withTenantContext (agencyId GUC + RLS) — le filtre
+ * `agencyId` est redondant mais défensif (même convention que
+ * getNicheSegmentsCore).
+ */
+export async function getSearchDemandSummaryCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; days?: number },
+): Promise<SearchDemandRow[]> {
+  const days = params.days ?? 30
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffDate = cutoff.toISOString().slice(0, 10)
+
+  const rows = await tx
+    .select({
+      destination: searchDemandSignals.destination,
+      productType: searchDemandSignals.productType,
+      totalCount: sql<number>`sum(${searchDemandSignals.searchCount})::int`,
+      lastSearchDate: sql<string>`max(${searchDemandSignals.searchDate})`,
+    })
+    .from(searchDemandSignals)
+    .where(
+      and(
+        eq(searchDemandSignals.agencyId, params.agencyId),
+        gte(searchDemandSignals.searchDate, cutoffDate),
+      ),
+    )
+    .groupBy(searchDemandSignals.destination, searchDemandSignals.productType)
+    .orderBy(desc(sql`sum(${searchDemandSignals.searchCount})`))
+    .limit(50)
+
+  return rows.map((r) => ({ ...r, totalCount: Number(r.totalCount) }))
+}
 
 function toUtcDateOnly(date: Date): string {
   return date.toISOString().slice(0, 10)

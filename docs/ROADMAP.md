@@ -36,18 +36,32 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun.** PHONE-INTL-VOLS-HOTELS-MONDE-01 a causé un **incident
-production RÉSOLU** (voir ci-dessous) — chantier à reprendre uniquement
-sur GO explicite, avec vérification runtime Vercel réelle avant tout
-nouveau merge. COLOR-HARMONY-01-REVERT (PR #153) **MERGÉE**. PR-BATCH-04
-(PR #126, voir ci-dessous) **MERGÉE** + correctif de suivi PR #155
-**MERGÉE**. PR #63 **FERMÉE sans merge** (superseded, voir ci-dessous).
-Audit CRM de certification (2026-10-07) : les 3 chantiers du GO reçu ce
-jour-là sont tous **MERGÉS** — `PROMO-PRICING-COVERAGE-01` + suppression
-`margin-calculator.ts` (PR #156), `REVENUE-CONSOLIDATE-01` (PR #157),
-`NICHE-UI-01` (PR #158). Conformément à la RÈGLE OPÉRATIONNELLE ABSOLUE,
-aucun nouveau chantier n'est démarré automatiquement — en attente du
-prochain GO explicite de l'utilisateur.
+**Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
+**Aucun** — IDENTITY-J6-01 CLÔTURÉ (2026-10-04).
+**Aucun** — SETTLE-01 CLÔTURÉ (2026-10-04, commit `3856490`).
+**Aucun** — IDEMPOTENCE-01 CLÔTURÉ (2026-10-04, commit `8881408`).
+**Aucun** — SETTLE-02 CLÔTURÉ (2026-10-04, commit `e7e5919`).
+**Aucun** — SETTLE-02b CLÔTURÉ (2026-10-04, commit `0de624e`).
+**Aucun** — WALLET-GAP-1/2/3 CLÔTURÉ (2026-10-04, commit `7f3d11f`).
+**Aucun** — PARTNER-GAP-1 CLÔTURÉ (2026-10-04, commit `41b1293`).
+**Aucun** — POST-BATCH-CERTIFICATION-AUDIT CLÔTURÉ (2026-10-08) — PRs #156/#157/#158 certifiés.
+**Aucun** — CANONICAL-OWNERSHIP-AUDIT CLÔTURÉ (2026-10-08) — domaine `canonical_hotels`/`canonical_hotel_supplier_mappings` : 6/6 preuves confirmées, aucun GAP.
+**Aucun** — SEARCH-DEMAND-DISPLAY-01 CLÔTURÉ (2026-10-08, commit `75a1b9e`).
+**Aucun** — ADMIN-ANALYTICS-NAV-01 CLÔTURÉ (2026-10-08, commit `724c4ea`).
+**Aucun** — CAMPAIGN-PERF-UI-01 CLÔTURÉ (2026-10-08, commit `c6cea0a`).
+**Aucun** — CONVERSION-FUNNEL-01 CLÔTURÉ (2026-10-08, commit `47db482`).
+**Aucun** — TIME-SERIES-01 CLÔTURÉ (2026-10-08, commit `ae82ea8`).
+**Aucun** — RADAR-METIER-01 CLÔTURÉ (2026-10-08, commit `30f7760`).
+**Aucun** — RADAR-VIP-01 CLÔTURÉ (2026-10-08, commit `ce2d2f8`).
+**Aucun** — RADAR-VIP-02 CLÔTURÉ (2026-10-08).
+**Aucun** — RADAR-VIP-03 CLÔTURÉ (2026-10-08).
+**Aucun** — SIGNAL-ENGINE-01 CLÔTURÉ (2026-10-08, commit `03bc5c8`).
+**Aucun** — ACTION-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a0231ea`).
+**Aucun** — LEARNING-01 CLÔTURÉ (2026-10-08, commit `3b25026`).
+**Aucun** — CAMPAIGN-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a14e671`).
+**Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
+**Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
+**Aucun** — NICHE-UI-01 CLÔTURÉ (2026-10-07, PR #158, merge `7abc1acc`).
 
 ### PR-BATCH-04 — WHITE-LABEL-ADMIN-01, WHITE-LABEL-PRO-01, COMMISSION-WIRING-02, CARS-COMMISSION-01 — CLÔTURÉ (PR #126 + #155)
 
@@ -253,155 +267,471 @@ réel de la page (une fois connecté) reste `NOT VERIFIED` à ce stade.
 action "lancer une campagne depuis ce segment" — explicitement exclue
 de cette V1 par décision produit.
 
-### INCIDENT — PHONE-INTL-VOLS-HOTELS-MONDE-01 a cassé la production (2026-10-07, RÉSOLU)
+---
 
-**PR #152 mergée (commit `c7d0859`) → page d'accueil de production
-(`easy2book-new.vercel.app/fr`) en erreur** ("Une erreur inattendue s'est
-produite", `app/error.tsx` déclenché). Confirmé en direct par l'utilisateur
-(capture d'écran + console navigateur : "Error: An error occurred in the
-Server Components render").
+### RADAR-VIP-01 — CLÔTURÉ (2026-10-08)
 
-**Cause probable identifiée, NON CONFIRMÉE par logs runtime** (accès
-Vercel MCP resté en 403 pendant tout l'incident, scope de connecteur
-insuffisant — nécessite une nouvelle session pour prendre effet) :
-`lib/phone/metadata.ts` importait `libphonenumber-js/metadata.min.json`
-sans assertion `type: "json"`. Vérifié fonctionnel en build local
-(Turbopack) et en test (`node --import tsx --test`) **avant merge** —
-mais jamais vérifié sur le runtime Node.js serverless réel de Vercel en
-production, qui peut appliquer l'enforcement ESM des import JSON
-différemment du build local. Si ce module était inclus dans un chunk
-serveur partagé évalué pour toutes les routes, une erreur d'évaluation
-aurait cassé le site entier — cohérent avec l'observation (page d'accueil
-touchée alors que le diff ne touchait que les formulaires vols/hôtels-monde).
+**Objectif** : vue population "Qui devient important ?" — top 50 leads classés par score VIP.
+Réutilise intégralement `getVipScoreForLeadCore` (vip-score-core.ts) — aucun nouveau calcul.
+Stratégie : 200 leads récents → score séquentiel → tri score.total desc → top 50.
 
-**Action corrective** : `git revert c7d0859` sur une branche dédiée
-(`phone-intl-revert-emergency-01`, typecheck+build validés localement),
-PR #154 ouverte et **mergée sans attendre la CI** (urgence production,
-revert propre sans conflit, déjà validé localement) — commit `aa60a05`.
-**Production restaurée, confirmé par l'utilisateur.**
+**Commit** : `ce2d2f8`
 
-**Leçon retenue pour toute reprise future** : un build local + des tests
-locaux verts ne prouvent PAS le comportement sur le runtime serverless
-réel de la plateforme de déploiement — en particulier pour tout import
-JSON/ESM non trivial dans une bibliothèque tierce. Avant tout merge
-futur touchant ce type de pattern, vérifier sur un déploiement Preview
-réel (pas seulement `pnpm build` local) avant de merger sur `main`.
+**Fichiers créés/modifiés** :
+- `lib/admin/radar-vip-actions.ts` — Server Action `getRadarVip()` (CRÉÉ)
+  - `VipRadarRow` : leadId, firstName, lastName, email, phone, productType, channel, destination, status, score
+  - `listLeadsCore` (200 max) → `getLeadScoreRuleMapCore` → `getVipScoreForLeadCore` séquentiel → top 50
+- `app/(internal)/admin/analytics/vip/page.tsx` — tableau top 50 + KPIs + barre de score (CRÉÉ)
+  - Breakdown 4 signaux : qualité / engagement / vente / récence
+  - "Lead le plus prometteur" highlight card
+- `components/admin-shell.tsx` — 8e sous-item "Radar VIP" (Crown) (ÉTENDU)
+- `lib/admin/__tests__/radar-vip-ui.test.ts` — 3 invariants statiques (CRÉÉ)
 
-**Chantier PHONE-INTL-VOLS-HOTELS-MONDE-01** : retiré de l'état "clôturé",
-revient en **backlog candidate** — nécessite une nouvelle tentative sur
-branche séparée, avec vérification Preview réelle avant merge, sur GO
-explicite séparé.
+**Tests** : 9/9 ✅ (3 suites × 3) · typecheck 0 erreur ✅ · lint 0 erreur ✅
 
-### COLOR-HARMONY-01-REVERT — CLÔTURÉ (PR #153, mergée)
+**Certification 5 points (2026-10-08)** :
 
-Demande utilisateur explicite (capture d'écran à l'appui) : le voile
-`--sidebar` renforcé introduit par COLOR-HARMONY-01 (commit `7f1bc06`,
-mergé précédemment) rendait l'arrière-plan de la page d'accueil trop
-sombre. Retour au voile d'origine sur `components/booking-engine.tsx`
-(2 lignes CSS, commit `d5a993f`) — correctif purement visuel, aucune
-logique métier/donnée touchée, seul fichier modifié.
+1. **`SignalTrend` re-export** ✅ — `radar-metier-core.ts` définit le type, `radar-metier-actions.ts`
+   le re-exporte explicitement (`export type { RadarSignal, SignalTrend }`, ligne 54), `radar/page.tsx`
+   l'importe depuis les actions. Chaîne core → actions → UI intacte.
 
-**Preuve de clôture** : PR #153 mergée (`merge_pull_request`, squash) le
-2026-10-07 20:06:19 UTC, merge commit `0c8d42b` sur `main`. CI finale :
-`format`/`lint`/`typecheck`/`test`/`financial-e2e`/`build`/
-`Vercel Preview Comments` verts ; `playwright-a11y` vert à l'issue ;
-`lighthouse` rouge (NO_FCP connu, pré-existant, non lié à ce diff,
-commentaire de standing-down posté sur la PR). Mergée directement par
-l'utilisateur (`Hassen02020`) via GitHub.
+2. **RADAR-METIER consomme TIME-SERIES** ✅ — `getTimeSeriesCore` émet 4 dimensions dont
+   `"destination"` (time-series-core.ts lignes 150–270) ; `buildRadarMetierCore` reçoit
+   `TimeSeriesRow[]` et produit des `RadarSignal` avec `dimensionType` préservé. Flux réel :
+   `TIME-SERIES → destination → trend → signalStrength → RADAR MÉTIER`.
 
-### AUDIT FINAL CRM — 17 composants (2026-10-07) + CRM-LEAD-WIRING-01 CLÔTURÉ
+3. **RADAR-VIP : réserve documentée** ⚠️ — Le radar affiche le **TOP 50 des 200 leads les plus
+   récents**, pas le TOP 50 absolu de tous les contacts Easy2Book. Conséquence : un contact ancien
+   à haute valeur mais sans lead récent n'apparaît pas. C'est une **v1 populationnelle**, pas un
+   classement global du réseau. La page affiche déjà "recalculé à la demande sur les 200 leads les
+   plus récents" ; la distinction reste à exposer plus explicitement dans l'UI (RADAR-VIP-02).
 
-Audit lecture seule (4 sous-agents en parallèle, périmètre Master Prompt CRM)
-sur LEAD/CONTACT/CONSENT/PROVENANCE/NORMALIZATION/NICHE/VIP/CAMPAIGN/
-ATTRIBUTION/PROMO/BOOKING/REVENUE/MARGIN/CUSTOMER 360/LOYALTY/WHATSAPP/
-META LEAD ADS/BEHAVIORAL SIGNAL, chacun noté EXISTS?/OWNER?/REAL?/
-CONNECTED?/TESTED?/PROTECTED?.
+4. **Problème des doublons non résolu** ⚠️ — Le score est calculé au niveau **leadId**, pas
+   **contactId**. Un même partenaire avec 4 leads (hôtel, Omra, vol, visa) apparaît en 4 lignes
+   dans le radar au lieu d'une ligne "PARTENAIRE MULTI-PRODUIT". C'est la limite architecturale
+   centrale de RADAR-VIP-01 (résolution au niveau lead explicitement documentée dans vip-score-core.ts
+   en-tête). Adressé en RADAR-VIP-02 : fusion par contactId (CONTACT-01), vue unique par acteur.
 
-**Classification finale :**
+5. **Programme Radar non fermé** ✅ — Les deux radars v1 sont une fondation, pas une destination.
+   Voir section "PROGRAMME RADAR — SUITE" ci-dessous.
 
-| Composant         | Classification | Point clé                                                                                                                                                                                                          |
-| ----------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| LEAD              | REUSE          | noyau solide, gap de câblage vers CONTACT/PROVENANCE (corrigé, voir ci-dessous)                                                                                                                                    |
-| CONTACT           | EXTEND→DONE    | câblé au canal principal par CRM-LEAD-WIRING-01                                                                                                                                                                    |
-| CONSENT           | CONSOLIDATE    | jamais déclenché à la capture ; normalisation dupliquée (pas de téléphone côté consent-core)                                                                                                                       |
-| PROVENANCE        | EXTEND→DONE    | câblé au canal principal par CRM-LEAD-WIRING-01                                                                                                                                                                    |
-| NORMALIZATION     | CONSOLIDATE    | 2 implémentations indépendantes (contact-core vs consent-core)                                                                                                                                                     |
-| NICHE             | DONE           | solide ; lien "NICHE→PROMO" de cette même ROADMAP = terminologique, pas un câblage de code réel (aucune dépendance croisée trouvée)                                                                                |
-| VIP               | DONE (isolé)   | calculateur à la demande, jamais branché à CAMPAIGN (par design, pas un gap)                                                                                                                                       |
-| CAMPAIGN          | FIX            | RLS ENABLE sans FORCE (`campaigns`, `campaign_targets`)                                                                                                                                                            |
-| ATTRIBUTION       | FIX            | même gap RLS FORCE (`campaign_attributions`)                                                                                                                                                                       |
-| PROMO             | EXTEND + FIX   | pricing câblé 4/7 modules (hôtel/transfert/omra/package faits — flight/activity/network pas câblés, cohérent avec le scope déjà documenté) ; même gap RLS FORCE (`promos`)                                         |
-| BOOKING           | DONE           | owner unique confirmé (`recordReservationFinancials`), `financial-e2e` vert                                                                                                                                        |
-| REVENUE           | CONSOLIDATE    | dispersé entre `lib/reporting/margin-analytics-core.ts` et `lib/admin/accounting-data.ts`, zéro test dédié                                                                                                         |
-| MARGIN            | CONSOLIDATE    | owner réel clair (`lib/pro/pricing.ts`/`margins-core.ts`) mais fichier mort dupliquant la formule (`lib/finance/margin-calculator.ts`, aucun appelant réel)                                                        |
-| CUSTOMER 360      | DONE           | réserve mineure : scoping tenant de l'appelant de `getCustomer360Core` non vérifié dans cet audit                                                                                                                  |
-| LOYALTY           | DONE           | complet, testé, RLS forcée                                                                                                                                                                                         |
-| WHATSAPP          | DONE           | complet, testé, RLS forcée                                                                                                                                                                                         |
-| META LEAD ADS     | EXTEND         | webhook+capture de lead structurée faits (au-delà du simple webhook, contrairement à ce que laissait penser le libellé précédent de cette ROADMAP) ; reporting/audience/consentement formalisé toujours hors scope |
-| BEHAVIORAL SIGNAL | DONE           | strictement dans le périmètre pilote hôtel (PR #146)                                                                                                                                                               |
+---
 
-**Gap bloquant retenu pour exécution immédiate** : le canal d'acquisition
-principal — le formulaire du site (`app/actions/submit-lead.ts` →
-`createLeadCore`) — ne créait **ni CONTACT, ni PROVENANCE, ni CONSENT**.
-Seul le canal Meta Lead Ads était câblé sur toute la chaîne ; la majorité
-des leads réels (trafic organique) étaient invisibles à CUSTOMER 360/
-CAMPAIGN au-delà de la table `leads` brute.
+### RADAR-METIER-01 — CLÔTURÉ (2026-10-08)
 
-**CRM-LEAD-WIRING-01 — MERGÉ (PR #147, commit squash `70560129`,
-2026-10-07).** Extraction dans `lib/crm/website-lead-capture-core.ts::
-captureWebsiteLeadCore` (même patron que `lib/meta-leadads/
-lead-capture-core.ts`), appelée dans la même transaction que
-`createLeadCore` : `createLeadCore → recordLeadOriginEventCore
-(role="channel", source="website_form") → resolveOrCreateContactCore`.
-`website_form` ajouté à `LEAD_ORIGIN_SOURCE_TRUST`, même rang que les
-webhooks WhatsApp/Meta. Aucun consentement fabriqué (le formulaire
-n'affiche aucune case de consentement UI — vérifié, pas supposé) : ce
-lead reste exclu de toute campagne par `filterAudienceByConsentCore`,
-comportement déjà correct. Aucun changement DB. Preuves : 4/4 tests live
-(`lib/crm/__tests__/website-lead-capture-core-live.test.ts`), régression
-1501 pass/0 fail (+4 nouveaux skip-only sans DB), `pnpm build` ok. CI de
-la PR : tout vert (lint/test/financial-e2e/playwright-a11y/build/
-typecheck) sauf `format`/`lighthouse` — confirmés non liés à ce diff
-(voir `CI-FORMAT-CLEANUP-01` ci-dessous pour `format` ; `lighthouse`
-reste le NO_FCP non résolu documenté sous CI-FIX-02).
+**Objectif** : vue classée "Qu'est-ce qui bouge ?" — signaux de croissance classés par force.
+Orchestre `getTimeSeriesCore` → `buildRadarMetierCore` pour 4 dimensions (module, canal, produit, destination).
 
-**CI-FORMAT-CLEANUP-01 — MERGÉ (PR #148, commit squash `9bcde6e`,
-2026-10-07).** Formatage pur (`prettier --write`) des 5 fichiers en échec
-`format` depuis plusieurs chantiers (`app/(internal)/admin/site/page.tsx`,
-`components/footer-client.tsx`, `docs/ROADMAP.md`,
-`lib/admin/public-site-actions.ts`, `lib/db/schema/public-site.ts`) —
-zéro changement sémantique (diffs relus), zéro fichier hors scope. Job
-`format` vert sur `main` depuis ce merge. Délégué à un agent ; une PR
-identique créée en parallèle (collision de branche détectée et
-documentée par l'agent, contenu octet pour octet identique) — utilisée
-comme véhicule plutôt que dupliquée.
+**Commit** : `30f7760`
 
-**RLS-FORCE-CRM-TABLES-01 — MERGÉ (PR #150, commit squash `19b125b`,
-2026-10-07).** Migration `drizzle/manual/0123_rls_force_crm_tables_01.sql`
-— `ALTER TABLE ... FORCE ROW LEVEL SECURITY` sur `contacts`,
-`lead_origin_events`, `campaigns`, `campaign_targets`,
-`campaign_attributions`, `promos`. Vérifié avant migration : `app_runtime`
-n'est pas owner de ces tables (GRANT explicite requis) — `FORCE` n'a donc
-aucun effet sur le trafic applicatif normal, c'est une protection en
-profondeur contre un accès direct par le rôle owner, pas la correction
-d'un trou actif. **Migration appliquée et vérifiée en production**
-(Supabase `crygnaichvlxavvbifqi`) : `relforcerowsecurity=true` confirmé
-par requête directe sur les 6 tables, avant et après (avant : `false`
-partout, confirmé). Preuves : 28/28 tests live existants
-(contact-core/campaign-core/campaign-attribution-core/promo-core/
-network-demand-capture-core/website-lead-capture-core) verts après
-application locale, zéro régression côté `app_runtime` ; régression
-complète 1501 pass/0 fail ; `pnpm build` ok. CI de la PR : tout vert
-(lint/typecheck/test/financial-e2e/build/playwright-a11y/**format**)
-sauf `lighthouse` (même NO_FCP connu, non lié à ce diff).
+**Fichiers créés/modifiés** :
+- `lib/crm/radar-metier-core.ts` — `buildRadarMetierCore(rows)` pure (CRÉÉ)
+  - `SignalTrend` : forte_hausse / hausse / stable / baisse / forte_baisse / nouveau
+  - `signalStrength = currentVolume × (1 + growthFactor)` — clampé [-1, +2]
+- `lib/admin/radar-metier-actions.ts` — Server Action `getRadarMetier(4|8|12)` (CRÉÉ)
+- `app/(internal)/admin/analytics/radar/page.tsx` — sélecteur fenêtre, 3 KPIs, table complète (CRÉÉ)
+- `components/admin-shell.tsx` — 7e sous-item "Radar Métier" (Zap) + breadcrumbs (ÉTENDU)
+- `lib/crm/time-series-core.ts` — ajout dimension "destination" (ÉTENDU)
+- `lib/admin/__tests__/radar-metier-ui.test.ts` — 3 invariants statiques (CRÉÉ)
 
-**Backlog restant identifié par l'AUDIT FINAL CRM, non exécuté**
-(prochains chantiers potentiels, à proposer un par un sur GO explicite) :
-duplication de normalisation contact-core/consent-core (téléphone non
-géré côté consent) ; fichier mort `lib/finance/margin-calculator.ts` ;
-REVENUE dispersé sans owner ni test dédié ; câblage PROMO→pricing
-incomplet (3/7 modules restants : flight/activity/network) ; `lighthouse`
-NO_FCP toujours non résolu (CI-FIX-02/CI-FIX-03 potentiel).
+**Tests** : 3/3 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+---
+
+### PROGRAMME RADAR — ÉTAT 2026-10-08
+
+Deux radars opérationnels en production v1 :
+
+```
+FLUX
+ ↓
+SOURCE
+ ↓
+ACTEUR
+ ↓
+PRODUIT
+ ↓
+TRANSACTION
+ ↓
+CA
+ ↓
+MARGE
+ ↓
+FRÉQUENCE
+ ↓
+CROISSANCE
+ ↓
+RADAR MÉTIER       🟢 v1 — "Qu'est-ce qui bouge ?"
+RADAR VIP          🟢 v3 — "Qui devient important ?" (dedup CONTACT-01)
+ ↓
+SIGNAL ENGINE      🟢 v1 — convergence Métier × VIP → "Significatif ?"
+ ↓
+ACTION ENGINE      🟢 v1 — recommandations structurées → "Quoi faire ?"
+ ↓
+LEARNING           🟢 v1 — feedback loop conversion VIP → "Est-ce que ça a marché ?"
+```
+
+**Radar Métier** répond : *Destination X +42% demandes +28% CA +35% marge → opportunité commerciale.*
+**Radar VIP v1** répond : *Lead Y score 87, engagement ×3, récence forte → opportunité relationnelle.*
+**Radar VIP v2** (RADAR-VIP-02) répondra : *PARTENAIRE Z — hôtel + Omra + vol + visa — score consolidé → acteur stratégique.*
+
+**RADAR-VIP-02 — CLÔTURÉ (2026-10-08)**
+
+Déduplication contactuelle best-effort email-first :
+- `contactKey(email, phone, leadId)` : regroupe les leads partageant le même email normalisé,
+  sinon le même phone normalisé (chiffres uniquement), sinon traite le lead isolément.
+- Dans un groupe : le lead au score le plus élevé est le représentant.
+  Son score reflète déjà toutes les réservations du contact (via `findMatchingCustomerIdsCore`).
+- `VipRadarRow` étendu : `leadCount: number` (nbre de leads fusionnés), `products: string[]`
+  (produits distincts du groupe, triés).
+- UI : badge `×N` sur le nom si `leadCount > 1`, colonne "Produits" avec badges par produit.
+- Tests : 8/8 ✅ (3 RADAR-VIP-01 + 5 RADAR-VIP-02) · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+Limitation documentée : deux leads sans email commun mais avec le même téléphone ne seront
+fusionnés que si l'un d'eux n'a pas d'email. Fusion exacte via CONTACT-01 : RADAR-VIP-03 potentiel.
+
+**RADAR-VIP-03 — CLÔTURÉ (2026-10-08)**
+
+Remplacement de la déduplication best-effort (RADAR-VIP-02 `contactKey()`) par la
+résolution exacte CONTACT-01 :
+- `findExistingContactIdForLeadCore` exportée depuis `lib/crm/vip-score-core.ts` (lecture seule).
+- Résolution séquentielle post-scoring : pour chaque lead scoré, lookup du contactId réel.
+- Groupement par `contactId` (ou `lead:<leadId>` pour les leads sans contact persisté).
+- `VipRadarRow` étendu : `contactId: string | null` visible par la couche supérieure.
+- Tests : 10/10 ✅ (3 RADAR-VIP-01 + 7 RADAR-VIP-02/03) · typecheck ✅ · lint ✅
+
+État du Radar VIP :
+```
+RADAR-VIP-01  🟢  score par lead
+RADAR-VIP-02  🟢  dedup best-effort email-first
+RADAR-VIP-03  🟢  dedup exacte CONTACT-01
+SIGNAL ENGINE 🟢  convergence Métier × VIP (commit 03bc5c8)
+ACTION ENGINE 🟢  recommandations structurées (commit a0231ea)
+LEARNING      🟢  feedback loop conversion VIP (commit 3b25026)
+```
+
+**SIGNAL-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `03bc5c8`)**
+
+Convergence Radar Métier × Radar VIP — "Ce contact VIP est dans un marché en mouvement" = signal actionnable.
+
+**Fichiers créés/modifiés** :
+- `lib/crm/signal-engine-core.ts` — `buildSignalEngineCore(vipRows, radarSignals)` pure (CRÉÉ)
+  - `VipInput` : interface minimale découplée de VipRadarRow (évite cross-import "use server")
+  - Deux types : `vip_x_destination`, `vip_x_product`
+  - Tendances positives uniquement : `forte_hausse`, `hausse`, `nouveau`
+  - Pas de signal canal (`dimensionType=channel` ignoré)
+  - `combinedScore = vipScore + signalStrength` (additif, transparent)
+  - `insight` : "X (VIP 87) × Destination Tunis (forte hausse +42%)"
+  - `SIGNAL_ENGINE_MAX_ROWS = 30`, tri par combinedScore desc, dédup par signalId
+- `lib/admin/signal-engine-actions.ts` — `getSignalEngine(windowWeeks: 4|8|12)` Server Action (CRÉÉ)
+  - Orchestre : `getTimeSeriesCore` → `buildRadarMetierCore` (signaux marché)
+    + `listLeadsCore` → score séquentiel + `findExistingContactIdForLeadCore` → dédup contactuelle
+    + `buildSignalEngineCore` (convergence)
+  - Même dédup CONTACT-01 que RADAR-VIP-03 (réimplémentée directement, sans appel à Server Action)
+- `app/(internal)/admin/analytics/signal/page.tsx` — UI Signal Engine (CRÉÉ)
+  - Sélecteur fenêtre 4/8/12 semaines
+  - 3 tuiles KPI : signaux convergents / VIP×Destination / VIP×Produit
+  - Carte "Signal le plus fort" (border amber)
+  - Table : rang, acteur VIP (badge ×N, contactId prefix), type, dimension, tendance badge, croissance, barre score combiné (amber), VIP, signal
+  - État vide : "Aucun signal convergent — les signaux apparaîtront quand des acteurs VIP seront dans des marchés en mouvement."
+- `components/admin-shell.tsx` — icône Sparkles + 9e sous-item "Signaux" → `/admin/analytics/signal` + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/signal-engine-ui.test.ts` — 17 tests (3 suites) (CRÉÉ)
+  - Suite 1 core : exports, empty cases, vip_x_destination, vip_x_product, filtrage baisse/canal, tri, dédup, cap MAX_ROWS
+  - Suite 2 actions : exports getSignalEngine
+  - Suite 3 page/nav : fichier, imports, shell href, Sparkles
+
+**Tests** : 17/17 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+**ACTION-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `a0231ea`)**
+
+Recommandations structurées, explicables et exécutables dérivées des signaux Signal Engine.
+
+**Redesign en cours d'implémentation** (retour utilisateur) : "L'Action Engine ne doit pas
+seulement traduire un signal en texte. Il doit produire une recommandation structurée,
+explicable et exécutable par un humain ou Campaign Engine."
+
+**Fichiers créés/modifiés** :
+- `lib/crm/action-engine-core.ts` — `buildActionEngineCore(signals)` pure (CRÉÉ)
+  - `CampaignHints` : payload JSON sérialisable consommable par Campaign Engine —
+    offerDimension, offerDimensionType, suggestedActionType, channel, urgencyHours,
+    vipScore, leadCount, marketTrend, marketGrowthRate, signalStrength
+  - `ActionRow` : priorité, canal, urgencyWindow, offerFocus, rationale (POURQUOI),
+    scriptLine (QUOI DIRE, adapté au canal), subject, campaignHints
+  - `ACTION_MATRIX` : urgent→appel_direct/phone/24h, haute→whatsapp/48h,
+    normale→email_personnalise/7j, faible→email_decouverte/14j
+  - Priorité dérivée de combinedScore (≥150 urgent, ≥100 haute, ≥60 normale, <60 faible)
+- `lib/admin/action-engine-actions.ts` — `getActionEngine(windowWeeks: 4|8|12)` (CRÉÉ)
+  - Même pipeline complet que signal-engine-actions + buildActionEngineCore
+- `app/(internal)/admin/analytics/action/page.tsx` — UI Action Engine (CRÉÉ)
+  - 3 tuiles KPI, carte "Action prioritaire", table avec ligne expansible
+  - Détail expansible : script complet, sujet, rationale, campaignHints (debug)
+- `components/admin-shell.tsx` — Lightbulb + 10e sous-item "Actions" + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/action-engine-ui.test.ts` — 29 tests (3 suites) (CRÉÉ)
+
+**Tests** : 29/29 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+**Prochain chantier identifié** : LEARNING ("Est-ce que ça a marché ?")
+→ CLOS ci-dessous.
+
+---
+
+### LEARNING-01 — CLÔTURÉ (2026-10-08, commit `3b25026`)
+
+**Objectif** : quatrième étage du Programme Radar — mesurer si les actions ont porté leurs fruits.
+Feedback loop : score VIP × conversion (status="converted") sur fenêtre temporelle (4/8/12 sem).
+
+**Fichiers créés/modifiés** :
+- `lib/crm/learning-core.ts` — `buildLearningCore(leads, windowWeeks)` pure (CRÉÉ)
+  - segmentation VIP++ (≥80) / VIP+ (≥50) / Pipeline (≥25) / Faible
+  - taux de conversion par bucket, destination, produit
+  - délai moyen de conversion, top 20 convertis triés par vipScore
+- `lib/admin/learning-actions.ts` — `getLearning(windowWeeks)` Server Action (CRÉÉ)
+  - auth OTA (super_admin/manager/agent_resa), `withTenantContext`
+  - filtre les leads sur la fenêtre (createdAt >= cutoff)
+  - score chaque lead via `getVipScoreForLeadCore`
+- `app/(internal)/admin/analytics/learning/page.tsx` — UI "use client" (CRÉÉ)
+  - sélecteur 4/8/12 semaines, 4 KPI tiles
+  - table buckets VIP avec barre visuelle, tables destinations + produits
+  - table top convertis avec daysToConvert
+- `components/admin-shell.tsx` — nav item "Apprentissage" + icône BookCheck (ÉTENDU)
+  - breadcrumb `learning` → "Apprentissage"
+- `lib/admin/__tests__/learning-ui.test.ts` — 25 tests (CRÉÉ)
+
+**Tests** : 25/25 ✅ · typecheck 0 erreur ✅
+
+**Programme Radar complet** :
+- RADAR MÉTIER 🟢 → RADAR VIP 🟢 v3 → SIGNAL ENGINE 🟢 → ACTION ENGINE 🟢 → CAMPAIGN ENGINE 🟢 → LEARNING 🟢
+
+---
+
+### CAMPAIGN-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `a14e671`)
+
+**Objectif** : cinquième étage du Programme Radar — "Quelles campagnes lancer ?"
+Passerelle entre l'Action Engine et la création de campagnes CRM.
+Fonction pure `buildCampaignEngineCore` : groupe les ActionRow par
+`(channel × dimensionType × dimension)`, élit le champion (combinedScore max),
+déduplique les leadIds, mappe ActionChannel → CrmChannel, génère
+nom/objectif/message par canal. READ-ONLY : ne crée pas de campagnes.
+
+**Fichiers créés/modifiés** :
+- `lib/crm/campaign-engine-core.ts` — `buildCampaignEngineCore(actions)` pure (CRÉÉ)
+  - `CampaignProposal` : proposalId, channel, crmChannel, dimension, leadIds,
+    priority, topCombinedScore, urgencyHours, suggestedName/Objective/Message,
+    marketTrend, marketGrowthRate, actionCount
+  - Tri : priorité desc puis combinedScore desc
+- `lib/admin/campaign-engine-actions.ts` — `getCampaignEngine(windowWeeks)` server action (CRÉÉ)
+  - Pipeline : TimeSeries → RadarMétier → leads + VIP score → dedup → SignalEngine → ActionEngine → CampaignEngine
+- `app/(internal)/admin/analytics/campaign-engine/page.tsx` — UI proposals (CRÉÉ)
+  - Sélecteur fenêtre (4/8/12 sem), 3 KPI tiles (propositions, contacts, urgentes)
+  - Tableau expandable : nom+objectif, canal, priorité badge, contacts, urgence, score
+  - Expanded : objectif, message template (pre), debug (crmChannel, urgencyHours, actionCount, trend)
+- `components/admin-shell.tsx` — 12e sous-item "Campagnes VIP" (Send icon) + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/campaign-engine-ui.test.ts` — 25 tests (CRÉÉ)
+
+**Tests** : 25/25 ✅ · typecheck 0 erreur ✅
+
+---
+
+### TIME-SERIES-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : couche partagée de calcul période-sur-période — piliers FRÉQUENCE et CROISSANCE.
+Répond à "Qu'est-ce qui change ?" : compare fenêtre courante vs fenêtre précédente de même durée
+(4/8/12 semaines) pour les modules de réservation (CA/marge) et les leads (canal, produit).
+
+**Commit** : `ae82ea8`
+
+**Fichiers créés/modifiés** :
+- `lib/crm/time-series-core.ts` — `getTimeSeriesCore(tx, {agencyId, windowWeeks})` (CRÉÉ)
+  - Flux CA/marge : `reservationFinancials JOIN reservations.createdAt` par module
+  - Flux leads : `leads.createdAt` par channel et par productType
+  - growthRate() : +X.X% / −X.X% / N/A / +∞
+- `lib/admin/time-series-actions.ts` — Server Action `getTimeSeries(4|8|12)` (CRÉÉ)
+- `app/(internal)/admin/analytics/trends/page.tsx` — 3 tables + sélecteur fenêtre (CRÉÉ)
+- `components/admin-shell.tsx` — 6e sous-item "Tendances" + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/time-series-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 3/3 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅ · build Compiled ✅
+
+**Prochain chantier potentiel** : RADAR-METIER-01 ou RADAR-VIP-01 — non audités — STOP.
+
+---
+
+### CONVERSION-FUNNEL-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : répondre à la question pilier 8 — "Peut-on relier la conversion à sa source ?"
+Vue funnel leads par canal × produit : nouveaux / contactés / convertis / taux / CA / marge.
+CA et marge lus depuis `reservationFinancials` via jointure (FINANCIAL est l'unique propriétaire).
+
+**Commit** : `47db482`
+
+**Fichiers créés/modifiés** :
+- `lib/admin/conversion-funnel-actions.ts` — Server Action `getConversionFunnel()` (CRÉÉ)
+- `app/(internal)/admin/analytics/conversion/page.tsx` — page funnel + 4 tuiles KPI (CRÉÉ)
+- `components/admin-shell.tsx` — 5e sous-item "Conversion" dans analyticsNavItems (ÉTENDU)
+- `lib/admin/__tests__/conversion-funnel-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 3/3 ✅ · typecheck ✅ · lint 0 erreur ✅ · build exit 0 ✅
+
+**Prochain chantier potentiel** : non audité — STOP.
+
+---
+
+### CAMPAIGN-PERF-UI-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : exposer au staff OTA les performances CRM des campagnes
+(exposés / convertis / CA / marge) via une page admin `/admin/analytics/campaigns`.
+Le moteur `getCampaignPerformanceCore()` était déployé depuis commit `155d540` mais
+aucune interface admin ne le consommait.
+
+**Commit** : `c6cea0a`
+
+**Fichiers créés/modifiés** :
+- `lib/admin/campaign-performance-actions.ts` — Server Action `listCampaignPerformance()` (CRÉÉ)
+- `app/(internal)/admin/analytics/campaigns/page.tsx` — page analytics Campagnes (CRÉÉ)
+- `components/admin-shell.tsx` — 4e sous-item "Campagnes" dans analyticsNavItems (ÉTENDU)
+- `lib/admin/__tests__/campaign-performance-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 3/3 ✅ · typecheck ✅ · lint 0 erreur ✅ · build exit 0 ✅
+
+**Prochain chantier potentiel** : non audité — STOP.
+
+---
+
+### CANONICAL-OWNERSHIP-AUDIT — CLÔTURÉ (2026-10-08)
+
+**Objectif** : vérifier que le domaine `canonical_hotels` / `canonical_hotel_supplier_mappings`
+(chantier CANONICAL-HOTEL-01, 2026-10-05) respecte les invariants d'ownership définis pour
+tout domaine système partagé : schéma, grants DB, RLS, politique de persistance, tests live,
+intégration caller.
+
+**Méthode** : lecture seule — `git show origin/main:...` sur les fichiers concernés.
+Audit réalisé sur HEAD `a0b70ed`.
+
+**6 preuves — 6/6 CONFIRMED, aucun GAP :**
+
+| Proof | Domaine | Résultat |
+|-------|---------|----------|
+| P1 | Schema & contraintes DB | CONFIRMED |
+| P2 | Grants `app_runtime` (append-only mappings) | CONFIRMED |
+| P3 | RLS (FORCE, `anon`/`authenticated` révoqués) | CONFIRMED |
+| P4 | Politique de persistance (EXACT only, best-effort) | CONFIRMED |
+| P5 | Tests live (E1/E2/E3/E4) | CONFIRMED |
+| P6 | Caller integration (`search-hub` non-bloquant) | CONFIRMED |
+
+**Détail :**
+
+- **P1 — Schema** (`lib/db/schema/canonical-hotels.ts`) : deux tables uniquement (identité +
+  provenance), aucun FK agency/tenant (domaine système cross-tenant), UNIQUE sur `(supplier,
+  supplierHotelCode)` — double-mapping impossible.
+- **P2 — Grants** (migration 0109) : `app_runtime` a `SELECT/INSERT/UPDATE` sur
+  `canonical_hotels` ; `SELECT/INSERT` uniquement sur `canonical_hotel_supplier_mappings` —
+  `UPDATE/DELETE` explicitement révoqués. Mappings append-only au niveau grant Postgres.
+- **P3 — RLS** (migration 0120, `RLS-GAP-PUBLIC-TABLES-01`) : `FORCE RLS` actif, `anon`/
+  `authenticated` à zéro privilège, `app_runtime` policy `USING true`. Couvert par
+  `lib/db/__tests__/rls-gap-public-tables-01-live.test.ts`.
+- **P4 — Persistance** (`lib/hotel-suppliers/core/canonical-persistence.ts`) : seule la
+  confidence `EXACT` crée/étend une identité (HIGH/MEDIUM/LOW jamais persistés en v1) ;
+  `ON CONFLICT DO NOTHING` sur le mapping (anti-race) ; `try/catch` global (jamais bloquant
+  pour la recherche) ; `reasons[]` persistées (CANONICAL-HOTEL-01-REASONS).
+- **P5 — Tests live** (`canonical-persistence-live.test.ts`) : 4 tests couvrant E1 (cross-
+  supplier EXACT → une identité partagée), E2 (idempotence — même couple jamais dupliqué),
+  E3 (HIGH/MEDIUM jamais persisté), E4 (`reasons[]` du vrai `matchHotels()` persistées,
+  ancre porte `"first sighting"`).
+- **P6 — Integration** : appelé post-traitement dans `search-hub.ts::runSearchThroughHub()`,
+  hors chemin de réponse HTTP, retourne `Promise<void>` — jamais bloquant.
+
+**Observation sans impact** : `app_runtime` a le grant `UPDATE` sur `canonical_hotels`
+(pour `updatedAt` potentiel) mais aucun code path ne l'utilise actuellement. Pas un GAP.
+
+---
+
+### SEARCH-DEMAND-DISPLAY-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : exposer au staff OTA les données `search_demand_signals` capturées depuis
+BEHAVIORAL-SIGNAL-01 (PR #146) mais jusque-là sans UI — page admin read-only, top destinations
+sur 30 jours, triées par volume décroissant.
+
+**Commit** : `75a1b9e` — branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**Implémentation** :
+
+| Fichier | Action | Détail |
+|---------|--------|--------|
+| `lib/crm/search-demand-core.ts` | EXTEND | `SearchDemandRow` type + `getSearchDemandSummaryCore()` (30j, GROUP BY, ORDER BY volume DESC, LIMIT 50, filtre `agencyId` défensif en plus RLS) |
+| `lib/admin/search-demand-actions.ts` | CREATE | Server Action `listSearchDemandSignals()` — `assertSupportStaff` (super_admin/manager/agent_resa + agencyType=ota) |
+| `app/(internal)/admin/analytics/search-demand/page.tsx` | CREATE | Page read-only, pattern useEffect identique à `/admin/analytics/niches` |
+| `lib/admin/__tests__/search-demand-actions-live.test.ts` | CREATE | 3 tests live Postgres : agrégation+tri, isolation cross-agency, filtre 30j |
+
+**Vérifications** :
+- `pnpm typecheck` → 0 erreurs ✅
+- `pnpm lint` → 0 erreurs ✅
+- `pnpm test` → 1563 pass / 0 fail / 353 skip ✅
+- `pnpm build` → succès ✅
+
+**NOT VERIFIED** : rendu visuel de la page (pas de Postgres local en CI — tests live skippés automatiquement).
+
+---
+
+### ADMIN-ANALYTICS-NAV-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : rendre les trois pages analytics existantes accessibles depuis la navigation
+admin — `/admin/analytics/margins`, `/admin/analytics/niches` et
+`/admin/analytics/search-demand` n'étaient reliées à aucun lien de navigation et
+inaccessibles sans URL directe.
+
+**Commit** : `724c4ea` — branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**Implémentation** :
+
+| Fichier | Action | Détail |
+|---------|--------|--------|
+| `components/admin-shell.tsx` | EXTEND | Ajout `analyticsNavItems` (Analytique → Marges / Niches CRM / Demande hôtel) ; visible super_admin + manager + agent_resa ; labels breadcrumb analytics/margins/niches/search-demand |
+| `lib/admin/__tests__/admin-shell-analytics-nav.test.ts` | CREATE | 3 tests invariants statiques : présence des trois hrefs dans admin-shell.tsx |
+
+**Vérifications** :
+- `pnpm tsc --noEmit` → 0 erreurs ✅
+- `pnpm eslint` → 0 erreurs ✅
+- Tests invariants → 3/3 ✅
+- `pnpm build` → succès ✅
+
+**NOT VERIFIED** : rendu visuel (pas de session admin active en CI).
+
+---
+
+### POST-BATCH-CERTIFICATION-AUDIT — CLÔTURÉ (2026-10-08)
+
+**Objectif** : certification croisée des 3 PRs mergées le 2026-10-08 — vérifier que
+le câblage promo, la consolidation revenue, et la première UI niche sont effectifs sur
+le code source réel de `main`.
+
+**AXE 1 — PROMO-PRICING-COVERAGE-01 (PR #156)** :
+- `hotels-monde/guest-booking-actions.ts` : importe `resolveCheckoutPromoCore` +
+  `applyPromoDiscountCore`, passe `supplierPriceTnd` (plancher PROMO-LOSS-POLICY-01) ✅
+- `activities/guest-booking-actions.ts` : câblé, pas de plancher (catalogue agence,
+  coût net = prix vente, `supplierPriceTnd` omis délibérément) ✅
+- `cars/guest-booking-actions.ts` : câblé, passe `carSupplierCostTnd` ✅
+- `vols/booking-request-action.ts` : câblé, remise persistée dans `flightPriceSnapshots`
+  (CAS `status=ACTIVE` + `expiresAt > now()`), relue sans recalcul à la confirmation ✅
+- `lib/finance/margin-calculator.ts` : SUPPRIMÉ (confirmé — `git show origin/main:...` → not found) ✅
+- Tests `promo-wiring-invariants.test.ts` : 8×2 couverture statique + 3 tests plancher = 35 assertions ✅
+
+**AXE 2 — REVENUE-CONSOLIDATE-01 (PR #157)** :
+- `sumRevenueMarginCore()` : primitive pure extraite dans `lib/reporting/margin-analytics-core.ts` ✅
+- `lib/crm/campaign-performance-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
+- `lib/crm/vip-score-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
+- Duplication résiduelle : `grep '.reduce.*salePriceTnd\|.reduce.*marginAmount'` → zéro résultat ✅
+- Tests `margin-analytics-core.test.ts` : 6 tests purs (empty, string/number, marge négative, etc.) ✅
+- Tests `margin-analytics-core-live.test.ts` : preuve live Postgres pour `getMarginKPIsCore` ✅
+
+**AXE 3 — NICHE-UI-01 (PR #158)** :
+- Page `/admin/analytics/niches/page.tsx` créée, `"use client"` ✅
+- Appel `listNicheSegments()` depuis `lib/admin/niche-actions.ts` ✅
+- Garde auth : `assertSupportStaff` (super_admin/manager/agent_resa + agencyType="ota") — convention identique à `/admin/analytics/margins` ✅
+- Read-only (pas de bouton "lancer campagne" en V1 — décision produit 2026-10-07) ✅
+- Rendu visuel authentifié : **NOT VERIFIED** (pas de session Preview dans cette audit)
+
+**Méthode** : lecture source via `git show origin/main:...` sans checkout main.
+Audit réalisé sur HEAD main = `a0b70ed`.
 
 ---
 

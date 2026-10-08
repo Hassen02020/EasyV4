@@ -230,17 +230,20 @@ function daysBetween(from: Date, to: Date): number {
 }
 
 /**
- * VIP-SCORE-02 — recherche d'un CONTACT-01 déjà persisté pour ce lead,
- * LECTURE SEULE (jamais `resolveOrCreateContactCore` : calculer un score
- * ne doit jamais créer de donnée). Un numéro de téléphone peut avoir été
- * résolu sous 'whatsapp' OU 'call' selon le flux de capture d'origine
- * (lib/crm/inbox-core.ts vs lib/meta-leadads/lead-capture-core.ts) — les
- * deux sont essayés, jamais une troisième taxonomie de canal inventée.
+ * VIP-SCORE-02 / RADAR-VIP-03 — recherche d'un CONTACT-01 déjà persisté
+ * pour ce lead, LECTURE SEULE (jamais `resolveOrCreateContactCore` :
+ * calculer un score ne doit jamais créer de donnée). Un numéro de téléphone
+ * peut avoir été résolu sous 'whatsapp' OU 'call' selon le flux de capture
+ * d'origine (lib/crm/inbox-core.ts vs lib/meta-leadads/lead-capture-core.ts)
+ * — les deux sont essayés, jamais une troisième taxonomie de canal inventée.
  * `null` si aucun contact n'a encore été persisté pour ce lead (flux de
  * capture qui n'a pas encore résolu CONTACT-01, ou lead sans email/
  * téléphone) — jamais une erreur, jamais un contact fabriqué.
+ *
+ * Exportée pour RADAR-VIP-03 (déduplication exacte par contactId dans
+ * radar-vip-actions.ts). Toujours lecture seule.
  */
-async function findExistingContactIdForLeadCore(
+export async function findExistingContactIdForLeadCore(
   tx: DrizzleTransaction,
   params: { agencyId: string; email: string | null; phone: string | null },
 ): Promise<string | null> {

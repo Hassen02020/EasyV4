@@ -36,6 +36,13 @@ import {
   BarChart2,
   Palette,
   Landmark,
+  Target,
+  Zap,
+  Crown,
+  Sparkles,
+  Lightbulb,
+  BookCheck,
+  Send,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -223,6 +230,76 @@ const technicalNavItems: NavItem[] = [
   },
 ]
 
+const analyticsNavItems: NavItem[] = [
+  {
+    title: "Analytique",
+    icon: BarChart2,
+    href: "/admin/analytics",
+    subItems: [
+      {
+        title: "Marges",
+        href: "/admin/analytics/margins",
+        icon: DollarSign,
+      },
+      {
+        title: "Niches CRM",
+        href: "/admin/analytics/niches",
+        icon: Users,
+      },
+      {
+        title: "Demande hôtel",
+        href: "/admin/analytics/search-demand",
+        icon: TrendingUp,
+      },
+      {
+        title: "Campagnes",
+        href: "/admin/analytics/campaigns",
+        icon: Activity,
+      },
+      {
+        title: "Conversion",
+        href: "/admin/analytics/conversion",
+        icon: Target,
+      },
+      {
+        title: "Tendances",
+        href: "/admin/analytics/trends",
+        icon: TrendingUp,
+      },
+      {
+        title: "Radar Métier",
+        href: "/admin/analytics/radar",
+        icon: Zap,
+      },
+      {
+        title: "Radar VIP",
+        href: "/admin/analytics/vip",
+        icon: Crown,
+      },
+      {
+        title: "Signaux",
+        href: "/admin/analytics/signal",
+        icon: Sparkles,
+      },
+      {
+        title: "Actions",
+        href: "/admin/analytics/action",
+        icon: Lightbulb,
+      },
+      {
+        title: "Apprentissage",
+        href: "/admin/analytics/learning",
+        icon: BookCheck,
+      },
+      {
+        title: "Campagnes VIP",
+        href: "/admin/analytics/campaign-engine",
+        icon: Send,
+      },
+    ],
+  },
+]
+
 const superAdminNavItems: NavItem[] = [
   {
     title: "Politique FX",
@@ -285,17 +362,24 @@ function getNavItems(role: AdminShellRole): NavItem[] {
         ...baseNavItems,
         ...managerNavItems,
         ...technicalNavItems,
+        ...analyticsNavItems,
         ...superAdminNavItems,
       ]
     case "manager":
-      return [...baseNavItems, ...managerNavItems, ...technicalNavItems]
+      return [
+        ...baseNavItems,
+        ...managerNavItems,
+        ...technicalNavItems,
+        ...analyticsNavItems,
+      ]
     case "agent_resa":
-      // Agent résa : accès limité aux réservations, produits (lecture), et support
+      // Agent résa : accès limité aux réservations, produits (lecture), support et analytics
       return [
         ...baseNavItems,
         managerNavItems[0]!, // B2C Réservations (avec subItems)
         managerNavItems[2]!, // Produits (lecture seule)
         managerNavItems[5]!, // Support & Clients
+        ...analyticsNavItems,
       ]
     case "agent_compta":
       // Agent compta : accès comptabilité + réservations (lecture)
@@ -335,6 +419,19 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "agencies") label = "Agences"
     if (paths[i] === "logs") label = "Logs Système"
     if (paths[i] === "brand") label = "Marque Easy2Book"
+    if (paths[i] === "analytics") label = "Analytique"
+    if (paths[i] === "margins") label = "Marges"
+    if (paths[i] === "niches") label = "Niches CRM"
+    if (paths[i] === "search-demand") label = "Demande hôtel"
+    if (paths[i] === "campaigns") label = "Campagnes"
+    if (paths[i] === "conversion") label = "Conversion"
+    if (paths[i] === "trends") label = "Tendances"
+    if (paths[i] === "radar") label = "Radar Métier"
+    if (paths[i] === "vip") label = "Radar VIP"
+    if (paths[i] === "signal") label = "Signaux"
+    if (paths[i] === "action") label = "Actions"
+    if (paths[i] === "learning") label = "Apprentissage"
+    if (paths[i] === "campaign-engine") label = "Campagnes VIP"
 
     breadcrumbs.push({ label, href })
   }

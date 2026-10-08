@@ -17,6 +17,7 @@
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { resolve } from "node:path"
 import type { LeadWithScore } from "../../crm/learning-core.js"
 
 function mkLead(
@@ -266,14 +267,14 @@ describe("LEARNING-01 / page & navigation", () => {
   it("learning page file exists", async () => {
     const fs = await import("node:fs/promises")
     await fs.access(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/learning/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/learning/page.tsx"),
     )
   })
 
   it("learning page imports getLearning", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/learning/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/learning/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("getLearning"))
@@ -283,7 +284,7 @@ describe("LEARNING-01 / page & navigation", () => {
   it("learning page renders byBucket and topConverted", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/learning/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/learning/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("byBucket"))
@@ -293,7 +294,7 @@ describe("LEARNING-01 / page & navigation", () => {
   it("admin-shell includes Apprentissage nav item with /admin/analytics/learning href", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("/admin/analytics/learning"))
@@ -303,7 +304,7 @@ describe("LEARNING-01 / page & navigation", () => {
   it("admin-shell imports BookCheck icon", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("BookCheck"))

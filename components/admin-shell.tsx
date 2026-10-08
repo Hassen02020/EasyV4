@@ -267,6 +267,11 @@ const analyticsNavItems: NavItem[] = [
         href: "/admin/analytics/radar",
         icon: Zap,
       },
+      {
+        title: "Radar VIP",
+        href: "/admin/analytics/vip",
+        icon: Crown,
+      },
     ],
   },
 ]

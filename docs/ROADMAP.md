@@ -57,6 +57,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — RADAR-VIP-03 CLÔTURÉ (2026-10-08).
 **Aucun** — SIGNAL-ENGINE-01 CLÔTURÉ (2026-10-08, commit `03bc5c8`).
 **Aucun** — ACTION-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a0231ea`).
+**Aucun** — LEARNING-01 CLÔTURÉ (2026-10-08, commit `3b25026`).
 
 ---
 
@@ -159,7 +160,7 @@ SIGNAL ENGINE      🟢 v1 — convergence Métier × VIP → "Significatif ?"
  ↓
 ACTION ENGINE      🟢 v1 — recommandations structurées → "Quoi faire ?"
  ↓
-LEARNING           🔴 — "Est-ce que ça a marché ?"
+LEARNING           🟢 v1 — feedback loop conversion VIP → "Est-ce que ça a marché ?"
 ```
 
 **Radar Métier** répond : *Destination X +42% demandes +28% CA +35% marge → opportunité commerciale.*
@@ -198,8 +199,7 @@ RADAR-VIP-02  🟢  dedup best-effort email-first
 RADAR-VIP-03  🟢  dedup exacte CONTACT-01
 SIGNAL ENGINE 🟢  convergence Métier × VIP (commit 03bc5c8)
 ACTION ENGINE 🟢  recommandations structurées (commit a0231ea)
-              ↓
-LEARNING      🔴  "Est-ce que ça a marché ?" — prochaine étape
+LEARNING      🟢  feedback loop conversion VIP (commit 3b25026)
 ```
 
 **SIGNAL-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `03bc5c8`)**
@@ -262,8 +262,37 @@ explicable et exécutable par un humain ou Campaign Engine."
 
 **Tests** : 29/29 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
 
-**Prochain chantier identifié** : LEARNING ("Est-ce que ça a marché ?") ou CI-FIX-03
-— non audités — STOP.
+**Prochain chantier identifié** : LEARNING ("Est-ce que ça a marché ?")
+→ CLOS ci-dessous.
+
+---
+
+### LEARNING-01 — CLÔTURÉ (2026-10-08, commit `3b25026`)
+
+**Objectif** : quatrième étage du Programme Radar — mesurer si les actions ont porté leurs fruits.
+Feedback loop : score VIP × conversion (status="converted") sur fenêtre temporelle (4/8/12 sem).
+
+**Fichiers créés/modifiés** :
+- `lib/crm/learning-core.ts` — `buildLearningCore(leads, windowWeeks)` pure (CRÉÉ)
+  - segmentation VIP++ (≥80) / VIP+ (≥50) / Pipeline (≥25) / Faible
+  - taux de conversion par bucket, destination, produit
+  - délai moyen de conversion, top 20 convertis triés par vipScore
+- `lib/admin/learning-actions.ts` — `getLearning(windowWeeks)` Server Action (CRÉÉ)
+  - auth OTA (super_admin/manager/agent_resa), `withTenantContext`
+  - filtre les leads sur la fenêtre (createdAt >= cutoff)
+  - score chaque lead via `getVipScoreForLeadCore`
+- `app/(internal)/admin/analytics/learning/page.tsx` — UI "use client" (CRÉÉ)
+  - sélecteur 4/8/12 semaines, 4 KPI tiles
+  - table buckets VIP avec barre visuelle, tables destinations + produits
+  - table top convertis avec daysToConvert
+- `components/admin-shell.tsx` — nav item "Apprentissage" + icône BookCheck (ÉTENDU)
+  - breadcrumb `learning` → "Apprentissage"
+- `lib/admin/__tests__/learning-ui.test.ts` — 25 tests (CRÉÉ)
+
+**Tests** : 25/25 ✅ · typecheck 0 erreur ✅
+
+**Programme Radar complet** :
+- RADAR MÉTIER 🟢 → RADAR VIP 🟢 v3 → SIGNAL ENGINE 🟢 → ACTION ENGINE 🟢 → LEARNING 🟢
 
 ---
 

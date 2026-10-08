@@ -43,6 +43,16 @@ export interface CampaignPerformance {
   revenueTnd: string
   /** Somme de reservationFinancials.marginAmount pour les réservations attribuées. */
   marginTnd: string
+  /** Nombre de cibles dont le message a été envoyé (deliveryStatus='sent'). */
+  sent: number
+  /** Nombre de cibles dont l'envoi a échoué (deliveryStatus='failed'). */
+  failed: number
+  /** Nombre de cibles skippées — consentement révoqué, canal non configuré… (deliveryStatus='skipped'). */
+  skipped: number
+  /** Nombre de cibles en attente d'envoi (deliveryStatus='pending'). */
+  pending: number
+  /** Total livraison = sent + failed + skipped + pending (invariant : = exposed). */
+  totalTargets: number
 }
 
 export async function getCampaignPerformanceCore(
@@ -50,7 +60,13 @@ export async function getCampaignPerformanceCore(
   params: { agencyId: string; campaignId: string },
 ): Promise<CampaignPerformance> {
   const [exposedRow] = await tx
-    .select({ count: sql<number>`count(*)::int` })
+    .select({
+      count: sql<number>`count(*)::int`,
+      sent: sql<number>`count(case when ${campaignTargets.deliveryStatus} = 'sent' then 1 end)::int`,
+      failed: sql<number>`count(case when ${campaignTargets.deliveryStatus} = 'failed' then 1 end)::int`,
+      skipped: sql<number>`count(case when ${campaignTargets.deliveryStatus} = 'skipped' then 1 end)::int`,
+      pending: sql<number>`count(case when ${campaignTargets.deliveryStatus} = 'pending' then 1 end)::int`,
+    })
     .from(campaignTargets)
     .where(
       and(
@@ -87,5 +103,14 @@ export async function getCampaignPerformanceCore(
     converted: attributedRows.length,
     revenueTnd: revenueTnd.toFixed(2),
     marginTnd: marginTnd.toFixed(2),
+    sent: exposedRow?.sent ?? 0,
+    failed: exposedRow?.failed ?? 0,
+    skipped: exposedRow?.skipped ?? 0,
+    pending: exposedRow?.pending ?? 0,
+    totalTargets:
+      (exposedRow?.sent ?? 0) +
+      (exposedRow?.failed ?? 0) +
+      (exposedRow?.skipped ?? 0) +
+      (exposedRow?.pending ?? 0),
   }
 }

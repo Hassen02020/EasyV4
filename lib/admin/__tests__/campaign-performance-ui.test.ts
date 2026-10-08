@@ -45,4 +45,30 @@ describe("CAMPAIGN-PERF-UI-01 — invariants statiques", () => {
       `app/(internal)/admin/analytics/campaigns/page.tsx doit exister`,
     )
   })
+
+  test("CampaignPerformance inclut les champs delivery stats (sent/failed/skipped/pending/totalTargets)", () => {
+    const coreSource = readFileSync(
+      join(ROOT, "lib/crm/campaign-performance-core.ts"),
+      "utf8",
+    )
+    for (const field of ["sent:", "failed:", "skipped:", "pending:", "totalTargets:"]) {
+      assert.ok(
+        coreSource.includes(field),
+        `campaign-performance-core.ts doit contenir le champ "${field}" dans CampaignPerformance`,
+      )
+    }
+  })
+
+  test("page campaigns affiche les colonnes livraison (Envoyés/Échecs/Ignorés/En attente)", () => {
+    const pageSource = readFileSync(
+      join(ROOT, "app/(internal)/admin/analytics/campaigns/page.tsx"),
+      "utf8",
+    )
+    for (const col of ["Envoyés", "Échecs", "Ignorés", "En attente"]) {
+      assert.ok(
+        pageSource.includes(col),
+        `page.tsx doit contenir la colonne "${col}"`,
+      )
+    }
+  })
 })

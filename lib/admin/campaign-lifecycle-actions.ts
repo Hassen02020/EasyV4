@@ -27,6 +27,7 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { createCampaignCore } from "@/lib/crm/campaign-persistence-core"
 import { launchCampaignCore } from "@/lib/crm/campaign-persistence-core"
 import { fetchLeadsByIdsCore } from "@/lib/crm/leads-core"
+import { sendEvent } from "@/lib/inngest/client"
 import type { CrmChannel } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
@@ -132,6 +133,17 @@ export async function createAndLaunchCampaign(
         return { campaignId: campaign.id, targetCount: launch.targetCount }
       },
     )
+
+    // CAMPAIGN-DELIVERY-01 — déclencher la livraison en arrière-plan
+    // (fire-and-forget : un échec Inngest ne doit jamais faire échouer le
+    // retour du lancement — la campagne est déjà 'active' en DB).
+    await sendEvent("crm/campaign.launched", {
+      campaignId: result.campaignId,
+      agencyId: ctx.agencyId,
+      targetCount: result.targetCount,
+    }).catch((err) => {
+      console.error("[createAndLaunchCampaign] sendEvent failed", err)
+    })
 
     return { ok: true, ...result }
   } catch (err) {

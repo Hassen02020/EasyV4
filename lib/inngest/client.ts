@@ -91,6 +91,18 @@ export type Events = {
       contactEmail: string
     }
   }
+  /**
+   * CAMPAIGN-DELIVERY-01 — campagne lancée, déclenche l'envoi des messages
+   * aux campaign_targets via le canal de la campagne (email/whatsapp/call).
+   */
+  "crm/campaign.launched": {
+    data: {
+      campaignId: string
+      agencyId: string
+      /** Nombre de cibles dans campaign_targets au moment du lancement. */
+      targetCount: number
+    }
+  }
   /** Lead CRM créé — déclenche notification email à l'agence. */
   "crm/lead.created": {
     data: {

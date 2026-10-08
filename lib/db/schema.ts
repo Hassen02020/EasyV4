@@ -2531,6 +2531,11 @@ export const campaignTargets = pgTable(
     snapshotAt: timestamp("snapshot_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** CAMPAIGN-DELIVERY-01 — statut de livraison du message pour ce contact. */
+    deliveryStatus: varchar("delivery_status", { length: 16 })
+      .notNull()
+      .default("pending"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("campaign_targets_campaign_contact_uniq").on(
@@ -2538,6 +2543,10 @@ export const campaignTargets = pgTable(
       t.contactId,
     ),
     index("campaign_targets_agency_idx").on(t.agencyId),
+    index("campaign_targets_delivery_status_idx").on(
+      t.campaignId,
+      t.deliveryStatus,
+    ),
   ],
 )
 

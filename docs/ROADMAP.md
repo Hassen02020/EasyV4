@@ -46,6 +46,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — PARTNER-GAP-1 CLÔTURÉ (2026-10-04, commit `41b1293`).
 **Aucun** — POST-BATCH-CERTIFICATION-AUDIT CLÔTURÉ (2026-10-08) — PRs #156/#157/#158 certifiés.
 **Aucun** — CANONICAL-OWNERSHIP-AUDIT CLÔTURÉ (2026-10-08) — domaine `canonical_hotels`/`canonical_hotel_supplier_mappings` : 6/6 preuves confirmées, aucun GAP.
+**Aucun** — SEARCH-DEMAND-DISPLAY-01 CLÔTURÉ (2026-10-08, commit `75a1b9e`).
 
 ---
 
@@ -94,6 +95,33 @@ Audit réalisé sur HEAD `a0b70ed`.
 
 **Observation sans impact** : `app_runtime` a le grant `UPDATE` sur `canonical_hotels`
 (pour `updatedAt` potentiel) mais aucun code path ne l'utilise actuellement. Pas un GAP.
+
+---
+
+### SEARCH-DEMAND-DISPLAY-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : exposer au staff OTA les données `search_demand_signals` capturées depuis
+BEHAVIORAL-SIGNAL-01 (PR #146) mais jusque-là sans UI — page admin read-only, top destinations
+sur 30 jours, triées par volume décroissant.
+
+**Commit** : `75a1b9e` — branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**Implémentation** :
+
+| Fichier | Action | Détail |
+|---------|--------|--------|
+| `lib/crm/search-demand-core.ts` | EXTEND | `SearchDemandRow` type + `getSearchDemandSummaryCore()` (30j, GROUP BY, ORDER BY volume DESC, LIMIT 50, filtre `agencyId` défensif en plus RLS) |
+| `lib/admin/search-demand-actions.ts` | CREATE | Server Action `listSearchDemandSignals()` — `assertSupportStaff` (super_admin/manager/agent_resa + agencyType=ota) |
+| `app/(internal)/admin/analytics/search-demand/page.tsx` | CREATE | Page read-only, pattern useEffect identique à `/admin/analytics/niches` |
+| `lib/admin/__tests__/search-demand-actions-live.test.ts` | CREATE | 3 tests live Postgres : agrégation+tri, isolation cross-agency, filtre 30j |
+
+**Vérifications** :
+- `pnpm typecheck` → 0 erreurs ✅
+- `pnpm lint` → 0 erreurs ✅
+- `pnpm test` → 1563 pass / 0 fail / 353 skip ✅
+- `pnpm build` → succès ✅
+
+**NOT VERIFIED** : rendu visuel de la page (pas de Postgres local en CI — tests live skippés automatiquement).
 
 ---
 

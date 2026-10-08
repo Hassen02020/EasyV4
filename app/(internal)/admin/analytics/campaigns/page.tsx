@@ -140,6 +140,10 @@ export default function CampaignAnalyticsPage() {
                   <TableHead>Canal</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Exposés</TableHead>
+                  <TableHead className="text-right">Envoyés</TableHead>
+                  <TableHead className="text-right">Échecs</TableHead>
+                  <TableHead className="text-right">Ignorés</TableHead>
+                  <TableHead className="text-right">En attente</TableHead>
                   <TableHead className="text-right">Convertis</TableHead>
                   <TableHead className="text-right">Taux conv.</TableHead>
                   <TableHead className="text-right">CA (TND)</TableHead>
@@ -159,6 +163,16 @@ export default function CampaignAnalyticsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">{r.exposed}</TableCell>
+                    <TableCell className="text-right">{r.sent}</TableCell>
+                    <TableCell className="text-right">
+                      {r.failed > 0 ? (
+                        <span className="text-destructive">{r.failed}</span>
+                      ) : (
+                        r.failed
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">{r.skipped}</TableCell>
+                    <TableCell className="text-right">{r.pending}</TableCell>
                     <TableCell className="text-right">{r.converted}</TableCell>
                     <TableCell className="text-right">
                       {convRate(r.exposed, r.converted)}

@@ -255,6 +255,11 @@ const analyticsNavItems: NavItem[] = [
         href: "/admin/analytics/conversion",
         icon: Target,
       },
+      {
+        title: "Tendances",
+        href: "/admin/analytics/trends",
+        icon: TrendingUp,
+      },
     ],
   },
 ]
@@ -384,6 +389,7 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "search-demand") label = "Demande hôtel"
     if (paths[i] === "campaigns") label = "Campagnes"
     if (paths[i] === "conversion") label = "Conversion"
+    if (paths[i] === "trends") label = "Tendances"
 
     breadcrumbs.push({ label, href })
   }

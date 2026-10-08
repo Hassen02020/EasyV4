@@ -48,6 +48,28 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — CANONICAL-OWNERSHIP-AUDIT CLÔTURÉ (2026-10-08) — domaine `canonical_hotels`/`canonical_hotel_supplier_mappings` : 6/6 preuves confirmées, aucun GAP.
 **Aucun** — SEARCH-DEMAND-DISPLAY-01 CLÔTURÉ (2026-10-08, commit `75a1b9e`).
 **Aucun** — ADMIN-ANALYTICS-NAV-01 CLÔTURÉ (2026-10-08, commit `724c4ea`).
+**Aucun** — CAMPAIGN-PERF-UI-01 CLÔTURÉ (2026-10-08, commit `c6cea0a`).
+
+---
+
+### CAMPAIGN-PERF-UI-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : exposer au staff OTA les performances CRM des campagnes
+(exposés / convertis / CA / marge) via une page admin `/admin/analytics/campaigns`.
+Le moteur `getCampaignPerformanceCore()` était déployé depuis commit `155d540` mais
+aucune interface admin ne le consommait.
+
+**Commit** : `c6cea0a`
+
+**Fichiers créés/modifiés** :
+- `lib/admin/campaign-performance-actions.ts` — Server Action `listCampaignPerformance()` (CRÉÉ)
+- `app/(internal)/admin/analytics/campaigns/page.tsx` — page analytics Campagnes (CRÉÉ)
+- `components/admin-shell.tsx` — 4e sous-item "Campagnes" dans analyticsNavItems (ÉTENDU)
+- `lib/admin/__tests__/campaign-performance-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 3/3 ✅ · typecheck ✅ · lint 0 erreur ✅ · build exit 0 ✅
+
+**Prochain chantier potentiel** : non audité — STOP.
 
 ---
 

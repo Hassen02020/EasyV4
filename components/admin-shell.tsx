@@ -36,6 +36,7 @@ import {
   BarChart2,
   Palette,
   Landmark,
+  Target,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -249,6 +250,11 @@ const analyticsNavItems: NavItem[] = [
         href: "/admin/analytics/campaigns",
         icon: Activity,
       },
+      {
+        title: "Conversion",
+        href: "/admin/analytics/conversion",
+        icon: Target,
+      },
     ],
   },
 ]
@@ -377,6 +383,7 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "niches") label = "Niches CRM"
     if (paths[i] === "search-demand") label = "Demande hôtel"
     if (paths[i] === "campaigns") label = "Campagnes"
+    if (paths[i] === "conversion") label = "Conversion"
 
     breadcrumbs.push({ label, href })
   }

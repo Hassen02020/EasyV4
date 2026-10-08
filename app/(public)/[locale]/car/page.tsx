@@ -22,11 +22,9 @@ import { getTranslations } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { CarSearch } from "@/components/car/car-search"
-import { withSystemContext } from "@/lib/db/tenant-context"
-import { carLocations, carCategories } from "@/lib/db/schema"
-import { and, eq } from "drizzle-orm"
-import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { getActiveCarCatalog } from "@/lib/cars/catalog"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
@@ -36,44 +34,6 @@ export const metadata = {
   description:
     "Louez une voiture en Tunisie au meilleur prix. Berline, SUV, minibus. Prise en charge aéroport ou agence.",
   alternates: { languages: buildLanguageAlternates("/car") },
-}
-
-async function getCatalog() {
-  try {
-    const agencyId = await getDefaultAgencyId()
-    if (!agencyId) return { agencyId: null, locations: [], categories: [] }
-
-    // Catalogue public (trafic anonyme, pas de session storefront).
-    const [locations, categories] = await Promise.all([
-      withSystemContext((db) =>
-        db
-          .select()
-          .from(carLocations)
-          .where(
-            and(
-              eq(carLocations.agencyId, agencyId),
-              eq(carLocations.status, "active"),
-            ),
-          )
-          .orderBy(carLocations.name),
-      ),
-      withSystemContext((db) =>
-        db
-          .select()
-          .from(carCategories)
-          .where(
-            and(
-              eq(carCategories.agencyId, agencyId),
-              eq(carCategories.status, "active"),
-            ),
-          )
-          .orderBy(carCategories.name),
-      ),
-    ])
-    return { agencyId, locations, categories }
-  } catch {
-    return { agencyId: null, locations: [], categories: [] }
-  }
 }
 
 interface CarSearchParams {
@@ -89,8 +49,10 @@ export default async function CarPage({
   searchParams: Promise<CarSearchParams>
 }) {
   const { location, pickupDate, returnDate, category } = await searchParams
-  const { locations, categories } = await getCatalog()
+  const { locations, categories } = await getActiveCarCatalog()
   const t = await getTranslations("Car")
+
+  const visual = await getPublicModuleVisual("car")
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -99,7 +61,7 @@ export default async function CarPage({
         <ModuleHero
           Icon={Car}
           gradient="from-red-900 to-red-700"
-          imageUrl="https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

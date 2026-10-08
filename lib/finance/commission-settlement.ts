@@ -97,7 +97,10 @@ export async function settleCommissions(
     // 3. Enregistrer les entrées settlées (append-only — jamais d'UPDATE sur wallet_ledger)
     if (entryCount > 0) {
       const settledEntries = await tx
-        .select({ id: walletLedger.id, reservationId: walletLedger.reservationId })
+        .select({
+          id: walletLedger.id,
+          reservationId: walletLedger.reservationId,
+        })
         .from(walletLedger)
         .where(
           and(

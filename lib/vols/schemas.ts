@@ -98,28 +98,6 @@ export const flightTravelerSchema = z.object({
 
 export type FlightTravelerFormInput = z.infer<typeof flightTravelerSchema>
 
-/** Le premier voyageur sert de contact principal — un email est requis pour lui. */
-export const flightGuestBookingSchema = z
-  .object({
-    offerToken: z.string().min(1, "Offre invalide"),
-    expectedPriceTnd: z.number().positive("Prix invalide"),
-    travelers: z
-      .array(flightTravelerSchema)
-      .min(1, "Au moins un voyageur requis")
-      .max(9, "Maximum 9 voyageurs par réservation"),
-  })
-  .superRefine((data, ctx) => {
-    if (!data.travelers[0]?.email) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["travelers", 0, "email"],
-        message: "Un email est requis pour le contact principal du groupe",
-      })
-    }
-  })
-
-export type FlightGuestBookingInput = z.infer<typeof flightGuestBookingSchema>
-
 // ---------------------------------------------------------------------------
 // G10 — New B2C booking schema (snapshotId replaces offerToken/expectedPrice)
 // Used by /vols/passengers → booking-request-action.ts

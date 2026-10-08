@@ -110,20 +110,6 @@ test("Hotels-Monde — hotels-monde/guest-booking-actions.ts : 3 lignes (externa
   )
 })
 
-/* -------------------------------------------------------------------------- */
-/* Vols — fournisseur externe réel, 0 commission aujourd'hui                  */
-/* -------------------------------------------------------------------------- */
-
-test("Vols — vols/guest-booking-actions.ts : 2 lignes (external_supplier + agency seller), pas de commission fabriquée", () => {
-  const src = read("lib/vols/guest-booking-actions.ts")
-  assert.match(
-    src,
-    /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
-  )
-  assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
-  assert.equal(src.includes('qualification: "commission"'), false)
-})
-
 test("vols/flight-financials.ts : 2 lignes conditionnées à la résolution réelle de agencyId (pas de ligne si la réservation est introuvable)", () => {
   const src = read("lib/vols/flight-financials.ts")
   assert.match(
@@ -175,7 +161,6 @@ test("aucun des fichiers câblés ne modifie applyMargin/getMarginsForAgency/cre
     "lib/cars/guest-booking-actions.ts",
     "lib/transfers/actions.ts",
     "lib/hotels-monde/guest-booking-actions.ts",
-    "lib/vols/guest-booking-actions.ts",
     "lib/vols/flight-financials.ts",
     "lib/omra/booking-actions.ts",
     "lib/omra/guest-booking-actions.ts",

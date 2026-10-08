@@ -196,111 +196,111 @@ export function WalletRechargeForm({
         </div>
       )}
 
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Méthode de paiement */}
-      <div className="space-y-2">
-        <Label htmlFor="method">Mode de paiement</Label>
-        <Select
-          value={method}
-          onValueChange={(v) => setMethod(v as RechargeMethodType)}
-        >
-          <SelectTrigger id="method">
-            <SelectValue placeholder="Sélectionnez un mode de paiement" />
-          </SelectTrigger>
-          <SelectContent>
-            {METHODS.map((m) => (
-              <SelectItem key={m.value} value={m.value}>
-                <div>
-                  <span className="font-medium">{m.label}</span>
-                  <span className="text-muted-foreground ml-2 text-xs">
-                    — {m.description}
-                  </span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Méthode de paiement */}
+        <div className="space-y-2">
+          <Label htmlFor="method">Mode de paiement</Label>
+          <Select
+            value={method}
+            onValueChange={(v) => setMethod(v as RechargeMethodType)}
+          >
+            <SelectTrigger id="method">
+              <SelectValue placeholder="Sélectionnez un mode de paiement" />
+            </SelectTrigger>
+            <SelectContent>
+              {METHODS.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  <div>
+                    <span className="font-medium">{m.label}</span>
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      — {m.description}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* Montant */}
-      <div className="space-y-2">
-        <Label htmlFor="amount">Montant (DT)</Label>
-        <div className="relative">
+        {/* Montant */}
+        <div className="space-y-2">
+          <Label htmlFor="amount">Montant (DT)</Label>
+          <div className="relative">
+            <Input
+              id="amount"
+              type="number"
+              step="0.001"
+              min="1"
+              max="999999"
+              placeholder="Ex: 5000.000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="pr-12"
+            />
+            <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+              TND
+            </span>
+          </div>
+        </div>
+
+        {/* Référence paiement */}
+        <div className="space-y-2">
+          <Label htmlFor="ref">
+            Référence du paiement{" "}
+            <span className="text-muted-foreground">(optionnel)</span>
+          </Label>
           <Input
-            id="amount"
-            type="number"
-            step="0.001"
-            min="1"
-            max="999999"
-            placeholder="Ex: 5000.000"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="pr-12"
+            id="ref"
+            placeholder="N° virement, n° mandat, n° chèque..."
+            value={paymentReference}
+            onChange={(e) => setPaymentReference(e.target.value)}
           />
-          <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-            TND
-          </span>
         </div>
-      </div>
 
-      {/* Référence paiement */}
-      <div className="space-y-2">
-        <Label htmlFor="ref">
-          Référence du paiement{" "}
-          <span className="text-muted-foreground">(optionnel)</span>
-        </Label>
-        <Input
-          id="ref"
-          placeholder="N° virement, n° mandat, n° chèque..."
-          value={paymentReference}
-          onChange={(e) => setPaymentReference(e.target.value)}
-        />
-      </div>
-
-      {/* Note */}
-      <div className="space-y-2">
-        <Label htmlFor="note">
-          Note <span className="text-muted-foreground">(optionnel)</span>
-        </Label>
-        <Textarea
-          id="note"
-          placeholder="Informations complémentaires..."
-          rows={2}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-      </div>
-
-      {/* Erreur */}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      {/* Succès */}
-      {success && (
-        <div className="flex items-center gap-2 text-sm text-green-600">
-          <CheckCircle2 className="h-4 w-4" />
-          Demande de recharge soumise avec succès. Elle sera validée par un
-          administrateur.
+        {/* Note */}
+        <div className="space-y-2">
+          <Label htmlFor="note">
+            Note <span className="text-muted-foreground">(optionnel)</span>
+          </Label>
+          <Textarea
+            id="note"
+            placeholder="Informations complémentaires..."
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
         </div>
-      )}
 
-      {/* Submit */}
-      <Button type="submit" disabled={isPending} className="w-full">
-        {isPending ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Envoi en cours...
-          </>
-        ) : (
-          "Soumettre la demande de recharge"
+        {/* Erreur */}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {/* Succès */}
+        {success && (
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <CheckCircle2 className="h-4 w-4" />
+            Demande de recharge soumise avec succès. Elle sera validée par un
+            administrateur.
+          </div>
         )}
-      </Button>
 
-      <p className="text-muted-foreground text-xs">
-        Votre demande sera traitée par un administrateur sous 24h ouvrées.
-        Joignez un justificatif (photo du reçu, bordereau) pour accélérer la
-        validation.
-      </p>
-    </form>
+        {/* Submit */}
+        <Button type="submit" disabled={isPending} className="w-full">
+          {isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Envoi en cours...
+            </>
+          ) : (
+            "Soumettre la demande de recharge"
+          )}
+        </Button>
+
+        <p className="text-muted-foreground text-xs">
+          Votre demande sera traitée par un administrateur sous 24h ouvrées.
+          Joignez un justificatif (photo du reçu, bordereau) pour accélérer la
+          validation.
+        </p>
+      </form>
     </div>
   )
 }

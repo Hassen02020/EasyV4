@@ -33,6 +33,8 @@ import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
+import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -55,6 +57,14 @@ export interface GuestTransferBookingInput {
     email?: string
     civicId?: string
   }
+  /**
+   * PRICING-PROMO-LINK-01 — INDICE transporté par le client (lien de
+   * campagne), jamais une autorisation. L'éligibilité réelle est
+   * TOUJOURS re-dérivée côté serveur (`resolveCheckoutPromoCore`) à
+   * partir du contact RÉEL du client (`customer.email`/`phone`),
+   * jamais déduite de ce champ seul.
+   */
+  campaignId?: string
 }
 
 export type CreateGuestTransferBookingResult =
@@ -162,7 +172,31 @@ async function runCreateGuestTransferBooking(
         })
         if (!pricing) throw new Error("NO_PRICING")
 
-        const totalTnd = pricing.totalTnd
+        // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
+        // Appliquée ICI, AVANT toute dérivation (reservations/payments/
+        // recordReservationFinancials consomment tous `totalTnd`
+        // ci-dessous) — jamais seulement avant l'enregistrement
+        // financier. `campaignId` est un INDICE transporté par le
+        // client, jamais une autorisation : `resolveCheckoutPromoCore`
+        // re-dérive l'éligibilité réelle depuis le contact réel.
+        // Transfert : pas de coût fournisseur séparé (prix catalogue =
+        // prix de vente, voir recordReservationFinancials ci-dessous) —
+        // `supplierPriceTnd` omis, jamais fabriqué.
+        let totalTnd = pricing.totalTnd
+        if (input.campaignId) {
+          const checkoutPromo = await resolveCheckoutPromoCore(tx, {
+            agencyId,
+            campaignId: input.campaignId,
+            email: input.customer.email ?? null,
+            phone: input.customer.phone,
+          })
+          if (checkoutPromo.eligible) {
+            totalTnd = applyPromoDiscountCore(
+              totalTnd,
+              checkoutPromo.discount,
+            ).finalPriceTnd
+          }
+        }
 
         // 2. Noms des zones pour l'affichage
         const [fromZone] = await tx

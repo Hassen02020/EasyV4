@@ -11,21 +11,20 @@
  * humain — non vide = bot, `ok: true` renvoyé quand même (ne jamais révéler
  * la détection à l'appelant) sans rien persister. Rate-limité par IP, même
  * bucket pattern que les routes de recherche publiques (lib/rate-limit.ts).
+ *
+ * CRM-LEAD-WIRING-01 — câblé sur captureWebsiteLeadCore
+ * (lib/crm/website-lead-capture-core.ts), même patron que
+ * lib/meta-leadads/lead-capture-core.ts pour le canal Meta Lead Ads.
  */
 
 import { headers } from "next/headers"
 import { z } from "zod"
-import { eq } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { rateLimit } from "@/lib/rate-limit"
-import {
-  LEAD_PRODUCT_TYPES,
-  LEAD_ACQUISITION_CHANNELS,
-  createLeadCore,
-} from "@/lib/crm/leads-core"
+import { LEAD_PRODUCT_TYPES, LEAD_INTENTIONS } from "@/lib/crm/leads-core"
+import { captureWebsiteLeadCore } from "@/lib/crm/website-lead-capture-core"
 import { sendEvent } from "@/lib/inngest/client"
-import { products } from "@/lib/db/schema"
 
 const inputSchema = z
   .object({
@@ -38,8 +37,10 @@ const inputSchema = z
     productRef: z.string().trim().max(128).optional(),
     productLabel: z.string().trim().max(255).optional(),
     sourcePage: z.string().trim().min(1).max(255),
-    /** Canal de distribution par lequel le visiteur est arrivé (J6). */
-    acquisitionChannel: z.enum(LEAD_ACQUISITION_CHANNELS).optional(),
+    /** CRM-NICHE-01 — optionnel : pas tous les formulaires n'exposent encore ce champ. */
+    destination: z.string().trim().max(128).optional(),
+    /** CRM-NICHE-01 — défaut "standard" si le formulaire ne le précise pas. */
+    intention: z.enum(LEAD_INTENTIONS).default("standard"),
     /** Honeypot — doit rester vide. */
     website: z.string().optional(),
   })
@@ -87,40 +88,11 @@ export async function submitLead(
     return { ok: false, error: "Aucune agence n'est configurée pour ce site." }
   }
 
-  // UUID v4 regex — productRef peut être un UUID de produit catalogue Network
-  // ou un id externe opaque (myGo, etc.). On ne tente la jointure que si la
-  // forme ressemble à un UUID, pour éviter un SELECT systématique sur les leads
-  // classiques où productRef est un id myGo arbitraire.
-  const UUID_RE =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-  const productRefIsUuid =
-    parsed.data.productRef && UUID_RE.test(parsed.data.productRef)
-
   try {
-    const { id: leadId } = await withTenantContext(
+    const { leadId } = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: true },
-      async (tx) => {
-        // J5 : résoudre le supplier_node_id si productRef est un UUID catalogue
-        let supplierNodeId: string | null = null
-        if (productRefIsUuid) {
-          const [product] = await tx
-            .select({ supplierNodeId: products.supplierNodeId })
-            .from(products)
-            .where(eq(products.id, parsed.data.productRef!))
-            .limit(1)
-          supplierNodeId = product?.supplierNodeId ?? null
-        }
-
-        // J6-BIS : inférer le canal si l'appelant ne le fournit pas.
-        // Règles (ordre de priorité) :
-        //   1. Explicitement fourni par l'appelant (ex. portail B2B/White Label) → tel quel.
-        //   2. supplierNodeId non null = produit Network → "network".
-        //   3. Défaut public B2C (submitLead est l'action de capture publique).
-        const acquisitionChannel =
-          parsed.data.acquisitionChannel ??
-          (supplierNodeId ? "network" : "b2c")
-
-        return createLeadCore(tx, {
+      (tx) =>
+        captureWebsiteLeadCore(tx, {
           agencyId,
           firstName: parsed.data.firstName,
           lastName: parsed.data.lastName || null,
@@ -131,10 +103,9 @@ export async function submitLead(
           productRef: parsed.data.productRef || null,
           productLabel: parsed.data.productLabel || null,
           sourcePage: parsed.data.sourcePage,
-          acquisitionChannel,
-          supplierNodeId,
-        })
-      },
+          destination: parsed.data.destination || null,
+          intention: parsed.data.intention,
+        }),
     )
 
     // Notification en arrière-plan — erreur Inngest silencieuse (lead déjà persisté)

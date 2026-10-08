@@ -503,14 +503,10 @@ export async function updateAgencyWhiteLabel(
     updatedAt: Date
   }> = { updatedAt: new Date() }
 
-  if ("brandName" in input)
-    patch.brandName = input.brandName || null
-  if ("logoUrl" in input)
-    patch.logoUrl = input.logoUrl || null
-  if ("primaryColor" in input)
-    patch.primaryColor = input.primaryColor || null
-  if ("domain" in input)
-    patch.domain = input.domain || null
+  if ("brandName" in input) patch.brandName = input.brandName || null
+  if ("logoUrl" in input) patch.logoUrl = input.logoUrl || null
+  if ("primaryColor" in input) patch.primaryColor = input.primaryColor || null
+  if ("domain" in input) patch.domain = input.domain || null
 
   try {
     await withTenantContext(
@@ -549,7 +545,10 @@ export async function updateAgencyWhiteLabel(
     return { ok: true }
   } catch (e) {
     if (pgErrorCode(e) === "23505") {
-      return { ok: false, error: "Ce domaine est déjà utilisé par une autre agence." }
+      return {
+        ok: false,
+        error: "Ce domaine est déjà utilisé par une autre agence.",
+      }
     }
     logger.error("[agencies-actions] updateAgencyWhiteLabel failed", {
       agencyId: input.agencyId,

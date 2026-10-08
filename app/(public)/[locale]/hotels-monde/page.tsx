@@ -8,6 +8,7 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { WorldHotelSearch } from "@/components/hotels-monde/world-hotel-search"
 import { ModuleHero } from "@/components/module-hero"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const metadata = {
@@ -31,6 +32,8 @@ export default async function HotelsMondeePage({
   const { destination, checkIn, checkOut } = await searchParams
   const t = await getTranslations("HotelsMonde")
 
+  const visual = await getPublicModuleVisual("hotels-monde")
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -38,7 +41,7 @@ export default async function HotelsMondeePage({
         <ModuleHero
           Icon={Globe}
           gradient="from-indigo-900 to-indigo-700"
-          imageUrl="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1800&q=85&auto=format&fit=crop"
+          imageUrl={visual?.heroImageUrl ?? undefined}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

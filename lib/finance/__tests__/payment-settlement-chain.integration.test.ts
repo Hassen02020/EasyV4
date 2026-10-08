@@ -429,7 +429,9 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
     tx
       .select()
       .from(commissionSettlementEntries)
-      .where(eq(commissionSettlementEntries.walletLedgerId, walletLedgerIdComm)),
+      .where(
+        eq(commissionSettlementEntries.walletLedgerId, walletLedgerIdComm),
+      ),
   )
   assert.equal(
     entries.length,
@@ -543,8 +545,15 @@ test("settleCommissions : une période chevauchante ne ré-inclut pas les entré
     0,
     "entryCount=0 : l'entrée déjà settlée est exclue par notSettledFilter sur une période chevauchante",
   )
-  assert.equal(result.totalAmount, 0, "totalAmount=0 sur période chevauchante sans nouvelles entrées")
-  assert.ok(result.settlementId, "settlement vide créé (trace de vérification de la période)")
+  assert.equal(
+    result.totalAmount,
+    0,
+    "totalAmount=0 sur période chevauchante sans nouvelles entrées",
+  )
+  assert.ok(
+    result.settlementId,
+    "settlement vide créé (trace de vérification de la période)",
+  )
 })
 
 /* -------------------------------------------------------------------------- */

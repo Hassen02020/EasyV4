@@ -17,6 +17,9 @@ import {
   Clock,
   Search,
   Compass,
+  Plane,
+  Navigation,
+  Car,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -84,22 +87,67 @@ const HotelsTunisieSearch = dynamic(
  * /attractions/[slug]/book) — plus de raison de l'exclure ici.
  */
 const tabsConfig = [
-  { id: "hotels-tunisie", labelKey: "tabHotelsTunisie", icon: Building2 },
-  { id: "hotels-monde", labelKey: "tabHotelsMonde", icon: Globe },
-  { id: "omraty", labelKey: "tabOmraty", icon: Moon },
-  { id: "voyages-organises", labelKey: "tabVoyages", icon: Briefcase },
-  { id: "attractions", labelKey: "tabAttractions", icon: Compass },
+  {
+    id: "hotels-tunisie",
+    labelKey: "tabHotelsTunisie",
+    icon: Building2,
+    href: "/hotels",
+  },
+  {
+    id: "hotels-monde",
+    labelKey: "tabHotelsMonde",
+    icon: Globe,
+    href: "/hotels-monde",
+  },
+  { id: "omraty", labelKey: "tabOmraty", icon: Moon, href: "/omra" },
+  {
+    id: "voyages-organises",
+    labelKey: "tabVoyages",
+    icon: Briefcase,
+    href: "/packages",
+  },
+  {
+    id: "attractions",
+    labelKey: "tabAttractions",
+    icon: Compass,
+    href: "/attractions",
+  },
+  { id: "vols", labelKey: "tabVols", icon: Plane, href: "/vols" },
+  {
+    id: "transferts",
+    labelKey: "tabTransferts",
+    icon: Navigation,
+    href: "/transferts",
+  },
+  { id: "car", labelKey: "tabCar", icon: Car, href: "/car" },
 ] as const
 
 type TabId = (typeof tabsConfig)[number]["id"]
+type PublicModuleVisual = {
+  moduleSlug: string
+  enabled: boolean
+  sortOrder: number
+  heroImageUrl: string | null
+}
+
+// Catalogue minimal nécessaire au mini-formulaire homepage — pas le shape
+// complet de `CatalogTransferZone`/`CarLocation` (lib/db/schema), juste
+// id+name pour peupler un <Select>.
+type CatalogTransferZoneLite = { id: string; name: string }
+type CarLocationLite = { id: string; name: string }
 
 // Sidi Bou Said — iconic Tunisian Mediterranean coast (white & blue village)
 
-const HERO_BG_URL =
-  "https://images.unsplash.com/photo-1531761535209-180857e963b9?w=2400&q=80&auto=format&fit=crop"
-
 /** Rend le formulaire du module actif — partagé par la carte flottante desktop et le bottom-sheet mobile. */
-function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
+function ActiveModuleForm({
+  activeTab,
+  transferZones,
+  carLocations,
+}: {
+  activeTab: TabId
+  transferZones: CatalogTransferZoneLite[]
+  carLocations: CarLocationLite[]
+}) {
   switch (activeTab) {
     case "hotels-tunisie":
       return <HotelsTunisieSearch />
@@ -111,6 +159,12 @@ function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
       return <VoyagesOrganisesForm />
     case "attractions":
       return <AttractionsForm />
+    case "vols":
+      return <VolsForm />
+    case "transferts":
+      return <TransfertsForm zones={transferZones} />
+    case "car":
+      return <CarForm locations={carLocations} />
   }
 }
 
@@ -118,10 +172,12 @@ function ActiveModuleForm({ activeTab }: { activeTab: TabId }) {
 function TabPills({
   activeTab,
   onSelect,
+  visibleTabs,
   className,
 }: {
   activeTab: TabId
   onSelect: (id: TabId) => void
+  visibleTabs: Array<(typeof tabsConfig)[number]>
   className?: string
 }) {
   const t = useTranslations("Common")
@@ -134,7 +190,7 @@ function TabPills({
         className,
       )}
     >
-      {tabsConfig.map((tab) => {
+      {visibleTabs.map((tab) => {
         const Icon = tab.icon
         const isActive = activeTab === tab.id
 
@@ -161,13 +217,34 @@ function TabPills({
   )
 }
 
-export function BookingEngine() {
-  const [activeTab, setActiveTab] = useState<TabId>("hotels-tunisie")
+export function BookingEngine({
+  heroImageUrl,
+  modules = [],
+  transferZones = [],
+  carLocations = [],
+}: {
+  heroImageUrl?: string | null
+  modules?: PublicModuleVisual[]
+  transferZones?: CatalogTransferZoneLite[]
+  carLocations?: CarLocationLite[]
+}) {
+  const enabledModules = modules
+    .filter((module) => module.enabled)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const visibleTabs = tabsConfig.filter((tab) =>
+    enabledModules.some((module) => module.moduleSlug === tab.id),
+  )
+  const firstTab = visibleTabs[0]?.id ?? "hotels-tunisie"
+  const [activeTab, setActiveTab] = useState<TabId>(firstTab)
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useTranslations("Common")
   const tHome = useTranslations("Home")
 
   const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
+  const activeModule = enabledModules.find(
+    (module) => module.moduleSlug === activeTab,
+  )
+  const activeHeroImageUrl = activeModule?.heroImageUrl ?? heroImageUrl
   const ActiveIcon = activeTabConfig.icon
 
   return (
@@ -175,7 +252,11 @@ export function BookingEngine() {
       {/* Hero background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url('${HERO_BG_URL}')` }}
+        style={
+          activeHeroImageUrl
+            ? { backgroundImage: `url('${activeHeroImageUrl}')` }
+            : undefined
+        }
       >
         <div className="from-sidebar/85 via-sidebar/35 to-background absolute inset-0 bg-gradient-to-b" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
@@ -201,11 +282,19 @@ export function BookingEngine() {
           style={{ animationDelay: "80ms" }}
         >
           <div className="flex items-center justify-between gap-3 px-1.5 pt-1.5 pb-2">
-            <TabPills activeTab={activeTab} onSelect={setActiveTab} />
+            <TabPills
+              activeTab={activeTab}
+              onSelect={setActiveTab}
+              visibleTabs={visibleTabs}
+            />
           </div>
 
           <div className="rounded-[1.4rem] bg-white/60 p-5 sm:p-6">
-            <ActiveModuleForm activeTab={activeTab} />
+            <ActiveModuleForm
+              activeTab={activeTab}
+              transferZones={transferZones}
+              carLocations={carLocations}
+            />
           </div>
         </div>
 
@@ -247,6 +336,7 @@ export function BookingEngine() {
                 <TabPills
                   activeTab={activeTab}
                   onSelect={setActiveTab}
+                  visibleTabs={visibleTabs}
                   className="flex-1"
                 />
                 <DrawerClose asChild>
@@ -273,7 +363,11 @@ export function BookingEngine() {
                   }
                 }}
               >
-                <ActiveModuleForm activeTab={activeTab} />
+                <ActiveModuleForm
+                  activeTab={activeTab}
+                  transferZones={transferZones}
+                  carLocations={carLocations}
+                />
               </div>
             </DrawerContent>
           </Drawer>
@@ -664,6 +758,194 @@ function AttractionsForm() {
 
       <div className="flex justify-end pt-1">
         <SearchSubmit>{tAttractions("searchButton")}</SearchSubmit>
+      </div>
+    </form>
+  )
+}
+
+// HOMEPAGE-ENGINE-PARITY-01 : Vols/Transferts/Car rejoignent le même
+// "démarche" que les 5 autres modules — un mini-formulaire inline sur la
+// homepage, jamais un second moteur de recherche indépendant. Chaque
+// formulaire ci-dessous navigue vers la page canonique du module
+// (`/vols`, `/transferts`, `/car`) avec EXACTEMENT le même vocabulaire de
+// paramètres que cette page lit déjà (voir EASYV4_SEARCH_ENGINES_AUDIT_
+// REPORT.md — l'anti-pattern historique était un DEUXIÈME formulaire avec
+// un vocabulaire différent, soumettant vers une route "/search" qui
+// n'existait pas). Ici, zéro nouvelle route, zéro nouveau vocabulaire :
+// /vols lit déjà origin/destination/class/adults et redirige lui-même
+// vers /vols/search si la recherche est complète ; /transferts et /car
+// lisent leurs propres params (ajoutés à /transferts/page.tsx dans ce
+// même chantier, déjà présents sur /car/page.tsx) et pré-remplissent leur
+// formulaire réel, qu'il ne reste plus qu'à valider.
+
+function VolsForm() {
+  const router = useRouter()
+  const t = useTranslations("Home")
+  const tVols = useTranslations("Vols")
+  const [origin, setOrigin] = useState("")
+  const [destination, setDestination] = useState("")
+  const [adults, setAdults] = useState("1")
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        const params = new URLSearchParams()
+        if (origin) params.set("origin", origin)
+        if (destination) params.set("destination", destination)
+        if (adults) params.set("adults", adults)
+        router.push(`/vols?${params.toString()}`)
+      }}
+      className="space-y-5"
+    >
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <DestinationAutocomplete
+          module="iata"
+          value={origin}
+          onChange={setOrigin}
+          label={tVols("departureLabel")}
+        />
+
+        <DestinationAutocomplete
+          module="iata"
+          value={destination}
+          onChange={setDestination}
+          label={tVols("arrivalLabel")}
+          excludeExternalId={origin}
+        />
+
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Users}>{t("travelersLabel")}</FieldLabel>
+          <Select value={adults} onValueChange={setAdults}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
+              <SelectValue placeholder={t("travelersLabel")} />
+            </SelectTrigger>
+
+            <SelectContent>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {t("travelersOption", { count: n })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <SearchSubmit />
+      </div>
+    </form>
+  )
+}
+
+function TransfertsForm({ zones }: { zones: CatalogTransferZoneLite[] }) {
+  const router = useRouter()
+  const tTransferts = useTranslations("Transferts")
+  const [fromZone, setFromZone] = useState("")
+  const [toZone, setToZone] = useState("")
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        const params = new URLSearchParams()
+        if (fromZone) params.set("from", fromZone)
+        if (toZone) params.set("to", toZone)
+        router.push(`/transferts?${params.toString()}`)
+      }}
+      className="space-y-5"
+    >
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>
+            {tTransferts("pickupLocationLabel")}
+          </FieldLabel>
+          <Select value={fromZone} onValueChange={setFromZone}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
+              <SelectValue placeholder={tTransferts("pickupLocationLabel")} />
+            </SelectTrigger>
+            <SelectContent>
+              {zones.map((z) => (
+                <SelectItem key={z.id} value={z.id}>
+                  {z.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={Navigation}>
+            {tTransferts("dropoffLocationLabel")}
+          </FieldLabel>
+          <Select value={toZone} onValueChange={setToZone}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
+              <SelectValue placeholder={tTransferts("dropoffLocationLabel")} />
+            </SelectTrigger>
+            <SelectContent>
+              {zones
+                .filter((z) => z.id !== fromZone)
+                .map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <SearchSubmit />
+      </div>
+    </form>
+  )
+}
+
+function CarForm({ locations }: { locations: CarLocationLite[] }) {
+  const router = useRouter()
+  const tCar = useTranslations("Car")
+  const [location, setLocation] = useState("")
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        const params = new URLSearchParams()
+        if (location) params.set("location", location)
+        router.push(`/car?${params.toString()}`)
+      }}
+      className="space-y-5"
+    >
+      <div className="grid grid-cols-1 gap-2.5">
+        <div className={FIELD_SHELL}>
+          <FieldLabel icon={MapPin}>{tCar("pickupLocationLabel")}</FieldLabel>
+          <Select value={location} onValueChange={setLocation}>
+            <SelectTrigger
+              className={cn(FIELD_INPUT_RESET, "[&>svg]:opacity-40")}
+            >
+              <SelectValue placeholder={tCar("pickupLocationLabel")} />
+            </SelectTrigger>
+            <SelectContent>
+              {locations.map((l) => (
+                <SelectItem key={l.id} value={l.id}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <SearchSubmit />
       </div>
     </form>
   )

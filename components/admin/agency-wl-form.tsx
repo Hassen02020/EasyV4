@@ -67,8 +67,9 @@ export function AgencyWhiteLabelForm({ agencyId, initial }: AgencyWLFormProps) {
         <Label htmlFor="wl-brand-name">Nom de marque</Label>
         <p className="text-muted-foreground text-xs">
           Affiché dans l&apos;en-tête public et dans le portail{" "}
-          <code className="bg-muted rounded px-1 py-0.5 text-xs">/pro</code>{" "}
-          à la place du nom de l&apos;agence. Vide = nom de l&apos;agence par défaut.
+          <code className="bg-muted rounded px-1 py-0.5 text-xs">/pro</code> à
+          la place du nom de l&apos;agence. Vide = nom de l&apos;agence par
+          défaut.
         </p>
         <Input
           id="wl-brand-name"
@@ -83,8 +84,8 @@ export function AgencyWhiteLabelForm({ agencyId, initial }: AgencyWLFormProps) {
       <div className="space-y-1.5">
         <Label htmlFor="wl-logo-url">URL du logo</Label>
         <p className="text-muted-foreground text-xs">
-          URL publique HTTPS vers l&apos;image du logo (PNG/SVG recommandé,
-          fond transparent). Vide = logo Easy2Book par défaut.
+          URL publique HTTPS vers l&apos;image du logo (PNG/SVG recommandé, fond
+          transparent). Vide = logo Easy2Book par défaut.
         </p>
         <Input
           id="wl-logo-url"
@@ -99,10 +100,13 @@ export function AgencyWhiteLabelForm({ agencyId, initial }: AgencyWLFormProps) {
       <div className="space-y-1.5">
         <Label htmlFor="wl-primary-color">Couleur d&apos;accent</Label>
         <p className="text-muted-foreground text-xs">
-          Couleur hexadécimale <code className="bg-muted rounded px-1 py-0.5 text-xs">#RRGGBB</code>{" "}
+          Couleur hexadécimale{" "}
+          <code className="bg-muted rounded px-1 py-0.5 text-xs">#RRGGBB</code>{" "}
           appliquée sur le bouton principal (variable CSS{" "}
-          <code className="bg-muted rounded px-1 py-0.5 text-xs">--primary</code>).
-          Vide = teinte Easy2Book par défaut.
+          <code className="bg-muted rounded px-1 py-0.5 text-xs">
+            --primary
+          </code>
+          ). Vide = teinte Easy2Book par défaut.
         </p>
         <div className="flex items-center gap-3">
           <Input
@@ -112,12 +116,14 @@ export function AgencyWhiteLabelForm({ agencyId, initial }: AgencyWLFormProps) {
             value={primaryColor}
             onChange={(e) => setPrimaryColor(e.target.value.trim())}
             maxLength={7}
-            className="font-mono w-36"
+            className="w-36 font-mono"
           />
           <input
             type="color"
             aria-label="Sélecteur de couleur"
-            value={primaryColor.match(/^#[0-9a-fA-F]{6}$/) ? primaryColor : "#1e3a5f"}
+            value={
+              primaryColor.match(/^#[0-9a-fA-F]{6}$/) ? primaryColor : "#1e3a5f"
+            }
             onChange={(e) => setPrimaryColor(e.target.value)}
             className="h-9 w-9 cursor-pointer rounded border p-0.5"
           />

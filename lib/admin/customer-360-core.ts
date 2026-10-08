@@ -1,11 +1,23 @@
 /**
  * CRM / Customer 360 — vue agrégée d'un lead pour le staff (panneau
  * "Vue 360" dans /admin/support). Assemble uniquement des données déjà
- * réelles et déjà scopées agence : score (lib/crm/lead-scoring-core.ts),
- * réservations candidates (même correspondance email/téléphone que
- * lib/crm/leads-core.ts::searchReservationsForLeadLinkCore), fidélité
+ * réelles et déjà scopées agence : score de qualité
+ * (lib/crm/lead-scoring-core.ts), score VIP (lib/crm/vip-score-core.ts,
+ * CUSTOMER-360-VIP-SCORE-01 — jusqu'ici calculé mais sans aucun appelant
+ * réel ailleurs dans l'application), réservations candidates (même
+ * rapprochement NORMALISÉ que lib/crm/vip-score-core.ts et
+ * lib/crm/leads-core.ts::searchReservationsForLeadLinkCore, via
+ * `findMatchingCustomerIdsCore`, NORMALIZED-MATCHING-01), fidélité
  * (lib/loyalty/rewards-core.ts, si une réservation matchée porte un
  * customerId), et historique de conversations (lib/crm/inbox-core.ts).
+ *
+ * Volontairement deux appels séparés (requêtes reservations distinctes),
+ * jamais fusionnés : la liste affichée ici inclut TOUTES les réservations
+ * du lead (y compris annulées, utile au staff), tandis que
+ * getVipScoreForLeadCore exclut délibérément cancelled/expired/refunded
+ * du calcul de valeur commerciale — des sémantiques différentes malgré
+ * un rapprochement email/téléphone similaire, pas une duplication à
+ * corriger.
  *
  * Volontairement PAS de favoris ici : customerFavorites est scopé à
  * `authUserId` (compte Supabase connecté), qu'un lead — simple email/
@@ -13,15 +25,17 @@
  * un join approximatif risquerait d'afficher les favoris d'un tiers.
  */
 
-import { and, desc, eq, or } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { customers, reservations } from "@/lib/db/schema"
+import { reservations } from "@/lib/db/schema"
 import { getLeadCore, type LeadRow } from "@/lib/crm/leads-core"
 import {
   computeLeadScore,
   type LeadScore,
   type LeadScoreRuleMap,
 } from "@/lib/crm/lead-scoring-core"
+import { getVipScoreForLeadCore, type VipScore } from "@/lib/crm/vip-score-core"
+import { findMatchingCustomerIdsCore } from "@/lib/crm/customer-match-core"
 import {
   getLoyaltyAccountSummary,
   type LoyaltyAccountRow,
@@ -44,6 +58,9 @@ export interface Customer360ReservationRow {
 export interface Customer360 {
   lead: LeadRow
   score: LeadScore
+  /** CUSTOMER-360-VIP-SCORE-01 — thermomètre de valeur commerciale,
+   * jamais un verdict VIP (aucun seuil, voir lib/crm/vip-score-core.ts). */
+  vipScore: VipScore
   reservations: Customer360ReservationRow[]
   loyalty: LoyaltyAccountRow | null
   conversations: ConversationRow[]
@@ -60,12 +77,22 @@ export async function getCustomer360Core(
   if (!lead) return null
 
   const score = computeLeadScore(lead, params.scoreRules)
+  const vipResult = await getVipScoreForLeadCore(tx, {
+    agencyId: params.agencyId,
+    leadId: params.leadId,
+    scoreRules: params.scoreRules,
+  })
+  // vipResult ne peut être null qu'en cas de lead supprimé entre les deux
+  // appels (course très improbable, jamais observée) — getLeadCore
+  // ci-dessus a déjà confirmé son existence dans la même transaction.
+  const vipScore = vipResult?.score ?? { total: 0, breakdown: [] }
 
-  const matchClause = or(
-    lead.email ? eq(customers.email, lead.email) : undefined,
-    lead.phone ? eq(customers.phone, lead.phone) : undefined,
-  )
-  const reservationRows = matchClause
+  const matchedCustomerIds = await findMatchingCustomerIdsCore(tx, {
+    agencyId: params.agencyId,
+    email: lead.email,
+    phone: lead.phone,
+  })
+  const reservationRows = matchedCustomerIds.length
     ? await tx
         .select({
           id: reservations.id,
@@ -77,8 +104,12 @@ export async function getCustomer360Core(
           createdAt: reservations.createdAt,
         })
         .from(reservations)
-        .innerJoin(customers, eq(customers.id, reservations.customerId))
-        .where(and(eq(reservations.agencyId, params.agencyId), matchClause))
+        .where(
+          and(
+            eq(reservations.agencyId, params.agencyId),
+            inArray(reservations.customerId, matchedCustomerIds),
+          ),
+        )
         .orderBy(desc(reservations.createdAt))
         .limit(20)
     : []
@@ -108,5 +139,12 @@ export async function getCustomer360Core(
     }
   }
 
-  return { lead, score, reservations: reservationRows, loyalty, conversations }
+  return {
+    lead,
+    score,
+    vipScore,
+    reservations: reservationRows,
+    loyalty,
+    conversations,
+  }
 }

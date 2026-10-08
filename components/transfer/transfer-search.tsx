@@ -19,9 +19,15 @@ import type { CatalogTransferZone } from "@/lib/db/schema"
 
 interface Props {
   zones: CatalogTransferZone[]
+  initialFromZone?: string
+  initialToZone?: string
 }
 
-export function TransferSearch({ zones }: Props) {
+export function TransferSearch({
+  zones,
+  initialFromZone,
+  initialToZone,
+}: Props) {
   const router = useRouter()
   const t = useTranslations("Transferts")
   const VEHICLES = [
@@ -33,8 +39,8 @@ export function TransferSearch({ zones }: Props) {
   ]
   const [isPending, startTransition] = useTransition()
 
-  const [fromZone, setFromZone] = useState("")
-  const [toZone, setToZone] = useState("")
+  const [fromZone, setFromZone] = useState(initialFromZone ?? "")
+  const [toZone, setToZone] = useState(initialToZone ?? "")
   const [vehicle, setVehicle] = useState("sedan")
   const [date, setDate] = useState("")
   const [time, setTime] = useState("10:00")

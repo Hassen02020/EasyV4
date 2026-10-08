@@ -6,18 +6,16 @@
  * son fournisseur d'origine.
  */
 
-import type { NormalizedHotel, NormalizedRate } from "./types"
-import { matchHotels, isAutoMergeable, type MatchConfidence } from "./mapping"
+import type {
+  NormalizedHotel,
+  NormalizedRate,
+  MatchConfidence,
+  DeduplicatedHotelGroup,
+} from "./types"
+import { matchHotels, isAutoMergeable } from "./mapping"
 
-export interface DeduplicatedHotelGroup {
-  /** Fiche représentative (premier hôtel du groupe) — jamais un objet inventé/fusionné champ par champ. */
-  hotel: NormalizedHotel
-  /** Tous les hôtels normalisés (un par fournisseur) regroupés ici, avec la confiance du rattachement au premier. */
-  members: { hotel: NormalizedHotel; confidence: MatchConfidence }[]
-  /** Toutes les offres tarifaires des fournisseurs regroupés — jamais réduites à une seule avant le ranking. */
-  rates: NormalizedRate[]
-  fromPrice: number | null
-}
+/** CANONICAL-HOTEL-01 — déplacé vers types.ts, ré-exporté ici pour ne pas casser les imports existants. */
+export type { DeduplicatedHotelGroup }
 
 export function deduplicateHotels(
   hotels: NormalizedHotel[],
@@ -28,22 +26,34 @@ export function deduplicateHotels(
   for (const hotel of hotels) {
     let target: DeduplicatedHotelGroup | null = null
     let bestConfidence: MatchConfidence = "UNMATCHED"
+    let bestReasons: string[] = []
 
     for (const group of groups) {
-      const { confidence } = matchHotels(group.hotel, hotel)
+      const { confidence, reasons } = matchHotels(group.hotel, hotel)
       if (isAutoMergeable(confidence) && confidence !== "UNMATCHED") {
         target = group
         bestConfidence = confidence
+        bestReasons = reasons
         break
       }
     }
 
     if (target) {
-      target.members.push({ hotel, confidence: bestConfidence })
+      target.members.push({
+        hotel,
+        confidence: bestConfidence,
+        reasons: bestReasons,
+      })
     } else {
       groups.push({
         hotel,
-        members: [{ hotel, confidence: "EXACT" }],
+        members: [
+          {
+            hotel,
+            confidence: "EXACT",
+            reasons: ["first sighting — ancre de l'identité canonical"],
+          },
+        ],
         rates: [],
         fromPrice: null,
       })

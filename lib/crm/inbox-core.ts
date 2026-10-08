@@ -15,6 +15,8 @@ import type { DrizzleTransaction } from "@/lib/db/client"
 import { crmConversations, crmMessages, leads } from "@/lib/db/schema"
 import { CRM_CHANNELS, type CrmChannel } from "@/lib/db/schema"
 import { createLeadCore } from "./leads-core"
+import { recordLeadOriginEventCore } from "./network-demand-capture-core"
+import { resolveOrCreateContactCore } from "./contact-core"
 
 export { CRM_CHANNELS }
 export type { CrmChannel }
@@ -135,6 +137,15 @@ const MESSAGE_PREVIEW_LENGTH = 200
  * un message entrant EST une demande de contact, jamais un lien automatique
  * vers une réservation (ça, `convertLeadCore` seul le fait, sur choix
  * explicite du staff).
+ *
+ * WHATSAPP-CONTACT-RESOLUTION-01 — résout aussi CONTACT-01
+ * (`resolveOrCreateContactCore`, lib/crm/contact-core.ts) pour ce
+ * téléphone, à chaque message entrant (même find-or-create idempotent que
+ * CAMPAIGN, lib/crm/campaign-core.ts — jamais une seconde méthode de
+ * résolution inventée ici). Avant ce chantier, seul CAMPAIGN alimentait
+ * `contacts` ; le seul canal social réellement actif (WhatsApp) ne le
+ * faisait jamais, laissant `contacts` incomplet pour tout contact qui
+ * n'avait encore été ciblé par aucune campagne.
  */
 export async function upsertConversationForInboundCore(
   tx: DrizzleTransaction,
@@ -147,7 +158,17 @@ export async function upsertConversationForInboundCore(
     externalMessageId: string
     sentAt: Date
   },
-): Promise<{ conversationId: string; messageInserted: boolean }> {
+): Promise<{
+  conversationId: string
+  messageInserted: boolean
+  contactId: string
+}> {
+  const contact = await resolveOrCreateContactCore(tx, {
+    agencyId: params.agencyId,
+    channel: params.channel,
+    rawRef: params.contactPhone,
+  })
+
   const [existing] = await tx
     .select({ id: crmConversations.id, leadId: crmConversations.leadId })
     .from(crmConversations)
@@ -203,6 +224,22 @@ export async function upsertConversationForInboundCore(
         sourcePage: params.channel,
       })
       leadId = created.id
+
+      // NETWORK-DEMAND-CAPTURE-01 — seule source RÉELLEMENT opérationnelle
+      // aujourd'hui (voir fiche §3) : le webhook WhatsApp est signé/vérifié
+      // HMAC avant d'appeler cette fonction (app/api/webhooks/whatsapp/
+      // route.ts), donc authorized=true est correct ici — aucune autre
+      // source préparatoire n'a d'appelant réel (voir test dédié).
+      if (params.channel === "whatsapp") {
+        await recordLeadOriginEventCore(tx, {
+          agencyId: params.agencyId,
+          leadId,
+          role: "channel",
+          actorRef: "whatsapp",
+          source: "whatsapp_webhook",
+          authorized: true,
+        })
+      }
     }
 
     const [inserted] = await tx
@@ -240,7 +277,11 @@ export async function upsertConversationForInboundCore(
     })
     .returning({ id: crmMessages.id })
 
-  return { conversationId, messageInserted: insertedMessage.length > 0 }
+  return {
+    conversationId,
+    messageInserted: insertedMessage.length > 0,
+    contactId: contact.id,
+  }
 }
 
 /**

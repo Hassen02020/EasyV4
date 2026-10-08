@@ -85,19 +85,12 @@ test("AgencyWhiteLabelForm calls updateAgencyWhiteLabel", () => {
 // --- app/(internal)/admin/agencies/[id]/page.tsx ---
 
 test("agency detail page exists and guards super_admin", () => {
-  const text = src(
-    "app/(internal)/admin/agencies/[id]/page.tsx",
-  )
-  assert.ok(
-    text.includes("super_admin"),
-    "must check super_admin role",
-  )
+  const text = src("app/(internal)/admin/agencies/[id]/page.tsx")
+  assert.ok(text.includes("super_admin"), "must check super_admin role")
 })
 
 test("agency detail page renders AgencyWhiteLabelForm", () => {
-  const text = src(
-    "app/(internal)/admin/agencies/[id]/page.tsx",
-  )
+  const text = src("app/(internal)/admin/agencies/[id]/page.tsx")
   assert.ok(
     text.includes("AgencyWhiteLabelForm"),
     "must render AgencyWhiteLabelForm",

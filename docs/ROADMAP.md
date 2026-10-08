@@ -45,6 +45,55 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — WALLET-GAP-1/2/3 CLÔTURÉ (2026-10-04, commit `7f3d11f`).
 **Aucun** — PARTNER-GAP-1 CLÔTURÉ (2026-10-04, commit `41b1293`).
 **Aucun** — POST-BATCH-CERTIFICATION-AUDIT CLÔTURÉ (2026-10-08) — PRs #156/#157/#158 certifiés.
+**Aucun** — CANONICAL-OWNERSHIP-AUDIT CLÔTURÉ (2026-10-08) — domaine `canonical_hotels`/`canonical_hotel_supplier_mappings` : 6/6 preuves confirmées, aucun GAP.
+
+---
+
+### CANONICAL-OWNERSHIP-AUDIT — CLÔTURÉ (2026-10-08)
+
+**Objectif** : vérifier que le domaine `canonical_hotels` / `canonical_hotel_supplier_mappings`
+(chantier CANONICAL-HOTEL-01, 2026-10-05) respecte les invariants d'ownership définis pour
+tout domaine système partagé : schéma, grants DB, RLS, politique de persistance, tests live,
+intégration caller.
+
+**Méthode** : lecture seule — `git show origin/main:...` sur les fichiers concernés.
+Audit réalisé sur HEAD `a0b70ed`.
+
+**6 preuves — 6/6 CONFIRMED, aucun GAP :**
+
+| Proof | Domaine | Résultat |
+|-------|---------|----------|
+| P1 | Schema & contraintes DB | CONFIRMED |
+| P2 | Grants `app_runtime` (append-only mappings) | CONFIRMED |
+| P3 | RLS (FORCE, `anon`/`authenticated` révoqués) | CONFIRMED |
+| P4 | Politique de persistance (EXACT only, best-effort) | CONFIRMED |
+| P5 | Tests live (E1/E2/E3/E4) | CONFIRMED |
+| P6 | Caller integration (`search-hub` non-bloquant) | CONFIRMED |
+
+**Détail :**
+
+- **P1 — Schema** (`lib/db/schema/canonical-hotels.ts`) : deux tables uniquement (identité +
+  provenance), aucun FK agency/tenant (domaine système cross-tenant), UNIQUE sur `(supplier,
+  supplierHotelCode)` — double-mapping impossible.
+- **P2 — Grants** (migration 0109) : `app_runtime` a `SELECT/INSERT/UPDATE` sur
+  `canonical_hotels` ; `SELECT/INSERT` uniquement sur `canonical_hotel_supplier_mappings` —
+  `UPDATE/DELETE` explicitement révoqués. Mappings append-only au niveau grant Postgres.
+- **P3 — RLS** (migration 0120, `RLS-GAP-PUBLIC-TABLES-01`) : `FORCE RLS` actif, `anon`/
+  `authenticated` à zéro privilège, `app_runtime` policy `USING true`. Couvert par
+  `lib/db/__tests__/rls-gap-public-tables-01-live.test.ts`.
+- **P4 — Persistance** (`lib/hotel-suppliers/core/canonical-persistence.ts`) : seule la
+  confidence `EXACT` crée/étend une identité (HIGH/MEDIUM/LOW jamais persistés en v1) ;
+  `ON CONFLICT DO NOTHING` sur le mapping (anti-race) ; `try/catch` global (jamais bloquant
+  pour la recherche) ; `reasons[]` persistées (CANONICAL-HOTEL-01-REASONS).
+- **P5 — Tests live** (`canonical-persistence-live.test.ts`) : 4 tests couvrant E1 (cross-
+  supplier EXACT → une identité partagée), E2 (idempotence — même couple jamais dupliqué),
+  E3 (HIGH/MEDIUM jamais persisté), E4 (`reasons[]` du vrai `matchHotels()` persistées,
+  ancre porte `"first sighting"`).
+- **P6 — Integration** : appelé post-traitement dans `search-hub.ts::runSearchThroughHub()`,
+  hors chemin de réponse HTTP, retourne `Promise<void>` — jamais bloquant.
+
+**Observation sans impact** : `app_runtime` a le grant `UPDATE` sur `canonical_hotels`
+(pour `updatedAt` potentiel) mais aucun code path ne l'utilise actuellement. Pas un GAP.
 
 ---
 

@@ -76,6 +76,32 @@ Stratégie : 200 leads récents → score séquentiel → tri score.total desc �
 
 **Tests** : 9/9 ✅ (3 suites × 3) · typecheck 0 erreur ✅ · lint 0 erreur ✅
 
+**Certification 5 points (2026-10-08)** :
+
+1. **`SignalTrend` re-export** ✅ — `radar-metier-core.ts` définit le type, `radar-metier-actions.ts`
+   le re-exporte explicitement (`export type { RadarSignal, SignalTrend }`, ligne 54), `radar/page.tsx`
+   l'importe depuis les actions. Chaîne core → actions → UI intacte.
+
+2. **RADAR-METIER consomme TIME-SERIES** ✅ — `getTimeSeriesCore` émet 4 dimensions dont
+   `"destination"` (time-series-core.ts lignes 150–270) ; `buildRadarMetierCore` reçoit
+   `TimeSeriesRow[]` et produit des `RadarSignal` avec `dimensionType` préservé. Flux réel :
+   `TIME-SERIES → destination → trend → signalStrength → RADAR MÉTIER`.
+
+3. **RADAR-VIP : réserve documentée** ⚠️ — Le radar affiche le **TOP 50 des 200 leads les plus
+   récents**, pas le TOP 50 absolu de tous les contacts Easy2Book. Conséquence : un contact ancien
+   à haute valeur mais sans lead récent n'apparaît pas. C'est une **v1 populationnelle**, pas un
+   classement global du réseau. La page affiche déjà "recalculé à la demande sur les 200 leads les
+   plus récents" ; la distinction reste à exposer plus explicitement dans l'UI (RADAR-VIP-02).
+
+4. **Problème des doublons non résolu** ⚠️ — Le score est calculé au niveau **leadId**, pas
+   **contactId**. Un même partenaire avec 4 leads (hôtel, Omra, vol, visa) apparaît en 4 lignes
+   dans le radar au lieu d'une ligne "PARTENAIRE MULTI-PRODUIT". C'est la limite architecturale
+   centrale de RADAR-VIP-01 (résolution au niveau lead explicitement documentée dans vip-score-core.ts
+   en-tête). Adressé en RADAR-VIP-02 : fusion par contactId (CONTACT-01), vue unique par acteur.
+
+5. **Programme Radar non fermé** ✅ — Les deux radars v1 sont une fondation, pas une destination.
+   Voir section "PROGRAMME RADAR — SUITE" ci-dessous.
+
 ---
 
 ### RADAR-METIER-01 — CLÔTURÉ (2026-10-08)
@@ -96,6 +122,50 @@ Orchestre `getTimeSeriesCore` → `buildRadarMetierCore` pour 4 dimensions (modu
 - `lib/admin/__tests__/radar-metier-ui.test.ts` — 3 invariants statiques (CRÉÉ)
 
 **Tests** : 3/3 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+---
+
+### PROGRAMME RADAR — ÉTAT 2026-10-08
+
+Deux radars opérationnels en production v1 :
+
+```
+FLUX
+ ↓
+SOURCE
+ ↓
+ACTEUR
+ ↓
+PRODUIT
+ ↓
+TRANSACTION
+ ↓
+CA
+ ↓
+MARGE
+ ↓
+FRÉQUENCE
+ ↓
+CROISSANCE
+ ↓
+RADAR MÉTIER       🟢 v1 — "Qu'est-ce qui bouge ?"
+RADAR VIP          🟢 v1 — "Qui devient important ?" (parmi leads récents)
+ ↓
+RADAR-VIP-02       🔴 — fusion contactId / vue partenaire multi-produit
+ ↓
+SIGNAL ENGINE      🔴 — convergence Métier + VIP → "Significatif ?"
+ ↓
+ACTION ENGINE      🔴 — "Quoi faire ?"
+ ↓
+LEARNING           🔴 — "Est-ce que ça a marché ?"
+```
+
+**Radar Métier** répond : *Destination X +42% demandes +28% CA +35% marge → opportunité commerciale.*
+**Radar VIP v1** répond : *Lead Y score 87, engagement ×3, récence forte → opportunité relationnelle.*
+**Radar VIP v2** (RADAR-VIP-02) répondra : *PARTENAIRE Z — hôtel + Omra + vol + visa — score consolidé → acteur stratégique.*
+
+**Prochain chantier identifié** : RADAR-VIP-02 (déduplication contactuelle) — non audité, non planifié — STOP.
+À auditer sur GO explicite uniquement.
 
 ---
 

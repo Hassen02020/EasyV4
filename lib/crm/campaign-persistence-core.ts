@@ -258,6 +258,8 @@ export interface CampaignTargetRow {
   leadIds: string[]
   consentStatusAtSnapshot: boolean
   snapshotAt: Date
+  deliveryStatus: string
+  deliveredAt: Date | null
 }
 
 /** Restitution — lecture seule de la cible figée au lancement, jamais un recalcul. */
@@ -278,5 +280,35 @@ export async function listCampaignTargetsCore(
   return rows.map((r) => ({
     ...r,
     leadIds: r.leadIds as string[],
+    deliveryStatus: r.deliveryStatus ?? "pending",
+    deliveredAt: r.deliveredAt ?? null,
   }))
+}
+
+export type CancelCampaignResult =
+  | { ok: true }
+  | { ok: false; code: "CAMPAIGN_NOT_FOUND" | "CAMPAIGN_ALREADY_TERMINAL" }
+
+/** Annulation — seul chemin pour passer une campagne à 'cancelled'. */
+export async function cancelCampaignCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; campaignId: string },
+): Promise<CancelCampaignResult> {
+  const campaign = await getCampaignCore(tx, params)
+  if (!campaign) return { ok: false, code: "CAMPAIGN_NOT_FOUND" }
+  if (campaign.status === "cancelled" || campaign.status === "completed") {
+    return { ok: false, code: "CAMPAIGN_ALREADY_TERMINAL" }
+  }
+
+  await tx
+    .update(campaigns)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(
+      and(
+        eq(campaigns.id, params.campaignId),
+        eq(campaigns.agencyId, params.agencyId),
+      ),
+    )
+
+  return { ok: true }
 }

@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getCampaignEngine } from "@/lib/admin/campaign-engine-actions"
 import type { CampaignProposal } from "@/lib/admin/campaign-engine-actions"
+import { createAndLaunchCampaign } from "@/lib/admin/campaign-lifecycle-actions"
 
 const WINDOW_OPTIONS: { label: string; value: 4 | 8 | 12 }[] = [
   { label: "4 semaines", value: 4 },
@@ -46,12 +47,43 @@ const CHANNEL_LABEL: Record<string, string> = {
   email: "✉️ Email",
 }
 
+type LaunchState =
+  | { status: "idle" }
+  | { status: "launching" }
+  | { status: "done"; campaignId: string; targetCount: number }
+  | { status: "error"; error: string }
+
 export default function CampaignEnginePage() {
   const [proposals, setProposals] = useState<CampaignProposal[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [windowWeeks, setWindowWeeks] = useState<4 | 8 | 12>(4)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [launchStates, setLaunchStates] = useState<Record<string, LaunchState>>({})
+
+  function setLaunch(proposalId: string, state: LaunchState) {
+    setLaunchStates((prev) => ({ ...prev, [proposalId]: state }))
+  }
+
+  async function handleLaunch(p: CampaignProposal) {
+    setLaunch(p.proposalId, { status: "launching" })
+    const result = await createAndLaunchCampaign({
+      name: p.suggestedName,
+      objective: p.suggestedObjective,
+      crmChannel: p.crmChannel,
+      message: p.suggestedMessage,
+      leadIds: p.leadIds,
+    })
+    if (result.ok) {
+      setLaunch(p.proposalId, {
+        status: "done",
+        campaignId: result.campaignId,
+        targetCount: result.targetCount,
+      })
+    } else {
+      setLaunch(p.proposalId, { status: "error", error: result.error })
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -243,6 +275,37 @@ export default function CampaignEnginePage() {
                                   {p.actionCount > 1 ? "s" : ""} ·{" "}
                                   {p.marketTrend} {p.marketGrowthRate}
                                 </p>
+                                <div className="flex items-center gap-3 pt-1">
+                                  {(() => {
+                                    const ls = launchStates[p.proposalId] ?? { status: "idle" }
+                                    if (ls.status === "done") {
+                                      return (
+                                        <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+                                          ✓ Campagne créée — {ls.targetCount} contact{ls.targetCount > 1 ? "s" : ""} ciblé{ls.targetCount > 1 ? "s" : ""}
+                                        </p>
+                                      )
+                                    }
+                                    if (ls.status === "error") {
+                                      return (
+                                        <>
+                                          <p className="text-destructive text-sm">{ls.error}</p>
+                                          <Button size="sm" variant="outline" onClick={() => handleLaunch(p)}>
+                                            Réessayer
+                                          </Button>
+                                        </>
+                                      )
+                                    }
+                                    return (
+                                      <Button
+                                        size="sm"
+                                        disabled={ls.status === "launching"}
+                                        onClick={(e) => { e.stopPropagation(); handleLaunch(p) }}
+                                      >
+                                        {ls.status === "launching" ? "Lancement…" : "Créer & lancer la campagne"}
+                                      </Button>
+                                    )
+                                  })()}
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>

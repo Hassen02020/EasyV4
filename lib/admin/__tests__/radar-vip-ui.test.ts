@@ -45,7 +45,7 @@ describe("RADAR-VIP-01 — invariants statiques", () => {
   })
 })
 
-describe("RADAR-VIP-02 — déduplication contactuelle", () => {
+describe("RADAR-VIP-02/03 — déduplication contactuelle", () => {
   const actionSource = readFileSync(
     join(ROOT, "lib/admin/radar-vip-actions.ts"),
     "utf8",
@@ -54,25 +54,43 @@ describe("RADAR-VIP-02 — déduplication contactuelle", () => {
     join(ROOT, "app/(internal)/admin/analytics/vip/page.tsx"),
     "utf8",
   )
+  const vipScoreSource = readFileSync(
+    join(ROOT, "lib/crm/vip-score-core.ts"),
+    "utf8",
+  )
 
   test("VipRadarRow contient leadCount", () => {
     assert.ok(
       actionSource.includes("leadCount"),
-      "VipRadarRow doit contenir leadCount (RADAR-VIP-02)",
+      "VipRadarRow doit contenir leadCount (RADAR-VIP-02/03)",
     )
   })
 
   test("VipRadarRow contient products", () => {
     assert.ok(
       actionSource.includes("products: string[]"),
-      "VipRadarRow doit contenir products: string[] (RADAR-VIP-02)",
+      "VipRadarRow doit contenir products: string[] (RADAR-VIP-02/03)",
     )
   })
 
-  test("action implémente une clé de déduplication contactKey", () => {
+  test("VipRadarRow contient contactId (RADAR-VIP-03)", () => {
     assert.ok(
-      actionSource.includes("contactKey"),
-      "radar-vip-actions.ts doit implémenter la fonction contactKey",
+      actionSource.includes("contactId: string | null"),
+      "VipRadarRow doit contenir contactId: string | null (RADAR-VIP-03)",
+    )
+  })
+
+  test("action importe findExistingContactIdForLeadCore (RADAR-VIP-03)", () => {
+    assert.ok(
+      actionSource.includes("findExistingContactIdForLeadCore"),
+      "radar-vip-actions.ts doit importer findExistingContactIdForLeadCore",
+    )
+  })
+
+  test("vip-score-core.ts exporte findExistingContactIdForLeadCore", () => {
+    assert.ok(
+      vipScoreSource.includes("export async function findExistingContactIdForLeadCore"),
+      "lib/crm/vip-score-core.ts doit exporter findExistingContactIdForLeadCore",
     )
   })
 

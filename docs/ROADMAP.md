@@ -54,6 +54,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — RADAR-METIER-01 CLÔTURÉ (2026-10-08, commit `30f7760`).
 **Aucun** — RADAR-VIP-01 CLÔTURÉ (2026-10-08, commit `ce2d2f8`).
 **Aucun** — RADAR-VIP-02 CLÔTURÉ (2026-10-08).
+**Aucun** — RADAR-VIP-03 CLÔTURÉ (2026-10-08).
 
 ---
 
@@ -180,8 +181,27 @@ Déduplication contactuelle best-effort email-first :
 Limitation documentée : deux leads sans email commun mais avec le même téléphone ne seront
 fusionnés que si l'un d'eux n'a pas d'email. Fusion exacte via CONTACT-01 : RADAR-VIP-03 potentiel.
 
-**Prochain chantier identifié** : RADAR-VIP-03 (fusion exacte via `contactId` CONTACT-01 persisté)
-ou CI-FIX-03 (NO_FCP /login) — non audités — STOP.
+**RADAR-VIP-03 — CLÔTURÉ (2026-10-08)**
+
+Remplacement de la déduplication best-effort (RADAR-VIP-02 `contactKey()`) par la
+résolution exacte CONTACT-01 :
+- `findExistingContactIdForLeadCore` exportée depuis `lib/crm/vip-score-core.ts` (lecture seule).
+- Résolution séquentielle post-scoring : pour chaque lead scoré, lookup du contactId réel.
+- Groupement par `contactId` (ou `lead:<leadId>` pour les leads sans contact persisté).
+- `VipRadarRow` étendu : `contactId: string | null` visible par la couche supérieure.
+- Tests : 10/10 ✅ (3 RADAR-VIP-01 + 7 RADAR-VIP-02/03) · typecheck ✅ · lint ✅
+
+État du Radar VIP :
+```
+RADAR-VIP-01  🟢  score par lead
+RADAR-VIP-02  🟢  dedup best-effort email-first
+RADAR-VIP-03  🟢  dedup exacte CONTACT-01
+              ↓
+SIGNAL ENGINE 🔴  prochaine étape (convergence Métier + VIP)
+```
+
+**Prochain chantier identifié** : CI-FIX-03 (NO_FCP /login) ou SIGNAL ENGINE
+— non audités — STOP.
 
 ---
 

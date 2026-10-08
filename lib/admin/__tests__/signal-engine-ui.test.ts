@@ -11,6 +11,7 @@
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { resolve } from "node:path"
 import type { RadarSignal } from "../../crm/radar-metier-core.js"
 
 function mkSignal(
@@ -239,13 +240,13 @@ describe("SIGNAL-ENGINE-01 / signal-engine-actions", () => {
 describe("SIGNAL-ENGINE-01 / page & navigation", () => {
   it("signal page file exists", async () => {
     const fs = await import("node:fs/promises")
-    await fs.access("/home/user/EasyV4/app/(internal)/admin/analytics/signal/page.tsx")
+    await fs.access(resolve(process.cwd(), "app/(internal)/admin/analytics/signal/page.tsx"))
   })
 
   it("signal page imports getSignalEngine", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/signal/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/signal/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("getSignalEngine"))
@@ -255,7 +256,7 @@ describe("SIGNAL-ENGINE-01 / page & navigation", () => {
   it("admin-shell includes Signaux nav item with /admin/analytics/signal href", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("/admin/analytics/signal"))
@@ -265,7 +266,7 @@ describe("SIGNAL-ENGINE-01 / page & navigation", () => {
   it("admin-shell imports Sparkles icon", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("Sparkles"))

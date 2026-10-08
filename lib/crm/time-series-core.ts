@@ -23,7 +23,7 @@ import { reservationFinancials, reservations, leads } from "@/lib/db/schema"
 
 export interface TimeSeriesRow {
   dimension: string
-  dimensionType: "module" | "channel" | "productType"
+  dimensionType: "module" | "channel" | "productType" | "destination"
   currentCa: string
   prevCa: string
   caGrowthRate: string
@@ -147,7 +147,30 @@ export async function getTimeSeriesCore(
     )
 
   // -------------------------------------------------------------------------
-  // 4. Assembly
+  // 4. Volume leads par destination (non-null uniquement)
+  // -------------------------------------------------------------------------
+  const leadsDestinationStream = await tx
+    .select({
+      destination: leads.destination,
+      period: sql<string>`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.agencyId, agencyId),
+        gte(leads.createdAt, prevStart),
+        lt(leads.createdAt, now),
+        sql`${leads.destination} is not null`,
+      ),
+    )
+    .groupBy(
+      leads.destination,
+      sql`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
+    )
+
+  // -------------------------------------------------------------------------
+  // 5. Assembly
   // -------------------------------------------------------------------------
   const rows: TimeSeriesRow[] = []
 
@@ -220,6 +243,31 @@ export async function getTimeSeriesCore(
     rows.push({
       dimension: productType,
       dimensionType: "productType",
+      currentCa: "0",
+      prevCa: "0",
+      caGrowthRate: "N/A",
+      currentMargin: "0",
+      prevMargin: "0",
+      marginGrowthRate: "N/A",
+      currentLeads: counts.current,
+      prevLeads: counts.prev,
+      leadsGrowthRate: growthRate(counts.current, counts.prev),
+    })
+  }
+
+  // Leads by destination
+  const destinationMap = new Map<string, { current: number; prev: number }>()
+  for (const l of leadsDestinationStream) {
+    const key = l.destination ?? "(inconnue)"
+    const entry = destinationMap.get(key) ?? { current: 0, prev: 0 }
+    if (l.period === "current") entry.current += l.count
+    else entry.prev += l.count
+    destinationMap.set(key, entry)
+  }
+  for (const [destination, counts] of destinationMap) {
+    rows.push({
+      dimension: destination,
+      dimensionType: "destination",
       currentCa: "0",
       prevCa: "0",
       caGrowthRate: "N/A",

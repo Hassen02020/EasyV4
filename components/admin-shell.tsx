@@ -37,6 +37,8 @@ import {
   Palette,
   Landmark,
   Target,
+  Zap,
+  Crown,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -260,6 +262,11 @@ const analyticsNavItems: NavItem[] = [
         href: "/admin/analytics/trends",
         icon: TrendingUp,
       },
+      {
+        title: "Radar Métier",
+        href: "/admin/analytics/radar",
+        icon: Zap,
+      },
     ],
   },
 ]
@@ -390,6 +397,8 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "campaigns") label = "Campagnes"
     if (paths[i] === "conversion") label = "Conversion"
     if (paths[i] === "trends") label = "Tendances"
+    if (paths[i] === "radar") label = "Radar Métier"
+    if (paths[i] === "vip") label = "Radar VIP"
 
     breadcrumbs.push({ label, href })
   }

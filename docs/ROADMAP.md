@@ -47,6 +47,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — POST-BATCH-CERTIFICATION-AUDIT CLÔTURÉ (2026-10-08) — PRs #156/#157/#158 certifiés.
 **Aucun** — CANONICAL-OWNERSHIP-AUDIT CLÔTURÉ (2026-10-08) — domaine `canonical_hotels`/`canonical_hotel_supplier_mappings` : 6/6 preuves confirmées, aucun GAP.
 **Aucun** — SEARCH-DEMAND-DISPLAY-01 CLÔTURÉ (2026-10-08, commit `75a1b9e`).
+**Aucun** — ADMIN-ANALYTICS-NAV-01 CLÔTURÉ (2026-10-08, commit `724c4ea`).
 
 ---
 
@@ -122,6 +123,32 @@ sur 30 jours, triées par volume décroissant.
 - `pnpm build` → succès ✅
 
 **NOT VERIFIED** : rendu visuel de la page (pas de Postgres local en CI — tests live skippés automatiquement).
+
+---
+
+### ADMIN-ANALYTICS-NAV-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : rendre les trois pages analytics existantes accessibles depuis la navigation
+admin — `/admin/analytics/margins`, `/admin/analytics/niches` et
+`/admin/analytics/search-demand` n'étaient reliées à aucun lien de navigation et
+inaccessibles sans URL directe.
+
+**Commit** : `724c4ea` — branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**Implémentation** :
+
+| Fichier | Action | Détail |
+|---------|--------|--------|
+| `components/admin-shell.tsx` | EXTEND | Ajout `analyticsNavItems` (Analytique → Marges / Niches CRM / Demande hôtel) ; visible super_admin + manager + agent_resa ; labels breadcrumb analytics/margins/niches/search-demand |
+| `lib/admin/__tests__/admin-shell-analytics-nav.test.ts` | CREATE | 3 tests invariants statiques : présence des trois hrefs dans admin-shell.tsx |
+
+**Vérifications** :
+- `pnpm tsc --noEmit` → 0 erreurs ✅
+- `pnpm eslint` → 0 erreurs ✅
+- Tests invariants → 3/3 ✅
+- `pnpm build` → succès ✅
+
+**NOT VERIFIED** : rendu visuel (pas de session admin active en CI).
 
 ---
 

@@ -16,6 +16,7 @@
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { resolve } from "node:path"
 import type { SignalRow } from "../../crm/signal-engine-core.js"
 
 function mkSignal(
@@ -256,13 +257,13 @@ describe("ACTION-ENGINE-01 / action-engine-actions", () => {
 describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("action page file exists", async () => {
     const fs = await import("node:fs/promises")
-    await fs.access("/home/user/EasyV4/app/(internal)/admin/analytics/action/page.tsx")
+    await fs.access(resolve(process.cwd(), "app/(internal)/admin/analytics/action/page.tsx"))
   })
 
   it("action page imports getActionEngine", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/action/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/action/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("getActionEngine"))
@@ -272,7 +273,7 @@ describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("action page renders rationale and campaignHints", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/action/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/action/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("rationale"))
@@ -282,7 +283,7 @@ describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("admin-shell includes Actions nav item with /admin/analytics/action href", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("/admin/analytics/action"))
@@ -292,7 +293,7 @@ describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("admin-shell imports Lightbulb icon", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("Lightbulb"))

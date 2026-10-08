@@ -4,9 +4,12 @@
  * Vérifie que les compteurs delivery (sent/failed/skipped/pending) et
  * l'invariant totalTargets = sent + failed + skipped + pending sont corrects.
  * Pas de dépendance réseau — tx entièrement mocké.
+ *
+ * Converti de vitest → node:test (TEST-COMPAT-01).
  */
 
-import { describe, it, expect, vi } from "vitest"
+import { describe, test } from "node:test"
+import assert from "node:assert/strict"
 import { getCampaignPerformanceCore } from "../campaign-performance-core"
 
 // ---------------------------------------------------------------------------
@@ -41,22 +44,19 @@ function makeTx(opts: {
   const total = sent + failed + skipped + pending
   let queryCount = 0
 
-  // Un seul objet chain partagé (from → this, innerJoin → this)
-  const chain: Record<string, ReturnType<typeof vi.fn>> = {} as never
-  chain.from = vi.fn(() => chain)
-  chain.innerJoin = vi.fn(() => chain)
-  chain.where = vi.fn(() => {
+  const chain: Record<string, unknown> = {}
+  chain.from = () => chain
+  chain.innerJoin = () => chain
+  chain.where = () => {
     queryCount++
     if (queryCount === 1) {
-      // campaign_targets aggregation
       return Promise.resolve([{ count: total, sent, failed, skipped, pending }])
     }
-    // campaign_attributions ⋈ reservation_financials
     return Promise.resolve(attributedRows)
-  })
+  }
 
   return {
-    select: vi.fn(() => chain),
+    select: () => chain,
   }
 }
 
@@ -65,60 +65,61 @@ function makeTx(opts: {
 // ---------------------------------------------------------------------------
 
 describe("CAMPAIGN-DELIVERY-STATS-01 — getCampaignPerformanceCore delivery breakdown", () => {
-  it("5 targets (2 sent, 1 failed, 1 skipped, 1 pending) → compteurs corrects", async () => {
+  test("5 targets (2 sent, 1 failed, 1 skipped, 1 pending) → compteurs corrects", async () => {
     const tx = makeTx({ sent: 2, failed: 1, skipped: 1, pending: 1 })
     const result = await getCampaignPerformanceCore(tx as never, {
       agencyId: "agency-1",
       campaignId: "camp-1",
     })
 
-    expect(result.sent).toBe(2)
-    expect(result.failed).toBe(1)
-    expect(result.skipped).toBe(1)
-    expect(result.pending).toBe(1)
-    expect(result.totalTargets).toBe(5)
-    expect(result.exposed).toBe(5)
+    assert.strictEqual(result.sent, 2)
+    assert.strictEqual(result.failed, 1)
+    assert.strictEqual(result.skipped, 1)
+    assert.strictEqual(result.pending, 1)
+    assert.strictEqual(result.totalTargets, 5)
+    assert.strictEqual(result.exposed, 5)
   })
 
-  it("invariant totalTargets = sent + failed + skipped + pending", async () => {
+  test("invariant totalTargets = sent + failed + skipped + pending", async () => {
     const tx = makeTx({ sent: 3, failed: 2, skipped: 4, pending: 1 })
     const result = await getCampaignPerformanceCore(tx as never, {
       agencyId: "agency-1",
       campaignId: "camp-2",
     })
 
-    expect(result.totalTargets).toBe(
+    assert.strictEqual(
+      result.totalTargets,
       result.sent + result.failed + result.skipped + result.pending,
     )
   })
 
-  it("aucune target → tous les compteurs = 0", async () => {
+  test("aucune target → tous les compteurs = 0", async () => {
     const tx = makeTx({})
     const result = await getCampaignPerformanceCore(tx as never, {
       agencyId: "agency-1",
       campaignId: "camp-empty",
     })
 
-    expect(result.sent).toBe(0)
-    expect(result.failed).toBe(0)
-    expect(result.skipped).toBe(0)
-    expect(result.pending).toBe(0)
-    expect(result.totalTargets).toBe(0)
-    expect(result.exposed).toBe(0)
-    expect(result.converted).toBe(0)
+    assert.strictEqual(result.sent, 0)
+    assert.strictEqual(result.failed, 0)
+    assert.strictEqual(result.skipped, 0)
+    assert.strictEqual(result.pending, 0)
+    assert.strictEqual(result.totalTargets, 0)
+    assert.strictEqual(result.exposed, 0)
+    assert.strictEqual(result.converted, 0)
   })
 
-  it("toutes les targets sent → pending/failed/skipped = 0", async () => {
+  test("toutes les targets sent → pending/failed/skipped = 0", async () => {
     const tx = makeTx({ sent: 10 })
     const result = await getCampaignPerformanceCore(tx as never, {
       agencyId: "agency-1",
       campaignId: "camp-all-sent",
     })
 
-    expect(result.sent).toBe(10)
-    expect(result.failed).toBe(0)
-    expect(result.skipped).toBe(0)
-    expect(result.pending).toBe(0)
-    expect(result.totalTargets).toBe(10)
+    assert.strictEqual(result.sent, 10)
+    assert.strictEqual(result.failed, 0)
+    assert.strictEqual(result.skipped, 0)
+    assert.strictEqual(result.pending, 0)
+    assert.strictEqual(result.totalTargets, 10)
   })
 })

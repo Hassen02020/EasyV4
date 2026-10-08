@@ -14,7 +14,8 @@
  * contact data — the client-supplied ID is silently ignored when invalid.
  */
 
-import { describe, it, expect } from "vitest"
+import { describe, test } from "node:test"
+import assert from "node:assert/strict"
 
 // ---------------------------------------------------------------------------
 // 1. Structural: verify prop shapes compile correctly.
@@ -25,7 +26,7 @@ import { describe, it, expect } from "vitest"
 import type { PassengerBookingFormProps } from "@/components/flights/passenger-booking-form"
 
 describe("CAMPAIGN-LINK-01 — prop contract", () => {
-  it("PassengerBookingFormProps includes optional campaignId", () => {
+  test("PassengerBookingFormProps includes optional campaignId", () => {
     const props: PassengerBookingFormProps = {
       snapshotId: "snap-uuid",
       passengerCount: 1,
@@ -35,10 +36,10 @@ describe("CAMPAIGN-LINK-01 — prop contract", () => {
       departureDisplay: "lun. 1 janv. 2026",
       campaignId: "campaign-uuid",
     }
-    expect(props.campaignId).toBe("campaign-uuid")
+    assert.strictEqual(props.campaignId, "campaign-uuid")
   })
 
-  it("PassengerBookingFormProps accepts absent campaignId", () => {
+  test("PassengerBookingFormProps accepts absent campaignId", () => {
     const props: PassengerBookingFormProps = {
       snapshotId: "snap-uuid",
       passengerCount: 1,
@@ -47,58 +48,34 @@ describe("CAMPAIGN-LINK-01 — prop contract", () => {
       routeDisplay: "TUN → CDG",
       departureDisplay: "lun. 1 janv. 2026",
     }
-    expect(props.campaignId).toBeUndefined()
+    assert.strictEqual(props.campaignId, undefined)
   })
 })
 
 // ---------------------------------------------------------------------------
 // 2. Security invariant documentation.
-//    The following assertions encode the security requirement as runtime checks
-//    so they show up in the test report.
 // ---------------------------------------------------------------------------
 
 describe("CAMPAIGN-LINK-01 — security invariants", () => {
-  it("campaignId is treated as an opaque hint, not an authorization token", () => {
-    // The client only forwards the UUID; the server must re-validate via
-    // resolveCheckoutPromoCore. A fabricated or expired campaignId results
-    // in no promo being applied — the booking proceeds normally without it.
+  test("campaignId is treated as an opaque hint, not an authorization token", () => {
     const maliciousInput = "not-a-real-campaign-id"
-    // Simulating: the server action receives this string and passes it to
-    // resolveCheckoutPromoCore, which will return null (no promo) —
-    // the booking is still created at full price.
-    expect(typeof maliciousInput).toBe("string")
-    // The invariant is enforced in lib/crm/promo-checkout-core.ts:
-    // resolveCheckoutPromoCore always fetches the campaign from DB and
-    // verifies status === 'active' and eligibility against lead.email.
-    expect(true).toBe(true)
+    assert.strictEqual(typeof maliciousInput, "string")
+    assert.ok(true)
   })
 
-  it("undefined campaignId skips promo lookup entirely", () => {
+  test("undefined campaignId skips promo lookup entirely", () => {
     const campaignId: string | undefined = undefined
-    // resolveCheckoutPromoCore is not called when campaignId is undefined
-    // (see lib/booking/guest-actions.ts, lib/booking/actions.ts, and each
-    // module's guest-booking-actions.ts — all conditionally pass campaignId).
-    expect(campaignId).toBeUndefined()
+    assert.strictEqual(campaignId, undefined)
   })
 })
 
 // ---------------------------------------------------------------------------
 // 3. URL parameter name contract.
-//    Documents the agreed query parameter name used across all 8 booking pages.
 // ---------------------------------------------------------------------------
 
 describe("CAMPAIGN-LINK-01 — URL contract", () => {
-  it("campaign URL parameter is 'campaign' (not 'campaignId' or 'promo')", () => {
+  test("campaign URL parameter is 'campaign' (not 'campaignId' or 'promo')", () => {
     const CAMPAIGN_URL_PARAM = "campaign"
-    // All 8 booking pages read searchParams[CAMPAIGN_URL_PARAM]:
-    // - /transferts/resultats?campaign=<uuid>
-    // - /car/search?campaign=<uuid>
-    // - /omra/[id]/book?campaign=<uuid>
-    // - /attractions/[slug]/book?campaign=<uuid>
-    // - /packages/[slug]/book?campaign=<uuid>
-    // - /hotels-monde/book?campaign=<uuid>
-    // - /booking/checkout?campaign=<uuid>
-    // - /vols/passengers?campaign=<uuid>
-    expect(CAMPAIGN_URL_PARAM).toBe("campaign")
+    assert.strictEqual(CAMPAIGN_URL_PARAM, "campaign")
   })
 })

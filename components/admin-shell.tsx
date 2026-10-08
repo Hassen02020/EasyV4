@@ -40,6 +40,7 @@ import {
   Zap,
   Crown,
   Sparkles,
+  Lightbulb,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -278,6 +279,11 @@ const analyticsNavItems: NavItem[] = [
         href: "/admin/analytics/signal",
         icon: Sparkles,
       },
+      {
+        title: "Actions",
+        href: "/admin/analytics/action",
+        icon: Lightbulb,
+      },
     ],
   },
 ]
@@ -411,6 +417,7 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "radar") label = "Radar Métier"
     if (paths[i] === "vip") label = "Radar VIP"
     if (paths[i] === "signal") label = "Signaux"
+    if (paths[i] === "action") label = "Actions"
 
     breadcrumbs.push({ label, href })
   }

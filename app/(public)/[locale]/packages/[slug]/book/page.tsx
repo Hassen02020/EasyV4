@@ -66,10 +66,11 @@ export default async function PackageBookPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ departure?: string }>
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  searchParams: Promise<{ departure?: string; campaign?: string }>
 }) {
   const { slug } = await params
-  const { departure } = await searchParams
+  const { departure, campaign } = await searchParams
   const result = await getBookablePackage(slug)
   if (!result) notFound()
   const { pkg, departures } = result
@@ -114,6 +115,7 @@ export default async function PackageBookPage({
                   ? parseFloat(d.childPriceTnd)
                   : undefined,
               }))}
+              campaignId={campaign}
             />
           </div>
         </div>

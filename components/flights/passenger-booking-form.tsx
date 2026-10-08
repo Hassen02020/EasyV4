@@ -43,6 +43,8 @@ export interface PassengerBookingFormProps {
   slaMinutes?: number
   /** G7: ancillary catalog from the offer (prices are authoritative server-side). */
   availableAncillaries?: Ancillary[]
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
 }
 
 interface PassengerFields {
@@ -94,6 +96,7 @@ export function PassengerBookingForm({
   routeDisplay,
   departureDisplay,
   availableAncillaries = [],
+  campaignId,
 }: PassengerBookingFormProps) {
   const router = useRouter()
   const t = useTranslations("Vols")
@@ -160,6 +163,7 @@ export function PassengerBookingForm({
                 ancillaryId,
               }))
             : undefined,
+        campaignId,
       })
       if (!result.ok) {
         setError(result.error)

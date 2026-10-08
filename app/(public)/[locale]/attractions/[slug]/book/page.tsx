@@ -72,10 +72,11 @@ export default async function ActivityBookPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ session?: string }>
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  searchParams: Promise<{ session?: string; campaign?: string }>
 }) {
   const { slug } = await params
-  const { session } = await searchParams
+  const { session, campaign } = await searchParams
   const result = await getBookableActivity(slug)
   if (!result) notFound()
   const { activity, sessions } = result
@@ -125,6 +126,7 @@ export default async function ActivityBookPage({
                   ? parseFloat(s.childPriceTnd)
                   : undefined,
               }))}
+              campaignId={campaign}
             />
           </div>
         </div>

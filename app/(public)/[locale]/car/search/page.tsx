@@ -41,6 +41,8 @@ interface SearchParams {
   returnDate?: string
   returnTime?: string
   category?: string
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaign?: string
 }
 
 function ErrorState({
@@ -81,6 +83,7 @@ export default async function CarResultsPage({
     returnDate,
     returnTime,
     category,
+    campaign,
   } = await searchParams
   const t = await getTranslations("Car")
 
@@ -174,6 +177,7 @@ export default async function CarResultsPage({
               returnDate,
               returnTime,
             }}
+            campaignId={campaign}
           />
         </div>
       </main>

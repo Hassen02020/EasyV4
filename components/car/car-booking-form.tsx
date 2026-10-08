@@ -91,6 +91,8 @@ interface CarBookingFormProps {
   locations: CarLocation[]
   categories: CarCategory[]
   prefill: CarBookingFormPrefill
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
 }
 
 export function CarBookingForm({
@@ -98,6 +100,7 @@ export function CarBookingForm({
   locations,
   categories,
   prefill,
+  campaignId,
 }: CarBookingFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -186,6 +189,7 @@ export function CarBookingForm({
         dropoffAt: `${data.returnDate}T${data.returnTime}:00`,
         insuranceLevel: data.insuranceLevel,
         driver: data.driver,
+        campaignId,
       })
 
       if (!result.ok) {

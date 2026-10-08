@@ -36,6 +36,8 @@ interface SearchParams {
   date?: string
   time?: string
   pax?: string
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaign?: string
 }
 
 const VEHICLE_VALUES = new Set<string>(transferVehicleType.enumValues)
@@ -70,7 +72,7 @@ export default async function TransferResultsPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const { from, to, vehicle, date, time, pax } = await searchParams
+  const { from, to, vehicle, date, time, pax, campaign } = await searchParams
   const t = await getTranslations("Transferts")
 
   if (!from || !to || !vehicle || !date || !time) {
@@ -171,6 +173,7 @@ export default async function TransferResultsPage({
               pickupTime: time,
               pax: paxCount,
             }}
+            campaignId={campaign}
           />
         </div>
       </main>

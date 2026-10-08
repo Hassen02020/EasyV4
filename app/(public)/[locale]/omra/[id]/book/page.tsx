@@ -64,10 +64,11 @@ export default async function OmraBookPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ date?: string }>
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  searchParams: Promise<{ date?: string; campaign?: string }>
 }) {
   const { id } = await params
-  const { date } = await searchParams
+  const { date, campaign } = await searchParams
   const result = await getBookablePackage(id)
   if (!result) notFound()
   const { pkg, departures } = result
@@ -111,6 +112,7 @@ export default async function OmraBookPage({
                   ? parseFloat(d.overridePrice)
                   : parseFloat(pkg.basePrice),
               }))}
+              campaignId={campaign}
             />
           </div>
         </div>

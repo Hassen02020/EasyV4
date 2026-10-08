@@ -60,6 +60,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — LEARNING-01 CLÔTURÉ (2026-10-08, commit `3b25026`).
 **Aucun** — CAMPAIGN-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a14e671`).
 **Aucun** — CAMPAIGN-LIFECYCLE-01 CLÔTURÉ (2026-10-08, commit `22b6182`).
+**Aucun** — CAMPAIGN-LINK-01 CLÔTURÉ (2026-10-08) — `?campaign=<uuid>` câblé dans les 8 tunnels de réservation (UI → serveur).
 **Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
 **Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
 **Aucun** — NICHE-UI-01 CLÔTURÉ (2026-10-07, PR #158, merge `7abc1acc`).

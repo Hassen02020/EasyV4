@@ -73,8 +73,11 @@ export interface WorldHotelBookingOfferSummary {
 
 export function WorldHotelGuestBookingForm({
   offer,
+  campaignId,
 }: {
   offer: WorldHotelBookingOfferSummary
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
 }) {
   const router = useRouter()
   const t = useTranslations("HotelsMonde")
@@ -139,6 +142,7 @@ export function WorldHotelGuestBookingForm({
       const result = await createGuestWorldHotelBooking({
         booking: data,
         paymentMethod: method,
+        campaignId,
       })
       if (!result.ok) {
         setSubmitError(result.error)

@@ -27,6 +27,11 @@ type SP = { [k: string]: string | string[] | undefined }
 
 async function CheckoutContent({ searchParams }: { searchParams: SP }) {
   const token = typeof searchParams.d === "string" ? searchParams.d : undefined
+  // CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL.
+  const campaignId =
+    typeof searchParams.campaign === "string"
+      ? searchParams.campaign
+      : undefined
   const payload = decodeDraft(token)
   const locale = await getLocale()
   const t = await getTranslations("Booking")
@@ -192,7 +197,7 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
               <Suspense
                 fallback={<Skeleton className="h-48 w-full rounded-2xl" />}
               >
-                <CheckoutForm token={token!} />
+                <CheckoutForm token={token!} campaignId={campaignId} />
               </Suspense>
             </div>
 

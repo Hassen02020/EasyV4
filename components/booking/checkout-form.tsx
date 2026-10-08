@@ -31,7 +31,14 @@ type Method =
   | "wallet"
   | "at_hotel"
 
-export function CheckoutForm({ token }: { token: string }) {
+export function CheckoutForm({
+  token,
+  campaignId,
+}: {
+  token: string
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
+}) {
   const t = useTranslations("Booking")
   const router = useRouter()
   const cart = useCart()
@@ -155,6 +162,7 @@ export function CheckoutForm({ token }: { token: string }) {
     const fd = new FormData()
     fd.set("draft", token)
     fd.set("paymentMethod", method)
+    if (campaignId) fd.set("campaignId", campaignId)
     startTransition(async () => {
       try {
         const result = await submitCheckoutAction(fd)

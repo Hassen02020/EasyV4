@@ -50,6 +50,31 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — ADMIN-ANALYTICS-NAV-01 CLÔTURÉ (2026-10-08, commit `724c4ea`).
 **Aucun** — CAMPAIGN-PERF-UI-01 CLÔTURÉ (2026-10-08, commit `c6cea0a`).
 **Aucun** — CONVERSION-FUNNEL-01 CLÔTURÉ (2026-10-08, commit `47db482`).
+**Aucun** — TIME-SERIES-01 CLÔTURÉ (2026-10-08, commit `ae82ea8`).
+
+---
+
+### TIME-SERIES-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : couche partagée de calcul période-sur-période — piliers FRÉQUENCE et CROISSANCE.
+Répond à "Qu'est-ce qui change ?" : compare fenêtre courante vs fenêtre précédente de même durée
+(4/8/12 semaines) pour les modules de réservation (CA/marge) et les leads (canal, produit).
+
+**Commit** : `ae82ea8`
+
+**Fichiers créés/modifiés** :
+- `lib/crm/time-series-core.ts` — `getTimeSeriesCore(tx, {agencyId, windowWeeks})` (CRÉÉ)
+  - Flux CA/marge : `reservationFinancials JOIN reservations.createdAt` par module
+  - Flux leads : `leads.createdAt` par channel et par productType
+  - growthRate() : +X.X% / −X.X% / N/A / +∞
+- `lib/admin/time-series-actions.ts` — Server Action `getTimeSeries(4|8|12)` (CRÉÉ)
+- `app/(internal)/admin/analytics/trends/page.tsx` — 3 tables + sélecteur fenêtre (CRÉÉ)
+- `components/admin-shell.tsx` — 6e sous-item "Tendances" + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/time-series-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 3/3 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅ · build Compiled ✅
+
+**Prochain chantier potentiel** : RADAR-METIER-01 ou RADAR-VIP-01 — non audités — STOP.
 
 ---
 

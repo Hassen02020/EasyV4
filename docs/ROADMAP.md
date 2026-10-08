@@ -1224,36 +1224,34 @@ production (vérifiées via grants/RLS à chaque chantier) **avant** leur
 merge respectif — seul le code applicatif restait non déployé jusqu'à
 chaque merge sur `main`. C'est maintenant résolu pour toute la chaîne.
 
-**Câblage PRICING-PROMO-LINK-01 — 4/7 modules restants faits** : hôtel
+**Câblage PRICING-PROMO-LINK-01 — 7/7 modules traités** : hôtel
 (référence initiale, bugfix ordre CART-DRIFT-01/PROMO appliqué
-ci-dessus), transfert, omra, package. **Restent NON câblés** : flight
-(signalé plus complexe — prix utilisé à 2 points séparés du fichier,
-audit dédié requis avant câblage), activity, network. `car` reste
-EXCLU volontairement (module dormant, non commercialisé,
+ci-dessus), transfert, omra, package, **flight** (confirmé câblé :
+`lib/vols/booking-request-action.ts` — `resolveCheckoutPromoCore` +
+`applyPromoDiscountCore`, audit 2026-10-08), **activity** (confirmé
+câblé : `lib/activities/guest-booking-actions.ts`, même pattern, audit
+2026-10-08), **network** (N/A — flux B2B partner-debit, `debitPartnerCredit`,
+pas de campagne B2C ni de `campaignId` dans le schéma d'entrée, audit
+2026-10-08). `car` reste EXCLU volontairement (module dormant,
 `FEATURE_CAR=false`). FERRY et VISA (futurs modules annoncés) restent
-non implémentés/non câblés/non certifiés. Les 3 briques core
-(`promo-core.ts`, `promo-discount-core.ts`, `promo-checkout-core.ts`)
-confirmées réutilisables sans réécriture pour tout module restant.
+non implémentés/non câblés. Les 3 briques core (`promo-core.ts`,
+`promo-discount-core.ts`, `promo-checkout-core.ts`) confirmées
+réutilisables sans réécriture pour tout module restant.
 
-**NOT VERIFIED, restant après ce chantier** : AUDIENCE-DEDUP-01
-potentiel non traité — CAMPAIGN opère par CONTACT unique (prouvé), mais
-AUDIENCE elle-même (NICHE-AUDIENCE-01) ne déduplique pas les `LeadRow`
-bruts avant que CAMPAIGN-01 ne les reçoive — sans conséquence sur le
-consentement (toujours strict), seulement sur le volume de leads
-traités par appel.
+**AUDIENCE-DEDUP-01 — CLÔTURÉ (2026-10-08, commit `ada54ce`)** —
+pré-groupement leads par rawRef dans `filterAudienceByConsentCore`
+(campaign-core.ts) : O(N leads) → O(N refs uniques) ; 4 tests node:test
+ajoutés, 12/12 pass.
+
+**CONVERSION / LEARNING — VÉRIFIÉ COUVERT** : `getCampaignPerformanceCore`
+expose déjà `exposed`/`converted`/`revenueTnd`/`marginTnd`/
+`sent`/`failed`/`skipped`/`pending`/`totalTargets` ; UI
+`/admin/analytics/campaigns` affiche tous ces métriques (CAMPAIGN-PERF-UI-01,
+CAMPAIGN-MGMT-01). LEARNING-01 (feedback loop conversion VIP) CLÔTURÉ
+(commit `3b25026`). Aucun chantier supplémentaire CONVERSION/LEARNING
+nécessaire à ce stade.
 
 **Prochains chantiers potentiels identifiés, NON exécutés** :
-
-- **Câblage PRICING-PROMO-LINK-01 dans les 3 modules restants**
-  (activity, network, flight) — flight signalé plus complexe (prix à
-  2 points séparés du fichier), audit dédié requis avant câblage ;
-  activity/network pas encore audités dans ce round.
-- **CONVERSION / LEARNING** : exploiter `campaign_attributions` pour
-  mesurer "17 réservations générées par la campagne Istanbul" — aucun
-  audit réalisé. `CAMPAIGN-PERFORMANCE-01` (exposed/converted/CA/marge
-  par campagne, lecture pure, MERGÉ et DÉPLOYÉ — commit `155d540`,
-  `dpl_GBqWhaMnzZ3MDEnQ8JfP4gbZ34rX`) en couvre une partie ; LEARNING
-  proprement dit (apprentissage/optimisation) reste non traité.
 - **FERRY / VISA** : futurs modules commerciaux annoncés, aucun audit
   d'intégration réalisé, aucun code, aucun stub.
 

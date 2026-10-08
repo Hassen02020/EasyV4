@@ -58,6 +58,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — SIGNAL-ENGINE-01 CLÔTURÉ (2026-10-08, commit `03bc5c8`).
 **Aucun** — ACTION-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a0231ea`).
 **Aucun** — LEARNING-01 CLÔTURÉ (2026-10-08, commit `3b25026`).
+**Aucun** — CAMPAIGN-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a14e671`).
 
 ---
 
@@ -292,7 +293,35 @@ Feedback loop : score VIP × conversion (status="converted") sur fenêtre tempor
 **Tests** : 25/25 ✅ · typecheck 0 erreur ✅
 
 **Programme Radar complet** :
-- RADAR MÉTIER 🟢 → RADAR VIP 🟢 v3 → SIGNAL ENGINE 🟢 → ACTION ENGINE 🟢 → LEARNING 🟢
+- RADAR MÉTIER 🟢 → RADAR VIP 🟢 v3 → SIGNAL ENGINE 🟢 → ACTION ENGINE 🟢 → CAMPAIGN ENGINE 🟢 → LEARNING 🟢
+
+---
+
+### CAMPAIGN-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `a14e671`)
+
+**Objectif** : cinquième étage du Programme Radar — "Quelles campagnes lancer ?"
+Passerelle entre l'Action Engine et la création de campagnes CRM.
+Fonction pure `buildCampaignEngineCore` : groupe les ActionRow par
+`(channel × dimensionType × dimension)`, élit le champion (combinedScore max),
+déduplique les leadIds, mappe ActionChannel → CrmChannel, génère
+nom/objectif/message par canal. READ-ONLY : ne crée pas de campagnes.
+
+**Fichiers créés/modifiés** :
+- `lib/crm/campaign-engine-core.ts` — `buildCampaignEngineCore(actions)` pure (CRÉÉ)
+  - `CampaignProposal` : proposalId, channel, crmChannel, dimension, leadIds,
+    priority, topCombinedScore, urgencyHours, suggestedName/Objective/Message,
+    marketTrend, marketGrowthRate, actionCount
+  - Tri : priorité desc puis combinedScore desc
+- `lib/admin/campaign-engine-actions.ts` — `getCampaignEngine(windowWeeks)` server action (CRÉÉ)
+  - Pipeline : TimeSeries → RadarMétier → leads + VIP score → dedup → SignalEngine → ActionEngine → CampaignEngine
+- `app/(internal)/admin/analytics/campaign-engine/page.tsx` — UI proposals (CRÉÉ)
+  - Sélecteur fenêtre (4/8/12 sem), 3 KPI tiles (propositions, contacts, urgentes)
+  - Tableau expandable : nom+objectif, canal, priorité badge, contacts, urgence, score
+  - Expanded : objectif, message template (pre), debug (crmChannel, urgencyHours, actionCount, trend)
+- `components/admin-shell.tsx` — 12e sous-item "Campagnes VIP" (Send icon) + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/campaign-engine-ui.test.ts` — 25 tests (CRÉÉ)
+
+**Tests** : 25/25 ✅ · typecheck 0 erreur ✅
 
 ---
 

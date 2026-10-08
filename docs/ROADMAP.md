@@ -56,6 +56,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — RADAR-VIP-02 CLÔTURÉ (2026-10-08).
 **Aucun** — RADAR-VIP-03 CLÔTURÉ (2026-10-08).
 **Aucun** — SIGNAL-ENGINE-01 CLÔTURÉ (2026-10-08, commit `03bc5c8`).
+**Aucun** — ACTION-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a0231ea`).
 
 ---
 
@@ -156,7 +157,7 @@ RADAR VIP          🟢 v3 — "Qui devient important ?" (dedup CONTACT-01)
  ↓
 SIGNAL ENGINE      🟢 v1 — convergence Métier × VIP → "Significatif ?"
  ↓
-ACTION ENGINE      🔴 — "Quoi faire ?"
+ACTION ENGINE      🟢 v1 — recommandations structurées → "Quoi faire ?"
  ↓
 LEARNING           🔴 — "Est-ce que ça a marché ?"
 ```
@@ -196,8 +197,9 @@ RADAR-VIP-01  🟢  score par lead
 RADAR-VIP-02  🟢  dedup best-effort email-first
 RADAR-VIP-03  🟢  dedup exacte CONTACT-01
 SIGNAL ENGINE 🟢  convergence Métier × VIP (commit 03bc5c8)
+ACTION ENGINE 🟢  recommandations structurées (commit a0231ea)
               ↓
-ACTION ENGINE 🔴  "Quoi faire ?" — prochaine étape
+LEARNING      🔴  "Est-ce que ça a marché ?" — prochaine étape
 ```
 
 **SIGNAL-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `03bc5c8`)**
@@ -232,7 +234,35 @@ Convergence Radar Métier × Radar VIP — "Ce contact VIP est dans un marché e
 
 **Tests** : 17/17 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
 
-**Prochain chantier identifié** : ACTION ENGINE ("Quoi faire ?") ou CI-FIX-03 (NO_FCP /login)
+**ACTION-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `a0231ea`)**
+
+Recommandations structurées, explicables et exécutables dérivées des signaux Signal Engine.
+
+**Redesign en cours d'implémentation** (retour utilisateur) : "L'Action Engine ne doit pas
+seulement traduire un signal en texte. Il doit produire une recommandation structurée,
+explicable et exécutable par un humain ou Campaign Engine."
+
+**Fichiers créés/modifiés** :
+- `lib/crm/action-engine-core.ts` — `buildActionEngineCore(signals)` pure (CRÉÉ)
+  - `CampaignHints` : payload JSON sérialisable consommable par Campaign Engine —
+    offerDimension, offerDimensionType, suggestedActionType, channel, urgencyHours,
+    vipScore, leadCount, marketTrend, marketGrowthRate, signalStrength
+  - `ActionRow` : priorité, canal, urgencyWindow, offerFocus, rationale (POURQUOI),
+    scriptLine (QUOI DIRE, adapté au canal), subject, campaignHints
+  - `ACTION_MATRIX` : urgent→appel_direct/phone/24h, haute→whatsapp/48h,
+    normale→email_personnalise/7j, faible→email_decouverte/14j
+  - Priorité dérivée de combinedScore (≥150 urgent, ≥100 haute, ≥60 normale, <60 faible)
+- `lib/admin/action-engine-actions.ts` — `getActionEngine(windowWeeks: 4|8|12)` (CRÉÉ)
+  - Même pipeline complet que signal-engine-actions + buildActionEngineCore
+- `app/(internal)/admin/analytics/action/page.tsx` — UI Action Engine (CRÉÉ)
+  - 3 tuiles KPI, carte "Action prioritaire", table avec ligne expansible
+  - Détail expansible : script complet, sujet, rationale, campaignHints (debug)
+- `components/admin-shell.tsx` — Lightbulb + 10e sous-item "Actions" + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/action-engine-ui.test.ts` — 29 tests (3 suites) (CRÉÉ)
+
+**Tests** : 29/29 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+**Prochain chantier identifié** : LEARNING ("Est-ce que ça a marché ?") ou CI-FIX-03
 — non audités — STOP.
 
 ---

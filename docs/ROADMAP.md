@@ -49,6 +49,27 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — SEARCH-DEMAND-DISPLAY-01 CLÔTURÉ (2026-10-08, commit `75a1b9e`).
 **Aucun** — ADMIN-ANALYTICS-NAV-01 CLÔTURÉ (2026-10-08, commit `724c4ea`).
 **Aucun** — CAMPAIGN-PERF-UI-01 CLÔTURÉ (2026-10-08, commit `c6cea0a`).
+**Aucun** — CONVERSION-FUNNEL-01 CLÔTURÉ (2026-10-08, commit `47db482`).
+
+---
+
+### CONVERSION-FUNNEL-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : répondre à la question pilier 8 — "Peut-on relier la conversion à sa source ?"
+Vue funnel leads par canal × produit : nouveaux / contactés / convertis / taux / CA / marge.
+CA et marge lus depuis `reservationFinancials` via jointure (FINANCIAL est l'unique propriétaire).
+
+**Commit** : `47db482`
+
+**Fichiers créés/modifiés** :
+- `lib/admin/conversion-funnel-actions.ts` — Server Action `getConversionFunnel()` (CRÉÉ)
+- `app/(internal)/admin/analytics/conversion/page.tsx` — page funnel + 4 tuiles KPI (CRÉÉ)
+- `components/admin-shell.tsx` — 5e sous-item "Conversion" dans analyticsNavItems (ÉTENDU)
+- `lib/admin/__tests__/conversion-funnel-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 3/3 ✅ · typecheck ✅ · lint 0 erreur ✅ · build exit 0 ✅
+
+**Prochain chantier potentiel** : non audité — STOP.
 
 ---
 

@@ -51,6 +51,51 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — CAMPAIGN-PERF-UI-01 CLÔTURÉ (2026-10-08, commit `c6cea0a`).
 **Aucun** — CONVERSION-FUNNEL-01 CLÔTURÉ (2026-10-08, commit `47db482`).
 **Aucun** — TIME-SERIES-01 CLÔTURÉ (2026-10-08, commit `ae82ea8`).
+**Aucun** — RADAR-METIER-01 CLÔTURÉ (2026-10-08, commit `30f7760`).
+**Aucun** — RADAR-VIP-01 CLÔTURÉ (2026-10-08, commit `ce2d2f8`).
+
+---
+
+### RADAR-VIP-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : vue population "Qui devient important ?" — top 50 leads classés par score VIP.
+Réutilise intégralement `getVipScoreForLeadCore` (vip-score-core.ts) — aucun nouveau calcul.
+Stratégie : 200 leads récents → score séquentiel → tri score.total desc → top 50.
+
+**Commit** : `ce2d2f8`
+
+**Fichiers créés/modifiés** :
+- `lib/admin/radar-vip-actions.ts` — Server Action `getRadarVip()` (CRÉÉ)
+  - `VipRadarRow` : leadId, firstName, lastName, email, phone, productType, channel, destination, status, score
+  - `listLeadsCore` (200 max) → `getLeadScoreRuleMapCore` → `getVipScoreForLeadCore` séquentiel → top 50
+- `app/(internal)/admin/analytics/vip/page.tsx` — tableau top 50 + KPIs + barre de score (CRÉÉ)
+  - Breakdown 4 signaux : qualité / engagement / vente / récence
+  - "Lead le plus prometteur" highlight card
+- `components/admin-shell.tsx` — 8e sous-item "Radar VIP" (Crown) (ÉTENDU)
+- `lib/admin/__tests__/radar-vip-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 9/9 ✅ (3 suites × 3) · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+---
+
+### RADAR-METIER-01 — CLÔTURÉ (2026-10-08)
+
+**Objectif** : vue classée "Qu'est-ce qui bouge ?" — signaux de croissance classés par force.
+Orchestre `getTimeSeriesCore` → `buildRadarMetierCore` pour 4 dimensions (module, canal, produit, destination).
+
+**Commit** : `30f7760`
+
+**Fichiers créés/modifiés** :
+- `lib/crm/radar-metier-core.ts` — `buildRadarMetierCore(rows)` pure (CRÉÉ)
+  - `SignalTrend` : forte_hausse / hausse / stable / baisse / forte_baisse / nouveau
+  - `signalStrength = currentVolume × (1 + growthFactor)` — clampé [-1, +2]
+- `lib/admin/radar-metier-actions.ts` — Server Action `getRadarMetier(4|8|12)` (CRÉÉ)
+- `app/(internal)/admin/analytics/radar/page.tsx` — sélecteur fenêtre, 3 KPIs, table complète (CRÉÉ)
+- `components/admin-shell.tsx` — 7e sous-item "Radar Métier" (Zap) + breadcrumbs (ÉTENDU)
+- `lib/crm/time-series-core.ts` — ajout dimension "destination" (ÉTENDU)
+- `lib/admin/__tests__/radar-metier-ui.test.ts` — 3 invariants statiques (CRÉÉ)
+
+**Tests** : 3/3 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
 
 ---
 

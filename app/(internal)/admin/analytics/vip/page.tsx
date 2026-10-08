@@ -1,7 +1,9 @@
 /**
- * RADAR-VIP-01 — "Qui devient important ?"
+ * RADAR-VIP-01/02 — "Qui devient important ?"
  *
- * Vue population : top 50 leads classés par score VIP décroissant.
+ * Vue population : top 50 acteurs classés par score VIP décroissant.
+ * RADAR-VIP-02 : un partenaire multi-produit → une ligne (déduplication
+ * contactuelle best-effort email-first, voir radar-vip-actions.ts).
  * Réutilise getRadarVip (lib/admin/radar-vip-actions.ts).
  */
 
@@ -102,8 +104,9 @@ export default function RadarVipPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">Radar VIP</h1>
         <p className="text-muted-foreground text-sm">
-          Top 50 leads classés par score VIP — recalculé à la demande sur les
-          200 leads les plus récents. Aucune donnée persistée.
+          Top 50 acteurs classés par score VIP — déduplication contactuelle
+          (un partenaire multi-produit = une ligne). Recalculé à la demande
+          sur les 200 leads les plus récents. Aucune donnée persistée.
         </p>
       </div>
 
@@ -195,6 +198,7 @@ export default function RadarVipPage() {
                     <TableHead>Canal</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Score total</TableHead>
+                    <TableHead>Produits</TableHead>
                     <TableHead className="text-right">Qualité</TableHead>
                     <TableHead className="text-right">Engagement</TableHead>
                     <TableHead className="text-right">Vente</TableHead>
@@ -217,6 +221,14 @@ export default function RadarVipPage() {
                           <p className="font-medium">
                             {row.firstName}
                             {row.lastName ? ` ${row.lastName}` : ""}
+                            {row.leadCount > 1 && (
+                              <Badge
+                                variant="outline"
+                                className="ml-2 text-xs"
+                              >
+                                ×{row.leadCount}
+                              </Badge>
+                            )}
                           </p>
                           {row.destination && (
                             <p className="text-muted-foreground text-xs">
@@ -226,6 +238,19 @@ export default function RadarVipPage() {
                         </TableCell>
                         <TableCell className="text-sm">
                           {PRODUCT_LABEL[row.productType] ?? row.productType}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {row.products.map((p) => (
+                              <Badge
+                                key={p}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {PRODUCT_LABEL[p] ?? p}
+                              </Badge>
+                            ))}
+                          </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {row.channel

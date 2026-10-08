@@ -53,6 +53,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — TIME-SERIES-01 CLÔTURÉ (2026-10-08, commit `ae82ea8`).
 **Aucun** — RADAR-METIER-01 CLÔTURÉ (2026-10-08, commit `30f7760`).
 **Aucun** — RADAR-VIP-01 CLÔTURÉ (2026-10-08, commit `ce2d2f8`).
+**Aucun** — RADAR-VIP-02 CLÔTURÉ (2026-10-08).
 
 ---
 
@@ -164,8 +165,23 @@ LEARNING           🔴 — "Est-ce que ça a marché ?"
 **Radar VIP v1** répond : *Lead Y score 87, engagement ×3, récence forte → opportunité relationnelle.*
 **Radar VIP v2** (RADAR-VIP-02) répondra : *PARTENAIRE Z — hôtel + Omra + vol + visa — score consolidé → acteur stratégique.*
 
-**Prochain chantier identifié** : RADAR-VIP-02 (déduplication contactuelle) — non audité, non planifié — STOP.
-À auditer sur GO explicite uniquement.
+**RADAR-VIP-02 — CLÔTURÉ (2026-10-08)**
+
+Déduplication contactuelle best-effort email-first :
+- `contactKey(email, phone, leadId)` : regroupe les leads partageant le même email normalisé,
+  sinon le même phone normalisé (chiffres uniquement), sinon traite le lead isolément.
+- Dans un groupe : le lead au score le plus élevé est le représentant.
+  Son score reflète déjà toutes les réservations du contact (via `findMatchingCustomerIdsCore`).
+- `VipRadarRow` étendu : `leadCount: number` (nbre de leads fusionnés), `products: string[]`
+  (produits distincts du groupe, triés).
+- UI : badge `×N` sur le nom si `leadCount > 1`, colonne "Produits" avec badges par produit.
+- Tests : 8/8 ✅ (3 RADAR-VIP-01 + 5 RADAR-VIP-02) · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+Limitation documentée : deux leads sans email commun mais avec le même téléphone ne seront
+fusionnés que si l'un d'eux n'a pas d'email. Fusion exacte via CONTACT-01 : RADAR-VIP-03 potentiel.
+
+**Prochain chantier identifié** : RADAR-VIP-03 (fusion exacte via `contactId` CONTACT-01 persisté)
+ou CI-FIX-03 (NO_FCP /login) — non audités — STOP.
 
 ---
 

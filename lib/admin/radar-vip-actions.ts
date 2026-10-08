@@ -1,21 +1,34 @@
 "use server"
 
 /**
- * RADAR-VIP-01 — "Qui devient important ?"
+ * RADAR-VIP-01/02 — "Qui devient important ?"
  *
- * Vue population : score VIP calculé sur les N leads les plus récents de
- * l'agence, classés par score décroissant. Réutilise intégralement
- * getVipScoreForLeadCore (lib/crm/vip-score-core.ts) — aucun nouveau
- * calcul, aucune nouvelle vérité.
+ * RADAR-VIP-01 : vue population — top 50 leads classés par score VIP décroissant.
+ * RADAR-VIP-02 : déduplication contactuelle — un acteur avec N leads (hôtel,
+ *   Omra, vol, visa) apparaît en 1 ligne "ACTEUR MULTI-PRODUIT", pas N.
+ *
+ * Stratégie de déduplication (meilleure approximation sans requête
+ * supplémentaire, conforme au refus de fusion silencieuse documenté dans
+ * contact-core.ts) :
+ *
+ *   clé = email normalisé (lowercase+trim) si présent,
+ *         sinon phone normalisé (chiffres uniquement) si présent,
+ *         sinon leadId (lead isolé, non rattachable)
+ *
+ * Limitation explicite : deux leads partageant le même téléphone mais des
+ * emails différents ne seront pas fusionnés. C'est une déduplication
+ * best-effort email-first, pas un résolveur de contacts complet.
+ * Pour une fusion exacte, utiliser les contacts CONTACT-01 persistés —
+ * chantier RADAR-VIP-03 potentiel (findExistingContactIdForLeadCore).
+ *
+ * Sélection du représentant : dans un groupe de N leads, le lead au score
+ * le plus élevé devient le représentant. Son score reflète déjà l'ensemble
+ * des réservations du contact (via findMatchingCustomerIdsCore dans
+ * getVipScoreForLeadCore) — pas de nouveau calcul agrégé nécessaire.
  *
  * Portée délibérément limitée : on score les 200 leads les plus récents,
- * on retourne les 50 meilleurs. Performance acceptable sans cache ni
- * table matérialisée (scores calculés à la demande, jamais persistés —
- * conforme à la décision VIP-SCORE-01). Un chantier séparé (persistance
- * ou pagination) peut être décidé après observation de la distribution
- * réelle des scores.
- *
- * Même patron auth/tenant que les autres actions admin/analytics/*.
+ * on déduplication, on retourne les 50 meilleurs acteurs. Performance
+ * acceptable sans cache ni table matérialisée.
  */
 
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -64,21 +77,45 @@ async function assertSupportStaff(): Promise<SupportStaffContext> {
 /* -------------------------------------------------------------------------- */
 
 export interface VipRadarRow {
+  /** Lead représentant du groupe (score le plus élevé du groupe). */
   leadId: string
   firstName: string
   lastName: string | null
   email: string | null
   phone: string | null
+  /** Produit du lead représentant. Voir aussi `products` pour la liste complète. */
   productType: string
   channel: string | null
   destination: string | null
   status: string
   score: VipScore
+  /** RADAR-VIP-02 — nombre de leads fusionnés dans ce groupe (>1 = acteur multi-produit). */
+  leadCount: number
+  /** RADAR-VIP-02 — produits distincts de tous les leads du groupe, triés. */
+  products: string[]
 }
 
 export type GetRadarVipResult =
   | { ok: true; rows: VipRadarRow[]; total: number }
   | { ok: false; error: string }
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Clé de regroupement best-effort : email normalisé > phone normalisé > leadId.
+ * Pas un résolveur de contacts complet — see en-tête.
+ */
+function contactKey(
+  email: string | null | undefined,
+  phone: string | null | undefined,
+  leadId: string,
+): string {
+  if (email) return `email:${email.trim().toLowerCase()}`
+  if (phone) return `phone:${phone.replace(/\D/g, "")}`
+  return `lead:${leadId}`
+}
 
 /* -------------------------------------------------------------------------- */
 /* Public Server Action                                                        */
@@ -127,12 +164,44 @@ export async function getRadarVip(): Promise<GetRadarVipResult> {
             destination: lead.destination ?? null,
             status: lead.status,
             score: result.score,
+            leadCount: 1,
+            products: [lead.productType],
           })
         }
 
-        // 4. Trier par score décroissant, garder top 50
-        scored.sort((a, b) => b.score.total - a.score.total)
-        return scored.slice(0, 50)
+        // 4. RADAR-VIP-02 — déduplication contactuelle
+        //    Grouper par clé contact, garder le représentant au score max,
+        //    agréger products[] et leadCount.
+        const groups = new Map<string, VipRadarRow>()
+        for (const row of scored) {
+          const key = contactKey(row.email, row.phone, row.leadId)
+          const existing = groups.get(key)
+          if (!existing) {
+            groups.set(key, { ...row, products: [row.productType], leadCount: 1 })
+          } else {
+            // Accumuler les produits distincts
+            if (!existing.products.includes(row.productType)) {
+              existing.products.push(row.productType)
+            }
+            existing.leadCount += 1
+            // Le représentant est celui au score le plus élevé
+            if (row.score.total > existing.score.total) {
+              groups.set(key, {
+                ...row,
+                products: existing.products,
+                leadCount: existing.leadCount,
+              })
+            }
+          }
+        }
+
+        // 5. Trier les acteurs dédupliqués par score décroissant, garder top 50
+        const deduped = Array.from(groups.values())
+        deduped.sort((a, b) => b.score.total - a.score.total)
+        for (const row of deduped) {
+          row.products = row.products.slice().sort()
+        }
+        return deduped.slice(0, 50)
       },
     )
     return { ok: true, rows, total: rows.length }

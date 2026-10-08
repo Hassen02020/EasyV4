@@ -59,6 +59,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — ACTION-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a0231ea`).
 **Aucun** — LEARNING-01 CLÔTURÉ (2026-10-08, commit `3b25026`).
 **Aucun** — CAMPAIGN-ENGINE-01 CLÔTURÉ (2026-10-08, commit `a14e671`).
+**Aucun** — CAMPAIGN-LIFECYCLE-01 CLÔTURÉ (2026-10-08, commit `22b6182`).
 **Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
 **Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
 **Aucun** — NICHE-UI-01 CLÔTURÉ (2026-10-07, PR #158, merge `7abc1acc`).
@@ -529,6 +530,40 @@ nom/objectif/message par canal. READ-ONLY : ne crée pas de campagnes.
 - `lib/admin/__tests__/campaign-engine-ui.test.ts` — 25 tests (CRÉÉ)
 
 **Tests** : 25/25 ✅ · typecheck 0 erreur ✅
+
+---
+
+### CAMPAIGN-LIFECYCLE-01 — CLÔTURÉ (2026-10-08, commit `22b6182`)
+
+**Objectif** : bridge PROPOSAL → CREATE → TARGET → LAUNCH — l'unique gap du pipeline campagne.
+Audit complet (PROPOSAL→CREATE→TARGET→LAUNCH→ATTRIBUTION→RESERVATION→CA/MARGE→LEARNING) :
+7 stages sur 8 existaient déjà. Seul manquait l'action serveur atomique Proposal → createCampaignCore → launchCampaignCore.
+
+**Audit état pré-chantier** :
+- PROPOSAL ✅ campaign-engine-core + getCampaignEngine + page (CAMPAIGN-ENGINE-01)
+- CREATE core ✅ createCampaignCore (campaign-persistence-core) — pas de server action depuis proposal
+- TARGET+LAUNCH core ✅ launchCampaignCore — même situation
+- ATTRIBUTION ✅ attributeReservationCore + cron `0 6 * * *` (vercel.json)
+- RESERVATION ✅ cron couvre tous modules (tous 8)
+- CA/MARGE ✅ getCampaignPerformanceCore + listCampaignPerformance + /admin/analytics/campaigns
+- LEARNING ✅ buildLearningCore + learning-actions + /admin/analytics/learning
+
+**Fichiers créés/modifiés** :
+- `lib/crm/leads-core.ts` — + `fetchLeadsByIdsCore(tx, { agencyId, ids })` (ÉTENDU)
+  - Restitution id/email/phone par liste d'IDs — scope minimal, IDs hors agence ignorés
+- `lib/admin/campaign-lifecycle-actions.ts` — `createAndLaunchCampaign(params)` server action (CRÉÉ)
+  - assertSupportStaff (super_admin/manager/agent_resa + OTA)
+  - createCampaignCore → fetchLeadsByIdsCore → launchCampaignCore — transaction unique
+  - Content figé au lancement (CAMPAIGN-EXTENSION-01)
+  - Retourne `{ ok: true; campaignId; targetCount }` ou `{ ok: false; error }`
+- `app/(internal)/admin/analytics/campaign-engine/page.tsx` — bouton "Créer & lancer" (ÉTENDU)
+  - launchStates[proposalId] : idle / launching / done / error
+  - Bouton dans chaque ligne détail expanded, stopPropagation pour ne pas réduire la ligne
+
+**Tests** : 8/8 ✅ · typecheck 0 erreur ✅
+- fetchLeadsByIdsCore exportée
+- selectAttributionCandidateCore : null, unique, snapshot récent gagne, tie-breaker, trois candidats
+- createAndLaunchCampaign exportée
 
 ---
 

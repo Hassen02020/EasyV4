@@ -55,6 +55,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — RADAR-VIP-01 CLÔTURÉ (2026-10-08, commit `ce2d2f8`).
 **Aucun** — RADAR-VIP-02 CLÔTURÉ (2026-10-08).
 **Aucun** — RADAR-VIP-03 CLÔTURÉ (2026-10-08).
+**Aucun** — SIGNAL-ENGINE-01 CLÔTURÉ (2026-10-08, commit `03bc5c8`).
 
 ---
 
@@ -151,11 +152,9 @@ FRÉQUENCE
 CROISSANCE
  ↓
 RADAR MÉTIER       🟢 v1 — "Qu'est-ce qui bouge ?"
-RADAR VIP          🟢 v1 — "Qui devient important ?" (parmi leads récents)
+RADAR VIP          🟢 v3 — "Qui devient important ?" (dedup CONTACT-01)
  ↓
-RADAR-VIP-02       🔴 — fusion contactId / vue partenaire multi-produit
- ↓
-SIGNAL ENGINE      🔴 — convergence Métier + VIP → "Significatif ?"
+SIGNAL ENGINE      🟢 v1 — convergence Métier × VIP → "Significatif ?"
  ↓
 ACTION ENGINE      🔴 — "Quoi faire ?"
  ↓
@@ -196,11 +195,44 @@ résolution exacte CONTACT-01 :
 RADAR-VIP-01  🟢  score par lead
 RADAR-VIP-02  🟢  dedup best-effort email-first
 RADAR-VIP-03  🟢  dedup exacte CONTACT-01
+SIGNAL ENGINE 🟢  convergence Métier × VIP (commit 03bc5c8)
               ↓
-SIGNAL ENGINE 🔴  prochaine étape (convergence Métier + VIP)
+ACTION ENGINE 🔴  "Quoi faire ?" — prochaine étape
 ```
 
-**Prochain chantier identifié** : CI-FIX-03 (NO_FCP /login) ou SIGNAL ENGINE
+**SIGNAL-ENGINE-01 — CLÔTURÉ (2026-10-08, commit `03bc5c8`)**
+
+Convergence Radar Métier × Radar VIP — "Ce contact VIP est dans un marché en mouvement" = signal actionnable.
+
+**Fichiers créés/modifiés** :
+- `lib/crm/signal-engine-core.ts` — `buildSignalEngineCore(vipRows, radarSignals)` pure (CRÉÉ)
+  - `VipInput` : interface minimale découplée de VipRadarRow (évite cross-import "use server")
+  - Deux types : `vip_x_destination`, `vip_x_product`
+  - Tendances positives uniquement : `forte_hausse`, `hausse`, `nouveau`
+  - Pas de signal canal (`dimensionType=channel` ignoré)
+  - `combinedScore = vipScore + signalStrength` (additif, transparent)
+  - `insight` : "X (VIP 87) × Destination Tunis (forte hausse +42%)"
+  - `SIGNAL_ENGINE_MAX_ROWS = 30`, tri par combinedScore desc, dédup par signalId
+- `lib/admin/signal-engine-actions.ts` — `getSignalEngine(windowWeeks: 4|8|12)` Server Action (CRÉÉ)
+  - Orchestre : `getTimeSeriesCore` → `buildRadarMetierCore` (signaux marché)
+    + `listLeadsCore` → score séquentiel + `findExistingContactIdForLeadCore` → dédup contactuelle
+    + `buildSignalEngineCore` (convergence)
+  - Même dédup CONTACT-01 que RADAR-VIP-03 (réimplémentée directement, sans appel à Server Action)
+- `app/(internal)/admin/analytics/signal/page.tsx` — UI Signal Engine (CRÉÉ)
+  - Sélecteur fenêtre 4/8/12 semaines
+  - 3 tuiles KPI : signaux convergents / VIP×Destination / VIP×Produit
+  - Carte "Signal le plus fort" (border amber)
+  - Table : rang, acteur VIP (badge ×N, contactId prefix), type, dimension, tendance badge, croissance, barre score combiné (amber), VIP, signal
+  - État vide : "Aucun signal convergent — les signaux apparaîtront quand des acteurs VIP seront dans des marchés en mouvement."
+- `components/admin-shell.tsx` — icône Sparkles + 9e sous-item "Signaux" → `/admin/analytics/signal` + breadcrumb (ÉTENDU)
+- `lib/admin/__tests__/signal-engine-ui.test.ts` — 17 tests (3 suites) (CRÉÉ)
+  - Suite 1 core : exports, empty cases, vip_x_destination, vip_x_product, filtrage baisse/canal, tri, dédup, cap MAX_ROWS
+  - Suite 2 actions : exports getSignalEngine
+  - Suite 3 page/nav : fichier, imports, shell href, Sparkles
+
+**Tests** : 17/17 ✅ · typecheck 0 erreur ✅ · lint 0 erreur ✅
+
+**Prochain chantier identifié** : ACTION ENGINE ("Quoi faire ?") ou CI-FIX-03 (NO_FCP /login)
 — non audités — STOP.
 
 ---

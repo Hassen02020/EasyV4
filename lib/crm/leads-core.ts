@@ -480,3 +480,21 @@ export async function searchReservationsForLeadLinkCore(
 
   return rows
 }
+
+/**
+ * CAMPAIGN-LIFECYCLE-01 — restitution email/phone pour `launchCampaignCore`.
+ * Seuls `id`, `email` et `phone` sont retournés (scope minimal, pas de données
+ * personnelles superflues dans le contexte campagne).
+ * Les IDs non trouvés ou hors agence sont silencieusement ignorés.
+ */
+export async function fetchLeadsByIdsCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; ids: string[] },
+): Promise<Pick<LeadRow, "id" | "email" | "phone">[]> {
+  if (params.ids.length === 0) return []
+  const rows = await tx
+    .select({ id: leads.id, email: leads.email, phone: leads.phone })
+    .from(leads)
+    .where(and(eq(leads.agencyId, params.agencyId), inArray(leads.id, params.ids)))
+  return rows
+}

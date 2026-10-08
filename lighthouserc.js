@@ -11,9 +11,11 @@ module.exports = {
   ci: {
     collect: {
       url: [
-        "http://localhost:3000/",
+        // /fr : page d'accueil publique réelle (/ redirige via next-intl middleware).
+        "http://localhost:3000/fr",
+        // /login : page de connexion SSR (CI-FIX-03 : wrapper sans opacity:0).
         "http://localhost:3000/login",
-        "http://localhost:3000/admin",
+        // /admin exclu : redirige toujours vers /login en CI (sans auth) — inutile à auditer.
       ],
       startServerCommand: "pnpm start",
       startServerReadyPattern: "Ready",

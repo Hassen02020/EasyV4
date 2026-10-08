@@ -63,6 +63,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — CAMPAIGN-LINK-01 CLÔTURÉ (2026-10-08) — `?campaign=<uuid>` câblé dans les 8 tunnels de réservation (UI → serveur).
 **Aucun** — CAMPAIGN-DELIVERY-01 CLÔTURÉ (2026-10-08, PRs #162+#163) — Inngest `deliverCampaign` + `deliverCampaignCore` + migration 0125 (`delivery_status`/`delivered_at`) + live consent RGPD art.7.
 **Aucun** — CAMPAIGN-DELIVERY-STATS-01 CLÔTURÉ (2026-10-08, PR #164, merge `2aba257`) — `getCampaignPerformanceCore` étendu : `sent`/`failed`/`skipped`/`pending`/`totalTargets` via SQL COUNT(CASE WHEN); page `/admin/analytics/campaigns` affiche 4 colonnes livraison; 4 tests comportementaux vitest.
+**Aucun** — CAMPAIGN-MGMT-01 CLÔTURÉ (2026-10-08, PR #166, merge `17536e5`) — `cancelCampaignCore` (CAMPAIGN_ALREADY_TERMINAL guard); `CampaignTargetRow` étendu (`deliveryStatus`/`deliveredAt`); Server Actions `cancelCampaign` + `getCampaignTargets`; page `/admin/analytics/campaigns` : bouton Annuler (active/draft) + panel `CampaignTargetsPanel` drill-down; 9 invariants statiques node:test.
 **Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
 **Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
 **Aucun** — NICHE-UI-01 CLÔTURÉ (2026-10-07, PR #158, merge `7abc1acc`).

@@ -19,10 +19,20 @@ import { getPriceSnapshot } from "@/lib/vols/price-snapshot"
 import type { CanonicalItinerary, Ancillary } from "@/lib/vols/canonical"
 
 interface Props {
-  searchParams: Promise<{ snapshotId?: string }>
+  searchParams: Promise<{
+    snapshotId?: string
+    /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+    campaign?: string
+  }>
 }
 
-async function PassengersContent({ snapshotId }: { snapshotId: string }) {
+async function PassengersContent({
+  snapshotId,
+  campaignId,
+}: {
+  snapshotId: string
+  campaignId?: string
+}) {
   const t = await getTranslations("Vols")
 
   const snapshot = await getPriceSnapshot(snapshotId)
@@ -76,13 +86,14 @@ async function PassengersContent({ snapshotId }: { snapshotId: string }) {
         routeDisplay={routeDisplay}
         departureDisplay={departureDisplay}
         availableAncillaries={availableAncillaries}
+        campaignId={campaignId}
       />
     </main>
   )
 }
 
 export default async function PassengersPage({ searchParams }: Props) {
-  const { snapshotId } = await searchParams
+  const { snapshotId, campaign } = await searchParams
   if (!snapshotId) notFound()
 
   return (
@@ -96,7 +107,7 @@ export default async function PassengersPage({ searchParams }: Props) {
             </main>
           }
         >
-          <PassengersContent snapshotId={snapshotId} />
+          <PassengersContent snapshotId={snapshotId} campaignId={campaign} />
         </Suspense>
       </div>
       <Footer />

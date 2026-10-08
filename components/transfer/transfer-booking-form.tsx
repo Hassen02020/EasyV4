@@ -96,6 +96,8 @@ interface TransferBookingFormProps {
   zones: CatalogTransferZone[]
   agencyId: string
   prefill?: TransferBookingFormPrefill
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
 }
 
 const VEHICLE_TYPES = [
@@ -114,6 +116,7 @@ export function TransferBookingForm({
   zones,
   agencyId,
   prefill,
+  campaignId,
 }: TransferBookingFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -203,6 +206,7 @@ export function TransferBookingForm({
         flightNumber: data.flightNumber,
         flightArrivalAt: data.flightArrivalAt,
         customer: data.customer,
+        campaignId,
       })
 
       if (!result.ok) {

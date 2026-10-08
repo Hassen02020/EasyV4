@@ -1018,6 +1018,9 @@ export async function submitCheckoutAction(
     )
   }
 
+  const rawCampaignId = String(formData.get("campaignId") ?? "").trim()
+  const campaignId = rawCampaignId || undefined
+
   const { createGuestReservationFromDraft } = await import("./guest-actions")
   const result = await createGuestReservationFromDraft({
     draft: payload.draft,
@@ -1036,6 +1039,7 @@ export async function submitCheckoutAction(
     idempotencyKey: createHash("sha256")
       .update(`${token}:${paymentMethod}`)
       .digest("hex"),
+    campaignId,
   })
   if (!result.ok) {
     return { ok: false, error: result.error }

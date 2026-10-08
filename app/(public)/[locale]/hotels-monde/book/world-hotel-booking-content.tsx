@@ -65,6 +65,8 @@ export function WorldHotelBookingContent() {
   const searchParams = useSearchParams()
   const t = useTranslations("HotelsMonde")
   const offer = parseOfferFromParams(searchParams)
+  // CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL.
+  const campaignId = searchParams.get("campaign") ?? undefined
 
   if (!offer) {
     return (
@@ -85,7 +87,7 @@ export function WorldHotelBookingContent() {
       <h1 className="text-foreground mb-6 text-xl font-bold">
         {t("finalizeBookingTitle")}
       </h1>
-      <WorldHotelGuestBookingForm offer={offer} />
+      <WorldHotelGuestBookingForm offer={offer} campaignId={campaignId} />
     </main>
   )
 }

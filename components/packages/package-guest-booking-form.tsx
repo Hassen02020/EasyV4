@@ -67,6 +67,8 @@ interface PackageGuestBookingFormProps {
   packageTitle: string
   departures: DepartureOption[]
   defaultDepartureId?: string
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
 }
 
 function getMethods(t: ReturnType<typeof useTranslations>): {
@@ -102,6 +104,7 @@ export function PackageGuestBookingForm({
   packageTitle,
   departures,
   defaultDepartureId,
+  campaignId,
 }: PackageGuestBookingFormProps) {
   const router = useRouter()
   const cart = useCart()
@@ -193,6 +196,7 @@ export function PackageGuestBookingForm({
       const result = await createGuestPackageBooking({
         booking: { ...data, policyAccepted },
         paymentMethod: method,
+        campaignId,
       })
       if (!result.ok) {
         setSubmitError(result.error)

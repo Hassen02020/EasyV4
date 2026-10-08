@@ -65,6 +65,8 @@ interface ActivityGuestBookingFormProps {
   activityTitle: string
   sessions: SessionOption[]
   defaultSessionId?: string
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
 }
 
 export function ActivityGuestBookingForm({
@@ -72,6 +74,7 @@ export function ActivityGuestBookingForm({
   activityTitle,
   sessions,
   defaultSessionId,
+  campaignId,
 }: ActivityGuestBookingFormProps) {
   const router = useRouter()
   const cart = useCart()
@@ -189,6 +192,7 @@ export function ActivityGuestBookingForm({
       const result = await createGuestActivityBooking({
         booking: { ...data, policyAccepted },
         paymentMethod: method,
+        campaignId,
       })
       if (!result.ok) {
         setSubmitError(result.error)

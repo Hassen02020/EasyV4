@@ -72,6 +72,8 @@ interface OmraGuestBookingFormProps {
   durationDays: number
   departures: DepartureOption[]
   defaultDepartureDate?: string
+  /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
+  campaignId?: string
 }
 
 const emptyPilgrim = {
@@ -126,6 +128,7 @@ export function OmraGuestBookingForm({
   durationDays,
   departures,
   defaultDepartureDate,
+  campaignId,
 }: OmraGuestBookingFormProps) {
   const router = useRouter()
   const t = useTranslations("Omra")
@@ -185,6 +188,7 @@ export function OmraGuestBookingForm({
       const result = await createGuestOmraBooking({
         booking: { ...data, policyAccepted },
         paymentMethod: method,
+        campaignId,
       })
       if (!result.ok) {
         setSubmitError(result.error)

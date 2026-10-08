@@ -11,10 +11,7 @@
  */
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import {
-  resolveContactRefForChannelCore,
-  filterAudienceByConsentCore,
-} from "../campaign-core"
+import { resolveContactRefForChannelCore } from "../campaign-core"
 
 test("channel email : utilise lead.email brut (non normalisé ici)", () => {
   assert.equal(
@@ -83,42 +80,10 @@ for (const channel of ["instagram", "messenger", "web"] as const) {
 // ---------------------------------------------------------------------------
 
 describe("AUDIENCE-DEDUP-01 — filterAudienceByConsentCore déduplication", () => {
-  function makeTx(opts: { consentGranted?: boolean } = {}) {
-    const { consentGranted = true } = opts
-    let resolveCallCount = 0
-    let idCounter = 0
-
-    // resolveOrCreateContactCore mock : normalise le ref (lowercase) pour
-    // simuler le comportement réel — deux refs identiques → même contactId.
-    const contactByRef = new Map<string, string>()
-
-    return {
-      _resolveCallCount: () => resolveCallCount,
-      // Expose les mocks sous forme de méthodes injectables
-      _resolveOrCreateContact: async (_tx: unknown, params: { agencyId: string; channel: string; rawRef: string }) => {
-        resolveCallCount++
-        const normalizedRef = params.rawRef.toLowerCase()
-        if (!contactByRef.has(normalizedRef)) {
-          contactByRef.set(normalizedRef, `contact-${++idCounter}`)
-        }
-        return { id: contactByRef.get(normalizedRef)!, contactRef: normalizedRef }
-      },
-      _hasMarketingConsent: async () => consentGranted,
-    }
-  }
-
   test("3 leads même email → 1 seul contact dans contacts[], leadIds contient les 3 ids", async () => {
-    // On utilise directement filterAudienceByConsentCore avec un vrai tx mock
-    // injecté via monkey-patch du module n'étant pas possible sans ESM mock,
-    // on vérifie le comportement observable : contacts.length === 1 et
-    // leadIds.length === 3.
-    //
-    // Le mock tx doit satisfaire l'interface DrizzleTransaction. Ici on le
-    // construit minimal pour les deux appels effectués par la fonction.
-    const resolveCallLog: string[] = []
-    let contactId = "ctc-1"
-
-    const tx = {} as never // non utilisé directement (appels via imports)
+    // filterAudienceByConsentCore appelle resolveOrCreateContactCore (import ESM
+    // non mockable sans framework). On vérifie la logique de pré-groupement via
+    // resolveContactRefForChannelCore (pure) — même invariant, testable sans DB.
 
     // Test de la logique de pré-groupement via resolveContactRefForChannelCore
     // (fonction pure) : trois leads avec le même email produisent 1 rawRef unique.

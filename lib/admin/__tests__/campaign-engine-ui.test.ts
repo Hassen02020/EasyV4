@@ -19,6 +19,7 @@
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { resolve } from "node:path"
 import type { ActionRow } from "../../crm/action-engine-core.js"
 
 function mkAction(
@@ -279,14 +280,14 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("campaign-engine page file exists", async () => {
     const fs = await import("node:fs/promises")
     await fs.access(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/campaign-engine/page.tsx"),
     )
   })
 
   it("campaign-engine page imports getCampaignEngine", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/campaign-engine/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("getCampaignEngine"))
@@ -296,7 +297,7 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("campaign-engine page renders proposals and suggestedMessage", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/campaign-engine/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("proposals"))
@@ -306,7 +307,7 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("admin-shell includes Campagnes VIP nav item with /admin/analytics/campaign-engine href", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("/admin/analytics/campaign-engine"))
@@ -316,7 +317,7 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("admin-shell imports Send icon", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("Send"))

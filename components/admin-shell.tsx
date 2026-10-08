@@ -223,6 +223,31 @@ const technicalNavItems: NavItem[] = [
   },
 ]
 
+const analyticsNavItems: NavItem[] = [
+  {
+    title: "Analytique",
+    icon: BarChart2,
+    href: "/admin/analytics",
+    subItems: [
+      {
+        title: "Marges",
+        href: "/admin/analytics/margins",
+        icon: DollarSign,
+      },
+      {
+        title: "Niches CRM",
+        href: "/admin/analytics/niches",
+        icon: Users,
+      },
+      {
+        title: "Demande hôtel",
+        href: "/admin/analytics/search-demand",
+        icon: TrendingUp,
+      },
+    ],
+  },
+]
+
 const superAdminNavItems: NavItem[] = [
   {
     title: "Politique FX",
@@ -285,17 +310,24 @@ function getNavItems(role: AdminShellRole): NavItem[] {
         ...baseNavItems,
         ...managerNavItems,
         ...technicalNavItems,
+        ...analyticsNavItems,
         ...superAdminNavItems,
       ]
     case "manager":
-      return [...baseNavItems, ...managerNavItems, ...technicalNavItems]
+      return [
+        ...baseNavItems,
+        ...managerNavItems,
+        ...technicalNavItems,
+        ...analyticsNavItems,
+      ]
     case "agent_resa":
-      // Agent résa : accès limité aux réservations, produits (lecture), et support
+      // Agent résa : accès limité aux réservations, produits (lecture), support et analytics
       return [
         ...baseNavItems,
         managerNavItems[0]!, // B2C Réservations (avec subItems)
         managerNavItems[2]!, // Produits (lecture seule)
         managerNavItems[5]!, // Support & Clients
+        ...analyticsNavItems,
       ]
     case "agent_compta":
       // Agent compta : accès comptabilité + réservations (lecture)
@@ -335,6 +367,10 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "agencies") label = "Agences"
     if (paths[i] === "logs") label = "Logs Système"
     if (paths[i] === "brand") label = "Marque Easy2Book"
+    if (paths[i] === "analytics") label = "Analytique"
+    if (paths[i] === "margins") label = "Marges"
+    if (paths[i] === "niches") label = "Niches CRM"
+    if (paths[i] === "search-demand") label = "Demande hôtel"
 
     breadcrumbs.push({ label, href })
   }

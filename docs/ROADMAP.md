@@ -44,6 +44,44 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — SETTLE-02b CLÔTURÉ (2026-10-04, commit `0de624e`).
 **Aucun** — WALLET-GAP-1/2/3 CLÔTURÉ (2026-10-04, commit `7f3d11f`).
 **Aucun** — PARTNER-GAP-1 CLÔTURÉ (2026-10-04, commit `41b1293`).
+**Aucun** — POST-BATCH-CERTIFICATION-AUDIT CLÔTURÉ (2026-10-08) — PRs #156/#157/#158 certifiés.
+
+---
+
+### POST-BATCH-CERTIFICATION-AUDIT — CLÔTURÉ (2026-10-08)
+
+**Objectif** : certification croisée des 3 PRs mergées le 2026-10-08 — vérifier que
+le câblage promo, la consolidation revenue, et la première UI niche sont effectifs sur
+le code source réel de `main`.
+
+**AXE 1 — PROMO-PRICING-COVERAGE-01 (PR #156)** :
+- `hotels-monde/guest-booking-actions.ts` : importe `resolveCheckoutPromoCore` +
+  `applyPromoDiscountCore`, passe `supplierPriceTnd` (plancher PROMO-LOSS-POLICY-01) ✅
+- `activities/guest-booking-actions.ts` : câblé, pas de plancher (catalogue agence,
+  coût net = prix vente, `supplierPriceTnd` omis délibérément) ✅
+- `cars/guest-booking-actions.ts` : câblé, passe `carSupplierCostTnd` ✅
+- `vols/booking-request-action.ts` : câblé, remise persistée dans `flightPriceSnapshots`
+  (CAS `status=ACTIVE` + `expiresAt > now()`), relue sans recalcul à la confirmation ✅
+- `lib/finance/margin-calculator.ts` : SUPPRIMÉ (confirmé — `git show origin/main:...` → not found) ✅
+- Tests `promo-wiring-invariants.test.ts` : 8×2 couverture statique + 3 tests plancher = 35 assertions ✅
+
+**AXE 2 — REVENUE-CONSOLIDATE-01 (PR #157)** :
+- `sumRevenueMarginCore()` : primitive pure extraite dans `lib/reporting/margin-analytics-core.ts` ✅
+- `lib/crm/campaign-performance-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
+- `lib/crm/vip-score-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
+- Duplication résiduelle : `grep '.reduce.*salePriceTnd\|.reduce.*marginAmount'` → zéro résultat ✅
+- Tests `margin-analytics-core.test.ts` : 6 tests purs (empty, string/number, marge négative, etc.) ✅
+- Tests `margin-analytics-core-live.test.ts` : preuve live Postgres pour `getMarginKPIsCore` ✅
+
+**AXE 3 — NICHE-UI-01 (PR #158)** :
+- Page `/admin/analytics/niches/page.tsx` créée, `"use client"` ✅
+- Appel `listNicheSegments()` depuis `lib/admin/niche-actions.ts` ✅
+- Garde auth : `assertSupportStaff` (super_admin/manager/agent_resa + agencyType="ota") — convention identique à `/admin/analytics/margins` ✅
+- Read-only (pas de bouton "lancer campagne" en V1 — décision produit 2026-10-07) ✅
+- Rendu visuel authentifié : **NOT VERIFIED** (pas de session Preview dans cette audit)
+
+**Méthode** : lecture source via `git show origin/main:...` sans checkout main.
+Audit réalisé sur HEAD main = `a0b70ed`.
 
 ---
 

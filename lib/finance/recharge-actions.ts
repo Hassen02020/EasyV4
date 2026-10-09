@@ -70,6 +70,10 @@ export interface SubmitRechargeInput {
   paymentReference?: string
   proofUrl?: string
   note?: string
+  /** PSP identifier (stripe|sps|paymee) — required for card_international,
+   * undefined for offline methods. Stored so the webhook handler can verify
+   * PSP identity before crediting the wallet. */
+  psp?: string
   // agencyId et requestedByUserId sont résolus depuis la session serveur
   // Ne pas accepter ces valeurs depuis le client (prévient l'usurpation d'agencyId)
 }
@@ -126,6 +130,7 @@ export async function submitRechargeRequest(
           paymentReference: input.paymentReference ?? null,
           proofUrl: input.proofUrl ?? null,
           note: input.note ?? null,
+          psp: input.psp ?? null,
         })
         .returning({ id: walletRechargeRequests.id }),
   )
@@ -341,6 +346,7 @@ export async function initiateOnlineRecharge(
           amount: input.amount.toFixed(3),
           method: "card_international",
           paymentReference: orderId,
+          psp: "paymee",
         })
         .returning({ id: walletRechargeRequests.id }),
   )

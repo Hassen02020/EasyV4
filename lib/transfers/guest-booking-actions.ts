@@ -17,7 +17,7 @@
  */
 
 import { eq, and, sql } from "drizzle-orm"
-import { withTenantContext } from "@/lib/db/tenant-context"
+import { withTenantContext, withSystemContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   reservations,
@@ -35,6 +35,7 @@ import { recordReservationFinancials } from "@/lib/finance/reservation-financial
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -135,19 +136,9 @@ export async function createGuestTransferBooking(
 
   const linkedAuthUserId = await resolveLinkedAuthUserId(input.customer.email)
 
-  return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestTransferBooking(input, linkedAuthUserId),
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/* Internal runner                                                            */
-/* -------------------------------------------------------------------------- */
-
-async function runCreateGuestTransferBooking(
-  input: GuestTransferBookingInput,
-  linkedAuthUserId: string | null,
-): Promise<CreateGuestTransferBookingResult> {
+  // PAY-IDEM-DB-01 — agencyId résolu ici pour que le fallback DB puisse
+  // vérifier une réservation déjà créée quand Redis est indisponible, avant
+  // tout re-INSERT qui échouerait en contrainte unique.
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
     return {
@@ -157,6 +148,63 @@ async function runCreateGuestTransferBooking(
     }
   }
 
+  return withGuestIdempotency(
+    idempotencyKey,
+    () =>
+      runCreateGuestTransferBooking(
+        input,
+        agencyId,
+        idempotencyKey,
+        linkedAuthUserId,
+      ),
+    undefined,
+    () => findTransferReservationByIdempotencyKey(agencyId, idempotencyKey),
+  )
+}
+
+async function findTransferReservationByIdempotencyKey(
+  agencyId: string,
+  idempotencyKey: string,
+): Promise<CreateGuestTransferBookingResult | null> {
+  const rows = await withSystemContext((db) =>
+    db
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+        tndAmount: reservations.tndAmount,
+      })
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.agencyId, agencyId),
+          eq(reservations.guestIdempotencyKey, idempotencyKey),
+          eq(reservations.module, "transfer"),
+        ),
+      )
+      .limit(1),
+  )
+  const row = rows[0]
+  if (!row) return null
+  return {
+    ok: true,
+    reservationId: row.id,
+    publicRef: row.publicRef,
+    guestAccessToken: row.guestAccessToken,
+    totalTnd: Number(row.tndAmount ?? 0),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Internal runner                                                            */
+/* -------------------------------------------------------------------------- */
+
+async function runCreateGuestTransferBooking(
+  input: GuestTransferBookingInput,
+  agencyId: string,
+  idempotencyKey: string,
+  linkedAuthUserId: string | null,
+): Promise<CreateGuestTransferBookingResult> {
   try {
     const result = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
@@ -169,6 +217,7 @@ async function runCreateGuestTransferBooking(
           pickupDate: input.pickupDate,
           pickupTime: input.pickupTime,
           agencyId,
+          channel: "direct",
         })
         if (!pricing) throw new Error("NO_PRICING")
 
@@ -236,6 +285,7 @@ async function runCreateGuestTransferBooking(
             agencyId,
             customerId: customer.id,
             publicRef,
+            guestIdempotencyKey: idempotencyKey,
             module: "transfer",
             source: "internal",
             status: "pending",
@@ -273,12 +323,36 @@ async function runCreateGuestTransferBooking(
         const guestAccessToken = reservation.guestAccessToken
 
         // 5. Données financières (Break 4 — Chantier 62 : tous les modules)
-        // Transfer : prix catalogue = prix de vente (pas de coût fournisseur séparé)
+        // ECON-WIRING-02 — economic_entitlements. Même pattern que le module
+        // B2B (lib/transfers/actions.ts) : catalogue propre à l'agence OTA,
+        // pas de fournisseur externe modélisé. Coût = base + majoration nuit
+        // (avant marge), marge = totalTnd - coût.
+        const transferSupplierCostTnd =
+          pricing.basePriceTnd + pricing.nightSurchargeAmount
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
-          supplierPriceTnd: totalTnd,
+          supplierPriceTnd: transferSupplierCostTnd,
           salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "supplier_cost",
+              amount: transferSupplierCostTnd,
+              basis: "tarif propre de l'agence OTA (base + majoration nuit)",
+            },
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "seller",
+              qualification: "seller_margin",
+              amount: totalTnd - transferSupplierCostTnd,
+              basis:
+                "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+            },
+          ],
         })
         await creditPlatformCommission(tx, {
           reservationId,
@@ -339,9 +413,33 @@ async function runCreateGuestTransferBooking(
           },
         })
 
-        return { reservationId, publicRef, guestAccessToken, totalTnd }
+        return {
+          reservationId,
+          publicRef,
+          guestAccessToken,
+          totalTnd,
+          fromZoneName: fromZone?.name ?? input.fromZoneId,
+          toZoneName: toZone?.name ?? input.toZoneId,
+        }
       },
     )
+
+    if (input.customer.email || input.customer.phone) {
+      sendEvent("booking/transfer.confirmed", {
+        reservationId: result.reservationId,
+        publicRef: result.publicRef,
+        agencyId,
+        customerEmail: input.customer.email ?? "",
+        customerPhone: input.customer.phone,
+        fromZone: result.fromZoneName,
+        toZone: result.toZoneName,
+        pickupAt: `${input.pickupDate}T${input.pickupTime}:00`,
+        vehicleType: input.vehicleType,
+        totalTnd: result.totalTnd,
+      }).catch(() => {
+        /* fire-and-forget — le retry Inngest suffira */
+      })
+    }
 
     return {
       ok: true,

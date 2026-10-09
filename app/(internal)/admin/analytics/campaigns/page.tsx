@@ -106,7 +106,6 @@ function CampaignTargetsPanel({
       }
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
     load()
     return () => {
       cancelled = true
@@ -114,7 +113,7 @@ function CampaignTargetsPanel({
   }, [campaignId])
 
   return (
-    <Card className="mt-2 border-muted">
+    <Card className="border-muted mt-2">
       <CardHeader className="flex flex-row items-center justify-between py-3">
         <CardTitle className="text-sm">
           Cibles ({loading ? "…" : targets.length})
@@ -209,7 +208,6 @@ export default function CampaignAnalyticsPage() {
       }
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
     run()
     return () => {
       cancelled = true
@@ -244,10 +242,9 @@ export default function CampaignAnalyticsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Performances Campagnes</h1>
         <p className="text-muted-foreground text-sm">
-          Exposition, conversions, chiffre d&apos;affaires et marge par
-          campagne CRM. Calculé depuis{" "}
-          <code className="text-xs">campaign_targets</code> ⋈{" "}
-          <code className="text-xs">campaign_attributions</code> ⋈{" "}
+          Exposition, conversions, chiffre d&apos;affaires et marge par campagne
+          CRM. Calculé depuis <code className="text-xs">campaign_targets</code>{" "}
+          ⋈ <code className="text-xs">campaign_attributions</code> ⋈{" "}
           <code className="text-xs">reservation_financials</code>.
         </p>
       </div>
@@ -307,7 +304,7 @@ export default function CampaignAnalyticsPage() {
                         <TableRow key={r.campaignId}>
                           <TableCell className="font-medium">
                             <button
-                              className="hover:underline text-left"
+                              className="text-left hover:underline"
                               onClick={() =>
                                 setExpandedId(
                                   expandedId === r.campaignId

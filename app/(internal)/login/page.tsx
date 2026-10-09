@@ -19,7 +19,7 @@ export default function LoginPage() {
         aria-hidden
         className="bg-secondary/20 absolute -right-20 -bottom-20 h-72 w-72 rounded-full blur-3xl"
       />
-      <div className="e2b-fade-in-up relative w-full max-w-md">
+      <div className="relative w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
           <Link
             href="/"

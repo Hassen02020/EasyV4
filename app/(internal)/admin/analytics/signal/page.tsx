@@ -33,7 +33,10 @@ const PRODUCT_LABEL: Record<string, string> = {
 
 const TREND_CONFIG: Record<
   string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+  {
+    label: string
+    variant: "default" | "secondary" | "outline" | "destructive"
+  }
 > = {
   forte_hausse: { label: "Forte hausse", variant: "default" },
   hausse: { label: "En hausse", variant: "secondary" },
@@ -61,7 +64,7 @@ function scoreBar(value: number, max: number = 200) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="tabular-nums text-sm">{value}</span>
+      <span className="text-sm tabular-nums">{value}</span>
     </div>
   )
 }
@@ -94,8 +97,12 @@ export default function SignalEnginePage() {
   }, [windowWeeks])
 
   const topSignal = signals[0]
-  const vipXDestCount = signals.filter((s) => s.signalType === "vip_x_destination").length
-  const vipXProdCount = signals.filter((s) => s.signalType === "vip_x_product").length
+  const vipXDestCount = signals.filter(
+    (s) => s.signalType === "vip_x_destination",
+  ).length
+  const vipXProdCount = signals.filter(
+    (s) => s.signalType === "vip_x_product",
+  ).length
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -104,8 +111,8 @@ export default function SignalEnginePage() {
           <div>
             <h1 className="text-2xl font-semibold">Signal Engine</h1>
             <p className="text-muted-foreground text-sm">
-              Convergence Radar Métier × Radar VIP — acteurs VIP dans un
-              marché en mouvement. Top {signals.length} signaux actionnables.
+              Convergence Radar Métier × Radar VIP — acteurs VIP dans un marché
+              en mouvement. Top {signals.length} signaux actionnables.
             </p>
           </div>
           <div className="flex gap-2">
@@ -135,7 +142,7 @@ export default function SignalEnginePage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Signaux convergents
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -145,17 +152,17 @@ export default function SignalEnginePage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 VIP × Destination
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+              <p className="mt-1 text-2xl font-semibold text-amber-600 tabular-nums dark:text-amber-400">
                 {vipXDestCount}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 VIP × Produit
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -169,7 +176,7 @@ export default function SignalEnginePage() {
       {topSignal && !loading && (
         <Card className="border-amber-500/30">
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-xs uppercase tracking-wide">
+            <p className="text-muted-foreground text-xs tracking-wide uppercase">
               Signal le plus fort
             </p>
             <p className="mt-1 text-lg font-semibold">{topSignal.insight}</p>
@@ -215,18 +222,17 @@ export default function SignalEnginePage() {
                 </TableHeader>
                 <TableBody>
                   {signals.map((row, i) => {
-                    const trend =
-                      TREND_CONFIG[row.trend] ?? {
-                        label: row.trend,
-                        variant: "secondary" as const,
-                      }
+                    const trend = TREND_CONFIG[row.trend] ?? {
+                      label: row.trend,
+                      variant: "secondary" as const,
+                    }
                     const dimLabel =
                       row.dimensionType === "productType"
                         ? (PRODUCT_LABEL[row.dimension] ?? row.dimension)
                         : row.dimension
                     return (
                       <TableRow key={row.signalId}>
-                        <TableCell className="text-muted-foreground tabular-nums text-sm">
+                        <TableCell className="text-muted-foreground text-sm tabular-nums">
                           {i + 1}
                         </TableCell>
                         <TableCell>
@@ -248,22 +254,22 @@ export default function SignalEnginePage() {
                         <TableCell className="text-muted-foreground text-sm">
                           {SIGNAL_TYPE_LABEL[row.signalType] ?? row.signalType}
                         </TableCell>
-                        <TableCell className="font-medium text-sm">
+                        <TableCell className="text-sm font-medium">
                           {dimLabel}
                         </TableCell>
                         <TableCell>
                           <Badge variant={trend.variant}>{trend.label}</Badge>
                         </TableCell>
-                        <TableCell className="tabular-nums text-sm">
+                        <TableCell className="text-sm tabular-nums">
                           {row.growthRate}
                         </TableCell>
                         <TableCell>
                           {scoreBar(row.combinedScore, 200)}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm">
+                        <TableCell className="text-right text-sm tabular-nums">
                           {row.vipScore}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm">
+                        <TableCell className="text-right text-sm tabular-nums">
                           {row.signalStrength}
                         </TableCell>
                       </TableRow>

@@ -51,7 +51,13 @@ describe("CAMPAIGN-PERF-UI-01 — invariants statiques", () => {
       join(ROOT, "lib/crm/campaign-performance-core.ts"),
       "utf8",
     )
-    for (const field of ["sent:", "failed:", "skipped:", "pending:", "totalTargets:"]) {
+    for (const field of [
+      "sent:",
+      "failed:",
+      "skipped:",
+      "pending:",
+      "totalTargets:",
+    ]) {
       assert.ok(
         coreSource.includes(field),
         `campaign-performance-core.ts doit contenir le champ "${field}" dans CampaignPerformance`,

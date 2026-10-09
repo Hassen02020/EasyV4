@@ -3,7 +3,6 @@ import { Metadata } from "next"
 import Link from "next/link"
 import { HeartHandshake, ArrowLeft } from "lucide-react"
 import { LoginForm } from "@/components/login-form"
-import { Easy2BookLogo } from "@/components/easy2book-logo"
 
 export const metadata: Metadata = {
   title: "Connexion Mutuelle — Easy2Book",

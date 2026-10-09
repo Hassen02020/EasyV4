@@ -10,10 +10,7 @@
 
 import { describe, test, before, after } from "node:test"
 import assert from "node:assert/strict"
-import {
-  applyCommercialEngine,
-  UnsupportedCommercialCurrencyMismatchError,
-} from "../commercial-engine"
+import { applyCommercialEngine } from "../commercial-engine"
 import {
   setExchangeRateProvider,
   createMockProvider,

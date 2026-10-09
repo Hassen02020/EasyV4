@@ -12,7 +12,10 @@ const CONFIDENCE_CLASSES: Record<MarketSignal["confidence"], string> = {
 
 export async function MarketSignalsSection() {
   const [signals, t] = await Promise.all([
-    getLatestMarketSignals(),
+    Promise.race([
+      getLatestMarketSignals().catch(() => []),
+      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+    ]),
     getTranslations("MarketSignals"),
   ])
 

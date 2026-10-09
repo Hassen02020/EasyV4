@@ -19,6 +19,7 @@
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { resolve } from "node:path"
 import type { ActionRow } from "../../crm/action-engine-core.js"
 
 function mkAction(
@@ -50,7 +51,8 @@ function mkAction(
     dimension,
     trend: "hausse",
     growthRate: "+12%",
-    offerFocus: dimensionType === "destination" ? `Destination ${dimension}` : dimension,
+    offerFocus:
+      dimensionType === "destination" ? `Destination ${dimension}` : dimension,
     priority,
     priorityScore: combinedScore,
     actionType,
@@ -87,7 +89,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── Empty input ───────────────────────────────────────────────── */
 
   it("returns empty array on empty input", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const result = buildCampaignEngineCore([])
     assert.deepEqual(result, [])
   })
@@ -95,7 +98,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── Single action ─────────────────────────────────────────────── */
 
   it("returns one proposal from one action", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [mkAction("L1", "whatsapp", "destination", "Tunis", 75)]
     const result = buildCampaignEngineCore(actions)
     assert.equal(result.length, 1)
@@ -104,7 +108,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── Grouping ──────────────────────────────────────────────────── */
 
   it("groups two actions with same key into one proposal", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "whatsapp", "destination", "Tunis", 75),
       mkAction("L2", "whatsapp", "destination", "Tunis", 60),
@@ -115,7 +120,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   })
 
   it("keeps actions with different channels as separate proposals", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "phone", "destination", "Tunis", 75),
       mkAction("L1", "email", "destination", "Tunis", 75),
@@ -125,7 +131,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   })
 
   it("keeps actions with different dimensions as separate proposals", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "whatsapp", "destination", "Tunis", 75),
       mkAction("L2", "whatsapp", "destination", "Marrakech", 60),
@@ -137,7 +144,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── Champion selection ────────────────────────────────────────── */
 
   it("champion is the action with highest combinedScore", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "whatsapp", "destination", "Tunis", 60, "normale"),
       mkAction("L2", "whatsapp", "destination", "Tunis", 90, "haute"),
@@ -150,7 +158,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── LeadId deduplication ──────────────────────────────────────── */
 
   it("leadIds are deduplicated when same leadId appears twice in group", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const a1 = mkAction("L1", "whatsapp", "destination", "Tunis", 75)
     const a2 = mkAction("L1", "whatsapp", "destination", "Tunis", 60)
     const result = buildCampaignEngineCore([a1, a2])
@@ -159,7 +168,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   })
 
   it("leadIds include all distinct leadIds from grouped actions", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "email", "destination", "Tunis", 80),
       mkAction("L2", "email", "destination", "Tunis", 70),
@@ -172,7 +182,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── proposalId format ─────────────────────────────────────────── */
 
   it("proposalId follows proposal:channel:dimensionType:dimension format", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [mkAction("L1", "phone", "destination", "Tunis", 75)]
     const result = buildCampaignEngineCore(actions)
     assert.equal(result[0].proposalId, "proposal:phone:destination:Tunis")
@@ -181,21 +192,24 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── Channel mapping ───────────────────────────────────────────── */
 
   it("maps phone → call for crmChannel", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [mkAction("L1", "phone", "destination", "Tunis", 75)]
     const result = buildCampaignEngineCore(actions)
     assert.equal(result[0].crmChannel, "call")
   })
 
   it("maps whatsapp → whatsapp for crmChannel", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [mkAction("L1", "whatsapp", "destination", "Tunis", 75)]
     const result = buildCampaignEngineCore(actions)
     assert.equal(result[0].crmChannel, "whatsapp")
   })
 
   it("maps email → email for crmChannel", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [mkAction("L1", "email", "destination", "Tunis", 75)]
     const result = buildCampaignEngineCore(actions)
     assert.equal(result[0].crmChannel, "email")
@@ -204,7 +218,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── Sort order ────────────────────────────────────────────────── */
 
   it("urgent proposals come before normale proposals", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "whatsapp", "destination", "Tunis", 80, "normale"),
       mkAction("L2", "email", "destination", "Paris", 70, "urgent"),
@@ -215,7 +230,8 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   })
 
   it("within same priority, higher combinedScore comes first", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "whatsapp", "destination", "Tunis", 60, "haute"),
       mkAction("L2", "email", "destination", "Paris", 90, "haute"),
@@ -227,13 +243,20 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   /* ── Content generation ────────────────────────────────────────── */
 
   it("suggestedName is a non-empty string", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
-    const result = buildCampaignEngineCore([mkAction("L1", "phone", "destination", "Tunis", 75)])
-    assert.ok(typeof result[0].suggestedName === "string" && result[0].suggestedName.length > 0)
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
+    const result = buildCampaignEngineCore([
+      mkAction("L1", "phone", "destination", "Tunis", 75),
+    ])
+    assert.ok(
+      typeof result[0].suggestedName === "string" &&
+        result[0].suggestedName.length > 0,
+    )
   })
 
   it("suggestedObjective is a non-empty string containing leadCount", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "whatsapp", "destination", "Tunis", 80),
       mkAction("L2", "whatsapp", "destination", "Tunis", 70),
@@ -243,13 +266,20 @@ describe("CAMPAIGN-ENGINE-01 / campaign-engine-core", () => {
   })
 
   it("suggestedMessage is a non-empty string", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
-    const result = buildCampaignEngineCore([mkAction("L1", "email", "destination", "Tunis", 75)])
-    assert.ok(typeof result[0].suggestedMessage === "string" && result[0].suggestedMessage.length > 0)
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
+    const result = buildCampaignEngineCore([
+      mkAction("L1", "email", "destination", "Tunis", 75),
+    ])
+    assert.ok(
+      typeof result[0].suggestedMessage === "string" &&
+        result[0].suggestedMessage.length > 0,
+    )
   })
 
   it("actionCount equals number of actions in group", async () => {
-    const { buildCampaignEngineCore } = await import("../../crm/campaign-engine-core.js")
+    const { buildCampaignEngineCore } =
+      await import("../../crm/campaign-engine-core.js")
     const actions = [
       mkAction("L1", "email", "destination", "Tunis", 80),
       mkAction("L2", "email", "destination", "Tunis", 70),
@@ -279,14 +309,20 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("campaign-engine page file exists", async () => {
     const fs = await import("node:fs/promises")
     await fs.access(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      resolve(
+        process.cwd(),
+        "app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      ),
     )
   })
 
   it("campaign-engine page imports getCampaignEngine", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      resolve(
+        process.cwd(),
+        "app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      ),
       "utf-8",
     )
     assert.ok(content.includes("getCampaignEngine"))
@@ -296,7 +332,10 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("campaign-engine page renders proposals and suggestedMessage", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      resolve(
+        process.cwd(),
+        "app/(internal)/admin/analytics/campaign-engine/page.tsx",
+      ),
       "utf-8",
     )
     assert.ok(content.includes("proposals"))
@@ -306,7 +345,7 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("admin-shell includes Campagnes VIP nav item with /admin/analytics/campaign-engine href", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("/admin/analytics/campaign-engine"))
@@ -316,7 +355,7 @@ describe("CAMPAIGN-ENGINE-01 / page & navigation", () => {
   it("admin-shell imports Send icon", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("Send"))

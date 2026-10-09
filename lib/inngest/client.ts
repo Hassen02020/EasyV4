@@ -63,6 +63,27 @@ export type Events = {
       totalTnd: number
     }
   }
+  /** Location voiture confirmée — déclenche génération PDF voucher + email. */
+  "booking/car.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      /** Jeton d'accès guest (vide "" pour les réservations B2B). */
+      guestAccessToken: string
+      /** null si le conducteur n'a pas fourni d'email. */
+      customerEmail: string | null
+      customerName: string
+      categoryName: string
+      pickupLocationName: string
+      dropoffLocationName: string
+      pickupAt: string
+      dropoffAt: string
+      rentalDays: number
+      insuranceLevel: string
+      totalTnd: number
+    }
+  }
   /** Transfert confirmé — déclenche SMS chauffeur + email client. */
   "booking/transfer.confirmed": {
     data: {

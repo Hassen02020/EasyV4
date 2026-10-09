@@ -196,7 +196,7 @@ export async function paginateOffset<T>({
 // PAGINATION CURSOR-BASED (performant)
 // ============================================================================
 
-interface CursorPaginationOptions<T> {
+interface CursorPaginationOptions {
   /** Query Drizzle de base */
   query: DrizzleChainableQuery
   /** Cursor actuel */
@@ -226,7 +226,7 @@ export async function paginateCursor<T>({
   limit = 20,
   sortColumn,
   table,
-}: CursorPaginationOptions<T>): Promise<PaginationResult<T>> {
+}: CursorPaginationOptions): Promise<PaginationResult<T>> {
   const validLimit = Math.min(100, Math.max(1, limit))
 
   let dataQuery = query

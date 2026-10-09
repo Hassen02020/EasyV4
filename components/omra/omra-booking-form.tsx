@@ -35,15 +35,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Loader2,
-  Plus,
-  Trash2,
-  User,
-  MapPin,
-  Calendar,
-  CreditCard,
-} from "lucide-react"
+import { Loader2, Plus, Trash2, User, MapPin, CreditCard } from "lucide-react"
 import {
   createOmraBooking,
   type OmraPilgrimInput,

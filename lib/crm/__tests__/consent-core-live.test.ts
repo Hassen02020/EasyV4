@@ -13,7 +13,6 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { execSync } from "node:child_process"
 import { eq, sql } from "drizzle-orm"
 import {
   withTenantContext,

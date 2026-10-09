@@ -9,7 +9,7 @@ import { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { desc, eq } from "drizzle-orm"
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Banknote } from "lucide-react"
+import { ArrowLeft, Banknote } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,7 +24,7 @@ import {
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { walletRechargeRequests, agencies, users } from "@/lib/db/schema"
+import { walletRechargeRequests, agencies } from "@/lib/db/schema"
 import { AdminRechargeActions } from "@/components/admin/recharge-actions"
 
 export const metadata: Metadata = {

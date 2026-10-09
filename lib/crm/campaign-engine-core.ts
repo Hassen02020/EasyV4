@@ -17,7 +17,12 @@
  *    email→email) pour la compatibilité avec campaign-persistence-core.ts.
  */
 
-import type { ActionRow, ActionPriority, ActionChannel, UrgencyWindow } from "./action-engine-core"
+import type {
+  ActionRow,
+  ActionPriority,
+  ActionChannel,
+  UrgencyWindow,
+} from "./action-engine-core"
 import type { SignalTrend } from "./radar-metier-core"
 import type { CrmChannel } from "@/lib/db/schema"
 
@@ -110,8 +115,13 @@ function buildSuggestedName(
   priority: ActionPriority,
 ): string {
   const channelLabel =
-    channel === "phone" ? "Appel" : channel === "whatsapp" ? "WhatsApp" : "Email"
-  const priorityLabel = priority === "urgent" ? " 🔴" : priority === "haute" ? " 🟠" : ""
+    channel === "phone"
+      ? "Appel"
+      : channel === "whatsapp"
+        ? "WhatsApp"
+        : "Email"
+  const priorityLabel =
+    priority === "urgent" ? " 🔴" : priority === "haute" ? " 🟠" : ""
   return `VIP × ${offerFocus} — ${channelLabel}${priorityLabel}`
 }
 
@@ -178,7 +188,9 @@ function buildSuggestedMessage(
  *
  * Ordre de sortie : priorité desc, puis combinedScore desc.
  */
-export function buildCampaignEngineCore(actions: ActionRow[]): CampaignProposal[] {
+export function buildCampaignEngineCore(
+  actions: ActionRow[],
+): CampaignProposal[] {
   if (actions.length === 0) return []
 
   const groups = new Map<

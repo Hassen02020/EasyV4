@@ -83,7 +83,6 @@ export default function ConversionFunnelPage() {
       }
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
     load()
     return () => {
       cancelled = true
@@ -134,7 +133,7 @@ export default function ConversionFunnelPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Total leads
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -144,7 +143,7 @@ export default function ConversionFunnelPage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Convertis
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -154,7 +153,7 @@ export default function ConversionFunnelPage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Taux global
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -164,7 +163,7 @@ export default function ConversionFunnelPage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 CA converti
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -221,7 +220,7 @@ export default function ConversionFunnelPage() {
                     <TableCell className="text-right tabular-nums">
                       {r.contactedCount}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
+                    <TableCell className="text-right font-medium tabular-nums">
                       {r.convertedCount}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">

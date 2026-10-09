@@ -251,7 +251,10 @@ jobs:
             lib/admin/__tests__/reservation-status-transition-guard-live.test.ts \
             lib/hotel-suppliers/core/__tests__/canonical-persistence-live.test.ts \
             lib/db/__tests__/rls-gap-public-tables-01-live.test.ts \
-            lib/market/__tests__/market-content-rls-role-gap-live.test.ts
+            lib/market/__tests__/market-content-rls-role-gap-live.test.ts \
+            lib/payment/__tests__/reservation-webhook-core.test.ts \
+            lib/payment/__tests__/paymee-reservation-webhook.test.ts \
+            lib/payment/__tests__/wallet-webhook-core.test.ts
 
   build:
     runs-on: ubuntu-latest
@@ -285,15 +288,13 @@ jobs:
   # `playwright install-deps chromium` (dépendances système SEULEMENT,
   # aucun nouveau binaire téléchargé/substitué) pour fiabiliser le Chrome
   # déjà détecté par chrome-launcher, sans changer quel binaire est utilisé.
-  # Hypothèse secondaire NON écartée (réserve explicite) : la page /admin
-  # auditée (lighthouserc.js) redirige vers /login faute d'auth en CI —
-  # pourrait contribuer à un paint vide indépendamment des libs système.
-  # `continue-on-error: true` volontairement CONSERVÉ tant qu'une run verte
-  # confirmée ne prouve pas la cause exacte.
+  # CI-FIX-04 (2026-10-09) : throttlingMethod=provided + preset=desktop dans
+  # lighthouserc.js résout le FCP/LCP trop élevé en simulation mobile.
+  # Run verte confirmée (run 37903890236, job lighthouse = success).
+  # continue-on-error RETIRÉ — job BLOQUANT désormais.
   lighthouse:
     runs-on: ubuntu-latest
     needs: [build]
-    continue-on-error: true
     services:
       postgres:
         image: postgres:16
@@ -334,15 +335,14 @@ jobs:
   # R8-05 : Playwright axe-core — bloque sur toute violation WCAG
   # serious/critical. Chromium uniquement pour la vitesse. Pages /admin et
   # /booking redirigent vers login en CI (pas d'auth) : coverage réelle sur
-  # / et /login ; documenté, pas masqué. continue-on-error: true pour
-  # baseline — à durcir après validation.
-  # CI-FIX-01 (2026-10-03) : ajout continue-on-error: true (manquant malgré
-  # le commentaire ci-dessus) + service postgres éphémère + db:push pour que
-  # le serveur Next.js démarre (même cause que lighthouse ci-dessus).
+  # / et /login ; documenté, pas masqué.
+  # CI-FIX-01 (2026-10-03) : service postgres + db:push pour que le serveur
+  # Next.js démarre. continue-on-error re-ajouté pour baseline.
+  # CI-FIX-04 (2026-10-09) : 0 violations WCAG confirmé (R8-05) + run verte
+  # (run 37903890236). continue-on-error RETIRÉ — job BLOQUANT désormais.
   playwright-a11y:
     runs-on: ubuntu-latest
     needs: [build]
-    continue-on-error: true
     services:
       postgres:
         image: postgres:16

@@ -4,6 +4,7 @@
  */
 
 export { processConfirmedBooking } from "./process-confirmed-booking"
+export { processCarConfirmed } from "./process-car-confirmed"
 export { processWalletCredit } from "./process-wallet-credit"
 export { processTransferConfirmed } from "./process-transfer-confirmed"
 export { processOmraConfirmed } from "./process-omra-confirmed"

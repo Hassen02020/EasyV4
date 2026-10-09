@@ -26,8 +26,6 @@ import {
   omraPackages,
   omraAllotments,
   omraPilgrims,
-  omraRoomAllocations,
-  omraFlights,
   payments,
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"

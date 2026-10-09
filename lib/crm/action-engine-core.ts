@@ -119,12 +119,37 @@ function derivePriority(combinedScore: number): ActionPriority {
 
 const ACTION_MATRIX: Record<
   ActionPriority,
-  { actionType: ActionType; channel: ActionChannel; urgencyHours: number; urgencyWindow: UrgencyWindow }
+  {
+    actionType: ActionType
+    channel: ActionChannel
+    urgencyHours: number
+    urgencyWindow: UrgencyWindow
+  }
 > = {
-  urgent: { actionType: "appel_direct", channel: "phone", urgencyHours: 24, urgencyWindow: "24h" },
-  haute: { actionType: "whatsapp_personnalise", channel: "whatsapp", urgencyHours: 48, urgencyWindow: "48h" },
-  normale: { actionType: "email_personnalise", channel: "email", urgencyHours: 168, urgencyWindow: "7j" },
-  faible: { actionType: "email_decouverte", channel: "email", urgencyHours: 336, urgencyWindow: "14j" },
+  urgent: {
+    actionType: "appel_direct",
+    channel: "phone",
+    urgencyHours: 24,
+    urgencyWindow: "24h",
+  },
+  haute: {
+    actionType: "whatsapp_personnalise",
+    channel: "whatsapp",
+    urgencyHours: 48,
+    urgencyWindow: "48h",
+  },
+  normale: {
+    actionType: "email_personnalise",
+    channel: "email",
+    urgencyHours: 168,
+    urgencyWindow: "7j",
+  },
+  faible: {
+    actionType: "email_decouverte",
+    channel: "email",
+    urgencyHours: 336,
+    urgencyWindow: "14j",
+  },
 }
 
 function derivePriorityScore(combinedScore: number, max = 200): number {
@@ -231,7 +256,8 @@ function buildScriptLine(
 export function buildActionEngineCore(signals: SignalRow[]): ActionRow[] {
   return signals.map((row) => {
     const priority = derivePriority(row.combinedScore)
-    const { actionType, channel, urgencyHours, urgencyWindow } = ACTION_MATRIX[priority]
+    const { actionType, channel, urgencyHours, urgencyWindow } =
+      ACTION_MATRIX[priority]
     const offerFocus = buildOfferFocus(row)
 
     return {

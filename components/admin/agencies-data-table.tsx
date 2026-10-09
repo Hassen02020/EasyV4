@@ -3,8 +3,6 @@
 import * as React from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import {
-  Building2,
-  CheckCircle2,
   Globe,
   MoreHorizontal,
   PauseCircle,

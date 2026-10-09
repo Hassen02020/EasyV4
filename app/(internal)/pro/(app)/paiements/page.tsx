@@ -7,6 +7,7 @@ import { WalletRechargeForm } from "@/components/b2b/wallet-recharge-form"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import { loadPartnerPayments } from "@/lib/pro/partner-data"
+import { isPaymeeSelected } from "@/lib/finance/recharge-actions"
 
 export const metadata = { title: "Mes paiements | Espace Pro Easy2Book" }
 
@@ -45,7 +46,11 @@ export default async function ProPaymentsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <WalletRechargeForm agencyId={profile.agency.id} userId={user.id} />
+            <WalletRechargeForm
+              agencyId={profile.agency.id}
+              userId={user.id}
+              paymeeAvailable={isPaymeeSelected()}
+            />
           </CardContent>
         </Card>
 

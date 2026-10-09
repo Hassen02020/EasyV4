@@ -54,13 +54,6 @@ interface SnapshotRecord {
   itinerary: Record<string, unknown>
 }
 
-interface ReservationRecord {
-  id: string
-  status: string
-  publicRef: string
-  originalAmount: string
-}
-
 type RecheckStatus =
   | "AVAILABLE"
   | "PRICE_CHANGED"

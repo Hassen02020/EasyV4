@@ -22,7 +22,6 @@ import {
   type DebitPartnerCreditResult,
   type DrizzleLikeDb,
   type DrizzleLikeTx,
-  type DrizzleLikeChain,
 } from "../booking-actions"
 
 /* -------------------------------------------------------------------------- */
@@ -74,7 +73,6 @@ function makeMockDb(opts: MockOptions): {
 } {
   const journal: OpEvent[] = []
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = {
     transaction: async <T>(
       callback: (tx: ReturnType<typeof makeTx>) => Promise<T>,

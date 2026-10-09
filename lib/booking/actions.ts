@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation"
 import { createHash } from "node:crypto"
-import { eq, desc, and, sql } from "drizzle-orm"
+import { eq, and, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { pgErrorCode } from "@/lib/db/pg-error"

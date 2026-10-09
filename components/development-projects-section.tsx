@@ -13,7 +13,10 @@ const CONFIDENCE_CLASSES: Record<DevelopmentProject["confidence"], string> = {
 
 export async function DevelopmentProjectsSection() {
   const [projects, t] = await Promise.all([
-    getLatestDevelopmentProjects(),
+    Promise.race([
+      getLatestDevelopmentProjects().catch(() => []),
+      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+    ]),
     getTranslations("DevelopmentProjects"),
   ])
 

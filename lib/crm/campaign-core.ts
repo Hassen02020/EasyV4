@@ -97,33 +97,44 @@ export async function filterAudienceByConsentCore(
   },
 ): Promise<FilterAudienceByConsentResult> {
   const excludedLeads: ExcludedLead[] = []
-  const entriesByContactId = new Map<
-    string,
-    { contactId: string; contactRef: string; leadIds: string[] }
-  >()
 
+  // AUDIENCE-DEDUP-01 : pré-grouper les leads par rawRef avant de résoudre
+  // les contacts — évite d'appeler resolveOrCreateContactCore N fois pour
+  // le même ref (O(N leads) → O(N refs uniques)).
+  const leadIdsByRef = new Map<string, string[]>()
   for (const lead of params.audience) {
     const rawRef = resolveContactRefForChannelCore(lead, params.channel)
     if (rawRef === null) {
       excludedLeads.push({ leadId: lead.id, reason: "NO_CONTACT_REF" })
       continue
     }
+    const list = leadIdsByRef.get(rawRef) ?? []
+    list.push(lead.id)
+    leadIdsByRef.set(rawRef, list)
+  }
 
+  const entriesByContactId = new Map<
+    string,
+    { contactId: string; contactRef: string; leadIds: string[] }
+  >()
+
+  for (const [rawRef, leadIds] of leadIdsByRef) {
     const contact = await resolveOrCreateContactCore(tx, {
       agencyId: params.agencyId,
       channel: params.channel,
       rawRef,
     })
 
-    const entry =
-      entriesByContactId.get(contact.id) ??
-      ({
+    const existing = entriesByContactId.get(contact.id)
+    if (existing) {
+      existing.leadIds.push(...leadIds)
+    } else {
+      entriesByContactId.set(contact.id, {
         contactId: contact.id,
         contactRef: contact.contactRef,
-        leadIds: [],
-      } as { contactId: string; contactRef: string; leadIds: string[] })
-    entry.leadIds.push(lead.id)
-    entriesByContactId.set(contact.id, entry)
+        leadIds: [...leadIds],
+      })
+    }
   }
 
   const contactResults: CampaignEligibleContact[] = []

@@ -58,8 +58,8 @@ const METHODS: {
 ]
 
 export function WalletRechargeForm({
-  agencyId,
-  userId,
+  agencyId: _agencyId,
+  userId: _userId,
   paymeeAvailable = false,
 }: WalletRechargeFormProps) {
   const [isPending, startTransition] = useTransition()

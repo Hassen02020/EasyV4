@@ -115,7 +115,6 @@ async function fulfillWithTwoArmCAS(
     }
   }
 
-  const itinerary = { tripType: "ONE_WAY", journeys: [] }
   let activePnr: string
 
   if (reissueOnly) {

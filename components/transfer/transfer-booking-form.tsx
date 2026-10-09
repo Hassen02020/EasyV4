@@ -27,17 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, MapPin, Car, Calendar, Clock, CreditCard } from "lucide-react"
+import { Loader2, MapPin, Car, CreditCard } from "lucide-react"
 import { createGuestTransferBooking } from "@/lib/transfers/guest-booking-actions"
 import {
   calculateTransferPrice,
@@ -146,13 +139,12 @@ export function TransferBookingForm({
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const watchedFromZoneId = form.watch("fromZoneId")
   const watchedToZoneId = form.watch("toZoneId")
   const watchedVehicleType = form.watch("vehicleType")
   const watchedPickupDate = form.watch("pickupDate")
   const watchedPickupTime = form.watch("pickupTime")
-  const watchedPax = form.watch("pax")
-
   // Calcul du devis en temps réel
   const updatePricing = async () => {
     if (

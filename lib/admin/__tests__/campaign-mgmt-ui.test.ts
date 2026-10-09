@@ -6,7 +6,7 @@
 
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync, existsSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = join(process.cwd())

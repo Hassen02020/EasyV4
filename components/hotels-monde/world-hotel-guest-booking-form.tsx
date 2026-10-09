@@ -215,6 +215,7 @@ export function WorldHotelGuestBookingForm({
               <div>
                 <Label htmlFor="guest-civility">{t("civilityLabel")}</Label>
                 <Select
+                  // eslint-disable-next-line react-hooks/incompatible-library
                   value={form.watch("guest.civility")}
                   onValueChange={(v) =>
                     form.setValue("guest.civility", v as "M" | "Mme" | "Mlle")

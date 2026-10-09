@@ -81,20 +81,25 @@ export async function processReservationWebhookCore(
   const { provider, eventId, eventType, charge, signatureOk, rawPayload } =
     input
 
-  /* --- Idempotence event-level — INSERT ON CONFLICT DO NOTHING --- */
-  const inserted = await tx
-    .insert(paymentEvents)
-    .values({ eventId, provider, eventType })
-    .onConflictDoNothing()
-    .returning({ eventId: paymentEvents.eventId })
-
-  if (inserted.length === 0) {
-    return { status: "duplicate" }
-  }
+  /* --- PAY-WEBHOOK-SAFETY-01 ---
+   * Classification AVANT idempotence : pour les événements "inconnus" (type
+   * non géré), on consomme l'event_id immédiatement (évite le spam dans
+   * psp_webhooks si le PSP rejoue indéfiniment). Pour "no_match" en revanche,
+   * on NE consomme PAS l'event_id — ceci permet au PSP de rejouer l'événement
+   * après que la ligne `payments` ait été créée, ce qui ferme la race
+   * condition entre la création de session PSP et l'INSERT DB de la
+   * réservation (P0-A). L'idempotence business-level (paiement déjà capturé)
+   * reste garantie par le FOR UPDATE sur `payments` et l'UPDATE conditionnel.
+   */
 
   const kind = classifyEventType(eventType)
 
   if (kind === "unknown" || !charge) {
+    /* Événement non géré — consommer l'event_id pour éviter le spam. */
+    await tx
+      .insert(paymentEvents)
+      .values({ eventId, provider, eventType })
+      .onConflictDoNothing()
     await tx.insert(pspWebhooks).values({
       agencyId: null,
       psp: provider,
@@ -115,7 +120,44 @@ export async function processReservationWebhookCore(
     .where(eq(payments.pspOrderId, charge.providerRef))
     .for("update")
 
+  // P0-B — vérifier que le PSP source correspond au PSP qui a créé le paiement.
+  // Un event_id d'un PSP-A référençant une commande PSP-B ne doit jamais
+  // déclencher une capture. On journalise l'anomalie sans bloquer le retry
+  // (l'event_id n'est PAS consommé — ce n'est pas un doublon, c'est une
+  // tentative illégitime et le PSP légitime peut encore envoyer son propre
+  // événement).
+  if (payment && payment.psp !== provider) {
+    await tx.insert(auditEvents).values({
+      agencyId: payment.agencyId,
+      actorUserId: null,
+      entityType: "reservation",
+      entityId: payment.reservationId,
+      action: "payment.psp_mismatch",
+      diff: {
+        expectedPsp: payment.psp,
+        receivedPsp: provider,
+        eventType,
+        providerRef: charge.providerRef,
+        eventId,
+      },
+    })
+    await tx.insert(pspWebhooks).values({
+      agencyId: payment.agencyId,
+      psp: provider,
+      eventType,
+      payload: rawPayload,
+      signatureOk,
+      processedAt: new Date(),
+      error: `PSP_MISMATCH:expected=${payment.psp},got=${provider}`,
+    })
+    return { status: "no_match" }
+  }
+
   if (!payment) {
+    // P0-A — ne PAS consommer l'event_id : la ligne payments peut ne pas
+    // encore exister (race entre webhook PSP et INSERT DB de la réservation).
+    // Le PSP pourra rejouer l'événement ; lors du prochain appel, la ligne
+    // payments existera et sera correctement corrélée.
     await tx.insert(pspWebhooks).values({
       agencyId: null,
       psp: provider,
@@ -126,6 +168,21 @@ export async function processReservationWebhookCore(
       error: "NO_MATCHING_PAYMENT",
     })
     return { status: "no_match" }
+  }
+
+  /* --- Idempotence event-level — INSERT ON CONFLICT DO NOTHING.
+   * Posé ICI, après corrélation réussie : on ne consomme l'event_id que
+   * pour les événements réellement actionnables, jamais pour les no_match
+   * (voir note ci-dessus).
+   */
+  const inserted = await tx
+    .insert(paymentEvents)
+    .values({ eventId, provider, eventType })
+    .onConflictDoNothing()
+    .returning({ eventId: paymentEvents.eventId })
+
+  if (inserted.length === 0) {
+    return { status: "duplicate" }
   }
 
   const [reservation] = await tx

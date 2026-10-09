@@ -31,15 +31,11 @@ import {
   type RecordReservationFinancialsInput,
 } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
-import {
-  fetchExchangeRateForBooking,
-  ExchangeRateUnavailableError,
-} from "@/lib/finance/exchange-rate"
+import { fetchExchangeRateForBooking } from "@/lib/finance/exchange-rate"
 import {
   getActiveFxPolicy,
   applyFxCorrection,
   computeBankFeeContribution,
-  FxPolicyUnavailableError,
 } from "@/lib/finance/fx-policy"
 
 export async function finalizeFlightBookingFinancials(

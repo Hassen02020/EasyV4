@@ -22,18 +22,8 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import {
-  paymentEvents,
-  pspWebhooks,
-  walletRechargeRequests,
-} from "@/lib/db/schema"
 import { sendEvent } from "@/lib/inngest/client"
-import {
-  creditRechargeRequest,
-  reverseRechargeCredit,
-} from "@/lib/finance/wallet-credit"
 import {
   verifySpsSignature,
   verifyStripeSignature,
@@ -43,13 +33,12 @@ import {
   normalizePaymeeStatus,
 } from "@/lib/payment/paymee-signing"
 import {
-  classifyEventType,
-  matchesPendingRecharge,
   normalizeSpsEvent,
   normalizeStripeEvent,
   normalizePaymeeEvent,
   type NormalizedChargeEvent,
 } from "@/lib/payment/webhook-logic"
+import { processWalletWebhookCore } from "@/lib/payment/wallet-webhook-core"
 
 /* -------------------------------------------------------------------------- */
 /* Route handler                                                               */
@@ -172,192 +161,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const result = await withSystemContext(async (tx) => {
-    /* --- 2. Idempotence event-level — INSERT ON CONFLICT DO NOTHING --- */
-    const inserted = await tx
-      .insert(paymentEvents)
-      .values({ eventId, provider, eventType })
-      .onConflictDoNothing()
-      .returning({ eventId: paymentEvents.eventId })
+  /* --- 2. Journal brut (audit) — parser le payload pour toute la suite --- */
+  const auditPayload: Record<string, unknown> =
+    spsBody ?? JSON.parse(bodyBuffer.toString("utf8"))
 
-    if (inserted.length === 0) {
-      return { status: "duplicate" as const }
-    }
-
-    /* --- 3. Journal brut (audit) — toute requête signée valide est tracée --- */
-    const auditPayload: Record<string, unknown> =
-      spsBody ?? JSON.parse(bodyBuffer.toString("utf8"))
-
-    const kind = classifyEventType(eventType)
-
-    if (kind === "unknown" || !charge) {
-      await tx.insert(pspWebhooks).values({
-        agencyId: null,
-        psp: provider as "stripe" | "sps" | "paymee",
-        eventType,
-        payload: auditPayload,
-        signatureOk,
-        processedAt: new Date(),
-        error: !charge ? "UNPARSEABLE_PAYLOAD" : null,
-      })
-      return { status: "ignored" as const }
-    }
-
-    // Corrélation : le paiement doit référencer une demande de recharge en
-    // attente posée par submitRechargeRequest (payment_reference == provider
-    // payment id). Verrouillée pour éviter un double traitement concurrent
-    // avec validateRechargeRequest (approbation manuelle) ou un autre webhook.
-    const [pending] = await tx
-      .select()
-      .from(walletRechargeRequests)
-      .where(eq(walletRechargeRequests.paymentReference, charge.providerRef))
-      .for("update")
-
-    if (!pending) {
-      await tx.insert(pspWebhooks).values({
-        agencyId: null,
-        psp: provider as "stripe" | "sps" | "paymee",
-        eventType,
-        payload: auditPayload,
-        signatureOk,
-        processedAt: new Date(),
-        error: "NO_MATCHING_RECHARGE_REQUEST",
-      })
-      return { status: "no_match" as const }
-    }
-
-    if (kind === "refunded") {
-      // Un remboursement PSP ne peut annuler QUE une recharge déjà `validated`
-      // (créditée) — sur une demande encore `pending` ou déjà `rejected`,
-      // rien n'a jamais été crédité, donc rien à annuler. Traité AVANT le
-      // garde-fou générique "déjà traité" ci-dessous : c'est justement le cas
-      // `validated` que ce garde-fou intercepterait sinon, empêchant toute
-      // annulation réelle (bug corrigé — voir historique).
-      if (pending.status === "validated") {
-        const reversal = await reverseRechargeCredit(tx, pending, {
-          description: `Remboursement PSP — ${provider.toUpperCase()} (webhook ${eventType}, réf. ${charge.providerRef})`,
-        })
-
-        await tx.insert(pspWebhooks).values({
-          agencyId: pending.agencyId,
-          psp: provider as "stripe" | "sps" | "paymee",
-          eventType,
-          payload: auditPayload,
-          signatureOk,
-          processedAt: new Date(),
-        })
-
-        return {
-          status: "refunded" as const,
-          agencyId: reversal.agencyId,
-          txId: reversal.movementId,
-          amount: reversal.amount,
-          newBalance: reversal.newBalance,
-        }
-      }
-
-      await tx.insert(pspWebhooks).values({
-        agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps" | "paymee",
-        eventType,
-        payload: auditPayload,
-        signatureOk,
-        processedAt: new Date(),
-        error: "REFUND_ON_NON_VALIDATED_REQUEST",
-      })
-      return { status: "refund_ignored" as const }
-    }
-
-    if (pending.status !== "pending") {
-      // Déjà traité (validé ou rejeté) — un second event_id pour le même
-      // paiement (Stripe envoie souvent payment_intent.succeeded ET
-      // charge.captured pour un seul paiement) ne doit jamais re-créditer.
-      await tx.insert(pspWebhooks).values({
-        agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps" | "paymee",
-        eventType,
-        payload: auditPayload,
-        signatureOk,
-        processedAt: new Date(),
-        error: `ALREADY_PROCESSED:${pending.status}`,
-      })
-      return { status: "already_processed" as const }
-    }
-
-    if (kind === "failed") {
-      await tx
-        .update(walletRechargeRequests)
-        .set({
-          status: "rejected",
-          rejectionReason: "Paiement refusé par le PSP",
-          reviewedByUserId: null,
-          reviewedAt: new Date(),
-        })
-        .where(eq(walletRechargeRequests.id, pending.id))
-
-      await tx.insert(pspWebhooks).values({
-        agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps" | "paymee",
-        eventType,
-        payload: auditPayload,
-        signatureOk,
-        processedAt: new Date(),
-      })
-      return { status: "payment_failed" as const, agencyId: pending.agencyId }
-    }
-
-    // kind === "succeeded" (only remaining possibility: "refunded" and
-    // "failed" both returned above, "unknown" was filtered out earlier)
-    const match = matchesPendingRecharge(pending, charge)
-    if (!match.ok) {
-      await tx
-        .update(walletRechargeRequests)
-        .set({
-          status: "rejected",
-          rejectionReason: `Paiement PSP non conforme à la demande (${match.reason})`,
-          reviewedByUserId: null,
-          reviewedAt: new Date(),
-        })
-        .where(eq(walletRechargeRequests.id, pending.id))
-
-      await tx.insert(pspWebhooks).values({
-        agencyId: pending.agencyId,
-        psp: provider as "stripe" | "sps" | "paymee",
-        eventType,
-        payload: auditPayload,
-        signatureOk,
-        processedAt: new Date(),
-        error: match.reason,
-      })
-      console.warn("[Webhook] Paiement PSP rejeté — écart avec la demande", {
-        requestId: pending.id,
-        reason: match.reason,
-      })
-      return { status: "mismatch" as const, reason: match.reason }
-    }
-
-    const outcome = await creditRechargeRequest(tx, pending, {
-      reviewedByUserId: null,
-      description: `Recharge en ligne — ${provider.toUpperCase()} (webhook ${eventType}, réf. ${charge.providerRef})`,
-    })
-
-    await tx.insert(pspWebhooks).values({
-      agencyId: pending.agencyId,
-      psp: provider as "stripe" | "sps" | "paymee",
-      eventType,
-      payload: auditPayload,
+  const result = await withSystemContext((tx) =>
+    processWalletWebhookCore(tx, {
+      provider: provider as "stripe" | "sps" | "paymee",
+      eventId: eventId!,
+      eventType: eventType!,
+      charge,
       signatureOk,
-      processedAt: new Date(),
-    })
-
-    return {
-      status: "credited" as const,
-      agencyId: outcome.agencyId,
-      txId: outcome.movementId,
-      amount: outcome.amount,
-      newBalance: outcome.newBalance,
-    }
-  })
+      auditPayload,
+    }),
+  )
 
   if (result.status === "credited") {
     await sendEvent("wallet/credited", {

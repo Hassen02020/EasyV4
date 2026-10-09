@@ -124,7 +124,13 @@ export class PaymeePaymentProvider implements PaymentProvider {
 
     const url = `${resolvePaymeeBaseUrl()}/api/v2/payments/create`
     const body = {
-      amount: Number(input.amountTnd.toFixed(3)),
+      // PAY-WEBHOOK-SAFETY-01 / P0-C — même précision que la colonne DB
+      // (decimal scale:2). Envoyer toFixed(3) créait un écart entre le montant
+      // stocké en DB (arrondi à 2 décimales) et le montant retourné par
+      // `received_amount` dans le webhook Paymee, ce qui dépassait la
+      // tolérance matchesPendingPayment (0.001 TND) et marquait le paiement
+      // échoué à tort.
+      amount: Number(input.amountTnd.toFixed(2)),
       note: input.description,
       first_name: input.customerFirstName || "Client",
       last_name: input.customerLastName || "Easy2Book",

@@ -36,16 +36,14 @@ describe("CAMPAIGN-LIFECYCLE-01 / selectAttributionCandidateCore", () => {
   })
 
   it("returns null on empty candidates", async () => {
-    const { selectAttributionCandidateCore } = await import(
-      "../../crm/campaign-attribution-core.js"
-    )
+    const { selectAttributionCandidateCore } =
+      await import("../../crm/campaign-attribution-core.js")
     assert.equal(selectAttributionCandidateCore([]), null)
   })
 
   it("returns the single candidate directly", async () => {
-    const { selectAttributionCandidateCore } = await import(
-      "../../crm/campaign-attribution-core.js"
-    )
+    const { selectAttributionCandidateCore } =
+      await import("../../crm/campaign-attribution-core.js")
     const c = {
       campaignId: "camp-1",
       contactId: "contact-1",
@@ -56,9 +54,8 @@ describe("CAMPAIGN-LIFECYCLE-01 / selectAttributionCandidateCore", () => {
   })
 
   it("most recent snapshotAt wins", async () => {
-    const { selectAttributionCandidateCore } = await import(
-      "../../crm/campaign-attribution-core.js"
-    )
+    const { selectAttributionCandidateCore } =
+      await import("../../crm/campaign-attribution-core.js")
     const older = {
       campaignId: "camp-1",
       contactId: "contact-1",
@@ -76,9 +73,8 @@ describe("CAMPAIGN-LIFECYCLE-01 / selectAttributionCandidateCore", () => {
   })
 
   it("on tie: smallest campaignId wins", async () => {
-    const { selectAttributionCandidateCore } = await import(
-      "../../crm/campaign-attribution-core.js"
-    )
+    const { selectAttributionCandidateCore } =
+      await import("../../crm/campaign-attribution-core.js")
     const snap = new Date("2026-10-01")
     const a = {
       campaignId: "camp-aaa",
@@ -97,13 +93,27 @@ describe("CAMPAIGN-LIFECYCLE-01 / selectAttributionCandidateCore", () => {
   })
 
   it("three candidates: newest snapshot beats all", async () => {
-    const { selectAttributionCandidateCore } = await import(
-      "../../crm/campaign-attribution-core.js"
-    )
+    const { selectAttributionCandidateCore } =
+      await import("../../crm/campaign-attribution-core.js")
     const candidates = [
-      { campaignId: "c1", contactId: "x", snapshotAt: new Date("2026-08-01"), endAt: null },
-      { campaignId: "c2", contactId: "x", snapshotAt: new Date("2026-10-05"), endAt: null },
-      { campaignId: "c3", contactId: "x", snapshotAt: new Date("2026-09-01"), endAt: null },
+      {
+        campaignId: "c1",
+        contactId: "x",
+        snapshotAt: new Date("2026-08-01"),
+        endAt: null,
+      },
+      {
+        campaignId: "c2",
+        contactId: "x",
+        snapshotAt: new Date("2026-10-05"),
+        endAt: null,
+      },
+      {
+        campaignId: "c3",
+        contactId: "x",
+        snapshotAt: new Date("2026-09-01"),
+        endAt: null,
+      },
     ]
     const winner = selectAttributionCandidateCore(candidates)
     assert.equal(winner?.campaignId, "c2")

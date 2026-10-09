@@ -34,10 +34,7 @@ describe("RADAR-VIP-01 — invariants statiques", () => {
   })
 
   test("page vip existe", () => {
-    const pagePath = join(
-      ROOT,
-      "app/(internal)/admin/analytics/vip/page.tsx",
-    )
+    const pagePath = join(ROOT, "app/(internal)/admin/analytics/vip/page.tsx")
     assert.ok(
       existsSync(pagePath),
       `app/(internal)/admin/analytics/vip/page.tsx doit exister`,
@@ -89,7 +86,9 @@ describe("RADAR-VIP-02/03 — déduplication contactuelle", () => {
 
   test("vip-score-core.ts exporte findExistingContactIdForLeadCore", () => {
     assert.ok(
-      vipScoreSource.includes("export async function findExistingContactIdForLeadCore"),
+      vipScoreSource.includes(
+        "export async function findExistingContactIdForLeadCore",
+      ),
       "lib/crm/vip-score-core.ts doit exporter findExistingContactIdForLeadCore",
     )
   })

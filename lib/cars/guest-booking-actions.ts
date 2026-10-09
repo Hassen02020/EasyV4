@@ -36,6 +36,7 @@ import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -110,7 +111,11 @@ async function checkCarAvailability(
   categoryId: string,
   locationId: string,
   pickupDate: string,
-): Promise<{ available: boolean; availRowId: string | null }> {
+): Promise<{
+  available: boolean
+  availRowId: string | null
+  availVehicleId: string | null
+}> {
   const [availRow] = await tx
     .select()
     .from(carAvailability)
@@ -131,11 +136,14 @@ async function checkCarAvailability(
         availRow.status === "open" &&
         availRow.bookedUnits < availRow.totalUnits,
       availRowId: availRow.id,
+      availVehicleId: null,
     }
   }
 
-  const [fleetCount] = await tx
-    .select({ count: sql<number>`count(*)` })
+  // Fallback : aucune ligne car_availability pour cette date — on verrouille
+  // un véhicule précis pour éviter la double-attribution concurrente.
+  const [vehicle] = await tx
+    .select({ id: carFleetVehicles.id })
     .from(carFleetVehicles)
     .where(
       and(
@@ -145,8 +153,14 @@ async function checkCarAvailability(
         eq(carFleetVehicles.status, "available"),
       ),
     )
+    .limit(1)
+    .for("update")
 
-  return { available: Number(fleetCount?.count ?? 0) > 0, availRowId: null }
+  return {
+    available: !!vehicle,
+    availRowId: null,
+    availVehicleId: vehicle?.id ?? null,
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -223,13 +237,14 @@ async function runCreateGuestCarBooking(
         if (!pricing) throw new Error("NO_PRICING")
 
         // 2. Vérification disponibilité réelle
-        const { available, availRowId } = await checkCarAvailability(
-          tx,
-          agencyId,
-          input.categoryId,
-          input.pickupLocationId,
-          input.pickupAt.slice(0, 10),
-        )
+        const { available, availRowId, availVehicleId } =
+          await checkCarAvailability(
+            tx,
+            agencyId,
+            input.categoryId,
+            input.pickupLocationId,
+            input.pickupAt.slice(0, 10),
+          )
         if (!available) throw new Error("NO_AVAILABILITY")
 
         // --- PRICING-PROMO-LINK-01 — remise PROMO, si éligible ---
@@ -411,6 +426,11 @@ async function runCreateGuestCarBooking(
             .update(carAvailability)
             .set({ bookedUnits: sql`${carAvailability.bookedUnits} + 1` })
             .where(eq(carAvailability.id, availRowId))
+        } else if (availVehicleId) {
+          await tx
+            .update(carFleetVehicles)
+            .set({ status: "rented" })
+            .where(eq(carFleetVehicles.id, availVehicleId))
         }
 
         // 8. Audit
@@ -432,8 +452,38 @@ async function runCreateGuestCarBooking(
           },
         })
 
-        return { reservationId, publicRef, guestAccessToken, totalTnd }
+        return {
+          reservationId,
+          publicRef,
+          guestAccessToken,
+          totalTnd,
+          rentalDays: pricing.rentalDays,
+          categoryName: category?.name ?? null,
+          pickupLocationName: pickupLocation?.name ?? null,
+          dropoffLocationName: dropoffLocation?.name ?? null,
+        }
       },
+    )
+
+    // CAR-VOUCHER-01 — envoi email + PDF en arrière-plan (Inngest, fire-and-forget).
+    // Pas de await : un échec d'envoi ne doit jamais invalider la réservation B2C.
+    sendEvent("booking/car.confirmed", {
+      reservationId: result.reservationId,
+      publicRef: result.publicRef,
+      agencyId,
+      guestAccessToken: result.guestAccessToken,
+      customerEmail: input.driver.email ?? null,
+      customerName: `${input.driver.firstName} ${input.driver.lastName}`,
+      categoryName: result.categoryName ?? input.categoryId,
+      pickupLocationName: result.pickupLocationName ?? input.pickupLocationId,
+      dropoffLocationName: result.dropoffLocationName ?? input.dropoffLocationId,
+      pickupAt: input.pickupAt,
+      dropoffAt: input.dropoffAt,
+      rentalDays: result.rentalDays,
+      insuranceLevel: input.insuranceLevel,
+      totalTnd: result.totalTnd,
+    }).catch((err) =>
+      console.error("[cars-guest] sendEvent booking/car.confirmed échoué", err),
     )
 
     return {

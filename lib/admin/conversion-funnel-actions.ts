@@ -98,14 +98,10 @@ export async function getConversionFunnel(): Promise<GetConversionFunnelResult> 
             channel: leads.channel,
             productType: leads.productType,
             total: sql<number>`count(*)::int`,
-            newCount:
-              sql<number>`count(*) filter (where ${leads.status} = 'new')::int`,
-            contactedCount:
-              sql<number>`count(*) filter (where ${leads.status} = 'contacted')::int`,
-            convertedCount:
-              sql<number>`count(*) filter (where ${leads.status} = 'converted')::int`,
-            closedCount:
-              sql<number>`count(*) filter (where ${leads.status} = 'closed')::int`,
+            newCount: sql<number>`count(*) filter (where ${leads.status} = 'new')::int`,
+            contactedCount: sql<number>`count(*) filter (where ${leads.status} = 'contacted')::int`,
+            convertedCount: sql<number>`count(*) filter (where ${leads.status} = 'converted')::int`,
+            closedCount: sql<number>`count(*) filter (where ${leads.status} = 'closed')::int`,
           })
           .from(leads)
           .where(eq(leads.agencyId, ctx.agencyId))
@@ -117,10 +113,8 @@ export async function getConversionFunnel(): Promise<GetConversionFunnelResult> 
           .select({
             channel: leads.channel,
             productType: leads.productType,
-            revenueTnd:
-              sql<string>`coalesce(sum(${reservationFinancials.salePriceTnd}::numeric), 0)::text`,
-            marginTnd:
-              sql<string>`coalesce(sum(${reservationFinancials.marginAmount}::numeric), 0)::text`,
+            revenueTnd: sql<string>`coalesce(sum(${reservationFinancials.salePriceTnd}::numeric), 0)::text`,
+            marginTnd: sql<string>`coalesce(sum(${reservationFinancials.marginAmount}::numeric), 0)::text`,
           })
           .from(leads)
           .innerJoin(
@@ -137,10 +131,7 @@ export async function getConversionFunnel(): Promise<GetConversionFunnelResult> 
 
         // Index financials par clé composite pour O(1) lookup
         const finMap = new Map(
-          financials.map((f) => [
-            `${f.channel ?? ""}::${f.productType}`,
-            f,
-          ]),
+          financials.map((f) => [`${f.channel ?? ""}::${f.productType}`, f]),
         )
 
         return counts.map((c): ConversionFunnelRow => {

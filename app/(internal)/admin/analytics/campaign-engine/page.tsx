@@ -33,7 +33,10 @@ const WINDOW_OPTIONS: { label: string; value: 4 | 8 | 12 }[] = [
 
 const PRIORITY_CONFIG: Record<
   string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+  {
+    label: string
+    variant: "default" | "secondary" | "outline" | "destructive"
+  }
 > = {
   urgent: { label: "Urgent", variant: "destructive" },
   haute: { label: "Haute", variant: "default" },
@@ -59,7 +62,9 @@ export default function CampaignEnginePage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [windowWeeks, setWindowWeeks] = useState<4 | 8 | 12>(4)
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [launchStates, setLaunchStates] = useState<Record<string, LaunchState>>({})
+  const [launchStates, setLaunchStates] = useState<Record<string, LaunchState>>(
+    {},
+  )
 
   function setLaunch(proposalId: string, state: LaunchState) {
     setLaunchStates((prev) => ({ ...prev, [proposalId]: state }))
@@ -148,7 +153,7 @@ export default function CampaignEnginePage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Propositions
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -158,20 +163,20 @@ export default function CampaignEnginePage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Contacts ciblés
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
+              <p className="text-primary mt-1 text-2xl font-semibold tabular-nums">
                 {totalLeads}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Urgentes
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-destructive">
+              <p className="text-destructive mt-1 text-2xl font-semibold tabular-nums">
                 {urgentCount}
               </p>
             </CardContent>
@@ -181,17 +186,15 @@ export default function CampaignEnginePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            Propositions de campagnes ({proposals.length})
-          </CardTitle>
+          <CardTitle>Propositions de campagnes ({proposals.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className="text-muted-foreground text-sm">Chargement…</p>
           ) : proposals.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Aucune proposition — les campagnes apparaîtront quand des
-              signaux convergents seront détectés.
+              Aucune proposition — les campagnes apparaîtront quand des signaux
+              convergents seront détectés.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -223,7 +226,7 @@ export default function CampaignEnginePage() {
                             setExpanded(isExpanded ? null : p.proposalId)
                           }
                         >
-                          <TableCell className="text-muted-foreground tabular-nums text-sm">
+                          <TableCell className="text-muted-foreground text-sm tabular-nums">
                             {i + 1}
                           </TableCell>
                           <TableCell>
@@ -238,13 +241,13 @@ export default function CampaignEnginePage() {
                           <TableCell>
                             <Badge variant={prio.variant}>{prio.label}</Badge>
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right text-sm tabular-nums">
                             {p.leadCount}
                           </TableCell>
-                          <TableCell className="tabular-nums text-sm">
+                          <TableCell className="text-sm tabular-nums">
                             {p.urgencyWindow}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right text-sm tabular-nums">
                             {p.topCombinedScore}
                           </TableCell>
                         </TableRow>
@@ -252,44 +255,54 @@ export default function CampaignEnginePage() {
                           <TableRow key={`${p.proposalId}-detail`}>
                             <TableCell />
                             <TableCell colSpan={6} className="pb-4">
-                              <div className="bg-muted/40 rounded-md p-3 text-sm space-y-3">
+                              <div className="bg-muted/40 space-y-3 rounded-md p-3 text-sm">
                                 <div>
-                                  <p className="text-muted-foreground font-medium text-xs uppercase tracking-wide mb-1">
+                                  <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
                                     Objectif
                                   </p>
                                   <p>{p.suggestedObjective}</p>
                                 </div>
                                 <div>
-                                  <p className="text-muted-foreground font-medium text-xs uppercase tracking-wide mb-1">
+                                  <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
                                     Message template
                                   </p>
-                                  <pre className="whitespace-pre-wrap text-xs font-mono bg-muted rounded p-2">
+                                  <pre className="bg-muted rounded p-2 font-mono text-xs whitespace-pre-wrap">
                                     {p.suggestedMessage}
                                   </pre>
                                 </div>
-                                <p className="text-muted-foreground text-xs font-mono">
+                                <p className="text-muted-foreground font-mono text-xs">
                                   canal CRM : {p.crmChannel} · urgence{" "}
-                                  {p.urgencyHours}h · signal{" "}
-                                  {p.actionCount} action
+                                  {p.urgencyHours}h · signal {p.actionCount}{" "}
+                                  action
                                   {p.actionCount > 1 ? "s" : ""} groupée
                                   {p.actionCount > 1 ? "s" : ""} ·{" "}
                                   {p.marketTrend} {p.marketGrowthRate}
                                 </p>
                                 <div className="flex items-center gap-3 pt-1">
                                   {(() => {
-                                    const ls = launchStates[p.proposalId] ?? { status: "idle" }
+                                    const ls = launchStates[p.proposalId] ?? {
+                                      status: "idle",
+                                    }
                                     if (ls.status === "done") {
                                       return (
-                                        <p className="text-sm text-green-700 dark:text-green-400 font-medium">
-                                          ✓ Campagne créée — {ls.targetCount} contact{ls.targetCount > 1 ? "s" : ""} ciblé{ls.targetCount > 1 ? "s" : ""}
+                                        <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                                          ✓ Campagne créée — {ls.targetCount}{" "}
+                                          contact{ls.targetCount > 1 ? "s" : ""}{" "}
+                                          ciblé{ls.targetCount > 1 ? "s" : ""}
                                         </p>
                                       )
                                     }
                                     if (ls.status === "error") {
                                       return (
                                         <>
-                                          <p className="text-destructive text-sm">{ls.error}</p>
-                                          <Button size="sm" variant="outline" onClick={() => handleLaunch(p)}>
+                                          <p className="text-destructive text-sm">
+                                            {ls.error}
+                                          </p>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleLaunch(p)}
+                                          >
                                             Réessayer
                                           </Button>
                                         </>
@@ -299,9 +312,14 @@ export default function CampaignEnginePage() {
                                       <Button
                                         size="sm"
                                         disabled={ls.status === "launching"}
-                                        onClick={(e) => { e.stopPropagation(); handleLaunch(p) }}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleLaunch(p)
+                                        }}
                                       >
-                                        {ls.status === "launching" ? "Lancement…" : "Créer & lancer la campagne"}
+                                        {ls.status === "launching"
+                                          ? "Lancement…"
+                                          : "Créer & lancer la campagne"}
                                       </Button>
                                     )
                                   })()}

@@ -9,7 +9,6 @@ import { redirect } from "next/navigation"
 import {
   Users,
   Plus,
-  Search,
   Shield,
   Building2,
   User,
@@ -24,7 +23,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,

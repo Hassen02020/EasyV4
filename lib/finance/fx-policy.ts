@@ -134,7 +134,6 @@ export async function getActiveFxPolicy(): Promise<FxPolicy> {
 }
 
 function rowToPolicy(row: typeof fxPolicies.$inferSelect): FxPolicy {
-  // eslint-disable-line
   return {
     id: row.id,
     version: row.version,

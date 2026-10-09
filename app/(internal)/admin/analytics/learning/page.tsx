@@ -52,13 +52,13 @@ const BUCKET_VARIANT: Record<
 function RateBar({ rate }: { rate: number }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="bg-muted h-2 w-24 rounded-full overflow-hidden">
+      <div className="bg-muted h-2 w-24 overflow-hidden rounded-full">
         <div
           className="bg-primary h-2 rounded-full transition-all"
           style={{ width: `${rate}%` }}
         />
       </div>
-      <span className="tabular-nums text-sm">{rate}%</span>
+      <span className="text-sm tabular-nums">{rate}%</span>
     </div>
   )
 }
@@ -130,7 +130,7 @@ export default function LearningPage() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Card>
               <CardContent className="pt-6">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                <p className="text-muted-foreground text-xs tracking-wide uppercase">
                   Leads analysés
                 </p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -140,17 +140,17 @@ export default function LearningPage() {
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                <p className="text-muted-foreground text-xs tracking-wide uppercase">
                   Convertis
                 </p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
+                <p className="text-primary mt-1 text-2xl font-semibold tabular-nums">
                   {stats.convertedLeads}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                <p className="text-muted-foreground text-xs tracking-wide uppercase">
                   Taux global
                 </p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -160,7 +160,7 @@ export default function LearningPage() {
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                <p className="text-muted-foreground text-xs tracking-wide uppercase">
                   Délai moyen
                 </p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -199,20 +199,18 @@ export default function LearningPage() {
                         <TableRow key={b.bucket}>
                           <TableCell>
                             <Badge
-                              variant={
-                                BUCKET_VARIANT[b.bucket] ?? "secondary"
-                              }
+                              variant={BUCKET_VARIANT[b.bucket] ?? "secondary"}
                             >
                               {b.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground tabular-nums text-sm">
+                          <TableCell className="text-muted-foreground text-sm tabular-nums">
                             ≥ {b.minScore}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right text-sm tabular-nums">
                             {b.total}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right text-sm tabular-nums">
                             {b.converted}
                           </TableCell>
                           <TableCell>
@@ -250,7 +248,7 @@ export default function LearningPage() {
                             <TableCell className="font-medium">
                               {d.dimension}
                             </TableCell>
-                            <TableCell className="text-right tabular-nums text-sm">
+                            <TableCell className="text-right text-sm tabular-nums">
                               {d.converted}/{d.total}
                             </TableCell>
                             <TableCell>
@@ -287,7 +285,7 @@ export default function LearningPage() {
                             <TableCell className="font-medium">
                               {PRODUCT_LABEL[p.dimension] ?? p.dimension}
                             </TableCell>
-                            <TableCell className="text-right tabular-nums text-sm">
+                            <TableCell className="text-right text-sm tabular-nums">
                               {p.converted}/{p.total}
                             </TableCell>
                             <TableCell>
@@ -337,10 +335,10 @@ export default function LearningPage() {
                           <TableCell className="text-muted-foreground text-sm">
                             {c.destination ?? "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right text-sm tabular-nums">
                             {c.vipScore}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right text-sm tabular-nums">
                             {c.daysToConvert}j
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">

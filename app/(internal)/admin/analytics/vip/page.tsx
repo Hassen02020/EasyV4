@@ -44,7 +44,10 @@ const CHANNEL_LABEL: Record<string, string> = {
 
 const STATUS_CONFIG: Record<
   string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+  {
+    label: string
+    variant: "default" | "secondary" | "outline" | "destructive"
+  }
 > = {
   new: { label: "Nouveau", variant: "secondary" },
   contacted: { label: "Contacté", variant: "default" },
@@ -65,7 +68,7 @@ function scoreBar(value: number, max: number = 100) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="tabular-nums text-sm">{value}</span>
+      <span className="text-sm tabular-nums">{value}</span>
     </div>
   )
 }
@@ -104,9 +107,9 @@ export default function RadarVipPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">Radar VIP</h1>
         <p className="text-muted-foreground text-sm">
-          Top 50 acteurs classés par score VIP — déduplication contactuelle
-          (un partenaire multi-produit = une ligne). Recalculé à la demande
-          sur les 200 leads les plus récents. Aucune donnée persistée.
+          Top 50 acteurs classés par score VIP — déduplication contactuelle (un
+          partenaire multi-produit = une ligne). Recalculé à la demande sur les
+          200 leads les plus récents. Aucune donnée persistée.
         </p>
       </div>
 
@@ -122,7 +125,7 @@ export default function RadarVipPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Leads scorés
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -132,10 +135,10 @@ export default function RadarVipPage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Score ≥ 70
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+              <p className="mt-1 text-2xl font-semibold text-amber-600 tabular-nums dark:text-amber-400">
                 {highScoreCount}
               </p>
             </CardContent>
@@ -143,7 +146,7 @@ export default function RadarVipPage() {
           {topLead && (
             <Card>
               <CardContent className="pt-6">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                <p className="text-muted-foreground text-xs tracking-wide uppercase">
                   Score max
                 </p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -158,7 +161,7 @@ export default function RadarVipPage() {
       {topLead && !loading && (
         <Card className="border-amber-500/30">
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-xs uppercase tracking-wide">
+            <p className="text-muted-foreground text-xs tracking-wide uppercase">
               Lead le plus prometteur
             </p>
             <p className="mt-1 text-lg font-semibold">
@@ -207,14 +210,13 @@ export default function RadarVipPage() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((row, i) => {
-                    const status =
-                      STATUS_CONFIG[row.status] ?? {
-                        label: row.status,
-                        variant: "secondary" as const,
-                      }
+                    const status = STATUS_CONFIG[row.status] ?? {
+                      label: row.status,
+                      variant: "secondary" as const,
+                    }
                     return (
                       <TableRow key={row.leadId}>
-                        <TableCell className="text-muted-foreground tabular-nums text-sm">
+                        <TableCell className="text-muted-foreground text-sm tabular-nums">
                           {i + 1}
                         </TableCell>
                         <TableCell>
@@ -222,10 +224,7 @@ export default function RadarVipPage() {
                             {row.firstName}
                             {row.lastName ? ` ${row.lastName}` : ""}
                             {row.leadCount > 1 && (
-                              <Badge
-                                variant="outline"
-                                className="ml-2 text-xs"
-                              >
+                              <Badge variant="outline" className="ml-2 text-xs">
                                 ×{row.leadCount}
                               </Badge>
                             )}
@@ -260,24 +259,27 @@ export default function RadarVipPage() {
                         <TableCell>
                           <Badge variant={status.variant}>{status.label}</Badge>
                         </TableCell>
-                        <TableCell>
-                          {scoreBar(row.score.total)}
-                        </TableCell>
-                        {(["lead_quality", "engagement", "commercial_value_sale", "recency"] as const).map(
-                          (sig) => {
-                            const item = row.score.breakdown.find(
-                              (b) => b.signal === sig,
-                            )
-                            return (
-                              <TableCell
-                                key={sig}
-                                className="text-right tabular-nums text-sm"
-                              >
-                                {item ? item.points : "—"}
-                              </TableCell>
-                            )
-                          },
-                        )}
+                        <TableCell>{scoreBar(row.score.total)}</TableCell>
+                        {(
+                          [
+                            "lead_quality",
+                            "engagement",
+                            "commercial_value_sale",
+                            "recency",
+                          ] as const
+                        ).map((sig) => {
+                          const item = row.score.breakdown.find(
+                            (b) => b.signal === sig,
+                          )
+                          return (
+                            <TableCell
+                              key={sig}
+                              className="text-right text-sm tabular-nums"
+                            >
+                              {item ? item.points : "—"}
+                            </TableCell>
+                          )
+                        })}
                       </TableRow>
                     )
                   })}

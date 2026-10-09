@@ -12,7 +12,6 @@ import {
   applyFxCorrection,
   computeBankFeeContribution,
   setFxPolicyOverride,
-  FxPolicyUnavailableError,
   getActiveFxPolicy,
   type FxPolicy,
 } from "../fx-policy"

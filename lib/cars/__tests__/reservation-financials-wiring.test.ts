@@ -177,3 +177,85 @@ test("actions.ts : creditPlatformCommission description inclut publicRef", () =>
 test("guest-booking-actions.ts : creditPlatformCommission description inclut publicRef", () => {
   assert.match(guestActionsSrc, /description:\s*`[^`]*\$\{publicRef\}[^`]*`/)
 })
+
+/* -------------------------------------------------------------------------- */
+/* BUG-CAR-01 — anti-sur-réservation : fallback fleet verrouille un véhicule  */
+/* -------------------------------------------------------------------------- */
+
+test("actions.ts : checkCarAvailability retourne availVehicleId dans la signature de retour", () => {
+  assert.match(actionsSrc, /availVehicleId:\s*string\s*\|\s*null/)
+})
+
+test("actions.ts : fallback fleet utilise SELECT FOR UPDATE sur un véhicule précis, pas COUNT(*)", () => {
+  // Après le correctif BUG-CAR-01, le fallback verrouille un véhicule (LIMIT 1
+  // + FOR UPDATE) pour éviter la double-attribution concurrente.
+  assert.doesNotMatch(actionsSrc, /count\(\*\)/)
+  assert.match(actionsSrc, /\.for\("update"\)/)
+})
+
+test("actions.ts : après booking, UPDATE car_fleet_vehicles.status = 'rented' si availVehicleId", () => {
+  assert.match(actionsSrc, /availVehicleId/)
+  assert.match(actionsSrc, /status:\s*"rented"/)
+  assert.match(
+    actionsSrc,
+    /else if \(availVehicleId\)\s*\{[\s\S]*?\.update\(carFleetVehicles\)/,
+  )
+})
+
+test("guest-booking-actions.ts : checkCarAvailability retourne availVehicleId dans la signature de retour", () => {
+  assert.match(guestActionsSrc, /availVehicleId:\s*string\s*\|\s*null/)
+})
+
+test("guest-booking-actions.ts : fallback fleet utilise SELECT FOR UPDATE sur un véhicule précis, pas COUNT(*)", () => {
+  assert.doesNotMatch(guestActionsSrc, /count\(\*\)/)
+  assert.match(guestActionsSrc, /\.for\("update"\)/)
+})
+
+test("guest-booking-actions.ts : après booking, UPDATE car_fleet_vehicles.status = 'rented' si availVehicleId", () => {
+  assert.match(guestActionsSrc, /availVehicleId/)
+  assert.match(guestActionsSrc, /status:\s*"rented"/)
+  assert.match(
+    guestActionsSrc,
+    /else if \(availVehicleId\)\s*\{[\s\S]*?\.update\(carFleetVehicles\)/,
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* BUG-CAR-01 CONCURRENCY PROOF — isolation PostgreSQL dans la transaction     */
+/* -------------------------------------------------------------------------- */
+
+// Preuve 1 — Atomicité du verrou : SELECT FOR UPDATE + UPDATE status='rented'
+// sont dans le même corps de fonction de transaction (runInTenantContext /
+// withTenantContext). PostgreSQL garantit qu'une seconde transaction concurrent
+// bloque sur FOR UPDATE jusqu'à la fin de la première ; le véhicule sera déjà
+// 'rented' quand elle reprend → checkCarAvailability retourne available:false.
+
+test("actions.ts : FOR UPDATE précède la vérification available:!!vehicle (verrou avant réponse)", () => {
+  const forUpdateIdx = actionsSrc.lastIndexOf('.for("update")')
+  const availableIdx = actionsSrc.indexOf("available: !!vehicle")
+  assert.ok(
+    forUpdateIdx > 0 && availableIdx > forUpdateIdx,
+    "FOR UPDATE doit précéder la construction de { available: !!vehicle }",
+  )
+})
+
+test("actions.ts : UPDATE status='rented' utilise la même variable availVehicleId que le FOR UPDATE", () => {
+  // availVehicleId = vehicle?.id ?? null (provient du FOR UPDATE)
+  // UPDATE ... WHERE eq(carFleetVehicles.id, availVehicleId)
+  assert.match(actionsSrc, /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/)
+  assert.match(actionsSrc, /eq\(carFleetVehicles\.id,\s*availVehicleId\)/)
+})
+
+test("guest-booking-actions.ts : FOR UPDATE précède la vérification available:!!vehicle", () => {
+  const forUpdateIdx = guestActionsSrc.lastIndexOf('.for("update")')
+  const availableIdx = guestActionsSrc.indexOf("available: !!vehicle")
+  assert.ok(
+    forUpdateIdx > 0 && availableIdx > forUpdateIdx,
+    "FOR UPDATE doit précéder la construction de { available: !!vehicle }",
+  )
+})
+
+test("guest-booking-actions.ts : UPDATE status='rented' utilise la même variable availVehicleId que le FOR UPDATE", () => {
+  assert.match(guestActionsSrc, /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/)
+  assert.match(guestActionsSrc, /eq\(carFleetVehicles\.id,\s*availVehicleId\)/)
+})

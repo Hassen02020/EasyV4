@@ -16,6 +16,7 @@
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { resolve } from "node:path"
 import type { SignalRow } from "../../crm/signal-engine-core.js"
 
 function mkSignal(
@@ -31,7 +32,8 @@ function mkSignal(
 ): SignalRow {
   return {
     signalId: `${leadId}:${dimensionType}:${dimension}`,
-    signalType: dimensionType === "destination" ? "vip_x_destination" : "vip_x_product",
+    signalType:
+      dimensionType === "destination" ? "vip_x_destination" : "vip_x_product",
     leadId,
     firstName,
     lastName: null,
@@ -65,12 +67,14 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   })
 
   it("returns empty array when no signals", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     assert.deepEqual(buildActionEngineCore([]), [])
   })
 
   it("preserves input order (first signal → first action)", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const signals = [
       mkSignal("l1", "Alice", 120, 80, 40),
       mkSignal("l2", "Bob", 70, 50, 20),
@@ -84,25 +88,29 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   /* ── Priorité ─────────────────────────────────────────────────── */
 
   it("combinedScore >= 150 → priority urgent", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 150, 100, 50)])
     assert.equal(action.priority, "urgent")
   })
 
   it("combinedScore 100–149 → priority haute", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 120, 80, 40)])
     assert.equal(action.priority, "haute")
   })
 
   it("combinedScore 60–99 → priority normale", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 75, 50, 25)])
     assert.equal(action.priority, "normale")
   })
 
   it("combinedScore < 60 → priority faible", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 40, 25, 15)])
     assert.equal(action.priority, "faible")
   })
@@ -110,7 +118,8 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   /* ── Canal & type d'action ─────────────────────────────────────── */
 
   it("urgent → appel_direct, channel phone, 24h", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 160, 100, 60)])
     assert.equal(action.actionType, "appel_direct")
     assert.equal(action.channel, "phone")
@@ -119,7 +128,8 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   })
 
   it("haute → whatsapp_personnalise, channel whatsapp, 48h", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 110, 70, 40)])
     assert.equal(action.actionType, "whatsapp_personnalise")
     assert.equal(action.channel, "whatsapp")
@@ -128,7 +138,8 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   })
 
   it("normale → email_personnalise, channel email, 7j", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 80, 55, 25)])
     assert.equal(action.actionType, "email_personnalise")
     assert.equal(action.channel, "email")
@@ -137,7 +148,8 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   })
 
   it("faible → email_decouverte, channel email, 14j", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const [action] = buildActionEngineCore([mkSignal("l", "X", 30, 20, 10)])
     assert.equal(action.actionType, "email_decouverte")
     assert.equal(action.channel, "email")
@@ -148,7 +160,8 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   /* ── actionId & signalId ───────────────────────────────────────── */
 
   it("actionId = action:<signalId>", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const signal = mkSignal("l1", "X", 120, 80, 40)
     const [action] = buildActionEngineCore([signal])
     assert.equal(action.actionId, `action:${signal.signalId}`)
@@ -158,64 +171,105 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   /* ── Rationale ─────────────────────────────────────────────────── */
 
   it("rationale mentions VIP score, dimension, growth rate, combinedScore", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const signal = mkSignal("l1", "Alice", 120, 80, 40, "forte_hausse", "Tunis", "destination", "+42%")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const signal = mkSignal(
+      "l1",
+      "Alice",
+      120,
+      80,
+      40,
+      "forte_hausse",
+      "Tunis",
+      "destination",
+      "+42%",
+    )
     const [action] = buildActionEngineCore([signal])
-    assert.ok(action.rationale.includes("80"))      // vipScore
-    assert.ok(action.rationale.includes("Tunis"))   // dimension
-    assert.ok(action.rationale.includes("+42%"))    // growthRate
-    assert.ok(action.rationale.includes("120"))     // combinedScore
+    assert.ok(action.rationale.includes("80")) // vipScore
+    assert.ok(action.rationale.includes("Tunis")) // dimension
+    assert.ok(action.rationale.includes("+42%")) // growthRate
+    assert.ok(action.rationale.includes("120")) // combinedScore
   })
 
   it("rationale mentions leadCount when > 1", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const signal: SignalRow = { ...mkSignal("l1", "Alice", 120, 80, 40), leadCount: 3 }
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const signal: SignalRow = {
+      ...mkSignal("l1", "Alice", 120, 80, 40),
+      leadCount: 3,
+    }
     const [action] = buildActionEngineCore([signal])
-    assert.ok(action.rationale.includes("×3") || action.rationale.includes("3 dossiers"))
+    assert.ok(
+      action.rationale.includes("×3") ||
+        action.rationale.includes("3 dossiers"),
+    )
   })
 
   /* ── scriptLine ────────────────────────────────────────────────── */
 
   it("scriptLine mentions VIP first name", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const [action] = buildActionEngineCore([mkSignal("l1", "Alice", 160, 100, 60)])
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const [action] = buildActionEngineCore([
+      mkSignal("l1", "Alice", 160, 100, 60),
+    ])
     assert.ok(action.scriptLine.includes("Alice"))
   })
 
   it("scriptLine mentions dimension", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const [action] = buildActionEngineCore([mkSignal("l1", "Alice", 160, 100, 60, "forte_hausse", "Tunis")])
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const [action] = buildActionEngineCore([
+      mkSignal("l1", "Alice", 160, 100, 60, "forte_hausse", "Tunis"),
+    ])
     assert.ok(action.scriptLine.includes("Tunis"))
   })
 
   /* ── campaignHints ─────────────────────────────────────────────── */
 
   it("campaignHints is JSON-serializable", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const [action] = buildActionEngineCore([mkSignal("l1", "Alice", 120, 80, 40)])
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const [action] = buildActionEngineCore([
+      mkSignal("l1", "Alice", 120, 80, 40),
+    ])
     const serialized = JSON.stringify(action.campaignHints)
     const deserialized = JSON.parse(serialized)
     assert.deepEqual(deserialized, action.campaignHints)
   })
 
   it("campaignHints.offerDimension matches signal dimension", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const signal = mkSignal("l1", "Alice", 120, 80, 40, "forte_hausse", "Marrakech")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const signal = mkSignal(
+      "l1",
+      "Alice",
+      120,
+      80,
+      40,
+      "forte_hausse",
+      "Marrakech",
+    )
     const [action] = buildActionEngineCore([signal])
     assert.equal(action.campaignHints.offerDimension, "Marrakech")
     assert.equal(action.campaignHints.offerDimensionType, "destination")
   })
 
   it("campaignHints.signalStrength matches signal signalStrength", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
     const signal = mkSignal("l1", "Alice", 120, 80, 40)
     const [action] = buildActionEngineCore([signal])
     assert.equal(action.campaignHints.signalStrength, 40)
   })
 
   it("campaignHints.vipScore and leadCount match signal", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const signal: SignalRow = { ...mkSignal("l1", "Alice", 120, 80, 40), leadCount: 2 }
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const signal: SignalRow = {
+      ...mkSignal("l1", "Alice", 120, 80, 40),
+      leadCount: 2,
+    }
     const [action] = buildActionEngineCore([signal])
     assert.equal(action.campaignHints.vipScore, 80)
     assert.equal(action.campaignHints.leadCount, 2)
@@ -224,15 +278,35 @@ describe("ACTION-ENGINE-01 / action-engine-core", () => {
   /* ── offerFocus ────────────────────────────────────────────────── */
 
   it("offerFocus = 'Destination X' for dimensionType destination", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const signal = mkSignal("l1", "Alice", 120, 80, 40, "forte_hausse", "Istanbul", "destination")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const signal = mkSignal(
+      "l1",
+      "Alice",
+      120,
+      80,
+      40,
+      "forte_hausse",
+      "Istanbul",
+      "destination",
+    )
     const [action] = buildActionEngineCore([signal])
     assert.equal(action.offerFocus, "Destination Istanbul")
   })
 
   it("offerFocus = product label for dimensionType productType", async () => {
-    const { buildActionEngineCore } = await import("../../crm/action-engine-core.js")
-    const signal = mkSignal("l1", "Alice", 120, 80, 40, "forte_hausse", "omra", "productType")
+    const { buildActionEngineCore } =
+      await import("../../crm/action-engine-core.js")
+    const signal = mkSignal(
+      "l1",
+      "Alice",
+      120,
+      80,
+      40,
+      "forte_hausse",
+      "omra",
+      "productType",
+    )
     const [action] = buildActionEngineCore([signal])
     assert.equal(action.offerFocus, "Omra")
   })
@@ -256,13 +330,15 @@ describe("ACTION-ENGINE-01 / action-engine-actions", () => {
 describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("action page file exists", async () => {
     const fs = await import("node:fs/promises")
-    await fs.access("/home/user/EasyV4/app/(internal)/admin/analytics/action/page.tsx")
+    await fs.access(
+      resolve(process.cwd(), "app/(internal)/admin/analytics/action/page.tsx"),
+    )
   })
 
   it("action page imports getActionEngine", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/action/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/action/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("getActionEngine"))
@@ -272,7 +348,7 @@ describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("action page renders rationale and campaignHints", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/app/(internal)/admin/analytics/action/page.tsx",
+      resolve(process.cwd(), "app/(internal)/admin/analytics/action/page.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("rationale"))
@@ -282,7 +358,7 @@ describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("admin-shell includes Actions nav item with /admin/analytics/action href", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("/admin/analytics/action"))
@@ -292,7 +368,7 @@ describe("ACTION-ENGINE-01 / page & navigation", () => {
   it("admin-shell imports Lightbulb icon", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      "/home/user/EasyV4/components/admin-shell.tsx",
+      resolve(process.cwd(), "components/admin-shell.tsx"),
       "utf-8",
     )
     assert.ok(content.includes("Lightbulb"))

@@ -23,13 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Car, ShieldCheck, CreditCard, IdCard } from "lucide-react"
@@ -131,6 +125,7 @@ export function CarBookingForm({
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const watchedCategoryId = form.watch("categoryId")
   const watchedPickupLocationId = form.watch("pickupLocationId")
   const watchedPickupDate = form.watch("pickupDate")

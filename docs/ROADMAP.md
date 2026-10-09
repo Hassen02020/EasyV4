@@ -63,10 +63,62 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — CAMPAIGN-LINK-01 CLÔTURÉ (2026-10-08) — `?campaign=<uuid>` câblé dans les 8 tunnels de réservation (UI → serveur).
 **Aucun** — CAMPAIGN-DELIVERY-01 CLÔTURÉ (2026-10-08, PRs #162+#163) — Inngest `deliverCampaign` + `deliverCampaignCore` + migration 0125 (`delivery_status`/`delivered_at`) + live consent RGPD art.7.
 **Aucun** — CAMPAIGN-DELIVERY-STATS-01 CLÔTURÉ (2026-10-08, PR #164, merge `2aba257`) — `getCampaignPerformanceCore` étendu : `sent`/`failed`/`skipped`/`pending`/`totalTargets` via SQL COUNT(CASE WHEN); page `/admin/analytics/campaigns` affiche 4 colonnes livraison; 4 tests comportementaux vitest.
-**Aucun** — CAMPAIGN-MGMT-01 CLÔTURÉ (2026-10-08, PR #166, merge `17536e5`) — `cancelCampaignCore` (CAMPAIGN_ALREADY_TERMINAL guard); `CampaignTargetRow` étendu (`deliveryStatus`/`deliveredAt`); Server Actions `cancelCampaign` + `getCampaignTargets`; page `/admin/analytics/campaigns` : bouton Annuler (active/draft) + panel `CampaignTargetsPanel` drill-down; 9 invariants statiques node:test.
+**Aucun** — CAMPAIGN-MGMT-01 CLÔTURÉ (2026-10-08, PR #166, merge `17536e5`) — `cancelCampaignCore` (CAMPAIGN*ALREADY_TERMINAL guard); `CampaignTargetRow` étendu (`deliveryStatus`/`deliveredAt`); Server Actions `cancelCampaign` + `getCampaignTargets`; page `/admin/analytics/campaigns` : bouton Annuler (active/draft) + panel `CampaignTargetsPanel` drill-down; 9 invariants statiques node:test.
+**Aucun** — ANALYTICS-OVERVIEW-01 CLÔTURÉ (2026-10-08, commit `8b17682`) — page d'accueil `/admin/analytics` (manquante = 404) ; grille 12 cards de navigation Server Component ; 15/15 invariants statiques node:test.
+**Aucun** — TEST-COMPAT-01 CLÔTURÉ (2026-10-08, commit `ef91c3f`) — 3 fichiers de tests CRM (campaign-link-ui, campaign-delivery-core, campaign-performance-core) convertis de vitest → node:test/assert ; `vi.fn()`/`vi.spyOn()` remplacés par fonctions simples ; `sendCampaignEmail` non-mockable (getter ESM non-configurable) documenté et test happy-path marqué `test.skip` ; résultat 17 pass / 1 skip / 0 fail ; suite globale passe de 5 fail à 1 fail (G15 = flaky timing préexistant).
+**Aucun** — CI-FIX-03 CLÔTURÉ (2026-10-08, commit `7390d92`) — Cause racine NO_FCP confirmée : `e2b-fade-in-up` (opacity:0→1, fill-mode:both) sur le wrapper principal de `/login` — Chrome Lighthouse headless n'enregistre pas les éléments à opacity:0 comme FCP source. Correctifs : (1) retrait de `e2b-fade-in-up` sur le wrapper `.max-w-md` du login (cosmétique, aucun impact fonctionnel) ; (2) `lighthouserc.js` : `/` → `/fr` (page publique réelle, `/` redirige via next-intl), `/admin` retiré (redirige vers /login sans auth en CI). `continue-on-error: true` conservé sur le job lighthouse jusqu'à confirmation d'une run verte sur CI réelle. PRICING-PROMO-LINK-01 network : N/A — flux B2B partner-debit, aucun campaign link ne circule dans ce module.
+**Aucun** — AUDIENCE-DEDUP-01 CLÔTURÉ (2026-10-08) — `filterAudienceByConsentCore` (campaign-core.ts) : pré-groupement des leads par rawRef avant `resolveOrCreateContactCore` — O(N leads) → O(N refs uniques). Correctness inchangée (déduplication par contactId Map conservée). 4 nouveaux tests node:test (campaign-core.test.ts) ; 12/12 pass, 0 fail.
+**Aucun** — LINT-CLEANUP-01 CLÔTURÉ (2026-10-09, commit `cd01b8e`) — 138 avertissements ESLint préexistants éliminés : `eslint.config.mjs` + argsIgnorePattern/varsIgnorePattern "^*", ~45 imports morts supprimés, directives eslint-disable obsolètes retirées, `react-hooks/incompatible-library` correctement placé sur form.watch() dans car/transfer/world-hotel/data-table. Résultat : `pnpm lint` → 0 warnings 0 errors ; `pnpm typecheck` → 0 erreurs. 49 fichiers modifiés.
+**Aucun** — BUILD-VERIFY-01 CLÔTURÉ (2026-10-09, commit `333939e`) — `pnpm build` exit 0 sans MISSING_MESSAGE. Correction : 8 clés namespace `Compte` ajoutées à `messages/en.json` et `messages/ar.json` (inscriptionPageTitle, inscriptionPageSubtitle, emailHintSignup, createAccountButton, alreadyAccountPrefix, loginLink, createAccountPrefix, createAccountLink). Build vérifié propre : 0 erreurs, 0 warnings.
+**Aucun** — CI-FORMAT-FIX-01 CLÔTURÉ (2026-10-09, commit `a59278b`) — Job CI `format` restauré (37 fichiers Prettier reformatés : 10 pages analytics, 2 pages b2c admin, 3 booking-forms components, 8 tests lib/admin, 4 lib/admin actions, 2 tests CRM, 6 CRM cores, docs/ROADMAP.md). Cause : chantiers CRM/analytics récents poussés sans `pnpm format`. Résultat : `pnpm format:check` → "All matched files use Prettier code style!" ; tsc 0 erreurs ; lint 0 warnings.
+**Aucun** — CI-FIX-04 CLÔTURÉ (2026-10-09, commits `d56d5bf`+`<pending>`) — Job `lighthouse` CI bloquant : cause racine = throttling mobile simulé (3G+4×CPU) par défaut → FCP/LCP artificiellement > 3000/4000ms sur runner CI headless. Correctifs : `lighthouserc.js` : `settings.throttlingMethod="provided"` (mesure réelle runner) + `settings.preset="desktop"` (viewport 1350px, cohérent avec usage B2B) + `settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"`. Run verte confirmée (run 37903890236, job `lighthouse`=success). `continue-on-error: true` retiré de `lighthouse` et `playwright-a11y` (ce dernier passe depuis CI-FIX-01, R8-05 confirmé). Les deux jobs sont désormais BLOQUANTS. Seuils FCP/LCP/a11y inchangés et bloquants.
 **Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
 **Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
 **Aucun** — NICHE-UI-01 CLÔTURÉ (2026-10-07, PR #158, merge `7abc1acc`).
+**Aucun** — PAY-EXPIRE-01 + PAY-IDEM-DB-01 + PAY-COMMISSION-DB-01 CLÔTURÉ (2026-10-09, commit `b237130`) — (1) PAY-EXPIRE-01 : cron `expire-pending-payments` fréquence 24h→30min (`vercel.json`) + `lib/booking/guest-idempotency.ts` 4e param `dbFallback` + `lib/transfers/guest-booking-actions.ts` agencyId résolu avant idempotency + `guestIdempotencyKey` persisté. (2) PAY-IDEM-DB-01 : `lib/booking/guest-idempotency.ts` extension déjà décrite. (3) PAY-COMMISSION-DB-01 : migration `drizzle/manual/0126_pay_commission_check_01.sql` — CHECK NOT VALID sur `margin_rules.commission_percent` et `reservation_financials.commission_percent` (0 ligne incompatible confirmée en lecture seule avant commit).
+**Aucun** — BUG-CAR-01 + PRO-RECHARGE-BUG-01 CLÔTURÉ (2026-10-09) — BUG-CAR-01 : sur-réservation voitures corrigée — fallback `checkCarAvailability` (sans ligne `car_availability`) verrouille maintenant un véhicule précis FOR UPDATE (au lieu de COUNT(\*)) et après booking, UPDATE `car_fleet_vehicles.status = 'rented'` — B2B (`lib/cars/actions.ts`) et B2C (`lib/cars/guest-booking-actions.ts`). PRO-RECHARGE-BUG-01 : prop `paymeeAvailable={isPaymeeSelected()}` manquante dans `app/(internal)/pro/(app)/paiements/page.tsx` — bouton recharge en ligne maintenant visible dans /pro/paiements si Paymee configuré. 6 nouveaux invariants statiques node:test. Typecheck ✓.
+**Aucun** — BUG-CAR-01 PREUVE CONCURRENCE + BUG-TRANSFER-02 CLÔTURÉ (2026-10-09) — BUG-CAR-01 : 4 preuves statiques supplémentaires d'isolation concurrentielle : (1) FOR UPDATE précède `{ available: !!vehicle }` (verrou avant réponse), (2) `availVehicleId: vehicle?.id ?? null` — même variable utilisée dans le UPDATE, séquence atomique dans la même transaction — B2B et B2C. BUG-TRANSFER-02 : `calculateTransferPrice` dans `lib/transfers/guest-booking-actions.ts` passe désormais `channel: "direct"` explicitement (B2C vente directe consommateur) — B2B `actions.ts` passe `channel: "b2b"` explicitement (inchangé). `DistributionChannel = "direct"|"b2b"|"white_label"|"api"` — "direct" est le canal correct pour un guest B2C. 3 invariants statiques transfers (ok 1-3). Total nouveaux tests : 24+3=27/27. Typecheck ✓.
+**Aucun** — WALLET-WEBHOOK-SECURITY-01 CLÔTURÉ (2026-10-09, commits `c6e6985` + `0121e2b`) — P0-A : INSERT `payment_events` déplacé APRÈS corrélation + vérification PSP (eventId non consommé sur no_match/psp_mismatch). P0-B : vérification identité PSP — nouvelle colonne nullable `psp VARCHAR(32)` sur `wallet_recharge_requests` (migration 0127) ; `initiateOnlineRecharge` stocke `"paymee"` ; le webhook rejette `pending.psp !== provider` avec `PSP_MISMATCH` dans `psp_webhooks` sans consommer l'eventId. P0-C (wallet) : `matchesPendingRecharge` confirme tolérance 3-décimales TND (millimes) — CONFORME. P1-D : partagé — déjà corrigé via PAY-WEBHOOK-SAFETY-01. Architecture : logique extraite dans `lib/payment/wallet-webhook-core.ts` (même discipline que `reservation-webhook-core.ts`). Tests : 12/12 unitaires (`wallet-webhook-security.test.ts`) + 8/8 intégration PostgreSQL (`wallet-webhook-core.test.ts`, skip sans DB locale) — couvrent : credited, duplicate, no_match + eventId non consommé, PSP mismatch + audit trail, retry P0-A, payment_failed, offline psp=null, already_processed. CI : `financial-e2e` étendu avec `wallet-webhook-core.test.ts`. Typecheck ✓, lint ✓, format ✓.
+**Aucun** — PAY-WEBHOOK-SAFETY-01 CLÔTURÉ (2026-10-09, commits `313a6d3` + `f7d21e4`) — 4 corrections sécurité webhook PSP : P0-A race condition (INSERT `payment_events` déplacé APRÈS corrélation — webhook précoce `no_match` ne consomme plus l'eventId, PSP peut rejouer) ; P0-B PSP identity (check `payment.psp !== provider` → audit `payment.psp_mismatch` + `no_match` sans consommer l'eventId) ; P0-C précision TND (`toFixed(3)→toFixed(2)` dans `paymee-provider.ts`) ; P1-D Stripe replay window (`STRIPE_SIGNATURE_MAX_AGE_SECONDS=300` injectable). Tests : 13/13 intégration Postgres réel (`reservation-webhook-core.test.ts` inclut P0-A et P0-B) ; 9/9 unitaires (`webhook-security.test.ts`) ; 4/4 unitaires (`signing.test.ts`). Régression corrigée : fixture `psp: "virtual"` → `psp: "sps"`. CI : `financial-e2e` étendu pour exécuter `reservation-webhook-core.test.ts` et `paymee-reservation-webhook.test.ts` (précédemment silencieusement skippés).
+**Aucun** — DUFFEL-ENUM N/A CLÔTURÉ (2026-10-09) — Audit : `"duffel"` déjà présent dans l'enum `flightSupplierName` (`lib/db/schema/flight-suppliers.ts` ligne 40) ET migration Drizzle `drizzle/0016_flight_supplier_duffel.sql` déjà existante. Aucune action requise.
+**Aucun** — BUG-ACT-01 N/A CLÔTURÉ (2026-10-09) — Audit : `supplierPriceTnd === salePriceTnd === totalTnd` dans `lib/activities/guest-booking-actions.ts` est INTENTIONNEL — Activités est un catalogue propre à l'agence (pas de fournisseur externe), même modèle que Cars. Pas de `commissionPercent` → commission = 0, correct. Commentaire R6-02 dans le code confirme. 2 invariants statiques créés (`lib/activities/__tests__/commission-wiring.test.ts`) pour protéger cet invariant contre régression.
+**Aucun** — CAR-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `423c151`) — `lib/pdf/voucher-car.tsx` (PDF voucher voiture FR/EN/AR) + 11 labels i18n dans `voucher-i18n.ts` + event `"booking/car.confirmed"` dans `lib/inngest/client.ts` + `lib/inngest/functions/process-car-confirmed.ts` (idempotence, Resend + PJ PDF) + `sendEvent` fire-and-forget câblé dans `lib/cars/actions.ts` (B2B) et `lib/cars/guest-booking-actions.ts` (B2C) + 17/17 invariants statiques (`car-voucher-wiring.test.ts`). 0 régression (44/44 tests pass). Typecheck : 0 nouvelle erreur.
+**Aucun** — COMMISSION-MONDE-01 CLÔTURÉ (2026-10-09, commit `3c175d6`) — `lib/hotels-monde/__tests__/commission-wiring.test.ts` créé : 16 invariants statiques node:test protégeant le câblage commission du module Hôtels Monde (supplier_cost ≠ sale_price, commissionPercent depuis System B, fallback ?? 0 réservé aux entitlements, creditPlatformCommission câblé depuis commissionAmount retourné par recordReservationFinancials, channel "direct", 3 entitlements économiques, sendEvent fire-and-forget). 16/16 pass. Typecheck ✓. 0 régression.
+**Aucun** — TRANSFER-VOUCHER-B2C-01 CLÔTURÉ (2026-10-09, commit `93bd695`) — `sendEvent("booking/transfer.confirmed")` fire-and-forget câblé dans `lib/transfers/guest-booking-actions.ts` (chemin B2C manquant). 15/15 invariants statiques. Typecheck ✓.
+**Aucun** — COMMISSION-WIRING-COVERAGE-01 CLÔTURÉ (2026-10-09, commit `f5512a1`) — 3 nouveaux fichiers tests : `lib/transfers/__tests__/commission-wiring.test.ts` (11), `lib/omra/__tests__/commission-wiring.test.ts` (7), `lib/packages/__tests__/commission-wiring.test.ts` (7). 25/25 pass. Couverture commission wiring complète sur les 7 modules.
+**Aucun** — OMRA-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `52884ee`) — `lib/omra/__tests__/omra-voucher-wiring.test.ts` créé : 13 invariants statiques protégeant `sendEvent("booking/omra.confirmed")` (import, nom event, condition contactEmail, fire-and-forget .catch(), payload complet, résolution serveur packageName/contactEmail). 13/13 pass. Typecheck ✓.
+**Aucun** — HOTELS-MONDE-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `b6643a9`) — `lib/hotels-monde/__tests__/hotels-monde-voucher-wiring.test.ts` (17 tests) : payload sendEvent("booking/confirmed") complet (reservationId/publicRef/agencyId/guestAccessToken/customerEmail/customerName/customerPhone depuis result, hotelName/checkIn/checkOut/nights/adults depuis bookResult, totalTnd=finalTotalTnd). 17/17 pass.
+**Aucun** — TRANSFER-B2B-VOUCHER-01 + OMRA-B2B-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `118ad8b`) — `lib/transfers/__tests__/transfer-b2b-voucher-wiring.test.ts` (14 tests) + `lib/omra/__tests__/omra-b2b-voucher-wiring.test.ts` (12 tests). 26/26 pass. Couverture sendEvent B2B+B2C complète sur tous les modules qui utilisent sendEvent (cars/transfers/hotels-monde/omra).
+**Aucun** — COMMISSION-WIRING-B2B-01 CLÔTURÉ (2026-10-09) — `lib/transfers/__tests__/transfer-b2b-commission-wiring.test.ts` (10) + `lib/omra/__tests__/omra-b2b-commission-wiring.test.ts` (7) + `lib/activities/__tests__/activities-b2b-commission-wiring.test.ts` (7) : fermeture du gap B2B commission. 24/24 pass. Couverture commission wiring B2B+B2C complète sur tous les modules (cars, transfers, hotels-monde, omra, activities, packages).
+**Aucun** — INNGEST-HANDLER-WIRING-01 CLÔTURÉ (2026-10-09, commit `ca38630`) — 3 nouveaux fichiers tests couvrant les handlers Inngest (chaîne complète handler + client.ts + index.ts barrel) pour les 3 modules non couverts par car-voucher-wiring.test.ts : `process-transfer-confirmed-wiring.test.ts` (11 tests — event binding, Resend email, sécurité SMS chauffeur : driverPhone depuis DB jamais customerPhone, skip no_driver_assigned), `process-omra-confirmed-wiring.test.ts` (8 tests — event binding, Resend à d.contactEmail jamais d.customerEmail), `process-confirmed-booking-wiring.test.ts` (11 tests — event binding, idempotence hasVoucherEmailAlreadySucceeded + notificationIdempotency + recordVoucherEmailSent + alreadySent, renderVoucherPdf, sendVoucherEmail, base64). 30/30 pass.
+**Aucun** — INNGEST-HANDLER-WIRING-02/flights CLÔTURÉ (2026-10-09, commit `1b26299`) — `process-flight-confirmed-wiring.test.ts` (13 tests) : event binding "booking/flight.confirmed", idempotence via `auditEvents` (pas `notificationIdempotency`), `recordFlightVoucherSent` inconditionnelle (hors garde RESEND), `renderFlightVoucherPdf` + base64, Resend optionnel conditionné `RESEND_API_KEY`, pièce jointe `voucher-vol-${publicRef}.pdf`, client.ts + index.ts barrel. 13/13 pass. Couverture Inngest handler chain complète sur tous les handlers (cars/transfers/omra/hotels-monde/flights/wallet).
+**Aucun** — SENDEVENT-GAP-SWEEP-01 CLÔTURÉ (2026-10-09, commits `1e04c7a`+`dc4f8f3`) — 6 sendEvent appelants non couverts fermés : process-wallet-credit (readFileSync fix), manual-payment "booking/confirmed" (voie Paymee, totalTnd=Number.parseFloat), vols fulfillment "booking/flight.confirmed" (payload complet, retry, id dedup), wallet/credited callers (recharge-actions guard triple + agencies-actions ADMIN_DIRECT), myGo hotel B2B (draft.module=hotel) + B2C SÉCURITÉ (isImmediatelyPaid guard — pas de voucher pour résa pending). 7+10+14+7+10=48 tests. Couverture sendEvent complète sur tous les appelants.
+**Aucun** — COMMISSION-WIRING-01/mygo+flights CLÔTURÉ (2026-10-09, commit `bf05859`) — Comble les deux derniers gaps de couverture commission wiring : `lib/booking/__tests__/mygo-hotel-commission-wiring.test.ts` (11 tests — B2B : guard module hotel && myGoBooking, supplierPriceTnd=myGoBooking.totalPrice jamais draft.unitPriceTnd, salePriceTnd=agencyHotelPrice, ordre recordReservationFinancials→creditPlatformCommission, 3 entitlements external_supplier/seller_margin/commission ; B2C : guard module hotel, supplierPriceTnd=myGoBooking.totalPrice, salePriceTnd=agencyPrice, même ordre) + `lib/vols/__tests__/flight-commission-wiring.test.ts` (13 tests — finalizeFlightBookingFinancials exportée, guard !snapshotId, sources DB flightPriceSnapshots, conversion Number() string→number, CURRENCY-DIM fetchExchangeRateForBooking taux réel fail-closed sans ?? 0/1, ordre recordReservationFinancials→creditPlatformCommission, 3 entitlements + platform_fee FX conditionnel). 11+13=24 pass. Couverture commission wiring complète sur TOUS les modules de réservation (cars/transfers/hotels-monde/omra/activities/packages/myGo-hotel-B2B+B2C/flights).
+**Aucun** — REFUND-WIRING-01 + UPDATE-STATUS-WIRING-01 CLÔTURÉ (2026-10-09) — `lib/finance/__tests__/refund-actions-wiring.test.ts` (9 tests) : refundReservation staff — REFUND_ALLOWED_ROLES (super_admin/manager/agent_compta) importé depuis refund-logic, code UNAUTHORIZED, FOR UPDATE lock avant applyReservationRefund (no double-refund), agencyId=reservation.agencyId cross-agency (pas profile.agencyId), isSuperAdmin→agencyId:null RLS bypass, fullyRefunded→status="refunded", releaseStock conditionné par CANCELLABLE_MODULES (hôtel exclu), isTransitionAllowed vérifié. `lib/admin/__tests__/update-reservation-status-wiring.test.ts` (9 tests) : updateReservationStatus admin — RESERVATION_STATUS_ALLOWED_ROLES (super_admin/manager/agent_resa), cross-agency super_admin agencyId depuis reservations.agencyId, isSuperAdmin→null, cancelled→applyReservationRefund dans la même transaction (no paiement capturé orphelin), NO_CAPTURED_PAYMENT no-op, throw (rollback complet) sur autre échec de remboursement, audit best-effort. 9+9=18/18 pass.
+**Aucun** — CANCEL-WIRING-01 CLÔTURÉ (2026-10-09) — `lib/booking/__tests__/cancel-wiring-invariants.test.ts` (16 tests) : ferme le gap de couverture zéro sur les deux chemins d'annulation hôtel myGo. B2B (`cancel-actions.ts`) : CANCELLABLE_STATUSES guard (confirmed/pending/on_request), guard module=hotel && providerBookingId (jamais d'annulation sans référence myGo réelle), verrou FOR UPDATE avant écriture financière, race protection ALREADY_CANCELLED_CONCURRENTLY (no double-refund), append-only wallet (INSERT partnerCreditMovements movementType="refund" — jamais UPDATE), set_agency_deposit_balance() via SQL raw (jamais tx.update(agencies)), recordCancellationFinancials, floor Math.max(0,...) remboursement jamais négatif. B2C (`customer-cancel-actions.ts`) : SÉCURITÉ ownedByCurrentCustomer WHERE guard (scope = propre réservation uniquement), code NOT_FOUND sur accès non autorisé (jamais FORBIDDEN — pas de leak d'existence), applyReservationRefund wallet client (pas wallet agence), NO_CAPTURED_PAYMENT no-op légitime (résa jamais payée : annulation aboutit sans remboursement), recordCancellationFinancials, reverseEarnedPoints + reinstateRedeemedPoints (loyalty reversal symétrique), race protection ALREADY_CANCELLED_CONCURRENTLY. 16/16 pass.
+**Aucun** — MANUAL-PAYMENT-WIRING-01 CLÔTURÉ (2026-10-09, commit `c9ff205`) — `lib/finance/__tests__/manual-payment-wiring.test.ts` (14 tests) : invariants statiques `lib/finance/manual-payment-actions.ts` — PAYMENT_ALLOWED_ROLES (super_admin/manager/agent_compta), assertRoleSession guard, agencyId cross-agency depuis reservations.agencyId (jamais profile), isSuperAdmin→agencyId:null RLS bypass, FOR UPDATE lock avant écriture financière (no double-paiement), ALREADY_PAID guard après verrou, applyManualPayment dans transaction, generateInvoiceForReservation dans transaction, sendEvent "booking/confirmed" fire-and-forget hors transaction avec .catch(), loyauté earnPendingPoints câblée, status="confirmed" dans transaction. 14/14 pass.
+**Aucun** — RECHARGE-WIRING-01 CLÔTURÉ (2026-10-09, commit `f2338ed`) — `lib/finance/__tests__/recharge-wiring.test.ts` (8 tests) : invariants statiques `lib/finance/recharge-actions.ts` — assertSuperAdminSession + isSuperAdmin guard, agencyId depuis resolveSessionContext (jamais client input), commentaire explicite anti-usurpation, FOR UPDATE × 2 (validate + reject), REQUEST_ALREADY_PROCESSED après verrou, agencyId:null + isSuperAdmin:true withTenantContext cross-agency, creditRechargeRequest(tx,...) dans transaction, sendEvent "wallet/credited" .catch() fire-and-forget, INSERT walletRechargeRequests avant createPayment PSP. 8/8 pass.
+**Aucun** — INVOICE-WIRING-01 + WALLET-CREDIT-WIRING-01 CLÔTURÉ (2026-10-09, commit `0612fff`) — `lib/finance/__tests__/invoice-wiring.test.ts` (6 tests) : RESERVATION_NOT_CONFIRMED guard, idempotence 23505 → relecture alreadyExisted:true, savepoint tx.transaction(async(tx2)), status:"paid" jamais "pending"/"draft", totalTva:"0.00". `lib/finance/__tests__/wallet-credit-wiring.test.ts` (6 tests) : FOR UPDATE agencies × 2, set_agency_deposit_balance() SQL raw jamais tx.update(agencies), insert(partnerCreditMovements) append-only, movementType:"credit" + movementType:"debit", status:"validated". 12/12 pass.
+**Aucun** — POLICY-CANCEL-WIRING-01 CLÔTURÉ (2026-10-09, commit `7d72cc0`) — `lib/booking/__tests__/policy-cancel-wiring.test.ts` (14 tests) : invariants statiques `lib/booking/policy-cancel-core.ts` (délibérément sans "use server") — CANCELLABLE_MODULES ["omra","package","activity"], CANCELLABLE_MODULES.includes() guard, NOT_FOUND jamais FORBIDDEN, FOR UPDATE × 4 (reservations+omraAllotments+catalogPackageDepartures+catalogActivitySessions), ALREADY_CANCELLED_CONCURRENTLY après verrou, policySnapshot depuis providerPayload (jamais résolution live), isValidWalletAmount(creditableTnd) avant applyReservationRefund (guard 0 TND → évite rollback), applyReservationRefund({tx,...}) dans transaction, NO_CAPTURED_PAYMENT no-op + throw sur autre échec, reverseEarnedPoints(tx,...) + reinstateRedeemedPoints(tx,...) atomiques, status:"cancelled" après FOR UPDATE, ownedByCurrentCustomer({...}). 14/14 pass.
+**Aucun** — VISUAL-AUDIT-01 CLÔTURÉ (2026-10-09, commit `bddec00`) — Audit visuel complet 28 routes (public + portails internes) · 3 locales (FR/EN/AR) · desktop + mobile (390px) · RTL Arabic · 1 bug P2 corrigé (ModuleHero hero contrast — `bg-gradient-to-br` manquant, 8 modules affectés, fix 1 ligne `components/module-hero.tsx`) · 0 bug P0/P1 · 3 observations P3 (loading states, error boundaries, homepage Suspense) · i18n 1151 clés 0 manquantes · typecheck clean.
+**Aucun** — VISUAL-UX-ENGINE-01 CLÔTURÉ (2026-10-09, commit `1bd3232`) — Suite de VISUAL-AUDIT-01. (1) OBS-IMG : images Unsplash de repli ajoutées aux 5 héros dépendants de la DB (hotels-monde, vols, transferts, car, attractions) — hero toujours visible indépendamment de la DB. (2) OBS-001 : résilience homepage — `.catch()` fallback sur chaque item du `Promise.all` (modules/site/transferZones/carCatalog) + `<Suspense>` sur 4 sections éditoriales asynchrones (FlashOffers, FeaturedDestinationsSection, DevelopmentProjectsSection, MarketSignalsSection). (3) OBS-002 : squelettes `loading.tsx` pour les 8 pages modules publiques (hotels, hotels-monde, vols, transferts, car, omra, attractions, packages) via composant partagé `ModulePageSkeleton`. (4) OBS-003 : `app/(public)/[locale]/error.tsx` — error boundary niveau locale, message générique (0 détail technique), bouton Réessayer + lien Accueil. TypeCheck : 0 erreurs. 16 fichiers. Pushed `claude/easy2book-v6-modernization-7gyb5v`.
+**Aucun** — LOYALTY-WIRING-01 CLÔTURÉ (2026-10-09, commit `6404c7e`) — `lib/loyalty/__tests__/loyalty-wiring.test.ts` (9 tests) : invariants statiques `lib/loyalty/rewards-core.ts` (délibérément sans "use server") — append-only loyaltyLedger (insert jamais update), FOR UPDATE dans lockOrCreateLoyaltyAccount (anti double-earn concurrent), FOR UPDATE × 2 (lockOrCreate + expireInactiveAccounts), creditCustomerWallet jamais importé ni appelé (points ≠ argent, vérification sur import[^;]* + appel\s*\( — pas bare string car présent dans JSDoc interdiction), findLedgerByIdempotencyKey précède insertLedgerRow (idempotence), Math.max(0,...) soldes jamais négatifs, idempotencyKey:string × 5 (earn/convert/reverse/redeem/reinstate), reservations.tndAmount interdit comme base points (commentaire explicite "jamais...tndAmount"). 9/9 pass.
+
+### CAR-VOUCHER-01 — CLÔTURÉ (2026-10-09, commit `423c151`)
+
+**État audit → CLÔTURÉ. Implémentation complète.**
+
+Livrables :
+- `lib/pdf/voucher-car.tsx` — template PDF voiture (catégorie, pickup/dropoff, dates, durée, prix) FR/EN/AR
+- `lib/pdf/voucher-i18n.ts` — 11 nouvelles clés car (`carTitle`, `carSection`, `vehicleCategory`, `carPickupLocation`, `carDropoffLocation`, `carPickupAt`, `carDropoffAt`, `rentalDaysLabel`, `rentalDaysText`, `carInsuranceLevel`) dans FR, EN et AR
+- `lib/inngest/client.ts` — event type `"booking/car.confirmed"` (champs : `reservationId`, `publicRef`, `agencyId`, `guestAccessToken`, `customerEmail`, `customerName`, `categoryName`, `pickupLocationName`, `dropoffLocationName`, `pickupAt`, `dropoffAt`, `rentalDays`, `insuranceLevel`, `totalTnd`)
+- `lib/inngest/functions/process-car-confirmed.ts` — fonction Inngest (idempotence via `notification_idempotency`, Resend + PJ PDF, `onFailure` handler)
+- `lib/inngest/functions/index.ts` — export `processCarConfirmed`
+- `lib/cars/actions.ts` — `sendEvent("booking/car.confirmed", ...)` fire-and-forget (B2B), tx retourne `categoryName`/`pickupLocationName`/`dropoffLocationName`/`rentalDays`
+- `lib/cars/guest-booking-actions.ts` — `sendEvent("booking/car.confirmed", ...)` fire-and-forget (B2C), tx retourne mêmes champs
+- `lib/cars/__tests__/car-voucher-wiring.test.ts` — 17/17 invariants statiques node:test
+
+Tests : 44/44 pass (17 nouveaux + 27 existants). 0 régression. Typecheck : 0 nouvelle erreur.
 
 ### PR-BATCH-04 — WHITE-LABEL-ADMIN-01, WHITE-LABEL-PRO-01, COMMISSION-WIRING-02, CARS-COMMISSION-01 — CLÔTURÉ (PR #126 + #155)
 
@@ -283,6 +335,7 @@ Stratégie : 200 leads récents → score séquentiel → tri score.total desc �
 **Commit** : `ce2d2f8`
 
 **Fichiers créés/modifiés** :
+
 - `lib/admin/radar-vip-actions.ts` — Server Action `getRadarVip()` (CRÉÉ)
   - `VipRadarRow` : leadId, firstName, lastName, email, phone, productType, channel, destination, status, score
   - `listLeadsCore` (200 max) → `getLeadScoreRuleMapCore` → `getVipScoreForLeadCore` séquentiel → top 50
@@ -330,6 +383,7 @@ Orchestre `getTimeSeriesCore` → `buildRadarMetierCore` pour 4 dimensions (modu
 **Commit** : `30f7760`
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/radar-metier-core.ts` — `buildRadarMetierCore(rows)` pure (CRÉÉ)
   - `SignalTrend` : forte_hausse / hausse / stable / baisse / forte_baisse / nouveau
   - `signalStrength = currentVolume × (1 + growthFactor)` — clampé [-1, +2]
@@ -376,13 +430,14 @@ ACTION ENGINE      🟢 v1 — recommandations structurées → "Quoi faire ?"
 LEARNING           🟢 v1 — feedback loop conversion VIP → "Est-ce que ça a marché ?"
 ```
 
-**Radar Métier** répond : *Destination X +42% demandes +28% CA +35% marge → opportunité commerciale.*
-**Radar VIP v1** répond : *Lead Y score 87, engagement ×3, récence forte → opportunité relationnelle.*
-**Radar VIP v2** (RADAR-VIP-02) répondra : *PARTENAIRE Z — hôtel + Omra + vol + visa — score consolidé → acteur stratégique.*
+**Radar Métier** répond : _Destination X +42% demandes +28% CA +35% marge → opportunité commerciale._
+**Radar VIP v1** répond : _Lead Y score 87, engagement ×3, récence forte → opportunité relationnelle._
+**Radar VIP v2** (RADAR-VIP-02) répondra : _PARTENAIRE Z — hôtel + Omra + vol + visa — score consolidé → acteur stratégique._
 
 **RADAR-VIP-02 — CLÔTURÉ (2026-10-08)**
 
 Déduplication contactuelle best-effort email-first :
+
 - `contactKey(email, phone, leadId)` : regroupe les leads partageant le même email normalisé,
   sinon le même phone normalisé (chiffres uniquement), sinon traite le lead isolément.
 - Dans un groupe : le lead au score le plus élevé est le représentant.
@@ -399,6 +454,7 @@ fusionnés que si l'un d'eux n'a pas d'email. Fusion exacte via CONTACT-01 : RAD
 
 Remplacement de la déduplication best-effort (RADAR-VIP-02 `contactKey()`) par la
 résolution exacte CONTACT-01 :
+
 - `findExistingContactIdForLeadCore` exportée depuis `lib/crm/vip-score-core.ts` (lecture seule).
 - Résolution séquentielle post-scoring : pour chaque lead scoré, lookup du contactId réel.
 - Groupement par `contactId` (ou `lead:<leadId>` pour les leads sans contact persisté).
@@ -406,6 +462,7 @@ résolution exacte CONTACT-01 :
 - Tests : 10/10 ✅ (3 RADAR-VIP-01 + 7 RADAR-VIP-02/03) · typecheck ✅ · lint ✅
 
 État du Radar VIP :
+
 ```
 RADAR-VIP-01  🟢  score par lead
 RADAR-VIP-02  🟢  dedup best-effort email-first
@@ -420,6 +477,7 @@ LEARNING      🟢  feedback loop conversion VIP (commit 3b25026)
 Convergence Radar Métier × Radar VIP — "Ce contact VIP est dans un marché en mouvement" = signal actionnable.
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/signal-engine-core.ts` — `buildSignalEngineCore(vipRows, radarSignals)` pure (CRÉÉ)
   - `VipInput` : interface minimale découplée de VipRadarRow (évite cross-import "use server")
   - Deux types : `vip_x_destination`, `vip_x_product`
@@ -430,8 +488,8 @@ Convergence Radar Métier × Radar VIP — "Ce contact VIP est dans un marché e
   - `SIGNAL_ENGINE_MAX_ROWS = 30`, tri par combinedScore desc, dédup par signalId
 - `lib/admin/signal-engine-actions.ts` — `getSignalEngine(windowWeeks: 4|8|12)` Server Action (CRÉÉ)
   - Orchestre : `getTimeSeriesCore` → `buildRadarMetierCore` (signaux marché)
-    + `listLeadsCore` → score séquentiel + `findExistingContactIdForLeadCore` → dédup contactuelle
-    + `buildSignalEngineCore` (convergence)
+    - `listLeadsCore` → score séquentiel + `findExistingContactIdForLeadCore` → dédup contactuelle
+    - `buildSignalEngineCore` (convergence)
   - Même dédup CONTACT-01 que RADAR-VIP-03 (réimplémentée directement, sans appel à Server Action)
 - `app/(internal)/admin/analytics/signal/page.tsx` — UI Signal Engine (CRÉÉ)
   - Sélecteur fenêtre 4/8/12 semaines
@@ -456,6 +514,7 @@ seulement traduire un signal en texte. Il doit produire une recommandation struc
 explicable et exécutable par un humain ou Campaign Engine."
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/action-engine-core.ts` — `buildActionEngineCore(signals)` pure (CRÉÉ)
   - `CampaignHints` : payload JSON sérialisable consommable par Campaign Engine —
     offerDimension, offerDimensionType, suggestedActionType, channel, urgencyHours,
@@ -486,6 +545,7 @@ explicable et exécutable par un humain ou Campaign Engine."
 Feedback loop : score VIP × conversion (status="converted") sur fenêtre temporelle (4/8/12 sem).
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/learning-core.ts` — `buildLearningCore(leads, windowWeeks)` pure (CRÉÉ)
   - segmentation VIP++ (≥80) / VIP+ (≥50) / Pipeline (≥25) / Faible
   - taux de conversion par bucket, destination, produit
@@ -505,6 +565,7 @@ Feedback loop : score VIP × conversion (status="converted") sur fenêtre tempor
 **Tests** : 25/25 ✅ · typecheck 0 erreur ✅
 
 **Programme Radar complet** :
+
 - RADAR MÉTIER 🟢 → RADAR VIP 🟢 v3 → SIGNAL ENGINE 🟢 → ACTION ENGINE 🟢 → CAMPAIGN ENGINE 🟢 → LEARNING 🟢
 
 ---
@@ -519,6 +580,7 @@ déduplique les leadIds, mappe ActionChannel → CrmChannel, génère
 nom/objectif/message par canal. READ-ONLY : ne crée pas de campagnes.
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/campaign-engine-core.ts` — `buildCampaignEngineCore(actions)` pure (CRÉÉ)
   - `CampaignProposal` : proposalId, channel, crmChannel, dimension, leadIds,
     priority, topCombinedScore, urgencyHours, suggestedName/Objective/Message,
@@ -544,6 +606,7 @@ Audit complet (PROPOSAL→CREATE→TARGET→LAUNCH→ATTRIBUTION→RESERVATION�
 7 stages sur 8 existaient déjà. Seul manquait l'action serveur atomique Proposal → createCampaignCore → launchCampaignCore.
 
 **Audit état pré-chantier** :
+
 - PROPOSAL ✅ campaign-engine-core + getCampaignEngine + page (CAMPAIGN-ENGINE-01)
 - CREATE core ✅ createCampaignCore (campaign-persistence-core) — pas de server action depuis proposal
 - TARGET+LAUNCH core ✅ launchCampaignCore — même situation
@@ -553,6 +616,7 @@ Audit complet (PROPOSAL→CREATE→TARGET→LAUNCH→ATTRIBUTION→RESERVATION�
 - LEARNING ✅ buildLearningCore + learning-actions + /admin/analytics/learning
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/leads-core.ts` — + `fetchLeadsByIdsCore(tx, { agencyId, ids })` (ÉTENDU)
   - Restitution id/email/phone par liste d'IDs — scope minimal, IDs hors agence ignorés
 - `lib/admin/campaign-lifecycle-actions.ts` — `createAndLaunchCampaign(params)` server action (CRÉÉ)
@@ -565,6 +629,7 @@ Audit complet (PROPOSAL→CREATE→TARGET→LAUNCH→ATTRIBUTION→RESERVATION�
   - Bouton dans chaque ligne détail expanded, stopPropagation pour ne pas réduire la ligne
 
 **Tests** : 8/8 ✅ · typecheck 0 erreur ✅
+
 - fetchLeadsByIdsCore exportée
 - selectAttributionCandidateCore : null, unique, snapshot récent gagne, tie-breaker, trois candidats
 - createAndLaunchCampaign exportée
@@ -580,6 +645,7 @@ Répond à "Qu'est-ce qui change ?" : compare fenêtre courante vs fenêtre pré
 **Commit** : `ae82ea8`
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/time-series-core.ts` — `getTimeSeriesCore(tx, {agencyId, windowWeeks})` (CRÉÉ)
   - Flux CA/marge : `reservationFinancials JOIN reservations.createdAt` par module
   - Flux leads : `leads.createdAt` par channel et par productType
@@ -604,6 +670,7 @@ CA et marge lus depuis `reservationFinancials` via jointure (FINANCIAL est l'uni
 **Commit** : `47db482`
 
 **Fichiers créés/modifiés** :
+
 - `lib/admin/conversion-funnel-actions.ts` — Server Action `getConversionFunnel()` (CRÉÉ)
 - `app/(internal)/admin/analytics/conversion/page.tsx` — page funnel + 4 tuiles KPI (CRÉÉ)
 - `components/admin-shell.tsx` — 5e sous-item "Conversion" dans analyticsNavItems (ÉTENDU)
@@ -625,6 +692,7 @@ aucune interface admin ne le consommait.
 **Commit** : `c6cea0a`
 
 **Fichiers créés/modifiés** :
+
 - `lib/admin/campaign-performance-actions.ts` — Server Action `listCampaignPerformance()` (CRÉÉ)
 - `app/(internal)/admin/analytics/campaigns/page.tsx` — page analytics Campagnes (CRÉÉ)
 - `components/admin-shell.tsx` — 4e sous-item "Campagnes" dans analyticsNavItems (ÉTENDU)
@@ -648,20 +716,20 @@ Audit réalisé sur HEAD `a0b70ed`.
 
 **6 preuves — 6/6 CONFIRMED, aucun GAP :**
 
-| Proof | Domaine | Résultat |
-|-------|---------|----------|
-| P1 | Schema & contraintes DB | CONFIRMED |
-| P2 | Grants `app_runtime` (append-only mappings) | CONFIRMED |
-| P3 | RLS (FORCE, `anon`/`authenticated` révoqués) | CONFIRMED |
-| P4 | Politique de persistance (EXACT only, best-effort) | CONFIRMED |
-| P5 | Tests live (E1/E2/E3/E4) | CONFIRMED |
-| P6 | Caller integration (`search-hub` non-bloquant) | CONFIRMED |
+| Proof | Domaine                                            | Résultat  |
+| ----- | -------------------------------------------------- | --------- |
+| P1    | Schema & contraintes DB                            | CONFIRMED |
+| P2    | Grants `app_runtime` (append-only mappings)        | CONFIRMED |
+| P3    | RLS (FORCE, `anon`/`authenticated` révoqués)       | CONFIRMED |
+| P4    | Politique de persistance (EXACT only, best-effort) | CONFIRMED |
+| P5    | Tests live (E1/E2/E3/E4)                           | CONFIRMED |
+| P6    | Caller integration (`search-hub` non-bloquant)     | CONFIRMED |
 
 **Détail :**
 
 - **P1 — Schema** (`lib/db/schema/canonical-hotels.ts`) : deux tables uniquement (identité +
   provenance), aucun FK agency/tenant (domaine système cross-tenant), UNIQUE sur `(supplier,
-  supplierHotelCode)` — double-mapping impossible.
+supplierHotelCode)` — double-mapping impossible.
 - **P2 — Grants** (migration 0109) : `app_runtime` a `SELECT/INSERT/UPDATE` sur
   `canonical_hotels` ; `SELECT/INSERT` uniquement sur `canonical_hotel_supplier_mappings` —
   `UPDATE/DELETE` explicitement révoqués. Mappings append-only au niveau grant Postgres.
@@ -694,14 +762,15 @@ sur 30 jours, triées par volume décroissant.
 
 **Implémentation** :
 
-| Fichier | Action | Détail |
-|---------|--------|--------|
-| `lib/crm/search-demand-core.ts` | EXTEND | `SearchDemandRow` type + `getSearchDemandSummaryCore()` (30j, GROUP BY, ORDER BY volume DESC, LIMIT 50, filtre `agencyId` défensif en plus RLS) |
-| `lib/admin/search-demand-actions.ts` | CREATE | Server Action `listSearchDemandSignals()` — `assertSupportStaff` (super_admin/manager/agent_resa + agencyType=ota) |
-| `app/(internal)/admin/analytics/search-demand/page.tsx` | CREATE | Page read-only, pattern useEffect identique à `/admin/analytics/niches` |
-| `lib/admin/__tests__/search-demand-actions-live.test.ts` | CREATE | 3 tests live Postgres : agrégation+tri, isolation cross-agency, filtre 30j |
+| Fichier                                                  | Action | Détail                                                                                                                                          |
+| -------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/crm/search-demand-core.ts`                          | EXTEND | `SearchDemandRow` type + `getSearchDemandSummaryCore()` (30j, GROUP BY, ORDER BY volume DESC, LIMIT 50, filtre `agencyId` défensif en plus RLS) |
+| `lib/admin/search-demand-actions.ts`                     | CREATE | Server Action `listSearchDemandSignals()` — `assertSupportStaff` (super_admin/manager/agent_resa + agencyType=ota)                              |
+| `app/(internal)/admin/analytics/search-demand/page.tsx`  | CREATE | Page read-only, pattern useEffect identique à `/admin/analytics/niches`                                                                         |
+| `lib/admin/__tests__/search-demand-actions-live.test.ts` | CREATE | 3 tests live Postgres : agrégation+tri, isolation cross-agency, filtre 30j                                                                      |
 
 **Vérifications** :
+
 - `pnpm typecheck` → 0 erreurs ✅
 - `pnpm lint` → 0 erreurs ✅
 - `pnpm test` → 1563 pass / 0 fail / 353 skip ✅
@@ -722,12 +791,13 @@ inaccessibles sans URL directe.
 
 **Implémentation** :
 
-| Fichier | Action | Détail |
-|---------|--------|--------|
-| `components/admin-shell.tsx` | EXTEND | Ajout `analyticsNavItems` (Analytique → Marges / Niches CRM / Demande hôtel) ; visible super_admin + manager + agent_resa ; labels breadcrumb analytics/margins/niches/search-demand |
-| `lib/admin/__tests__/admin-shell-analytics-nav.test.ts` | CREATE | 3 tests invariants statiques : présence des trois hrefs dans admin-shell.tsx |
+| Fichier                                                 | Action | Détail                                                                                                                                                                               |
+| ------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `components/admin-shell.tsx`                            | EXTEND | Ajout `analyticsNavItems` (Analytique → Marges / Niches CRM / Demande hôtel) ; visible super_admin + manager + agent_resa ; labels breadcrumb analytics/margins/niches/search-demand |
+| `lib/admin/__tests__/admin-shell-analytics-nav.test.ts` | CREATE | 3 tests invariants statiques : présence des trois hrefs dans admin-shell.tsx                                                                                                         |
 
 **Vérifications** :
+
 - `pnpm tsc --noEmit` → 0 erreurs ✅
 - `pnpm eslint` → 0 erreurs ✅
 - Tests invariants → 3/3 ✅
@@ -744,6 +814,7 @@ le câblage promo, la consolidation revenue, et la première UI niche sont effec
 le code source réel de `main`.
 
 **AXE 1 — PROMO-PRICING-COVERAGE-01 (PR #156)** :
+
 - `hotels-monde/guest-booking-actions.ts` : importe `resolveCheckoutPromoCore` +
   `applyPromoDiscountCore`, passe `supplierPriceTnd` (plancher PROMO-LOSS-POLICY-01) ✅
 - `activities/guest-booking-actions.ts` : câblé, pas de plancher (catalogue agence,
@@ -755,6 +826,7 @@ le code source réel de `main`.
 - Tests `promo-wiring-invariants.test.ts` : 8×2 couverture statique + 3 tests plancher = 35 assertions ✅
 
 **AXE 2 — REVENUE-CONSOLIDATE-01 (PR #157)** :
+
 - `sumRevenueMarginCore()` : primitive pure extraite dans `lib/reporting/margin-analytics-core.ts` ✅
 - `lib/crm/campaign-performance-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
 - `lib/crm/vip-score-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
@@ -763,6 +835,7 @@ le code source réel de `main`.
 - Tests `margin-analytics-core-live.test.ts` : preuve live Postgres pour `getMarginKPIsCore` ✅
 
 **AXE 3 — NICHE-UI-01 (PR #158)** :
+
 - Page `/admin/analytics/niches/page.tsx` créée, `"use client"` ✅
 - Appel `listNicheSegments()` depuis `lib/admin/niche-actions.ts` ✅
 - Garde auth : `assertSupportStaff` (super_admin/manager/agent_resa + agencyType="ota") — convention identique à `/admin/analytics/margins` ✅
@@ -1220,36 +1293,35 @@ production (vérifiées via grants/RLS à chaque chantier) **avant** leur
 merge respectif — seul le code applicatif restait non déployé jusqu'à
 chaque merge sur `main`. C'est maintenant résolu pour toute la chaîne.
 
-**Câblage PRICING-PROMO-LINK-01 — 4/7 modules restants faits** : hôtel
+**Câblage PRICING-PROMO-LINK-01 — 7/7 modules traités** : hôtel
 (référence initiale, bugfix ordre CART-DRIFT-01/PROMO appliqué
-ci-dessus), transfert, omra, package. **Restent NON câblés** : flight
-(signalé plus complexe — prix utilisé à 2 points séparés du fichier,
-audit dédié requis avant câblage), activity, network. `car` reste
-EXCLU volontairement (module dormant, non commercialisé,
+ci-dessus), transfert, omra, package, **flight** (confirmé câblé :
+`lib/vols/booking-request-action.ts` — `resolveCheckoutPromoCore` +
+`applyPromoDiscountCore`, audit 2026-10-08), **activity** (confirmé
+câblé : `lib/activities/guest-booking-actions.ts`, même pattern, audit
+2026-10-08), **network** (N/A — flux B2B partner-debit, `debitPartnerCredit`,
+pas de campagne B2C ni de `campaignId` dans le schéma d'entrée, audit
+2026-10-08). `car` reste EXCLU volontairement (module dormant,
 `FEATURE_CAR=false`). FERRY et VISA (futurs modules annoncés) restent
-non implémentés/non câblés/non certifiés. Les 3 briques core
-(`promo-core.ts`, `promo-discount-core.ts`, `promo-checkout-core.ts`)
-confirmées réutilisables sans réécriture pour tout module restant.
+non implémentés/non câblés. Les 3 briques core (`promo-core.ts`,
+`promo-discount-core.ts`, `promo-checkout-core.ts`) confirmées
+réutilisables sans réécriture pour tout module restant.
 
-**NOT VERIFIED, restant après ce chantier** : AUDIENCE-DEDUP-01
-potentiel non traité — CAMPAIGN opère par CONTACT unique (prouvé), mais
-AUDIENCE elle-même (NICHE-AUDIENCE-01) ne déduplique pas les `LeadRow`
-bruts avant que CAMPAIGN-01 ne les reçoive — sans conséquence sur le
-consentement (toujours strict), seulement sur le volume de leads
-traités par appel.
+**AUDIENCE-DEDUP-01 — CLÔTURÉ (2026-10-08, commit `ada54ce`)** —
+pré-groupement leads par rawRef dans `filterAudienceByConsentCore`
+(campaign-core.ts) : O(N leads) → O(N refs uniques) ; 4 tests node:test
+ajoutés, 12/12 pass.
+
+**CONVERSION / LEARNING — VÉRIFIÉ COUVERT** : `getCampaignPerformanceCore`
+expose déjà `exposed`/`converted`/`revenueTnd`/`marginTnd`/
+`sent`/`failed`/`skipped`/`pending`/`totalTargets` ; UI
+`/admin/analytics/campaigns` affiche tous ces métriques (CAMPAIGN-PERF-UI-01,
+CAMPAIGN-MGMT-01). LEARNING-01 (feedback loop conversion VIP) CLÔTURÉ
+(commit `3b25026`). Aucun chantier supplémentaire CONVERSION/LEARNING
+nécessaire à ce stade.
 
 **Prochains chantiers potentiels identifiés, NON exécutés** :
 
-- **Câblage PRICING-PROMO-LINK-01 dans les 3 modules restants**
-  (activity, network, flight) — flight signalé plus complexe (prix à
-  2 points séparés du fichier), audit dédié requis avant câblage ;
-  activity/network pas encore audités dans ce round.
-- **CONVERSION / LEARNING** : exploiter `campaign_attributions` pour
-  mesurer "17 réservations générées par la campagne Istanbul" — aucun
-  audit réalisé. `CAMPAIGN-PERFORMANCE-01` (exposed/converted/CA/marge
-  par campagne, lecture pure, MERGÉ et DÉPLOYÉ — commit `155d540`,
-  `dpl_GBqWhaMnzZ3MDEnQ8JfP4gbZ34rX`) en couvre une partie ; LEARNING
-  proprement dit (apprentissage/optimisation) reste non traité.
 - **FERRY / VISA** : futurs modules commerciaux annoncés, aucun audit
   d'intégration réalisé, aucun code, aucun stub.
 
@@ -2414,6 +2486,20 @@ Preuves vérifiées indépendamment par l'orchestrateur (diff réel intégral + 
 
 Limites explicites : `network/economic-pilot-actions.ts` (outil de test admin, pas le flux de réservation réel) reste non câblé. Aucune activation de commission réelle sur Car/Transfer/Hotels-Monde/Vols (décision commerciale distincte, non prise ici). `CURRENCY-DIM-01` (multi-devise complet) reste un chantier séparé.
 
+### ECON-WIRING-02 — CLÔTURÉ (2026-10-09)
+
+Objectif : compléter le câblage `economic_entitlements` sur le seul module encore manquant après ECON-WIRING-01 — `lib/transfers/guest-booking-actions.ts` (tunnel B2C guest).
+
+Audit préalable : vérification exhaustive des 9 call sites vers `recordReservationFinancials()` — 8/9 avaient déjà `economicEntitlements` câblé (ECON-WIRING-01). Seul `guest-booking-actions.ts` (transfert guest) était absent. Le rapport initial d'un sous-agent indiquant "8/9 manquants" était erroné (analyse statique incomplète des clés d'objet sur plusieurs lignes).
+
+Correction appliquée (`lib/transfers/guest-booking-actions.ts`) :
+
+- `supplierPriceTnd` corrigé de `totalTnd` (prix de vente) à `pricing.basePriceTnd + pricing.nightSurchargeAmount` (coût réel catalogue propre)
+- Ajout de 2 lignes `economicEntitlements` : `product_owner/supplier_cost` + `seller/seller_margin` (même pattern que le module B2B `lib/transfers/actions.ts`)
+- Aucun changement au calcul de prix ni au wallet/ledger/settlement
+
+Tests : `node --test lib/finance/__tests__/econ-wiring-01-invariants.test.ts` → 13/13 PASS. `tsc --noEmit` propre. Commit `8fddc1e`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
 ### AGREEMENT-01 — CLÔTURÉ (2026-09-30), PREMIER ACCORD RÉEL RESTE BLOQUÉ SUR D-01b
 
 GO explicite de la Direction, avec un audit préalable obligatoire (schéma complet `margin_rules` + tous ses lecteurs/écrivains + matrice avant/après) et deux corrections reçues en cours de chantier : (1) **AUCUNE ligne réelle/permanente** de `commercial_agreements`/`margin_rules` ne devait être créée — la Direction a explicitement refusé un taux placeholder (`DEFAULT_MARGINS.network = 10 %` ou `0 %`) comme politique commerciale réelle ; le premier accord Network réel reste **BLOQUÉ** sur la décision de taux D-01b (option 3, frais sur prix net) ; (2) preuve de capacité exigée via tests uniquement (fixture créée puis nettoyée en transaction de test), jamais une insertion directe SQL hors app layer.
@@ -2847,13 +2933,106 @@ PREUVE VISUELLE: screenshot Playwright — login redirect confirmé
 
 ---
 
-## Phase 10 — Plus tard (sur GO séparé)
+## Phase 10 — Audit 2026-10-09 (SUBSTANTIELLEMENT TERMINÉE)
 
-- **Distribution** : séparation Product / Offer / Distribution / CommercialTerms ; canaux B2C, B2B, API, Agency, Partner, Network.
-- **Achat inter-tenant** : tenant A vend le produit de tenant B sans casser RLS, ownership, pricing, commissions, wallet.
-- **White Label** : branding, domaine, catalogue, fournisseurs propres, sur le même cœur Commerce/Booking/Financial.
-- **CRM** : orchestre la vente (pipeline, relances, historique client) — ne vend pas lui-même.
-- **Intelligence (P7)** : recommandation, ranking, IA — seulement sur données fiables.
+> Audit complet effectué le 2026-10-09 — la description "Plus tard" était antérieure aux phases
+> 13.x (White Label runtime), ECON-WIRING-01, et aux chantiers CRM de phases 8-9.
+> La majorité des items sont déjà implémentés.
+
+### Bilan par item
+
+| Item                                   | Statut       | Preuve                                                                                                                                  |
+| -------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| White Label branding                   | **DONE**     | WHITE-LABEL-PRO-01/ADMIN-01, `agencies.brandName/primaryColor/logoUrl`                                                                  |
+| White Label domaine                    | **DONE**     | `proxy.ts` (Phase 13.2), migration 0023, `lib/tenant/`                                                                                  |
+| White Label catalogue (modules)        | **DONE**     | `publicModuleVisuals` per-agency via `getDefaultAgencyId()`                                                                             |
+| CRM pipeline (Kanban 4 cols)           | **DONE**     | `components/admin/lead-pipeline.tsx` + `leads-view-tabs.tsx`                                                                            |
+| CRM relances (alertes staff)           | **DONE**     | `lib/crm/lead-relance-core.ts`                                                                                                          |
+| CRM historique client                  | **DONE**     | `lib/crm/contact-history-core.ts`                                                                                                       |
+| CRM campaigns                          | **DONE**     | CAMPAIGN-ENGINE-01 → CAMPAIGN-DELIVERY-STATS-01 (PRs #162→#166)                                                                         |
+| Ledger integrity economic_entitlements | **DONE**     | migration 0092 (ECON-ENTITLEMENTS-INTEGRITY-01, REVOKE UPDATE/DELETE/TRUNCATE)                                                          |
+| Intelligence (recommandation, IA)      | **N/A**      | Explicitement "❌ Ne pas toucher maintenant" (ROADMAP l.1051) — nécessite données fiables                                               |
+| Achat inter-tenant                     | **N/A**      | Aucun cas d'usage défini, aucune fondation ; complexité architecturale très élevée                                                      |
+| Distribution entités DB                | **BLOQUÉ**   | Bloqué sur décision D-01b (taux commercial, Direction) ; fondation types `DistributionChannel` + `commercial_agreements` table existent |
+| White Label fournisseurs propres       | **DEFERRED** | Aucun besoin immédiat ; les suppliers actuels (Mygo, Duffel, hotels-monde) sont globaux                                                 |
+
+### COMMISSION-WIRING-COVERAGE-01 — CLÔTURÉ 2026-10-09
+
+**Objectif** : Fermer le gap de couverture tests sur le câblage financier —
+3 modules sans invariants statiques protégeant `recordReservationFinancials` +
+`creditPlatformCommission`.
+
+**Changements** :
+- `lib/transfers/__tests__/commission-wiring.test.ts` (11 tests) : protège la
+  structure coût fournisseur non-triviale (basePriceTnd + nightSurchargeAmount)
+  et les deux entitlements (product_owner/supplier_cost + seller/seller_margin).
+- `lib/omra/__tests__/commission-wiring.test.ts` (7 tests) : documente
+  supplierPriceTnd === salePriceTnd === totalTnd (catalogue propre, intentionnel).
+- `lib/packages/__tests__/commission-wiring.test.ts` (7 tests) : même invariant
+  catalogue propre pour les voyages organisés.
+
+**Commit** : `f5512a1`
+**Tests** : 24/24 pass · aucun code de production modifié
+**Matrice complète** : hotels, hotels-monde, cars, activities, transfers, omra, packages → tous couverts.
+
+---
+
+### TRANSFER-VOUCHER-B2C-01 — CLÔTURÉ 2026-10-09
+
+**Objectif** : Câbler `sendEvent("booking/transfer.confirmed")` (fire-and-forget)
+dans `lib/transfers/guest-booking-actions.ts` (chemin B2C), identiquement au
+chemin B2B (`lib/transfers/actions.ts` ligne 387). Les guests B2C recevaient
+zéro email/SMS de confirmation malgré l'existence de l'event type, du handler
+Inngest et du câblage B2B.
+
+**Changements** :
+- `lib/transfers/guest-booking-actions.ts` : import `sendEvent`, extension du
+  retour de transaction (`fromZoneName`, `toZoneName`), appel fire-and-forget
+  conditionnel (email || phone).
+- `lib/transfers/__tests__/transfer-voucher-wiring.test.ts` : 15 invariants
+  statiques (readFileSync pattern), tous verts.
+
+**Commit** : `93bd695`
+**Tests** : 15/15 pass · TypeScript clean (tsc --noEmit 0 erreurs)
+**NOT VERIFIED** : déclenchement Inngest réel en staging (nécessite env Inngest)
+
+---
+
+### OMRA-VOUCHER-01 — CLÔTURÉ 2026-10-09
+
+**Objectif** : Protéger le câblage `sendEvent("booking/omra.confirmed")` dans
+`lib/omra/guest-booking-actions.ts` par des invariants statiques — payload
+complet, fire-and-forget, résolution serveur de `packageName` et `contactEmail`.
+
+**Changements** :
+- `lib/omra/__tests__/omra-voucher-wiring.test.ts` (13 tests) : sendEvent
+  importé, event câblé, condition contactEmail, `.catch()` protecteur, champs
+  publicRef/agencyId/packageName/pilgrimsCount/departureDate/contactEmail/totalTnd,
+  et les deux résolutions serveur (`packageName: pkg.name`, `contactEmail: firstPilgrim.email`).
+
+**Commit** : `52884ee`
+**Tests** : 13/13 pass · aucun code de production modifié
+
+---
+
+### Prochains chantiers possibles (sur GO séparé, quand débloqués)
+
+- ~~**HOTELS-MONDE-VOUCHER-01**~~ — CLÔTURÉ (commit `b6643a9`)
+- ~~**INNGEST-HANDLER-WIRING-01**~~ — CLÔTURÉ (commit `ca38630`) — handlers transfer/omra/hotels-monde couverts (30/30 tests)
+- ~~**INNGEST-HANDLER-WIRING-02/flights**~~ — CLÔTURÉ (commit `1b26299`) — handler `process-flight-confirmed` couvert (13/13 tests) ; idempotence via `auditEvents` (pas `notificationIdempotency`), `recordFlightVoucherSent` inconditionnelle, email Resend optionnel via `RESEND_API_KEY`
+- ~~**SENDEVENT-GAP-SWEEP-01**~~ — CLÔTURÉ (commits `1e04c7a`+`dc4f8f3`) — 6 fichiers sendEvent non couverts fermés : (1) `process-wallet-credit.test.ts` converti readFileSync (fix ESM import) ; (2) `manual-payment-voucher-wiring.test.ts` (10 tests) : voie Paymee `"booking/confirmed"` — guard `module==="hotel"`, `totalTnd=Number.parseFloat(tndAmount)`, customerName assemblé ; (3) `flight-voucher-wiring.test.ts` (14 tests) : payload `fulfillment-action.ts` — idempotence `id:eventId`, `totalTnd=Number(sellingAmount)`, firstSeg fields, retry+log ; (4) `wallet-credited-wiring.test.ts` (7 tests) : 2 appelants wallet/credited — `recharge-actions` guard triple, `agencies-actions` `method:"ADMIN_DIRECT"` ; (5) `mygo-hotel-voucher-wiring.test.ts` (10 tests) : B2B `draft.module==="hotel"`, B2C SÉCURITÉ `isImmediatelyPaid` avant sendEvent (pas de voucher pour résa pending). 55+24+17=96 tests pass. Couverture sendEvent complète sur tous les appelants.
+- **INVOICE-GAP-B2C-01** (GO requis) : `lib/cars/guest-booking-actions.ts` et `lib/transfers/guest-booking-actions.ts` n'appellent pas `generateInvoiceForReservation`. Tous les autres modules B2C (omra, activities, packages, hotels, hotels-monde) génèrent une facture. Peut être intentionnel ou gap fonctionnel — audit + décision direction requise avant implémentation.
+- **D-01b** (décision Direction sur option 3 frais sur prix net) → débloque ECON-WIRING-01 réel + première ligne `commercial_agreements`
+- **VIP-THRESHOLD** (attente volume leads production ≥ ~50) → débloque décision seuil VIP
+- **WHITE-LABEL-SUPPLIERS** (per-tenant supplier credentials) → sur besoin client réel
+- **INTELLIGENCE-01** (recommandation, ranking) → sur données fiables + budget ML
+
+### Items réellement "Plus tard"
+
+- **Distribution** : séparation Product / Offer / Distribution / CommercialTerms ; canaux B2C, B2B, API, Agency, Partner, Network. — BLOQUÉ D-01b.
+- **Achat inter-tenant** : tenant A vend le produit de tenant B sans casser RLS, ownership, pricing, commissions, wallet. — N/A aujourd'hui.
+- **White Label fournisseurs propres** : credentials fournisseurs par tenant. — DEFERRED.
+- **Intelligence (P7)** : recommandation, ranking, IA — seulement sur données fiables. — N/A.
 
 ---
 

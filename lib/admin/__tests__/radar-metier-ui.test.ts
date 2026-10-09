@@ -34,10 +34,7 @@ describe("RADAR-METIER-01 — invariants statiques", () => {
   })
 
   test("page radar existe", () => {
-    const pagePath = join(
-      ROOT,
-      "app/(internal)/admin/analytics/radar/page.tsx",
-    )
+    const pagePath = join(ROOT, "app/(internal)/admin/analytics/radar/page.tsx")
     assert.ok(
       existsSync(pagePath),
       `app/(internal)/admin/analytics/radar/page.tsx doit exister`,

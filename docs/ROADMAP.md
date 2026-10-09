@@ -90,6 +90,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — HOTELS-MONDE-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `b6643a9`) — `lib/hotels-monde/__tests__/hotels-monde-voucher-wiring.test.ts` (17 tests) : payload sendEvent("booking/confirmed") complet (reservationId/publicRef/agencyId/guestAccessToken/customerEmail/customerName/customerPhone depuis result, hotelName/checkIn/checkOut/nights/adults depuis bookResult, totalTnd=finalTotalTnd). 17/17 pass.
 **Aucun** — TRANSFER-B2B-VOUCHER-01 + OMRA-B2B-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `118ad8b`) — `lib/transfers/__tests__/transfer-b2b-voucher-wiring.test.ts` (14 tests) + `lib/omra/__tests__/omra-b2b-voucher-wiring.test.ts` (12 tests). 26/26 pass. Couverture sendEvent B2B+B2C complète sur tous les modules qui utilisent sendEvent (cars/transfers/hotels-monde/omra).
 **Aucun** — COMMISSION-WIRING-B2B-01 CLÔTURÉ (2026-10-09) — `lib/transfers/__tests__/transfer-b2b-commission-wiring.test.ts` (10) + `lib/omra/__tests__/omra-b2b-commission-wiring.test.ts` (7) + `lib/activities/__tests__/activities-b2b-commission-wiring.test.ts` (7) : fermeture du gap B2B commission. 24/24 pass. Couverture commission wiring B2B+B2C complète sur tous les modules (cars, transfers, hotels-monde, omra, activities, packages).
+**Aucun** — INNGEST-HANDLER-WIRING-01 CLÔTURÉ (2026-10-09, commit `ca38630`) — 3 nouveaux fichiers tests couvrant les handlers Inngest (chaîne complète handler + client.ts + index.ts barrel) pour les 3 modules non couverts par car-voucher-wiring.test.ts : `process-transfer-confirmed-wiring.test.ts` (11 tests — event binding, Resend email, sécurité SMS chauffeur : driverPhone depuis DB jamais customerPhone, skip no_driver_assigned), `process-omra-confirmed-wiring.test.ts` (8 tests — event binding, Resend à d.contactEmail jamais d.customerEmail), `process-confirmed-booking-wiring.test.ts` (11 tests — event binding, idempotence hasVoucherEmailAlreadySucceeded + notificationIdempotency + recordVoucherEmailSent + alreadySent, renderVoucherPdf, sendVoucherEmail, base64). 30/30 pass.
 
 ### CAR-VOUCHER-01 — CLÔTURÉ (2026-10-09, commit `423c151`)
 
@@ -3004,7 +3005,9 @@ complet, fire-and-forget, résolution serveur de `packageName` et `contactEmail`
 
 ### Prochains chantiers possibles (sur GO séparé, quand débloqués)
 
-- **HOTELS-MONDE-VOUCHER-01** : couverture invariants payload sendEvent hôtels-monde (customerEmail, customerName, hotelName, checkIn, checkOut, nights, adults, guestAccessToken, children, totalTnd) — `commission-wiring.test.ts` protège déjà le nom event et le `.catch()`, mais pas les champs de payload.
+- ~~**HOTELS-MONDE-VOUCHER-01**~~ — CLÔTURÉ (commit `b6643a9`)
+- ~~**INNGEST-HANDLER-WIRING-01**~~ — CLÔTURÉ (commit `ca38630`) — handlers transfer/omra/hotels-monde couverts (30/30 tests)
+- **INVOICE-GAP-B2C-01** (GO requis) : `lib/cars/guest-booking-actions.ts` et `lib/transfers/guest-booking-actions.ts` n'appellent pas `generateInvoiceForReservation`. Tous les autres modules B2C (omra, activities, packages, hotels, hotels-monde) génèrent une facture. Peut être intentionnel ou gap fonctionnel — audit + décision direction requise avant implémentation.
 - **D-01b** (décision Direction sur option 3 frais sur prix net) → débloque ECON-WIRING-01 réel + première ligne `commercial_agreements`
 - **VIP-THRESHOLD** (attente volume leads production ≥ ~50) → débloque décision seuil VIP
 - **WHITE-LABEL-SUPPLIERS** (per-tenant supplier credentials) → sur besoin client réel

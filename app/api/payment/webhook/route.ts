@@ -173,18 +173,7 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await withSystemContext(async (tx) => {
-    /* --- 2. Idempotence event-level — INSERT ON CONFLICT DO NOTHING --- */
-    const inserted = await tx
-      .insert(paymentEvents)
-      .values({ eventId, provider, eventType })
-      .onConflictDoNothing()
-      .returning({ eventId: paymentEvents.eventId })
-
-    if (inserted.length === 0) {
-      return { status: "duplicate" as const }
-    }
-
-    /* --- 3. Journal brut (audit) — toute requête signée valide est tracée --- */
+    /* --- 2. Journal brut (audit) — parser le payload pour toute la suite --- */
     const auditPayload: Record<string, unknown> =
       spsBody ?? JSON.parse(bodyBuffer.toString("utf8"))
 
@@ -203,10 +192,11 @@ export async function POST(request: NextRequest) {
       return { status: "ignored" as const }
     }
 
-    // Corrélation : le paiement doit référencer une demande de recharge en
-    // attente posée par submitRechargeRequest (payment_reference == provider
-    // payment id). Verrouillée pour éviter un double traitement concurrent
-    // avec validateRechargeRequest (approbation manuelle) ou un autre webhook.
+    // Corrélation AVANT de consommer l'eventId (P0-A) : le paiement doit
+    // référencer une demande de recharge en attente posée par
+    // submitRechargeRequest (payment_reference == provider payment id).
+    // Verrouillée pour éviter un double traitement concurrent avec
+    // validateRechargeRequest (approbation manuelle) ou un autre webhook.
     const [pending] = await tx
       .select()
       .from(walletRechargeRequests)
@@ -223,7 +213,43 @@ export async function POST(request: NextRequest) {
         processedAt: new Date(),
         error: "NO_MATCHING_RECHARGE_REQUEST",
       })
+      // eventId intentionnellement non consommé : la demande orpheline reste
+      // disponible pour un éventuel retry PSP.
       return { status: "no_match" as const }
+    }
+
+    // P0-B : Vérification d'identité PSP — évite le spoofing cross-PSP.
+    // Un webhook Stripe pour une demande initiée via Paymee (ou l'inverse)
+    // est rejeté AVANT de consommer l'eventId, préservant le retry PSP légitime.
+    if (pending.psp !== null && pending.psp !== provider) {
+      console.warn("[Webhook] PSP mismatch détecté", {
+        requestId: pending.id,
+        expected: pending.psp,
+        got: provider,
+      })
+      await tx.insert(pspWebhooks).values({
+        agencyId: pending.agencyId,
+        psp: provider as "stripe" | "sps" | "paymee",
+        eventType,
+        payload: auditPayload,
+        signatureOk,
+        processedAt: new Date(),
+        error: `PSP_MISMATCH:expected=${pending.psp}`,
+      })
+      // eventId intentionnellement non consommé.
+      return { status: "no_match" as const }
+    }
+
+    /* --- 3. Idempotence event-level — INSERT ON CONFLICT DO NOTHING --- */
+    // Consommé seulement après corrélation + vérification PSP réussies (P0-A).
+    const inserted = await tx
+      .insert(paymentEvents)
+      .values({ eventId, provider, eventType })
+      .onConflictDoNothing()
+      .returning({ eventId: paymentEvents.eventId })
+
+    if (inserted.length === 0) {
+      return { status: "duplicate" as const }
     }
 
     if (kind === "refunded") {

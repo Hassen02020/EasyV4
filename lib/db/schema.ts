@@ -2986,6 +2986,10 @@ export const walletRechargeRequests = pgTable(
     proofUrl: text("proof_url"),
     /** Note libre de l'agent. */
     note: text("note"),
+    /** PSP identifier (stripe|sps|paymee) — set only for card_international recharges.
+     * NULL for offline methods (cash/virement/mandat/chèque). Used by the webhook
+     * handler to verify PSP identity before crediting the wallet. */
+    psp: varchar("psp", { length: 32 }),
     status: rechargeStatus("status").notNull().default("pending"),
     /** Admin qui a validé/refusé. */
     reviewedByUserId: uuid("reviewed_by_user_id"),

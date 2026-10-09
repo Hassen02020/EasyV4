@@ -12,6 +12,10 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { WorldHotelBookingContent } from "./world-hotel-booking-content"
 
+// Cette page dépend des cookies de session et du formulaire client avec query params.
+// Ne pas tenter de la pré-rendre statiquement pendant le build.
+export const dynamic = "force-dynamic"
+
 export default function HotelsMondeBookPage() {
   return (
     <div className="flex min-h-screen flex-col">

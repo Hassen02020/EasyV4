@@ -177,3 +177,45 @@ test("actions.ts : creditPlatformCommission description inclut publicRef", () =>
 test("guest-booking-actions.ts : creditPlatformCommission description inclut publicRef", () => {
   assert.match(guestActionsSrc, /description:\s*`[^`]*\$\{publicRef\}[^`]*`/)
 })
+
+/* -------------------------------------------------------------------------- */
+/* BUG-CAR-01 — anti-sur-réservation : fallback fleet verrouille un véhicule  */
+/* -------------------------------------------------------------------------- */
+
+test("actions.ts : checkCarAvailability retourne availVehicleId dans la signature de retour", () => {
+  assert.match(actionsSrc, /availVehicleId:\s*string\s*\|\s*null/)
+})
+
+test("actions.ts : fallback fleet utilise SELECT FOR UPDATE sur un véhicule précis, pas COUNT(*)", () => {
+  // Après le correctif BUG-CAR-01, le fallback verrouille un véhicule (LIMIT 1
+  // + FOR UPDATE) pour éviter la double-attribution concurrente.
+  assert.doesNotMatch(actionsSrc, /count\(\*\)/)
+  assert.match(actionsSrc, /\.for\("update"\)/)
+})
+
+test("actions.ts : après booking, UPDATE car_fleet_vehicles.status = 'rented' si availVehicleId", () => {
+  assert.match(actionsSrc, /availVehicleId/)
+  assert.match(actionsSrc, /status:\s*"rented"/)
+  assert.match(
+    actionsSrc,
+    /else if \(availVehicleId\)\s*\{[\s\S]*?\.update\(carFleetVehicles\)/,
+  )
+})
+
+test("guest-booking-actions.ts : checkCarAvailability retourne availVehicleId dans la signature de retour", () => {
+  assert.match(guestActionsSrc, /availVehicleId:\s*string\s*\|\s*null/)
+})
+
+test("guest-booking-actions.ts : fallback fleet utilise SELECT FOR UPDATE sur un véhicule précis, pas COUNT(*)", () => {
+  assert.doesNotMatch(guestActionsSrc, /count\(\*\)/)
+  assert.match(guestActionsSrc, /\.for\("update"\)/)
+})
+
+test("guest-booking-actions.ts : après booking, UPDATE car_fleet_vehicles.status = 'rented' si availVehicleId", () => {
+  assert.match(guestActionsSrc, /availVehicleId/)
+  assert.match(guestActionsSrc, /status:\s*"rented"/)
+  assert.match(
+    guestActionsSrc,
+    /else if \(availVehicleId\)\s*\{[\s\S]*?\.update\(carFleetVehicles\)/,
+  )
+})

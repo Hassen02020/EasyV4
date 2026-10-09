@@ -273,12 +273,36 @@ async function runCreateGuestTransferBooking(
         const guestAccessToken = reservation.guestAccessToken
 
         // 5. Données financières (Break 4 — Chantier 62 : tous les modules)
-        // Transfer : prix catalogue = prix de vente (pas de coût fournisseur séparé)
+        // ECON-WIRING-02 — economic_entitlements. Même pattern que le module
+        // B2B (lib/transfers/actions.ts) : catalogue propre à l'agence OTA,
+        // pas de fournisseur externe modélisé. Coût = base + majoration nuit
+        // (avant marge), marge = totalTnd - coût.
+        const transferSupplierCostTnd =
+          pricing.basePriceTnd + pricing.nightSurchargeAmount
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
-          supplierPriceTnd: totalTnd,
+          supplierPriceTnd: transferSupplierCostTnd,
           salePriceTnd: totalTnd,
+          economicEntitlements: [
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "product_owner",
+              qualification: "supplier_cost",
+              amount: transferSupplierCostTnd,
+              basis: "tarif propre de l'agence OTA (base + majoration nuit)",
+            },
+            {
+              partyType: "agency",
+              partyId: agencyId,
+              role: "seller",
+              qualification: "seller_margin",
+              amount: totalTnd - transferSupplierCostTnd,
+              basis:
+                "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+            },
+          ],
         })
         await creditPlatformCommission(tx, {
           reservationId,

@@ -84,6 +84,9 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — BUG-ACT-01 N/A CLÔTURÉ (2026-10-09) — Audit : `supplierPriceTnd === salePriceTnd === totalTnd` dans `lib/activities/guest-booking-actions.ts` est INTENTIONNEL — Activités est un catalogue propre à l'agence (pas de fournisseur externe), même modèle que Cars. Pas de `commissionPercent` → commission = 0, correct. Commentaire R6-02 dans le code confirme. 2 invariants statiques créés (`lib/activities/__tests__/commission-wiring.test.ts`) pour protéger cet invariant contre régression.
 **Aucun** — CAR-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `423c151`) — `lib/pdf/voucher-car.tsx` (PDF voucher voiture FR/EN/AR) + 11 labels i18n dans `voucher-i18n.ts` + event `"booking/car.confirmed"` dans `lib/inngest/client.ts` + `lib/inngest/functions/process-car-confirmed.ts` (idempotence, Resend + PJ PDF) + `sendEvent` fire-and-forget câblé dans `lib/cars/actions.ts` (B2B) et `lib/cars/guest-booking-actions.ts` (B2C) + 17/17 invariants statiques (`car-voucher-wiring.test.ts`). 0 régression (44/44 tests pass). Typecheck : 0 nouvelle erreur.
 **Aucun** — COMMISSION-MONDE-01 CLÔTURÉ (2026-10-09, commit `3c175d6`) — `lib/hotels-monde/__tests__/commission-wiring.test.ts` créé : 16 invariants statiques node:test protégeant le câblage commission du module Hôtels Monde (supplier_cost ≠ sale_price, commissionPercent depuis System B, fallback ?? 0 réservé aux entitlements, creditPlatformCommission câblé depuis commissionAmount retourné par recordReservationFinancials, channel "direct", 3 entitlements économiques, sendEvent fire-and-forget). 16/16 pass. Typecheck ✓. 0 régression.
+**Aucun** — TRANSFER-VOUCHER-B2C-01 CLÔTURÉ (2026-10-09, commit `93bd695`) — `sendEvent("booking/transfer.confirmed")` fire-and-forget câblé dans `lib/transfers/guest-booking-actions.ts` (chemin B2C manquant). 15/15 invariants statiques. Typecheck ✓.
+**Aucun** — COMMISSION-WIRING-COVERAGE-01 CLÔTURÉ (2026-10-09, commit `f5512a1`) — 3 nouveaux fichiers tests : `lib/transfers/__tests__/commission-wiring.test.ts` (11), `lib/omra/__tests__/commission-wiring.test.ts` (7), `lib/packages/__tests__/commission-wiring.test.ts` (7). 25/25 pass. Couverture commission wiring complète sur les 7 modules.
+**Aucun** — OMRA-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `52884ee`) — `lib/omra/__tests__/omra-voucher-wiring.test.ts` créé : 13 invariants statiques protégeant `sendEvent("booking/omra.confirmed")` (import, nom event, condition contactEmail, fire-and-forget .catch(), payload complet, résolution serveur packageName/contactEmail). 13/13 pass. Typecheck ✓.
 
 ### CAR-VOUCHER-01 — CLÔTURÉ (2026-10-09, commit `423c151`)
 
@@ -2979,8 +2982,26 @@ Inngest et du câblage B2B.
 
 ---
 
+### OMRA-VOUCHER-01 — CLÔTURÉ 2026-10-09
+
+**Objectif** : Protéger le câblage `sendEvent("booking/omra.confirmed")` dans
+`lib/omra/guest-booking-actions.ts` par des invariants statiques — payload
+complet, fire-and-forget, résolution serveur de `packageName` et `contactEmail`.
+
+**Changements** :
+- `lib/omra/__tests__/omra-voucher-wiring.test.ts` (13 tests) : sendEvent
+  importé, event câblé, condition contactEmail, `.catch()` protecteur, champs
+  publicRef/agencyId/packageName/pilgrimsCount/departureDate/contactEmail/totalTnd,
+  et les deux résolutions serveur (`packageName: pkg.name`, `contactEmail: firstPilgrim.email`).
+
+**Commit** : `52884ee`
+**Tests** : 13/13 pass · aucun code de production modifié
+
+---
+
 ### Prochains chantiers possibles (sur GO séparé, quand débloqués)
 
+- **HOTELS-MONDE-VOUCHER-01** : couverture invariants payload sendEvent hôtels-monde (customerEmail, customerName, hotelName, checkIn, checkOut, nights, adults, guestAccessToken, children, totalTnd) — `commission-wiring.test.ts` protège déjà le nom event et le `.catch()`, mais pas les champs de payload.
 - **D-01b** (décision Direction sur option 3 frais sur prix net) → débloque ECON-WIRING-01 réel + première ligne `commercial_agreements`
 - **VIP-THRESHOLD** (attente volume leads production ≥ ~50) → débloque décision seuil VIP
 - **WHITE-LABEL-SUPPLIERS** (per-tenant supplier credentials) → sur besoin client réel

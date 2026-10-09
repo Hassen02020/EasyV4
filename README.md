@@ -105,4 +105,4 @@ L'espace `/admin` est protégé (session Supabase + rôle serveur vérifié à 4
 
 ## Origine du code
 
-Ce projet est issu de la fusion de deux templates v0.app (`fichier1` = site + admin, `fichier2` = page de résultats de recherche d'hôtels) en une seule application Next.js cohérente, puis rebrandé **TunisiaGo** avec ajout des modules **Voyages Organisés** et **Car**.
+Ce projet est issu de ide de Mr Tarhouni Hassen

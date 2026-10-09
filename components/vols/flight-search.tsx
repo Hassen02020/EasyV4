@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "@/i18n/navigation"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import {
   Plane,
   Calendar,
@@ -56,6 +56,8 @@ export function FlightSearch({
 } = {}) {
   const router = useRouter()
   const t = useTranslations("Vols")
+  const locale = useLocale()
+  const dateLang = locale === "ar" ? "ar-TN" : locale === "fr" ? "fr-FR" : "en-US"
   const [isPending, startTransition] = useTransition()
 
   const CABIN_CLASSES = [
@@ -239,6 +241,7 @@ export function FlightSearch({
               type="date"
               value={departureDate}
               min={today}
+              lang={dateLang}
               onChange={(e) => setDepartureDate(e.target.value)}
             />
           </div>
@@ -253,6 +256,7 @@ export function FlightSearch({
                 type="date"
                 value={returnDate}
                 min={departureDate || today}
+                lang={dateLang}
                 onChange={(e) => setReturnDate(e.target.value)}
               />
             </div>
@@ -360,6 +364,7 @@ export function FlightSearch({
                     type="date"
                     value={leg.departureDate}
                     min={i > 0 ? legs[i - 1]?.departureDate || today : today}
+                    lang={dateLang}
                     onChange={(e) =>
                       updateLeg(i, { departureDate: e.target.value })
                     }

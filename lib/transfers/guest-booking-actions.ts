@@ -211,6 +211,7 @@ async function runCreateGuestTransferBooking(
           pickupDate: input.pickupDate,
           pickupTime: input.pickupTime,
           agencyId,
+          channel: "direct",
         })
         if (!pricing) throw new Error("NO_PRICING")
 

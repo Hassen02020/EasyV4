@@ -219,3 +219,55 @@ test("guest-booking-actions.ts : après booking, UPDATE car_fleet_vehicles.statu
     /else if \(availVehicleId\)\s*\{[\s\S]*?\.update\(carFleetVehicles\)/,
   )
 })
+
+/* -------------------------------------------------------------------------- */
+/* BUG-CAR-01 CONCURRENCY PROOF — isolation PostgreSQL dans la transaction     */
+/* -------------------------------------------------------------------------- */
+
+// Preuve 1 — Atomicité du verrou : SELECT FOR UPDATE + UPDATE status='rented'
+// sont dans le même corps de fonction de transaction (runInTenantContext /
+// withTenantContext). PostgreSQL garantit qu'une seconde transaction concurrent
+// bloque sur FOR UPDATE jusqu'à la fin de la première ; le véhicule sera déjà
+// 'rented' quand elle reprend → checkCarAvailability retourne available:false.
+
+test("actions.ts : FOR UPDATE précède la vérification available:!!vehicle (verrou avant réponse)", () => {
+  const forUpdateIdx = actionsSrc.lastIndexOf('.for("update")')
+  const availableIdx = actionsSrc.indexOf("available: !!vehicle")
+  assert.ok(
+    forUpdateIdx > 0 && availableIdx > forUpdateIdx,
+    "FOR UPDATE doit précéder la construction de { available: !!vehicle }",
+  )
+})
+
+test("actions.ts : UPDATE status='rented' utilise la même variable availVehicleId que le FOR UPDATE", () => {
+  // availVehicleId = vehicle?.id ?? null (provient du FOR UPDATE)
+  // UPDATE ... WHERE eq(carFleetVehicles.id, availVehicleId)
+  assert.match(
+    actionsSrc,
+    /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/,
+  )
+  assert.match(
+    actionsSrc,
+    /eq\(carFleetVehicles\.id,\s*availVehicleId\)/,
+  )
+})
+
+test("guest-booking-actions.ts : FOR UPDATE précède la vérification available:!!vehicle", () => {
+  const forUpdateIdx = guestActionsSrc.lastIndexOf('.for("update")')
+  const availableIdx = guestActionsSrc.indexOf("available: !!vehicle")
+  assert.ok(
+    forUpdateIdx > 0 && availableIdx > forUpdateIdx,
+    "FOR UPDATE doit précéder la construction de { available: !!vehicle }",
+  )
+})
+
+test("guest-booking-actions.ts : UPDATE status='rented' utilise la même variable availVehicleId que le FOR UPDATE", () => {
+  assert.match(
+    guestActionsSrc,
+    /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/,
+  )
+  assert.match(
+    guestActionsSrc,
+    /eq\(carFleetVehicles\.id,\s*availVehicleId\)/,
+  )
+})

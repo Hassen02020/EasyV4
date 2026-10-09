@@ -29,7 +29,10 @@ export async function generateMetadata() {
 
 export default async function DestinationsIndexPage() {
   const [countries, t, locale] = await Promise.all([
-    listActiveCountriesWithCities(),
+    Promise.race([
+      listActiveCountriesWithCities().catch(() => []),
+      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+    ]),
     getTranslations("Destinations"),
     getLocale(),
   ])

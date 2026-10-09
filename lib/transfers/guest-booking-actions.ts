@@ -149,7 +149,13 @@ export async function createGuestTransferBooking(
 
   return withGuestIdempotency(
     idempotencyKey,
-    () => runCreateGuestTransferBooking(input, agencyId, idempotencyKey, linkedAuthUserId),
+    () =>
+      runCreateGuestTransferBooking(
+        input,
+        agencyId,
+        idempotencyKey,
+        linkedAuthUserId,
+      ),
     undefined,
     () => findTransferReservationByIdempotencyKey(agencyId, idempotencyKey),
   )
@@ -198,7 +204,6 @@ async function runCreateGuestTransferBooking(
   idempotencyKey: string,
   linkedAuthUserId: string | null,
 ): Promise<CreateGuestTransferBookingResult> {
-
   try {
     const result = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },

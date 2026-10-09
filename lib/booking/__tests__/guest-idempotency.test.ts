@@ -46,23 +46,49 @@ test("withGuestIdempotency : sans Redis, exécute run() à chaque appel (dégrad
 // PAY-IDEM-DB-01 — fallback DB quand Redis est absent
 test("withGuestIdempotency : sans Redis, dbFallback renvoie un résultat existant sans appeler run()", async () => {
   let calls = 0
-  const existing = { ok: true as const, reservationId: "existing-123", publicRef: "TR-2026-000001" }
+  const existing = {
+    ok: true as const,
+    reservationId: "existing-123",
+    publicRef: "TR-2026-000001",
+  }
   const run = async () => {
     calls += 1
-    return { ok: true as const, reservationId: `new-${calls}`, publicRef: "TR-2026-000002" }
+    return {
+      ok: true as const,
+      reservationId: `new-${calls}`,
+      publicRef: "TR-2026-000002",
+    }
   }
-  const result = await withGuestIdempotency("key-db-hit", run, undefined, async () => existing)
+  const result = await withGuestIdempotency(
+    "key-db-hit",
+    run,
+    undefined,
+    async () => existing,
+  )
   assert.deepEqual(result, existing)
-  assert.equal(calls, 0, "run() ne doit pas être appelé quand dbFallback trouve un résultat")
+  assert.equal(
+    calls,
+    0,
+    "run() ne doit pas être appelé quand dbFallback trouve un résultat",
+  )
 })
 
 test("withGuestIdempotency : sans Redis, dbFallback retourne null → run() est exécuté normalement", async () => {
   let calls = 0
   const run = async () => {
     calls += 1
-    return { ok: true as const, reservationId: `created-${calls}`, publicRef: "TR-2026-000001" }
+    return {
+      ok: true as const,
+      reservationId: `created-${calls}`,
+      publicRef: "TR-2026-000001",
+    }
   }
-  const result = await withGuestIdempotency("key-db-miss", run, undefined, async () => null)
+  const result = await withGuestIdempotency(
+    "key-db-miss",
+    run,
+    undefined,
+    async () => null,
+  )
   assert.equal(calls, 1)
   assert.equal(result.reservationId, "created-1")
 })
@@ -73,7 +99,11 @@ test("withGuestIdempotency : Redis présent → dbFallback n'est jamais appelé 
   let runCalls = 0
   const run = async () => {
     runCalls += 1
-    return { ok: true as const, reservationId: "redis-res", publicRef: "TR-2026-000001" }
+    return {
+      ok: true as const,
+      reservationId: "redis-res",
+      publicRef: "TR-2026-000001",
+    }
   }
   // Premier appel (Redis miss → run() exécuté, mis en cache)
   await withGuestIdempotency("key-redis-prio", run, redis, async () => {
@@ -87,7 +117,11 @@ test("withGuestIdempotency : Redis présent → dbFallback n'est jamais appelé 
     dbFallbackCalled = true
     return null
   })
-  assert.equal(dbFallbackCalled, false, "dbFallback ne doit pas être appelé quand Redis répond")
+  assert.equal(
+    dbFallbackCalled,
+    false,
+    "dbFallback ne doit pas être appelé quand Redis répond",
+  )
   assert.equal(runCalls, 0, "run() ne doit pas être appelé pour un hit Redis")
 })
 

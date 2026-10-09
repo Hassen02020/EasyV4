@@ -577,11 +577,22 @@ test("P0-A race condition : référence inconnue (webhook précoce) ne consomme 
   const [consumed] = await withSystemContext((tx) =>
     tx.select().from(paymentEvents).where(eq(paymentEvents.eventId, eventId)),
   )
-  assert.equal(consumed, undefined, "event_id NE DOIT PAS être consommé sur no_match")
+  assert.equal(
+    consumed,
+    undefined,
+    "event_id NE DOIT PAS être consommé sur no_match",
+  )
 
   // Maintenant on crée la réservation + paiement (la DB "rattrape" le webhook précoce)
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "100.00" })
-  await makePendingPayment({ reservationId, pspOrderId: unknownRef, tndAmount: "100.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "100.00",
+  })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: unknownRef,
+    tndAmount: "100.00",
+  })
 
   // Même event_id rejoué → maintenant corrélé → captured_confirmed
   const second = await withSystemContext((tx) =>
@@ -600,9 +611,16 @@ test("P0-A race condition : référence inconnue (webhook précoce) ne consomme 
 // PAY-WEBHOOK-SAFETY-01 / P0-B — identité PSP : un événement d'un PSP étranger ne capture jamais
 test("P0-B PSP mismatch : webhook Stripe sur une commande SPS → no_match + audit, jamais de capture", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
-  const reservationId = await makeReservation({ status: "pending", tndAmount: "200.00" })
+  const reservationId = await makeReservation({
+    status: "pending",
+    tndAmount: "200.00",
+  })
   const ref = `ref-psp-b-${randomUUID()}`
-  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "200.00" })
+  await makePendingPayment({
+    reservationId,
+    pspOrderId: ref,
+    tndAmount: "200.00",
+  })
   const eventId = `evt-psp-b-${randomUUID()}`
 
   // Le webhook arrive signé par "stripe" mais le paiement DB a psp="sps"
@@ -622,21 +640,28 @@ test("P0-B PSP mismatch : webhook Stripe sur une commande SPS → no_match + aud
   const [consumed] = await withSystemContext((tx) =>
     tx.select().from(paymentEvents).where(eq(paymentEvents.eventId, eventId)),
   )
-  assert.equal(consumed, undefined, "event_id NE DOIT PAS être consommé sur PSP_MISMATCH")
+  assert.equal(
+    consumed,
+    undefined,
+    "event_id NE DOIT PAS être consommé sur PSP_MISMATCH",
+  )
 
   // Un audit_event payment.psp_mismatch doit avoir été journalisé
   const auditRows = await withSystemContext((tx) =>
-    tx
-      .select()
-      .from(auditEvents)
-      .where(eq(auditEvents.agencyId, agencyId)),
+    tx.select().from(auditEvents).where(eq(auditEvents.agencyId, agencyId)),
   )
-  const mismatchEvent = auditRows.find((r) => r.action === "payment.psp_mismatch")
+  const mismatchEvent = auditRows.find(
+    (r) => r.action === "payment.psp_mismatch",
+  )
   assert.ok(mismatchEvent, "audit_event payment.psp_mismatch attendu")
 
   // La réservation et le paiement restent intacts
   const [pay] = await withSystemContext((tx) =>
     tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
   )
-  assert.equal(pay!.status, "pending", "le paiement reste pending — jamais capturé")
+  assert.equal(
+    pay!.status,
+    "pending",
+    "le paiement reste pending — jamais capturé",
+  )
 })

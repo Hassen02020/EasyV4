@@ -155,7 +155,11 @@ async function checkCarAvailability(
     .limit(1)
     .for("update")
 
-  return { available: !!vehicle, availRowId: null, availVehicleId: vehicle?.id ?? null }
+  return {
+    available: !!vehicle,
+    availRowId: null,
+    availVehicleId: vehicle?.id ?? null,
+  }
 }
 
 /* -------------------------------------------------------------------------- */

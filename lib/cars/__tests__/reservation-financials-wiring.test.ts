@@ -242,14 +242,8 @@ test("actions.ts : FOR UPDATE précède la vérification available:!!vehicle (ve
 test("actions.ts : UPDATE status='rented' utilise la même variable availVehicleId que le FOR UPDATE", () => {
   // availVehicleId = vehicle?.id ?? null (provient du FOR UPDATE)
   // UPDATE ... WHERE eq(carFleetVehicles.id, availVehicleId)
-  assert.match(
-    actionsSrc,
-    /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/,
-  )
-  assert.match(
-    actionsSrc,
-    /eq\(carFleetVehicles\.id,\s*availVehicleId\)/,
-  )
+  assert.match(actionsSrc, /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/)
+  assert.match(actionsSrc, /eq\(carFleetVehicles\.id,\s*availVehicleId\)/)
 })
 
 test("guest-booking-actions.ts : FOR UPDATE précède la vérification available:!!vehicle", () => {
@@ -262,12 +256,6 @@ test("guest-booking-actions.ts : FOR UPDATE précède la vérification available
 })
 
 test("guest-booking-actions.ts : UPDATE status='rented' utilise la même variable availVehicleId que le FOR UPDATE", () => {
-  assert.match(
-    guestActionsSrc,
-    /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/,
-  )
-  assert.match(
-    guestActionsSrc,
-    /eq\(carFleetVehicles\.id,\s*availVehicleId\)/,
-  )
+  assert.match(guestActionsSrc, /availVehicleId:\s*vehicle\?\.id\s*\?\?\s*null/)
+  assert.match(guestActionsSrc, /eq\(carFleetVehicles\.id,\s*availVehicleId\)/)
 })

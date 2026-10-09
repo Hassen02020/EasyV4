@@ -27,7 +27,9 @@ import type { NormalizedChargeEvent } from "../webhook-logic"
 /* P0-C — matchesPendingPayment : précision TND                       */
 /* ------------------------------------------------------------------ */
 
-function makeCharge(overrides: Partial<NormalizedChargeEvent> = {}): NormalizedChargeEvent {
+function makeCharge(
+  overrides: Partial<NormalizedChargeEvent> = {},
+): NormalizedChargeEvent {
   return {
     eventId: "evt_1",
     eventType: "payment.succeeded",
@@ -40,7 +42,11 @@ function makeCharge(overrides: Partial<NormalizedChargeEvent> = {}): NormalizedC
 
 test("matchesPendingPayment : montant identique (2 décimales) → ok", () => {
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "150.00", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "150.00",
+      originalCurrency: "TND",
+    },
     makeCharge({ amountTnd: 150.0 }),
   )
   assert.equal(result.ok, true)
@@ -48,7 +54,11 @@ test("matchesPendingPayment : montant identique (2 décimales) → ok", () => {
 
 test("matchesPendingPayment : écart dans la tolérance (0.0005) → ok", () => {
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "150.56", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "150.56",
+      originalCurrency: "TND",
+    },
     makeCharge({ amountTnd: 150.5605 }),
   )
   assert.equal(result.ok, true)
@@ -58,7 +68,11 @@ test("matchesPendingPayment : écart hors tolérance (toFixed(3) vs DB toFixed(2
   // Reproduit le bug P0-C : DB stocke toFixed(2)=150.56, PSP reçoit toFixed(3)=150.555
   // Paymee renvoie 150.555 dans received_amount → |150.56 - 150.555| = 0.005 > 0.001
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "150.56", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "150.56",
+      originalCurrency: "TND",
+    },
     makeCharge({ amountTnd: 150.555 }),
   )
   assert.equal(result.ok, false)
@@ -68,7 +82,11 @@ test("matchesPendingPayment : écart hors tolérance (toFixed(3) vs DB toFixed(2
 test("matchesPendingPayment : montant identique toFixed(2) (après fix P0-C) → ok", () => {
   // Après fix : Paymee reçoit toFixed(2), restitue toFixed(2) — aucun écart
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "150.56", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "150.56",
+      originalCurrency: "TND",
+    },
     makeCharge({ amountTnd: 150.56 }),
   )
   assert.equal(result.ok, true)
@@ -76,7 +94,11 @@ test("matchesPendingPayment : montant identique toFixed(2) (après fix P0-C) →
 
 test("matchesPendingPayment : devise inattendue → CURRENCY_MISMATCH", () => {
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "100.00", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "100.00",
+      originalCurrency: "TND",
+    },
     makeCharge({ currency: "EUR" }),
   )
   assert.equal(result.ok, false)
@@ -85,7 +107,11 @@ test("matchesPendingPayment : devise inattendue → CURRENCY_MISMATCH", () => {
 
 test("matchesPendingPayment : référence incorrecte → REFERENCE_MISMATCH", () => {
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "100.00", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "100.00",
+      originalCurrency: "TND",
+    },
     makeCharge({ providerRef: "order_OTHER" }),
   )
   assert.equal(result.ok, false)
@@ -103,7 +129,11 @@ test("matchesPendingPayment : pspOrderId null → REFERENCE_MISMATCH", () => {
 
 test("matchesPendingPayment : montant nul → AMOUNT_MISMATCH", () => {
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "100.00", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "100.00",
+      originalCurrency: "TND",
+    },
     makeCharge({ amountTnd: 0 }),
   )
   assert.equal(result.ok, false)
@@ -111,7 +141,11 @@ test("matchesPendingPayment : montant nul → AMOUNT_MISMATCH", () => {
 
 test("matchesPendingPayment : montant négatif → AMOUNT_MISMATCH", () => {
   const result = matchesPendingPayment(
-    { pspOrderId: "order_abc", originalAmount: "100.00", originalCurrency: "TND" },
+    {
+      pspOrderId: "order_abc",
+      originalAmount: "100.00",
+      originalCurrency: "TND",
+    },
     makeCharge({ amountTnd: -100.0 }),
   )
   assert.equal(result.ok, false)

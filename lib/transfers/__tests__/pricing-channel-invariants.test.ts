@@ -27,7 +27,7 @@ const guestSrc = readFileSync(
 /* B2B — channel:"b2b" explicite                                              */
 /* -------------------------------------------------------------------------- */
 
-test("transfers/actions.ts : calculateTransferPrice reçoit channel:\"b2b\" explicitement", () => {
+test('transfers/actions.ts : calculateTransferPrice reçoit channel:"b2b" explicitement', () => {
   assert.match(b2bSrc, /channel:\s*["']b2b["']/)
 })
 
@@ -35,11 +35,11 @@ test("transfers/actions.ts : calculateTransferPrice reçoit channel:\"b2b\" expl
 /* B2C guest — channel:"direct" explicite                                     */
 /* -------------------------------------------------------------------------- */
 
-test("transfers/guest-booking-actions.ts : calculateTransferPrice reçoit channel:\"direct\" explicitement", () => {
+test('transfers/guest-booking-actions.ts : calculateTransferPrice reçoit channel:"direct" explicitement', () => {
   assert.match(guestSrc, /channel:\s*["']direct["']/)
 })
 
-test("transfers/guest-booking-actions.ts : aucun channel:\"b2b\" dans le chemin guest", () => {
+test('transfers/guest-booking-actions.ts : aucun channel:"b2b" dans le chemin guest', () => {
   // Le guest path ne doit JAMAIS appliquer les marges B2B partenaires.
   assert.doesNotMatch(guestSrc, /channel:\s*["']b2b["']/)
 })

@@ -87,7 +87,10 @@ test("SPS : seal absent échoue", () => {
 import { STRIPE_SIGNATURE_MAX_AGE_SECONDS } from "../signing"
 
 test("Stripe : signature récente (dans la fenêtre) passe", () => {
-  const payload = JSON.stringify({ id: "evt_fresh", type: "payment_intent.succeeded" })
+  const payload = JSON.stringify({
+    id: "evt_fresh",
+    type: "payment_intent.succeeded",
+  })
   const secret = "whsec_test"
   const now = Math.floor(Date.now() / 1000)
   const header = buildStripeSignatureHeader(payload, secret, now)
@@ -98,9 +101,13 @@ test("Stripe : signature récente (dans la fenêtre) passe", () => {
 })
 
 test("Stripe : signature expirée (au-delà de la fenêtre) est rejetée", () => {
-  const payload = JSON.stringify({ id: "evt_old", type: "payment_intent.succeeded" })
+  const payload = JSON.stringify({
+    id: "evt_old",
+    type: "payment_intent.succeeded",
+  })
   const secret = "whsec_test"
-  const expiredTs = Math.floor(Date.now() / 1000) - STRIPE_SIGNATURE_MAX_AGE_SECONDS - 1
+  const expiredTs =
+    Math.floor(Date.now() / 1000) - STRIPE_SIGNATURE_MAX_AGE_SECONDS - 1
   const header = buildStripeSignatureHeader(payload, secret, expiredTs)
   const now = Math.floor(Date.now() / 1000)
   assert.equal(
@@ -110,9 +117,13 @@ test("Stripe : signature expirée (au-delà de la fenêtre) est rejetée", () =>
 })
 
 test("Stripe : timestamp dans le futur (dérive malveillante) est rejeté", () => {
-  const payload = JSON.stringify({ id: "evt_future", type: "payment_intent.succeeded" })
+  const payload = JSON.stringify({
+    id: "evt_future",
+    type: "payment_intent.succeeded",
+  })
   const secret = "whsec_test"
-  const futureTs = Math.floor(Date.now() / 1000) + STRIPE_SIGNATURE_MAX_AGE_SECONDS + 1
+  const futureTs =
+    Math.floor(Date.now() / 1000) + STRIPE_SIGNATURE_MAX_AGE_SECONDS + 1
   const header = buildStripeSignatureHeader(payload, secret, futureTs)
   const now = Math.floor(Date.now() / 1000)
   assert.equal(

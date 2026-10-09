@@ -231,9 +231,14 @@ export function BookingEngine({
   const enabledModules = modules
     .filter((module) => module.enabled)
     .sort((a, b) => a.sortOrder - b.sortOrder)
-  const visibleTabs = tabsConfig.filter((tab) =>
-    enabledModules.some((module) => module.moduleSlug === tab.id),
-  )
+  // When DB is unavailable modules arrives as []; fall back to showing all tabs
+  // so the booking engine is always usable regardless of DB state.
+  const visibleTabs =
+    enabledModules.length > 0
+      ? tabsConfig.filter((tab) =>
+          enabledModules.some((module) => module.moduleSlug === tab.id),
+        )
+      : [...tabsConfig]
   const firstTab = visibleTabs[0]?.id ?? "hotels-tunisie"
   const [activeTab, setActiveTab] = useState<TabId>(firstTab)
   const [mobileOpen, setMobileOpen] = useState(false)

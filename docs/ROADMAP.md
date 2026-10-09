@@ -2937,6 +2937,27 @@ PREUVE VISUELLE: screenshot Playwright — login redirect confirmé
 | Distribution entités DB                | **BLOQUÉ**   | Bloqué sur décision D-01b (taux commercial, Direction) ; fondation types `DistributionChannel` + `commercial_agreements` table existent |
 | White Label fournisseurs propres       | **DEFERRED** | Aucun besoin immédiat ; les suppliers actuels (Mygo, Duffel, hotels-monde) sont globaux                                                 |
 
+### COMMISSION-WIRING-COVERAGE-01 — CLÔTURÉ 2026-10-09
+
+**Objectif** : Fermer le gap de couverture tests sur le câblage financier —
+3 modules sans invariants statiques protégeant `recordReservationFinancials` +
+`creditPlatformCommission`.
+
+**Changements** :
+- `lib/transfers/__tests__/commission-wiring.test.ts` (11 tests) : protège la
+  structure coût fournisseur non-triviale (basePriceTnd + nightSurchargeAmount)
+  et les deux entitlements (product_owner/supplier_cost + seller/seller_margin).
+- `lib/omra/__tests__/commission-wiring.test.ts` (7 tests) : documente
+  supplierPriceTnd === salePriceTnd === totalTnd (catalogue propre, intentionnel).
+- `lib/packages/__tests__/commission-wiring.test.ts` (7 tests) : même invariant
+  catalogue propre pour les voyages organisés.
+
+**Commit** : `f5512a1`
+**Tests** : 24/24 pass · aucun code de production modifié
+**Matrice complète** : hotels, hotels-monde, cars, activities, transfers, omra, packages → tous couverts.
+
+---
+
 ### TRANSFER-VOUCHER-B2C-01 — CLÔTURÉ 2026-10-09
 
 **Objectif** : Câbler `sendEvent("booking/transfer.confirmed")` (fire-and-forget)

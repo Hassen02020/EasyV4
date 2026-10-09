@@ -12,6 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Valeurs fictives CI uniquement : aucune clé de production. Plusieurs pages
+  # publiques construisent le client Supabase pendant le rendu serveur.
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-ci-only
   # R1-07 (audit Phase 0) : le build échoue si ces secrets manquent ou
   # gardent leur valeur "dev" par défaut en NODE_ENV=production (garde-fous
   # applicatifs volontaires, voir lib/booking/price-token.ts et

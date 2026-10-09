@@ -2442,6 +2442,19 @@ Preuves vérifiées indépendamment par l'orchestrateur (diff réel intégral + 
 
 Limites explicites : `network/economic-pilot-actions.ts` (outil de test admin, pas le flux de réservation réel) reste non câblé. Aucune activation de commission réelle sur Car/Transfer/Hotels-Monde/Vols (décision commerciale distincte, non prise ici). `CURRENCY-DIM-01` (multi-devise complet) reste un chantier séparé.
 
+### ECON-WIRING-02 — CLÔTURÉ (2026-10-09)
+
+Objectif : compléter le câblage `economic_entitlements` sur le seul module encore manquant après ECON-WIRING-01 — `lib/transfers/guest-booking-actions.ts` (tunnel B2C guest).
+
+Audit préalable : vérification exhaustive des 9 call sites vers `recordReservationFinancials()` — 8/9 avaient déjà `economicEntitlements` câblé (ECON-WIRING-01). Seul `guest-booking-actions.ts` (transfert guest) était absent. Le rapport initial d'un sous-agent indiquant "8/9 manquants" était erroné (analyse statique incomplète des clés d'objet sur plusieurs lignes).
+
+Correction appliquée (`lib/transfers/guest-booking-actions.ts`) :
+- `supplierPriceTnd` corrigé de `totalTnd` (prix de vente) à `pricing.basePriceTnd + pricing.nightSurchargeAmount` (coût réel catalogue propre)
+- Ajout de 2 lignes `economicEntitlements` : `product_owner/supplier_cost` + `seller/seller_margin` (même pattern que le module B2B `lib/transfers/actions.ts`)
+- Aucun changement au calcul de prix ni au wallet/ledger/settlement
+
+Tests : `node --test lib/finance/__tests__/econ-wiring-01-invariants.test.ts` → 13/13 PASS. `tsc --noEmit` propre. Commit `8fddc1e`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
 ### AGREEMENT-01 — CLÔTURÉ (2026-09-30), PREMIER ACCORD RÉEL RESTE BLOQUÉ SUR D-01b
 
 GO explicite de la Direction, avec un audit préalable obligatoire (schéma complet `margin_rules` + tous ses lecteurs/écrivains + matrice avant/après) et deux corrections reçues en cours de chantier : (1) **AUCUNE ligne réelle/permanente** de `commercial_agreements`/`margin_rules` ne devait être créée — la Direction a explicitement refusé un taux placeholder (`DEFAULT_MARGINS.network = 10 %` ou `0 %`) comme politique commerciale réelle ; le premier accord Network réel reste **BLOQUÉ** sur la décision de taux D-01b (option 3, frais sur prix net) ; (2) preuve de capacité exigée via tests uniquement (fixture créée puis nettoyée en transaction de test), jamais une insertion directe SQL hors app layer.

@@ -55,6 +55,17 @@ export interface VoucherLabels {
   activityLabel: string
   sessionDate: string
   schedule: string
+  /* Car rental fields */
+  carTitle: string
+  carSection: string
+  vehicleCategory: string
+  carPickupLocation: string
+  carDropoffLocation: string
+  carPickupAt: string
+  carDropoffAt: string
+  rentalDaysLabel: string
+  rentalDaysText: (n: number) => string
+  carInsuranceLevel: string
   /* Total */
   totalAmount: string
   /* Stamp */
@@ -109,6 +120,16 @@ const FR: VoucherLabels = {
   activityLabel: "Attraction",
   sessionDate: "Date de la session",
   schedule: "Horaires",
+  carTitle: "Voucher de Confirmation Location Voiture",
+  carSection: "Véhicule",
+  vehicleCategory: "Catégorie",
+  carPickupLocation: "Lieu de prise en charge",
+  carDropoffLocation: "Lieu de retour",
+  carPickupAt: "Prise en charge",
+  carDropoffAt: "Retour",
+  rentalDaysLabel: "Durée",
+  rentalDaysText: (n) => `${n} jour${n > 1 ? "s" : ""}`,
+  carInsuranceLevel: "Assurance",
   totalAmount: "Montant Total TTC",
   confirmedStamp: "✓ Réservation Confirmée",
   generatedOn: "Généré le",
@@ -159,6 +180,16 @@ const EN: VoucherLabels = {
   activityLabel: "Activity",
   sessionDate: "Session date",
   schedule: "Schedule",
+  carTitle: "Car Rental Booking Confirmation",
+  carSection: "Vehicle",
+  vehicleCategory: "Category",
+  carPickupLocation: "Pick-up location",
+  carDropoffLocation: "Drop-off location",
+  carPickupAt: "Pick-up",
+  carDropoffAt: "Drop-off",
+  rentalDaysLabel: "Duration",
+  rentalDaysText: (n) => `${n} day${n > 1 ? "s" : ""}`,
+  carInsuranceLevel: "Insurance",
   totalAmount: "Total Amount (incl. taxes)",
   confirmedStamp: "✓ Booking Confirmed",
   generatedOn: "Generated on",
@@ -209,6 +240,16 @@ const AR: VoucherLabels = {
   activityLabel: "النشاط",
   sessionDate: "تاريخ الجلسة",
   schedule: "مواعيد الجلسة",
+  carTitle: "تأكيد حجز تأجير السيارة",
+  carSection: "السيارة",
+  vehicleCategory: "الفئة",
+  carPickupLocation: "مكان الاستلام",
+  carDropoffLocation: "مكان الإرجاع",
+  carPickupAt: "موعد الاستلام",
+  carDropoffAt: "موعد الإرجاع",
+  rentalDaysLabel: "المدة",
+  rentalDaysText: (n) => `${n} يوم`,
+  carInsuranceLevel: "التأمين",
   totalAmount: "المبلغ الإجمالي شامل الضريبة",
   confirmedStamp: "✓ تم تأكيد الحجز",
   generatedOn: "تاريخ الإصدار",

@@ -38,6 +38,7 @@ import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -430,7 +431,17 @@ export async function createCarBooking(
         },
       })
 
-      return { reservationId, publicRef, totalTnd, agencyId, createdByUserId }
+      return {
+        reservationId,
+        publicRef,
+        totalTnd,
+        agencyId,
+        createdByUserId,
+        rentalDays: pricing.rentalDays,
+        categoryName: category?.name ?? null,
+        pickupLocationName: pickupLocation?.name ?? null,
+        dropoffLocationName: dropoffLocation?.name ?? null,
+      }
     })
 
     if (!outcome.ok) {
@@ -454,6 +465,27 @@ export async function createCarBooking(
         err instanceof Error ? err.message : String(err),
       )
     }
+
+    // CAR-VOUCHER-01 — envoi email + PDF en arrière-plan (Inngest, fire-and-forget).
+    // Pas de await : un échec d'envoi ne doit jamais bloquer la confirmation B2B.
+    sendEvent("booking/car.confirmed", {
+      reservationId: outcome.result.reservationId,
+      publicRef: outcome.result.publicRef,
+      agencyId: outcome.result.agencyId,
+      guestAccessToken: "",
+      customerEmail: input.driver.email ?? null,
+      customerName: `${input.driver.firstName} ${input.driver.lastName}`,
+      categoryName: outcome.result.categoryName ?? input.categoryId,
+      pickupLocationName: outcome.result.pickupLocationName ?? input.pickupLocationId,
+      dropoffLocationName: outcome.result.dropoffLocationName ?? input.dropoffLocationId,
+      pickupAt: input.pickupAt,
+      dropoffAt: input.dropoffAt,
+      rentalDays: outcome.result.rentalDays,
+      insuranceLevel: input.insuranceLevel,
+      totalTnd: outcome.result.totalTnd,
+    }).catch((err) =>
+      console.error("[cars] sendEvent booking/car.confirmed échoué", err),
+    )
 
     return {
       ok: true,

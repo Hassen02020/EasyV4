@@ -9,6 +9,13 @@
  * `redisOverride` de `debitPartnerCredit` (Phase 11,
  * `lib/pro/booking-actions.ts`) : dégradation gracieuse si Redis est
  * indisponible (`run()` s'exécute simplement à chaque appel, sans cache).
+ *
+ * PAY-IDEM-DB-01 — dbFallback (optionnel) : quand Redis est absent,
+ * l'appelant peut fournir une vérification DB qui retrouve une réservation
+ * déjà créée pour cette clé, AVANT d'appeler run(). Sans ce fallback, le
+ * comportement préexistant est conservé (run() exécuté directement — la
+ * contrainte unique DB `reservations_guest_idempotency_uniq` reste le
+ * garde-fou financier final).
  */
 
 import { getRedis } from "@/lib/cache/redis"
@@ -22,6 +29,7 @@ export async function withGuestIdempotency<T>(
   idempotencyKey: string,
   run: () => Promise<T>,
   redisOverride?: GuestIdempotencyRedis,
+  dbFallback?: () => Promise<T | null>,
 ): Promise<T> {
   const redis = redisOverride ?? getRedis()
   const cacheKey = `e2b:idem:guest-booking:${idempotencyKey}`
@@ -34,6 +42,11 @@ export async function withGuestIdempotency<T>(
         // Cache corrompu — on relance normalement.
       }
     }
+  } else if (dbFallback) {
+    // Redis absent — DB fallback pour retrouver une réservation déjà créée
+    // avant tout appel fournisseur externe ou tentative d'INSERT dupliqué.
+    const existing = await dbFallback()
+    if (existing !== null) return existing
   }
   const result = await run()
   if (redis) {

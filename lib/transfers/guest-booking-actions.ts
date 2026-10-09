@@ -17,7 +17,7 @@
  */
 
 import { eq, and, sql } from "drizzle-orm"
-import { withTenantContext } from "@/lib/db/tenant-context"
+import { withTenantContext, withSystemContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   reservations,
@@ -135,19 +135,9 @@ export async function createGuestTransferBooking(
 
   const linkedAuthUserId = await resolveLinkedAuthUserId(input.customer.email)
 
-  return withGuestIdempotency(idempotencyKey, () =>
-    runCreateGuestTransferBooking(input, linkedAuthUserId),
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/* Internal runner                                                            */
-/* -------------------------------------------------------------------------- */
-
-async function runCreateGuestTransferBooking(
-  input: GuestTransferBookingInput,
-  linkedAuthUserId: string | null,
-): Promise<CreateGuestTransferBookingResult> {
+  // PAY-IDEM-DB-01 — agencyId résolu ici pour que le fallback DB puisse
+  // vérifier une réservation déjà créée quand Redis est indisponible, avant
+  // tout re-INSERT qui échouerait en contrainte unique.
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
     return {
@@ -156,6 +146,58 @@ async function runCreateGuestTransferBooking(
       code: "NO_AGENCY",
     }
   }
+
+  return withGuestIdempotency(
+    idempotencyKey,
+    () => runCreateGuestTransferBooking(input, agencyId, idempotencyKey, linkedAuthUserId),
+    undefined,
+    () => findTransferReservationByIdempotencyKey(agencyId, idempotencyKey),
+  )
+}
+
+async function findTransferReservationByIdempotencyKey(
+  agencyId: string,
+  idempotencyKey: string,
+): Promise<CreateGuestTransferBookingResult | null> {
+  const rows = await withSystemContext((db) =>
+    db
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+        tndAmount: reservations.tndAmount,
+      })
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.agencyId, agencyId),
+          eq(reservations.guestIdempotencyKey, idempotencyKey),
+          eq(reservations.module, "transfer"),
+        ),
+      )
+      .limit(1),
+  )
+  const row = rows[0]
+  if (!row) return null
+  return {
+    ok: true,
+    reservationId: row.id,
+    publicRef: row.publicRef,
+    guestAccessToken: row.guestAccessToken,
+    totalTnd: Number(row.tndAmount ?? 0),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Internal runner                                                            */
+/* -------------------------------------------------------------------------- */
+
+async function runCreateGuestTransferBooking(
+  input: GuestTransferBookingInput,
+  agencyId: string,
+  idempotencyKey: string,
+  linkedAuthUserId: string | null,
+): Promise<CreateGuestTransferBookingResult> {
 
   try {
     const result = await withTenantContext(
@@ -236,6 +278,7 @@ async function runCreateGuestTransferBooking(
             agencyId,
             customerId: customer.id,
             publicRef,
+            guestIdempotencyKey: idempotencyKey,
             module: "transfer",
             source: "internal",
             status: "pending",

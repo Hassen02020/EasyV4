@@ -83,7 +83,7 @@ async function makePendingPayment(params: {
       .values({
         agencyId,
         reservationId: params.reservationId,
-        psp: "virtual",
+        psp: "sps",
         method: "card",
         pspOrderId: params.pspOrderId,
         originalCurrency: "TND",
@@ -552,4 +552,91 @@ test("isolation B2B wallet : le webhook réservation n'écrit jamais dans paymen
     tx.select().from(paymentEvents).where(eq(paymentEvents.eventId, eventId)),
   )
   assert.equal(evt!.reservationId, reservationId)
+})
+
+// PAY-WEBHOOK-SAFETY-01 / P0-A — race condition : no_match ne consomme pas l'event_id
+test("P0-A race condition : référence inconnue (webhook précoce) ne consomme pas l'event_id, PSP peut rejouer", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const unknownRef = `ref-race-${randomUUID()}`
+  const eventId = `evt-race-${randomUUID()}`
+
+  // Premier appel : no payment found → no_match, event_id NOT consumed
+  const first = await withSystemContext((tx) =>
+    processReservationWebhookCore(tx, {
+      provider: "sps",
+      eventId,
+      eventType: "sps.payment.captured",
+      charge: charge({ providerRef: unknownRef, amountTnd: 100 }),
+      signatureOk: true,
+      rawPayload: {},
+    }),
+  )
+  assert.equal(first.status, "no_match")
+
+  // Aucun event_id consommé dans payment_events — le PSP peut rejouer
+  const [consumed] = await withSystemContext((tx) =>
+    tx.select().from(paymentEvents).where(eq(paymentEvents.eventId, eventId)),
+  )
+  assert.equal(consumed, undefined, "event_id NE DOIT PAS être consommé sur no_match")
+
+  // Maintenant on crée la réservation + paiement (la DB "rattrape" le webhook précoce)
+  const reservationId = await makeReservation({ status: "pending", tndAmount: "100.00" })
+  await makePendingPayment({ reservationId, pspOrderId: unknownRef, tndAmount: "100.00" })
+
+  // Même event_id rejoué → maintenant corrélé → captured_confirmed
+  const second = await withSystemContext((tx) =>
+    processReservationWebhookCore(tx, {
+      provider: "sps",
+      eventId,
+      eventType: "sps.payment.captured",
+      charge: charge({ providerRef: unknownRef, amountTnd: 100 }),
+      signatureOk: true,
+      rawPayload: {},
+    }),
+  )
+  assert.equal(second.status, "captured_confirmed")
+})
+
+// PAY-WEBHOOK-SAFETY-01 / P0-B — identité PSP : un événement d'un PSP étranger ne capture jamais
+test("P0-B PSP mismatch : webhook Stripe sur une commande SPS → no_match + audit, jamais de capture", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const reservationId = await makeReservation({ status: "pending", tndAmount: "200.00" })
+  const ref = `ref-psp-b-${randomUUID()}`
+  await makePendingPayment({ reservationId, pspOrderId: ref, tndAmount: "200.00" })
+  const eventId = `evt-psp-b-${randomUUID()}`
+
+  // Le webhook arrive signé par "stripe" mais le paiement DB a psp="sps"
+  const outcome = await withSystemContext((tx) =>
+    processReservationWebhookCore(tx, {
+      provider: "stripe",
+      eventId,
+      eventType: "payment_intent.succeeded",
+      charge: charge({ providerRef: ref, amountTnd: 200 }),
+      signatureOk: true,
+      rawPayload: {},
+    }),
+  )
+  assert.equal(outcome.status, "no_match")
+
+  // L'event_id NE DOIT PAS être consommé (le PSP SPS légitime peut encore envoyer le sien)
+  const [consumed] = await withSystemContext((tx) =>
+    tx.select().from(paymentEvents).where(eq(paymentEvents.eventId, eventId)),
+  )
+  assert.equal(consumed, undefined, "event_id NE DOIT PAS être consommé sur PSP_MISMATCH")
+
+  // Un audit_event payment.psp_mismatch doit avoir été journalisé
+  const auditRows = await withSystemContext((tx) =>
+    tx
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.agencyId, agencyId)),
+  )
+  const mismatchEvent = auditRows.find((r) => r.action === "payment.psp_mismatch")
+  assert.ok(mismatchEvent, "audit_event payment.psp_mismatch attendu")
+
+  // La réservation et le paiement restent intacts
+  const [pay] = await withSystemContext((tx) =>
+    tx.select().from(payments).where(eq(payments.reservationId, reservationId)),
+  )
+  assert.equal(pay!.status, "pending", "le paiement reste pending — jamais capturé")
 })

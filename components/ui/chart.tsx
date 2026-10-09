@@ -118,7 +118,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
-  ...rest
+  ..._rest
 }: // eslint-disable-next-line @typescript-eslint/no-explicit-any
 Record<string, any> & {
   hideLabel?: boolean

@@ -11,8 +11,6 @@ import {
   UserCog,
   Plus,
   Mail,
-  Phone,
-  Calendar,
   CheckCircle2,
   Shield,
   User,

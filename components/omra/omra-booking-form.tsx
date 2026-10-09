@@ -41,7 +41,6 @@ import {
   Trash2,
   User,
   MapPin,
-  Calendar,
   CreditCard,
 } from "lucide-react"
 import {

@@ -26,7 +26,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -131,6 +130,7 @@ export function CarBookingForm({
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const watchedCategoryId = form.watch("categoryId")
   const watchedPickupLocationId = form.watch("pickupLocationId")
   const watchedPickupDate = form.watch("pickupDate")

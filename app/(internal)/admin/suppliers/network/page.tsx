@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   Star,
   Award,
-  Badge as BadgeIcon,
   Wifi,
   FileSpreadsheet,
   Globe,

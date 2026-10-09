@@ -8,11 +8,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getMyGoClient, mapCity } from "@/lib/mygo"
 import { MyGoAuthError, MyGoError } from "@/lib/mygo"
-import { rateLimit } from "@/lib/rate-limit"
 
 export const revalidate = 86400 // 24h
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   // API publique — pas de protection de session requise
 
   // Rate limit désactivé temporairement (Upstash Redis peut ne pas être configuré)

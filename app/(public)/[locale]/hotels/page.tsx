@@ -4,7 +4,6 @@ import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { HotelsTunisieSearch } from "@/components/hotels-tunisie-search"
 import { ModuleHero } from "@/components/module-hero"
-import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"

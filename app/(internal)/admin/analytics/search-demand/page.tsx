@@ -48,7 +48,6 @@ export default function SearchDemandAnalyticsPage() {
       }
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
     load()
     return () => {
       cancelled = true

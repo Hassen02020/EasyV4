@@ -22,7 +22,6 @@ type InsertCall = {
 
 function makeMockDb(calls: InsertCall[]) {
   return {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     insert: (_: unknown) => ({
       values: (v: Record<string, unknown>) => ({
         onConflictDoNothing: () => {

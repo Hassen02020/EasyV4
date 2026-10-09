@@ -17,7 +17,6 @@ import {
   Clock,
   DollarSign,
   Download,
-  Trash2,
   User,
   Plane,
   Building2,
@@ -29,7 +28,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -50,7 +48,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { reservations, customers } from "@/lib/db/schema"
-import { desc, eq, and, or, like, inArray } from "drizzle-orm"
+import { desc, eq, and, inArray } from "drizzle-orm"
 
 export const metadata: Metadata = {
   title: "Réservations B2C — Manager",

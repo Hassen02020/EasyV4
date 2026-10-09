@@ -8,7 +8,6 @@ import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { ModuleHero } from "@/components/module-hero"
-import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { PackageSearch } from "@/components/packages/package-search"
 import { PackageList } from "@/components/packages/package-list"
 import { CatalogPagination } from "@/components/catalog-pagination"
@@ -257,8 +256,6 @@ export default async function PackagesPage({
   const t = await getTranslations("Packages")
   const tCommon = await getTranslations("Common")
   const locale = await getLocale()
-
-  const visual = await getPublicModuleVisual("voyages-organises")
 
   return (
     <div className="flex min-h-screen flex-col">

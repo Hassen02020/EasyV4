@@ -18,7 +18,7 @@
  */
 
 import assert from "node:assert/strict"
-import { test, describe, beforeEach, mock } from "node:test"
+import { test, describe, beforeEach } from "node:test"
 
 // ── lightweight mocks ─────────────────────────────────────────────────────────
 
@@ -289,7 +289,7 @@ async function runFulfillment(adapterConfig: MockAdapterConfig = {}) {
       "RECHECK",
       recheckResult.status === "AVAILABLE" ? "SUCCESS" : "FAILURE",
     )
-  } catch (err) {
+  } catch (_err) {
     await mockLogTransaction(
       fakeBooking.id,
       fakeSnapshot.id,
@@ -329,7 +329,7 @@ async function runFulfillment(adapterConfig: MockAdapterConfig = {}) {
       "BOOK",
       "SUCCESS",
     )
-  } catch (err) {
+  } catch (_err) {
     await mockLogTransaction(
       fakeBooking.id,
       fakeSnapshot.id,
@@ -363,7 +363,7 @@ async function runFulfillment(adapterConfig: MockAdapterConfig = {}) {
     for (const t of issueResult.tickets) {
       ticketsInserted.push({ ticketNumber: t.ticketNumber, status: "ISSUED" })
     }
-  } catch (err) {
+  } catch (_err) {
     await mockLogTransaction(
       fakeBooking.id,
       fakeSnapshot.id,

@@ -9,6 +9,20 @@ const eslintConfig = [
     // `tsx`, hors bundle Next.js — pas soumis aux règles next/core-web-vitals.
     ignores: [".next/**", "node_modules/**", "next-env.d.ts", "scripts/**"],
   },
+  {
+    rules: {
+      // Paramètres intentionnellement non utilisés dans les stubs/adapters :
+      // convention `_name` reconnue par ESLint (argsIgnorePattern + varsIgnorePattern).
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ]
 
 export default eslintConfig

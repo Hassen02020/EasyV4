@@ -106,7 +106,6 @@ function CampaignTargetsPanel({
       }
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
     load()
     return () => {
       cancelled = true
@@ -209,7 +208,6 @@ export default function CampaignAnalyticsPage() {
       }
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
     run()
     return () => {
       cancelled = true

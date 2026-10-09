@@ -10,7 +10,7 @@
 import { redirect } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
-import { canAccessSection, hasPermission } from "@/lib/auth/rbac"
+import { hasPermission } from "@/lib/auth/rbac"
 import type { AdminShellRole } from "@/components/admin-shell"
 
 export const dynamic = "force-dynamic"

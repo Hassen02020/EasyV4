@@ -18,7 +18,7 @@ interface CurrencySwitcherProps {
 export function CurrencySwitcher({
   variant = "desktop",
 }: CurrencySwitcherProps) {
-  const { currency, setCurrency, meta } = useCurrency()
+  const { currency, setCurrency } = useCurrency()
 
   if (variant === "mobile") {
     // Cycle réel à travers les 3 devises (TND → EUR → USD → TND...) — un

@@ -23,7 +23,6 @@ import { computeLayovers } from "../canonical"
 import { search as virtualSearch } from "@/lib/vols/virtual-supplier/engine"
 import { book as virtualBook } from "@/lib/vols/virtual-supplier/engine"
 import { cancel as virtualCancel } from "@/lib/vols/virtual-supplier/engine"
-import { newSearchId } from "@/lib/vols/virtual-supplier/tokens"
 import type { Cabin } from "@/lib/vols/virtual-supplier/catalog"
 
 function isDemoMode(): boolean {

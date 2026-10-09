@@ -2937,6 +2937,27 @@ PREUVE VISUELLE: screenshot Playwright — login redirect confirmé
 | Distribution entités DB                | **BLOQUÉ**   | Bloqué sur décision D-01b (taux commercial, Direction) ; fondation types `DistributionChannel` + `commercial_agreements` table existent |
 | White Label fournisseurs propres       | **DEFERRED** | Aucun besoin immédiat ; les suppliers actuels (Mygo, Duffel, hotels-monde) sont globaux                                                 |
 
+### TRANSFER-VOUCHER-B2C-01 — CLÔTURÉ 2026-10-09
+
+**Objectif** : Câbler `sendEvent("booking/transfer.confirmed")` (fire-and-forget)
+dans `lib/transfers/guest-booking-actions.ts` (chemin B2C), identiquement au
+chemin B2B (`lib/transfers/actions.ts` ligne 387). Les guests B2C recevaient
+zéro email/SMS de confirmation malgré l'existence de l'event type, du handler
+Inngest et du câblage B2B.
+
+**Changements** :
+- `lib/transfers/guest-booking-actions.ts` : import `sendEvent`, extension du
+  retour de transaction (`fromZoneName`, `toZoneName`), appel fire-and-forget
+  conditionnel (email || phone).
+- `lib/transfers/__tests__/transfer-voucher-wiring.test.ts` : 15 invariants
+  statiques (readFileSync pattern), tous verts.
+
+**Commit** : `93bd695`
+**Tests** : 15/15 pass · TypeScript clean (tsc --noEmit 0 erreurs)
+**NOT VERIFIED** : déclenchement Inngest réel en staging (nécessite env Inngest)
+
+---
+
 ### Prochains chantiers possibles (sur GO séparé, quand débloqués)
 
 - **D-01b** (décision Direction sur option 3 frais sur prix net) → débloque ECON-WIRING-01 réel + première ligne `commercial_agreements`

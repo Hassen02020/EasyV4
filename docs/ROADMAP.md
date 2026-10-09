@@ -82,36 +82,24 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — PAY-WEBHOOK-SAFETY-01 CLÔTURÉ (2026-10-09, commits `313a6d3` + `f7d21e4`) — 4 corrections sécurité webhook PSP : P0-A race condition (INSERT `payment_events` déplacé APRÈS corrélation — webhook précoce `no_match` ne consomme plus l'eventId, PSP peut rejouer) ; P0-B PSP identity (check `payment.psp !== provider` → audit `payment.psp_mismatch` + `no_match` sans consommer l'eventId) ; P0-C précision TND (`toFixed(3)→toFixed(2)` dans `paymee-provider.ts`) ; P1-D Stripe replay window (`STRIPE_SIGNATURE_MAX_AGE_SECONDS=300` injectable). Tests : 13/13 intégration Postgres réel (`reservation-webhook-core.test.ts` inclut P0-A et P0-B) ; 9/9 unitaires (`webhook-security.test.ts`) ; 4/4 unitaires (`signing.test.ts`). Régression corrigée : fixture `psp: "virtual"` → `psp: "sps"`. CI : `financial-e2e` étendu pour exécuter `reservation-webhook-core.test.ts` et `paymee-reservation-webhook.test.ts` (précédemment silencieusement skippés).
 **Aucun** — DUFFEL-ENUM N/A CLÔTURÉ (2026-10-09) — Audit : `"duffel"` déjà présent dans l'enum `flightSupplierName` (`lib/db/schema/flight-suppliers.ts` ligne 40) ET migration Drizzle `drizzle/0016_flight_supplier_duffel.sql` déjà existante. Aucune action requise.
 **Aucun** — BUG-ACT-01 N/A CLÔTURÉ (2026-10-09) — Audit : `supplierPriceTnd === salePriceTnd === totalTnd` dans `lib/activities/guest-booking-actions.ts` est INTENTIONNEL — Activités est un catalogue propre à l'agence (pas de fournisseur externe), même modèle que Cars. Pas de `commissionPercent` → commission = 0, correct. Commentaire R6-02 dans le code confirme. 2 invariants statiques créés (`lib/activities/__tests__/commission-wiring.test.ts`) pour protéger cet invariant contre régression.
+**Aucun** — CAR-VOUCHER-01 CLÔTURÉ (2026-10-09, commit `423c151`) — `lib/pdf/voucher-car.tsx` (PDF voucher voiture FR/EN/AR) + 11 labels i18n dans `voucher-i18n.ts` + event `"booking/car.confirmed"` dans `lib/inngest/client.ts` + `lib/inngest/functions/process-car-confirmed.ts` (idempotence, Resend + PJ PDF) + `sendEvent` fire-and-forget câblé dans `lib/cars/actions.ts` (B2B) et `lib/cars/guest-booking-actions.ts` (B2C) + 17/17 invariants statiques (`car-voucher-wiring.test.ts`). 0 régression (44/44 tests pass). Typecheck : 0 nouvelle erreur.
 **EN ATTENTE DE GO** — COMMISSION-MONDE-01 AUDIT (2026-10-09) — `lib/hotels-monde/guest-booking-actions.ts` : câblage `commissionPercent: margins.hotel.commissionPercent` + `creditPlatformCommission` DÉJÀ EN PLACE (COMMISSION-WIRING-02, PR #126). Audit approfondi demandé avant tout GO sur les tests : (1) `getMarginsForAgency` retourne `commissionPercent` uniquement depuis System B (`margin_rules.commissionPercent`) — absent si aucune règle System B configurée → `commissionPercent = undefined` → `commissionAmount = 0` (acceptable, fallback documenté dans `reservation-financials.ts` ligne 167). (2) `supplierPriceTnd = bookResult.supplierPriceTnd` (prix confirmé par le fournisseur virtuel), `salePriceTnd = finalTotalTnd` (après remise promo éventuelle). (3) Pas de test `commission-wiring.test.ts` pour hotels-monde — à créer sur GO séparé.
 
-### CAR-VOUCHER-01 — FICHE CHANTIER (audit 2026-10-09, pas d'implémentation)
+### CAR-VOUCHER-01 — CLÔTURÉ (2026-10-09, commit `423c151`)
 
-**État audit :** aucun mécanisme de voucher ni d'email de confirmation dédié au module voiture n'existe dans la codebase.
+**État audit → CLÔTURÉ. Implémentation complète.**
 
-- Aucun template PDF `voucher-car.tsx` dans `lib/pdf/` (existent : hotel, flight, omra, package, activity, base).
-- Aucune fonction Inngest dédiée voiture (les fonctions existantes : `process-confirmed-booking.ts` = hotel, `process-flight-confirmed.ts`, `process-transfer-confirmed.ts`, `process-omra-confirmed.ts`).
-- Aucun `sendEvent("booking/confirmed", ...)` dans `lib/cars/guest-booking-actions.ts` ni `lib/cars/actions.ts`.
-- Aucun mécanisme d'affectation chauffeur/driver ("chauffeur", "driver assignment") dans `lib/cars/`.
-- La page `/booking/confirmation/[ref]` est générique tous modules et affiche un résumé de réservation — c'est le seul "confirmation" disponible pour les voitures.
+Livrables :
+- `lib/pdf/voucher-car.tsx` — template PDF voiture (catégorie, pickup/dropoff, dates, durée, prix) FR/EN/AR
+- `lib/pdf/voucher-i18n.ts` — 11 nouvelles clés car (`carTitle`, `carSection`, `vehicleCategory`, `carPickupLocation`, `carDropoffLocation`, `carPickupAt`, `carDropoffAt`, `rentalDaysLabel`, `rentalDaysText`, `carInsuranceLevel`) dans FR, EN et AR
+- `lib/inngest/client.ts` — event type `"booking/car.confirmed"` (champs : `reservationId`, `publicRef`, `agencyId`, `guestAccessToken`, `customerEmail`, `customerName`, `categoryName`, `pickupLocationName`, `dropoffLocationName`, `pickupAt`, `dropoffAt`, `rentalDays`, `insuranceLevel`, `totalTnd`)
+- `lib/inngest/functions/process-car-confirmed.ts` — fonction Inngest (idempotence via `notification_idempotency`, Resend + PJ PDF, `onFailure` handler)
+- `lib/inngest/functions/index.ts` — export `processCarConfirmed`
+- `lib/cars/actions.ts` — `sendEvent("booking/car.confirmed", ...)` fire-and-forget (B2B), tx retourne `categoryName`/`pickupLocationName`/`dropoffLocationName`/`rentalDays`
+- `lib/cars/guest-booking-actions.ts` — `sendEvent("booking/car.confirmed", ...)` fire-and-forget (B2C), tx retourne mêmes champs
+- `lib/cars/__tests__/car-voucher-wiring.test.ts` — 17/17 invariants statiques node:test
 
-**Fiche chantier CAR-VOUCHER-01 (à reprendre sur GO séparé) :**
-
-```
-ID: CAR-VOUCHER-01
-OBJECTIF: Envoyer un email de confirmation/voucher après réservation voiture (B2C guest + B2B)
-ÉTAT AUDIT: CREATE
-CE QUI EXISTE: Page générique /booking/confirmation/[ref] ; `sendEvent` manquant dans lib/cars/
-CE QUI MANQUE: (1) lib/pdf/voucher-car.tsx — template PDF voiture (dates, catégorie, lieu pickup/dropoff, prix)
-               (2) sendEvent("booking/car-confirmed", ...) dans lib/cars/guest-booking-actions.ts + actions.ts
-               (3) fonction Inngest lib/inngest/functions/process-car-confirmed.ts
-POURQUOI MAINTENANT: Backlog ; les autres modules (hotel, flight, omra, transfer) ont déjà leur voucher.
-DÉPENDANCES: Aucune (indépendant des autres chantiers actifs)
-FICHIERS: lib/cars/guest-booking-actions.ts, lib/cars/actions.ts, lib/pdf/voucher-car.tsx, lib/inngest/
-CHANGEMENTS DB: Aucun
-RISQUES: Faible (ajout pure, aucune modification du flux de paiement/réservation existant)
-CRITÈRE DE SORTIE: Email reçu après réservation voiture B2C, PDF voiture généré sans erreur
-ESTIMATION: 0.5j
-```
+Tests : 44/44 pass (17 nouveaux + 27 existants). 0 régression. Typecheck : 0 nouvelle erreur.
 
 ### PR-BATCH-04 — WHITE-LABEL-ADMIN-01, WHITE-LABEL-PRO-01, COMMISSION-WIRING-02, CARS-COMMISSION-01 — CLÔTURÉ (PR #126 + #155)
 

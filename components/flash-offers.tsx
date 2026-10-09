@@ -9,8 +9,13 @@ import { getPublicPromotions } from "@/lib/public/site-content"
  * The component only renders the active rows selected by the server query.
  */
 export async function FlashOffers() {
-  const t = await getTranslations("Common")
-  const offers = await getPublicPromotions()
+  const [t, offers] = await Promise.all([
+    getTranslations("Common"),
+    Promise.race([
+      getPublicPromotions().catch(() => []),
+      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+    ]),
+  ])
 
   if (offers.length === 0) return null
 

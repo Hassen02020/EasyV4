@@ -30,7 +30,10 @@ function primaryBookingHref(
 
 export async function FeaturedDestinationsSection() {
   const [featuredDests, t, rawLocale] = await Promise.all([
-    getFeaturedDestinations(),
+    Promise.race([
+      getFeaturedDestinations().catch(() => []),
+      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+    ]),
     getTranslations("FeaturedDestinations"),
     getLocale(),
   ])
@@ -39,9 +42,12 @@ export async function FeaturedDestinationsSection() {
 
   const locale = rawLocale as Locale
 
-  const refs = await getExternalRefsForDestinations(
-    featuredDests.map((d) => d.id),
-  )
+  const refs = await Promise.race([
+    getExternalRefsForDestinations(featuredDests.map((d) => d.id)).catch(
+      () => [],
+    ),
+    new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+  ])
 
   // Map: destinationId → active external refs
   const refsByDest = new Map<string, { module: string; externalId: string }[]>()

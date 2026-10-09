@@ -36,6 +36,11 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
     idle_timeout: 20,
     connect_timeout: 30,
     prepare: false,
+    // Replace the default exponential backoff (reaches 10-20 s after ~7 failures)
+    // with a constant 100 ms delay. The singleton pool is shared across all HTTP
+    // requests; without this cap, a burst of ECONNREFUSED errors grows
+    // shared.retries and blocks every subsequent request for many seconds.
+    backoff: 0.1,
   })
 
   _db = drizzle(_client, { schema, casing: "snake_case" })

@@ -17,11 +17,27 @@ import { getActiveCarCatalog } from "@/lib/cars/catalog"
 export const dynamic = "force-dynamic"
 
 export default async function Home() {
+  // Cap each DB call at 1 s so the page never stalls when postgres-js is
+  // reconnecting. Fallbacks render the shell without dynamic data.
   const [modules, site, transferZones, carCatalog] = await Promise.all([
-    getPublicModuleVisuals().catch(() => []),
-    getPublicSiteConfig().catch(() => null),
-    getActiveTransferZones().catch(() => []),
-    getActiveCarCatalog().catch(() => ({ locations: [], categories: [] })),
+    Promise.race([
+      getPublicModuleVisuals().catch(() => []),
+      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+    ]),
+    Promise.race([
+      getPublicSiteConfig().catch(() => null),
+      new Promise<null>((r) => setTimeout(() => r(null), 1000)),
+    ]),
+    Promise.race([
+      getActiveTransferZones().catch(() => []),
+      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
+    ]),
+    Promise.race([
+      getActiveCarCatalog().catch(() => ({ locations: [], categories: [] })),
+      new Promise<{ locations: never[]; categories: never[] }>((r) =>
+        setTimeout(() => r({ locations: [], categories: [] }), 1000),
+      ),
+    ]),
   ])
 
   return (

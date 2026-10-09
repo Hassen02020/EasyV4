@@ -75,6 +75,8 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
 **Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
 **Aucun** — NICHE-UI-01 CLÔTURÉ (2026-10-07, PR #158, merge `7abc1acc`).
+**Aucun** — PAY-EXPIRE-01 + PAY-IDEM-DB-01 + PAY-COMMISSION-DB-01 CLÔTURÉ (2026-10-09, commit `b237130`) — (1) PAY-EXPIRE-01 : cron `expire-pending-payments` fréquence 24h→30min (`vercel.json`) + `lib/booking/guest-idempotency.ts` 4e param `dbFallback` + `lib/transfers/guest-booking-actions.ts` agencyId résolu avant idempotency + `guestIdempotencyKey` persisté. (2) PAY-IDEM-DB-01 : `lib/booking/guest-idempotency.ts` extension déjà décrite. (3) PAY-COMMISSION-DB-01 : migration `drizzle/manual/0126_pay_commission_check_01.sql` — CHECK NOT VALID sur `margin_rules.commission_percent` et `reservation_financials.commission_percent` (0 ligne incompatible confirmée en lecture seule avant commit).
+**Aucun** — PAY-WEBHOOK-SAFETY-01 CLÔTURÉ (2026-10-09, commits `313a6d3` + `f7d21e4`) — 4 corrections sécurité webhook PSP : P0-A race condition (INSERT `payment_events` déplacé APRÈS corrélation — webhook précoce `no_match` ne consomme plus l'eventId, PSP peut rejouer) ; P0-B PSP identity (check `payment.psp !== provider` → audit `payment.psp_mismatch` + `no_match` sans consommer l'eventId) ; P0-C précision TND (`toFixed(3)→toFixed(2)` dans `paymee-provider.ts`) ; P1-D Stripe replay window (`STRIPE_SIGNATURE_MAX_AGE_SECONDS=300` injectable). Tests : 13/13 intégration Postgres réel (`reservation-webhook-core.test.ts` inclut P0-A et P0-B) ; 9/9 unitaires (`webhook-security.test.ts`) ; 4/4 unitaires (`signing.test.ts`). Régression corrigée : fixture `psp: "virtual"` → `psp: "sps"`. CI : `financial-e2e` étendu pour exécuter `reservation-webhook-core.test.ts` et `paymee-reservation-webhook.test.ts` (précédemment silencieusement skippés).
 
 ### PR-BATCH-04 — WHITE-LABEL-ADMIN-01, WHITE-LABEL-PRO-01, COMMISSION-WIRING-02, CARS-COMMISSION-01 — CLÔTURÉ (PR #126 + #155)
 
@@ -2449,6 +2451,7 @@ Objectif : compléter le câblage `economic_entitlements` sur le seul module enc
 Audit préalable : vérification exhaustive des 9 call sites vers `recordReservationFinancials()` — 8/9 avaient déjà `economicEntitlements` câblé (ECON-WIRING-01). Seul `guest-booking-actions.ts` (transfert guest) était absent. Le rapport initial d'un sous-agent indiquant "8/9 manquants" était erroné (analyse statique incomplète des clés d'objet sur plusieurs lignes).
 
 Correction appliquée (`lib/transfers/guest-booking-actions.ts`) :
+
 - `supplierPriceTnd` corrigé de `totalTnd` (prix de vente) à `pricing.basePriceTnd + pricing.nightSurchargeAmount` (coût réel catalogue propre)
 - Ajout de 2 lignes `economicEntitlements` : `product_owner/supplier_cost` + `seller/seller_margin` (même pattern que le module B2B `lib/transfers/actions.ts`)
 - Aucun changement au calcul de prix ni au wallet/ledger/settlement
@@ -2896,20 +2899,20 @@ PREUVE VISUELLE: screenshot Playwright — login redirect confirmé
 
 ### Bilan par item
 
-| Item | Statut | Preuve |
-|---|---|---|
-| White Label branding | **DONE** | WHITE-LABEL-PRO-01/ADMIN-01, `agencies.brandName/primaryColor/logoUrl` |
-| White Label domaine | **DONE** | `proxy.ts` (Phase 13.2), migration 0023, `lib/tenant/` |
-| White Label catalogue (modules) | **DONE** | `publicModuleVisuals` per-agency via `getDefaultAgencyId()` |
-| CRM pipeline (Kanban 4 cols) | **DONE** | `components/admin/lead-pipeline.tsx` + `leads-view-tabs.tsx` |
-| CRM relances (alertes staff) | **DONE** | `lib/crm/lead-relance-core.ts` |
-| CRM historique client | **DONE** | `lib/crm/contact-history-core.ts` |
-| CRM campaigns | **DONE** | CAMPAIGN-ENGINE-01 → CAMPAIGN-DELIVERY-STATS-01 (PRs #162→#166) |
-| Ledger integrity economic_entitlements | **DONE** | migration 0092 (ECON-ENTITLEMENTS-INTEGRITY-01, REVOKE UPDATE/DELETE/TRUNCATE) |
-| Intelligence (recommandation, IA) | **N/A** | Explicitement "❌ Ne pas toucher maintenant" (ROADMAP l.1051) — nécessite données fiables |
-| Achat inter-tenant | **N/A** | Aucun cas d'usage défini, aucune fondation ; complexité architecturale très élevée |
-| Distribution entités DB | **BLOQUÉ** | Bloqué sur décision D-01b (taux commercial, Direction) ; fondation types `DistributionChannel` + `commercial_agreements` table existent |
-| White Label fournisseurs propres | **DEFERRED** | Aucun besoin immédiat ; les suppliers actuels (Mygo, Duffel, hotels-monde) sont globaux |
+| Item                                   | Statut       | Preuve                                                                                                                                  |
+| -------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| White Label branding                   | **DONE**     | WHITE-LABEL-PRO-01/ADMIN-01, `agencies.brandName/primaryColor/logoUrl`                                                                  |
+| White Label domaine                    | **DONE**     | `proxy.ts` (Phase 13.2), migration 0023, `lib/tenant/`                                                                                  |
+| White Label catalogue (modules)        | **DONE**     | `publicModuleVisuals` per-agency via `getDefaultAgencyId()`                                                                             |
+| CRM pipeline (Kanban 4 cols)           | **DONE**     | `components/admin/lead-pipeline.tsx` + `leads-view-tabs.tsx`                                                                            |
+| CRM relances (alertes staff)           | **DONE**     | `lib/crm/lead-relance-core.ts`                                                                                                          |
+| CRM historique client                  | **DONE**     | `lib/crm/contact-history-core.ts`                                                                                                       |
+| CRM campaigns                          | **DONE**     | CAMPAIGN-ENGINE-01 → CAMPAIGN-DELIVERY-STATS-01 (PRs #162→#166)                                                                         |
+| Ledger integrity economic_entitlements | **DONE**     | migration 0092 (ECON-ENTITLEMENTS-INTEGRITY-01, REVOKE UPDATE/DELETE/TRUNCATE)                                                          |
+| Intelligence (recommandation, IA)      | **N/A**      | Explicitement "❌ Ne pas toucher maintenant" (ROADMAP l.1051) — nécessite données fiables                                               |
+| Achat inter-tenant                     | **N/A**      | Aucun cas d'usage défini, aucune fondation ; complexité architecturale très élevée                                                      |
+| Distribution entités DB                | **BLOQUÉ**   | Bloqué sur décision D-01b (taux commercial, Direction) ; fondation types `DistributionChannel` + `commercial_agreements` table existent |
+| White Label fournisseurs propres       | **DEFERRED** | Aucun besoin immédiat ; les suppliers actuels (Mygo, Duffel, hotels-monde) sont globaux                                                 |
 
 ### Prochains chantiers possibles (sur GO séparé, quand débloqués)
 

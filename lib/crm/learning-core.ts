@@ -72,8 +72,8 @@ export interface LearningStats {
 /* -------------------------------------------------------------------------- */
 
 const VIP_BUCKETS: { bucket: VipBucket; label: string; minScore: number }[] = [
-  { bucket: "vip_pp", label: "VIP++" , minScore: 80 },
-  { bucket: "vip_p",  label: "VIP+"  , minScore: 50 },
+  { bucket: "vip_pp", label: "VIP++", minScore: 80 },
+  { bucket: "vip_p", label: "VIP+", minScore: 50 },
   { bucket: "pipeline", label: "Pipeline", minScore: 25 },
   { bucket: "faible", label: "Faible", minScore: 0 },
 ]
@@ -108,18 +108,20 @@ export function buildLearningCore(
     totalLeads === 0 ? 0 : Math.round((convertedLeads / totalLeads) * 100)
 
   /* ── Buckets ──────────────────────────────────────────────────────── */
-  const byBucket: BucketStats[] = VIP_BUCKETS.map(({ bucket, label, minScore }) => {
-    const group = leads.filter((l) => deriveBucket(l.vipScore) === bucket)
-    const conv = group.filter((l) => l.status === "converted").length
-    return {
-      bucket,
-      label,
-      minScore,
-      total: group.length,
-      converted: conv,
-      rate: group.length === 0 ? 0 : Math.round((conv / group.length) * 100),
-    }
-  })
+  const byBucket: BucketStats[] = VIP_BUCKETS.map(
+    ({ bucket, label, minScore }) => {
+      const group = leads.filter((l) => deriveBucket(l.vipScore) === bucket)
+      const conv = group.filter((l) => l.status === "converted").length
+      return {
+        bucket,
+        label,
+        minScore,
+        total: group.length,
+        converted: conv,
+        rate: group.length === 0 ? 0 : Math.round((conv / group.length) * 100),
+      }
+    },
+  )
 
   /* ── Destinations ─────────────────────────────────────────────────── */
   const destMap = new Map<string, { total: number; converted: number }>()

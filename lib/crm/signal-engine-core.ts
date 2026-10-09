@@ -109,7 +109,10 @@ export function buildSignalEngineCore(
   const signalIndex = new Map<string, RadarSignal>()
   for (const rs of radarSignals) {
     if (!POSITIVE_TRENDS.includes(rs.trend)) continue
-    if (rs.dimensionType !== "destination" && rs.dimensionType !== "productType")
+    if (
+      rs.dimensionType !== "destination" &&
+      rs.dimensionType !== "productType"
+    )
       continue
     signalIndex.set(`${rs.dimensionType}:${rs.dimension}`, rs)
   }
@@ -136,7 +139,12 @@ export function buildSignalEngineCore(
           signalStrength: rs.signalStrength,
           growthRate: rs.growthRate,
           combinedScore: vip.vipScore + rs.signalStrength,
-          insight: insightLine(vip, `Destination ${vip.destination}`, rs.trend, rs.growthRate),
+          insight: insightLine(
+            vip,
+            `Destination ${vip.destination}`,
+            rs.trend,
+            rs.growthRate,
+          ),
         })
       }
     }

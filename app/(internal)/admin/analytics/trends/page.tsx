@@ -54,7 +54,8 @@ const PRODUCT_LABEL: Record<string, string> = {
 }
 
 function growthBadge(rate: string) {
-  if (rate === "N/A" || rate === "+∞") return <Badge variant="outline">{rate}</Badge>
+  if (rate === "N/A" || rate === "+∞")
+    return <Badge variant="outline">{rate}</Badge>
   const n = parseFloat(rate)
   if (n > 0) return <Badge variant="default">{rate}</Badge>
   if (n < 0) return <Badge variant="destructive">{rate}</Badge>
@@ -111,8 +112,8 @@ export default function TrendsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Tendances</h1>
           <p className="text-muted-foreground text-sm">
-            Comparaison période courante vs période précédente de même durée.
-            CA et marge lus depuis{" "}
+            Comparaison période courante vs période précédente de même durée. CA
+            et marge lus depuis{" "}
             <code className="text-xs">reservation_financials</code>.
           </p>
         </div>
@@ -160,7 +161,9 @@ export default function TrendsPage() {
                     <TableHead className="text-right">CA précédent</TableHead>
                     <TableHead className="text-right">Croiss. CA</TableHead>
                     <TableHead className="text-right">Marge courante</TableHead>
-                    <TableHead className="text-right">Marge précédente</TableHead>
+                    <TableHead className="text-right">
+                      Marge précédente
+                    </TableHead>
                     <TableHead className="text-right">Croiss. marge</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -173,7 +176,7 @@ export default function TrendsPage() {
                       <TableCell className="text-right tabular-nums">
                         {fmtTnd(r.currentCa)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-right tabular-nums">
                         {fmtTnd(r.prevCa)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -182,7 +185,7 @@ export default function TrendsPage() {
                       <TableCell className="text-right tabular-nums">
                         {fmtTnd(r.currentMargin)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-right tabular-nums">
                         {fmtTnd(r.prevMargin)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -216,7 +219,9 @@ export default function TrendsPage() {
                   <TableRow>
                     <TableHead>Canal</TableHead>
                     <TableHead className="text-right">Leads courants</TableHead>
-                    <TableHead className="text-right">Leads précédents</TableHead>
+                    <TableHead className="text-right">
+                      Leads précédents
+                    </TableHead>
                     <TableHead className="text-right">Croissance</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -226,10 +231,10 @@ export default function TrendsPage() {
                       <TableCell>
                         {CHANNEL_LABEL[r.dimension] ?? r.dimension}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">
+                      <TableCell className="text-right font-medium tabular-nums">
                         {r.currentLeads}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-right tabular-nums">
                         {r.prevLeads}
                       </TableCell>
                       <TableCell className="text-right">
@@ -263,7 +268,9 @@ export default function TrendsPage() {
                   <TableRow>
                     <TableHead>Produit</TableHead>
                     <TableHead className="text-right">Leads courants</TableHead>
-                    <TableHead className="text-right">Leads précédents</TableHead>
+                    <TableHead className="text-right">
+                      Leads précédents
+                    </TableHead>
                     <TableHead className="text-right">Croissance</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -273,10 +280,10 @@ export default function TrendsPage() {
                       <TableCell>
                         {PRODUCT_LABEL[r.dimension] ?? r.dimension}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">
+                      <TableCell className="text-right font-medium tabular-nums">
                         {r.currentLeads}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-right tabular-nums">
                         {r.prevLeads}
                       </TableCell>
                       <TableCell className="text-right">

@@ -114,7 +114,13 @@ describe("LEARNING-01 / learning-core", () => {
 
   it("vipScore >= 80 → bucket vip_pp", async () => {
     const { buildLearningCore } = await import("../../crm/learning-core.js")
-    const stats = buildLearningCore([mkLead("1", 80, "converted", "hotel", "Tunis", 5, 2), mkLead("2", 90, "new")], 4)
+    const stats = buildLearningCore(
+      [
+        mkLead("1", 80, "converted", "hotel", "Tunis", 5, 2),
+        mkLead("2", 90, "new"),
+      ],
+      4,
+    )
     const bucket = stats.byBucket.find((b) => b.bucket === "vip_pp")!
     assert.equal(bucket.total, 2)
     assert.equal(bucket.converted, 1)
@@ -123,7 +129,10 @@ describe("LEARNING-01 / learning-core", () => {
 
   it("vipScore 50-79 → bucket vip_p", async () => {
     const { buildLearningCore } = await import("../../crm/learning-core.js")
-    const stats = buildLearningCore([mkLead("1", 65, "converted", "hotel", "Tunis", 5, 2)], 4)
+    const stats = buildLearningCore(
+      [mkLead("1", 65, "converted", "hotel", "Tunis", 5, 2)],
+      4,
+    )
     const bucket = stats.byBucket.find((b) => b.bucket === "vip_p")!
     assert.equal(bucket.total, 1)
     assert.equal(bucket.converted, 1)
@@ -159,7 +168,9 @@ describe("LEARNING-01 / learning-core", () => {
     assert.equal(tunis.total, 2)
     assert.equal(tunis.converted, 1)
     assert.equal(tunis.rate, 50)
-    const marrakech = stats.byDestination.find((d) => d.dimension === "Marrakech")!
+    const marrakech = stats.byDestination.find(
+      (d) => d.dimension === "Marrakech",
+    )!
     assert.equal(marrakech.total, 1)
     assert.equal(marrakech.converted, 1)
     assert.equal(marrakech.rate, 100)
@@ -167,9 +178,7 @@ describe("LEARNING-01 / learning-core", () => {
 
   it("leads with null destination are excluded from byDestination", async () => {
     const { buildLearningCore } = await import("../../crm/learning-core.js")
-    const leads = [
-      mkLead("1", 60, "converted", "omra", null, 5, 2),
-    ]
+    const leads = [mkLead("1", 60, "converted", "omra", null, 5, 2)]
     const stats = buildLearningCore(leads, 4)
     assert.equal(stats.byDestination.length, 0)
   })
@@ -267,14 +276,20 @@ describe("LEARNING-01 / page & navigation", () => {
   it("learning page file exists", async () => {
     const fs = await import("node:fs/promises")
     await fs.access(
-      resolve(process.cwd(), "app/(internal)/admin/analytics/learning/page.tsx"),
+      resolve(
+        process.cwd(),
+        "app/(internal)/admin/analytics/learning/page.tsx",
+      ),
     )
   })
 
   it("learning page imports getLearning", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      resolve(process.cwd(), "app/(internal)/admin/analytics/learning/page.tsx"),
+      resolve(
+        process.cwd(),
+        "app/(internal)/admin/analytics/learning/page.tsx",
+      ),
       "utf-8",
     )
     assert.ok(content.includes("getLearning"))
@@ -284,7 +299,10 @@ describe("LEARNING-01 / page & navigation", () => {
   it("learning page renders byBucket and topConverted", async () => {
     const fs = await import("node:fs/promises")
     const content = await fs.readFile(
-      resolve(process.cwd(), "app/(internal)/admin/analytics/learning/page.tsx"),
+      resolve(
+        process.cwd(),
+        "app/(internal)/admin/analytics/learning/page.tsx",
+      ),
       "utf-8",
     )
     assert.ok(content.includes("byBucket"))

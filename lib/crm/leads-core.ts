@@ -495,6 +495,8 @@ export async function fetchLeadsByIdsCore(
   const rows = await tx
     .select({ id: leads.id, email: leads.email, phone: leads.phone })
     .from(leads)
-    .where(and(eq(leads.agencyId, params.agencyId), inArray(leads.id, params.ids)))
+    .where(
+      and(eq(leads.agencyId, params.agencyId), inArray(leads.id, params.ids)),
+    )
   return rows
 }

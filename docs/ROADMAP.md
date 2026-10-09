@@ -63,12 +63,12 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Aucun** — CAMPAIGN-LINK-01 CLÔTURÉ (2026-10-08) — `?campaign=<uuid>` câblé dans les 8 tunnels de réservation (UI → serveur).
 **Aucun** — CAMPAIGN-DELIVERY-01 CLÔTURÉ (2026-10-08, PRs #162+#163) — Inngest `deliverCampaign` + `deliverCampaignCore` + migration 0125 (`delivery_status`/`delivered_at`) + live consent RGPD art.7.
 **Aucun** — CAMPAIGN-DELIVERY-STATS-01 CLÔTURÉ (2026-10-08, PR #164, merge `2aba257`) — `getCampaignPerformanceCore` étendu : `sent`/`failed`/`skipped`/`pending`/`totalTargets` via SQL COUNT(CASE WHEN); page `/admin/analytics/campaigns` affiche 4 colonnes livraison; 4 tests comportementaux vitest.
-**Aucun** — CAMPAIGN-MGMT-01 CLÔTURÉ (2026-10-08, PR #166, merge `17536e5`) — `cancelCampaignCore` (CAMPAIGN_ALREADY_TERMINAL guard); `CampaignTargetRow` étendu (`deliveryStatus`/`deliveredAt`); Server Actions `cancelCampaign` + `getCampaignTargets`; page `/admin/analytics/campaigns` : bouton Annuler (active/draft) + panel `CampaignTargetsPanel` drill-down; 9 invariants statiques node:test.
+**Aucun** — CAMPAIGN-MGMT-01 CLÔTURÉ (2026-10-08, PR #166, merge `17536e5`) — `cancelCampaignCore` (CAMPAIGN*ALREADY_TERMINAL guard); `CampaignTargetRow` étendu (`deliveryStatus`/`deliveredAt`); Server Actions `cancelCampaign` + `getCampaignTargets`; page `/admin/analytics/campaigns` : bouton Annuler (active/draft) + panel `CampaignTargetsPanel` drill-down; 9 invariants statiques node:test.
 **Aucun** — ANALYTICS-OVERVIEW-01 CLÔTURÉ (2026-10-08, commit `8b17682`) — page d'accueil `/admin/analytics` (manquante = 404) ; grille 12 cards de navigation Server Component ; 15/15 invariants statiques node:test.
 **Aucun** — TEST-COMPAT-01 CLÔTURÉ (2026-10-08, commit `ef91c3f`) — 3 fichiers de tests CRM (campaign-link-ui, campaign-delivery-core, campaign-performance-core) convertis de vitest → node:test/assert ; `vi.fn()`/`vi.spyOn()` remplacés par fonctions simples ; `sendCampaignEmail` non-mockable (getter ESM non-configurable) documenté et test happy-path marqué `test.skip` ; résultat 17 pass / 1 skip / 0 fail ; suite globale passe de 5 fail à 1 fail (G15 = flaky timing préexistant).
 **Aucun** — CI-FIX-03 CLÔTURÉ (2026-10-08, commit `7390d92`) — Cause racine NO_FCP confirmée : `e2b-fade-in-up` (opacity:0→1, fill-mode:both) sur le wrapper principal de `/login` — Chrome Lighthouse headless n'enregistre pas les éléments à opacity:0 comme FCP source. Correctifs : (1) retrait de `e2b-fade-in-up` sur le wrapper `.max-w-md` du login (cosmétique, aucun impact fonctionnel) ; (2) `lighthouserc.js` : `/` → `/fr` (page publique réelle, `/` redirige via next-intl), `/admin` retiré (redirige vers /login sans auth en CI). `continue-on-error: true` conservé sur le job lighthouse jusqu'à confirmation d'une run verte sur CI réelle. PRICING-PROMO-LINK-01 network : N/A — flux B2B partner-debit, aucun campaign link ne circule dans ce module.
 **Aucun** — AUDIENCE-DEDUP-01 CLÔTURÉ (2026-10-08) — `filterAudienceByConsentCore` (campaign-core.ts) : pré-groupement des leads par rawRef avant `resolveOrCreateContactCore` — O(N leads) → O(N refs uniques). Correctness inchangée (déduplication par contactId Map conservée). 4 nouveaux tests node:test (campaign-core.test.ts) ; 12/12 pass, 0 fail.
-**Aucun** — LINT-CLEANUP-01 CLÔTURÉ (2026-10-09, commit `cd01b8e`) — 138 avertissements ESLint préexistants éliminés : `eslint.config.mjs` + argsIgnorePattern/varsIgnorePattern "^_", ~45 imports morts supprimés, directives eslint-disable obsolètes retirées, `react-hooks/incompatible-library` correctement placé sur form.watch() dans car/transfer/world-hotel/data-table. Résultat : `pnpm lint` → 0 warnings 0 errors ; `pnpm typecheck` → 0 erreurs. 49 fichiers modifiés.
+**Aucun** — LINT-CLEANUP-01 CLÔTURÉ (2026-10-09, commit `cd01b8e`) — 138 avertissements ESLint préexistants éliminés : `eslint.config.mjs` + argsIgnorePattern/varsIgnorePattern "^*", ~45 imports morts supprimés, directives eslint-disable obsolètes retirées, `react-hooks/incompatible-library` correctement placé sur form.watch() dans car/transfer/world-hotel/data-table. Résultat : `pnpm lint` → 0 warnings 0 errors ; `pnpm typecheck` → 0 erreurs. 49 fichiers modifiés.
 **Aucun** — BUILD-VERIFY-01 CLÔTURÉ (2026-10-09, commit `333939e`) — `pnpm build` exit 0 sans MISSING_MESSAGE. Correction : 8 clés namespace `Compte` ajoutées à `messages/en.json` et `messages/ar.json` (inscriptionPageTitle, inscriptionPageSubtitle, emailHintSignup, createAccountButton, alreadyAccountPrefix, loginLink, createAccountPrefix, createAccountLink). Build vérifié propre : 0 erreurs, 0 warnings.
 **Aucun** — PROMO-PRICING-COVERAGE-01 CLÔTURÉ (2026-10-07, PR #156, merge `6965d233`).
 **Aucun** — REVENUE-CONSOLIDATE-01 CLÔTURÉ (2026-10-07, PR #157, merge `a0f91877`).
@@ -289,6 +289,7 @@ Stratégie : 200 leads récents → score séquentiel → tri score.total desc �
 **Commit** : `ce2d2f8`
 
 **Fichiers créés/modifiés** :
+
 - `lib/admin/radar-vip-actions.ts` — Server Action `getRadarVip()` (CRÉÉ)
   - `VipRadarRow` : leadId, firstName, lastName, email, phone, productType, channel, destination, status, score
   - `listLeadsCore` (200 max) → `getLeadScoreRuleMapCore` → `getVipScoreForLeadCore` séquentiel → top 50
@@ -336,6 +337,7 @@ Orchestre `getTimeSeriesCore` → `buildRadarMetierCore` pour 4 dimensions (modu
 **Commit** : `30f7760`
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/radar-metier-core.ts` — `buildRadarMetierCore(rows)` pure (CRÉÉ)
   - `SignalTrend` : forte_hausse / hausse / stable / baisse / forte_baisse / nouveau
   - `signalStrength = currentVolume × (1 + growthFactor)` — clampé [-1, +2]
@@ -382,13 +384,14 @@ ACTION ENGINE      🟢 v1 — recommandations structurées → "Quoi faire ?"
 LEARNING           🟢 v1 — feedback loop conversion VIP → "Est-ce que ça a marché ?"
 ```
 
-**Radar Métier** répond : *Destination X +42% demandes +28% CA +35% marge → opportunité commerciale.*
-**Radar VIP v1** répond : *Lead Y score 87, engagement ×3, récence forte → opportunité relationnelle.*
-**Radar VIP v2** (RADAR-VIP-02) répondra : *PARTENAIRE Z — hôtel + Omra + vol + visa — score consolidé → acteur stratégique.*
+**Radar Métier** répond : _Destination X +42% demandes +28% CA +35% marge → opportunité commerciale._
+**Radar VIP v1** répond : _Lead Y score 87, engagement ×3, récence forte → opportunité relationnelle._
+**Radar VIP v2** (RADAR-VIP-02) répondra : _PARTENAIRE Z — hôtel + Omra + vol + visa — score consolidé → acteur stratégique._
 
 **RADAR-VIP-02 — CLÔTURÉ (2026-10-08)**
 
 Déduplication contactuelle best-effort email-first :
+
 - `contactKey(email, phone, leadId)` : regroupe les leads partageant le même email normalisé,
   sinon le même phone normalisé (chiffres uniquement), sinon traite le lead isolément.
 - Dans un groupe : le lead au score le plus élevé est le représentant.
@@ -405,6 +408,7 @@ fusionnés que si l'un d'eux n'a pas d'email. Fusion exacte via CONTACT-01 : RAD
 
 Remplacement de la déduplication best-effort (RADAR-VIP-02 `contactKey()`) par la
 résolution exacte CONTACT-01 :
+
 - `findExistingContactIdForLeadCore` exportée depuis `lib/crm/vip-score-core.ts` (lecture seule).
 - Résolution séquentielle post-scoring : pour chaque lead scoré, lookup du contactId réel.
 - Groupement par `contactId` (ou `lead:<leadId>` pour les leads sans contact persisté).
@@ -412,6 +416,7 @@ résolution exacte CONTACT-01 :
 - Tests : 10/10 ✅ (3 RADAR-VIP-01 + 7 RADAR-VIP-02/03) · typecheck ✅ · lint ✅
 
 État du Radar VIP :
+
 ```
 RADAR-VIP-01  🟢  score par lead
 RADAR-VIP-02  🟢  dedup best-effort email-first
@@ -426,6 +431,7 @@ LEARNING      🟢  feedback loop conversion VIP (commit 3b25026)
 Convergence Radar Métier × Radar VIP — "Ce contact VIP est dans un marché en mouvement" = signal actionnable.
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/signal-engine-core.ts` — `buildSignalEngineCore(vipRows, radarSignals)` pure (CRÉÉ)
   - `VipInput` : interface minimale découplée de VipRadarRow (évite cross-import "use server")
   - Deux types : `vip_x_destination`, `vip_x_product`
@@ -436,8 +442,8 @@ Convergence Radar Métier × Radar VIP — "Ce contact VIP est dans un marché e
   - `SIGNAL_ENGINE_MAX_ROWS = 30`, tri par combinedScore desc, dédup par signalId
 - `lib/admin/signal-engine-actions.ts` — `getSignalEngine(windowWeeks: 4|8|12)` Server Action (CRÉÉ)
   - Orchestre : `getTimeSeriesCore` → `buildRadarMetierCore` (signaux marché)
-    + `listLeadsCore` → score séquentiel + `findExistingContactIdForLeadCore` → dédup contactuelle
-    + `buildSignalEngineCore` (convergence)
+    - `listLeadsCore` → score séquentiel + `findExistingContactIdForLeadCore` → dédup contactuelle
+    - `buildSignalEngineCore` (convergence)
   - Même dédup CONTACT-01 que RADAR-VIP-03 (réimplémentée directement, sans appel à Server Action)
 - `app/(internal)/admin/analytics/signal/page.tsx` — UI Signal Engine (CRÉÉ)
   - Sélecteur fenêtre 4/8/12 semaines
@@ -462,6 +468,7 @@ seulement traduire un signal en texte. Il doit produire une recommandation struc
 explicable et exécutable par un humain ou Campaign Engine."
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/action-engine-core.ts` — `buildActionEngineCore(signals)` pure (CRÉÉ)
   - `CampaignHints` : payload JSON sérialisable consommable par Campaign Engine —
     offerDimension, offerDimensionType, suggestedActionType, channel, urgencyHours,
@@ -492,6 +499,7 @@ explicable et exécutable par un humain ou Campaign Engine."
 Feedback loop : score VIP × conversion (status="converted") sur fenêtre temporelle (4/8/12 sem).
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/learning-core.ts` — `buildLearningCore(leads, windowWeeks)` pure (CRÉÉ)
   - segmentation VIP++ (≥80) / VIP+ (≥50) / Pipeline (≥25) / Faible
   - taux de conversion par bucket, destination, produit
@@ -511,6 +519,7 @@ Feedback loop : score VIP × conversion (status="converted") sur fenêtre tempor
 **Tests** : 25/25 ✅ · typecheck 0 erreur ✅
 
 **Programme Radar complet** :
+
 - RADAR MÉTIER 🟢 → RADAR VIP 🟢 v3 → SIGNAL ENGINE 🟢 → ACTION ENGINE 🟢 → CAMPAIGN ENGINE 🟢 → LEARNING 🟢
 
 ---
@@ -525,6 +534,7 @@ déduplique les leadIds, mappe ActionChannel → CrmChannel, génère
 nom/objectif/message par canal. READ-ONLY : ne crée pas de campagnes.
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/campaign-engine-core.ts` — `buildCampaignEngineCore(actions)` pure (CRÉÉ)
   - `CampaignProposal` : proposalId, channel, crmChannel, dimension, leadIds,
     priority, topCombinedScore, urgencyHours, suggestedName/Objective/Message,
@@ -550,6 +560,7 @@ Audit complet (PROPOSAL→CREATE→TARGET→LAUNCH→ATTRIBUTION→RESERVATION�
 7 stages sur 8 existaient déjà. Seul manquait l'action serveur atomique Proposal → createCampaignCore → launchCampaignCore.
 
 **Audit état pré-chantier** :
+
 - PROPOSAL ✅ campaign-engine-core + getCampaignEngine + page (CAMPAIGN-ENGINE-01)
 - CREATE core ✅ createCampaignCore (campaign-persistence-core) — pas de server action depuis proposal
 - TARGET+LAUNCH core ✅ launchCampaignCore — même situation
@@ -559,6 +570,7 @@ Audit complet (PROPOSAL→CREATE→TARGET→LAUNCH→ATTRIBUTION→RESERVATION�
 - LEARNING ✅ buildLearningCore + learning-actions + /admin/analytics/learning
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/leads-core.ts` — + `fetchLeadsByIdsCore(tx, { agencyId, ids })` (ÉTENDU)
   - Restitution id/email/phone par liste d'IDs — scope minimal, IDs hors agence ignorés
 - `lib/admin/campaign-lifecycle-actions.ts` — `createAndLaunchCampaign(params)` server action (CRÉÉ)
@@ -571,6 +583,7 @@ Audit complet (PROPOSAL→CREATE→TARGET→LAUNCH→ATTRIBUTION→RESERVATION�
   - Bouton dans chaque ligne détail expanded, stopPropagation pour ne pas réduire la ligne
 
 **Tests** : 8/8 ✅ · typecheck 0 erreur ✅
+
 - fetchLeadsByIdsCore exportée
 - selectAttributionCandidateCore : null, unique, snapshot récent gagne, tie-breaker, trois candidats
 - createAndLaunchCampaign exportée
@@ -586,6 +599,7 @@ Répond à "Qu'est-ce qui change ?" : compare fenêtre courante vs fenêtre pré
 **Commit** : `ae82ea8`
 
 **Fichiers créés/modifiés** :
+
 - `lib/crm/time-series-core.ts` — `getTimeSeriesCore(tx, {agencyId, windowWeeks})` (CRÉÉ)
   - Flux CA/marge : `reservationFinancials JOIN reservations.createdAt` par module
   - Flux leads : `leads.createdAt` par channel et par productType
@@ -610,6 +624,7 @@ CA et marge lus depuis `reservationFinancials` via jointure (FINANCIAL est l'uni
 **Commit** : `47db482`
 
 **Fichiers créés/modifiés** :
+
 - `lib/admin/conversion-funnel-actions.ts` — Server Action `getConversionFunnel()` (CRÉÉ)
 - `app/(internal)/admin/analytics/conversion/page.tsx` — page funnel + 4 tuiles KPI (CRÉÉ)
 - `components/admin-shell.tsx` — 5e sous-item "Conversion" dans analyticsNavItems (ÉTENDU)
@@ -631,6 +646,7 @@ aucune interface admin ne le consommait.
 **Commit** : `c6cea0a`
 
 **Fichiers créés/modifiés** :
+
 - `lib/admin/campaign-performance-actions.ts` — Server Action `listCampaignPerformance()` (CRÉÉ)
 - `app/(internal)/admin/analytics/campaigns/page.tsx` — page analytics Campagnes (CRÉÉ)
 - `components/admin-shell.tsx` — 4e sous-item "Campagnes" dans analyticsNavItems (ÉTENDU)
@@ -654,20 +670,20 @@ Audit réalisé sur HEAD `a0b70ed`.
 
 **6 preuves — 6/6 CONFIRMED, aucun GAP :**
 
-| Proof | Domaine | Résultat |
-|-------|---------|----------|
-| P1 | Schema & contraintes DB | CONFIRMED |
-| P2 | Grants `app_runtime` (append-only mappings) | CONFIRMED |
-| P3 | RLS (FORCE, `anon`/`authenticated` révoqués) | CONFIRMED |
-| P4 | Politique de persistance (EXACT only, best-effort) | CONFIRMED |
-| P5 | Tests live (E1/E2/E3/E4) | CONFIRMED |
-| P6 | Caller integration (`search-hub` non-bloquant) | CONFIRMED |
+| Proof | Domaine                                            | Résultat  |
+| ----- | -------------------------------------------------- | --------- |
+| P1    | Schema & contraintes DB                            | CONFIRMED |
+| P2    | Grants `app_runtime` (append-only mappings)        | CONFIRMED |
+| P3    | RLS (FORCE, `anon`/`authenticated` révoqués)       | CONFIRMED |
+| P4    | Politique de persistance (EXACT only, best-effort) | CONFIRMED |
+| P5    | Tests live (E1/E2/E3/E4)                           | CONFIRMED |
+| P6    | Caller integration (`search-hub` non-bloquant)     | CONFIRMED |
 
 **Détail :**
 
 - **P1 — Schema** (`lib/db/schema/canonical-hotels.ts`) : deux tables uniquement (identité +
   provenance), aucun FK agency/tenant (domaine système cross-tenant), UNIQUE sur `(supplier,
-  supplierHotelCode)` — double-mapping impossible.
+supplierHotelCode)` — double-mapping impossible.
 - **P2 — Grants** (migration 0109) : `app_runtime` a `SELECT/INSERT/UPDATE` sur
   `canonical_hotels` ; `SELECT/INSERT` uniquement sur `canonical_hotel_supplier_mappings` —
   `UPDATE/DELETE` explicitement révoqués. Mappings append-only au niveau grant Postgres.
@@ -700,14 +716,15 @@ sur 30 jours, triées par volume décroissant.
 
 **Implémentation** :
 
-| Fichier | Action | Détail |
-|---------|--------|--------|
-| `lib/crm/search-demand-core.ts` | EXTEND | `SearchDemandRow` type + `getSearchDemandSummaryCore()` (30j, GROUP BY, ORDER BY volume DESC, LIMIT 50, filtre `agencyId` défensif en plus RLS) |
-| `lib/admin/search-demand-actions.ts` | CREATE | Server Action `listSearchDemandSignals()` — `assertSupportStaff` (super_admin/manager/agent_resa + agencyType=ota) |
-| `app/(internal)/admin/analytics/search-demand/page.tsx` | CREATE | Page read-only, pattern useEffect identique à `/admin/analytics/niches` |
-| `lib/admin/__tests__/search-demand-actions-live.test.ts` | CREATE | 3 tests live Postgres : agrégation+tri, isolation cross-agency, filtre 30j |
+| Fichier                                                  | Action | Détail                                                                                                                                          |
+| -------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/crm/search-demand-core.ts`                          | EXTEND | `SearchDemandRow` type + `getSearchDemandSummaryCore()` (30j, GROUP BY, ORDER BY volume DESC, LIMIT 50, filtre `agencyId` défensif en plus RLS) |
+| `lib/admin/search-demand-actions.ts`                     | CREATE | Server Action `listSearchDemandSignals()` — `assertSupportStaff` (super_admin/manager/agent_resa + agencyType=ota)                              |
+| `app/(internal)/admin/analytics/search-demand/page.tsx`  | CREATE | Page read-only, pattern useEffect identique à `/admin/analytics/niches`                                                                         |
+| `lib/admin/__tests__/search-demand-actions-live.test.ts` | CREATE | 3 tests live Postgres : agrégation+tri, isolation cross-agency, filtre 30j                                                                      |
 
 **Vérifications** :
+
 - `pnpm typecheck` → 0 erreurs ✅
 - `pnpm lint` → 0 erreurs ✅
 - `pnpm test` → 1563 pass / 0 fail / 353 skip ✅
@@ -728,12 +745,13 @@ inaccessibles sans URL directe.
 
 **Implémentation** :
 
-| Fichier | Action | Détail |
-|---------|--------|--------|
-| `components/admin-shell.tsx` | EXTEND | Ajout `analyticsNavItems` (Analytique → Marges / Niches CRM / Demande hôtel) ; visible super_admin + manager + agent_resa ; labels breadcrumb analytics/margins/niches/search-demand |
-| `lib/admin/__tests__/admin-shell-analytics-nav.test.ts` | CREATE | 3 tests invariants statiques : présence des trois hrefs dans admin-shell.tsx |
+| Fichier                                                 | Action | Détail                                                                                                                                                                               |
+| ------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `components/admin-shell.tsx`                            | EXTEND | Ajout `analyticsNavItems` (Analytique → Marges / Niches CRM / Demande hôtel) ; visible super_admin + manager + agent_resa ; labels breadcrumb analytics/margins/niches/search-demand |
+| `lib/admin/__tests__/admin-shell-analytics-nav.test.ts` | CREATE | 3 tests invariants statiques : présence des trois hrefs dans admin-shell.tsx                                                                                                         |
 
 **Vérifications** :
+
 - `pnpm tsc --noEmit` → 0 erreurs ✅
 - `pnpm eslint` → 0 erreurs ✅
 - Tests invariants → 3/3 ✅
@@ -750,6 +768,7 @@ le câblage promo, la consolidation revenue, et la première UI niche sont effec
 le code source réel de `main`.
 
 **AXE 1 — PROMO-PRICING-COVERAGE-01 (PR #156)** :
+
 - `hotels-monde/guest-booking-actions.ts` : importe `resolveCheckoutPromoCore` +
   `applyPromoDiscountCore`, passe `supplierPriceTnd` (plancher PROMO-LOSS-POLICY-01) ✅
 - `activities/guest-booking-actions.ts` : câblé, pas de plancher (catalogue agence,
@@ -761,6 +780,7 @@ le code source réel de `main`.
 - Tests `promo-wiring-invariants.test.ts` : 8×2 couverture statique + 3 tests plancher = 35 assertions ✅
 
 **AXE 2 — REVENUE-CONSOLIDATE-01 (PR #157)** :
+
 - `sumRevenueMarginCore()` : primitive pure extraite dans `lib/reporting/margin-analytics-core.ts` ✅
 - `lib/crm/campaign-performance-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
 - `lib/crm/vip-score-core.ts` : migré de `.reduce()` vers `sumRevenueMarginCore` ✅
@@ -769,6 +789,7 @@ le code source réel de `main`.
 - Tests `margin-analytics-core-live.test.ts` : preuve live Postgres pour `getMarginKPIsCore` ✅
 
 **AXE 3 — NICHE-UI-01 (PR #158)** :
+
 - Page `/admin/analytics/niches/page.tsx` créée, `"use client"` ✅
 - Appel `listNicheSegments()` depuis `lib/admin/niche-actions.ts` ✅
 - Garde auth : `assertSupportStaff` (super_admin/manager/agent_resa + agencyType="ota") — convention identique à `/admin/analytics/margins` ✅
@@ -1254,6 +1275,7 @@ CAMPAIGN-MGMT-01). LEARNING-01 (feedback loop conversion VIP) CLÔTURÉ
 nécessaire à ce stade.
 
 **Prochains chantiers potentiels identifiés, NON exécutés** :
+
 - **FERRY / VISA** : futurs modules commerciaux annoncés, aucun audit
   d'intégration réalisé, aucun code, aucun stub.
 

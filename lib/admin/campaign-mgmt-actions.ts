@@ -88,7 +88,10 @@ export async function cancelCampaign(
       if (result.code === "CAMPAIGN_NOT_FOUND")
         return { ok: false, error: "Campagne introuvable." }
       if (result.code === "CAMPAIGN_ALREADY_TERMINAL")
-        return { ok: false, error: "Cette campagne est déjà terminée ou annulée." }
+        return {
+          ok: false,
+          error: "Cette campagne est déjà terminée ou annulée.",
+        }
     }
     return { ok: true }
   } catch (err) {
@@ -112,7 +115,8 @@ export async function getCampaignTargets(
   try {
     const targets = await withTenantContext(
       { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
-      (tx) => listCampaignTargetsCore(tx, { agencyId: ctx.agencyId, campaignId }),
+      (tx) =>
+        listCampaignTargetsCore(tx, { agencyId: ctx.agencyId, campaignId }),
     )
     return { ok: true, targets }
   } catch (err) {

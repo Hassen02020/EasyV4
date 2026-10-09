@@ -34,8 +34,7 @@ function makeTx(
     ch.from = () => ch
     ch.where = () => {
       queryCount++
-      if (queryCount === 1)
-        return { limit: () => (campaign ? [campaign] : []) }
+      if (queryCount === 1) return { limit: () => (campaign ? [campaign] : []) }
       if (queryCount === 2) return Promise.resolve(targets)
       if (queryCount === 3) return Promise.resolve(contacts)
       return {

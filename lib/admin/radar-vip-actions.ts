@@ -164,7 +164,11 @@ export async function getRadarVip(): Promise<GetRadarVipResult> {
           const key = row.contactId ?? `lead:${row.leadId}`
           const existing = groups.get(key)
           if (!existing) {
-            groups.set(key, { ...row, products: [row.productType], leadCount: 1 })
+            groups.set(key, {
+              ...row,
+              products: [row.productType],
+              leadCount: 1,
+            })
           } else {
             if (!existing.products.includes(row.productType)) {
               existing.products.push(row.productType)

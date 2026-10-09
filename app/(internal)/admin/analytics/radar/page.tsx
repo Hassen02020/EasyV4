@@ -68,7 +68,10 @@ function dimensionLabel(type: string, value: string): string {
 
 const TREND_CONFIG: Record<
   SignalTrend,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+  {
+    label: string
+    variant: "default" | "secondary" | "outline" | "destructive"
+  }
 > = {
   forte_hausse: { label: "↑↑ Forte hausse", variant: "default" },
   hausse: { label: "↑ Hausse", variant: "default" },
@@ -110,7 +113,10 @@ export default function RadarMetierPage() {
   // KPI rapides
   const topSignal = signals[0]
   const enHausse = signals.filter(
-    (s) => s.trend === "forte_hausse" || s.trend === "hausse" || s.trend === "nouveau",
+    (s) =>
+      s.trend === "forte_hausse" ||
+      s.trend === "hausse" ||
+      s.trend === "nouveau",
   ).length
   const enBaisse = signals.filter(
     (s) => s.trend === "forte_baisse" || s.trend === "baisse",
@@ -152,7 +158,7 @@ export default function RadarMetierPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Signaux actifs
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -162,20 +168,20 @@ export default function RadarMetierPage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 En hausse
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-green-600 dark:text-green-400">
+              <p className="mt-1 text-2xl font-semibold text-green-600 tabular-nums dark:text-green-400">
                 {enHausse}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 En baisse
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-red-600 dark:text-red-400">
+              <p className="mt-1 text-2xl font-semibold text-red-600 tabular-nums dark:text-red-400">
                 {enBaisse}
               </p>
             </CardContent>
@@ -186,7 +192,7 @@ export default function RadarMetierPage() {
       {topSignal && !loading && (
         <Card className="border-primary/30">
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-xs uppercase tracking-wide">
+            <p className="text-muted-foreground text-xs tracking-wide uppercase">
               Signal le plus fort
             </p>
             <p className="mt-1 text-lg font-semibold">
@@ -197,7 +203,8 @@ export default function RadarMetierPage() {
             </p>
             <p className="text-muted-foreground text-sm">
               Volume courant : {topSignal.currentVolume.toLocaleString("fr-TN")}
-              {topSignal.dimensionType === "module" ? " TND" : " leads"} · {topSignal.growthRate}
+              {topSignal.dimensionType === "module" ? " TND" : " leads"} ·{" "}
+              {topSignal.growthRate}
             </p>
           </CardContent>
         </Card>
@@ -225,7 +232,9 @@ export default function RadarMetierPage() {
                     <TableHead>Type</TableHead>
                     <TableHead>Tendance</TableHead>
                     <TableHead className="text-right">Volume courant</TableHead>
-                    <TableHead className="text-right">Volume précédent</TableHead>
+                    <TableHead className="text-right">
+                      Volume précédent
+                    </TableHead>
                     <TableHead className="text-right">Croissance</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -234,7 +243,7 @@ export default function RadarMetierPage() {
                     const trend = TREND_CONFIG[s.trend]
                     return (
                       <TableRow key={i}>
-                        <TableCell className="text-muted-foreground tabular-nums text-sm">
+                        <TableCell className="text-muted-foreground text-sm tabular-nums">
                           {i + 1}
                         </TableCell>
                         <TableCell className="font-medium">
@@ -250,7 +259,7 @@ export default function RadarMetierPage() {
                           {s.currentVolume.toLocaleString("fr-TN")}
                           {s.dimensionType === "module" ? " TND" : ""}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                        <TableCell className="text-muted-foreground text-right tabular-nums">
                           {s.prevVolume.toLocaleString("fr-TN")}
                           {s.dimensionType === "module" ? " TND" : ""}
                         </TableCell>
@@ -258,9 +267,10 @@ export default function RadarMetierPage() {
                           <span
                             className={
                               s.trend === "forte_hausse" || s.trend === "hausse"
-                                ? "text-green-600 dark:text-green-400 font-medium"
-                                : s.trend === "forte_baisse" || s.trend === "baisse"
-                                  ? "text-red-600 dark:text-red-400 font-medium"
+                                ? "font-medium text-green-600 dark:text-green-400"
+                                : s.trend === "forte_baisse" ||
+                                    s.trend === "baisse"
+                                  ? "font-medium text-red-600 dark:text-red-400"
                                   : "text-muted-foreground"
                             }
                           >

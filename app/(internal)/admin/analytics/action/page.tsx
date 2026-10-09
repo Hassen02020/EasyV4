@@ -27,7 +27,10 @@ import type { ActionRow } from "@/lib/admin/action-engine-actions"
 
 const PRIORITY_CONFIG: Record<
   string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+  {
+    label: string
+    variant: "default" | "secondary" | "outline" | "destructive"
+  }
 > = {
   urgent: { label: "Urgent", variant: "destructive" },
   haute: { label: "Haute", variant: "default" },
@@ -85,7 +88,9 @@ export default function ActionEnginePage() {
 
   const urgentCount = actions.filter((a) => a.priority === "urgent").length
   const hauteCount = actions.filter((a) => a.priority === "haute").length
-  const appelCount = actions.filter((a) => a.actionType === "appel_direct").length
+  const appelCount = actions.filter(
+    (a) => a.actionType === "appel_direct",
+  ).length
   const topAction = actions[0]
 
   return (
@@ -126,7 +131,7 @@ export default function ActionEnginePage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Actions totales
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -136,20 +141,20 @@ export default function ActionEnginePage() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Urgentes + Hautes
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-destructive">
+              <p className="text-destructive mt-1 text-2xl font-semibold tabular-nums">
                 {urgentCount + hauteCount}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 Appels directs
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+              <p className="mt-1 text-2xl font-semibold text-amber-600 tabular-nums dark:text-amber-400">
                 {appelCount}
               </p>
             </CardContent>
@@ -160,7 +165,7 @@ export default function ActionEnginePage() {
       {topAction && !loading && (
         <Card className="border-destructive/30">
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-xs uppercase tracking-wide">
+            <p className="text-muted-foreground text-xs tracking-wide uppercase">
               Action prioritaire
             </p>
             <p className="mt-1 text-lg font-semibold">{topAction.scriptLine}</p>
@@ -199,11 +204,10 @@ export default function ActionEnginePage() {
                 </TableHeader>
                 <TableBody>
                   {actions.map((row, i) => {
-                    const prio =
-                      PRIORITY_CONFIG[row.priority] ?? {
-                        label: row.priority,
-                        variant: "secondary" as const,
-                      }
+                    const prio = PRIORITY_CONFIG[row.priority] ?? {
+                      label: row.priority,
+                      variant: "secondary" as const,
+                    }
                     const isExpanded = expanded === row.actionId
                     return (
                       <>
@@ -214,7 +218,7 @@ export default function ActionEnginePage() {
                             setExpanded(isExpanded ? null : row.actionId)
                           }
                         >
-                          <TableCell className="text-muted-foreground tabular-nums text-sm">
+                          <TableCell className="text-muted-foreground text-sm tabular-nums">
                             {i + 1}
                           </TableCell>
                           <TableCell>
@@ -242,7 +246,7 @@ export default function ActionEnginePage() {
                           <TableCell className="text-muted-foreground text-sm">
                             {CHANNEL_LABEL[row.channel] ?? row.channel}
                           </TableCell>
-                          <TableCell className="tabular-nums text-sm">
+                          <TableCell className="text-sm tabular-nums">
                             {row.urgencyWindow}
                           </TableCell>
                           <TableCell className="max-w-xs">
@@ -254,7 +258,7 @@ export default function ActionEnginePage() {
                               {row.scriptLine}
                             </p>
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right text-sm tabular-nums">
                             {row.combinedScore}
                           </TableCell>
                         </TableRow>
@@ -262,7 +266,7 @@ export default function ActionEnginePage() {
                           <TableRow key={`${row.actionId}-detail`}>
                             <TableCell />
                             <TableCell colSpan={6} className="pb-4">
-                              <div className="bg-muted/40 rounded-md p-3 text-sm space-y-2">
+                              <div className="bg-muted/40 space-y-2 rounded-md p-3 text-sm">
                                 <p>
                                   <span className="text-muted-foreground font-medium">
                                     Script :{" "}
@@ -281,7 +285,7 @@ export default function ActionEnginePage() {
                                   </span>
                                   {row.rationale}
                                 </p>
-                                <p className="text-muted-foreground text-xs font-mono">
+                                <p className="text-muted-foreground font-mono text-xs">
                                   campaignHints · urgencyHours{" "}
                                   {row.campaignHints.urgencyHours} · vipScore{" "}
                                   {row.campaignHints.vipScore} · trend{" "}

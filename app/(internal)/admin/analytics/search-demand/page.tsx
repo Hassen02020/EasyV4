@@ -96,11 +96,13 @@ export default function SearchDemandAnalyticsPage() {
               <TableBody>
                 {rows.map((r, i) => (
                   <TableRow key={i}>
-                    <TableCell className="font-medium">{r.destination}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.destination}
+                    </TableCell>
                     <TableCell>
                       {PRODUCT_TYPE_LABEL[r.productType] ?? r.productType}
                     </TableCell>
-                    <TableCell className="text-right font-tabular-nums">
+                    <TableCell className="font-tabular-nums text-right">
                       {r.totalCount.toLocaleString("fr-TN")}
                     </TableCell>
                     <TableCell>{r.lastSearchDate}</TableCell>

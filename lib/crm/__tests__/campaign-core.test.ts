@@ -93,12 +93,14 @@ describe("AUDIENCE-DEDUP-01 — filterAudienceByConsentCore déduplication", () 
       { id: "lead-3", email: "alice@example.com", phone: null },
     ]
 
-    const refs = leads.map((l) =>
-      resolveContactRefForChannelCore(l, "email"),
-    )
+    const refs = leads.map((l) => resolveContactRefForChannelCore(l, "email"))
     const uniqueRefs = new Set(refs.filter(Boolean))
 
-    assert.strictEqual(uniqueRefs.size, 1, "3 leads même email → 1 rawRef unique")
+    assert.strictEqual(
+      uniqueRefs.size,
+      1,
+      "3 leads même email → 1 rawRef unique",
+    )
     assert.strictEqual([...uniqueRefs][0], "alice@example.com")
 
     // Vérification de la collecte des leadIds par ref :

@@ -75,7 +75,8 @@ export async function getTimeSeries(
   try {
     const rows = await withTenantContext(
       { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
-      async (tx) => getTimeSeriesCore(tx, { agencyId: ctx.agencyId, windowWeeks }),
+      async (tx) =>
+        getTimeSeriesCore(tx, { agencyId: ctx.agencyId, windowWeeks }),
     )
     return { ok: true, rows, windowWeeks }
   } catch (err) {

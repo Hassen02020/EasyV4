@@ -175,11 +175,21 @@ export async function getTimeSeriesCore(
   const rows: TimeSeriesRow[] = []
 
   // CA/Marge rows keyed by module
-  type FinKey = { currentCa: string; prevCa: string; currentMargin: string; prevMargin: string }
+  type FinKey = {
+    currentCa: string
+    prevCa: string
+    currentMargin: string
+    prevMargin: string
+  }
   const finMap = new Map<string, FinKey>()
   for (const f of finStream) {
     const key = String(f.module)
-    const entry = finMap.get(key) ?? { currentCa: "0", prevCa: "0", currentMargin: "0", prevMargin: "0" }
+    const entry = finMap.get(key) ?? {
+      currentCa: "0",
+      prevCa: "0",
+      currentMargin: "0",
+      prevMargin: "0",
+    }
     if (f.period === "current") {
       entry.currentCa = f.totalCa
       entry.currentMargin = f.totalMargin

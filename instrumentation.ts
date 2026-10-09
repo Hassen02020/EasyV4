@@ -12,6 +12,13 @@
  */
 
 export async function register() {
+  // ENV-VALIDATION-01 : validation des variables critiques au démarrage.
+  // Node.js uniquement (pas Edge) — zod n'est pas Edge-safe à l'import statique.
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { validateEnv } = await import("./lib/env")
+    validateEnv()
+  }
+
   if (!process.env.SENTRY_DSN) return
 
   try {

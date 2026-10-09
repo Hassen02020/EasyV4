@@ -2875,13 +2875,42 @@ PREUVE VISUELLE: screenshot Playwright — login redirect confirmé
 
 ---
 
-## Phase 10 — Plus tard (sur GO séparé)
+## Phase 10 — Audit 2026-10-09 (SUBSTANTIELLEMENT TERMINÉE)
 
-- **Distribution** : séparation Product / Offer / Distribution / CommercialTerms ; canaux B2C, B2B, API, Agency, Partner, Network.
-- **Achat inter-tenant** : tenant A vend le produit de tenant B sans casser RLS, ownership, pricing, commissions, wallet.
-- **White Label** : branding, domaine, catalogue, fournisseurs propres, sur le même cœur Commerce/Booking/Financial.
-- **CRM** : orchestre la vente (pipeline, relances, historique client) — ne vend pas lui-même.
-- **Intelligence (P7)** : recommandation, ranking, IA — seulement sur données fiables.
+> Audit complet effectué le 2026-10-09 — la description "Plus tard" était antérieure aux phases
+> 13.x (White Label runtime), ECON-WIRING-01, et aux chantiers CRM de phases 8-9.
+> La majorité des items sont déjà implémentés.
+
+### Bilan par item
+
+| Item | Statut | Preuve |
+|---|---|---|
+| White Label branding | **DONE** | WHITE-LABEL-PRO-01/ADMIN-01, `agencies.brandName/primaryColor/logoUrl` |
+| White Label domaine | **DONE** | `proxy.ts` (Phase 13.2), migration 0023, `lib/tenant/` |
+| White Label catalogue (modules) | **DONE** | `publicModuleVisuals` per-agency via `getDefaultAgencyId()` |
+| CRM pipeline (Kanban 4 cols) | **DONE** | `components/admin/lead-pipeline.tsx` + `leads-view-tabs.tsx` |
+| CRM relances (alertes staff) | **DONE** | `lib/crm/lead-relance-core.ts` |
+| CRM historique client | **DONE** | `lib/crm/contact-history-core.ts` |
+| CRM campaigns | **DONE** | CAMPAIGN-ENGINE-01 → CAMPAIGN-DELIVERY-STATS-01 (PRs #162→#166) |
+| Ledger integrity economic_entitlements | **DONE** | migration 0092 (ECON-ENTITLEMENTS-INTEGRITY-01, REVOKE UPDATE/DELETE/TRUNCATE) |
+| Intelligence (recommandation, IA) | **N/A** | Explicitement "❌ Ne pas toucher maintenant" (ROADMAP l.1051) — nécessite données fiables |
+| Achat inter-tenant | **N/A** | Aucun cas d'usage défini, aucune fondation ; complexité architecturale très élevée |
+| Distribution entités DB | **BLOQUÉ** | Bloqué sur décision D-01b (taux commercial, Direction) ; fondation types `DistributionChannel` + `commercial_agreements` table existent |
+| White Label fournisseurs propres | **DEFERRED** | Aucun besoin immédiat ; les suppliers actuels (Mygo, Duffel, hotels-monde) sont globaux |
+
+### Prochains chantiers possibles (sur GO séparé, quand débloqués)
+
+- **D-01b** (décision Direction sur option 3 frais sur prix net) → débloque ECON-WIRING-01 réel + première ligne `commercial_agreements`
+- **VIP-THRESHOLD** (attente volume leads production ≥ ~50) → débloque décision seuil VIP
+- **WHITE-LABEL-SUPPLIERS** (per-tenant supplier credentials) → sur besoin client réel
+- **INTELLIGENCE-01** (recommandation, ranking) → sur données fiables + budget ML
+
+### Items réellement "Plus tard"
+
+- **Distribution** : séparation Product / Offer / Distribution / CommercialTerms ; canaux B2C, B2B, API, Agency, Partner, Network. — BLOQUÉ D-01b.
+- **Achat inter-tenant** : tenant A vend le produit de tenant B sans casser RLS, ownership, pricing, commissions, wallet. — N/A aujourd'hui.
+- **White Label fournisseurs propres** : credentials fournisseurs par tenant. — DEFERRED.
+- **Intelligence (P7)** : recommandation, ranking, IA — seulement sur données fiables. — N/A.
 
 ---
 

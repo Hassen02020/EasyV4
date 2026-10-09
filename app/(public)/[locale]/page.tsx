@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { BookingEngine } from "@/components/booking-engine"
 import { FlashOffers } from "@/components/flash-offers"
@@ -17,10 +18,10 @@ export const dynamic = "force-dynamic"
 
 export default async function Home() {
   const [modules, site, transferZones, carCatalog] = await Promise.all([
-    getPublicModuleVisuals(),
-    getPublicSiteConfig(),
-    getActiveTransferZones(),
-    getActiveCarCatalog(),
+    getPublicModuleVisuals().catch(() => []),
+    getPublicSiteConfig().catch(() => null),
+    getActiveTransferZones().catch(() => []),
+    getActiveCarCatalog().catch(() => ({ locations: [], categories: [] })),
   ])
 
   return (
@@ -33,11 +34,19 @@ export default async function Home() {
           transferZones={transferZones}
           carLocations={carCatalog.locations}
         />
-        <FlashOffers />
+        <Suspense fallback={<div className="h-64 animate-pulse bg-muted/40" />}>
+          <FlashOffers />
+        </Suspense>
         <OmratySection />
-        <FeaturedDestinationsSection />
-        <DevelopmentProjectsSection />
-        <MarketSignalsSection />
+        <Suspense fallback={<div className="h-64 animate-pulse bg-muted/40" />}>
+          <FeaturedDestinationsSection />
+        </Suspense>
+        <Suspense fallback={<div className="h-48 animate-pulse bg-muted/40" />}>
+          <DevelopmentProjectsSection />
+        </Suspense>
+        <Suspense fallback={<div className="h-48 animate-pulse bg-muted/40" />}>
+          <MarketSignalsSection />
+        </Suspense>
       </main>
       <Footer />
     </div>

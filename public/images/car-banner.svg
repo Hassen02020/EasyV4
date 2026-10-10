@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8a030"/>
+      <stop offset="30%" stop-color="#f0b840"/>
+      <stop offset="60%" stop-color="#f5cc70"/>
+      <stop offset="100%" stop-color="#d4a030"/>
+    </linearGradient>
+    <linearGradient id="desert" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4a855"/>
+      <stop offset="100%" stop-color="#9a7020"/>
+    </linearGradient>
+    <radialGradient id="sunball" cx="50%" cy="40%" r="12%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="40%" stop-color="#ffe080" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e8a030" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3a3a"/>
+      <stop offset="100%" stop-color="#5a5a5a"/>
+    </linearGradient>
+  </defs>
+  <!-- Sky sunset -->
+  <rect width="1800" height="600" fill="url(#sky)"/>
+  <!-- Sun -->
+  <rect width="1800" height="600" fill="url(#sunball)"/>
+  <circle cx="900" cy="240" r="55" fill="#fff5c0" opacity="0.95"/>
+  <circle cx="900" cy="240" r="65" fill="#ffe080" opacity="0.4"/>
+  <circle cx="900" cy="240" r="80" fill="#ffd040" opacity="0.2"/>
+  <!-- Horizon mountains/dunes -->
+  <path d="M0 380 Q150 320 300 365 Q450 320 600 360 Q750 310 900 355 Q1050 305 1200 360 Q1350 320 1500 365 Q1650 320 1800 355 L1800 390 L0 390Z" fill="#b87820" opacity="0.7"/>
+  <path d="M0 390 Q300 360 600 385 Q900 400 1200 382 Q1500 365 1800 388 L1800 400 L0 400Z" fill="#c49040" opacity="0.9"/>
+  <!-- Desert ground -->
+  <rect x="0" y="400" width="1800" height="200" fill="url(#desert)"/>
+  <!-- Road -->
+  <path d="M700 600 L830 400 L970 400 L1100 600Z" fill="url(#road)"/>
+  <!-- Road center line dashes -->
+  <g fill="#f5dd80" opacity="0.8">
+    <rect x="893" y="580" width="14" height="30" rx="3"/>
+    <rect x="894" y="535" width="12" height="25" rx="3"/>
+    <rect x="895" y="496" width="10" height="20" rx="3"/>
+    <rect x="896" y="465" width="9" height="16" rx="3"/>
+    <rect x="897" y="440" width="7" height="12" rx="3"/>
+    <rect x="898" y="422" width="6" height="9" rx="3"/>
+  </g>
+  <!-- Road side markings -->
+  <path d="M700 600 L830 400" stroke="#f5dd80" stroke-width="2" opacity="0.5"/>
+  <path d="M1100 600 L970 400" stroke="#f5dd80" stroke-width="2" opacity="0.5"/>
+  <!-- Modern car - sedan view -->
+  <g transform="translate(820,440)">
+    <!-- Car shadow -->
+    <ellipse cx="80" cy="115" rx="145" ry="18" fill="#6a4010" opacity="0.5"/>
+    <!-- Car body -->
+    <path d="M10 90 L10 50 Q15 30 45 25 L85 15 Q115 10 150 18 L185 30 Q210 38 215 55 L220 90Z" fill="#d42828"/>
+    <!-- Roof -->
+    <path d="M45 50 Q55 20 90 12 L140 10 Q165 12 185 30 Q170 25 145 20 L90 16 Q65 20 55 50Z" fill="#e83030"/>
+    <!-- Windshield -->
+    <path d="M55 50 Q65 22 90 15 L140 14 Q160 18 170 30 L160 50Z" fill="#a8c8e8" opacity="0.8"/>
+    <!-- Side window -->
+    <path d="M170 30 L175 50 L155 50 L155 30Z" fill="#a8c8e8" opacity="0.7"/>
+    <!-- Door lines -->
+    <path d="M100 90 L100 55 Q100 50 105 50 L105 90" fill="none" stroke="#b81818" stroke-width="1.5"/>
+    <!-- Headlights -->
+    <ellipse cx="218" cy="70" rx="8" ry="6" fill="#fff5a0" opacity="0.9"/>
+    <ellipse cx="218" cy="82" rx="5" ry="4" fill="#ff8800" opacity="0.8"/>
+    <!-- Taillights -->
+    <rect x="12" y="62" width="6" height="18" rx="2" fill="#ff2200" opacity="0.9"/>
+    <!-- Front bumper -->
+    <rect x="212" y="85" width="12" height="8" rx="2" fill="#c0c0c0"/>
+    <!-- Rear bumper -->
+    <rect x="-2" y="85" width="14" height="8" rx="2" fill="#c0c0c0"/>
+    <!-- Front wheel -->
+    <circle cx="178" cy="100" r="22" fill="#2a2a2a"/>
+    <circle cx="178" cy="100" r="16" fill="#404040"/>
+    <circle cx="178" cy="100" r="6" fill="#888"/>
+    <!-- Rear wheel -->
+    <circle cx="48" cy="100" r="22" fill="#2a2a2a"/>
+    <circle cx="48" cy="100" r="16" fill="#404040"/>
+    <circle cx="48" cy="100" r="6" fill="#888"/>
+    <!-- Door handle -->
+    <rect x="130" y="68" width="18" height="4" rx="2" fill="#b81818"/>
+    <rect x="68" y="68" width="18" height="4" rx="2" fill="#b81818"/>
+    <!-- Side mirror -->
+    <rect x="200" y="48" width="10" height="6" rx="2" fill="#c02020"/>
+  </g>
+  <!-- Dust cloud behind car (motion) -->
+  <g fill="#d4a855" opacity="0.3">
+    <ellipse cx="820" cy="555" rx="60" ry="20"/>
+    <ellipse cx="780" cy="545" rx="45" ry="15"/>
+    <ellipse cx="740" cy="540" rx="35" ry="12"/>
+  </g>
+  <!-- Desert bushes/plants -->
+  <g>
+    <ellipse cx="200" cy="420" rx="35" ry="15" fill="#8a7020" opacity="0.6"/>
+    <ellipse cx="240" cy="415" rx="25" ry="10" fill="#9a7828" opacity="0.6"/>
+    <ellipse cx="1550" cy="425" rx="38" ry="14" fill="#8a7020" opacity="0.6"/>
+    <ellipse cx="1590" cy="418" rx="28" ry="11" fill="#9a7828" opacity="0.6"/>
+    <!-- Cactus left -->
+    <rect x="130" y="370" width="12" height="45" fill="#5a8a20" opacity="0.7"/>
+    <rect x="112" y="385" width="18" height="10" fill="#5a8a20" opacity="0.7" rx="5"/>
+    <rect x="138" y="378" width="18" height="10" fill="#5a8a20" opacity="0.7" rx="5"/>
+    <!-- Cactus right -->
+    <rect x="1640" y="368" width="12" height="48" fill="#5a8a20" opacity="0.7"/>
+    <rect x="1622" y="383" width="18" height="10" fill="#5a8a20" opacity="0.7" rx="5"/>
+    <rect x="1650" y="376" width="18" height="10" fill="#5a8a20" opacity="0.7" rx="5"/>
+  </g>
+  <!-- Heat haze on road -->
+  <path d="M840 405 Q900 400 960 405" fill="none" stroke="#ffe080" stroke-width="1.5" opacity="0.3"/>
+</svg>

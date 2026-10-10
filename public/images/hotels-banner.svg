@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a6b9e"/>
+      <stop offset="50%" stop-color="#2d8fd4"/>
+      <stop offset="100%" stop-color="#4ba3d8"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e7bb5"/>
+      <stop offset="100%" stop-color="#0d4f7a"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="70%" cy="25%" r="15%">
+      <stop offset="0%" stop-color="#fff5c0" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#ffd070" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#2d8fd4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Sky -->
+  <rect width="1800" height="600" fill="url(#sky)"/>
+  <rect width="1800" height="600" fill="url(#sun)"/>
+  <!-- Clouds -->
+  <g fill="white" opacity="0.6">
+    <ellipse cx="200" cy="80" rx="80" ry="25"/>
+    <ellipse cx="260" cy="70" rx="60" ry="20"/>
+    <ellipse cx="150" cy="75" rx="50" ry="18"/>
+    <ellipse cx="1400" cy="100" rx="100" ry="28"/>
+    <ellipse cx="1480" cy="90" rx="70" ry="22"/>
+    <ellipse cx="1340" cy="95" rx="60" ry="20"/>
+    <ellipse cx="700" cy="130" rx="70" ry="20"/>
+    <ellipse cx="760" cy="120" rx="50" ry="16"/>
+  </g>
+  <!-- Sea -->
+  <rect x="0" y="400" width="1800" height="200" fill="url(#sea)"/>
+  <!-- Sea waves -->
+  <path d="M0 410 Q150 400 300 415 Q450 430 600 415 Q750 400 900 415 Q1050 430 1200 415 Q1350 400 1500 415 Q1650 430 1800 415 L1800 420 Q1650 435 1500 420 Q1350 405 1200 420 Q1050 435 900 420 Q750 405 600 420 Q450 435 300 420 Q150 405 0 420Z" fill="white" opacity="0.15"/>
+  <path d="M0 450 Q200 440 400 455 Q600 470 800 455 Q1000 440 1200 455 Q1400 470 1600 455 Q1700 448 1800 455 L1800 465 Q1700 458 1600 465 Q1400 480 1200 465 Q1000 450 800 465 Q600 480 400 465 Q200 450 0 465Z" fill="white" opacity="0.1"/>
+  <!-- Beach/shore line -->
+  <path d="M0 395 Q300 385 600 398 Q900 410 1200 398 Q1500 385 1800 398 L1800 405 Q1500 395 1200 408 Q900 420 600 408 Q300 395 0 408Z" fill="#c4a265" opacity="0.7"/>
+  <!-- Ground/beach -->
+  <rect x="0" y="400" width="1800" height="20" fill="#d4b278" opacity="0.8"/>
+  <!-- Hotel building - main -->
+  <rect x="650" y="150" width="500" height="280" fill="#f5f0e8"/>
+  <!-- Hotel windows grid -->
+  <g fill="#4a90c8" opacity="0.7">
+    <rect x="680" y="180" width="30" height="25" rx="2"/><rect x="730" y="180" width="30" height="25" rx="2"/>
+    <rect x="780" y="180" width="30" height="25" rx="2"/><rect x="830" y="180" width="30" height="25" rx="2"/>
+    <rect x="880" y="180" width="30" height="25" rx="2"/><rect x="930" y="180" width="30" height="25" rx="2"/>
+    <rect x="980" y="180" width="30" height="25" rx="2"/><rect x="1030" y="180" width="30" height="25" rx="2"/>
+    <rect x="1080" y="180" width="30" height="25" rx="2"/>
+    <rect x="680" y="225" width="30" height="25" rx="2"/><rect x="730" y="225" width="30" height="25" rx="2"/>
+    <rect x="780" y="225" width="30" height="25" rx="2"/><rect x="830" y="225" width="30" height="25" rx="2"/>
+    <rect x="880" y="225" width="30" height="25" rx="2"/><rect x="930" y="225" width="30" height="25" rx="2"/>
+    <rect x="980" y="225" width="30" height="25" rx="2"/><rect x="1030" y="225" width="30" height="25" rx="2"/>
+    <rect x="1080" y="225" width="30" height="25" rx="2"/>
+    <rect x="680" y="270" width="30" height="25" rx="2"/><rect x="730" y="270" width="30" height="25" rx="2"/>
+    <rect x="780" y="270" width="30" height="25" rx="2"/><rect x="830" y="270" width="30" height="25" rx="2"/>
+    <rect x="880" y="270" width="30" height="25" rx="2"/><rect x="930" y="270" width="30" height="25" rx="2"/>
+    <rect x="980" y="270" width="30" height="25" rx="2"/><rect x="1030" y="270" width="30" height="25" rx="2"/>
+    <rect x="1080" y="270" width="30" height="25" rx="2"/>
+    <rect x="680" y="315" width="30" height="25" rx="2"/><rect x="730" y="315" width="30" height="25" rx="2"/>
+    <rect x="780" y="315" width="30" height="25" rx="2"/><rect x="830" y="315" width="30" height="25" rx="2"/>
+    <rect x="880" y="315" width="30" height="25" rx="2"/><rect x="930" y="315" width="30" height="25" rx="2"/>
+    <rect x="980" y="315" width="30" height="25" rx="2"/><rect x="1030" y="315" width="30" height="25" rx="2"/>
+    <rect x="1080" y="315" width="30" height="25" rx="2"/>
+  </g>
+  <!-- Hotel entrance arch (Moorish) -->
+  <path d="M850 430 L850 370 Q900 340 950 370 L950 430 Z" fill="#e8dcc8"/>
+  <path d="M855 430 L855 375 Q900 350 945 375 L945 430 Z" fill="#4a90c8" opacity="0.5"/>
+  <!-- Hotel roof parapet -->
+  <rect x="650" y="140" width="500" height="18" fill="#e8dcc8"/>
+  <!-- Moorish arch details on facade -->
+  <path d="M700 145 Q715 130 730 145" fill="none" stroke="#c4a265" stroke-width="2"/>
+  <path d="M750 145 Q765 130 780 145" fill="none" stroke="#c4a265" stroke-width="2"/>
+  <!-- Left wing -->
+  <rect x="400" y="220" width="260" height="210" fill="#ede8dd"/>
+  <g fill="#4a90c8" opacity="0.6">
+    <rect x="430" y="245" width="28" height="22" rx="2"/><rect x="475" y="245" width="28" height="22" rx="2"/>
+    <rect x="520" y="245" width="28" height="22" rx="2"/><rect x="565" y="245" width="28" height="22" rx="2"/>
+    <rect x="610" y="245" width="28" height="22" rx="2"/>
+    <rect x="430" y="285" width="28" height="22" rx="2"/><rect x="475" y="285" width="28" height="22" rx="2"/>
+    <rect x="520" y="285" width="28" height="22" rx="2"/><rect x="565" y="285" width="28" height="22" rx="2"/>
+    <rect x="430" y="325" width="28" height="22" rx="2"/><rect x="475" y="325" width="28" height="22" rx="2"/>
+    <rect x="520" y="325" width="28" height="22" rx="2"/><rect x="565" y="325" width="28" height="22" rx="2"/>
+  </g>
+  <!-- Right wing -->
+  <rect x="1140" y="220" width="260" height="210" fill="#ede8dd"/>
+  <g fill="#4a90c8" opacity="0.6">
+    <rect x="1165" y="245" width="28" height="22" rx="2"/><rect x="1210" y="245" width="28" height="22" rx="2"/>
+    <rect x="1255" y="245" width="28" height="22" rx="2"/><rect x="1300" y="245" width="28" height="22" rx="2"/>
+    <rect x="1345" y="245" width="28" height="22" rx="2"/>
+    <rect x="1165" y="285" width="28" height="22" rx="2"/><rect x="1210" y="285" width="28" height="22" rx="2"/>
+    <rect x="1255" y="285" width="28" height="22" rx="2"/><rect x="1300" y="285" width="28" height="22" rx="2"/>
+    <rect x="1165" y="325" width="28" height="22" rx="2"/><rect x="1210" y="325" width="28" height="22" rx="2"/>
+    <rect x="1255" y="325" width="28" height="22" rx="2"/><rect x="1300" y="325" width="28" height="22" rx="2"/>
+  </g>
+  <!-- Palm trees -->
+  <g>
+    <!-- Palm left 1 -->
+    <rect x="555" y="310" width="8" height="120" fill="#5a3a1a" transform="rotate(-5,559,430)"/>
+    <ellipse cx="545" cy="298" rx="40" ry="20" fill="#2d7a2d" transform="rotate(-20,545,298)"/>
+    <ellipse cx="570" cy="285" rx="38" ry="18" fill="#3a8c3a" transform="rotate(10,570,285)"/>
+    <ellipse cx="530" cy="288" rx="35" ry="16" fill="#2d7a2d" transform="rotate(-35,530,288)"/>
+    <!-- Palm right 1 -->
+    <rect x="1237" y="310" width="8" height="120" fill="#5a3a1a" transform="rotate(5,1241,430)"/>
+    <ellipse cx="1255" cy="298" rx="40" ry="20" fill="#2d7a2d" transform="rotate(20,1255,298)"/>
+    <ellipse cx="1230" cy="285" rx="38" ry="18" fill="#3a8c3a" transform="rotate(-10,1230,285)"/>
+    <ellipse cx="1270" cy="288" rx="35" ry="16" fill="#2d7a2d" transform="rotate(35,1270,288)"/>
+    <!-- Small palm far left -->
+    <rect x="185" y="350" width="6" height="90" fill="#5a3a1a"/>
+    <ellipse cx="180" cy="345" rx="30" ry="14" fill="#2d7a2d" transform="rotate(-15,180,345)"/>
+    <ellipse cx="195" cy="340" rx="28" ry="13" fill="#3a8c3a" transform="rotate(10,195,340)"/>
+    <!-- Small palm far right -->
+    <rect x="1609" y="350" width="6" height="90" fill="#5a3a1a"/>
+    <ellipse cx="1620" cy="345" rx="30" ry="14" fill="#2d7a2d" transform="rotate(15,1620,345)"/>
+    <ellipse cx="1605" cy="340" rx="28" ry="13" fill="#3a8c3a" transform="rotate(-10,1605,340)"/>
+  </g>
+  <!-- Pool terrace -->
+  <rect x="700" y="390" width="400" height="30" fill="#b0d4ea" rx="4" opacity="0.8"/>
+  <!-- Pool water glimmer -->
+  <path d="M710 400 Q800 395 890 400 Q980 405 1090 400" fill="none" stroke="white" stroke-width="1.5" opacity="0.5"/>
+  <!-- Umbrellas by pool -->
+  <g>
+    <ellipse cx="740" cy="390" rx="22" ry="8" fill="#e87c2d" opacity="0.9"/>
+    <rect x="738" y="390" width="4" height="30" fill="#5a3a1a"/>
+    <ellipse cx="860" cy="390" rx="22" ry="8" fill="#2d7ae8" opacity="0.9"/>
+    <rect x="858" y="390" width="4" height="30" fill="#5a3a1a"/>
+    <ellipse cx="980" cy="390" rx="22" ry="8" fill="#e87c2d" opacity="0.9"/>
+    <rect x="978" y="390" width="4" height="30" fill="#5a3a1a"/>
+  </g>
+  <!-- Tunisian flag hint - red and white -->
+  <rect x="895" y="138" width="10" height="7" fill="#e00020" opacity="0.8"/>
+  <!-- Building ground shadow -->
+  <ellipse cx="900" cy="435" rx="500" ry="15" fill="#0d4f7a" opacity="0.3"/>
+</svg>

@@ -16,6 +16,7 @@ import { LeadScoringSettings } from "@/components/admin/lead-scoring-settings"
 import { LeadRelanceSettings } from "@/components/admin/lead-relance-settings"
 import { InboxPanel } from "@/components/admin/inbox-panel"
 import { CrmTasksPanel } from "@/components/admin/crm-tasks-panel"
+import { CreateLeadDialog } from "@/components/admin/create-lead-dialog"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { listLeads } from "@/lib/admin/leads-actions"
@@ -62,15 +63,19 @@ export default async function SupportPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <Headphones className="h-6 w-6" />
-          Support & Clients
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Demandes de contact (&laquo;&nbsp;Être rappelé&nbsp;&raquo; /
-          &laquo;&nbsp;Demander un devis&nbsp;&raquo;) déposées depuis le site.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            <Headphones className="h-6 w-6" />
+            Support & Clients
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Demandes de contact (&laquo;&nbsp;Être rappelé&nbsp;&raquo; /
+            &laquo;&nbsp;Demander un devis&nbsp;&raquo;) déposées depuis le site
+            ou saisies par le staff.
+          </p>
+        </div>
+        <CreateLeadDialog />
       </div>
 
       {canConfigure && <LeadScoringSettings initial={scoreRules} />}

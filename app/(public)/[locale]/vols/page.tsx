@@ -89,7 +89,7 @@ export default async function VolsPage({
           gradient="from-sky-900 to-sky-700"
           imageUrl={
             visual?.heroImageUrl ??
-            "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1800&q=85&auto=format&fit=crop"
+            "/images/vols-banner.svg"
           }
           kicker={t("kicker")}
           title={t("heroTitle")}

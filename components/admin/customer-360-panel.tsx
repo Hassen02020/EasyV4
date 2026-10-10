@@ -9,8 +9,12 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import {
+  Calendar,
   Loader2,
+  Mail,
+  MessageSquare,
   NotebookPen,
+  Phone,
   User,
   Star,
   TrendingUp,
@@ -45,6 +49,21 @@ const CHANNEL_LABEL: Record<string, string> = {
   call: "Appel",
   email: "Email",
   web: "Web",
+}
+
+const PRODUCT_LABEL: Record<string, string> = {
+  hotel: "Hôtel",
+  omra: "Omra",
+  package: "Voyage",
+  activity: "Activité",
+  general: "Général",
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  new: "Nouveau",
+  contacted: "Contacté",
+  converted: "Converti",
+  closed: "Clos",
 }
 
 export function Customer360Button({
@@ -104,6 +123,72 @@ export function Customer360Button({
               </p>
             ) : (
               <div className="space-y-5">
+                {/* CRM-360-LEAD-INFO-01 — profil de contact */}
+                <section>
+                  <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                    <User className="h-3.5 w-3.5" /> Profil
+                  </h3>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    {data.lead.phone && (
+                      <>
+                        <dt className="text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-3 w-3" /> Téléphone
+                        </dt>
+                        <dd className="font-medium">{data.lead.phone}</dd>
+                      </>
+                    )}
+                    {data.lead.email && (
+                      <>
+                        <dt className="text-muted-foreground flex items-center gap-1">
+                          <Mail className="h-3 w-3" /> Email
+                        </dt>
+                        <dd className="truncate font-medium">
+                          {data.lead.email}
+                        </dd>
+                      </>
+                    )}
+                    {data.lead.channel && (
+                      <>
+                        <dt className="text-muted-foreground">Canal</dt>
+                        <dd>
+                          {CHANNEL_LABEL[data.lead.channel] ??
+                            data.lead.channel}
+                        </dd>
+                      </>
+                    )}
+                    <dt className="text-muted-foreground">Produit</dt>
+                    <dd>
+                      {data.lead.productLabel ??
+                        PRODUCT_LABEL[data.lead.productType] ??
+                        data.lead.productType}
+                    </dd>
+                    <dt className="text-muted-foreground">Statut</dt>
+                    <dd>
+                      {STATUS_LABEL[data.lead.status] ?? data.lead.status}
+                    </dd>
+                    <dt className="text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> Créé le
+                    </dt>
+                    <dd>
+                      {new Date(data.lead.createdAt).toLocaleDateString(
+                        "fr-FR",
+                        { day: "numeric", month: "short", year: "numeric" },
+                      )}
+                    </dd>
+                  </dl>
+                </section>
+
+                {data.lead.message && (
+                  <section>
+                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                      <MessageSquare className="h-3.5 w-3.5" /> Demande initiale
+                    </h3>
+                    <p className="text-muted-foreground text-xs whitespace-pre-wrap">
+                      {data.lead.message}
+                    </p>
+                  </section>
+                )}
+
                 {data.lead.staffNotes && (
                   <section>
                     <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">

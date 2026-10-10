@@ -63,7 +63,7 @@ export default async function CarPage({
           gradient="from-red-900 to-red-700"
           imageUrl={
             visual?.heroImageUrl ??
-            "https://images.unsplash.com/photo-1485291571150-772bcfc10da5?w=1800&q=85&auto=format&fit=crop"
+            "/images/car-banner.svg"
           }
           kicker={t("kicker")}
           title={t("heroTitle")}

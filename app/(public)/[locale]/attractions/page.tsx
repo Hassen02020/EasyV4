@@ -208,7 +208,7 @@ export default async function AttractionsPage({
           gradient="from-amber-900 to-amber-700"
           imageUrl={
             visual?.heroImageUrl ??
-            "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=1800&q=85&auto=format&fit=crop"
+            "/images/attractions-banner.svg"
           }
           kicker={t("kicker")}
           title={t("heroTitle")}

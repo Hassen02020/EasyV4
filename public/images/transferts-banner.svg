@@ -1,0 +1,205 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a1020"/>
+      <stop offset="40%" stop-color="#1a2848"/>
+      <stop offset="100%" stop-color="#2a3a60"/>
+    </linearGradient>
+    <radialGradient id="airportLight" cx="50%" cy="60%" r="40%">
+      <stop offset="0%" stop-color="#4070c0" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#0a1020" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2030"/>
+      <stop offset="100%" stop-color="#0a1018"/>
+    </linearGradient>
+  </defs>
+  <!-- Night sky -->
+  <rect width="1800" height="600" fill="url(#sky)"/>
+  <rect width="1800" height="600" fill="url(#airportLight)"/>
+  <!-- Stars -->
+  <g fill="white">
+    <circle cx="100" cy="30" r="1.5" opacity="0.9"/><circle cx="220" cy="55" r="1" opacity="0.8"/>
+    <circle cx="350" cy="25" r="2" opacity="0.9"/><circle cx="480" cy="50" r="1.5" opacity="0.7"/>
+    <circle cx="590" cy="20" r="1" opacity="0.8"/><circle cx="680" cy="65" r="1.5" opacity="0.9"/>
+    <circle cx="820" cy="35" r="1" opacity="0.7"/><circle cx="920" cy="55" r="2" opacity="0.9"/>
+    <circle cx="1040" cy="28" r="1.5" opacity="0.8"/><circle cx="1140" cy="48" r="1" opacity="0.7"/>
+    <circle cx="1260" cy="22" r="2" opacity="0.9"/><circle cx="1380" cy="58" r="1.5" opacity="0.8"/>
+    <circle cx="1480" cy="35" r="1" opacity="0.7"/><circle cx="1600" cy="70" r="1.5" opacity="0.9"/>
+    <circle cx="1700" cy="42" r="1" opacity="0.8"/>
+    <circle cx="160" cy="120" r="1" opacity="0.6"/><circle cx="300" cy="100" r="1.5" opacity="0.7"/>
+    <circle cx="440" cy="130" r="1" opacity="0.6"/><circle cx="580" cy="108" r="1.5" opacity="0.7"/>
+    <circle cx="720" cy="125" r="1" opacity="0.6"/><circle cx="960" cy="115" r="1.5" opacity="0.7"/>
+    <circle cx="1100" cy="140" r="1" opacity="0.6"/><circle cx="1300" cy="118" r="1.5" opacity="0.7"/>
+    <circle cx="1540" cy="130" r="1" opacity="0.6"/>
+  </g>
+  <!-- Airplane in distance (landing) -->
+  <g transform="translate(1350,140) rotate(-8)" opacity="0.9">
+    <ellipse cx="0" cy="0" rx="55" ry="7" fill="#e0e8f0"/>
+    <path d="M55 0 Q70 0 75 4 Q70 8 55 0Z" fill="#c8d4e0"/>
+    <path d="-55 0 Q-65 0 -68 3 L-55 0Z" fill="#c8d4e0"/>
+    <path d="M5 0 L-15 28 Q-20 32 -10 26 L20 0Z" fill="#d0dce8"/>
+    <path d="M5 0 L-15 -28 Q-20 -32 -10 -26 L20 0Z" fill="#d0dce8"/>
+    <rect x="-55" y="-3" width="110" height="3" rx="1" fill="#2a5a9a" opacity="0.5"/>
+    <!-- Landing lights -->
+    <circle cx="75" cy="0" r="4" fill="#ffffc0" opacity="0.95"/>
+    <circle cx="75" cy="0" r="8" fill="#ffffc0" opacity="0.3"/>
+    <!-- Wing lights -->
+    <circle cx="-12" cy="28" r="3" fill="#ff2200" opacity="0.9"/>
+    <circle cx="-12" cy="-28" r="3" fill="#00ff00" opacity="0.9"/>
+  </g>
+  <!-- Airport terminal building -->
+  <rect x="400" y="280" width="1000" height="200" fill="#0d1828"/>
+  <!-- Terminal facade -->
+  <rect x="380" y="260" width="1040" height="25" fill="#162038"/>
+  <!-- Glass facade panels -->
+  <g fill="#1e3a6a" stroke="#0a2040" stroke-width="1">
+    <rect x="420" y="285" width="55" height="80"/>
+    <rect x="485" y="285" width="55" height="80"/>
+    <rect x="550" y="285" width="55" height="80"/>
+    <rect x="615" y="285" width="55" height="80"/>
+    <rect x="680" y="285" width="55" height="80"/>
+    <rect x="745" y="285" width="55" height="80"/>
+    <rect x="810" y="285" width="55" height="80"/>
+    <rect x="875" y="285" width="55" height="80"/>
+    <rect x="940" y="285" width="55" height="80"/>
+    <rect x="1005" y="285" width="55" height="80"/>
+    <rect x="1070" y="285" width="55" height="80"/>
+    <rect x="1135" y="285" width="55" height="80"/>
+    <rect x="1200" y="285" width="55" height="80"/>
+    <rect x="1265" y="285" width="55" height="80"/>
+    <rect x="1330" y="285" width="55" height="80"/>
+  </g>
+  <!-- Lit windows glow -->
+  <g fill="#4878c0" opacity="0.6">
+    <rect x="425" y="290" width="45" height="70" rx="1"/>
+    <rect x="555" y="290" width="45" height="70" rx="1"/>
+    <rect x="685" y="290" width="45" height="70" rx="1"/>
+    <rect x="815" y="290" width="45" height="70" rx="1"/>
+    <rect x="945" y="290" width="45" height="70" rx="1"/>
+    <rect x="1075" y="290" width="45" height="70" rx="1"/>
+    <rect x="1205" y="290" width="45" height="70" rx="1"/>
+    <rect x="1335" y="290" width="45" height="70" rx="1"/>
+  </g>
+  <!-- Terminal roof canopy -->
+  <path d="M380 260 Q900 230 1420 260" fill="none" stroke="#2a4070" stroke-width="4"/>
+  <rect x="380" y="258" width="1040" height="6" fill="#1e2e50"/>
+  <!-- Control tower -->
+  <rect x="1500" y="150" width="45" height="250" fill="#0d1828"/>
+  <rect x="1488" y="150" width="69" height="40" fill="#162038"/>
+  <rect x="1480" y="135" width="85" height="20" fill="#1e3a6a" rx="2"/>
+  <!-- Tower lights -->
+  <rect x="1492" y="140" width="61" height="18" fill="#4878c0" opacity="0.5" rx="1"/>
+  <circle cx="1522" cy="135" r="5" fill="#ff4400" opacity="0.9"/>
+  <!-- Terminal entrance canopy -->
+  <path d="M650 370 L900 350 L1150 370 L1150 390 L900 370 L650 390Z" fill="#162038"/>
+  <!-- Terminal lower level + arrivals/departures sign glow -->
+  <rect x="380" y="370" width="1040" height="110" fill="#0a1220"/>
+  <!-- Terminal lit lower windows -->
+  <g fill="#2a5a9a" opacity="0.7">
+    <rect x="440" y="385" width="40" height="50" rx="2"/>
+    <rect x="500" y="385" width="40" height="50" rx="2"/>
+    <rect x="600" y="385" width="40" height="50" rx="2"/>
+    <rect x="700" y="385" width="40" height="50" rx="2"/>
+    <rect x="800" y="390" width="40" height="45" rx="2"/>
+    <rect x="900" y="390" width="40" height="45" rx="2"/>
+    <rect x="1000" y="385" width="40" height="50" rx="2"/>
+    <rect x="1100" y="385" width="40" height="50" rx="2"/>
+    <rect x="1200" y="385" width="40" height="50" rx="2"/>
+    <rect x="1300" y="385" width="40" height="50" rx="2"/>
+  </g>
+  <!-- Ground / tarmac -->
+  <rect x="0" y="480" width="1800" height="120" fill="url(#ground)"/>
+  <!-- Road markings -->
+  <g fill="#3a4a5a" stroke="#5a6a7a" stroke-width="1">
+    <rect x="0" y="495" width="1800" height="4"/>
+    <rect x="0" y="545" width="1800" height="4"/>
+  </g>
+  <!-- Road dashes center line -->
+  <g fill="#f5dd80" opacity="0.7">
+    <rect x="100" y="518" width="60" height="6" rx="3"/>
+    <rect x="240" y="518" width="60" height="6" rx="3"/>
+    <rect x="380" y="518" width="60" height="6" rx="3"/>
+    <rect x="520" y="518" width="60" height="6" rx="3"/>
+    <rect x="660" y="518" width="60" height="6" rx="3"/>
+    <rect x="800" y="518" width="60" height="6" rx="3"/>
+    <rect x="940" y="518" width="60" height="6" rx="3"/>
+    <rect x="1080" y="518" width="60" height="6" rx="3"/>
+    <rect x="1220" y="518" width="60" height="6" rx="3"/>
+    <rect x="1360" y="518" width="60" height="6" rx="3"/>
+    <rect x="1500" y="518" width="60" height="6" rx="3"/>
+    <rect x="1640" y="518" width="60" height="6" rx="3"/>
+  </g>
+  <!-- Van / minibus on road -->
+  <g transform="translate(520,490)">
+    <!-- Van shadow -->
+    <ellipse cx="140" cy="98" rx="160" ry="12" fill="#0a1020" opacity="0.6"/>
+    <!-- Van body -->
+    <rect x="0" y="20" width="280" height="65" rx="8" fill="#1a3a70"/>
+    <!-- Van roof -->
+    <path d="M20 20 L30 0 L250 0 L260 20Z" fill="#1e4480"/>
+    <!-- Van windshield -->
+    <path d="M240 0 L260 20 L260 50 L235 50 L235 20Z" fill="#6090c0" opacity="0.8"/>
+    <!-- Van side windows -->
+    <rect x="10" y="5" width="70" height="30" rx="3" fill="#6090c0" opacity="0.7"/>
+    <rect x="90" y="5" width="60" height="30" rx="3" fill="#6090c0" opacity="0.7"/>
+    <rect x="160" y="5" width="60" height="30" rx="3" fill="#6090c0" opacity="0.7"/>
+    <!-- Sliding door line -->
+    <line x1="155" y1="0" x2="155" y2="85" stroke="#0a2050" stroke-width="2"/>
+    <!-- Front grill/headlights -->
+    <rect x="262" y="38" width="8" height="14" rx="2" fill="#ffffaa" opacity="0.95"/>
+    <rect x="262" y="55" width="8" height="6" rx="1" fill="#ff8800" opacity="0.8"/>
+    <!-- Rear lights -->
+    <rect x="-8" y="40" width="8" height="16" rx="2" fill="#cc1100" opacity="0.9"/>
+    <rect x="-8" y="56" width="8" height="6" rx="2" fill="#ff8800" opacity="0.7"/>
+    <!-- Bumpers -->
+    <rect x="260" y="70" width="18" height="10" rx="2" fill="#c0c0c0"/>
+    <rect x="-18" y="70" width="18" height="10" rx="2" fill="#c0c0c0"/>
+    <!-- Wheels -->
+    <circle cx="55" cy="88" r="22" fill="#1a1a1a"/>
+    <circle cx="55" cy="88" r="15" fill="#2a2a2a"/>
+    <circle cx="55" cy="88" r="5" fill="#888"/>
+    <circle cx="220" cy="88" r="22" fill="#1a1a1a"/>
+    <circle cx="220" cy="88" r="15" fill="#2a2a2a"/>
+    <circle cx="220" cy="88" r="5" fill="#888"/>
+    <!-- "TRANSFERT" text on van -->
+    <text x="30" y="52" font-family="Arial,sans-serif" font-size="12" fill="white" opacity="0.8" font-weight="bold">TRANSFERT</text>
+    <!-- Easy2Book logo hint on van -->
+    <rect x="70" y="58" width="60" height="14" rx="3" fill="#2a5a9a" opacity="0.6"/>
+  </g>
+  <!-- Street lights -->
+  <g>
+    <rect x="200" y="440" width="6" height="55" fill="#2a3a50"/>
+    <ellipse cx="203" cy="438" rx="15" ry="5" fill="#3a5070"/>
+    <ellipse cx="203" cy="436" rx="12" ry="4" fill="#f5dd80" opacity="0.6"/>
+    <circle cx="203" cy="436" r="3" fill="#ffffcc" opacity="0.9"/>
+    <rect x="1594" y="440" width="6" height="55" fill="#2a3a50"/>
+    <ellipse cx="1597" cy="438" rx="15" ry="5" fill="#3a5070"/>
+    <ellipse cx="1597" cy="436" rx="12" ry="4" fill="#f5dd80" opacity="0.6"/>
+    <circle cx="1597" cy="436" r="3" fill="#ffffcc" opacity="0.9"/>
+  </g>
+  <!-- Left building cityscape -->
+  <rect x="0" y="300" width="100" height="180" fill="#0d1828"/>
+  <rect x="50" y="250" width="70" height="230" fill="#0a1420"/>
+  <rect x="100" y="320" width="80" height="160" fill="#0d1828"/>
+  <!-- City lights on left buildings -->
+  <g fill="#2a4a80" opacity="0.7">
+    <rect x="55" y="265" width="8" height="6" rx="1"/><rect x="75" y="265" width="8" height="6" rx="1"/>
+    <rect x="55" y="285" width="8" height="6" rx="1"/><rect x="75" y="285" width="8" height="6" rx="1"/>
+    <rect x="55" y="305" width="8" height="6" rx="1"/><rect x="75" y="305" width="8" height="6" rx="1"/>
+    <rect x="55" y="325" width="8" height="6" rx="1"/>
+    <rect x="7" y="315" width="8" height="6" rx="1"/><rect x="27" y="315" width="8" height="6" rx="1"/>
+    <rect x="7" y="335" width="8" height="6" rx="1"/><rect x="27" y="335" width="8" height="6" rx="1"/>
+  </g>
+  <!-- Right building cityscape -->
+  <rect x="1700" y="300" width="100" height="180" fill="#0d1828"/>
+  <rect x="1680" y="250" width="70" height="230" fill="#0a1420"/>
+  <rect x="1620" y="320" width="80" height="160" fill="#0d1828"/>
+  <g fill="#2a4a80" opacity="0.7">
+    <rect x="1685" y="265" width="8" height="6" rx="1"/><rect x="1705" y="265" width="8" height="6" rx="1"/>
+    <rect x="1685" y="285" width="8" height="6" rx="1"/><rect x="1705" y="285" width="8" height="6" rx="1"/>
+    <rect x="1685" y="305" width="8" height="6" rx="1"/>
+    <rect x="1762" y="315" width="8" height="6" rx="1"/><rect x="1742" y="315" width="8" height="6" rx="1"/>
+    <rect x="1762" y="335" width="8" height="6" rx="1"/>
+  </g>
+</svg>

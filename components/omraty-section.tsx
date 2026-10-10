@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { useTranslations } from "next-intl"
 
 function OmratySectionContent() {
@@ -28,13 +27,14 @@ export function OmratySection() {
               <OmratySectionContent />
             </div>
 
-            {/* Image */}
-            <div className="relative h-64 lg:h-auto">
-              <Image
-                src="https://images.unsplash.com/photo-1564769625905-50e93615e769?w=800&h=500&fit=crop"
-                alt="Omraty - Programme de pèlerinage"
-                fill
-                className="object-cover"
+            {/* Local SVG illustration — no external network dependency */}
+            <div className="relative h-64 overflow-hidden lg:h-auto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/omra-banner.svg"
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
           </div>

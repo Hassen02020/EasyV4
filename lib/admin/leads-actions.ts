@@ -28,6 +28,8 @@ import {
   type LeadStatus,
   type ReservationLinkCandidate,
 } from "@/lib/crm/leads-core"
+import { CRM_CHANNELS, type CrmChannel } from "@/lib/crm/inbox-core"
+import { captureStaffLeadCore } from "@/lib/crm/staff-lead-capture-core"
 
 const SUPPORT_STAFF_ROLES = ["super_admin", "manager", "agent_resa"] as const
 
@@ -211,6 +213,56 @@ export async function updateLeadNotes(input: {
     return { ok: true }
   } catch (err) {
     console.error("[updateLeadNotes]", err)
+    return { ok: false, error: "Erreur technique. Veuillez réessayer." }
+  }
+}
+
+export type CreateLeadResult =
+  | { ok: true; leadId: string }
+  | { ok: false; error: string }
+
+export async function createLead(input: {
+  firstName: string
+  lastName?: string | null
+  email?: string | null
+  phone?: string | null
+  notes?: string | null
+  channel: CrmChannel
+}): Promise<CreateLeadResult> {
+  let ctx: SupportStaffContext
+  try {
+    ctx = await assertSupportStaff()
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FORBIDDEN" }
+  }
+  if (!process.env.DATABASE_URL)
+    return { ok: false, error: "Base de données non configurée" }
+
+  const firstName = (input.firstName ?? "").trim()
+  if (!firstName) return { ok: false, error: "Prénom requis." }
+  if (!(CRM_CHANNELS as readonly string[]).includes(input.channel)) {
+    return { ok: false, error: "Canal invalide." }
+  }
+
+  try {
+    const result = await withTenantContext(
+      { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+      (tx) =>
+        captureStaffLeadCore(tx, {
+          agencyId: ctx.agencyId,
+          capturedByUserId: ctx.userId,
+          firstName,
+          lastName: input.lastName ?? null,
+          email: input.email ?? null,
+          phone: input.phone ?? null,
+          notes: input.notes ?? null,
+          channel: input.channel,
+        }),
+    )
+    revalidatePath("/admin/support")
+    return { ok: true, leadId: result.leadId }
+  } catch (err) {
+    console.error("[createLead]", err)
     return { ok: false, error: "Erreur technique. Veuillez réessayer." }
   }
 }

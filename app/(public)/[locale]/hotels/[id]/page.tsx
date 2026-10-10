@@ -54,7 +54,7 @@ import { ProductReviewsSectionClient } from "@/components/reviews/product-review
 import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 
 const PLACEHOLDER_IMG =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=600&fit=crop"
+  "/images/hotels-banner.svg"
 
 /**
  * PHASE 31 — icône PUREMENT visuelle par mot-clé sur le libellé réel de la

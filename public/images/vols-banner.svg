@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a2a5e"/>
+      <stop offset="40%" stop-color="#1a5eaa"/>
+      <stop offset="80%" stop-color="#3a8fd4"/>
+      <stop offset="100%" stop-color="#7bbde8"/>
+    </linearGradient>
+    <radialGradient id="sunAtm" cx="15%" cy="90%" r="40%">
+      <stop offset="0%" stop-color="#ffcc44" stop-opacity="0.7"/>
+      <stop offset="50%" stop-color="#ff8c00" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#3a8fd4" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cloudBlur">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+  </defs>
+  <!-- Sky gradient -->
+  <rect width="1800" height="600" fill="url(#sky)"/>
+  <!-- Atmosphere/horizon glow -->
+  <rect width="1800" height="600" fill="url(#sunAtm)"/>
+  <!-- Clouds layer - far background (blurry) -->
+  <g opacity="0.4" filter="url(#cloudBlur)">
+    <ellipse cx="300" cy="450" rx="200" ry="50"/>
+    <ellipse cx="1500" cy="420" rx="180" ry="45"/>
+    <ellipse cx="900" cy="480" rx="250" ry="55"/>
+  </g>
+  <!-- Clouds - mid level -->
+  <g fill="white">
+    <ellipse cx="100" cy="350" rx="120" ry="40" opacity="0.7"/>
+    <ellipse cx="180" cy="340" rx="90" ry="32" opacity="0.75"/>
+    <ellipse cx="50" cy="355" rx="70" ry="28" opacity="0.65"/>
+    <ellipse cx="1700" cy="330" rx="110" ry="38" opacity="0.7"/>
+    <ellipse cx="1760" cy="320" rx="80" ry="28" opacity="0.7"/>
+    <ellipse cx="1640" cy="340" rx="85" ry="30" opacity="0.65"/>
+    <ellipse cx="900" cy="370" rx="150" ry="45" opacity="0.65"/>
+    <ellipse cx="980" cy="355" rx="110" ry="35" opacity="0.7"/>
+    <ellipse cx="820" cy="365" rx="90" ry="30" opacity="0.6"/>
+    <ellipse cx="550" cy="280" rx="90" ry="28" opacity="0.6"/>
+    <ellipse cx="620" cy="270" rx="70" ry="24" opacity="0.65"/>
+    <ellipse cx="1250" cy="300" rx="100" ry="30" opacity="0.6"/>
+    <ellipse cx="1330" cy="290" rx="75" ry="26" opacity="0.65"/>
+  </g>
+  <!-- Clouds - foreground big -->
+  <g fill="white" opacity="0.85">
+    <ellipse cx="350" cy="520" rx="220" ry="60"/>
+    <ellipse cx="460" cy="505" rx="160" ry="48"/>
+    <ellipse cx="260" cy="530" rx="130" ry="45"/>
+    <ellipse cx="1450" cy="500" rx="200" ry="58"/>
+    <ellipse cx="1560" cy="488" rx="150" ry="45"/>
+    <ellipse cx="1360" cy="510" rx="120" ry="42"/>
+  </g>
+  <!-- Flight path arc (vapor trail) -->
+  <path d="M200 420 Q900 150 1650 200" fill="none" stroke="white" stroke-width="2.5" stroke-dasharray="12,8" opacity="0.5"/>
+  <!-- Second vapor trail (older, diffused) -->
+  <path d="M200 440 Q900 170 1650 220" fill="none" stroke="white" stroke-width="5" opacity="0.1"/>
+  <!-- Airplane body - main fuselage -->
+  <g transform="translate(860,220) rotate(-12)">
+    <!-- Main fuselage -->
+    <ellipse cx="0" cy="0" rx="140" ry="18" fill="#f0f4f8"/>
+    <!-- Nose -->
+    <path d="M140 0 Q175 0 185 8 Q175 16 140 0Z" fill="#dce4ed"/>
+    <!-- Tail -->
+    <path d="-140 0 Q-165 -2 -180 0 Q-165 2 -140 0Z" fill="#dce4ed"/>
+    <!-- Vertical stabilizer -->
+    <path d="M-120 0 L-150 -55 Q-145 -60 -120 -55 L-100 0Z" fill="#1a5eaa"/>
+    <!-- Horizontal stabilizer left -->
+    <path d="M-110 0 L-145 20 Q-148 22 -140 12 L-95 0Z" fill="#dce4ed"/>
+    <!-- Horizontal stabilizer right -->
+    <path d="M-110 0 L-145 -20 Q-148 -22 -140 -12 L-95 0Z" fill="#dce4ed"/>
+    <!-- Main wings -->
+    <path d="M20 0 L-30 80 Q-40 90 -20 75 L50 0Z" fill="#dce4ed"/>
+    <path d="M20 0 L-30 -80 Q-40 -90 -20 -75 L50 0Z" fill="#dce4ed"/>
+    <!-- Wing engines left -->
+    <ellipse cx="-10" cy="55" rx="22" ry="8" fill="#c0c8d4"/>
+    <rect x="-32" y="50" width="44" height="5" rx="2" fill="#aab4c0"/>
+    <!-- Wing engines right -->
+    <ellipse cx="-10" cy="-55" rx="22" ry="8" fill="#c0c8d4"/>
+    <rect x="-32" y="-55" width="44" height="5" rx="2" fill="#aab4c0"/>
+    <!-- Windows strip -->
+    <g fill="#adc8e8" opacity="0.8">
+      <rect x="-60" y="-6" width="12" height="9" rx="3"/>
+      <rect x="-40" y="-6" width="12" height="9" rx="3"/>
+      <rect x="-20" y="-6" width="12" height="9" rx="3"/>
+      <rect x="0" y="-6" width="12" height="9" rx="3"/>
+      <rect x="20" y="-6" width="12" height="9" rx="3"/>
+      <rect x="40" y="-6" width="12" height="9" rx="3"/>
+      <rect x="60" y="-6" width="12" height="9" rx="3"/>
+      <rect x="80" y="-6" width="12" height="9" rx="3"/>
+      <rect x="100" y="-6" width="12" height="9" rx="3"/>
+    </g>
+    <!-- Belly stripe -->
+    <rect x="-140" y="3" width="280" height="5" rx="2" fill="#1a5eaa" opacity="0.6"/>
+  </g>
+  <!-- Stars (visible at altitude) -->
+  <g fill="white" opacity="0.4">
+    <circle cx="800" cy="40" r="1.5"/><circle cx="950" cy="25" r="1"/>
+    <circle cx="1100" cy="55" r="1.5"/><circle cx="1250" cy="35" r="1"/>
+    <circle cx="1380" cy="60" r="1.5"/><circle cx="1520" cy="20" r="1"/>
+    <circle cx="600" cy="60" r="1"/><circle cx="450" cy="40" r="1.5"/>
+  </g>
+  <!-- Horizon glow -->
+  <rect x="0" y="550" width="1800" height="50" fill="#ffcc44" opacity="0.15"/>
+  <!-- Ground seen from altitude -->
+  <path d="M0 580 Q450 560 900 575 Q1350 590 1800 570 L1800 600 L0 600Z" fill="#2d5a1e" opacity="0.5"/>
+  <!-- Patchwork of fields below -->
+  <g opacity="0.3">
+    <rect x="50" y="570" width="80" height="30" fill="#3a7a2a"/>
+    <rect x="140" y="575" width="70" height="25" fill="#c4a265"/>
+    <rect x="220" y="568" width="90" height="32" fill="#2d6a20"/>
+    <rect x="320" y="572" width="75" height="28" fill="#4a8a34"/>
+    <rect x="1400" y="570" width="80" height="30" fill="#3a7a2a"/>
+    <rect x="1490" y="575" width="70" height="25" fill="#c4a265"/>
+    <rect x="1570" y="568" width="90" height="32" fill="#2d6a20"/>
+    <rect x="1670" y="572" width="75" height="28" fill="#4a8a34"/>
+  </g>
+</svg>

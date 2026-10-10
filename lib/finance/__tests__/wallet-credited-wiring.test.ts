@@ -42,13 +42,19 @@ const agenciesSrc = readFileSync(
 // ─── RECHARGE-ACTIONS : Invariant 1 : garde triple ────────────────────────
 
 test("VOUCHER-WIRING-01/recharge : conditionné sur notifyAgencyId && notifyTxId && notifyMethod", () => {
-  assert.match(rechargeSrc, /notifyAgencyId\s*&&\s*notifyTxId\s*&&\s*notifyMethod/)
+  assert.match(
+    rechargeSrc,
+    /notifyAgencyId\s*&&\s*notifyTxId\s*&&\s*notifyMethod/,
+  )
 })
 
 // ─── RECHARGE-ACTIONS : Invariant 2 : fire-and-forget ────────────────────
 
 test("VOUCHER-WIRING-01/recharge : sendEvent wallet/credited est fire-and-forget (.catch)", () => {
-  assert.match(rechargeSrc, /sendEvent\(["']wallet\/credited["'][\s\S]{0,600}?\)\.catch\(/)
+  assert.match(
+    rechargeSrc,
+    /sendEvent\(["']wallet\/credited["'][\s\S]{0,600}?\)\.catch\(/,
+  )
 })
 
 // ─── RECHARGE-ACTIONS : Invariant 3 : payload ────────────────────────────
@@ -67,13 +73,19 @@ test("VOUCHER-WIRING-01/recharge : payload contient agencyId, txId, amount, newB
 // ─── AGENCIES-ACTIONS : Invariant 4 : conditionné sur movementId ─────────
 
 test("VOUCHER-WIRING-01/admin-direct : conditionné sur movementId (tx DB réussie)", () => {
-  assert.match(agenciesSrc, /if\s*\(\s*movementId\s*\)[\s\S]{0,100}sendEvent\(["']wallet\/credited["']/)
+  assert.match(
+    agenciesSrc,
+    /if\s*\(\s*movementId\s*\)[\s\S]{0,100}sendEvent\(["']wallet\/credited["']/,
+  )
 })
 
 // ─── AGENCIES-ACTIONS : Invariant 5 : fire-and-forget ────────────────────
 
 test("VOUCHER-WIRING-01/admin-direct : sendEvent wallet/credited est fire-and-forget (.catch)", () => {
-  assert.match(agenciesSrc, /sendEvent\(["']wallet\/credited["'][\s\S]{0,600}?\)\.catch\(/)
+  assert.match(
+    agenciesSrc,
+    /sendEvent\(["']wallet\/credited["'][\s\S]{0,600}?\)\.catch\(/,
+  )
 })
 
 // ─── AGENCIES-ACTIONS : Invariant 6 : method = "ADMIN_DIRECT" ────────────

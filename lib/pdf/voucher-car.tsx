@@ -19,7 +19,11 @@ import {
   getRowStyle,
   ARABIC_FONT_FAMILY,
 } from "./voucher-base"
-import { getVoucherLabels, isRTL, formatDateTimeForLocale } from "./voucher-i18n"
+import {
+  getVoucherLabels,
+  isRTL,
+  formatDateTimeForLocale,
+} from "./voucher-i18n"
 
 export interface CarVoucherData {
   publicRef: string

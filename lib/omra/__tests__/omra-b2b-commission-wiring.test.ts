@@ -64,7 +64,10 @@ test("COMMISSION-WIRING-B2B-01/omra : creditPlatformCommission description conti
 // ─── Invariant 4 : imports corrects ───────────────────────────────────────
 
 test("COMMISSION-WIRING-B2B-01/omra : imports creditPlatformCommission et recordReservationFinancials (B2B)", () => {
-  assert.match(src, /import.*creditPlatformCommission.*from.*platform-commission/)
+  assert.match(
+    src,
+    /import.*creditPlatformCommission.*from.*platform-commission/,
+  )
   assert.match(
     src,
     /import.*recordReservationFinancials.*from.*reservation-financials/,

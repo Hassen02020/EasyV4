@@ -45,15 +45,15 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const src = readFileSync(
-  join(ROOT, "lib/vols/flight-financials.ts"),
-  "utf8",
-)
+const src = readFileSync(join(ROOT, "lib/vols/flight-financials.ts"), "utf8")
 
 // ─── Invariant 1 : fonction exportée ─────────────────────────────────────────
 
 test("COMMISSION-WIRING-01/flights : finalizeFlightBookingFinancials est exportée", () => {
-  assert.match(src, /export\s+async\s+function\s+finalizeFlightBookingFinancials/)
+  assert.match(
+    src,
+    /export\s+async\s+function\s+finalizeFlightBookingFinancials/,
+  )
 })
 
 // ─── Invariant 2 : guard snapshotId ──────────────────────────────────────────
@@ -92,7 +92,10 @@ test("COMMISSION-WIRING-01/flights : CURRENCY-DIM — fetchExchangeRateForBookin
 // ─── Invariant 6 : fail-closed FX — pas de taux de repli codé en dur ─────────
 
 test("COMMISSION-WIRING-01/flights : CURRENCY-DIM fail-closed — pas de taux de repli ??\\ 0 ou ??\\ 1 autour du taux de change", () => {
-  assert.doesNotMatch(src, /fetchExchangeRateForBooking[\s\S]{0,100}?\.rate\s*\?\?\s*[01]/)
+  assert.doesNotMatch(
+    src,
+    /fetchExchangeRateForBooking[\s\S]{0,100}?\.rate\s*\?\?\s*[01]/,
+  )
   assert.doesNotMatch(src, /referenceRate\.rate\s*\?\?\s*[01]/)
 })
 

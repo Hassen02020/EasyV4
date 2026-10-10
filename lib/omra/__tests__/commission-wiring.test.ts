@@ -69,7 +69,10 @@ test("COMMISSION-WIRING-COVERAGE-01/omra : creditPlatformCommission contient des
 // ─── Invariant 4 : imports corrects ───────────────────────────────────────
 
 test("COMMISSION-WIRING-COVERAGE-01/omra : creditPlatformCommission et recordReservationFinancials sont importés", () => {
-  assert.match(src, /import.*creditPlatformCommission.*from.*platform-commission/)
+  assert.match(
+    src,
+    /import.*creditPlatformCommission.*from.*platform-commission/,
+  )
   assert.match(
     src,
     /import.*recordReservationFinancials.*from.*reservation-financials/,

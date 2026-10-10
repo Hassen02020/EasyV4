@@ -55,14 +55,9 @@ test("COMMISSION-MONDE-01 : salePriceTnd passe finalTotalTnd (prix de vente apr�
 
 test("COMMISSION-MONDE-01 : supplierPriceTnd et salePriceTnd sont distincts dans recordReservationFinancials", () => {
   // Les deux champs doivent coexister dans le même appel.
-  const rfCall = src.match(
-    /recordReservationFinancials\(\{[\s\S]*?\}\)/,
-  )
+  const rfCall = src.match(/recordReservationFinancials\(\{[\s\S]*?\}\)/)
   assert.ok(rfCall, "recordReservationFinancials doit être appelé")
-  assert.match(
-    rfCall[0],
-    /supplierPriceTnd:\s*bookResult\.supplierPriceTnd/,
-  )
+  assert.match(rfCall[0], /supplierPriceTnd:\s*bookResult\.supplierPriceTnd/)
   assert.match(rfCall[0], /salePriceTnd:\s*finalTotalTnd/)
 })
 
@@ -110,15 +105,12 @@ test("COMMISSION-MONDE-01 : creditPlatformCommission appelé avec commissionAmou
 
 test("COMMISSION-MONDE-01 : creditPlatformCommission contient description avec publicRef", () => {
   // La description doit identifier la réservation pour l'audit financier.
-  assert.match(
-    src,
-    /description:\s*`[^`]*publicRef[^`]*`/,
-  )
+  assert.match(src, /description:\s*`[^`]*publicRef[^`]*`/)
 })
 
 // ─── Invariant 4 : channel "direct" pour getMarginsForAgency ─────────────
 
-test("COMMISSION-MONDE-01 : getMarginsForAgency appelé avec channel \"direct\"", () => {
+test('COMMISSION-MONDE-01 : getMarginsForAgency appelé avec channel "direct"', () => {
   // B2C guest checkout = vente directe consommateur.
   // "b2b" serait incorrect — le guest n'est pas un partenaire agence.
   assert.match(src, /getMarginsForAgency\(agencyId,\s*undefined,\s*"direct"\)/)
@@ -153,7 +145,10 @@ test("COMMISSION-MONDE-01 : sendEvent fire-and-forget (pas d'await bloquant)", (
 })
 
 test("COMMISSION-MONDE-01 : creditPlatformCommission et recordReservationFinancials sont importés", () => {
-  assert.match(src, /import.*creditPlatformCommission.*from.*platform-commission/)
+  assert.match(
+    src,
+    /import.*creditPlatformCommission.*from.*platform-commission/,
+  )
   assert.match(
     src,
     /import.*recordReservationFinancials.*from.*reservation-financials/,

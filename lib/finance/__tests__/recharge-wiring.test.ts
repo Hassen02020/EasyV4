@@ -89,7 +89,7 @@ test("RECHARGE-WIRING-01 : REQUEST_ALREADY_PROCESSED — throw si statut !== pen
   assert.match(src, /REQUEST_ALREADY_PROCESSED/)
   assert.match(src, /request\.status\s*!==\s*["']pending["']/)
   // La vérification de statut doit précéder le throw REQUEST_ALREADY_PROCESSED
-  const statusCheckIdx = src.indexOf("request.status !== \"pending\"")
+  const statusCheckIdx = src.indexOf('request.status !== "pending"')
   const alreadyProcessedIdx = src.indexOf("REQUEST_ALREADY_PROCESSED")
   assert.ok(statusCheckIdx > 0, 'request.status !== "pending" doit exister')
   assert.ok(alreadyProcessedIdx > 0, "REQUEST_ALREADY_PROCESSED doit exister")
@@ -102,10 +102,7 @@ test("RECHARGE-WIRING-01 : REQUEST_ALREADY_PROCESSED — throw si statut !== pen
 // ─── Invariant 5 : agencyId:null + isSuperAdmin:true dans withTenantContext ───
 
 test("RECHARGE-WIRING-01 : agencyId:null + isSuperAdmin:true dans withTenantContext (cross-agence validate)", () => {
-  assert.match(
-    src,
-    /agencyId:\s*null[\s\S]{0,100}isSuperAdmin:\s*true/,
-  )
+  assert.match(src, /agencyId:\s*null[\s\S]{0,100}isSuperAdmin:\s*true/)
 })
 
 // ─── Invariant 6 : creditRechargeRequest dans la transaction ─────────────────
@@ -141,9 +138,11 @@ test("RECHARGE-WIRING-01 : INSERT walletRechargeRequests avant createPayment PSP
     insertIdx + 1,
   )
   const createPaymentIdx = src.indexOf("createPayment({")
-  const effectiveInsertIdx =
-    secondInsertIdx > 0 ? secondInsertIdx : insertIdx
-  assert.ok(effectiveInsertIdx > 0, "insert(walletRechargeRequests) doit exister")
+  const effectiveInsertIdx = secondInsertIdx > 0 ? secondInsertIdx : insertIdx
+  assert.ok(
+    effectiveInsertIdx > 0,
+    "insert(walletRechargeRequests) doit exister",
+  )
   assert.ok(createPaymentIdx > 0, "createPayment({ doit exister")
   assert.ok(
     effectiveInsertIdx < createPaymentIdx,

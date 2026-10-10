@@ -39,7 +39,7 @@ const src = readFileSync(
 
 // ─── Invariant 1 : garde module hotel + customerEmail + hotelName ─────────
 
-test("VOUCHER-WIRING-01/manual-payment : garde detail?.module === \"hotel\"", () => {
+test('VOUCHER-WIRING-01/manual-payment : garde detail?.module === "hotel"', () => {
   assert.match(src, /detail\?\.module\s*===\s*["']hotel["']/)
 })
 
@@ -65,13 +65,19 @@ test("VOUCHER-WIRING-01/manual-payment : lit tndAmount depuis la DB (pas detail.
 // ─── Invariant 3 : customerName assemblé depuis first+last name ───────────
 
 test("VOUCHER-WIRING-01/manual-payment : customerName assemblé via customerFirstName + customerLastName", () => {
-  assert.match(src, /customerName:\s*`\$\{detail\.customerFirstName\}\s*\$\{detail\.customerLastName\}`\.trim\(\)/)
+  assert.match(
+    src,
+    /customerName:\s*`\$\{detail\.customerFirstName\}\s*\$\{detail\.customerLastName\}`\.trim\(\)/,
+  )
 })
 
 // ─── Invariant 4 : fire-and-forget ────────────────────────────────────────
 
 test("VOUCHER-WIRING-01/manual-payment : sendEvent «booking/confirmed» est fire-and-forget (.catch)", () => {
-  assert.match(src, /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/)
+  assert.match(
+    src,
+    /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/,
+  )
 })
 
 // ─── Invariant 5 : utilise sendEvent (pas inngest.send direct) ────────────

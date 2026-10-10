@@ -23,10 +23,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const src = readFileSync(
-  join(ROOT, "lib/packages/booking-actions.ts"),
-  "utf8",
-)
+const src = readFileSync(join(ROOT, "lib/packages/booking-actions.ts"), "utf8")
 
 // ─── Invariant 1 : catalogue propre (pas de coût fournisseur séparé) ──────
 
@@ -68,7 +65,10 @@ test("COMMISSION-WIRING-COVERAGE-01/packages : creditPlatformCommission contient
 // ─── Invariant 4 : imports corrects ───────────────────────────────────────
 
 test("COMMISSION-WIRING-COVERAGE-01/packages : creditPlatformCommission et recordReservationFinancials sont importés", () => {
-  assert.match(src, /import.*creditPlatformCommission.*from.*platform-commission/)
+  assert.match(
+    src,
+    /import.*creditPlatformCommission.*from.*platform-commission/,
+  )
   assert.match(
     src,
     /import.*recordReservationFinancials.*from.*reservation-financials/,

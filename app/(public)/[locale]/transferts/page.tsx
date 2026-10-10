@@ -44,7 +44,10 @@ export default async function TransfertsPage({
         <ModuleHero
           Icon={Navigation}
           gradient="from-slate-900 to-slate-700"
-          imageUrl={visual?.heroImageUrl ?? "https://images.unsplash.com/photo-1449965408869-eaa3f722e718?w=1800&q=85&auto=format&fit=crop"}
+          imageUrl={
+            visual?.heroImageUrl ??
+            "https://images.unsplash.com/photo-1449965408869-eaa3f722e718?w=1800&q=85&auto=format&fit=crop"
+          }
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

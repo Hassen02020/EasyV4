@@ -19,7 +19,7 @@ export default function PublicLocaleError({
   return (
     <div className="flex min-h-screen flex-col">
       {/* Minimal header stand-in so nav stays accessible */}
-      <div className="h-16 border-b bg-background" />
+      <div className="bg-background h-16 border-b" />
 
       <main className="bg-muted/30 flex flex-1 items-center justify-center px-4 py-16">
         <div className="max-w-md text-center">

@@ -76,16 +76,16 @@ test("COMMISSION-WIRING-B2B-01/transfers : entitlement seller avec qualification
 })
 
 test("COMMISSION-WIRING-B2B-01/transfers : seller_margin = pricing.totalTnd - transferSupplierCostTnd (B2B)", () => {
-  assert.match(
-    src,
-    /amount:\s*pricing\.totalTnd\s*-\s*transferSupplierCostTnd/,
-  )
+  assert.match(src, /amount:\s*pricing\.totalTnd\s*-\s*transferSupplierCostTnd/)
 })
 
 // ─── Invariant 4 : imports corrects ───────────────────────────────────────
 
 test("COMMISSION-WIRING-B2B-01/transfers : imports creditPlatformCommission et recordReservationFinancials (B2B)", () => {
-  assert.match(src, /import.*creditPlatformCommission.*from.*platform-commission/)
+  assert.match(
+    src,
+    /import.*creditPlatformCommission.*from.*platform-commission/,
+  )
   assert.match(
     src,
     /import.*recordReservationFinancials.*from.*reservation-financials/,

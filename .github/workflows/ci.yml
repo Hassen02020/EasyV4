@@ -100,6 +100,14 @@ jobs:
     services:
       postgres:
         image: postgres:16
+        # CI-FIX-05 (2026-10-10): authentification Docker Hub pour éviter le
+        # rate-limit unauthenticated (toomanyrequests). Nécessite les secrets
+        # DOCKERHUB_USERNAME et DOCKERHUB_TOKEN configurés dans les secrets
+        # GitHub du dépôt (Settings → Secrets → Actions). Sans ces secrets,
+        # le pull reste anonyme et peut de nouveau échouer sous forte charge.
+        credentials:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -302,6 +310,9 @@ jobs:
     services:
       postgres:
         image: postgres:16
+        credentials:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -350,6 +361,9 @@ jobs:
     services:
       postgres:
         image: postgres:16
+        credentials:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

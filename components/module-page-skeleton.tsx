@@ -8,10 +8,10 @@ export function ModulePageSkeleton() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header placeholder */}
-      <div className="h-16 border-b bg-background" />
+      <div className="bg-background h-16 border-b" />
 
       {/* Hero skeleton */}
-      <div className="relative h-48 w-full animate-pulse bg-muted/60 px-4 py-12">
+      <div className="bg-muted/60 relative h-48 w-full animate-pulse px-4 py-12">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 text-center">
           <Skeleton className="size-14 rounded-2xl" />
           <Skeleton className="h-3 w-32" />

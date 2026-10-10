@@ -44,7 +44,7 @@ test("REFUND-WIRING-01 : REFUND_ALLOWED_ROLES importé depuis refund-logic (expo
   assert.match(src, /REFUND_ALLOWED_ROLES.*from.*refund-logic/)
 })
 
-test("REFUND-WIRING-01 : role check — code \"UNAUTHORIZED\" retourné si rôle non autorisé", () => {
+test('REFUND-WIRING-01 : role check — code "UNAUTHORIZED" retourné si rôle non autorisé', () => {
   assert.match(src, /code:\s*["']UNAUTHORIZED["']/)
 })
 
@@ -67,8 +67,14 @@ test("REFUND-WIRING-01 : FOR UPDATE lock avant applyReservationRefund (no double
   const lockIdx = src.indexOf('.for("update")')
   const refundIdx = src.indexOf("applyReservationRefund(")
   assert.ok(lockIdx > 0, "FOR UPDATE doit exister dans le fichier")
-  assert.ok(refundIdx > 0, "applyReservationRefund doit exister dans le fichier")
-  assert.ok(lockIdx < refundIdx, "FOR UPDATE doit précéder applyReservationRefund")
+  assert.ok(
+    refundIdx > 0,
+    "applyReservationRefund doit exister dans le fichier",
+  )
+  assert.ok(
+    lockIdx < refundIdx,
+    "FOR UPDATE doit précéder applyReservationRefund",
+  )
 })
 
 // ─── Invariant 3 : cross-agency super_admin ───────────────────────────────────

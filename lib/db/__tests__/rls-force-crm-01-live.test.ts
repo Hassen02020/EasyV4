@@ -4,6 +4,9 @@
  * The six CRM tables already had tenant-isolation policies, but ordinary
  * RLS does not constrain the table owner. This regression test proves that
  * both RLS and FORCE RLS are enabled on every table in scope.
+ *
+ * 0130 (RLS-CONSENT-FIX, 2026-10-10): lead_consent_events added — it had
+ * ENABLE but not FORCE. Now aligned with the other 13 CRM tables.
  */
 import test from "node:test"
 import assert from "node:assert/strict"
@@ -17,6 +20,7 @@ const TABLES = [
   "promos",
   "contacts",
   "lead_origin_events",
+  "lead_consent_events",
 ] as const
 
 async function isDbAvailable(): Promise<boolean> {
@@ -37,7 +41,7 @@ test.before(async () => {
   dbAvailable = await isDbAvailable()
 })
 
-test("CRM tables : RLS is enabled and FORCE RLS is enabled on all six tenant-scoped tables", async (t) => {
+test("CRM tables : RLS is enabled and FORCE RLS is enabled on all seven tenant-scoped tables", async (t) => {
   if (!dbAvailable) return t.skip(skipReason())
 
   const rows = await withSystemContext((tx) =>
@@ -50,13 +54,14 @@ test("CRM tables : RLS is enabled and FORCE RLS is enabled on all six tenant-sco
         ${TABLES[2]},
         ${TABLES[3]},
         ${TABLES[4]},
-        ${TABLES[5]}
+        ${TABLES[5]},
+        ${TABLES[6]}
       )
       order by relname
     `),
   )
 
-  assert.equal(rows.length, TABLES.length, "les 6 tables CRM doivent exister")
+  assert.equal(rows.length, TABLES.length, "les 7 tables CRM doivent exister")
 
   for (const row of rows as unknown as Array<{
     relname: string

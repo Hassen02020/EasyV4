@@ -240,7 +240,7 @@ test("PREUVE CENTRALE — exposed/converted/revenueTnd/marginTnd reflètent des 
   })
 })
 
-test("PROMO-CAMPAIGN-CANCEL-01 — réservation attribuée puis annulée (cancelledAt set) → exclue de converted/revenueTnd/marginTnd", async (t) => {
+test("PROMO-CAMPAIGN-CANCEL-01 — réservation attribuée puis annulée (status='cancelled', cancelledAt set) → exclue de converted/revenueTnd/marginTnd", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const ctxA: TenantContext = {
     agencyId: agencyA,
@@ -269,6 +269,14 @@ test("PROMO-CAMPAIGN-CANCEL-01 — réservation attribuée puis annulée (cancel
   )
 
   const reservationId = await makeCustomerAndReservation("400.00")
+
+  // Simule la clôture B2B/B2C : status + cancelledAt tous les deux positionnés.
+  await withSystemContext((tx) =>
+    tx
+      .update(reservations)
+      .set({ status: "cancelled" })
+      .where(eq(reservations.id, reservationId)),
+  )
 
   await withSystemContext((tx) =>
     tx.insert(reservationFinancials).values({
@@ -303,21 +311,83 @@ test("PROMO-CAMPAIGN-CANCEL-01 — réservation attribuée puis annulée (cancel
     }),
   )
 
-  assert.strictEqual(
-    result.converted,
-    0,
-    "une réservation annulée ne doit pas compter comme conversion",
+  assert.strictEqual(result.converted, 0, "une réservation annulée ne doit pas compter comme conversion")
+  assert.strictEqual(result.revenueTnd, "0.00", "revenueTnd doit exclure les réservations annulées")
+  assert.strictEqual(result.marginTnd, "0.00", "marginTnd doit exclure les réservations annulées")
+})
+
+test("PROMO-CAMPAIGN-CANCEL-01b — réservation remboursée via staff (status='refunded', cancelledAt absent) → exclue de converted/revenueTnd/marginTnd", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const ctxA: TenantContext = {
+    agencyId: agencyA,
+    userId: "",
+    isSuperAdmin: true,
+  }
+
+  const campaign = await withTenantContext(ctxA, (tx) =>
+    createCampaignCore(tx, {
+      agencyId: agencyA,
+      name: "Remboursement Staff Test",
+      channel: "email",
+    }),
   )
-  assert.strictEqual(
-    result.revenueTnd,
-    "0.00",
-    "revenueTnd doit exclure les réservations annulées",
+
+  const contact = await makeContact("email", "refund-staff-perf@example.com")
+
+  await withSystemContext((tx) =>
+    tx.insert(campaignTargets).values({
+      campaignId: campaign.id,
+      agencyId: agencyA,
+      contactId: contact,
+      leadIds: ["lead-refund-staff"],
+      consentStatusAtSnapshot: true,
+    }),
   )
-  assert.strictEqual(
-    result.marginTnd,
-    "0.00",
-    "marginTnd doit exclure les réservations annulées",
+
+  const reservationId = await makeCustomerAndReservation("500.00")
+
+  // Simule le chemin staff refundReservation : status='refunded' SANS cancelledAt.
+  await withSystemContext((tx) =>
+    tx
+      .update(reservations)
+      .set({ status: "refunded" })
+      .where(eq(reservations.id, reservationId)),
   )
+
+  await withSystemContext((tx) =>
+    tx.insert(reservationFinancials).values({
+      reservationId,
+      supplierPrice: "400.00",
+      supplierCurrency: "TND",
+      supplierPriceTnd: "400.00",
+      salePrice: "500.00",
+      saleCurrency: "TND",
+      salePriceTnd: "500.00",
+      marginAmount: "100.00",
+      marginPercent: "25.00",
+      // cancelledAt intentionnellement absent — c'est le bug couvert par ce test
+    }),
+  )
+
+  await withSystemContext((tx) =>
+    tx.insert(campaignAttributions).values({
+      campaignId: campaign.id,
+      agencyId: agencyA,
+      contactId: contact,
+      reservationId,
+    }),
+  )
+
+  const result = await withTenantContext(ctxA, (tx) =>
+    getCampaignPerformanceCore(tx, {
+      agencyId: agencyA,
+      campaignId: campaign.id,
+    }),
+  )
+
+  assert.strictEqual(result.converted, 0, "une réservation status='refunded' sans cancelledAt ne doit pas compter comme conversion")
+  assert.strictEqual(result.revenueTnd, "0.00", "revenueTnd doit exclure les réservations remboursées même sans cancelledAt")
+  assert.strictEqual(result.marginTnd, "0.00", "marginTnd doit exclure les réservations remboursées même sans cancelledAt")
 })
 
 test("campagne sans aucune cible ni attribution → tout à zéro, jamais une erreur", async (t) => {
@@ -349,5 +419,10 @@ test("campagne sans aucune cible ni attribution → tout à zéro, jamais une er
     converted: 0,
     revenueTnd: "0.00",
     marginTnd: "0.00",
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    pending: 0,
+    totalTargets: 0,
   })
 })

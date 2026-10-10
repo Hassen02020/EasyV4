@@ -24,11 +24,12 @@
  * modules -core.ts de ce dépôt).
  */
 
-import { and, eq, isNull, sql } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   campaignTargets,
   campaignAttributions,
+  reservations,
   reservationFinancials,
 } from "@/lib/db/schema"
 import { sumRevenueMarginCore } from "@/lib/reporting/margin-analytics-core"
@@ -88,14 +89,21 @@ export async function getCampaignPerformanceCore(
         campaignAttributions.reservationId,
       ),
     )
+    .innerJoin(
+      reservations,
+      eq(reservations.id, campaignAttributions.reservationId),
+    )
     .where(
       and(
         eq(campaignAttributions.campaignId, params.campaignId),
         eq(campaignAttributions.agencyId, params.agencyId),
-        // PROMO-CAMPAIGN-CANCEL-01 : une réservation annulée/remboursée ne
-        // compte pas comme conversion — le chiffre d'affaires et la marge
-        // reportés reflètent uniquement les réservations réellement honorées.
-        isNull(reservationFinancials.cancelledAt),
+        // PROMO-CAMPAIGN-CANCEL-01 : seules les réservations réellement
+        // honorées comptent. Le filtre porte sur reservations.status plutôt
+        // que sur reservationFinancials.cancelledAt car le chemin
+        // refundReservation (staff) et le webhook PSP positionnent
+        // status='refunded' sans appeler recordCancellationFinancials —
+        // cancelledAt resterait NULL et la réservation serait comptée à tort.
+        inArray(reservations.status, ["confirmed", "completed"]),
       ),
     )
 

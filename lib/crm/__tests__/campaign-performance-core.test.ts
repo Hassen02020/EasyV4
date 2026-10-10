@@ -23,10 +23,12 @@ import { getCampaignPerformanceCore } from "../campaign-performance-core"
  *
  * Séquence des SELECT dans getCampaignPerformanceCore :
  *   1 → campaign_targets (COUNT + delivery status breakdown) — terminal: .where()
- *   2 → campaign_attributions ⋈ reservation_financials — terminal: .innerJoin().where()
+ *   2 → campaign_attributions ⋈ reservation_financials ⋈ reservations
+ *       — terminal: .innerJoin().innerJoin().where()
  *
  * Comme `from()` retourne `this`, `innerJoin` et `where` doivent être sur le
- * même objet que `from`.
+ * même objet que `from`. Deux innerJoin successifs sont transparents ici car
+ * `innerJoin` renvoie `chain`.
  */
 function makeTx(opts: {
   sent?: number
@@ -130,14 +132,27 @@ describe("CAMPAIGN-DELIVERY-STATS-01 — getCampaignPerformanceCore delivery bre
 // PROMO-CAMPAIGN-CANCEL-01 — invariant statique : réservations annulées exclues
 // ---------------------------------------------------------------------------
 
-test("PROMO-CAMPAIGN-CANCEL-01 — getCampaignPerformanceCore filtre isNull(cancelledAt) sur reservationFinancials", () => {
+test("PROMO-CAMPAIGN-CANCEL-01 — getCampaignPerformanceCore filtre sur reservations.status (confirmed/completed)", () => {
   const src = readFileSync(
     join(process.cwd(), "lib/crm/campaign-performance-core.ts"),
     "utf8",
   )
+  // Le filtre doit porter sur reservations.status via inArray pour couvrir
+  // tous les chemins de remboursement (staff refund, webhook PSP) qui ne
+  // positionnent pas cancelledAt.
   assert.match(
     src,
-    /isNull\s*\(\s*reservationFinancials\.cancelledAt\s*\)/,
-    "getCampaignPerformanceCore doit filtrer les réservations annulées via isNull(reservationFinancials.cancelledAt)",
+    /inArray\s*\(\s*reservations\.status/,
+    "getCampaignPerformanceCore doit filtrer via inArray(reservations.status, [...])",
+  )
+  assert.match(
+    src,
+    /["']confirmed["']/,
+    "le filtre doit inclure le statut 'confirmed'",
+  )
+  assert.match(
+    src,
+    /["']completed["']/,
+    "le filtre doit inclure le statut 'completed'",
   )
 })

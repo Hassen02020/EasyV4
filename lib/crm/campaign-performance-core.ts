@@ -24,7 +24,7 @@
  * modules -core.ts de ce dépôt).
  */
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   campaignTargets,
@@ -92,6 +92,10 @@ export async function getCampaignPerformanceCore(
       and(
         eq(campaignAttributions.campaignId, params.campaignId),
         eq(campaignAttributions.agencyId, params.agencyId),
+        // PROMO-CAMPAIGN-CANCEL-01 : une réservation annulée/remboursée ne
+        // compte pas comme conversion — le chiffre d'affaires et la marge
+        // reportés reflètent uniquement les réservations réellement honorées.
+        isNull(reservationFinancials.cancelledAt),
       ),
     )
 

@@ -10,6 +10,8 @@
 
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import { getCampaignPerformanceCore } from "../campaign-performance-core"
 
 // ---------------------------------------------------------------------------
@@ -122,4 +124,20 @@ describe("CAMPAIGN-DELIVERY-STATS-01 — getCampaignPerformanceCore delivery bre
     assert.strictEqual(result.pending, 0)
     assert.strictEqual(result.totalTargets, 10)
   })
+})
+
+// ---------------------------------------------------------------------------
+// PROMO-CAMPAIGN-CANCEL-01 — invariant statique : réservations annulées exclues
+// ---------------------------------------------------------------------------
+
+test("PROMO-CAMPAIGN-CANCEL-01 — getCampaignPerformanceCore filtre isNull(cancelledAt) sur reservationFinancials", () => {
+  const src = readFileSync(
+    join(process.cwd(), "lib/crm/campaign-performance-core.ts"),
+    "utf8",
+  )
+  assert.match(
+    src,
+    /isNull\s*\(\s*reservationFinancials\.cancelledAt\s*\)/,
+    "getCampaignPerformanceCore doit filtrer les réservations annulées via isNull(reservationFinancials.cancelledAt)",
+  )
 })

@@ -36,6 +36,8 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**Aucun** — CRM-STAFF-LEAD-01 CLÔTURÉ (2026-10-10, commit `14996a4`). captureStaffLeadCore (createLeadCore → recordLeadOriginEventCore×2 role=channel+captured_by_user source="staff_manual_entry" rang 2) + Server Action createLead (assertSupportStaff, agencyId/userId session, validation firstName+CRM_CHANNELS) + CreateLeadDialog (/admin/support) + 13/13 invariants statiques. Aucune migration. Comble le gap CRM-NICHE-02 partiel : canaux offline (appel/email/instagram/messenger) désormais capturables par le staff.
+
 **Aucun** — RLS-CONSENT-FIX CLÔTURÉ (2026-10-10). Migration 0130 appliquée en production : `ALTER TABLE lead_consent_events FORCE ROW LEVEL SECURITY`. lead_consent_events alignée avec les 13 autres tables CRM (ENABLE + FORCE). Test rls-force-crm-01-live.test.ts étendu à 7 tables. PR créée sur branche claude/easy2book-v6-modernization-7gyb5v.
 **Aucun** — PROMO-CAMPAIGN-CANCEL-01 CLÔTURÉ (2026-10-10). getCampaignPerformanceCore filtre via inArray(reservations.status, ["confirmed","completed"]) — couvre B2B/B2C cancel (cancelledAt) ET staff refund/webhook PSP (status='refunded' sans cancelledAt). PR #174.
 **Aucun** — CRM-C — Task Management CLÔTURÉ (2026-10-10, PR #172 + #173, commit `2ae44425`). Migration 0128 `crm_tasks` + core + Server Actions + `CrmTasksPanel` + 34/34 tests. Migration 0129 `crm_tasks_rls_fix` appliquée : policies RLS corrigées (auth.uid() → current_agency_id() OR is_super_admin()), grants anon/authenticated révoqués. DEPLOYED ON PRODUCTION.

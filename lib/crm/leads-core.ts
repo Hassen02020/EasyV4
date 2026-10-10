@@ -93,6 +93,7 @@ export async function createLeadCore(
     destination?: string | null
     intention?: LeadIntention
     market?: LeadMarket
+    campaignRef?: string | null
   },
 ): Promise<{ id: string }> {
   const [inserted] = await tx
@@ -111,6 +112,7 @@ export async function createLeadCore(
       destination: params.destination ?? undefined,
       intention: params.intention ?? "standard",
       market: params.market ?? "tunisia",
+      campaignRef: params.campaignRef ?? undefined,
     })
     .returning({ id: leads.id })
   return { id: inserted!.id }

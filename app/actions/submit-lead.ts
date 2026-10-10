@@ -41,6 +41,8 @@ const inputSchema = z
     destination: z.string().trim().max(128).optional(),
     /** CRM-NICHE-01 — défaut "standard" si le formulaire ne le précise pas. */
     intention: z.enum(LEAD_INTENTIONS).default("standard"),
+    /** UTM-CAPTURE-01 — ?campaign= ou ?utm_campaign= depuis l'URL d'atterrissage. Donnée analytique fournie par le visiteur, jamais utilisée dans un calcul financier. */
+    campaignRef: z.string().trim().max(255).optional(),
     /** Honeypot — doit rester vide. */
     website: z.string().optional(),
   })
@@ -105,6 +107,7 @@ export async function submitLead(
           sourcePage: parsed.data.sourcePage,
           destination: parsed.data.destination || null,
           intention: parsed.data.intention,
+          campaignRef: parsed.data.campaignRef || null,
         }),
     )
 

@@ -62,7 +62,11 @@ export async function getDefaultAgencyId(): Promise<string | null> {
         .limit(1),
     )
     return resolveEffectiveAgencyId(null, agency?.id ?? null)
-  } catch {
+  } catch (err) {
+    // Journalise l'erreur pour diagnostic Vercel — la cause réelle de "Aucune
+    // agence n'est configurée" ne peut pas être confirmée sans ces logs (le
+    // catch silencieux précédent masquait tout échec DB/RLS/pool).
+    console.error("[getDefaultAgencyId] échec résolution agence OTA:", err)
     return null
   }
 }

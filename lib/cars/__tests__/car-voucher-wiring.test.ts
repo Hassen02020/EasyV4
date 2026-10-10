@@ -69,27 +69,32 @@ test("actions.ts : retourne categoryName, pickupLocationName, dropoffLocationNam
 
 /* -------------------------------------------------------------------------- */
 /* Câblage B2C — lib/cars/guest-booking-actions.ts                            */
+/* VOUCHER-STATUS-GUARD-01 : cars B2C = toujours status "pending" (paiement   */
+/* différé, aucune voie CB). sendEvent ne doit PAS être envoyé               */
+/* inconditionnellement — uniquement si isImmediatelyPaid.                   */
 /* -------------------------------------------------------------------------- */
 
-test("guest-booking-actions.ts : importe sendEvent depuis lib/inngest/client", () => {
-  assert.match(
+test("VOUCHER-STATUS-GUARD-01 (cars B2C) : sendEvent PAS importé dans guest-booking-actions.ts", () => {
+  // VOUCHER-STATUS-GUARD-01 — cars B2C sont toujours status "pending" ;
+  // le voucher ne doit être envoyé qu'après confirmation réelle du paiement.
+  assert.doesNotMatch(
     guestSrc,
     /import\s*\{[^}]*sendEvent[^}]*\}\s*from\s*["']@\/lib\/inngest\/client["']/,
   )
 })
 
-test('guest-booking-actions.ts : envoie l\'événement "booking/car.confirmed" après booking', () => {
-  assert.match(guestSrc, /sendEvent\("booking\/car\.confirmed"/)
+test("VOUCHER-STATUS-GUARD-01 (cars B2C) : sendEvent booking/car.confirmed NON câblé inconditionnellement (hors commentaires)", () => {
+  // Exclut les lignes commentées (// sendEvent...) — seule une ligne de code
+  // active sans préfixe // déclencherait cette assertion.
+  assert.doesNotMatch(
+    guestSrc,
+    /^(?!\s*\/\/).*sendEvent\("booking\/car\.confirmed"/m,
+  )
 })
 
-test("guest-booking-actions.ts : payload contient guestAccessToken, customerEmail", () => {
-  assert.match(guestSrc, /guestAccessToken:/)
-  assert.match(guestSrc, /customerEmail:/)
-})
-
-test("guest-booking-actions.ts : sendEvent est fire-and-forget (.catch())", () => {
-  assert.match(guestSrc, /\.catch\(/)
-  assert.doesNotMatch(guestSrc, /await sendEvent\("booking\/car\.confirmed"/)
+test("VOUCHER-STATUS-GUARD-01 (cars B2C) : commentaire de garde présent (isImmediatelyPaid)", () => {
+  // Le commentaire documente la protection à re-déclencher dès qu'une voie CB sera ajoutée.
+  assert.match(guestSrc, /isImmediatelyPaid/)
 })
 
 test("guest-booking-actions.ts : retourne rentalDays, categoryName depuis la transaction", () => {

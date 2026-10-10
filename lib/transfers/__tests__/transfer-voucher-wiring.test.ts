@@ -2,17 +2,20 @@
  * TRANSFER-VOUCHER-B2C-01 — invariants statiques sur le câblage du voucher
  * de confirmation pour les transferts B2C (guest-booking-actions.ts).
  *
- * Ce fichier protège trois invariants clés :
+ * VOUCHER-STATUS-GUARD-01 (2026-10-10) : transferts B2C sont toujours
+ * status "pending" (paiement différé, aucune voie CB). sendEvent NE DOIT
+ * PAS être envoyé inconditionnellement. Le voucher ne sera envoyé qu'après
+ * confirmation réelle du paiement, protégé par : if (isImmediatelyPaid) { ... }
  *
- * 1. sendEvent "booking/transfer.confirmed" est câblé dans la branche B2C,
- *    identiquement à la branche B2B (lib/transfers/actions.ts).
+ * Ce fichier protège les invariants mis à jour :
  *
- * 2. sendEvent est fire-and-forget (.catch) — l'échec email/SMS ne doit
- *    JAMAIS annuler la réservation déjà enregistrée.
+ * 1. sendEvent "booking/transfer.confirmed" N'EST PAS câblé inconditionnellement
+ *    dans la branche B2C guest — uniquement après confirmation paiement.
  *
- * 3. Le payload contient les champs essentiels (publicRef, fromZone, toZone,
- *    vehicleType, pickupAt) pour que le handler Inngest puisse générer le
- *    mail de confirmation et le SMS conducteur.
+ * 2. Un commentaire de garde documente la protection (isImmediatelyPaid).
+ *
+ * 3. Les champs essentiels de la transaction (publicRef, fromZoneName, toZoneName,
+ *    vehicleType, totalTnd) sont correctement propagés dans le résultat.
  *
  * Pattern readFileSync (même discipline que lib/cars/__tests__/
  * car-voucher-wiring.test.ts) : `"use server"` empêche d'importer le fichier
@@ -29,69 +32,45 @@ const src = readFileSync(
   "utf8",
 )
 
-// ─── Invariant 1 : sendEvent câblé ────────────────────────────────────────
+// ─── Invariant 1 : sendEvent PAS câblé inconditionnellement ──────────────
 
-test("TRANSFER-VOUCHER-B2C-01 : sendEvent importé depuis @/lib/inngest/client", () => {
-  assert.match(src, /import.*sendEvent.*from.*@\/lib\/inngest\/client/)
+test("VOUCHER-STATUS-GUARD-01 (transferts B2C) : sendEvent PAS importé depuis @/lib/inngest/client", () => {
+  // VOUCHER-STATUS-GUARD-01 — transferts B2C toujours status "pending" ;
+  // le voucher ne doit être envoyé qu'après confirmation réelle du paiement.
+  assert.doesNotMatch(src, /import.*sendEvent.*from.*@\/lib\/inngest\/client/)
 })
 
-test("TRANSFER-VOUCHER-B2C-01 : sendEvent booking/transfer.confirmed câblé pour transferts B2C", () => {
-  assert.match(src, /sendEvent\("booking\/transfer\.confirmed"/)
-})
-
-// ─── Invariant 2 : fire-and-forget ────────────────────────────────────────
-
-test("TRANSFER-VOUCHER-B2C-01 : sendEvent fire-and-forget (pas d'await bloquant)", () => {
-  // L'échec email/SMS ne doit JAMAIS annuler la réservation déjà enregistrée.
-  assert.match(src, /sendEvent\("booking\/transfer\.confirmed"[\s\S]*?\)\.catch\(/)
-})
-
-test("TRANSFER-VOUCHER-B2C-01 : sendEvent déclenché conditionnellement (email ou phone)", () => {
-  // Pas d'envoi si pas de coordonnées client — même discipline que B2B.
-  assert.match(
+test("VOUCHER-STATUS-GUARD-01 (transferts B2C) : sendEvent booking/transfer.confirmed NON câblé inconditionnellement (hors commentaires)", () => {
+  // Exclut les lignes commentées (// sendEvent...) — seule une ligne de code
+  // active sans préfixe // déclencherait cette assertion.
+  assert.doesNotMatch(
     src,
-    /if\s*\(input\.customer\.email\s*\|\|\s*input\.customer\.phone\)/,
+    /^(?!\s*\/\/).*sendEvent\("booking\/transfer\.confirmed"/m,
   )
 })
 
-// ─── Invariant 3 : payload complet ────────────────────────────────────────
+// ─── Invariant 2 : commentaire de garde présent ───────────────────────────
 
-test("TRANSFER-VOUCHER-B2C-01 : payload contient publicRef", () => {
+test("VOUCHER-STATUS-GUARD-01 (transferts B2C) : commentaire de garde présent (isImmediatelyPaid)", () => {
+  // Le commentaire documente la protection à re-déclencher dès qu'une voie CB sera ajoutée.
+  assert.match(src, /isImmediatelyPaid/)
+})
+
+// ─── Invariant 3 : données transaction correctement propagées ─────────────
+
+test("TRANSFER-VOUCHER-B2C-01 : publicRef retourné depuis la transaction interne", () => {
   assert.match(src, /publicRef:\s*result\.publicRef/)
 })
 
-test("TRANSFER-VOUCHER-B2C-01 : payload contient agencyId", () => {
+test("TRANSFER-VOUCHER-B2C-01 : agencyId utilisé dans les insertions", () => {
   assert.match(src, /agencyId,/)
 })
 
-test("TRANSFER-VOUCHER-B2C-01 : payload contient customerEmail", () => {
-  assert.match(src, /customerEmail:\s*input\.customer\.email\s*\?\?\s*""/)
-})
-
-test("TRANSFER-VOUCHER-B2C-01 : payload contient customerPhone", () => {
-  assert.match(src, /customerPhone:\s*input\.customer\.phone/)
-})
-
-test("TRANSFER-VOUCHER-B2C-01 : payload contient fromZone depuis result.fromZoneName", () => {
-  assert.match(src, /fromZone:\s*result\.fromZoneName/)
-})
-
-test("TRANSFER-VOUCHER-B2C-01 : payload contient toZone depuis result.toZoneName", () => {
-  assert.match(src, /toZone:\s*result\.toZoneName/)
-})
-
-test("TRANSFER-VOUCHER-B2C-01 : payload contient vehicleType depuis input", () => {
+test("TRANSFER-VOUCHER-B2C-01 : vehicleType depuis input dans reservationTransfer", () => {
   assert.match(src, /vehicleType:\s*input\.vehicleType/)
 })
 
-test("TRANSFER-VOUCHER-B2C-01 : payload contient pickupAt construit depuis pickupDate + pickupTime", () => {
-  assert.match(
-    src,
-    /pickupAt:\s*`\$\{input\.pickupDate\}T\$\{input\.pickupTime\}:00`/,
-  )
-})
-
-test("TRANSFER-VOUCHER-B2C-01 : payload contient totalTnd", () => {
+test("TRANSFER-VOUCHER-B2C-01 : totalTnd retourné depuis la transaction interne", () => {
   assert.match(src, /totalTnd:\s*result\.totalTnd/)
 })
 

@@ -32,10 +32,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const src = readFileSync(
-  join(ROOT, "lib/vols/fulfillment-action.ts"),
-  "utf8",
-)
+const src = readFileSync(join(ROOT, "lib/vols/fulfillment-action.ts"), "utf8")
 
 // ─── Invariant 1 : utilise inngest.send avec name correct ─────────────────
 

@@ -62,7 +62,7 @@ test('CANCEL-WIRING-01/b2b : CANCELLABLE_STATUSES contient "confirmed", "pending
 
 // ─── CANCEL-ACTIONS.TS (B2B) : Invariant 2 : providerBookingId guard ─────────
 
-test("CANCEL-WIRING-01/b2b : guard module === \"hotel\" && providerBookingId (jamais d'annulation sans référence myGo)", () => {
+test('CANCEL-WIRING-01/b2b : guard module === "hotel" && providerBookingId (jamais d\'annulation sans référence myGo)', () => {
   assert.match(
     cancelSrc,
     /preCheck\.module\s*!==\s*["']hotel["']\s*\|\|\s*!preCheck\.providerBookingId/,
@@ -77,7 +77,7 @@ test("CANCEL-WIRING-01/b2b : verrou FOR UPDATE avant toute écriture financière
 
 // ─── CANCEL-ACTIONS.TS (B2B) : Invariant 4 : race protection ─────────────────
 
-test('CANCEL-WIRING-01/b2b : ALREADY_CANCELLED_CONCURRENTLY — protection contre double-remboursement concurrent', () => {
+test("CANCEL-WIRING-01/b2b : ALREADY_CANCELLED_CONCURRENTLY — protection contre double-remboursement concurrent", () => {
   assert.match(cancelSrc, /ALREADY_CANCELLED_CONCURRENTLY/)
 })
 
@@ -87,7 +87,10 @@ test('CANCEL-WIRING-01/b2b : INSERT partnerCreditMovements movementType="refund"
   assert.match(cancelSrc, /movementType:\s*["']refund["']/)
   // Vérifier que c'est un INSERT (tx.insert), pas un UPDATE
   assert.match(cancelSrc, /tx\.insert\s*\(\s*partnerCreditMovements\s*\)/)
-  assert.doesNotMatch(cancelSrc, /tx\.update\s*\(\s*partnerCreditMovements\s*\)/)
+  assert.doesNotMatch(
+    cancelSrc,
+    /tx\.update\s*\(\s*partnerCreditMovements\s*\)/,
+  )
 })
 
 // ─── CANCEL-ACTIONS.TS (B2B) : Invariant 6 : balance via DB function ─────────
@@ -127,12 +130,15 @@ test('CANCEL-WIRING-01/b2c : SÉCURITÉ — code: "NOT_FOUND" sur accès non aut
 
 test("CANCEL-WIRING-01/b2c : applyReservationRefund — wallet client (pas wallet agence, pas partnerCreditMovements)", () => {
   assert.match(customerCancelSrc, /applyReservationRefund\s*\(\s*\{/)
-  assert.doesNotMatch(customerCancelSrc, /tx\.insert\s*\(\s*partnerCreditMovements\s*\)/)
+  assert.doesNotMatch(
+    customerCancelSrc,
+    /tx\.insert\s*\(\s*partnerCreditMovements\s*\)/,
+  )
 })
 
 // ─── CUSTOMER-CANCEL-ACTIONS.TS (B2C) : Invariant 12 : NO_CAPTURED_PAYMENT ───
 
-test('CANCEL-WIRING-01/b2c : NO_CAPTURED_PAYMENT est un no-op légitime (annulation aboutit sans remboursement)', () => {
+test("CANCEL-WIRING-01/b2c : NO_CAPTURED_PAYMENT est un no-op légitime (annulation aboutit sans remboursement)", () => {
   assert.match(
     customerCancelSrc,
     /refundResult\.code\s*!==\s*["']NO_CAPTURED_PAYMENT["']/,
@@ -157,6 +163,6 @@ test("CANCEL-WIRING-01/b2c : reinstateRedeemedPoints appelé (restitution des po
 
 // ─── CUSTOMER-CANCEL-ACTIONS.TS (B2C) : Invariant 15 : race protection ────────
 
-test('CANCEL-WIRING-01/b2c : ALREADY_CANCELLED_CONCURRENTLY — protection contre double-annulation concurrent', () => {
+test("CANCEL-WIRING-01/b2c : ALREADY_CANCELLED_CONCURRENTLY — protection contre double-annulation concurrent", () => {
   assert.match(customerCancelSrc, /ALREADY_CANCELLED_CONCURRENTLY/)
 })

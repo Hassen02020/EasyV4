@@ -40,7 +40,10 @@ test("TRANSFER-B2B-VOUCHER-01 : sendEvent booking/transfer.confirmed câblé pou
 // ─── Invariant 2 : fire-and-forget ────────────────────────────────────────
 
 test("TRANSFER-B2B-VOUCHER-01 : sendEvent fire-and-forget (pas d'await bloquant)", () => {
-  assert.match(src, /sendEvent\("booking\/transfer\.confirmed"[\s\S]*?\)\.catch\(/)
+  assert.match(
+    src,
+    /sendEvent\("booking\/transfer\.confirmed"[\s\S]*?\)\.catch\(/,
+  )
 })
 
 test("TRANSFER-B2B-VOUCHER-01 : sendEvent déclenché conditionnellement (email ou phone)", () => {

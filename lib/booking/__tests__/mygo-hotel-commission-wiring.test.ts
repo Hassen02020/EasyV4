@@ -66,9 +66,7 @@ test("COMMISSION-WIRING-01/mygo-b2b : salePriceTnd = agencyHotelPrice (prix agen
 
 test("COMMISSION-WIRING-01/mygo-b2b : recordReservationFinancials appelé AVANT creditPlatformCommission", () => {
   const recordIdx = actionsSrc.indexOf("recordReservationFinancials({")
-  const creditIdx = actionsSrc.indexOf(
-    "await creditPlatformCommission(tx, {",
-  )
+  const creditIdx = actionsSrc.indexOf("await creditPlatformCommission(tx, {")
   assert.ok(recordIdx > 0, "recordReservationFinancials doit exister")
   assert.ok(creditIdx > 0, "creditPlatformCommission doit exister")
   assert.ok(

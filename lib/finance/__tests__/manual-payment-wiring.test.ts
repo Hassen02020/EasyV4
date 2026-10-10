@@ -59,7 +59,10 @@ const logicSrc = readFileSync(
 // ─── Invariant 1 : role guard ─────────────────────────────────────────────────
 
 test("MANUAL-PAYMENT-WIRING-01 : MANUAL_PAYMENT_ALLOWED_ROLES importé depuis manual-payment-logic (exportable hors use-server)", () => {
-  assert.match(src, /MANUAL_PAYMENT_ALLOWED_ROLES[\s\S]{0,200}from[\s\S]{0,50}manual-payment-logic/)
+  assert.match(
+    src,
+    /MANUAL_PAYMENT_ALLOWED_ROLES[\s\S]{0,200}from[\s\S]{0,50}manual-payment-logic/,
+  )
 })
 
 test('MANUAL-PAYMENT-WIRING-01 : role check — code "UNAUTHORIZED" retourné si rôle non autorisé', () => {
@@ -98,7 +101,10 @@ test("MANUAL-PAYMENT-WIRING-01 : isSuperAdmin → agencyId:null dans withTenantC
 // ─── Invariant 4 : idempotency key ───────────────────────────────────────────
 
 test("MANUAL-PAYMENT-WIRING-01 : idempotencyKey = `manual:${row.id}:${input.method}:${input.reference}` (format attendu)", () => {
-  assert.match(src, /idempotencyKey\s*=\s*`manual:\$\{row\.id\}:\$\{input\.method\}:\$\{input\.reference\}`/)
+  assert.match(
+    src,
+    /idempotencyKey\s*=\s*`manual:\$\{row\.id\}:\$\{input\.method\}:\$\{input\.reference\}`/,
+  )
 })
 
 // ─── Invariant 5 : ALREADY_PROCESSED sur conflit unique ──────────────────────
@@ -166,7 +172,9 @@ test("MANUAL-PAYMENT-WIRING-01 : tx.transaction(tx2 => ...) — savepoint pour i
 test("MANUAL-PAYMENT-WIRING-01 : generateInvoiceForReservation appelé uniquement quand fullyPaid (jamais pour un acompte partiel)", () => {
   assert.match(src, /generateInvoiceForReservation\s*\(\s*\{/)
   // L'appel est hors transaction (best-effort) — il doit suivre le guard fullyPaid
-  const fullyPaidGuardIdx = src.indexOf("if (!outcome.fullyPaid) return outcome")
+  const fullyPaidGuardIdx = src.indexOf(
+    "if (!outcome.fullyPaid) return outcome",
+  )
   const invoiceIdx = src.indexOf("generateInvoiceForReservation({")
   assert.ok(fullyPaidGuardIdx > 0, "guard fullyPaid doit exister")
   assert.ok(invoiceIdx > 0, "generateInvoiceForReservation doit exister")

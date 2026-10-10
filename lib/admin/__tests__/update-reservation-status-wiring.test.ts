@@ -44,11 +44,11 @@ const statusSrc = readFileSync(
 
 // ─── Invariant 1 : role guard ─────────────────────────────────────────────────
 
-test('UPDATE-STATUS-WIRING-01 : RESERVATION_STATUS_ALLOWED_ROLES importé depuis reservation-status', () => {
+test("UPDATE-STATUS-WIRING-01 : RESERVATION_STATUS_ALLOWED_ROLES importé depuis reservation-status", () => {
   assert.match(src, /RESERVATION_STATUS_ALLOWED_ROLES/)
 })
 
-test('UPDATE-STATUS-WIRING-01 : role guard retourne une erreur si rôle non autorisé (jamais de transition par un rôle hors liste)', () => {
+test("UPDATE-STATUS-WIRING-01 : role guard retourne une erreur si rôle non autorisé (jamais de transition par un rôle hors liste)", () => {
   // La négation sur le tableau de rôles doit être présente
   assert.match(src, /RESERVATION_STATUS_ALLOWED_ROLES[\s\S]{0,100}includes/)
 })
@@ -90,7 +90,7 @@ test('UPDATE-STATUS-WIRING-01 : transition "cancelled" → applyReservationRefun
 
 // ─── Invariant 5 : NO_CAPTURED_PAYMENT no-op + throw sur autre échec ──────────
 
-test('UPDATE-STATUS-WIRING-01 : NO_CAPTURED_PAYMENT est un no-op (annulation B2B ou résa jamais payée)', () => {
+test("UPDATE-STATUS-WIRING-01 : NO_CAPTURED_PAYMENT est un no-op (annulation B2B ou résa jamais payée)", () => {
   assert.match(src, /refund\.code\s*!==\s*["']NO_CAPTURED_PAYMENT["']/)
 })
 

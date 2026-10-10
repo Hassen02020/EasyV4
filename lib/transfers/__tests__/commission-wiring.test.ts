@@ -83,16 +83,16 @@ test("COMMISSION-WIRING-COVERAGE-01/transfers : entitlement seller avec qualific
 
 test("COMMISSION-WIRING-COVERAGE-01/transfers : seller_margin = totalTnd - transferSupplierCostTnd", () => {
   // La marge du vendeur est la différence entre prix de vente et coût réel.
-  assert.match(
-    src,
-    /amount:\s*totalTnd\s*-\s*transferSupplierCostTnd/,
-  )
+  assert.match(src, /amount:\s*totalTnd\s*-\s*transferSupplierCostTnd/)
 })
 
 // ─── Invariant 4 : imports corrects ───────────────────────────────────────
 
 test("COMMISSION-WIRING-COVERAGE-01/transfers : creditPlatformCommission et recordReservationFinancials sont importés", () => {
-  assert.match(src, /import.*creditPlatformCommission.*from.*platform-commission/)
+  assert.match(
+    src,
+    /import.*creditPlatformCommission.*from.*platform-commission/,
+  )
   assert.match(
     src,
     /import.*recordReservationFinancials.*from.*reservation-financials/,

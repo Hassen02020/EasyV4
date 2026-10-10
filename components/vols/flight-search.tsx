@@ -57,7 +57,8 @@ export function FlightSearch({
   const router = useRouter()
   const t = useTranslations("Vols")
   const locale = useLocale()
-  const dateLang = locale === "ar" ? "ar-TN" : locale === "fr" ? "fr-FR" : "en-US"
+  const dateLang =
+    locale === "ar" ? "ar-TN" : locale === "fr" ? "fr-FR" : "en-US"
   const [isPending, startTransition] = useTransition()
 
   const CABIN_CLASSES = [

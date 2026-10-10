@@ -311,9 +311,21 @@ test("PROMO-CAMPAIGN-CANCEL-01 — réservation attribuée puis annulée (status
     }),
   )
 
-  assert.strictEqual(result.converted, 0, "une réservation annulée ne doit pas compter comme conversion")
-  assert.strictEqual(result.revenueTnd, "0.00", "revenueTnd doit exclure les réservations annulées")
-  assert.strictEqual(result.marginTnd, "0.00", "marginTnd doit exclure les réservations annulées")
+  assert.strictEqual(
+    result.converted,
+    0,
+    "une réservation annulée ne doit pas compter comme conversion",
+  )
+  assert.strictEqual(
+    result.revenueTnd,
+    "0.00",
+    "revenueTnd doit exclure les réservations annulées",
+  )
+  assert.strictEqual(
+    result.marginTnd,
+    "0.00",
+    "marginTnd doit exclure les réservations annulées",
+  )
 })
 
 test("PROMO-CAMPAIGN-CANCEL-01b — réservation remboursée via staff (status='refunded', cancelledAt absent) → exclue de converted/revenueTnd/marginTnd", async (t) => {
@@ -385,9 +397,21 @@ test("PROMO-CAMPAIGN-CANCEL-01b — réservation remboursée via staff (status='
     }),
   )
 
-  assert.strictEqual(result.converted, 0, "une réservation status='refunded' sans cancelledAt ne doit pas compter comme conversion")
-  assert.strictEqual(result.revenueTnd, "0.00", "revenueTnd doit exclure les réservations remboursées même sans cancelledAt")
-  assert.strictEqual(result.marginTnd, "0.00", "marginTnd doit exclure les réservations remboursées même sans cancelledAt")
+  assert.strictEqual(
+    result.converted,
+    0,
+    "une réservation status='refunded' sans cancelledAt ne doit pas compter comme conversion",
+  )
+  assert.strictEqual(
+    result.revenueTnd,
+    "0.00",
+    "revenueTnd doit exclure les réservations remboursées même sans cancelledAt",
+  )
+  assert.strictEqual(
+    result.marginTnd,
+    "0.00",
+    "marginTnd doit exclure les réservations remboursées même sans cancelledAt",
+  )
 })
 
 test("campagne sans aucune cible ni attribution → tout à zéro, jamais une erreur", async (t) => {

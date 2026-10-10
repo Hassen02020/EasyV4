@@ -35,7 +35,6 @@ import { recordReservationFinancials } from "@/lib/finance/reservation-financial
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
-import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -424,22 +423,11 @@ async function runCreateGuestTransferBooking(
       },
     )
 
-    if (input.customer.email || input.customer.phone) {
-      sendEvent("booking/transfer.confirmed", {
-        reservationId: result.reservationId,
-        publicRef: result.publicRef,
-        agencyId,
-        customerEmail: input.customer.email ?? "",
-        customerPhone: input.customer.phone,
-        fromZone: result.fromZoneName,
-        toZone: result.toZoneName,
-        pickupAt: `${input.pickupDate}T${input.pickupTime}:00`,
-        vehicleType: input.vehicleType,
-        totalTnd: result.totalTnd,
-      }).catch(() => {
-        /* fire-and-forget — le retry Inngest suffira */
-      })
-    }
+    // Transferts B2C — réservation toujours status "pending" (paiement
+    // différé, aucune voie CB disponible actuellement). L'email "Votre
+    // transfert est confirmé !" ne doit être envoyé qu'après confirmation
+    // réelle. sendEvent("booking/transfer.confirmed") à re-déclencher ICI
+    // dès qu'une voie card sera ajoutée, protégé par : if (isImmediatelyPaid) { ... }
 
     return {
       ok: true,

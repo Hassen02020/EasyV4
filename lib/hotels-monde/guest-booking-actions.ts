@@ -501,7 +501,7 @@ async function runCreateGuestWorldHotelBooking(
       },
     )
 
-    if (result.contactEmail) {
+    if (result.status === "confirmed" && result.contactEmail) {
       await sendEvent("booking/confirmed", {
         reservationId: result.reservationId,
         publicRef: result.publicRef,

@@ -87,10 +87,7 @@ export default async function VolsPage({
         <ModuleHero
           Icon={Plane}
           gradient="from-sky-900 to-sky-700"
-          imageUrl={
-            visual?.heroImageUrl ??
-            "/images/vols-banner.svg"
-          }
+          imageUrl={visual?.heroImageUrl ?? "/images/vols-banner.svg"}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

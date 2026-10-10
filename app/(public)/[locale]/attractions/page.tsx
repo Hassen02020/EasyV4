@@ -206,10 +206,7 @@ export default async function AttractionsPage({
         <ModuleHero
           Icon={Compass}
           gradient="from-amber-900 to-amber-700"
-          imageUrl={
-            visual?.heroImageUrl ??
-            "/images/attractions-banner.svg"
-          }
+          imageUrl={visual?.heroImageUrl ?? "/images/attractions-banner.svg"}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

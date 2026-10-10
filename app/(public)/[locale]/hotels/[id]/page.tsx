@@ -53,8 +53,7 @@ import { useCurrency } from "@/components/currency-context"
 import { ProductReviewsSectionClient } from "@/components/reviews/product-reviews-section-client"
 import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
 
-const PLACEHOLDER_IMG =
-  "/images/hotels-banner.svg"
+const PLACEHOLDER_IMG = "/images/hotels-banner.svg"
 
 /**
  * PHASE 31 — icône PUREMENT visuelle par mot-clé sur le libellé réel de la

@@ -61,10 +61,7 @@ export default async function CarPage({
         <ModuleHero
           Icon={Car}
           gradient="from-red-900 to-red-700"
-          imageUrl={
-            visual?.heroImageUrl ??
-            "/images/car-banner.svg"
-          }
+          imageUrl={visual?.heroImageUrl ?? "/images/car-banner.svg"}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

@@ -44,10 +44,7 @@ export default async function TransfertsPage({
         <ModuleHero
           Icon={Navigation}
           gradient="from-slate-900 to-slate-700"
-          imageUrl={
-            visual?.heroImageUrl ??
-            "/images/transferts-banner.svg"
-          }
+          imageUrl={visual?.heroImageUrl ?? "/images/transferts-banner.svg"}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

@@ -14,7 +14,11 @@
 import { inngest, type Events } from "@/lib/inngest/client"
 import { renderCarVoucherPdf } from "@/lib/pdf/voucher-car"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { auditEvents, notificationIdempotency, reservations } from "@/lib/db/schema"
+import {
+  auditEvents,
+  notificationIdempotency,
+  reservations,
+} from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
 import { pgErrorCode } from "@/lib/db/pg-error"
@@ -90,11 +94,20 @@ export const processCarConfirmed = inngest.createFunction(
     const d = event.data
 
     if (!d.customerEmail) {
-      return { skipped: true, reason: "no_customer_email", reservationId: d.reservationId }
+      return {
+        skipped: true,
+        reason: "no_customer_email",
+        reservationId: d.reservationId,
+      }
     }
 
     if (await hasCarVoucherAlreadySent(d.reservationId)) {
-      return { success: true, reservationId: d.reservationId, publicRef: d.publicRef, alreadySent: true }
+      return {
+        success: true,
+        reservationId: d.reservationId,
+        publicRef: d.publicRef,
+        alreadySent: true,
+      }
     }
 
     const buffer = await renderCarVoucherPdf({
@@ -112,7 +125,11 @@ export const processCarConfirmed = inngest.createFunction(
     const pdfBase64 = Buffer.from(buffer).toString("base64")
 
     if (!process.env.RESEND_API_KEY) {
-      return { skipped: true, reason: "resend_not_configured", reservationId: d.reservationId }
+      return {
+        skipped: true,
+        reason: "resend_not_configured",
+        reservationId: d.reservationId,
+      }
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY)
@@ -185,6 +202,10 @@ export const processCarConfirmed = inngest.createFunction(
 
     await recordCarVoucherSent(d.agencyId, d.reservationId, d.publicRef)
 
-    return { success: true, reservationId: d.reservationId, publicRef: d.publicRef }
+    return {
+      success: true,
+      reservationId: d.reservationId,
+      publicRef: d.publicRef,
+    }
   },
 )

@@ -50,17 +50,17 @@ export default async function Home() {
           transferZones={transferZones}
           carLocations={carCatalog.locations}
         />
-        <Suspense fallback={<div className="h-64 animate-pulse bg-muted/40" />}>
+        <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FlashOffers />
         </Suspense>
         <OmratySection />
-        <Suspense fallback={<div className="h-64 animate-pulse bg-muted/40" />}>
+        <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FeaturedDestinationsSection />
         </Suspense>
-        <Suspense fallback={<div className="h-48 animate-pulse bg-muted/40" />}>
+        <Suspense fallback={<div className="bg-muted/40 h-48 animate-pulse" />}>
           <DevelopmentProjectsSection />
         </Suspense>
-        <Suspense fallback={<div className="h-48 animate-pulse bg-muted/40" />}>
+        <Suspense fallback={<div className="bg-muted/40 h-48 animate-pulse" />}>
           <MarketSignalsSection />
         </Suspense>
       </main>

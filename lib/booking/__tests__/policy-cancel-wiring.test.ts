@@ -84,7 +84,7 @@ test("POLICY-CANCEL-WIRING-01 : vérification CANCELLABLE_MODULES.includes() —
 
 // ─── Invariant 3 : NOT_FOUND jamais FORBIDDEN ────────────────────────────────
 
-test('POLICY-CANCEL-WIRING-01 : NOT_FOUND retourné (jamais FORBIDDEN) — ownedByCurrentCustomer ne révèle pas l\'existence d\'une réservation tiers', () => {
+test("POLICY-CANCEL-WIRING-01 : NOT_FOUND retourné (jamais FORBIDDEN) — ownedByCurrentCustomer ne révèle pas l'existence d'une réservation tiers", () => {
   assert.match(src, /code:\s*["']NOT_FOUND["']/)
   assert.doesNotMatch(src, /code:\s*["']FORBIDDEN["']/)
 })
@@ -106,7 +106,10 @@ test("POLICY-CANCEL-WIRING-01 : ALREADY_CANCELLED_CONCURRENTLY throw après FOR 
   const forUpdateIdx = src.indexOf('.for("update")')
   const alreadyCancelledIdx = src.indexOf("ALREADY_CANCELLED_CONCURRENTLY")
   assert.ok(forUpdateIdx > 0, "FOR UPDATE doit exister")
-  assert.ok(alreadyCancelledIdx > 0, "ALREADY_CANCELLED_CONCURRENTLY doit exister")
+  assert.ok(
+    alreadyCancelledIdx > 0,
+    "ALREADY_CANCELLED_CONCURRENTLY doit exister",
+  )
   assert.ok(
     forUpdateIdx < alreadyCancelledIdx,
     "FOR UPDATE doit précéder ALREADY_CANCELLED_CONCURRENTLY",
@@ -126,7 +129,10 @@ test("POLICY-CANCEL-WIRING-01 : isValidWalletAmount(creditableTnd) — skip wall
   assert.match(src, /isValidWalletAmount\s*\(\s*creditableTnd\s*\)/)
   const validAmountIdx = src.indexOf("isValidWalletAmount(creditableTnd)")
   const refundCallIdx = src.indexOf("applyReservationRefund({")
-  assert.ok(validAmountIdx > 0, "isValidWalletAmount(creditableTnd) doit exister")
+  assert.ok(
+    validAmountIdx > 0,
+    "isValidWalletAmount(creditableTnd) doit exister",
+  )
   assert.ok(refundCallIdx > 0, "applyReservationRefund({ doit exister")
   assert.ok(
     validAmountIdx < refundCallIdx,
@@ -143,14 +149,17 @@ test("POLICY-CANCEL-WIRING-01 : applyReservationRefund({ tx, ... }) — dans la 
 
 // ─── Invariant 9 : NO_CAPTURED_PAYMENT no-op + throw sur autre échec ──────────
 
-test('POLICY-CANCEL-WIRING-01 : NO_CAPTURED_PAYMENT est un no-op (réservation jamais payée) — tout autre échec throw (rollback complet)', () => {
+test("POLICY-CANCEL-WIRING-01 : NO_CAPTURED_PAYMENT est un no-op (réservation jamais payée) — tout autre échec throw (rollback complet)", () => {
   assert.match(src, /refundResult\.code\s*!==\s*["']NO_CAPTURED_PAYMENT["']/)
   assert.match(src, /throw new Error\s*\(\s*refundResult\.error\s*\)/)
   // Le check NO_CAPTURED_PAYMENT doit précéder le throw
   const noCaptureIdx = src.indexOf("NO_CAPTURED_PAYMENT")
   const throwRefundIdx = src.indexOf("throw new Error(refundResult.error)")
   assert.ok(noCaptureIdx > 0, "NO_CAPTURED_PAYMENT check doit exister")
-  assert.ok(throwRefundIdx > 0, "throw new Error(refundResult.error) doit exister")
+  assert.ok(
+    throwRefundIdx > 0,
+    "throw new Error(refundResult.error) doit exister",
+  )
   assert.ok(
     noCaptureIdx < throwRefundIdx,
     "NO_CAPTURED_PAYMENT check doit précéder le throw",

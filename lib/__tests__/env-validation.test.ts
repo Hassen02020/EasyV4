@@ -72,12 +72,15 @@ describe("validateEnv()", () => {
 
   it("reporte toutes les erreurs dans un seul throw", () => {
     setEnv({ DATABASE_URL: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined })
-    assert.throws(() => validateEnv(), (error: unknown) => {
-      assert.ok(error instanceof Error)
-      assert.match(error.message, /DATABASE_URL/)
-      assert.match(error.message, /SUPABASE_SERVICE_ROLE_KEY/)
-      return true
-    })
+    assert.throws(
+      () => validateEnv(),
+      (error: unknown) => {
+        assert.ok(error instanceof Error)
+        assert.match(error.message, /DATABASE_URL/)
+        assert.match(error.message, /SUPABASE_SERVICE_ROLE_KEY/)
+        return true
+      },
+    )
   })
 
   it("rejette les secrets exemple en production", () => {

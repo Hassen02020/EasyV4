@@ -12,6 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Valeurs fictives CI uniquement : aucune clé de production. Plusieurs pages
+  # publiques construisent le client Supabase pendant le rendu serveur.
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-ci-only
   # R1-07 (audit Phase 0) : le build échoue si ces secrets manquent ou
   # gardent leur valeur "dev" par défaut en NODE_ENV=production (garde-fous
   # applicatifs volontaires, voir lib/booking/price-token.ts et
@@ -21,6 +25,11 @@ env:
   PRICE_TOKEN_SECRET: ${{ secrets.CI_PRICE_TOKEN_SECRET || '11111111111111111111111111111111111111111111111111111111111111' }}
   VIRTUAL_MYGO_TOKEN_SECRET: ${{ secrets.CI_VIRTUAL_MYGO_TOKEN_SECRET || '22222222222222222222222222222222222222222222222222222222222222' }}
   SUPPLIER_CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CI_SUPPLIER_CREDENTIALS_ENCRYPTION_KEY || '33333333333333333333333333333333333333333333333333333333333333' }}
+  # CI-FIX-06 (2026-10-10): ces deux vars sont exigées par lib/env.ts au
+  # démarrage du serveur Next.js (playwright-a11y, lighthouse). Absent du bloc
+  # global précédent car ajouté après le R1-07 initial.
+  SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key-ci-only
+  CRON_SECRET: placeholder-cron-secret-ci-only-32chars
 
 jobs:
   typecheck:
@@ -95,7 +104,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
+        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
+        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -297,7 +309,10 @@ jobs:
     needs: [build]
     services:
       postgres:
-        image: postgres:16
+        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
+        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
+        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -345,7 +360,10 @@ jobs:
     needs: [build]
     services:
       postgres:
-        image: postgres:16
+        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
+        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
+        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

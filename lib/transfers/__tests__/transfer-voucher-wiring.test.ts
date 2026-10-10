@@ -43,7 +43,10 @@ test("TRANSFER-VOUCHER-B2C-01 : sendEvent booking/transfer.confirmed câblé pou
 
 test("TRANSFER-VOUCHER-B2C-01 : sendEvent fire-and-forget (pas d'await bloquant)", () => {
   // L'échec email/SMS ne doit JAMAIS annuler la réservation déjà enregistrée.
-  assert.match(src, /sendEvent\("booking\/transfer\.confirmed"[\s\S]*?\)\.catch\(/)
+  assert.match(
+    src,
+    /sendEvent\("booking\/transfer\.confirmed"[\s\S]*?\)\.catch\(/,
+  )
 })
 
 test("TRANSFER-VOUCHER-B2C-01 : sendEvent déclenché conditionnellement (email ou phone)", () => {

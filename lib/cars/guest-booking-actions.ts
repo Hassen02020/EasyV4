@@ -476,7 +476,8 @@ async function runCreateGuestCarBooking(
       customerName: `${input.driver.firstName} ${input.driver.lastName}`,
       categoryName: result.categoryName ?? input.categoryId,
       pickupLocationName: result.pickupLocationName ?? input.pickupLocationId,
-      dropoffLocationName: result.dropoffLocationName ?? input.dropoffLocationId,
+      dropoffLocationName:
+        result.dropoffLocationName ?? input.dropoffLocationId,
       pickupAt: input.pickupAt,
       dropoffAt: input.dropoffAt,
       rentalDays: result.rentalDays,

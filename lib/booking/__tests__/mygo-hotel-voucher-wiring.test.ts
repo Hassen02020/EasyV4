@@ -32,10 +32,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = process.cwd()
-const actionsSrc = readFileSync(
-  join(ROOT, "lib/booking/actions.ts"),
-  "utf8",
-)
+const actionsSrc = readFileSync(join(ROOT, "lib/booking/actions.ts"), "utf8")
 const guestSrc = readFileSync(
   join(ROOT, "lib/booking/guest-actions.ts"),
   "utf8",
@@ -43,14 +40,20 @@ const guestSrc = readFileSync(
 
 // ─── ACTIONS.TS (B2B) : Invariant 1 : garde module hotel + email ──────────
 
-test("VOUCHER-WIRING-01/mygo-b2b : garde draft.module === \"hotel\" && traveler.email", () => {
-  assert.match(actionsSrc, /draft\.module\s*===\s*["']hotel["']\s*&&\s*traveler\.email/)
+test('VOUCHER-WIRING-01/mygo-b2b : garde draft.module === "hotel" && traveler.email', () => {
+  assert.match(
+    actionsSrc,
+    /draft\.module\s*===\s*["']hotel["']\s*&&\s*traveler\.email/,
+  )
 })
 
 // ─── ACTIONS.TS (B2B) : Invariant 2 : fire-and-forget ────────────────────
 
 test("VOUCHER-WIRING-01/mygo-b2b : sendEvent booking/confirmed est fire-and-forget (.catch)", () => {
-  assert.match(actionsSrc, /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/)
+  assert.match(
+    actionsSrc,
+    /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/,
+  )
 })
 
 // ─── ACTIONS.TS (B2B) : Invariant 3 : totalTnd depuis breakdown ───────────
@@ -64,7 +67,10 @@ test("VOUCHER-WIRING-01/mygo-b2b : totalTnd depuis breakdown.totalTnd (pas de co
 // ─── ACTIONS.TS (B2B) : Invariant 4 : hotelName avec fallback ────────────
 
 test("VOUCHER-WIRING-01/mygo-b2b : hotelName = myGoBooking?.hotelName ?? draft.offerLabel", () => {
-  assert.match(actionsSrc, /hotelName:\s*myGoBooking\?\.hotelName\s*\?\?\s*draft\.offerLabel/)
+  assert.match(
+    actionsSrc,
+    /hotelName:\s*myGoBooking\?\.hotelName\s*\?\?\s*draft\.offerLabel/,
+  )
 })
 
 // ─── ACTIONS.TS (B2B) : Invariant 5 : customerName assemblé ─────────────
@@ -72,7 +78,10 @@ test("VOUCHER-WIRING-01/mygo-b2b : hotelName = myGoBooking?.hotelName ?? draft.o
 test("VOUCHER-WIRING-01/mygo-b2b : customerName assemblé via traveler.firstName + traveler.lastName", () => {
   const idx = actionsSrc.indexOf('sendEvent("booking/confirmed"')
   const block = actionsSrc.slice(idx, idx + 500)
-  assert.match(block, /customerName:\s*`\$\{traveler\.firstName\}\s*\$\{traveler\.lastName\}`\.trim\(\)/)
+  assert.match(
+    block,
+    /customerName:\s*`\$\{traveler\.firstName\}\s*\$\{traveler\.lastName\}`\.trim\(\)/,
+  )
 })
 
 // ─── GUEST-ACTIONS.TS (B2C) : Invariant 6 : SÉCURITÉ isImmediatelyPaid ───
@@ -85,13 +94,19 @@ test("VOUCHER-WIRING-01/mygo-b2c : jamais de sendEvent booking/confirmed sans is
   // La garde doit précéder le sendEvent — vérifier que le pattern est bien conditionnel
   const guardIdx = guestSrc.indexOf("result.isImmediatelyPaid")
   const sendEventIdx = guestSrc.indexOf('sendEvent("booking/confirmed"')
-  assert.ok(guardIdx < sendEventIdx, "guard isImmediatelyPaid doit précéder sendEvent booking/confirmed")
+  assert.ok(
+    guardIdx < sendEventIdx,
+    "guard isImmediatelyPaid doit précéder sendEvent booking/confirmed",
+  )
 })
 
 // ─── GUEST-ACTIONS.TS (B2C) : Invariant 7 : fire-and-forget ─────────────
 
 test("VOUCHER-WIRING-01/mygo-b2c : sendEvent booking/confirmed est fire-and-forget (.catch)", () => {
-  assert.match(guestSrc, /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/)
+  assert.match(
+    guestSrc,
+    /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/,
+  )
 })
 
 // ─── GUEST-ACTIONS.TS (B2C) : Invariant 8 : totalTnd depuis breakdown ────
@@ -105,5 +120,8 @@ test("VOUCHER-WIRING-01/mygo-b2c : totalTnd depuis breakdown.totalTnd (pas de co
 // ─── GUEST-ACTIONS.TS (B2C) : Invariant 9 : hotelName avec fallback ──────
 
 test("VOUCHER-WIRING-01/mygo-b2c : hotelName = myGoBooking.hotelName ?? draft.offerLabel", () => {
-  assert.match(guestSrc, /hotelName:\s*myGoBooking\.hotelName\s*\?\?\s*draft\.offerLabel/)
+  assert.match(
+    guestSrc,
+    /hotelName:\s*myGoBooking\.hotelName\s*\?\?\s*draft\.offerLabel/,
+  )
 })

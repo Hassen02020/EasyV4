@@ -476,8 +476,10 @@ export async function createCarBooking(
       customerEmail: input.driver.email ?? null,
       customerName: `${input.driver.firstName} ${input.driver.lastName}`,
       categoryName: outcome.result.categoryName ?? input.categoryId,
-      pickupLocationName: outcome.result.pickupLocationName ?? input.pickupLocationId,
-      dropoffLocationName: outcome.result.dropoffLocationName ?? input.dropoffLocationId,
+      pickupLocationName:
+        outcome.result.pickupLocationName ?? input.pickupLocationId,
+      dropoffLocationName:
+        outcome.result.dropoffLocationName ?? input.dropoffLocationId,
       pickupAt: input.pickupAt,
       dropoffAt: input.dropoffAt,
       rentalDays: outcome.result.rentalDays,

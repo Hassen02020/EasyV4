@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**CRM-C — Task Management** — EN COURS (2026-10-10, PR #172, commit `b81ea89`). Migration 0128 `crm_tasks` + core + Server Actions + `CrmTasksPanel` + 34/34 tests. PRÊT POUR MERGE.
+**Aucun** — CRM-C — Task Management CLÔTURÉ (2026-10-10, PR #172, commit `2ae44425`). Migration 0128 `crm_tasks` + core + Server Actions + `CrmTasksPanel` + 34/34 tests. Migration 0129 `crm_tasks_rls_fix` appliquée : policies RLS corrigées (auth.uid() → current_agency_id() OR is_super_admin()), grants anon/authenticated révoqués. DEPLOYED ON PRODUCTION.
 
 **Aucun** — WHITE-LABEL-PRO-01 CLÔTURÉ (2026-10-04, commit `e691cf7`).
 **Aucun** — IDENTITY-J6-01 CLÔTURÉ (2026-10-04).

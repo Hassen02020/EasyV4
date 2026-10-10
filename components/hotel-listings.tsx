@@ -122,8 +122,7 @@ export interface CardHotelShape {
   importantNote?: string
 }
 
-const PLACEHOLDER_IMG =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&h=400&fit=crop"
+const PLACEHOLDER_IMG = "/images/hotels-banner.svg"
 
 /**
  * Convertit une offre myGo en data attendu par la card existante.

@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a3a6e"/>
+      <stop offset="40%" stop-color="#2a6a9e"/>
+      <stop offset="70%" stop-color="#e87040"/>
+      <stop offset="100%" stop-color="#f09020"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a8aa8"/>
+      <stop offset="100%" stop-color="#0a5570"/>
+    </linearGradient>
+    <radialGradient id="sunSet" cx="50%" cy="65%" r="35%">
+      <stop offset="0%" stop-color="#fff5a0" stop-opacity="0.95"/>
+      <stop offset="30%" stop-color="#ffaa20" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#e87040" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Sky sunset -->
+  <rect width="1800" height="600" fill="url(#sky)"/>
+  <rect width="1800" height="600" fill="url(#sunSet)"/>
+  <!-- Sun disk -->
+  <circle cx="900" cy="390" r="55" fill="#fff5a0" opacity="0.95"/>
+  <circle cx="900" cy="390" r="70" fill="#ffcc40" opacity="0.4"/>
+  <circle cx="900" cy="390" r="90" fill="#ff8820" opacity="0.2"/>
+  <!-- Horizon clouds -->
+  <g fill="#ffd080" opacity="0.5">
+    <ellipse cx="350" cy="340" rx="120" ry="35"/>
+    <ellipse cx="430" cy="330" rx="90" ry="28"/>
+    <ellipse cx="280" cy="345" rx="75" ry="25"/>
+    <ellipse cx="1450" cy="340" rx="130" ry="35"/>
+    <ellipse cx="1530" cy="328" rx="95" ry="28"/>
+    <ellipse cx="1380" cy="348" rx="80" ry="26"/>
+    <ellipse cx="650" cy="280" rx="90" ry="25"/>
+    <ellipse cx="720" cy="272" rx="70" ry="20"/>
+    <ellipse cx="1100" cy="290" rx="100" ry="27"/>
+    <ellipse cx="1170" cy="280" rx="75" ry="22"/>
+  </g>
+  <!-- Sea -->
+  <rect x="0" y="390" width="1800" height="210" fill="url(#sea)"/>
+  <!-- Sun reflection on water -->
+  <path d="M820 410 Q900 395 980 410 Q960 430 900 420 Q840 430 820 410Z" fill="#fff5a0" opacity="0.6"/>
+  <!-- Waves -->
+  <path d="M0 415 Q150 405 300 418 Q450 431 600 418 Q750 405 900 418 Q1050 431 1200 418 Q1350 405 1500 418 Q1650 431 1800 418 L1800 425 Q1650 438 1500 425 Q1350 412 1200 425 Q1050 438 900 425 Q750 412 600 425 Q450 438 300 425 Q150 412 0 425Z" fill="white" opacity="0.12"/>
+  <!-- Beach -->
+  <path d="M0 388 Q300 378 600 392 Q900 406 1200 392 Q1500 378 1800 392 L1800 400 Q1500 388 1200 402 Q900 416 600 402 Q300 388 0 402Z" fill="#d4a855" opacity="0.9"/>
+  <rect x="0" y="395" width="1800" height="15" fill="#dbb870" opacity="0.8"/>
+  <!-- Palm trees left -->
+  <g transform="translate(160,220)">
+    <rect x="-4" y="0" width="10" height="180" fill="#6b4226" transform="rotate(-8,-0,180)"/>
+    <ellipse cx="-15" cy="-10" rx="55" ry="22" fill="#2d8a1e" transform="rotate(-25,-15,-10)"/>
+    <ellipse cx="15" cy="-20" rx="50" ry="20" fill="#358c24" transform="rotate(12,15,-20)"/>
+    <ellipse cx="-35" cy="-5" rx="45" ry="18" fill="#2d7a1e" transform="rotate(-40,-35,-5)"/>
+    <ellipse cx="35" cy="-8" rx="42" ry="17" fill="#3a8a28" transform="rotate(30,35,-8)"/>
+    <ellipse cx="0" cy="-30" rx="38" ry="15" fill="#2d8a1e" transform="rotate(-5,0,-30)"/>
+  </g>
+  <!-- Palm trees right -->
+  <g transform="translate(1640,230)">
+    <rect x="-4" y="0" width="10" height="170" fill="#6b4226" transform="rotate(7,-0,170)"/>
+    <ellipse cx="15" cy="-10" rx="55" ry="22" fill="#2d8a1e" transform="rotate(25,15,-10)"/>
+    <ellipse cx="-15" cy="-20" rx="50" ry="20" fill="#358c24" transform="rotate(-12,-15,-20)"/>
+    <ellipse cx="35" cy="-5" rx="45" ry="18" fill="#2d7a1e" transform="rotate(40,35,-5)"/>
+    <ellipse cx="-35" cy="-8" rx="42" ry="17" fill="#3a8a28" transform="rotate(-30,-35,-8)"/>
+    <ellipse cx="0" cy="-28" rx="38" ry="15" fill="#2d8a1e" transform="rotate(5,0,-28)"/>
+  </g>
+  <!-- Medium palm center-left -->
+  <g transform="translate(420,310)">
+    <rect x="-3" y="0" width="7" height="120" fill="#6b4226" transform="rotate(-12,-0,120)"/>
+    <ellipse cx="-12" cy="-5" rx="38" ry="15" fill="#2d8a1e" transform="rotate(-20,-12,-5)"/>
+    <ellipse cx="10" cy="-12" rx="35" ry="14" fill="#358c24" transform="rotate(10,10,-12)"/>
+    <ellipse cx="-25" cy="-2" rx="32" ry="13" fill="#2d7a1e" transform="rotate(-38,-25,-2)"/>
+  </g>
+  <!-- Medium palm center-right -->
+  <g transform="translate(1380,315)">
+    <rect x="-3" y="0" width="7" height="120" fill="#6b4226" transform="rotate(12,-0,120)"/>
+    <ellipse cx="12" cy="-5" rx="38" ry="15" fill="#2d8a1e" transform="rotate(20,12,-5)"/>
+    <ellipse cx="-10" cy="-12" rx="35" ry="14" fill="#358c24" transform="rotate(-10,-10,-12)"/>
+    <ellipse cx="25" cy="-2" rx="32" ry="13" fill="#2d7a1e" transform="rotate(38,25,-2)"/>
+  </g>
+  <!-- Suitcase / luggage (center) -->
+  <g transform="translate(780,250)">
+    <!-- Main suitcase body -->
+    <rect x="0" y="0" width="240" height="200" rx="14" fill="#c42828"/>
+    <!-- Suitcase frame highlight -->
+    <rect x="5" y="5" width="230" height="190" rx="10" fill="none" stroke="#e03030" stroke-width="2"/>
+    <!-- Center zipper line -->
+    <rect x="0" y="93" width="240" height="14" fill="#a01e1e" rx="2"/>
+    <!-- Handle -->
+    <rect x="85" y="-25" width="70" height="18" rx="9" fill="none" stroke="#222" stroke-width="8"/>
+    <rect x="90" y="-30" width="60" height="6" rx="3" fill="#333"/>
+    <!-- Wheels -->
+    <circle cx="28" cy="200" r="16" fill="#222"/>
+    <circle cx="28" cy="200" r="10" fill="#444"/>
+    <circle cx="212" cy="200" r="16" fill="#222"/>
+    <circle cx="212" cy="200" r="10" fill="#444"/>
+    <!-- Suitcase corner reinforcements -->
+    <rect x="0" y="0" width="20" height="20" rx="10 0 0 0" fill="#a01e1e"/>
+    <rect x="220" y="0" width="20" height="20" rx="0 10 0 0" fill="#a01e1e"/>
+    <rect x="0" y="178" width="20" height="20" rx="0 0 0 10" fill="#a01e1e"/>
+    <rect x="220" y="178" width="20" height="20" rx="0 0 10 0" fill="#a01e1e"/>
+    <!-- Boarding pass sticker on suitcase -->
+    <rect x="28" y="35" width="88" height="55" rx="4" fill="#fffde0" opacity="0.95"/>
+    <rect x="35" y="42" width="50" height="4" rx="2" fill="#333" opacity="0.7"/>
+    <rect x="35" y="50" width="65" height="3" rx="1" fill="#888" opacity="0.7"/>
+    <rect x="35" y="57" width="55" height="3" rx="1" fill="#888" opacity="0.7"/>
+    <rect x="35" y="64" width="60" height="3" rx="1" fill="#888" opacity="0.7"/>
+    <!-- Destination tag: TUN → World -->
+    <text x="35" y="80" font-family="Arial,sans-serif" font-size="10" fill="#1a5eaa" font-weight="bold">TUN ✈ WORLD</text>
+    <!-- Luggage lock/clasp -->
+    <rect x="110" y="85" width="20" height="30" rx="5" fill="#f0c040"/>
+    <rect x="112" y="88" width="16" height="5" rx="2" fill="#d4a020"/>
+  </g>
+  <!-- Small suitcase (companion) -->
+  <g transform="translate(1040,330)">
+    <rect x="0" y="0" width="160" height="135" rx="10" fill="#1a5eaa"/>
+    <rect x="4" y="4" width="152" height="127" rx="7" fill="none" stroke="#2a6ec0" stroke-width="2"/>
+    <rect x="0" y="62" width="160" height="10" fill="#143e80" rx="2"/>
+    <rect x="58" y="-18" width="44" height="14" rx="7" fill="none" stroke="#222" stroke-width="6"/>
+    <circle cx="20" cy="135" r="11" fill="#222"/>
+    <circle cx="20" cy="135" r="7" fill="#444"/>
+    <circle cx="140" cy="135" r="11" fill="#222"/>
+    <circle cx="140" cy="135" r="7" fill="#444"/>
+    <!-- Sticker -->
+    <rect x="18" y="20" width="55" height="35" rx="3" fill="#fffde0" opacity="0.9"/>
+    <text x="23" y="35" font-family="Arial,sans-serif" font-size="8" fill="#1a5eaa" font-weight="bold">PARIS</text>
+    <text x="23" y="46" font-family="Arial,sans-serif" font-size="7" fill="#888">CDG</text>
+  </g>
+  <!-- Passport / camera accessories -->
+  <g transform="translate(700,405)">
+    <rect x="0" y="0" width="70" height="95" rx="6" fill="#1a2a5e"/>
+    <rect x="5" y="5" width="60" height="85" rx="4" fill="#22356a"/>
+    <rect x="8" y="12" width="54" height="35" fill="#4070c0" opacity="0.8" rx="2"/>
+    <text x="22" y="35" font-family="serif" font-size="14" fill="white" opacity="0.9">TN</text>
+    <rect x="12" y="58" width="46" height="5" rx="1" fill="#6090d0" opacity="0.6"/>
+    <rect x="12" y="68" width="38" height="5" rx="1" fill="#6090d0" opacity="0.6"/>
+    <rect x="12" y="78" width="42" height="5" rx="1" fill="#6090d0" opacity="0.6"/>
+    <!-- Passport golden emblem -->
+    <circle cx="35" cy="28" r="10" fill="none" stroke="#ffd040" stroke-width="1.5" opacity="0.8"/>
+    <text x="29" y="32" font-family="serif" font-size="10" fill="#ffd040" opacity="0.8">⭐</text>
+  </g>
+  <!-- Umbrella on beach -->
+  <g transform="translate(310,345)">
+    <ellipse cx="0" cy="0" rx="55" ry="12" fill="#e83030" opacity="0.85"/>
+    <ellipse cx="0" cy="-3" rx="53" ry="10" fill="#f04040" opacity="0.85"/>
+    <line x1="0" y1="0" x2="-3" y2="55" stroke="#8a4020" stroke-width="4"/>
+    <ellipse cx="-3" cy="55" rx="8" ry="4" fill="#6a3010" opacity="0.6"/>
+  </g>
+  <!-- Second umbrella -->
+  <g transform="translate(1490,350)">
+    <ellipse cx="0" cy="0" rx="50" ry="11" fill="#1a5eaa" opacity="0.85"/>
+    <ellipse cx="0" cy="-3" rx="48" ry="9" fill="#2a6ec0" opacity="0.85"/>
+    <line x1="0" y1="0" x2="2" y2="50" stroke="#8a4020" stroke-width="4"/>
+    <ellipse cx="2" cy="50" rx="7" ry="3" fill="#6a3010" opacity="0.6"/>
+  </g>
+  <!-- Globe wireframe (decorative, far right sky) -->
+  <g transform="translate(1600,100)" opacity="0.25">
+    <circle cx="0" cy="0" r="60" fill="none" stroke="white" stroke-width="1.5"/>
+    <ellipse cx="0" cy="0" rx="60" ry="20" fill="none" stroke="white" stroke-width="1"/>
+    <ellipse cx="0" cy="0" rx="60" ry="40" fill="none" stroke="white" stroke-width="0.8"/>
+    <line x1="0" y1="-60" x2="0" y2="60" stroke="white" stroke-width="1"/>
+    <line x1="-60" y1="0" x2="60" y2="0" stroke="white" stroke-width="1"/>
+  </g>
+</svg>

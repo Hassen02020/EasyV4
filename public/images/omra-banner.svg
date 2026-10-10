@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a1a2e"/>
+      <stop offset="40%" stop-color="#0f3d2e"/>
+      <stop offset="100%" stop-color="#1a5c3a"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="75%" cy="25%" r="15%">
+      <stop offset="0%" stop-color="#ffe8a0" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0f3d2e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="groundGlow" cx="50%" cy="100%" r="50%">
+      <stop offset="0%" stop-color="#2d7a4f" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0a1a2e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Sky -->
+  <rect width="1800" height="600" fill="url(#sky)"/>
+  <rect width="1800" height="600" fill="url(#moonGlow)"/>
+  <!-- Stars -->
+  <g fill="white" opacity="0.8">
+    <circle cx="120" cy="40" r="1.5"/><circle cx="250" cy="80" r="1"/><circle cx="380" cy="30" r="2"/>
+    <circle cx="500" cy="60" r="1.5"/><circle cx="620" cy="25" r="1"/><circle cx="700" cy="90" r="1.5"/>
+    <circle cx="850" cy="45" r="1"/><circle cx="950" cy="70" r="2"/><circle cx="1050" cy="35" r="1.5"/>
+    <circle cx="1150" cy="55" r="1"/><circle cx="1280" cy="30" r="2"/><circle cx="1400" cy="65" r="1.5"/>
+    <circle cx="1500" cy="40" r="1"/><circle cx="1620" cy="80" r="1.5"/><circle cx="1720" cy="50" r="1"/>
+    <circle cx="160" cy="130" r="1"/><circle cx="320" cy="110" r="1.5"/><circle cx="480" cy="140" r="1"/>
+    <circle cx="640" cy="115" r="1.5"/><circle cx="800" cy="130" r="1"/><circle cx="1000" cy="120" r="1.5"/>
+    <circle cx="1200" cy="100" r="1"/><circle cx="1360" cy="125" r="1.5"/><circle cx="1600" cy="110" r="1"/>
+    <circle cx="60" cy="160" r="1"/><circle cx="430" cy="180" r="1.5"/><circle cx="760" cy="165" r="1"/>
+    <circle cx="1100" cy="175" r="1.5"/><circle cx="1450" cy="155" r="1"/><circle cx="1740" cy="170" r="1.5"/>
+  </g>
+  <!-- Ground glow -->
+  <rect width="1800" height="600" fill="url(#groundGlow)"/>
+  <!-- Crescent Moon -->
+  <g transform="translate(1350,90)">
+    <circle cx="0" cy="0" r="38" fill="#ffe8a0" opacity="0.95"/>
+    <circle cx="22" cy="-8" r="34" fill="#0d2c1e"/>
+    <circle cx="0" cy="0" r="38" fill="none" stroke="#ffe8a0" stroke-width="1" opacity="0.4"/>
+  </g>
+  <!-- Star of crescent -->
+  <polygon points="1415,62 1420,76 1434,76 1423,85 1427,99 1415,91 1403,99 1407,85 1396,76 1410,76" fill="#ffe8a0" opacity="0.9"/>
+  <!-- Mosque complex - ground base -->
+  <rect x="0" y="520" width="1800" height="80" fill="#0a2218"/>
+  <!-- Main mosque wall -->
+  <rect x="500" y="340" width="800" height="185" fill="#0d2e1e"/>
+  <!-- Mosque roof arches row -->
+  <path d="M510 340 Q530 300 550 340 Z" fill="#1a5038"/>
+  <path d="M560 340 Q580 300 600 340 Z" fill="#1a5038"/>
+  <path d="M610 340 Q630 300 650 340 Z" fill="#1a5038"/>
+  <path d="M660 340 Q680 300 700 340 Z" fill="#1a5038"/>
+  <path d="M710 340 Q730 300 750 340 Z" fill="#1a5038"/>
+  <path d="M760 340 Q780 300 800 340 Z" fill="#1a5038"/>
+  <path d="M810 340 Q830 300 850 340 Z" fill="#1a5038"/>
+  <path d="M860 340 Q880 300 900 340 Z" fill="#1a5038"/>
+  <path d="M910 340 Q930 300 950 340 Z" fill="#1a5038"/>
+  <path d="M960 340 Q980 300 1000 340 Z" fill="#1a5038"/>
+  <path d="M1010 340 Q1030 300 1050 340 Z" fill="#1a5038"/>
+  <path d="M1060 340 Q1080 300 1100 340 Z" fill="#1a5038"/>
+  <path d="M1110 340 Q1130 300 1150 340 Z" fill="#1a5038"/>
+  <path d="M1160 340 Q1180 300 1200 340 Z" fill="#1a5038"/>
+  <path d="M1210 340 Q1230 300 1250 340 Z" fill="#1a5038"/>
+  <path d="M1260 340 Q1280 300 1300 340 Z" fill="#1a5038"/>
+  <!-- Main central dome -->
+  <ellipse cx="900" cy="300" rx="120" ry="80" fill="#1a5c3a"/>
+  <ellipse cx="900" cy="295" rx="115" ry="75" fill="#1e6b42"/>
+  <!-- Dome top finial -->
+  <rect x="896" y="220" width="8" height="40" fill="#2d8c56"/>
+  <polygon points="900,205 908,225 892,225" fill="#2d8c56"/>
+  <!-- Crescent on dome -->
+  <g transform="translate(900,210)">
+    <circle cx="0" cy="0" r="8" fill="#ffe8a0" opacity="0.9"/>
+    <circle cx="4" cy="-2" r="7" fill="#1e6b42"/>
+  </g>
+  <!-- Left main minaret -->
+  <rect x="530" y="160" width="36" height="250" fill="#163d28" rx="4"/>
+  <ellipse cx="548" cy="160" rx="20" ry="12" fill="#1e5c38"/>
+  <rect x="542" y="140" width="12" height="30" fill="#163d28"/>
+  <polygon points="548,120 555,145 541,145" fill="#1e5c38"/>
+  <!-- Minaret left lights -->
+  <rect x="543" y="180" width="10" height="4" fill="#ffe8a0" opacity="0.6"/>
+  <rect x="543" y="220" width="10" height="4" fill="#ffe8a0" opacity="0.6"/>
+  <rect x="543" y="260" width="10" height="4" fill="#ffe8a0" opacity="0.6"/>
+  <!-- Right main minaret -->
+  <rect x="1234" y="160" width="36" height="250" fill="#163d28" rx="4"/>
+  <ellipse cx="1252" cy="160" rx="20" ry="12" fill="#1e5c38"/>
+  <rect x="1246" y="140" width="12" height="30" fill="#163d28"/>
+  <polygon points="1252,120 1259,145 1245,145" fill="#1e5c38"/>
+  <!-- Minaret right lights -->
+  <rect x="1247" y="180" width="10" height="4" fill="#ffe8a0" opacity="0.6"/>
+  <rect x="1247" y="220" width="10" height="4" fill="#ffe8a0" opacity="0.6"/>
+  <rect x="1247" y="260" width="10" height="4" fill="#ffe8a0" opacity="0.6"/>
+  <!-- Smaller side minarets -->
+  <rect x="620" y="260" width="24" height="200" fill="#163d28" rx="3"/>
+  <polygon points="632,245 640,265 624,265" fill="#1e5c38"/>
+  <rect x="1156" y="260" width="24" height="200" fill="#163d28" rx="3"/>
+  <polygon points="1168,245 1176,265 1160,265" fill="#1e5c38"/>
+  <!-- Kaaba structure (center) -->
+  <rect x="840" y="420" width="120" height="100" fill="#0a1a0e"/>
+  <rect x="840" y="420" width="120" height="8" fill="#c9a84c" opacity="0.8"/>
+  <!-- Door of Kaaba -->
+  <rect x="888" y="450" width="24" height="45" fill="#c9a84c" rx="2" opacity="0.7"/>
+  <!-- Kaaba cloth pattern -->
+  <rect x="840" y="430" width="120" height="2" fill="#c9a84c" opacity="0.4"/>
+  <rect x="840" y="440" width="120" height="2" fill="#c9a84c" opacity="0.4"/>
+  <!-- Courtyard pilgrims (dots suggesting crowd) -->
+  <g fill="#2d8c56" opacity="0.6">
+    <ellipse cx="760" cy="525" rx="90" ry="15"/>
+    <ellipse cx="1040" cy="525" rx="90" ry="15"/>
+    <ellipse cx="900" cy="540" rx="120" ry="12"/>
+  </g>
+  <!-- Ground lights at base -->
+  <rect x="0" y="515" width="1800" height="3" fill="#2d8c56" opacity="0.4"/>
+  <!-- Left hillside buildings -->
+  <rect x="0" y="380" width="180" height="145" fill="#0a2218"/>
+  <rect x="60" y="340" width="80" height="185" fill="#0d2e1e"/>
+  <rect x="160" y="360" width="60" height="165" fill="#0a2218"/>
+  <!-- Right hillside buildings -->
+  <rect x="1620" y="380" width="180" height="145" fill="#0a2218"/>
+  <rect x="1660" y="340" width="80" height="185" fill="#0d2e1e"/>
+  <rect x="1560" y="360" width="60" height="165" fill="#0a2218"/>
+  <!-- Building windows - lights -->
+  <g fill="#ffe8a0" opacity="0.5">
+    <rect x="70" y="360" width="8" height="6" rx="1"/><rect x="90" y="360" width="8" height="6" rx="1"/>
+    <rect x="70" y="380" width="8" height="6" rx="1"/><rect x="90" y="380" width="8" height="6" rx="1"/>
+    <rect x="1670" y="360" width="8" height="6" rx="1"/><rect x="1690" y="360" width="8" height="6" rx="1"/>
+    <rect x="1670" y="380" width="8" height="6" rx="1"/><rect x="1690" y="380" width="8" height="6" rx="1"/>
+  </g>
+  <!-- Light beam from mosque top -->
+  <line x1="900" y1="200" x2="900" y2="0" stroke="#ffe8a0" stroke-width="1" opacity="0.15"/>
+</svg>

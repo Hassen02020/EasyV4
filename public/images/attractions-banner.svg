@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a5fa0"/>
+      <stop offset="60%" stop-color="#6a9fd4"/>
+      <stop offset="100%" stop-color="#a8c4e0"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4a855"/>
+      <stop offset="100%" stop-color="#a07830"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="75%" cy="15%" r="25%">
+      <stop offset="0%" stop-color="#fff5a0" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#6a9fd4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Sky -->
+  <rect width="1800" height="600" fill="url(#sky)"/>
+  <rect width="1800" height="600" fill="url(#sunGlow)"/>
+  <!-- Clouds -->
+  <g fill="white" opacity="0.55">
+    <ellipse cx="150" cy="80" rx="90" ry="25"/>
+    <ellipse cx="220" cy="70" rx="70" ry="20"/>
+    <ellipse cx="100" cy="85" rx="55" ry="18"/>
+    <ellipse cx="1600" cy="100" rx="100" ry="28"/>
+    <ellipse cx="1680" cy="90" rx="75" ry="22"/>
+  </g>
+  <!-- Ground - sandy/warm -->
+  <rect x="0" y="430" width="1800" height="170" fill="url(#ground)"/>
+  <!-- Ancient amphitheater - El Djem style -->
+  <!-- Outer walls arched arcade - 3 levels -->
+  <!-- Level 1 (ground floor) - large arches -->
+  <g fill="#c49040" stroke="#a07020" stroke-width="1">
+    <!-- Left side walls -->
+    <rect x="200" y="240" width="180" height="220" fill="#b87830"/>
+    <rect x="1420" y="240" width="180" height="220" fill="#b87830"/>
+    <!-- Center elliptical structure -->
+    <ellipse cx="900" cy="380" rx="550" ry="180" fill="#c49040"/>
+    <ellipse cx="900" cy="370" rx="530" ry="165" fill="#b87830"/>
+    <ellipse cx="900" cy="360" rx="510" ry="150" fill="#a06820"/>
+    <!-- Inner arena floor -->
+    <ellipse cx="900" cy="360" rx="320" ry="95" fill="#d4aa55"/>
+    <ellipse cx="900" cy="360" rx="280" ry="80" fill="#e0bc70"/>
+  </g>
+  <!-- Arched openings - level 1 -->
+  <g fill="#4a3010" opacity="0.85">
+    <path d="M365 430 L365 370 Q395 340 425 370 L425 430Z"/>
+    <path d="M440 430 L440 370 Q470 340 500 370 L500 430Z"/>
+    <path d="M515 430 L515 370 Q545 340 575 370 L575 430Z"/>
+    <path d="M590 430 L590 370 Q620 340 650 370 L650 430Z"/>
+    <path d="M665 430 L665 370 Q695 340 725 370 L725 430Z"/>
+    <path d="M740 430 L740 370 Q770 340 800 370 L800 430Z"/>
+    <path d="M815 430 L815 370 Q845 340 875 370 L875 430Z"/>
+    <path d="M890 430 L890 370 Q920 340 950 370 L950 430Z"/>
+    <path d="M965 430 L965 370 Q995 340 1025 370 L1025 430Z"/>
+    <path d="M1040 430 L1040 370 Q1070 340 1100 370 L1100 430Z"/>
+    <path d="M1115 430 L1115 370 Q1145 340 1175 370 L1175 430Z"/>
+    <path d="M1190 430 L1190 370 Q1220 340 1250 370 L1250 430Z"/>
+    <path d="M1265 430 L1265 370 Q1295 340 1325 370 L1325 430Z"/>
+    <path d="M1340 430 L1340 370 Q1370 340 1400 370 L1400 430Z"/>
+  </g>
+  <!-- Level 2 arches (smaller, above) -->
+  <g fill="#5a3818" opacity="0.7">
+    <path d="M390 360 L390 315 Q412 292 434 315 L434 360Z"/>
+    <path d="M450 360 L450 315 Q472 292 494 315 L494 360Z"/>
+    <path d="M510 360 L510 315 Q532 292 554 315 L554 360Z"/>
+    <path d="M570 360 L570 315 Q592 292 614 315 L614 360Z"/>
+    <path d="M630 360 L630 315 Q652 292 674 315 L674 360Z"/>
+    <path d="M690 360 L690 315 Q712 292 734 315 L734 360Z"/>
+    <path d="M750 360 L750 315 Q772 292 794 315 L794 360Z"/>
+    <path d="M810 360 L810 315 Q832 292 854 315 L854 360Z"/>
+    <path d="M870 360 L870 315 Q892 292 914 315 L914 360Z"/>
+    <path d="M930 360 L930 315 Q952 292 974 315 L974 360Z"/>
+    <path d="M990 360 L990 315 Q1012 292 1034 315 L1034 360Z"/>
+    <path d="M1050 360 L1050 315 Q1072 292 1094 315 L1094 360Z"/>
+    <path d="M1110 360 L1110 315 Q1132 292 1154 315 L1154 360Z"/>
+    <path d="M1170 360 L1170 315 Q1192 292 1214 315 L1214 360Z"/>
+    <path d="M1230 360 L1230 315 Q1252 292 1274 315 L1274 360Z"/>
+    <path d="M1290 360 L1290 315 Q1312 292 1334 315 L1334 360Z"/>
+    <path d="M1350 360 L1350 315 Q1372 292 1394 315 L1394 360Z"/>
+  </g>
+  <!-- Level 3 arches (top, smallest) -->
+  <g fill="#6a4420" opacity="0.6">
+    <path d="M405 310 L405 275 Q422 258 439 275 L439 310Z"/>
+    <path d="M455 310 L455 275 Q472 258 489 275 L489 310Z"/>
+    <path d="M505 310 L505 275 Q522 258 539 275 L539 310Z"/>
+    <path d="M555 310 L555 275 Q572 258 589 275 L589 310Z"/>
+    <path d="M605 310 L605 275 Q622 258 639 275 L639 310Z"/>
+    <path d="M655 310 L655 275 Q672 258 689 275 L689 310Z"/>
+    <path d="M705 310 L705 275 Q722 258 739 275 L739 310Z"/>
+    <path d="M755 310 L755 275 Q772 258 789 275 L789 310Z"/>
+    <path d="M805 310 L805 275 Q822 258 839 275 L839 310Z"/>
+    <path d="M855 310 L855 275 Q872 258 889 275 L889 310Z"/>
+    <path d="M905 310 L905 275 Q922 258 939 275 L939 310Z"/>
+    <path d="M955 310 L955 275 Q972 258 989 275 L989 310Z"/>
+    <path d="M1005 310 L1005 275 Q1022 258 1039 275 L1039 310Z"/>
+    <path d="M1055 310 L1055 275 Q1072 258 1089 275 L1089 310Z"/>
+    <path d="M1105 310 L1105 275 Q1122 258 1139 275 L1139 310Z"/>
+    <path d="M1155 310 L1155 275 Q1172 258 1189 275 L1189 310Z"/>
+    <path d="M1205 310 L1205 275 Q1222 258 1239 275 L1239 310Z"/>
+    <path d="M1255 310 L1255 275 Q1272 258 1289 275 L1289 310Z"/>
+    <path d="M1305 310 L1305 275 Q1322 258 1339 275 L1339 310Z"/>
+    <path d="M1355 310 L1355 275 Q1372 258 1389 275 L1389 310Z"/>
+  </g>
+  <!-- Top wall rim -->
+  <path d="M350 260 Q900 200 1450 260" fill="none" stroke="#8a5820" stroke-width="8"/>
+  <!-- Seating inside visible tiers -->
+  <g fill="#c49040" opacity="0.5">
+    <path d="M580 380 Q900 340 1220 380 Q1200 390 900 350 Q600 390 580 380Z"/>
+    <path d="M620 395 Q900 360 1180 395 Q1160 405 900 368 Q640 405 620 395Z"/>
+  </g>
+  <!-- Scattered ruins on ground -->
+  <g fill="#b87830">
+    <rect x="100" y="440" width="60" height="20" rx="3" opacity="0.7"/>
+    <rect x="80" y="430" width="40" height="15" rx="2" opacity="0.6"/>
+    <rect x="1620" y="445" width="70" height="18" rx="3" opacity="0.7"/>
+    <rect x="1660" y="435" width="45" height="14" rx="2" opacity="0.6"/>
+    <rect x="250" y="450" width="30" height="12" rx="2" opacity="0.5"/>
+    <rect x="1490" y="455" width="35" height="11" rx="2" opacity="0.5"/>
+  </g>
+  <!-- Small bushes/vegetation -->
+  <g fill="#5a8a30" opacity="0.6">
+    <ellipse cx="145" cy="450" rx="25" ry="12"/>
+    <ellipse cx="300" cy="460" rx="20" ry="9"/>
+    <ellipse cx="1500" cy="455" rx="22" ry="10"/>
+    <ellipse cx="1680" cy="450" rx="18" ry="8"/>
+  </g>
+  <!-- Distant hills -->
+  <path d="M0 420 Q200 380 400 410 Q600 440 800 400 Q1000 360 1200 400 Q1400 440 1600 410 Q1700 395 1800 405 L1800 440 L0 440Z" fill="#c49040" opacity="0.4"/>
+  <!-- Ground stones/paving -->
+  <g fill="#c49040" stroke="#a07020" stroke-width="0.5" opacity="0.6">
+    <rect x="700" y="460" width="50" height="30"/>
+    <rect x="760" y="465" width="55" height="25"/>
+    <rect x="825" y="458" width="48" height="32"/>
+    <rect x="883" y="462" width="52" height="28"/>
+    <rect x="945" y="460" width="50" height="30"/>
+    <rect x="1005" y="464" width="46" height="26"/>
+    <rect x="1061" y="460" width="50" height="30"/>
+  </g>
+</svg>

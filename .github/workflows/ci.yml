@@ -25,6 +25,11 @@ env:
   PRICE_TOKEN_SECRET: ${{ secrets.CI_PRICE_TOKEN_SECRET || '11111111111111111111111111111111111111111111111111111111111111' }}
   VIRTUAL_MYGO_TOKEN_SECRET: ${{ secrets.CI_VIRTUAL_MYGO_TOKEN_SECRET || '22222222222222222222222222222222222222222222222222222222222222' }}
   SUPPLIER_CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CI_SUPPLIER_CREDENTIALS_ENCRYPTION_KEY || '33333333333333333333333333333333333333333333333333333333333333' }}
+  # CI-FIX-06 (2026-10-10): ces deux vars sont exigées par lib/env.ts au
+  # démarrage du serveur Next.js (playwright-a11y, lighthouse). Absent du bloc
+  # global précédent car ajouté après le R1-07 initial.
+  SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key-ci-only
+  CRON_SECRET: placeholder-cron-secret-ci-only-32chars
 
 jobs:
   typecheck:

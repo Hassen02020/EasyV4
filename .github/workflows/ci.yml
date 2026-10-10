@@ -99,15 +99,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
-        # CI-FIX-05 (2026-10-10): authentification Docker Hub pour éviter le
-        # rate-limit unauthenticated (toomanyrequests). Nécessite les secrets
-        # DOCKERHUB_USERNAME et DOCKERHUB_TOKEN configurés dans les secrets
-        # GitHub du dépôt (Settings → Secrets → Actions). Sans ces secrets,
-        # le pull reste anonyme et peut de nouveau échouer sous forte charge.
-        credentials:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
+        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
+        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -309,10 +304,10 @@ jobs:
     needs: [build]
     services:
       postgres:
-        image: postgres:16
-        credentials:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
+        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
+        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -360,10 +355,10 @@ jobs:
     needs: [build]
     services:
       postgres:
-        image: postgres:16
-        credentials:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
+        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
+        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

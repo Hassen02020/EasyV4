@@ -15,6 +15,7 @@ import { LeadsViewTabs } from "@/components/admin/leads-view-tabs"
 import { LeadScoringSettings } from "@/components/admin/lead-scoring-settings"
 import { LeadRelanceSettings } from "@/components/admin/lead-relance-settings"
 import { InboxPanel } from "@/components/admin/inbox-panel"
+import { CrmTasksPanel } from "@/components/admin/crm-tasks-panel"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { listLeads } from "@/lib/admin/leads-actions"
@@ -74,6 +75,8 @@ export default async function SupportPage() {
 
       {canConfigure && <LeadScoringSettings initial={scoreRules} />}
       {canConfigure && <LeadRelanceSettings initial={relanceSettings} />}
+
+      <CrmTasksPanel />
 
       <InboxPanel />
 

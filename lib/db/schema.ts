@@ -2142,6 +2142,65 @@ export const leads = pgTable(
   ],
 )
 
+/* -------------------------------------------------------------------------- */
+/* CRM-C : Task Management (0128)                                             */
+/* -------------------------------------------------------------------------- */
+
+export const CRM_TASK_TYPES = [
+  "callback",
+  "email",
+  "visit",
+  "followup",
+  "other",
+] as const
+export type CrmTaskType = (typeof CRM_TASK_TYPES)[number]
+
+export const CRM_TASK_STATUSES = ["open", "done", "cancelled"] as const
+export type CrmTaskStatus = (typeof CRM_TASK_STATUSES)[number]
+
+export const crmTasks = pgTable(
+  "crm_tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id").references(() => leads.id, {
+      onDelete: "set null",
+    }),
+    assigneeId: uuid("assignee_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdBy: uuid("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    type: varchar("type", { length: 32 }).notNull().default("followup"),
+    status: varchar("status", { length: 16 }).notNull().default("open"),
+    title: varchar("title", { length: 255 }).notNull(),
+    notes: text("notes"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("crm_tasks_agency_status_idx").on(t.agencyId, t.status, t.dueAt),
+    index("crm_tasks_agency_assignee_idx").on(
+      t.agencyId,
+      t.assigneeId,
+      t.status,
+    ),
+    index("crm_tasks_lead_idx").on(t.leadId),
+  ],
+)
+
+export type CrmTask = typeof crmTasks.$inferSelect
+export type NewCrmTask = typeof crmTasks.$inferInsert
+
 /**
  * NETWORK-DEMAND-CAPTURE-01 — journal append-only du chemin de provenance
  * d'un lead (campagne → partenaire → commercial → canal → agence...).

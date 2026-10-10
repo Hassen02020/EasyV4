@@ -48,8 +48,13 @@ test("HOTELS-MONDE-VOUCHER-01 : sendEvent booking/confirmed câblé", () => {
   assert.match(src, /sendEvent\("booking\/confirmed"/)
 })
 
-test("HOTELS-MONDE-VOUCHER-01 : sendEvent déclenché conditionnellement (contactEmail)", () => {
-  assert.match(src, /if\s*\(result\.contactEmail\)/)
+test("HOTELS-MONDE-VOUCHER-01 : sendEvent déclenché conditionnellement (status confirmed + contactEmail)", () => {
+  // VOUCHER-STATUS-GUARD-01 — guard renforcé : status "confirmed" requis en plus
+  // de contactEmail (hôtels-monde peut retourner status="pending" si paiement différé).
+  assert.match(
+    src,
+    /if\s*\(result\.status\s*===\s*"confirmed"\s*&&\s*result\.contactEmail\)/,
+  )
 })
 
 // ─── Invariant 2 : protection .catch() ────────────────────────────────────

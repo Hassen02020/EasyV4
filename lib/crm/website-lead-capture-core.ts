@@ -36,6 +36,8 @@ export interface WebsiteLeadCaptureParams {
   sourcePage: string
   destination?: string | null
   intention: LeadIntention
+  /** UTM-CAPTURE-01 — valeur de ?campaign= ou ?utm_campaign= depuis l'URL d'atterrissage. Donnée analytique non fiable (fournie par le visiteur), jamais utilisée dans un calcul financier. */
+  campaignRef?: string | null
 }
 
 export interface WebsiteLeadCaptureResult {
@@ -61,6 +63,7 @@ export async function captureWebsiteLeadCore(
     sourcePage: params.sourcePage,
     destination: params.destination ?? null,
     intention: params.intention,
+    campaignRef: params.campaignRef ?? null,
   })
 
   await recordLeadOriginEventCore(tx, {

@@ -36,7 +36,6 @@ import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
-import { sendEvent } from "@/lib/inngest/client"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -465,27 +464,11 @@ async function runCreateGuestCarBooking(
       },
     )
 
-    // CAR-VOUCHER-01 — envoi email + PDF en arrière-plan (Inngest, fire-and-forget).
-    // Pas de await : un échec d'envoi ne doit jamais invalider la réservation B2C.
-    sendEvent("booking/car.confirmed", {
-      reservationId: result.reservationId,
-      publicRef: result.publicRef,
-      agencyId,
-      guestAccessToken: result.guestAccessToken,
-      customerEmail: input.driver.email ?? null,
-      customerName: `${input.driver.firstName} ${input.driver.lastName}`,
-      categoryName: result.categoryName ?? input.categoryId,
-      pickupLocationName: result.pickupLocationName ?? input.pickupLocationId,
-      dropoffLocationName:
-        result.dropoffLocationName ?? input.dropoffLocationId,
-      pickupAt: input.pickupAt,
-      dropoffAt: input.dropoffAt,
-      rentalDays: result.rentalDays,
-      insuranceLevel: input.insuranceLevel,
-      totalTnd: result.totalTnd,
-    }).catch((err) =>
-      console.error("[cars-guest] sendEvent booking/car.confirmed échoué", err),
-    )
+    // Cars B2C — réservation toujours status "pending" (paiement différé,
+    // aucune voie CB disponible actuellement). Le voucher PDF ne doit être
+    // envoyé qu'après confirmation réelle du paiement par l'équipe Easy2Book.
+    // sendEvent("booking/car.confirmed") à re-déclencher ICI dès qu'une voie
+    // card sera ajoutée, protégé par : if (isImmediatelyPaid) { ... }
 
     return {
       ok: true,

@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { usePathname } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
 import { CheckCircle2, Loader2, Mail } from "lucide-react"
@@ -33,6 +34,12 @@ export function LeadCaptureForm({
 }: LeadCaptureFormProps) {
   const t = useTranslations("Common")
   const pathname = usePathname()
+  // UTM-CAPTURE-01 — lit ?campaign= (Easy2Book natif) ou ?utm_campaign= (convention UTM standard).
+  const searchParams = useSearchParams()
+  const campaignRef =
+    searchParams.get("campaign") ??
+    searchParams.get("utm_campaign") ??
+    undefined
   const [firstName, setFirstName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -59,6 +66,7 @@ export function LeadCaptureForm({
       sourcePage: pathname,
       intention: "standard",
       website,
+      campaignRef,
     }
 
     submitLead(input)

@@ -36,6 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**Aucun** — CRM-360-LEAD-INFO-01 CLÔTURÉ (2026-10-10, commit `386d513`). Customer360Button dialog complété : section "Profil" (phone/email conditionnels, channel via CHANNEL_LABEL, productType via PRODUCT_LABEL 5 types, status via STATUS_LABEL 4 statuts, createdAt fr-FR) + section "Demande initiale" conditionnelle (data.lead.message). Ordre : Profil → Demande initiale → Note interne → Score → VIP → Réservations → Fidélité → Conversations. PRODUCT_LABEL + STATUS_LABEL ajoutés. 12/12 invariants statiques. Aucune migration (champs déjà présents dans Customer360.lead).
 **Aucun** — CRM-STAFF-LEAD-01 CLÔTURÉ (2026-10-10, commit `14996a4`). captureStaffLeadCore (createLeadCore → recordLeadOriginEventCore×2 role=channel+captured_by_user source="staff_manual_entry" rang 2) + Server Action createLead (assertSupportStaff, agencyId/userId session, validation firstName+CRM_CHANNELS) + CreateLeadDialog (/admin/support) + 13/13 invariants statiques. Aucune migration. Comble le gap CRM-NICHE-02 partiel : canaux offline (appel/email/instagram/messenger) désormais capturables par le staff.
 
 **Aucun** — RLS-CONSENT-FIX CLÔTURÉ (2026-10-10). Migration 0130 appliquée en production : `ALTER TABLE lead_consent_events FORCE ROW LEVEL SECURITY`. lead_consent_events alignée avec les 13 autres tables CRM (ENABLE + FORCE). Test rls-force-crm-01-live.test.ts étendu à 7 tables. PR créée sur branche claude/easy2book-v6-modernization-7gyb5v.
